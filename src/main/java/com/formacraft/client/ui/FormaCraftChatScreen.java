@@ -38,8 +38,6 @@ public class FormaCraftChatScreen extends Screen {
     private TextFieldWidget input;
     private final List<ChatMessage> messages = new ArrayList<>();
     private final List<String> materialLines = new ArrayList<>();
-    private int buildProgress = 0; // 0-100
-    private String buildStatus = "等待生成方案...";
     private int scrollOffsetLines = 0;
     private String sessionId = java.util.UUID.randomUUID().toString();
 
@@ -48,9 +46,16 @@ public class FormaCraftChatScreen extends Screen {
     private int windowWidth = 260;
     private int windowHeight = 200;
 
-    private boolean dragging = false;
+    private boolean windowDragging = false;
     private int dragOffsetX;
     private int dragOffsetY;
+
+    /**
+     * 检查是否正在拖动窗口
+     */
+    public boolean isWindowDragging() {
+        return windowDragging;
+    }
 
     public FormaCraftChatScreen() {
         super(Text.translatable("formacraft.chat.title"));
@@ -117,8 +122,6 @@ public class FormaCraftChatScreen extends Screen {
     private void resetSession() {
         messages.clear();
         materialLines.clear();
-        buildProgress = 0;
-        buildStatus = "等待生成方案...";
         scrollOffsetLines = 0;
         sessionId = java.util.UUID.randomUUID().toString();
     }
@@ -149,11 +152,7 @@ public class FormaCraftChatScreen extends Screen {
         materialLines.clear();
         materialLines.add("占位: 石头 x 128");
         materialLines.add("占位: 玻璃 x 32");
-        buildProgress = 0;
-        buildStatus = "正在建造...";
         autoBuilder.build(world, blueprint);
-        buildProgress = 100;
-        buildStatus = "建造完成";
 
         input.setText("");
     }
@@ -186,7 +185,7 @@ public class FormaCraftChatScreen extends Screen {
         int innerWidth = windowWidth - padding * 2;
         int innerHeight = windowHeight - titleBarHeight - padding * 2;
 
-        // 左右分栏：左侧聊天，右侧材料+进度
+        // 左右分栏：左侧聊天，右侧材料
         int rightPanelWidth = 90;
         int chatWidth = innerWidth - rightPanelWidth - 4;
         int chatHeight = innerHeight - 24;
@@ -215,7 +214,7 @@ public class FormaCraftChatScreen extends Screen {
             }
         }
 
-        // 右侧材料与进度面板
+        // 右侧材料面板
         int panelX = innerX + chatWidth + 4;
         int panelBg = 0x55222222;
         context.fill(panelX, innerY, panelX + rightPanelWidth, innerY + innerHeight, panelBg);
@@ -227,30 +226,59 @@ public class FormaCraftChatScreen extends Screen {
             context.drawText(this.textRenderer, line, panelX + 4, textY, 0xDDDDDD, false);
             textY += this.textRenderer.fontHeight + 1;
         }
-
-        textY += 4;
-        context.drawText(this.textRenderer, Text.translatable("formacraft.chat.progress"), panelX + 4, textY, 0xFFFFFF, false);
-        textY += this.textRenderer.fontHeight + 2;
-        // 简单进度条
-        int barWidth = rightPanelWidth - 8;
-        int barX = panelX + 4;
-        int barY = textY;
-        int barHeight = 6;
-        context.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF444444);
-        int filled = (int) (barWidth * (buildProgress / 100.0f));
-        if (filled > 0) {
-            context.fill(barX, barY, barX + filled, barY + barHeight, 0xFF00FF00);
-        }
-        textY += barHeight + 4;
-        context.drawText(this.textRenderer, buildStatus, panelX + 4, textY, 0xDDDDDD, false);
         
         // 调用父类方法渲染子控件（按钮、输入框等）
         super.render(context, mouseX, mouseY, delta);
     }
 
-    // 注意：在 Minecraft 1.21.10 中，鼠标事件处理方法的签名已更改
-    // 暂时移除拖动功能，确保控件可以正常显示
-    // TODO: 后续需要实现正确的鼠标事件处理以支持窗口拖动
+    /**
+     * 检查鼠标是否在标题栏区域（用于拖动窗口）
+     */
+    private boolean isMouseOverTitleBar(double mouseX, double mouseY) {
+        int titleBarHeight = 16;
+        return mouseX >= windowX && mouseX <= windowX + windowWidth
+                && mouseY >= windowY && mouseY <= windowY + titleBarHeight;
+    }
+
+    // 处理鼠标点击事件（不使用 @Override，因为方法签名在 Minecraft 1.21.10 中已改变）
+    // 通过 Mixin 来调用这些方法
+    public boolean handleMouseClick(double mouseX, double mouseY, int button) {
+        // 如果点击在标题栏，开始拖动
+        if (button == 0 && isMouseOverTitleBar(mouseX, mouseY)) {
+            windowDragging = true;
+            dragOffsetX = (int) (mouseX - windowX);
+            dragOffsetY = (int) (mouseY - windowY);
+            return true;
+        }
+        return false;
+    }
+
+    // 处理鼠标拖动事件
+    public boolean handleMouseDrag(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (windowDragging && button == 0) {
+            // 更新窗口位置
+            windowX = (int) (mouseX - dragOffsetX);
+            windowY = (int) (mouseY - dragOffsetY);
+            
+            // 限制窗口不超出屏幕边界
+            windowX = Math.max(0, Math.min(windowX, this.width - windowWidth));
+            windowY = Math.max(0, Math.min(windowY, this.height - windowHeight));
+            
+            // 更新控件位置
+            updateWidgetPositions();
+            return true;
+        }
+        return false;
+    }
+
+    // 处理鼠标释放事件
+    public boolean handleMouseRelease(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            windowDragging = false;
+            return true;
+        }
+        return false;
+    }
 
     @Override
     public boolean shouldPause() {

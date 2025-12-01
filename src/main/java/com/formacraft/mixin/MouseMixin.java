@@ -24,6 +24,10 @@ public class MouseMixin {
     @Shadow private double cursorDeltaY;
     @Unique
     private boolean isMiddleButtonPressed = false;
+    @Unique
+    private double lastMouseX = 0;
+    @Unique
+    private double lastMouseY = 0;
 
     // 视角移动灵敏度
     @Unique
@@ -33,6 +37,12 @@ public class MouseMixin {
     @Inject(method = "onCursorPos(JDD)V", at = @At("HEAD"))
     private void onCursorPos(long window, double x, double y, CallbackInfo ci) {
         if (client.currentScreen instanceof FormaCraftChatScreen screen) {
+            // 处理窗口拖动
+            if (screen.isWindowDragging()) {
+                double deltaX = x - lastMouseX;
+                double deltaY = y - lastMouseY;
+                screen.handleMouseDrag(x, y, 0, deltaX, deltaY);
+            }
 
             // 如果鼠标在UI外且正在按住中键，处理视角移动
             if (!screen.isMouseOverPanel(x, y) && isMiddleButtonPressed && client.player != null) {
@@ -46,6 +56,8 @@ public class MouseMixin {
                 );
             }
         }
+        lastMouseX = x;
+        lastMouseY = y;
     }
 
     // 在 Minecraft 1.21.10 中，onMouseButton 方法签名已改变：
@@ -54,9 +66,20 @@ public class MouseMixin {
     // MouseInput 可能是一个记录类（record），使用 button() 方法获取按钮
     @Inject(method = "onMouseButton", at = @At(value = "HEAD"))
     private void onMouseButton(long window, MouseInput mouseInput, int action, CallbackInfo ci) {
-        // 如果是鼠标中键，记录按下状态
-        // 从 MouseInput 中获取按钮信息（可能是 record 的访问器方法）
         int button = mouseInput.button();
+        
+        // 处理 FormaCraft 窗口拖动
+        if (client.currentScreen instanceof FormaCraftChatScreen screen) {
+            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                if (action == GLFW.GLFW_PRESS) {
+                    screen.handleMouseClick(client.mouse.getX(), client.mouse.getY(), 0);
+                } else if (action == GLFW.GLFW_RELEASE) {
+                    screen.handleMouseRelease(client.mouse.getX(), client.mouse.getY(), 0);
+                }
+            }
+        }
+        
+        // 如果是鼠标中键，记录按下状态
         if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
             if (action == GLFW.GLFW_PRESS) {
                 isMiddleButtonPressed = true;

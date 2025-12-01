@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Screen 相关的 Mixin
- * 用于处理 FormaCraft 窗口的鼠标检测
+ * 用于处理 FormaCraft 窗口的鼠标检测和拖动
  */
 @Mixin(Screen.class)
 public class ScreenMixin {
@@ -23,5 +23,9 @@ public class ScreenMixin {
             }
         }
     }
+
+    // 处理鼠标点击事件 - 在 Minecraft 1.21.10 中，方法签名可能包含 Click 类型
+    // 我们需要找到正确的方法签名，暂时使用反射或通过 MouseMixin 来处理
+    // 由于方法签名不确定，我们通过 MouseMixin 来处理鼠标事件
 }
 

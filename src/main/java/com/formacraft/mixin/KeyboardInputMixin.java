@@ -6,7 +6,6 @@ import net.minecraft.client.input.KeyboardInput;
 import net.minecraft.client.input.Input;
 import net.minecraft.util.PlayerInput;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -38,32 +37,67 @@ public class KeyboardInputMixin extends Input {
                 // 鼠标在UI外时，手动处理键盘输入，允许玩家移动
                 Window window = client.getWindow();
 
-                // 直接设置移动状态
-                this.movementForward = 0.0F;
-                this.movementSideways = 0.0F;
+                // 使用反射访问 Input 类中的字段（因为直接访问在 Minecraft 1.21.10 中可能不可用）
+                try {
+                    java.lang.reflect.Field movementForwardField = Input.class.getDeclaredField("movementForward");
+                    movementForwardField.setAccessible(true);
+                    java.lang.reflect.Field movementSidewaysField = Input.class.getDeclaredField("movementSideways");
+                    movementSidewaysField.setAccessible(true);
+                    java.lang.reflect.Field playerInputField = Input.class.getDeclaredField("playerInput");
+                    playerInputField.setAccessible(true);
 
-                // 检查按键并更新移动
-                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W)) this.movementForward += 1.0F;
-                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S)) this.movementForward -= 1.0F;
-                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D)) this.movementSideways -= 1.0F;
-                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A)) this.movementSideways += 1.0F;
+                    // 直接设置移动状态
+                    movementForwardField.setFloat(this, 0.0F);
+                    movementSidewaysField.setFloat(this, 0.0F);
 
-                // 更新玩家输入状态
-                boolean forward = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W);
-                boolean backward = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S);
-                boolean left = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A);
-                boolean right = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D);
-                boolean jump = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_SPACE);
-                boolean sneak = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_SHIFT);
-                boolean sprint = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL);
+                    // 检查按键并更新移动
+                    float forwardValue = 0.0F;
+                    float sidewaysValue = 0.0F;
+                    
+                    if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W)) forwardValue += 1.0F;
+                    if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S)) forwardValue -= 1.0F;
+                    if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D)) sidewaysValue -= 1.0F;
+                    if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A)) sidewaysValue += 1.0F;
 
-                // 更新 PlayerInput
-                this.playerInput = new PlayerInput(forward, backward, left, right, jump, sneak, sprint);
+                    movementForwardField.setFloat(this, forwardValue);
+                    movementSidewaysField.setFloat(this, sidewaysValue);
 
-                // 处理慢速移动
-                if (sneak) {
-                    this.movementSideways *= 0.3F;
-                    this.movementForward *= 0.3F;
+                    // 更新玩家输入状态
+                    boolean forward = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W);
+                    boolean backward = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S);
+                    boolean left = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A);
+                    boolean right = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D);
+                    boolean jump = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_SPACE);
+                    boolean sneak = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_SHIFT);
+                    boolean sprint = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL);
+
+                    // 更新 PlayerInput
+                    playerInputField.set(this, new PlayerInput(forward, backward, left, right, jump, sneak, sprint));
+
+                    // 处理慢速移动
+                    if (sneak) {
+                        float currentSideways = movementSidewaysField.getFloat(this);
+                        float currentForward = movementForwardField.getFloat(this);
+                        movementSidewaysField.setFloat(this, currentSideways * 0.3F);
+                        movementForwardField.setFloat(this, currentForward * 0.3F);
+                    }
+                } catch (Exception e) {
+                    // 如果反射失败，至少更新 PlayerInput
+                    boolean forward = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W);
+                    boolean backward = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S);
+                    boolean left = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A);
+                    boolean right = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D);
+                    boolean jump = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_SPACE);
+                    boolean sneak = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_SHIFT);
+                    boolean sprint = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL);
+                    
+                    try {
+                        java.lang.reflect.Field playerInputField = Input.class.getDeclaredField("playerInput");
+                        playerInputField.setAccessible(true);
+                        playerInputField.set(this, new PlayerInput(forward, backward, left, right, jump, sneak, sprint));
+                    } catch (Exception ex) {
+                        // 如果反射完全失败，不处理
+                    }
                 }
 
                 ci.cancel(); // 阻止原版处理，使用我们手动处理的输入
