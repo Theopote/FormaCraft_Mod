@@ -1,6 +1,8 @@
 package com.formacraft.common.item;
 
-import com.formacraft.client.event.InputEventHandler;
+import com.formacraft.client.ui.FormacraftUIState;
+import com.formacraft.client.ui.FormaCraftHudOverlay;
+import com.formacraft.client.ui.panel.PanelType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.util.ActionResult;
@@ -15,10 +17,14 @@ public class FormaCraftToolItem extends Item {
 
     @Override
     public ActionResult use(World world, PlayerEntity user, Hand hand) {
-        if (!world.isClient()) {
-            return ActionResult.SUCCESS;
+        if (world.isClient()) {
+            // 切换 UI 状态
+            FormacraftUIState.toggle();
+            // 如果打开，默认显示聊天面板
+            if (FormacraftUIState.isOpen) {
+                FormaCraftHudOverlay.activePanel = PanelType.CHAT;
+            }
         }
-        InputEventHandler.openChatScreen();
         return ActionResult.SUCCESS;
     }
 }

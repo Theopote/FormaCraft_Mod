@@ -18,6 +18,12 @@
     "main": [
       "com.formacraft.FormacraftMod"
     ],
+    "client": [
+      "com.formacraft.client.ClientInitializer"
+    ],
+    "server": [
+      "com.formacraft.server.ServerInitializer"
+    ],
     "fabric-datagen": [
       "com.formacraft.FormacraftDataGenerator"
     ]

@@ -29,8 +29,12 @@ public class ModPacket {
     }
 
     public static void registerServer() {
-        // 注册数据包类型
+        // 注册旧的数据包类型（保持兼容）
         PayloadTypeRegistry.playC2S().register(SyncPayload.ID, SyncPayload.CODEC);
+        
+        // 注册新的建筑请求数据包
+        PayloadTypeRegistry.playC2S().register(BuildRequestPacket.ID, BuildRequestPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(BuildResponsePacket.ID, BuildResponsePacket.CODEC);
         
         // 注册全局接收器
         ServerPlayNetworking.registerGlobalReceiver(SyncPayload.ID, (payload, context) -> {
@@ -38,6 +42,13 @@ public class ModPacket {
             // context.player() 获取玩家
             // context.server() 获取服务器
         });
+        
+        // 注册建筑请求数据包接收器
+        ServerPlayNetworking.registerGlobalReceiver(BuildRequestPacket.ID, 
+                (payload, context) -> {
+                    // 在 BuildRequestHandler 中处理
+                    BuildRequestHandler.handle(payload, context.player(), context.responseSender());
+                });
     }
 
     public static void sendToServer(PacketByteBuf buf) {

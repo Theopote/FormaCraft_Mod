@@ -5,9 +5,8 @@
 	"mixins": [
 	],
 	"client": [
-		"MouseMixin",
-		"KeyboardInputMixin",
-		"ScreenMixin"
+		"KeyboardMixin",
+		"MouseMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
