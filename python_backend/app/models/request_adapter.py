@@ -1,0 +1,133 @@
+"""
+请求适配器：将 Java 端的 FormaRequest JSON 转换为 Python 的 BuildRequest
+因为 Java 端可能使用不同的字段名（如 requestText vs request）
+"""
+from typing import Optional
+from pydantic import BaseModel
+
+from .request import BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i
+
+
+class FormaRequestAdapter(BaseModel):
+    """
+    适配 Java 端的 FormaRequest 结构
+    Java 端使用扁平结构：requestText, playerPos, facing, dimension, biome, selectionMin, selectionMax
+    需要转换为 Python 端的嵌套结构：player, world, selection, requestText
+    """
+    # Java 端格式（扁平结构）
+    requestText: Optional[str] = None
+    playerPos: Optional[dict] = None  # BlockPos 序列化为 {"x": 100, "y": 64, "z": 200}
+    facing: Optional[str] = None
+    dimension: Optional[str] = None
+    biome: Optional[str] = None
+    selectionMin: Optional[dict] = None  # BlockPos 序列化
+    selectionMax: Optional[dict] = None  # BlockPos 序列化
+    sessionId: Optional[str] = None
+    chatHistory: Optional[list[str]] = None
+    
+    # Python 端格式（嵌套结构，向后兼容）
+    player: Optional[dict] = None
+    world: Optional[dict] = None
+    request: Optional[str] = None
+    selection: Optional[dict] = None
+    
+    def to_build_request(self) -> BuildRequest:
+        """转换为标准的 BuildRequest"""
+        # 优先使用 Java 端的扁平格式
+        if self.requestText or (self.playerPos is not None):
+            # Java 端格式：从扁平结构构建嵌套结构
+            if not self.playerPos:
+                # 如果没有 playerPos，尝试从 player 中获取
+                if self.player and isinstance(self.player, dict):
+                    player_pos_data = self.player.get("pos")
+                    if isinstance(player_pos_data, dict):
+                        player_pos = Vec3i(**player_pos_data)
+                    elif isinstance(player_pos_data, list) and len(player_pos_data) == 3:
+                        player_pos = Vec3i(x=player_pos_data[0], y=player_pos_data[1], z=player_pos_data[2])
+                    else:
+                        player_pos = Vec3i(x=0, y=64, z=0)
+                else:
+                    player_pos = Vec3i(x=0, y=64, z=0)
+            else:
+                # playerPos 是字典 {"x": 100, "y": 64, "z": 200}
+                player_pos = Vec3i(**self.playerPos)
+            
+            player_info = PlayerInfo(
+                name="Player",  # Java 端可能没有传 name
+                pos=player_pos,
+                facing=self.facing or "NORTH"
+            )
+            
+            world_context = WorldContext(
+                dimension=self.dimension or "minecraft:overworld",
+                biome=self.biome
+            )
+            
+            selection_obj = None
+            if self.selectionMin and self.selectionMax:
+                # selectionMin 和 selectionMax 是字典 {"x": 90, "y": 64, "z": 190}
+                selection_obj = Selection(
+                    min=Vec3i(**self.selectionMin),
+                    max=Vec3i(**self.selectionMax)
+                )
+            
+            return BuildRequest(
+                player=player_info,
+                world=world_context,
+                selection=selection_obj,
+                requestText=self.requestText or "",
+                sessionId=self.sessionId,
+                chatHistory=self.chatHistory
+            )
+        else:
+            # Python 端格式：从嵌套结构构建
+            if not self.player or not self.world or not self.request:
+                raise ValueError("player, world, and request are required")
+            
+            # 处理 player
+            player_pos_data = self.player.get("pos")
+            if isinstance(player_pos_data, dict):
+                player_pos = Vec3i(**player_pos_data)
+            elif isinstance(player_pos_data, list) and len(player_pos_data) == 3:
+                player_pos = Vec3i(x=player_pos_data[0], y=player_pos_data[1], z=player_pos_data[2])
+            else:
+                player_pos = Vec3i(x=0, y=64, z=0)
+            
+            player_info = PlayerInfo(
+                name=self.player.get("name", "Player"),
+                pos=player_pos,
+                facing=self.player.get("facing", "NORTH")
+            )
+            
+            # 处理 world
+            world_context = WorldContext(
+                dimension=self.world.get("dimension", "minecraft:overworld"),
+                biome=self.world.get("biome")
+            )
+            
+            # 处理 selection
+            selection_obj = None
+            if self.selection:
+                min_data = self.selection.get("min")
+                max_data = self.selection.get("max")
+                if isinstance(min_data, dict) and isinstance(max_data, dict):
+                    selection_obj = Selection(
+                        min=Vec3i(**min_data),
+                        max=Vec3i(**max_data)
+                    )
+                elif isinstance(min_data, list) and isinstance(max_data, list) and \
+                     len(min_data) == 3 and len(max_data) == 3:
+                    selection_obj = Selection(
+                        min=Vec3i(x=min_data[0], y=min_data[1], z=min_data[2]),
+                        max=Vec3i(x=max_data[0], y=max_data[1], z=max_data[2])
+                    )
+            
+            return BuildRequest(
+                player=player_info,
+                world=world_context,
+                selection=selection_obj,
+                requestText=self.request,
+                sessionId=self.sessionId,
+                chatHistory=self.chatHistory
+            )
+

@@ -1,0 +1,52 @@
+package com.formacraft.client.ui;
+
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+
+/**
+ * 输入事件处理器
+ * 处理鼠标和键盘输入，传递给 HUD Overlay
+ */
+@Environment(EnvType.CLIENT)
+public class InputEventHandler {
+    
+    public static void register() {
+        // 注册客户端 Tick 事件来处理输入
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // 确保光标状态正确
+            FormacraftUIState.ensureCursorState();
+            
+            if (client.currentScreen != null) {
+                // 如果有全屏 Screen，不处理 HUD 输入
+                return;
+            }
+            
+            // 处理鼠标点击
+            if (client.mouse.wasLeftButtonClicked()) {
+                double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
+                double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
+                FormaCraftHudOverlay.handleMouseClick(mouseX, mouseY, 0);
+            }
+            
+            // 处理键盘输入（通过 Mixin 或事件系统）
+            // 注意：Minecraft 的键盘输入通常通过 Screen 处理
+            // 对于 HUD Overlay，我们需要特殊处理
+        });
+    }
+    
+    /**
+     * 处理键盘按键（从 Mixin 或 KeyBinding 调用）
+     */
+    public static boolean handleKeyPress(int keyCode, int scanCode, int modifiers) {
+        return FormaCraftHudOverlay.handleKeyPress(keyCode, scanCode, modifiers);
+    }
+    
+    /**
+     * 处理字符输入（从 Mixin 或 KeyBinding 调用）
+     */
+    public static boolean handleCharTyped(char chr, int modifiers) {
+        return FormaCraftHudOverlay.handleCharTyped(chr, modifiers);
+    }
+}
+
