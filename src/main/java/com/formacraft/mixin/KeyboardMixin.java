@@ -101,16 +101,15 @@ public class KeyboardMixin {
                     }
                     
                     // 如果是按下事件，交给面板处理
-                    if (action == 1 || action < 0) {
-                        if (scanCode >= 0) {
-                            InputRouter.keyPressed(key, scanCode, modifiers);
-                        } else {
-                            InputRouter.keyPressed(key, 0, modifiers);
-                        }
+                    if (scanCode >= 0) {
+                        InputRouter.keyPressed(key, scanCode, modifiers);
+                    } else {
+                        InputRouter.keyPressed(key, 0, modifiers);
                     }
                 }
                 // 无论什么 action，都阻止原版处理
                 ci.cancel();
+                return;
             }
             // 如果鼠标在面板外，不拦截，允许正常游戏操作
         } catch (Exception e) {

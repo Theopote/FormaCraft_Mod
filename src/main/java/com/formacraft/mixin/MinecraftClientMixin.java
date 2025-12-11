@@ -21,6 +21,7 @@ public class MinecraftClientMixin {
      */
     @Inject(method = "handleInputEvents", at = @At("HEAD"), cancellable = true)
     private void onHandleInputEvents(CallbackInfo ci) {
+        @SuppressWarnings("resource")
         MinecraftClient client = (MinecraftClient) (Object) this;
         
         // 如果 UI 未打开或有 Screen，不处理
