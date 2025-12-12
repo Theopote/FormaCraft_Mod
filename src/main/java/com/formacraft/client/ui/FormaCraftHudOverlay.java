@@ -72,18 +72,7 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
         // 建造确认浮层（居中显示）
         BUILD_CONFIRM_PANEL.render(context);
     }
-    
-    /**
-     * 切换面板
-     */
-    public static void switchPanel(PanelType panel) {
-        if (activePanel == panel) {
-            // 如果点击当前面板，则隐藏
-            activePanel = PanelType.NONE;
-        } else {
-            activePanel = panel;
-        }
-    }
+
     
     /**
      * 显示/隐藏 UI（已废弃，使用 FormacraftUIState.toggle()）
@@ -115,13 +104,13 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                 case HISTORY -> {
                     if (HISTORY_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
-                case NONE -> {} // 无操作
+                // 无操作
             }
         }
         
         // 确认面板点击
         if (BUILD_CONFIRM_PANEL.isVisible()) {
-            if (BUILD_CONFIRM_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+            return BUILD_CONFIRM_PANEL.mouseClicked(mouseX, mouseY, button);
         }
         
         return false;
@@ -152,7 +141,7 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                     HISTORY_PANEL.keyPressed(keyCode);
                     return true;
                 }
-                case NONE -> {} // 无操作
+                // 无操作
             }
         }
         
@@ -184,7 +173,7 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                     HISTORY_PANEL.charTyped(chr);
                     return true;
                 }
-                case NONE -> {} // 无操作
+                // 无操作
             }
         }
         

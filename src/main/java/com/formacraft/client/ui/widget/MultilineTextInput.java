@@ -413,7 +413,8 @@ public class MultilineTextInput {
                 i <= Math.max(selLineStart, selLineEnd)) {
                 drawLineWithSelection(ctx, line, i, drawY, lineHeight);
             } else {
-                ctx.drawText(client.textRenderer, line, x + 4, drawY, 0xFFFFFF, false);
+                // 使用 drawTextWithShadow 让文字更清晰可见
+                ctx.drawTextWithShadow(client.textRenderer, line, x + 4, drawY, 0xFFFFFFFF);
             }
         }
 
@@ -452,15 +453,15 @@ public class MultilineTextInput {
             
             // 绘制文本（分三段）
             if (sc > 0) {
-                ctx.drawText(client.textRenderer, line.substring(0, sc), x + 4, drawY, 0xFFFFFF, false);
+                ctx.drawTextWithShadow(client.textRenderer, line.substring(0, sc), x + 4, drawY, 0xFFFFFFFF);
             }
             if (ec > sc) {
                 int selStartX = x + 4 + client.textRenderer.getWidth(line.substring(0, sc));
-                ctx.drawText(client.textRenderer, line.substring(sc, ec), selStartX, drawY, 0xFFFFFFFF, false);
+                ctx.drawTextWithShadow(client.textRenderer, line.substring(sc, ec), selStartX, drawY, 0xFFFFFFFF);
             }
             if (ec < lineLen) {
                 int selEndX = x + 4 + client.textRenderer.getWidth(line.substring(0, ec));
-                ctx.drawText(client.textRenderer, line.substring(ec), selEndX, drawY, 0xFFFFFF, false);
+                ctx.drawTextWithShadow(client.textRenderer, line.substring(ec), selEndX, drawY, 0xFFFFFFFF);
             }
         } else if (lineIndex == sl) {
             // 选区开始行
@@ -468,11 +469,11 @@ public class MultilineTextInput {
             ctx.fill(startX, drawY, x + width - 4, drawY + lineHeight, 0x5533AAFF);
             
             if (sc > 0) {
-                ctx.drawText(client.textRenderer, line.substring(0, sc), x + 4, drawY, 0xFFFFFF, false);
+                ctx.drawTextWithShadow(client.textRenderer, line.substring(0, sc), x + 4, drawY, 0xFFFFFFFF);
             }
             if (sc < lineLen) {
                 int selStartX = x + 4 + client.textRenderer.getWidth(line.substring(0, sc));
-                ctx.drawText(client.textRenderer, line.substring(sc), selStartX, drawY, 0xFFFFFFFF, false);
+                ctx.drawTextWithShadow(client.textRenderer, line.substring(sc), selStartX, drawY, 0xFFFFFFFF);
             }
         } else if (lineIndex == el) {
             // 选区结束行
@@ -480,19 +481,19 @@ public class MultilineTextInput {
             ctx.fill(x + 4, drawY, endX, drawY + lineHeight, 0x5533AAFF);
             
             if (ec > 0) {
-                ctx.drawText(client.textRenderer, line.substring(0, ec), x + 4, drawY, 0xFFFFFFFF, false);
+                ctx.drawTextWithShadow(client.textRenderer, line.substring(0, ec), x + 4, drawY, 0xFFFFFFFF);
             }
             if (ec < lineLen) {
                 int selEndX = x + 4 + client.textRenderer.getWidth(line.substring(0, ec));
-                ctx.drawText(client.textRenderer, line.substring(ec), selEndX, drawY, 0xFFFFFF, false);
+                ctx.drawTextWithShadow(client.textRenderer, line.substring(ec), selEndX, drawY, 0xFFFFFFFF);
             }
         } else if (lineIndex > sl && lineIndex < el) {
             // 选区中间行（整行高亮）
             ctx.fill(x + 4, drawY, x + width - 4, drawY + lineHeight, 0x5533AAFF);
-            ctx.drawText(client.textRenderer, line, x + 4, drawY, 0xFFFFFFFF, false);
+            ctx.drawTextWithShadow(client.textRenderer, line, x + 4, drawY, 0xFFFFFFFF);
         } else {
             // 无选区部分
-            ctx.drawText(client.textRenderer, line, x + 4, drawY, 0xFFFFFF, false);
+            ctx.drawTextWithShadow(client.textRenderer, line, x + 4, drawY, 0xFFFFFFFF);
         }
     }
 }

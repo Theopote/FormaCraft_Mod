@@ -57,8 +57,8 @@ public class ChatPanel extends BasePanel {
     // 对于结构化消息（如 BuildingSpec）
     private BuildingSpec streamingSpec = null;
 
-    // Padding
-    private static final int PADDING = 8;
+    // Padding（减小边距）
+    private static final int PADDING = 2;
 
     public ChatPanel() {
         // 初始输入框，在第一次 render 时会根据当前面板尺寸重新 setBounds
@@ -84,13 +84,12 @@ public class ChatPanel extends BasePanel {
         // 输入区域高度（根据字体大小动态调整）
         int inputAreaHeight = getInputHeight();
         int chatAreaBottom = innerY + innerH - inputAreaHeight - 4;
-        int chatAreaTop = innerY;
 
-        // 绘制聊天区域背景
-        ctx.fill(innerX, chatAreaTop, innerX + innerW, chatAreaBottom, 0x55222222);
+        // 绘制聊天区域背景（更透明）
+        ctx.fill(innerX, innerY, innerX + innerW, chatAreaBottom, 0x551A1A1A);
 
         // 绘制消息（自下而上）
-        drawMessages(ctx, innerX, chatAreaTop, innerW, chatAreaBottom, lineHeight, fontScale);
+        drawMessages(ctx, innerX, innerY, innerW, chatAreaBottom, lineHeight, fontScale);
 
         // 渲染"正在思考…"动画
         if (aiThinking && streamingTarget == null) {
@@ -113,6 +112,9 @@ public class ChatPanel extends BasePanel {
         // 绘制输入框背景 + 输入框 + 发送按钮
         int inputY = chatAreaBottom + 6;
         drawInputArea(ctx, innerX, inputY, innerW, inputAreaHeight);
+        
+        // 在输入区域上方绘制分隔线（参考 Quick Settings 样式）
+        ctx.fill(innerX, chatAreaBottom, innerX + innerW, chatAreaBottom + 1, 0x66FFFFFF);
     }
 
     /**
@@ -244,23 +246,23 @@ public class ChatPanel extends BasePanel {
      * 绘制输入区域（多行输入框 + Send 按钮）
      */
     private void drawInputArea(DrawContext ctx, int innerX, int inputY, int innerW, int inputAreaHeight) {
-        // 背景
-        ctx.fill(innerX, inputY, innerX + innerW, inputY + inputAreaHeight, 0xCC000000);
+        // 背景（更透明）
+        ctx.fill(innerX, inputY, innerX + innerW, inputY + inputAreaHeight, 0x881A1A1A);
 
         int btnWidth = 56;
         int btnHeight = 20;
         int btnX = innerX + innerW - btnWidth - 4;
         int btnY = inputY + inputAreaHeight - btnHeight - 4;
 
-        // 发送按钮背景
-        ctx.fill(btnX, btnY, btnX + btnWidth, btnY + btnHeight, 0xFF444444);
-        ctx.drawCenteredTextWithShadow(
-                client.textRenderer,
-                Text.translatable("formacraft.chat.send"),
-                btnX + btnWidth / 2,
-                btnY + 6,
-                0xFFFFFFFF
-        );
+        // 检查鼠标是否悬停在按钮上
+        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
+        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
+        boolean hovered = mouseX >= btnX && mouseX <= btnX + btnWidth && 
+                         mouseY >= btnY && mouseY <= btnY + btnHeight;
+        
+        // 使用 Minecraft 风格的按钮
+        drawMinecraftButton(ctx, btnX, btnY, btnWidth, btnHeight, 
+                           Text.translatable("formacraft.chat.send"), hovered);
 
         // 输入框区域（根据字体大小调整高度）
         int inputBoxX = innerX + 4;
@@ -366,13 +368,13 @@ public class ChatPanel extends BasePanel {
         inputBox.setFocused(true);
 
         // Backspace
-        if (keyCode == GLFW.GLFW_KEY_BACKSPACE || keyCode == 259) {
+        if (keyCode == 259) {
             inputBox.backspace();
             return;
         }
 
         // Enter 键（KeyCode 257 是 GLFW_KEY_ENTER）
-        if (keyCode == 257 || keyCode == GLFW.GLFW_KEY_ENTER) {
+        if (keyCode == GLFW.GLFW_KEY_ENTER) {
             // 检查 Shift 键
             boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
             if (shift) {
@@ -441,7 +443,7 @@ public class ChatPanel extends BasePanel {
                         // 这里暂时为 null，后续可以根据实际需求转换
                     }
                     
-                    startStreamingAIMessage(result.getRawResponse(), spec);
+                    startStreamingAIMessage(result.getRawResponse(), null);
 
                     // 规划 & 自动建造（延续你现有流程）
                     BuildingBlueprint blueprint = planner.plan(request, result);
@@ -531,10 +533,10 @@ public class ChatPanel extends BasePanel {
             }
 
             // 当 streamingBuffer 有内容 → 动态显示
-            if (streamingBuffer.length() > 0) {
+            if (!streamingBuffer.isEmpty()) {
                 // 最后一个消息是否是 AI 的 partial？
-                if (!messages.isEmpty() && !messages.get(messages.size() - 1).fromPlayer
-                        && messages.get(messages.size() - 1).type == ChatMessage.MessageType.STREAMING) {
+                if (!messages.isEmpty() && !messages.getLast().fromPlayer
+                        && messages.getLast().type == ChatMessage.MessageType.STREAMING) {
                     // 更新现有的流式消息
                     messages.set(messages.size() - 1,
                         ChatMessage.streaming(streamingBuffer.toString(), streamingSpec)
@@ -554,7 +556,7 @@ public class ChatPanel extends BasePanel {
 
                 // 将 STREAMING 类型转为 TEXT 或 SPEC
                 if (!messages.isEmpty()) {
-                    ChatMessage last = messages.get(messages.size() - 1);
+                    ChatMessage last = messages.getLast();
                     ChatMessage finalMsg;
 
                     if (finalSpec != null) {

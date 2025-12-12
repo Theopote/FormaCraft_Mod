@@ -4,187 +4,155 @@ import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.panel.BasePanel;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.MinecraftClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * 输入转发中心（HUD 模式）
- * 统一处理面板区域的输入事件，转发给当前激活的 Panel
- * 根据鼠标位置判断是否在面板内，面板内完全拦截，面板外允许正常游戏操作
+ * 输入路由中心（HUD 模式）
+ *
+ * 负责处理：
+ * - 面板内：鼠标、键盘全部进入 UI
+ * - 面板外：恢复原版游戏交互
+ * - 中键按住时允许转动视角
+ * - 不锁定鼠标，不使用 Screen
  */
 public class InputRouter {
 
-    /**
-     * 获取当前激活的面板
-     */
-    private static BasePanel getActivePanel() {
-        if (!FormacraftUIState.isOpen) {
-            return null;
-        }
-        
+    private static final Logger LOGGER = LoggerFactory.getLogger("FormaCraft-InputRouter");
+    private static final MinecraftClient client = MinecraftClient.getInstance();
+
+    // 最新鼠标位置，由 MouseMixin 更新
+    private static double mouseX;
+    private static double mouseY;
+
+    public static boolean leftDown = false;
+    public static boolean rightDown = false;
+    public static boolean middleDown = false;
+
+    /** 更新鼠标位置（来自 MouseMixin） */
+    public static void updateMouse(double x, double y) {
+        mouseX = x;
+        mouseY = y;
+    }
+
+    /** 获取当前面板 */
+    private static BasePanel getPanel() {
+        if (!FormacraftUIState.isOpen) return null;
         return switch (FormaCraftHudOverlay.activePanel) {
             case CHAT -> FormaCraftHudOverlay.CHAT_PANEL;
             case BLUEPRINT -> FormaCraftHudOverlay.BLUEPRINT_PANEL;
             case SETTINGS -> FormaCraftHudOverlay.SETTINGS_PANEL;
             case HISTORY -> FormaCraftHudOverlay.HISTORY_PANEL;
-            case NONE -> null;
+            default -> null;
         };
     }
-    
-    /**
-     * 检查鼠标是否在面板内
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @return 是否在面板内
-     */
-    public static boolean isMouseInsidePanel(double mouseX, double mouseY) {
+
+    /** 是否在 UI 区域内 */
+    public static boolean isMouseInsideUI(double x, double y) {
         if (!FormacraftUIState.isOpen) return false;
-        BasePanel panel = getActivePanel();
+
+        BasePanel panel = getPanel();
         if (panel == null) return false;
-        return panel.isMouseOver(mouseX, mouseY);
-    }
-    
-    /**
-     * 检查是否应该阻止 Minecraft 控制（面板内时）
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @return 是否应该阻止
-     */
-    public static boolean shouldBlockMCControls(double mouseX, double mouseY) {
-        return FormacraftUIState.isOpen && isMouseInsidePanel(mouseX, mouseY);
+
+        panel.ensureLayout();
+
+        boolean inside = panel.isInteractiveArea(x, y);
+
+        LOGGER.debug("[InputRouter] mouse={},{} insideUI={}", x, y, inside);
+
+        return inside;
     }
 
-    /**
-     * 处理鼠标点击
-     * @param mouseX 鼠标 X 坐标（屏幕坐标）
-     * @param mouseY 鼠标 Y 坐标（屏幕坐标）
-     * @param button 鼠标按钮（0=左键, 1=右键, 2=中键）
-     * @return 是否已处理（true = 阻止原版处理）
-     */
-    public static boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // 如果 UI 未打开，不处理
-        if (!FormacraftUIState.isOpen) {
-            return false;
-        }
-        
-        // 1. 如果确认面板开启，优先交给它处理
-        if (BuildConfirmPanel.INSTANCE.isVisible()) {
-            boolean consumed = BuildConfirmPanel.INSTANCE.mouseClicked(mouseX, mouseY, button);
-            if (consumed) return true;
-        }
-        
-        // 2. 检查鼠标是否在面板内
-        BasePanel panel = getActivePanel();
-        if (panel != null && isMouseInsidePanel(mouseX, mouseY)) {
-            // 鼠标在面板内，完全拦截
-            panel.mouseClicked(mouseX, mouseY, button);
-            return true; // 无论面板是否处理，都阻止点击影响游戏
-        }
-
-        // 3. 鼠标在面板外，不拦截（允许正常游戏操作）
-        return false;
+    public static boolean isMouseInsideUI() {
+        return isMouseInsideUI(mouseX, mouseY);
     }
 
-    /**
-     * 处理鼠标滚轮
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param amount 滚动量
-     * @return 是否已处理
-     */
-    public static boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        // 如果 UI 未打开，不处理
-        if (!FormacraftUIState.isOpen) {
-            return false;
+    /** 鼠标点击事件 */
+    public static boolean onMouseClick(double x, double y, int button, int action) {
+        if (!FormacraftUIState.isOpen) return false;
+
+        switch (button) {
+            case 0 -> leftDown = (action == 1);
+            case 1 -> rightDown = (action == 1);
+            case 2 -> middleDown = (action == 1);
         }
-        
-        // 如果确认面板开启，直接消费滚轮事件
-        if (BuildConfirmPanel.INSTANCE.isVisible()) {
+
+        if (action != 1) return false;
+
+        boolean inside = isMouseInsideUI(x, y);
+
+        if (inside) {
+            // BuildConfirmPanel 永远优先
+            if (BuildConfirmPanel.INSTANCE.isVisible()) {
+                if (BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button)) return true;
+            }
+
+            BasePanel panel = getPanel();
+            if (panel != null) panel.mouseClicked(x, y, button);
+
             return true;
         }
-        
-        // 检查鼠标是否在面板内
-        BasePanel panel = getActivePanel();
-        if (panel != null && isMouseInsidePanel(mouseX, mouseY)) {
-            // 鼠标在面板内，完全拦截
-            panel.mouseScrolled(mouseX, mouseY, amount);
-            return true; // 阻止滚轮影响游戏
-        }
 
-        // 鼠标在面板外，不拦截（允许正常游戏操作）
-        return false;
+        return false; // 游戏继续处理
     }
 
-    /**
-     * 处理键盘按键
-     * @param keyCode 按键代码
-     * @param scanCode 扫描代码
-     * @param modifiers 修饰符
-     * @return 是否已处理
-     */
-    public static boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // 如果 UI 未打开，不处理
-        if (!FormacraftUIState.isOpen) {
-            return false;
-        }
-        
-        // 1. 如果确认面板开启，优先交给它处理
-        if (BuildConfirmPanel.INSTANCE.isVisible()) {
-            boolean consumed = BuildConfirmPanel.INSTANCE.keyPressed(keyCode);
-            if (consumed) return true;
-        }
-        
-        // ESC 不拦截，交给游戏（打开菜单）
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            return false;
-        }
-        
-        // 2. 获取鼠标位置，判断是否在面板内
-        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
-        
-        // 3. 如果鼠标在面板内，交给面板处理（输入文字）
-        BasePanel panel = getActivePanel();
-        if (panel != null && isMouseInsidePanel(mouseX, mouseY)) {
-            panel.keyPressed(keyCode, scanCode, modifiers);
-            return true; // 拦截按键，防止影响游戏
-        }
+    /** 滚轮事件 */
+    public static boolean onMouseScroll(double x, double y, double amount) {
+        if (!FormacraftUIState.isOpen) return false;
+        boolean inside = isMouseInsideUI(x, y);
 
-        // 4. 如果鼠标在面板外，不拦截（允许正常移动）
-        return false;
-    }
-
-    /**
-     * 处理字符输入
-     * @param chr 输入的字符
-     * @param modifiers 修饰符
-     * @return 是否已处理
-     */
-    public static boolean charTyped(char chr, int modifiers) {
-        // 如果 UI 未打开，不处理
-        if (!FormacraftUIState.isOpen) {
-            return false;
-        }
-        
-        // 如果确认面板开启，不接受字符输入
-        if (BuildConfirmPanel.INSTANCE.isVisible()) {
+        if (inside) {
+            BasePanel panel = getPanel();
+            if (panel != null) panel.mouseScrolled(x, y, amount);
             return true;
         }
-        
-        // 获取鼠标位置，判断是否在面板内
-        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
-        
-        // 如果鼠标在面板内，交给面板处理（输入文字）
-        BasePanel panel = getActivePanel();
-        if (panel != null && isMouseInsidePanel(mouseX, mouseY)) {
-            panel.charTyped(chr);
-            return true; // 拦截字符输入，防止影响游戏
-        }
 
-        // 如果鼠标在面板外，不拦截（允许正常输入）
         return false;
     }
+
+    /** 键盘事件 */
+    public static boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!FormacraftUIState.isOpen) return false;
+
+        // ESC 保留给原版
+        if (keyCode == 256) return false;
+
+        boolean inside = isMouseInsideUI();
+
+        if (inside) {
+            // BuildConfirmPanel 优先
+            if (BuildConfirmPanel.INSTANCE.isVisible()) {
+                if (BuildConfirmPanel.INSTANCE.keyPressed(keyCode)) return true;
+            }
+
+            BasePanel panel = getPanel();
+            if (panel != null) {
+                panel.keyPressed(keyCode, scanCode, modifiers);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** 字符输入事件 */
+    public static boolean onCharTyped(char chr, int modifiers) {
+        if (!FormacraftUIState.isOpen) return false;
+
+        boolean inside = isMouseInsideUI();
+
+        if (inside) {
+            BasePanel panel = getPanel();
+            if (panel != null) {
+                panel.charTyped(chr);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static double getMouseX() { return mouseX; }
+    public static double getMouseY() { return mouseY; }
 }
-

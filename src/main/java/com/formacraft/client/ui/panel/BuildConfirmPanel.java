@@ -236,25 +236,21 @@ public class BuildConfirmPanel {
         int confirmX = centerX - btnW - spacing / 2;
         int cancelX = centerX + spacing / 2;
         
+        // 检查鼠标位置（用于悬停效果）
+        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
+        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
+        
         // 确认按钮
-        context.fill(confirmX, btnY, confirmX + btnW, btnY + 20, 0xFF338833);
-        context.drawCenteredTextWithShadow(
-                client.textRenderer,
-                Text.translatable("formacraft.preview.confirm"),
-                confirmX + btnW / 2,
-                btnY + 6,
-                0xFFFFFFFF
-        );
+        boolean confirmHovered = mouseX >= confirmX && mouseX <= confirmX + btnW && 
+                                 mouseY >= btnY && mouseY <= btnY + 20;
+        BasePanel.drawMinecraftButton(context, client, confirmX, btnY, btnW, 20, 
+                           Text.translatable("formacraft.preview.confirm"), confirmHovered);
         
         // 取消按钮
-        context.fill(cancelX, btnY, cancelX + btnW, btnY + 20, 0xFF883333);
-        context.drawCenteredTextWithShadow(
-                client.textRenderer,
-                Text.translatable("formacraft.preview.cancel"),
-                cancelX + btnW / 2,
-                btnY + 6,
-                0xFFFFFFFF
-        );
+        boolean cancelHovered = mouseX >= cancelX && mouseX <= cancelX + btnW && 
+                               mouseY >= btnY && mouseY <= btnY + 20;
+        BasePanel.drawMinecraftButton(context, client, cancelX, btnY, btnW, 20, 
+                           Text.translatable("formacraft.preview.cancel"), cancelHovered);
     }
     
     /** 鼠标点击处理。返回 true 表示事件已被消费。 */

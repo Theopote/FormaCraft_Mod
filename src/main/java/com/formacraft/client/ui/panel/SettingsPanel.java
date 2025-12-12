@@ -91,11 +91,7 @@ public class SettingsPanel extends BasePanel {
         if (hideKey) {
             // 生成星号字符串
             int len = Math.max(0, apiKeyInput.length());
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < len; i++) {
-                sb.append("*");
-            }
-            shown = sb.toString();
+            shown = "*".repeat(len);
         } else {
             shown = apiKeyInput;
         }
@@ -152,15 +148,14 @@ public class SettingsPanel extends BasePanel {
         y += 12;
 
         float temp = SettingsConfig.INSTANCE.temperature;
-        int sliderW = w;
         int barY = y + 7;
 
         // 背景条
-        ctx.fill(x, barY, x + sliderW, barY + 4, 0x55222222);
+        ctx.fill(x, barY, x + w, barY + 4, 0x55222222);
 
         // 指示器（0.0 → 1.0）
-        int knobX = x + (int) (temp * sliderW);
-        knobX = Math.max(x + 2, Math.min(x + sliderW - 2, knobX));
+        int knobX = x + (int) (temp * w);
+        knobX = Math.max(x + 2, Math.min(x + w - 2, knobX));
         ctx.fill(knobX - 2, barY - 3, knobX + 2, barY + 7, 0xFFAAAAAA);
     }
 
@@ -173,15 +168,14 @@ public class SettingsPanel extends BasePanel {
                 x, y, 0xAAAAAA, false);
         y += 12;
 
-        int sliderW = w;
         int barY = y + 7;
 
-        ctx.fill(x, barY, x + sliderW, barY + 4, 0x55222222);
+        ctx.fill(x, barY, x + w, barY + 4, 0x55222222);
 
         float t = (SettingsConfig.INSTANCE.fontSize - 8) / 18.0f; // 字号 8~26
         t = Math.max(0.0f, Math.min(1.0f, t));
-        int knobX = x + (int) (t * sliderW);
-        knobX = Math.max(x + 2, Math.min(x + sliderW - 2, knobX));
+        int knobX = x + (int) (t * w);
+        knobX = Math.max(x + 2, Math.min(x + w - 2, knobX));
 
         ctx.fill(knobX - 2, barY - 3, knobX + 2, barY + 7, 0xFFAAAAAA);
     }
@@ -191,10 +185,11 @@ public class SettingsPanel extends BasePanel {
     // =======================
     private void drawSaveButton(DrawContext ctx, int x, int y, int w) {
         int h = 20;
-        ctx.fill(x, y, x + w, y + h, 0xFF338833);
-        ctx.drawCenteredTextWithShadow(client.textRenderer,
-                Text.literal("Save Settings"),
-                x + w / 2, y + 6, 0xFFFFFFFF);
+        // 检查鼠标是否悬停
+        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
+        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
+        boolean hovered = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
+        drawMinecraftButton(ctx, x, y, w, h, Text.literal("Save Settings"), hovered);
     }
 
     // =======================
@@ -305,14 +300,14 @@ public class SettingsPanel extends BasePanel {
     @Override
     public void keyPressed(int keyCode) {
         if (focused == FocusField.API_KEY) {
-            if (keyCode == GLFW.GLFW_KEY_BACKSPACE || keyCode == 259) {
-                if (apiKeyInput.length() > 0) {
+            if (keyCode == 259) {
+                if (!apiKeyInput.isEmpty()) {
                     apiKeyInput = apiKeyInput.substring(0, apiKeyInput.length() - 1);
                     SettingsConfig.INSTANCE.apiKey = apiKeyInput;
                 }
             }
             // ESC 取消焦点
-            if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == 256) {
+            if (keyCode == 256) {
                 focused = FocusField.NONE;
             }
         }

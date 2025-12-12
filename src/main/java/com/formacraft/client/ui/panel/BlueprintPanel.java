@@ -182,26 +182,27 @@ public class BlueprintPanel extends BasePanel {
             }
         }
 
+        // 检查鼠标位置（用于悬停效果）
+        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
+        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
+        
         // 加载按钮
         int loadW = 38;
+        int loadH = 11;
         int loadX = x + w - loadW - 6;
-        ctx.fill(loadX, y + 5, loadX + loadW, y + 16, 0xFF4466AA);
-        ctx.drawCenteredTextWithShadow(client.textRenderer,
-                Text.literal("Load"),
-                loadX + loadW / 2,
-                y + 7,
-                0xFFFFFF);
+        int loadY = y + 5;
+        boolean loadHovered = mouseX >= loadX && mouseX <= loadX + loadW && 
+                             mouseY >= loadY && mouseY <= loadY + loadH;
+        drawMinecraftButton(ctx, loadX, loadY, loadW, loadH, Text.literal("Load"), loadHovered);
 
         // 删除按钮
         int delW = 38;
+        int delH = 11;
         int delX = x + w - delW - 6;
         int delY = y + 18;
-        ctx.fill(delX, delY, delX + delW, delY + 16, 0xFFAA4444);
-        ctx.drawCenteredTextWithShadow(client.textRenderer,
-                Text.literal("Del"),
-                delX + delW / 2,
-                delY + 4,
-                0xFFFFFF);
+        boolean delHovered = mouseX >= delX && mouseX <= delX + delW && 
+                             mouseY >= delY && mouseY <= delY + delH;
+        drawMinecraftButton(ctx, delX, delY, delW, delH, Text.literal("Del"), delHovered);
     }
 
     // ======================================================
@@ -218,7 +219,7 @@ public class BlueprintPanel extends BasePanel {
 
     @Override
     public void keyPressed(int keyCode) {
-        if (keyCode == GLFW.GLFW_KEY_BACKSPACE || keyCode == 259) {
+        if (keyCode == 259) {
             if (!searchText.isEmpty()) {
                 searchText = searchText.substring(0, searchText.length() - 1);
                 scrollOffset = 0; // 搜索时重置滚动
