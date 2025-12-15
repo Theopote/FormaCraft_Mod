@@ -1,5 +1,6 @@
 package com.formacraft.client.ui;
 
+import com.formacraft.client.ui.input.InputRouter;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -13,6 +14,11 @@ public class InputEventHandler {
     
     public static void register() {
         // 注册客户端 Tick 事件来处理输入
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+            // 每帧开始时清除UI处理标记（防止一直拦截）
+            InputRouter.clearLastClickHandledFlag();
+        });
+        
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             // 确保光标状态正确
             FormacraftUIState.ensureCursorState();

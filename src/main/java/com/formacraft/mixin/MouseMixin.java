@@ -85,18 +85,27 @@ public class MouseMixin {
         }
 
         int button = mouseInput.button();
-        double mouseX = InputRouter.getMouseX();
-        double mouseY = InputRouter.getMouseY();
+        
+        // 重要：先获取最新的鼠标位置（从窗口坐标转换为scaled坐标）
+        double rawMouseX = client.mouse.getX();
+        double rawMouseY = client.mouse.getY();
+        double mouseX = rawMouseX / client.getWindow().getScaleFactor();
+        double mouseY = rawMouseY / client.getWindow().getScaleFactor();
+        
+        // 更新 InputRouter 的鼠标位置（确保是最新的）
+        InputRouter.updateMouse(mouseX, mouseY);
 
-        // 只要光标在 UI 面板范围内：鼠标仅操作 UI，必须屏蔽游戏（不依赖 consumed）
-        boolean inside = InputRouter.isMouseInsideUI(mouseX, mouseY);
-        if (inside) {
-            InputRouter.onMouseClick(mouseX, mouseY, button, action);
+        // 先尝试让 UI 处理点击事件
+        // 如果 UI 处理了（返回true），说明点击的是UI元素，必须cancel防止游戏处理
+        boolean uiHandled = InputRouter.onMouseClick(mouseX, mouseY, button, action);
+        if (uiHandled) {
+            // UI 已处理，完全阻止游戏处理
             ci.cancel();
             return;
         }
 
-        // 光标在 UI 外：允许游戏处理鼠标按钮；但要跟踪中键按住状态用于“按住中键转视角”
+        // UI 未处理（点击在UI外）：允许游戏处理鼠标按钮
+        // 但要跟踪中键按住状态用于"按住中键转视角"
         if (button == 2) {
             middleDown = (action == 1);
         }

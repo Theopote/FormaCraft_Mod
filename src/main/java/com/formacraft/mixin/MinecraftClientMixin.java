@@ -54,16 +54,19 @@ public class MinecraftClientMixin {
         // 检查鼠标是否在面板内
         boolean insidePanel = InputRouter.isMouseInsideUI();
         
+        // 额外检查：如果上一次点击被UI处理了，也要拦截（防止残留状态）
+        boolean lastClickHandled = InputRouter.wasLastClickHandledByUI();
+        
         // 只在调试时输出详细日志（减少日志量，提高性能）
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[MinecraftClientMixin.handleInputEvents] 原始鼠标=({}, {}), scaled鼠标=({}, {}), 面板内={}, 将{}拦截", 
+            LOGGER.debug("[MinecraftClientMixin.handleInputEvents] 原始鼠标=({}, {}), scaled鼠标=({}, {}), 面板内={}, 上次点击UI处理={}, 将{}拦截", 
                     String.format("%.2f", rawMouseX), String.format("%.2f", rawMouseY),
                     String.format("%.2f", mouseX), String.format("%.2f", mouseY),
-                    insidePanel, insidePanel ? "完全" : "不");
+                    insidePanel, lastClickHandled, (insidePanel || lastClickHandled) ? "完全" : "不");
         }
         
-        if (insidePanel) {
-            // 鼠标在面板内，完全阻止所有输入处理（包括移动、攻击、使用物品等）
+        if (insidePanel || lastClickHandled) {
+            // 鼠标在面板内，或者上一次点击被UI处理了，完全阻止所有输入处理（包括移动、攻击、使用物品等）
             // 这是必要的，因为即使我们 cancel 了鼠标事件，Minecraft 仍可能处理残留的输入状态
             // 完全 cancel，阻止 KeyBinding 更新、鼠标处理、键盘处理等所有输入逻辑
             // 注意：通过 cancel handleInputEvents，Minecraft 不会更新 KeyBinding 状态，
@@ -71,9 +74,10 @@ public class MinecraftClientMixin {
             
             // 只在调试时输出警告（减少日志量）
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[MinecraftClientMixin] 面板内，完全拦截 handleInputEvents");
+                LOGGER.debug("[MinecraftClientMixin] 面板内或上次点击UI处理，完全拦截 handleInputEvents");
             }
             ci.cancel();
+            return; // 立即返回，确保不会继续处理
         }
         // 如果鼠标在面板外，不拦截，允许正常游戏操作
     }

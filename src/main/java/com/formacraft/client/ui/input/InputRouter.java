@@ -29,6 +29,10 @@ public class InputRouter {
     public static boolean leftDown = false;
     public static boolean rightDown = false;
     public static boolean middleDown = false;
+    
+    // 标记：上一次点击是否被UI处理了
+    // 用于防止UI处理点击后，Minecraft仍然处理残留状态
+    private static boolean lastClickHandledByUI = false;
 
     /** 更新鼠标位置（来自 MouseMixin） */
     public static void updateMouse(double x, double y) {
@@ -70,31 +74,62 @@ public class InputRouter {
 
     /** 鼠标点击事件 */
     public static boolean onMouseClick(double x, double y, int button, int action) {
-        if (!FormacraftUIState.isOpen) return false;
+        if (!FormacraftUIState.isOpen) {
+            lastClickHandledByUI = false;
+            return false;
+        }
 
+        // 更新按钮状态
         switch (button) {
             case 0 -> leftDown = (action == 1);
             case 1 -> rightDown = (action == 1);
             case 2 -> middleDown = (action == 1);
         }
 
-        if (action != 1) return false;
-
-        boolean inside = isMouseInsideUI(x, y);
-
-        if (inside) {
-            // BuildConfirmPanel 永远优先
-            if (BuildConfirmPanel.INSTANCE.isVisible()) {
-                if (BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button)) return true;
-            }
-
-            BasePanel panel = getPanel();
-            if (panel != null) panel.mouseClicked(x, y, button);
-
-            return true;
+        // 只处理按下事件（action == 1），释放事件（action == 0）不处理
+        if (action != 1) {
+            lastClickHandledByUI = false;
+            return false;
         }
 
-        return false; // 游戏继续处理
+        // 重要：先尝试让UI处理点击，不管鼠标位置判断如何
+        // 这样可以确保点击UI按钮时（如折叠按钮、关闭按钮）都能被正确处理
+        
+        // BuildConfirmPanel 永远优先
+        if (BuildConfirmPanel.INSTANCE.isVisible()) {
+            if (BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button)) {
+                lastClickHandledByUI = true;
+                return true; // UI已处理
+            }
+        }
+
+        // 尝试让面板处理点击（包括按钮、标签等）
+        BasePanel panel = getPanel();
+        if (panel != null && panel.mouseClicked(x, y, button)) {
+            lastClickHandledByUI = true;
+            return true; // UI已处理（点击了按钮或标签等）
+        }
+
+        // 如果UI没有处理，再检查是否在UI区域内
+        // 如果在UI区域内但UI没有处理，也应该阻止游戏处理（防止误触）
+        boolean inside = isMouseInsideUI(x, y);
+        if (inside) {
+            lastClickHandledByUI = true;
+            return true; // 在UI区域内，阻止游戏处理
+        }
+
+        lastClickHandledByUI = false;
+        return false; // 不在UI区域内，允许游戏处理
+    }
+    
+    /** 检查上一次点击是否被UI处理了 */
+    public static boolean wasLastClickHandledByUI() {
+        return lastClickHandledByUI;
+    }
+    
+    /** 清除UI处理标记（在每帧开始时调用） */
+    public static void clearLastClickHandledFlag() {
+        lastClickHandledByUI = false;
     }
 
     /** 滚轮事件 */

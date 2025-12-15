@@ -1,4 +1,8 @@
 {
   "formacraft.title": "FormaCraft Builder",
-  "formacraft.button.generate": "Generate Building"
+  "formacraft.button.generate": "Generate Building",
+  "formacraft.tab.chat": "Chat",
+  "formacraft.tab.blueprint": "Blueprint",
+  "formacraft.tab.history": "History",
+  "formacraft.tab.settings": "Settings"
 }
