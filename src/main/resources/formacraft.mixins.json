@@ -8,7 +8,8 @@
       "KeyboardMixin",
       "MouseMixin",
       "MinecraftClientMixin",
-      "InGameHudMixin"
+      "InGameHudMixin",
+      "KeyBindingMixin"
     ],
 	"injectors": {
 		"defaultRequire": 1

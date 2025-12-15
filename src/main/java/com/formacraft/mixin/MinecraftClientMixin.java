@@ -37,6 +37,7 @@ public class MinecraftClientMixin {
     private void onHandleInputEvents(CallbackInfo ci) {
         MinecraftClient client = (MinecraftClient) (Object) this;
         
+        // 重要：UI 关闭时，完全不处理，让游戏使用默认行为
         // 如果 UI 未打开或有 Screen，不处理
         if (!FormacraftUIState.isOpen || client.currentScreen != null) {
             return;
@@ -65,6 +66,9 @@ public class MinecraftClientMixin {
             // 鼠标在面板内，完全阻止所有输入处理（包括移动、攻击、使用物品等）
             // 这是必要的，因为即使我们 cancel 了鼠标事件，Minecraft 仍可能处理残留的输入状态
             // 完全 cancel，阻止 KeyBinding 更新、鼠标处理、键盘处理等所有输入逻辑
+            // 注意：通过 cancel handleInputEvents，Minecraft 不会更新 KeyBinding 状态，
+            // 这应该能防止残留的 WASD 键导致玩家继续移动
+            
             // 只在调试时输出警告（减少日志量）
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[MinecraftClientMixin] 面板内，完全拦截 handleInputEvents");

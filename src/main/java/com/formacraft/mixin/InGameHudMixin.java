@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * InGameHud Mixin
- * 
+ * <p>
  * 当 FormaCraft UI 打开时，隐藏默认的十字星（crosshair），
  * 避免与自定义光标产生视觉冲突和逻辑混乱。
  */
