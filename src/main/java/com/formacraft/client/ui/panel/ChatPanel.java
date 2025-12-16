@@ -8,6 +8,8 @@ import com.formacraft.ai.BuildingRequest;
 import com.formacraft.client.ui.widget.MultilineTextInput;
 import com.formacraft.client.ui.panel.chat.AIStreamPrinter;
 import com.formacraft.client.ui.panel.chat.ChatMessage;
+import com.formacraft.client.ui.input.InputRouter;
+import com.formacraft.client.ui.text.SelectableTextBlock;
 import com.formacraft.common.builder.AutoBuilder;
 import com.formacraft.common.builder.BuildingBlueprint;
 import com.formacraft.common.builder.BuildingPlanner;
@@ -57,6 +59,21 @@ public class ChatPanel extends BasePanel {
     private AICancelToken currentCancelToken = null;
     private CompletableFuture<AIResult> currentRequestFuture = null;
 
+    // ========== 输出区文字选择（拖拽选区 + Ctrl+C） ==========
+    private final SelectableTextBlock selectable = new SelectableTextBlock(client);
+    private int selectableMsgIndex = -1;
+    private boolean selectingText = false;
+
+    private static class RenderedMessage {
+        int msgIndex;
+        int bubbleX, bubbleTop, bubbleBottom, bubbleW;
+        int textX, textY, maxWidthPx, lineHeight;
+        String displayText;
+        boolean selectable;
+    }
+
+    private final List<RenderedMessage> renderedMessages = new ArrayList<>();
+
     // Padding（减小边距）
     private static final int PADDING = 2;
 
@@ -75,6 +92,9 @@ public class ChatPanel extends BasePanel {
 
     @Override
     protected void drawContents(DrawContext ctx) {
+        // 拖拽更新选区（不依赖额外鼠标事件：利用 InputRouter.leftDown + 每帧更新）
+        tickTextSelectionDrag();
+
         // 每帧推进流式打印（不会阻塞）
         if (currentPrinter != null) {
             currentPrinter.tick();
@@ -123,6 +143,14 @@ public class ChatPanel extends BasePanel {
      */
     private void drawMessages(DrawContext ctx, int innerX, int chatTop, int innerW, int chatBottom, int lineHeight, float fontScale) {
         int availableWidth = innerW - 20;
+        renderedMessages.clear();
+
+        // 选中的消息被删除/索引越界时，清空选区
+        if (selectableMsgIndex >= messages.size()) {
+            selectableMsgIndex = -1;
+            selectingText = false;
+            selectable.clearSelection();
+        }
 
         if (messages.isEmpty()) {
             // 空提示
@@ -149,21 +177,23 @@ public class ChatPanel extends BasePanel {
             ChatMessage msg = messages.get(idx);
 
             // 包装文本（考虑字体大小）
-            int textWidth = (int)(availableWidth / fontScale);
+            int maxWidthPx = Math.max(1, (int)(availableWidth / fontScale));
             
-            // 流式消息添加光标符号 / thinking 点点点动画
+            // 需要绘制 caret（流式）/ thinking 点点点动画
+            boolean caret = false;
             String displayText;
             if (msg.type == ChatMessage.MessageType.THINKING) {
                 int dots = (int) ((System.currentTimeMillis() / 350) % 4);
                 displayText = "AI 正在思考" + ".".repeat(dots);
             } else if (msg.type == ChatMessage.MessageType.STREAMING) {
-                displayText = msg.text + "▍";
+                displayText = msg.text;
+                caret = true;
             } else {
                 displayText = msg.text;
             }
             
-            List<net.minecraft.text.OrderedText> wrapped =
-                    client.textRenderer.wrapLines(Text.literal(displayText), textWidth);
+            List<SelectableTextBlock.WrappedLine> wrapped =
+                    SelectableTextBlock.wrap(client.textRenderer, displayText, maxWidthPx);
 
             int bubbleHeight = wrapped.size() * lineHeight + 4;  // 减小气泡内边距
             int bubbleBottom = y;
@@ -193,12 +223,43 @@ public class ChatPanel extends BasePanel {
 
             // 文本（减小上边距，通过调整行高实现紧凑效果）
             int textY = bubbleTop + 2;
-            for (net.minecraft.text.OrderedText line : wrapped) {
-                // 直接绘制文字，不进行缩放（Minecraft 字体大小固定）
-                // 缩放效果通过调整行高来实现
-                ctx.drawText(client.textRenderer, line, bubbleX + 4, textY, textColor, false);
-                textY += lineHeight;
+            int textX = bubbleX + 4;
+            boolean isSelectedMsg = (idx == selectableMsgIndex);
+            if (isSelectedMsg) {
+                selectable.setBounds(textX, textY, maxWidthPx, lineHeight);
+                selectable.setText(displayText);
+                selectable.render(ctx, textColor);
+            } else {
+                for (SelectableTextBlock.WrappedLine line : wrapped) {
+                    ctx.drawText(client.textRenderer, Text.literal(line.text()), textX, textY, textColor, false);
+                    textY += lineHeight;
+                }
             }
+
+            // caret（流式打印中的光标符号）
+            if (caret) {
+                SelectableTextBlock.WrappedLine last = wrapped.isEmpty() ? null : wrapped.getLast();
+                if (last != null) {
+                    int cy = bubbleTop + 2 + (wrapped.size() - 1) * lineHeight;
+                    int cx = textX + client.textRenderer.getWidth(last.text());
+                    ctx.drawText(client.textRenderer, Text.literal("▍"), cx, cy, textColor, false);
+                }
+            }
+
+            // 记录本帧可选中区域（只允许选择非 thinking 的消息）
+            RenderedMessage rm = new RenderedMessage();
+            rm.msgIndex = idx;
+            rm.bubbleX = bubbleX;
+            rm.bubbleTop = bubbleTop;
+            rm.bubbleBottom = bubbleBottom;
+            rm.bubbleW = availableWidth;
+            rm.textX = textX;
+            rm.textY = bubbleTop + 2;
+            rm.maxWidthPx = maxWidthPx;
+            rm.lineHeight = lineHeight;
+            rm.displayText = displayText;
+            rm.selectable = msg.type != ChatMessage.MessageType.THINKING;
+            renderedMessages.add(rm);
 
             // 如果 AI 有 spec，渲染一个「摘要卡片」
             if (msg.hasSpecSummary()) {
@@ -209,6 +270,21 @@ public class ChatPanel extends BasePanel {
                 // 为下一条消息留出间距
                 y = bubbleTop - 6;
             }
+        }
+    }
+
+    private void tickTextSelectionDrag() {
+        if (selectableMsgIndex < 0) return;
+        if (!selectingText) return;
+
+        double mx = InputRouter.getMouseX();
+        double my = InputRouter.getMouseY();
+
+        if (InputRouter.leftDown) {
+            selectable.mouseDragged(mx, my);
+        } else {
+            selectingText = false;
+            selectable.mouseReleased();
         }
     }
 
@@ -381,6 +457,8 @@ public class ChatPanel extends BasePanel {
                 mouseX >= stopBtnX && mouseX <= stopBtnX + stopBtnW &&
                 mouseY >= stopBtnY && mouseY <= stopBtnY + stopBtnH) {
             stopGenerating();
+            selectable.clearSelection();
+            selectableMsgIndex = -1;
             return true;
         }
 
@@ -388,7 +466,20 @@ public class ChatPanel extends BasePanel {
         if (mouseX >= btnX && mouseX <= btnX + btnWidth &&
                 mouseY >= btnY && mouseY <= btnY + btnHeight) {
             sendCurrentMessage();
+            selectable.clearSelection();
+            selectableMsgIndex = -1;
             return true;
+        }
+
+        // 在输出区点击：开始选择 / 或点击空白清除
+        if (tryStartSelection(mouseX, mouseY)) {
+            // 选中输出文本后，不要抢输入框焦点
+            inputBox.setFocused(false);
+            return true;
+        } else {
+            // 点击非输出文本：清除选区
+            selectable.clearSelection();
+            selectableMsgIndex = -1;
         }
 
         // 点击输入框区域，设置焦点
@@ -402,10 +493,34 @@ public class ChatPanel extends BasePanel {
             inputBox.setFocused(true);
             // 点击输入框即退出历史浏览态（保持当前内容）
             historyIndex = -1;
+            selectable.clearSelection();
+            selectableMsgIndex = -1;
             // TODO: 可以在这里实现点击位置设置光标（需要计算点击位置对应的行列）
             return true;
         }
 
+        return false;
+    }
+
+    private boolean tryStartSelection(double mouseX, double mouseY) {
+        if (renderedMessages.isEmpty()) return false;
+
+        // 从上到下优先（越靠上越先命中？）这里用“最后绘制的在上层”，所以从后往前
+        for (int i = renderedMessages.size() - 1; i >= 0; i--) {
+            RenderedMessage rm = renderedMessages.get(i);
+            if (!rm.selectable) continue;
+
+            boolean insideBubble =
+                    mouseX >= rm.bubbleX && mouseX <= rm.bubbleX + rm.bubbleW &&
+                    mouseY >= rm.bubbleTop && mouseY <= rm.bubbleBottom;
+            if (!insideBubble) continue;
+
+            selectableMsgIndex = rm.msgIndex;
+            selectable.setBounds(rm.textX, rm.textY, rm.maxWidthPx, rm.lineHeight);
+            selectable.setText(rm.displayText);
+            selectingText = selectable.mousePressed(mouseX, mouseY);
+            return selectingText;
+        }
         return false;
     }
 
@@ -441,6 +556,16 @@ public class ChatPanel extends BasePanel {
      */
     @Override
     public void keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Ctrl+C：复制输出区选中内容（优先级最高，不影响输入框 Ctrl+C）
+        boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+        if (ctrl && keyCode == GLFW.GLFW_KEY_C && selectable.hasSelection()) {
+            String selected = selectable.getSelectedText();
+            if (!selected.isEmpty() && client != null && client.keyboard != null) {
+                client.keyboard.setClipboard(selected);
+                return;
+            }
+        }
+
         // 设置输入框焦点
         inputBox.setFocused(true);
 
