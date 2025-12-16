@@ -15,9 +15,9 @@ import java.util.List;
  * 支持图标、悬停提示和激活状态
  */
 public class TabBar {
-    private static final int TAB_HEIGHT = 20;
+    private static final int TAB_HEIGHT = 16;  // 减小标签高度
     private static final int TAB_PADDING = 2;
-    private static final int ICON_SIZE = 12;
+    private static final int TAB_SIZE = TAB_HEIGHT - TAB_PADDING * 2; // 正方形标签尺寸（=可绘制高度）
     
     private final List<TabInfo> tabs = new ArrayList<>();
     private final MinecraftClient client;
@@ -44,11 +44,11 @@ public class TabBar {
     public TabBar(MinecraftClient client) {
         this.client = client;
         
-        // 初始化标签
-        tabs.add(new TabInfo(PanelType.CHAT, "💬", Text.translatable("formacraft.tab.chat"), 20));
-        tabs.add(new TabInfo(PanelType.BLUEPRINT, "📋", Text.translatable("formacraft.tab.blueprint"), 20));
-        tabs.add(new TabInfo(PanelType.HISTORY, "📜", Text.translatable("formacraft.tab.history"), 20));
-        tabs.add(new TabInfo(PanelType.SETTINGS, "⚙", Text.translatable("formacraft.tab.settings"), 20));
+        // 初始化标签（正方形）
+        tabs.add(new TabInfo(PanelType.CHAT, "💬", Text.translatable("formacraft.tab.chat"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.BLUEPRINT, "📋", Text.translatable("formacraft.tab.blueprint"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.HISTORY, "📜", Text.translatable("formacraft.tab.history"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.SETTINGS, "⚙", Text.translatable("formacraft.tab.settings"), TAB_SIZE));
     }
     
     /**
@@ -78,50 +78,56 @@ public class TabBar {
     }
     
     /**
-     * 绘制单个标签
+     * 绘制单个标签（使用 Minecraft 原生按钮纹理）
      */
     private void drawTab(DrawContext ctx, int x, int y, int width, TabInfo tab, boolean isActive, boolean isHovered) {
         int height = TAB_HEIGHT - TAB_PADDING * 2;
-        
-        // 背景颜色：激活 > 悬停 > 普通（使用渐变，更符合Minecraft风格）
+
+        // Minecraft 原版按钮颜色（与 BasePanel 中的按钮保持一致）
         int topColor, bottomColor;
         if (isActive) {
-            topColor = 0xFF5A5A5A; // 激活状态：较亮的灰色
-            bottomColor = 0xFF4A4A4A;
+            // 按下状态：更暗，边框反转
+            topColor = 0xFF4B4B4B;
+            bottomColor = 0xFF3B3B3B;
         } else if (isHovered) {
-            topColor = 0xFF4A4A4A; // 悬停状态：中等灰色
-            bottomColor = 0xFF3A3A3A;
+            // 悬停状态：较亮
+            topColor = 0xFF6B6B6B;
+            bottomColor = 0xFF4B4B4B;
         } else {
-            topColor = 0xFF3A3A3A; // 普通状态：深灰色
-            bottomColor = 0xFF2A2A2A;
+            // 普通状态：较亮的灰色（与 BasePanel 按钮一致）
+            topColor = 0xFF5B5B5B;
+            bottomColor = 0xFF3B3B3B;
+        }
+        ctx.fillGradient(x, y, x + width, y + height, topColor, bottomColor);
+
+        // Minecraft 原版按钮边框（与 BasePanel 中的按钮保持一致）
+        int lightBorder, darkBorder;
+        if (isActive) {
+            // 按下状态：边框反转（上/左暗，下/右亮）
+            lightBorder = 0xFF000000;
+            darkBorder = isHovered ? 0xFFCCCCCC : 0xFFAAAAAA;
+        } else {
+            // 普通/悬停状态：上/左亮，下/右暗
+            lightBorder = isHovered ? 0xFFCCCCCC : 0xFFAAAAAA;
+            darkBorder = 0xFF000000;
         }
         
-        // 绘制渐变背景
-        ctx.fillGradient(x, y, x + width, y + height, topColor, bottomColor);
-        
-        // 绘制边框（Minecraft 原生风格）
-        int lightBorder = isActive ? 0xFFAAAAAA : 0xFF666666;
-        int darkBorder = 0xFF1A1A1A;
-        
-        // 上边框和左边框（亮）
+        // 上边框和左边框
         ctx.fill(x, y, x + width, y + 1, lightBorder);
         ctx.fill(x, y, x + 1, y + height, lightBorder);
         
-        // 下边框和右边框（暗）
+        // 下边框和右边框
         ctx.fill(x, y + height - 1, x + width, y + height, darkBorder);
         ctx.fill(x + width - 1, y, x + width, y + height, darkBorder);
-        
-        // 激活状态：底部高亮条
-        if (isActive) {
-            ctx.fill(x, y + height - 2, x + width, y + height - 1, 0xFFFFD700); // 金色高亮
-        }
-        
-        // 绘制图标（居中）
-        int iconX = x + (width - ICON_SIZE) / 2;
-        int iconY = y + (height - client.textRenderer.fontHeight) / 2;
-        
-        int iconColor = isActive ? 0xFFFFFFFF : (isHovered ? 0xFFCCCCCC : 0xFFAAAAAA);
-        ctx.drawText(client.textRenderer, tab.icon, iconX, iconY, iconColor, false);
+
+        // 图标（确保完美居中）
+        // 计算按钮中心点
+        int centerX = x + width / 2;
+        int centerY = y + height / 2;
+        // 使用 drawCenteredTextWithShadow 确保完美居中
+        // 注意：drawCenteredTextWithShadow 的 y 坐标是文本的顶部，需要调整
+        int iconY = centerY - client.textRenderer.fontHeight / 2;
+        ctx.drawCenteredTextWithShadow(client.textRenderer, Text.literal(tab.icon), centerX, iconY, 0xFFFFFFFF);
     }
     
     /**

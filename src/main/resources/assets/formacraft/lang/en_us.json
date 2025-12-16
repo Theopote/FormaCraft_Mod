@@ -4,5 +4,9 @@
   "formacraft.tab.chat": "Chat",
   "formacraft.tab.blueprint": "Blueprint",
   "formacraft.tab.history": "History",
-  "formacraft.tab.settings": "Settings"
+  "formacraft.tab.settings": "Settings",
+  "formacraft.button.close": "Close",
+  "formacraft.button.collapse": "Collapse",
+  "formacraft.button.expand": "Expand",
+  "formacraft.chat.send.tooltip": "Send"
 }

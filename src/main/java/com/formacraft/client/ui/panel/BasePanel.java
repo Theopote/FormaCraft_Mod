@@ -22,16 +22,16 @@ public abstract class BasePanel {
     protected int panelHeight = 0;
     protected boolean visible = true;
 
-    // 顶部工具栏
-    private static final int TOOLBAR_HEIGHT = 20;
+    // 顶部工具栏（减小高度以匹配更小的标签）
+    private static final int TOOLBAR_HEIGHT = 16;
     private static final int TOOLBAR_PADDING = 4;
 
     // 关闭按钮区域
     private static final int CLOSE_BUTTON_SIZE = 12;
-    private static final int CLOSE_BUTTON_PADDING = 4;
+    private static final int CLOSE_BUTTON_PADDING = 2;
 
     // 折叠按钮区域（在关闭按钮左侧）
-    private static final int COLLAPSE_BUTTON_SIZE = 10;
+    private static final int COLLAPSE_BUTTON_SIZE = 12; // 与关闭按钮同尺寸
     private static final int COLLAPSE_BUTTON_PADDING = 2;
 
     // 左侧栏折叠状态：全局共享（所有面板共用一个宽度）
@@ -81,26 +81,37 @@ public abstract class BasePanel {
         // 如果处于完全折叠状态，且宽度接近 collapsed 宽度，只绘制窄条手柄
         if (sidebarCollapsed && panelWidth <= SIDEBAR_COLLAPSED_WIDTH + 1) {
             drawCollapsedHandle(ctx);
+            // 折叠状态下也要显示 tooltip（用于手柄的提示）
+            if (visible) {
+                drawTooltip(ctx);
+            }
             return;
         }
 
         // 展开或动画中：绘制工具栏和内容
         // 为避免刚展开时布局挤压，在 progress 很小的时候可以只显示工具栏/空背景
+        drawToolbar(ctx);
         if (progress > 0.1f) {
-            drawToolbar(ctx);
             drawContents(ctx);
-            drawTooltip(ctx); // 绘制悬停提示
         } else {
             // 稍微画一下顶部条，让用户知道有东西在出来
-            drawToolbar(ctx);
         }
 
         // 在内容上叠加一层黑色遮罩，实现淡入淡出效果
+        // 注意：遮罩不应该覆盖工具栏区域，只覆盖内容区域
         if (contentAlpha < 1.0f) {
             int alphaInt = (int) ((1.0f - contentAlpha) * 180); // 最大 180/255 的黑遮罩
             alphaInt = Math.max(0, Math.min(255, alphaInt));
             int color = (alphaInt << 24); // ARGB: alpha + 0x000000
-            ctx.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, color);
+            // 只覆盖内容区域，不覆盖工具栏
+            int contentTop = panelY + TOOLBAR_HEIGHT;
+            ctx.fill(panelX, contentTop, panelX + panelWidth, panelY + panelHeight, color);
+        }
+
+        // Tooltip 一定要最后画，避免被遮罩/内容覆盖
+        // 只要面板可见就显示 tooltip（包括折叠状态，因为折叠时也有按钮）
+        if (visible) {
+            drawTooltip(ctx);
         }
     }
 
@@ -127,7 +138,7 @@ public abstract class BasePanel {
     // 背景与边框
     // --------------------------------------------------------------------
     /**
-     * 绘制半透明背景和边框（Minecraft 原生风格）
+     * 绘制边框（仅3D边框效果，不绘制内容区背景）
      */
     protected void drawBackground(DrawContext ctx) {
         int x0 = panelX;
@@ -135,20 +146,25 @@ public abstract class BasePanel {
         int x1 = panelX + panelWidth;
         int y1 = panelY + panelHeight;
 
-        // Minecraft 原生 UI 的渐变背景（更深的背景，更好的对比度）
-        ctx.fillGradient(x0, y0, x1, y1, 0xE0101010, 0xF0101010);
+        // 外层 3D 边框（上/左高光，下/右阴影）
+        int outerLight = 0xFFFFFFFF;
+        int outerDark = 0xFF6F6F6F;
+        ctx.fill(x0, y0, x1, y0 + 1, outerLight); // top
+        ctx.fill(x0, y0, x0 + 1, y1, outerLight); // left
+        ctx.fill(x0, y1 - 1, x1, y1, outerDark); // bottom
+        ctx.fill(x1 - 1, y0, x1, y1, outerDark); // right
 
-        // Minecraft 原生风格的描边（上/左亮，下/右暗，3D效果）
-        int light = 0xFFAAAAAA; // 亮色边框
-        int dark = 0xFF1A1A1A;  // 暗色边框
-        
-        // 上边框和左边框（亮色）
-        ctx.fill(x0, y0, x1, y0 + 1, light);
-        ctx.fill(x0, y0, x0 + 1, y1, light);
-        
-        // 下边框和右边框（暗色）
-        ctx.fill(x0, y1 - 1, x1, y1, dark);
-        ctx.fill(x1 - 1, y0, x1, y1, dark);
+        // 内层 3D 边框（再内缩 1px）
+        int ix0 = x0 + 1;
+        int iy0 = y0 + 1;
+        int ix1 = x1 - 1;
+        int iy1 = y1 - 1;
+        int innerLight = 0xFFE6E6E6;
+        int innerDark = 0xFF8A8A8A;
+        ctx.fill(ix0, iy0, ix1, iy0 + 1, innerLight);
+        ctx.fill(ix0, iy0, ix0 + 1, iy1, innerLight);
+        ctx.fill(ix0, iy1 - 1, ix1, iy1, innerDark);
+        ctx.fill(ix1 - 1, iy0, ix1, iy1, innerDark);
     }
 
     // --------------------------------------------------------------------
@@ -180,11 +196,12 @@ public abstract class BasePanel {
         int bw = panelWidth;
         int bh = TOOLBAR_HEIGHT;
 
-        // 顶部工具栏背景（Minecraft 原生风格，更深的背景）
-        ctx.fillGradient(bx, by, bx + bw, by + bh, 0xDD1A1A1A, 0xEE1A1A1A);
-        
-        // 顶部与内容的分隔线（Minecraft 原生风格：亮色上边框）
-        ctx.fill(bx, by + bh - 1, bx + bw, by + bh, 0x88AAAAAA);
+        // 标签区域背景（几乎不透明）
+        ctx.fillGradient(bx, by, bx + bw, by + bh, 0xFFD7D7D7, 0xFFC9C9C9);
+
+        // 顶部/底部分隔线（Minecraft 原生样式）
+        ctx.fill(bx, by, bx + bw, by + 1, 0xFFFFFFFF);
+        ctx.fill(bx, by + bh - 1, bx + bw, by + bh, 0xFF7A7A7A);
 
         // 计算标签栏可用宽度（减去按钮区域）
         int buttonAreaWidth = CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING * 2 + 
@@ -199,46 +216,70 @@ public abstract class BasePanel {
         double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
         tabBar.render(ctx, mouseX, mouseY);
 
-        // 先画折叠按钮，再画关闭按钮
+        // 先画折叠按钮，再画关闭按钮（深色小方块）
         drawCollapseButton(ctx);
         drawCloseButton(ctx);
     }
     
     // --------------------------------------------------------------------
-    // 绘制悬停提示
+    // 绘制悬停提示（使用 Minecraft 原生样式）
     // --------------------------------------------------------------------
     private void drawTooltip(DrawContext ctx) {
+        // 获取鼠标位置（使用正确的缩放因子）
         double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
         double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
         
+        // 如果处于完全折叠状态，检查折叠手柄的 tooltip
+        if (sidebarCollapsed && panelWidth <= SIDEBAR_COLLAPSED_WIDTH + 1) {
+            // 检查鼠标是否在折叠手柄上
+            if (mouseX >= panelX && mouseX <= panelX + panelWidth &&
+                mouseY >= panelY && mouseY <= panelY + panelHeight) {
+                Text expandTooltip = Text.translatable("formacraft.button.expand");
+                java.util.List<Text> tooltipLines = java.util.Collections.singletonList(expandTooltip);
+                ctx.drawTooltip(client.textRenderer, tooltipLines, (int) mouseX, (int) mouseY);
+            }
+            return;
+        }
+        
+        // 先检查子类特有的 tooltip（如 ChatPanel 的发送按钮）
+        if (drawCustomTooltip(ctx, mouseX, mouseY)) {
+            return; // 如果子类处理了 tooltip，就不再检查其他按钮
+        }
+        
+        // 检查标签提示（优先级最高，因为标签在按钮上方）
         Text tooltip = tabBar.getHoveredTooltip(mouseX, mouseY);
         if (tooltip != null) {
-            // 在鼠标位置下方显示提示
-            int tooltipX = (int) mouseX + 8;
-            int tooltipY = (int) mouseY + 8;
-            int tooltipWidth = client.textRenderer.getWidth(tooltip) + 8;
-            int tooltipHeight = client.textRenderer.fontHeight + 6;
-            
-            // 确保提示不超出屏幕
-            if (tooltipX + tooltipWidth > client.getWindow().getScaledWidth()) {
-                tooltipX = (int) mouseX - tooltipWidth - 8;
-            }
-            if (tooltipY + tooltipHeight > client.getWindow().getScaledHeight()) {
-                tooltipY = (int) mouseY - tooltipHeight - 8;
-            }
-            
-            // 绘制提示背景（半透明黑色）
-            ctx.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, 0xE0000000);
-            
-            // 绘制边框
-            ctx.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + 1, 0xFFFFFFFF);
-            ctx.fill(tooltipX, tooltipY, tooltipX + 1, tooltipY + tooltipHeight, 0xFFFFFFFF);
-            ctx.fill(tooltipX, tooltipY + tooltipHeight - 1, tooltipX + tooltipWidth, tooltipY + tooltipHeight, 0xFF000000);
-            ctx.fill(tooltipX + tooltipWidth - 1, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, 0xFF000000);
-            
-            // 绘制文本
-            ctx.drawText(client.textRenderer, tooltip, tooltipX + 4, tooltipY + 3, 0xFFFFFF, false);
+            // 使用 Minecraft 原生的 Tooltip 渲染方法
+            java.util.List<Text> tooltipLines = java.util.Collections.singletonList(tooltip);
+            ctx.drawTooltip(client.textRenderer, tooltipLines, (int) mouseX, (int) mouseY);
+            return;
         }
+        
+        // 检查按钮提示（关闭按钮和折叠按钮）
+        // 注意：需要确保按钮已经绘制，所以 panelWidth 必须足够大
+        if (isMouseOverCloseButton(mouseX, mouseY)) {
+            Text closeTooltip = Text.translatable("formacraft.button.close");
+            java.util.List<Text> tooltipLines = java.util.Collections.singletonList(closeTooltip);
+            ctx.drawTooltip(client.textRenderer, tooltipLines, (int) mouseX, (int) mouseY);
+            return;
+        }
+        
+        if (isMouseOverCollapseButton(mouseX, mouseY)) {
+            Text collapseTooltip = Text.translatable(sidebarCollapsed ? "formacraft.button.expand" : "formacraft.button.collapse");
+            java.util.List<Text> tooltipLines = java.util.Collections.singletonList(collapseTooltip);
+            ctx.drawTooltip(client.textRenderer, tooltipLines, (int) mouseX, (int) mouseY);
+        }
+    }
+    
+    /**
+     * 子类可以重写此方法来处理自定义的 tooltip
+     * @param ctx 绘制上下文
+     * @param mouseX 鼠标 X 坐标（已缩放）
+     * @param mouseY 鼠标 Y 坐标（已缩放）
+     * @return 如果处理了 tooltip 返回 true，否则返回 false
+     */
+    protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
+        return false; // 默认不处理
     }
 
     // --------------------------------------------------------------------
@@ -257,7 +298,7 @@ public abstract class BasePanel {
         double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
         double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
         boolean hovered = isMouseOverCloseButton(mouseX, mouseY);
-        drawMinecraftButton(ctx, closeX, closeY, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE, Text.literal("✕"), hovered);
+        drawToolbarButton(ctx, closeX, closeY, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE, Text.literal("X"), hovered);
     }
 
     private boolean isMouseOverCloseButton(double mouseX, double mouseY) {
@@ -284,15 +325,20 @@ public abstract class BasePanel {
         int closeY = panelY + CLOSE_BUTTON_PADDING;
 
         int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
-        int collapseY = closeY + 1;
-        int h = COLLAPSE_BUTTON_SIZE - 2;
 
         // 检查鼠标是否悬停在折叠按钮上
         double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
         double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
         boolean hovered = isMouseOverCollapseButton(mouseX, mouseY);
-        String icon = sidebarCollapsed ? "▶" : "◀";
-        drawMinecraftButton(ctx, collapseX, collapseY, COLLAPSE_BUTTON_SIZE, h, Text.literal(icon), hovered);
+        String icon = sidebarCollapsed ? ">" : "<";
+        drawToolbarButton(ctx, collapseX, closeY, COLLAPSE_BUTTON_SIZE, COLLAPSE_BUTTON_SIZE, Text.literal(icon), hovered);
+    }
+
+    /**
+     * 工具栏按钮（使用 Minecraft 默认样式）
+     */
+    private void drawToolbarButton(DrawContext ctx, int x, int y, int w, int h, Text text, boolean hovered) {
+        drawMinecraftButton(ctx, x, y, w, h, text, hovered);
     }
 
     private boolean isMouseOverCollapseButton(double mouseX, double mouseY) {
@@ -326,30 +372,40 @@ public abstract class BasePanel {
     }
 
     /**
-     * 绘制 Minecraft 原生风格按钮
-     * 使用更真实的 Minecraft 按钮样式（参考 ButtonWidget）
+     * 绘制 Minecraft 原生风格按钮（使用正确的原版样式）
      */
     public static void drawMinecraftButton(DrawContext ctx, MinecraftClient client, int x, int y, int width, int height, Text text, boolean hovered) {
-        // Minecraft 按钮背景：使用渐变
-        int topColor = hovered ? 0xFF5A5A5A : 0xFF4A4A4A;
-        int bottomColor = hovered ? 0xFF3A3A3A : 0xFF2A2A2A;
+        // Minecraft 原版按钮颜色（更接近原版）
+        // 普通状态：较亮的灰色（原版按钮不是纯黑）
+        // 悬停状态：更亮的灰色
+        int topColor = hovered ? 0xFF6B6B6B : 0xFF5B5B5B;
+        int bottomColor = hovered ? 0xFF4B4B4B : 0xFF3B3B3B;
         ctx.fillGradient(x, y, x + width, y + height, topColor, bottomColor);
 
-        // 边框（Minecraft 原生风格：上/左亮，下/右暗）
-        int lightBorder = hovered ? 0xFFAAAAAA : 0xFF888888;
-        int darkBorder = 0xFF1A1A1A;
+        // Minecraft 原版按钮边框（上/左亮，下/右暗，3D效果）
+        // 原版按钮边框颜色更明显
+        int lightBorder = hovered ? 0xFFCCCCCC : 0xFFAAAAAA;
+        int darkBorder = 0xFF000000;
         
-        // 上边框和左边框（亮色，3D效果）
+        // 上边框和左边框（亮色）
         ctx.fill(x, y, x + width, y + 1, lightBorder);
         ctx.fill(x, y, x + 1, y + height, lightBorder);
         
-        // 下边框和右边框（暗色，3D效果）
+        // 下边框和右边框（暗色）
         ctx.fill(x, y + height - 1, x + width, y + height, darkBorder);
         ctx.fill(x + width - 1, y, x + width, y + height, darkBorder);
 
-        // 文本颜色：悬停时更亮
-        int textColor = hovered ? 0xFFFFFF : 0xE0E0E0;
-        ctx.drawCenteredTextWithShadow(client.textRenderer, text, x + width / 2, y + (height - 8) / 2, textColor);
+        // 绘制文本（必须在所有背景和边框之后绘制，确保在最上层）
+        // 确保文本完美居中（水平和垂直）
+        if (text != null && !text.getString().isEmpty()) {
+            // 计算按钮中心点
+            int centerX = x + width / 2;
+            int centerY = y + height / 2;
+            // 使用 drawCenteredTextWithShadow 确保完美居中
+            // 注意：drawCenteredTextWithShadow 的 y 坐标是文本的顶部，需要调整
+            int textY = centerY - client.textRenderer.fontHeight / 2;
+            ctx.drawCenteredTextWithShadow(client.textRenderer, text, centerX, textY, 0xFFFFFFFF);
+        }
     }
 
     // --------------------------------------------------------------------

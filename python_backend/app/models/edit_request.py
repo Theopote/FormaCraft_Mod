@@ -9,6 +9,11 @@ class CityEditRequest(BaseModel):
     editCommand: str  # 玩家的自然语言编辑指令
     context: Optional[Dict[str, Any]] = None  # 额外上下文信息
 
+    # LLM 覆盖配置（优先于环境变量）
+    apiKey: Optional[str] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = None
+
 
 class BuildingEditRequest(BaseModel):
     """建筑编辑请求"""
@@ -16,4 +21,9 @@ class BuildingEditRequest(BaseModel):
     currentBuildingSpec: Dict[str, Any]  # 当前 BuildingSpec 的 JSON 字典
     editCommand: str  # 玩家的自然语言编辑指令
     context: Optional[Dict[str, Any]] = None  # 额外上下文信息
+
+    # LLM 覆盖配置（优先于环境变量）
+    apiKey: Optional[str] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = None
 

@@ -38,3 +38,8 @@ class BuildRequest(BaseModel):
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
 
+    # LLM 覆盖配置（优先于环境变量；不提供则使用环境变量/服务端默认）
+    apiKey: Optional[str] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = None
+

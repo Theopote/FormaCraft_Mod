@@ -47,15 +47,22 @@ public class MultilineTextInput {
     // 是否拥有输入焦点
     private boolean focused = true;
 
+    // 限制（聊天输入用，避免粘贴超大文本卡 UI）
+    private int maxChars = 2048; // 总字符数（含换行）
+    private int maxLines = 12;   // 最大行数（手动换行/粘贴可能增加行数）
+
+    // 内部滚动：当前可视区起始行（保证光标可见）
+    private int viewLineStart = 0;
+
     public MultilineTextInput(int x, int y, int w, int h) {
         setBounds(x, y, w, h);
         clear();
     }
 
     public int getHeight() {
-        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f;
+        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f * 0.85f;  // 减小到85%
         int baseFontHeight = client.textRenderer.fontHeight;
-        int lineHeight = (int)(baseFontHeight * fontScale + 2);
+        int lineHeight = (int)(baseFontHeight * fontScale + 1);  // 更紧凑的行距
         int maxLinesVisible = Math.max(1, (height - 8) / lineHeight);
         return Math.max(height, maxLinesVisible * lineHeight + 8);
     }
@@ -73,6 +80,59 @@ public class MultilineTextInput {
             cursorVisible = true;
             blinkTicks = 0;
         }
+    }
+
+    public void setMaxChars(int maxChars) {
+        this.maxChars = Math.max(0, maxChars);
+    }
+
+    public void setMaxLines(int maxLines) {
+        this.maxLines = Math.max(1, maxLines);
+    }
+
+    public int getLineCount() {
+        return lines.size();
+    }
+
+    public boolean isCursorAtFirstLine() {
+        return cursorLine <= 0;
+    }
+
+    public boolean isCursorAtLastLine() {
+        return cursorLine >= lines.size() - 1;
+    }
+
+    public void setText(String value) {
+        lines.clear();
+        if (value == null) value = "";
+
+        // 先按行切分，再应用 maxLines / maxChars 限制
+        String[] parts = value.split("\n", -1);
+        int remainingLines = maxLines > 0 ? maxLines : Integer.MAX_VALUE;
+        int remainingChars = maxChars > 0 ? maxChars : Integer.MAX_VALUE;
+
+        for (String p : parts) {
+            if (remainingLines <= 0) break;
+            if (p == null) p = "";
+
+            // 每行尽量塞满，但要考虑总字符数限制
+            int allow = Math.min(p.length(), remainingChars);
+            lines.add(p.substring(0, allow));
+            remainingChars -= allow;
+            remainingLines--;
+
+            // 行与行之间的 '\n'
+            if (remainingLines > 0 && remainingChars > 0) {
+                remainingChars -= 1;
+            }
+            if (remainingChars <= 0) break;
+        }
+        if (lines.isEmpty()) lines.add("");
+
+        cursorLine = lines.size() - 1;
+        cursorColumn = lines.get(cursorLine).length();
+        clearSelection();
+        viewLineStart = 0;
     }
 
     public boolean isFocused() {
@@ -93,6 +153,14 @@ public class MultilineTextInput {
         cursorLine = 0;
         cursorColumn = 0;
         clearSelection();
+        viewLineStart = 0;
+    }
+
+    private int totalChars() {
+        int sum = 0;
+        for (String line : lines) sum += line.length();
+        if (!lines.isEmpty()) sum += (lines.size() - 1); // '\n'
+        return sum;
     }
 
     // =========================================================
@@ -150,24 +218,87 @@ public class MultilineTextInput {
     public void charTyped(char chr) {
         if (!focused) return;
 
-        if (chr == '\r' || chr == '\n') return; // 不自动换行
+        if (chr == '\r' || chr == '\n') return; // 不自动换行（手动换行用 Shift+Enter）
+        if (maxChars > 0 && totalChars() >= maxChars) return;
 
         if (hasSelection()) deleteSelection();
 
         String cur = lines.get(cursorLine);
         String before = cur.substring(0, cursorColumn);
         String after = cur.substring(cursorColumn);
+        String newText = before + chr + after;
 
-        lines.set(cursorLine, before + chr + after);
-        cursorColumn++;
+        // 检查是否需要自动换行（考虑字体缩放）
+        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f * 0.85f;
+        int availableWidth = width - 8; // 减去左右边距（每边4像素）
+        int textWidth = (int)(client.textRenderer.getWidth(newText) * fontScale);
+        
+        if (textWidth > availableWidth && cursorColumn > 0) {
+            // 行数限制：无法再增长时直接拒绝插入，避免无限扩展
+            if (maxLines > 0 && lines.size() >= maxLines) {
+                return;
+            }
+            // 需要自动换行：找到合适的换行位置（从光标位置往前找空格或标点）
+            int wrapPos = findWrapPosition(before + chr, availableWidth, fontScale);
+            if (wrapPos > 0) {
+                // 在 wrapPos 位置换行
+                String line1 = (before + chr).substring(0, wrapPos);
+                String line2 = (before + chr).substring(wrapPos) + after;
+                
+                lines.set(cursorLine, line1);
+                lines.add(cursorLine + 1, line2);
+                cursorLine++;
+                cursorColumn = line2.length() - after.length();
+            } else {
+                // 找不到合适的换行位置，在当前光标位置换行
+                lines.set(cursorLine, before);
+                lines.add(cursorLine + 1, chr + after);
+                cursorLine++;
+                cursorColumn = 1;
+            }
+        } else {
+            // 不需要换行，正常插入字符
+            lines.set(cursorLine, newText);
+            cursorColumn++;
+        }
 
         clearSelection();
+    }
+    
+    /**
+     * 找到合适的换行位置（优先在空格或标点处换行，考虑字体缩放）
+     */
+    private int findWrapPosition(String text, int maxWidth, float fontScale) {
+        int textWidth = (int)(client.textRenderer.getWidth(text) * fontScale);
+        if (textWidth <= maxWidth) {
+            return text.length(); // 不需要换行
+        }
+        
+        // 从后往前找空格或标点（从光标位置往前找，最多往前找20个字符）
+        int searchStart = Math.max(0, text.length() - 20);
+        for (int i = text.length() - 1; i >= searchStart; i--) {
+            char c = text.charAt(i);
+            if (c == ' ' || c == '，' || c == '。' || c == '、' || c == '；' || 
+                c == ',' || c == '.' || c == ';' || c == ':' || c == '!' || c == '?') {
+                // 检查这个位置之前的文本是否在宽度内（考虑字体缩放）
+                String before = text.substring(0, i + 1);
+                int beforeWidth = (int)(client.textRenderer.getWidth(before) * fontScale);
+                if (beforeWidth <= maxWidth) {
+                    return i + 1; // 在这个字符之后换行
+                }
+            }
+        }
+        
+        // 如果找不到合适的换行位置，返回0（强制在当前光标位置换行）
+        return 0;
     }
 
     public void insertNewLine() {
         if (!focused) return;
 
         if (hasSelection()) deleteSelection();
+        if (maxChars > 0 && totalChars() + 1 > maxChars) return;
+        if (maxLines > 0 && lines.size() >= maxLines) return;
 
         String cur = lines.get(cursorLine);
         String before = cur.substring(0, cursorColumn);
@@ -296,6 +427,7 @@ public class MultilineTextInput {
         if (s == null || s.isEmpty()) return;
 
         for (char c : s.toCharArray()) {
+            if (maxChars > 0 && totalChars() >= maxChars) return;
             if (c == '\n' || c == '\r') {
                 if (c == '\r') continue; // 跳过 \r，只处理 \n
                 insertNewLine();
@@ -391,17 +523,29 @@ public class MultilineTextInput {
             cursorVisible = !cursorVisible;
         }
 
-        // 背景
-        ctx.fill(x, y, x + width, y + height, 0xCC111111);
+        // 背景（半透明，和对话展示区一致的风格）
+        ctx.fill(x, y, x + width, y + height, 0x88111111);
 
-        // 根据字体大小计算行高
-        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f;
+        // 根据字体大小计算行高（减小字体大小）
+        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f * 0.85f;  // 减小到85%
         int baseFontHeight = client.textRenderer.fontHeight;
-        int lineHeight = (int)(baseFontHeight * fontScale + 2);
+        int lineHeight = (int)(baseFontHeight * fontScale + 1);  // 更紧凑的行距
 
         int textY = y + 4;
         int maxLinesVisible = (height - 8) / lineHeight;
-        int lineStart = Math.max(0, lines.size() - maxLinesVisible);
+        maxLinesVisible = Math.max(1, maxLinesVisible);
+
+        // 让光标始终可见：根据 cursorLine 调整 viewLineStart
+        int maxStart = Math.max(0, lines.size() - maxLinesVisible);
+        if (cursorLine < viewLineStart) {
+            viewLineStart = cursorLine;
+        } else if (cursorLine >= viewLineStart + maxLinesVisible) {
+            viewLineStart = cursorLine - maxLinesVisible + 1;
+        }
+        if (viewLineStart > maxStart) viewLineStart = maxStart;
+        if (viewLineStart < 0) viewLineStart = 0;
+
+        int lineStart = viewLineStart;
 
         // 绘制行（带选区高亮）
         for (int i = lineStart; i < lines.size(); i++) {
@@ -411,10 +555,10 @@ public class MultilineTextInput {
             // 检查是否需要绘制选区
             if (hasSelection() && i >= Math.min(selLineStart, selLineEnd) && 
                 i <= Math.max(selLineStart, selLineEnd)) {
-                drawLineWithSelection(ctx, line, i, drawY, lineHeight);
+                drawLineWithSelection(ctx, line, i, drawY, lineHeight, fontScale);
             } else {
-                // 使用 drawTextWithShadow 让文字更清晰可见
-                ctx.drawTextWithShadow(client.textRenderer, line, x + 4, drawY, 0xFFFFFFFF);
+                // 使用 drawTextWithShadow 让文字更清晰可见，应用字体缩放
+                drawScaledText(ctx, line, x + 4, drawY, 0xFFFFFFFF, fontScale);
             }
         }
 
@@ -423,16 +567,26 @@ public class MultilineTextInput {
             if (cursorLine >= lineStart && cursorLine < lines.size()) {
                 int drawY = textY + (cursorLine - lineStart) * lineHeight;
                 String before = lines.get(cursorLine).substring(0, cursorColumn);
-                int cx = x + 4 + client.textRenderer.getWidth(before);
+                int cx = x + 4 + (int)(client.textRenderer.getWidth(before) * fontScale);
                 ctx.fill(cx, drawY, cx + 1, drawY + lineHeight, 0xFFFFFFFF);
             }
         }
     }
 
     /**
+     * 绘制缩放文字（简化版：直接绘制，不缩放）
+     * 注意：Minecraft 的字体大小是固定的，我们通过调整行高来让文字看起来更紧凑
+     */
+    private void drawScaledText(DrawContext ctx, String text, int x, int y, int color, float scale) {
+        // 直接绘制文字，不进行缩放（Minecraft 字体大小固定）
+        // 缩放效果通过调整行高来实现
+        ctx.drawTextWithShadow(client.textRenderer, text, x, y, color);
+    }
+    
+    /**
      * 绘制带选区高亮的行
      */
-    private void drawLineWithSelection(DrawContext ctx, String line, int lineIndex, int drawY, int lineHeight) {
+    private void drawLineWithSelection(DrawContext ctx, String line, int lineIndex, int drawY, int lineHeight, float fontScale) {
         int sl = selLineStart, sc = selColStart;
         int el = selLineEnd, ec = selColEnd;
 
@@ -445,55 +599,56 @@ public class MultilineTextInput {
 
         int lineLen = line.length();
 
+        // 应用字体缩放
         if (lineIndex == sl && lineIndex == el) {
             // 单行选区
-            int startX = x + 4 + client.textRenderer.getWidth(line.substring(0, sc));
-            int endX = x + 4 + client.textRenderer.getWidth(line.substring(0, ec));
+            int startX = x + 4 + (int)(client.textRenderer.getWidth(line.substring(0, sc)) * fontScale);
+            int endX = x + 4 + (int)(client.textRenderer.getWidth(line.substring(0, ec)) * fontScale);
             ctx.fill(startX, drawY, endX, drawY + lineHeight, 0x5533AAFF);
             
-            // 绘制文本（分三段）
+            // 绘制文本（分三段，应用缩放）
             if (sc > 0) {
-                ctx.drawTextWithShadow(client.textRenderer, line.substring(0, sc), x + 4, drawY, 0xFFFFFFFF);
+                drawScaledText(ctx, line.substring(0, sc), x + 4, drawY, 0xFFFFFFFF, fontScale);
             }
             if (ec > sc) {
-                int selStartX = x + 4 + client.textRenderer.getWidth(line.substring(0, sc));
-                ctx.drawTextWithShadow(client.textRenderer, line.substring(sc, ec), selStartX, drawY, 0xFFFFFFFF);
+                int selStartX = x + 4 + (int)(client.textRenderer.getWidth(line.substring(0, sc)) * fontScale);
+                drawScaledText(ctx, line.substring(sc, ec), selStartX, drawY, 0xFFFFFFFF, fontScale);
             }
             if (ec < lineLen) {
-                int selEndX = x + 4 + client.textRenderer.getWidth(line.substring(0, ec));
-                ctx.drawTextWithShadow(client.textRenderer, line.substring(ec), selEndX, drawY, 0xFFFFFFFF);
+                int selEndX = x + 4 + (int)(client.textRenderer.getWidth(line.substring(0, ec)) * fontScale);
+                drawScaledText(ctx, line.substring(ec), selEndX, drawY, 0xFFFFFFFF, fontScale);
             }
         } else if (lineIndex == sl) {
             // 选区开始行
-            int startX = x + 4 + client.textRenderer.getWidth(line.substring(0, sc));
+            int startX = x + 4 + (int)(client.textRenderer.getWidth(line.substring(0, sc)) * fontScale);
             ctx.fill(startX, drawY, x + width - 4, drawY + lineHeight, 0x5533AAFF);
             
             if (sc > 0) {
-                ctx.drawTextWithShadow(client.textRenderer, line.substring(0, sc), x + 4, drawY, 0xFFFFFFFF);
+                drawScaledText(ctx, line.substring(0, sc), x + 4, drawY, 0xFFFFFFFF, fontScale);
             }
             if (sc < lineLen) {
-                int selStartX = x + 4 + client.textRenderer.getWidth(line.substring(0, sc));
-                ctx.drawTextWithShadow(client.textRenderer, line.substring(sc), selStartX, drawY, 0xFFFFFFFF);
+                int selStartX = x + 4 + (int)(client.textRenderer.getWidth(line.substring(0, sc)) * fontScale);
+                drawScaledText(ctx, line.substring(sc), selStartX, drawY, 0xFFFFFFFF, fontScale);
             }
         } else if (lineIndex == el) {
             // 选区结束行
-            int endX = x + 4 + client.textRenderer.getWidth(line.substring(0, ec));
+            int endX = x + 4 + (int)(client.textRenderer.getWidth(line.substring(0, ec)) * fontScale);
             ctx.fill(x + 4, drawY, endX, drawY + lineHeight, 0x5533AAFF);
             
             if (ec > 0) {
-                ctx.drawTextWithShadow(client.textRenderer, line.substring(0, ec), x + 4, drawY, 0xFFFFFFFF);
+                drawScaledText(ctx, line.substring(0, ec), x + 4, drawY, 0xFFFFFFFF, fontScale);
             }
             if (ec < lineLen) {
-                int selEndX = x + 4 + client.textRenderer.getWidth(line.substring(0, ec));
-                ctx.drawTextWithShadow(client.textRenderer, line.substring(ec), selEndX, drawY, 0xFFFFFFFF);
+                int selEndX = x + 4 + (int)(client.textRenderer.getWidth(line.substring(0, ec)) * fontScale);
+                drawScaledText(ctx, line.substring(ec), selEndX, drawY, 0xFFFFFFFF, fontScale);
             }
         } else if (lineIndex > sl && lineIndex < el) {
             // 选区中间行（整行高亮）
             ctx.fill(x + 4, drawY, x + width - 4, drawY + lineHeight, 0x5533AAFF);
-            ctx.drawTextWithShadow(client.textRenderer, line, x + 4, drawY, 0xFFFFFFFF);
+            drawScaledText(ctx, line, x + 4, drawY, 0xFFFFFFFF, fontScale);
         } else {
             // 无选区部分
-            ctx.drawTextWithShadow(client.textRenderer, line, x + 4, drawY, 0xFFFFFFFF);
+            drawScaledText(ctx, line, x + 4, drawY, 0xFFFFFFFF, fontScale);
         }
     }
 }

@@ -15,4 +15,10 @@ public class BasicAIService implements AIService {
         StructureData data = LanguageParser.parse(prompt);
         return new AIResult(prompt, data);
     }
+
+    @Override
+    public AIResult generateBuildingPlan(BuildingRequest request, AICancelToken token) {
+        if (token != null && token.isCancelled()) return null;
+        return generateBuildingPlan(request);
+    }
 }

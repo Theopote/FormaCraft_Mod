@@ -32,6 +32,8 @@ public class ChatMessage {
         SPEC,
         ERROR,
         SYSTEM,
+        THINKING,   // AI 正在思考（点点点动画）
+        CANCELLED,  // 已中断
         STREAMING   // 流式打印中的消息
     }
 
@@ -62,5 +64,16 @@ public class ChatMessage {
      */
     public static ChatMessage streaming(String text, BuildingSpec spec) {
         return new ChatMessage(text, false, spec, MessageType.STREAMING);
+    }
+
+    /**
+     * 创建“正在思考”占位消息（用于 HUD 中显示点点点动画）
+     */
+    public static ChatMessage thinking() {
+        return new ChatMessage("", false, null, MessageType.THINKING);
+    }
+
+    public static ChatMessage cancelled(String text) {
+        return new ChatMessage(text != null ? text : "", false, null, MessageType.CANCELLED);
     }
 }

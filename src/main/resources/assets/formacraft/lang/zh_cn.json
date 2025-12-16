@@ -4,5 +4,9 @@
   "formacraft.tab.chat": "聊天",
   "formacraft.tab.blueprint": "蓝图",
   "formacraft.tab.history": "历史",
-  "formacraft.tab.settings": "设置"
+  "formacraft.tab.settings": "设置",
+  "formacraft.button.close": "关闭",
+  "formacraft.button.collapse": "折叠",
+  "formacraft.button.expand": "展开",
+  "formacraft.chat.send.tooltip": "发送"
 }

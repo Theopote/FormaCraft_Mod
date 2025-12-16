@@ -3,8 +3,10 @@ package com.formacraft.client.ui.panel;
 import com.formacraft.ai.AIResult;
 import com.formacraft.ai.AIService;
 import com.formacraft.ai.AIServiceManager;
+import com.formacraft.ai.AICancelToken;
 import com.formacraft.ai.BuildingRequest;
 import com.formacraft.client.ui.widget.MultilineTextInput;
+import com.formacraft.client.ui.panel.chat.AIStreamPrinter;
 import com.formacraft.client.ui.panel.chat.ChatMessage;
 import com.formacraft.common.builder.AutoBuilder;
 import com.formacraft.common.builder.BuildingBlueprint;
@@ -20,6 +22,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * FormaCraft 主聊天面板（左侧固定栏 + 多行输入 + 可滚动消息区域）
@@ -41,36 +44,49 @@ public class ChatPanel extends BasePanel {
     // 多行输入组件
     private MultilineTextInput inputBox;
 
+    // 输入历史（↑/↓）：只在光标位于首/末行时触发，避免与多行光标移动冲突
+    private final List<String> inputHistory = new ArrayList<>();
+    private int historyIndex = -1;     // -1 表示未浏览历史（编辑当前草稿）
+    private String historyDraft = "";  // 进入历史浏览前的草稿
+
     // 滚动偏移：从底部往上偏移多少条消息
     private int scrollOffset = 0;
 
-    // ========== AI 输出流式打印 ==========
-    private boolean aiThinking = false;         // 是否在等待 AI 回复
-    private String thinkingAnimation = "正在思考.";
-    private int thinkingTick = 0;
-
-    // 当前正在流式打印的文本
-    private String streamingTarget = null;
-    private StringBuilder streamingBuffer = new StringBuilder();
-    private int streamingIndex = 0;
-
-    // 对于结构化消息（如 BuildingSpec）
-    private BuildingSpec streamingSpec = null;
+    // ========== AI 输出流式打印（token 队列 + typewriter） ==========
+    private AIStreamPrinter currentPrinter = null;
+    private AICancelToken currentCancelToken = null;
+    private CompletableFuture<AIResult> currentRequestFuture = null;
 
     // Padding（减小边距）
     private static final int PADDING = 2;
 
+    // 发送按钮（与顶部按钮/标签统一为 12x12 的方形）
+    private static final int SEND_BUTTON_SIZE = 12;
+    private int sendBtnX, sendBtnY, sendBtnW, sendBtnH;
+    private int stopBtnX, stopBtnY, stopBtnW, stopBtnH;
+
     public ChatPanel() {
         // 初始输入框，在第一次 render 时会根据当前面板尺寸重新 setBounds
         this.inputBox = new MultilineTextInput(0, 0, 10, 48);
+        // 聊天输入：限制总长度与最大行数，避免粘贴超大文本造成 UI 卡顿
+        this.inputBox.setMaxChars(2048);
+        this.inputBox.setMaxLines(12);
     }
 
     @Override
     protected void drawContents(DrawContext ctx) {
-        // 计算字体缩放
-        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f;
+        // 每帧推进流式打印（不会阻塞）
+        if (currentPrinter != null) {
+            currentPrinter.tick();
+            if (currentPrinter.isFinished()) {
+                currentPrinter = null;
+            }
+        }
+
+        // 计算字体缩放（减小字体大小）
+        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f * 0.85f;  // 减小到85%
         int baseFont = client.textRenderer.fontHeight;          // 默认字体高度
-        int lineHeight = (int)(baseFont * fontScale + 3);       // 行距
+        int lineHeight = (int)(baseFont * fontScale + 1);       // 行距（更紧凑）
 
         // 面板内边距
         int padding = PADDING;
@@ -85,29 +101,11 @@ public class ChatPanel extends BasePanel {
         int inputAreaHeight = getInputHeight();
         int chatAreaBottom = innerY + innerH - inputAreaHeight - 4;
 
-        // 绘制聊天区域背景（更透明）
-        ctx.fill(innerX, innerY, innerX + innerW, chatAreaBottom, 0x551A1A1A);
+        // 绘制聊天区域背景（半透明）
+        ctx.fill(innerX, innerY, innerX + innerW, chatAreaBottom, 0x201A1A1A);
 
         // 绘制消息（自下而上）
         drawMessages(ctx, innerX, innerY, innerW, chatAreaBottom, lineHeight, fontScale);
-
-        // 渲染"正在思考…"动画
-        if (aiThinking && streamingTarget == null) {
-            int animIndex = (thinkingTick / 10) % 3;
-            switch (animIndex) {
-                case 0 -> thinkingAnimation = "正在思考.";
-                case 1 -> thinkingAnimation = "正在思考..";
-                case 2 -> thinkingAnimation = "正在思考...";
-            }
-            thinkingTick++;
-
-            int thinkingY = chatAreaBottom - lineHeight - 4;
-            ctx.drawText(client.textRenderer, 
-                    Text.literal(thinkingAnimation),
-                    innerX + 4,
-                    thinkingY,
-                    0xAAAAAA, false);
-        }
 
         // 绘制输入框背景 + 输入框 + 发送按钮
         int inputY = chatAreaBottom + 6;
@@ -115,6 +113,9 @@ public class ChatPanel extends BasePanel {
         
         // 在输入区域上方绘制分隔线（参考 Quick Settings 样式）
         ctx.fill(innerX, chatAreaBottom, innerX + innerW, chatAreaBottom + 1, 0x66FFFFFF);
+        
+        // 注意：发送按钮的 tooltip 应该在 BasePanel 的 drawTooltip 中处理
+        // 这里不再绘制，避免覆盖其他按钮的 tooltip
     }
 
     /**
@@ -150,16 +151,21 @@ public class ChatPanel extends BasePanel {
             // 包装文本（考虑字体大小）
             int textWidth = (int)(availableWidth / fontScale);
             
-            // 流式消息添加光标符号
-            String displayText = msg.text;
-            if (msg.type == ChatMessage.MessageType.STREAMING) {
+            // 流式消息添加光标符号 / thinking 点点点动画
+            String displayText;
+            if (msg.type == ChatMessage.MessageType.THINKING) {
+                int dots = (int) ((System.currentTimeMillis() / 350) % 4);
+                displayText = "AI 正在思考" + ".".repeat(dots);
+            } else if (msg.type == ChatMessage.MessageType.STREAMING) {
                 displayText = msg.text + "▍";
+            } else {
+                displayText = msg.text;
             }
             
             List<net.minecraft.text.OrderedText> wrapped =
                     client.textRenderer.wrapLines(Text.literal(displayText), textWidth);
 
-            int bubbleHeight = wrapped.size() * lineHeight + 8;
+            int bubbleHeight = wrapped.size() * lineHeight + 4;  // 减小气泡内边距
             int bubbleBottom = y;
             int bubbleTop = bubbleBottom - bubbleHeight;
 
@@ -185,9 +191,11 @@ public class ChatPanel extends BasePanel {
             // 气泡背景
             ctx.fill(bubbleX, bubbleTop, bubbleX + availableWidth, bubbleBottom, bgColor);
 
-            // 文本
-            int textY = bubbleTop + 4;
+            // 文本（减小上边距，通过调整行高实现紧凑效果）
+            int textY = bubbleTop + 2;
             for (net.minecraft.text.OrderedText line : wrapped) {
+                // 直接绘制文字，不进行缩放（Minecraft 字体大小固定）
+                // 缩放效果通过调整行高来实现
                 ctx.drawText(client.textRenderer, line, bubbleX + 4, textY, textColor, false);
                 textY += lineHeight;
             }
@@ -247,28 +255,48 @@ public class ChatPanel extends BasePanel {
      */
     private void drawInputArea(DrawContext ctx, int innerX, int inputY, int innerW, int inputAreaHeight) {
         // 背景（更透明）
-        ctx.fill(innerX, inputY, innerX + innerW, inputY + inputAreaHeight, 0x881A1A1A);
+        ctx.fill(innerX, inputY, innerX + innerW, inputY + inputAreaHeight, 0x401A1A1A);
 
-        int btnWidth = 56;
-        int btnHeight = 20;
-        int btnX = innerX + innerW - btnWidth - 4;
-        int btnY = inputY + inputAreaHeight - btnHeight - 4;
+        int btnWidth = SEND_BUTTON_SIZE;
+        int btnHeight = SEND_BUTTON_SIZE;
+        int btnX = innerX + innerW - btnWidth - 2;
+        int btnY = inputY + inputAreaHeight - btnHeight - 2;
+
+        // 记录给 tooltip / click 使用
+        sendBtnX = btnX;
+        sendBtnY = btnY;
+        sendBtnW = btnWidth;
+        sendBtnH = btnHeight;
+
+        // Stop 按钮（仅流式打印时显示，位于发送按钮上方）
+        boolean streaming = currentPrinter != null;
+        stopBtnW = 72;
+        stopBtnH = 14;
+        stopBtnX = innerX + innerW - stopBtnW - 2;
+        stopBtnY = btnY - stopBtnH - 2;
 
         // 检查鼠标是否悬停在按钮上
-        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
+        double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
+        double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
         boolean hovered = mouseX >= btnX && mouseX <= btnX + btnWidth && 
                          mouseY >= btnY && mouseY <= btnY + btnHeight;
         
-        // 使用 Minecraft 风格的按钮
-        drawMinecraftButton(ctx, btnX, btnY, btnWidth, btnHeight, 
-                           Text.translatable("formacraft.chat.send"), hovered);
+        // 使用统一风格的方形按钮 + 图标
+        drawMinecraftButton(ctx, btnX, btnY, btnWidth, btnHeight,
+                           Text.literal("📤"), hovered);
 
-        // 输入框区域（根据字体大小调整高度）
-        int inputBoxX = innerX + 4;
-        int inputBoxY = inputY + 4;
-        int inputBoxW = innerW - btnWidth - 12;
-        int inputBoxH = inputAreaHeight - 8;
+        if (streaming) {
+            boolean stopHovered = mouseX >= stopBtnX && mouseX <= stopBtnX + stopBtnW &&
+                    mouseY >= stopBtnY && mouseY <= stopBtnY + stopBtnH;
+            drawMinecraftButton(ctx, stopBtnX, stopBtnY, stopBtnW, stopBtnH,
+                    Text.literal("⏹ 停止生成"), stopHovered);
+        }
+
+        // 输入框区域（根据字体大小调整高度，减小边距）
+        int inputBoxX = innerX + 2;
+        int inputBoxY = inputY + 2;
+        int inputBoxW = innerW - btnWidth - 6;
+        int inputBoxH = inputAreaHeight - 4;
 
         inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
         inputBox.render(ctx);
@@ -278,8 +306,48 @@ public class ChatPanel extends BasePanel {
      * 获取输入框高度（用于布局计算）
      */
     private int getInputHeight() {
-        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f;
-        return (int)(52 * fontScale);
+        // 根据当前输入行数自动增长：到上限后固定高度，内部滚动由 MultilineTextInput 保证光标可见
+        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f * 0.85f;
+        int baseFont = client.textRenderer.fontHeight;
+        int lineHeight = (int) (baseFont * fontScale + 1);
+
+        int minVisibleLines = 2;
+        int maxVisibleLines = 6; // UI 上限：超过则输入框内部滚动
+        int lines = Math.max(1, inputBox.getLineCount());
+        int visible = Math.max(minVisibleLines, Math.min(maxVisibleLines, lines));
+
+        // inputBoxH 需要满足：maxLinesVisible = (h - 8) / lineHeight ≈ visible
+        int inputBoxH = 8 + visible * lineHeight;
+        return inputBoxH + 4; // drawInputArea 中上下各 2px padding
+    }
+    
+    /**
+     * 重写自定义 tooltip 处理，添加发送按钮的 tooltip
+     */
+    @Override
+    protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
+        // 检查发送按钮的 tooltip
+        // 注意：sendBtnX/Y/W/H 在 drawInputArea 中设置，需要确保已经初始化
+        if (sendBtnW > 0 && sendBtnH > 0) {
+            if (mouseX >= sendBtnX && mouseX <= sendBtnX + sendBtnW &&
+                mouseY >= sendBtnY && mouseY <= sendBtnY + sendBtnH) {
+                ctx.drawTooltip(client.textRenderer,
+                        java.util.Collections.singletonList(Text.translatable("formacraft.chat.send.tooltip")),
+                        (int) mouseX, (int) mouseY);
+                return true; // 已处理 tooltip
+            }
+        }
+
+        if (currentPrinter != null && stopBtnW > 0 && stopBtnH > 0) {
+            if (mouseX >= stopBtnX && mouseX <= stopBtnX + stopBtnW &&
+                mouseY >= stopBtnY && mouseY <= stopBtnY + stopBtnH) {
+                ctx.drawTooltip(client.textRenderer,
+                        java.util.Collections.singletonList(Text.literal("中断生成")),
+                        (int) mouseX, (int) mouseY);
+                return true;
+            }
+        }
+        return false; // 未处理，继续检查其他按钮
     }
 
     // ==========================
@@ -299,15 +367,22 @@ public class ChatPanel extends BasePanel {
         int innerW = panelWidth - padding * 2;
         int innerH = panelHeight - titleBarHeight - padding * 2;
         
-        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f;
-        int inputAreaHeight = (int)(52 * fontScale);
+        int inputAreaHeight = getInputHeight();
         int chatAreaBottom = innerY + innerH - inputAreaHeight - 4;
         int inputY = chatAreaBottom + 6;
 
-        int btnWidth = 56;
-        int btnHeight = 20;
+        int btnWidth = SEND_BUTTON_SIZE;
+        int btnHeight = SEND_BUTTON_SIZE;
         int btnX = innerX + innerW - btnWidth - 4;
         int btnY = inputY + inputAreaHeight - btnHeight - 4;
+
+        // 点击 Stop 按钮（优先于发送）
+        if (currentPrinter != null &&
+                mouseX >= stopBtnX && mouseX <= stopBtnX + stopBtnW &&
+                mouseY >= stopBtnY && mouseY <= stopBtnY + stopBtnH) {
+            stopGenerating();
+            return true;
+        }
 
         // 点击发送按钮
         if (mouseX >= btnX && mouseX <= btnX + btnWidth &&
@@ -325,6 +400,8 @@ public class ChatPanel extends BasePanel {
         if (mouseX >= inputBoxX && mouseX <= inputBoxX + inputBoxW &&
             mouseY >= inputBoxY && mouseY <= inputBoxY + inputBoxH) {
             inputBox.setFocused(true);
+            // 点击输入框即退出历史浏览态（保持当前内容）
+            historyIndex = -1;
             // TODO: 可以在这里实现点击位置设置光标（需要计算点击位置对应的行列）
             return true;
         }
@@ -356,8 +433,8 @@ public class ChatPanel extends BasePanel {
 
     /**
      * 键盘按下事件（完整版，带修饰符）：
-     * - Enter：发送消息
-     * - Shift+Enter：换行
+     * - Enter：换行
+     * - Shift+Enter：发送消息
      * - Backspace：删除一个字符
      * - 方向键、Home/End：光标移动
      * - Ctrl+C/V/X：复制粘贴剪切
@@ -369,6 +446,7 @@ public class ChatPanel extends BasePanel {
 
         // Backspace
         if (keyCode == 259) {
+            historyIndex = -1; // 编辑行为：退出历史浏览态
             inputBox.backspace();
             return;
         }
@@ -378,16 +456,49 @@ public class ChatPanel extends BasePanel {
             // 检查 Shift 键
             boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
             if (shift) {
-                // Shift+Enter：换行
-                inputBox.insertNewLine();
-            } else {
-                // Enter：发送消息
+                // Shift+Enter：发送消息
                 sendCurrentMessage();
+            } else {
+                // Enter：换行
+                historyIndex = -1;
+                inputBox.insertNewLine();
+            }
+            return;
+        }
+
+        // ↑/↓ 输入历史：只在光标位于首行/末行且没有修饰键时触发
+        boolean noMods = (modifiers & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_ALT | GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_SUPER)) == 0;
+        if (noMods && keyCode == GLFW.GLFW_KEY_UP && inputBox.isCursorAtFirstLine()) {
+            if (!inputHistory.isEmpty()) {
+                if (historyIndex == -1) {
+                    historyDraft = inputBox.getText();
+                    historyIndex = inputHistory.size() - 1;
+                } else if (historyIndex > 0) {
+                    historyIndex--;
+                }
+                inputBox.setText(inputHistory.get(historyIndex));
+            }
+            return;
+        }
+        if (noMods && keyCode == GLFW.GLFW_KEY_DOWN && inputBox.isCursorAtLastLine()) {
+            if (historyIndex != -1) {
+                if (historyIndex < inputHistory.size() - 1) {
+                    historyIndex++;
+                    inputBox.setText(inputHistory.get(historyIndex));
+                } else {
+                    historyIndex = -1;
+                    inputBox.setText(historyDraft);
+                }
             }
             return;
         }
 
         // 其他按键交给输入框处理（方向键、Ctrl+C/V/X、Home/End 等）
+        // 注意：这会包含方向键上下移动“行内光标”，只有在到达边界才会被上面的历史逻辑接管
+        if (keyCode != GLFW.GLFW_KEY_UP && keyCode != GLFW.GLFW_KEY_DOWN) {
+            // 非上下键的编辑/移动：退出历史浏览态（保持当前内容）
+            historyIndex = -1;
+        }
         inputBox.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -395,6 +506,7 @@ public class ChatPanel extends BasePanel {
     public void charTyped(char chr) {
         // 过滤控制字符
         if (chr == '\r' || chr == '\n') return;
+        historyIndex = -1; // 输入即退出历史浏览态
         inputBox.charTyped(chr);
     }
 
@@ -408,9 +520,23 @@ public class ChatPanel extends BasePanel {
 
         if (client.player == null || client.world == null) return;
 
+        // 如果上一条还在生成，先真中断，避免并发覆盖 UI
+        stopGenerating();
+
         // 追加玩家消息
         messages.add(new ChatMessage(text, true));
         scrollOffset = 0; // 回到底部，显示最新消息
+
+        // 记录输入历史（去重：与上一条完全相同则不重复入栈）
+        if (inputHistory.isEmpty() || !inputHistory.getLast().equals(text)) {
+            inputHistory.add(text);
+            // 简单上限，避免无限增长
+            if (inputHistory.size() > 50) {
+                inputHistory.removeFirst();
+            }
+        }
+        historyIndex = -1;
+        historyDraft = "";
 
         World world = client.world;
         BlockPos start = client.player.getBlockPos().add(2, 0, 2);
@@ -426,40 +552,68 @@ public class ChatPanel extends BasePanel {
 
         BuildingRequest request = new BuildingRequest(text, start, dimensionId, sessionId, history);
 
-        // 启动思考动画
-        startThinkingAnimation();
+        // 添加 AI thinking 占位消息，并创建流式打印器
+        int aiMsgIndex = messages.size();
+        messages.add(ChatMessage.thinking());
+        scrollOffset = 0;
+        AIStreamPrinter printer = new AIStreamPrinter(messages, aiMsgIndex);
+        printer.setCharsPerTick(2);
+        currentPrinter = printer;
+        currentCancelToken = new AICancelToken();
+        AICancelToken token = currentCancelToken;
 
-        // 异步调用 AI（不阻塞主线程）
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                AIResult result = aiService.generateBuildingPlan(request);
+        // 异步调用 AI（不阻塞主线程）——可取消：token + future.cancel(true)
+        currentRequestFuture = CompletableFuture.supplyAsync(() -> aiService.generateBuildingPlan(request, token));
+        currentRequestFuture.whenComplete((result, err) -> {
+            if (token.isCancelled()) return;
 
-                // 在主线程中启动流式打印
+            if (err != null) {
                 client.execute(() -> {
-                    // 从 result 中提取 BuildingSpec（如果存在）
-                    BuildingSpec spec = null;
-                    if (result.getStructureData() != null) {
-                        // TODO: 从 StructureData 转换为 BuildingSpec（如果需要）
-                        // 这里暂时为 null，后续可以根据实际需求转换
-                    }
-                    
-                    startStreamingAIMessage(result.getRawResponse(), null);
-
-                    // 规划 & 自动建造（延续你现有流程）
-                    BuildingBlueprint blueprint = planner.plan(request, result);
-                    autoBuilder.build(world, blueprint);
-                });
-            } catch (Exception e) {
-                client.execute(() -> {
-                    aiThinking = false;
-                    messages.add(new ChatMessage("AI 请求失败: " + e.getMessage(), false, null, ChatMessage.MessageType.ERROR));
+                    if (currentPrinter == printer) currentPrinter = null;
+                    messages.add(new ChatMessage("AI 请求失败: " + err.getMessage(), false, null, ChatMessage.MessageType.ERROR));
                     scrollOffset = 0;
                 });
+                return;
             }
+
+            if (result == null) {
+                // 被取消：不再更新消息（Stop 已经把消息标记为 CANCELLED）
+                return;
+            }
+
+            // 一次性塞入整段文本，由 tick() 按 charsPerTick 打印；未来真实流式直接多次 appendToken 即可
+            printer.appendToken(result.getRawResponse());
+            printer.finish();
+
+            client.execute(() -> {
+                BuildingBlueprint blueprint = planner.plan(request, result);
+                autoBuilder.build(world, blueprint);
+            });
         });
 
         // 清空输入框
         inputBox.clear();
+    }
+
+    private void stopGenerating() {
+        // 1) 取消 token（AI 调用层主动退出）
+        if (currentCancelToken != null) {
+            currentCancelToken.cancel();
+            currentCancelToken = null;
+        }
+
+        // 2) 取消 future（触发线程中断，终止阻塞的 httpClient.send）
+        if (currentRequestFuture != null) {
+            currentRequestFuture.cancel(true);
+            currentRequestFuture = null;
+        }
+
+        // 3) 停止打字机 + 将消息标记为“已停止生成”
+        if (currentPrinter != null) {
+            currentPrinter.cancel();
+            currentPrinter = null;
+            scrollOffset = 0;
+        }
     }
 
     /**
@@ -493,85 +647,4 @@ public class ChatPanel extends BasePanel {
         scrollOffset = 0; // 自动滚动到底部
     }
 
-    // ==========================
-    //  思考动画 & 流式打印
-    // ==========================
-
-    /**
-     * 启动思考动画
-     */
-    private void startThinkingAnimation() {
-        aiThinking = true;
-        thinkingAnimation = "正在思考.";
-        thinkingTick = 0;
-    }
-
-    /**
-     * 启动流式打印 AI 消息
-     */
-    private void startStreamingAIMessage(String text, BuildingSpec spec) {
-        this.aiThinking = false;
-        this.streamingTarget = text != null ? text : "";
-        this.streamingBuffer = new StringBuilder();
-        this.streamingIndex = 0;
-        this.streamingSpec = spec;
-
-        // 开启流式打印
-        tickStreaming();
-    }
-
-    /**
-     * 流式打印主逻辑（每 tick 执行）
-     */
-    private void tickStreaming() {
-        // 每 tick 打印 1～3 个字符（可改）
-        if (streamingTarget != null) {
-            int step = 2; // 打印速度（每 tick 2 个字符）
-            for (int i = 0; i < step && streamingIndex < streamingTarget.length(); i++) {
-                streamingBuffer.append(streamingTarget.charAt(streamingIndex));
-                streamingIndex++;
-            }
-
-            // 当 streamingBuffer 有内容 → 动态显示
-            if (!streamingBuffer.isEmpty()) {
-                // 最后一个消息是否是 AI 的 partial？
-                if (!messages.isEmpty() && !messages.getLast().fromPlayer
-                        && messages.getLast().type == ChatMessage.MessageType.STREAMING) {
-                    // 更新现有的流式消息
-                    messages.set(messages.size() - 1,
-                        ChatMessage.streaming(streamingBuffer.toString(), streamingSpec)
-                    );
-                } else {
-                    // 创建新的流式消息
-                    messages.add(ChatMessage.streaming(streamingBuffer.toString(), streamingSpec));
-                    scrollOffset = 0; // 滚动到底部
-                }
-            }
-
-            if (streamingIndex >= streamingTarget.length()) {
-                // 完成流式打印
-                streamingTarget = null;
-                BuildingSpec finalSpec = streamingSpec;
-                streamingSpec = null;
-
-                // 将 STREAMING 类型转为 TEXT 或 SPEC
-                if (!messages.isEmpty()) {
-                    ChatMessage last = messages.getLast();
-                    ChatMessage finalMsg;
-
-                    if (finalSpec != null) {
-                        finalMsg = new ChatMessage(last.text, false, finalSpec, ChatMessage.MessageType.SPEC);
-                    } else {
-                        finalMsg = new ChatMessage(last.text, false, null, ChatMessage.MessageType.TEXT);
-                    }
-
-                    messages.set(messages.size() - 1, finalMsg);
-                }
-                return;
-            }
-
-            // 下一 tick 继续打印
-            client.execute(this::tickStreaming);
-        }
-    }
 }

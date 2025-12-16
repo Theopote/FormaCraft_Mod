@@ -24,6 +24,11 @@ class FormaRequestAdapter(BaseModel):
     selectionMax: Optional[dict] = None  # BlockPos 序列化
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
+
+    # Java 端可选的 LLM 覆盖配置（由客户端设置面板传入）
+    apiKey: Optional[str] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = None
     
     # Python 端格式（嵌套结构，向后兼容）
     player: Optional[dict] = None
@@ -77,7 +82,10 @@ class FormaRequestAdapter(BaseModel):
                 selection=selection_obj,
                 requestText=self.requestText or "",
                 sessionId=self.sessionId,
-                chatHistory=self.chatHistory
+                chatHistory=self.chatHistory,
+                apiKey=self.apiKey,
+                model=self.model,
+                temperature=self.temperature,
             )
         else:
             # Python 端格式：从嵌套结构构建
@@ -128,6 +136,9 @@ class FormaRequestAdapter(BaseModel):
                 selection=selection_obj,
                 requestText=self.request,
                 sessionId=self.sessionId,
-                chatHistory=self.chatHistory
+                chatHistory=self.chatHistory,
+                apiKey=self.apiKey,
+                model=self.model,
+                temperature=self.temperature,
             )
 

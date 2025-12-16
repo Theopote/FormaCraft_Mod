@@ -16,12 +16,47 @@ except ImportError:
 from ..models.city_spec import CitySpec
 from ..models.building_spec import BuildingSpec
 
-# 初始化 OpenAI 客户端
-client: Optional[OpenAI] = None
-if HAS_OPENAI:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if api_key:
-        client = OpenAI(api_key=api_key)
+
+def _clamp_temperature(v: Optional[float], default: float) -> float:
+    try:
+        if v is None:
+            return default
+        f = float(v)
+        if f < 0.0:
+            return 0.0
+        if f > 1.0:
+            return 1.0
+        return f
+    except Exception:
+        return default
+
+
+def _resolve_api_key(api_key: Optional[str]) -> Optional[str]:
+    if api_key is not None:
+        k = str(api_key).strip()
+        if k:
+            return k
+    env_key = os.getenv("OPENAI_API_KEY")
+    return env_key.strip() if env_key else None
+
+
+def _resolve_model(model: Optional[str], default: str) -> str:
+    if model is not None:
+        m = str(model).strip()
+        if m:
+            return m
+    return os.getenv("OPENAI_MODEL", default)
+
+
+def _get_openai_client(api_key: Optional[str]) -> Optional[OpenAI]:
+    if not HAS_OPENAI:
+        return None
+    if not api_key:
+        return None
+    try:
+        return OpenAI(api_key=api_key)
+    except Exception:
+        return None
 
 
 def _build_city_edit_system_prompt() -> str:
@@ -94,7 +129,14 @@ Examples:
 """
 
 
-def edit_city_spec(current: CitySpec, command: str, blueprint_name: Optional[str] = None) -> CitySpec:
+def edit_city_spec(
+    current: CitySpec,
+    command: str,
+    blueprint_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+    model: Optional[str] = None,
+    temperature: Optional[float] = None,
+) -> CitySpec:
     """
     增量编辑 CitySpec
     
@@ -105,6 +147,7 @@ def edit_city_spec(current: CitySpec, command: str, blueprint_name: Optional[str
     Returns:
         更新后的 CitySpec
     """
+    client = _get_openai_client(_resolve_api_key(api_key))
     if not client:
         # 如果没有 OpenAI 客户端，返回原始 spec（或实现规则基础的回退）
         return current
@@ -131,13 +174,13 @@ Player command:
     
     try:
         response = client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            model=_resolve_model(model, "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.3,  # 较低温度以保证稳定性
+            temperature=_clamp_temperature(temperature, 0.3),  # 较低温度以保证稳定性
         )
         
         raw_output = response.choices[0].message.content
@@ -154,7 +197,13 @@ Player command:
         return current  # 失败时返回原始 spec
 
 
-def edit_building_spec(current: BuildingSpec, command: str) -> BuildingSpec:
+def edit_building_spec(
+    current: BuildingSpec,
+    command: str,
+    api_key: Optional[str] = None,
+    model: Optional[str] = None,
+    temperature: Optional[float] = None,
+) -> BuildingSpec:
     """
     增量编辑 BuildingSpec
     
@@ -165,6 +214,7 @@ def edit_building_spec(current: BuildingSpec, command: str) -> BuildingSpec:
     Returns:
         更新后的 BuildingSpec
     """
+    client = _get_openai_client(_resolve_api_key(api_key))
     if not client:
         return current
     
@@ -185,13 +235,13 @@ Player command:
     
     try:
         response = client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            model=_resolve_model(model, "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.3,
+            temperature=_clamp_temperature(temperature, 0.3),
         )
         
         raw_output = response.choices[0].message.content

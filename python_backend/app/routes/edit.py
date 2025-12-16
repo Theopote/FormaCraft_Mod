@@ -21,7 +21,13 @@ async def edit_city_endpoint(req: CityEditRequest) -> Dict[str, Any]:
         current = CitySpec.model_validate(req.currentCitySpec)
         
         # 调用 AI 编辑器
-        updated = edit_city_spec(current, req.editCommand)
+        updated = edit_city_spec(
+            current,
+            req.editCommand,
+            api_key=req.apiKey,
+            model=req.model,
+            temperature=req.temperature,
+        )
         
         # 返回更新后的 CitySpec（转换为字典）
         return {
@@ -44,7 +50,13 @@ async def edit_building_endpoint(req: BuildingEditRequest) -> Dict[str, Any]:
         current = BuildingSpec.model_validate(req.currentBuildingSpec)
         
         # 调用 AI 编辑器
-        updated = edit_building_spec(current, req.editCommand)
+        updated = edit_building_spec(
+            current,
+            req.editCommand,
+            api_key=req.apiKey,
+            model=req.model,
+            temperature=req.temperature,
+        )
         
         # 返回更新后的 BuildingSpec（转换为字典）
         return {

@@ -23,4 +23,18 @@ public class AIServiceManager implements AIService {
             return localService.generateBuildingPlan(request);
         }
     }
+
+    @Override
+    public AIResult generateBuildingPlan(BuildingRequest request, AICancelToken token) {
+        if (token != null && token.isCancelled()) return null;
+        try {
+            AIResult r = cloudService.generateBuildingPlan(request, token);
+            if (r != null) return r;
+            if (token != null && token.isCancelled()) return null;
+            return localService.generateBuildingPlan(request, token);
+        } catch (Exception e) {
+            if (token != null && token.isCancelled()) return null;
+            return localService.generateBuildingPlan(request, token);
+        }
+    }
 }

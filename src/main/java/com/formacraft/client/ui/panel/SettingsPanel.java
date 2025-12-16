@@ -1,6 +1,7 @@
 package com.formacraft.client.ui.panel;
 
 import com.formacraft.config.SettingsConfig;
+import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
@@ -16,8 +17,9 @@ public class SettingsPanel extends BasePanel {
 
     private final MinecraftClient client = MinecraftClient.getInstance();
 
-    // 输入状态
-    private String apiKeyInput = "";
+    // 输入组件（HUD 模式，不依赖 Screen）
+    private final HudTextInput orchestratorInput = new HudTextInput();
+    private final HudTextInput apiKeyInput = new HudTextInput();
     private boolean hideKey = true;
 
     // 下拉列表状态
@@ -31,14 +33,14 @@ public class SettingsPanel extends BasePanel {
             "deepseek-chat"
     );
 
+    // 草稿态（UI）——只有 Save 时才写入 SettingsConfig
+    private String draftModel = "gpt-4o";
+    private float draftTemperature = 0.7f;
+    private int draftFontSize = 14;
 
-    // 输入焦点
-    private enum FocusField {
-        API_KEY,
-        NONE
-    }
-
-    private FocusField focused = FocusField.NONE;
+    // 简易提示（保存成功/失败）
+    private String toast = null;
+    private long toastUntilMs = 0L;
 
     public SettingsPanel() {
         loadFromConfig();
@@ -47,7 +49,27 @@ public class SettingsPanel extends BasePanel {
     private void loadFromConfig() {
         SettingsConfig.load();
         SettingsConfig cfg = SettingsConfig.INSTANCE;
-        this.apiKeyInput = cfg.apiKey != null ? cfg.apiKey : "";
+        this.apiKeyInput.setText(cfg.apiKey != null ? cfg.apiKey : "");
+        this.orchestratorInput.setText(cfg.orchestratorEndpoint != null ? cfg.orchestratorEndpoint : "http://localhost:8000");
+        this.apiKeyInput.setPasswordMode(hideKey);
+        this.apiKeyInput.setMaxLength(256);
+        this.orchestratorInput.setMaxLength(256);
+
+        // 同步草稿态
+        this.draftModel = (cfg.model != null && !cfg.model.isBlank()) ? cfg.model : "gpt-4o";
+        this.draftTemperature = clamp01(cfg.temperature);
+        this.draftFontSize = clampInt(cfg.fontSize, 8, 26);
+    }
+
+    private static float clamp01(float v) {
+        if (v < 0.0f) return 0.0f;
+        if (v > 1.0f) return 1.0f;
+        return v;
+    }
+
+    private static int clampInt(int v, int min, int max) {
+        if (v < min) return min;
+        return Math.min(v, max);
     }
 
     @Override
@@ -61,6 +83,9 @@ public class SettingsPanel extends BasePanel {
                 x, y, 0xFFFFFF, false);
         y += 20;
 
+        drawOrchestratorField(ctx, x, y, w);
+        y += 32;
+
         drawApiKeyField(ctx, x, y, w);
         y += 32;
 
@@ -73,7 +98,28 @@ public class SettingsPanel extends BasePanel {
         drawFontSizeSlider(ctx, x, y, w);
         y += 28;
 
-        drawSaveButton(ctx, x, y, w);
+        drawButtonsRow(ctx, x, y, w);
+        y += 24;
+
+        drawToast(ctx, x, y, w);
+    }
+
+    private void drawToast(DrawContext ctx, int x, int y, int w) {
+        if (toast == null) return;
+        if (System.currentTimeMillis() > toastUntilMs) {
+            toast = null;
+            return;
+        }
+        ctx.drawText(client.textRenderer, Text.literal(toast), x, y, 0x88FF88, false);
+    }
+
+    // =======================
+    //   Orchestrator 地址输入框
+    // =======================
+    private void drawOrchestratorField(DrawContext ctx, int x, int y, int w) {
+        ctx.drawText(client.textRenderer, Text.literal("Backend URL:"), x, y, 0xAAAAAA, false);
+        y += 12;
+        orchestratorInput.render(ctx, x, y, w, 16);
     }
 
     // =======================
@@ -84,27 +130,16 @@ public class SettingsPanel extends BasePanel {
         y += 12;
 
         int boxHeight = 16;
-        int boxColor = (focused == FocusField.API_KEY) ? 0xFF333333 : 0xFF222222;
-        ctx.fill(x, y, x + w, y + boxHeight, boxColor);
-
-        String shown;
-        if (hideKey) {
-            // 生成星号字符串
-            int len = Math.max(0, apiKeyInput.length());
-            shown = "*".repeat(len);
-        } else {
-            shown = apiKeyInput;
-        }
-        if (shown.isEmpty()) {
-            shown = "Enter API Key...";
-            ctx.drawText(client.textRenderer, shown, x + 4, y + 4, 0x888888, false);
-        } else {
-            ctx.drawText(client.textRenderer, shown, x + 4, y + 4, 0xFFFFFF, false);
-        }
-
-        // 显示/隐藏按钮
         int btnW = 40;
-        int btnX = x + w - btnW;
+        int gap = 4;
+        int inputW = Math.max(0, w - btnW - gap);
+
+        // 输入框（右侧留出 Show/Hide 按钮区域）
+        apiKeyInput.setPasswordMode(hideKey);
+        apiKeyInput.render(ctx, x, y, inputW, boxHeight);
+
+        // Show/Hide 按钮
+        int btnX = x + inputW + gap;
         ctx.fill(btnX, y, btnX + btnW, y + boxHeight, 0xFF444444);
         ctx.drawCenteredTextWithShadow(client.textRenderer,
                 hideKey ? Text.literal("Show") : Text.literal("Hide"),
@@ -122,15 +157,15 @@ public class SettingsPanel extends BasePanel {
         int boxColor = modelDropdownOpen ? 0xFF444444 : 0xFF222222;
         ctx.fill(x, y, x + w, y + 16, boxColor);
         ctx.drawText(client.textRenderer,
-                SettingsConfig.INSTANCE.model, x + 4, y + 4, 0xFFFFFF, false);
+                draftModel, x + 4, y + 4, 0xFFFFFF, false);
 
         // 下拉箭头
-        ctx.drawText(client.textRenderer, Text.literal("▼"), x + w - 12, y + 4, 0xCCCCCC, false);
+        ctx.drawText(client.textRenderer, Text.literal("v"), x + w - 10, y + 4, 0xCCCCCC, false);
 
         if (modelDropdownOpen) {
             int optY = y + 16;
             for (String opt : modelOptions) {
-                int optColor = opt.equals(SettingsConfig.INSTANCE.model) ? 0xFF555555 : 0xFF333333;
+                int optColor = opt.equals(draftModel) ? 0xFF555555 : 0xFF333333;
                 ctx.fill(x, optY, x + w, optY + 14, optColor);
                 ctx.drawText(client.textRenderer, opt, x + 4, optY + 3, 0xFFFFFF, false);
                 optY += 14;
@@ -143,11 +178,11 @@ public class SettingsPanel extends BasePanel {
     // =======================
     private void drawTemperatureSlider(DrawContext ctx, int x, int y, int w) {
         ctx.drawText(client.textRenderer, 
-                Text.literal("Temperature: " + String.format("%.2f", SettingsConfig.INSTANCE.temperature)),
+                Text.literal("Temperature: " + String.format("%.2f", draftTemperature)),
                 x, y, 0xAAAAAA, false);
         y += 12;
 
-        float temp = SettingsConfig.INSTANCE.temperature;
+        float temp = draftTemperature;
         int barY = y + 7;
 
         // 背景条
@@ -164,7 +199,7 @@ public class SettingsPanel extends BasePanel {
     // =======================
     private void drawFontSizeSlider(DrawContext ctx, int x, int y, int w) {
         ctx.drawText(client.textRenderer,
-                Text.literal("Font Size: " + SettingsConfig.INSTANCE.fontSize),
+                Text.literal("Font Size: " + draftFontSize),
                 x, y, 0xAAAAAA, false);
         y += 12;
 
@@ -172,7 +207,7 @@ public class SettingsPanel extends BasePanel {
 
         ctx.fill(x, barY, x + w, barY + 4, 0x55222222);
 
-        float t = (SettingsConfig.INSTANCE.fontSize - 8) / 18.0f; // 字号 8~26
+        float t = (draftFontSize - 8) / 18.0f; // 字号 8~26
         t = Math.max(0.0f, Math.min(1.0f, t));
         int knobX = x + (int) (t * w);
         knobX = Math.max(x + 2, Math.min(x + w - 2, knobX));
@@ -183,13 +218,24 @@ public class SettingsPanel extends BasePanel {
     // =======================
     //   保存按钮
     // =======================
-    private void drawSaveButton(DrawContext ctx, int x, int y, int w) {
+    private void drawButtonsRow(DrawContext ctx, int x, int y, int w) {
         int h = 20;
-        // 检查鼠标是否悬停
-        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
-        boolean hovered = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
-        drawMinecraftButton(ctx, x, y, w, h, Text.literal("Save Settings"), hovered);
+        int gap = 6;
+        int btnW = (w - gap * 2) / 3;
+
+        double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
+        double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
+
+        int cancelX = x + btnW + gap;
+        int resetX = x + (btnW + gap) * 2;
+
+        boolean saveHovered = mouseX >= x && mouseX <= x + btnW && mouseY >= y && mouseY <= y + h;
+        boolean cancelHovered = mouseX >= cancelX && mouseX <= cancelX + btnW && mouseY >= y && mouseY <= y + h;
+        boolean resetHovered = mouseX >= resetX && mouseX <= resetX + btnW && mouseY >= y && mouseY <= y + h;
+
+        drawMinecraftButton(ctx, x, y, btnW, h, Text.literal("Save"), saveHovered);
+        drawMinecraftButton(ctx, cancelX, y, btnW, h, Text.literal("Cancel"), cancelHovered);
+        drawMinecraftButton(ctx, resetX, y, btnW, h, Text.literal("Reset"), resetHovered);
     }
 
     // =======================
@@ -206,37 +252,45 @@ public class SettingsPanel extends BasePanel {
         int y = getContentY() + 10;
         int w = panelWidth - 20;
 
+        // =========== Orchestrator 区域 ============
+        int orchY = y + 12;
+        if (orchestratorInput.mouseClicked(mouseX, mouseY, x, orchY, w, 16)) {
+            apiKeyInput.setFocused(false);
+            modelDropdownOpen = false;
+            return true;
+        }
+
         // =========== API Key 区域 ============
-        int apiY = y + 12;
+        int apiLabelY = y + 32;
+        int apiY = apiLabelY + 12;
         int apiBoxH = 16;
         int hideBtnW = 40;
-        int hideBtnX = x + w - hideBtnW;
+        int apiGap = 4;
+        int inputW = Math.max(0, w - hideBtnW - apiGap);
+        int hideBtnX = x + inputW + apiGap;
 
         if (mouseX >= hideBtnX && mouseX <= hideBtnX + hideBtnW &&
                 mouseY >= apiY && mouseY <= apiY + apiBoxH) {
             hideKey = !hideKey;
+            apiKeyInput.setPasswordMode(hideKey);
             return true;
         }
 
-        // 点击 API key 输入框本体
-        if (mouseX >= x && mouseX <= x + w &&
-                mouseY >= apiY && mouseY <= apiY + apiBoxH) {
-            // 点击输入框，设置输入焦点
-            focused = FocusField.API_KEY;
+        // 点击 API key 输入框
+        if (apiKeyInput.mouseClicked(mouseX, mouseY, x, apiY, inputW, apiBoxH)) {
+            orchestratorInput.setFocused(false);
+            modelDropdownOpen = false;
             return true;
-        }
-
-        // 点击其他地方，取消焦点
-        if (mouseX < panelX || mouseX > panelX + panelWidth ||
-            mouseY < getContentY() || mouseY > panelY + panelHeight) {
-            focused = FocusField.NONE;
         }
 
         // =========== 模型选择器 ============
-        int modelY = apiY + 32;
+        int modelLabelY = apiLabelY + 32;
+        int modelY = modelLabelY + 12;
         if (mouseX >= x && mouseX <= x + w &&
             mouseY >= modelY && mouseY <= modelY + 16) {
             modelDropdownOpen = !modelDropdownOpen;
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
             return true;
         }
 
@@ -245,7 +299,7 @@ public class SettingsPanel extends BasePanel {
             for (String opt : modelOptions) {
                 if (mouseX >= x && mouseX <= x + w &&
                     mouseY >= optY && mouseY <= optY + 14) {
-                    SettingsConfig.INSTANCE.model = opt;
+                    draftModel = opt;
                     modelDropdownOpen = false;
                     return true;
                 }
@@ -254,33 +308,99 @@ public class SettingsPanel extends BasePanel {
         }
 
         // =========== 滑动条交互 ============
-        int tempY = modelY + (modelDropdownOpen ? modelOptions.size() * 14 + 24 : 32);
+        int tempLabelY = modelLabelY + (modelDropdownOpen ? modelOptions.size() * 14 + 24 : 32);
         if (mouseX >= x && mouseX <= x + w &&
-            mouseY >= tempY + 12 && mouseY <= tempY + 22) {
+            mouseY >= tempLabelY + 12 && mouseY <= tempLabelY + 22) {
             float t = (float) ((mouseX - x) / (double) w);
-            SettingsConfig.INSTANCE.temperature = Math.max(0.0f, Math.min(1.0f, t));
+            draftTemperature = Math.max(0.0f, Math.min(1.0f, t));
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
             return true;
         }
 
-        int fontY = tempY + 28;
+        int fontLabelY = tempLabelY + 28;
         if (mouseX >= x && mouseX <= x + w &&
-            mouseY >= fontY + 12 && mouseY <= fontY + 22) {
+            mouseY >= fontLabelY + 12 && mouseY <= fontLabelY + 22) {
             float t = (float) ((mouseX - x) / (double) w);
-            SettingsConfig.INSTANCE.fontSize = 8 + (int) (t * 18);
-            SettingsConfig.INSTANCE.fontSize = Math.max(8, Math.min(26, SettingsConfig.INSTANCE.fontSize));
+            draftFontSize = 8 + (int) (t * 18);
+            draftFontSize = Math.max(8, Math.min(26, draftFontSize));
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
             return true;
         }
 
-        // =========== 保存按钮 ============
-        int saveY = fontY + 28;
-        if (mouseX >= x && mouseX <= x + w &&
-            mouseY >= saveY && mouseY <= saveY + 20) {
-            SettingsConfig.INSTANCE.apiKey = apiKeyInput;
+        // =========== 按钮行（Save/Cancel/Reset） ============
+        int btnY = fontLabelY + 28;
+        int h = 20;
+        int btnGap = 6;
+        int btnW = (w - btnGap * 2) / 3;
+        int cancelX = x + btnW + btnGap;
+        int resetX = x + (btnW + btnGap) * 2;
+
+        // Save
+        if (mouseX >= x && mouseX <= x + btnW &&
+            mouseY >= btnY && mouseY <= btnY + h) {
+            SettingsConfig.INSTANCE.apiKey = apiKeyInput.getText();
+            SettingsConfig.INSTANCE.orchestratorEndpoint = sanitizeEndpoint(orchestratorInput.getText());
+            SettingsConfig.INSTANCE.model = draftModel;
+            SettingsConfig.INSTANCE.temperature = clamp01(draftTemperature);
+            SettingsConfig.INSTANCE.fontSize = clampInt(draftFontSize, 8, 26);
             SettingsConfig.save();
+            showToast("已保存设置（立即生效）");
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            modelDropdownOpen = false;
             return true;
         }
+
+        // Cancel
+        if (mouseX >= cancelX && mouseX <= cancelX + btnW &&
+            mouseY >= btnY && mouseY <= btnY + h) {
+            loadFromConfig();
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            modelDropdownOpen = false;
+            showToast("已取消修改");
+            return true;
+        }
+
+        // Reset
+        if (mouseX >= resetX && mouseX <= resetX + btnW &&
+            mouseY >= btnY && mouseY <= btnY + h) {
+            // 关键：不要替换 INSTANCE 引用，只重置字段
+            SettingsConfig.INSTANCE.resetToDefault();
+            SettingsConfig.save();
+            loadFromConfig(); // 同步 UI 临时输入状态
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            modelDropdownOpen = false;
+            showToast("已恢复默认设置");
+            return true;
+        }
+
+        // 点击空白区域：取消焦点/收起下拉
+        orchestratorInput.setFocused(false);
+        apiKeyInput.setFocused(false);
+        modelDropdownOpen = false;
 
         return false;
+    }
+
+    private static String sanitizeEndpoint(String endpoint) {
+        if (endpoint == null) return "http://localhost:8000";
+        String v = endpoint.trim();
+        if (v.isEmpty()) return "http://localhost:8000";
+        // 简单容错：如果用户只填了 localhost:8000，则补协议
+        if (!v.startsWith("http://") && !v.startsWith("https://")) {
+            v = "http://" + v;
+        }
+        while (v.endsWith("/")) v = v.substring(0, v.length() - 1);
+        return v;
+    }
+
+    private void showToast(String msg) {
+        this.toast = msg;
+        this.toastUntilMs = System.currentTimeMillis() + 2500L;
     }
 
     // =======================
@@ -289,27 +409,31 @@ public class SettingsPanel extends BasePanel {
 
     @Override
     public void charTyped(char chr) {
-        if (focused == FocusField.API_KEY) {
-            if (chr >= 32 && chr <= 126) {
-                apiKeyInput = apiKeyInput + chr;
-                SettingsConfig.INSTANCE.apiKey = apiKeyInput;
-            }
-        }
+        if (orchestratorInput.isFocused()) orchestratorInput.charTyped(chr);
+        if (apiKeyInput.isFocused()) apiKeyInput.charTyped(chr);
     }
 
     @Override
     public void keyPressed(int keyCode) {
-        if (focused == FocusField.API_KEY) {
-            if (keyCode == 259) {
-                if (!apiKeyInput.isEmpty()) {
-                    apiKeyInput = apiKeyInput.substring(0, apiKeyInput.length() - 1);
-                    SettingsConfig.INSTANCE.apiKey = apiKeyInput;
-                }
-            }
-            // ESC 取消焦点
-            if (keyCode == 256) {
-                focused = FocusField.NONE;
-            }
+        // 兼容旧调用：没有 modifiers 时仍能处理 Backspace / ESC
+        keyPressed(keyCode, 0, 0);
+    }
+
+    @Override
+    public void keyPressed(int keyCode, int scanCode, int modifiers) {
+        // 关键：要拿到 modifiers，才能支持 Ctrl+V / Shift 选区 等
+        if (orchestratorInput.isFocused()) orchestratorInput.keyPressed(keyCode, modifiers);
+        if (apiKeyInput.isFocused()) apiKeyInput.keyPressed(keyCode, modifiers);
+
+        // Enter: 快速保存（可选，但很顺手）
+        if (keyCode == GLFW.GLFW_KEY_ENTER) {
+            SettingsConfig.INSTANCE.apiKey = apiKeyInput.getText();
+            SettingsConfig.INSTANCE.orchestratorEndpoint = sanitizeEndpoint(orchestratorInput.getText());
+            SettingsConfig.INSTANCE.model = draftModel;
+            SettingsConfig.INSTANCE.temperature = clamp01(draftTemperature);
+            SettingsConfig.INSTANCE.fontSize = clampInt(draftFontSize, 8, 26);
+            SettingsConfig.save();
+            showToast("已保存设置（立即生效）");
         }
     }
 }
