@@ -114,7 +114,8 @@ public class HudTextInput {
         }
 
         // 文本
-        ctx.drawText(client.textRenderer, display, drawX, textY, 0xFFFFFF, false);
+        // 使用阴影增强可读性（HUD/世界背景上更稳定）
+        ctx.drawText(client.textRenderer, display, drawX, textY, 0xFFFFFF, true);
 
         // 光标
         if (focused && isCursorVisible()) {
@@ -284,6 +285,12 @@ public class HudTextInput {
             }
         } catch (Exception ignored) {
         }
+    }
+
+    /** 允许外部（例如 SettingsPanel 的 Paste 按钮）触发一次粘贴 */
+    public void paste() {
+        if (!focused) setFocused(true);
+        pasteFromClipboard();
     }
 }
 

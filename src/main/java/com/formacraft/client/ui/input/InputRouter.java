@@ -4,7 +4,6 @@ import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.panel.BasePanel;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
-import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,8 +19,6 @@ import org.slf4j.LoggerFactory;
 public class InputRouter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("FormaCraft-InputRouter");
-    private static final MinecraftClient client = MinecraftClient.getInstance();
-
     // 最新鼠标位置，由 MouseMixin 更新
     private static double mouseX;
     private static double mouseY;
@@ -43,6 +40,8 @@ public class InputRouter {
     /** 获取当前面板 */
     private static BasePanel getPanel() {
         if (!FormacraftUIState.isOpen) return null;
+        // 面板可能还没初始化（MinecraftClient 构造期），这里确保延迟初始化
+        if (!FormaCraftHudOverlay.ensurePanelsReady()) return null;
         return switch (FormaCraftHudOverlay.activePanel) {
             case CHAT -> FormaCraftHudOverlay.CHAT_PANEL;
             case BLUEPRINT -> FormaCraftHudOverlay.BLUEPRINT_PANEL;
@@ -153,15 +152,16 @@ public class InputRouter {
         // ESC 保留给原版
         if (keyCode == 256) return false;
 
+        BasePanel panel = getPanel();
         boolean inside = isMouseInsideUI();
+        boolean wantsKeyboard = panel != null && panel.wantsKeyboardInput();
 
-        if (inside) {
+        if (inside || wantsKeyboard) {
             // BuildConfirmPanel 优先
             if (BuildConfirmPanel.INSTANCE.isVisible()) {
                 if (BuildConfirmPanel.INSTANCE.keyPressed(keyCode)) return true;
             }
 
-            BasePanel panel = getPanel();
             if (panel != null) {
                 panel.keyPressed(keyCode, scanCode, modifiers);
                 return true;
@@ -175,10 +175,11 @@ public class InputRouter {
     public static boolean onCharTyped(char chr, int modifiers) {
         if (!FormacraftUIState.isOpen) return false;
 
+        BasePanel panel = getPanel();
         boolean inside = isMouseInsideUI();
+        boolean wantsKeyboard = panel != null && panel.wantsKeyboardInput();
 
-        if (inside) {
-            BasePanel panel = getPanel();
+        if (inside || wantsKeyboard) {
             if (panel != null) {
                 panel.charTyped(chr);
                 return true;
@@ -186,6 +187,24 @@ public class InputRouter {
         }
 
         return false;
+    }
+
+    /** 鼠标拖拽事件 */
+    public static boolean onMouseDragged(double x, double y, int button, double deltaX, double deltaY) {
+        if (!FormacraftUIState.isOpen) return false;
+
+        BasePanel panel = getPanel();
+        if (panel == null) return false;
+        return panel.mouseDragged(x, y, button, deltaX, deltaY);
+    }
+
+    /** 鼠标释放事件 */
+    public static boolean onMouseReleased(double x, double y, int button) {
+        if (!FormacraftUIState.isOpen) return false;
+
+        BasePanel panel = getPanel();
+        if (panel == null) return false;
+        return panel.mouseReleased(x, y, button);
     }
 
     public static double getMouseX() { return mouseX; }

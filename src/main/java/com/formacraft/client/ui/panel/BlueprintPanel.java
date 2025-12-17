@@ -5,6 +5,7 @@ import com.formacraft.common.blueprint.BlueprintStorage;
 import com.formacraft.common.model.build.BuildingSpec;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
@@ -21,6 +22,10 @@ public class BlueprintPanel extends BasePanel {
 
     private String searchText = "";
     private int scrollOffset = 0;
+
+    // 原版风格按钮（渲染用，与 SettingsPanel 保持一致）
+    private ButtonWidget loadButton;
+    private ButtonWidget deleteButton;
 
     private static class Entry {
         String name;
@@ -42,6 +47,18 @@ public class BlueprintPanel extends BasePanel {
     public BlueprintPanel() {
         BlueprintStorage.loadAll();
         reloadEntries();
+        initWidgets();
+    }
+
+    private void initWidgets() {
+        if (loadButton != null) return;
+        // 这里按钮仅用于渲染“原版样式”，点击逻辑仍由 mouseClicked 按条目索引处理
+        loadButton = ButtonWidget.builder(Text.literal("Load"), b -> {})
+                .dimensions(0, 0, 38, 11)
+                .build();
+        deleteButton = ButtonWidget.builder(Text.literal("Del"), b -> {})
+                .dimensions(0, 0, 38, 11)
+                .build();
     }
 
     /**
@@ -182,27 +199,30 @@ public class BlueprintPanel extends BasePanel {
             }
         }
 
-        // 检查鼠标位置（用于悬停效果）
-        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
+        initWidgets();
+        // 检查鼠标位置（用于悬停效果，使用正确的缩放因子）
+        double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
+        double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
         
         // 加载按钮
         int loadW = 38;
-        int loadH = 11;
         int loadX = x + w - loadW - 6;
         int loadY = y + 5;
-        boolean loadHovered = mouseX >= loadX && mouseX <= loadX + loadW && 
-                             mouseY >= loadY && mouseY <= loadY + loadH;
-        drawMinecraftButton(ctx, loadX, loadY, loadW, loadH, Text.literal("Load"), loadHovered);
+        loadButton.setPosition(loadX, loadY);
+        loadButton.setWidth(loadW);
+        loadButton.visible = true;
+        loadButton.active = (e.spec != null);
+        loadButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
 
         // 删除按钮
         int delW = 38;
-        int delH = 11;
         int delX = x + w - delW - 6;
         int delY = y + 18;
-        boolean delHovered = mouseX >= delX && mouseX <= delX + delW && 
-                             mouseY >= delY && mouseY <= delY + delH;
-        drawMinecraftButton(ctx, delX, delY, delW, delH, Text.literal("Del"), delHovered);
+        deleteButton.setPosition(delX, delY);
+        deleteButton.setWidth(delW);
+        deleteButton.visible = true;
+        deleteButton.active = true;
+        deleteButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
     }
 
     // ======================================================
@@ -219,7 +239,7 @@ public class BlueprintPanel extends BasePanel {
 
     @Override
     public void keyPressed(int keyCode) {
-        if (keyCode == 259) {
+        if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
             if (!searchText.isEmpty()) {
                 searchText = searchText.substring(0, searchText.length() - 1);
                 scrollOffset = 0; // 搜索时重置滚动
@@ -273,8 +293,9 @@ public class BlueprintPanel extends BasePanel {
         // 点击 Load 按钮
         int loadW = 38;
         int loadX = x + w - loadW - 6;
+        int loadH = 11;
         if (mouseX >= loadX && mouseX <= loadX + loadW &&
-            localY >= 5 && localY <= 16) {
+            localY >= 5 && localY < 5 + loadH) {
             if (listener != null && e.spec != null) {
                 listener.onLoadBlueprint(e.spec, e.name);
             }
@@ -284,8 +305,9 @@ public class BlueprintPanel extends BasePanel {
         // 点击 Delete 按钮
         int delW = 38;
         int delX = x + w - delW - 6;
+        int delH = 11;
         if (mouseX >= delX && mouseX <= delX + delW &&
-            localY >= 18 && localY <= 34) {
+            localY >= 18 && localY < 18 + delH) {
             BlueprintStorage.delete(e.name);
             reloadEntries();
             scrollOffset = 0; // 删除后重置滚动

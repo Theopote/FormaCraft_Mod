@@ -16,7 +16,11 @@ import com.formacraft.common.builder.BuildingPlanner;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.config.SettingsConfig;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.tooltip.Tooltip;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -79,8 +83,12 @@ public class ChatPanel extends BasePanel {
 
     // 发送按钮（与顶部按钮/标签统一为 12x12 的方形）
     private static final int SEND_BUTTON_SIZE = 12;
-    private int sendBtnX, sendBtnY, sendBtnW, sendBtnH;
-    private int stopBtnX, stopBtnY, stopBtnW, stopBtnH;
+    private static final int STOP_BUTTON_W = 72;
+    private static final int STOP_BUTTON_H = 14;
+
+    // 原版风格按钮（与 SettingsPanel 保持一致：ButtonWidget 渲染）
+    private ButtonWidget sendButton;
+    private ButtonWidget stopButton;
 
     public ChatPanel() {
         // 初始输入框，在第一次 render 时会根据当前面板尺寸重新 setBounds
@@ -88,6 +96,46 @@ public class ChatPanel extends BasePanel {
         // 聊天输入：限制总长度与最大行数，避免粘贴超大文本造成 UI 卡顿
         this.inputBox.setMaxChars(2048);
         this.inputBox.setMaxLines(12);
+        initWidgets();
+    }
+
+    private void initWidgets() {
+        if (sendButton != null) return;
+
+        sendButton = ButtonWidget.builder(Text.literal(">"), b -> {
+                    sendCurrentMessage();
+                    selectable.clearSelection();
+                    selectableMsgIndex = -1;
+                })
+                .dimensions(0, 0, SEND_BUTTON_SIZE, SEND_BUTTON_SIZE)
+                .tooltip(Tooltip.of(Text.translatable("formacraft.chat.send.tooltip")))
+                .build();
+
+        stopButton = ButtonWidget.builder(Text.literal("Stop"), b -> {
+                    stopGenerating();
+                    selectable.clearSelection();
+                    selectableMsgIndex = -1;
+                })
+                .dimensions(0, 0, STOP_BUTTON_W, STOP_BUTTON_H)
+                .tooltip(Tooltip.of(Text.literal("中断生成")))
+                .build();
+    }
+
+    private double getScaledMouseX() {
+        return client.mouse.getX() / client.getWindow().getScaleFactor();
+    }
+
+    private double getScaledMouseY() {
+        return client.mouse.getY() / client.getWindow().getScaleFactor();
+    }
+
+    private float getFontScale() {
+        // 注意：当前 HUD 文本没有真正缩放（DrawContext 2D 矩阵 API 在 1.21+ 已变化）。
+        // 这里的 fontScale 仅用于“行高/布局密度”，并且我们会 clamp，避免 fontSize 调小导致行距小于字体高度而重叠。
+        float s = SettingsConfig.INSTANCE.fontSize / 14.0f;
+        if (s < 0.75f) s = 0.75f;
+        if (s > 1.4f) s = 1.4f;
+        return s;
     }
 
     @Override
@@ -103,10 +151,10 @@ public class ChatPanel extends BasePanel {
             }
         }
 
-        // 计算字体缩放（减小字体大小）
-        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f * 0.85f;  // 减小到85%
-        int baseFont = client.textRenderer.fontHeight;          // 默认字体高度
-        int lineHeight = (int)(baseFont * fontScale + 1);       // 行距（更紧凑）
+        // 字体“缩放”当前仅体现为行高变化：保证最小行高 >= 字体高度 + 2，避免重叠
+        float fontScale = getFontScale();
+        int baseFont = client.textRenderer.fontHeight;
+        int lineHeight = Math.max(baseFont + 2, (int)((baseFont + 2) * fontScale));
 
         // 面板内边距
         int padding = PADDING;
@@ -177,7 +225,8 @@ public class ChatPanel extends BasePanel {
             ChatMessage msg = messages.get(idx);
 
             // 包装文本（考虑字体大小）
-            int maxWidthPx = Math.max(1, (int)(availableWidth / fontScale));
+            // wrapLines 使用真实像素宽度；气泡左右各有 4px padding，所以扣掉 8px
+            int maxWidthPx = Math.max(1, availableWidth - 8);
             
             // 需要绘制 caret（流式）/ thinking 点点点动画
             boolean caret = false;
@@ -242,7 +291,8 @@ public class ChatPanel extends BasePanel {
                 if (last != null) {
                     int cy = bubbleTop + 2 + (wrapped.size() - 1) * lineHeight;
                     int cx = textX + client.textRenderer.getWidth(last.text());
-                    ctx.drawText(client.textRenderer, Text.literal("▍"), cx, cy, textColor, false);
+                    // ASCII caret，避免字体缺字
+                    ctx.drawText(client.textRenderer, Text.literal("|"), cx, cy, textColor, false);
                 }
             }
 
@@ -293,7 +343,7 @@ public class ChatPanel extends BasePanel {
      */
     private void drawSpecSummary(DrawContext ctx, BuildingSpec spec, int x, int y, int w, int lineHeight) {
         // 摘要卡片背景
-        int cardHeight = (int)(50 * (SettingsConfig.INSTANCE.fontSize / 10.0f));
+        int cardHeight = (int)(50 * getFontScale());
         ctx.fill(x, y - cardHeight, x + w, y, 0x55333333);
 
         int ty = y - cardHeight + 4;
@@ -301,9 +351,7 @@ public class ChatPanel extends BasePanel {
         // 建筑类型
         com.formacraft.common.model.build.BuildingType type = spec.getType();
         if (type != null) {
-            ctx.drawText(client.textRenderer, 
-                    Text.literal("📐 " + type.name()), 
-                    x + 6, ty, 0xFFFFFF, false);
+            ctx.drawText(client.textRenderer, Text.literal("Type: " + type.name()), x + 6, ty, 0xFFFFFF, false);
             ty += lineHeight;
         }
 
@@ -321,9 +369,7 @@ public class ChatPanel extends BasePanel {
         }
 
         // 高度
-        ctx.drawText(client.textRenderer,
-                Text.literal("Height: " + spec.getHeight()),
-                x + 6, ty, 0xDDDDDD, false);
+        ctx.drawText(client.textRenderer, Text.literal("Height: " + spec.getHeight()), x + 6, ty, 0xDDDDDD, false);
     }
 
     /**
@@ -333,45 +379,37 @@ public class ChatPanel extends BasePanel {
         // 背景（更透明）
         ctx.fill(innerX, inputY, innerX + innerW, inputY + inputAreaHeight, 0x401A1A1A);
 
-        int btnWidth = SEND_BUTTON_SIZE;
-        int btnHeight = SEND_BUTTON_SIZE;
-        int btnX = innerX + innerW - btnWidth - 2;
-        int btnY = inputY + inputAreaHeight - btnHeight - 2;
+        initWidgets();
 
-        // 记录给 tooltip / click 使用
-        sendBtnX = btnX;
-        sendBtnY = btnY;
-        sendBtnW = btnWidth;
-        sendBtnH = btnHeight;
+        int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
+        int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
 
         // Stop 按钮（仅流式打印时显示，位于发送按钮上方）
-        boolean streaming = currentPrinter != null;
-        stopBtnW = 72;
-        stopBtnH = 14;
-        stopBtnX = innerX + innerW - stopBtnW - 2;
-        stopBtnY = btnY - stopBtnH - 2;
+        boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
+        int stopX = innerX + innerW - STOP_BUTTON_W - 2;
+        int stopY = btnY - STOP_BUTTON_H - 2;
 
-        // 检查鼠标是否悬停在按钮上
-        double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
-        double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-        boolean hovered = mouseX >= btnX && mouseX <= btnX + btnWidth && 
-                         mouseY >= btnY && mouseY <= btnY + btnHeight;
-        
-        // 使用统一风格的方形按钮 + 图标
-        drawMinecraftButton(ctx, btnX, btnY, btnWidth, btnHeight,
-                           Text.literal("📤"), hovered);
+        double mouseX = getScaledMouseX();
+        double mouseY = getScaledMouseY();
 
-        if (streaming) {
-            boolean stopHovered = mouseX >= stopBtnX && mouseX <= stopBtnX + stopBtnW &&
-                    mouseY >= stopBtnY && mouseY <= stopBtnY + stopBtnH;
-            drawMinecraftButton(ctx, stopBtnX, stopBtnY, stopBtnW, stopBtnH,
-                    Text.literal("⏹ 停止生成"), stopHovered);
+        // Send（原版 ButtonWidget 渲染）
+        sendButton.setPosition(btnX, btnY);
+        sendButton.visible = true;
+        sendButton.active = true;
+        sendButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
+
+        // Stop（原版 ButtonWidget 渲染）
+        stopButton.setPosition(stopX, stopY);
+        stopButton.visible = generating;
+        stopButton.active = generating;
+        if (generating) {
+            stopButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
         }
 
         // 输入框区域（根据字体大小调整高度，减小边距）
         int inputBoxX = innerX + 2;
         int inputBoxY = inputY + 2;
-        int inputBoxW = innerW - btnWidth - 6;
+        int inputBoxW = innerW - SEND_BUTTON_SIZE - 6;
         int inputBoxH = inputAreaHeight - 4;
 
         inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
@@ -383,9 +421,9 @@ public class ChatPanel extends BasePanel {
      */
     private int getInputHeight() {
         // 根据当前输入行数自动增长：到上限后固定高度，内部滚动由 MultilineTextInput 保证光标可见
-        float fontScale = SettingsConfig.INSTANCE.fontSize / 10.0f * 0.85f;
+        float fontScale = getFontScale();
         int baseFont = client.textRenderer.fontHeight;
-        int lineHeight = (int) (baseFont * fontScale + 1);
+        int lineHeight = Math.max(baseFont + 2, (int)((baseFont + 2) * fontScale));
 
         int minVisibleLines = 2;
         int maxVisibleLines = 6; // UI 上限：超过则输入框内部滚动
@@ -402,28 +440,23 @@ public class ChatPanel extends BasePanel {
      */
     @Override
     protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
-        // 检查发送按钮的 tooltip
-        // 注意：sendBtnX/Y/W/H 在 drawInputArea 中设置，需要确保已经初始化
-        if (sendBtnW > 0 && sendBtnH > 0) {
-            if (mouseX >= sendBtnX && mouseX <= sendBtnX + sendBtnW &&
-                mouseY >= sendBtnY && mouseY <= sendBtnY + sendBtnH) {
-                ctx.drawTooltip(client.textRenderer,
-                        java.util.Collections.singletonList(Text.translatable("formacraft.chat.send.tooltip")),
-                        (int) mouseX, (int) mouseY);
-                return true; // 已处理 tooltip
-            }
+        initWidgets();
+
+        if (sendButton != null && sendButton.visible && sendButton.isMouseOver(mouseX, mouseY)) {
+            drawTooltipCompat(ctx,
+                    java.util.Collections.singletonList(Text.translatable("formacraft.chat.send.tooltip")),
+                    (int) mouseX, (int) mouseY);
+            return true;
         }
 
-        if (currentPrinter != null && stopBtnW > 0 && stopBtnH > 0) {
-            if (mouseX >= stopBtnX && mouseX <= stopBtnX + stopBtnW &&
-                mouseY >= stopBtnY && mouseY <= stopBtnY + stopBtnH) {
-                ctx.drawTooltip(client.textRenderer,
-                        java.util.Collections.singletonList(Text.literal("中断生成")),
-                        (int) mouseX, (int) mouseY);
-                return true;
-            }
+        if (stopButton != null && stopButton.visible && stopButton.isMouseOver(mouseX, mouseY)) {
+            drawTooltipCompat(ctx,
+                    java.util.Collections.singletonList(Text.literal("中断生成")),
+                    (int) mouseX, (int) mouseY);
+            return true;
         }
-        return false; // 未处理，继续检查其他按钮
+
+        return false;
     }
 
     // ==========================
@@ -436,6 +469,8 @@ public class ChatPanel extends BasePanel {
 
         if (button != 0) return false;
 
+        initWidgets();
+
         int padding = PADDING;
         int titleBarHeight = 22;
         int innerX = panelX + padding;
@@ -447,27 +482,25 @@ public class ChatPanel extends BasePanel {
         int chatAreaBottom = innerY + innerH - inputAreaHeight - 4;
         int inputY = chatAreaBottom + 6;
 
-        int btnWidth = SEND_BUTTON_SIZE;
-        int btnHeight = SEND_BUTTON_SIZE;
-        int btnX = innerX + innerW - btnWidth - 4;
-        int btnY = inputY + inputAreaHeight - btnHeight - 4;
+        boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
+        int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
+        int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
+        int stopX = innerX + innerW - STOP_BUTTON_W - 2;
+        int stopY = btnY - STOP_BUTTON_H - 2;
 
-        // 点击 Stop 按钮（优先于发送）
-        if (currentPrinter != null &&
-                mouseX >= stopBtnX && mouseX <= stopBtnX + stopBtnW &&
-                mouseY >= stopBtnY && mouseY <= stopBtnY + stopBtnH) {
-            stopGenerating();
-            selectable.clearSelection();
-            selectableMsgIndex = -1;
+        // ButtonWidget 点击（优先 Stop）
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        stopButton.setPosition(stopX, stopY);
+        stopButton.visible = generating;
+        stopButton.active = generating;
+        if (generating && stopButton.mouseClicked(click, false)) {
             return true;
         }
 
-        // 点击发送按钮
-        if (mouseX >= btnX && mouseX <= btnX + btnWidth &&
-                mouseY >= btnY && mouseY <= btnY + btnHeight) {
-            sendCurrentMessage();
-            selectable.clearSelection();
-            selectableMsgIndex = -1;
+        sendButton.setPosition(btnX, btnY);
+        sendButton.visible = true;
+        sendButton.active = true;
+        if (sendButton.mouseClicked(click, false)) {
             return true;
         }
 
@@ -485,7 +518,7 @@ public class ChatPanel extends BasePanel {
         // 点击输入框区域，设置焦点
         int inputBoxX = innerX + 4;
         int inputBoxY = inputY + 4;
-        int inputBoxW = innerW - btnWidth - 12;
+        int inputBoxW = innerW - SEND_BUTTON_SIZE - 12;
         int inputBoxH = inputAreaHeight - 8;
         
         if (mouseX >= inputBoxX && mouseX <= inputBoxX + inputBoxW &&
@@ -526,15 +559,16 @@ public class ChatPanel extends BasePanel {
 
     @Override
     public void mouseScrolled(double mouseX, double mouseY, double amount) {
-        // 只要在面板区域内滚动，就滚动聊天
-        if (mouseX >= panelX && mouseX <= panelX + panelWidth) {
-            if (amount > 0) {
-                // 向上滚动，增加 offset（看更早的消息）
-                scrollOffset = Math.min(scrollOffset + 1, Math.max(0, messages.size() - 1));
-            } else if (amount < 0) {
-                // 向下滚动，减少 offset（接近最新消息）
-                scrollOffset = Math.max(0, scrollOffset - 1);
-            }
+        if (!isMouseOver(mouseX, mouseY)) return;
+        // 输入框区域：滚动输入内容；其余区域：滚动消息区
+        if (inputBox != null && inputBox.isMouseOver(mouseX, mouseY)) {
+            inputBox.mouseScrolled(amount);
+            return;
+        }
+        if (amount > 0) {
+            scrollOffset = Math.min(scrollOffset + 1, Math.max(0, messages.size() - 1));
+        } else if (amount < 0) {
+            scrollOffset = Math.max(0, scrollOffset - 1);
         }
     }
 
@@ -570,7 +604,7 @@ public class ChatPanel extends BasePanel {
         inputBox.setFocused(true);
 
         // Backspace
-        if (keyCode == 259) {
+        if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
             historyIndex = -1; // 编辑行为：退出历史浏览态
             inputBox.backspace();
             return;
@@ -633,6 +667,12 @@ public class ChatPanel extends BasePanel {
         if (chr == '\r' || chr == '\n') return;
         historyIndex = -1; // 输入即退出历史浏览态
         inputBox.charTyped(chr);
+    }
+
+    @Override
+    public boolean wantsKeyboardInput() {
+        // 聊天面板：只要输入框处于焦点，就持续接收键盘（即便鼠标暂时移出面板）
+        return inputBox != null;
     }
 
     // ==========================

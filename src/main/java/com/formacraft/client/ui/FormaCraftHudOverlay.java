@@ -17,23 +17,59 @@ import net.minecraft.client.gui.DrawContext;
 public class FormaCraftHudOverlay implements HudRenderCallback {
     
     // 面板实例（公开访问，供 InputRouter 使用）
-    public static final ChatPanel CHAT_PANEL = new ChatPanel();
-    public static final BlueprintPanel BLUEPRINT_PANEL = new BlueprintPanel();
-    public static final SettingsPanel SETTINGS_PANEL = new SettingsPanel();
-    public static final HistoryPanel HISTORY_PANEL = new HistoryPanel();
+    public static ChatPanel CHAT_PANEL;
+    public static BlueprintPanel BLUEPRINT_PANEL;
+    public static SettingsPanel SETTINGS_PANEL;
+    public static HistoryPanel HISTORY_PANEL;
     public static final BuildConfirmPanel BUILD_CONFIRM_PANEL = BuildConfirmPanel.INSTANCE;
+
+    private static boolean initialized = false;
+    private static boolean panelsReady = false;
+
+    /**
+     * 延迟初始化面板（避免在 MinecraftClient 构造阶段就触发 MinecraftClient.getInstance()/textRenderer）
+     * @return true 表示面板已可用
+     */
+    public static boolean ensurePanelsReady() {
+        if (panelsReady) return true;
+
+        MinecraftClient mc = MinecraftClient.getInstance();
+        // MinecraftClient 在启动早期可能尚未就绪（尤其是 entrypoint 阶段）
+        if (mc == null || mc.getWindow() == null || mc.textRenderer == null) {
+            return false;
+        }
+
+        if (CHAT_PANEL == null) CHAT_PANEL = new ChatPanel();
+        if (BLUEPRINT_PANEL == null) BLUEPRINT_PANEL = new BlueprintPanel();
+        if (SETTINGS_PANEL == null) SETTINGS_PANEL = new SettingsPanel();
+        if (HISTORY_PANEL == null) HISTORY_PANEL = new HistoryPanel();
+
+        // 初始化 BlueprintPanel 的监听器（只做一次）
+        if (initialized) {
+            BLUEPRINT_PANEL.setListener((spec, name) -> {
+                if (spec != null) {
+                    BUILD_CONFIRM_PANEL.show(spec);
+                }
+            });
+        }
+
+        panelsReady = true;
+        return true;
+    }
 
     /**
      * 初始化面板（在客户端初始化时调用）
      */
     public static void initialize() {
-        // 设置 BlueprintPanel 的监听器
-        BLUEPRINT_PANEL.setListener((spec, name) -> {
-            // 加载蓝图时，显示确认面板
-            if (spec != null) {
-                BUILD_CONFIRM_PANEL.show(spec);
-            }
-        });
+        initialized = true;
+        // 如果面板已经初始化完，则立即挂 listener；否则等 ensurePanelsReady() 时挂
+        if (BLUEPRINT_PANEL != null) {
+            BLUEPRINT_PANEL.setListener((spec, name) -> {
+                if (spec != null) {
+                    BUILD_CONFIRM_PANEL.show(spec);
+                }
+            });
+        }
     }
     
     // 当前激活的面板
@@ -59,13 +95,15 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
         
         // 如果 UI 未打开，不渲染
         if (!FormacraftUIState.isOpen) return;
+
+        if (!ensurePanelsReady()) return;
         
         // 根据激活的面板渲染对应内容
         switch (activePanel) {
-            case CHAT -> CHAT_PANEL.render(context);
-            case BLUEPRINT -> BLUEPRINT_PANEL.render(context);
-            case SETTINGS -> SETTINGS_PANEL.render(context);
-            case HISTORY -> HISTORY_PANEL.render(context);
+            case CHAT -> { if (CHAT_PANEL != null) CHAT_PANEL.render(context); }
+            case BLUEPRINT -> { if (BLUEPRINT_PANEL != null) BLUEPRINT_PANEL.render(context); }
+            case SETTINGS -> { if (SETTINGS_PANEL != null) SETTINGS_PANEL.render(context); }
+            case HISTORY -> { if (HISTORY_PANEL != null) HISTORY_PANEL.render(context); }
             case NONE -> {} // 无操作
         }
         
@@ -88,22 +126,24 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
      */
     public static boolean handleMouseClick(double mouseX, double mouseY, int button) {
         if (!FormacraftUIState.isOpen) return false;
+        if (!ensurePanelsReady()) return false;
         
         // 面板点击（工具栏点击已集成在面板中）
         if (activePanel != PanelType.NONE) {
             switch (activePanel) {
                 case CHAT -> {
-                    if (CHAT_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (CHAT_PANEL != null && CHAT_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
                 case BLUEPRINT -> {
-                    if (BLUEPRINT_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (BLUEPRINT_PANEL != null && BLUEPRINT_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
                 case SETTINGS -> {
-                    if (SETTINGS_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (SETTINGS_PANEL != null && SETTINGS_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
                 case HISTORY -> {
-                    if (HISTORY_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (HISTORY_PANEL != null && HISTORY_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
+                case NONE -> { }
                 // 无操作
             }
         }
@@ -121,26 +161,28 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
      */
     public static boolean handleKeyPress(int keyCode, int scanCode, int modifiers) {
         if (!FormacraftUIState.isOpen) return false;
+        if (!ensurePanelsReady()) return false;
         
         // 如果当前面板有输入焦点，处理键盘事件
         if (activePanel != PanelType.NONE) {
             switch (activePanel) {
                 case CHAT -> {
-                    CHAT_PANEL.keyPressed(keyCode);
+                    if (CHAT_PANEL != null) CHAT_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
                 case BLUEPRINT -> {
-                    BLUEPRINT_PANEL.keyPressed(keyCode);
+                    if (BLUEPRINT_PANEL != null) BLUEPRINT_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
                 case SETTINGS -> {
-                    SETTINGS_PANEL.keyPressed(keyCode);
+                    if (SETTINGS_PANEL != null) SETTINGS_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
                 case HISTORY -> {
-                    HISTORY_PANEL.keyPressed(keyCode);
+                    if (HISTORY_PANEL != null) HISTORY_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
+                case NONE -> { }
                 // 无操作
             }
         }
@@ -153,26 +195,28 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
      */
     public static boolean handleCharTyped(char chr, int modifiers) {
         if (!FormacraftUIState.isOpen) return false;
+        if (!ensurePanelsReady()) return false;
         
         // 如果当前面板有输入焦点，处理字符输入
         if (activePanel != PanelType.NONE) {
             switch (activePanel) {
                 case CHAT -> {
-                    CHAT_PANEL.charTyped(chr);
+                    if (CHAT_PANEL != null) CHAT_PANEL.charTyped(chr);
                     return true;
                 }
                 case BLUEPRINT -> {
-                    BLUEPRINT_PANEL.charTyped(chr);
+                    if (BLUEPRINT_PANEL != null) BLUEPRINT_PANEL.charTyped(chr);
                     return true;
                 }
                 case SETTINGS -> {
-                    SETTINGS_PANEL.charTyped(chr);
+                    if (SETTINGS_PANEL != null) SETTINGS_PANEL.charTyped(chr);
                     return true;
                 }
                 case HISTORY -> {
-                    HISTORY_PANEL.charTyped(chr);
+                    if (HISTORY_PANEL != null) HISTORY_PANEL.charTyped(chr);
                     return true;
                 }
+                case NONE -> { }
                 // 无操作
             }
         }

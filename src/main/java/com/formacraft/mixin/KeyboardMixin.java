@@ -20,15 +20,14 @@ public class KeyboardMixin {
             return;
         }
 
-        // 获取 action（按下=1, 释放=0, 重复=2）
+        // action：按下=1, 释放=0, 重复=2
+        // 注意：不同 Yarn/MC 版本 KeyInput 的 API 可能不同，这里用反射兜底。
         int action = -1;
         try {
-            // 尝试使用方法获取
             try {
                 java.lang.reflect.Method actionMethod = KeyInput.class.getMethod("action");
                 action = (Integer) actionMethod.invoke(keyInput);
             } catch (Exception e) {
-                // 尝试用字段获取
                 String[] possibleFields = {"action", "f_action", "action_", "action$"};
                 for (String fieldName : possibleFields) {
                     try {
@@ -39,32 +38,15 @@ public class KeyboardMixin {
                     } catch (Exception ignored) {}
                 }
             }
-        } catch (Exception e) {
-            // 如果无法获取action，默认拦截（安全起见）
-        }
+        } catch (Exception ignored) {}
 
-        // 检查鼠标是否在 UI 内
-        boolean inside = InputRouter.isMouseInsideUI();
-        
-        if (inside) {
-            // 鼠标在 UI 内
-            if (action == 1) {
-                // 按下事件：拦截，防止控制玩家移动
-                InputRouter.onKeyPressed(key, keyInput.scancode(), keyInput.modifiers());
-                ci.cancel();
-            } else if (action == 0) {
-                // 释放事件：关键！即使鼠标在UI内，也要让游戏处理释放事件
-                // 否则KeyBinding会认为按键还在按下状态，导致玩家一直移动
-                // 不cancel，让游戏正常处理释放事件，确保KeyBinding状态被正确更新
-            } else if (action == 2) {
-                // 重复事件：拦截
-                ci.cancel();
-            } else if (action == -1) {
-                // 无法获取action：为了安全，拦截
-                ci.cancel();
-            }
-        } else {
-            // 鼠标在 UI 外：允许游戏处理，不拦截
+        // 关键修复：
+        // - 不要只在“鼠标在 UI 内”时才路由键盘事件；输入框获得焦点后，鼠标移出也应能 Backspace/粘贴等。
+        // - 无论 action 是否正确识别，都应尝试转发；否则会出现“能输入字符(onChar)但 Backspace 无效(onKey)”。
+        // - 仅当 UI 消费了该按键且不是释放事件(action!=0)时才 cancel，避免 KeyBinding 残留按下状态。
+        boolean handled = InputRouter.onKeyPressed(key, keyInput.scancode(), keyInput.modifiers());
+        if (handled && action != 0) {
+            ci.cancel();
         }
     }
 
@@ -75,16 +57,10 @@ public class KeyboardMixin {
             return;
         }
 
-        // 检查鼠标是否在 UI 内
-        boolean inside = InputRouter.isMouseInsideUI();
-        
-        if (inside) {
-            // 鼠标在 UI 内：拦截所有字符输入
-            InputRouter.onCharTyped((char) charInput.codepoint(), charInput.modifiers());
-            // 完全拦截，防止游戏处理
+        // 同 onKey：让 InputRouter 决定是否消费（inside UI 或输入框已获得焦点）。
+        boolean handled = InputRouter.onCharTyped((char) charInput.codepoint(), charInput.modifiers());
+        if (handled) {
             ci.cancel();
-        } else {
-            // 鼠标在 UI 外：允许游戏处理，不拦截
         }
     }
 }

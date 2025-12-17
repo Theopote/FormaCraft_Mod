@@ -8,7 +8,10 @@ import com.formacraft.common.model.build.Features;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
@@ -32,8 +35,22 @@ public class BuildConfirmPanel {
     // 面板尺寸
     private int width = 300;
     private int height = 240;
+
+    // 原版风格按钮（与 SettingsPanel 保持一致：ButtonWidget 渲染）
+    private ButtonWidget confirmButton;
+    private ButtonWidget cancelButton;
     
     private BuildConfirmPanel() {}
+
+    private void ensureWidgets() {
+        if (confirmButton != null) return;
+        confirmButton = ButtonWidget.builder(Text.translatable("formacraft.preview.confirm"), b -> onConfirm())
+                .dimensions(0, 0, 120, 20)
+                .build();
+        cancelButton = ButtonWidget.builder(Text.translatable("formacraft.preview.cancel"), b -> hide())
+                .dimensions(0, 0, 120, 20)
+                .build();
+    }
     
     /** 请求显示确认面板 */
     public void show(BuildingSpec spec) {
@@ -56,6 +73,8 @@ public class BuildConfirmPanel {
     /** 在 HUD 渲染时调用 */
     public void render(DrawContext context) {
         if (!visible || client == null || spec == null) return;
+
+        ensureWidgets();
         
         int screenW = client.getWindow().getScaledWidth();
         int screenH = client.getWindow().getScaledHeight();
@@ -235,28 +254,31 @@ public class BuildConfirmPanel {
         
         int confirmX = centerX - btnW - spacing / 2;
         int cancelX = centerX + spacing / 2;
-        
-        // 检查鼠标位置（用于悬停效果）
-        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
-        
-        // 确认按钮
-        boolean confirmHovered = mouseX >= confirmX && mouseX <= confirmX + btnW && 
-                                 mouseY >= btnY && mouseY <= btnY + 20;
-        BasePanel.drawMinecraftButton(context, client, confirmX, btnY, btnW, 20, 
-                           Text.translatable("formacraft.preview.confirm"), confirmHovered);
-        
-        // 取消按钮
-        boolean cancelHovered = mouseX >= cancelX && mouseX <= cancelX + btnW && 
-                               mouseY >= btnY && mouseY <= btnY + 20;
-        BasePanel.drawMinecraftButton(context, client, cancelX, btnY, btnW, 20, 
-                           Text.translatable("formacraft.preview.cancel"), cancelHovered);
+
+        double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
+        double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
+
+        // Confirm（原版 ButtonWidget 渲染）
+        confirmButton.setPosition(confirmX, btnY);
+        confirmButton.setWidth(btnW);
+        confirmButton.visible = true;
+        confirmButton.active = true;
+        confirmButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+
+        // Cancel（原版 ButtonWidget 渲染）
+        cancelButton.setPosition(cancelX, btnY);
+        cancelButton.setWidth(btnW);
+        cancelButton.visible = true;
+        cancelButton.active = true;
+        cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
     }
     
     /** 鼠标点击处理。返回 true 表示事件已被消费。 */
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!visible || spec == null || client == null) return false;
         if (button != 0) return false; // 只处理左键
+
+        ensureWidgets();
         
         int screenW = client.getWindow().getScaledWidth();
         int screenH = client.getWindow().getScaledHeight();
@@ -280,22 +302,20 @@ public class BuildConfirmPanel {
         
         int confirmX = centerX - btnW - spacing / 2;
         int cancelX = centerX + spacing / 2;
-        
-        // 检查点击确认按钮
-        if (mouseX >= confirmX && mouseX <= confirmX + btnW &&
-                mouseY >= btnY && mouseY <= btnY + 20) {
-            
-            onConfirm();
-            return true;
-        }
-        
-        // 检查点击取消按钮
-        if (mouseX >= cancelX && mouseX <= cancelX + btnW &&
-                mouseY >= btnY && mouseY <= btnY + 20) {
-            
-            hide();
-            return true;
-        }
+
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+
+        confirmButton.setPosition(confirmX, btnY);
+        confirmButton.setWidth(btnW);
+        confirmButton.visible = true;
+        confirmButton.active = true;
+        if (confirmButton.mouseClicked(click, false)) return true;
+
+        cancelButton.setPosition(cancelX, btnY);
+        cancelButton.setWidth(btnW);
+        cancelButton.visible = true;
+        cancelButton.active = true;
+        if (cancelButton.mouseClicked(click, false)) return true;
         
         return true; // 点击面板内部其他位置，也阻止传递到世界
     }

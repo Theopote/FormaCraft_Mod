@@ -4,8 +4,13 @@ import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.widget.TabBar;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
+
+import java.util.List;
 
 /**
  * 面板基类
@@ -46,6 +51,28 @@ public abstract class BasePanel {
     
     // 标签栏组件
     private final TabBar tabBar = new TabBar(client);
+
+    // 工具栏按钮（使用原版 ButtonWidget，统一样式）
+    private ButtonWidget closeButton;
+    private ButtonWidget collapseButton;
+
+    private void ensureToolbarWidgets() {
+        if (closeButton != null) return;
+        closeButton = ButtonWidget.builder(Text.literal("X"), b -> FormacraftUIState.close())
+                .dimensions(0, 0, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
+                .build();
+        collapseButton = ButtonWidget.builder(Text.literal("<"), b -> sidebarCollapsed = !sidebarCollapsed)
+                .dimensions(0, 0, COLLAPSE_BUTTON_SIZE, COLLAPSE_BUTTON_SIZE)
+                .build();
+    }
+
+    private double getScaledMouseX() {
+        return client.mouse.getX() / client.getWindow().getScaleFactor();
+    }
+
+    private double getScaledMouseY() {
+        return client.mouse.getY() / client.getWindow().getScaleFactor();
+    }
 
     // --------------------------------------------------------------------
     // 渲染主入口
@@ -236,7 +263,7 @@ public abstract class BasePanel {
                 mouseY >= panelY && mouseY <= panelY + panelHeight) {
                 Text expandTooltip = Text.translatable("formacraft.button.expand");
                 java.util.List<Text> tooltipLines = java.util.Collections.singletonList(expandTooltip);
-                ctx.drawTooltip(client.textRenderer, tooltipLines, (int) mouseX, (int) mouseY);
+                drawTooltipCompat(ctx, tooltipLines, (int) mouseX, (int) mouseY);
             }
             return;
         }
@@ -251,23 +278,81 @@ public abstract class BasePanel {
         if (tooltip != null) {
             // 使用 Minecraft 原生的 Tooltip 渲染方法
             java.util.List<Text> tooltipLines = java.util.Collections.singletonList(tooltip);
-            ctx.drawTooltip(client.textRenderer, tooltipLines, (int) mouseX, (int) mouseY);
+            drawTooltipCompat(ctx, tooltipLines, (int) mouseX, (int) mouseY);
             return;
         }
         
-        // 检查按钮提示（关闭按钮和折叠按钮）
-        // 注意：需要确保按钮已经绘制，所以 panelWidth 必须足够大
-        if (isMouseOverCloseButton(mouseX, mouseY)) {
-            Text closeTooltip = Text.translatable("formacraft.button.close");
-            java.util.List<Text> tooltipLines = java.util.Collections.singletonList(closeTooltip);
-            ctx.drawTooltip(client.textRenderer, tooltipLines, (int) mouseX, (int) mouseY);
+        // 检查按钮提示（关闭按钮和折叠按钮）：与 ButtonWidget 的位置完全一致
+        ensureToolbarWidgets();
+        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
+        int closeY = panelY + CLOSE_BUTTON_PADDING;
+        int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+
+        if (panelWidth >= CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING + 6) {
+            closeButton.setPosition(closeX, closeY);
+            closeButton.visible = true;
+            if (closeButton.isMouseOver(mouseX, mouseY)) {
+                drawTooltipCompat(ctx,
+                        java.util.Collections.singletonList(Text.translatable("formacraft.button.close")),
+                        (int) mouseX, (int) mouseY);
+                return;
+            }
+        }
+
+        if (!sidebarCollapsed && panelWidth >= SIDEBAR_EXPANDED_WIDTH / 2) {
+            collapseButton.setPosition(collapseX, closeY);
+            collapseButton.visible = true;
+            if (collapseButton.isMouseOver(mouseX, mouseY)) {
+                drawTooltipCompat(ctx,
+                        java.util.Collections.singletonList(Text.translatable("formacraft.button.collapse")),
+                        (int) mouseX, (int) mouseY);
+            }
+        }
+    }
+
+    /**
+     * Tooltip 渲染兼容：Screen 打开时走原版 drawTooltip；HUD（currentScreen==null）时手动绘制。
+     */
+    protected final void drawTooltipCompat(DrawContext ctx, List<Text> lines, int mouseX, int mouseY) {
+        if (lines == null || lines.isEmpty()) return;
+        if (client.currentScreen != null) {
+            ctx.drawTooltip(client.textRenderer, lines, mouseX, mouseY);
             return;
         }
-        
-        if (isMouseOverCollapseButton(mouseX, mouseY)) {
-            Text collapseTooltip = Text.translatable(sidebarCollapsed ? "formacraft.button.expand" : "formacraft.button.collapse");
-            java.util.List<Text> tooltipLines = java.util.Collections.singletonList(collapseTooltip);
-            ctx.drawTooltip(client.textRenderer, tooltipLines, (int) mouseX, (int) mouseY);
+
+        // HUD 模式：手绘 tooltip（避免依赖 Screen）
+        int padding = 4;
+        int lineGap = 2;
+        int maxW = 0;
+        for (Text t : lines) {
+            if (t == null) continue;
+            maxW = Math.max(maxW, client.textRenderer.getWidth(t));
+        }
+        int lineH = client.textRenderer.fontHeight;
+        int boxW = maxW + padding * 2;
+        int boxH = padding * 2 + lines.size() * lineH + (lines.size() - 1) * lineGap;
+
+        int x = mouseX + 10;
+        int y = mouseY + 8;
+        int sw = client.getWindow().getScaledWidth();
+        int sh = client.getWindow().getScaledHeight();
+        if (x + boxW > sw) x = Math.max(0, sw - boxW - 2);
+        if (y + boxH > sh) y = Math.max(0, sh - boxH - 2);
+
+        int bg = 0xF0100010;      // 原版 tooltip 背景风格近似
+        int border = 0x505000FF;  // 近似紫色边框
+        ctx.fill(x, y, x + boxW, y + boxH, bg);
+        ctx.fill(x, y, x + boxW, y + 1, border);
+        ctx.fill(x, y + boxH - 1, x + boxW, y + boxH, border);
+        ctx.fill(x, y, x + 1, y + boxH, border);
+        ctx.fill(x + boxW - 1, y, x + boxW, y + boxH, border);
+
+        int ty = y + padding;
+        for (Text t : lines) {
+            if (t != null) {
+                ctx.drawTextWithShadow(client.textRenderer, t, x + padding, ty, 0xFFFFFFFF);
+            }
+            ty += lineH + lineGap;
         }
     }
     
@@ -286,38 +371,32 @@ public abstract class BasePanel {
     // 关闭按钮（右上角 X）
     // --------------------------------------------------------------------
     private void drawCloseButton(DrawContext ctx) {
+        ensureToolbarWidgets();
         int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
         int closeY = panelY + CLOSE_BUTTON_PADDING;
 
         // 面板太窄时不绘制（避免折叠动画早期挤成一坨）
         if (panelWidth < CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING + 6) {
+            if (closeButton != null) closeButton.visible = false;
             return;
         }
 
-        // 检查鼠标是否悬停在关闭按钮上
-        double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
-        double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-        boolean hovered = isMouseOverCloseButton(mouseX, mouseY);
-        drawToolbarButton(ctx, closeX, closeY, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE, Text.literal("X"), hovered);
-    }
-
-    private boolean isMouseOverCloseButton(double mouseX, double mouseY) {
-        if (panelWidth < CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING + 6) {
-            return false;
-        }
-        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
-        int closeY = panelY + CLOSE_BUTTON_PADDING;
-
-        return mouseX >= closeX && mouseX <= closeX + CLOSE_BUTTON_SIZE &&
-               mouseY >= closeY && mouseY <= closeY + CLOSE_BUTTON_SIZE;
+        double mouseX = getScaledMouseX();
+        double mouseY = getScaledMouseY();
+        closeButton.setPosition(closeX, closeY);
+        closeButton.visible = true;
+        closeButton.active = true;
+        closeButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
     }
 
     // --------------------------------------------------------------------
     // 折叠按钮（在关闭按钮左侧，图标 "<" / ">"）
     // --------------------------------------------------------------------
     private void drawCollapseButton(DrawContext ctx) {
+        ensureToolbarWidgets();
         // 面板太窄时不绘制（折叠手柄由 collapsedHandle 负责）
         if (panelWidth < SIDEBAR_EXPANDED_WIDTH / 2) {
+            if (collapseButton != null) collapseButton.visible = false;
             return;
         }
 
@@ -326,87 +405,22 @@ public abstract class BasePanel {
 
         int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
 
-        // 检查鼠标是否悬停在折叠按钮上
-        double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
-        double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-        boolean hovered = isMouseOverCollapseButton(mouseX, mouseY);
+        double mouseX = getScaledMouseX();
+        double mouseY = getScaledMouseY();
         String icon = sidebarCollapsed ? ">" : "<";
-        drawToolbarButton(ctx, collapseX, closeY, COLLAPSE_BUTTON_SIZE, COLLAPSE_BUTTON_SIZE, Text.literal(icon), hovered);
-    }
-
-    /**
-     * 工具栏按钮（使用 Minecraft 默认样式）
-     */
-    private void drawToolbarButton(DrawContext ctx, int x, int y, int w, int h, Text text, boolean hovered) {
-        drawMinecraftButton(ctx, x, y, w, h, text, hovered);
-    }
-
-    private boolean isMouseOverCollapseButton(double mouseX, double mouseY) {
-        if (panelWidth < SIDEBAR_EXPANDED_WIDTH / 2 || sidebarCollapsed) {
-            // 折叠状态下，这个按钮不显示，由整条边栏手柄控制
-            return false;
+        collapseButton.setMessage(Text.literal(icon));
+        collapseButton.setPosition(collapseX, closeY);
+        collapseButton.visible = !sidebarCollapsed; // 折叠状态下不显示，由整条边栏手柄控制
+        collapseButton.active = !sidebarCollapsed;
+        if (!sidebarCollapsed) {
+            collapseButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
         }
-
-        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
-        int closeY = panelY + CLOSE_BUTTON_PADDING;
-
-        int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
-        int collapseY = closeY + 1;
-        int h = COLLAPSE_BUTTON_SIZE - 2;
-
-        return mouseX >= collapseX && mouseX <= collapseX + COLLAPSE_BUTTON_SIZE &&
-               mouseY >= collapseY && mouseY <= collapseY + h;
     }
-
 
     // --------------------------------------------------------------------
     // 子类内容绘制
     // --------------------------------------------------------------------
     protected abstract void drawContents(DrawContext ctx);
-
-    // --------------------------------------------------------------------
-    // Minecraft 风格按钮
-    // --------------------------------------------------------------------
-    protected void drawMinecraftButton(DrawContext ctx, int x, int y, int width, int height, Text text, boolean hovered) {
-        drawMinecraftButton(ctx, client, x, y, width, height, text, hovered);
-    }
-
-    /**
-     * 绘制 Minecraft 原生风格按钮（使用正确的原版样式）
-     */
-    public static void drawMinecraftButton(DrawContext ctx, MinecraftClient client, int x, int y, int width, int height, Text text, boolean hovered) {
-        // Minecraft 原版按钮颜色（更接近原版）
-        // 普通状态：较亮的灰色（原版按钮不是纯黑）
-        // 悬停状态：更亮的灰色
-        int topColor = hovered ? 0xFF6B6B6B : 0xFF5B5B5B;
-        int bottomColor = hovered ? 0xFF4B4B4B : 0xFF3B3B3B;
-        ctx.fillGradient(x, y, x + width, y + height, topColor, bottomColor);
-
-        // Minecraft 原版按钮边框（上/左亮，下/右暗，3D效果）
-        // 原版按钮边框颜色更明显
-        int lightBorder = hovered ? 0xFFCCCCCC : 0xFFAAAAAA;
-        int darkBorder = 0xFF000000;
-        
-        // 上边框和左边框（亮色）
-        ctx.fill(x, y, x + width, y + 1, lightBorder);
-        ctx.fill(x, y, x + 1, y + height, lightBorder);
-        
-        // 下边框和右边框（暗色）
-        ctx.fill(x, y + height - 1, x + width, y + height, darkBorder);
-        ctx.fill(x + width - 1, y, x + width, y + height, darkBorder);
-
-        // 绘制文本（必须在所有背景和边框之后绘制，确保在最上层）
-        // 确保文本完美居中（水平和垂直）
-        if (text != null && !text.getString().isEmpty()) {
-            // 计算按钮中心点
-            int centerX = x + width / 2;
-            int centerY = y + height / 2;
-            // 使用 drawCenteredTextWithShadow 确保完美居中
-            // 注意：drawCenteredTextWithShadow 的 y 坐标是文本的顶部，需要调整
-            int textY = centerY - client.textRenderer.fontHeight / 2;
-            ctx.drawCenteredTextWithShadow(client.textRenderer, text, centerX, textY, 0xFFFFFFFF);
-        }
-    }
 
     // --------------------------------------------------------------------
     // 输入处理
@@ -423,16 +437,24 @@ public abstract class BasePanel {
             return true;
         }
 
-        // 检查关闭按钮
-        if (isMouseOverCloseButton(mouseX, mouseY)) {
-            FormacraftUIState.close();
-            return true;
-        }
+        // 工具栏按钮点击（原版 ButtonWidget 处理）
+        ensureToolbarWidgets();
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
+        int closeY = panelY + CLOSE_BUTTON_PADDING;
+        int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
 
-        // 检查折叠按钮
-        if (isMouseOverCollapseButton(mouseX, mouseY)) {
-            sidebarCollapsed = !sidebarCollapsed;
-            return true;
+        if (panelWidth >= CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING + 6) {
+            closeButton.setPosition(closeX, closeY);
+            closeButton.visible = true;
+            closeButton.active = true;
+            if (closeButton.mouseClicked(click, false)) return true;
+        }
+        if (!sidebarCollapsed && panelWidth >= SIDEBAR_EXPANDED_WIDTH / 2) {
+            collapseButton.setPosition(collapseX, closeY);
+            collapseButton.visible = true;
+            collapseButton.active = true;
+            if (collapseButton.mouseClicked(click, false)) return true;
         }
 
         // Tab 区域（使用 TabBar 处理）
@@ -454,6 +476,24 @@ public abstract class BasePanel {
     public void charTyped(char chr) {}
 
     public void mouseScrolled(double mouseX, double mouseY, double amount) {}
+
+    /**
+     * 鼠标拖拽事件（HUD 模式下由 MouseMixin/InputRouter 转发）。
+     * <p>
+     * 语义与 Screen#mouseDragged 类似：在按住鼠标按钮移动时持续触发。
+     */
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) { return false; }
+
+    /**
+     * 鼠标释放事件（HUD 模式下由 MouseMixin/InputRouter 转发）。
+     */
+    public boolean mouseReleased(double mouseX, double mouseY, int button) { return false; }
+
+    /**
+     * 是否希望接收键盘/字符输入（即便鼠标暂时不在面板区域内）。
+     * 用于支持：点击输入框后可以移开鼠标继续输入/粘贴。
+     */
+    public boolean wantsKeyboardInput() { return false; }
 
     public void setVisible(boolean visible) {
         this.visible = visible;

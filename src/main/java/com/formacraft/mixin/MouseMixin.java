@@ -23,6 +23,7 @@ public class MouseMixin {
     @Shadow private double cursorDeltaY;
 
     @Unique private boolean middleDown = false;
+    @Unique private boolean leftDown = false;
 
     @Inject(method = "onCursorPos", at = @At("HEAD"))
     private void onCursorPosHead(long window, double x, double y, CallbackInfo ci) {
@@ -49,6 +50,17 @@ public class MouseMixin {
         double sx = x / scale;
         double sy = y / scale;
         boolean inside = InputRouter.isMouseInsideUI(sx, sy);
+
+        // Pushdozer/原版 SliderWidget 的行为：开始拖拽后，即便鼠标移出控件/面板也继续更新。
+        // 所以这里不要求 inside，只要左键按住就尝试把拖拽事件转发给当前面板。
+        if (leftDown) {
+            boolean dragged = InputRouter.onMouseDragged(sx, sy, 0, 0, 0);
+            if (dragged) {
+                cursorDeltaX = 0;
+                cursorDeltaY = 0;
+                return;
+            }
+        }
 
         if (inside) {
             // UI 内：完全阻止视角移动
@@ -79,8 +91,9 @@ public class MouseMixin {
     private void onMouseButton(long window, MouseInput mouseInput, int action, CallbackInfo ci) {
         // 重要：UI 关闭时，完全不处理，让游戏使用默认行为
         if (!FormacraftUIState.isOpen) {
-            // UI 关闭时重置中键状态，确保不影响游戏
+            // UI 关闭时重置所有按钮状态，确保不影响游戏
             middleDown = false;
+            leftDown = false;
             return;
         }
 
@@ -95,19 +108,30 @@ public class MouseMixin {
         // 更新 InputRouter 的鼠标位置（确保是最新的）
         InputRouter.updateMouse(mouseX, mouseY);
 
+        // 跟踪鼠标按钮状态（在UI处理之前，这样拖拽才能工作）
+        if (button == 2) {
+            middleDown = (action == 1);
+        } else if (button == 0) {
+            leftDown = (action == 1);
+        }
+
         // 先尝试让 UI 处理点击事件
         // 如果 UI 处理了（返回true），说明点击的是UI元素，必须cancel防止游戏处理
         boolean uiHandled = InputRouter.onMouseClick(mouseX, mouseY, button, action);
         if (uiHandled) {
             // UI 已处理，完全阻止游戏处理
+            // 如果是释放事件，通知UI（用于结束拖拽）
+            if (action == 0 && button == 0) {
+                InputRouter.onMouseReleased(mouseX, mouseY, button);
+            }
             ci.cancel();
             return;
         }
 
         // UI 未处理（点击在UI外）：允许游戏处理鼠标按钮
-        // 但要跟踪中键按住状态用于"按住中键转视角"
-        if (button == 2) {
-            middleDown = (action == 1);
+        // 如果是释放事件，也通知UI（可能正在拖拽）
+        if (action == 0 && button == 0) {
+            InputRouter.onMouseReleased(mouseX, mouseY, button);
         }
     }
 
