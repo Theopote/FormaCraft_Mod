@@ -45,10 +45,10 @@ public class BuildConfirmPanel {
     private void ensureWidgets() {
         if (confirmButton != null) return;
         confirmButton = ButtonWidget.builder(Text.translatable("formacraft.preview.confirm"), b -> onConfirm())
-                .dimensions(0, 0, 120, 20)
+                .dimensions(0, 0, 120, 16)
                 .build();
         cancelButton = ButtonWidget.builder(Text.translatable("formacraft.preview.cancel"), b -> hide())
-                .dimensions(0, 0, 120, 20)
+                .dimensions(0, 0, 120, 16)
                 .build();
     }
     
@@ -254,17 +254,17 @@ public class BuildConfirmPanel {
         
         int confirmX = centerX - btnW - spacing / 2;
         int cancelX = centerX + spacing / 2;
-
+        
         double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
         double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-
+        
         // Confirm（原版 ButtonWidget 渲染）
         confirmButton.setPosition(confirmX, btnY);
         confirmButton.setWidth(btnW);
         confirmButton.visible = true;
         confirmButton.active = true;
         confirmButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
-
+        
         // Cancel（原版 ButtonWidget 渲染）
         cancelButton.setPosition(cancelX, btnY);
         cancelButton.setWidth(btnW);
@@ -302,7 +302,7 @@ public class BuildConfirmPanel {
         
         int confirmX = centerX - btnW - spacing / 2;
         int cancelX = centerX + spacing / 2;
-
+        
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
         confirmButton.setPosition(confirmX, btnY);

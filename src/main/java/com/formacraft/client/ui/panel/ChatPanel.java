@@ -81,10 +81,9 @@ public class ChatPanel extends BasePanel {
     // Padding（减小边距）
     private static final int PADDING = 2;
 
-    // 发送按钮（与顶部按钮/标签统一为 12x12 的方形）
-    private static final int SEND_BUTTON_SIZE = 12;
-    private static final int STOP_BUTTON_W = 72;
-    private static final int STOP_BUTTON_H = 14;
+    // 统一控件高度：与 SettingsPanel 输入/按钮一致（16）
+    private static final int SEND_BUTTON_SIZE = 16;
+    private static final int STOP_BUTTON_SIZE = 16;
 
     // 原版风格按钮（与 SettingsPanel 保持一致：ButtonWidget 渲染）
     private ButtonWidget sendButton;
@@ -111,12 +110,12 @@ public class ChatPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.translatable("formacraft.chat.send.tooltip")))
                 .build();
 
-        stopButton = ButtonWidget.builder(Text.literal("Stop"), b -> {
+        stopButton = ButtonWidget.builder(Text.literal("■"), b -> {
                     stopGenerating();
                     selectable.clearSelection();
                     selectableMsgIndex = -1;
                 })
-                .dimensions(0, 0, STOP_BUTTON_W, STOP_BUTTON_H)
+                .dimensions(0, 0, STOP_BUTTON_SIZE, STOP_BUTTON_SIZE)
                 .tooltip(Tooltip.of(Text.literal("中断生成")))
                 .build();
     }
@@ -386,8 +385,8 @@ public class ChatPanel extends BasePanel {
 
         // Stop 按钮（仅流式打印时显示，位于发送按钮上方）
         boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
-        int stopX = innerX + innerW - STOP_BUTTON_W - 2;
-        int stopY = btnY - STOP_BUTTON_H - 2;
+        int stopX = btnX; // 与发送按钮对齐
+        int stopY = btnY - STOP_BUTTON_SIZE - 2;
 
         double mouseX = getScaledMouseX();
         double mouseY = getScaledMouseY();
@@ -444,17 +443,17 @@ public class ChatPanel extends BasePanel {
 
         if (sendButton != null && sendButton.visible && sendButton.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx,
-                    java.util.Collections.singletonList(Text.translatable("formacraft.chat.send.tooltip")),
-                    (int) mouseX, (int) mouseY);
+                        java.util.Collections.singletonList(Text.translatable("formacraft.chat.send.tooltip")),
+                        (int) mouseX, (int) mouseY);
             return true;
         }
 
         if (stopButton != null && stopButton.visible && stopButton.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx,
-                    java.util.Collections.singletonList(Text.literal("中断生成")),
-                    (int) mouseX, (int) mouseY);
-            return true;
-        }
+                        java.util.Collections.singletonList(Text.literal("中断生成")),
+                        (int) mouseX, (int) mouseY);
+                return true;
+            }
 
         return false;
     }
@@ -485,8 +484,8 @@ public class ChatPanel extends BasePanel {
         boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
         int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
         int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
-        int stopX = innerX + innerW - STOP_BUTTON_W - 2;
-        int stopY = btnY - STOP_BUTTON_H - 2;
+        int stopX = btnX;
+        int stopY = btnY - STOP_BUTTON_SIZE - 2;
 
         // ButtonWidget 点击（优先 Stop）
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
@@ -516,19 +515,18 @@ public class ChatPanel extends BasePanel {
         }
 
         // 点击输入框区域，设置焦点
-        int inputBoxX = innerX + 4;
-        int inputBoxY = inputY + 4;
-        int inputBoxW = innerW - SEND_BUTTON_SIZE - 12;
-        int inputBoxH = inputAreaHeight - 8;
-        
-        if (mouseX >= inputBoxX && mouseX <= inputBoxX + inputBoxW &&
-            mouseY >= inputBoxY && mouseY <= inputBoxY + inputBoxH) {
-            inputBox.setFocused(true);
+        // 注意：这里必须与 drawInputArea 的 bounds 完全一致，否则会出现“点击位置不准/放不到中间”的问题
+        int inputBoxX = innerX + 2;
+        int inputBoxY = inputY + 2;
+        int inputBoxW = innerW - SEND_BUTTON_SIZE - 6;
+        int inputBoxH = inputAreaHeight - 4;
+
+        inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
+        if (inputBox.mouseClicked(mouseX, mouseY)) {
             // 点击输入框即退出历史浏览态（保持当前内容）
             historyIndex = -1;
             selectable.clearSelection();
             selectableMsgIndex = -1;
-            // TODO: 可以在这里实现点击位置设置光标（需要计算点击位置对应的行列）
             return true;
         }
 
@@ -789,6 +787,90 @@ public class ChatPanel extends BasePanel {
         scrollOffset = 0;
         inputBox.clear();
         sessionId = java.util.UUID.randomUUID().toString();
+    }
+
+    /**
+     * 导出当前对话的快照（用于“历史”面板保存）。
+     * 注意：THINKING 消息不保存；STREAMING/ERROR 等会保存当前已有文本。
+     */
+    public ConversationSnapshot exportConversationSnapshot() {
+        StringBuilder sb = new StringBuilder();
+        for (ChatMessage m : messages) {
+            if (m == null) continue;
+            if (m.type == ChatMessage.MessageType.THINKING) continue;
+            String who = m.fromPlayer ? "Player" : "AI";
+            String text = m.text == null ? "" : m.text;
+            sb.append(who).append(": ").append(text).append("\n");
+        }
+        String draft = inputBox != null ? inputBox.getText() : "";
+        if (draft != null && !draft.trim().isEmpty()) {
+            sb.append("Draft: ").append(draft.trim()).append("\n");
+        }
+
+        String transcript = sb.toString().trim();
+        String title = deriveTitleFromConversation();
+        return new ConversationSnapshot(title, transcript, System.currentTimeMillis());
+    }
+
+    private String deriveTitleFromConversation() {
+        for (ChatMessage m : messages) {
+            if (m == null) continue;
+            if (!m.fromPlayer) continue;
+            if (m.type == ChatMessage.MessageType.THINKING) continue;
+            String t = m.text == null ? "" : m.text.trim();
+            if (!t.isEmpty()) {
+                // 简短标题
+                int max = 28;
+                return t.length() <= max ? t : t.substring(0, max - 1) + "…";
+            }
+        }
+        return "新对话";
+    }
+
+    /** 新建对话：先中断生成，再清空会话。 */
+    public void startNewConversation() {
+        stopGenerating();
+        resetSession();
+    }
+
+    public static class ConversationSnapshot {
+        public final String title;
+        public final String transcript;
+        public final long timestampMs;
+
+        public ConversationSnapshot(String title, String transcript, long timestampMs) {
+            this.title = title == null ? "新对话" : title;
+            this.transcript = transcript == null ? "" : transcript;
+            this.timestampMs = timestampMs;
+        }
+    }
+
+    /**
+     * 从历史快照恢复对话到当前 ChatPanel。
+     */
+    public void loadConversationSnapshot(ConversationSnapshot snapshot) {
+        if (snapshot == null) return;
+        stopGenerating();
+        messages.clear();
+        scrollOffset = 0;
+        inputBox.clear();
+        sessionId = java.util.UUID.randomUUID().toString();
+
+        String t = snapshot.transcript == null ? "" : snapshot.transcript;
+        if (t.isEmpty()) return;
+        String[] lines = t.split("\\r?\\n");
+        for (String line : lines) {
+            if (line == null) continue;
+            String s = line.trim();
+            if (s.isEmpty()) continue;
+            if (s.startsWith("Draft:")) continue;
+            if (s.startsWith("Player:")) {
+                messages.add(new ChatMessage(s.substring("Player:".length()).trim(), true));
+            } else if (s.startsWith("AI:")) {
+                messages.add(new ChatMessage(s.substring("AI:".length()).trim(), false));
+            }
+        }
+        scrollOffset = 0;
     }
 
     /**

@@ -40,6 +40,11 @@ public class HudTextInput {
     // 横向滚动（像素）
     private int scrollX = 0;
 
+    // 三击选中：点击节奏
+    private long lastClickMs = 0L;
+    private int clickCount = 0;
+    private static final long MULTI_CLICK_MS = 280L;
+
     // -------------------------
     // 基础配置
     // -------------------------
@@ -83,6 +88,8 @@ public class HudTextInput {
     // 渲染
     // -------------------------
     public void render(DrawContext ctx, int x, int y, int w, int h) {
+        if (w <= 0 || h <= 0) return;
+
         // 背景
         int bg = focused ? 0xFF333333 : 0xFF222222;
         ctx.fill(x, y, x + w, y + h, bg);
@@ -101,26 +108,45 @@ public class HudTextInput {
             scrollX = cursorPx;
         }
         if (scrollX < 0) scrollX = 0;
+        // 上限：避免 scrollX 无限增大导致文字“跑走”
+        int totalW = client.textRenderer.getWidth(display);
+        int maxScroll = Math.max(0, totalW - innerW);
+        if (scrollX > maxScroll) scrollX = maxScroll;
 
         int drawX = textX - scrollX;
 
-        // 选区
-        if (hasSelection()) {
-            int a = Math.min(cursor, selectionStart);
-            int b = Math.max(cursor, selectionStart);
-            int selX1 = drawX + client.textRenderer.getWidth(display.substring(0, a));
-            int selX2 = drawX + client.textRenderer.getWidth(display.substring(0, b));
-            ctx.fill(selX1, y + 2, selX2, y + h - 2, 0xFF5555AA);
+        // 关键：把文字/选区/光标裁剪在输入框矩形内（折叠/动画变窄时不会画到框外）
+        int sx0 = x + 1;
+        int sy0 = y + 1;
+        int sx1 = x + w - 1;
+        int sy1 = y + h - 1;
+        if (sx1 > sx0 && sy1 > sy0) {
+            ctx.enableScissor(sx0, sy0, sx1, sy1);
         }
+        try {
+            // 选区
+            if (hasSelection()) {
+                int a = Math.min(cursor, selectionStart);
+                int b = Math.max(cursor, selectionStart);
+                int selX1 = drawX + client.textRenderer.getWidth(display.substring(0, a));
+                int selX2 = drawX + client.textRenderer.getWidth(display.substring(0, b));
+                ctx.fill(selX1, y + 2, selX2, y + h - 2, 0xFF5555AA);
+            }
 
-        // 文本
-        // 使用阴影增强可读性（HUD/世界背景上更稳定）
-        ctx.drawText(client.textRenderer, display, drawX, textY, 0xFFFFFF, true);
+            // 文本
+            // 使用阴影增强可读性（HUD/世界背景上更稳定）
+            // 注意：颜色在 1.21+ 通常按 ARGB 解释，需要显式 alpha
+            ctx.drawText(client.textRenderer, display, drawX, textY, 0xFFFFFFFF, true);
 
-        // 光标
-        if (focused && isCursorVisible()) {
-            int cx = drawX + client.textRenderer.getWidth(display.substring(0, cursor));
-            ctx.fill(cx, y + 3, cx + 1, y + h - 3, 0xFFFFFFFF);
+            // 光标
+            if (focused && isCursorVisible()) {
+                int cx = drawX + client.textRenderer.getWidth(display.substring(0, cursor));
+                ctx.fill(cx, y + 3, cx + 1, y + h - 3, 0xFFFFFFFF);
+            }
+        } finally {
+            if (sx1 > sx0 && sy1 > sy0) {
+                ctx.disableScissor();
+            }
         }
     }
 
@@ -139,14 +165,57 @@ public class HudTextInput {
     public boolean mouseClicked(double mouseX, double mouseY, int x, int y, int w, int h) {
         if (mouseX < x || mouseX > x + w || mouseY < y || mouseY > y + h) {
             setFocused(false);
+            clickCount = 0;
             return false;
         }
 
         setFocused(true);
+
+        // 三击：选中全部（HUD 场景常用手势）
+        long now = System.currentTimeMillis();
+        if (now - lastClickMs <= MULTI_CLICK_MS) {
+            clickCount++;
+        } else {
+            clickCount = 1;
+        }
+        lastClickMs = now;
+
+        if (clickCount >= 3) {
+            selectAll();
+            // 避免第 4 次点击继续触发
+            clickCount = 0;
+            return true;
+        }
+
         int clickX = (int) mouseX - (x + 4) + scrollX;
 
         cursor = calculateCursorFromX(clickX);
         clearSelection();
+        return true;
+    }
+
+    /**
+     * 鼠标滚轮：在输入框上滚动时进行水平滚动（保证折叠/窄宽时也能查看被截断的内容）。
+     * amount > 0 通常为“向上滚”，这里映射为向左；amount < 0 映射为向右。
+     */
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount, int x, int y, int w, int h) {
+        if (mouseX < x || mouseX > x + w || mouseY < y || mouseY > y + h) return false;
+        if (w <= 8) return true; // 太窄也算“处理”，防止滚轮穿透到游戏
+
+        String display = passwordMode ? "*".repeat(text.length()) : text.toString();
+        int innerW = Math.max(0, w - 8);
+        int totalW = client.textRenderer.getWidth(display);
+        int maxScroll = Math.max(0, totalW - innerW);
+        if (maxScroll <= 0) {
+            scrollX = 0;
+            return true;
+        }
+
+        int step = 12; // 每格滚动像素
+        // amount > 0: 向左（减少 scrollX）；amount < 0: 向右（增加 scrollX）
+        scrollX = (int) Math.round(scrollX - amount * step);
+        if (scrollX < 0) scrollX = 0;
+        if (scrollX > maxScroll) scrollX = maxScroll;
         return true;
     }
 

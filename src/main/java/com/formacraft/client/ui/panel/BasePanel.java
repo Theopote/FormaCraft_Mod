@@ -27,17 +27,17 @@ public abstract class BasePanel {
     protected int panelHeight = 0;
     protected boolean visible = true;
 
-    // 顶部工具栏（减小高度以匹配更小的标签）
+    // 顶部工具栏（统一控件高度：16）
     private static final int TOOLBAR_HEIGHT = 16;
-    private static final int TOOLBAR_PADDING = 4;
+    private static final int TOOLBAR_PADDING = 2;
 
     // 关闭按钮区域
-    private static final int CLOSE_BUTTON_SIZE = 12;
-    private static final int CLOSE_BUTTON_PADDING = 2;
+    private static final int CLOSE_BUTTON_SIZE = 16;
+    private static final int CLOSE_BUTTON_PADDING = 0;
 
     // 折叠按钮区域（在关闭按钮左侧）
-    private static final int COLLAPSE_BUTTON_SIZE = 12; // 与关闭按钮同尺寸
-    private static final int COLLAPSE_BUTTON_PADDING = 2;
+    private static final int COLLAPSE_BUTTON_SIZE = 16; // 与关闭按钮同尺寸
+    private static final int COLLAPSE_BUTTON_PADDING = 0;
 
     // 左侧栏折叠状态：全局共享（所有面板共用一个宽度）
     private static boolean sidebarCollapsed = false;
@@ -55,6 +55,7 @@ public abstract class BasePanel {
     // 工具栏按钮（使用原版 ButtonWidget，统一样式）
     private ButtonWidget closeButton;
     private ButtonWidget collapseButton;
+    private ButtonWidget newChatButton;
 
     private void ensureToolbarWidgets() {
         if (closeButton != null) return;
@@ -63,6 +64,16 @@ public abstract class BasePanel {
                 .build();
         collapseButton = ButtonWidget.builder(Text.literal("<"), b -> sidebarCollapsed = !sidebarCollapsed)
                 .dimensions(0, 0, COLLAPSE_BUTTON_SIZE, COLLAPSE_BUTTON_SIZE)
+                .build();
+        newChatButton = ButtonWidget.builder(Text.literal("+"), b -> {
+                    // 仅 Chat 标签下使用：保存到历史并新建对话
+                    if (!FormaCraftHudOverlay.ensurePanelsReady()) return;
+                    if (FormaCraftHudOverlay.CHAT_PANEL == null || FormaCraftHudOverlay.HISTORY_PANEL == null) return;
+                    ChatPanel.ConversationSnapshot snap = FormaCraftHudOverlay.CHAT_PANEL.exportConversationSnapshot();
+                    FormaCraftHudOverlay.HISTORY_PANEL.addConversation(snap);
+                    FormaCraftHudOverlay.CHAT_PANEL.startNewConversation();
+                })
+                .dimensions(0, 0, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
                 .build();
     }
 
@@ -243,9 +254,37 @@ public abstract class BasePanel {
         double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
         tabBar.render(ctx, mouseX, mouseY);
 
+        // Chat 专用：新建对话按钮（放在折叠按钮左侧）
+        drawNewChatButton(ctx);
         // 先画折叠按钮，再画关闭按钮（深色小方块）
         drawCollapseButton(ctx);
         drawCloseButton(ctx);
+    }
+
+    private void drawNewChatButton(DrawContext ctx) {
+        ensureToolbarWidgets();
+        // 只有 Chat 标签下显示
+        if (FormaCraftHudOverlay.activePanel != PanelType.CHAT) {
+            if (newChatButton != null) newChatButton.visible = false;
+            return;
+        }
+        // 面板太窄时不显示
+        if (panelWidth < SIDEBAR_EXPANDED_WIDTH / 2) {
+            if (newChatButton != null) newChatButton.visible = false;
+            return;
+        }
+
+        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
+        int closeY = panelY + CLOSE_BUTTON_PADDING;
+        int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+        int newX = collapseX - CLOSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+
+        double mouseX = getScaledMouseX();
+        double mouseY = getScaledMouseY();
+        newChatButton.setPosition(newX, closeY);
+        newChatButton.visible = true;
+        newChatButton.active = true;
+        newChatButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
     }
     
     // --------------------------------------------------------------------
@@ -287,8 +326,9 @@ public abstract class BasePanel {
         int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
         int closeY = panelY + CLOSE_BUTTON_PADDING;
         int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+        int newChatX = collapseX - CLOSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
 
-        if (panelWidth >= CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING + 6) {
+        if (panelWidth >= CLOSE_BUTTON_SIZE) {
             closeButton.setPosition(closeX, closeY);
             closeButton.visible = true;
             if (closeButton.isMouseOver(mouseX, mouseY)) {
@@ -305,6 +345,16 @@ public abstract class BasePanel {
             if (collapseButton.isMouseOver(mouseX, mouseY)) {
                 drawTooltipCompat(ctx,
                         java.util.Collections.singletonList(Text.translatable("formacraft.button.collapse")),
+                        (int) mouseX, (int) mouseY);
+            }
+        }
+
+        if (!sidebarCollapsed && panelWidth >= SIDEBAR_EXPANDED_WIDTH / 2 && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
+            newChatButton.setPosition(newChatX, closeY);
+            newChatButton.visible = true;
+            if (newChatButton.isMouseOver(mouseX, mouseY)) {
+                drawTooltipCompat(ctx,
+                        java.util.Collections.singletonList(Text.literal("新建对话")),
                         (int) mouseX, (int) mouseY);
             }
         }
@@ -376,7 +426,7 @@ public abstract class BasePanel {
         int closeY = panelY + CLOSE_BUTTON_PADDING;
 
         // 面板太窄时不绘制（避免折叠动画早期挤成一坨）
-        if (panelWidth < CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING + 6) {
+        if (panelWidth < CLOSE_BUTTON_SIZE) {
             if (closeButton != null) closeButton.visible = false;
             return;
         }
@@ -443,8 +493,9 @@ public abstract class BasePanel {
         int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
         int closeY = panelY + CLOSE_BUTTON_PADDING;
         int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+        int newChatX = collapseX - CLOSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
 
-        if (panelWidth >= CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING + 6) {
+        if (panelWidth >= CLOSE_BUTTON_SIZE) {
             closeButton.setPosition(closeX, closeY);
             closeButton.visible = true;
             closeButton.active = true;
@@ -455,6 +506,12 @@ public abstract class BasePanel {
             collapseButton.visible = true;
             collapseButton.active = true;
             if (collapseButton.mouseClicked(click, false)) return true;
+        }
+        if (!sidebarCollapsed && panelWidth >= SIDEBAR_EXPANDED_WIDTH / 2 && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
+            newChatButton.setPosition(newChatX, closeY);
+            newChatButton.visible = true;
+            newChatButton.active = true;
+            if (newChatButton.mouseClicked(click, false)) return true;
         }
 
         // Tab 区域（使用 TabBar 处理）
@@ -494,14 +551,6 @@ public abstract class BasePanel {
      * 用于支持：点击输入框后可以移开鼠标继续输入/粘贴。
      */
     public boolean wantsKeyboardInput() { return false; }
-
-    public void setVisible(boolean visible) {
-        this.visible = visible;
-    }
-
-    public boolean isVisible() {
-        return visible;
-    }
 
     /**
      * 检查鼠标是否在面板内

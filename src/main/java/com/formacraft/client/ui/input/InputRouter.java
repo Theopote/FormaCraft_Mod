@@ -152,22 +152,23 @@ public class InputRouter {
         // ESC 保留给原版
         if (keyCode == 256) return false;
 
-        BasePanel panel = getPanel();
-        boolean inside = isMouseInsideUI();
-        boolean wantsKeyboard = panel != null && panel.wantsKeyboardInput();
+        // 重要交互规则（按用户期望）：
+        // - 鼠标在面板范围内：UI 接管键盘
+        // - 鼠标在面板范围外：键盘交给游戏（WASD/Shift/Space 等必须可用）
 
-        if (inside || wantsKeyboard) {
-            // BuildConfirmPanel 优先
-            if (BuildConfirmPanel.INSTANCE.isVisible()) {
-                if (BuildConfirmPanel.INSTANCE.keyPressed(keyCode)) return true;
-            }
-
-            if (panel != null) {
-                panel.keyPressed(keyCode, scanCode, modifiers);
-                return true;
-            }
+        // BuildConfirmPanel 是“模态弹窗”，即便鼠标暂时不在面板内也优先吃键盘
+        if (BuildConfirmPanel.INSTANCE.isVisible()) {
+            if (BuildConfirmPanel.INSTANCE.keyPressed(keyCode)) return true;
         }
 
+        boolean inside = isMouseInsideUI();
+        if (!inside) return false;
+
+        BasePanel panel = getPanel();
+        if (panel != null) {
+            panel.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
         return false;
     }
 
@@ -175,17 +176,14 @@ public class InputRouter {
     public static boolean onCharTyped(char chr, int modifiers) {
         if (!FormacraftUIState.isOpen) return false;
 
-        BasePanel panel = getPanel();
         boolean inside = isMouseInsideUI();
-        boolean wantsKeyboard = panel != null && panel.wantsKeyboardInput();
+        if (!inside) return false;
 
-        if (inside || wantsKeyboard) {
-            if (panel != null) {
-                panel.charTyped(chr);
-                return true;
-            }
+        BasePanel panel = getPanel();
+        if (panel != null) {
+            panel.charTyped(chr);
+            return true;
         }
-
         return false;
     }
 

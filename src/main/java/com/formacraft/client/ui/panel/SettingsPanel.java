@@ -12,12 +12,15 @@ import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * FormaCraft 设置面板（HUD 左侧栏）
@@ -29,17 +32,21 @@ public class SettingsPanel extends BasePanel {
 
     // ======================= 常量定义 =======================
     private static final int CONTENT_PADDING = 10;
-    private static final int BUTTON_HEIGHT = 20;
+    // 统一控件高度：与「隐藏/粘贴」按钮一致
+    private static final int BUTTON_HEIGHT = 16;
     private static final int BUTTON_GAP = 6;
     private static final int INPUT_HEIGHT = 16;
-    private static final int LABEL_OFFSET = 12;
-    private static final int FIELD_SPACING = 32;
+    // 两行布局：标题行 →（间距）→ 控件行
+    private static final int LABEL_OFFSET = INPUT_HEIGHT + 2; // 16 + 2 = 18（更紧凑）
+    // 每个“标准字段”（标题+控件）占 2 行：18 * 2 = 36
+    private static final int FIELD_SPACING = LABEL_OFFSET * 2; // 36（统一行距栅格）
     private static final int TITLE_HEIGHT = 20;
-    private static final int BUTTON_ROW_HEIGHT = 24;
+    private static final int BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + 4;
     
-    // 颜色常量
-    private static final int COLOR_WHITE = 0xFFFFFF;
-    private static final int COLOR_GRAY = 0xAAAAAA;
+    // 颜色常量（注意：DrawContext 的颜色在 1.21+ 通常按 ARGB 解释，需要显式 alpha）
+    private static final int COLOR_WHITE = 0xFFFFFFFF;
+    private static final int COLOR_GRAY = 0xFFAAAAAA;
+    // Toast 这里仍按 0xRRGGBB 使用（alpha 在绘制时单独计算）
     private static final int COLOR_TOAST_SUCCESS = 0x88FF88;
     private static final int COLOR_TOAST_ERROR = 0xFF8888;
     
@@ -48,7 +55,8 @@ public class SettingsPanel extends BasePanel {
     private static final int MAX_FONT_SIZE = 26;
     
     // 按钮尺寸
-    private static final int SHOW_HIDE_BUTTON_WIDTH = 40;
+    // “隐藏/粘贴”按钮同宽
+    private static final int SHOW_HIDE_BUTTON_WIDTH = 44;
     private static final int PASTE_BUTTON_WIDTH = 44;
     private static final int BUTTON_GAP_SMALL = 4;
     
@@ -66,19 +74,9 @@ public class SettingsPanel extends BasePanel {
     // 默认显示明文（用户可以手动点 Hide 隐藏）
     private boolean hideKey = false;
 
-    // 下拉列表状态
-    private boolean modelDropdownOpen = false;
-    private final List<String> modelOptions = Arrays.asList(
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4o-micro",
-            "llama3-8b",
-            "llama3-70b",
-            "deepseek-chat"
-    );
-
     // 草稿态（UI）——只有 Save 时才写入 SettingsConfig
-    private String draftModel = "gpt-4o";
+    // 允许为空：表示“让后端自行决定模型”
+    private String draftModel = "";
     private float draftTemperature = 0.7f;
     private int draftFontSize = 14;
 
@@ -98,11 +96,18 @@ public class SettingsPanel extends BasePanel {
     private ButtonWidget saveButton;
     private ButtonWidget cancelButton;
     private ButtonWidget resetButton;
-    private ButtonWidget modelButton;
-    private final List<ButtonWidget> modelOptionButtons = new ArrayList<>();
+    private ButtonWidget detectModelButton;
     private TemperatureSlider temperatureSlider;
     private FontSizeSlider fontSizeSlider;
     private SliderWidget activeSlider = null; // 只允许同时操作一个滑条
+
+    // 模型探测（HTTP）
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(2))
+            .build();
+    private volatile boolean detectingModel = false;
+    private static final Pattern JSON_ID_PATTERN = Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"");
+    private static final Pattern JSON_MODEL_PATTERN = Pattern.compile("\"model\"\\s*:\\s*\"([^\"]+)\"");
 
     // 缓存的计算值（性能优化）
     private int cachedContentX = -1;
@@ -119,13 +124,13 @@ public class SettingsPanel extends BasePanel {
         SettingsConfig cfg = SettingsConfig.INSTANCE;
         this.apiKeyInput.setText(cfg.apiKey != null ? cfg.apiKey : "");
         this.orchestratorInput.setText(cfg.orchestratorEndpoint != null ? cfg.orchestratorEndpoint : "http://localhost:8000");
-        this.apiKeyInput.setPasswordMode(hideKey);
+        // UX：即便选择了隐藏，也在编辑时显示明文，避免“看不到输入内容”
+        this.apiKeyInput.setPasswordMode(hideKey && !apiKeyInput.isFocused());
         this.apiKeyInput.setMaxLength(256);
         this.orchestratorInput.setMaxLength(256);
 
-        // 同步草稿态，添加验证确保有效性
-        this.draftModel = (cfg.model != null && !cfg.model.isBlank() && modelOptions.contains(cfg.model)) 
-                ? cfg.model : "gpt-4o";
+        // 同步草稿态：允许为空（自动），不再限制预设列表
+        this.draftModel = cfg.model != null ? cfg.model.trim() : "";
         this.draftTemperature = clamp01(cfg.temperature);
         this.draftFontSize = clampInt(cfg.fontSize);
         
@@ -171,17 +176,17 @@ public class SettingsPanel extends BasePanel {
         y += FIELD_SPACING;
 
         drawApiKeyField(ctx, x, y, w);
+        // API Key 三行：标题 + 输入框 + 按钮行
+        y += FIELD_SPACING + LABEL_OFFSET;
+
+        drawModelDetector(ctx, x, y, w);
         y += FIELD_SPACING;
 
-        drawModelSelector(ctx, x, y, w);
-        // 模型选择：按钮本体 1 行 +（展开时）额外 N 行
-        y += FIELD_SPACING + (modelDropdownOpen ? (modelOptions.size() * BUTTON_HEIGHT) : 0);
-
         drawTemperatureSlider(ctx, x, y, w);
-        y += (LABEL_OFFSET + INPUT_HEIGHT);
+        y += FIELD_SPACING;
 
         drawFontSizeSlider(ctx, x, y, w);
-        y += (LABEL_OFFSET + INPUT_HEIGHT);
+        y += FIELD_SPACING;
 
         drawButtonsRow(ctx, x, y, w);
         y += BUTTON_ROW_HEIGHT;
@@ -217,10 +222,10 @@ public class SettingsPanel extends BasePanel {
     //   Orchestrator 地址输入框
     // =======================
     private void drawOrchestratorField(DrawContext ctx, int x, int y, int w) {
-        ctx.drawTextWithShadow(client.textRenderer, 
-                Text.translatable("formacraft.settings.backend_url"),
-                x, y, COLOR_GRAY);
-        y += LABEL_OFFSET;
+        // 标题行（高度按 INPUT_HEIGHT 对齐）
+        Text label = Text.translatable("formacraft.settings.backend_url");
+        drawSmallLabel(ctx, label, x, y);
+        y += LABEL_OFFSET; // 到输入行
         orchestratorInput.render(ctx, x, y, w, INPUT_HEIGHT);
     }
 
@@ -228,65 +233,51 @@ public class SettingsPanel extends BasePanel {
     //   API KEY 输入框
     // =======================
     private void drawApiKeyField(DrawContext ctx, int x, int y, int w) {
-        ctx.drawTextWithShadow(client.textRenderer, 
-                Text.translatable("formacraft.settings.api_key"),
-                x, y, COLOR_GRAY);
-        y += LABEL_OFFSET;
-
         ensureWidgets();
 
-        int inputW = Math.max(0, w - SHOW_HIDE_BUTTON_WIDTH - PASTE_BUTTON_WIDTH - BUTTON_GAP_SMALL * 2);
+        // 标题行：只画标题（按钮放到输入框下方一行）
+        Text label = Text.translatable("formacraft.settings.api_key");
+        drawSmallLabel(ctx, label, x, y);
 
-        // 输入框（右侧留出 Show/Hide + Paste 按钮区域）
-        apiKeyInput.setPasswordMode(hideKey);
-        apiKeyInput.render(ctx, x, y, inputW, INPUT_HEIGHT);
+        // 输入框（第二行，全宽）
+        int inputY = y + LABEL_OFFSET;
+        apiKeyInput.setPasswordMode(hideKey && !apiKeyInput.isFocused());
+        apiKeyInput.render(ctx, x, inputY, w, INPUT_HEIGHT);
 
-        // Show/Hide 按钮
-        int btnX = x + inputW + BUTTON_GAP_SMALL;
-        showHideButton.setPosition(btnX, y);
-        showHideButton.setWidth(SHOW_HIDE_BUTTON_WIDTH);
+        // 按钮行（第三行：隐藏/粘贴在输入框下方，平均分配）
+        int gap = BUTTON_GAP_SMALL;
+        int btnY = y + LABEL_OFFSET * 2;
+        int btnW1 = (w - gap) / 2;
+        int btnW2 = Math.max(0, w - gap - btnW1); // 兜住余数，保证右侧对齐
+
+        showHideButton.setPosition(x, btnY);
+        showHideButton.setWidth(btnW1);
         showHideButton.visible = true;
         showHideButton.active = true;
         showHideButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
 
-        // Paste 按钮
-        int pasteX = btnX + SHOW_HIDE_BUTTON_WIDTH + BUTTON_GAP_SMALL;
-        pasteButton.setPosition(pasteX, y);
-        pasteButton.setWidth(PASTE_BUTTON_WIDTH);
+        pasteButton.setPosition(x + btnW1 + gap, btnY);
+        pasteButton.setWidth(btnW2);
         pasteButton.visible = true;
         pasteButton.active = true;
         pasteButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
     }
 
     // =======================
-    //   模型选择（下拉菜单）
+    //   模型探测（替代下拉预设）
     // =======================
-    private void drawModelSelector(DrawContext ctx, int x, int y, int w) {
-        ctx.drawTextWithShadow(client.textRenderer, 
-                Text.translatable("formacraft.settings.model"),
-                x, y, COLOR_GRAY);
+    private void drawModelDetector(DrawContext ctx, int x, int y, int w) {
+        drawSmallLabel(ctx, Text.translatable("formacraft.settings.model"), x, y);
         y += LABEL_OFFSET;
 
         ensureWidgets();
-        // 主按钮（原版 ButtonWidget 渲染）
-        modelButton.setPosition(x, y);
-        modelButton.setWidth(w);
-        modelButton.visible = true;
-        modelButton.active = true;
-        modelButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
-
-        // 下拉选项（原版 ButtonWidget 渲染）
-        if (modelDropdownOpen) {
-            int optY = y + BUTTON_HEIGHT;
-            for (ButtonWidget optBtn : modelOptionButtons) {
-                optBtn.setPosition(x, optY);
-                optBtn.setWidth(w);
-                optBtn.visible = true;
-                optBtn.active = true;
-                optBtn.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
-                optY += BUTTON_HEIGHT;
-            }
-        }
+        // 文案随状态刷新（避免异步检测后按钮还显示旧文本）
+        detectModelButton.setMessage(getDetectModelButtonText());
+        detectModelButton.setPosition(x, y);
+        detectModelButton.setWidth(w);
+        detectModelButton.visible = true;
+        detectModelButton.active = !detectingModel;
+        detectModelButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
     }
 
     // =======================
@@ -297,9 +288,7 @@ public class SettingsPanel extends BasePanel {
         if (cachedTemperatureText == null) {
             updateCachedTemperatureText();
         }
-        ctx.drawTextWithShadow(client.textRenderer, 
-                Text.translatable("formacraft.settings.temperature", cachedTemperatureText),
-                x, y, COLOR_GRAY);
+        drawSmallLabel(ctx, Text.translatable("formacraft.settings.temperature", cachedTemperatureText), x, y);
         y += LABEL_OFFSET;
         ensureWidgets();
         temperatureSlider.setPosition(x, y);
@@ -313,9 +302,7 @@ public class SettingsPanel extends BasePanel {
     //   字体大小
     // =======================
     private void drawFontSizeSlider(DrawContext ctx, int x, int y, int w) {
-        ctx.drawTextWithShadow(client.textRenderer,
-                Text.translatable("formacraft.settings.font_size", draftFontSize),
-                x, y, COLOR_GRAY);
+        drawSmallLabel(ctx, Text.translatable("formacraft.settings.font_size", draftFontSize), x, y);
         y += LABEL_OFFSET;
         ensureWidgets();
         fontSizeSlider.setPosition(x, y);
@@ -330,24 +317,25 @@ public class SettingsPanel extends BasePanel {
     // =======================
     private void drawButtonsRow(DrawContext ctx, int x, int y, int w) {
         ensureWidgets();
-        int btnW = (w - BUTTON_GAP * 2) / 3;
-        int cancelX = x + btnW + BUTTON_GAP;
-        int resetX = x + (btnW + BUTTON_GAP) * 2;
+        int btnW1 = (w - BUTTON_GAP * 2) / 3;
+        int btnW3 = Math.max(0, w - (btnW1 + btnW1 + BUTTON_GAP * 2)); // 兜住余数，保证右侧对齐
+        int cancelX = x + btnW1 + BUTTON_GAP;
+        int resetX = cancelX + btnW1 + BUTTON_GAP;
 
         saveButton.setPosition(x, y);
-        saveButton.setWidth(btnW);
+        saveButton.setWidth(btnW1);
         saveButton.visible = true;
         saveButton.active = true;
         saveButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
 
         cancelButton.setPosition(cancelX, y);
-        cancelButton.setWidth(btnW);
+        cancelButton.setWidth(btnW1);
         cancelButton.visible = true;
         cancelButton.active = true;
         cancelButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
 
         resetButton.setPosition(resetX, y);
-        resetButton.setWidth(btnW);
+        resetButton.setWidth(btnW3);
         resetButton.visible = true;
         resetButton.active = true;
         resetButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
@@ -374,6 +362,14 @@ public class SettingsPanel extends BasePanel {
         cachedTemperatureText = String.format("%.2f", draftTemperature);
     }
 
+    /**
+     * 统一“小标题”绘制：在 16px 行高内垂直居中（视觉间距一致）
+     */
+    private void drawSmallLabel(DrawContext ctx, Text label, int x, int y) {
+        int labelY = y + (INPUT_HEIGHT - client.textRenderer.fontHeight) / 2;
+        ctx.drawTextWithShadow(client.textRenderer, label, x, labelY, COLOR_GRAY);
+    }
+
     // =======================
     //   鼠标交互
     // =======================
@@ -389,11 +385,12 @@ public class SettingsPanel extends BasePanel {
         int y = getContentY() + CONTENT_PADDING;
         int w = panelWidth - CONTENT_PADDING * 2;
 
-        // 检查是否点击在面板外部（关闭下拉菜单）
         boolean clickedOutside = !isMouseOver(mouseX, mouseY);
-        if (clickedOutside && modelDropdownOpen) {
-            modelDropdownOpen = false;
-            return false; // 不阻止游戏处理，因为点击在面板外
+        // 防御：如果点击在面板外，不应继续命中任何控件（否则会“隔空点按钮/输入框”）
+        if (clickedOutside) {
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            return false;
         }
 
         // drawContents 里先画标题，再 y += TITLE_HEIGHT
@@ -404,7 +401,6 @@ public class SettingsPanel extends BasePanel {
         int orchY = orchLabelY + LABEL_OFFSET;
         if (orchestratorInput.mouseClicked(mouseX, mouseY, x, orchY, w, INPUT_HEIGHT)) {
             apiKeyInput.setFocused(false);
-            modelDropdownOpen = false;
             return true;
         }
 
@@ -412,119 +408,96 @@ public class SettingsPanel extends BasePanel {
         y += FIELD_SPACING;
         int apiLabelY = y;
         int apiY = apiLabelY + LABEL_OFFSET;
-        int inputW = Math.max(0, w - SHOW_HIDE_BUTTON_WIDTH - PASTE_BUTTON_WIDTH - BUTTON_GAP_SMALL * 2);
-        int hideBtnX = x + inputW + BUTTON_GAP_SMALL;
-        int pasteX = hideBtnX + SHOW_HIDE_BUTTON_WIDTH + BUTTON_GAP_SMALL;
+        int apiBtnY = apiLabelY + LABEL_OFFSET * 2;
+        int gap = BUTTON_GAP_SMALL;
+        int apiBtnW1 = (w - gap) / 2;
+        int apiBtnW2 = Math.max(0, w - gap - apiBtnW1);
+        int pasteX = x + apiBtnW1 + gap;
 
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
         // Show/Hide（原版按钮）
-        showHideButton.setPosition(hideBtnX, apiY);
-        showHideButton.setWidth(SHOW_HIDE_BUTTON_WIDTH);
+        showHideButton.setPosition(x, apiBtnY);
+        showHideButton.setWidth(apiBtnW1);
         if (showHideButton.mouseClicked(click, false)) {
-            modelDropdownOpen = false;
             return true;
         }
 
         // Paste（原版按钮）
-        pasteButton.setPosition(pasteX, apiY);
-        pasteButton.setWidth(PASTE_BUTTON_WIDTH);
+        pasteButton.setPosition(pasteX, apiBtnY);
+        pasteButton.setWidth(apiBtnW2);
         if (pasteButton.mouseClicked(click, false)) {
-            modelDropdownOpen = false;
             return true;
         }
 
         // 点击 API key 输入框
-        if (apiKeyInput.mouseClicked(mouseX, mouseY, x, apiY, inputW, INPUT_HEIGHT)) {
+        if (apiKeyInput.mouseClicked(mouseX, mouseY, x, apiY, w, INPUT_HEIGHT)) {
             orchestratorInput.setFocused(false);
-            modelDropdownOpen = false;
             return true;
         }
 
-        // =========== 模型选择器 ============
-        y += FIELD_SPACING;
+        // =========== 模型探测 ============
+        // API Key 三行：标题 + 输入框 + 按钮行
+        y += FIELD_SPACING + LABEL_OFFSET;
         int modelLabelY = y;
         int modelY = modelLabelY + LABEL_OFFSET;
 
-        modelButton.setPosition(x, modelY);
-        modelButton.setWidth(w);
-        if (modelButton.mouseClicked(click, false)) {
+        detectModelButton.setPosition(x, modelY);
+        detectModelButton.setWidth(w);
+        if (detectModelButton.mouseClicked(click, false)) {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
             return true;
         }
 
-        if (modelDropdownOpen) {
-            int optY = modelY + BUTTON_HEIGHT;
-            for (ButtonWidget optBtn : modelOptionButtons) {
-                optBtn.setPosition(x, optY);
-                optBtn.setWidth(w);
-                if (optBtn.mouseClicked(click, false)) {
-                    return true;
-                }
-                optY += BUTTON_HEIGHT;
-            }
-        }
-
         // =========== 滑动条交互 ============
-        // 注意：这里必须与 drawContents 的布局一致（下拉选项使用 BUTTON_HEIGHT，而不是 14px）
-        y += FIELD_SPACING + (modelDropdownOpen ? (modelOptions.size() * BUTTON_HEIGHT) : 0);
+        // 注意：这里必须与 drawContents 的布局一致
+        y += FIELD_SPACING;
         int tempSliderY = y + LABEL_OFFSET;
         temperatureSlider.setPosition(x, tempSliderY);
         temperatureSlider.setWidth(w);
         if (temperatureSlider.mouseClicked(click, false)) {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
-            modelDropdownOpen = false;
             activeSlider = temperatureSlider;
             return true;
         }
 
-        y += (LABEL_OFFSET + INPUT_HEIGHT);
+        y += FIELD_SPACING;
         int fontSliderY = y + LABEL_OFFSET;
         fontSizeSlider.setPosition(x, fontSliderY);
         fontSizeSlider.setWidth(w);
         if (fontSizeSlider.mouseClicked(click, false)) {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
-            modelDropdownOpen = false;
             activeSlider = fontSizeSlider;
             return true;
         }
 
         // =========== 按钮行（Save/Cancel/Reset） ============
-        y += (LABEL_OFFSET + INPUT_HEIGHT);
+        y += FIELD_SPACING;
         int btnY = y;
-        int btnW = (w - BUTTON_GAP * 2) / 3;
-        int cancelX = x + btnW + BUTTON_GAP;
-        int resetX = x + (btnW + BUTTON_GAP) * 2;
+        int btnW1 = (w - BUTTON_GAP * 2) / 3;
+        int btnW3 = Math.max(0, w - (btnW1 + btnW1 + BUTTON_GAP * 2));
+        int cancelX = x + btnW1 + BUTTON_GAP;
+        int resetX = cancelX + btnW1 + BUTTON_GAP;
 
         saveButton.setPosition(x, btnY);
-        saveButton.setWidth(btnW);
+        saveButton.setWidth(btnW1);
         if (saveButton.mouseClicked(click, false)) return true;
 
         cancelButton.setPosition(cancelX, btnY);
-        cancelButton.setWidth(btnW);
+        cancelButton.setWidth(btnW1);
         if (cancelButton.mouseClicked(click, false)) return true;
 
         resetButton.setPosition(resetX, btnY);
-        resetButton.setWidth(btnW);
+        resetButton.setWidth(btnW3);
         if (resetButton.mouseClicked(click, false)) return true;
 
-        // 点击空白区域：取消焦点/收起下拉
-        if (!clickedOutside) {
-            // 在面板内但不在任何元素上，关闭下拉菜单
-            if (modelDropdownOpen) {
-                modelDropdownOpen = false;
-                rebuildModelOptionButtons();
-                return true;
-            }
-        } else {
-            // 点击在面板外，关闭所有交互状态
+        // 点击空白区域：取消焦点
+        if (clickedOutside) {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
-            modelDropdownOpen = false;
-            rebuildModelOptionButtons();
         }
 
         return false;
@@ -559,6 +532,28 @@ public class SettingsPanel extends BasePanel {
     }
 
     @Override
+    public void mouseScrolled(double mouseX, double mouseY, double amount) {
+        // 只在输入框上滚动时接管：水平滚动查看被截断内容
+        int x = cachedContentX >= 0 ? cachedContentX : (panelX + CONTENT_PADDING);
+        int y = getContentY() + CONTENT_PADDING;
+        int w = panelWidth - CONTENT_PADDING * 2;
+
+        // drawContents 里先画标题，再 y += TITLE_HEIGHT
+        y += TITLE_HEIGHT;
+
+        // Orchestrator 输入框（第二行）
+        int orchY = y + LABEL_OFFSET;
+        if (orchestratorInput.mouseScrolled(mouseX, mouseY, amount, x, orchY, w, INPUT_HEIGHT)) {
+            return;
+        }
+
+        // API Key 输入框（第二行；该字段为三行，但输入框仍在标题行下方一行）
+        y += FIELD_SPACING;
+        int apiY = y + LABEL_OFFSET;
+        apiKeyInput.mouseScrolled(mouseX, mouseY, amount, x, apiY, w, INPUT_HEIGHT);
+    }
+
+    @Override
     protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
         ensureWidgets();
 
@@ -580,8 +575,14 @@ public class SettingsPanel extends BasePanel {
             drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.font_size")), (int) mouseX, (int) mouseY);
             return true;
         }
-        if (modelButton != null && modelButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.model")), (int) mouseX, (int) mouseY);
+        if (detectModelButton != null && detectModelButton.isMouseOver(mouseX, mouseY)) {
+            String cur = (draftModel == null || draftModel.isBlank()) ? "自动" : draftModel;
+            drawTooltipCompat(
+                    ctx,
+                    java.util.List.of(Text.literal("检测后端默认模型"), Text.literal("当前：" + cur)),
+                    (int) mouseX,
+                    (int) mouseY
+            );
             return true;
         }
         if (saveButton != null && saveButton.isMouseOver(mouseX, mouseY)) {
@@ -620,22 +621,17 @@ public class SettingsPanel extends BasePanel {
         pasteButton = ButtonWidget.builder(Text.translatable("formacraft.settings.paste"), b -> {
                     apiKeyInput.setFocused(true);
                     orchestratorInput.setFocused(false);
-                    modelDropdownOpen = false;
                     apiKeyInput.paste();
                 })
                 .dimensions(0, 0, PASTE_BUTTON_WIDTH, INPUT_HEIGHT)
                 .tooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.paste")))
                 .build();
 
-        // Model dropdown (button + options)
-        modelButton = ButtonWidget.builder(getModelButtonText(), b -> {
-                    modelDropdownOpen = !modelDropdownOpen;
-                    rebuildModelOptionButtons();
-                })
+        // Model detect (replaces dropdown presets)
+        detectModelButton = ButtonWidget.builder(getDetectModelButtonText(), b -> startDetectModel())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.model")))
+                .tooltip(Tooltip.of(Text.literal("检测后端默认模型")))
                 .build();
-        rebuildModelOptionButtons();
 
         // Sliders（用原版 SliderWidget 渲染）
         temperatureSlider = new TemperatureSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), clamp01(draftTemperature));
@@ -648,8 +644,6 @@ public class SettingsPanel extends BasePanel {
                     if (saveSettings()) {
                         orchestratorInput.setFocused(false);
                         apiKeyInput.setFocused(false);
-                        modelDropdownOpen = false;
-                        rebuildModelOptionButtons();
                     }
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -659,8 +653,6 @@ public class SettingsPanel extends BasePanel {
                     loadFromConfig();
                     orchestratorInput.setFocused(false);
                     apiKeyInput.setFocused(false);
-                    modelDropdownOpen = false;
-                    rebuildModelOptionButtons();
                     showToast(Text.translatable("formacraft.settings.cancelled").getString());
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -672,8 +664,6 @@ public class SettingsPanel extends BasePanel {
                     loadFromConfig();
                     orchestratorInput.setFocused(false);
                     apiKeyInput.setFocused(false);
-                    modelDropdownOpen = false;
-                    rebuildModelOptionButtons();
                     showToast(Text.translatable("formacraft.settings.reset_success").getString());
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -683,32 +673,75 @@ public class SettingsPanel extends BasePanel {
         syncWidgetStateFromDraft();
     }
 
-    private Text getModelButtonText() {
-        // 用一个简单的下拉符号提示（纯文本，不依赖自绘）
-        return Text.literal(draftModel + " ▾");
+    private Text getDetectModelButtonText() {
+        if (detectingModel) {
+            return Text.literal("检测中...");
+        }
+        String cur = (draftModel == null || draftModel.isBlank()) ? "自动" : draftModel;
+        return Text.literal("检测模型（当前：" + cur + "）");
     }
 
-    private void rebuildModelOptionButtons() {
-        modelOptionButtons.clear();
-        if (!modelDropdownOpen) return;
-        for (String opt : modelOptions) {
-            ButtonWidget btn = ButtonWidget.builder(Text.literal(opt), b -> {
-                        draftModel = opt;
-                        modelDropdownOpen = false;
-                        rebuildModelOptionButtons();
-                    })
-                    .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                    .build();
-            modelOptionButtons.add(btn);
+    private void startDetectModel() {
+        if (detectingModel) return;
+        detectingModel = true;
+        if (detectModelButton != null) {
+            detectModelButton.setMessage(getDetectModelButtonText());
         }
-        if (modelButton != null) {
-            modelButton.setMessage(getModelButtonText());
-        }
+
+        String base = sanitizeEndpoint(orchestratorInput.getText());
+        String url = base.endsWith("/models") ? base : (base + "/models");
+
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpRequest req = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .timeout(Duration.ofSeconds(4))
+                        .GET()
+                        .build();
+                HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
+                    return resp.body();
+                }
+            } catch (Exception ignored) {
+            }
+            return null;
+        }).thenAccept(body -> client.execute(() -> {
+            detectingModel = false;
+            if (body == null || body.isBlank()) {
+                showToast("检测失败：后端未提供 /models", true);
+                if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
+                return;
+            }
+
+            String detected = parseDetectedModel(body);
+            if (detected == null || detected.isBlank()) {
+                draftModel = "";
+                showToast("检测完成：模型=自动", false);
+            } else {
+                draftModel = detected.trim();
+                showToast("检测完成：" + draftModel, false);
+            }
+
+            syncWidgetStateFromDraft();
+        }));
+    }
+
+    private String parseDetectedModel(String body) {
+        // 优先解析 {"default_model":"..."}
+        Matcher m0 = Pattern.compile("\"default_model\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
+        if (m0.find()) return m0.group(1);
+        // 其次尝试 {"model":"..."}
+        Matcher m1 = JSON_MODEL_PATTERN.matcher(body);
+        if (m1.find()) return m1.group(1);
+        // 兜底：OpenAI 风格列表里可能是 {"id":"gpt-4o-mini"}
+        Matcher m2 = JSON_ID_PATTERN.matcher(body);
+        if (m2.find()) return m2.group(1);
+        return null;
     }
 
     private void toggleHideKey() {
         hideKey = !hideKey;
-        apiKeyInput.setPasswordMode(hideKey);
+        apiKeyInput.setPasswordMode(hideKey && !apiKeyInput.isFocused());
         if (showHideButton != null) {
             showHideButton.setMessage(getShowHideText());
         }
@@ -724,8 +757,8 @@ public class SettingsPanel extends BasePanel {
         if (showHideButton != null) {
             showHideButton.setMessage(getShowHideText());
         }
-        if (modelButton != null) {
-            modelButton.setMessage(getModelButtonText());
+        if (detectModelButton != null) {
+            detectModelButton.setMessage(getDetectModelButtonText());
         }
         if (temperatureSlider != null) {
             temperatureSlider.setCustomValue(clamp01(draftTemperature));
@@ -858,7 +891,7 @@ public class SettingsPanel extends BasePanel {
         try {
             SettingsConfig.INSTANCE.apiKey = apiKey;
             SettingsConfig.INSTANCE.orchestratorEndpoint = endpoint;
-            SettingsConfig.INSTANCE.model = Objects.requireNonNullElse(draftModel, "gpt-4o");
+            SettingsConfig.INSTANCE.model = draftModel != null ? draftModel.trim() : "";
             SettingsConfig.INSTANCE.temperature = clamp01(draftTemperature);
             SettingsConfig.INSTANCE.fontSize = clampInt(draftFontSize);
             SettingsConfig.save();

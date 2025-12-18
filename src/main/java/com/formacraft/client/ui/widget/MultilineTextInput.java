@@ -82,6 +82,59 @@ public class MultilineTextInput {
                mouseY >= y && mouseY <= y + height;
     }
 
+    /**
+     * 鼠标点击：设置焦点并把光标移动到点击位置（行/列）。
+     * HUD 模式下由 Panel 转发调用。
+     */
+    public boolean mouseClicked(double mouseX, double mouseY) {
+        if (!isMouseOver(mouseX, mouseY)) {
+            setFocused(false);
+            return false;
+        }
+
+        setFocused(true);
+
+        // 计算行高（与 render 使用同一套规则）
+        float fontScale = getFontScale();
+        int baseFontHeight = client.textRenderer.fontHeight;
+        int lineHeight = Math.max(baseFontHeight + 2, (int) ((baseFontHeight + 2) * fontScale));
+
+        // 计算点击到哪一行（考虑 viewLineStart）
+        int relY = (int) Math.floor(mouseY - (y + 4));
+        int clickedLineOffset = relY < 0 ? 0 : (relY / lineHeight);
+        int lineIndex = viewLineStart + clickedLineOffset;
+        if (lineIndex < 0) lineIndex = 0;
+        if (lineIndex >= lines.size()) lineIndex = lines.size() - 1;
+
+        // 计算点击到哪一列
+        String line = lines.get(lineIndex);
+        int relX = (int) Math.floor(mouseX - (x + 4));
+        if (relX < 0) relX = 0;
+        int col = calculateColumnFromX(line, relX);
+
+        cursorLine = lineIndex;
+        cursorColumn = Math.max(0, Math.min(col, line.length()));
+        clearSelection();
+
+        // 点击定位后，让视图尽快跟随光标
+        lastUserScrollMs = 0L;
+        return true;
+    }
+
+    private int calculateColumnFromX(String line, int px) {
+        if (line == null || line.isEmpty()) return 0;
+        int len = line.length();
+        int col = 0;
+        for (int i = 1; i <= len; i++) {
+            int w = client.textRenderer.getWidth(line.substring(0, i));
+            if (px < w) {
+                break;
+            }
+            col = i;
+        }
+        return col;
+    }
+
     public void mouseScrolled(double amount) {
         // amount > 0: 向上滚（看更早的行）
         int delta = amount > 0 ? -1 : 1;

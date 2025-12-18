@@ -54,10 +54,10 @@ public class BlueprintPanel extends BasePanel {
         if (loadButton != null) return;
         // 这里按钮仅用于渲染“原版样式”，点击逻辑仍由 mouseClicked 按条目索引处理
         loadButton = ButtonWidget.builder(Text.literal("Load"), b -> {})
-                .dimensions(0, 0, 38, 11)
+                .dimensions(0, 0, 38, 16)
                 .build();
         deleteButton = ButtonWidget.builder(Text.literal("Del"), b -> {})
-                .dimensions(0, 0, 38, 11)
+                .dimensions(0, 0, 38, 16)
                 .build();
     }
 
@@ -293,7 +293,7 @@ public class BlueprintPanel extends BasePanel {
         // 点击 Load 按钮
         int loadW = 38;
         int loadX = x + w - loadW - 6;
-        int loadH = 11;
+        int loadH = 16;
         if (mouseX >= loadX && mouseX <= loadX + loadW &&
             localY >= 5 && localY < 5 + loadH) {
             if (listener != null && e.spec != null) {
@@ -305,7 +305,7 @@ public class BlueprintPanel extends BasePanel {
         // 点击 Delete 按钮
         int delW = 38;
         int delX = x + w - delW - 6;
-        int delH = 11;
+        int delH = 16;
         if (mouseX >= delX && mouseX <= delX + delW &&
             localY >= 18 && localY < 18 + delH) {
             BlueprintStorage.delete(e.name);

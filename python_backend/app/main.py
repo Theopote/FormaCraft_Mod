@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import build, edit, blueprint
+from .routes import build, edit, blueprint, history, models
 
 app = FastAPI(title="FormaCraft Orchestrator", version="0.1.0")
 
@@ -18,3 +18,5 @@ app.add_middleware(
 app.include_router(build.router)
 app.include_router(edit.router)
 app.include_router(blueprint.router)
+app.include_router(history.router)
+app.include_router(models.router)

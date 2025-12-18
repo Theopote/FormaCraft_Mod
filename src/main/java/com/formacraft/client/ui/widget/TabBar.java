@@ -15,9 +15,13 @@ import java.util.List;
  * 支持图标、悬停提示和激活状态
  */
 public class TabBar {
-    private static final int TAB_HEIGHT = 16;  // 减小标签高度
-    private static final int TAB_PADDING = 2;
-    private static final int TAB_SIZE = TAB_HEIGHT - TAB_PADDING * 2; // 正方形标签尺寸（=可绘制高度）
+    // 统一控件高度：16（与工具栏按钮一致）
+    private static final int TAB_HEIGHT = 16;
+    // 标签之间的间距（不要占用高度）
+    private static final int TAB_GAP = 2;
+    // 标签内部不再额外 padding，确保按钮实际高度=16
+    private static final int TAB_PADDING = 0;
+    private static final int TAB_SIZE = TAB_HEIGHT - TAB_PADDING * 2;
     
     private final List<TabInfo> tabs = new ArrayList<>();
     private final MinecraftClient client;
@@ -73,7 +77,7 @@ public class TabBar {
             // 绘制标签
             drawTab(ctx, currentX, y + TAB_PADDING, tab.width, tab, isActive, isHovered);
             
-            currentX += tab.width + TAB_PADDING;
+            currentX += tab.width + TAB_GAP;
         }
     }
     
@@ -154,7 +158,7 @@ public class TabBar {
             if (isMouseOverTab(currentX, tab, mouseX, mouseY)) {
                 return tab.type;
             }
-            currentX += tab.width + TAB_PADDING;
+            currentX += tab.width + TAB_GAP;
         }
         
         return null;
@@ -171,7 +175,7 @@ public class TabBar {
             if (isMouseOverTab(currentX, tab, mouseX, mouseY)) {
                 return tab.tooltip;
             }
-            currentX += tab.width + TAB_PADDING;
+            currentX += tab.width + TAB_GAP;
         }
         
         return null;
