@@ -315,8 +315,8 @@ public class BuildConfirmPanel {
         cancelButton.setWidth(btnW);
         cancelButton.visible = true;
         cancelButton.active = true;
-        if (cancelButton.mouseClicked(click, false)) return true;
-        
+        cancelButton.mouseClicked(click, false);
+
         return true; // 点击面板内部其他位置，也阻止传递到世界
     }
     

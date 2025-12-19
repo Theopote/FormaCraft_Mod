@@ -9,7 +9,9 @@
       "KeyboardMixin",
       "MouseMixin",
       "MinecraftClientMixin",
+      "GameRendererAccessor",
       "GameRendererMixin",
+      "SelectionBoxRenderMixin",
       "InGameHudMixin",
       "KeyBindingMixin",
       "WorldRendererMixin"

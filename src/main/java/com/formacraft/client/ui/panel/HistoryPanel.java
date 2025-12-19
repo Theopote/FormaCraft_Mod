@@ -42,10 +42,10 @@ public class HistoryPanel extends BasePanel {
         if (snapshot == null) return;
         // 最近的放最上面
         HistoryEntry entry = new HistoryEntry(snapshot);
-        conversations.add(0, entry);
+        conversations.addFirst(entry);
         // 简单上限，避免无限增长
         if (conversations.size() > 50) {
-            conversations.remove(conversations.size() - 1);
+            conversations.removeLast();
         }
 
         // 异步总结，不阻塞渲染线程

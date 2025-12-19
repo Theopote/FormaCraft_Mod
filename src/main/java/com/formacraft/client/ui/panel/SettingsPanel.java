@@ -53,6 +53,11 @@ public class SettingsPanel extends BasePanel {
     // 字体大小范围
     private static final int MIN_FONT_SIZE = 8;
     private static final int MAX_FONT_SIZE = 26;
+
+    // 操作距离范围（光标与世界交互）
+    private static final int MIN_INTERACTION_REACH = 5;
+    private static final int MAX_INTERACTION_REACH = 100;
+    private static final int DEFAULT_INTERACTION_REACH = 80;
     
     // 按钮尺寸
     // “隐藏/粘贴”按钮同宽
@@ -79,6 +84,7 @@ public class SettingsPanel extends BasePanel {
     private String draftModel = "";
     private float draftTemperature = 0.7f;
     private int draftFontSize = 14;
+    private int draftInteractionReach = DEFAULT_INTERACTION_REACH;
 
     // 简易提示（保存成功/失败）
     private String toast = null;
@@ -99,6 +105,7 @@ public class SettingsPanel extends BasePanel {
     private ButtonWidget detectModelButton;
     private TemperatureSlider temperatureSlider;
     private FontSizeSlider fontSizeSlider;
+    private InteractionReachSlider interactionReachSlider;
     private SliderWidget activeSlider = null; // 只允许同时操作一个滑条
 
     // 模型探测（HTTP）
@@ -133,6 +140,7 @@ public class SettingsPanel extends BasePanel {
         this.draftModel = cfg.model != null ? cfg.model.trim() : "";
         this.draftTemperature = clamp01(cfg.temperature);
         this.draftFontSize = clampInt(cfg.fontSize);
+        this.draftInteractionReach = clampReach(cfg.interactionReach);
         
         // 更新缓存
         updateCachedTemperatureText();
@@ -149,6 +157,11 @@ public class SettingsPanel extends BasePanel {
     private static int clampInt(int v) {
         if (v < SettingsPanel.MIN_FONT_SIZE) return SettingsPanel.MIN_FONT_SIZE;
         return Math.min(v, SettingsPanel.MAX_FONT_SIZE);
+    }
+
+    private static int clampReach(int v) {
+        if (v < MIN_INTERACTION_REACH) return MIN_INTERACTION_REACH;
+        return Math.min(v, MAX_INTERACTION_REACH);
     }
 
     @Override
@@ -180,6 +193,9 @@ public class SettingsPanel extends BasePanel {
         y += FIELD_SPACING + LABEL_OFFSET;
 
         drawModelDetector(ctx, x, y, w);
+        y += FIELD_SPACING;
+
+        drawInteractionReachSlider(ctx, x, y, w);
         y += FIELD_SPACING;
 
         drawTemperatureSlider(ctx, x, y, w);
@@ -296,6 +312,20 @@ public class SettingsPanel extends BasePanel {
         temperatureSlider.visible = true;
         temperatureSlider.active = true;
         temperatureSlider.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
+    }
+
+    // =======================
+    //   操作距离（光标交互距离）
+    // =======================
+    private void drawInteractionReachSlider(DrawContext ctx, int x, int y, int w) {
+        drawSmallLabel(ctx, Text.translatable("formacraft.settings.interaction_reach", draftInteractionReach), x, y);
+        y += LABEL_OFFSET;
+        ensureWidgets();
+        interactionReachSlider.setPosition(x, y);
+        interactionReachSlider.setWidth(w);
+        interactionReachSlider.visible = true;
+        interactionReachSlider.active = true;
+        interactionReachSlider.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
     }
 
     // =======================
@@ -453,6 +483,18 @@ public class SettingsPanel extends BasePanel {
         // =========== 滑动条交互 ============
         // 注意：这里必须与 drawContents 的布局一致
         y += FIELD_SPACING;
+
+        int reachSliderY = y + LABEL_OFFSET;
+        interactionReachSlider.setPosition(x, reachSliderY);
+        interactionReachSlider.setWidth(w);
+        if (interactionReachSlider.mouseClicked(click, false)) {
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            activeSlider = interactionReachSlider;
+            return true;
+        }
+
+        y += FIELD_SPACING;
         int tempSliderY = y + LABEL_OFFSET;
         temperatureSlider.setPosition(x, tempSliderY);
         temperatureSlider.setWidth(w);
@@ -492,15 +534,9 @@ public class SettingsPanel extends BasePanel {
 
         resetButton.setPosition(resetX, btnY);
         resetButton.setWidth(btnW3);
-        if (resetButton.mouseClicked(click, false)) return true;
+        return resetButton.mouseClicked(click, false);
 
         // 点击空白区域：取消焦点
-        if (clickedOutside) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-        }
-
-        return false;
     }
 
     @Override
@@ -527,6 +563,7 @@ public class SettingsPanel extends BasePanel {
             // 兜底：如果未记录 activeSlider，也尝试释放两者，防止残留拖拽状态
             if (temperatureSlider != null) handled |= temperatureSlider.mouseReleased(click);
             if (fontSizeSlider != null) handled |= fontSizeSlider.mouseReleased(click);
+            if (interactionReachSlider != null) handled |= interactionReachSlider.mouseReleased(click);
         }
         return handled;
     }
@@ -573,6 +610,10 @@ public class SettingsPanel extends BasePanel {
         }
         if (fontSizeSlider != null && fontSizeSlider.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.font_size")), (int) mouseX, (int) mouseY);
+            return true;
+        }
+        if (interactionReachSlider != null && interactionReachSlider.isMouseOver(mouseX, mouseY)) {
+            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.interaction_reach")), (int) mouseX, (int) mouseY);
             return true;
         }
         if (detectModelButton != null && detectModelButton.isMouseOver(mouseX, mouseY)) {
@@ -636,8 +677,10 @@ public class SettingsPanel extends BasePanel {
         // Sliders（用原版 SliderWidget 渲染）
         temperatureSlider = new TemperatureSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), clamp01(draftTemperature));
         fontSizeSlider = new FontSizeSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), fontSizeToValue(draftFontSize));
+        interactionReachSlider = new InteractionReachSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), reachToValue(draftInteractionReach));
         temperatureSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.temperature")));
         fontSizeSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.font_size")));
+        interactionReachSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.interaction_reach")));
 
         // Buttons row
         saveButton = ButtonWidget.builder(Text.translatable("formacraft.settings.save"), b -> {
@@ -760,6 +803,9 @@ public class SettingsPanel extends BasePanel {
         if (detectModelButton != null) {
             detectModelButton.setMessage(getDetectModelButtonText());
         }
+        if (interactionReachSlider != null) {
+            interactionReachSlider.setCustomValue(reachToValue(draftInteractionReach));
+        }
         if (temperatureSlider != null) {
             temperatureSlider.setCustomValue(clamp01(draftTemperature));
         }
@@ -776,6 +822,16 @@ public class SettingsPanel extends BasePanel {
     private static int valueToFontSize(double value) {
         double v = Math.max(0.0, Math.min(1.0, value));
         return MIN_FONT_SIZE + (int) Math.round(v * (MAX_FONT_SIZE - MIN_FONT_SIZE));
+    }
+
+    private static double reachToValue(int reach) {
+        int clamped = Math.max(MIN_INTERACTION_REACH, Math.min(MAX_INTERACTION_REACH, reach));
+        return (clamped - MIN_INTERACTION_REACH) / (double) (MAX_INTERACTION_REACH - MIN_INTERACTION_REACH);
+    }
+
+    private static int valueToReach(double value) {
+        double v = Math.max(0.0, Math.min(1.0, value));
+        return MIN_INTERACTION_REACH + (int) Math.round(v * (MAX_INTERACTION_REACH - MIN_INTERACTION_REACH));
     }
 
     private class TemperatureSlider extends SliderWidget {
@@ -817,6 +873,29 @@ public class SettingsPanel extends BasePanel {
         @Override
         protected void applyValue() {
             draftFontSize = clampInt(valueToFontSize(this.value));
+            updateMessage();
+        }
+
+        public void setCustomValue(double value) {
+            this.value = Math.max(0.0, Math.min(1.0, value));
+            applyValue();
+        }
+    }
+
+    private class InteractionReachSlider extends SliderWidget {
+        public InteractionReachSlider(int x, int y, int width, int height, Text message, double value) {
+            super(x, y, width, height, message, value);
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Text.literal(String.valueOf(draftInteractionReach)));
+        }
+
+        @Override
+        protected void applyValue() {
+            draftInteractionReach = clampReach(valueToReach(this.value));
             updateMessage();
         }
 
@@ -894,6 +973,7 @@ public class SettingsPanel extends BasePanel {
             SettingsConfig.INSTANCE.model = draftModel != null ? draftModel.trim() : "";
             SettingsConfig.INSTANCE.temperature = clamp01(draftTemperature);
             SettingsConfig.INSTANCE.fontSize = clampInt(draftFontSize);
+            SettingsConfig.INSTANCE.interactionReach = clampReach(draftInteractionReach);
             SettingsConfig.save();
             loadFromConfig(); // 重新加载以确保同步
             showToast(Text.translatable("formacraft.settings.saved").getString(), false);

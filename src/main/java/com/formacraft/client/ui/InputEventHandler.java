@@ -1,6 +1,7 @@
 package com.formacraft.client.ui;
 
 import com.formacraft.client.ui.input.InputRouter;
+import com.formacraft.client.tool.ToolManager;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -38,6 +39,9 @@ public class InputEventHandler {
             // 处理键盘输入（通过 Mixin 或事件系统）
             // 注意：Minecraft 的键盘输入通常通过 Screen 处理
             // 对于 HUD Overlay，我们需要特殊处理
+
+            // Tools tick：实时预览/状态更新
+            ToolManager.tick();
         });
     }
     

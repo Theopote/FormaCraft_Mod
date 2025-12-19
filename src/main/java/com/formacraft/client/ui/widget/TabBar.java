@@ -21,13 +21,14 @@ public class TabBar {
     private static final int TAB_GAP = 2;
     // 标签内部不再额外 padding，确保按钮实际高度=16
     private static final int TAB_PADDING = 0;
-    private static final int TAB_SIZE = TAB_HEIGHT - TAB_PADDING * 2;
+    private static final int TAB_SIZE = TAB_HEIGHT;
     
     private final List<TabInfo> tabs = new ArrayList<>();
     private final MinecraftClient client;
     private int x;
     private int y;
-    
+    private int width;
+
     /**
      * 标签信息
      */
@@ -51,6 +52,7 @@ public class TabBar {
         // 初始化标签（正方形）
         tabs.add(new TabInfo(PanelType.CHAT, "💬", Text.translatable("formacraft.tab.chat"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.BLUEPRINT, "📋", Text.translatable("formacraft.tab.blueprint"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.TOOLS, "🧰", Text.translatable("formacraft.tab.tools"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.HISTORY, "📜", Text.translatable("formacraft.tab.history"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.SETTINGS, "⚙", Text.translatable("formacraft.tab.settings"), TAB_SIZE));
     }
@@ -62,6 +64,7 @@ public class TabBar {
         this.x = x;
         this.y = y;
         // width 参数保留用于未来扩展（如限制标签栏最大宽度）
+        this.width = width;
     }
     
     /**
@@ -85,7 +88,7 @@ public class TabBar {
      * 绘制单个标签（使用 Minecraft 原生按钮纹理）
      */
     private void drawTab(DrawContext ctx, int x, int y, int width, TabInfo tab, boolean isActive, boolean isHovered) {
-        int height = TAB_HEIGHT - TAB_PADDING * 2;
+        int height = TAB_HEIGHT;
 
         // Minecraft 原版按钮颜色（与 BasePanel 中的按钮保持一致）
         int topColor, bottomColor;
@@ -139,9 +142,8 @@ public class TabBar {
      */
     private boolean isMouseOverTab(int tabX, TabInfo tab, double mouseX, double mouseY) {
         int tabY = y + TAB_PADDING;
-        int tabHeight = TAB_HEIGHT - TAB_PADDING * 2;
         return mouseX >= tabX && mouseX <= tabX + tab.width &&
-               mouseY >= tabY && mouseY <= tabY + tabHeight;
+               mouseY >= tabY && mouseY <= tabY + TAB_HEIGHT;
     }
     
     /**

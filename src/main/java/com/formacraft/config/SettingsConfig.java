@@ -18,6 +18,8 @@ public class SettingsConfig {
     public String model = "gpt-4o";        // 默认模型
     public float temperature = 0.7f;       // 默认温度
     public int fontSize = 14;              // 默认字体大小（用于 UI 缩放基准）
+    /** 系统光标与世界交互的最远距离（用于光标 RayCast / hover 选中框） */
+    public int interactionReach = 80;      // 默认 80（范围 5~100）
 
     /**
      * Python 后端（Orchestrator）地址（不含末尾路径时默认拼 /build）
@@ -37,6 +39,7 @@ public class SettingsConfig {
         model = "gpt-4o";
         temperature = 0.7f;
         fontSize = 14;
+        interactionReach = 80;
     }
 
     private void copyFrom(SettingsConfig other) {
@@ -46,6 +49,7 @@ public class SettingsConfig {
         this.temperature = other.temperature;
         this.fontSize = other.fontSize;
         this.orchestratorEndpoint = other.orchestratorEndpoint != null ? other.orchestratorEndpoint : "http://localhost:8000";
+        this.interactionReach = other.interactionReach;
     }
 
     public static void load() {
@@ -73,6 +77,8 @@ public class SettingsConfig {
             if (INSTANCE.temperature > 1.0f) INSTANCE.temperature = 1.0f;
             if (INSTANCE.fontSize < 8) INSTANCE.fontSize = 8;
             if (INSTANCE.fontSize > 26) INSTANCE.fontSize = 26;
+            if (INSTANCE.interactionReach < 5) INSTANCE.interactionReach = 5;
+            if (INSTANCE.interactionReach > 100) INSTANCE.interactionReach = 100;
         } catch (Exception e) {
             System.err.println("[FormaCraft] Failed to load settings: " + e.getMessage());
             INSTANCE.resetToDefault();

@@ -2,6 +2,7 @@ package com.formacraft.client.ui.input;
 
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
+import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.ui.panel.BasePanel;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
 import org.slf4j.Logger;
@@ -45,6 +46,7 @@ public class InputRouter {
         return switch (FormaCraftHudOverlay.activePanel) {
             case CHAT -> FormaCraftHudOverlay.CHAT_PANEL;
             case BLUEPRINT -> FormaCraftHudOverlay.BLUEPRINT_PANEL;
+            case TOOLS -> FormaCraftHudOverlay.TOOL_PANEL;
             case SETTINGS -> FormaCraftHudOverlay.SETTINGS_PANEL;
             case HISTORY -> FormaCraftHudOverlay.HISTORY_PANEL;
             default -> null;
@@ -109,9 +111,17 @@ public class InputRouter {
             return true; // UI已处理（点击了按钮或标签等）
         }
 
+        // Tools：当选区工具激活且鼠标在面板外时，左键用于设置选区点（不让游戏破坏方块）
+        boolean inside = isMouseInsideUI(x, y);
+        if (!inside && button == 0) {
+            if (ToolManager.handleWorldClick(x, y, button)) {
+                lastClickHandledByUI = true;
+                return true;
+            }
+        }
+
         // 如果UI没有处理，再检查是否在UI区域内
         // 如果在UI区域内但UI没有处理，也应该阻止游戏处理（防止误触）
-        boolean inside = isMouseInsideUI(x, y);
         if (inside) {
             lastClickHandledByUI = true;
             return true; // 在UI区域内，阻止游戏处理

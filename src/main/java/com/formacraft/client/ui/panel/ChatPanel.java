@@ -10,6 +10,7 @@ import com.formacraft.client.ui.panel.chat.AIStreamPrinter;
 import com.formacraft.client.ui.panel.chat.ChatMessage;
 import com.formacraft.client.ui.input.InputRouter;
 import com.formacraft.client.ui.text.SelectableTextBlock;
+import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.common.builder.AutoBuilder;
 import com.formacraft.common.builder.BuildingBlueprint;
 import com.formacraft.common.builder.BuildingPlanner;
@@ -385,7 +386,7 @@ public class ChatPanel extends BasePanel {
 
         // Stop 按钮（仅流式打印时显示，位于发送按钮上方）
         boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
-        int stopX = btnX; // 与发送按钮对齐
+        // 与发送按钮对齐
         int stopY = btnY - STOP_BUTTON_SIZE - 2;
 
         double mouseX = getScaledMouseX();
@@ -398,7 +399,7 @@ public class ChatPanel extends BasePanel {
         sendButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
 
         // Stop（原版 ButtonWidget 渲染）
-        stopButton.setPosition(stopX, stopY);
+        stopButton.setPosition(btnX, stopY);
         stopButton.visible = generating;
         stopButton.active = generating;
         if (generating) {
@@ -484,12 +485,11 @@ public class ChatPanel extends BasePanel {
         boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
         int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
         int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
-        int stopX = btnX;
         int stopY = btnY - STOP_BUTTON_SIZE - 2;
 
         // ButtonWidget 点击（优先 Stop）
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        stopButton.setPosition(stopX, stopY);
+        stopButton.setPosition(btnX, stopY);
         stopButton.visible = generating;
         stopButton.active = generating;
         if (generating && stopButton.mouseClicked(click, false)) {
@@ -686,7 +686,20 @@ public class ChatPanel extends BasePanel {
         // 如果上一条还在生成，先真中断，避免并发覆盖 UI
         stopGenerating();
 
-        // 追加玩家消息
+        // 选区注入（若已完成选区）
+        String requestText = text;
+        if (SelectionTool.INSTANCE.hasSelection()) {
+            var min = SelectionTool.INSTANCE.getMin();
+            var max = SelectionTool.INSTANCE.getMax();
+            requestText = "在以下选定区域中生成建筑：\n"
+                    + "区域范围：X[" + min.getX() + "~" + max.getX() + "], "
+                    + "Y[" + min.getY() + "~" + max.getY() + "], "
+                    + "Z[" + min.getZ() + "~" + max.getZ() + "]\n\n"
+                    + "用户需求：\n"
+                    + text;
+        }
+
+        // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）
         messages.add(new ChatMessage(text, true));
         scrollOffset = 0; // 回到底部，显示最新消息
 
@@ -713,7 +726,7 @@ public class ChatPanel extends BasePanel {
             }
         }
 
-        BuildingRequest request = new BuildingRequest(text, start, dimensionId, sessionId, history);
+        BuildingRequest request = new BuildingRequest(requestText, start, dimensionId, sessionId, history);
 
         // 添加 AI thinking 占位消息，并创建流式打印器
         int aiMsgIndex = messages.size();

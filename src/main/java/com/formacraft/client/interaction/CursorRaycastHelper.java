@@ -65,17 +65,31 @@ public final class CursorRaycastHelper {
      * 使用“光标在屏幕中的位置”进行 RayCast。
      *
      * 说明：
-     * - 使用 window 坐标（像素）而不是 scaled 坐标，避免缩放误差
+     * - 使用 scaled 坐标（与 HUD/UI 命中测试一致），避免高 DPI/缩放导致的边缘偏移
      * - 不依赖 crosshairTarget；但上层可以选择把结果写回 crosshairTarget 来复用原版交互
      */
     public static HitResult raycastFromCursor(float tickDelta, double distance) {
+        // 兼容旧调用：用 options 的 fov（不含动态 FOV），优先推荐调用带 fov 参数的重载
+        double fov = 70.0;
+        try {
+            fov = client.options.getFov().getValue();
+        } catch (Throwable ignored) {}
+        return raycastFromCursor(tickDelta, distance, fov);
+    }
+
+    /**
+     * 使用“光标在屏幕中的位置”进行 RayCast（使用传入的实际 FOV）。
+     * @param fovDegrees 使用 GameRenderer 实际渲染用的 FOV（含动态 FOV）时可避免边缘偏移
+     */
+    public static HitResult raycastFromCursor(float tickDelta, double distance, double fovDegrees) {
         Entity camera = client.getCameraEntity();
         if (camera == null || client.world == null) return null;
 
-        double mouseX = client.mouse.getX(); // window coords
-        double mouseY = client.mouse.getY();
-        double w = client.getWindow().getWidth();
-        double h = client.getWindow().getHeight();
+        double scale = client.getWindow().getScaleFactor();
+        double mouseX = client.mouse.getX() / scale; // scaled coords
+        double mouseY = client.mouse.getY() / scale;
+        double w = client.getWindow().getScaledWidth();
+        double h = client.getWindow().getScaledHeight();
         if (w <= 0 || h <= 0) return null;
 
         // 转换为 -1 ~ 1 的 NDC 坐标
@@ -83,10 +97,7 @@ public final class CursorRaycastHelper {
         double ndcY = 1.0 - (mouseY / h) * 2.0;
 
         // 摄像机方向 & FOV
-        double fov = 70.0;
-        try {
-            fov = client.options.getFov().getValue();
-        } catch (Throwable ignored) {}
+        double fov = fovDegrees > 1e-3 ? fovDegrees : 70.0;
         double aspect = w / h;
         double tan = Math.tan(Math.toRadians(fov / 2.0));
 
@@ -122,6 +133,13 @@ public final class CursorRaycastHelper {
                         camera
                 )
         );
+        // 供工具系统复用：缓存命中结果
+        lastHit = hit;
+        if (hit instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK) {
+            lastBlockHit = bhr;
+        } else {
+            lastBlockHit = null;
+        }
         return hit;
     }
 }

@@ -242,8 +242,7 @@ public abstract class BasePanel {
         ctx.fill(bx, by + bh - 1, bx + bw, by + bh, 0xFF7A7A7A);
 
         // 计算标签栏可用宽度（减去按钮区域）
-        int buttonAreaWidth = CLOSE_BUTTON_SIZE + CLOSE_BUTTON_PADDING * 2 + 
-                             COLLAPSE_BUTTON_SIZE + COLLAPSE_BUTTON_PADDING;
+        int buttonAreaWidth = CLOSE_BUTTON_SIZE + COLLAPSE_BUTTON_SIZE + COLLAPSE_BUTTON_PADDING;
         int tabBarWidth = Math.max(0, bw - buttonAreaWidth - TOOLBAR_PADDING * 2);
         
         // 设置标签栏位置并渲染
