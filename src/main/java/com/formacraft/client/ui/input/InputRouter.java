@@ -157,18 +157,18 @@ public class InputRouter {
         // - 鼠标在面板范围外：键盘交给游戏（WASD/Shift/Space 等必须可用）
 
         // BuildConfirmPanel 是“模态弹窗”，即便鼠标暂时不在面板内也优先吃键盘
-        if (BuildConfirmPanel.INSTANCE.isVisible()) {
-            if (BuildConfirmPanel.INSTANCE.keyPressed(keyCode)) return true;
-        }
+            if (BuildConfirmPanel.INSTANCE.isVisible()) {
+                if (BuildConfirmPanel.INSTANCE.keyPressed(keyCode)) return true;
+            }
 
         boolean inside = isMouseInsideUI();
         if (!inside) return false;
 
         BasePanel panel = getPanel();
-        if (panel != null) {
-            panel.keyPressed(keyCode, scanCode, modifiers);
-            return true;
-        }
+            if (panel != null) {
+                panel.keyPressed(keyCode, scanCode, modifiers);
+                return true;
+            }
         return false;
     }
 
@@ -180,10 +180,10 @@ public class InputRouter {
         if (!inside) return false;
 
         BasePanel panel = getPanel();
-        if (panel != null) {
-            panel.charTyped(chr);
-            return true;
-        }
+            if (panel != null) {
+                panel.charTyped(chr);
+                return true;
+            }
         return false;
     }
 

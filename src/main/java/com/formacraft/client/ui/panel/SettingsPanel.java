@@ -697,7 +697,7 @@ public class SettingsPanel extends BasePanel {
                         .uri(URI.create(url))
                         .timeout(Duration.ofSeconds(4))
                         .GET()
-                        .build();
+                    .build();
                 HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
                 if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                     return resp.body();

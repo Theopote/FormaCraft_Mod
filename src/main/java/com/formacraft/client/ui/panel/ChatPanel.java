@@ -520,7 +520,7 @@ public class ChatPanel extends BasePanel {
         int inputBoxY = inputY + 2;
         int inputBoxW = innerW - SEND_BUTTON_SIZE - 6;
         int inputBoxH = inputAreaHeight - 4;
-
+        
         inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
         if (inputBox.mouseClicked(mouseX, mouseY)) {
             // 点击输入框即退出历史浏览态（保持当前内容）

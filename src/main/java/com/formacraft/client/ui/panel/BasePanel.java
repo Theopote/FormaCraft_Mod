@@ -335,8 +335,8 @@ public abstract class BasePanel {
                 drawTooltipCompat(ctx,
                         java.util.Collections.singletonList(Text.translatable("formacraft.button.close")),
                         (int) mouseX, (int) mouseY);
-                return;
-            }
+            return;
+        }
         }
 
         if (!sidebarCollapsed && panelWidth >= SIDEBAR_EXPANDED_WIDTH / 2) {
@@ -464,7 +464,7 @@ public abstract class BasePanel {
         collapseButton.active = !sidebarCollapsed;
         if (!sidebarCollapsed) {
             collapseButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
-        }
+    }
     }
 
     // --------------------------------------------------------------------

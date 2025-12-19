@@ -124,24 +124,24 @@ public class HudTextInput {
             ctx.enableScissor(sx0, sy0, sx1, sy1);
         }
         try {
-            // 选区
-            if (hasSelection()) {
-                int a = Math.min(cursor, selectionStart);
-                int b = Math.max(cursor, selectionStart);
-                int selX1 = drawX + client.textRenderer.getWidth(display.substring(0, a));
-                int selX2 = drawX + client.textRenderer.getWidth(display.substring(0, b));
-                ctx.fill(selX1, y + 2, selX2, y + h - 2, 0xFF5555AA);
-            }
+        // 选区
+        if (hasSelection()) {
+            int a = Math.min(cursor, selectionStart);
+            int b = Math.max(cursor, selectionStart);
+            int selX1 = drawX + client.textRenderer.getWidth(display.substring(0, a));
+            int selX2 = drawX + client.textRenderer.getWidth(display.substring(0, b));
+            ctx.fill(selX1, y + 2, selX2, y + h - 2, 0xFF5555AA);
+        }
 
-            // 文本
-            // 使用阴影增强可读性（HUD/世界背景上更稳定）
+        // 文本
+        // 使用阴影增强可读性（HUD/世界背景上更稳定）
             // 注意：颜色在 1.21+ 通常按 ARGB 解释，需要显式 alpha
             ctx.drawText(client.textRenderer, display, drawX, textY, 0xFFFFFFFF, true);
 
-            // 光标
-            if (focused && isCursorVisible()) {
-                int cx = drawX + client.textRenderer.getWidth(display.substring(0, cursor));
-                ctx.fill(cx, y + 3, cx + 1, y + h - 3, 0xFFFFFFFF);
+        // 光标
+        if (focused && isCursorVisible()) {
+            int cx = drawX + client.textRenderer.getWidth(display.substring(0, cursor));
+            ctx.fill(cx, y + 3, cx + 1, y + h - 3, 0xFFFFFFFF);
             }
         } finally {
             if (sx1 > sx0 && sy1 > sy0) {

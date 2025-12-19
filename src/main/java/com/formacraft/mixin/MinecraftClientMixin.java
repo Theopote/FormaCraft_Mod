@@ -81,5 +81,6 @@ public class MinecraftClientMixin {
         }
         // 如果鼠标在面板外，不拦截，允许正常游戏操作
     }
+
 }
 
