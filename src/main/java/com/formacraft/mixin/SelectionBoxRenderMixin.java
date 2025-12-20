@@ -4,6 +4,7 @@ import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.tool.ToolWorldRenderContext;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.preview.BuildingOutlineRenderer;
+import com.formacraft.client.preview.PatchPreviewRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -49,6 +50,9 @@ public class SelectionBoxRenderMixin {
 
         // BuildConfirm：真实占用方块预览（来自 OutlinePreviewState）
         BuildingOutlineRenderer.render(ctx);
+
+        // Patch：增量修改预览（place/remove/replace 不同颜色）
+        PatchPreviewRenderer.render(ctx);
     }
 }
 

@@ -46,10 +46,10 @@ public class BuildConfirmPanel {
 
     private void ensureWidgets() {
         if (confirmButton != null) return;
-        confirmButton = ButtonWidget.builder(Text.translatable("formacraft.preview.confirm"), b -> onConfirm())
+        confirmButton = ButtonWidget.builder(Text.translatable("formacraft.preview.confirm"), b -> confirm())
                 .dimensions(0, 0, 120, 16)
                 .build();
-        cancelButton = ButtonWidget.builder(Text.translatable("formacraft.preview.cancel"), b -> hide())
+        cancelButton = ButtonWidget.builder(Text.translatable("formacraft.preview.cancel"), b -> cancel())
                 .dimensions(0, 0, 120, 16)
                 .build();
     }
@@ -76,6 +76,16 @@ public class BuildConfirmPanel {
     
     public boolean isVisible() {
         return visible;
+    }
+
+    /** 模态：确认建造（供 InputRouter 直接调用） */
+    public void confirm() {
+        onConfirm();
+    }
+
+    /** 模态：取消预览（供 InputRouter 直接调用） */
+    public void cancel() {
+        hide();
     }
     
     /** 在 HUD 渲染时调用 */
@@ -334,12 +344,12 @@ public class BuildConfirmPanel {
         
         // Esc 取消
         if (keyCode == 256) {
-            hide();
+            cancel();
             return true;
         }
         // Enter 确认（GLFW_KEY_ENTER = 257）
         if (keyCode == 257) {
-            onConfirm();
+            confirm();
             return true;
         }
         

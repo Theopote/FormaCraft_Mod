@@ -3,10 +3,13 @@ package com.formacraft.client.ui.input;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.tool.ToolManager;
+import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.ui.panel.BasePanel;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.glfw.GLFW;
+import com.formacraft.common.network.FormaCraftNetworking;
 
 /**
  * 输入路由中心（HUD 模式）
@@ -73,8 +76,28 @@ public class InputRouter {
         return isMouseInsideUI(mouseX, mouseY);
     }
 
+    /** 预览模态锁：只允许确认/取消。 */
+    private static boolean isPreviewLocked() {
+        return BuildingPreviewState.isInputLocked();
+    }
+
     /** 鼠标点击事件 */
     public static boolean onMouseClick(double x, double y, int button, int action) {
+        // 🔒 预览锁定中：只允许 BuildConfirmPanel，其他全部拦截（包含世界/工具/聊天）
+        if (isPreviewLocked()) {
+            // 更新按钮状态（用于中键视角逻辑等）
+            switch (button) {
+                case 0 -> leftDown = (action == 1);
+                case 1 -> rightDown = (action == 1);
+                case 2 -> middleDown = (action == 1);
+            }
+
+            if (BuildConfirmPanel.INSTANCE.isVisible() && action == 1) {
+                return BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button);
+            }
+            return true;
+        }
+
         if (!FormacraftUIState.isOpen) {
             lastClickHandledByUI = false;
             return false;
@@ -143,6 +166,7 @@ public class InputRouter {
 
     /** 滚轮事件 */
     public static boolean onMouseScroll(double x, double y, double amount) {
+        if (isPreviewLocked()) return true;
         if (!FormacraftUIState.isOpen) return false;
         boolean inside = isMouseInsideUI(x, y);
 
@@ -157,10 +181,36 @@ public class InputRouter {
 
     /** 键盘事件 */
     public static boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
+        // 🔒 预览锁定：只放行 ESC/Enter（可选）
+        if (isPreviewLocked()) {
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                BuildConfirmPanel.INSTANCE.cancel();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                BuildConfirmPanel.INSTANCE.confirm();
+                return true;
+            }
+            return true; // 其他全部拦截
+        }
+
         if (!FormacraftUIState.isOpen) return false;
 
         // ESC 保留给原版
         if (keyCode == 256) return false;
+
+        // Ctrl+Z / Ctrl+Y：Patch Undo / Redo（仅 UI 打开时生效）
+        boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+        boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
+        if (ctrl && keyCode == GLFW.GLFW_KEY_Z) {
+            if (shift) FormaCraftNetworking.sendPatchRedo();
+            else FormaCraftNetworking.sendPatchUndo();
+            return true;
+        }
+        if (ctrl && keyCode == GLFW.GLFW_KEY_Y) {
+            FormaCraftNetworking.sendPatchRedo();
+            return true;
+        }
 
         // 重要交互规则（按用户期望）：
         // - 鼠标在面板范围内：UI 接管键盘
@@ -184,6 +234,7 @@ public class InputRouter {
 
     /** 字符输入事件 */
     public static boolean onCharTyped(char chr, int modifiers) {
+        if (isPreviewLocked()) return true;
         if (!FormacraftUIState.isOpen) return false;
 
         boolean inside = isMouseInsideUI();
@@ -199,6 +250,7 @@ public class InputRouter {
 
     /** 鼠标拖拽事件 */
     public static boolean onMouseDragged(double x, double y, int button, double deltaX, double deltaY) {
+        if (isPreviewLocked()) return true;
         if (!FormacraftUIState.isOpen) return false;
 
         BasePanel panel = getPanel();
@@ -208,6 +260,7 @@ public class InputRouter {
 
     /** 鼠标释放事件 */
     public static boolean onMouseReleased(double x, double y, int button) {
+        if (isPreviewLocked()) return true;
         if (!FormacraftUIState.isOpen) return false;
 
         BasePanel panel = getPanel();

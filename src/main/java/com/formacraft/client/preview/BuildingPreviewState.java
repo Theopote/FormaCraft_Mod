@@ -52,6 +52,11 @@ public final class BuildingPreviewState {
         return active && previewSpec != null;
     }
 
+    /** 预览模态锁：只要在预览中，就锁定所有非确认/取消输入。 */
+    public static boolean isInputLocked() {
+        return isActive();
+    }
+
     public static BuildingSpec getSpec() {
         return previewSpec;
     }

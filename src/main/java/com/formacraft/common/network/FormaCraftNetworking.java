@@ -32,6 +32,8 @@ public class FormaCraftNetworking {
     public static final Identifier RESPONSE_BUILD_SPEC = Identifier.of("formacraft", "response_buildspec");
     public static final Identifier PREVIEW_OUTLINE = Identifier.of("formacraft", "preview_outline");
     public static final Identifier CLEAR_OUTLINE = Identifier.of("formacraft", "clear_outline");
+    public static final Identifier PATCH_UNDO = Identifier.of("formacraft", "patch_undo");
+    public static final Identifier PATCH_REDO = Identifier.of("formacraft", "patch_redo");
 
     // 后端客户端（应该从配置读取，这里先硬编码）
     private static final OrchestratorClient ORCHESTRATOR = new OrchestratorClient("http://localhost:8000");
@@ -90,6 +92,29 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() {
             return ID;
         }
+    }
+
+    // Patch Undo/Redo（空数据包）
+    public record PatchUndoPayload() implements CustomPayload {
+        public static final CustomPayload.Id<PatchUndoPayload> ID = new CustomPayload.Id<>(PATCH_UNDO);
+        public static final PacketCodec<PacketByteBuf, PatchUndoPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {},
+                buf -> new PatchUndoPayload()
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record PatchRedoPayload() implements CustomPayload {
+        public static final CustomPayload.Id<PatchRedoPayload> ID = new CustomPayload.Id<>(PATCH_REDO);
+        public static final PacketCodec<PacketByteBuf, PatchRedoPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {},
+                buf -> new PatchRedoPayload()
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
     }
 
     /**
@@ -300,6 +325,28 @@ public class FormaCraftNetworking {
                 }
             });
         });
+
+        // Patch Undo/Redo（服务端执行）
+        PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(PatchUndoPayload.ID, (payload, context) -> {
+            context.server().execute(() -> {
+                ServerPlayerEntity player = context.player();
+                if (player == null) return;
+                if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
+                    com.formacraft.common.patch.history.PatchHistoryManager.undo(sw, player.getUuid());
+                }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(PatchRedoPayload.ID, (payload, context) -> {
+            context.server().execute(() -> {
+                ServerPlayerEntity player = context.player();
+                if (player == null) return;
+                if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
+                    com.formacraft.common.patch.history.PatchHistoryManager.redo(sw, player.getUuid());
+                }
+            });
+        });
     }
 
     /**
@@ -385,6 +432,26 @@ public class FormaCraftNetworking {
             return;
         }
         ClientPlayNetworking.send(new ConfirmBuildPacket(spec, origin));
+    }
+
+    /** 客户端请求 Patch Undo */
+    public static void sendPatchUndo() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(new PatchUndoPayload()));
+            return;
+        }
+        ClientPlayNetworking.send(new PatchUndoPayload());
+    }
+
+    /** 客户端请求 Patch Redo */
+    public static void sendPatchRedo() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(new PatchRedoPayload()));
+            return;
+        }
+        ClientPlayNetworking.send(new PatchRedoPayload());
     }
 
     /**
