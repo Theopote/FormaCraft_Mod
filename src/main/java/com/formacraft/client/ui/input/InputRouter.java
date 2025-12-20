@@ -3,7 +3,7 @@ package com.formacraft.client.ui.input;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.tool.ToolManager;
-import com.formacraft.client.preview.BuildingPreviewState;
+import com.formacraft.client.preview.PreviewModalState;
 import com.formacraft.client.ui.panel.BasePanel;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
 import org.slf4j.Logger;
@@ -78,7 +78,7 @@ public class InputRouter {
 
     /** 预览模态锁：只允许确认/取消。 */
     private static boolean isPreviewLocked() {
-        return BuildingPreviewState.isInputLocked();
+        return PreviewModalState.isLocked();
     }
 
     /** 鼠标点击事件 */
@@ -181,7 +181,9 @@ public class InputRouter {
 
     /** 键盘事件 */
     public static boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
-        // 🔒 预览锁定：只放行 ESC/Enter（可选）
+        // 🔒 预览锁定：
+        // - 鼠标/字符输入/滚轮全部拦截
+        // - 键盘只消费 ESC/Enter/CtrlZ/CtrlY，其它键放行给游戏（WASD 可用）
         if (isPreviewLocked()) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
                 BuildConfirmPanel.INSTANCE.cancel();
@@ -191,7 +193,18 @@ public class InputRouter {
                 BuildConfirmPanel.INSTANCE.confirm();
                 return true;
             }
-            return true; // 其他全部拦截
+            boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+            boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
+            if (ctrl && keyCode == GLFW.GLFW_KEY_Z) {
+                if (shift) FormaCraftNetworking.sendPatchRedo();
+                else FormaCraftNetworking.sendPatchUndo();
+                return true;
+            }
+            if (ctrl && keyCode == GLFW.GLFW_KEY_Y) {
+                FormaCraftNetworking.sendPatchRedo();
+                return true;
+            }
+            return false; // 其它键放行（WASD/Space/Shift 等）
         }
 
         if (!FormacraftUIState.isOpen) return false;

@@ -9,6 +9,9 @@ import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.preview.OutlinePreviewState;
+import com.formacraft.client.preview.PatchPreviewState;
+import com.formacraft.client.preview.PreviewModalState;
+import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -31,6 +34,8 @@ public class BuildConfirmPanel {
     
     private boolean visible = false;
     private BuildingSpec spec;
+    private BlockPos patchOrigin;
+    private java.util.List<BlockPatch> patchList;
     @SuppressWarnings("unused")
     private UUID buildId; // 可选：用于区分不同建造请求（以后拓展）
     
@@ -41,6 +46,16 @@ public class BuildConfirmPanel {
     // 原版风格按钮（与 SettingsPanel 保持一致：ButtonWidget 渲染）
     private ButtonWidget confirmButton;
     private ButtonWidget cancelButton;
+    private ButtonWidget applyPatchButton;
+    private ButtonWidget undoPatchButton;
+    private ButtonWidget redoPatchButton;
+
+    private enum Mode {
+        BUILD,
+        PATCH
+    }
+
+    private Mode mode = Mode.BUILD;
     
     private BuildConfirmPanel() {}
 
@@ -52,16 +67,44 @@ public class BuildConfirmPanel {
         cancelButton = ButtonWidget.builder(Text.translatable("formacraft.preview.cancel"), b -> cancel())
                 .dimensions(0, 0, 120, 16)
                 .build();
+
+        applyPatchButton = ButtonWidget.builder(Text.literal("Apply"), b -> applyPatch())
+                .dimensions(0, 0, 90, 16)
+                .build();
+        undoPatchButton = ButtonWidget.builder(Text.literal("Undo"), b -> FormaCraftNetworking.sendPatchUndo())
+                .dimensions(0, 0, 70, 16)
+                .build();
+        redoPatchButton = ButtonWidget.builder(Text.literal("Redo"), b -> FormaCraftNetworking.sendPatchRedo())
+                .dimensions(0, 0, 70, 16)
+                .build();
     }
     
     /** 请求显示确认面板 */
     public void show(BuildingSpec spec) {
+        this.mode = Mode.BUILD;
         this.spec = spec;
+        this.patchOrigin = null;
+        this.patchList = null;
         this.buildId = UUID.randomUUID();
         this.visible = true;
 
         // 激活世界预览（与确认面板生命周期绑定）
         BuildingPreviewState.show(spec);
+        PreviewModalState.lockBuild();
+    }
+
+    /** Patch 预览：显示 Apply/Undo/Redo/Cancel，并开启 PatchPreview 渲染 */
+    public void showPatchPreview(BlockPos origin, java.util.List<BlockPatch> patches) {
+        this.mode = Mode.PATCH;
+        this.spec = null;
+        this.buildId = UUID.randomUUID();
+        this.visible = true;
+
+        this.patchOrigin = origin != null ? origin : BlockPos.ORIGIN;
+        this.patchList = (patches != null) ? new java.util.ArrayList<>(patches) : new java.util.ArrayList<>();
+
+        PatchPreviewState.setPreview(this.patchOrigin, this.patchList);
+        PreviewModalState.lockPatch();
     }
     
     /** 隐藏面板 */
@@ -69,9 +112,14 @@ public class BuildConfirmPanel {
         this.visible = false;
         this.spec = null;
         this.buildId = null;
+        this.patchOrigin = null;
+        if (this.patchList != null) this.patchList.clear();
+        this.patchList = null;
 
         BuildingPreviewState.clear();
         OutlinePreviewState.clear(); // 关闭预览线框
+        PatchPreviewState.clear();   // 关闭 patch 预览
+        PreviewModalState.unlock();
     }
     
     public boolean isVisible() {
@@ -80,6 +128,10 @@ public class BuildConfirmPanel {
 
     /** 模态：确认建造（供 InputRouter 直接调用） */
     public void confirm() {
+        if (mode == Mode.PATCH) {
+            applyPatch();
+            return;
+        }
         onConfirm();
     }
 
@@ -87,10 +139,23 @@ public class BuildConfirmPanel {
     public void cancel() {
         hide();
     }
+
+    private void applyPatch() {
+        if (mode != Mode.PATCH) return;
+        if (patchOrigin == null || patchList == null || patchList.isEmpty()) {
+            hide();
+            return;
+        }
+        // 关闭本地预览，再发包执行
+        PatchPreviewState.clear();
+        FormaCraftNetworking.sendPatchApply(patchOrigin, patchList);
+        hide();
+    }
     
     /** 在 HUD 渲染时调用 */
     public void render(DrawContext context) {
-        if (!visible || client == null || spec == null) return;
+        if (!visible || client == null) return;
+        if (mode == Mode.BUILD && spec == null) return;
 
         ensureWidgets();
         
@@ -120,7 +185,7 @@ public class BuildConfirmPanel {
         int titleY = y0 + 10;
         context.drawCenteredTextWithShadow(
                 client.textRenderer,
-                Text.translatable("formacraft.preview.title"),
+                mode == Mode.PATCH ? Text.literal("Patch Preview") : Text.translatable("formacraft.preview.title"),
                 centerX,
                 titleY,
                 0xFFFFFF
@@ -130,7 +195,67 @@ public class BuildConfirmPanel {
         int lineHeight = 12;
         int textX = x0 + 12;
         
-        // 建筑类型
+        if (mode == Mode.PATCH) {
+            int place = 0, remove = 0, replace = 0;
+            if (patchList != null) {
+                for (BlockPatch p : patchList) {
+                    if (p == null || p.action() == null) continue;
+                    String a = p.action().toLowerCase();
+                    if ("place".equals(a)) place++;
+                    else if ("remove".equals(a)) remove++;
+                    else if ("replace".equals(a)) replace++;
+                }
+            }
+            context.drawTextWithShadow(
+                    client.textRenderer,
+                    Text.literal("Origin: " + patchOrigin.getX() + ", " + patchOrigin.getY() + ", " + patchOrigin.getZ()),
+                    textX, infoY, 0xCCCCCC
+            );
+            infoY += lineHeight;
+            context.drawTextWithShadow(
+                    client.textRenderer,
+                    Text.literal("place: " + place + "  remove: " + remove + "  replace: " + replace),
+                    textX, infoY, 0xAAAAAA
+            );
+            infoY += lineHeight;
+
+            // 底部按钮（patch）
+            int btnY = y1 - 30;
+            double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
+            double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
+
+            int applyX = x0 + 12;
+            int undoX = applyX + 92 + 8;
+            int redoX = undoX + 72 + 6;
+            int cancelX = x1 - 90 - 12;
+
+            applyPatchButton.setPosition(applyX, btnY);
+            applyPatchButton.setWidth(92);
+            applyPatchButton.visible = true;
+            applyPatchButton.active = true;
+            applyPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+
+            undoPatchButton.setPosition(undoX, btnY);
+            undoPatchButton.setWidth(72);
+            undoPatchButton.visible = true;
+            undoPatchButton.active = true;
+            undoPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+
+            redoPatchButton.setPosition(redoX, btnY);
+            redoPatchButton.setWidth(72);
+            redoPatchButton.visible = true;
+            redoPatchButton.active = true;
+            redoPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+
+            cancelButton.setPosition(cancelX, btnY);
+            cancelButton.setWidth(90);
+            cancelButton.visible = true;
+            cancelButton.active = true;
+            cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+            return;
+        }
+
+        // 建筑类型（build）
         BuildingType type = spec.getType();
         if (type != null) {
             context.drawTextWithShadow(
@@ -293,8 +418,8 @@ public class BuildConfirmPanel {
     
     /** 鼠标点击处理。返回 true 表示事件已被消费。 */
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!visible || spec == null || client == null) return false;
-        if (button != 0) return false; // 只处理左键
+        if (!visible || client == null) return false;
+        if (button != 0) return true; // 模态：消费掉右键等，避免落到世界
 
         ensureWidgets();
         
@@ -322,6 +447,40 @@ public class BuildConfirmPanel {
         int cancelX = centerX + spacing / 2;
         
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+
+        if (mode == Mode.PATCH) {
+            // 布局需与 render 对齐
+            int patchBtnY = y1 - 30;
+            int applyX = x0 + 12;
+            int undoX = applyX + 92 + 8;
+            int redoX = undoX + 72 + 6;
+            int patchCancelX = x1 - 90 - 12;
+
+            applyPatchButton.setPosition(applyX, patchBtnY);
+            applyPatchButton.setWidth(92);
+            applyPatchButton.visible = true;
+            applyPatchButton.active = true;
+            if (applyPatchButton.mouseClicked(click, false)) return true;
+
+            undoPatchButton.setPosition(undoX, patchBtnY);
+            undoPatchButton.setWidth(72);
+            undoPatchButton.visible = true;
+            undoPatchButton.active = true;
+            if (undoPatchButton.mouseClicked(click, false)) return true;
+
+            redoPatchButton.setPosition(redoX, patchBtnY);
+            redoPatchButton.setWidth(72);
+            redoPatchButton.visible = true;
+            redoPatchButton.active = true;
+            if (redoPatchButton.mouseClicked(click, false)) return true;
+
+            cancelButton.setPosition(patchCancelX, patchBtnY);
+            cancelButton.setWidth(90);
+            cancelButton.visible = true;
+            cancelButton.active = true;
+            cancelButton.mouseClicked(click, false);
+            return true;
+        }
 
         confirmButton.setPosition(confirmX, btnY);
         confirmButton.setWidth(btnW);

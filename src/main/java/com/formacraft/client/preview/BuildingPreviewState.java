@@ -3,6 +3,7 @@ package com.formacraft.client.preview;
 import com.formacraft.common.model.build.BuildingSpec;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
+import com.formacraft.client.preview.PreviewModalState;
 
 /**
  * 建筑预览状态中心：
@@ -54,7 +55,8 @@ public final class BuildingPreviewState {
 
     /** 预览模态锁：只要在预览中，就锁定所有非确认/取消输入。 */
     public static boolean isInputLocked() {
-        return isActive();
+        // 兼容旧调用：现在以 PreviewModalState 为准（BuildConfirmPanel 会在 show/hide 时切换）
+        return PreviewModalState.isLocked();
     }
 
     public static BuildingSpec getSpec() {

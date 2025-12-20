@@ -9,8 +9,10 @@ import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.orchestrator.OrchestratorClient;
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.patch.BlockPatch;
 
 import java.util.List;
+import java.util.ArrayList;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -34,6 +36,7 @@ public class FormaCraftNetworking {
     public static final Identifier CLEAR_OUTLINE = Identifier.of("formacraft", "clear_outline");
     public static final Identifier PATCH_UNDO = Identifier.of("formacraft", "patch_undo");
     public static final Identifier PATCH_REDO = Identifier.of("formacraft", "patch_redo");
+    public static final Identifier PATCH_APPLY = Identifier.of("formacraft", "patch_apply");
 
     // 后端客户端（应该从配置读取，这里先硬编码）
     private static final OrchestratorClient ORCHESTRATOR = new OrchestratorClient("http://localhost:8000");
@@ -111,6 +114,43 @@ public class FormaCraftNetworking {
         public static final PacketCodec<PacketByteBuf, PatchRedoPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> {},
                 buf -> new PatchRedoPayload()
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Patch Apply：origin + patches（dx/dy/dz/action/targetBlock） */
+    public record PatchApplyPayload(BlockPos origin, List<BlockPatch> patches) implements CustomPayload {
+        public static final CustomPayload.Id<PatchApplyPayload> ID = new CustomPayload.Id<>(PATCH_APPLY);
+        public static final PacketCodec<PacketByteBuf, PatchApplyPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {
+                    buf.writeBlockPos(payload.origin);
+                    List<BlockPatch> ps = payload.patches != null ? payload.patches : java.util.Collections.emptyList();
+                    buf.writeVarInt(ps.size());
+                    for (BlockPatch p : ps) {
+                        buf.writeVarInt(p.dx());
+                        buf.writeVarInt(p.dy());
+                        buf.writeVarInt(p.dz());
+                        buf.writeString(p.action() == null ? "" : p.action());
+                        buf.writeString(p.targetBlock() == null ? "" : p.targetBlock());
+                    }
+                },
+                buf -> {
+                    BlockPos origin = buf.readBlockPos();
+                    int n = buf.readVarInt();
+                    List<BlockPatch> ps = new ArrayList<>(Math.max(0, n));
+                    for (int i = 0; i < n; i++) {
+                        int dx = buf.readVarInt();
+                        int dy = buf.readVarInt();
+                        int dz = buf.readVarInt();
+                        String action = buf.readString();
+                        String target = buf.readString();
+                        if (target != null && target.isEmpty()) target = null;
+                        ps.add(new BlockPatch(action, dx, dy, dz, target));
+                    }
+                    return new PatchApplyPayload(origin, ps);
+                }
         );
 
         @Override
@@ -329,6 +369,7 @@ public class FormaCraftNetworking {
         // Patch Undo/Redo（服务端执行）
         PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PatchApplyPayload.ID, PatchApplyPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(PatchUndoPayload.ID, (payload, context) -> {
             context.server().execute(() -> {
                 ServerPlayerEntity player = context.player();
@@ -345,6 +386,25 @@ public class FormaCraftNetworking {
                 if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
                     com.formacraft.common.patch.history.PatchHistoryManager.redo(sw, player.getUuid());
                 }
+            });
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(PatchApplyPayload.ID, (payload, context) -> {
+            context.server().execute(() -> {
+                ServerPlayerEntity player = context.player();
+                if (player == null) return;
+                if (!(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw)) return;
+
+                BlockPos origin = payload.origin();
+                List<BlockPatch> patches = payload.patches();
+                if (origin == null || patches == null || patches.isEmpty()) return;
+
+                // 简单距离保护（避免恶意改图）
+                double d2 = player.squaredDistanceTo(origin.getX() + 0.5, origin.getY() + 0.5, origin.getZ() + 0.5);
+                double max = 96.0;
+                if (d2 > max * max) return;
+
+                com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, patches);
             });
         });
     }
@@ -452,6 +512,17 @@ public class FormaCraftNetworking {
             return;
         }
         ClientPlayNetworking.send(new PatchRedoPayload());
+    }
+
+    /** 客户端请求 Patch Apply */
+    public static void sendPatchApply(BlockPos origin, List<BlockPatch> patches) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        PatchApplyPayload payload = new PatchApplyPayload(origin, patches);
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
+            return;
+        }
+        ClientPlayNetworking.send(payload);
     }
 
     /**
