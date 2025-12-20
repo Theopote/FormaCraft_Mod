@@ -5,7 +5,6 @@ import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.network.packet.PreviewOutlinePacket;
 import com.formacraft.common.network.packet.RequestBuildPacket;
 import com.formacraft.common.network.packet.ResponseBuildSpecPacket;
-import com.formacraft.common.network.ConfirmBuildPacket;
 import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.orchestrator.OrchestratorClient;
@@ -15,9 +14,11 @@ import java.util.List;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -361,6 +362,14 @@ public class FormaCraftNetworking {
      * @param request 建筑请求
      */
     public static void sendBuildRequest(FormaRequest request) {
+        // 某些环境下 Fabric API 的 send() 会尝试把 payload cast 成 UnknownCustomPayload（导致 ClassCastException）。
+        // 这里直接走原版 CustomPayloadC2SPacket，避免该兼容问题。
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(new RequestBuildPayload(request)));
+            return;
+        }
+        // fallback：如果还没进 play 阶段，按原方式尝试（不会阻塞）
         ClientPlayNetworking.send(new RequestBuildPayload(request));
     }
 
@@ -370,6 +379,11 @@ public class FormaCraftNetworking {
      * @param origin 建造原点 [x, y, z]
      */
     public static void sendConfirmBuild(com.formacraft.common.model.build.BuildingSpec spec, int[] origin) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(new ConfirmBuildPacket(spec, origin)));
+            return;
+        }
         ClientPlayNetworking.send(new ConfirmBuildPacket(spec, origin));
     }
 
