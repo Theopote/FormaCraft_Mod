@@ -1,20 +1,18 @@
 package com.formacraft.client.ui.panel;
 
 import com.formacraft.ai.AIResult;
-import com.formacraft.ai.AIService;
-import com.formacraft.ai.AIServiceManager;
 import com.formacraft.ai.AICancelToken;
-import com.formacraft.ai.BuildingRequest;
+import com.formacraft.ai.context.SelectionContext;
+import com.formacraft.ai.prompt.PromptAssembler;
+import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.ui.widget.MultilineTextInput;
 import com.formacraft.client.ui.panel.chat.AIStreamPrinter;
 import com.formacraft.client.ui.panel.chat.ChatMessage;
 import com.formacraft.client.ui.input.InputRouter;
 import com.formacraft.client.ui.text.SelectableTextBlock;
-import com.formacraft.client.tool.SelectionTool;
-import com.formacraft.common.builder.AutoBuilder;
-import com.formacraft.common.builder.BuildingBlueprint;
-import com.formacraft.common.builder.BuildingPlanner;
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.request.FormaRequest;
+import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.config.SettingsConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -39,10 +37,8 @@ public class ChatPanel extends BasePanel {
 
     private final MinecraftClient client = MinecraftClient.getInstance();
 
-    // ==== 后端服务 ====
-    private final AIService aiService = new AIServiceManager();
-    private final BuildingPlanner planner = new BuildingPlanner();
-    private final AutoBuilder autoBuilder = new AutoBuilder();
+    // 已切换为“服务端预览 + 确认后建造”的流程：
+    // ChatPanel 只负责发起请求（FormaCraftNetworking.sendBuildRequest），不再本地直接规划/建造。
 
     // ==== 对话状态 ====
     private final List<ChatMessage> messages = new ArrayList<>();
@@ -412,6 +408,12 @@ public class ChatPanel extends BasePanel {
         int inputBoxW = innerW - SEND_BUTTON_SIZE - 6;
         int inputBoxH = inputAreaHeight - 4;
 
+        // 选区提示（在输入框上方一行灰字）
+        if (SelectionContext.hasSelection()) {
+            String hint = "已选区：" + SelectionContext.sizeX() + " × " + SelectionContext.sizeY() + " × " + SelectionContext.sizeZ() + "（将作为 AI 建造范围）";
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), inputBoxX, inputBoxY - 12, 0xFFAAAAAA);
+        }
+
         inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
         inputBox.render(ctx);
     }
@@ -683,21 +685,12 @@ public class ChatPanel extends BasePanel {
 
         if (client.player == null || client.world == null) return;
 
-        // 如果上一条还在生成，先真中断，避免并发覆盖 UI
+        // 如果上一条还在生成，先真中断，避免并发覆盖 UI（本地流式）
         stopGenerating();
 
-        // 选区注入（若已完成选区）
-        String requestText = text;
-        if (SelectionTool.INSTANCE.hasSelection()) {
-            var min = SelectionTool.INSTANCE.getMin();
-            var max = SelectionTool.INSTANCE.getMax();
-            requestText = "在以下选定区域中生成建筑：\n"
-                    + "区域范围：X[" + min.getX() + "~" + max.getX() + "], "
-                    + "Y[" + min.getY() + "~" + max.getY() + "], "
-                    + "Z[" + min.getZ() + "~" + max.getZ() + "]\n\n"
-                    + "用户需求：\n"
-                    + text;
-        }
+        // Prompt 拼接（UI 显示 rawInput；发给 AI 的是 finalPrompt）
+        String finalPrompt = PromptAssembler.assembleUserPrompt(text);
+        if (finalPrompt.isEmpty()) return;
 
         // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）
         messages.add(new ChatMessage(text, true));
@@ -715,8 +708,11 @@ public class ChatPanel extends BasePanel {
         historyDraft = "";
 
         World world = client.world;
-        BlockPos start = client.player.getBlockPos().add(2, 0, 2);
         String dimensionId = world.getRegistryKey().getValue().toString();
+
+        // origin：若存在选区，优先用 selectionMin 作为生成原点；否则用玩家前方偏移
+        BlockPos origin = SelectionContext.hasSelection() ? SelectionContext.min() : client.player.getBlockPos().add(2, 0, 2);
+        if (origin == null) origin = client.player.getBlockPos().add(2, 0, 2);
 
         // 构造历史
         List<String> history = new ArrayList<>();
@@ -726,46 +722,24 @@ public class ChatPanel extends BasePanel {
             }
         }
 
-        BuildingRequest request = new BuildingRequest(requestText, start, dimensionId, sessionId, history);
+        // 改为：发送到服务端 → 服务端请求 Orchestrator → 生成预览线框 → 客户端确认后再真正建造
+        FormaRequest req = new FormaRequest();
+        req.setRequestText(finalPrompt);
+        req.setPlayerPos(origin);
+        req.setDimension(dimensionId);
+        req.setSelectionMin(SelectionContext.hasSelection() ? SelectionContext.min() : null);
+        req.setSelectionMax(SelectionContext.hasSelection() ? SelectionContext.max() : null);
+        req.setSessionId(sessionId);
+        req.setChatHistory(history);
 
-        // 添加 AI thinking 占位消息，并创建流式打印器
-        int aiMsgIndex = messages.size();
+        // 记录 origin，确保 confirm 时与预览一致
+        BuildingPreviewState.setPendingOrigin(origin);
+
+        // 添加 AI thinking 占位消息（等服务端返回 ResponseBuildSpecPayload 时会补上 AI 消息）
         messages.add(ChatMessage.thinking());
         scrollOffset = 0;
-        AIStreamPrinter printer = new AIStreamPrinter(messages, aiMsgIndex);
-        printer.setCharsPerTick(2);
-        currentPrinter = printer;
-        currentCancelToken = new AICancelToken();
-        AICancelToken token = currentCancelToken;
 
-        // 异步调用 AI（不阻塞主线程）——可取消：token + future.cancel(true)
-        currentRequestFuture = CompletableFuture.supplyAsync(() -> aiService.generateBuildingPlan(request, token));
-        currentRequestFuture.whenComplete((result, err) -> {
-            if (token.isCancelled()) return;
-
-            if (err != null) {
-                client.execute(() -> {
-                    if (currentPrinter == printer) currentPrinter = null;
-                    messages.add(new ChatMessage("AI 请求失败: " + err.getMessage(), false, null, ChatMessage.MessageType.ERROR));
-                    scrollOffset = 0;
-                });
-                return;
-            }
-
-            if (result == null) {
-                // 被取消：不再更新消息（Stop 已经把消息标记为 CANCELLED）
-                return;
-            }
-
-            // 一次性塞入整段文本，由 tick() 按 charsPerTick 打印；未来真实流式直接多次 appendToken 即可
-            printer.appendToken(result.getRawResponse());
-            printer.finish();
-
-            client.execute(() -> {
-                BuildingBlueprint blueprint = planner.plan(request, result);
-                autoBuilder.build(world, blueprint);
-            });
-        });
+        FormaCraftNetworking.sendBuildRequest(req);
 
         // 清空输入框
         inputBox.clear();
@@ -891,6 +865,10 @@ public class ChatPanel extends BasePanel {
      * 用于从网络接收到的 BuildingSpec 时调用
      */
     public void addAIMessage(String text, BuildingSpec spec) {
+        // 若上一条是“thinking”，先移除，避免残留占位
+        while (!messages.isEmpty() && messages.get(messages.size() - 1).type == ChatMessage.MessageType.THINKING) {
+            messages.remove(messages.size() - 1);
+        }
         if (spec != null) {
             messages.add(new ChatMessage(text, false, spec));
         } else {

@@ -28,7 +28,7 @@ public class TabBar {
     private int x;
     private int y;
     private int width;
-
+    
     /**
      * 标签信息
      */

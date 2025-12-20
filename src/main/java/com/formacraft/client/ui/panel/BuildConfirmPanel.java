@@ -7,6 +7,8 @@ import com.formacraft.common.model.build.Materials;
 import com.formacraft.common.model.build.Features;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.client.preview.BuildingPreviewState;
+import com.formacraft.client.preview.OutlinePreviewState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -57,6 +59,9 @@ public class BuildConfirmPanel {
         this.spec = spec;
         this.buildId = UUID.randomUUID();
         this.visible = true;
+
+        // 激活世界预览（与确认面板生命周期绑定）
+        BuildingPreviewState.show(spec);
     }
     
     /** 隐藏面板 */
@@ -64,6 +69,9 @@ public class BuildConfirmPanel {
         this.visible = false;
         this.spec = null;
         this.buildId = null;
+
+        BuildingPreviewState.clear();
+        OutlinePreviewState.clear(); // 关闭预览线框
     }
     
     public boolean isVisible() {
@@ -340,7 +348,8 @@ public class BuildConfirmPanel {
     
     private void onConfirm() {
         if (client.player != null && spec != null) {
-            BlockPos pos = client.player.getBlockPos();
+            BlockPos pos = BuildingPreviewState.getOrigin();
+            if (pos == null) pos = client.player.getBlockPos();
             int[] origin = new int[]{pos.getX(), pos.getY(), pos.getZ()};
             FormaCraftNetworking.sendConfirmBuild(spec, origin);
         }

@@ -3,10 +3,14 @@ package com.formacraft.mixin;
 import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.tool.ToolWorldRenderContext;
 import com.formacraft.client.ui.FormacraftUIState;
+import com.formacraft.client.preview.BuildingOutlineRenderer;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.render.state.OutlineRenderState;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,15 +26,29 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class SelectionBoxRenderMixin {
 
     @Inject(
-            method = "drawBlockOutline(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;DDDLnet/minecraft/client/render/state/OutlineRenderState;I)V",
+            method = "renderTargetBlockOutline(Lnet/minecraft/client/render/VertexConsumerProvider$Immediate;Lnet/minecraft/client/util/math/MatrixStack;ZLnet/minecraft/client/render/state/WorldRenderState;)V",
             at = @At("TAIL"),
             require = 0
     )
-    private static void formacraft$drawSelectionBox(MatrixStack matrices, VertexConsumer vertexConsumer,
-                                                    double cameraX, double cameraY, double cameraZ,
-                                                    OutlineRenderState state, int color, CallbackInfo ci) {
+    private static void formacraft$renderOverlays(VertexConsumerProvider.Immediate immediate,
+                                                  MatrixStack matrices,
+                                                  boolean renderBlockOutline,
+                                                  net.minecraft.client.render.state.WorldRenderState renderStates,
+                                                  CallbackInfo ci) {
         if (!FormacraftUIState.isOpen) return;
-        ToolManager.renderWorld(new ToolWorldRenderContext(matrices, vertexConsumer, cameraX, cameraY, cameraZ));
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.gameRenderer == null) return;
+        Vec3d cam = client.gameRenderer.getCamera().getPos();
+
+        VertexConsumer lines = immediate.getBuffer(RenderLayer.getLines());
+        ToolWorldRenderContext ctx = new ToolWorldRenderContext(matrices, lines, cam.x, cam.y, cam.z);
+
+        // Tools：选区框/刷子预览等
+        ToolManager.renderWorld(ctx);
+
+        // BuildConfirm：真实占用方块预览（来自 OutlinePreviewState）
+        BuildingOutlineRenderer.render(ctx);
     }
 }
 

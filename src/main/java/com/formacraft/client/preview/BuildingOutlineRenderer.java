@@ -1,0 +1,80 @@
+package com.formacraft.client.preview;
+
+import com.formacraft.client.tool.ToolWorldRenderContext;
+import net.minecraft.client.render.VertexRendering;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+
+import java.util.List;
+
+/**
+ * 世界中绘制“将要占用哪些方块”的预览轮廓。
+ *
+ * - 优先使用服务端下发的 {@link OutlinePreviewState#blocks}（真实占用）
+ * - 同时绘制整体包围盒，保证远距离也能看清范围
+ */
+public final class BuildingOutlineRenderer {
+    private BuildingOutlineRenderer() {}
+
+    private static final int MAX_BOXES = 2000; // 避免渲染过重（城市/复合结构时）
+
+    public static void render(ToolWorldRenderContext ctx) {
+        if (!BuildingPreviewState.isActive()) return;
+        if (!OutlinePreviewState.active) return;
+
+        List<OutlineBlock> blocks = OutlinePreviewState.blocks;
+        if (blocks == null || blocks.isEmpty()) return;
+
+        // 预览色：青绿色
+        float r = 0.20f;
+        float g = 0.90f;
+        float b = 1.00f;
+        float a = 0.95f;
+
+        // 计算整体包围盒（用于远观）
+        BlockPos min = null;
+        BlockPos max = null;
+        for (OutlineBlock ob : blocks) {
+            if (ob == null || ob.pos == null) continue;
+            BlockPos p = ob.pos;
+            if (min == null) {
+                min = p;
+                max = p;
+            } else {
+                min = new BlockPos(
+                        Math.min(min.getX(), p.getX()),
+                        Math.min(min.getY(), p.getY()),
+                        Math.min(min.getZ(), p.getZ())
+                );
+                max = new BlockPos(
+                        Math.max(max.getX(), p.getX()),
+                        Math.max(max.getY(), p.getY()),
+                        Math.max(max.getZ(), p.getZ())
+                );
+            }
+        }
+
+        if (min != null && max != null) {
+            Box world = new Box(
+                    min.getX(), min.getY(), min.getZ(),
+                    max.getX() + 1, max.getY() + 1, max.getZ() + 1
+            ).expand(0.02);
+            Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+            VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, 0.35f);
+        }
+
+        // 单方块轮廓（真实占用）
+        int n = blocks.size();
+        int step = Math.max(1, (int) Math.ceil(n / (double) MAX_BOXES));
+        for (int i = 0; i < n; i += step) {
+            OutlineBlock ob = blocks.get(i);
+            if (ob == null || ob.pos == null) continue;
+
+            BlockPos p = ob.pos;
+            Box world = new Box(p).expand(0.01);
+            Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+            VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, a);
+        }
+    }
+}
+
