@@ -7,6 +7,7 @@ import com.formacraft.client.tool.SemanticLabelTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
+import com.formacraft.client.interaction.AnchorState;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -37,6 +38,7 @@ public class ToolPanel extends BasePanel {
     private int lastToolCount = -1;
 
     // 内建工具附加操作按钮
+    private ButtonWidget clearAnchorButton;
     private ButtonWidget clearSelectionButton;
     private ButtonWidget clearProtectedZonesButton;
     private ButtonWidget outlineModeButton;
@@ -81,6 +83,11 @@ public class ToolPanel extends BasePanel {
         }
 
         if (clearSelectionButton != null) return;
+
+        clearAnchorButton = ButtonWidget.builder(Text.literal("清除锚点"), b -> AnchorState.clear())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("清除当前锚点（右键可重新设置）")))
+                .build();
 
         clearSelectionButton = ButtonWidget.builder(Text.literal("清除选区"), b -> SelectionTool.INSTANCE.clear())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -282,6 +289,20 @@ public class ToolPanel extends BasePanel {
         clearLabelsButton.active = true;
         clearLabelsButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
 
+        // --------------------
+        // 锚点状态（置于底部：不挤占工具列表）
+        // --------------------
+        y += FIELD_SPACING;
+        String anchorText = AnchorState.hasAnchor() ? ("锚点：" + AnchorState.get().getX() + "," + AnchorState.get().getY() + "," + AnchorState.get().getZ())
+                : "锚点：未设置（面板外右键设置）";
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(anchorText), x, y, 0xFFAAAAAA);
+        y += LABEL_OFFSET;
+        clearAnchorButton.setPosition(x, y);
+        clearAnchorButton.setWidth(w);
+        clearAnchorButton.visible = true;
+        clearAnchorButton.active = AnchorState.hasAnchor();
+        clearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
         // 计算最大滚动（基于未滚动起点）
         int contentTop = getContentY() + CONTENT_PADDING;
         int visibleH = getContentHeight() - CONTENT_PADDING * 2;
@@ -373,7 +394,13 @@ public class ToolPanel extends BasePanel {
         y += LABEL_OFFSET * 2;
         clearLabelsButton.setPosition(x, y);
         clearLabelsButton.setWidth(w);
-        return clearLabelsButton.mouseClicked(click, false);
+        if (clearLabelsButton.mouseClicked(click, false)) return true;
+
+        // 锚点
+        y += FIELD_SPACING + LABEL_OFFSET;
+        clearAnchorButton.setPosition(x, y);
+        clearAnchorButton.setWidth(w);
+        return clearAnchorButton.mouseClicked(click, false);
     }
 
     @Override

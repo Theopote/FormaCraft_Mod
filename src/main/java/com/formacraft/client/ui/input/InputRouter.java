@@ -3,6 +3,8 @@ package com.formacraft.client.ui.input;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.tool.ToolManager;
+import com.formacraft.client.interaction.AnchorState;
+import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.preview.PreviewModalState;
 import com.formacraft.client.ui.panel.BasePanel;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
@@ -148,13 +150,26 @@ public class InputRouter {
             return true; // UI已处理（点击了按钮或标签等）
         }
 
-        // Tools：当工具激活且鼠标在面板外时，将点击交给工具处理（不让游戏破坏方块）
+        // Tools/Anchor：UI 打开且鼠标在面板外时：
+        // - 先交给当前工具（工具可消费左/右键）
+        // - 若工具未消费：右键设置锚点；左键也应被吞掉（完全拦截原版破坏/放置/开箱）
         boolean inside = isMouseInsideUI(x, y);
         if (!inside && (button == 0 || button == 1)) {
             if (ToolManager.handleWorldClick(x, y, button)) {
                 lastClickHandledByUI = true;
                 return true;
             }
+            if (button == 1) {
+                var hit = CursorRaycastHelper.getLastBlockHit();
+                if (hit != null) {
+                    AnchorState.set(hit.getBlockPos());
+                }
+                lastClickHandledByUI = true;
+                return true;
+            }
+            // 左键：不做任何事，但仍然拦截原版破坏方块
+            lastClickHandledByUI = true;
+            return true;
         }
 
         // 如果UI没有处理，再检查是否在UI区域内

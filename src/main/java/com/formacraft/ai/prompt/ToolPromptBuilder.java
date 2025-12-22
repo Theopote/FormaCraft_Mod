@@ -5,6 +5,8 @@ import com.formacraft.ai.context.ProtectedZoneContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.context.SemanticLabelContext;
 import com.formacraft.ai.context.SymmetryContext;
+import com.formacraft.client.interaction.AnchorState;
+import net.minecraft.util.math.BlockPos;
 
 /**
  * 工具状态 → PromptContext 语义构建器。
@@ -16,6 +18,13 @@ public final class ToolPromptBuilder {
 
     public static void buildToolContext(PromptContext ctx) {
         if (ctx == null) return;
+
+        // 锚点（基准点）
+        BlockPos anchor = AnchorState.get();
+        if (anchor != null) {
+            ctx.annotations.add("Anchor: (" + anchor.getX() + "," + anchor.getY() + "," + anchor.getZ() + ")");
+            ctx.constraints.add("Use the anchor as the spatial reference/origin for the build (place the main structure centered around the anchor unless other constraints say otherwise).");
+        }
 
         // 选区（边界约束）
         if (SelectionContext.hasSelection()) {

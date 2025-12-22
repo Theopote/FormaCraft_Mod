@@ -5,6 +5,7 @@ import com.formacraft.client.tool.ToolWorldRenderContext;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.preview.BuildingOutlineRenderer;
 import com.formacraft.client.preview.PatchPreviewRenderer;
+import com.formacraft.client.interaction.AnchorRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -47,6 +48,9 @@ public class SelectionBoxRenderMixin {
 
         // Tools：选区框/刷子预览等
         ToolManager.renderWorld(ctx);
+
+        // Anchor：锚点可视化（不依赖 activeTool）
+        AnchorRenderer.render(ctx);
 
         // BuildConfirm：真实占用方块预览（来自 OutlinePreviewState）
         BuildingOutlineRenderer.render(ctx);
