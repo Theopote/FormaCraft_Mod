@@ -293,7 +293,8 @@ public class ToolPanel extends BasePanel {
         // 锚点状态（置于底部：不挤占工具列表）
         // --------------------
         y += FIELD_SPACING;
-        String anchorText = AnchorState.hasAnchor() ? ("锚点：" + AnchorState.get().getX() + "," + AnchorState.get().getY() + "," + AnchorState.get().getZ())
+        String anchorText = AnchorState.hasAnchor() ? ("锚点：" + AnchorState.get().getX() + "," + AnchorState.get().getY() + "," + AnchorState.get().getZ()
+                + "  facing=" + AnchorState.getFacing().name())
                 : "锚点：未设置（面板外右键设置）";
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(anchorText), x, y, 0xFFAAAAAA);
         y += LABEL_OFFSET;

@@ -5,8 +5,8 @@ import com.formacraft.ai.context.ProtectedZoneContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.context.SemanticLabelContext;
 import com.formacraft.ai.context.SymmetryContext;
-import com.formacraft.client.interaction.AnchorState;
-import net.minecraft.util.math.BlockPos;
+import com.formacraft.client.buildcontext.BuildContextResolver;
+import com.formacraft.common.buildcontext.BuildContext;
 
 /**
  * 工具状态 → PromptContext 语义构建器。
@@ -19,11 +19,13 @@ public final class ToolPromptBuilder {
     public static void buildToolContext(PromptContext ctx) {
         if (ctx == null) return;
 
-        // 锚点（基准点）
-        BlockPos anchor = AnchorState.get();
-        if (anchor != null) {
-            ctx.annotations.add("Anchor: (" + anchor.getX() + "," + anchor.getY() + "," + anchor.getZ() + ")");
-            ctx.constraints.add("Use the anchor as the spatial reference/origin for the build (place the main structure centered around the anchor unless other constraints say otherwise).");
+        // 统一空间上下文（BuildContext）
+        BuildContext bc = BuildContextResolver.resolve();
+        if (bc != null && bc.origin != null) {
+            ctx.annotations.add("SpatialContext.mode: " + bc.mode.name());
+            ctx.annotations.add("SpatialContext.origin: (" + bc.origin.getX() + "," + bc.origin.getY() + "," + bc.origin.getZ() + ")");
+            ctx.annotations.add("SpatialContext.facing: " + (bc.facing != null ? bc.facing.name() : "UNKNOWN"));
+            ctx.constraints.add("All coordinates and placement decisions should be made with respect to the given origin and facing.");
         }
 
         // 选区（边界约束）

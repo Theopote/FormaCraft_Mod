@@ -5,8 +5,7 @@ import com.formacraft.ai.AICancelToken;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.prompt.PromptAssembler;
 import com.formacraft.ai.prompt.PromptMode;
-import com.formacraft.client.interaction.AnchorState;
-import com.formacraft.client.interaction.CursorRaycastHelper;
+import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.client.ui.widget.MultilineTextInput;
@@ -763,18 +762,9 @@ public class ChatPanel extends BasePanel {
         World world = client.world;
         String dimensionId = world.getRegistryKey().getValue().toString();
 
-        // origin（基准点）：
-        // 1) 若已设置锚点，优先用锚点
-        // 2) 否则若存在选区，优先用 selectionMin 作为生成原点
-        // 3) 否则若光标命中方块，使用命中方块
-        // 4) 兜底：玩家前方偏移
-        BlockPos origin = AnchorState.hasAnchor() ? AnchorState.get() : null;
-        if (origin == null && SelectionContext.hasSelection()) origin = SelectionContext.min();
-        if (origin == null) {
-            var hit = CursorRaycastHelper.getLastBlockHit();
-            if (hit != null) origin = hit.getBlockPos();
-        }
-        if (origin == null) origin = client.player.getBlockPos().add(2, 0, 2);
+        // origin（基准点）：统一从 BuildContextResolver 解析（Outline > Selection > Anchor > CursorHit）
+        var bc = BuildContextResolver.resolve();
+        BlockPos origin = (bc != null && bc.origin != null) ? bc.origin : client.player.getBlockPos().add(2, 0, 2);
 
         // 构造历史
         List<String> history = new ArrayList<>();

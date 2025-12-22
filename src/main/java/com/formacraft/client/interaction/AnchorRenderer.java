@@ -35,7 +35,7 @@ public final class AnchorRenderer {
         ToolTextRenderUtil.drawBillboardText(
                 ctx,
                 pos,
-                Text.literal("Anchor (" + a.getX() + "," + a.getY() + "," + a.getZ() + ")"),
+                Text.literal("Anchor (" + a.getX() + "," + a.getY() + "," + a.getZ() + ") facing=" + AnchorState.getFacing().name()),
                 0xFF40FFFF,
                 0.02f
         );

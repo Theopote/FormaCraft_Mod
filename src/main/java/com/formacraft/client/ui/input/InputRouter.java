@@ -162,7 +162,10 @@ public class InputRouter {
             if (button == 1) {
                 var hit = CursorRaycastHelper.getLastBlockHit();
                 if (hit != null) {
-                    AnchorState.set(hit.getBlockPos());
+                    // 显式锚点：放在命中方块上方一格；朝向取玩家水平朝向
+                    net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+                    net.minecraft.util.math.Direction facing = (mc != null && mc.player != null) ? mc.player.getHorizontalFacing() : net.minecraft.util.math.Direction.NORTH;
+                    AnchorState.set(hit.getBlockPos().up(), facing);
                 }
                 lastClickHandledByUI = true;
                 return true;
