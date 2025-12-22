@@ -43,7 +43,7 @@ public class SelectionBoxRenderMixin {
         Vec3d cam = client.gameRenderer.getCamera().getPos();
 
         VertexConsumer lines = immediate.getBuffer(RenderLayer.getLines());
-        ToolWorldRenderContext ctx = new ToolWorldRenderContext(matrices, lines, cam.x, cam.y, cam.z);
+        ToolWorldRenderContext ctx = new ToolWorldRenderContext(matrices, lines, immediate, cam.x, cam.y, cam.z);
 
         // Tools：选区框/刷子预览等
         ToolManager.renderWorld(ctx);

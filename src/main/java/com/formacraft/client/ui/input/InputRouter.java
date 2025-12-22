@@ -148,9 +148,9 @@ public class InputRouter {
             return true; // UI已处理（点击了按钮或标签等）
         }
 
-        // Tools：当选区工具激活且鼠标在面板外时，左键用于设置选区点（不让游戏破坏方块）
+        // Tools：当工具激活且鼠标在面板外时，将点击交给工具处理（不让游戏破坏方块）
         boolean inside = isMouseInsideUI(x, y);
-        if (!inside && button == 0) {
+        if (!inside && (button == 0 || button == 1)) {
             if (ToolManager.handleWorldClick(x, y, button)) {
                 lastClickHandledByUI = true;
                 return true;

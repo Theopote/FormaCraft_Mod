@@ -11,6 +11,7 @@ import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.preview.OutlinePreviewState;
 import com.formacraft.client.preview.PatchPreviewState;
 import com.formacraft.client.preview.PreviewModalState;
+import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -148,7 +149,7 @@ public class BuildConfirmPanel {
         }
         // 关闭本地预览，再发包执行
         PatchPreviewState.clear();
-        FormaCraftNetworking.sendPatchApply(patchOrigin, patchList);
+        FormaCraftNetworking.sendPatchApply(patchOrigin, patchList, ProtectedZoneTool.INSTANCE.getZones());
         hide();
     }
     

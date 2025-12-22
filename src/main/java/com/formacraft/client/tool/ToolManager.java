@@ -18,6 +18,10 @@ public final class ToolManager {
     static {
         // 内建工具注册
         register(SelectionTool.INSTANCE);
+        register(ProtectedZoneTool.INSTANCE);
+        register(OutlineTool.INSTANCE);
+        register(SymmetryTool.INSTANCE);
+        register(SemanticLabelTool.INSTANCE);
     }
 
     public static void register(FormacraftTool tool) {

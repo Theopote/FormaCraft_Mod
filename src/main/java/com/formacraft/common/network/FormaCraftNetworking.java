@@ -9,6 +9,7 @@ import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.orchestrator.OrchestratorClient;
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.patch.BlockPatch;
 
 import java.util.List;
@@ -124,8 +125,8 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Patch Apply：origin + patches（dx/dy/dz/action/targetBlock） */
-    public record PatchApplyPayload(BlockPos origin, List<BlockPatch> patches) implements CustomPayload {
+    /** Patch Apply：origin + patches（dx/dy/dz/action/targetBlock） + protectedZones（强制过滤） */
+    public record PatchApplyPayload(BlockPos origin, List<BlockPatch> patches, List<ProtectedZone> protectedZones) implements CustomPayload {
         public static final CustomPayload.Id<PatchApplyPayload> ID = new CustomPayload.Id<>(PATCH_APPLY);
         public static final PacketCodec<PacketByteBuf, PatchApplyPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> {
@@ -138,6 +139,20 @@ public class FormaCraftNetworking {
                         buf.writeVarInt(p.dz());
                         buf.writeString(p.action() == null ? "" : p.action());
                         buf.writeString(p.targetBlock() == null ? "" : p.targetBlock());
+                    }
+
+                    // protected zones
+                    List<ProtectedZone> zs = payload.protectedZones != null ? payload.protectedZones : java.util.Collections.emptyList();
+                    buf.writeVarInt(zs.size());
+                    for (ProtectedZone z : zs) {
+                        if (z == null || z.min() == null || z.max() == null) {
+                            buf.writeBoolean(false);
+                            continue;
+                        }
+                        buf.writeBoolean(true);
+                        ProtectedZone n = z.normalized();
+                        buf.writeBlockPos(n.min());
+                        buf.writeBlockPos(n.max());
                     }
                 },
                 buf -> {
@@ -153,7 +168,18 @@ public class FormaCraftNetworking {
                         if (target != null && target.isEmpty()) target = null;
                         ps.add(new BlockPatch(action, dx, dy, dz, target));
                     }
-                    return new PatchApplyPayload(origin, ps);
+
+                    int zn = buf.readVarInt();
+                    List<ProtectedZone> zs = new ArrayList<>(Math.max(0, zn));
+                    for (int i = 0; i < zn; i++) {
+                        boolean present = buf.readBoolean();
+                        if (!present) continue;
+                        BlockPos min = buf.readBlockPos();
+                        BlockPos max = buf.readBlockPos();
+                        zs.add(new ProtectedZone(min, max).normalized());
+                    }
+
+                    return new PatchApplyPayload(origin, ps, zs);
                 }
         );
 
@@ -398,6 +424,7 @@ public class FormaCraftNetworking {
 
                 BlockPos origin = payload.origin();
                 List<BlockPatch> patches = payload.patches();
+                List<ProtectedZone> zones = payload.protectedZones();
                 if (origin == null || patches == null || patches.isEmpty()) return;
 
                 // 简单距离保护（避免恶意改图）
@@ -405,7 +432,25 @@ public class FormaCraftNetworking {
                 double max = 96.0;
                 if (d2 > max * max) return;
 
-                com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, patches);
+                // 强制过滤：禁区/保护区内的 patch 一律跳过
+                List<BlockPatch> filtered = patches;
+                if (zones != null && !zones.isEmpty()) {
+                    filtered = new ArrayList<>(patches.size());
+                    outer:
+                    for (BlockPatch p : patches) {
+                        if (p == null) continue;
+                        BlockPos abs = origin.add(p.dx(), p.dy(), p.dz());
+                        for (ProtectedZone z : zones) {
+                            if (z != null && z.contains(abs)) {
+                                continue outer;
+                            }
+                        }
+                        filtered.add(p);
+                    }
+                }
+
+                if (filtered.isEmpty()) return;
+                com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, filtered);
             });
         });
     }
@@ -537,10 +582,10 @@ public class FormaCraftNetworking {
         ClientPlayNetworking.send(new PatchRedoPayload());
     }
 
-    /** 客户端请求 Patch Apply */
-    public static void sendPatchApply(BlockPos origin, List<BlockPatch> patches) {
+    /** 客户端请求 Patch Apply（携带 protectedZones 以强制过滤） */
+    public static void sendPatchApply(BlockPos origin, List<BlockPatch> patches, List<ProtectedZone> protectedZones) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        PatchApplyPayload payload = new PatchApplyPayload(origin, patches);
+        PatchApplyPayload payload = new PatchApplyPayload(origin, patches, protectedZones);
         if (mc != null && mc.getNetworkHandler() != null) {
             mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
             return;

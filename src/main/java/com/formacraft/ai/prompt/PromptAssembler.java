@@ -1,6 +1,10 @@
 package com.formacraft.ai.prompt;
 
+import com.formacraft.ai.context.OutlineContext;
+import com.formacraft.ai.context.ProtectedZoneContext;
 import com.formacraft.ai.context.SelectionContext;
+import com.formacraft.ai.context.SemanticLabelContext;
+import com.formacraft.ai.context.SymmetryContext;
 
 /**
  * Prompt 拼接器：把用户自然语言增强为“可控、可解析”的结构化 Prompt。
@@ -26,7 +30,27 @@ public final class PromptAssembler {
             sb.append("- 不要在区域外放置任何方块\n\n");
         }
 
-        // 3) 输出要求（非常关键：保证可直接反序列化）
+        // 3) 禁区/保护区（强约束）
+        if (ProtectedZoneContext.hasZones()) {
+            sb.append(ProtectedZoneContext.toPromptBlock()).append("\n");
+        }
+
+        // 4) 轮廓/Footprint（强约束）
+        if (OutlineContext.hasOutline()) {
+            sb.append(OutlineContext.toPromptBlock()).append("\n");
+        }
+
+        // 5) 对称/镜像约束
+        if (SymmetryContext.enabled()) {
+            sb.append(SymmetryContext.toPromptBlock()).append("\n");
+        }
+
+        // 6) 区域语义标注
+        if (SemanticLabelContext.hasLabels()) {
+            sb.append(SemanticLabelContext.toPromptBlock()).append("\n");
+        }
+
+        // 7) 输出要求（非常关键：保证可直接反序列化）
         sb.append("输出要求：\n");
         sb.append("- 输出严格合法的 JSON\n");
         sb.append("- 使用 FormaCraft BuildingSpec 结构\n");
