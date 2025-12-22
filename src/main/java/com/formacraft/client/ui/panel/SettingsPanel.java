@@ -11,6 +11,10 @@ import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,6 +22,10 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -113,8 +121,18 @@ public class SettingsPanel extends BasePanel {
             .connectTimeout(Duration.ofSeconds(2))
             .build();
     private volatile boolean detectingModel = false;
+    // 兼容旧实现的兜底正则（避免后端返回非标准 JSON 或携带额外文本时完全无法解析）
     private static final Pattern JSON_ID_PATTERN = Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern JSON_MODEL_PATTERN = Pattern.compile("\"model\"\\s*:\\s*\"([^\"]+)\"");
+
+    private static final class DetectResponse {
+        final int status;
+        final String body;
+        DetectResponse(int status, String body) {
+            this.status = status;
+            this.body = body;
+        }
+    }
 
     // 缓存的计算值（性能优化）
     private int cachedContentX = -1;
@@ -671,7 +689,7 @@ public class SettingsPanel extends BasePanel {
         // Model detect (replaces dropdown presets)
         detectModelButton = ButtonWidget.builder(getDetectModelButtonText(), b -> startDetectModel())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("检测后端默认模型")))
+                .tooltip(Tooltip.of(Text.literal("检测 /models（若为 OpenAI 兼容端点，会使用当前 API Key 请求模型列表）")))
                 .build();
 
         // Sliders（用原版 SliderWidget 渲染）
@@ -733,30 +751,45 @@ public class SettingsPanel extends BasePanel {
 
         String base = sanitizeEndpoint(orchestratorInput.getText());
         String url = base.endsWith("/models") ? base : (base + "/models");
+        // 注意：这里用的是“当前输入框的 API Key”（草稿态），而不是已保存配置。
+        // 否则用户未点 Save 时会一直使用旧 key，体验很差。
+        String apiKey = apiKeyInput.getText() != null ? apiKeyInput.getText().trim() : "";
 
         CompletableFuture.supplyAsync(() -> {
             try {
-                HttpRequest req = HttpRequest.newBuilder()
+                HttpRequest.Builder b = HttpRequest.newBuilder()
                         .uri(URI.create(url))
                         .timeout(Duration.ofSeconds(4))
-                        .GET()
-                    .build();
-                HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-                if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
-                    return resp.body();
+                        .header("Accept", "application/json")
+                        .GET();
+
+                // OpenAI / OpenAI-compatible：/models 通常需要 Authorization
+                if (!apiKey.isBlank()) {
+                    b.header("Authorization", "Bearer " + apiKey);
                 }
+
+                HttpRequest req = b.build();
+                HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+                return new DetectResponse(resp.statusCode(), resp.body());
             } catch (Exception ignored) {
             }
             return null;
-        }).thenAccept(body -> client.execute(() -> {
+        }).thenAccept(resp -> client.execute(() -> {
             detectingModel = false;
-            if (body == null || body.isBlank()) {
-                showToast("检测失败：后端未提供 /models", true);
+            if (resp == null || resp.body == null || resp.body.isBlank()) {
+                showToast("检测失败：无法访问 " + url + "（请确认后端地址/网络/是否需要 API Key）", true);
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
 
-            String detected = parseDetectedModel(body);
+            if (resp.status < 200 || resp.status >= 300) {
+                // 常见：OpenAI 兼容端点未带 key → 401；URL 不对 → 404
+                showToast("检测失败：" + resp.status + " from " + url + "（请确认 API Key / 端点）", true);
+                if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
+                return;
+            }
+
+            String detected = parseDetectedModel(resp.body);
             if (detected == null || detected.isBlank()) {
                 draftModel = "";
                 showToast("检测完成：模型=自动", false);
@@ -770,16 +803,89 @@ public class SettingsPanel extends BasePanel {
     }
 
     private String parseDetectedModel(String body) {
-        // 优先解析 {"default_model":"..."}
+        if (body == null || body.isBlank()) return null;
+
+        // 1) JSON 优先（更可靠）
+        try {
+            JsonElement root = JsonParser.parseString(body);
+            if (root != null && root.isJsonObject()) {
+                JsonObject obj = root.getAsJsonObject();
+
+                // Python backend: {"default_model":"..."}
+                if (obj.has("default_model") && obj.get("default_model").isJsonPrimitive()) {
+                    return obj.get("default_model").getAsString();
+                }
+
+                // Some backends: {"model":"..."}
+                if (obj.has("model") && obj.get("model").isJsonPrimitive()) {
+                    return obj.get("model").getAsString();
+                }
+
+                // OpenAI-compatible: {"data":[{"id":"..."}, ...]}
+                if (obj.has("data") && obj.get("data").isJsonArray()) {
+                    JsonArray arr = obj.getAsJsonArray("data");
+                    List<String> ids = new ArrayList<>();
+                    for (JsonElement e : arr) {
+                        if (e != null && e.isJsonObject()) {
+                            JsonObject m = e.getAsJsonObject();
+                            if (m.has("id") && m.get("id").isJsonPrimitive()) {
+                                String id = m.get("id").getAsString();
+                                if (id != null && !id.isBlank()) ids.add(id);
+                            }
+                        }
+                    }
+                    String picked = pickPreferredModel(ids);
+                    if (picked != null && !picked.isBlank()) return picked;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        // 2) 兜底：正则抓取（允许 body 不是纯 JSON）
         Matcher m0 = Pattern.compile("\"default_model\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
         if (m0.find()) return m0.group(1);
-        // 其次尝试 {"model":"..."}
         Matcher m1 = JSON_MODEL_PATTERN.matcher(body);
         if (m1.find()) return m1.group(1);
-        // 兜底：OpenAI 风格列表里可能是 {"id":"gpt-4o-mini"}
         Matcher m2 = JSON_ID_PATTERN.matcher(body);
         if (m2.find()) return m2.group(1);
         return null;
+    }
+
+    private static String pickPreferredModel(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return null;
+
+        // 去重并保持大致稳定
+        Set<String> set = new HashSet<>();
+        List<String> unique = new ArrayList<>();
+        for (String id : ids) {
+            if (id == null) continue;
+            String t = id.trim();
+            if (t.isEmpty()) continue;
+            if (set.add(t)) unique.add(t);
+        }
+        if (unique.isEmpty()) return null;
+
+        // 优先级：更贴近默认推荐（你也可以改成 prefer gpt-4o 作为“最高质量”）
+        String[] prefer = new String[]{
+                "gpt-4o-mini",
+                "gpt-4o",
+                "gpt-4.1-mini",
+                "gpt-4.1",
+                "gpt-4"
+        };
+
+        for (String p : prefer) {
+            for (String id : unique) {
+                if (id.equals(p)) return id;
+            }
+        }
+        for (String p : prefer) {
+            for (String id : unique) {
+                if (id.startsWith(p)) return id; // e.g. gpt-4o-mini-2024-07-18
+            }
+        }
+
+        return unique.get(0);
     }
 
     private void toggleHideKey() {
