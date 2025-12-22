@@ -248,8 +248,6 @@ public class SettingsPanel extends BasePanel {
             drawButtonsRow(ctx, x, y, w);
             y += BUTTON_ROW_HEIGHT;
 
-            drawToast(ctx, x, y, w);
-
             // 计算最大滚动（基于未滚动起点）
             int contentTop = getContentY() + CONTENT_PADDING;
             int visibleH = getContentHeight() - CONTENT_PADDING * 2;
@@ -260,6 +258,10 @@ public class SettingsPanel extends BasePanel {
         } finally {
             if (sx1 > sx0 && sy1 > sy0) ctx.disableScissor();
         }
+
+        // Toast：不参与滚动，也不被 scissor 裁剪（否则用户会觉得“点了没反应”）
+        int toastY = getContentY() + getContentHeight() - CONTENT_PADDING - client.textRenderer.fontHeight - 2;
+        drawToast(ctx, x, toastY, w);
     }
 
     private void drawToast(DrawContext ctx, int x, int y, int w) {
