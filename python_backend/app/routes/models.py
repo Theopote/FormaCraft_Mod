@@ -2,6 +2,7 @@ from fastapi import APIRouter, Header, Query
 import json
 import os
 import urllib.request
+import logging
 from typing import Any, Dict, List, Optional
 
 from ..services.llm_client import (
@@ -14,6 +15,7 @@ from ..services.llm_client import (
 )
 
 router = APIRouter()
+logger = logging.getLogger("formacraft.models")
 
 
 @router.get("/models")
@@ -44,6 +46,7 @@ def models(
     cfg = build_config(_Tmp(), default_model="gpt-4o-mini")
     resolved_provider = resolve_provider(_Tmp())
     resolved_base = resolve_base_url(_Tmp(), provider=resolved_provider)
+    logger.info("GET /models provider=%s base_url=%s has_auth=%s", resolved_provider, resolved_base, bool(api_key))
 
     # 如果用户指定了 provider/base_url（尤其是 DeepSeek/OpenAI-compatible），尝试在线拉取 /models 列表
     models_list: List[str] = []
@@ -60,7 +63,8 @@ def models(
                     for item in data["data"]:
                         if isinstance(item, dict) and isinstance(item.get("id"), str):
                             models_list.append(item["id"])
-        except Exception:
+        except Exception as e:
+            logger.warning("fetch remote /models failed: %s", str(e))
             models_list = []
 
     # Provider 兜底：DeepSeek 的常用模型名（即便无法在线探测，也能让 UI 有可选提示）

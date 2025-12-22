@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+from urllib.parse import urlparse
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -46,11 +47,22 @@ def resolve_base_url(req: Any = None, provider: Optional[str] = None) -> Optiona
     if req is not None:
         u = _norm(getattr(req, "llmBaseUrl", None))
         if u:
-            return u
+            try:
+                p = urlparse(u)
+                if p.scheme in ("http", "https") and p.netloc:
+                    return u.rstrip("/")
+            except Exception:
+                pass
+            return None
 
     env = _norm(os.getenv("LLM_BASE_URL")) or _norm(os.getenv("OPENAI_BASE_URL"))
     if env:
-        return env
+        try:
+            p = urlparse(env)
+            if p.scheme in ("http", "https") and p.netloc:
+                return env.rstrip("/")
+        except Exception:
+            pass
 
     p = (provider or "openai").lower()
     if p == "deepseek":

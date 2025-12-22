@@ -23,6 +23,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -905,23 +907,36 @@ public class SettingsPanel extends BasePanel {
         // 否则用户未点 Save 时会一直使用旧 key，体验很差。
         String apiKey = apiKeyInput.getText() != null ? apiKeyInput.getText().trim() : "";
         String provider = (draftLlmProvider == null) ? "" : draftLlmProvider.trim();
-        String llmBaseUrl = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
+        String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
+        String llmBaseUrl = sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
+        if (llmBaseUrl == null && llmBaseUrlRaw != null && !llmBaseUrlRaw.isBlank()) {
+            detectingModel = false;
+            showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
+            if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
+            return;
+        }
 
         // 附带 provider/baseUrl（让 orchestrator /models 也能探测真实 LLM 端点）
         String computedUrl = url;
         try {
             if (!provider.isBlank() || !llmBaseUrl.isBlank()) {
                 StringBuilder q = new StringBuilder();
-                if (!provider.isBlank()) q.append("provider=").append(java.net.URLEncoder.encode(provider, java.nio.charset.StandardCharsets.UTF_8));
+                if (!provider.isBlank()) q.append("provider=").append(URLEncoder.encode(provider, StandardCharsets.UTF_8));
                 if (!llmBaseUrl.isBlank()) {
                     if (!q.isEmpty()) q.append('&');
-                    q.append("base_url=").append(java.net.URLEncoder.encode(llmBaseUrl, java.nio.charset.StandardCharsets.UTF_8));
+                    q.append("base_url=").append(URLEncoder.encode(llmBaseUrl, StandardCharsets.UTF_8));
                 }
                 computedUrl = url + "?" + q;
             }
         } catch (Exception ignored) {
         }
         final String finalUrl = computedUrl;
+
+        // 记录关键信息到日志（避免 toast 过长看不清）
+        System.out.println("[FormaCraft][DetectModel] backend=" + base
+                + " provider=" + provider
+                + " base_url=" + llmBaseUrl
+                + " url=" + finalUrl);
 
         CompletableFuture.supplyAsync(() -> {
             try {
@@ -939,20 +954,34 @@ public class SettingsPanel extends BasePanel {
                 HttpRequest req = b.build();
                 HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
                 return new DetectResponse(resp.statusCode(), resp.body());
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                // 保留异常信息，方便用户排查（URL 非法/连接失败/DNS 失败等）
+                return new DetectResponse(-1, e.toString());
             }
-            return null;
         }).thenAccept(resp -> client.execute(() -> {
             detectingModel = false;
-            if (resp == null || resp.body == null || resp.body.isBlank()) {
-                showToast("检测失败：无法访问 " + finalUrl + "（请确认后端地址/网络/是否需要 API Key）", true);
+            if (resp == null) {
+                showToast("检测失败：未知错误（resp=null）", true);
+                if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
+                return;
+            }
+
+            // 本地异常（URI.create/连接失败等）
+            if (resp.status < 0) {
+                showToast("检测失败：请求异常（详见日志） err=" + shortErr(resp.body), true);
+                if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
+                return;
+            }
+
+            if (resp.body == null || resp.body.isBlank()) {
+                showToast("检测失败：后端无响应内容（详见日志）", true);
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
 
             if (resp.status < 200 || resp.status >= 300) {
                 // 常见：OpenAI 兼容端点未带 key → 401；URL 不对 → 404
-                showToast("检测失败：" + resp.status + " from " + finalUrl + "（请确认 API Key / 端点）", true);
+                showToast("检测失败：" + resp.status + "（详见日志）", true);
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
@@ -968,6 +997,41 @@ public class SettingsPanel extends BasePanel {
 
             syncWidgetStateFromDraft();
         }));
+    }
+
+    private static String shortErr(String s) {
+        if (s == null) return "";
+        String t = s.replace("\r", " ").replace("\n", " ").trim();
+        int max = 140;
+        return t.length() <= max ? t : (t.substring(0, max) + "…");
+    }
+
+    /**
+     * LLM Base URL 允许为空；若非空则必须是 http/https。
+     * 兼容用户漏写协议的情况：自动补 https://
+     */
+    private static String sanitizeLlmBaseUrlOrNull(String input) {
+        if (input == null) return "";
+        String v = input.trim();
+        if (v.isEmpty()) return "";
+
+        // 常见误填：漏了协议（例如 api.openai.com/v1）
+        if (!v.startsWith("http://") && !v.startsWith("https://")) {
+            v = "https://" + v;
+        }
+
+        // 移除末尾斜杠
+        while (v.endsWith("/")) v = v.substring(0, v.length() - 1);
+
+        // 只接受 http/https
+        try {
+            URI uri = new URI(v);
+            String scheme = uri.getScheme();
+            if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) return null;
+        } catch (URISyntaxException e) {
+            return null;
+        }
+        return v;
     }
 
     private String parseDetectedModel(String body) {
@@ -1246,7 +1310,12 @@ public class SettingsPanel extends BasePanel {
     private boolean saveSettings() {
         String apiKey = apiKeyInput.getText();
         String endpoint = sanitizeEndpoint(orchestratorInput.getText());
-        String llmBaseUrl = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
+        String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
+        String llmBaseUrl = sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
+        if (llmBaseUrl == null && llmBaseUrlRaw != null && !llmBaseUrlRaw.isBlank()) {
+            showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
+            return false;
+        }
         String provider = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim();
 
         // 验证 API Key：DeepSeek/OpenAI 等通常需要；本地 ollama 可不填

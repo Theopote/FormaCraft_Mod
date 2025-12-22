@@ -5,6 +5,16 @@ from .routes import build, edit, blueprint, history, models
 
 app = FastAPI(title="FormaCraft Orchestrator", version="0.1.0")
 
+
+@app.get("/")
+def root():
+    return {"ok": True, "service": "FormaCraft Orchestrator"}
+
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
 # 配置 CORS，允许 Minecraft 客户端访问
 app.add_middleware(
     CORSMiddleware,
