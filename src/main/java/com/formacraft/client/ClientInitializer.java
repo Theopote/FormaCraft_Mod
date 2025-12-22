@@ -1,6 +1,7 @@
 package com.formacraft.client;
 
 import com.formacraft.client.preview.OutlineRenderer;
+import com.formacraft.client.backend.BackendAutoStarter;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.InputEventHandler;
 import com.formacraft.common.network.FormaCraftNetworking;
@@ -16,6 +17,9 @@ public class ClientInitializer implements ClientModInitializer {
     public void onInitializeClient() {
         // 加载设置配置
         SettingsConfig.load();
+
+        // 尝试自动启动本地后端（异步，不阻塞渲染线程）
+        BackendAutoStarter.ensureStartedAsync();
         
         // 注册 S2C 数据包（服务端 → 客户端）
         FormaCraftNetworking.registerS2C();

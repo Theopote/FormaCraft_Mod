@@ -38,6 +38,18 @@ public class SettingsConfig {
      */
     public String orchestratorEndpoint = "http://localhost:8000";
 
+    /** 是否随游戏启动自动拉起本地 Python 后端（仅对 localhost 生效）。 */
+    public boolean autoStartBackend = true;
+    /**
+     * Python 可执行文件（可为空，表示使用 "python"）。
+     * Windows 示例：C:\\Program Files\\Python313\\python.exe
+     */
+    public String pythonExecutable = "";
+    /** 后端工作目录（相对游戏启动目录），默认 python_backend */
+    public String backendWorkDir = "python_backend";
+    /** Uvicorn 端口（默认 8000） */
+    public int backendPort = 8000;
+
     // === 单例 ===
     public static final SettingsConfig INSTANCE = new SettingsConfig();
 
@@ -53,6 +65,10 @@ public class SettingsConfig {
         temperature = 0.7f;
         fontSize = 14;
         interactionReach = 80;
+        autoStartBackend = true;
+        pythonExecutable = "";
+        backendWorkDir = "python_backend";
+        backendPort = 8000;
     }
 
     private void copyFrom(SettingsConfig other) {
@@ -65,6 +81,10 @@ public class SettingsConfig {
         this.fontSize = other.fontSize;
         this.orchestratorEndpoint = other.orchestratorEndpoint != null ? other.orchestratorEndpoint : "http://localhost:8000";
         this.interactionReach = other.interactionReach;
+        this.autoStartBackend = other.autoStartBackend;
+        this.pythonExecutable = other.pythonExecutable != null ? other.pythonExecutable : "";
+        this.backendWorkDir = other.backendWorkDir != null ? other.backendWorkDir : "python_backend";
+        this.backendPort = other.backendPort > 0 ? other.backendPort : 8000;
     }
 
     public static void load() {

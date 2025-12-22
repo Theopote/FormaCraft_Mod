@@ -121,10 +121,27 @@ public class SettingsPanel extends BasePanel {
     private ButtonWidget resetButton;
     private ButtonWidget detectModelButton;
     private ButtonWidget llmProviderButton;
+    private ButtonWidget llmBaseUrlPresetButton;
     private TemperatureSlider temperatureSlider;
     private FontSizeSlider fontSizeSlider;
     private InteractionReachSlider interactionReachSlider;
     private SliderWidget activeSlider = null; // 只允许同时操作一个滑条
+
+    // LLM Base URL：预设下拉（避免输入错误；需要特殊服务时选择“自定义”）
+    private record BaseUrlPreset(String id, String label, String url) {}
+    private static final List<BaseUrlPreset> BASE_URL_PRESETS = List.of(
+            new BaseUrlPreset("auto", "自动（由 Provider 决定）", ""),
+            new BaseUrlPreset("openai", "OpenAI", "https://api.openai.com/v1"),
+            new BaseUrlPreset("deepseek", "DeepSeek", "https://api.deepseek.com/v1"),
+            new BaseUrlPreset("openrouter", "OpenRouter", "https://openrouter.ai/api/v1"),
+            new BaseUrlPreset("groq", "Groq", "https://api.groq.com/openai/v1"),
+            new BaseUrlPreset("together", "Together", "https://api.together.xyz/v1"),
+            new BaseUrlPreset("ollama", "Ollama（本地）", "http://localhost:11434/v1"),
+            new BaseUrlPreset("lmstudio", "LM Studio（本地）", "http://127.0.0.1:1234/v1"),
+            new BaseUrlPreset("custom", "自定义…", null)
+    );
+    private int baseUrlPresetIndex = 0;
+    private boolean baseUrlPresetDropdownOpen = false;
 
     // 模型探测（HTTP）
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -178,6 +195,7 @@ public class SettingsPanel extends BasePanel {
         }
         this.draftLlmBaseUrl = sanitizedBaseUrl;
         this.llmBaseUrlInput.setText(this.draftLlmBaseUrl);
+        syncBaseUrlPresetFromValue(this.draftLlmBaseUrl);
         this.draftTemperature = clamp01(cfg.temperature);
         this.draftFontSize = clampInt(cfg.fontSize);
         this.draftInteractionReach = clampReach(cfg.interactionReach);
@@ -243,7 +261,8 @@ public class SettingsPanel extends BasePanel {
             y += FIELD_SPACING;
 
             drawLlmBaseUrlField(ctx, x, y, w);
-            y += FIELD_SPACING;
+        // BaseURL：三行（标题 + 预设按钮 + 自定义输入/提示）
+        y += FIELD_SPACING + LABEL_OFFSET;
 
             drawModelDetector(ctx, x, y, w);
             y += FIELD_SPACING;
@@ -381,7 +400,52 @@ public class SettingsPanel extends BasePanel {
     private void drawLlmBaseUrlField(DrawContext ctx, int x, int y, int w) {
         drawSmallLabel(ctx, Text.literal("LLM Base URL"), x, y);
         y += LABEL_OFFSET;
-        llmBaseUrlInput.render(ctx, x, y, w, INPUT_HEIGHT);
+
+        ensureWidgets();
+        llmBaseUrlPresetButton.setMessage(getBaseUrlPresetButtonText());
+        llmBaseUrlPresetButton.setPosition(x, y);
+        llmBaseUrlPresetButton.setWidth(w);
+        llmBaseUrlPresetButton.visible = true;
+        llmBaseUrlPresetButton.active = true;
+        llmBaseUrlPresetButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
+
+        // 第三行：自定义输入 or 提示文本（非自定义禁止输入，避免手滑改错）
+        y += LABEL_OFFSET;
+        BaseUrlPreset p = getSelectedBaseUrlPreset();
+        if (p != null && p.url == null) {
+            llmBaseUrlInput.render(ctx, x, y, w, INPUT_HEIGHT);
+        } else {
+            String tip = (p == null || p.url == null || p.url.isBlank())
+                    ? "自动：由 Provider/后端决定"
+                    : ("URL: " + p.url);
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal(tip), x, y + 4, COLOR_GRAY);
+            llmBaseUrlInput.setFocused(false);
+        }
+
+        // 下拉列表（展开渲染，不改变布局高度）
+        if (baseUrlPresetDropdownOpen) {
+            int itemH = BUTTON_HEIGHT;
+            int listX0 = x;
+            int listY0 = y + LABEL_OFFSET;
+            int listW = w;
+            int listH = Math.min(BASE_URL_PRESETS.size(), 8) * itemH;
+
+            ctx.fill(listX0, listY0, listX0 + listW, listY0 + listH, 0xCC111111);
+            for (int i = 0; i < BASE_URL_PRESETS.size(); i++) {
+                int iy0 = listY0 + i * itemH;
+                int iy1 = iy0 + itemH;
+                if (iy1 > listY0 + listH) break;
+
+                BaseUrlPreset it = BASE_URL_PRESETS.get(i);
+                boolean selected = (i == baseUrlPresetIndex);
+                if (selected) {
+                    ctx.fill(listX0, iy0, listX0 + listW, iy1, 0xAA335577);
+                }
+                String label = it.label + (it.url == null ? "" : (it.url.isBlank() ? "" : ("  " + it.url)));
+                if (label.length() > 64) label = label.substring(0, 63) + "…";
+                ctx.drawTextWithShadow(client.textRenderer, Text.literal(label), listX0 + 4, iy0 + 4, COLOR_WHITE);
+            }
+        }
     }
 
     // =======================
@@ -575,15 +639,51 @@ public class SettingsPanel extends BasePanel {
         // =========== LLM Base URL ============
         y += FIELD_SPACING;
         int llmBaseUrlLabelY = y;
-        int llmBaseUrlY = llmBaseUrlLabelY + LABEL_OFFSET;
-        if (llmBaseUrlInput.mouseClicked(mouseX, mouseY, x, llmBaseUrlY, w, INPUT_HEIGHT)) {
+        int llmBaseUrlPresetY = llmBaseUrlLabelY + LABEL_OFFSET;
+        int llmBaseUrlThirdLineY = llmBaseUrlLabelY + LABEL_OFFSET * 2;
+
+        // 预设按钮（第二行）
+        llmBaseUrlPresetButton.setPosition(x, llmBaseUrlPresetY);
+        llmBaseUrlPresetButton.setWidth(w);
+        if (llmBaseUrlPresetButton.mouseClicked(click, false)) {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
             return true;
         }
 
+        // 下拉展开：命中选项
+        if (baseUrlPresetDropdownOpen) {
+            int itemH = BUTTON_HEIGHT;
+            int listX0 = x;
+            int listY0 = llmBaseUrlThirdLineY + LABEL_OFFSET; // 展开在第三行下方
+            int listW = w;
+            int listH = Math.min(BASE_URL_PRESETS.size(), 8) * itemH;
+            if (mouseX >= listX0 && mouseX <= listX0 + listW && mouseY >= listY0 && mouseY <= listY0 + listH) {
+                int idx = (int) ((mouseY - listY0) / itemH);
+                applyBaseUrlPreset(idx);
+                return true;
+            } else {
+                // 点击列表外：收起
+                baseUrlPresetDropdownOpen = false;
+            }
+        }
+
+        // 第三行：只有自定义时才允许点输入框
+        BaseUrlPreset p = getSelectedBaseUrlPreset();
+        if (p != null && p.url == null) {
+            if (llmBaseUrlInput.mouseClicked(mouseX, mouseY, x, llmBaseUrlThirdLineY, w, INPUT_HEIGHT)) {
+                orchestratorInput.setFocused(false);
+                apiKeyInput.setFocused(false);
+                return true;
+            }
+        } else {
+            llmBaseUrlInput.setFocused(false);
+        }
+
         // =========== 模型探测 ============
-        y += FIELD_SPACING;
+        // Base URL 是三行（FIELD_SPACING + LABEL_OFFSET）
+        y += FIELD_SPACING + LABEL_OFFSET;
         int modelLabelY = y;
         int modelY = modelLabelY + LABEL_OFFSET;
 
@@ -709,12 +809,15 @@ public class SettingsPanel extends BasePanel {
             return;
         }
 
-        // LLM Base URL 输入框（在 API Key（三行）之后：FIELD_SPACING + LABEL_OFFSET，然后 Provider 一段 FIELD_SPACING，再到 BaseURL）
+        // LLM Base URL：仅“自定义”时允许在输入框上滚动（水平滚动查看被截断内容）
         y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Provider 区块起点
         y += FIELD_SPACING;                // 跳过 Provider（label+button）
-        int baseUrlY = y + LABEL_OFFSET;   // BaseURL 输入框在 label 下方一行
-        if (llmBaseUrlInput.mouseScrolled(mouseX, mouseY, amount, x, baseUrlY, w, INPUT_HEIGHT)) {
-            return;
+        BaseUrlPreset p = getSelectedBaseUrlPreset();
+        if (p != null && p.url == null) {
+            int baseUrlY = y + LABEL_OFFSET * 2; // BaseURL 第三行
+            if (llmBaseUrlInput.mouseScrolled(mouseX, mouseY, amount, x, baseUrlY, w, INPUT_HEIGHT)) {
+                return;
+            }
         }
 
         // 否则：滚动面板内容
@@ -765,6 +868,18 @@ public class SettingsPanel extends BasePanel {
             drawTooltipCompat(
                     ctx,
                     java.util.List.of(Text.literal("LLM Provider（切换）"), Text.literal("当前：" + p)),
+                    (int) mouseX,
+                    (int) mouseY
+            );
+            return true;
+        }
+        if (llmBaseUrlPresetButton != null && llmBaseUrlPresetButton.isMouseOver(mouseX, mouseY)) {
+            BaseUrlPreset p = getSelectedBaseUrlPreset();
+            String name = (p == null) ? "自动" : p.label;
+            String u = (p == null) ? "" : (p.url == null ? "(自定义输入)" : (p.url.isBlank() ? "(自动)" : p.url));
+            drawTooltipCompat(
+                    ctx,
+                    java.util.List.of(Text.literal("LLM Base URL（预设下拉）"), Text.literal("当前：" + name), Text.literal("URL: " + u)),
                     (int) mouseX,
                     (int) mouseY
             );
@@ -821,6 +936,11 @@ public class SettingsPanel extends BasePanel {
         llmProviderButton = ButtonWidget.builder(getLlmProviderButtonText(), b -> cycleLlmProvider())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("选择 LLM Provider（DeepSeek 优先；其它 OpenAI-compatible 也可用）")))
+                .build();
+
+        llmBaseUrlPresetButton = ButtonWidget.builder(getBaseUrlPresetButtonText(), b -> toggleBaseUrlPresetDropdown())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("选择主流 LLM Base URL 预设（避免输入错误）；选“自定义”可手动输入")))
                 .build();
 
         // Sliders（用原版 SliderWidget 渲染）
@@ -899,9 +1019,78 @@ public class SettingsPanel extends BasePanel {
             draftLlmBaseUrl = "https://api.openai.com/v1";
         }
         llmBaseUrlInput.setText(draftLlmBaseUrl != null ? draftLlmBaseUrl : "");
+        syncBaseUrlPresetFromValue(draftLlmBaseUrl);
 
         if (llmProviderButton != null) llmProviderButton.setMessage(getLlmProviderButtonText());
         showToast("LLM Provider: " + next, false);
+    }
+
+    private BaseUrlPreset getSelectedBaseUrlPreset() {
+        if (baseUrlPresetIndex < 0 || baseUrlPresetIndex >= BASE_URL_PRESETS.size()) {
+            baseUrlPresetIndex = 0;
+        }
+        return BASE_URL_PRESETS.get(baseUrlPresetIndex);
+    }
+
+    private Text getBaseUrlPresetButtonText() {
+        BaseUrlPreset p = getSelectedBaseUrlPreset();
+        String name = (p == null) ? "自动" : p.label;
+        return Text.literal("预设：" + name);
+    }
+
+    private void toggleBaseUrlPresetDropdown() {
+        baseUrlPresetDropdownOpen = !baseUrlPresetDropdownOpen;
+    }
+
+    private void applyBaseUrlPreset(int idx) {
+        if (idx < 0 || idx >= BASE_URL_PRESETS.size()) return;
+        baseUrlPresetIndex = idx;
+        baseUrlPresetDropdownOpen = false;
+
+        BaseUrlPreset p = BASE_URL_PRESETS.get(idx);
+        if (p.url == null) {
+            // custom: keep input as-is; allow editing
+            llmBaseUrlInput.setFocused(true);
+            currentFocusIndex = FOCUS_LLM_BASEURL;
+        } else {
+            draftLlmBaseUrl = p.url;
+            llmBaseUrlInput.setText(p.url);
+            llmBaseUrlInput.setFocused(false);
+        }
+
+        if (llmBaseUrlPresetButton != null) llmBaseUrlPresetButton.setMessage(getBaseUrlPresetButtonText());
+    }
+
+    private void syncBaseUrlPresetFromValue(String baseUrl) {
+        String v = baseUrl == null ? "" : baseUrl.trim();
+
+        if (v.isEmpty()) {
+            // auto
+            for (int i = 0; i < BASE_URL_PRESETS.size(); i++) {
+                if ("auto".equals(BASE_URL_PRESETS.get(i).id)) {
+                    baseUrlPresetIndex = i;
+                    return;
+                }
+            }
+            baseUrlPresetIndex = 0;
+            return;
+        }
+
+        for (int i = 0; i < BASE_URL_PRESETS.size(); i++) {
+            BaseUrlPreset p = BASE_URL_PRESETS.get(i);
+            if (p.url != null && p.url.equalsIgnoreCase(v)) {
+                baseUrlPresetIndex = i;
+                return;
+            }
+        }
+
+        // custom
+        for (int i = 0; i < BASE_URL_PRESETS.size(); i++) {
+            if ("custom".equals(BASE_URL_PRESETS.get(i).id)) {
+                baseUrlPresetIndex = i;
+                return;
+            }
+        }
     }
 
     private void startDetectModel() {
@@ -1391,7 +1580,8 @@ public class SettingsPanel extends BasePanel {
     public void charTyped(char chr) {
         if (orchestratorInput.isFocused()) orchestratorInput.charTyped(chr);
         if (apiKeyInput.isFocused()) apiKeyInput.charTyped(chr);
-        if (llmBaseUrlInput.isFocused()) llmBaseUrlInput.charTyped(chr);
+        BaseUrlPreset p = getSelectedBaseUrlPreset();
+        if (p != null && p.url == null && llmBaseUrlInput.isFocused()) llmBaseUrlInput.charTyped(chr);
     }
 
     @Override
@@ -1405,16 +1595,17 @@ public class SettingsPanel extends BasePanel {
         // 关键：要拿到 modifiers，才能支持 Ctrl+V / Shift 选区 等
         if (orchestratorInput.isFocused()) orchestratorInput.keyPressed(keyCode, modifiers);
         if (apiKeyInput.isFocused()) apiKeyInput.keyPressed(keyCode, modifiers);
-        if (llmBaseUrlInput.isFocused()) llmBaseUrlInput.keyPressed(keyCode, modifiers);
+        BaseUrlPreset p = getSelectedBaseUrlPreset();
+        if (p != null && p.url == null && llmBaseUrlInput.isFocused()) llmBaseUrlInput.keyPressed(keyCode, modifiers);
 
         // Tab: 切换焦点
         if (keyCode == GLFW.GLFW_KEY_TAB) {
             boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
-            int count = 3;
+            int count = (getSelectedBaseUrlPreset() != null && getSelectedBaseUrlPreset().url == null) ? 3 : 2;
             currentFocusIndex = shift ? (currentFocusIndex + count - 1) % count : (currentFocusIndex + 1) % count;
             orchestratorInput.setFocused(currentFocusIndex == FOCUS_ORCHESTRATOR);
             apiKeyInput.setFocused(currentFocusIndex == FOCUS_API_KEY);
-            llmBaseUrlInput.setFocused(currentFocusIndex == FOCUS_LLM_BASEURL);
+            llmBaseUrlInput.setFocused(count == 3 && currentFocusIndex == FOCUS_LLM_BASEURL);
             return;
         }
 
@@ -1426,6 +1617,8 @@ public class SettingsPanel extends BasePanel {
 
     @Override
     public boolean wantsKeyboardInput() {
-        return apiKeyInput.isFocused() || orchestratorInput.isFocused();
+        BaseUrlPreset p = getSelectedBaseUrlPreset();
+        boolean baseUrlFocused = (p != null && p.url == null && llmBaseUrlInput.isFocused());
+        return apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused;
     }
 }
