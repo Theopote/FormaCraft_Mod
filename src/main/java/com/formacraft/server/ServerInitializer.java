@@ -24,9 +24,7 @@ public class ServerInitializer implements DedicatedServerModInitializer {
         BuildExecutionService.registerTickHandler();
         
         // 注册命令
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            FormaCraftCommands.register(dispatcher);
-        });
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> FormaCraftCommands.register(dispatcher));
     }
 }
 

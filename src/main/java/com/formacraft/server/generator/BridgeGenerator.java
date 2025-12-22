@@ -66,13 +66,19 @@ public class BridgeGenerator implements StructureGenerator {
         // ---------------------------------------------------------
         // 2. 桥面 Y 偏移曲线（flat / arched / suspension）
         // ---------------------------------------------------------
-        int[] yOffsets = computeYOffsetArray(bridgeType, length);
+        int[] yOffsets = null;
+        if (bridgeType != null) {
+            yOffsets = computeYOffsetArray(bridgeType, length);
+        }
 
         // ---------------------------------------------------------
         // 3. 主桥面（floor）
         // ---------------------------------------------------------
         for (int z = 0; z <= length; z++) {
-            int yOffset = yOffsets[z];
+            int yOffset = 0;
+            if (yOffsets != null) {
+                yOffset = yOffsets[z];
+            }
             for (int x = -width / 2; x <= width / 2; x++) {
                 BlockPos pos = origin.add(x, yOffset, z);
                 blocks.add(new PlannedBlock(pos, floor));
@@ -83,7 +89,10 @@ public class BridgeGenerator implements StructureGenerator {
         // 4. 护栏（两侧 fence）
         // ---------------------------------------------------------
         for (int z = 0; z <= length; z++) {
-            int yOffset = yOffsets[z];
+            int yOffset = 0;
+            if (yOffsets != null) {
+                yOffset = yOffsets[z];
+            }
             BlockPos left = origin.add(-width / 2 - 1, yOffset, z);
             BlockPos right = origin.add(width / 2 + 1, yOffset, z);
             blocks.add(new PlannedBlock(left, railing));
@@ -94,7 +103,10 @@ public class BridgeGenerator implements StructureGenerator {
         // 5. 桥墩（根据地形生成支撑）
         // ---------------------------------------------------------
         for (int z = 0; z <= length; z += pillarInterval) {
-            int yOffset = yOffsets[z];
+            int yOffset = 0;
+            if (yOffsets != null) {
+                yOffset = yOffsets[z];
+            }
             BlockPos mid = origin.add(0, yOffset, z);
             
             // 向下延伸支撑直到遇到实心方块
@@ -116,26 +128,42 @@ public class BridgeGenerator implements StructureGenerator {
         // ---------------------------------------------------------
         // 6. 悬桥形式：加入主塔和拉索（可选）
         // ---------------------------------------------------------
-        if (bridgeType.equalsIgnoreCase("suspension")) {
+        if (bridgeType != null && bridgeType.equalsIgnoreCase("suspension")) {
             generateSuspensionCables(blocks, origin, world, width, length, support);
         }
 
         // ---------------------------------------------------------
         // 7. 桥头接地处理（在桥两端创建平台）
         // ---------------------------------------------------------
-        BlockPos leftEnd = origin.add(0, yOffsets[0], 0);
-        BlockPos rightEnd = origin.add(0, yOffsets[length], length);
-        
+        BlockPos leftEnd = null;
+        if (yOffsets != null) {
+            leftEnd = origin.add(0, yOffsets[0], 0);
+        }
+        BlockPos rightEnd = null;
+        if (yOffsets != null) {
+            rightEnd = origin.add(0, yOffsets[length], length);
+        }
+
         // 为桥头创建接地平台
-        com.formacraft.server.terrain.TerrainOperation leftLanding = 
-            com.formacraft.server.terrain.TerrainShaper.createBridgeLanding(
+        com.formacraft.server.terrain.TerrainOperation leftLanding =
+                null;
+        if (leftEnd != null) {
+            leftLanding = com.formacraft.server.terrain.TerrainShaper.createBridgeLanding(
                 world, leftEnd, 3, support);
-        com.formacraft.server.terrain.TerrainOperation rightLanding = 
-            com.formacraft.server.terrain.TerrainShaper.createBridgeLanding(
+        }
+        com.formacraft.server.terrain.TerrainOperation rightLanding =
+                null;
+        if (rightEnd != null) {
+            rightLanding = com.formacraft.server.terrain.TerrainShaper.createBridgeLanding(
                 world, rightEnd, 3, support);
-        
-        blocks.addAll(leftLanding.getBlocks());
-        blocks.addAll(rightLanding.getBlocks());
+        }
+
+        if (leftLanding != null) {
+            blocks.addAll(leftLanding.getBlocks());
+        }
+        if (rightLanding != null) {
+            blocks.addAll(rightLanding.getBlocks());
+        }
 
         // ---------------------------------------------------------
         // 返回结构
@@ -332,12 +360,9 @@ public class BridgeGenerator implements StructureGenerator {
 
             // 从注册表获取 Block（使用静态 Registries）
             Block block = Registries.BLOCK.get(identifier);
-            if (block != null) {
-                return block.getDefaultState();
-            }
-            
+            return block.getDefaultState();
+
             // 如果找不到，尝试使用简单的字符串匹配作为回退
-            return resolveBlockFallback(id);
         } catch (Exception e) {
             // 如果解析失败，使用回退方案
             return resolveBlockFallback(id);

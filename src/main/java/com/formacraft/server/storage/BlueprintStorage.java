@@ -26,8 +26,7 @@ public class BlueprintStorage {
         // 使用服务器的世界保存路径
         // 回退方案：使用运行目录（简化实现，避免版本兼容性问题）
         // 蓝图将保存在运行目录下的 formacraft/blueprints 文件夹
-        Path fallbackPath = java.nio.file.Paths.get(".").resolve("formacraft/blueprints");
-        return fallbackPath;
+        return java.nio.file.Paths.get(".").resolve("formacraft/blueprints");
     }
 
     /**

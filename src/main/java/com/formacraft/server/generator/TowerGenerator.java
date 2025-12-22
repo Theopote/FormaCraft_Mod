@@ -190,12 +190,9 @@ public class TowerGenerator implements StructureGenerator {
 
             // 从注册表获取 Block（使用静态 Registries）
             Block block = Registries.BLOCK.get(identifier);
-            if (block != null) {
-                return block.getDefaultState();
-            }
-            
+            return block.getDefaultState();
+
             // 如果找不到，尝试使用简单的字符串匹配作为回退
-            return resolveBlockFallback(id);
         } catch (Exception e) {
             // 如果解析失败，使用回退方案
             return resolveBlockFallback(id);

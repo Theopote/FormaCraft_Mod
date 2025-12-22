@@ -48,9 +48,6 @@ public class CityBuilder {
 
                 // 获取对应的生成器
                 StructureGenerator generator = StructureGeneratorFactory.getGenerator(sp.getSpec());
-                if (generator == null) {
-                    continue;
-                }
 
                 // 计算建筑的绝对坐标
                 CitySpec.Point offset = sp.getOffset();
@@ -61,7 +58,7 @@ public class CityBuilder {
                 
                 // 为每个建筑应用地形整形
                 BlockPos buildingMin = buildingOrigin;
-                BlockPos buildingMax = buildingOrigin;
+                BlockPos buildingMax;
                 
                 if (sp.getSpec().getFootprint() != null) {
                     int width = sp.getSpec().getFootprint().getWidth() > 0 ? 
@@ -90,9 +87,7 @@ public class CityBuilder {
                         net.minecraft.util.Identifier id = net.minecraft.util.Identifier.of(
                             sp.getSpec().getMaterials().getFoundation());
                         net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(id);
-                        if (block != null) {
-                            fillMaterial = block.getDefaultState();
-                        }
+                        fillMaterial = block.getDefaultState();
                     } catch (Exception e) {
                         // 使用默认材质
                     }

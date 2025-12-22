@@ -48,19 +48,11 @@ public class PathGenerator {
         // 根据样式选择生成方式
         String style = path.getStyle() != null ? path.getStyle() : "default";
         
-        List<BlockPos> pathPoints;
-        switch (style.toLowerCase()) {
-            case "curved":
-                pathPoints = generateCurvedPath(p0, p1);
-                break;
-            case "stepped":
-                pathPoints = generateSteppedPath(p0, p1, world);
-                break;
-            case "default":
-            default:
-                pathPoints = rasterizeLine(p0, p1);
-                break;
-        }
+        List<BlockPos> pathPoints = switch (style.toLowerCase()) {
+            case "curved" -> generateCurvedPath(p0, p1);
+            case "stepped" -> generateSteppedPath(p0, p1, world);
+            default -> rasterizeLine(p0, p1);
+        };
 
         // 生成路径的主逻辑
         for (BlockPos p : pathPoints) {
@@ -68,7 +60,6 @@ public class PathGenerator {
             for (int dx = -width / 2; dx <= width / 2; dx++) {
                 for (int dz = -width / 2; dz <= width / 2; dz++) {
                     BlockPos ground = findGround(world, p.add(dx, 0, dz));
-                    if (ground == null) continue;
 
                     // 放置道路方块（在地面上方 1 格）
                     BlockPos place = ground.up();
@@ -169,7 +160,6 @@ public class PathGenerator {
         int offsetZ = (int) (Math.random() * 5 - 2);
         
         int cx = midX + offsetX;
-        int cy = midY;
         int cz = midZ + offsetZ;
         
         // 二次贝塞尔曲线采样
@@ -183,7 +173,7 @@ public class PathGenerator {
             
             // 二次贝塞尔曲线公式：B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
             int x = (int) (u * u * x1 + 2 * u * t * cx + t * t * x2);
-            int y = (int) (u * u * y1 + 2 * u * t * cy + t * t * y2);
+            int y = (int) (u * u * y1 + 2 * u * t * midY + t * t * y2);
             int z = (int) (u * u * z1 + 2 * u * t * cz + t * t * z2);
             
             result.add(new BlockPos(x, y, z));
@@ -209,11 +199,7 @@ public class PathGenerator {
         // 获取起点和终点的实际地面高度
         BlockPos startGround = findGround(world, start);
         BlockPos endGround = findGround(world, end);
-        
-        if (startGround == null || endGround == null) {
-            return linePath; // 回退到直线路径
-        }
-        
+
         int startY = startGround.getY();
         int endY = endGround.getY();
         int totalHeightDiff = endY - startY;
@@ -230,13 +216,11 @@ public class PathGenerator {
                 
                 // 确保 Y 在合理范围内
                 BlockPos ground = findGround(world, current);
-                if (ground != null) {
-                    // 如果目标高度与地面高度差距太大，使用地面高度
-                    if (Math.abs(targetY - ground.getY()) > 5) {
-                        targetY = ground.getY();
-                    }
+                // 如果目标高度与地面高度差距太大，使用地面高度
+                if (Math.abs(targetY - ground.getY()) > 5) {
+                    targetY = ground.getY();
                 }
-                
+
                 result.add(new BlockPos(current.getX(), targetY, current.getZ()));
             }
         } else {
@@ -244,27 +228,25 @@ public class PathGenerator {
             for (int i = 0; i < linePath.size(); i++) {
                 BlockPos current = linePath.get(i);
                 BlockPos ground = findGround(world, current);
-                
-                if (ground != null) {
-                    // 检查与前一个点的高度差
-                    if (i > 0 && result.size() > 0) {
-                        BlockPos prev = result.get(result.size() - 1);
-                        int heightDiff = ground.getY() - prev.getY();
-                        
-                        // 如果高度差大于 1，添加中间台阶
-                        if (Math.abs(heightDiff) > 1) {
-                            int steps = Math.abs(heightDiff);
-                            int stepDir = heightDiff > 0 ? 1 : -1;
-                            
-                            for (int s = 1; s < steps; s++) {
-                                int stepY = prev.getY() + s * stepDir;
-                                result.add(new BlockPos(current.getX(), stepY, current.getZ()));
-                            }
+
+                // 检查与前一个点的高度差
+                if (i > 0 && !result.isEmpty()) {
+                    BlockPos prev = result.getLast();
+                    int heightDiff = ground.getY() - prev.getY();
+
+                    // 如果高度差大于 1，添加中间台阶
+                    if (Math.abs(heightDiff) > 1) {
+                        int steps = Math.abs(heightDiff);
+                        int stepDir = heightDiff > 0 ? 1 : -1;
+
+                        for (int s = 1; s < steps; s++) {
+                            int stepY = prev.getY() + s * stepDir;
+                            result.add(new BlockPos(current.getX(), stepY, current.getZ()));
                         }
                     }
-                    
-                    result.add(new BlockPos(current.getX(), ground.getY(), current.getZ()));
                 }
+
+                result.add(new BlockPos(current.getX(), ground.getY(), current.getZ()));
             }
         }
         
@@ -283,7 +265,7 @@ public class PathGenerator {
             BlockPos check = new BlockPos(pos.getX(), y, pos.getZ());
             BlockState state = world.getBlockState(check);
             
-            if (!state.isAir() && !state.getFluidState().isEmpty() == false) {
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
                 return check;
             }
             
@@ -311,11 +293,8 @@ public class PathGenerator {
             }
 
             Block block = Registries.BLOCK.get(identifier);
-            if (block != null) {
-                return block.getDefaultState();
-            }
-            
-            return resolveBlockFallback(id);
+            return block.getDefaultState();
+
         } catch (Exception e) {
             return resolveBlockFallback(id);
         }

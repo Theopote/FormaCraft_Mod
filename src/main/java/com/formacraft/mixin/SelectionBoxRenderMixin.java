@@ -31,11 +31,11 @@ public class SelectionBoxRenderMixin {
             at = @At("TAIL"),
             require = 0
     )
-    private static void formacraft$renderOverlays(VertexConsumerProvider.Immediate immediate,
-                                                  MatrixStack matrices,
-                                                  boolean renderBlockOutline,
-                                                  net.minecraft.client.render.state.WorldRenderState renderStates,
-                                                  CallbackInfo ci) {
+    private void formacraft$renderOverlays(VertexConsumerProvider.Immediate immediate,
+                                           MatrixStack matrices,
+                                           boolean renderBlockOutline,
+                                           net.minecraft.client.render.state.WorldRenderState renderStates,
+                                           CallbackInfo ci) {
         if (!FormacraftUIState.isOpen) return;
 
         MinecraftClient client = MinecraftClient.getInstance();

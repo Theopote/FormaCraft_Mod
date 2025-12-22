@@ -77,7 +77,7 @@ public class MinecraftClientMixin {
                 LOGGER.debug("[MinecraftClientMixin] 面板内或上次点击UI处理，完全拦截 handleInputEvents");
             }
             ci.cancel();
-            return; // 立即返回，确保不会继续处理
+            // 立即返回，确保不会继续处理
         }
         // 如果鼠标在面板外，不拦截，允许正常游戏操作
     }

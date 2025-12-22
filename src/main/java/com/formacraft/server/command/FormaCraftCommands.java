@@ -396,35 +396,40 @@ public class FormaCraftCommands {
                         // 根据蓝图类型反序列化
                         String dataJson = bp.getData().toString();
                         BlockPos origin = player.getBlockPos();
-                        GeneratedStructure gs = null;
+                        GeneratedStructure gs;
 
-                        if ("CitySpec".equals(bp.getType())) {
-                            CitySpec city = JsonUtil.fromJson(dataJson, CitySpec.class);
-                            
-                            // 缓存到玩家当前 spec
-                            PlayerSpecRepository.setCitySpec(player, name, dataJson);
-                            
-                            // 生成结构
-                            CityBuilder cityBuilder = new CityBuilder();
-                            gs = cityBuilder.generate(city, origin, serverWorld);
-                        } else if ("CompositeSpec".equals(bp.getType())) {
-                            CompositeSpec composite = JsonUtil.fromJson(dataJson, CompositeSpec.class);
-                            
-                            // 生成结构
-                            CompositeStructureGenerator generator = new CompositeStructureGenerator();
-                            gs = generator.generate(composite, origin, serverWorld);
-                        } else if ("BuildingSpec".equals(bp.getType())) {
-                            BuildingSpec spec = JsonUtil.fromJson(dataJson, BuildingSpec.class);
-                            
-                            // 缓存到玩家当前 spec
-                            PlayerSpecRepository.setBuildingSpec(player, name, dataJson);
-                            
-                            // 生成结构
-                            StructureGenerator generator = StructureGeneratorFactory.getGenerator(spec);
-                            gs = generator.generate(spec, origin, serverWorld);
-                        } else {
-                            ctx.getSource().sendError(Text.literal("Unknown blueprint type: " + bp.getType()));
-                            return 0;
+                        switch (bp.getType()) {
+                            case "CitySpec" -> {
+                                CitySpec city = JsonUtil.fromJson(dataJson, CitySpec.class);
+
+                                // 缓存到玩家当前 spec
+                                PlayerSpecRepository.setCitySpec(player, name, dataJson);
+
+                                // 生成结构
+                                CityBuilder cityBuilder = new CityBuilder();
+                                gs = cityBuilder.generate(city, origin, serverWorld);
+                            }
+                            case "CompositeSpec" -> {
+                                CompositeSpec composite = JsonUtil.fromJson(dataJson, CompositeSpec.class);
+
+                                // 生成结构
+                                CompositeStructureGenerator generator = new CompositeStructureGenerator();
+                                gs = generator.generate(composite, origin, serverWorld);
+                            }
+                            case "BuildingSpec" -> {
+                                BuildingSpec spec = JsonUtil.fromJson(dataJson, BuildingSpec.class);
+
+                                // 缓存到玩家当前 spec
+                                PlayerSpecRepository.setBuildingSpec(player, name, dataJson);
+
+                                // 生成结构
+                                StructureGenerator generator = StructureGeneratorFactory.getGenerator(spec);
+                                gs = generator.generate(spec, origin, serverWorld);
+                            }
+                            case null, default -> {
+                                ctx.getSource().sendError(Text.literal("Unknown blueprint type: " + bp.getType()));
+                                return 0;
+                            }
                         }
 
                         if (gs == null) {

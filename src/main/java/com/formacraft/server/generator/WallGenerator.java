@@ -73,12 +73,9 @@ public class WallGenerator implements StructureGenerator {
 
             // 从注册表获取 Block
             Block block = Registries.BLOCK.get(identifier);
-            if (block != null) {
-                return block.getDefaultState();
-            }
-            
+            return block.getDefaultState();
+
             // 回退方案
-            return resolveBlockFallback(id);
         } catch (Exception e) {
             return resolveBlockFallback(id);
         }

@@ -30,10 +30,6 @@ public class BuildRequestHandler {
         }
 
         MinecraftServer server = serverWorld.getServer();
-        if (server == null) {
-            FormacraftMod.LOGGER.warn("Server is null");
-            return;
-        }
 
         FormaRequest request = packet.request();
         FormacraftMod.LOGGER.info("Received build request from player {}: {}", player.getName().getString(), request.getRequestText());

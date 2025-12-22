@@ -201,9 +201,11 @@ public class BuildConfirmPanel {
                 for (BlockPatch p : patchList) {
                     if (p == null || p.action() == null) continue;
                     String a = p.action().toLowerCase();
-                    if ("place".equals(a)) place++;
-                    else if ("remove".equals(a)) remove++;
-                    else if ("replace".equals(a)) replace++;
+                    switch (a) {
+                        case "place" -> place++;
+                        case "remove" -> remove++;
+                        case "replace" -> replace++;
+                    }
                 }
             }
             context.drawTextWithShadow(

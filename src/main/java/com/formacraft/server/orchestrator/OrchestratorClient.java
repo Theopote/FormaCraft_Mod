@@ -59,7 +59,7 @@ public class OrchestratorClient {
                                     if (composite != null && composite.getStructures() != null && 
                                         !composite.getStructures().isEmpty()) {
                                         // 返回第一个结构的 spec
-                                        return composite.getStructures().get(0).getSpec();
+                                        return composite.getStructures().getFirst().getSpec();
                                     }
                                 }
                                 // 否则解析为 BuildingSpec
@@ -217,10 +217,8 @@ public class OrchestratorClient {
                             FormacraftMod.LOGGER.info("Received city edit response from orchestrator");
                             try {
                                 // 解析响应，提取 updatedCitySpec
-                                @SuppressWarnings("unchecked")
-                                java.util.Map<String, Object> response = (java.util.Map<String, Object>) 
-                                        com.formacraft.common.json.JsonUtil.get().fromJson(body, 
-                                        new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>(){}.getType());
+                                java.util.Map<String, Object> response = JsonUtil.get().fromJson(body,
+                                new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>(){}.getType());
                                 @SuppressWarnings("unchecked")
                                 java.util.Map<String, Object> updatedSpec = (java.util.Map<String, Object>) response.get("updatedCitySpec");
                                 return com.formacraft.common.json.JsonUtil.toJson(updatedSpec);
@@ -257,10 +255,8 @@ public class OrchestratorClient {
             requestBody.put("buildingId", buildingId);
             
             // 解析 currentJson 为 Map
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> buildingSpecMap = (java.util.Map<String, Object>) 
-                    com.formacraft.common.json.JsonUtil.get().fromJson(currentJson, 
-                    new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>(){}.getType());
+            java.util.Map<String, Object> buildingSpecMap = JsonUtil.get().fromJson(currentJson,
+            new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>(){}.getType());
             requestBody.put("currentBuildingSpec", buildingSpecMap);
             requestBody.put("editCommand", editCommand);
             requestBody.put("context", new java.util.HashMap<>());
@@ -281,10 +277,8 @@ public class OrchestratorClient {
                             FormacraftMod.LOGGER.info("Received building edit response from orchestrator");
                             try {
                                 // 解析响应，提取 updatedBuildingSpec
-                                @SuppressWarnings("unchecked")
-                                java.util.Map<String, Object> response = (java.util.Map<String, Object>) 
-                                        com.formacraft.common.json.JsonUtil.get().fromJson(body, 
-                                        new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>(){}.getType());
+                                java.util.Map<String, Object> response = JsonUtil.get().fromJson(body,
+                                new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>(){}.getType());
                                 @SuppressWarnings("unchecked")
                                 java.util.Map<String, Object> updatedSpec = (java.util.Map<String, Object>) response.get("updatedBuildingSpec");
                                 return com.formacraft.common.json.JsonUtil.toJson(updatedSpec);

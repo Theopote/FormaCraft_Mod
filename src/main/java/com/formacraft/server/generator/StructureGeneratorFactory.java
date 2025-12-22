@@ -26,10 +26,6 @@ public class StructureGeneratorFactory {
                 FormacraftMod.LOGGER.warn("CUSTOM building type not yet implemented, using TowerGenerator");
                 yield new TowerGenerator();
             }
-            default -> {
-                FormacraftMod.LOGGER.warn("Unknown building type: {}, using TowerGenerator", type);
-                yield new TowerGenerator();
-            }
         };
     }
 }

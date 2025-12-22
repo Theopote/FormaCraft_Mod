@@ -43,7 +43,7 @@ public class GameRendererMixin {
         // 鼠标在面板外：用光标 RayCast 更新目标
         double fov = 70.0;
         try {
-            fov = ((GameRendererAccessor) (Object) this).formacraft$invokeGetFov(client.gameRenderer.getCamera(), tickDelta, true);
+            fov = ((GameRendererAccessor) this).formacraft$invokeGetFov(client.gameRenderer.getCamera(), tickDelta, true);
         } catch (Throwable ignored) {
         }
         client.crosshairTarget = CursorRaycastHelper.raycastFromCursor(tickDelta, getReachDistance(), fov);

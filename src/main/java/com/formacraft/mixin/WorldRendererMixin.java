@@ -14,7 +14,6 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  * 这里直接修改该参数，避免依赖内部私有绘制函数名/签名（更稳定）。
  */
 @Mixin(WorldRenderer.class)
-@SuppressWarnings("UnresolvedMixinReference")
 public class WorldRendererMixin {
 
     @ModifyVariable(

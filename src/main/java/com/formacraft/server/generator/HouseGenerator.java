@@ -78,14 +78,13 @@ public class HouseGenerator implements StructureGenerator {
                         BlockPos pos = origin.add(x, y, z);
 
                         // 门位置逻辑（根据 doorStyle）
-                        boolean isDoor = hasDoor && !"none".equalsIgnoreCase(doorStyle) &&
-                                (z == 0) &&
-                                ((doorStyle.equalsIgnoreCase("double") && 
-                                  (x == width / 2 || x == width / 2 - 1)) ||
-                                 (doorStyle.equalsIgnoreCase("single") && 
-                                  x == width / 2) ||
-                                 (doorStyle.equalsIgnoreCase("arched") && 
-                                  (x == width / 2 || x == width / 2 - 1))) &&
+                        boolean isDoor = hasDoor && (z == 0) &&
+                                ((doorStyle.equalsIgnoreCase("double") &&
+                                        (x == width / 2 || x == width / 2 - 1)) ||
+                                        (doorStyle.equalsIgnoreCase("single") &&
+                                                x == width / 2) ||
+                                        (doorStyle.equalsIgnoreCase("arched") &&
+                                                (x == width / 2 || x == width / 2 - 1))) &&
                                 (y == 0 || y == 1);
 
                         if (isDoor) {
@@ -96,18 +95,8 @@ public class HouseGenerator implements StructureGenerator {
                         // 窗户逻辑（根据 windowRatio）
                         if (hasWindows && y >= 1 && y <= 2) {
                             // 根据 windowRatio 决定是否开窗
-                            boolean shouldPlaceWindow = false;
-                            if (windowRatio >= 0.5) {
-                                // 高比例：每隔 2 格开窗
-                                shouldPlaceWindow = (x % 2 == 0 || z % 2 == 0);
-                            } else if (windowRatio >= 0.3) {
-                                // 中等比例：每隔 3 格开窗
-                                shouldPlaceWindow = (x % 3 == 0 || z % 3 == 0);
-                            } else {
-                                // 低比例：每隔 4 格开窗
-                                shouldPlaceWindow = (x % 4 == 0 || z % 4 == 0);
-                            }
-                            
+                            boolean shouldPlaceWindow = isShouldPlaceWindow(windowRatio, x, z);
+
                             // 避免在门的位置开窗
                             if (shouldPlaceWindow && 
                                 !(z == 0 && (x == width / 2 || x == width / 2 - 1))) {
@@ -153,24 +142,22 @@ public class HouseGenerator implements StructureGenerator {
             
             if ("gable".equalsIgnoreCase(actualRoofType)) {
                 // 双坡屋顶（gable roof）
-                int roofBaseY = height;
                 int roofHeight = Math.min(width / 2 + 2, 8); // 限制屋顶高度
 
                 // 正面与背面方向（沿 X 形成双坡）
                 for (int i = 0; i < roofHeight; i++) {
-                    int leftX = i;
                     int rightX = width - 1 - i;
 
-                    if (leftX > rightX) break;
+                    if (i > rightX) break;
 
                     for (int z = 0; z < depth; z++) {
-                        blocks.add(new PlannedBlock(origin.add(leftX, roofBaseY + i, z), roof));
-                        blocks.add(new PlannedBlock(origin.add(rightX, roofBaseY + i, z), roof));
+                        blocks.add(new PlannedBlock(origin.add(i, height + i, z), roof));
+                        blocks.add(new PlannedBlock(origin.add(rightX, height + i, z), roof));
                     }
                 }
 
                 // 封顶（最上层 ridge）
-                int ridgeY = roofBaseY + roofHeight;
+                int ridgeY = height + roofHeight;
                 int midX = width / 2;
 
                 for (int z = 0; z < depth; z++) {
@@ -200,6 +187,21 @@ public class HouseGenerator implements StructureGenerator {
         );
     }
 
+    private static boolean isShouldPlaceWindow(double windowRatio, int x, int z) {
+        boolean shouldPlaceWindow;
+        if (windowRatio >= 0.5) {
+            // 高比例：每隔 2 格开窗
+            shouldPlaceWindow = (x % 2 == 0 || z % 2 == 0);
+        } else if (windowRatio >= 0.3) {
+            // 中等比例：每隔 3 格开窗
+            shouldPlaceWindow = (x % 3 == 0 || z % 3 == 0);
+        } else {
+            // 低比例：每隔 4 格开窗
+            shouldPlaceWindow = (x % 4 == 0 || z % 4 == 0);
+        }
+        return shouldPlaceWindow;
+    }
+
     /**
      * 将字符串 blockId 转为 BlockState（比如 "minecraft:stone_bricks"）
      * 与 TowerGenerator 使用相同的解析逻辑
@@ -220,12 +222,9 @@ public class HouseGenerator implements StructureGenerator {
 
             // 从注册表获取 Block（使用静态 Registries）
             Block block = Registries.BLOCK.get(identifier);
-            if (block != null) {
-                return block.getDefaultState();
-            }
-            
+            return block.getDefaultState();
+
             // 如果找不到，尝试使用简单的字符串匹配作为回退
-            return resolveBlockFallback(id);
         } catch (Exception e) {
             // 如果解析失败，使用回退方案
             return resolveBlockFallback(id);

@@ -112,7 +112,7 @@ public class TerrainSampling {
         
         // 找到出现次数最多的高度
         int maxCount = 0;
-        int mode = heights.get(0);
+        int mode = heights.getFirst();
         for (java.util.Map.Entry<Integer, Integer> entry : frequency.entrySet()) {
             if (entry.getValue() > maxCount) {
                 maxCount = entry.getValue();

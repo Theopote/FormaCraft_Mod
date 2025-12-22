@@ -56,10 +56,6 @@ public class CompositeStructureGenerator {
             if (gen == null) {
                 // 如果找不到生成器，尝试使用 StructureGeneratorFactory
                 gen = StructureGeneratorFactory.getGenerator(sub.getSpec());
-                if (gen == null) {
-                    // 仍然找不到，跳过
-                    continue;
-                }
             }
 
             // 计算子结构的绝对坐标
