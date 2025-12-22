@@ -8,6 +8,10 @@ import net.minecraft.util.math.BlockPos;
  */
 public class FormaRequest {
     private String requestText;
+    /** 可选：玩家原始输入（不含系统拼接），用于 PATCH/编辑模式 */
+    private String userMessage;
+    /** 可选：BUILD/PATCH/MODIFY_REGION */
+    private String promptMode;
     private BlockPos playerPos;
     private String facing;
     private String dimension;
@@ -40,6 +44,22 @@ public class FormaRequest {
 
     public void setRequestText(String requestText) {
         this.requestText = requestText;
+    }
+
+    public String getUserMessage() {
+        return userMessage;
+    }
+
+    public void setUserMessage(String userMessage) {
+        this.userMessage = userMessage;
+    }
+
+    public String getPromptMode() {
+        return promptMode;
+    }
+
+    public void setPromptMode(String promptMode) {
+        this.promptMode = promptMode;
     }
 
     public BlockPos getPlayerPos() {

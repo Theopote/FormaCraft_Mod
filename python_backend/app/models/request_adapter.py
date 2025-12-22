@@ -24,6 +24,8 @@ class FormaRequestAdapter(BaseModel):
     selectionMax: Optional[dict] = None  # BlockPos 序列化
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
+    promptMode: Optional[str] = None
+    userMessage: Optional[str] = None
 
     # Java 端可选的 LLM 覆盖配置（由客户端设置面板传入）
     apiKey: Optional[str] = None
@@ -81,6 +83,8 @@ class FormaRequestAdapter(BaseModel):
                 world=world_context,
                 selection=selection_obj,
                 requestText=self.requestText or "",
+                promptMode=self.promptMode,
+                userMessage=self.userMessage,
                 sessionId=self.sessionId,
                 chatHistory=self.chatHistory,
                 apiKey=self.apiKey,
@@ -135,6 +139,8 @@ class FormaRequestAdapter(BaseModel):
                 world=world_context,
                 selection=selection_obj,
                 requestText=self.request,
+                promptMode=self.promptMode,
+                userMessage=self.userMessage,
                 sessionId=self.sessionId,
                 chatHistory=self.chatHistory,
                 apiKey=self.apiKey,

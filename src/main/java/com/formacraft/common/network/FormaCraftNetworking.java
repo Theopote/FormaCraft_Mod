@@ -11,6 +11,7 @@ import com.formacraft.server.orchestrator.OrchestratorClient;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.json.JsonUtil;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -317,6 +318,62 @@ public class FormaCraftNetworking {
                     });
                 } else {
                     // 请求单个建筑
+                    // 如果是 PATCH/MODIFY_REGION：走“增量编辑 BuildingSpec”链路
+                    String mode = req.getPromptMode();
+                    boolean isPatch = mode != null && !mode.isBlank() && !"BUILD".equalsIgnoreCase(mode.trim());
+                    if (isPatch) {
+                        String buildingId = com.formacraft.server.state.PlayerSpecRepository.getBuildingId(player);
+                        String currentJson = com.formacraft.server.state.PlayerSpecRepository.getBuildingJson(player);
+                        if (buildingId == null || currentJson == null) {
+                            player.sendMessage(net.minecraft.text.Text.literal("No current building spec. Generate a building first."), false);
+                            return;
+                        }
+
+                        ORCHESTRATOR.editBuilding(buildingId, currentJson, req.getRequestText()).thenAccept(updatedJson -> {
+                            if (updatedJson == null) {
+                                FormacraftMod.LOGGER.error("Failed to edit BuildingSpec via orchestrator");
+                                return;
+                            }
+
+                            context.server().execute(() -> {
+                                // 更新 PlayerSpecRepository
+                                com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, updatedJson);
+
+                                BuildingSpec updated = JsonUtil.fromJson(updatedJson, BuildingSpec.class);
+                                if (updated == null) return;
+
+                                BlockPos origin = req.getPlayerPos();
+                                if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                                    com.formacraft.server.generator.StructureGenerator generator =
+                                            com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(updated);
+                                    com.formacraft.server.build.GeneratedStructure structure =
+                                            generator.generate(updated, origin, serverWorld);
+
+                                    structure = new com.formacraft.server.build.GeneratedStructure(
+                                            player.getUuid(),
+                                            origin,
+                                            structure.getDescription(),
+                                            structure.getBlocks()
+                                    );
+
+                                    com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
+                                    List<com.formacraft.client.preview.OutlineBlock> outline =
+                                            com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
+                                    sendPreviewOutline(player, outline);
+                                    com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
+
+                                    player.sendMessage(net.minecraft.text.Text.literal(
+                                            "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."),
+                                            false);
+                                }
+
+                                // 同步给客户端，用于 UI 显示（notes 等）
+                                ServerPlayNetworking.send(player, new ResponseBuildSpecPayload(updated));
+                            });
+                        });
+                        return;
+                    }
+
                     ORCHESTRATOR.requestBuildingSpec(req).thenAccept(spec -> {
                         if (spec == null) {
                             FormacraftMod.LOGGER.error("Failed to get BuildingSpec from orchestrator");
@@ -381,6 +438,14 @@ public class FormaCraftNetworking {
                         net.minecraft.util.math.BlockPos origin = new net.minecraft.util.math.BlockPos(
                                 originArray[0], originArray[1], originArray[2]
                         );
+                        // 保存 BuildingSpec 到 PlayerSpecRepository（供 PATCH/编辑使用）
+                        try {
+                            String buildingId = "player_" + player.getName().getString() + "_world_" +
+                                    serverWorld.getRegistryKey().getValue();
+                            String buildingJson = JsonUtil.toJson(spec);
+                            com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, buildingJson);
+                        } catch (Throwable ignored) {}
+
                         // 使用玩家 UUID 创建 GeneratedStructure
                         BuildExecutionService.getInstance().queueBuild(
                                 serverWorld, 
