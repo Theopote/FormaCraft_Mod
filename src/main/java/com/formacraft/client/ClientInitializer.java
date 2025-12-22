@@ -7,6 +7,7 @@ import com.formacraft.client.ui.InputEventHandler;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.config.SettingsConfig;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 /**
  * 客户端初始化器
@@ -20,6 +21,9 @@ public class ClientInitializer implements ClientModInitializer {
 
         // 尝试自动启动本地后端（异步，不阻塞渲染线程）
         BackendAutoStarter.ensureStartedAsync();
+
+        // 周期性重试（例如首次启动时 python/网络尚未就绪，或用户之后修改了配置）
+        ClientTickEvents.END_CLIENT_TICK.register(client -> BackendAutoStarter.ensureStartedAsync());
         
         // 注册 S2C 数据包（服务端 → 客户端）
         FormaCraftNetworking.registerS2C();

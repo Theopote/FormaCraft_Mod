@@ -28,8 +28,17 @@ public final class BackendAutoStarter {
 
     private static final AtomicBoolean starting = new AtomicBoolean(false);
     private static volatile Process backendProcess = null;
+    private static volatile String lastError = null;
+    private static volatile long lastAttemptMs = 0L;
+    private static final long MIN_ATTEMPT_INTERVAL_MS = 10_000L;
 
+    /**
+     * 注意：默认 HttpClient 可能尝试 h2c upgrade（HTTP/2 over cleartext），
+     * uvicorn 会打印 "Unsupported upgrade request."。
+     * 这里强制 HTTP/1.1，避免日志刷屏。
+     */
     private static final HttpClient http = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(1))
             .build();
 
@@ -59,11 +68,18 @@ public final class BackendAutoStarter {
         if (!cfg.autoStartBackend) return;
 
         // 只对 localhost 地址启用自动启动，避免误启动远端
-        String endpoint = (cfg.orchestratorEndpoint == null) ? "" : cfg.orchestratorEndpoint.trim();
-        if (!isLocalhostEndpoint(endpoint, cfg.backendPort)) return;
+        String endpointRaw = (cfg.orchestratorEndpoint == null) ? "" : cfg.orchestratorEndpoint.trim();
+        if (!isLocalhostEndpoint(endpointRaw, cfg.backendPort)) return;
 
-        if (isHealthy(endpoint)) {
-            log("health ok, skip start. endpoint=" + endpoint);
+        long now = System.currentTimeMillis();
+        if (now - lastAttemptMs < MIN_ATTEMPT_INTERVAL_MS) return;
+        lastAttemptMs = now;
+
+        String endpointBase = normalizeBaseEndpointForHealth(endpointRaw, cfg.backendPort);
+
+        if (isHealthy(endpointBase)) {
+            lastError = null;
+            log("health ok, skip start. endpoint=" + endpointBase);
             return;
         }
 
@@ -71,8 +87,39 @@ public final class BackendAutoStarter {
         CompletableFuture.runAsync(() -> {
             try {
                 // double-check
-                if (isHealthy(endpoint)) return;
+                if (isHealthy(endpointBase)) return;
+                lastError = null;
                 startProcess(cfg);
+
+                // 如果连进程都没拉起，就别再输出“started but ...”这种误导信息
+                Process bp = backendProcess;
+                if (bp == null || !bp.isAlive()) {
+                    if (lastError == null || lastError.isBlank()) {
+                        lastError = "backend process not started (python/py not found or uvicorn missing)";
+                    }
+                    log("backend not started: " + lastError);
+                    return;
+                }
+
+                // 启动后最多等 10 秒轮询健康（避免“启动失败但用户无感”）
+                long deadline = System.currentTimeMillis() + 10_000L;
+                while (System.currentTimeMillis() < deadline) {
+                    if (isHealthy(endpointBase)) {
+                        lastError = null;
+                        log("backend became healthy: " + endpointBase);
+                        return;
+                    }
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+                if (!isHealthy(endpointBase)) {
+                    lastError = "started but /health still not reachable: " + endpointBase;
+                    log(lastError);
+                }
             } finally {
                 starting.set(false);
             }
@@ -94,9 +141,9 @@ public final class BackendAutoStarter {
         }
     }
 
-    private static boolean isHealthy(String endpoint) {
+    private static boolean isHealthy(String endpointBase) {
         try {
-            String base = endpoint;
+            String base = endpointBase;
             if (base == null || base.isBlank()) base = "http://localhost:8000";
             while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
             String url = base + "/health";
@@ -109,6 +156,45 @@ public final class BackendAutoStarter {
             return resp.statusCode() >= 200 && resp.statusCode() < 300;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    /**
+     * 将 orchestratorEndpoint 规整为用于健康检查的“基址”（只保留 scheme://host:port）。
+     * 例如：
+     * - http://localhost:8000 -> http://localhost:8000
+     * - http://localhost:8000/models -> http://localhost:8000
+     */
+    private static String normalizeBaseEndpointForHealth(String endpoint, int port) {
+        int pDefault = port > 0 ? port : 8000;
+        if (endpoint == null || endpoint.isBlank()) {
+            return "http://localhost:" + pDefault;
+        }
+        String v = endpoint.trim();
+        try {
+            URI uri = URI.create(v);
+            String scheme = (uri.getScheme() == null || uri.getScheme().isBlank()) ? "http" : uri.getScheme();
+            String host = uri.getHost();
+            int p = uri.getPort();
+            if (p <= 0) p = pDefault;
+
+            // 容错：用户可能填了 "localhost:8000"（无 scheme）
+            if (host == null || host.isBlank()) {
+                if (!v.startsWith("http://") && !v.startsWith("https://")) {
+                    URI uri2 = URI.create("http://" + v);
+                    scheme = (uri2.getScheme() == null || uri2.getScheme().isBlank()) ? "http" : uri2.getScheme();
+                    host = uri2.getHost();
+                    p = uri2.getPort();
+                    if (p <= 0) p = pDefault;
+                }
+            }
+
+            if (host == null || host.isBlank()) {
+                return "http://localhost:" + p;
+            }
+            return scheme + "://" + host + ":" + p;
+        } catch (Exception e) {
+            return "http://localhost:" + pDefault;
         }
     }
 
@@ -142,41 +228,83 @@ public final class BackendAutoStarter {
         Process p = backendProcess;
         if (p != null && p.isAlive()) return;
 
-        String python = (cfg.pythonExecutable == null || cfg.pythonExecutable.isBlank()) ? "python" : cfg.pythonExecutable.trim();
+        String pythonConfigured = (cfg.pythonExecutable == null) ? "" : cfg.pythonExecutable.trim();
         int port = cfg.backendPort > 0 ? cfg.backendPort : 8000;
 
         File wd = resolveWorkDir(cfg.backendWorkDir);
         if (!wd.exists()) {
-            log("backendWorkDir not found: " + wd.getAbsolutePath()
-                    + " (configured=" + cfg.backendWorkDir + ", gameDir=" + safeGameDir() + ")");
+            lastError = "backendWorkDir not found: " + wd.getAbsolutePath()
+                    + " (configured=" + cfg.backendWorkDir + ", gameDir=" + safeGameDir() + ")";
+            log(lastError);
             return;
         }
-
-        List<String> cmd = new ArrayList<>();
-        // 兼容：如果 python 不在 PATH，允许用户在 settings 里填 pythonExecutable
-        cmd.add(python);
-        cmd.add("-m");
-        cmd.add("uvicorn");
-        cmd.add("app.main:app");
-        cmd.add("--host");
-        cmd.add("127.0.0.1");
-        cmd.add("--port");
-        cmd.add(String.valueOf(port));
-        cmd.add("--log-level");
-        cmd.add("info");
 
         try {
             File logsDir = new File("logs");
             logsDir.mkdirs();
             File logFile = new File(logsDir, "formacraft_orchestrator.log");
 
-            ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.directory(wd);
-            pb.redirectErrorStream(true);
-            pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
+            // Windows 兼容：如果没配置 pythonExecutable，优先尝试 python，再尝试 py（Python Launcher）
+            List<String> pythonCandidates = new ArrayList<>();
+            if (!pythonConfigured.isBlank()) {
+                pythonCandidates.add(pythonConfigured);
+            } else {
+                pythonCandidates.add("python");
+                pythonCandidates.add("py");
+            }
 
-            log("starting: " + String.join(" ", cmd) + " (cwd=" + wd.getAbsolutePath() + ")");
-            backendProcess = pb.start();
+            IOException lastIo = null;
+            for (String py : pythonCandidates) {
+                List<String> cmd = new ArrayList<>();
+                cmd.add(py);
+                cmd.add("-m");
+                cmd.add("uvicorn");
+                cmd.add("app.main:app");
+                cmd.add("--host");
+                cmd.add("127.0.0.1");
+                cmd.add("--port");
+                cmd.add(String.valueOf(port));
+                cmd.add("--log-level");
+                cmd.add("info");
+
+                try {
+                    ProcessBuilder pb = new ProcessBuilder(cmd);
+                    pb.directory(wd);
+                    pb.redirectErrorStream(true);
+                    pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
+
+                    log("starting: " + String.join(" ", cmd) + " (cwd=" + wd.getAbsolutePath() + ")");
+                    backendProcess = pb.start();
+                    lastError = null;
+
+                    // 异步监控：如果子进程很快退出，把退出码记到 autostart 日志里（否则用户只能猜）
+                    Process proc = backendProcess;
+                    CompletableFuture.runAsync(() -> {
+                        try {
+                            int code = proc.waitFor();
+                            String msg = "backend process exited. code=" + code + " (see logs/formacraft_orchestrator.log)";
+                            lastError = msg;
+                            log(msg);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        } catch (Exception e) {
+                            logErr("failed while waiting backend process", e);
+                        }
+                    });
+                    break;
+                } catch (IOException e) {
+                    lastIo = e;
+                    backendProcess = null;
+                    logErr("failed to start backend with '" + py + "'. cwd=" + wd.getAbsolutePath(), e);
+                }
+            }
+
+            if (backendProcess == null && lastIo != null) {
+                lastError = "failed to start backend (python not found / uvicorn missing). "
+                        + "请设置 config/formacraft_settings.json 里的 pythonExecutable 或确认 uvicorn 已安装。";
+                log(lastError);
+                return;
+            }
 
             // Minecraft 退出时尽量清理
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -187,8 +315,9 @@ public final class BackendAutoStarter {
                     }
                 } catch (Exception ignored) {}
             }));
-        } catch (IOException e) {
-            logErr("failed to start backend. python=" + python + " cwd=" + wd.getAbsolutePath(), e);
+        } catch (Exception e) {
+            lastError = "failed to start backend: " + e.getMessage();
+            logErr("failed to start backend. cwd=" + wd.getAbsolutePath(), e);
         }
     }
 
@@ -198,6 +327,14 @@ public final class BackendAutoStarter {
         } catch (Exception e) {
             return "unknown";
         }
+    }
+
+    public static boolean isStarting() {
+        return starting.get();
+    }
+
+    public static String getLastError() {
+        return lastError;
     }
 }
 

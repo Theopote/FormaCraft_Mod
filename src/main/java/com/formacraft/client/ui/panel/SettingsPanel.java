@@ -440,7 +440,9 @@ public class SettingsPanel extends BasePanel {
             // 注意：不要在这里直接绘制（会被后续控件盖住）。改为记录 overlay 位置，最后统一绘制。
             pendingBaseUrlDropdownOverlay = true;
             pendingBaseUrlDropdownX = x;
-            pendingBaseUrlDropdownY = y + LABEL_OFFSET;
+            // 下拉应紧贴“预设按钮”下方（而不是在第三行下面），否则看起来会整体下移一行
+            int presetBtnTopY = y - LABEL_OFFSET; // y 当前是第三行的 top
+            pendingBaseUrlDropdownY = presetBtnTopY + BUTTON_HEIGHT;
             pendingBaseUrlDropdownW = w;
         } else {
             hideBaseUrlPresetButtons();
@@ -672,7 +674,8 @@ public class SettingsPanel extends BasePanel {
 
         // 下拉展开：命中选项
         if (baseUrlPresetDropdownOpen) {
-            int listY0 = llmBaseUrlThirdLineY + LABEL_OFFSET; // 展开在第三行下方
+            // 展开应紧贴预设按钮下方（与渲染 overlay 一致）
+            int listY0 = llmBaseUrlPresetY + BUTTON_HEIGHT;
             layoutBaseUrlPresetButtons(x, listY0, w);
 
             boolean clickedAny = false;
