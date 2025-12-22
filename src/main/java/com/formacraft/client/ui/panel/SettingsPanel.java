@@ -10,6 +10,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
+import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -32,7 +33,7 @@ import java.util.regex.Pattern;
 
 /**
  * FormaCraft 设置面板（HUD 左侧栏）
- * 
+ * <p>
  * Settings panel for FormaCraft HUD overlay.
  * Handles configuration for API keys, model selection, temperature, and font size.
  */
@@ -132,13 +133,7 @@ public class SettingsPanel extends BasePanel {
     private static final Pattern JSON_ID_PATTERN = Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern JSON_MODEL_PATTERN = Pattern.compile("\"model\"\\s*:\\s*\"([^\"]+)\"");
 
-    private static final class DetectResponse {
-        final int status;
-        final String body;
-        DetectResponse(int status, String body) {
-            this.status = status;
-            this.body = body;
-        }
+    private record DetectResponse(int status, String body) {
     }
 
     // 缓存的计算值（性能优化）
@@ -855,7 +850,7 @@ public class SettingsPanel extends BasePanel {
         if ("openai".equals(next) && (draftLlmBaseUrl == null || draftLlmBaseUrl.isBlank())) {
             draftLlmBaseUrl = "https://api.openai.com/v1";
         }
-        if (llmBaseUrlInput != null) llmBaseUrlInput.setText(draftLlmBaseUrl != null ? draftLlmBaseUrl : "");
+        llmBaseUrlInput.setText(draftLlmBaseUrl != null ? draftLlmBaseUrl : "");
 
         if (llmProviderButton != null) llmProviderButton.setMessage(getLlmProviderButtonText());
         showToast("LLM Provider: " + next, false);
@@ -961,16 +956,7 @@ public class SettingsPanel extends BasePanel {
                 // OpenAI-compatible: {"data":[{"id":"..."}, ...]}
                 if (obj.has("data") && obj.get("data").isJsonArray()) {
                     JsonArray arr = obj.getAsJsonArray("data");
-                    List<String> ids = new ArrayList<>();
-                    for (JsonElement e : arr) {
-                        if (e != null && e.isJsonObject()) {
-                            JsonObject m = e.getAsJsonObject();
-                            if (m.has("id") && m.get("id").isJsonPrimitive()) {
-                                String id = m.get("id").getAsString();
-                                if (id != null && !id.isBlank()) ids.add(id);
-                            }
-                        }
-                    }
+                    List<String> ids = getStrings(arr);
                     String picked = pickPreferredModel(ids);
                     if (picked != null && !picked.isBlank()) return picked;
                 }
@@ -986,6 +972,20 @@ public class SettingsPanel extends BasePanel {
         Matcher m2 = JSON_ID_PATTERN.matcher(body);
         if (m2.find()) return m2.group(1);
         return null;
+    }
+
+    private static @NotNull List<String> getStrings(JsonArray arr) {
+        List<String> ids = new ArrayList<>();
+        for (JsonElement e : arr) {
+            if (e != null && e.isJsonObject()) {
+                JsonObject m = e.getAsJsonObject();
+                if (m.has("id") && m.get("id").isJsonPrimitive()) {
+                    String id = m.get("id").getAsString();
+                    if (id != null && !id.isBlank()) ids.add(id);
+                }
+            }
+        }
+        return ids;
     }
 
     private static String pickPreferredModel(List<String> ids) {
@@ -1022,7 +1022,7 @@ public class SettingsPanel extends BasePanel {
             }
         }
 
-        return unique.get(0);
+        return unique.getFirst();
     }
 
     private void toggleHideKey() {
@@ -1049,7 +1049,7 @@ public class SettingsPanel extends BasePanel {
         if (llmProviderButton != null) {
             llmProviderButton.setMessage(getLlmProviderButtonText());
         }
-        if (llmBaseUrlInput != null && (draftLlmBaseUrl != null)) {
+        if (draftLlmBaseUrl != null) {
             // 避免 loadFromConfig 后输入框仍显示旧值
             llmBaseUrlInput.setText(draftLlmBaseUrl);
         }
