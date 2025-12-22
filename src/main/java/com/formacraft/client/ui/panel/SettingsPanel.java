@@ -122,6 +122,7 @@ public class SettingsPanel extends BasePanel {
     private ButtonWidget detectModelButton;
     private ButtonWidget llmProviderButton;
     private ButtonWidget llmBaseUrlPresetButton;
+    private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
     private TemperatureSlider temperatureSlider;
     private FontSizeSlider fontSizeSlider;
     private InteractionReachSlider interactionReachSlider;
@@ -142,6 +143,12 @@ public class SettingsPanel extends BasePanel {
     );
     private int baseUrlPresetIndex = 0;
     private boolean baseUrlPresetDropdownOpen = false;
+
+    // 下拉 overlay 渲染：确保永远在最上层（避免被后续控件盖住）
+    private boolean pendingBaseUrlDropdownOverlay = false;
+    private int pendingBaseUrlDropdownX = 0;
+    private int pendingBaseUrlDropdownY = 0;
+    private int pendingBaseUrlDropdownW = 0;
 
     // 模型探测（HTTP）
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -244,6 +251,9 @@ public class SettingsPanel extends BasePanel {
         int sy1 = panelY + panelHeight - 1;
         if (sx1 > sx0 && sy1 > sy0) ctx.enableScissor(sx0, sy0, sx1, sy1);
         try {
+            // 每帧重置 overlay 申请（由 drawLlmBaseUrlField 触发）
+            pendingBaseUrlDropdownOverlay = false;
+
             // 标题
             ctx.drawTextWithShadow(client.textRenderer,
                     Text.translatable("formacraft.settings.title"),
@@ -278,6 +288,9 @@ public class SettingsPanel extends BasePanel {
 
             drawButtonsRow(ctx, x, y, w);
             y += BUTTON_ROW_HEIGHT;
+
+            // BaseURL 下拉：最后画（overlay），确保在所有控件之上
+            renderBaseUrlDropdownOverlay(ctx);
 
             // 计算最大滚动（基于未滚动起点）
             int contentTop = getContentY() + CONTENT_PADDING;
@@ -415,35 +428,40 @@ public class SettingsPanel extends BasePanel {
         if (p != null && p.url == null) {
             llmBaseUrlInput.render(ctx, x, y, w, INPUT_HEIGHT);
         } else {
-            String tip = (p == null || p.url == null || p.url.isBlank())
-                    ? "自动：由 Provider/后端决定"
-                    : ("URL: " + p.url);
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal(tip), x, y + 4, COLOR_GRAY);
+            // 预设模式下不再显示 URL（tooltip 已包含），仅在“自动”时给一个轻提示
+            if (p == null || p.url == null || p.url.isBlank()) {
+                ctx.drawTextWithShadow(client.textRenderer, Text.literal("自动：由 Provider/后端决定"), x, y + 4, COLOR_GRAY);
+            }
             llmBaseUrlInput.setFocused(false);
         }
 
         // 下拉列表（展开渲染，不改变布局高度）
         if (baseUrlPresetDropdownOpen) {
-            int itemH = BUTTON_HEIGHT;
-            int listX0 = x;
-            int listY0 = y + LABEL_OFFSET;
-            int listW = w;
-            int listH = Math.min(BASE_URL_PRESETS.size(), 8) * itemH;
+            // 注意：不要在这里直接绘制（会被后续控件盖住）。改为记录 overlay 位置，最后统一绘制。
+            pendingBaseUrlDropdownOverlay = true;
+            pendingBaseUrlDropdownX = x;
+            pendingBaseUrlDropdownY = y + LABEL_OFFSET;
+            pendingBaseUrlDropdownW = w;
+        } else {
+            hideBaseUrlPresetButtons();
+        }
+    }
 
-            ctx.fill(listX0, listY0, listX0 + listW, listY0 + listH, 0xCC111111);
-            for (int i = 0; i < BASE_URL_PRESETS.size(); i++) {
-                int iy0 = listY0 + i * itemH;
-                int iy1 = iy0 + itemH;
-                if (iy1 > listY0 + listH) break;
+    private void renderBaseUrlDropdownOverlay(DrawContext ctx) {
+        if (!baseUrlPresetDropdownOpen) {
+            hideBaseUrlPresetButtons();
+            return;
+        }
+        if (!pendingBaseUrlDropdownOverlay) {
+            // 保险：如果本帧没有布局信息，至少隐藏，避免残留
+            hideBaseUrlPresetButtons();
+            return;
+        }
 
-                BaseUrlPreset it = BASE_URL_PRESETS.get(i);
-                boolean selected = (i == baseUrlPresetIndex);
-                if (selected) {
-                    ctx.fill(listX0, iy0, listX0 + listW, iy1, 0xAA335577);
-                }
-                String label = it.label + (it.url == null ? "" : (it.url.isBlank() ? "" : ("  " + it.url)));
-                if (label.length() > 64) label = label.substring(0, 63) + "…";
-                ctx.drawTextWithShadow(client.textRenderer, Text.literal(label), listX0 + 4, iy0 + 4, COLOR_WHITE);
+        layoutBaseUrlPresetButtons(pendingBaseUrlDropdownX, pendingBaseUrlDropdownY, pendingBaseUrlDropdownW);
+        for (ButtonWidget b : llmBaseUrlPresetOptionButtons) {
+            if (b.visible) {
+                b.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
             }
         }
     }
@@ -654,19 +672,31 @@ public class SettingsPanel extends BasePanel {
 
         // 下拉展开：命中选项
         if (baseUrlPresetDropdownOpen) {
-            int itemH = BUTTON_HEIGHT;
-            int listX0 = x;
             int listY0 = llmBaseUrlThirdLineY + LABEL_OFFSET; // 展开在第三行下方
-            int listW = w;
-            int listH = Math.min(BASE_URL_PRESETS.size(), 8) * itemH;
-            if (mouseX >= listX0 && mouseX <= listX0 + listW && mouseY >= listY0 && mouseY <= listY0 + listH) {
-                int idx = (int) ((mouseY - listY0) / itemH);
-                applyBaseUrlPreset(idx);
-                return true;
-            } else {
-                // 点击列表外：收起
-                baseUrlPresetDropdownOpen = false;
+            layoutBaseUrlPresetButtons(x, listY0, w);
+
+            boolean clickedAny = false;
+            for (ButtonWidget opt : llmBaseUrlPresetOptionButtons) {
+                if (opt != null && opt.visible && opt.mouseClicked(click, false)) {
+                    clickedAny = true;
+                    break;
+                }
             }
+            if (clickedAny) {
+                return true;
+            }
+
+            int listH = BASE_URL_PRESETS.size() * BUTTON_HEIGHT;
+            boolean insideList = (mouseX >= x && mouseX <= x + w && mouseY >= listY0 && mouseY <= listY0 + listH);
+            if (!insideList) {
+                // 点击列表外：收起（并吞掉点击，避免“穿透”点到下面控件）
+                baseUrlPresetDropdownOpen = false;
+                hideBaseUrlPresetButtons();
+                return true;
+            }
+
+            // 点在列表区域但没点到按钮：吞掉（避免误触其它控件）
+            return true;
         }
 
         // 第三行：只有自定义时才允许点输入框
@@ -943,6 +973,18 @@ public class SettingsPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("选择主流 LLM Base URL 预设（避免输入错误）；选“自定义”可手动输入")))
                 .build();
 
+        // BaseURL 下拉选项（按钮形式，避免自绘命中不准）
+        llmBaseUrlPresetOptionButtons = new ArrayList<>();
+        for (int i = 0; i < BASE_URL_PRESETS.size(); i++) {
+            final int idx = i;
+            ButtonWidget opt = ButtonWidget.builder(Text.empty(), b -> applyBaseUrlPreset(idx))
+                    .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                    .build();
+            opt.visible = false;
+            opt.active = true;
+            llmBaseUrlPresetOptionButtons.add(opt);
+        }
+
         // Sliders（用原版 SliderWidget 渲染）
         temperatureSlider = new TemperatureSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), clamp01(draftTemperature));
         fontSizeSlider = new FontSizeSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), fontSizeToValue(draftFontSize));
@@ -983,6 +1025,32 @@ public class SettingsPanel extends BasePanel {
                 .build();
 
         syncWidgetStateFromDraft();
+    }
+
+    private void hideBaseUrlPresetButtons() {
+        if (llmBaseUrlPresetOptionButtons == null) return;
+        for (ButtonWidget b : llmBaseUrlPresetOptionButtons) {
+            b.visible = false;
+        }
+    }
+
+    private void layoutBaseUrlPresetButtons(int x, int y0, int w) {
+        ensureWidgets();
+        if (llmBaseUrlPresetOptionButtons == null) return;
+
+        for (int i = 0; i < llmBaseUrlPresetOptionButtons.size(); i++) {
+            ButtonWidget b = llmBaseUrlPresetOptionButtons.get(i);
+            BaseUrlPreset it = BASE_URL_PRESETS.get(i);
+
+            // 下拉选项仅显示“名称”，不拼接 URL（URL 已在 tooltip 中提供，避免过长遮挡）
+            String label = (i == baseUrlPresetIndex ? "▶ " : "") + it.label;
+
+            b.setMessage(Text.literal(label));
+            b.setPosition(x, y0 + i * BUTTON_HEIGHT);
+            b.setWidth(w);
+            b.visible = true;
+            b.active = true;
+        }
     }
 
     private Text getDetectModelButtonText() {
@@ -1040,12 +1108,16 @@ public class SettingsPanel extends BasePanel {
 
     private void toggleBaseUrlPresetDropdown() {
         baseUrlPresetDropdownOpen = !baseUrlPresetDropdownOpen;
+        if (!baseUrlPresetDropdownOpen) {
+            hideBaseUrlPresetButtons();
+        }
     }
 
     private void applyBaseUrlPreset(int idx) {
         if (idx < 0 || idx >= BASE_URL_PRESETS.size()) return;
         baseUrlPresetIndex = idx;
         baseUrlPresetDropdownOpen = false;
+        hideBaseUrlPresetButtons();
 
         BaseUrlPreset p = BASE_URL_PRESETS.get(idx);
         if (p.url == null) {
