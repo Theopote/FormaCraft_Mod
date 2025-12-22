@@ -1,6 +1,9 @@
 package com.formacraft.ai.prompt;
 
 import com.formacraft.ai.context.SelectionContext;
+import com.formacraft.client.buildcontext.BuildContextResolver;
+import com.formacraft.client.preview.PromptModeState;
+import com.formacraft.common.buildcontext.BuildContext;
 
 /**
  * Prompt 拼接器：把用户自然语言增强为“可控、可解析”的结构化 Prompt。
@@ -53,6 +56,11 @@ public final class PromptAssembler {
         sb.append("- 你是一个 Minecraft 建筑师 AI，必须严格遵守所有规则/约束\n");
         sb.append("- 输出必须确定且可直接被程序反序列化\n\n");
 
+        // =====================================================
+        // Spatial Context（稳定字段协议）
+        // =====================================================
+        appendSpatialContext(sb, ctx);
+
         if (!ctx.rules.isEmpty()) {
             sb.append("Rules（硬规则）：\n");
             for (String r : ctx.rules) {
@@ -88,6 +96,60 @@ public final class PromptAssembler {
         sb.append("- JSON 必须可直接反序列化\n");
 
         return sb.toString();
+    }
+
+    /**
+     * 输出稳定的 anchor/facing/mode 协议块（英文、短句、字段名稳定）。
+     */
+    private static void appendSpatialContext(StringBuilder sb, PromptContext ctx) {
+        if (sb == null) return;
+
+        PromptMode mode = (ctx != null && ctx.mode != null) ? ctx.mode : PromptMode.BUILD;
+        boolean restrict = (mode == PromptMode.MODIFY_REGION) || PromptModeState.restrictToSelection();
+        BuildContext bc = BuildContextResolver.resolve(restrict);
+        if (bc == null || bc.origin == null) return;
+
+        sb.append("--- Spatial Context ---\n");
+        sb.append("anchor = (")
+                .append(bc.origin.getX()).append(", ")
+                .append(bc.origin.getY()).append(", ")
+                .append(bc.origin.getZ()).append(")\n");
+        sb.append("facing = ").append(bc.facing != null ? bc.facing.name() : "UNKNOWN").append("\n");
+
+        sb.append("\n--- Build Mode ---\n");
+        switch (bc.mode) {
+            case OUTLINE -> {
+                sb.append("mode = outline\n");
+                sb.append("rule:\n");
+                sb.append("- build ONLY inside the outline\n");
+                sb.append("- do NOT place blocks outside the outline\n");
+                sb.append("- build around anchor\n");
+            }
+            case SELECTION -> {
+                sb.append("mode = selection\n");
+                sb.append("rule:\n");
+                sb.append("- build ONLY inside the selection box\n");
+                sb.append("- build around anchor\n");
+            }
+            case ANCHOR -> {
+                sb.append("mode = anchor\n");
+                sb.append("rule:\n");
+                sb.append("- build around anchor\n");
+                sb.append("- anchor is the geometric center of the structure\n");
+            }
+            case IMPLICIT_ANCHOR -> {
+                sb.append("mode = implicit_anchor\n");
+                sb.append("rule:\n");
+                sb.append("- build around anchor\n");
+                sb.append("- anchor is the block the player is pointing at\n");
+            }
+        }
+
+        sb.append("\n--- Output Contract ---\n");
+        sb.append("- Use relative coordinates: (dx, dy, dz)\n");
+        sb.append("- (0, 0, 0) is the anchor position\n");
+        sb.append("- All coordinates MUST be relative to the anchor\n");
+        sb.append("- Output JSON only\n\n");
     }
 }
 

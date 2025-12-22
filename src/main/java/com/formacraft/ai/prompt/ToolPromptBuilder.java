@@ -5,9 +5,6 @@ import com.formacraft.ai.context.ProtectedZoneContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.context.SemanticLabelContext;
 import com.formacraft.ai.context.SymmetryContext;
-import com.formacraft.client.buildcontext.BuildContextResolver;
-import com.formacraft.client.preview.PromptModeState;
-import com.formacraft.common.buildcontext.BuildContext;
 
 /**
  * 工具状态 → PromptContext 语义构建器。
@@ -20,14 +17,7 @@ public final class ToolPromptBuilder {
     public static void buildToolContext(PromptContext ctx) {
         if (ctx == null) return;
 
-        // 统一空间上下文（BuildContext）
-        BuildContext bc = BuildContextResolver.resolve(PromptModeState.restrictToSelection());
-        if (bc != null && bc.origin != null) {
-            ctx.annotations.add("SpatialContext.mode: " + bc.mode.name());
-            ctx.annotations.add("SpatialContext.origin: (" + bc.origin.getX() + "," + bc.origin.getY() + "," + bc.origin.getZ() + ")");
-            ctx.annotations.add("SpatialContext.facing: " + (bc.facing != null ? bc.facing.name() : "UNKNOWN"));
-            ctx.constraints.add("All coordinates and placement decisions should be made with respect to the given origin and facing.");
-        }
+        // 空间语义（anchor/facing/mode 等）由 PromptAssembler 统一输出，避免重复与双源。
 
         // 选区（边界约束）
         if (SelectionContext.hasSelection()) {
