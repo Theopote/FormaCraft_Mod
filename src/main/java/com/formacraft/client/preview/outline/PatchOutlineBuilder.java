@@ -25,45 +25,54 @@ import java.util.Set;
 public final class PatchOutlineBuilder {
     private PatchOutlineBuilder() {}
 
-    public record Result(List<OutlineQuad> filledOutline, List<OutlineQuad> removedOutline) {}
+    public record Result(List<OutlineQuad> placeOutline, List<OutlineQuad> replaceOutline, List<OutlineQuad> removeOutline) {}
 
     public static Result build(BlockPos origin, List<BlockPatch> patches) {
         if (origin == null) origin = BlockPos.ORIGIN;
-        if (patches == null || patches.isEmpty()) return new Result(List.of(), List.of());
+        if (patches == null || patches.isEmpty()) return new Result(List.of(), List.of(), List.of());
 
-        Set<BlockPos> filled = new HashSet<>();
-        Set<BlockPos> removed = new HashSet<>();
+        Set<BlockPos> place = new HashSet<>();
+        Set<BlockPos> replace = new HashSet<>();
+        Set<BlockPos> remove = new HashSet<>();
 
         for (BlockPatch p : patches) {
             if (p == null) continue;
             BlockPos pos = origin.add(p.dx(), p.dy(), p.dz()).toImmutable();
             String action = p.action() == null ? "" : p.action().toLowerCase();
-            if (BlockPatch.REMOVE.equals(action)) {
-                removed.add(pos);
-            } else {
-                // place/replace 统一当成“将存在的方块”
-                filled.add(pos);
-            }
+            if (BlockPatch.REMOVE.equals(action)) remove.add(pos);
+            else if (BlockPatch.PLACE.equals(action)) place.add(pos);
+            else if (BlockPatch.REPLACE.equals(action)) replace.add(pos);
+            else place.add(pos); // 兜底：未知 action 当 place
         }
 
-        List<OutlineQuad> filledQuads = GreedyOutlineMerger.merge(collectFaces(filled));
-        List<OutlineQuad> removedQuads = GreedyOutlineMerger.merge(collectFaces(removed));
-        return new Result(filledQuads, removedQuads);
+        // 关键：place/replace 共用“存在并集”做遮挡判断，避免两者相邻时出现内部噪声边线
+        Set<BlockPos> exists = new HashSet<>(place.size() + replace.size());
+        exists.addAll(place);
+        exists.addAll(replace);
+
+        List<OutlineQuad> placeQuads = GreedyOutlineMerger.merge(collectFaces(place, exists));
+        List<OutlineQuad> replaceQuads = GreedyOutlineMerger.merge(collectFaces(replace, exists));
+        // remove 组内部也需要相互遮挡（相邻 remove 不画内部面）
+        List<OutlineQuad> removeQuads = GreedyOutlineMerger.merge(collectFaces(remove, remove));
+
+        return new Result(placeQuads, replaceQuads, removeQuads);
     }
 
     /**
      * 收集外露面：返回按 direction 分组、再按平面 d 分组的二维单元集合。
      */
-    static Map<Direction, Map<Integer, Set<Long>>> collectFaces(Set<BlockPos> voxels) {
+    static Map<Direction, Map<Integer, Set<Long>>> collectFaces(Set<BlockPos> voxels, Set<BlockPos> occlusionSet) {
         Map<Direction, Map<Integer, Set<Long>>> out = new EnumMap<>(Direction.class);
         for (Direction d : Direction.values()) out.put(d, new HashMap<>());
         if (voxels == null || voxels.isEmpty()) return out;
+        if (occlusionSet == null) occlusionSet = voxels;
 
         for (BlockPos pos : voxels) {
             if (pos == null) continue;
             for (Direction dir : Direction.values()) {
                 BlockPos neighbor = pos.offset(dir);
-                if (voxels.contains(neighbor)) continue;
+                // 只要邻居在“遮挡集合”中，就认为该面不外露
+                if (occlusionSet.contains(neighbor)) continue;
 
                 // face cell（u,v）与 plane（d）
                 int plane;

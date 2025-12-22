@@ -23,20 +23,29 @@ public final class PatchPreviewRenderer {
     public static void render(ToolWorldRenderContext ctx) {
         if (!PatchPreviewState.isEnabled()) return;
 
-        List<OutlineQuad> filled = PatchPreviewState.getFilledOutline();
-        List<OutlineQuad> removed = PatchPreviewState.getRemovedOutline();
+        List<OutlineQuad> place = PatchPreviewState.getPlaceOutline();
+        List<OutlineQuad> replace = PatchPreviewState.getReplaceOutline();
+        List<OutlineQuad> remove = PatchPreviewState.getRemoveOutline();
 
-        // filled：青绿色（更像 WorldEdit）
-        if (filled != null) {
-            for (OutlineQuad q : filled) {
+        // place：蓝色
+        if (place != null) {
+            for (OutlineQuad q : place) {
                 Box box = toThinBox(q, ctx.cameraX, ctx.cameraY, ctx.cameraZ);
-                VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.20f, 0.90f, 1.00f, 0.85f);
+                VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.25f, 0.75f, 1.00f, 0.85f);
             }
         }
 
-        // removed：红色
-        if (removed != null) {
-            for (OutlineQuad q : removed) {
+        // replace：黄色
+        if (replace != null) {
+            for (OutlineQuad q : replace) {
+                Box box = toThinBox(q, ctx.cameraX, ctx.cameraY, ctx.cameraZ);
+                VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 1.00f, 0.90f, 0.25f, 0.85f);
+            }
+        }
+
+        // remove：红色
+        if (remove != null) {
+            for (OutlineQuad q : remove) {
                 Box box = toThinBox(q, ctx.cameraX, ctx.cameraY, ctx.cameraZ);
                 VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 1.00f, 0.25f, 0.25f, 0.85f);
             }

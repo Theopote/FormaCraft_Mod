@@ -17,8 +17,9 @@ public final class PatchPreviewState {
     private static boolean enabled = false;
     private static BlockPos origin = BlockPos.ORIGIN;
     private static final List<BlockPatch> patches = new ArrayList<>();
-    private static List<OutlineQuad> filledOutline = List.of();
-    private static List<OutlineQuad> removedOutline = List.of();
+    private static List<OutlineQuad> placeOutline = List.of();
+    private static List<OutlineQuad> replaceOutline = List.of();
+    private static List<OutlineQuad> removeOutline = List.of();
 
     public static void setPreview(BlockPos originPos, List<BlockPatch> newPatches) {
         origin = originPos != null ? originPos : BlockPos.ORIGIN;
@@ -27,16 +28,18 @@ public final class PatchPreviewState {
         enabled = !patches.isEmpty();
 
         PatchOutlineBuilder.Result r = PatchOutlineBuilder.build(origin, patches);
-        filledOutline = r.filledOutline() != null ? r.filledOutline() : List.of();
-        removedOutline = r.removedOutline() != null ? r.removedOutline() : List.of();
+        placeOutline = r.placeOutline() != null ? r.placeOutline() : List.of();
+        replaceOutline = r.replaceOutline() != null ? r.replaceOutline() : List.of();
+        removeOutline = r.removeOutline() != null ? r.removeOutline() : List.of();
     }
 
     public static void clear() {
         enabled = false;
         patches.clear();
         origin = BlockPos.ORIGIN;
-        filledOutline = List.of();
-        removedOutline = List.of();
+        placeOutline = List.of();
+        replaceOutline = List.of();
+        removeOutline = List.of();
     }
 
     public static boolean isEnabled() {
@@ -51,12 +54,16 @@ public final class PatchPreviewState {
         return patches;
     }
 
-    public static List<OutlineQuad> getFilledOutline() {
-        return filledOutline;
+    public static List<OutlineQuad> getPlaceOutline() {
+        return placeOutline;
     }
 
-    public static List<OutlineQuad> getRemovedOutline() {
-        return removedOutline;
+    public static List<OutlineQuad> getReplaceOutline() {
+        return replaceOutline;
+    }
+
+    public static List<OutlineQuad> getRemoveOutline() {
+        return removeOutline;
     }
 }
 
