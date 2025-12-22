@@ -461,6 +461,7 @@ def _generate_fallback_composite_spec(req: BuildRequest) -> CompositeSpec:
     request_lower = req.requestText.lower()
     
     structures = []
+    paths = []
     
     # 根据关键词生成不同的复合结构
     if "要塞" in req.requestText or "fort" in request_lower:
@@ -593,8 +594,6 @@ def _generate_fallback_composite_spec(req: BuildRequest) -> CompositeSpec:
                 style="default"
             )
         ]
-    else:
-        paths = []
     
     return CompositeSpec(structures=structures, paths=paths)
 
