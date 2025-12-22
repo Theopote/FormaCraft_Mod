@@ -41,6 +41,10 @@ public class FormaCraftNetworking {
     // 后端客户端（应该从配置读取，这里先硬编码）
     private static final OrchestratorClient ORCHESTRATOR = new OrchestratorClient("http://localhost:8000");
 
+    // 防止在客户端/集成服务器环境下重复注册导致崩溃（PayloadTypeRegistry 不允许重复 register）
+    private static boolean registeredC2SPayloadTypes = false;
+    private static boolean registeredS2CPayloadTypes = false;
+
     // C2S 数据包定义
     public record RequestBuildPayload(FormaRequest request) implements CustomPayload {
         public static final CustomPayload.Id<RequestBuildPayload> ID = new CustomPayload.Id<>(REQUEST_BUILD);
@@ -162,8 +166,7 @@ public class FormaCraftNetworking {
      * 在服务端初始化时调用
      */
     public static void registerC2S() {
-        // 注册数据包类型
-        PayloadTypeRegistry.playC2S().register(RequestBuildPayload.ID, RequestBuildPayload.CODEC);
+        registerPayloadTypesC2S();
 
         // 注册接收器
         ServerPlayNetworking.registerGlobalReceiver(RequestBuildPayload.ID, (payload, context) -> {
@@ -336,7 +339,7 @@ public class FormaCraftNetworking {
         });
 
         // 注册确认建造数据包
-        PayloadTypeRegistry.playC2S().register(ConfirmBuildPacket.ID, ConfirmBuildPacket.CODEC);
+        registerPayloadTypesC2S();
         ServerPlayNetworking.registerGlobalReceiver(ConfirmBuildPacket.ID, (payload, context) -> {
             context.server().execute(() -> {
                 ServerPlayerEntity player = context.player();
@@ -367,9 +370,7 @@ public class FormaCraftNetworking {
         });
 
         // Patch Undo/Redo（服务端执行）
-        PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(PatchApplyPayload.ID, PatchApplyPayload.CODEC);
+        registerPayloadTypesC2S();
         ServerPlayNetworking.registerGlobalReceiver(PatchUndoPayload.ID, (payload, context) -> {
             context.server().execute(() -> {
                 ServerPlayerEntity player = context.player();
@@ -414,10 +415,10 @@ public class FormaCraftNetworking {
      * 在客户端初始化时调用
      */
     public static void registerS2C() {
-        // 注册数据包类型
-        PayloadTypeRegistry.playS2C().register(ResponseBuildSpecPayload.ID, ResponseBuildSpecPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(PreviewOutlinePayload.ID, PreviewOutlinePayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
+        // 重要：客户端不仅要注册 S2C，还必须注册 C2S payload type，
+        // 否则发送自定义 payload 时编码会走 UnknownCustomPayload 并 ClassCastException 断连。
+        registerPayloadTypesC2S();
+        registerPayloadTypesS2C();
 
         // 注册接收器
         ClientPlayNetworking.registerGlobalReceiver(ResponseBuildSpecPayload.ID, (payload, context) -> {
@@ -462,6 +463,28 @@ public class FormaCraftNetworking {
                 FormacraftMod.LOGGER.info("Preview outline cleared");
             });
         });
+    }
+
+    /** 注册所有 C2S PayloadType（客户端编码 & 服务端解码都需要）。 */
+    private static void registerPayloadTypesC2S() {
+        if (registeredC2SPayloadTypes) return;
+        registeredC2SPayloadTypes = true;
+
+        PayloadTypeRegistry.playC2S().register(RequestBuildPayload.ID, RequestBuildPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ConfirmBuildPacket.ID, ConfirmBuildPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PatchApplyPayload.ID, PatchApplyPayload.CODEC);
+    }
+
+    /** 注册所有 S2C PayloadType（客户端解码 & 服务端编码都需要）。 */
+    private static void registerPayloadTypesS2C() {
+        if (registeredS2CPayloadTypes) return;
+        registeredS2CPayloadTypes = true;
+
+        PayloadTypeRegistry.playS2C().register(ResponseBuildSpecPayload.ID, ResponseBuildSpecPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(PreviewOutlinePayload.ID, PreviewOutlinePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
     }
 
     /**
