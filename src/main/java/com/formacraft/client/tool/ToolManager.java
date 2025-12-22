@@ -16,17 +16,22 @@ public final class ToolManager {
     private static FormacraftTool activeTool = null;
 
     static {
-        // 内建工具注册
-        register(SelectionTool.INSTANCE);
-        register(ProtectedZoneTool.INSTANCE);
-        register(OutlineTool.INSTANCE);
-        register(SymmetryTool.INSTANCE);
-        register(SemanticLabelTool.INSTANCE);
+        // 插件化加载（包含内建工具 BuiltinToolsEntrypoint）
+        ToolPluginLoader.loadOnce();
     }
 
     public static void register(FormacraftTool tool) {
         if (tool == null) return;
         tools.put(tool.getId(), tool);
+    }
+
+    /** 获取已注册工具（按注册顺序）。 */
+    public static java.util.List<FormacraftTool> getTools() {
+        return new java.util.ArrayList<>(tools.values());
+    }
+
+    public static int toolCount() {
+        return tools.size();
     }
 
     public static FormacraftTool getActiveTool() {

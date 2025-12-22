@@ -6,6 +6,7 @@ import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.prompt.PromptAssembler;
 import com.formacraft.ai.prompt.PromptMode;
 import com.formacraft.client.preview.BuildingPreviewState;
+import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.client.ui.widget.MultilineTextInput;
 import com.formacraft.client.ui.panel.chat.AIStreamPrinter;
 import com.formacraft.client.ui.panel.chat.ChatMessage;
@@ -738,6 +739,9 @@ public class ChatPanel extends BasePanel {
         // Prompt 拼接（UI 显示 rawInput；发给 AI 的是 finalPrompt）
         String finalPrompt = PromptAssembler.assemble(text, promptMode);
         if (finalPrompt.isEmpty()) return;
+
+        // 记录本次使用的模式（用于 PatchFilter/Preview 链路）
+        PromptModeState.setLastMode(promptMode);
 
         // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）
         messages.add(new ChatMessage(text, true));

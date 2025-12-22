@@ -40,7 +40,11 @@ public final class ToolPatchFilter {
             filter.addRule(new SelectionOnlyRule());
         }
 
-        return filter.filter(patches, ctx);
+        PatchFilterResult r = filter.filter(patches, ctx);
+        if (restrictToSelection && !SelectionTool.INSTANCE.hasSelection()) {
+            r.warnings.add("MODIFY_REGION 已启用，但当前没有选区：无法限制到选区内");
+        }
+        return r;
     }
 }
 

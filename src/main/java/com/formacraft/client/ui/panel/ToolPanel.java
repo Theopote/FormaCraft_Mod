@@ -1,5 +1,6 @@
 package com.formacraft.client.ui.panel;
 
+import com.formacraft.client.tool.FormacraftTool;
 import com.formacraft.client.tool.OutlineTool;
 import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.tool.SemanticLabelTool;
@@ -13,6 +14,10 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Tools 面板：选择/管理工具（首个工具：区域选区）。
  */
@@ -25,53 +30,66 @@ public class ToolPanel extends BasePanel {
 
     private final MinecraftClient client = MinecraftClient.getInstance();
 
-    private ButtonWidget selectionToolButton;
+    // 工具列表（插件化）：动态生成按钮
+    private ButtonWidget noneToolButton;
+    private final Map<String, ButtonWidget> toolButtons = new LinkedHashMap<>();
+    private final Map<String, Text> toolBaseLabels = new LinkedHashMap<>();
+    private int lastToolCount = -1;
+
+    // 内建工具附加操作按钮
     private ButtonWidget clearSelectionButton;
-    private ButtonWidget protectedZoneToolButton;
     private ButtonWidget clearProtectedZonesButton;
-    private ButtonWidget outlineToolButton;
     private ButtonWidget outlineModeButton;
     private ButtonWidget clearOutlineButton;
-    private ButtonWidget symmetryToolButton;
     private ButtonWidget symmetryModeButton;
     private ButtonWidget clearSymmetryButton;
-    private ButtonWidget semanticLabelToolButton;
     private ButtonWidget clearLabelsButton;
 
     private final HudTextInput labelNameInput = new HudTextInput();
 
-    private void ensureWidgets() {
-        if (selectionToolButton != null) return;
+    // 滚动
+    private int scrollY = 0;
+    private int maxScrollY = 0;
 
-        selectionToolButton = ButtonWidget.builder(Text.literal("选区工具"), b -> {
-                    ToolManager.setTool(SelectionTool.INSTANCE.getId());
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("两点框选一个区域")))
-                .build();
+    private void ensureWidgets() {
+        // 工具列表按钮：如果工具数量发生变化则重建
+        int c = ToolManager.toolCount();
+        if (lastToolCount != c) {
+            lastToolCount = c;
+            toolButtons.clear();
+            toolBaseLabels.clear();
+
+            noneToolButton = ButtonWidget.builder(Text.literal("当前工具：无"), b -> ToolManager.setTool(null))
+                    .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                    .tooltip(Tooltip.of(Text.literal("取消当前工具（恢复为无）")))
+                    .build();
+
+            List<FormacraftTool> tools = ToolManager.getTools();
+            for (FormacraftTool t : tools) {
+                if (t == null) continue;
+                String id = t.getId();
+                if (id == null) continue;
+                Text base = t.getDisplayName();
+                if (base == null) base = Text.literal(id);
+                ButtonWidget btn = ButtonWidget.builder(t.getDisplayName(), b -> ToolManager.setTool(id))
+                        .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                        .tooltip(Tooltip.of(Text.literal("激活工具：" + t.getDisplayName().getString())))
+                        .build();
+                toolButtons.put(id, btn);
+                toolBaseLabels.put(id, base);
+            }
+        }
+
+        if (clearSelectionButton != null) return;
 
         clearSelectionButton = ButtonWidget.builder(Text.literal("清除选区"), b -> SelectionTool.INSTANCE.clear())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清除当前已选定的区域")))
                 .build();
 
-        protectedZoneToolButton = ButtonWidget.builder(Text.literal("禁区/保护区"), b -> {
-                    ToolManager.setTool(ProtectedZoneTool.INSTANCE.getId());
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("两点框选：添加一个禁区（红色斜线）")))
-                .build();
-
         clearProtectedZonesButton = ButtonWidget.builder(Text.literal("清空禁区"), b -> ProtectedZoneTool.INSTANCE.clearZones())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清空所有已添加的禁区/保护区")))
-                .build();
-
-        outlineToolButton = ButtonWidget.builder(Text.literal("轮廓工具"), b -> {
-                    ToolManager.setTool(OutlineTool.INSTANCE.getId());
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("绘制建筑轮廓（紫色填充）")))
                 .build();
 
         outlineModeButton = ButtonWidget.builder(Text.literal("模式：POLYGON"), b -> {
@@ -86,13 +104,6 @@ public class ToolPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("清除当前轮廓")))
                 .build();
 
-        symmetryToolButton = ButtonWidget.builder(Text.literal("对称/镜像"), b -> {
-                    ToolManager.setTool(SymmetryTool.INSTANCE.getId());
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("定义对称/镜像约束")))
-                .build();
-
         symmetryModeButton = ButtonWidget.builder(Text.literal("模式：NONE"), b -> {
                     SymmetryTool.INSTANCE.cycleMode();
                 })
@@ -103,13 +114,6 @@ public class ToolPanel extends BasePanel {
         clearSymmetryButton = ButtonWidget.builder(Text.literal("清空对称轴"), b -> SymmetryTool.INSTANCE.clearAxis())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清除自定义轴线（不影响预设模式）")))
-                .build();
-
-        semanticLabelToolButton = ButtonWidget.builder(Text.literal("语义标注"), b -> {
-                    ToolManager.setTool(SemanticLabelTool.INSTANCE.getId());
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("左键加点 / 右键结束：创建一个多边形语义区域")))
                 .build();
 
         clearLabelsButton = ButtonWidget.builder(Text.literal("清空标签"), b -> SemanticLabelTool.INSTANCE.clearLabels())
@@ -126,23 +130,52 @@ public class ToolPanel extends BasePanel {
         ensureWidgets();
 
         int x = panelX + CONTENT_PADDING;
-        int y = getContentY() + CONTENT_PADDING;
+        int y = getContentY() + CONTENT_PADDING - scrollY;
         int w = panelWidth - CONTENT_PADDING * 2;
 
         // 半透明底
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
 
+        // 内容裁剪（避免滚动时画出边界）
+        int sx0 = panelX + 1;
+        int sy0 = getContentY() + 1;
+        int sx1 = panelX + panelWidth - 1;
+        int sy1 = panelY + panelHeight - 1;
+        if (sx1 > sx0 && sy1 > sy0) ctx.enableScissor(sx0, sy0, sx1, sy1);
+        try {
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("Tools"), x, y, 0xFFFFFFFF);
         y += 20;
 
-        // 选区工具
-        selectionToolButton.setPosition(x, y);
-        selectionToolButton.setWidth(w);
-        selectionToolButton.visible = true;
-        selectionToolButton.active = true;
-        selectionToolButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        // --------------------
+        // 工具列表（插件化）
+        // --------------------
+        noneToolButton.setMessage(Text.literal(ToolManager.getActiveTool() == null ? "当前工具：无" :
+                "当前工具：" + ToolManager.getActiveTool().getDisplayName().getString()));
+        noneToolButton.setPosition(x, y);
+        noneToolButton.setWidth(w);
+        noneToolButton.visible = true;
+        noneToolButton.active = true;
+        noneToolButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
 
-        y += FIELD_SPACING;
+        for (Map.Entry<String, ButtonWidget> e : toolButtons.entrySet()) {
+            String id = e.getKey();
+            ButtonWidget b = e.getValue();
+            if (b == null) continue;
+            boolean active = ToolManager.isActive(id);
+            Text base = toolBaseLabels.get(id);
+            if (base == null) base = b.getMessage();
+            // 关键：不要基于 b.getMessage() 累积拼接；每帧都从 base 重新生成
+            b.setMessage(Text.literal((active ? "▶ " : "") + base.getString()));
+            b.setPosition(x, y);
+            b.setWidth(w);
+            b.visible = true;
+            b.active = true;
+            b.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+        }
+
+        y += LABEL_OFFSET;
 
         // 选区状态
         String status;
@@ -174,13 +207,6 @@ public class ToolPanel extends BasePanel {
         // 禁区/保护区
         // --------------------
         y += FIELD_SPACING;
-        protectedZoneToolButton.setPosition(x, y);
-        protectedZoneToolButton.setWidth(w);
-        protectedZoneToolButton.visible = true;
-        protectedZoneToolButton.active = true;
-        protectedZoneToolButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        y += LABEL_OFFSET;
         ctx.drawTextWithShadow(client.textRenderer,
                 Text.literal("已添加禁区：" + ProtectedZoneTool.INSTANCE.getZones().size()),
                 x, y, 0xFFAAAAAA);
@@ -196,13 +222,6 @@ public class ToolPanel extends BasePanel {
         // 轮廓工具
         // --------------------
         y += FIELD_SPACING;
-        outlineToolButton.setPosition(x, y);
-        outlineToolButton.setWidth(w);
-        outlineToolButton.visible = true;
-        outlineToolButton.active = true;
-        outlineToolButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        y += LABEL_OFFSET;
         outlineModeButton.setMessage(Text.literal("模式：" + OutlineTool.INSTANCE.getMode().name()));
         outlineModeButton.setPosition(x, y);
         outlineModeButton.setWidth(w);
@@ -227,13 +246,6 @@ public class ToolPanel extends BasePanel {
         // 对称/镜像
         // --------------------
         y += FIELD_SPACING;
-        symmetryToolButton.setPosition(x, y);
-        symmetryToolButton.setWidth(w);
-        symmetryToolButton.visible = true;
-        symmetryToolButton.active = true;
-        symmetryToolButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        y += LABEL_OFFSET;
         symmetryModeButton.setMessage(Text.literal("模式：" + SymmetryTool.INSTANCE.getMode().name()));
         symmetryModeButton.setPosition(x, y);
         symmetryModeButton.setWidth(w);
@@ -252,13 +264,6 @@ public class ToolPanel extends BasePanel {
         // 语义标注
         // --------------------
         y += FIELD_SPACING;
-        semanticLabelToolButton.setPosition(x, y);
-        semanticLabelToolButton.setWidth(w);
-        semanticLabelToolButton.visible = true;
-        semanticLabelToolButton.active = true;
-        semanticLabelToolButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        y += LABEL_OFFSET;
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("标签名："), x, y, 0xFFAAAAAA);
         y += LABEL_OFFSET - 2;
         labelNameInput.render(ctx, x, y, w, 14);
@@ -276,6 +281,17 @@ public class ToolPanel extends BasePanel {
         clearLabelsButton.visible = true;
         clearLabelsButton.active = true;
         clearLabelsButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        // 计算最大滚动（基于未滚动起点）
+        int contentTop = getContentY() + CONTENT_PADDING;
+        int visibleH = getContentHeight() - CONTENT_PADDING * 2;
+        int totalH = (y + scrollY) - contentTop + LABEL_OFFSET; // y 是已减 scrollY 的
+        maxScrollY = Math.max(0, totalH - visibleH);
+        if (scrollY > maxScrollY) scrollY = maxScrollY;
+        if (scrollY < 0) scrollY = 0;
+        } finally {
+            if (sx1 > sx0 && sy1 > sy0) ctx.disableScissor();
+        }
     }
 
     private double getScaledMouseX() {
@@ -294,39 +310,39 @@ public class ToolPanel extends BasePanel {
 
         ensureWidgets();
         int x = panelX + CONTENT_PADDING;
-        int y = getContentY() + CONTENT_PADDING + 20;
+        int y = getContentY() + CONTENT_PADDING - scrollY + 20;
         int w = panelWidth - CONTENT_PADDING * 2;
 
         net.minecraft.client.gui.Click click = new net.minecraft.client.gui.Click(mouseX, mouseY, new net.minecraft.client.input.MouseInput(button, 0));
 
-        selectionToolButton.setPosition(x, y);
-        selectionToolButton.setWidth(w);
-        if (selectionToolButton.mouseClicked(click, false)) return true;
+        // 工具列表
+        noneToolButton.setPosition(x, y);
+        noneToolButton.setWidth(w);
+        if (noneToolButton.mouseClicked(click, false)) return true;
+        y += LABEL_OFFSET;
 
-        y += FIELD_SPACING + LABEL_OFFSET;
+        for (ButtonWidget b : toolButtons.values()) {
+            if (b == null) continue;
+            b.setPosition(x, y);
+            b.setWidth(w);
+            if (b.mouseClicked(click, false)) return true;
+            y += LABEL_OFFSET;
+        }
+        y += LABEL_OFFSET;
+
         clearSelectionButton.setPosition(x, y);
         clearSelectionButton.setWidth(w);
 
         if (clearSelectionButton.mouseClicked(click, false)) return true;
 
         // 禁区
-        y += FIELD_SPACING;
-        protectedZoneToolButton.setPosition(x, y);
-        protectedZoneToolButton.setWidth(w);
-        if (protectedZoneToolButton.mouseClicked(click, false)) return true;
-
-        y += LABEL_OFFSET * 2;
+        y += FIELD_SPACING + LABEL_OFFSET;
         clearProtectedZonesButton.setPosition(x, y);
         clearProtectedZonesButton.setWidth(w);
         if (clearProtectedZonesButton.mouseClicked(click, false)) return true;
 
         // 轮廓
         y += FIELD_SPACING;
-        outlineToolButton.setPosition(x, y);
-        outlineToolButton.setWidth(w);
-        if (outlineToolButton.mouseClicked(click, false)) return true;
-
-        y += LABEL_OFFSET;
         outlineModeButton.setPosition(x, y);
         outlineModeButton.setWidth(w);
         if (outlineModeButton.mouseClicked(click, false)) return true;
@@ -338,11 +354,6 @@ public class ToolPanel extends BasePanel {
 
         // 对称
         y += FIELD_SPACING;
-        symmetryToolButton.setPosition(x, y);
-        symmetryToolButton.setWidth(w);
-        if (symmetryToolButton.mouseClicked(click, false)) return true;
-
-        y += LABEL_OFFSET;
         symmetryModeButton.setPosition(x, y);
         symmetryModeButton.setWidth(w);
         if (symmetryModeButton.mouseClicked(click, false)) return true;
@@ -354,10 +365,6 @@ public class ToolPanel extends BasePanel {
 
         // 语义标注
         y += FIELD_SPACING;
-        semanticLabelToolButton.setPosition(x, y);
-        semanticLabelToolButton.setWidth(w);
-        if (semanticLabelToolButton.mouseClicked(click, false)) return true;
-
         y += LABEL_OFFSET; // “标签名：”
         y += LABEL_OFFSET - 2; // 输入框 y（与 drawContents 一致）
         // labelNameInput
@@ -367,6 +374,16 @@ public class ToolPanel extends BasePanel {
         clearLabelsButton.setPosition(x, y);
         clearLabelsButton.setWidth(w);
         return clearLabelsButton.mouseClicked(click, false);
+    }
+
+    @Override
+    public void mouseScrolled(double mouseX, double mouseY, double amount) {
+        // 只有在面板内容区内滚动才处理
+        if (!isMouseOver(mouseX, mouseY)) return;
+        int step = 12;
+        scrollY = (int) Math.round(scrollY - amount * step);
+        if (scrollY < 0) scrollY = 0;
+        if (scrollY > maxScrollY) scrollY = maxScrollY;
     }
 
     @Override

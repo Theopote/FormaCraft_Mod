@@ -10,6 +10,7 @@ import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.preview.OutlinePreviewState;
 import com.formacraft.client.preview.PatchPreviewState;
+import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.client.preview.PreviewModalState;
 import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.patch.filter.ToolPatchFilter;
@@ -108,8 +109,9 @@ public class BuildConfirmPanel {
         this.patchOrigin = origin != null ? origin : BlockPos.ORIGIN;
         java.util.List<BlockPatch> raw = (patches != null) ? new java.util.ArrayList<>(patches) : new java.util.ArrayList<>();
 
-        // 工具→PatchFilter：默认不强制 restrictToSelection（由未来流程决定）；禁区/轮廓会自动生效
-        PatchFilterResult r = ToolPatchFilter.filter(this.patchOrigin, raw, false);
+        // 工具→PatchFilter：当 PromptMode=MODIFY_REGION 时，强制只允许修改选区内
+        boolean restrict = PromptModeState.restrictToSelection();
+        PatchFilterResult r = ToolPatchFilter.filter(this.patchOrigin, raw, restrict);
         this.patchList = new java.util.ArrayList<>(r.accepted);
         this.rejectedPatchList = new java.util.ArrayList<>(r.rejected);
         this.patchWarnings = new java.util.ArrayList<>(r.warnings);

@@ -21,6 +21,9 @@
     "client": [
       "com.formacraft.client.ClientInitializer"
     ],
+    "formacraft_tools": [
+      "com.formacraft.client.tool.BuiltinToolsEntrypoint"
+    ],
     "server": [
       "com.formacraft.server.ServerInitializer"
     ],
