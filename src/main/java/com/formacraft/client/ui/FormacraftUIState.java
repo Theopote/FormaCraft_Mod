@@ -104,57 +104,20 @@ public class FormacraftUIState {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.options == null) return;
 
-        try {
-            // Yarn 1.21+：通常为 SimpleOption<Boolean> pauseOnLostFocus
-            java.lang.reflect.Field f = client.options.getClass().getDeclaredField("pauseOnLostFocus");
-            f.setAccessible(true);
-            Object opt = f.get(client.options);
-            if (opt == null) return;
-
-            Boolean current = getOptionBooleanValue(opt);
-            if (isOpen) {
-                if (!pauseOnLostFocusOverridden) {
-                    pauseOnLostFocusPrev = current;
-                    pauseOnLostFocusOverridden = true;
-                }
-                setOptionBooleanValue(opt, false);
-            } else {
-                if (pauseOnLostFocusOverridden) {
-                    boolean restore = pauseOnLostFocusPrev != null ? pauseOnLostFocusPrev : true;
-                    setOptionBooleanValue(opt, restore);
-                    pauseOnLostFocusPrev = null;
-                    pauseOnLostFocusOverridden = false;
-                }
+        // 1.21.10 Yarn：GameOptions.pauseOnLostFocus 是 public boolean
+        boolean current = client.options.pauseOnLostFocus;
+        if (isOpen) {
+            if (!pauseOnLostFocusOverridden) {
+                pauseOnLostFocusPrev = current;
+                pauseOnLostFocusOverridden = true;
             }
-        } catch (Throwable ignored) {
-            // 映射/反射失败时静默降级：不影响游戏
-        }
-    }
-
-    private static Boolean getOptionBooleanValue(Object opt) {
-        // 可能是 Boolean 字段（极少），或 SimpleOption<Boolean>
-        if (opt instanceof Boolean b) return b;
-        try {
-            java.lang.reflect.Method m = opt.getClass().getMethod("getValue");
-            Object v = m.invoke(opt);
-            return (v instanceof Boolean b) ? b : null;
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static void setOptionBooleanValue(Object opt, boolean value) {
-        if (opt instanceof Boolean) return; // 无法写回（且基本不会发生）
-        try {
-            // SimpleOption#setValue(T)
-            for (java.lang.reflect.Method m : opt.getClass().getMethods()) {
-                if (!"setValue".equals(m.getName())) continue;
-                if (m.getParameterCount() != 1) continue;
-                m.invoke(opt, value);
-                return;
+            client.options.pauseOnLostFocus = false;
+        } else {
+            if (pauseOnLostFocusOverridden) {
+                client.options.pauseOnLostFocus = pauseOnLostFocusPrev != null ? pauseOnLostFocusPrev : true;
+                pauseOnLostFocusPrev = null;
+                pauseOnLostFocusOverridden = false;
             }
-        } catch (Throwable ignored) {
-            // 静默处理
         }
     }
 
