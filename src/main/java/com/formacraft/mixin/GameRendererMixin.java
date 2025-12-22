@@ -35,7 +35,11 @@ public class GameRendererMixin {
         // 鼠标在面板内：不更新世界目标（避免隔着 UI 选中方块）
         if (InputRouter.isMouseInsideUI()) {
             CursorRaycastHelper.clear();
-            client.crosshairTarget = null;
+            // 不要把 crosshairTarget 置空：否则原版的“目标方块轮廓渲染阶段”可能不会执行，
+            // 而我们的选区框/预览正挂在同一阶段（SelectionBoxRenderMixin），会导致鼠标在面板上时预览消失。
+            // 这里选择“冻结”上一帧的 crosshairTarget（不更新即可），达到：
+            // - 面板上不再穿透选中方块（目标不更新）
+            // - 选区框/预览仍能持续渲染
             ci.cancel();
             return;
         }

@@ -35,6 +35,20 @@ public class InputRouter {
     // 用于防止UI处理点击后，Minecraft仍然处理残留状态
     private static boolean lastClickHandledByUI = false;
 
+    /**
+     * 当 UI 在 ESC 按下时主动关闭（HUD 模式，不是 Screen）时，必须把“按下→重复→释放”这整个按键序列吞掉。
+     * 否则：按住 ESC 会产生 repeat，UI 关闭后 repeat 可能落到原版，导致打开暂停菜单。
+     */
+    private static boolean consumeEscapeUntilRelease = false;
+
+    public static boolean isConsumingEscapeUntilRelease() {
+        return consumeEscapeUntilRelease;
+    }
+
+    public static void clearConsumeEscapeUntilRelease() {
+        consumeEscapeUntilRelease = false;
+    }
+
     /** 更新鼠标位置（来自 MouseMixin） */
     public static void updateMouse(double x, double y) {
         mouseX = x;
@@ -209,8 +223,13 @@ public class InputRouter {
 
         if (!FormacraftUIState.isOpen) return false;
 
-        // ESC 保留给原版
-        if (keyCode == 256) return false;
+        // ESC：完全交给 UI 使用（不触发原版暂停菜单）。
+        // 注意：这里不关闭 Formacraft（已有关闭按钮）。
+        // 同时吞掉整个按键序列直到释放，避免按住 ESC 产生 repeat 导致原版仍打开菜单。
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            consumeEscapeUntilRelease = true;
+            return true;
+        }
 
         // Ctrl+Z / Ctrl+Y：Patch Undo / Redo（仅 UI 打开时生效）
         boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
