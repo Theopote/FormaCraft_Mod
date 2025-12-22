@@ -24,7 +24,7 @@ public class SettingsConfig {
     public String llmProvider = "auto";
     /**
      * LLM Base URL（用于 OpenAI-compatible 服务）。
-     * 例如：DeepSeek=https://api.deepseek.com/v1，OpenAI=https://api.openai.com/v1，Ollama=http://localhost:11434/v1
+     * 例如：DeepSeek=<a href="https://api.deepseek.com/v1">...</a>，OpenAI=<a href="https://api.openai.com/v1">...</a>，Ollama=<a href="http://localhost:11434/v1">...</a>
      */
     public String llmBaseUrl = "";
     public float temperature = 0.7f;       // 默认温度
@@ -34,7 +34,7 @@ public class SettingsConfig {
 
     /**
      * Python 后端（Orchestrator）地址（不含末尾路径时默认拼 /build）
-     * 例如：http://localhost:8000
+     * 例如：<a href="http://localhost:8000">...</a>
      */
     public String orchestratorEndpoint = "http://localhost:8000";
 

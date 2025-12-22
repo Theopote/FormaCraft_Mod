@@ -141,6 +141,10 @@ public class SettingsPanel extends BasePanel {
     private int cachedContentWidth = -1;
     private String cachedTemperatureText = null;
 
+    // 面板滚动（Settings 内容较多时允许滚轮上下滚动）
+    private int scrollY = 0;
+    private int maxScrollY = 0;
+
     public SettingsPanel() {
         loadFromConfig();
         initWidgets();
@@ -197,47 +201,65 @@ public class SettingsPanel extends BasePanel {
             cachedContentWidth = panelWidth;
         }
         int x = cachedContentX;
-        int y = getContentY() + CONTENT_PADDING;
+        int y = getContentY() + CONTENT_PADDING - scrollY;
         int w = panelWidth - CONTENT_PADDING * 2;
 
         // 给设置页加一层半透明底（否则标题/标签直接叠在世界上，容易“看不见”）
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
 
-        // 标题
-        ctx.drawTextWithShadow(client.textRenderer,
-                Text.translatable("formacraft.settings.title"),
-                x, y, COLOR_WHITE);
-        y += TITLE_HEIGHT;
+        // 内容裁剪（避免滚动时画出边界）
+        int sx0 = panelX + 1;
+        int sy0 = getContentY() + 1;
+        int sx1 = panelX + panelWidth - 1;
+        int sy1 = panelY + panelHeight - 1;
+        if (sx1 > sx0 && sy1 > sy0) ctx.enableScissor(sx0, sy0, sx1, sy1);
+        try {
+            // 标题
+            ctx.drawTextWithShadow(client.textRenderer,
+                    Text.translatable("formacraft.settings.title"),
+                    x, y, COLOR_WHITE);
+            y += TITLE_HEIGHT;
 
-        drawOrchestratorField(ctx, x, y, w);
-        y += FIELD_SPACING;
+            drawOrchestratorField(ctx, x, y, w);
+            y += FIELD_SPACING;
 
-        drawApiKeyField(ctx, x, y, w);
-        // API Key 三行：标题 + 输入框 + 按钮行
-        y += FIELD_SPACING + LABEL_OFFSET;
+            drawApiKeyField(ctx, x, y, w);
+            // API Key 三行：标题 + 输入框 + 按钮行
+            y += FIELD_SPACING + LABEL_OFFSET;
 
-        drawLlmProviderField(ctx, x, y, w);
-        y += FIELD_SPACING;
+            drawLlmProviderField(ctx, x, y, w);
+            y += FIELD_SPACING;
 
-        drawLlmBaseUrlField(ctx, x, y, w);
-        y += FIELD_SPACING;
+            drawLlmBaseUrlField(ctx, x, y, w);
+            y += FIELD_SPACING;
 
-        drawModelDetector(ctx, x, y, w);
-        y += FIELD_SPACING;
+            drawModelDetector(ctx, x, y, w);
+            y += FIELD_SPACING;
 
-        drawInteractionReachSlider(ctx, x, y, w);
-        y += FIELD_SPACING;
+            drawInteractionReachSlider(ctx, x, y, w);
+            y += FIELD_SPACING;
 
-        drawTemperatureSlider(ctx, x, y, w);
-        y += FIELD_SPACING;
+            drawTemperatureSlider(ctx, x, y, w);
+            y += FIELD_SPACING;
 
-        drawFontSizeSlider(ctx, x, y, w);
-        y += FIELD_SPACING;
+            drawFontSizeSlider(ctx, x, y, w);
+            y += FIELD_SPACING;
 
-        drawButtonsRow(ctx, x, y, w);
-        y += BUTTON_ROW_HEIGHT;
+            drawButtonsRow(ctx, x, y, w);
+            y += BUTTON_ROW_HEIGHT;
 
-        drawToast(ctx, x, y, w);
+            drawToast(ctx, x, y, w);
+
+            // 计算最大滚动（基于未滚动起点）
+            int contentTop = getContentY() + CONTENT_PADDING;
+            int visibleH = getContentHeight() - CONTENT_PADDING * 2;
+            int totalH = (y + scrollY) - contentTop + LABEL_OFFSET; // y 是已减 scrollY 的
+            maxScrollY = Math.max(0, totalH - visibleH);
+            if (scrollY > maxScrollY) scrollY = maxScrollY;
+            if (scrollY < 0) scrollY = 0;
+        } finally {
+            if (sx1 > sx0 && sy1 > sy0) ctx.disableScissor();
+        }
     }
 
     private void drawToast(DrawContext ctx, int x, int y, int w) {
@@ -464,7 +486,7 @@ public class SettingsPanel extends BasePanel {
 
         ensureWidgets();
         int x = cachedContentX >= 0 ? cachedContentX : (panelX + CONTENT_PADDING);
-        int y = getContentY() + CONTENT_PADDING;
+        int y = getContentY() + CONTENT_PADDING - scrollY;
         int w = panelWidth - CONTENT_PADDING * 2;
 
         boolean clickedOutside = !isMouseOver(mouseX, mouseY);
@@ -650,9 +672,11 @@ public class SettingsPanel extends BasePanel {
 
     @Override
     public void mouseScrolled(double mouseX, double mouseY, double amount) {
-        // 只在输入框上滚动时接管：水平滚动查看被截断内容
+        if (!isMouseOver(mouseX, mouseY)) return;
+
+        // 输入框优先：在输入框上滚动时接管（水平滚动查看被截断内容）
         int x = cachedContentX >= 0 ? cachedContentX : (panelX + CONTENT_PADDING);
-        int y = getContentY() + CONTENT_PADDING;
+        int y = getContentY() + CONTENT_PADDING - scrollY;
         int w = panelWidth - CONTENT_PADDING * 2;
 
         // drawContents 里先画标题，再 y += TITLE_HEIGHT
@@ -667,13 +691,23 @@ public class SettingsPanel extends BasePanel {
         // API Key 输入框（第二行；该字段为三行，但输入框仍在标题行下方一行）
         y += FIELD_SPACING;
         int apiY = y + LABEL_OFFSET;
-        apiKeyInput.mouseScrolled(mouseX, mouseY, amount, x, apiY, w, INPUT_HEIGHT);
+        if (apiKeyInput.mouseScrolled(mouseX, mouseY, amount, x, apiY, w, INPUT_HEIGHT)) {
+            return;
+        }
 
         // LLM Base URL 输入框（在 API Key（三行）之后：FIELD_SPACING + LABEL_OFFSET，然后 Provider 一段 FIELD_SPACING，再到 BaseURL）
         y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Provider 区块起点
         y += FIELD_SPACING;                // 跳过 Provider（label+button）
         int baseUrlY = y + LABEL_OFFSET;   // BaseURL 输入框在 label 下方一行
-        llmBaseUrlInput.mouseScrolled(mouseX, mouseY, amount, x, baseUrlY, w, INPUT_HEIGHT);
+        if (llmBaseUrlInput.mouseScrolled(mouseX, mouseY, amount, x, baseUrlY, w, INPUT_HEIGHT)) {
+            return;
+        }
+
+        // 否则：滚动面板内容
+        int step = 12;
+        scrollY = (int) Math.round(scrollY - amount * step);
+        if (scrollY < 0) scrollY = 0;
+        if (scrollY > maxScrollY) scrollY = maxScrollY;
     }
 
     @Override

@@ -15,6 +15,8 @@ import net.minecraft.world.RaycastContext;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.Objects;
+
 /**
  * UI 打开时：用“系统光标”进行世界 RayCast，并绘制方块 hover 高亮边框。
  *
@@ -51,10 +53,9 @@ public final class CursorWorldInteraction {
         if (cameraEntity == null) return;
 
         double reach = getReachDistance(client);
-        HitResult hit = raycastFromMouse(client, cam, cameraEntity, 1.0f, reach);
 
         // 同步交互目标：让原版“破坏/放置/使用”能跟随光标命中结果
-        client.crosshairTarget = hit;
+        client.crosshairTarget = raycastFromMouse(client, cam, cameraEntity, reach);
     }
 
     private static double getReachDistance(MinecraftClient client) {
@@ -70,7 +71,7 @@ public final class CursorWorldInteraction {
     /**
      * 使用鼠标屏幕位置反算射线方向，并进行方块 RayCast。
      */
-    private static HitResult raycastFromMouse(MinecraftClient client, Camera cam, Entity cameraEntity, float tickDelta, double reachDistance) {
+    private static HitResult raycastFromMouse(MinecraftClient client, Camera cam, Entity cameraEntity, double reachDistance) {
         int sw = client.getWindow().getScaledWidth();
         int sh = client.getWindow().getScaledHeight();
         if (sw <= 0 || sh <= 0) {
@@ -114,7 +115,7 @@ public final class CursorWorldInteraction {
                 RaycastContext.FluidHandling.NONE,
                 cameraEntity
         );
-        return client.world.raycast(ctx);
+        return Objects.requireNonNull(client.world).raycast(ctx);
     }
 }
 
