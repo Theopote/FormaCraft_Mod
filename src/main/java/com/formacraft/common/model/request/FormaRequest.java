@@ -21,6 +21,15 @@ public class FormaRequest {
     private String sessionId;
     private java.util.List<String> chatHistory;
 
+    // LLM 覆盖配置（从客户端 Settings 传入，优先于后端环境变量）
+    private String apiKey;
+    private String model;
+    private Float temperature;
+    /** auto / deepseek / openai / openai_compat / ollama ... */
+    private String llmProvider;
+    /** OpenAI-compatible base URL，例如 https://api.deepseek.com/v1 */
+    private String llmBaseUrl;
+
     public FormaRequest() {
         this.chatHistory = java.util.Collections.emptyList();
     }
@@ -124,6 +133,46 @@ public class FormaRequest {
 
     public void setChatHistory(java.util.List<String> chatHistory) {
         this.chatHistory = chatHistory != null ? chatHistory : java.util.Collections.emptyList();
+    }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    public Float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(Float temperature) {
+        this.temperature = temperature;
+    }
+
+    public String getLlmProvider() {
+        return llmProvider;
+    }
+
+    public void setLlmProvider(String llmProvider) {
+        this.llmProvider = llmProvider;
+    }
+
+    public String getLlmBaseUrl() {
+        return llmBaseUrl;
+    }
+
+    public void setLlmBaseUrl(String llmBaseUrl) {
+        this.llmBaseUrl = llmBaseUrl;
     }
 }
 

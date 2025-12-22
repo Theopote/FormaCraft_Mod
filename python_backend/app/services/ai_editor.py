@@ -15,6 +15,7 @@ except ImportError:
 
 from ..models.city_spec import CitySpec
 from ..models.building_spec import BuildingSpec
+from .llm_client import get_client_from_fields, build_config
 
 
 def _clamp_temperature(v: Optional[float], default: float) -> float:
@@ -31,32 +32,14 @@ def _clamp_temperature(v: Optional[float], default: float) -> float:
         return default
 
 
-def _resolve_api_key(api_key: Optional[str]) -> Optional[str]:
-    if api_key is not None:
-        k = str(api_key).strip()
-        if k:
-            return k
-    env_key = os.getenv("OPENAI_API_KEY")
-    return env_key.strip() if env_key else None
-
-
-def _resolve_model(model: Optional[str], default: str) -> str:
-    if model is not None:
-        m = str(model).strip()
-        if m:
-            return m
-    return os.getenv("OPENAI_MODEL", default)
-
-
-def _get_openai_client(api_key: Optional[str]) -> Optional[OpenAI]:
-    if not HAS_OPENAI:
-        return None
-    if not api_key:
-        return None
-    try:
-        return OpenAI(api_key=api_key)
-    except Exception:
-        return None
+def _resolve_model_from_fields(model: Optional[str], llm_provider: Optional[str], llm_base_url: Optional[str], default: str) -> str:
+    """按 provider/base_url 解析默认模型（DeepSeek 等）"""
+    class _Tmp:
+        apiKey = None
+        model = model
+        llmProvider = llm_provider
+        llmBaseUrl = llm_base_url
+    return build_config(_Tmp(), default_model=default).model
 
 
 def _build_city_edit_system_prompt() -> str:
@@ -135,6 +118,8 @@ def edit_city_spec(
     blueprint_name: Optional[str] = None,
     api_key: Optional[str] = None,
     model: Optional[str] = None,
+    llm_provider: Optional[str] = None,
+    llm_base_url: Optional[str] = None,
     temperature: Optional[float] = None,
 ) -> CitySpec:
     """
@@ -147,7 +132,7 @@ def edit_city_spec(
     Returns:
         更新后的 CitySpec
     """
-    client = _get_openai_client(_resolve_api_key(api_key))
+    client = get_client_from_fields(api_key, llm_provider, llm_base_url)
     if not client:
         # 如果没有 OpenAI 客户端，返回原始 spec（或实现规则基础的回退）
         return current
@@ -174,7 +159,7 @@ Player command:
     
     try:
         response = client.chat.completions.create(
-            model=_resolve_model(model, "gpt-4o-mini"),
+            model=_resolve_model_from_fields(model, llm_provider, llm_base_url, "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -202,6 +187,8 @@ def edit_building_spec(
     command: str,
     api_key: Optional[str] = None,
     model: Optional[str] = None,
+    llm_provider: Optional[str] = None,
+    llm_base_url: Optional[str] = None,
     temperature: Optional[float] = None,
 ) -> BuildingSpec:
     """
@@ -214,7 +201,7 @@ def edit_building_spec(
     Returns:
         更新后的 BuildingSpec
     """
-    client = _get_openai_client(_resolve_api_key(api_key))
+    client = get_client_from_fields(api_key, llm_provider, llm_base_url)
     if not client:
         return current
     
@@ -235,7 +222,7 @@ Player command:
     
     try:
         response = client.chat.completions.create(
-            model=_resolve_model(model, "gpt-4o-mini"),
+            model=_resolve_model_from_fields(model, llm_provider, llm_base_url, "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

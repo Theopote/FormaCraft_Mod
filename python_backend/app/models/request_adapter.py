@@ -31,6 +31,8 @@ class FormaRequestAdapter(BaseModel):
     apiKey: Optional[str] = None
     model: Optional[str] = None
     temperature: Optional[float] = None
+    llmProvider: Optional[str] = None
+    llmBaseUrl: Optional[str] = None
     
     # Python 端格式（嵌套结构，向后兼容）
     player: Optional[dict] = None
@@ -90,6 +92,8 @@ class FormaRequestAdapter(BaseModel):
                 apiKey=self.apiKey,
                 model=self.model,
                 temperature=self.temperature,
+                llmProvider=self.llmProvider,
+                llmBaseUrl=self.llmBaseUrl,
             )
         else:
             # Python 端格式：从嵌套结构构建
@@ -146,5 +150,7 @@ class FormaRequestAdapter(BaseModel):
                 apiKey=self.apiKey,
                 model=self.model,
                 temperature=self.temperature,
+                llmProvider=self.llmProvider,
+                llmBaseUrl=self.llmBaseUrl,
             )
 

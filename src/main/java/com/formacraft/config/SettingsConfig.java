@@ -16,6 +16,17 @@ public class SettingsConfig {
     // === 配置字段 ===
     public String apiKey = "";
     public String model = "gpt-4o";        // 默认模型
+
+    /**
+     * LLM Provider（优先级：请求覆盖 > 本地配置 > 后端环境变量）
+     * 推荐值：auto / deepseek / openai / openai_compat / ollama
+     */
+    public String llmProvider = "auto";
+    /**
+     * LLM Base URL（用于 OpenAI-compatible 服务）。
+     * 例如：DeepSeek=https://api.deepseek.com/v1，OpenAI=https://api.openai.com/v1，Ollama=http://localhost:11434/v1
+     */
+    public String llmBaseUrl = "";
     public float temperature = 0.7f;       // 默认温度
     public int fontSize = 14;              // 默认字体大小（用于 UI 缩放基准）
     /** 系统光标与世界交互的最远距离（用于光标 RayCast / hover 选中框） */
@@ -37,6 +48,8 @@ public class SettingsConfig {
         apiKey = "";
         orchestratorEndpoint = "http://localhost:8000";
         model = "gpt-4o";
+        llmProvider = "auto";
+        llmBaseUrl = "";
         temperature = 0.7f;
         fontSize = 14;
         interactionReach = 80;
@@ -46,6 +59,8 @@ public class SettingsConfig {
         if (other == null) return;
         this.apiKey = other.apiKey != null ? other.apiKey : "";
         this.model = other.model != null ? other.model : "gpt-4o";
+        this.llmProvider = other.llmProvider != null ? other.llmProvider : "auto";
+        this.llmBaseUrl = other.llmBaseUrl != null ? other.llmBaseUrl : "";
         this.temperature = other.temperature;
         this.fontSize = other.fontSize;
         this.orchestratorEndpoint = other.orchestratorEndpoint != null ? other.orchestratorEndpoint : "http://localhost:8000";

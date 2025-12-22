@@ -69,6 +69,8 @@ public class ConversationSummaryService {
         if (cfg != null) {
             if (cfg.apiKey != null && !cfg.apiKey.isEmpty()) root.addProperty("apiKey", cfg.apiKey);
             if (cfg.model != null && !cfg.model.isEmpty()) root.addProperty("model", cfg.model);
+                if (cfg.llmProvider != null && !cfg.llmProvider.isBlank()) root.addProperty("llmProvider", cfg.llmProvider.trim());
+                if (cfg.llmBaseUrl != null && !cfg.llmBaseUrl.isBlank()) root.addProperty("llmBaseUrl", cfg.llmBaseUrl.trim());
             root.addProperty("temperature", cfg.temperature);
         }
         return gson.toJson(root);

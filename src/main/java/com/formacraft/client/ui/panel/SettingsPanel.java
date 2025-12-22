@@ -84,12 +84,17 @@ public class SettingsPanel extends BasePanel {
     // 输入组件（HUD 模式，不依赖 Screen）
     private final HudTextInput orchestratorInput = new HudTextInput();
     private final HudTextInput apiKeyInput = new HudTextInput();
+    private final HudTextInput llmBaseUrlInput = new HudTextInput();
     // 默认显示明文（用户可以手动点 Hide 隐藏）
     private boolean hideKey = false;
 
     // 草稿态（UI）——只有 Save 时才写入 SettingsConfig
     // 允许为空：表示“让后端自行决定模型”
     private String draftModel = "";
+    /** auto / deepseek / openai / openai_compat / ollama */
+    private String draftLlmProvider = "auto";
+    /** OpenAI-compatible base URL（可为空，表示由后端环境变量/默认决定） */
+    private String draftLlmBaseUrl = "";
     private float draftTemperature = 0.7f;
     private int draftFontSize = 14;
     private int draftInteractionReach = DEFAULT_INTERACTION_REACH;
@@ -100,9 +105,10 @@ public class SettingsPanel extends BasePanel {
     private boolean isToastError = false;
 
     // 焦点管理（用于Tab切换）
-    private int currentFocusIndex = 0; // 0=orchestrator, 1=apiKey
+    private int currentFocusIndex = 0; // 0=orchestrator, 1=apiKey, 2=llmBaseUrl
     private static final int FOCUS_ORCHESTRATOR = 0;
     private static final int FOCUS_API_KEY = 1;
+    private static final int FOCUS_LLM_BASEURL = 2;
 
     // 原版风格控件（参考 Pushdozer：ButtonWidget / SliderWidget）
     private ButtonWidget showHideButton;
@@ -111,6 +117,7 @@ public class SettingsPanel extends BasePanel {
     private ButtonWidget cancelButton;
     private ButtonWidget resetButton;
     private ButtonWidget detectModelButton;
+    private ButtonWidget llmProviderButton;
     private TemperatureSlider temperatureSlider;
     private FontSizeSlider fontSizeSlider;
     private InteractionReachSlider interactionReachSlider;
@@ -153,9 +160,13 @@ public class SettingsPanel extends BasePanel {
         this.apiKeyInput.setPasswordMode(hideKey && !apiKeyInput.isFocused());
         this.apiKeyInput.setMaxLength(256);
         this.orchestratorInput.setMaxLength(256);
+        this.llmBaseUrlInput.setMaxLength(256);
 
         // 同步草稿态：允许为空（自动），不再限制预设列表
         this.draftModel = cfg.model != null ? cfg.model.trim() : "";
+        this.draftLlmProvider = (cfg.llmProvider == null || cfg.llmProvider.isBlank()) ? "auto" : cfg.llmProvider.trim();
+        this.draftLlmBaseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
+        this.llmBaseUrlInput.setText(this.draftLlmBaseUrl);
         this.draftTemperature = clamp01(cfg.temperature);
         this.draftFontSize = clampInt(cfg.fontSize);
         this.draftInteractionReach = clampReach(cfg.interactionReach);
@@ -209,6 +220,12 @@ public class SettingsPanel extends BasePanel {
         drawApiKeyField(ctx, x, y, w);
         // API Key 三行：标题 + 输入框 + 按钮行
         y += FIELD_SPACING + LABEL_OFFSET;
+
+        drawLlmProviderField(ctx, x, y, w);
+        y += FIELD_SPACING;
+
+        drawLlmBaseUrlField(ctx, x, y, w);
+        y += FIELD_SPACING;
 
         drawModelDetector(ctx, x, y, w);
         y += FIELD_SPACING;
@@ -312,6 +329,28 @@ public class SettingsPanel extends BasePanel {
         detectModelButton.visible = true;
         detectModelButton.active = !detectingModel;
         detectModelButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
+    }
+
+    // =======================
+    //   LLM Provider & Base URL
+    // =======================
+    private void drawLlmProviderField(DrawContext ctx, int x, int y, int w) {
+        ensureWidgets();
+        drawSmallLabel(ctx, Text.literal("LLM Provider"), x, y);
+        y += LABEL_OFFSET;
+
+        llmProviderButton.setMessage(getLlmProviderButtonText());
+        llmProviderButton.setPosition(x, y);
+        llmProviderButton.setWidth(w);
+        llmProviderButton.visible = true;
+        llmProviderButton.active = true;
+        llmProviderButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
+    }
+
+    private void drawLlmBaseUrlField(DrawContext ctx, int x, int y, int w) {
+        drawSmallLabel(ctx, Text.literal("LLM Base URL"), x, y);
+        y += LABEL_OFFSET;
+        llmBaseUrlInput.render(ctx, x, y, w, INPUT_HEIGHT);
     }
 
     // =======================
@@ -438,6 +477,7 @@ public class SettingsPanel extends BasePanel {
         if (clickedOutside) {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
             return false;
         }
 
@@ -449,6 +489,7 @@ public class SettingsPanel extends BasePanel {
         int orchY = orchLabelY + LABEL_OFFSET;
         if (orchestratorInput.mouseClicked(mouseX, mouseY, x, orchY, w, INPUT_HEIGHT)) {
             apiKeyInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
             return true;
         }
 
@@ -481,12 +522,37 @@ public class SettingsPanel extends BasePanel {
         // 点击 API key 输入框
         if (apiKeyInput.mouseClicked(mouseX, mouseY, x, apiY, w, INPUT_HEIGHT)) {
             orchestratorInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
+            return true;
+        }
+
+        // =========== LLM Provider ============
+        // API Key 三行：标题 + 输入框 + 按钮行
+        y += FIELD_SPACING + LABEL_OFFSET;
+        int providerLabelY = y;
+        int providerY = providerLabelY + LABEL_OFFSET;
+
+        llmProviderButton.setPosition(x, providerY);
+        llmProviderButton.setWidth(w);
+        if (llmProviderButton.mouseClicked(click, false)) {
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
+            return true;
+        }
+
+        // =========== LLM Base URL ============
+        y += FIELD_SPACING;
+        int llmBaseUrlLabelY = y;
+        int llmBaseUrlY = llmBaseUrlLabelY + LABEL_OFFSET;
+        if (llmBaseUrlInput.mouseClicked(mouseX, mouseY, x, llmBaseUrlY, w, INPUT_HEIGHT)) {
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
             return true;
         }
 
         // =========== 模型探测 ============
-        // API Key 三行：标题 + 输入框 + 按钮行
-        y += FIELD_SPACING + LABEL_OFFSET;
+        y += FIELD_SPACING;
         int modelLabelY = y;
         int modelY = modelLabelY + LABEL_OFFSET;
 
@@ -495,6 +561,7 @@ public class SettingsPanel extends BasePanel {
         if (detectModelButton.mouseClicked(click, false)) {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
             return true;
         }
 
@@ -606,6 +673,12 @@ public class SettingsPanel extends BasePanel {
         y += FIELD_SPACING;
         int apiY = y + LABEL_OFFSET;
         apiKeyInput.mouseScrolled(mouseX, mouseY, amount, x, apiY, w, INPUT_HEIGHT);
+
+        // LLM Base URL 输入框（在 API Key（三行）之后：FIELD_SPACING + LABEL_OFFSET，然后 Provider 一段 FIELD_SPACING，再到 BaseURL）
+        y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Provider 区块起点
+        y += FIELD_SPACING;                // 跳过 Provider（label+button）
+        int baseUrlY = y + LABEL_OFFSET;   // BaseURL 输入框在 label 下方一行
+        llmBaseUrlInput.mouseScrolled(mouseX, mouseY, amount, x, baseUrlY, w, INPUT_HEIGHT);
     }
 
     @Override
@@ -639,6 +712,16 @@ public class SettingsPanel extends BasePanel {
             drawTooltipCompat(
                     ctx,
                     java.util.List.of(Text.literal("检测后端默认模型"), Text.literal("当前：" + cur)),
+                    (int) mouseX,
+                    (int) mouseY
+            );
+            return true;
+        }
+        if (llmProviderButton != null && llmProviderButton.isMouseOver(mouseX, mouseY)) {
+            String p = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim();
+            drawTooltipCompat(
+                    ctx,
+                    java.util.List.of(Text.literal("LLM Provider（切换）"), Text.literal("当前：" + p)),
                     (int) mouseX,
                     (int) mouseY
             );
@@ -692,6 +775,11 @@ public class SettingsPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("检测 /models（若为 OpenAI 兼容端点，会使用当前 API Key 请求模型列表）")))
                 .build();
 
+        llmProviderButton = ButtonWidget.builder(getLlmProviderButtonText(), b -> cycleLlmProvider())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("选择 LLM Provider（DeepSeek 优先；其它 OpenAI-compatible 也可用）")))
+                .build();
+
         // Sliders（用原版 SliderWidget 渲染）
         temperatureSlider = new TemperatureSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), clamp01(draftTemperature));
         fontSizeSlider = new FontSizeSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), fontSizeToValue(draftFontSize));
@@ -742,6 +830,37 @@ public class SettingsPanel extends BasePanel {
         return Text.literal("检测模型（当前：" + cur + "）");
     }
 
+    private Text getLlmProviderButtonText() {
+        String p = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim();
+        return Text.literal("Provider（当前：" + p + "）");
+    }
+
+    private void cycleLlmProvider() {
+        String cur = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim().toLowerCase();
+        String[] order = new String[]{"auto", "deepseek", "openai", "openai_compat", "ollama"};
+        int idx = 0;
+        for (int i = 0; i < order.length; i++) {
+            if (order[i].equals(cur)) {
+                idx = i;
+                break;
+            }
+        }
+        String next = order[(idx + 1) % order.length];
+        draftLlmProvider = next;
+
+        // 友好默认：切到指定 Provider 时，自动填 baseUrl（用户可手动改）
+        if ("deepseek".equals(next) && (draftLlmBaseUrl == null || draftLlmBaseUrl.isBlank())) {
+            draftLlmBaseUrl = "https://api.deepseek.com/v1";
+        }
+        if ("openai".equals(next) && (draftLlmBaseUrl == null || draftLlmBaseUrl.isBlank())) {
+            draftLlmBaseUrl = "https://api.openai.com/v1";
+        }
+        if (llmBaseUrlInput != null) llmBaseUrlInput.setText(draftLlmBaseUrl != null ? draftLlmBaseUrl : "");
+
+        if (llmProviderButton != null) llmProviderButton.setMessage(getLlmProviderButtonText());
+        showToast("LLM Provider: " + next, false);
+    }
+
     private void startDetectModel() {
         if (detectingModel) return;
         detectingModel = true;
@@ -754,11 +873,29 @@ public class SettingsPanel extends BasePanel {
         // 注意：这里用的是“当前输入框的 API Key”（草稿态），而不是已保存配置。
         // 否则用户未点 Save 时会一直使用旧 key，体验很差。
         String apiKey = apiKeyInput.getText() != null ? apiKeyInput.getText().trim() : "";
+        String provider = (draftLlmProvider == null) ? "" : draftLlmProvider.trim();
+        String llmBaseUrl = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
+
+        // 附带 provider/baseUrl（让 orchestrator /models 也能探测真实 LLM 端点）
+        String computedUrl = url;
+        try {
+            if (!provider.isBlank() || !llmBaseUrl.isBlank()) {
+                StringBuilder q = new StringBuilder();
+                if (!provider.isBlank()) q.append("provider=").append(java.net.URLEncoder.encode(provider, java.nio.charset.StandardCharsets.UTF_8));
+                if (!llmBaseUrl.isBlank()) {
+                    if (!q.isEmpty()) q.append('&');
+                    q.append("base_url=").append(java.net.URLEncoder.encode(llmBaseUrl, java.nio.charset.StandardCharsets.UTF_8));
+                }
+                computedUrl = url + "?" + q;
+            }
+        } catch (Exception ignored) {
+        }
+        final String finalUrl = computedUrl;
 
         CompletableFuture.supplyAsync(() -> {
             try {
                 HttpRequest.Builder b = HttpRequest.newBuilder()
-                        .uri(URI.create(url))
+                        .uri(URI.create(finalUrl))
                         .timeout(Duration.ofSeconds(4))
                         .header("Accept", "application/json")
                         .GET();
@@ -777,14 +914,14 @@ public class SettingsPanel extends BasePanel {
         }).thenAccept(resp -> client.execute(() -> {
             detectingModel = false;
             if (resp == null || resp.body == null || resp.body.isBlank()) {
-                showToast("检测失败：无法访问 " + url + "（请确认后端地址/网络/是否需要 API Key）", true);
+                showToast("检测失败：无法访问 " + finalUrl + "（请确认后端地址/网络/是否需要 API Key）", true);
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
 
             if (resp.status < 200 || resp.status >= 300) {
                 // 常见：OpenAI 兼容端点未带 key → 401；URL 不对 → 404
-                showToast("检测失败：" + resp.status + " from " + url + "（请确认 API Key / 端点）", true);
+                showToast("检测失败：" + resp.status + " from " + finalUrl + "（请确认 API Key / 端点）", true);
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
@@ -908,6 +1045,13 @@ public class SettingsPanel extends BasePanel {
         }
         if (detectModelButton != null) {
             detectModelButton.setMessage(getDetectModelButtonText());
+        }
+        if (llmProviderButton != null) {
+            llmProviderButton.setMessage(getLlmProviderButtonText());
+        }
+        if (llmBaseUrlInput != null && (draftLlmBaseUrl != null)) {
+            // 避免 loadFromConfig 后输入框仍显示旧值
+            llmBaseUrlInput.setText(draftLlmBaseUrl);
         }
         if (interactionReachSlider != null) {
             interactionReachSlider.setCustomValue(reachToValue(draftInteractionReach));
@@ -1066,9 +1210,16 @@ public class SettingsPanel extends BasePanel {
     private boolean saveSettings() {
         String apiKey = apiKeyInput.getText();
         String endpoint = sanitizeEndpoint(orchestratorInput.getText());
+        String llmBaseUrl = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
+        String provider = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim();
 
-        // 验证API Key
-        if (!isValidApiKey(apiKey)) {
+        // 验证 API Key：DeepSeek/OpenAI 等通常需要；本地 ollama 可不填
+        boolean requiresKey = true;
+        String p = provider.toLowerCase();
+        if ("ollama".equals(p)) requiresKey = false;
+        if (!requiresKey && (apiKey == null || apiKey.trim().isEmpty())) {
+            // ok
+        } else if (requiresKey && !isValidApiKey(apiKey)) {
             showToast(Text.translatable("formacraft.settings.error.api_key_empty").getString(), true);
             return false;
         }
@@ -1077,6 +1228,8 @@ public class SettingsPanel extends BasePanel {
             SettingsConfig.INSTANCE.apiKey = apiKey;
             SettingsConfig.INSTANCE.orchestratorEndpoint = endpoint;
             SettingsConfig.INSTANCE.model = draftModel != null ? draftModel.trim() : "";
+            SettingsConfig.INSTANCE.llmProvider = provider;
+            SettingsConfig.INSTANCE.llmBaseUrl = llmBaseUrl;
             SettingsConfig.INSTANCE.temperature = clamp01(draftTemperature);
             SettingsConfig.INSTANCE.fontSize = clampInt(draftFontSize);
             SettingsConfig.INSTANCE.interactionReach = clampReach(draftInteractionReach);
@@ -1110,6 +1263,7 @@ public class SettingsPanel extends BasePanel {
     public void charTyped(char chr) {
         if (orchestratorInput.isFocused()) orchestratorInput.charTyped(chr);
         if (apiKeyInput.isFocused()) apiKeyInput.charTyped(chr);
+        if (llmBaseUrlInput.isFocused()) llmBaseUrlInput.charTyped(chr);
     }
 
     @Override
@@ -1123,17 +1277,16 @@ public class SettingsPanel extends BasePanel {
         // 关键：要拿到 modifiers，才能支持 Ctrl+V / Shift 选区 等
         if (orchestratorInput.isFocused()) orchestratorInput.keyPressed(keyCode, modifiers);
         if (apiKeyInput.isFocused()) apiKeyInput.keyPressed(keyCode, modifiers);
+        if (llmBaseUrlInput.isFocused()) llmBaseUrlInput.keyPressed(keyCode, modifiers);
 
         // Tab: 切换焦点
         if (keyCode == GLFW.GLFW_KEY_TAB) {
             boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
-            if (shift) {
-                currentFocusIndex = (currentFocusIndex == FOCUS_ORCHESTRATOR) ? FOCUS_API_KEY : FOCUS_ORCHESTRATOR;
-            } else {
-                currentFocusIndex = (currentFocusIndex == FOCUS_API_KEY) ? FOCUS_ORCHESTRATOR : FOCUS_API_KEY;
-            }
+            int count = 3;
+            currentFocusIndex = shift ? (currentFocusIndex + count - 1) % count : (currentFocusIndex + 1) % count;
             orchestratorInput.setFocused(currentFocusIndex == FOCUS_ORCHESTRATOR);
             apiKeyInput.setFocused(currentFocusIndex == FOCUS_API_KEY);
+            llmBaseUrlInput.setFocused(currentFocusIndex == FOCUS_LLM_BASEURL);
             return;
         }
 

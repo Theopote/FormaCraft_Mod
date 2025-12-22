@@ -26,6 +26,8 @@ async def edit_city_endpoint(req: CityEditRequest) -> Dict[str, Any]:
             req.editCommand,
             api_key=req.apiKey,
             model=req.model,
+            llm_provider=req.llmProvider,
+            llm_base_url=req.llmBaseUrl,
             temperature=req.temperature,
         )
         
@@ -55,6 +57,8 @@ async def edit_building_endpoint(req: BuildingEditRequest) -> Dict[str, Any]:
             req.editCommand,
             api_key=req.apiKey,
             model=req.model,
+            llm_provider=req.llmProvider,
+            llm_base_url=req.llmBaseUrl,
             temperature=req.temperature,
         )
         

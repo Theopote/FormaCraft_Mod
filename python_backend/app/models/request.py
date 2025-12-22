@@ -46,4 +46,7 @@ class BuildRequest(BaseModel):
     apiKey: Optional[str] = None
     model: Optional[str] = None
     temperature: Optional[float] = None
+    # 新增：LLM Provider / Base URL（用于 DeepSeek/OpenAI-compatible/本地服务）
+    llmProvider: Optional[str] = None
+    llmBaseUrl: Optional[str] = None
 

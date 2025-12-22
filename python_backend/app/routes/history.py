@@ -18,6 +18,8 @@ class SummarizeRequest(BaseModel):
     transcript: str
     apiKey: Optional[str] = None
     model: Optional[str] = None
+    llmProvider: Optional[str] = None
+    llmBaseUrl: Optional[str] = None
     temperature: Optional[float] = None
 
 
@@ -77,7 +79,8 @@ async def summarize_endpoint(req: SummarizeRequest) -> Dict[str, Any]:
     if not transcript:
         return {"title": "新对话", "summary": ""}
 
-    client = _get_openai_client(_resolve_api_key(req.apiKey))
+    from ..services.llm_client import get_client, build_config
+    client = get_client(req)
     if not client:
         # fallback：简单截断
         title = transcript.splitlines()[0][:28]
@@ -100,8 +103,9 @@ async def summarize_endpoint(req: SummarizeRequest) -> Dict[str, Any]:
     user_prompt = f"Conversation transcript:\n\n{transcript}\n"
 
     try:
+        cfg = build_config(req, default_model="gpt-4o-mini")
         resp = client.chat.completions.create(
-            model=_resolve_model(req.model, "gpt-4o-mini"),
+            model=cfg.model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

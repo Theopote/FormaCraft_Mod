@@ -138,6 +138,12 @@ public class HttpAIService implements AIService {
             if (cfg.model != null && !cfg.model.isEmpty()) {
                 sb.append(',').append("\"model\":\"").append(escapeJson(cfg.model)).append("\"");
             }
+            if (cfg.llmProvider != null && !cfg.llmProvider.isBlank()) {
+                sb.append(',').append("\"llmProvider\":\"").append(escapeJson(cfg.llmProvider.trim())).append("\"");
+            }
+            if (cfg.llmBaseUrl != null && !cfg.llmBaseUrl.isBlank()) {
+                sb.append(',').append("\"llmBaseUrl\":\"").append(escapeJson(cfg.llmBaseUrl.trim())).append("\"");
+            }
             sb.append(',').append("\"temperature\":").append(cfg.temperature);
         }
 

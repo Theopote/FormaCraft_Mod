@@ -14,6 +14,7 @@ except ImportError:
     OpenAI = None
 
 from ..models.request import BuildRequest
+from .llm_client import get_client, build_config
 from ..models.building_spec import (
     BuildingSpec, BuildingType, BuildingStyle, 
     Footprint, Materials, Features, StyleOptions
@@ -35,32 +36,10 @@ def _clamp_temperature(v: Optional[float], default: float) -> float:
         return default
 
 
-def _resolve_llm_api_key(req: Optional[BuildRequest]) -> Optional[str]:
-    if req and getattr(req, "apiKey", None):
-        key = str(req.apiKey).strip()
-        if key:
-            return key
-    env_key = os.getenv("OPENAI_API_KEY")
-    return env_key.strip() if env_key else None
-
-
-def _resolve_llm_model(req: Optional[BuildRequest], default: str) -> str:
-    if req and getattr(req, "model", None):
-        m = str(req.model).strip()
-        if m:
-            return m
-    return os.getenv("OPENAI_MODEL", default)
-
-
-def _get_openai_client(api_key: Optional[str]) -> Optional[OpenAI]:
-    if not HAS_OPENAI:
-        return None
-    if not api_key:
-        return None
-    try:
-        return OpenAI(api_key=api_key)
-    except Exception:
-        return None
+def _resolve_model(req: Optional[BuildRequest], default: str) -> str:
+    # 统一从 llm_client 解析（支持 DeepSeek/OpenAI-compatible）
+    cfg = build_config(req, default_model=default)
+    return cfg.model
 
 
 def _build_system_prompt() -> str:
@@ -285,8 +264,7 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
     """
     调用大模型，生成 CitySpec（城市级结构）
     """
-    api_key = _resolve_llm_api_key(req)
-    client = _get_openai_client(api_key)
+    client = get_client(req)
 
     if not client:
         return _generate_fallback_city_spec(req)
@@ -316,7 +294,7 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
     
     try:
         response = client.chat.completions.create(
-            model=_resolve_llm_model(req, "gpt-4o-mini"),
+            model=_resolve_model(req, "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -431,8 +409,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
     """
     调用大模型，生成 CompositeSpec（复合结构）
     """
-    api_key = _resolve_llm_api_key(req)
-    client = _get_openai_client(api_key)
+    client = get_client(req)
 
     # 如果 OpenAI 客户端不可用，使用回退方案
     if not client:
@@ -458,7 +435,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
     
     try:
         response = client.chat.completions.create(
-            model=_resolve_llm_model(req, "gpt-4o-mini"),
+            model=_resolve_model(req, "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -626,8 +603,7 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     """
     调用大模型，把 BuildRequest -> BuildingSpec
     """
-    api_key = _resolve_llm_api_key(req)
-    client = _get_openai_client(api_key)
+    client = get_client(req)
 
     # 如果 OpenAI 客户端不可用，使用回退方案
     if not client:
@@ -639,7 +615,7 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     try:
         # 使用 OpenAI Chat Completions API
         response = client.chat.completions.create(
-            model=_resolve_llm_model(req, "gpt-4o-mini"),
+            model=_resolve_model(req, "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

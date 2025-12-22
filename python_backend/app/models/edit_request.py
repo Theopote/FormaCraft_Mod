@@ -13,6 +13,8 @@ class CityEditRequest(BaseModel):
     apiKey: Optional[str] = None
     model: Optional[str] = None
     temperature: Optional[float] = None
+    llmProvider: Optional[str] = None
+    llmBaseUrl: Optional[str] = None
 
 
 class BuildingEditRequest(BaseModel):
@@ -26,4 +28,6 @@ class BuildingEditRequest(BaseModel):
     apiKey: Optional[str] = None
     model: Optional[str] = None
     temperature: Optional[float] = None
+    llmProvider: Optional[str] = None
+    llmBaseUrl: Optional[str] = None
 
