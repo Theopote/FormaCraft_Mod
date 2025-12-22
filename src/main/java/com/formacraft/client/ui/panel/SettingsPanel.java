@@ -166,7 +166,17 @@ public class SettingsPanel extends BasePanel {
         // 同步草稿态：允许为空（自动），不再限制预设列表
         this.draftModel = cfg.model != null ? cfg.model.trim() : "";
         this.draftLlmProvider = (cfg.llmProvider == null || cfg.llmProvider.isBlank()) ? "auto" : cfg.llmProvider.trim();
-        this.draftLlmBaseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
+        String rawBaseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
+        String sanitizedBaseUrl = sanitizeLlmBaseUrlOrNull(rawBaseUrl);
+        // 如果配置里是明显错误的 baseUrl（例如 https://ps://...），自动清空并保存，避免反复踩坑
+        if (sanitizedBaseUrl == null) {
+            sanitizedBaseUrl = "";
+            if (cfg.llmBaseUrl != null && !cfg.llmBaseUrl.isBlank()) {
+                SettingsConfig.INSTANCE.llmBaseUrl = "";
+                SettingsConfig.save();
+            }
+        }
+        this.draftLlmBaseUrl = sanitizedBaseUrl;
         this.llmBaseUrlInput.setText(this.draftLlmBaseUrl);
         this.draftTemperature = clamp01(cfg.temperature);
         this.draftFontSize = clampInt(cfg.fontSize);
@@ -909,7 +919,7 @@ public class SettingsPanel extends BasePanel {
         String provider = (draftLlmProvider == null) ? "" : draftLlmProvider.trim();
         String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
         String llmBaseUrl = sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
-        if (llmBaseUrl == null && llmBaseUrlRaw != null && !llmBaseUrlRaw.isBlank()) {
+        if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
             detectingModel = false;
             showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
             if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
@@ -919,9 +929,10 @@ public class SettingsPanel extends BasePanel {
         // 附带 provider/baseUrl（让 orchestrator /models 也能探测真实 LLM 端点）
         String computedUrl = url;
         try {
-            if (!provider.isBlank() || !llmBaseUrl.isBlank()) {
+            if (llmBaseUrl != null && (!provider.isBlank() || !llmBaseUrl.isBlank())) {
                 StringBuilder q = new StringBuilder();
-                if (!provider.isBlank()) q.append("provider=").append(URLEncoder.encode(provider, StandardCharsets.UTF_8));
+                if (!provider.isBlank())
+                    q.append("provider=").append(URLEncoder.encode(provider, StandardCharsets.UTF_8));
                 if (!llmBaseUrl.isBlank()) {
                     if (!q.isEmpty()) q.append('&');
                     q.append("base_url=").append(URLEncoder.encode(llmBaseUrl, StandardCharsets.UTF_8));
@@ -1023,11 +1034,23 @@ public class SettingsPanel extends BasePanel {
         // 移除末尾斜杠
         while (v.endsWith("/")) v = v.substring(0, v.length() - 1);
 
-        // 只接受 http/https
+        // 只接受 http/https，并且要求 host 合理（避免 https://ps://api.openai.com/v1 这种“被重复补协议”的情况）
         try {
             URI uri = new URI(v);
             String scheme = uri.getScheme();
             if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) return null;
+
+            String host = uri.getHost();
+            if (host == null || host.isBlank()) return null;
+            // 允许 localhost / 127.0.0.1 / 正常域名（含点），拒绝像 "ps" 这种明显错误 host
+            boolean hostOk = "localhost".equalsIgnoreCase(host)
+                    || host.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")
+                    || host.contains(".");
+            if (!hostOk) return null;
+
+            // 进一步兜底：如果 path/其余部分里还出现 "://"，说明用户把协议又写进来了
+            String rest = v.substring((scheme + "://").length());
+            if (rest.contains("://")) return null;
         } catch (URISyntaxException e) {
             return null;
         }
@@ -1312,7 +1335,7 @@ public class SettingsPanel extends BasePanel {
         String endpoint = sanitizeEndpoint(orchestratorInput.getText());
         String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
         String llmBaseUrl = sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
-        if (llmBaseUrl == null && llmBaseUrlRaw != null && !llmBaseUrlRaw.isBlank()) {
+        if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
             showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
             return false;
         }

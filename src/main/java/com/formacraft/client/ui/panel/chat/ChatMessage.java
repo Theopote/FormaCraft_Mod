@@ -73,6 +73,19 @@ public class ChatMessage {
         return new ChatMessage("", false, null, MessageType.THINKING);
     }
 
+    /** 可自定义的 thinking 占位（用于更明确的状态提示） */
+    public static ChatMessage thinking(String label) {
+        return new ChatMessage(label != null ? label : "", false, null, MessageType.THINKING);
+    }
+
+    public static ChatMessage error(String text) {
+        return new ChatMessage(text != null ? text : "", false, null, MessageType.ERROR);
+    }
+
+    public static ChatMessage system(String text) {
+        return new ChatMessage(text != null ? text : "", false, null, MessageType.SYSTEM);
+    }
+
     public static ChatMessage cancelled(String text) {
         return new ChatMessage(text != null ? text : "", false, null, MessageType.CANCELLED);
     }

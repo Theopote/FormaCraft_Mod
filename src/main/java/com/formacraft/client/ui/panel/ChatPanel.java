@@ -31,6 +31,7 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * FormaCraft 主聊天面板（左侧固定栏 + 多行输入 + 可滚动消息区域）
@@ -62,6 +63,10 @@ public class ChatPanel extends BasePanel {
     private AIStreamPrinter currentPrinter = null;
     private AICancelToken currentCancelToken = null;
     private CompletableFuture<AIResult> currentRequestFuture = null;
+
+    // ========== 服务端请求状态（用于更准确的“思考中/超时/错误”展示） ==========
+    private long pendingRequestToken = 0L;
+    private int pendingThinkingIndex = -1;
 
     // ========== 输出区文字选择（拖拽选区 + Ctrl+C） ==========
     private final SelectableTextBlock selectable = new SelectableTextBlock(client);
@@ -248,7 +253,8 @@ public class ChatPanel extends BasePanel {
             String displayText;
             if (msg.type == ChatMessage.MessageType.THINKING) {
                 int dots = (int) ((System.currentTimeMillis() / 350) % 4);
-                displayText = "AI 正在思考" + ".".repeat(dots);
+                String base = (msg.text == null || msg.text.isBlank()) ? "AI 正在思考" : msg.text;
+                displayText = base + ".".repeat(dots);
             } else if (msg.type == ChatMessage.MessageType.STREAMING) {
                 displayText = msg.text;
                 caret = true;
@@ -278,8 +284,16 @@ public class ChatPanel extends BasePanel {
                 textColor = 0xFFCCFFFF;
             } else {
                 bubbleX = innerX + 4;
-                bgColor = 0xAA333333;
-                textColor = 0xFFFFFFFF;
+                if (msg.type == ChatMessage.MessageType.ERROR) {
+                    bgColor = 0xAA662222;
+                    textColor = 0xFFFFDDDD;
+                } else if (msg.type == ChatMessage.MessageType.SYSTEM) {
+                    bgColor = 0xAA222222;
+                    textColor = 0xFFCCCCCC;
+                } else {
+                    bgColor = 0xAA333333;
+                    textColor = 0xFFFFFFFF;
+                }
             }
 
             // 气泡背景
@@ -733,6 +747,11 @@ public class ChatPanel extends BasePanel {
         if (text.isEmpty()) return;
 
         if (client.player == null || client.world == null) return;
+        if (client.getNetworkHandler() == null) {
+            messages.add(ChatMessage.error("未连接到服务器，无法发送请求"));
+            scrollOffset = 0;
+            return;
+        }
 
         // 如果上一条还在生成，先真中断，避免并发覆盖 UI（本地流式）
         stopGenerating();
@@ -789,11 +808,27 @@ public class ChatPanel extends BasePanel {
         // 记录 origin，确保 confirm 时与预览一致
         BuildingPreviewState.setPendingOrigin(origin);
 
-        // 添加 AI thinking 占位消息（等服务端返回 ResponseBuildSpecPayload 时会补上 AI 消息）
-        messages.add(ChatMessage.thinking());
+        // 添加 AI thinking 占位消息（等服务端返回 ResponseBuildSpecPayload / Error 时会补上 AI 消息）
+        pendingRequestToken = System.currentTimeMillis();
+        pendingThinkingIndex = messages.size();
+        messages.add(ChatMessage.thinking("已发送请求，等待后端响应"));
         scrollOffset = 0;
 
         FormaCraftNetworking.sendBuildRequest(req);
+
+        // 超时兜底：如果服务端一直没回包，不要无限显示“思考中”
+        final long token = pendingRequestToken;
+        CompletableFuture.delayedExecutor(15, TimeUnit.SECONDS).execute(() -> client.execute(() -> {
+            if (pendingRequestToken != token) return;
+            if (pendingThinkingIndex < 0 || pendingThinkingIndex >= messages.size()) return;
+            ChatMessage cur = messages.get(pendingThinkingIndex);
+            if (cur == null || cur.type != ChatMessage.MessageType.THINKING) return;
+            messages.set(pendingThinkingIndex, ChatMessage.error(
+                    "请求超时：服务端/后端未响应。\n" +
+                            "请确认 Python 后端正在运行，并且 Backend URL 可访问（例如 http://localhost:8000）。"
+            ));
+            scrollOffset = 0;
+        }));
 
         // 清空输入框
         inputBox.clear();
@@ -923,12 +958,24 @@ public class ChatPanel extends BasePanel {
         while (!messages.isEmpty() && messages.getLast().type == ChatMessage.MessageType.THINKING) {
             messages.removeLast();
         }
+        pendingThinkingIndex = -1;
+        pendingRequestToken = 0L;
         if (spec != null) {
             messages.add(new ChatMessage(text, false, spec));
         } else {
             messages.add(new ChatMessage(text, false));
         }
         scrollOffset = 0; // 自动滚动到底部
+    }
+
+    public void addAIError(String text) {
+        while (!messages.isEmpty() && messages.getLast().type == ChatMessage.MessageType.THINKING) {
+            messages.removeLast();
+        }
+        pendingThinkingIndex = -1;
+        pendingRequestToken = 0L;
+        messages.add(ChatMessage.error(text));
+        scrollOffset = 0;
     }
 
     /**

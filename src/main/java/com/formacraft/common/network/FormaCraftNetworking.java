@@ -4,6 +4,7 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.network.packet.PreviewOutlinePacket;
 import com.formacraft.common.network.packet.RequestBuildPacket;
+import com.formacraft.common.network.packet.ResponseBuildErrorPacket;
 import com.formacraft.common.network.packet.ResponseBuildSpecPacket;
 import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.server.build.BuildExecutionService;
@@ -34,6 +35,7 @@ import net.minecraft.util.math.BlockPos;
 public class FormaCraftNetworking {
     public static final Identifier REQUEST_BUILD = Identifier.of("formacraft", "request_build");
     public static final Identifier RESPONSE_BUILD_SPEC = Identifier.of("formacraft", "response_buildspec");
+    public static final Identifier RESPONSE_BUILD_ERROR = Identifier.of("formacraft", "response_builderror");
     public static final Identifier PREVIEW_OUTLINE = Identifier.of("formacraft", "preview_outline");
     public static final Identifier CLEAR_OUTLINE = Identifier.of("formacraft", "clear_outline");
     public static final Identifier PATCH_UNDO = Identifier.of("formacraft", "patch_undo");
@@ -67,6 +69,20 @@ public class FormaCraftNetworking {
         public static final PacketCodec<PacketByteBuf, ResponseBuildSpecPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> ResponseBuildSpecPacket.write(buf, payload.spec),
                 buf -> new ResponseBuildSpecPayload(ResponseBuildSpecPacket.read(buf))
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    // S2C：错误信息（用于替换客户端“AI 正在思考...”占位）
+    public record ResponseBuildErrorPayload(String message) implements CustomPayload {
+        public static final CustomPayload.Id<ResponseBuildErrorPayload> ID = new CustomPayload.Id<>(RESPONSE_BUILD_ERROR);
+        public static final PacketCodec<PacketByteBuf, ResponseBuildErrorPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> ResponseBuildErrorPacket.write(buf, payload.message),
+                buf -> new ResponseBuildErrorPayload(ResponseBuildErrorPacket.read(buf))
         );
 
         @Override
@@ -226,6 +242,7 @@ public class FormaCraftNetworking {
                     ORCHESTRATOR.requestCitySpec(req).thenAccept(citySpec -> {
                         if (citySpec == null) {
                             FormacraftMod.LOGGER.error("Failed to get CitySpec from orchestrator");
+                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CitySpec（请检查后端日志/网络）"));
                             return;
                         }
 
@@ -277,6 +294,7 @@ public class FormaCraftNetworking {
                     ORCHESTRATOR.requestCompositeSpec(req).thenAccept(compositeSpec -> {
                         if (compositeSpec == null) {
                             FormacraftMod.LOGGER.error("Failed to get CompositeSpec from orchestrator");
+                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CompositeSpec（请检查后端日志/网络）"));
                             return;
                         }
 
@@ -332,6 +350,7 @@ public class FormaCraftNetworking {
                         ORCHESTRATOR.editBuilding(buildingId, currentJson, req.getRequestText()).thenAccept(updatedJson -> {
                             if (updatedJson == null) {
                                 FormacraftMod.LOGGER.error("Failed to edit BuildingSpec via orchestrator");
+                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端编辑失败（未返回结果）。请检查 API Key/模型/后端日志。"));
                                 return;
                             }
 
@@ -377,6 +396,7 @@ public class FormaCraftNetworking {
                     ORCHESTRATOR.requestBuildingSpec(req).thenAccept(spec -> {
                         if (spec == null) {
                             FormacraftMod.LOGGER.error("Failed to get BuildingSpec from orchestrator");
+                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 BuildingSpec（请检查 API Key/模型/后端日志）"));
                             return;
                         }
 
@@ -548,6 +568,16 @@ public class FormaCraftNetworking {
             });
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(ResponseBuildErrorPayload.ID, (payload, context) -> {
+            context.client().execute(() -> {
+                String msg = payload.message();
+                FormacraftMod.LOGGER.warn("Received build error from server: {}", msg);
+                com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIError(
+                        (msg == null || msg.isBlank()) ? "请求失败：未知错误" : ("请求失败：" + msg)
+                );
+            });
+        });
+
         // 预览线框数据包接收器
         ClientPlayNetworking.registerGlobalReceiver(PreviewOutlinePayload.ID, (payload, context) -> {
             context.client().execute(() -> {
@@ -593,6 +623,7 @@ public class FormaCraftNetworking {
         registeredS2CPayloadTypes = true;
 
         PayloadTypeRegistry.playS2C().register(ResponseBuildSpecPayload.ID, ResponseBuildSpecPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ResponseBuildErrorPayload.ID, ResponseBuildErrorPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewOutlinePayload.ID, PreviewOutlinePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
     }
