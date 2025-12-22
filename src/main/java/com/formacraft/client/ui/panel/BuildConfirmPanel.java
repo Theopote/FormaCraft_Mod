@@ -12,6 +12,8 @@ import com.formacraft.client.preview.OutlinePreviewState;
 import com.formacraft.client.preview.PatchPreviewState;
 import com.formacraft.client.preview.PreviewModalState;
 import com.formacraft.client.tool.ProtectedZoneTool;
+import com.formacraft.client.patch.filter.ToolPatchFilter;
+import com.formacraft.common.patch.filter.PatchFilterResult;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -37,6 +39,8 @@ public class BuildConfirmPanel {
     private BuildingSpec spec;
     private BlockPos patchOrigin;
     private java.util.List<BlockPatch> patchList;
+    private java.util.List<BlockPatch> rejectedPatchList;
+    private java.util.List<String> patchWarnings;
     @SuppressWarnings("unused")
     private UUID buildId; // 可选：用于区分不同建造请求（以后拓展）
     
@@ -102,9 +106,15 @@ public class BuildConfirmPanel {
         this.visible = true;
 
         this.patchOrigin = origin != null ? origin : BlockPos.ORIGIN;
-        this.patchList = (patches != null) ? new java.util.ArrayList<>(patches) : new java.util.ArrayList<>();
+        java.util.List<BlockPatch> raw = (patches != null) ? new java.util.ArrayList<>(patches) : new java.util.ArrayList<>();
 
-        PatchPreviewState.setPreview(this.patchOrigin, this.patchList);
+        // 工具→PatchFilter：默认不强制 restrictToSelection（由未来流程决定）；禁区/轮廓会自动生效
+        PatchFilterResult r = ToolPatchFilter.filter(this.patchOrigin, raw, false);
+        this.patchList = new java.util.ArrayList<>(r.accepted);
+        this.rejectedPatchList = new java.util.ArrayList<>(r.rejected);
+        this.patchWarnings = new java.util.ArrayList<>(r.warnings);
+
+        PatchPreviewState.setPreview(this.patchOrigin, this.patchList, this.rejectedPatchList);
         PreviewModalState.lockPatch();
     }
     
@@ -116,6 +126,10 @@ public class BuildConfirmPanel {
         this.patchOrigin = null;
         if (this.patchList != null) this.patchList.clear();
         this.patchList = null;
+        if (this.rejectedPatchList != null) this.rejectedPatchList.clear();
+        this.rejectedPatchList = null;
+        if (this.patchWarnings != null) this.patchWarnings.clear();
+        this.patchWarnings = null;
 
         BuildingPreviewState.clear();
         OutlinePreviewState.clear(); // 关闭预览线框
@@ -217,10 +231,26 @@ public class BuildConfirmPanel {
             infoY += lineHeight;
             context.drawTextWithShadow(
                     client.textRenderer,
-                    Text.literal("place: " + place + "  remove: " + remove + "  replace: " + replace),
+                    Text.literal("place: " + place + "  remove: " + remove + "  replace: " + replace
+                            + "  rejected: " + (rejectedPatchList != null ? rejectedPatchList.size() : 0)),
                     textX, infoY, 0xAAAAAA
             );
             infoY += lineHeight;
+
+            // warnings（最多显示 3 行，避免遮挡按钮）
+            if (patchWarnings != null && !patchWarnings.isEmpty()) {
+                int shown = 0;
+                for (String w : patchWarnings) {
+                    if (w == null || w.isBlank()) continue;
+                    context.drawTextWithShadow(
+                            client.textRenderer,
+                            Text.literal("⚠ " + w),
+                            textX, infoY, 0xFFAAAAAA
+                    );
+                    infoY += lineHeight;
+                    if (++shown >= 3) break;
+                }
+            }
 
             // 底部按钮（patch）
             int btnY = y1 - 30;

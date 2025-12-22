@@ -26,6 +26,7 @@ public final class PatchPreviewRenderer {
         List<OutlineQuad> place = PatchPreviewState.getPlaceOutline();
         List<OutlineQuad> replace = PatchPreviewState.getReplaceOutline();
         List<OutlineQuad> remove = PatchPreviewState.getRemoveOutline();
+        List<OutlineQuad> rejected = PatchPreviewState.getRejectedOutline();
 
         // place：蓝色
         if (place != null) {
@@ -48,6 +49,14 @@ public final class PatchPreviewRenderer {
             for (OutlineQuad q : remove) {
                 Box box = toThinBox(q, ctx.cameraX, ctx.cameraY, ctx.cameraZ);
                 VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 1.00f, 0.25f, 0.25f, 0.85f);
+            }
+        }
+
+        // rejected：紫红（强提示：不会被执行）
+        if (rejected != null) {
+            for (OutlineQuad q : rejected) {
+                Box box = toThinBox(q, ctx.cameraX, ctx.cameraY, ctx.cameraZ);
+                VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.90f, 0.20f, 1.00f, 0.95f);
             }
         }
     }
