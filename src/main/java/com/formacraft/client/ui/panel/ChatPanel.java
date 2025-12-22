@@ -737,12 +737,12 @@ public class ChatPanel extends BasePanel {
         // 如果上一条还在生成，先真中断，避免并发覆盖 UI（本地流式）
         stopGenerating();
 
+        // 记录本次使用的模式（用于 Prompt/BuildContext/PatchFilter 统一解析）
+        PromptModeState.setLastMode(promptMode);
+
         // Prompt 拼接（UI 显示 rawInput；发给 AI 的是 finalPrompt）
         String finalPrompt = PromptAssembler.assemble(text, promptMode);
         if (finalPrompt.isEmpty()) return;
-
-        // 记录本次使用的模式（用于 PatchFilter/Preview 链路）
-        PromptModeState.setLastMode(promptMode);
 
         // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）
         messages.add(new ChatMessage(text, true));
@@ -763,7 +763,7 @@ public class ChatPanel extends BasePanel {
         String dimensionId = world.getRegistryKey().getValue().toString();
 
         // origin（基准点）：统一从 BuildContextResolver 解析（Outline > Selection > Anchor > CursorHit）
-        var bc = BuildContextResolver.resolve();
+        var bc = BuildContextResolver.resolve(promptMode == PromptMode.MODIFY_REGION);
         BlockPos origin = (bc != null && bc.origin != null) ? bc.origin : client.player.getBlockPos().add(2, 0, 2);
 
         // 构造历史
@@ -920,8 +920,8 @@ public class ChatPanel extends BasePanel {
      */
     public void addAIMessage(String text, BuildingSpec spec) {
         // 若上一条是“thinking”，先移除，避免残留占位
-        while (!messages.isEmpty() && messages.get(messages.size() - 1).type == ChatMessage.MessageType.THINKING) {
-            messages.remove(messages.size() - 1);
+        while (!messages.isEmpty() && messages.getLast().type == ChatMessage.MessageType.THINKING) {
+            messages.removeLast();
         }
         if (spec != null) {
             messages.add(new ChatMessage(text, false, spec));

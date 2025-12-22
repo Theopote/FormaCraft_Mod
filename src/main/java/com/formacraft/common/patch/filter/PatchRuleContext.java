@@ -9,9 +9,6 @@ import net.minecraft.util.math.BlockPos;
 public class PatchRuleContext {
     public final BlockPos origin;
 
-    /** 是否强制限制在选区内（通常对应 MODIFY_REGION）。 */
-    public boolean restrictToSelection = false;
-
     public PatchRuleContext(BlockPos origin) {
         this.origin = origin != null ? origin : BlockPos.ORIGIN;
     }

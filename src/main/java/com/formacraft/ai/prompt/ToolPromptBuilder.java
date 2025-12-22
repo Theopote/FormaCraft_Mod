@@ -6,6 +6,7 @@ import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.context.SemanticLabelContext;
 import com.formacraft.ai.context.SymmetryContext;
 import com.formacraft.client.buildcontext.BuildContextResolver;
+import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.common.buildcontext.BuildContext;
 
 /**
@@ -20,7 +21,7 @@ public final class ToolPromptBuilder {
         if (ctx == null) return;
 
         // 统一空间上下文（BuildContext）
-        BuildContext bc = BuildContextResolver.resolve();
+        BuildContext bc = BuildContextResolver.resolve(PromptModeState.restrictToSelection());
         if (bc != null && bc.origin != null) {
             ctx.annotations.add("SpatialContext.mode: " + bc.mode.name());
             ctx.annotations.add("SpatialContext.origin: (" + bc.origin.getX() + "," + bc.origin.getY() + "," + bc.origin.getZ() + ")");
@@ -62,7 +63,7 @@ public final class ToolPromptBuilder {
         String s = block.trim();
         if (s.isEmpty()) return;
         for (String line : s.split("\\R")) {
-            String t = line == null ? "" : line.trim();
+            String t = line.trim();
             if (!t.isEmpty()) target.add(t);
         }
     }

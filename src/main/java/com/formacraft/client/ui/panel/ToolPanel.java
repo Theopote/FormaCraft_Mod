@@ -99,9 +99,7 @@ public class ToolPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("清空所有已添加的禁区/保护区")))
                 .build();
 
-        outlineModeButton = ButtonWidget.builder(Text.literal("模式：POLYGON"), b -> {
-                    OutlineTool.INSTANCE.cycleMode();
-                })
+        outlineModeButton = ButtonWidget.builder(Text.literal("模式：POLYGON"), b -> OutlineTool.INSTANCE.cycleMode())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("切换轮廓绘制模式")))
                 .build();
@@ -111,9 +109,7 @@ public class ToolPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("清除当前轮廓")))
                 .build();
 
-        symmetryModeButton = ButtonWidget.builder(Text.literal("模式：NONE"), b -> {
-                    SymmetryTool.INSTANCE.cycleMode();
-                })
+        symmetryModeButton = ButtonWidget.builder(Text.literal("模式：NONE"), b -> SymmetryTool.INSTANCE.cycleMode())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("切换对称模式（自定义轴线可两点标注）")))
                 .build();
@@ -193,9 +189,24 @@ public class ToolPanel extends BasePanel {
         } else if (SelectionTool.INSTANCE.hasSelection()) {
             var min = SelectionTool.INSTANCE.getMin();
             var max = SelectionTool.INSTANCE.getMax();
-            int dx = (max.getX() - min.getX() + 1);
-            int dy = (max.getY() - min.getY() + 1);
-            int dz = (max.getZ() - min.getZ() + 1);
+            int dx = 0;
+            if (max != null) {
+                if (min != null) {
+                    dx = (max.getX() - min.getX() + 1);
+                }
+            }
+            int dy = 0;
+            if (max != null) {
+                if (min != null) {
+                    dy = (max.getY() - min.getY() + 1);
+                }
+            }
+            int dz = 0;
+            if (min != null) {
+                if (max != null) {
+                    dz = (max.getZ() - min.getZ() + 1);
+                }
+            }
             status = "Selection: " + dx + " x " + dy + " x " + dz;
         } else {
             status = "提示：左键点方块设置起点，再点一次设置终点";

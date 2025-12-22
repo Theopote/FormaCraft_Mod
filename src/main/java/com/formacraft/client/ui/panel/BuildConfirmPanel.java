@@ -14,6 +14,7 @@ import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.client.preview.PreviewModalState;
 import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.patch.filter.ToolPatchFilter;
+import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.common.patch.filter.PatchFilterResult;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.client.MinecraftClient;
@@ -109,9 +110,11 @@ public class BuildConfirmPanel {
         this.patchOrigin = origin != null ? origin : BlockPos.ORIGIN;
         java.util.List<BlockPatch> raw = (patches != null) ? new java.util.ArrayList<>(patches) : new java.util.ArrayList<>();
 
-        // 工具→PatchFilter：当 PromptMode=MODIFY_REGION 时，强制只允许修改选区内
+        // PatchFilter：只读 BuildContext（含主约束+禁区+restrictToSelection）
         boolean restrict = PromptModeState.restrictToSelection();
-        PatchFilterResult r = ToolPatchFilter.filter(this.patchOrigin, raw, restrict);
+        var bc = BuildContextResolver.resolve(restrict);
+        if (bc != null) bc = bc.withOrigin(this.patchOrigin);
+        PatchFilterResult r = ToolPatchFilter.filter(bc, this.patchOrigin, raw);
         this.patchList = new java.util.ArrayList<>(r.accepted);
         this.rejectedPatchList = new java.util.ArrayList<>(r.rejected);
         this.patchWarnings = new java.util.ArrayList<>(r.warnings);

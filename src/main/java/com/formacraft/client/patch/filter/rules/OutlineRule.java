@@ -1,7 +1,7 @@
 package com.formacraft.client.patch.filter.rules;
 
-import com.formacraft.client.tool.OutlineMode;
-import com.formacraft.client.tool.OutlineTool;
+import com.formacraft.common.buildcontext.BuildContext;
+import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.filter.PatchRule;
 import com.formacraft.common.patch.filter.PatchRuleContext;
@@ -13,11 +13,16 @@ import java.util.List;
  * 轮廓规则：禁止在 footprint/outlines 外放置或修改方块。
  */
 public class OutlineRule implements PatchRule {
+    private final BuildContext bc;
+
+    public OutlineRule(BuildContext bc) {
+        this.bc = bc;
+    }
+
     @Override
     public boolean allow(BlockPatch patch, PatchRuleContext ctx) {
         if (patch == null || ctx == null) return false;
-        if (!OutlineTool.INSTANCE.hasShape()) return true;
-        OutlineTool.OutlineShape s = OutlineTool.INSTANCE.getShape();
+        OutlineShape s = (bc != null) ? bc.outline : null;
         if (s == null) return true;
 
         BlockPos p = ctx.resolve(patch);
@@ -25,13 +30,13 @@ public class OutlineRule implements PatchRule {
         int y = p.getY();
         if (y < s.minY() || y > s.maxY()) return false;
 
-        if (s.mode() == OutlineMode.CIRCLE && s.center() != null) {
+        if ("circle".equalsIgnoreCase(s.shapeType()) && s.center() != null) {
             int dx = p.getX() - s.center().getX();
             int dz = p.getZ() - s.center().getZ();
             return (dx * dx + dz * dz) <= (s.radius() * s.radius());
         }
 
-        List<BlockPos> poly = s.points();
+        List<BlockPos> poly = s.vertices();
         if (poly == null || poly.size() < 3) return true;
         return pointInPolygonXZ(p.getX() + 0.5, p.getZ() + 0.5, poly);
     }
