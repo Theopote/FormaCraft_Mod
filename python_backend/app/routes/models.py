@@ -4,6 +4,7 @@ import os
 import urllib.request
 import logging
 import concurrent.futures
+from urllib.parse import urlparse
 from typing import Any, Dict, List, Optional
 
 from ..services.llm_client import (
@@ -96,11 +97,45 @@ def models(
     remote_error: Optional[str] = None
     if resolved_base and api_key:
         try:
-            # Hard-timeout guard: DNS/SSL may ignore socket timeout in some environments.
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                fut = ex.submit(_fetch_remote_models, resolved_base, api_key)
-                models_list = fut.result(timeout=_REMOTE_MODELS_HARD_TIMEOUT_SEC)
-                remote_models_ok = True
+            # Some environments (notably CN) may block api.openai.com and cause long DNS/SSL stalls.
+            # In such cases, skip remote probing and fall back immediately.
+            host = ""
+            try:
+                host = (urlparse(resolved_base).hostname or "").lower()
+            except Exception:
+                host = ""
+            if host == "api.openai.com":
+                remote_models_ok = False
+                remote_error = "skipped remote /models for api.openai.com (likely blocked network); using fallback"
+                models_list = []
+            else:
+                # Hard-timeout guard: DNS/SSL may ignore socket timeout in some environments.
+                # IMPORTANT: do NOT wait for hung threads on shutdown.
+                ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                fut = None
+                try:
+                    fut = ex.submit(_fetch_remote_models, resolved_base, api_key)
+                    models_list = fut.result(timeout=_REMOTE_MODELS_HARD_TIMEOUT_SEC)
+                    remote_models_ok = True
+                except concurrent.futures.TimeoutError:
+                    remote_models_ok = False
+                    remote_error = f"remote /models timeout after {_REMOTE_MODELS_HARD_TIMEOUT_SEC}s"
+                    logger.warning(
+                        "fetch remote /models hard-timeout: provider=%s base_url=%s",
+                        resolved_provider,
+                        resolved_base,
+                    )
+                    models_list = []
+                    if fut is not None:
+                        try:
+                            fut.cancel()
+                        except Exception:
+                            pass
+                finally:
+                    try:
+                        ex.shutdown(wait=False, cancel_futures=True)
+                    except Exception:
+                        pass
         except concurrent.futures.TimeoutError:
             remote_models_ok = False
             remote_error = f"remote /models timeout after {_REMOTE_MODELS_HARD_TIMEOUT_SEC}s"
