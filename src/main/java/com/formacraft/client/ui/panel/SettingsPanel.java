@@ -1217,7 +1217,8 @@ public class SettingsPanel extends BasePanel {
             try {
                 HttpRequest.Builder b = HttpRequest.newBuilder()
                         .uri(URI.create(finalUrl))
-                        .timeout(Duration.ofSeconds(4))
+                        // /models 可能触发后端去探测外网（OpenAI/DeepSeek/OpenRouter 等），4s 太容易超时
+                        .timeout(Duration.ofSeconds(12))
                         .header("Accept", "application/json")
                         .GET();
 
@@ -1243,7 +1244,13 @@ public class SettingsPanel extends BasePanel {
 
             // 本地异常（URI.create/连接失败等）
             if (resp.status < 0) {
-                showToast("检测失败：请求异常（详见日志） err=" + shortErr(resp.body), true);
+                String err = shortErr(resp.body);
+                // 针对超时做更友好的提示：后端可能健康，但上游模型列表探测不可达/太慢
+                if (err.toLowerCase().contains("httptimeoutexception") || err.toLowerCase().contains("request timed out")) {
+                    showToast("检测超时：上游模型列表可能不可达（可直接手动填写模型/更换 Base URL）", true);
+                } else {
+                    showToast("检测失败：请求异常（详见日志） err=" + err, true);
+                }
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
@@ -1262,6 +1269,24 @@ public class SettingsPanel extends BasePanel {
             }
 
             String detected = parseDetectedModel(resp.body);
+            // 若后端返回了“上游模型列表探测失败”，给出更准确的提示，避免误以为检测到真实模型
+            try {
+                JsonElement root = JsonParser.parseString(resp.body);
+                if (root != null && root.isJsonObject()) {
+                    JsonObject obj = root.getAsJsonObject();
+                    boolean hasRemoteOk = obj.has("remote_models_ok") && obj.get("remote_models_ok").isJsonPrimitive();
+                    boolean remoteOk = hasRemoteOk && obj.get("remote_models_ok").getAsBoolean();
+                    if (hasRemoteOk && !remoteOk) {
+                        String dm = (detected == null) ? "" : detected.trim();
+                        if (!dm.isBlank()) {
+                            showToast("提示：上游模型列表探测失败，已回退默认模型=" + dm, true);
+                        } else {
+                            showToast("提示：上游模型列表探测失败（可手动填写模型）", true);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
             if (detected == null || detected.isBlank()) {
                 draftModel = "";
                 showToast("检测完成：模型=自动", false);
