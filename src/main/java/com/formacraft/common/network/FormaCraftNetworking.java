@@ -6,6 +6,7 @@ import com.formacraft.common.network.packet.PreviewOutlinePacket;
 import com.formacraft.common.network.packet.RequestBuildPacket;
 import com.formacraft.common.network.packet.ResponseBuildErrorPacket;
 import com.formacraft.common.network.packet.ResponseBuildSpecPacket;
+import com.formacraft.common.network.packet.ResponseBuildStatusPacket;
 import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.orchestrator.OrchestratorClient;
@@ -37,6 +38,7 @@ public class FormaCraftNetworking {
     public static final Identifier REQUEST_BUILD = Identifier.of("formacraft", "request_build");
     public static final Identifier RESPONSE_BUILD_SPEC = Identifier.of("formacraft", "response_buildspec");
     public static final Identifier RESPONSE_BUILD_ERROR = Identifier.of("formacraft", "response_builderror");
+    public static final Identifier RESPONSE_BUILD_STATUS = Identifier.of("formacraft", "response_buildstatus");
     public static final Identifier PREVIEW_OUTLINE = Identifier.of("formacraft", "preview_outline");
     public static final Identifier CLEAR_OUTLINE = Identifier.of("formacraft", "clear_outline");
     public static final Identifier PATCH_UNDO = Identifier.of("formacraft", "patch_undo");
@@ -84,6 +86,20 @@ public class FormaCraftNetworking {
         public static final PacketCodec<PacketByteBuf, ResponseBuildErrorPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> ResponseBuildErrorPacket.write(buf, payload.message),
                 buf -> new ResponseBuildErrorPayload(ResponseBuildErrorPacket.read(buf))
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    // S2C：状态信息（用于更新客户端“思考中/等待中”提示，避免黑盒）
+    public record ResponseBuildStatusPayload(String message) implements CustomPayload {
+        public static final CustomPayload.Id<ResponseBuildStatusPayload> ID = new CustomPayload.Id<>(RESPONSE_BUILD_STATUS);
+        public static final PacketCodec<PacketByteBuf, ResponseBuildStatusPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> ResponseBuildStatusPacket.write(buf, payload.message),
+                buf -> new ResponseBuildStatusPayload(ResponseBuildStatusPacket.read(buf))
         );
 
         @Override
@@ -224,6 +240,9 @@ public class FormaCraftNetworking {
             FormacraftMod.LOGGER.info("Received build request from player {}: {}",
                     player.getName().getString(), req.getRequestText());
 
+            // 状态：服务端已收到请求
+            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("服务端已收到请求，正在请求后端…")));
+
             // 检查应该请求什么类型的结构
             String requestText = req.getRequestText().toLowerCase();
             boolean isCity = requestText.contains("城市") || requestText.contains("城镇") ||
@@ -243,23 +262,27 @@ public class FormaCraftNetworking {
                         .orTimeout(115, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
                             FormacraftMod.LOGGER.error("Orchestrator city request failed", ex);
-                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                            // IMPORTANT: always send packets on the server thread
+                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
                                     """
                                             后端生成超时/失败（CitySpec）。
                                             常见原因：LLM 上游不可达/模型不可用/API Key 无效。
                                             请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
-                            ));
+                            )));
                             return null;
                         })
                         .thenAccept(citySpec -> {
                     if (citySpec == null) {
                         FormacraftMod.LOGGER.error("Failed to get CitySpec from orchestrator");
-                        ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CitySpec（请检查后端日志/网络）"));
+                        context.server().execute(() ->
+                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CitySpec（请检查后端日志/网络）"))
+                        );
                         return;
                     }
 
                     // 在主线程中执行
                     context.server().execute(() -> {
+                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成城市预览…"));
                         // 对于城市结构，生成预览而不是直接建造
                         BlockPos origin = req.getPlayerPos();
                         if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
@@ -307,23 +330,26 @@ public class FormaCraftNetworking {
                         .orTimeout(115, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
                             FormacraftMod.LOGGER.error("Orchestrator composite request failed", ex);
-                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
                                     """
                                             后端生成超时/失败（CompositeSpec）。
                                             常见原因：LLM 上游不可达/模型不可用/API Key 无效。
                                             请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
-                            ));
+                            )));
                             return null;
                         })
                         .thenAccept(compositeSpec -> {
                     if (compositeSpec == null) {
                         FormacraftMod.LOGGER.error("Failed to get CompositeSpec from orchestrator");
-                        ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CompositeSpec（请检查后端日志/网络）"));
+                        context.server().execute(() ->
+                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CompositeSpec（请检查后端日志/网络）"))
+                        );
                         return;
                     }
 
                     // 在主线程中执行
                     context.server().execute(() -> {
+                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成复合结构预览…"));
                         // 对于复合结构，生成预览而不是直接建造
                         BlockPos origin = req.getPlayerPos();
                         if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
@@ -375,22 +401,25 @@ public class FormaCraftNetworking {
                             .orTimeout(115, TimeUnit.SECONDS)
                             .exceptionally(ex -> {
                                 FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
-                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
                                         """
                                                 后端编辑超时/失败。
                                                 常见原因：LLM 上游不可达/模型不可用/API Key 无效。
                                                 请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
-                                ));
+                                )));
                                 return null;
                             })
                             .thenAccept(updatedJson -> {
                         if (updatedJson == null) {
                             FormacraftMod.LOGGER.error("Failed to edit BuildingSpec via orchestrator");
-                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端编辑失败（未返回结果）。请检查 API Key/模型/后端日志。"));
+                            context.server().execute(() ->
+                                    ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端编辑失败（未返回结果）。请检查 API Key/模型/后端日志。"))
+                            );
                             return;
                         }
 
                         context.server().execute(() -> {
+                            ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成更新后的预览…"));
                             // 更新 PlayerSpecRepository
                             com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, updatedJson);
 
@@ -433,23 +462,26 @@ public class FormaCraftNetworking {
                         .orTimeout(115, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
                             FormacraftMod.LOGGER.error("Orchestrator building request failed", ex);
-                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
                                     """
                                             后端生成超时/失败（BuildingSpec）。
                                             常见原因：LLM 上游不可达/模型不可用/API Key 无效。
                                             请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
-                            ));
+                            )));
                             return null;
                         })
                         .thenAccept(spec -> {
                     if (spec == null) {
                         FormacraftMod.LOGGER.error("Failed to get BuildingSpec from orchestrator");
-                        ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 BuildingSpec（请检查 API Key/模型/后端日志）"));
+                        context.server().execute(() ->
+                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 BuildingSpec（请检查 API Key/模型/后端日志）"))
+                        );
                         return;
                     }
 
                     // 在主线程中执行
                     context.server().execute(() -> {
+                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成建筑预览…"));
                         // 生成预览结构
                         BlockPos origin = req.getPlayerPos();
                         if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
@@ -613,6 +645,13 @@ public class FormaCraftNetworking {
             );
         }));
 
+        ClientPlayNetworking.registerGlobalReceiver(ResponseBuildStatusPayload.ID, (payload, context) -> context.client().execute(() -> {
+            String msg = payload.message();
+            if (msg == null || msg.isBlank()) return;
+            FormacraftMod.LOGGER.info("Received build status from server: {}", msg);
+            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIStatus(msg);
+        }));
+
         // 预览线框数据包接收器
         ClientPlayNetworking.registerGlobalReceiver(PreviewOutlinePayload.ID, (payload, context) -> context.client().execute(() -> {
             List<OutlineBlock> blocks = payload.blocks();
@@ -655,6 +694,7 @@ public class FormaCraftNetworking {
 
         PayloadTypeRegistry.playS2C().register(ResponseBuildSpecPayload.ID, ResponseBuildSpecPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ResponseBuildErrorPayload.ID, ResponseBuildErrorPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ResponseBuildStatusPayload.ID, ResponseBuildStatusPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewOutlinePayload.ID, PreviewOutlinePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
     }

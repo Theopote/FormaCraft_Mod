@@ -1070,11 +1070,25 @@ public class ChatPanel extends BasePanel {
     }
 
     /**
-     * 添加普通消息
+     * 更新“等待/生成中”的状态文本（不结束请求）。
+     * - 如果当前有 THINKING 占位，则直接替换那条消息的文案
+     * - 否则新增一条 SYSTEM 信息（兜底）
      */
-    public void addMessage(String text, boolean fromPlayer) {
-        messages.add(new ChatMessage(text, fromPlayer));
-        scrollOffset = 0; // 自动滚动到底部
-    }
+    public void addAIStatus(String text) {
+        String t = (text == null) ? "" : text.trim();
+        if (t.isEmpty()) return;
 
+        if (pendingThinkingIndex >= 0 && pendingThinkingIndex < messages.size()) {
+            ChatMessage cur = messages.get(pendingThinkingIndex);
+            if (cur != null && cur.type == ChatMessage.MessageType.THINKING) {
+                messages.set(pendingThinkingIndex, ChatMessage.thinking(t));
+                scrollOffset = 0;
+                return;
+            }
+        }
+
+        // fallback：如果没有 pending thinking，就作为系统消息插入
+        messages.add(new ChatMessage(t, false));
+        scrollOffset = 0;
+    }
 }
