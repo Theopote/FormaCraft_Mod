@@ -24,8 +24,9 @@ _REMOTE_MODELS_HARD_TIMEOUT_SEC = 2.5
 
 _FALLBACK_MODELS_BY_PROVIDER: Dict[str, List[str]] = {
     # OpenAI family (examples; will vary by account availability)
-    "openai": ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1", "gpt-4"],
-    "openai_compat": ["gpt-4o-mini", "gpt-4o"],
+    # Note: Model availability depends on account/region; fallback is just convenient suggestions.
+    "openai": ["gpt-5.2", "gpt-5.1", "gpt-5", "gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1", "gpt-4"],
+    "openai_compat": ["gpt-5.2", "gpt-5.1", "gpt-5", "gpt-4o-mini", "gpt-4o"],
     "auto": ["gpt-4o-mini"],
     # DeepSeek
     "deepseek": ["deepseek-chat", "deepseek-reasoner"],

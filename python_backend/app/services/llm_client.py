@@ -36,10 +36,40 @@ def resolve_provider(req: Any = None) -> str:
     if req is not None:
         p = _norm(getattr(req, "llmProvider", None))
         if p:
-            return p.lower()
+            p = p.lower()
+            # common typos / aliases
+            if p in ("penai", "opena1", "open-ai", "open_ai"):
+                p = "openai"
+            # normalize known providers; unknown -> openai_compat (safe default for OpenAI-compatible APIs)
+            known = {
+                "auto",
+                "openai",
+                "openai_compat",
+                "deepseek",
+                "openrouter",
+                "groq",
+                "together",
+                "ollama",
+                "lmstudio",
+            }
+            return p if p in known else "openai_compat"
     env = _norm(os.getenv("LLM_PROVIDER"))
     if env:
-        return env.lower()
+        p = env.lower()
+        if p in ("penai", "opena1", "open-ai", "open_ai"):
+            p = "openai"
+        known = {
+            "auto",
+            "openai",
+            "openai_compat",
+            "deepseek",
+            "openrouter",
+            "groq",
+            "together",
+            "ollama",
+            "lmstudio",
+        }
+        return p if p in known else "openai_compat"
     return "openai"  # backwards-compatible default
 
 
