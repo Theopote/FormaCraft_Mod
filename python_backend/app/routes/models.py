@@ -21,6 +21,25 @@ logger = logging.getLogger("formacraft.models")
 _REMOTE_MODELS_HARD_TIMEOUT_SEC = 2.5
 
 
+_FALLBACK_MODELS_BY_PROVIDER: Dict[str, List[str]] = {
+    # OpenAI family (examples; will vary by account availability)
+    "openai": ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1", "gpt-4"],
+    "openai_compat": ["gpt-4o-mini", "gpt-4o"],
+    "auto": ["gpt-4o-mini"],
+    # DeepSeek
+    "deepseek": ["deepseek-chat", "deepseek-reasoner"],
+    # Groq (common public model ids)
+    "groq": ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    # Together (common examples; naming may change)
+    "together": ["meta-llama/Llama-3.1-70B-Instruct-Turbo", "meta-llama/Llama-3.1-8B-Instruct-Turbo", "Qwen/Qwen2.5-72B-Instruct-Turbo"],
+    # OpenRouter (very large catalog; provide a few popular examples)
+    "openrouter": ["openai/gpt-4o-mini", "openai/gpt-4o", "anthropic/claude-3.5-sonnet", "google/gemini-1.5-pro"],
+    # Local providers are user-dependent, but suggestions help first-time setup
+    "ollama": ["llama3.1", "qwen2.5", "deepseek-r1"],
+    "lmstudio": ["local-model"],
+}
+
+
 def _fetch_remote_models(base_url: str, api_key: str) -> List[str]:
     """
     Fetch models list from OpenAI-compatible endpoint: GET {base_url}/models
@@ -93,9 +112,14 @@ def models(
             logger.warning("fetch remote /models failed: %s", str(e))
             models_list = []
 
-    # Provider 兜底：DeepSeek 的常用模型名（即便无法在线探测，也能让 UI 有可选提示）
-    if not models_list and resolved_provider == "deepseek":
-        models_list = ["deepseek-chat", "deepseek-reasoner"]
+    models_source = "remote" if (models_list and remote_models_ok) else "empty"
+
+    # Provider 兜底：给 UI 一个可选的“常用模型”列表，避免刷新后完全为空
+    if not models_list:
+        fallback = _FALLBACK_MODELS_BY_PROVIDER.get(resolved_provider) or _FALLBACK_MODELS_BY_PROVIDER.get("openai_compat")
+        if fallback:
+            models_list = list(fallback)
+            models_source = "fallback"
 
     default_model = cfg.model
     picked = pick_preferred_model(models_list, resolved_provider) if models_list else None
@@ -107,6 +131,7 @@ def models(
         "models": models_list[:50],
         "provider": resolved_provider,
         "base_url": resolved_base,
+        "models_source": models_source,
         "remote_models_ok": remote_models_ok,
         "remote_error": remote_error,
         "openai_available": HAS_OPENAI,

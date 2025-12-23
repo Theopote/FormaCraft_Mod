@@ -88,6 +88,7 @@ public class SettingsPanel extends BasePanel {
     private final HudTextInput orchestratorInput = new HudTextInput();
     private final HudTextInput apiKeyInput = new HudTextInput();
     private final HudTextInput llmBaseUrlInput = new HudTextInput();
+    private final HudTextInput modelInput = new HudTextInput();
     // 默认显示明文（用户可以手动点 Hide 隐藏）
     private boolean hideKey = false;
 
@@ -112,6 +113,7 @@ public class SettingsPanel extends BasePanel {
     private static final int FOCUS_ORCHESTRATOR = 0;
     private static final int FOCUS_API_KEY = 1;
     private static final int FOCUS_LLM_BASEURL = 2;
+    private static final int FOCUS_MODEL = 3;
 
     // 原版风格控件（参考 Pushdozer：ButtonWidget / SliderWidget）
     private ButtonWidget showHideButton;
@@ -120,6 +122,7 @@ public class SettingsPanel extends BasePanel {
     private ButtonWidget cancelButton;
     private ButtonWidget resetButton;
     private ButtonWidget detectModelButton;
+    private ButtonWidget autoModelButton;
     private ButtonWidget llmProviderButton;
     private ButtonWidget llmBaseUrlPresetButton;
     private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
@@ -171,6 +174,16 @@ public class SettingsPanel extends BasePanel {
     private int scrollY = 0;
     private int maxScrollY = 0;
 
+    // 模型选择：候选列表（来自 /models）
+    private List<String> availableModels = new ArrayList<>();
+    private long availableModelsUpdatedAtMs = 0L;
+    private boolean modelDropdownOpen = false;
+    private boolean pendingModelDropdownOverlay = false;
+    private int pendingModelDropdownX = 0;
+    private int pendingModelDropdownY = 0;
+    private int pendingModelDropdownW = 0;
+    private List<ButtonWidget> modelOptionButtons = new ArrayList<>();
+
     public SettingsPanel() {
         loadFromConfig();
         initWidgets();
@@ -186,9 +199,11 @@ public class SettingsPanel extends BasePanel {
         this.apiKeyInput.setMaxLength(256);
         this.orchestratorInput.setMaxLength(256);
         this.llmBaseUrlInput.setMaxLength(256);
+        this.modelInput.setMaxLength(128);
 
         // 同步草稿态：允许为空（自动），不再限制预设列表
         this.draftModel = cfg.model != null ? cfg.model.trim() : "";
+        this.modelInput.setText(this.draftModel != null ? this.draftModel : "");
         this.draftLlmProvider = (cfg.llmProvider == null || cfg.llmProvider.isBlank()) ? "auto" : cfg.llmProvider.trim();
         String rawBaseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
         String sanitizedBaseUrl = sanitizeLlmBaseUrlOrNull(rawBaseUrl);
@@ -253,6 +268,7 @@ public class SettingsPanel extends BasePanel {
         try {
             // 每帧重置 overlay 申请（由 drawLlmBaseUrlField 触发）
             pendingBaseUrlDropdownOverlay = false;
+            pendingModelDropdownOverlay = false;
 
             // 标题
             ctx.drawTextWithShadow(client.textRenderer,
@@ -274,8 +290,9 @@ public class SettingsPanel extends BasePanel {
         // BaseURL：三行（标题 + 预设按钮 + 自定义输入/提示）
         y += FIELD_SPACING + LABEL_OFFSET;
 
-            drawModelDetector(ctx, x, y, w);
-            y += FIELD_SPACING;
+            drawModelField(ctx, x, y, w);
+            // Model：三行（标题 + 输入框 + 按钮行）
+            y += FIELD_SPACING + LABEL_OFFSET;
 
             drawInteractionReachSlider(ctx, x, y, w);
             y += FIELD_SPACING;
@@ -291,6 +308,8 @@ public class SettingsPanel extends BasePanel {
 
             // BaseURL 下拉：最后画（overlay），确保在所有控件之上
             renderBaseUrlDropdownOverlay(ctx);
+            // Model 下拉：最后画（overlay），确保在所有控件之上
+            renderModelDropdownOverlay(ctx);
 
             // 计算最大滚动（基于未滚动起点）
             int contentTop = getContentY() + CONTENT_PADDING;
@@ -378,20 +397,67 @@ public class SettingsPanel extends BasePanel {
     }
 
     // =======================
-    //   模型探测（替代下拉预设）
+    //   模型选择（输入 + 刷新列表 + 下拉候选）
     // =======================
-    private void drawModelDetector(DrawContext ctx, int x, int y, int w) {
+    private void drawModelField(DrawContext ctx, int x, int y, int w) {
         drawSmallLabel(ctx, Text.translatable("formacraft.settings.model"), x, y);
         y += LABEL_OFFSET;
 
+        // 第二行：模型输入框（允许手动输入；留空=自动）
+        modelInput.render(ctx, x, y, w, INPUT_HEIGHT);
+
+        // 轻提示：空且未聚焦时显示“自动”
+        if (!modelInput.isFocused()) {
+            String t = modelInput.getText() == null ? "" : modelInput.getText().trim();
+            if (t.isEmpty()) {
+                ctx.drawTextWithShadow(client.textRenderer, Text.literal("自动（留空）"), x + 4, y + 4, 0xFF777777);
+            }
+        }
+
+        // 第三行：刷新/自动按钮
+        y += LABEL_OFFSET;
         ensureWidgets();
-        // 文案随状态刷新（避免异步检测后按钮还显示旧文本）
+        int gap = BUTTON_GAP_SMALL;
+        int btnW1 = (w - gap) / 2;
+        int btnW2 = Math.max(0, w - gap - btnW1);
+
         detectModelButton.setMessage(getDetectModelButtonText());
         detectModelButton.setPosition(x, y);
-        detectModelButton.setWidth(w);
+        detectModelButton.setWidth(btnW1);
         detectModelButton.visible = true;
         detectModelButton.active = !detectingModel;
         detectModelButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
+
+        autoModelButton.setPosition(x + btnW1 + gap, y);
+        autoModelButton.setWidth(btnW2);
+        autoModelButton.visible = true;
+        autoModelButton.active = true;
+        autoModelButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
+
+        // 下拉列表（展开渲染，不改变布局高度）
+        if (modelDropdownOpen) {
+            pendingModelDropdownOverlay = true;
+            pendingModelDropdownX = x;
+            pendingModelDropdownY = y - LABEL_OFFSET + INPUT_HEIGHT; // 紧贴输入框下方
+            pendingModelDropdownW = w;
+        } else {
+            hideModelOptionButtons();
+        }
+    }
+
+    private void renderModelDropdownOverlay(DrawContext ctx) {
+        if (!modelDropdownOpen) {
+            hideModelOptionButtons();
+            return;
+        }
+        if (!pendingModelDropdownOverlay) {
+            hideModelOptionButtons();
+            return;
+        }
+        layoutModelOptionButtons(pendingModelDropdownX, pendingModelDropdownY, pendingModelDropdownW);
+        for (ButtonWidget b : modelOptionButtons) {
+            if (b.visible) b.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
+        }
     }
 
     // =======================
@@ -429,7 +495,7 @@ public class SettingsPanel extends BasePanel {
             llmBaseUrlInput.render(ctx, x, y, w, INPUT_HEIGHT);
         } else {
             // 预设模式下不再显示 URL（tooltip 已包含），仅在“自动”时给一个轻提示
-            if (p == null || p.url == null || p.url.isBlank()) {
+            if (p == null || p.url.isBlank()) {
                 ctx.drawTextWithShadow(client.textRenderer, Text.literal("自动：由 Provider/后端决定"), x, y + 4, COLOR_GRAY);
             }
             llmBaseUrlInput.setFocused(false);
@@ -593,6 +659,9 @@ public class SettingsPanel extends BasePanel {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
             llmBaseUrlInput.setFocused(false);
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return false;
         }
 
@@ -605,6 +674,9 @@ public class SettingsPanel extends BasePanel {
         if (orchestratorInput.mouseClicked(mouseX, mouseY, x, orchY, w, INPUT_HEIGHT)) {
             apiKeyInput.setFocused(false);
             llmBaseUrlInput.setFocused(false);
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return true;
         }
 
@@ -624,6 +696,9 @@ public class SettingsPanel extends BasePanel {
         showHideButton.setPosition(x, apiBtnY);
         showHideButton.setWidth(apiBtnW1);
         if (showHideButton.mouseClicked(click, false)) {
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return true;
         }
 
@@ -631,6 +706,9 @@ public class SettingsPanel extends BasePanel {
         pasteButton.setPosition(pasteX, apiBtnY);
         pasteButton.setWidth(apiBtnW2);
         if (pasteButton.mouseClicked(click, false)) {
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return true;
         }
 
@@ -638,6 +716,9 @@ public class SettingsPanel extends BasePanel {
         if (apiKeyInput.mouseClicked(mouseX, mouseY, x, apiY, w, INPUT_HEIGHT)) {
             orchestratorInput.setFocused(false);
             llmBaseUrlInput.setFocused(false);
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return true;
         }
 
@@ -653,6 +734,9 @@ public class SettingsPanel extends BasePanel {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
             llmBaseUrlInput.setFocused(false);
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return true;
         }
 
@@ -669,6 +753,9 @@ public class SettingsPanel extends BasePanel {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
             llmBaseUrlInput.setFocused(false);
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return true;
         }
 
@@ -695,10 +782,16 @@ public class SettingsPanel extends BasePanel {
                 // 点击列表外：收起（并吞掉点击，避免“穿透”点到下面控件）
                 baseUrlPresetDropdownOpen = false;
                 hideBaseUrlPresetButtons();
+                modelInput.setFocused(false);
+                modelDropdownOpen = false;
+                hideModelOptionButtons();
                 return true;
             }
 
             // 点在列表区域但没点到按钮：吞掉（避免误触其它控件）
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return true;
         }
 
@@ -708,30 +801,96 @@ public class SettingsPanel extends BasePanel {
             if (llmBaseUrlInput.mouseClicked(mouseX, mouseY, x, llmBaseUrlThirdLineY, w, INPUT_HEIGHT)) {
                 orchestratorInput.setFocused(false);
                 apiKeyInput.setFocused(false);
+                modelInput.setFocused(false);
+                modelDropdownOpen = false;
+                hideModelOptionButtons();
                 return true;
             }
         } else {
             llmBaseUrlInput.setFocused(false);
         }
 
-        // =========== 模型探测 ============
+        // =========== Model（输入 + 刷新 + 自动） ============
         // Base URL 是三行（FIELD_SPACING + LABEL_OFFSET）
         y += FIELD_SPACING + LABEL_OFFSET;
         int modelLabelY = y;
-        int modelY = modelLabelY + LABEL_OFFSET;
+        int modelInputY = modelLabelY + LABEL_OFFSET;
+        int modelBtnY = modelLabelY + LABEL_OFFSET * 2;
 
-        detectModelButton.setPosition(x, modelY);
-        detectModelButton.setWidth(w);
+        // 下拉展开：命中选项（优先处理，避免“穿透”）
+        if (modelDropdownOpen) {
+            int listY0 = modelInputY + INPUT_HEIGHT;
+            layoutModelOptionButtons(x, listY0, w);
+
+            boolean clickedAny = false;
+            int visibleCount = 0;
+            for (ButtonWidget opt : modelOptionButtons) {
+                if (opt != null && opt.visible) {
+                    visibleCount++;
+                    if (opt.mouseClicked(click, false)) {
+                        clickedAny = true;
+                        break;
+                    }
+                }
+            }
+            if (clickedAny) return true;
+
+            int listH = visibleCount * BUTTON_HEIGHT;
+            boolean insideList = (mouseX >= x && mouseX <= x + w && mouseY >= listY0 && mouseY <= listY0 + listH);
+            boolean insideInput = (mouseX >= x && mouseX <= x + w && mouseY >= modelInputY && mouseY <= modelInputY + INPUT_HEIGHT);
+            if (!insideList && !insideInput) {
+                // 点击列表外：收起并吞掉点击，避免“穿透”
+                modelDropdownOpen = false;
+                hideModelOptionButtons();
+                return true;
+            }
+            // 点在列表区域但没点到按钮：吞掉
+            if (insideList) return true;
+        }
+
+        // 点击模型输入框
+        if (modelInput.mouseClicked(mouseX, mouseY, x, modelInputY, w, INPUT_HEIGHT)) {
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
+            // 输入框聚焦时，如果有候选则展开
+            modelDropdownOpen = !availableModels.isEmpty();
+            draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
+            return true;
+        }
+
+        int gap2 = BUTTON_GAP_SMALL;
+        int modelBtnW1 = (w - gap2) / 2;
+        int modelBtnW2 = Math.max(0, w - gap2 - modelBtnW1);
+
+        detectModelButton.setPosition(x, modelBtnY);
+        detectModelButton.setWidth(modelBtnW1);
         if (detectModelButton.mouseClicked(click, false)) {
             orchestratorInput.setFocused(false);
             apiKeyInput.setFocused(false);
             llmBaseUrlInput.setFocused(false);
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
+            return true;
+        }
+
+        autoModelButton.setPosition(x + modelBtnW1 + gap2, modelBtnY);
+        autoModelButton.setWidth(modelBtnW2);
+        if (autoModelButton.mouseClicked(click, false)) {
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
             return true;
         }
 
         // =========== 滑动条交互 ============
         // 注意：这里必须与 drawContents 的布局一致
-        y += FIELD_SPACING;
+        // Model 为三行（FIELD_SPACING + LABEL_OFFSET）
+        y += FIELD_SPACING + LABEL_OFFSET;
 
         int reachSliderY = y + LABEL_OFFSET;
         interactionReachSlider.setPosition(x, reachSliderY);
@@ -853,6 +1012,13 @@ public class SettingsPanel extends BasePanel {
             }
         }
 
+        // Model 输入框（允许水平滚动查看被截断内容）
+        y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Model 区块起点（BaseURL 是三行）
+        int modelY = y + LABEL_OFFSET;
+        if (modelInput.mouseScrolled(mouseX, mouseY, amount, x, modelY, w, INPUT_HEIGHT)) {
+            return;
+        }
+
         // 否则：滚动面板内容
         int step = 12;
         scrollY = (int) Math.round(scrollY - amount * step);
@@ -887,10 +1053,26 @@ public class SettingsPanel extends BasePanel {
             return true;
         }
         if (detectModelButton != null && detectModelButton.isMouseOver(mouseX, mouseY)) {
-            String cur = (draftModel == null || draftModel.isBlank()) ? "自动" : draftModel;
+            int n = (availableModels == null) ? 0 : availableModels.size();
+            String t = (modelInput.getText() == null) ? "" : modelInput.getText().trim();
+            String cur = t.isBlank() ? "自动" : t;
+            String age = (availableModelsUpdatedAtMs <= 0L) ? "未刷新" : ((System.currentTimeMillis() - availableModelsUpdatedAtMs) / 1000 + "s前");
             drawTooltipCompat(
                     ctx,
-                    java.util.List.of(Text.literal("检测后端默认模型"), Text.literal("当前：" + cur)),
+                    java.util.List.of(
+                            Text.literal("刷新模型列表（/models）"),
+                            Text.literal("当前：" + cur),
+                            Text.literal("缓存：" + n + "（" + age + "）")
+                    ),
+                    (int) mouseX,
+                    (int) mouseY
+            );
+            return true;
+        }
+        if (autoModelButton != null && autoModelButton.isMouseOver(mouseX, mouseY)) {
+            drawTooltipCompat(
+                    ctx,
+                    java.util.List.of(Text.literal("清空模型（留空=自动）")),
                     (int) mouseX,
                     (int) mouseY
             );
@@ -960,10 +1142,21 @@ public class SettingsPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.paste")))
                 .build();
 
-        // Model detect (replaces dropdown presets)
+        // Model list refresh (calls /models)
         detectModelButton = ButtonWidget.builder(getDetectModelButtonText(), b -> startDetectModel())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("检测 /models（若为 OpenAI 兼容端点，会使用当前 API Key 请求模型列表）")))
+                .tooltip(Tooltip.of(Text.literal("刷新模型列表（调用后端 /models；失败时仍可手动输入模型名）")))
+                .build();
+
+        autoModelButton = ButtonWidget.builder(Text.literal("自动"), b -> {
+                    draftModel = "";
+                    modelInput.setText("");
+                    modelDropdownOpen = false;
+                    hideModelOptionButtons();
+                    showToast("模型=自动（留空）", false);
+                })
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("清空模型设置（让后端/Provider 自动选择默认模型）")))
                 .build();
 
         llmProviderButton = ButtonWidget.builder(getLlmProviderButtonText(), b -> cycleLlmProvider())
@@ -986,6 +1179,19 @@ public class SettingsPanel extends BasePanel {
             opt.visible = false;
             opt.active = true;
             llmBaseUrlPresetOptionButtons.add(opt);
+        }
+
+        // Model 下拉选项（按钮形式；数量动态，但我们预先创建一组上限）
+        modelOptionButtons = new ArrayList<>();
+        int maxModelOptions = 12;
+        for (int i = 0; i < maxModelOptions; i++) {
+            final int idx = i;
+            ButtonWidget opt = ButtonWidget.builder(Text.empty(), b -> applyModelOption(idx))
+                    .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                    .build();
+            opt.visible = false;
+            opt.active = true;
+            modelOptionButtons.add(opt);
         }
 
         // Sliders（用原版 SliderWidget 渲染）
@@ -1030,6 +1236,63 @@ public class SettingsPanel extends BasePanel {
         syncWidgetStateFromDraft();
     }
 
+    private void hideModelOptionButtons() {
+        if (modelOptionButtons == null) return;
+        for (ButtonWidget b : modelOptionButtons) {
+            b.visible = false;
+        }
+    }
+
+    private List<String> getFilteredModels() {
+        if (availableModels == null || availableModels.isEmpty()) return java.util.Collections.emptyList();
+        String q = modelInput.getText() == null ? "" : modelInput.getText().trim().toLowerCase();
+        if (q.isEmpty()) return availableModels;
+        List<String> out = new ArrayList<>();
+        for (String m : availableModels) {
+            if (m == null) continue;
+            String t = m.trim();
+            if (t.isEmpty()) continue;
+            if (t.toLowerCase().contains(q)) out.add(t);
+        }
+        return out;
+    }
+
+    private void layoutModelOptionButtons(int x, int y0, int w) {
+        ensureWidgets();
+        if (modelOptionButtons == null) return;
+
+        List<String> items = getFilteredModels();
+        int n = Math.min(items.size(), modelOptionButtons.size());
+        String cur = (modelInput.getText() == null) ? "" : modelInput.getText().trim();
+        for (int i = 0; i < modelOptionButtons.size(); i++) {
+            ButtonWidget b = modelOptionButtons.get(i);
+            if (i >= n) {
+                b.visible = false;
+                continue;
+            }
+            String it = items.get(i);
+            String prefix = (!cur.isBlank() && cur.equals(it)) ? "▶ " : "";
+            b.setMessage(Text.literal(prefix + it));
+            b.setPosition(x, y0 + i * BUTTON_HEIGHT);
+            b.setWidth(w);
+            b.visible = true;
+            b.active = true;
+        }
+    }
+
+    private void applyModelOption(int optionIndex) {
+        List<String> items = getFilteredModels();
+        if (optionIndex < 0 || optionIndex >= items.size()) return;
+        String picked = items.get(optionIndex);
+        if (picked == null) return;
+        String v = picked.trim();
+        modelInput.setText(v);
+        draftModel = v;
+        modelDropdownOpen = false;
+        hideModelOptionButtons();
+        showToast("模型=" + v, false);
+    }
+
     private void hideBaseUrlPresetButtons() {
         if (llmBaseUrlPresetOptionButtons == null) return;
         for (ButtonWidget b : llmBaseUrlPresetOptionButtons) {
@@ -1058,10 +1321,10 @@ public class SettingsPanel extends BasePanel {
 
     private Text getDetectModelButtonText() {
         if (detectingModel) {
-            return Text.literal("检测中...");
+            return Text.literal("刷新中...");
         }
-        String cur = (draftModel == null || draftModel.isBlank()) ? "自动" : draftModel;
-        return Text.literal("检测模型（当前：" + cur + "）");
+        int n = (availableModels == null) ? 0 : availableModels.size();
+        return Text.literal(n > 0 ? ("刷新模型列表（" + n + "）") : "刷新模型列表");
     }
 
     private Text getLlmProviderButtonText() {
@@ -1093,6 +1356,11 @@ public class SettingsPanel extends BasePanel {
         syncBaseUrlPresetFromValue(draftLlmBaseUrl);
 
         if (llmProviderButton != null) llmProviderButton.setMessage(getLlmProviderButtonText());
+        // Provider 切换后，旧的模型列表很可能不适用：清空缓存，等用户点击“刷新模型列表”
+        availableModels = new ArrayList<>();
+        availableModelsUpdatedAtMs = 0L;
+        modelDropdownOpen = false;
+        hideModelOptionButtons();
         showToast("LLM Provider: " + next, false);
     }
 
@@ -1134,6 +1402,11 @@ public class SettingsPanel extends BasePanel {
         }
 
         if (llmBaseUrlPresetButton != null) llmBaseUrlPresetButton.setMessage(getBaseUrlPresetButtonText());
+        // Base URL 切换后，模型列表很可能不适用：清空缓存，等用户点击“刷新模型列表”
+        availableModels = new ArrayList<>();
+        availableModelsUpdatedAtMs = 0L;
+        modelDropdownOpen = false;
+        hideModelOptionButtons();
     }
 
     private void syncBaseUrlPresetFromValue(String baseUrl) {
@@ -1237,7 +1510,7 @@ public class SettingsPanel extends BasePanel {
         }).thenAccept(resp -> client.execute(() -> {
             detectingModel = false;
             if (resp == null) {
-                showToast("检测失败：未知错误（resp=null）", true);
+                showToast("刷新失败：未知错误（resp=null）", true);
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
@@ -1247,56 +1520,109 @@ public class SettingsPanel extends BasePanel {
                 String err = shortErr(resp.body);
                 // 针对超时做更友好的提示：后端可能健康，但上游模型列表探测不可达/太慢
                 if (err.toLowerCase().contains("httptimeoutexception") || err.toLowerCase().contains("request timed out")) {
-                    showToast("检测超时：上游模型列表可能不可达（可直接手动填写模型/更换 Base URL）", true);
+                    showToast("刷新超时：上游模型列表可能不可达（仍可手动输入模型）", true);
                 } else {
-                    showToast("检测失败：请求异常（详见日志） err=" + err, true);
+                    showToast("刷新失败：请求异常（详见日志） err=" + err, true);
                 }
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
 
             if (resp.body == null || resp.body.isBlank()) {
-                showToast("检测失败：后端无响应内容（详见日志）", true);
+                showToast("刷新失败：后端无响应内容（详见日志）", true);
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
 
             if (resp.status < 200 || resp.status >= 300) {
                 // 常见：OpenAI 兼容端点未带 key → 401；URL 不对 → 404
-                showToast("检测失败：" + resp.status + "（详见日志）", true);
+                showToast("刷新失败：" + resp.status + "（详见日志）", true);
                 if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
                 return;
             }
 
-            String detected = parseDetectedModel(resp.body);
-            // 若后端返回了“上游模型列表探测失败”，给出更准确的提示，避免误以为检测到真实模型
+            // 解析返回：models[] + default_model + remote_models_ok
+            String suggested = parseDetectedModel(resp.body);
+            List<String> models = parseModelsList(resp.body);
+            availableModels = (models == null) ? new ArrayList<>() : new ArrayList<>(models);
+            availableModelsUpdatedAtMs = System.currentTimeMillis();
+
+            boolean remoteOk = true;
+            String modelsSource = null;
             try {
                 JsonElement root = JsonParser.parseString(resp.body);
                 if (root != null && root.isJsonObject()) {
                     JsonObject obj = root.getAsJsonObject();
-                    boolean hasRemoteOk = obj.has("remote_models_ok") && obj.get("remote_models_ok").isJsonPrimitive();
-                    boolean remoteOk = hasRemoteOk && obj.get("remote_models_ok").getAsBoolean();
-                    if (hasRemoteOk && !remoteOk) {
-                        String dm = (detected == null) ? "" : detected.trim();
-                        if (!dm.isBlank()) {
-                            showToast("提示：上游模型列表探测失败，已回退默认模型=" + dm, true);
-                        } else {
-                            showToast("提示：上游模型列表探测失败（可手动填写模型）", true);
-                        }
+                    if (obj.has("remote_models_ok") && obj.get("remote_models_ok").isJsonPrimitive()) {
+                        remoteOk = obj.get("remote_models_ok").getAsBoolean();
+                    }
+                    if (obj.has("models_source") && obj.get("models_source").isJsonPrimitive()) {
+                        modelsSource = obj.get("models_source").getAsString();
                     }
                 }
-            } catch (Exception ignored) {
-            }
-            if (detected == null || detected.isBlank()) {
-                draftModel = "";
-                showToast("检测完成：模型=自动", false);
+            } catch (Exception ignored) {}
+
+            // 同步草稿态（以输入框为准；留空=自动）
+            String cur = modelInput.getText() == null ? "" : modelInput.getText().trim();
+            draftModel = cur;
+
+            if (availableModels.isEmpty()) {
+                showToast("模型列表为空（可手动输入模型）", true);
             } else {
-                draftModel = detected.trim();
-                showToast("检测完成：" + draftModel, false);
+                String tip = "模型列表已更新：" + availableModels.size();
+                if (modelsSource != null && !modelsSource.isBlank()) {
+                    if ("fallback".equalsIgnoreCase(modelsSource)) tip += "（常用预设）";
+                    if ("remote".equalsIgnoreCase(modelsSource)) tip += "（在线拉取）";
+                }
+                if (!remoteOk) tip += "（上游不可达）";
+                if (suggested != null && !suggested.isBlank()) tip += "（推荐：" + suggested.trim() + "）";
+                showToast(tip, false);
             }
 
-            syncWidgetStateFromDraft();
+            // 如果输入框聚焦且有候选，自动展开下拉
+            if (modelInput.isFocused() && !availableModels.isEmpty()) {
+                modelDropdownOpen = true;
+            }
+
+            if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
         }));
+    }
+
+    private List<String> parseModelsList(String body) {
+        if (body == null || body.isBlank()) return java.util.Collections.emptyList();
+
+        // 1) 优先解析 Python backend: {"models":["..."], ...}
+        try {
+            JsonElement root = JsonParser.parseString(body);
+            if (root != null && root.isJsonObject()) {
+                JsonObject obj = root.getAsJsonObject();
+                if (obj.has("models") && obj.get("models").isJsonArray()) {
+                    List<String> out = new ArrayList<>();
+                    JsonArray arr = obj.getAsJsonArray("models");
+                    for (JsonElement e : arr) {
+                        if (e != null && e.isJsonPrimitive()) {
+                            String s = e.getAsString();
+                            if (s != null && !s.isBlank()) out.add(s.trim());
+                        }
+                    }
+                    return out;
+                }
+                // OpenAI-compatible: {"data":[{"id":"..."}, ...]}
+                if (obj.has("data") && obj.get("data").isJsonArray()) {
+                    return getStrings(obj.getAsJsonArray("data"));
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // 2) 兜底：正则抓取 id
+        List<String> out = new ArrayList<>();
+        Matcher m = JSON_ID_PATTERN.matcher(body);
+        while (m.find()) {
+            String id = m.group(1);
+            if (id != null && !id.isBlank()) out.add(id);
+            if (out.size() >= 50) break;
+        }
+        return out;
     }
 
     private static String shortErr(String s) {
@@ -1465,6 +1791,9 @@ public class SettingsPanel extends BasePanel {
             // 避免 loadFromConfig 后输入框仍显示旧值
             llmBaseUrlInput.setText(draftLlmBaseUrl);
         }
+        if (draftModel != null) {
+            modelInput.setText(draftModel);
+        }
         if (interactionReachSlider != null) {
             interactionReachSlider.setCustomValue(reachToValue(draftInteractionReach));
         }
@@ -1629,6 +1958,8 @@ public class SettingsPanel extends BasePanel {
             return false;
         }
         String provider = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim();
+        // 模型以输入框为准（留空=自动）
+        draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
 
         // 验证 API Key：DeepSeek/OpenAI 等通常需要；本地 ollama 可不填
         boolean requiresKey = true;
@@ -1682,6 +2013,11 @@ public class SettingsPanel extends BasePanel {
         if (apiKeyInput.isFocused()) apiKeyInput.charTyped(chr);
         BaseUrlPreset p = getSelectedBaseUrlPreset();
         if (p != null && p.url == null && llmBaseUrlInput.isFocused()) llmBaseUrlInput.charTyped(chr);
+        if (modelInput.isFocused()) {
+            modelInput.charTyped(chr);
+            draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
+            if (!availableModels.isEmpty()) modelDropdownOpen = true;
+        }
     }
 
     @Override
@@ -1697,15 +2033,38 @@ public class SettingsPanel extends BasePanel {
         if (apiKeyInput.isFocused()) apiKeyInput.keyPressed(keyCode, modifiers);
         BaseUrlPreset p = getSelectedBaseUrlPreset();
         if (p != null && p.url == null && llmBaseUrlInput.isFocused()) llmBaseUrlInput.keyPressed(keyCode, modifiers);
+        if (modelInput.isFocused()) {
+            modelInput.keyPressed(keyCode, modifiers);
+            draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
+            if (!availableModels.isEmpty()) modelDropdownOpen = true;
+        }
+
+        // ESC：收起模型下拉（避免挡住操作）
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE && modelDropdownOpen) {
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
+            return;
+        }
 
         // Tab: 切换焦点
         if (keyCode == GLFW.GLFW_KEY_TAB) {
             boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
-            int count = (getSelectedBaseUrlPreset() != null && getSelectedBaseUrlPreset().url == null) ? 3 : 2;
+            boolean baseUrlCustom = (getSelectedBaseUrlPreset() != null && getSelectedBaseUrlPreset().url == null);
+            int count = baseUrlCustom ? 4 : 3; // Orchestrator, API, (BaseURL?), Model
             currentFocusIndex = shift ? (currentFocusIndex + count - 1) % count : (currentFocusIndex + 1) % count;
+
             orchestratorInput.setFocused(currentFocusIndex == FOCUS_ORCHESTRATOR);
             apiKeyInput.setFocused(currentFocusIndex == FOCUS_API_KEY);
-            llmBaseUrlInput.setFocused(count == 3 && currentFocusIndex == FOCUS_LLM_BASEURL);
+            llmBaseUrlInput.setFocused(baseUrlCustom && currentFocusIndex == FOCUS_LLM_BASEURL);
+            // 非自定义 BaseURL 时，“Model”占用 index=2（复用 FOCUS_LLM_BASEURL 这个数值）
+            modelInput.setFocused(baseUrlCustom ? (currentFocusIndex == FOCUS_MODEL) : (currentFocusIndex == FOCUS_LLM_BASEURL));
+
+            if (!modelInput.isFocused()) {
+                modelDropdownOpen = false;
+                hideModelOptionButtons();
+            } else if (!availableModels.isEmpty()) {
+                modelDropdownOpen = true;
+            }
             return;
         }
 
@@ -1719,6 +2078,6 @@ public class SettingsPanel extends BasePanel {
     public boolean wantsKeyboardInput() {
         BaseUrlPreset p = getSelectedBaseUrlPreset();
         boolean baseUrlFocused = (p != null && p.url == null && llmBaseUrlInput.isFocused());
-        return apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused;
+        return apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused || modelInput.isFocused();
     }
 }
