@@ -203,7 +203,7 @@ public class SettingsPanel extends BasePanel {
 
         // 同步草稿态：允许为空（自动），不再限制预设列表
         this.draftModel = cfg.model != null ? cfg.model.trim() : "";
-        this.modelInput.setText(this.draftModel != null ? this.draftModel : "");
+        this.modelInput.setText(this.draftModel);
         this.draftLlmProvider = (cfg.llmProvider == null || cfg.llmProvider.isBlank()) ? "auto" : cfg.llmProvider.trim();
         String rawBaseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
         String sanitizedBaseUrl = sanitizeLlmBaseUrlOrNull(rawBaseUrl);

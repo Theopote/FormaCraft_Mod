@@ -213,376 +213,370 @@ public class FormaCraftNetworking {
         registerPayloadTypesC2S();
 
         // 注册接收器
-        ServerPlayNetworking.registerGlobalReceiver(RequestBuildPayload.ID, (payload, context) -> {
-            context.server().execute(() -> {
-                ServerPlayerEntity player = context.player();
-                if (player == null) {
-                    FormacraftMod.LOGGER.warn("Received build request from null player");
-                    return;
-                }
+        ServerPlayNetworking.registerGlobalReceiver(RequestBuildPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) {
+                FormacraftMod.LOGGER.warn("Received build request from null player");
+                return;
+            }
 
-                FormaRequest req = payload.request();
-                FormacraftMod.LOGGER.info("Received build request from player {}: {}", 
-                        player.getName().getString(), req.getRequestText());
+            FormaRequest req = payload.request();
+            FormacraftMod.LOGGER.info("Received build request from player {}: {}",
+                    player.getName().getString(), req.getRequestText());
 
-                // 检查应该请求什么类型的结构
-                String requestText = req.getRequestText().toLowerCase();
-                boolean isCity = requestText.contains("城市") || requestText.contains("城镇") ||
-                        requestText.contains("city") || requestText.contains("town") ||
-                        requestText.contains("settlement") || requestText.contains("urban") ||
-                        requestText.contains("城区") || requestText.contains("市中心") ||
-                        requestText.contains("广场") || requestText.contains("集市");
-                boolean isComposite = !isCity && (
-                        requestText.contains("要塞") || requestText.contains("fort") ||
-                        requestText.contains("复合") || requestText.contains("组合") ||
-                        requestText.contains("village") || requestText.contains("multiple")
-                );
+            // 检查应该请求什么类型的结构
+            String requestText = req.getRequestText().toLowerCase();
+            boolean isCity = requestText.contains("城市") || requestText.contains("城镇") ||
+                    requestText.contains("city") || requestText.contains("town") ||
+                    requestText.contains("settlement") || requestText.contains("urban") ||
+                    requestText.contains("城区") || requestText.contains("市中心") ||
+                    requestText.contains("广场") || requestText.contains("集市");
+            boolean isComposite = !isCity && (
+                    requestText.contains("要塞") || requestText.contains("fort") ||
+                    requestText.contains("复合") || requestText.contains("组合") ||
+                    requestText.contains("village") || requestText.contains("multiple")
+            );
 
-                if (isCity) {
-                    // 请求城市级结构
-                    ORCHESTRATOR.requestCitySpec(req)
-                            .orTimeout(115, TimeUnit.SECONDS)
-                            .exceptionally(ex -> {
-                                FormacraftMod.LOGGER.error("Orchestrator city request failed", ex);
-                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
-                                        "后端生成超时/失败（CitySpec）。\n" +
-                                                "常见原因：LLM 上游不可达/模型不可用/API Key 无效。\n" +
-                                                "请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"
-                                ));
-                                return null;
-                            })
-                            .thenAccept(citySpec -> {
-                        if (citySpec == null) {
-                            FormacraftMod.LOGGER.error("Failed to get CitySpec from orchestrator");
-                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CitySpec（请检查后端日志/网络）"));
-                            return;
-                        }
-
-                        // 在主线程中执行
-                        context.server().execute(() -> {
-                            // 对于城市结构，生成预览而不是直接建造
-                            BlockPos origin = req.getPlayerPos();
-                            if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                // 生成城市结构
-                                com.formacraft.server.city.CityBuilder cityBuilder = 
-                                        new com.formacraft.server.city.CityBuilder();
-                                com.formacraft.server.build.GeneratedStructure structure = 
-                                        cityBuilder.generate(citySpec, origin, serverWorld);
-                                
-                                // 设置玩家 UUID
-                                structure = new com.formacraft.server.build.GeneratedStructure(
-                                        player.getUuid(),
-                                        origin,
-                                        structure.getDescription(),
-                                        structure.getBlocks()
-                                );
-                                
-                                // 存储结构用于预览
-                                com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-                                
-                                // 自动发送预览
-                                List<com.formacraft.client.preview.OutlineBlock> outline = 
-                                        com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                sendPreviewOutline(player, outline);
-                                com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-                                
-                                // 保存 CitySpec 到 PlayerSpecRepository
-                                String cityId = "player_" + player.getName().getString() + "_world_" + 
-                                        serverWorld.getRegistryKey().getValue();
-                                String cityJson = com.formacraft.common.json.JsonUtil.toJson(citySpec);
-                                com.formacraft.server.state.PlayerSpecRepository.setCitySpec(player, cityId, cityJson);
-                                
-                                player.sendMessage(net.minecraft.text.Text.literal(
-                                        String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.", 
-                                                citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed")),
-                                        false);
-                                
-                                FormacraftMod.LOGGER.info("Generated city structure preview for player {}", player.getName().getString());
-                            }
-                        });
-                    });
-                } else if (isComposite) {
-                    // 请求复合结构
-                    ORCHESTRATOR.requestCompositeSpec(req)
-                            .orTimeout(115, TimeUnit.SECONDS)
-                            .exceptionally(ex -> {
-                                FormacraftMod.LOGGER.error("Orchestrator composite request failed", ex);
-                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
-                                        "后端生成超时/失败（CompositeSpec）。\n" +
-                                                "常见原因：LLM 上游不可达/模型不可用/API Key 无效。\n" +
-                                                "请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"
-                                ));
-                                return null;
-                            })
-                            .thenAccept(compositeSpec -> {
-                        if (compositeSpec == null) {
-                            FormacraftMod.LOGGER.error("Failed to get CompositeSpec from orchestrator");
-                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CompositeSpec（请检查后端日志/网络）"));
-                            return;
-                        }
-
-                        // 在主线程中执行
-                        context.server().execute(() -> {
-                            // 对于复合结构，生成预览而不是直接建造
-                            BlockPos origin = req.getPlayerPos();
-                            if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                // 生成结构
-                                com.formacraft.server.generator.composite.CompositeStructureGenerator generator = 
-                                        new com.formacraft.server.generator.composite.CompositeStructureGenerator();
-                                com.formacraft.server.build.GeneratedStructure structure = 
-                                        generator.generate(compositeSpec, origin, serverWorld);
-                                
-                                // 设置玩家 UUID
-                                structure = new com.formacraft.server.build.GeneratedStructure(
-                                        player.getUuid(),
-                                        origin,
-                                        structure.getDescription(),
-                                        structure.getBlocks()
-                                );
-                                
-                                // 存储结构用于预览
-                                com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-                                
-                                // 自动发送预览
-                                List<com.formacraft.client.preview.OutlineBlock> outline = 
-                                        com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                sendPreviewOutline(player, outline);
-                                com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-                                
-                                player.sendMessage(net.minecraft.text.Text.literal(
-                                        "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel."),
-                                        false);
-                                
-                                FormacraftMod.LOGGER.info("Generated composite structure preview for player {}", player.getName().getString());
-                            }
-                        });
-                    });
-                } else {
-                    // 请求单个建筑
-                    // 如果是 PATCH/MODIFY_REGION：走“增量编辑 BuildingSpec”链路
-                    String mode = req.getPromptMode();
-                    boolean isPatch = mode != null && !mode.isBlank() && !"BUILD".equalsIgnoreCase(mode.trim());
-                    if (isPatch) {
-                        String buildingId = com.formacraft.server.state.PlayerSpecRepository.getBuildingId(player);
-                        String currentJson = com.formacraft.server.state.PlayerSpecRepository.getBuildingJson(player);
-                        if (buildingId == null || currentJson == null) {
-                            player.sendMessage(net.minecraft.text.Text.literal("No current building spec. Generate a building first."), false);
-                            return;
-                        }
-
-                        ORCHESTRATOR.editBuilding(buildingId, currentJson, req.getRequestText())
-                                .orTimeout(115, TimeUnit.SECONDS)
-                                .exceptionally(ex -> {
-                                    FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
-                                    ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
-                                            "后端编辑超时/失败。\n" +
-                                                    "常见原因：LLM 上游不可达/模型不可用/API Key 无效。\n" +
-                                                    "请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"
-                                    ));
-                                    return null;
-                                })
-                                .thenAccept(updatedJson -> {
-                            if (updatedJson == null) {
-                                FormacraftMod.LOGGER.error("Failed to edit BuildingSpec via orchestrator");
-                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端编辑失败（未返回结果）。请检查 API Key/模型/后端日志。"));
-                                return;
-                            }
-
-                            context.server().execute(() -> {
-                                // 更新 PlayerSpecRepository
-                                com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, updatedJson);
-
-                                BuildingSpec updated = JsonUtil.fromJson(updatedJson, BuildingSpec.class);
-                                if (updated == null) return;
-
-                                BlockPos origin = req.getPlayerPos();
-                                if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                    com.formacraft.server.generator.StructureGenerator generator =
-                                            com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(updated);
-                                    com.formacraft.server.build.GeneratedStructure structure =
-                                            generator.generate(updated, origin, serverWorld);
-
-                                    structure = new com.formacraft.server.build.GeneratedStructure(
-                                            player.getUuid(),
-                                            origin,
-                                            structure.getDescription(),
-                                            structure.getBlocks()
-                                    );
-
-                                    com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-                                    List<com.formacraft.client.preview.OutlineBlock> outline =
-                                            com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                    sendPreviewOutline(player, outline);
-                                    com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-
-                                    player.sendMessage(net.minecraft.text.Text.literal(
-                                            "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."),
-                                            false);
-                                }
-
-                                // 同步给客户端，用于 UI 显示（notes 等）
-                                ServerPlayNetworking.send(player, new ResponseBuildSpecPayload(updated));
-                            });
-                        });
+            if (isCity) {
+                // 请求城市级结构
+                ORCHESTRATOR.requestCitySpec(req)
+                        .orTimeout(115, TimeUnit.SECONDS)
+                        .exceptionally(ex -> {
+                            FormacraftMod.LOGGER.error("Orchestrator city request failed", ex);
+                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                    """
+                                            后端生成超时/失败（CitySpec）。
+                                            常见原因：LLM 上游不可达/模型不可用/API Key 无效。
+                                            请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
+                            ));
+                            return null;
+                        })
+                        .thenAccept(citySpec -> {
+                    if (citySpec == null) {
+                        FormacraftMod.LOGGER.error("Failed to get CitySpec from orchestrator");
+                        ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CitySpec（请检查后端日志/网络）"));
                         return;
                     }
 
-                    ORCHESTRATOR.requestBuildingSpec(req)
+                    // 在主线程中执行
+                    context.server().execute(() -> {
+                        // 对于城市结构，生成预览而不是直接建造
+                        BlockPos origin = req.getPlayerPos();
+                        if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                            // 生成城市结构
+                            com.formacraft.server.city.CityBuilder cityBuilder =
+                                    new com.formacraft.server.city.CityBuilder();
+                            com.formacraft.server.build.GeneratedStructure structure =
+                                    cityBuilder.generate(citySpec, origin, serverWorld);
+
+                            // 设置玩家 UUID
+                            structure = new com.formacraft.server.build.GeneratedStructure(
+                                    player.getUuid(),
+                                    origin,
+                                    structure.getDescription(),
+                                    structure.getBlocks()
+                            );
+
+                            // 存储结构用于预览
+                            com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
+
+                            // 自动发送预览
+                            List<OutlineBlock> outline =
+                                    com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
+                            sendPreviewOutline(player, outline);
+                            com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
+
+                            // 保存 CitySpec 到 PlayerSpecRepository
+                            String cityId = "player_" + player.getName().getString() + "_world_" +
+                                    serverWorld.getRegistryKey().getValue();
+                            String cityJson = JsonUtil.toJson(citySpec);
+                            com.formacraft.server.state.PlayerSpecRepository.setCitySpec(player, cityId, cityJson);
+
+                            player.sendMessage(net.minecraft.text.Text.literal(
+                                    String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.",
+                                            citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed")),
+                                    false);
+
+                            FormacraftMod.LOGGER.info("Generated city structure preview for player {}", player.getName().getString());
+                        }
+                    });
+                });
+            } else if (isComposite) {
+                // 请求复合结构
+                ORCHESTRATOR.requestCompositeSpec(req)
+                        .orTimeout(115, TimeUnit.SECONDS)
+                        .exceptionally(ex -> {
+                            FormacraftMod.LOGGER.error("Orchestrator composite request failed", ex);
+                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                    """
+                                            后端生成超时/失败（CompositeSpec）。
+                                            常见原因：LLM 上游不可达/模型不可用/API Key 无效。
+                                            请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
+                            ));
+                            return null;
+                        })
+                        .thenAccept(compositeSpec -> {
+                    if (compositeSpec == null) {
+                        FormacraftMod.LOGGER.error("Failed to get CompositeSpec from orchestrator");
+                        ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CompositeSpec（请检查后端日志/网络）"));
+                        return;
+                    }
+
+                    // 在主线程中执行
+                    context.server().execute(() -> {
+                        // 对于复合结构，生成预览而不是直接建造
+                        BlockPos origin = req.getPlayerPos();
+                        if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                            // 生成结构
+                            com.formacraft.server.generator.composite.CompositeStructureGenerator generator =
+                                    new com.formacraft.server.generator.composite.CompositeStructureGenerator();
+                            com.formacraft.server.build.GeneratedStructure structure =
+                                    generator.generate(compositeSpec, origin, serverWorld);
+
+                            // 设置玩家 UUID
+                            structure = new com.formacraft.server.build.GeneratedStructure(
+                                    player.getUuid(),
+                                    origin,
+                                    structure.getDescription(),
+                                    structure.getBlocks()
+                            );
+
+                            // 存储结构用于预览
+                            com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
+
+                            // 自动发送预览
+                            List<OutlineBlock> outline =
+                                    com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
+                            sendPreviewOutline(player, outline);
+                            com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
+
+                            player.sendMessage(net.minecraft.text.Text.literal(
+                                    "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel."),
+                                    false);
+
+                            FormacraftMod.LOGGER.info("Generated composite structure preview for player {}", player.getName().getString());
+                        }
+                    });
+                });
+            } else {
+                // 请求单个建筑
+                // 如果是 PATCH/MODIFY_REGION：走“增量编辑 BuildingSpec”链路
+                String mode = req.getPromptMode();
+                boolean isPatch = mode != null && !mode.isBlank() && !"BUILD".equalsIgnoreCase(mode.trim());
+                if (isPatch) {
+                    String buildingId = com.formacraft.server.state.PlayerSpecRepository.getBuildingId(player);
+                    String currentJson = com.formacraft.server.state.PlayerSpecRepository.getBuildingJson(player);
+                    if (buildingId == null || currentJson == null) {
+                        player.sendMessage(net.minecraft.text.Text.literal("No current building spec. Generate a building first."), false);
+                        return;
+                    }
+
+                    ORCHESTRATOR.editBuilding(buildingId, currentJson, req.getRequestText())
                             .orTimeout(115, TimeUnit.SECONDS)
                             .exceptionally(ex -> {
-                                FormacraftMod.LOGGER.error("Orchestrator building request failed", ex);
+                                FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
                                 ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
-                                        "后端生成超时/失败（BuildingSpec）。\n" +
-                                                "常见原因：LLM 上游不可达/模型不可用/API Key 无效。\n" +
-                                                "请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"
+                                        """
+                                                后端编辑超时/失败。
+                                                常见原因：LLM 上游不可达/模型不可用/API Key 无效。
+                                                请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
                                 ));
                                 return null;
                             })
-                            .thenAccept(spec -> {
-                        if (spec == null) {
-                            FormacraftMod.LOGGER.error("Failed to get BuildingSpec from orchestrator");
-                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 BuildingSpec（请检查 API Key/模型/后端日志）"));
+                            .thenAccept(updatedJson -> {
+                        if (updatedJson == null) {
+                            FormacraftMod.LOGGER.error("Failed to edit BuildingSpec via orchestrator");
+                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端编辑失败（未返回结果）。请检查 API Key/模型/后端日志。"));
                             return;
                         }
 
-                        // 在主线程中执行
                         context.server().execute(() -> {
-                            // 生成预览结构
+                            // 更新 PlayerSpecRepository
+                            com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, updatedJson);
+
+                            BuildingSpec updated = JsonUtil.fromJson(updatedJson, BuildingSpec.class);
+                            if (updated == null) return;
+
                             BlockPos origin = req.getPlayerPos();
                             if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                // 生成结构用于预览
-                                com.formacraft.server.generator.StructureGenerator generator = 
-                                        com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(spec);
-                                com.formacraft.server.build.GeneratedStructure structure = 
-                                        generator.generate(spec, origin, serverWorld);
-                                
-                                // 设置玩家 UUID
+                                com.formacraft.server.generator.StructureGenerator generator =
+                                        com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(updated);
+                                com.formacraft.server.build.GeneratedStructure structure =
+                                        generator.generate(updated, origin, serverWorld);
+
                                 structure = new com.formacraft.server.build.GeneratedStructure(
                                         player.getUuid(),
                                         origin,
                                         structure.getDescription(),
                                         structure.getBlocks()
                                 );
-                                
-                                // 存储结构用于预览
+
                                 com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-                                
-                                // 自动发送预览
-                                List<com.formacraft.client.preview.OutlineBlock> outline = 
+                                List<OutlineBlock> outline =
                                         com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
                                 sendPreviewOutline(player, outline);
                                 com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-                                
+
                                 player.sendMessage(net.minecraft.text.Text.literal(
-                                        "Building preview ready. Use /forma_confirm to build or /forma_cancel to cancel."),
+                                        "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."),
                                         false);
                             }
-                            
-                            // 也发送 BuildingSpec 给客户端（用于 UI 显示）
-                            ServerPlayNetworking.send(player, new ResponseBuildSpecPayload(spec));
+
+                            // 同步给客户端，用于 UI 显示（notes 等）
+                            ServerPlayNetworking.send(player, new ResponseBuildSpecPayload(updated));
                         });
                     });
-                }
-            });
-        });
-
-        // 注册确认建造数据包
-        registerPayloadTypesC2S();
-        ServerPlayNetworking.registerGlobalReceiver(ConfirmBuildPacket.ID, (payload, context) -> {
-            context.server().execute(() -> {
-                ServerPlayerEntity player = context.player();
-                if (player == null) {
-                    FormacraftMod.LOGGER.warn("Received confirm build from null player");
                     return;
                 }
 
-                if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                    BuildingSpec spec = payload.spec();
-                    int[] originArray = payload.origin();
-                    if (originArray != null && originArray.length == 3) {
-                        net.minecraft.util.math.BlockPos origin = new net.minecraft.util.math.BlockPos(
-                                originArray[0], originArray[1], originArray[2]
-                        );
-                        // 保存 BuildingSpec 到 PlayerSpecRepository（供 PATCH/编辑使用）
-                        try {
-                            String buildingId = "player_" + player.getName().getString() + "_world_" +
-                                    serverWorld.getRegistryKey().getValue();
-                            String buildingJson = JsonUtil.toJson(spec);
-                            com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, buildingJson);
-                        } catch (Throwable ignored) {}
-
-                        // 使用玩家 UUID 创建 GeneratedStructure
-                        BuildExecutionService.getInstance().queueBuild(
-                                serverWorld, 
-                                origin, 
-                                spec, 
-                                player.getUuid()
-                        );
-                        FormacraftMod.LOGGER.info("Player {} confirmed build at {}", 
-                                player.getName().getString(), origin);
+                ORCHESTRATOR.requestBuildingSpec(req)
+                        .orTimeout(115, TimeUnit.SECONDS)
+                        .exceptionally(ex -> {
+                            FormacraftMod.LOGGER.error("Orchestrator building request failed", ex);
+                            ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                    """
+                                            后端生成超时/失败（BuildingSpec）。
+                                            常见原因：LLM 上游不可达/模型不可用/API Key 无效。
+                                            请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
+                            ));
+                            return null;
+                        })
+                        .thenAccept(spec -> {
+                    if (spec == null) {
+                        FormacraftMod.LOGGER.error("Failed to get BuildingSpec from orchestrator");
+                        ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 BuildingSpec（请检查 API Key/模型/后端日志）"));
+                        return;
                     }
+
+                    // 在主线程中执行
+                    context.server().execute(() -> {
+                        // 生成预览结构
+                        BlockPos origin = req.getPlayerPos();
+                        if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                            // 生成结构用于预览
+                            com.formacraft.server.generator.StructureGenerator generator =
+                                    com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(spec);
+                            com.formacraft.server.build.GeneratedStructure structure =
+                                    generator.generate(spec, origin, serverWorld);
+
+                            // 设置玩家 UUID
+                            structure = new com.formacraft.server.build.GeneratedStructure(
+                                    player.getUuid(),
+                                    origin,
+                                    structure.getDescription(),
+                                    structure.getBlocks()
+                            );
+
+                            // 存储结构用于预览
+                            com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
+
+                            // 自动发送预览
+                            List<OutlineBlock> outline =
+                                    com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
+                            sendPreviewOutline(player, outline);
+                            com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
+
+                            player.sendMessage(net.minecraft.text.Text.literal(
+                                    "Building preview ready. Use /forma_confirm to build or /forma_cancel to cancel."),
+                                    false);
+                        }
+
+                        // 也发送 BuildingSpec 给客户端（用于 UI 显示）
+                        ServerPlayNetworking.send(player, new ResponseBuildSpecPayload(spec));
+                    });
+                });
+            }
+        }));
+
+        // 注册确认建造数据包
+        registerPayloadTypesC2S();
+        ServerPlayNetworking.registerGlobalReceiver(ConfirmBuildPacket.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) {
+                FormacraftMod.LOGGER.warn("Received confirm build from null player");
+                return;
+            }
+
+            if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                BuildingSpec spec = payload.spec();
+                int[] originArray = payload.origin();
+                if (originArray != null && originArray.length == 3) {
+                    BlockPos origin = new BlockPos(
+                            originArray[0], originArray[1], originArray[2]
+                    );
+                    // 保存 BuildingSpec 到 PlayerSpecRepository（供 PATCH/编辑使用）
+                    try {
+                        String buildingId = "player_" + player.getName().getString() + "_world_" +
+                                serverWorld.getRegistryKey().getValue();
+                        String buildingJson = JsonUtil.toJson(spec);
+                        com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, buildingJson);
+                    } catch (Throwable ignored) {}
+
+                    // 使用玩家 UUID 创建 GeneratedStructure
+                    BuildExecutionService.getInstance().queueBuild(
+                            serverWorld,
+                            origin,
+                            spec,
+                            player.getUuid()
+                    );
+                    FormacraftMod.LOGGER.info("Player {} confirmed build at {}",
+                            player.getName().getString(), origin);
                 }
-            });
-        });
+            }
+        }));
 
         // Patch Undo/Redo（服务端执行）
         registerPayloadTypesC2S();
-        ServerPlayNetworking.registerGlobalReceiver(PatchUndoPayload.ID, (payload, context) -> {
-            context.server().execute(() -> {
-                ServerPlayerEntity player = context.player();
-                if (player == null) return;
-                if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
-                    com.formacraft.common.patch.history.PatchHistoryManager.undo(sw, player.getUuid());
-                }
-            });
-        });
-        ServerPlayNetworking.registerGlobalReceiver(PatchRedoPayload.ID, (payload, context) -> {
-            context.server().execute(() -> {
-                ServerPlayerEntity player = context.player();
-                if (player == null) return;
-                if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
-                    com.formacraft.common.patch.history.PatchHistoryManager.redo(sw, player.getUuid());
-                }
-            });
-        });
+        ServerPlayNetworking.registerGlobalReceiver(PatchUndoPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
+                com.formacraft.common.patch.history.PatchHistoryManager.undo(sw, player.getUuid());
+            }
+        }));
+        ServerPlayNetworking.registerGlobalReceiver(PatchRedoPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
+                com.formacraft.common.patch.history.PatchHistoryManager.redo(sw, player.getUuid());
+            }
+        }));
 
-        ServerPlayNetworking.registerGlobalReceiver(PatchApplyPayload.ID, (payload, context) -> {
-            context.server().execute(() -> {
-                ServerPlayerEntity player = context.player();
-                if (player == null) return;
-                if (!(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw)) return;
+        ServerPlayNetworking.registerGlobalReceiver(PatchApplyPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            if (!(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw)) return;
 
-                BlockPos origin = payload.origin();
-                List<BlockPatch> patches = payload.patches();
-                List<ProtectedZone> zones = payload.protectedZones();
-                if (origin == null || patches == null || patches.isEmpty()) return;
+            BlockPos origin = payload.origin();
+            List<BlockPatch> patches = payload.patches();
+            List<ProtectedZone> zones = payload.protectedZones();
+            if (origin == null || patches == null || patches.isEmpty()) return;
 
-                // 简单距离保护（避免恶意改图）
-                double d2 = player.squaredDistanceTo(origin.getX() + 0.5, origin.getY() + 0.5, origin.getZ() + 0.5);
-                double max = 96.0;
-                if (d2 > max * max) return;
+            // 简单距离保护（避免恶意改图）
+            double d2 = player.squaredDistanceTo(origin.getX() + 0.5, origin.getY() + 0.5, origin.getZ() + 0.5);
+            double max = 96.0;
+            if (d2 > max * max) return;
 
-                // 强制过滤：禁区/保护区内的 patch 一律跳过
-                List<BlockPatch> filtered = patches;
-                if (zones != null && !zones.isEmpty()) {
-                    filtered = new ArrayList<>(patches.size());
-                    outer:
-                    for (BlockPatch p : patches) {
-                        if (p == null) continue;
-                        BlockPos abs = origin.add(p.dx(), p.dy(), p.dz());
-                        for (ProtectedZone z : zones) {
-                            if (z != null && z.contains(abs)) {
-                                continue outer;
-                            }
+            // 强制过滤：禁区/保护区内的 patch 一律跳过
+            List<BlockPatch> filtered = patches;
+            if (zones != null && !zones.isEmpty()) {
+                filtered = new ArrayList<>(patches.size());
+                outer:
+                for (BlockPatch p : patches) {
+                    if (p == null) continue;
+                    BlockPos abs = origin.add(p.dx(), p.dy(), p.dz());
+                    for (ProtectedZone z : zones) {
+                        if (z != null && z.contains(abs)) {
+                            continue outer;
                         }
-                        filtered.add(p);
                     }
+                    filtered.add(p);
                 }
+            }
 
-                if (filtered.isEmpty()) return;
-                com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, filtered);
-            });
-        });
+            if (filtered.isEmpty()) return;
+            com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, filtered);
+        }));
     }
 
     /**
@@ -596,58 +590,50 @@ public class FormaCraftNetworking {
         registerPayloadTypesS2C();
 
         // 注册接收器
-        ClientPlayNetworking.registerGlobalReceiver(ResponseBuildSpecPayload.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                BuildingSpec spec = payload.spec();
-                FormacraftMod.LOGGER.info("Received BuildingSpec from server: {}", spec.getType());
+        ClientPlayNetworking.registerGlobalReceiver(ResponseBuildSpecPayload.ID, (payload, context) -> context.client().execute(() -> {
+            BuildingSpec spec = payload.spec();
+            FormacraftMod.LOGGER.info("Received BuildingSpec from server: {}", spec.getType());
 
-                // 添加到聊天面板（显示 AI 回复）
-                String aiResponse = "已生成建筑规格：" + (spec.getType() != null ? spec.getType().name() : "Unknown");
-                if (spec.getNotes() != null && !spec.getNotes().isEmpty()) {
-                    aiResponse += "\n" + spec.getNotes();
-                }
-                com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIMessage(aiResponse, spec);
-                
-                // 显示确认面板（替代 BuildPreviewScreen）
-                com.formacraft.client.ui.panel.BuildConfirmPanel.INSTANCE.show(spec);
-            });
-        });
+            // 添加到聊天面板（显示 AI 回复）
+            String aiResponse = "已生成建筑规格：" + (spec.getType() != null ? spec.getType().name() : "Unknown");
+            if (spec.getNotes() != null && !spec.getNotes().isEmpty()) {
+                aiResponse += "\n" + spec.getNotes();
+            }
+            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIMessage(aiResponse, spec);
 
-        ClientPlayNetworking.registerGlobalReceiver(ResponseBuildErrorPayload.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                String msg = payload.message();
-                FormacraftMod.LOGGER.warn("Received build error from server: {}", msg);
-                com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIError(
-                        (msg == null || msg.isBlank()) ? "请求失败：未知错误" : ("请求失败：" + msg)
-                );
-            });
-        });
+            // 显示确认面板（替代 BuildPreviewScreen）
+            com.formacraft.client.ui.panel.BuildConfirmPanel.INSTANCE.show(spec);
+        }));
+
+        ClientPlayNetworking.registerGlobalReceiver(ResponseBuildErrorPayload.ID, (payload, context) -> context.client().execute(() -> {
+            String msg = payload.message();
+            FormacraftMod.LOGGER.warn("Received build error from server: {}", msg);
+            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIError(
+                    (msg == null || msg.isBlank()) ? "请求失败：未知错误" : ("请求失败：" + msg)
+            );
+        }));
 
         // 预览线框数据包接收器
-        ClientPlayNetworking.registerGlobalReceiver(PreviewOutlinePayload.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                List<OutlineBlock> blocks = payload.blocks();
-                com.formacraft.client.preview.OutlinePreviewState.setBlocks(blocks);
-                FormacraftMod.LOGGER.info("Received preview outline: {} blocks", blocks != null ? blocks.size() : 0);
-                
-                // 显示确认面板（如果有 BuildingSpec，则显示详细信息）
-                // 注意：这里可能需要从 PreviewStorage 获取 BuildingSpec
-                // 暂时先显示一个简单的确认面板
-                if (blocks != null && !blocks.isEmpty()) {
-                    // 可以创建一个临时的 BuildingSpec 用于显示
-                    // 或者只显示简单的确认信息
-                    // 这里先不显示，等待后续完善
-                }
-            });
-        });
+        ClientPlayNetworking.registerGlobalReceiver(PreviewOutlinePayload.ID, (payload, context) -> context.client().execute(() -> {
+            List<OutlineBlock> blocks = payload.blocks();
+            com.formacraft.client.preview.OutlinePreviewState.setBlocks(blocks);
+            FormacraftMod.LOGGER.info("Received preview outline: {} blocks", blocks != null ? blocks.size() : 0);
+
+            // 显示确认面板（如果有 BuildingSpec，则显示详细信息）
+            // 注意：这里可能需要从 PreviewStorage 获取 BuildingSpec
+            // 暂时先显示一个简单的确认面板
+            if (blocks != null && !blocks.isEmpty()) {
+                // 可以创建一个临时的 BuildingSpec 用于显示
+                // 或者只显示简单的确认信息
+                // 这里先不显示，等待后续完善
+            }
+        }));
 
         // 清除预览数据包接收器
-        ClientPlayNetworking.registerGlobalReceiver(ClearOutlinePayload.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                com.formacraft.client.preview.OutlinePreviewState.clear();
-                FormacraftMod.LOGGER.info("Preview outline cleared");
-            });
-        });
+        ClientPlayNetworking.registerGlobalReceiver(ClearOutlinePayload.ID, (payload, context) -> context.client().execute(() -> {
+            com.formacraft.client.preview.OutlinePreviewState.clear();
+            FormacraftMod.LOGGER.info("Preview outline cleared");
+        }));
     }
 
     /** 注册所有 C2S PayloadType（客户端编码 & 服务端解码都需要）。 */
