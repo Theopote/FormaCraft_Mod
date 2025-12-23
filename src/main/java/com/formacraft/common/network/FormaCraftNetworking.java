@@ -16,6 +16,7 @@ import com.formacraft.common.json.JsonUtil;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -239,7 +240,18 @@ public class FormaCraftNetworking {
 
                 if (isCity) {
                     // 请求城市级结构
-                    ORCHESTRATOR.requestCitySpec(req).thenAccept(citySpec -> {
+                    ORCHESTRATOR.requestCitySpec(req)
+                            .orTimeout(115, TimeUnit.SECONDS)
+                            .exceptionally(ex -> {
+                                FormacraftMod.LOGGER.error("Orchestrator city request failed", ex);
+                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                        "后端生成超时/失败（CitySpec）。\n" +
+                                                "常见原因：LLM 上游不可达/模型不可用/API Key 无效。\n" +
+                                                "请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"
+                                ));
+                                return null;
+                            })
+                            .thenAccept(citySpec -> {
                         if (citySpec == null) {
                             FormacraftMod.LOGGER.error("Failed to get CitySpec from orchestrator");
                             ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CitySpec（请检查后端日志/网络）"));
@@ -291,7 +303,18 @@ public class FormaCraftNetworking {
                     });
                 } else if (isComposite) {
                     // 请求复合结构
-                    ORCHESTRATOR.requestCompositeSpec(req).thenAccept(compositeSpec -> {
+                    ORCHESTRATOR.requestCompositeSpec(req)
+                            .orTimeout(115, TimeUnit.SECONDS)
+                            .exceptionally(ex -> {
+                                FormacraftMod.LOGGER.error("Orchestrator composite request failed", ex);
+                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                        "后端生成超时/失败（CompositeSpec）。\n" +
+                                                "常见原因：LLM 上游不可达/模型不可用/API Key 无效。\n" +
+                                                "请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"
+                                ));
+                                return null;
+                            })
+                            .thenAccept(compositeSpec -> {
                         if (compositeSpec == null) {
                             FormacraftMod.LOGGER.error("Failed to get CompositeSpec from orchestrator");
                             ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CompositeSpec（请检查后端日志/网络）"));
@@ -347,7 +370,18 @@ public class FormaCraftNetworking {
                             return;
                         }
 
-                        ORCHESTRATOR.editBuilding(buildingId, currentJson, req.getRequestText()).thenAccept(updatedJson -> {
+                        ORCHESTRATOR.editBuilding(buildingId, currentJson, req.getRequestText())
+                                .orTimeout(115, TimeUnit.SECONDS)
+                                .exceptionally(ex -> {
+                                    FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
+                                    ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                            "后端编辑超时/失败。\n" +
+                                                    "常见原因：LLM 上游不可达/模型不可用/API Key 无效。\n" +
+                                                    "请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"
+                                    ));
+                                    return null;
+                                })
+                                .thenAccept(updatedJson -> {
                             if (updatedJson == null) {
                                 FormacraftMod.LOGGER.error("Failed to edit BuildingSpec via orchestrator");
                                 ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端编辑失败（未返回结果）。请检查 API Key/模型/后端日志。"));
@@ -393,7 +427,18 @@ public class FormaCraftNetworking {
                         return;
                     }
 
-                    ORCHESTRATOR.requestBuildingSpec(req).thenAccept(spec -> {
+                    ORCHESTRATOR.requestBuildingSpec(req)
+                            .orTimeout(115, TimeUnit.SECONDS)
+                            .exceptionally(ex -> {
+                                FormacraftMod.LOGGER.error("Orchestrator building request failed", ex);
+                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                        "后端生成超时/失败（BuildingSpec）。\n" +
+                                                "常见原因：LLM 上游不可达/模型不可用/API Key 无效。\n" +
+                                                "请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"
+                                ));
+                                return null;
+                            })
+                            .thenAccept(spec -> {
                         if (spec == null) {
                             FormacraftMod.LOGGER.error("Failed to get BuildingSpec from orchestrator");
                             ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 BuildingSpec（请检查 API Key/模型/后端日志）"));

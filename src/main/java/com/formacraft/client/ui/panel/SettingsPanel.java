@@ -1563,8 +1563,7 @@ public class SettingsPanel extends BasePanel {
             } catch (Exception ignored) {}
 
             // 同步草稿态（以输入框为准；留空=自动）
-            String cur = modelInput.getText() == null ? "" : modelInput.getText().trim();
-            draftModel = cur;
+            draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
 
             if (availableModels.isEmpty()) {
                 showToast("模型列表为空（可手动输入模型）", true);

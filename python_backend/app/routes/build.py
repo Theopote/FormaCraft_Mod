@@ -47,15 +47,15 @@ async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec,
                 )
         
         # 检查应该生成什么类型的结构（优先级：城市 > 复合 > 单个）
-        if _should_generate_city(build_req):
-            city_spec = generate_city_spec(build_req)
-            return city_spec
-        elif _should_generate_composite(build_req):
-            composite_spec = generate_composite_spec(build_req)
-            return composite_spec
-        else:
-            spec = generate_building_spec(build_req)
-            return spec
+        try:
+            if _should_generate_city(build_req):
+                return generate_city_spec(build_req)
+            if _should_generate_composite(build_req):
+                return generate_composite_spec(build_req)
+            return generate_building_spec(build_req)
+        except Exception as e:
+            # LLM 调用失败时给上游明确错误（由服务端回传到客户端聊天窗口）
+            raise HTTPException(status_code=502, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:

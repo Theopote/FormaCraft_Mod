@@ -11,7 +11,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * OrchestratorClient - 负责与 Python 后端通信
@@ -21,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 public class OrchestratorClient {
     private final String endpoint;
     private final HttpClient httpClient;
+    private static final long ORCHESTRATOR_TIMEOUT_SEC = 110;
 
     public OrchestratorClient(String endpoint) {
         this.endpoint = endpoint;
@@ -42,10 +45,12 @@ public class OrchestratorClient {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/build"))
                     .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
                     .thenApply(resp -> {
                         if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                             String body = resp.body();
@@ -69,8 +74,9 @@ public class OrchestratorClient {
                                 throw new RuntimeException("Failed to parse response", e);
                             }
                         } else {
-                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {}", resp.statusCode());
-                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode());
+                            String body = resp.body();
+                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
+                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
                     })
                     .exceptionally(throwable -> {
@@ -96,10 +102,12 @@ public class OrchestratorClient {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/build"))
                     .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
                     .thenApply(resp -> {
                         if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                             String body = resp.body();
@@ -118,8 +126,9 @@ public class OrchestratorClient {
                                 throw new RuntimeException("Failed to parse CompositeSpec", e);
                             }
                         } else {
-                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {}", resp.statusCode());
-                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode());
+                            String body = resp.body();
+                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
+                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
                     })
                     .exceptionally(throwable -> {
@@ -145,10 +154,12 @@ public class OrchestratorClient {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/build"))
                     .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
                     .thenApply(resp -> {
                         if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                             String body = resp.body();
@@ -166,8 +177,9 @@ public class OrchestratorClient {
                                 throw new RuntimeException("Failed to parse CitySpec", e);
                             }
                         } else {
-                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {}", resp.statusCode());
-                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode());
+                            String body = resp.body();
+                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
+                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
                     })
                     .exceptionally(throwable -> {
@@ -207,10 +219,12 @@ public class OrchestratorClient {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/edit/city"))
                     .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
                     .POST(HttpRequest.BodyPublishers.ofString(requestJson))
                     .build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
                     .thenApply(resp -> {
                         if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                             String body = resp.body();
@@ -227,8 +241,9 @@ public class OrchestratorClient {
                                 throw new RuntimeException("Failed to parse city edit response", e);
                             }
                         } else {
-                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {}", resp.statusCode());
-                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode());
+                            String body = resp.body();
+                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
+                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
                     })
                     .exceptionally(throwable -> {
@@ -267,10 +282,12 @@ public class OrchestratorClient {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/edit/building"))
                     .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
                     .POST(HttpRequest.BodyPublishers.ofString(requestJson))
                     .build();
 
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
                     .thenApply(resp -> {
                         if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                             String body = resp.body();
@@ -287,8 +304,9 @@ public class OrchestratorClient {
                                 throw new RuntimeException("Failed to parse building edit response", e);
                             }
                         } else {
-                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {}", resp.statusCode());
-                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode());
+                            String body = resp.body();
+                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
+                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
                     })
                     .exceptionally(throwable -> {

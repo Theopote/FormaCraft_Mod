@@ -4,6 +4,7 @@ AI Planner Service
 """
 import os
 import json
+import concurrent.futures
 from typing import Any, Dict, Optional, Union
 
 try:
@@ -21,6 +22,30 @@ from ..models.building_spec import (
 )
 from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
+
+_LLM_CALL_TIMEOUT_SEC = float(os.getenv("LLM_CALL_TIMEOUT_SEC", "45"))
+
+
+def _call_with_timeout(fn, timeout_sec: float):
+    """Run a blocking function with a hard timeout; do not block shutdown on timeout."""
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    fut = None
+    try:
+        fut = ex.submit(fn)
+        return fut.result(timeout=timeout_sec)
+    except concurrent.futures.TimeoutError as e:
+        if fut is not None:
+            try:
+                fut.cancel()
+            except Exception:
+                pass
+        raise TimeoutError(f"LLM call timed out after {timeout_sec}s") from e
+    finally:
+        try:
+            ex.shutdown(wait=False, cancel_futures=True)
+        except Exception:
+            pass
+
 
 def _clamp_temperature(v: Optional[float], default: float) -> float:
     try:
@@ -293,14 +318,18 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
     user_prompt = _build_user_prompt(req)
     
     try:
-        response = client.chat.completions.create(
-            model=_resolve_model(req, "gpt-4o-mini"),
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=_clamp_temperature(getattr(req, "temperature", None), 0.4),  # city 默认更发散
+        model = _resolve_model(req, "gpt-4o-mini")
+        response = _call_with_timeout(
+            lambda: client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=_clamp_temperature(getattr(req, "temperature", None), 0.4),  # city 默认更发散
+            ),
+            _LLM_CALL_TIMEOUT_SEC,
         )
         
         raw_output = response.choices[0].message.content
@@ -311,8 +340,8 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
         return CitySpec.model_validate(data)
         
     except Exception as e:
-        print(f"LLM call failed for city spec: {e}, falling back to rule-based generation")
-        return _generate_fallback_city_spec(req)
+        # 有 client 说明用户配置了 LLM；失败应直接报错，让上游给用户明确提示
+        raise RuntimeError(f"LLM call failed for city spec: {e}") from e
 
 
 def _generate_fallback_city_spec(req: BuildRequest) -> CitySpec:
@@ -434,14 +463,18 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
     user_prompt = _build_user_prompt(req)
     
     try:
-        response = client.chat.completions.create(
-            model=_resolve_model(req, "gpt-4o-mini"),
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=_clamp_temperature(getattr(req, "temperature", None), 0.3),
+        model = _resolve_model(req, "gpt-4o-mini")
+        response = _call_with_timeout(
+            lambda: client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=_clamp_temperature(getattr(req, "temperature", None), 0.3),
+            ),
+            _LLM_CALL_TIMEOUT_SEC,
         )
         
         raw_output = response.choices[0].message.content
@@ -452,8 +485,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
         return CompositeSpec(**data)
         
     except Exception as e:
-        print(f"LLM call failed: {e}, falling back to rule-based generation")
-        return _generate_fallback_composite_spec(req)
+        raise RuntimeError(f"LLM call failed for composite spec: {e}") from e
 
 
 def _generate_fallback_composite_spec(req: BuildRequest) -> CompositeSpec:
@@ -613,14 +645,18 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     
     try:
         # 使用 OpenAI Chat Completions API
-        response = client.chat.completions.create(
-            model=_resolve_model(req, "gpt-4o-mini"),
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=_clamp_temperature(getattr(req, "temperature", None), 0.3),
+        model = _resolve_model(req, "gpt-4o-mini")
+        response = _call_with_timeout(
+            lambda: client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=_clamp_temperature(getattr(req, "temperature", None), 0.3),
+            ),
+            _LLM_CALL_TIMEOUT_SEC,
         )
         
         # 提取 JSON 响应
@@ -649,6 +685,4 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
         return spec
         
     except Exception as e:
-        # 如果 LLM 调用失败，使用回退方案
-        print(f"LLM call failed: {e}, falling back to rule-based generation")
-        return _generate_fallback_spec(req)
+        raise RuntimeError(f"LLM call failed for building spec: {e}") from e
