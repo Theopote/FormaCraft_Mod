@@ -32,6 +32,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 
 /**
  * FormaCraft 主聊天面板（左侧固定栏 + 多行输入 + 可滚动消息区域）
@@ -67,6 +72,13 @@ public class ChatPanel extends BasePanel {
     // ========== 服务端请求状态（用于更准确的“思考中/超时/错误”展示） ==========
     private long pendingRequestToken = 0L;
     private int pendingThinkingIndex = -1;
+    private static final long SOFT_TIMEOUT_SEC = 15;
+    private static final long HARD_TIMEOUT_SEC = 120;
+
+    // 轻量 health check（仅用于本地 localhost 情况下的“更准确提示”）
+    private final HttpClient healthHttp = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(1))
+            .build();
 
     // ========== 输出区文字选择（拖拽选区 + Ctrl+C） ==========
     private final SelectableTextBlock selectable = new SelectableTextBlock(client);
@@ -816,22 +828,101 @@ public class ChatPanel extends BasePanel {
 
         FormaCraftNetworking.sendBuildRequest(req);
 
-        // 超时兜底：如果服务端一直没回包，不要无限显示“思考中”
+        // 软超时：服务端/AI 可能在生成，15s 不应直接报错（避免误导）
         final long token = pendingRequestToken;
-        CompletableFuture.delayedExecutor(15, TimeUnit.SECONDS).execute(() -> client.execute(() -> {
+        CompletableFuture.delayedExecutor(SOFT_TIMEOUT_SEC, TimeUnit.SECONDS).execute(() -> {
+            // 仅在“本次请求仍在等待”时触发
+            if (pendingRequestToken != token) return;
+            if (pendingThinkingIndex < 0 || pendingThinkingIndex >= messages.size()) return;
+            ChatMessage cur = messages.get(pendingThinkingIndex);
+            if (cur == null || cur.type != ChatMessage.MessageType.THINKING) return;
+
+            // 本地 endpoint 时做一次 /health 快速判断，让提示更准确
+            String endpoint = SettingsConfig.INSTANCE.orchestratorEndpoint;
+            String healthUrl = buildHealthUrlOrNull(endpoint);
+            if (healthUrl != null) {
+                CompletableFuture.supplyAsync(() -> isHealthy(healthUrl))
+                        .thenAccept(healthy -> client.execute(() -> {
+                            if (pendingRequestToken != token) return;
+                            if (pendingThinkingIndex < 0 || pendingThinkingIndex >= messages.size()) return;
+                            ChatMessage cur2 = messages.get(pendingThinkingIndex);
+                            if (cur2 == null || cur2.type != ChatMessage.MessageType.THINKING) return;
+
+                            if (healthy) {
+                                messages.set(pendingThinkingIndex, ChatMessage.thinking(
+                                        "仍在生成中（已等待 " + SOFT_TIMEOUT_SEC + " 秒）。后端健康，可能是模型生成较慢…"
+                                ));
+                            } else {
+                                messages.set(pendingThinkingIndex, ChatMessage.thinking(
+                                        "仍在等待后端响应（已等待 " + SOFT_TIMEOUT_SEC + " 秒）。后端可能未就绪或不可达…"
+                                ));
+                            }
+                            scrollOffset = 0;
+                        }));
+            } else {
+                client.execute(() -> {
+                    if (pendingRequestToken != token) return;
+                    if (pendingThinkingIndex < 0 || pendingThinkingIndex >= messages.size()) return;
+                    ChatMessage cur2 = messages.get(pendingThinkingIndex);
+                    if (cur2 == null || cur2.type != ChatMessage.MessageType.THINKING) return;
+                    messages.set(pendingThinkingIndex, ChatMessage.thinking(
+                            "仍在等待服务端响应（已等待 " + SOFT_TIMEOUT_SEC + " 秒）。可能仍在生成中…"
+                    ));
+                    scrollOffset = 0;
+                });
+            }
+        });
+
+        // 硬超时：长时间无回包才报错（避免把“生成慢”误判成“后端没跑”）
+        CompletableFuture.delayedExecutor(HARD_TIMEOUT_SEC, TimeUnit.SECONDS).execute(() -> client.execute(() -> {
             if (pendingRequestToken != token) return;
             if (pendingThinkingIndex < 0 || pendingThinkingIndex >= messages.size()) return;
             ChatMessage cur = messages.get(pendingThinkingIndex);
             if (cur == null || cur.type != ChatMessage.MessageType.THINKING) return;
             messages.set(pendingThinkingIndex, ChatMessage.error(
-                    "请求超时：服务端/后端未响应。\n" +
-                            "请确认 Python 后端正在运行，并且 Backend URL 可访问（例如 http://localhost:8000）。"
+                    "请求超时：服务端/后端长时间未响应（已等待 " + HARD_TIMEOUT_SEC + " 秒）。\n" +
+                            "如果你在单机模式：请确认 Python 后端正在运行，并且 Backend URL 可访问（例如 http://localhost:8000）。\n" +
+                            "如果你在多人服务器：请联系服务器管理员检查后端与日志。"
             ));
             scrollOffset = 0;
         }));
 
         // 清空输入框
         inputBox.clear();
+    }
+
+    private static String buildHealthUrlOrNull(String endpoint) {
+        if (endpoint == null) return null;
+        String v = endpoint.trim();
+        if (v.isEmpty()) return null;
+        if (!v.startsWith("http://") && !v.startsWith("https://")) v = "http://" + v;
+        while (v.endsWith("/")) v = v.substring(0, v.length() - 1);
+        try {
+            URI u = new URI(v);
+            String host = u.getHost();
+            if (host == null) return null;
+            host = host.toLowerCase();
+            boolean local = host.equals("localhost") || host.equals("127.0.0.1");
+            if (!local) return null;
+        } catch (Exception e) {
+            return null;
+        }
+        return v + "/health";
+    }
+
+    private boolean isHealthy(String healthUrl) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(healthUrl))
+                    .timeout(Duration.ofSeconds(2))
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build();
+            HttpResponse<String> resp = healthHttp.send(req, HttpResponse.BodyHandlers.ofString());
+            return resp.statusCode() >= 200 && resp.statusCode() < 300;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private void stopGenerating() {
