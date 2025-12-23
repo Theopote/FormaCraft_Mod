@@ -27,6 +27,9 @@ public class ClientInitializer implements ClientModInitializer {
         
         // 注册 S2C 数据包（服务端 → 客户端）
         FormaCraftNetworking.registerS2C();
+        // 单机/集成服务器环境：服务端也在同一 JVM 内运行，但不会触发 DedicatedServerModInitializer。
+        // 因此需要在客户端侧也注册 C2S 接收器，确保请求链路在单机可用。
+        FormaCraftNetworking.registerC2S();
         // 注册预览线框渲染器
         OutlineRenderer.register();
         // 注册 HUD Overlay

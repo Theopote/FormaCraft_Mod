@@ -29,7 +29,15 @@ public class SelectionBoxRenderMixin {
 
     @Inject(
             method = "renderTargetBlockOutline(Lnet/minecraft/client/render/VertexConsumerProvider$Immediate;Lnet/minecraft/client/util/math/MatrixStack;ZLnet/minecraft/client/render/state/WorldRenderState;)V",
-            at = @At("TAIL"),
+            // IMPORTANT:
+            // 不能用 HEAD：太早时原版还没 begin 线框的 BufferBuilder，首次写顶点会 “Not building!” 崩溃。
+            // 也不能用 TAIL：太晚时原版可能已经 flush 了 immediate。
+            // 因此我们选择在原版首次 getBuffer(...) 之后立刻绘制，保证 BufferBuilder 处于 building 状态。
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/render/VertexConsumerProvider$Immediate;getBuffer(Lnet/minecraft/client/render/RenderLayer;)Lnet/minecraft/client/render/VertexConsumer;",
+                    shift = At.Shift.AFTER
+            ),
             require = 0
     )
     private void formacraft$renderOverlays(VertexConsumerProvider.Immediate immediate,
@@ -43,8 +51,11 @@ public class SelectionBoxRenderMixin {
         if (client == null || client.gameRenderer == null) return;
         Vec3d cam = client.gameRenderer.getCamera().getPos();
 
+        // 关键：在原版绘制目标方块轮廓的同一 Immediate 上，不要在此阶段渲染任何“文字/其他 RenderLayer”，
+        // 否则会触发 Immediate 切换 layer 并可能提前结束 lines 的 BufferBuilder，导致原版后续 “Not building!” 崩溃。
+        // 因此这里把 ctx.immediate 置空，仅允许线框（lines layer）渲染。
         VertexConsumer lines = immediate.getBuffer(RenderLayer.getLines());
-        ToolWorldRenderContext ctx = new ToolWorldRenderContext(matrices, lines, immediate, cam.x, cam.y, cam.z);
+        ToolWorldRenderContext ctx = new ToolWorldRenderContext(matrices, lines, null, cam.x, cam.y, cam.z);
 
         // Tools：选区框/刷子预览等
         ToolManager.renderWorld(ctx);

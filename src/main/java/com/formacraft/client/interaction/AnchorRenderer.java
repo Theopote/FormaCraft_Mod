@@ -29,6 +29,9 @@ public final class AnchorRenderer {
         VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.25f, 0.95f, 0.95f, 0.95f);
 
         // 悬浮文字（仅在 immediate 可用时）
+        // 注意：在 WorldRenderer.renderTargetBlockOutline 阶段，如果使用 Immediate 渲染文字，会切换 RenderLayer，
+        // 可能导致 lines 的 BufferBuilder 状态异常（Not building）。因此这里必须依赖 ctx.immediate 进行开关。
+        if (ctx.immediate == null) return;
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc == null) return;
         Vec3d pos = new Vec3d(a.getX() + 0.5, a.getY() + 1.2, a.getZ() + 0.5);
