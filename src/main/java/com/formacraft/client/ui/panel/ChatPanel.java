@@ -828,21 +828,19 @@ public class ChatPanel extends BasePanel {
         // 关键：把客户端 Settings 中的 LLM 配置随请求发送给服务端/后端。
         // 否则 Python 后端会收到 apiKey/model/provider/baseUrl 都是 null，通常只能走“兜底模板”，导致“无论输入什么都生成得很像”。
         SettingsConfig cfg = SettingsConfig.INSTANCE;
-        if (cfg != null) {
-            String apiKey = cfg.apiKey != null ? cfg.apiKey.trim() : "";
-            if (!apiKey.isEmpty()) req.setApiKey(apiKey);
+        String apiKey = cfg.apiKey != null ? cfg.apiKey.trim() : "";
+        if (!apiKey.isEmpty()) req.setApiKey(apiKey);
 
-            String model = cfg.model != null ? cfg.model.trim() : "";
-            if (!model.isEmpty()) req.setModel(model);
+        String model = cfg.model != null ? cfg.model.trim() : "";
+        if (!model.isEmpty()) req.setModel(model);
 
-            req.setTemperature(cfg.temperature); // always send (server/backend may ignore if unsupported)
+        req.setTemperature(cfg.temperature); // always send (server/backend may ignore if unsupported)
 
-            String provider = cfg.llmProvider != null ? cfg.llmProvider.trim() : "";
-            if (!provider.isEmpty()) req.setLlmProvider(provider);
+        String provider = cfg.llmProvider != null ? cfg.llmProvider.trim() : "";
+        if (!provider.isEmpty()) req.setLlmProvider(provider);
 
-            String baseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
-            if (!baseUrl.isEmpty()) req.setLlmBaseUrl(baseUrl);
-        }
+        String baseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
+        if (!baseUrl.isEmpty()) req.setLlmBaseUrl(baseUrl);
 
         // 记录 origin，确保 confirm 时与预览一致
         BuildingPreviewState.setPendingOrigin(origin);
@@ -1116,10 +1114,27 @@ public class ChatPanel extends BasePanel {
         String t = (text == null) ? "" : text.trim();
         if (t.isEmpty()) return;
 
+        // 某些链路（Composite/City 预览）不会下发 ResponseBuildSpecPayload，
+        // 只会给出“preview ready”提示；若不在此处结束 pending，会在 120s 误报超时。
+        String tl = t.toLowerCase();
+        boolean isTerminal =
+                tl.contains("preview ready") ||
+                tl.contains("预览已就绪") ||
+                tl.contains("预览就绪") ||
+                tl.contains("预览准备完成") ||
+                tl.contains("已准备好预览");
+
         if (pendingThinkingIndex >= 0 && pendingThinkingIndex < messages.size()) {
             ChatMessage cur = messages.get(pendingThinkingIndex);
             if (cur != null && cur.type == ChatMessage.MessageType.THINKING) {
-                messages.set(pendingThinkingIndex, ChatMessage.thinking(t));
+                if (isTerminal) {
+                    // 结束本次请求
+                    messages.set(pendingThinkingIndex, new ChatMessage(t, false));
+                    pendingThinkingIndex = -1;
+                    pendingRequestToken = 0L;
+                } else {
+                    messages.set(pendingThinkingIndex, ChatMessage.thinking(t));
+                }
                 scrollOffset = 0;
                 return;
             }
@@ -1127,6 +1142,10 @@ public class ChatPanel extends BasePanel {
 
         // fallback：如果没有 pending thinking，就作为系统消息插入
         messages.add(new ChatMessage(t, false));
+        if (isTerminal) {
+            pendingThinkingIndex = -1;
+            pendingRequestToken = 0L;
+        }
         scrollOffset = 0;
     }
 }

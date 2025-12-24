@@ -23,8 +23,9 @@ public class StructureGeneratorFactory {
             case WALL -> new WallGenerator();
             case CASTLE -> new HouseGenerator(); // 暂时使用房屋生成器
             case CUSTOM -> {
-                FormacraftMod.LOGGER.warn("CUSTOM building type not yet implemented, using TowerGenerator");
-                yield new TowerGenerator();
+                // CUSTOM 目前没有专用生成器；回退到 HouseGenerator 更安全（不会生成无关的圆塔）
+                FormacraftMod.LOGGER.warn("CUSTOM building type not yet implemented, using HouseGenerator");
+                yield new HouseGenerator();
             }
         };
     }

@@ -345,6 +345,9 @@ def _normalize_substructure_item(item: Any, idx: int) -> Dict[str, Any]:
     t_str = str(t).strip().upper()
     if t_str in ("ASIAN", "MODERN", "MEDIEVAL", "FUTURISTIC", "RUSTIC", "DEFAULT"):
         t_str = "HOUSE"
+    # Composite 子结构基本都应该落在已实现的类型；CUSTOM 会在服务端回退导致“塔楼”
+    if t_str == "CUSTOM":
+        t_str = "HOUSE"
 
     spec = item.get("spec")
     if isinstance(spec, dict):
@@ -356,6 +359,8 @@ def _normalize_substructure_item(item: Any, idx: int) -> Dict[str, Any]:
         else:
             st = str(spec.get("type")).strip().upper()
             if st in ("ASIAN", "MODERN", "MEDIEVAL", "FUTURISTIC", "RUSTIC", "DEFAULT"):
+                spec["type"] = t_str
+            if st == "CUSTOM":
                 spec["type"] = t_str
         return {"type": t_str, "spec": spec, "offset": offset}
 

@@ -411,6 +411,11 @@ public class FormaCraftNetworking {
                                     String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.",
                                             citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed")),
                                     false);
+                            // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
+                            ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
+                                    String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.",
+                                            citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed")
+                            ));
 
                             FormacraftMod.LOGGER.info("Generated city structure preview for player {}", player.getName().getString());
                         }
@@ -461,6 +466,10 @@ public class FormaCraftNetworking {
                             player.sendMessage(net.minecraft.text.Text.literal(
                                     "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel."),
                                     false);
+                            // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
+                            ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
+                                    "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
+                            ));
 
                             FormacraftMod.LOGGER.info("Generated composite structure preview for player {}", player.getName().getString());
                         }
@@ -521,6 +530,10 @@ public class FormaCraftNetworking {
                                 player.sendMessage(net.minecraft.text.Text.literal(
                                         "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."),
                                         false);
+                                // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
+                                ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
+                                        "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."
+                                ));
                             }
 
                             // 同步给客户端，用于 UI 显示（notes 等）
@@ -576,6 +589,10 @@ public class FormaCraftNetworking {
                             player.sendMessage(net.minecraft.text.Text.literal(
                                     "Building preview ready. Use /forma_confirm to build or /forma_cancel to cancel."),
                                     false);
+                            // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
+                            ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
+                                    "Building preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
+                            ));
                         }
 
                         // 也发送 BuildingSpec 给客户端（用于 UI 显示）
