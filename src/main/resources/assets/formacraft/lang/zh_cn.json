@@ -74,4 +74,9 @@
   "formacraft.command.preview.showing": "正在显示预览。使用 /forma_confirm 确认建造，或 /forma_cancel 取消。",
   "formacraft.command.preview.no_active": "当前没有激活的预览。请先生成预览。",
   "formacraft.command.preview.no_structure_to_build": "没有可建造的结构。"
+,
+  "formacraft.command.players_only": "只有玩家可以使用此命令。",
+  "formacraft.command.build.started": "已开始建造。",
+  "formacraft.command.build.cannot_build_here": "无法在当前世界中建造。",
+  "formacraft.command.preview.canceled": "已取消预览。"
 }

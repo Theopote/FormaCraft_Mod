@@ -74,4 +74,9 @@
   "formacraft.command.preview.showing": "Showing preview. Use /forma_confirm to build or /forma_cancel to cancel.",
   "formacraft.command.preview.no_active": "No active preview. Generate a preview first.",
   "formacraft.command.preview.no_structure_to_build": "No structure to build."
+,
+  "formacraft.command.players_only": "Only players can use this command.",
+  "formacraft.command.build.started": "Building started.",
+  "formacraft.command.build.cannot_build_here": "Cannot build in this world.",
+  "formacraft.command.preview.canceled": "Preview canceled."
 }

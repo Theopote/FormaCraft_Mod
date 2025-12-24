@@ -73,7 +73,7 @@ public class FormaCraftCommands {
                 .executes(ctx -> {
                     ServerPlayerEntity player = ctx.getSource().getPlayer();
                     if (player == null) {
-                        ctx.getSource().sendError(Text.literal("Only players can use this command."));
+                        ctx.getSource().sendError(Text.translatable("formacraft.command.players_only"));
                         return 0;
                     }
 
@@ -99,7 +99,8 @@ public class FormaCraftCommands {
 
         // 确认建造命令
         dispatcher.register(literal("forma_confirm")
-                .requires(source -> source.hasPermissionLevel(2))
+                // 允许普通玩家确认自己当前的预览（不需要 OP 权限）
+                .requires(source -> source.getEntity() instanceof ServerPlayerEntity)
                 .executes(ctx -> {
                     ServerPlayerEntity player = ctx.getSource().getPlayer();
                     if (player == null) {
@@ -126,11 +127,11 @@ public class FormaCraftCommands {
                     if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
                         BuildExecutionService.getInstance().enqueueBuild(serverWorld, structure);
                         ctx.getSource().sendFeedback(
-                                () -> Text.literal("Building started."),
+                                () -> Text.translatable("formacraft.command.build.started"),
                                 false
                         );
                     } else {
-                        ctx.getSource().sendError(Text.literal("Cannot build in this world."));
+                        ctx.getSource().sendError(Text.translatable("formacraft.command.build.cannot_build_here"));
                         return 0;
                     }
 
@@ -142,11 +143,12 @@ public class FormaCraftCommands {
 
         // 取消预览命令
         dispatcher.register(literal("forma_cancel")
-                .requires(source -> source.hasPermissionLevel(2))
+                // 允许普通玩家取消自己当前的预览（不需要 OP 权限）
+                .requires(source -> source.getEntity() instanceof ServerPlayerEntity)
                 .executes(ctx -> {
                     ServerPlayerEntity player = ctx.getSource().getPlayer();
                     if (player == null) {
-                        ctx.getSource().sendError(Text.literal("Only players can use this command."));
+                        ctx.getSource().sendError(Text.translatable("formacraft.command.players_only"));
                         return 0;
                     }
 
@@ -156,7 +158,7 @@ public class FormaCraftCommands {
                     PreviewStorage.clear(player);
 
                     ctx.getSource().sendFeedback(
-                            () -> Text.literal("Preview canceled."),
+                            () -> Text.translatable("formacraft.command.preview.canceled"),
                             false
                     );
                     return 1;
