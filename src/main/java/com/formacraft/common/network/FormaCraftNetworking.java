@@ -17,7 +17,10 @@ import com.formacraft.common.json.JsonUtil;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -70,6 +73,49 @@ public class FormaCraftNetworking {
         String model = (req.getModel() == null || req.getModel().isBlank()) ? "auto" : req.getModel().trim();
         String base = (req.getLlmBaseUrl() == null || req.getLlmBaseUrl().isBlank()) ? "" : (" @ " + req.getLlmBaseUrl().trim());
         return "当前 LLM：" + provider + "/" + model + base;
+    }
+
+    private static final long STATUS_HEARTBEAT_SEC = 15;
+
+    /**
+     * 服务端“进度心跳”：每隔一段时间发送 ResponseBuildStatusPayload，让客户端知道仍在生成中。
+     * - 发送必须在 server thread 上执行
+     * - alive=false 时自动停止
+     */
+    private static void startStatusHeartbeat(net.minecraft.server.MinecraftServer server,
+                                            ServerPlayerEntity player,
+                                            AtomicBoolean alive,
+                                            long startMs,
+                                            AtomicReference<String> phaseRef) {
+        if (server == null || player == null || alive == null) return;
+
+        Runnable tick = new Runnable() {
+            @Override
+            public void run() {
+                if (!alive.get()) return;
+                long waitedSec = Math.max(0, (System.currentTimeMillis() - startMs) / 1000);
+                String phase = (phaseRef == null || phaseRef.get() == null || phaseRef.get().isBlank())
+                        ? "仍在生成中"
+                        : phaseRef.get().trim();
+
+                server.execute(() -> {
+                    if (!alive.get()) return;
+                    try {
+                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
+                                phase + "（已等待 " + waitedSec + " 秒）…"
+                        ));
+                    } catch (Throwable t) {
+                        // 玩家断连/世界卸载等：停止心跳，避免刷屏
+                        alive.set(false);
+                    }
+                });
+
+                CompletableFuture.delayedExecutor(STATUS_HEARTBEAT_SEC, TimeUnit.SECONDS).execute(this);
+            }
+        };
+
+        // 首次心跳延后发送（避免短请求刷屏）
+        CompletableFuture.delayedExecutor(STATUS_HEARTBEAT_SEC, TimeUnit.SECONDS).execute(tick);
     }
 
     private static String tryExtractBodyJson(String message) {
@@ -359,10 +405,16 @@ public class FormaCraftNetworking {
             );
 
             if (isCity) {
+                AtomicBoolean hbAlive = new AtomicBoolean(true);
+                AtomicReference<String> hbPhase = new AtomicReference<>("后端仍在生成城市方案");
+                long hbStartMs = System.currentTimeMillis();
+                startStatusHeartbeat(context.server(), player, hbAlive, hbStartMs, hbPhase);
+
                 // 请求城市级结构
                 ORCHESTRATOR.requestCitySpec(req)
-                        .orTimeout(115, TimeUnit.SECONDS)
+                        .orTimeout(605, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
+                            hbAlive.set(false);
                             FormacraftMod.LOGGER.error("Orchestrator city request failed", ex);
                             // IMPORTANT: always send packets on the server thread
                             String msg = humanizeOrchestratorFailure("CitySpec", req, ex);
@@ -374,6 +426,7 @@ public class FormaCraftNetworking {
 
                     // 在主线程中执行
                     context.server().execute(() -> {
+                        hbPhase.set("已收到 AI 结果，正在生成城市预览");
                         ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成城市预览…"));
                         // 对于城市结构，生成预览而不是直接建造
                         BlockPos origin = req.getPlayerPos();
@@ -416,16 +469,23 @@ public class FormaCraftNetworking {
                                     String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.",
                                             citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed")
                             ));
+                            hbAlive.set(false);
 
                             FormacraftMod.LOGGER.info("Generated city structure preview for player {}", player.getName().getString());
                         }
                     });
                 });
             } else if (isComposite) {
+                AtomicBoolean hbAlive = new AtomicBoolean(true);
+                AtomicReference<String> hbPhase = new AtomicReference<>("后端仍在生成复合结构方案");
+                long hbStartMs = System.currentTimeMillis();
+                startStatusHeartbeat(context.server(), player, hbAlive, hbStartMs, hbPhase);
+
                 // 请求复合结构
                 ORCHESTRATOR.requestCompositeSpec(req)
-                        .orTimeout(115, TimeUnit.SECONDS)
+                        .orTimeout(605, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
+                            hbAlive.set(false);
                             FormacraftMod.LOGGER.error("Orchestrator composite request failed", ex);
                             String msg = humanizeOrchestratorFailure("CompositeSpec", req, ex);
                             context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(msg)));
@@ -436,6 +496,7 @@ public class FormaCraftNetworking {
 
                     // 在主线程中执行
                     context.server().execute(() -> {
+                        hbPhase.set("已收到 AI 结果，正在生成复合结构预览");
                         ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成复合结构预览…"));
                         // 对于复合结构，生成预览而不是直接建造
                         BlockPos origin = req.getPlayerPos();
@@ -470,6 +531,7 @@ public class FormaCraftNetworking {
                             ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
                                     "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
                             ));
+                            hbAlive.set(false);
 
                             FormacraftMod.LOGGER.info("Generated composite structure preview for player {}", player.getName().getString());
                         }
@@ -488,9 +550,15 @@ public class FormaCraftNetworking {
                         return;
                     }
 
+                    AtomicBoolean hbAlive = new AtomicBoolean(true);
+                    AtomicReference<String> hbPhase = new AtomicReference<>("后端仍在生成更新方案");
+                    long hbStartMs = System.currentTimeMillis();
+                    startStatusHeartbeat(context.server(), player, hbAlive, hbStartMs, hbPhase);
+
                     ORCHESTRATOR.editBuilding(buildingId, currentJson, req.getRequestText())
-                            .orTimeout(115, TimeUnit.SECONDS)
+                            .orTimeout(605, TimeUnit.SECONDS)
                             .exceptionally(ex -> {
+                                hbAlive.set(false);
                                 FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
                                 String msg = humanizeOrchestratorFailure("EditBuilding", req, ex);
                                 context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(msg)));
@@ -500,6 +568,7 @@ public class FormaCraftNetworking {
                         if (updatedJson == null) return; // already handled
 
                         context.server().execute(() -> {
+                            hbPhase.set("已收到 AI 结果，正在生成更新后的预览");
                             ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成更新后的预览…"));
                             // 更新 PlayerSpecRepository
                             com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, updatedJson);
@@ -534,6 +603,7 @@ public class FormaCraftNetworking {
                                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
                                         "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."
                                 ));
+                                hbAlive.set(false);
                             }
 
                             // 同步给客户端，用于 UI 显示（notes 等）
@@ -543,9 +613,15 @@ public class FormaCraftNetworking {
                     return;
                 }
 
+                AtomicBoolean hbAlive = new AtomicBoolean(true);
+                AtomicReference<String> hbPhase = new AtomicReference<>("后端仍在生成建筑方案");
+                long hbStartMs = System.currentTimeMillis();
+                startStatusHeartbeat(context.server(), player, hbAlive, hbStartMs, hbPhase);
+
                 ORCHESTRATOR.requestBuildingSpec(req)
-                        .orTimeout(115, TimeUnit.SECONDS)
+                        .orTimeout(605, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
+                            hbAlive.set(false);
                             FormacraftMod.LOGGER.error("Orchestrator building request failed", ex);
                             String msg = humanizeOrchestratorFailure("BuildingSpec", req, ex);
                             context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(msg)));
@@ -559,6 +635,7 @@ public class FormaCraftNetworking {
 
                     // 在主线程中执行
                     context.server().execute(() -> {
+                        hbPhase.set("已收到 AI 结果，正在生成建筑预览");
                         ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成建筑预览…"));
                         // 生成预览结构
                         BlockPos origin = req.getPlayerPos();
@@ -593,6 +670,7 @@ public class FormaCraftNetworking {
                             ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
                                     "Building preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
                             ));
+                            hbAlive.set(false);
                         }
 
                         // 也发送 BuildingSpec 给客户端（用于 UI 显示）

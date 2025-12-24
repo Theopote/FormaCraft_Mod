@@ -23,7 +23,9 @@ import java.util.concurrent.TimeUnit;
 public class OrchestratorClient {
     private final String endpoint;
     private final HttpClient httpClient;
-    private static final long ORCHESTRATOR_TIMEOUT_SEC = 110;
+    // 复合/城市规划类请求可能耗时较长（尤其是 deepseek/reasoner），这里给足时间，避免过早中断。
+    // 如果需要更短超时，可后续做成 config 可配。
+    private static final long ORCHESTRATOR_TIMEOUT_SEC = 600;
 
     public OrchestratorClient(String endpoint) {
         this.endpoint = endpoint;

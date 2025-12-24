@@ -26,6 +26,9 @@ from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
 _LLM_CALL_TIMEOUT_SEC = float(os.getenv("LLM_CALL_TIMEOUT_SEC", "45"))
 _LLM_CALL_TIMEOUT_DEEPSEEK_SEC = float(os.getenv("LLM_CALL_TIMEOUT_DEEPSEEK_SEC", "60"))
 _LLM_CALL_TIMEOUT_REASONER_SEC = float(os.getenv("LLM_CALL_TIMEOUT_REASONER_SEC", "120"))
+# Composite/City 往往比单体 BuildingSpec 更慢；默认给更长时间（可通过环境变量覆盖）
+_LLM_CALL_TIMEOUT_COMPOSITE_SEC = float(os.getenv("LLM_CALL_TIMEOUT_COMPOSITE_SEC", "600"))
+_LLM_CALL_TIMEOUT_CITY_SEC = float(os.getenv("LLM_CALL_TIMEOUT_CITY_SEC", "600"))
 
 
 def _call_with_timeout(fn, timeout_sec: float):
@@ -204,6 +207,19 @@ def _resolve_timeout_sec(req: Optional[BuildRequest], model: Optional[str]) -> f
         return max(base, _LLM_CALL_TIMEOUT_DEEPSEEK_SEC)
 
     # default
+    return base
+
+
+def _resolve_timeout_sec_for_task(task: str, req: Optional[BuildRequest], model: Optional[str]) -> float:
+    """
+    task: building / composite / city
+    """
+    t = (task or "").strip().lower()
+    base = _resolve_timeout_sec(req, model)
+    if t == "composite":
+        return max(base, _LLM_CALL_TIMEOUT_COMPOSITE_SEC)
+    if t == "city":
+        return max(base, _LLM_CALL_TIMEOUT_CITY_SEC)
     return base
 
 
@@ -563,6 +579,7 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
     
     try:
         model = _resolve_model(req, "gpt-4o-mini")
+        timeout_sec = _resolve_timeout_sec_for_task("city", req, model)
         response = _call_with_timeout(
             lambda: client.chat.completions.create(
                 model=model,
@@ -573,7 +590,7 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
                 response_format={"type": "json_object"},
                 temperature=_clamp_temperature(getattr(req, "temperature", None), 0.4),  # city 默认更发散
             ),
-            _LLM_CALL_TIMEOUT_SEC,
+            timeout_sec,
         )
         
         raw_output = response.choices[0].message.content
@@ -711,6 +728,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
     
     try:
         model = _resolve_model(req, "gpt-4o-mini")
+        timeout_sec = _resolve_timeout_sec_for_task("composite", req, model)
         response = _call_with_timeout(
             lambda: client.chat.completions.create(
                 model=model,
@@ -721,7 +739,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
                 response_format={"type": "json_object"},
                 temperature=_clamp_temperature(getattr(req, "temperature", None), 0.3),
             ),
-            _LLM_CALL_TIMEOUT_SEC,
+            timeout_sec,
         )
         
         raw_output = response.choices[0].message.content

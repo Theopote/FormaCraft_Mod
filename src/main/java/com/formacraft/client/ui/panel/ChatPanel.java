@@ -73,7 +73,8 @@ public class ChatPanel extends BasePanel {
     private long pendingRequestToken = 0L;
     private int pendingThinkingIndex = -1;
     private static final long SOFT_TIMEOUT_SEC = 15;
-    private static final long HARD_TIMEOUT_SEC = 120;
+    // 复杂复合结构/城市规划可能很慢（deepseek/reasoner 尤其），默认给 10 分钟避免误报超时
+    private static final long HARD_TIMEOUT_SEC = 600;
 
     // 轻量 health check（仅用于本地 localhost 情况下的“更准确提示”）
     private final HttpClient healthHttp = HttpClient.newBuilder()
