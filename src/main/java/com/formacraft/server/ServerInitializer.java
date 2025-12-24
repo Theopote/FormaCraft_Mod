@@ -2,10 +2,8 @@ package com.formacraft.server;
 
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.server.build.BuildExecutionService;
-import com.formacraft.server.command.FormaCraftCommands;
 import com.formacraft.server.networking.ModPacket;
 import net.fabricmc.api.DedicatedServerModInitializer;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
 /**
  * 服务端初始化器
@@ -22,9 +20,6 @@ public class ServerInitializer implements DedicatedServerModInitializer {
         
         // 注册建造执行服务的 Tick 处理器
         BuildExecutionService.registerTickHandler();
-        
-        // 注册命令
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> FormaCraftCommands.register(dispatcher));
     }
 }
 

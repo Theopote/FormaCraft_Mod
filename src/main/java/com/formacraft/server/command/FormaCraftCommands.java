@@ -37,7 +37,13 @@ import static net.minecraft.server.command.CommandManager.literal;
  * FormaCraft 命令系统
  */
 public class FormaCraftCommands {
+    private static boolean registered = false;
+
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+        // 防止在 Dedicated + Common 初始化中重复注册同名命令导致崩溃
+        if (registered) return;
+        registered = true;
+
         // Undo 命令
         dispatcher.register(literal("formacraft_undo")
                 .requires(source -> source.hasPermissionLevel(2))
