@@ -24,6 +24,8 @@ from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
 
 _LLM_CALL_TIMEOUT_SEC = float(os.getenv("LLM_CALL_TIMEOUT_SEC", "45"))
+_LLM_CALL_TIMEOUT_DEEPSEEK_SEC = float(os.getenv("LLM_CALL_TIMEOUT_DEEPSEEK_SEC", "60"))
+_LLM_CALL_TIMEOUT_REASONER_SEC = float(os.getenv("LLM_CALL_TIMEOUT_REASONER_SEC", "120"))
 
 
 def _call_with_timeout(fn, timeout_sec: float):
@@ -82,6 +84,10 @@ def _build_system_prompt() -> str:
         "- Building styles: MEDIEVAL, MODERN, ASIAN, FUTURISTIC, RUSTIC, DEFAULT\n"
         "- For circular buildings (towers), use footprint.shape='circle' and set radius\n"
         "- For rectangular buildings, use footprint.shape='rectangle' and set width/depth\n\n"
+        "Field names are STRICT and must match exactly:\n"
+        "- Use 'type' (NOT 'buildingType')\n"
+        "- Use 'style' (NOT 'buildingStyle')\n"
+        "- Always include 'materials' and 'features' objects (even if empty).\n\n"
         "Your response must include styleOptions with fields:\n"
         "- doorStyle (single/double/arched/none) - for houses and towers\n"
         "- roofType (flat/gable/cone/pyramid/hipped) - for houses and towers\n"
@@ -178,6 +184,69 @@ def _default_schema() -> Dict[str, Any]:
         },
         "required": ["type", "style", "footprint", "height", "materials", "features"],
     }
+
+
+def _resolve_timeout_sec(req: Optional[BuildRequest], model: Optional[str]) -> float:
+    """
+    Some providers/models are slower (e.g. deepseek-reasoner). We allow longer timeouts there.
+    """
+    base = _LLM_CALL_TIMEOUT_SEC
+    try:
+        provider = (getattr(req, "llmProvider", None) or "").strip().lower() if req is not None else ""
+    except Exception:
+        provider = ""
+    m = (model or "").strip().lower()
+
+    if provider == "deepseek":
+        # deepseek reasoner can easily exceed 45s
+        if "reasoner" in m:
+            return max(base, _LLM_CALL_TIMEOUT_REASONER_SEC)
+        return max(base, _LLM_CALL_TIMEOUT_DEEPSEEK_SEC)
+
+    # default
+    return base
+
+
+def _normalize_building_spec_dict(data: Any) -> Any:
+    """
+    Best-effort normalization for common model output mistakes:
+    - buildingType -> type
+    - buildingStyle -> style
+    - missing required objects: materials/features -> {}
+    This prevents hard 502s for minor schema drift.
+    """
+    if not isinstance(data, dict):
+        return data
+
+    # common key aliases
+    if "type" not in data and "buildingType" in data:
+        data["type"] = data.get("buildingType")
+    if "style" not in data and "buildingStyle" in data:
+        data["style"] = data.get("buildingStyle")
+
+    # required nested objects (BuildingSpec requires them but nested models have defaults)
+    if "materials" not in data or data.get("materials") is None:
+        data["materials"] = {}
+    if "features" not in data or data.get("features") is None:
+        data["features"] = {}
+
+    # footprint is required; provide a minimal default if missing
+    if "footprint" not in data or data.get("footprint") is None:
+        data["footprint"] = {"shape": "rectangle", "width": 8, "depth": 6}
+
+    # height should exist; default if missing/invalid
+    try:
+        h = int(data.get("height") if data.get("height") is not None else 0)
+        if h <= 0:
+            data["height"] = 10
+    except Exception:
+        data["height"] = 10
+
+    # If still missing type, default to HOUSE so we can proceed.
+    if "type" not in data or not data.get("type"):
+        data["type"] = "HOUSE"
+
+    return data
 
 
 def _generate_fallback_spec(req: BuildRequest) -> BuildingSpec:
@@ -646,6 +715,7 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     try:
         # 使用 OpenAI Chat Completions API
         model = _resolve_model(req, "gpt-4o-mini")
+        timeout_sec = _resolve_timeout_sec(req, model)
         response = _call_with_timeout(
             lambda: client.chat.completions.create(
                 model=model,
@@ -656,7 +726,7 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
                 response_format={"type": "json_object"},
                 temperature=_clamp_temperature(getattr(req, "temperature", None), 0.3),
             ),
-            _LLM_CALL_TIMEOUT_SEC,
+            timeout_sec,
         )
         
         # 提取 JSON 响应
@@ -665,6 +735,7 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
             raise ValueError("Empty response from OpenAI")
         
         data = json.loads(raw_output)
+        data = _normalize_building_spec_dict(data)
         
         # 使用 Pydantic 校验 & 转换为 BuildingSpec
         spec = BuildingSpec(**data)

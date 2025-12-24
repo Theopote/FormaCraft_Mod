@@ -32,6 +32,13 @@ public class OrchestratorClient {
                 .build();
     }
 
+    private static String redactApiKeyForLog(String json) {
+        if (json == null || json.isEmpty()) return json;
+        // 简单打码：避免在日志里泄露密钥（哪怕是本地开发也不安全）
+        // e.g. "apiKey":"sk-..." -> "apiKey":"***"
+        return json.replaceAll("(\"apiKey\"\\s*:\\s*\")([^\"]*)(\")", "$1***$3");
+    }
+
     /**
      * 向 Python 后端发送建筑请求
      * @param req 玩家的建筑请求
@@ -40,7 +47,7 @@ public class OrchestratorClient {
     public CompletableFuture<BuildingSpec> requestBuildingSpec(FormaRequest req) {
         try {
             String json = JsonUtil.toJson(req);
-            FormacraftMod.LOGGER.info("Sending request to orchestrator: {}", json);
+            FormacraftMod.LOGGER.info("Sending request to orchestrator: {}", redactApiKeyForLog(json));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/build"))
@@ -68,7 +75,11 @@ public class OrchestratorClient {
                                     }
                                 }
                                 // 否则解析为 BuildingSpec
-                                return JsonUtil.fromJson(body, BuildingSpec.class);
+                                BuildingSpec spec = JsonUtil.fromJson(body, BuildingSpec.class);
+                                if (spec == null) {
+                                    throw new RuntimeException("Orchestrator returned 200 but BuildingSpec is null. body=" + body);
+                                }
+                                return spec;
                             } catch (Exception e) {
                                 FormacraftMod.LOGGER.error("Failed to parse response from orchestrator", e);
                                 throw new RuntimeException("Failed to parse response", e);
@@ -78,14 +89,10 @@ public class OrchestratorClient {
                             FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
                             throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
-                    })
-                    .exceptionally(throwable -> {
-                        FormacraftMod.LOGGER.error("Error communicating with orchestrator", throwable);
-                        return null; // 返回 null 表示失败，调用方需要处理
                     });
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to create HTTP request", e);
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -97,7 +104,7 @@ public class OrchestratorClient {
     public CompletableFuture<CompositeSpec> requestCompositeSpec(FormaRequest req) {
         try {
             String json = JsonUtil.toJson(req);
-            FormacraftMod.LOGGER.info("Sending composite request to orchestrator: {}", json);
+            FormacraftMod.LOGGER.info("Sending composite request to orchestrator: {}", redactApiKeyForLog(json));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/build"))
@@ -130,14 +137,10 @@ public class OrchestratorClient {
                             FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
                             throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
-                    })
-                    .exceptionally(throwable -> {
-                        FormacraftMod.LOGGER.error("Error communicating with orchestrator", throwable);
-                        return null;
                     });
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to create HTTP request", e);
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -149,7 +152,7 @@ public class OrchestratorClient {
     public CompletableFuture<CitySpec> requestCitySpec(FormaRequest req) {
         try {
             String json = JsonUtil.toJson(req);
-            FormacraftMod.LOGGER.info("Sending city request to orchestrator: {}", json);
+            FormacraftMod.LOGGER.info("Sending city request to orchestrator: {}", redactApiKeyForLog(json));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/build"))
@@ -181,14 +184,10 @@ public class OrchestratorClient {
                             FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
                             throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
-                    })
-                    .exceptionally(throwable -> {
-                        FormacraftMod.LOGGER.error("Error communicating with orchestrator", throwable);
-                        return null;
                     });
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to create HTTP request", e);
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -245,14 +244,10 @@ public class OrchestratorClient {
                             FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
                             throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
-                    })
-                    .exceptionally(throwable -> {
-                        FormacraftMod.LOGGER.error("Error communicating with orchestrator for city edit", throwable);
-                        return null;
                     });
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to create HTTP request for city edit", e);
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -308,14 +303,10 @@ public class OrchestratorClient {
                             FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
                             throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
                         }
-                    })
-                    .exceptionally(throwable -> {
-                        FormacraftMod.LOGGER.error("Error communicating with orchestrator for building edit", throwable);
-                        return null;
                     });
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to create HTTP request for building edit", e);
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.failedFuture(e);
         }
     }
 }

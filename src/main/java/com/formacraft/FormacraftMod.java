@@ -26,7 +26,7 @@ public class FormacraftMod implements ModInitializer {
 	/**
 	 * 在 1.21.10 中，Item 在构造时会立即从 Settings 中读取 ID，
 	 * 如果在创建 Item 之前没有把 ID 写进 Settings，就会出现 "Item id not set" 的崩溃。
-	 *
+	 * <p>
 	 * 正确做法：先创建 Item 的 RegistryKey，然后把这个 Key 写进 Settings，
 	 * 再用这个 Settings 去构造物品并注册。
 	 */

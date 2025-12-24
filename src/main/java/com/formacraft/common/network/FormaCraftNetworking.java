@@ -52,6 +52,100 @@ public class FormaCraftNetworking {
     private static boolean registeredC2SPayloadTypes = false;
     private static boolean registeredS2CPayloadTypes = false;
 
+    private static Throwable rootCause(Throwable t) {
+        Throwable cur = t;
+        // unwrap common wrappers
+        while (cur instanceof java.util.concurrent.CompletionException
+                || cur instanceof java.util.concurrent.ExecutionException) {
+            Throwable c = cur.getCause();
+            if (c == null) break;
+            cur = c;
+        }
+        return cur;
+    }
+
+    private static String llmHint(FormaRequest req) {
+        if (req == null) return "";
+        String provider = (req.getLlmProvider() == null || req.getLlmProvider().isBlank()) ? "auto" : req.getLlmProvider().trim();
+        String model = (req.getModel() == null || req.getModel().isBlank()) ? "auto" : req.getModel().trim();
+        String base = (req.getLlmBaseUrl() == null || req.getLlmBaseUrl().isBlank()) ? "" : (" @ " + req.getLlmBaseUrl().trim());
+        return "当前 LLM：" + provider + "/" + model + base;
+    }
+
+    private static String tryExtractBodyJson(String message) {
+        if (message == null) return null;
+        int idx = message.indexOf(" body=");
+        if (idx < 0) idx = message.indexOf("body=");
+        if (idx < 0) return null;
+        int start = message.indexOf('{', idx);
+        if (start < 0) return null;
+        // best-effort: take the rest
+        return message.substring(start).trim();
+    }
+
+    private static String tryExtractDetailFromBody(String bodyJson) {
+        if (bodyJson == null || bodyJson.isBlank()) return null;
+        try {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> m = (java.util.Map<String, Object>) JsonUtil.get().fromJson(bodyJson, java.util.Map.class);
+            if (m == null) return null;
+            Object d = m.get("detail");
+            return d == null ? null : String.valueOf(d);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String summarizeKnownBillingOrAuthIssues(String detailOrMsgLower) {
+        if (detailOrMsgLower == null) return null;
+        String s = detailOrMsgLower.toLowerCase();
+
+        // OpenAI quota
+        if (s.contains("insufficient_quota") || s.contains("exceeded your current quota") || s.contains("error code: 429")) {
+            return "OpenAI 额度/配额不足（429 insufficient_quota）。请检查 OpenAI 账单/余额/组织配额，或更换有额度的 API Key。";
+        }
+        // DeepSeek balance
+        if (s.contains("insufficient balance") || s.contains("error code: 402")) {
+            return "DeepSeek 余额不足（402 Insufficient Balance）。请充值或更换有余额的 DeepSeek API Key。";
+        }
+        // invalid key / unauthorized
+        if (s.contains("invalid_api_key") || s.contains("incorrect api key") || s.contains("unauthorized") || s.contains("error code: 401")) {
+            return "API Key 无效/未授权（401）。请检查 Key 是否正确、是否属于当前 Provider，以及是否已启用对应服务。";
+        }
+        // model not found
+        if (s.contains("model_not_found") || s.contains("no such model") || s.contains("error code: 404")) {
+            return "模型不存在/不可用（404）。请在设置中更换可用模型，或点击“刷新模型列表”选择。";
+        }
+        // rate limit (non-quota)
+        if (s.contains("rate limit") || s.contains("too many requests")) {
+            return "请求过于频繁（限流）。请稍后重试，或降低请求频率/更换模型。";
+        }
+        return null;
+    }
+
+    private static String humanizeOrchestratorFailure(String stage, FormaRequest req, Throwable ex) {
+        Throwable root = rootCause(ex);
+        String rawMsg = root == null ? "" : String.valueOf(root.getMessage());
+        if (rawMsg == null) rawMsg = "";
+
+        String body = tryExtractBodyJson(rawMsg);
+        String detail = tryExtractDetailFromBody(body);
+
+        String best = summarizeKnownBillingOrAuthIssues((detail != null ? detail : rawMsg));
+        String header = (stage == null || stage.isBlank()) ? "后端请求失败。" : ("后端请求失败（" + stage + "）。");
+        String hint = llmHint(req);
+
+        // 一段短细节，方便用户直接截图
+        String d = (detail != null && !detail.isBlank()) ? detail : rawMsg;
+        if (d.length() > 360) d = d.substring(0, 360) + "...";
+        String tail = d.isBlank() ? "" : ("\n细节：" + d);
+
+        if (best != null) {
+            return header + "\n原因：" + best + "\n" + hint + tail;
+        }
+        return header + "\n" + hint + tail;
+    }
+
     // C2S 数据包定义
     public record RequestBuildPayload(FormaRequest request) implements CustomPayload {
         public static final CustomPayload.Id<RequestBuildPayload> ID = new CustomPayload.Id<>(REQUEST_BUILD);
@@ -265,22 +359,12 @@ public class FormaCraftNetworking {
                         .exceptionally(ex -> {
                             FormacraftMod.LOGGER.error("Orchestrator city request failed", ex);
                             // IMPORTANT: always send packets on the server thread
-                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
-                                    """
-                                            后端生成超时/失败（CitySpec）。
-                                            常见原因：LLM 上游不可达/模型不可用/API Key 无效。
-                                            请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
-                            )));
+                            String msg = humanizeOrchestratorFailure("CitySpec", req, ex);
+                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(msg)));
                             return null;
                         })
                         .thenAccept(citySpec -> {
-                    if (citySpec == null) {
-                        FormacraftMod.LOGGER.error("Failed to get CitySpec from orchestrator");
-                        context.server().execute(() ->
-                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CitySpec（请检查后端日志/网络）"))
-                        );
-                        return;
-                    }
+                    if (citySpec == null) return; // already handled in exceptionally
 
                     // 在主线程中执行
                     context.server().execute(() -> {
@@ -332,22 +416,12 @@ public class FormaCraftNetworking {
                         .orTimeout(115, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
                             FormacraftMod.LOGGER.error("Orchestrator composite request failed", ex);
-                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
-                                    """
-                                            后端生成超时/失败（CompositeSpec）。
-                                            常见原因：LLM 上游不可达/模型不可用/API Key 无效。
-                                            请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
-                            )));
+                            String msg = humanizeOrchestratorFailure("CompositeSpec", req, ex);
+                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(msg)));
                             return null;
                         })
                         .thenAccept(compositeSpec -> {
-                    if (compositeSpec == null) {
-                        FormacraftMod.LOGGER.error("Failed to get CompositeSpec from orchestrator");
-                        context.server().execute(() ->
-                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 CompositeSpec（请检查后端日志/网络）"))
-                        );
-                        return;
-                    }
+                    if (compositeSpec == null) return; // already handled
 
                     // 在主线程中执行
                     context.server().execute(() -> {
@@ -403,22 +477,12 @@ public class FormaCraftNetworking {
                             .orTimeout(115, TimeUnit.SECONDS)
                             .exceptionally(ex -> {
                                 FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
-                                context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
-                                        """
-                                                后端编辑超时/失败。
-                                                常见原因：LLM 上游不可达/模型不可用/API Key 无效。
-                                                请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
-                                )));
+                                String msg = humanizeOrchestratorFailure("EditBuilding", req, ex);
+                                context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(msg)));
                                 return null;
                             })
                             .thenAccept(updatedJson -> {
-                        if (updatedJson == null) {
-                            FormacraftMod.LOGGER.error("Failed to edit BuildingSpec via orchestrator");
-                            context.server().execute(() ->
-                                    ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端编辑失败（未返回结果）。请检查 API Key/模型/后端日志。"))
-                            );
-                            return;
-                        }
+                        if (updatedJson == null) return; // already handled
 
                         context.server().execute(() -> {
                             ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已收到 AI 结果，正在生成更新后的预览…"));
@@ -464,22 +528,15 @@ public class FormaCraftNetworking {
                         .orTimeout(115, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
                             FormacraftMod.LOGGER.error("Orchestrator building request failed", ex);
-                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
-                                    """
-                                            后端生成超时/失败（BuildingSpec）。
-                                            常见原因：LLM 上游不可达/模型不可用/API Key 无效。
-                                            请检查：Provider/Base URL/Model/API Key，以及 python_backend 日志。"""
-                            )));
+                            String msg = humanizeOrchestratorFailure("BuildingSpec", req, ex);
+                            context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(msg)));
+                            // IMPORTANT: returning null here will still flow into thenAccept(spec -> ...),
+                            // which would cause a second generic "未返回 BuildingSpec" error. We already sent the error above.
                             return null;
                         })
                         .thenAccept(spec -> {
-                    if (spec == null) {
-                        FormacraftMod.LOGGER.error("Failed to get BuildingSpec from orchestrator");
-                        context.server().execute(() ->
-                                ServerPlayNetworking.send(player, new ResponseBuildErrorPayload("后端未返回 BuildingSpec（请检查 API Key/模型/后端日志）"))
-                        );
-                        return;
-                    }
+                    // spec==null means we already handled an error in exceptionally() above.
+                    if (spec == null) return;
 
                     // 在主线程中执行
                     context.server().execute(() -> {

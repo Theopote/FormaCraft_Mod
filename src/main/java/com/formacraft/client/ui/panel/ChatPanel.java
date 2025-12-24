@@ -811,11 +811,38 @@ public class ChatPanel extends BasePanel {
         req.setUserMessage(text);
         req.setPromptMode(promptMode.name());
         req.setPlayerPos(origin);
+        // 额外字段：给后端更多“结构化上下文”（避免只从 prompt 文本里解析）
+        try {
+            if (bc != null && bc.facing != null) {
+                req.setFacing(bc.facing.name());
+            } else if (client.player != null) {
+                req.setFacing(client.player.getHorizontalFacing().name());
+            }
+        } catch (Throwable ignored) {}
         req.setDimension(dimensionId);
         req.setSelectionMin(SelectionContext.hasSelection() ? SelectionContext.min() : null);
         req.setSelectionMax(SelectionContext.hasSelection() ? SelectionContext.max() : null);
         req.setSessionId(sessionId);
         req.setChatHistory(history);
+
+        // 关键：把客户端 Settings 中的 LLM 配置随请求发送给服务端/后端。
+        // 否则 Python 后端会收到 apiKey/model/provider/baseUrl 都是 null，通常只能走“兜底模板”，导致“无论输入什么都生成得很像”。
+        SettingsConfig cfg = SettingsConfig.INSTANCE;
+        if (cfg != null) {
+            String apiKey = cfg.apiKey != null ? cfg.apiKey.trim() : "";
+            if (!apiKey.isEmpty()) req.setApiKey(apiKey);
+
+            String model = cfg.model != null ? cfg.model.trim() : "";
+            if (!model.isEmpty()) req.setModel(model);
+
+            req.setTemperature(cfg.temperature); // always send (server/backend may ignore if unsupported)
+
+            String provider = cfg.llmProvider != null ? cfg.llmProvider.trim() : "";
+            if (!provider.isEmpty()) req.setLlmProvider(provider);
+
+            String baseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
+            if (!baseUrl.isEmpty()) req.setLlmBaseUrl(baseUrl);
+        }
 
         // 记录 origin，确保 confirm 时与预览一致
         BuildingPreviewState.setPendingOrigin(origin);
@@ -823,7 +850,18 @@ public class ChatPanel extends BasePanel {
         // 添加 AI thinking 占位消息（等服务端返回 ResponseBuildSpecPayload / Error 时会补上 AI 消息）
         pendingRequestToken = System.currentTimeMillis();
         pendingThinkingIndex = messages.size();
-        messages.add(ChatMessage.thinking("已发送请求，等待后端响应"));
+        // 给用户可见性：显示本次使用的 provider/model（不暴露 API Key）
+        String providerHint = (req.getLlmProvider() == null || req.getLlmProvider().isBlank()) ? "auto" : req.getLlmProvider();
+        String modelHint = (req.getModel() == null || req.getModel().isBlank()) ? "auto" : req.getModel();
+        String baseHint = (req.getLlmBaseUrl() == null || req.getLlmBaseUrl().isBlank()) ? "" : (" @ " + req.getLlmBaseUrl());
+        String warn = "";
+        if ((req.getApiKey() == null || req.getApiKey().isBlank())
+                && (providerHint.equalsIgnoreCase("openai")
+                || providerHint.equalsIgnoreCase("openai_compat")
+                || providerHint.equalsIgnoreCase("deepseek"))) {
+            warn = "（未设置 API Key，可能使用兜底/离线模板）";
+        }
+        messages.add(ChatMessage.thinking("已发送请求，等待后端响应…  LLM=" + providerHint + "/" + modelHint + baseHint + warn));
         scrollOffset = 0;
 
         FormaCraftNetworking.sendBuildRequest(req);
