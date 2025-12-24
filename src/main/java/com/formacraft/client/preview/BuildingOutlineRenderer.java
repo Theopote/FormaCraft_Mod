@@ -64,16 +64,29 @@ public final class BuildingOutlineRenderer {
         }
 
         // 单方块轮廓（真实占用）
-        int n = blocks.size();
-        int step = Math.max(1, (int) Math.ceil(n / (double) MAX_BOXES));
-        for (int i = 0; i < n; i += step) {
-            OutlineBlock ob = blocks.get(i);
-            if (ob == null || ob.pos == null) continue;
+        // 优先画“合并后的外形盒子”，更像整体形态；fallback 才画单方块
+        if (OutlinePreviewState.mergedBoxes != null && !OutlinePreviewState.mergedBoxes.isEmpty()) {
+            List<Box> merged = OutlinePreviewState.mergedBoxes;
+            int n = merged.size();
+            int step = Math.max(1, (int) Math.ceil(n / (double) MAX_BOXES));
+            for (int i = 0; i < n; i += step) {
+                Box world = merged.get(i);
+                if (world == null) continue;
+                Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+                VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, a);
+            }
+        } else {
+            int n = blocks.size();
+            int step = Math.max(1, (int) Math.ceil(n / (double) MAX_BOXES));
+            for (int i = 0; i < n; i += step) {
+                OutlineBlock ob = blocks.get(i);
+                if (ob == null || ob.pos == null) continue;
 
-            BlockPos p = ob.pos;
-            Box world = new Box(p).expand(0.01);
-            Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
-            VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, a);
+                BlockPos p = ob.pos;
+                Box world = new Box(p).expand(0.01);
+                Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+                VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, a);
+            }
         }
     }
 }

@@ -64,4 +64,14 @@
   "formacraft.preview.patch.redo": "重做",
   "formacraft.preview.patch.origin": "原点：%s, %s, %s",
   "formacraft.preview.patch.summary": "放置：%s  移除：%s  替换：%s  被拒绝：%s"
+,
+  "formacraft.preview.ready.building": "建筑预览已就绪：点击“确认”开始建造，或点“取消”放弃。",
+  "formacraft.preview.ready.composite": "复合结构预览已就绪：点击“确认”开始建造，或点“取消”放弃。",
+  "formacraft.preview.ready.updated_building": "更新后的预览已就绪：点击“确认”开始重建，或点“取消”放弃。",
+  "formacraft.preview.ready.updated_city": "更新后的城市预览已就绪：点击“确认”开始重建，或点“取消”放弃。",
+
+  "formacraft.command.preview.no_structure": "没有可预览的结构。请先生成一次建筑/规划。",
+  "formacraft.command.preview.showing": "正在显示预览。使用 /forma_confirm 确认建造，或 /forma_cancel 取消。",
+  "formacraft.command.preview.no_active": "当前没有激活的预览。请先生成预览。",
+  "formacraft.command.preview.no_structure_to_build": "没有可建造的结构。"
 }

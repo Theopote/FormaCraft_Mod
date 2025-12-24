@@ -79,7 +79,7 @@ public class FormaCraftCommands {
 
                     GeneratedStructure structure = PreviewStorage.getStructure(player);
                     if (structure == null) {
-                        ctx.getSource().sendError(Text.literal("No structure to preview. Generate a building first."));
+                        ctx.getSource().sendError(Text.translatable("formacraft.command.preview.no_structure"));
                         return 0;
                     }
 
@@ -91,7 +91,7 @@ public class FormaCraftCommands {
                     PreviewStorage.setPreview(player, true);
 
                     ctx.getSource().sendFeedback(
-                            () -> Text.literal("Showing preview. Use /forma_confirm to build or /forma_cancel to cancel."),
+                            () -> Text.translatable("formacraft.command.preview.showing"),
                             false
                     );
                     return 1;
@@ -108,13 +108,13 @@ public class FormaCraftCommands {
                     }
 
                     if (!PreviewStorage.hasPreview(player)) {
-                        ctx.getSource().sendError(Text.literal("No active preview. Use /forma_preview first."));
+                        ctx.getSource().sendError(Text.translatable("formacraft.command.preview.no_active"));
                         return 0;
                     }
 
                     GeneratedStructure structure = PreviewStorage.getStructure(player);
                     if (structure == null) {
-                        ctx.getSource().sendError(Text.literal("No structure to build."));
+                        ctx.getSource().sendError(Text.translatable("formacraft.command.preview.no_structure_to_build"));
                         return 0;
                     }
 
@@ -224,8 +224,8 @@ public class FormaCraftCommands {
                                 FormaCraftNetworking.sendPreviewOutline(player, outline);
                                 PreviewStorage.setPreview(player, true);
 
-                                player.sendMessage(Text.literal(
-                                        "Updated city preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."),
+                                player.sendMessage(Text.translatable(
+                                        "formacraft.preview.ready.updated_city"),
                                         false);
                             }, finalServerWorld.getServer());
 
@@ -298,8 +298,8 @@ public class FormaCraftCommands {
                                 FormaCraftNetworking.sendPreviewOutline(player, outline);
                                 PreviewStorage.setPreview(player, true);
 
-                                player.sendMessage(Text.literal(
-                                        "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."),
+                                player.sendMessage(Text.translatable(
+                                        "formacraft.preview.ready.updated_building"),
                                         false);
                             }, finalServerWorld.getServer());
 

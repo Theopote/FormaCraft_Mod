@@ -1125,6 +1125,18 @@ public class ChatPanel extends BasePanel {
                 tl.contains("预览准备完成") ||
                 tl.contains("已准备好预览");
 
+        // 复合/城市预览：弹出简单确认 UI（两按钮），避免用户记命令
+        boolean isCompositeOrCityPreviewReady =
+                tl.contains("composite structure preview ready") ||
+                tl.contains("updated city preview ready") ||
+                (tl.contains("city") && tl.contains("preview ready"));
+        if (isTerminal && isCompositeOrCityPreviewReady) {
+            // 避免覆盖单体 BUILD 的 BuildConfirmPanel（那条会带 BuildingSpec）
+            if (!BuildConfirmPanel.INSTANCE.isVisible()) {
+                BuildConfirmPanel.INSTANCE.showPreviewActions();
+            }
+        }
+
         if (pendingThinkingIndex >= 0 && pendingThinkingIndex < messages.size()) {
             ChatMessage cur = messages.get(pendingThinkingIndex);
             if (cur != null && cur.type == ChatMessage.MessageType.THINKING) {

@@ -524,8 +524,8 @@ public class FormaCraftNetworking {
                             sendPreviewOutline(player, outline);
                             com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
-                            player.sendMessage(net.minecraft.text.Text.literal(
-                                    "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel."),
+                            player.sendMessage(net.minecraft.text.Text.translatable(
+                                    "formacraft.preview.ready.composite"),
                                     false);
                             // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
                             ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
@@ -596,8 +596,8 @@ public class FormaCraftNetworking {
                                 sendPreviewOutline(player, outline);
                                 com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
-                                player.sendMessage(net.minecraft.text.Text.literal(
-                                        "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."),
+                                player.sendMessage(net.minecraft.text.Text.translatable(
+                                        "formacraft.preview.ready.updated_building"),
                                         false);
                                 // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
                                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
@@ -663,8 +663,8 @@ public class FormaCraftNetworking {
                             sendPreviewOutline(player, outline);
                             com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
-                            player.sendMessage(net.minecraft.text.Text.literal(
-                                    "Building preview ready. Use /forma_confirm to build or /forma_cancel to cancel."),
+                            player.sendMessage(net.minecraft.text.Text.translatable(
+                                    "formacraft.preview.ready.building"),
                                     false);
                             // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
                             ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(

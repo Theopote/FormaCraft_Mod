@@ -64,4 +64,14 @@
   "formacraft.preview.patch.redo": "Redo",
   "formacraft.preview.patch.origin": "Origin: %s, %s, %s",
   "formacraft.preview.patch.summary": "place: %s  remove: %s  replace: %s  rejected: %s"
+,
+  "formacraft.preview.ready.building": "Building preview ready. Click Confirm to build, or Cancel to discard.",
+  "formacraft.preview.ready.composite": "Composite preview ready. Click Confirm to build, or Cancel to discard.",
+  "formacraft.preview.ready.updated_building": "Updated preview ready. Click Confirm to rebuild, or Cancel to discard.",
+  "formacraft.preview.ready.updated_city": "Updated city preview ready. Click Confirm to rebuild, or Cancel to discard.",
+
+  "formacraft.command.preview.no_structure": "No structure to preview. Generate a building first.",
+  "formacraft.command.preview.showing": "Showing preview. Use /forma_confirm to build or /forma_cancel to cancel.",
+  "formacraft.command.preview.no_active": "No active preview. Generate a preview first.",
+  "formacraft.command.preview.no_structure_to_build": "No structure to build."
 }

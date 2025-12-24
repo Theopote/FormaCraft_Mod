@@ -60,6 +60,7 @@ public class BuildConfirmPanel {
 
     private enum Mode {
         BUILD,
+        PREVIEW,
         PATCH
     }
 
@@ -131,6 +132,20 @@ public class BuildConfirmPanel {
         PreviewModalState.lockBuild();
     }
 
+    /**
+     * 预览确认面板（无 BuildingSpec）：用于 Composite/City/Blueprint 等预览。
+     * 通过命令 /forma_confirm 与 /forma_cancel 触发服务端执行。
+     */
+    public void showPreviewActions() {
+        this.mode = Mode.PREVIEW;
+        this.spec = null;
+        this.patchOrigin = null;
+        this.patchList = null;
+        this.buildId = UUID.randomUUID();
+        this.visible = true;
+        PreviewModalState.lockBuild();
+    }
+
     /** Patch 预览：显示 Apply/Undo/Redo/Cancel，并开启 PatchPreview 渲染 */
     public void showPatchPreview(BlockPos origin, java.util.List<BlockPatch> patches) {
         this.mode = Mode.PATCH;
@@ -183,11 +198,21 @@ public class BuildConfirmPanel {
             applyPatch();
             return;
         }
+        if (mode == Mode.PREVIEW) {
+            runPreviewCommand("forma_confirm");
+            hide();
+            return;
+        }
         onConfirm();
     }
 
     /** 模态：取消预览（供 InputRouter 直接调用） */
     public void cancel() {
+        if (mode == Mode.PREVIEW) {
+            runPreviewCommand("forma_cancel");
+            hide();
+            return;
+        }
         hide();
     }
 
@@ -213,8 +238,8 @@ public class BuildConfirmPanel {
         int screenW = client.getWindow().getScaledWidth();
         int screenH = client.getWindow().getScaledHeight();
 
-        // BUILD 模式：只显示按钮，不画半透明面板（用户体验更轻量）
-        if (mode == Mode.BUILD) {
+        // BUILD / PREVIEW 模式：只显示按钮，不画半透明面板（用户体验更轻量）
+        if (mode == Mode.BUILD || mode == Mode.PREVIEW) {
             double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
             double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
             layoutBuildButtons(screenW, screenH);
@@ -518,8 +543,8 @@ public class BuildConfirmPanel {
         int screenW = client.getWindow().getScaledWidth();
         int screenH = client.getWindow().getScaledHeight();
 
-        // BUILD 模式：没有面板区域，任何点击都应被消费（避免点到世界），但允许点击两个按钮
-        if (mode == Mode.BUILD) {
+        // BUILD / PREVIEW 模式：没有面板区域，任何点击都应被消费（避免点到世界），但允许点击两个按钮
+        if (mode == Mode.BUILD || mode == Mode.PREVIEW) {
             layoutBuildButtons(screenW, screenH);
             Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
             if (confirmButton.mouseClicked(click, false)) return true;
@@ -624,5 +649,27 @@ public class BuildConfirmPanel {
             FormaCraftNetworking.sendConfirmBuild(spec, origin);
         }
         hide();
+    }
+
+    /**
+     * 通过客户端发送命令（兼容不同 Yarn/Minecraft 版本：优先 sendChatCommand，其次 sendChatMessage）。
+     */
+    private void runPreviewCommand(String commandNoSlash) {
+        if (client == null) return;
+        Object nh = client.getNetworkHandler();
+        if (nh == null) return;
+        String cmd = (commandNoSlash == null) ? "" : commandNoSlash.trim();
+        if (cmd.isEmpty()) return;
+
+        try {
+            java.lang.reflect.Method m = nh.getClass().getMethod("sendChatCommand", String.class);
+            m.invoke(nh, cmd);
+            return;
+        } catch (Throwable ignored) {}
+
+        try {
+            java.lang.reflect.Method m2 = nh.getClass().getMethod("sendChatMessage", String.class);
+            m2.invoke(nh, "/" + cmd);
+        } catch (Throwable ignored) {}
     }
 }
