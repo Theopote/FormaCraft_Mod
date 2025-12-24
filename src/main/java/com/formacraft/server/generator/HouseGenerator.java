@@ -37,6 +37,16 @@ public class HouseGenerator implements StructureGenerator {
 
         BuildingStyle style = (spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
 
+        // ===============================
+        // Ming/Qing 官式中式宅院（优先实现）
+        // ===============================
+        // ASIAN 作为“中式”总开关；当占地足够大时，生成四合院（围墙+门楼+主殿+厢房）
+        if (style == BuildingStyle.ASIAN && width >= 16 && depth >= 16) {
+            generateMingQingCourtyard(spec, origin, world, blocks, width, depth);
+            String description = String.format("MingQing Courtyard (ASIAN, %dx%d)", width, depth);
+            return new GeneratedStructure(null, origin, description, blocks);
+        }
+
         // 获取材质
         BlockState wall = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null, defaultWall(style));
         BlockState floor = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getFloor() : null, defaultFloor(style));
@@ -66,6 +76,14 @@ public class HouseGenerator implements StructureGenerator {
             spec.getStyleOptions().getWindowRatio() : 0.3;
         String wallPattern = spec.getStyleOptions() != null ?
                 spec.getStyleOptions().getWallPattern() : "uniform";
+
+        // 中式官式：默认用“攒尖/庑殿”类屋顶（近似 hipped/pyramid），并收紧开窗比例
+        if (style == BuildingStyle.ASIAN) {
+            if (roofType == null || roofType.isBlank() || "flat".equalsIgnoreCase(roofType)) {
+                roofType = "hipped";
+            }
+            if (windowRatio < 0.15) windowRatio = 0.18;
+        }
 
         // -------------------------------------
         // 1. 清空内部空间（避免房屋和山体重叠）
@@ -218,7 +236,10 @@ public class HouseGenerator implements StructureGenerator {
                 }
             }
             
-            if ("gable".equalsIgnoreCase(actualRoofType) || style == BuildingStyle.MEDIEVAL || style == BuildingStyle.RUSTIC) {
+            // 中式官式：hipped/pyramid（四坡/攒尖）
+            if (style == BuildingStyle.ASIAN && ("hipped".equalsIgnoreCase(actualRoofType) || "pyramid".equalsIgnoreCase(actualRoofType))) {
+                addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim);
+            } else if ("gable".equalsIgnoreCase(actualRoofType) || style == BuildingStyle.MEDIEVAL || style == BuildingStyle.RUSTIC) {
                 // 双坡屋顶（沿 X 方向上升）；优先用 stairs/slab，视觉明显更好
                 int roofHeight = Math.min(width / 2 + 1, 7);
 
@@ -274,6 +295,11 @@ public class HouseGenerator implements StructureGenerator {
             for (int z = -1; z <= depth; z++) {
                 blocks.add(new PlannedBlock(origin.add(-1, height - 1, z), roofSlab));
                 blocks.add(new PlannedBlock(origin.add(width, height - 1, z), roofSlab));
+            }
+
+            // 中式：简化斗拱/雀替（檐下 1 格）+ 彩画点缀
+            if (style == BuildingStyle.ASIAN) {
+                addDougongAndPainting(blocks, origin, width, depth, height, trim);
             }
         }
 
@@ -378,10 +404,348 @@ public class HouseGenerator implements StructureGenerator {
         return wall;
     }
 
+    // ========== Ming/Qing courtyard ==========
+
+    private static void generateMingQingCourtyard(BuildingSpec spec, BlockPos origin, ServerWorld world, List<PlannedBlock> blocks, int width, int depth) {
+        // palette：红墙灰瓦/黄瓦（imperial 可通过 extra/roof material 控制）
+        BlockState wall = Blocks.RED_TERRACOTTA.getDefaultState();                 // 红墙
+        BlockState foundation = Blocks.STONE_BRICKS.getDefaultState();            // 台基/基座
+        BlockState courtyardFloor = Blocks.STONE_BRICKS.getDefaultState();        // 院落地面（先用石砖，后续可加青砖纹理）
+        BlockState pillar = Blocks.DARK_OAK_LOG.getDefaultState();                // 木柱
+        BlockState trim = Blocks.DARK_OAK_PLANKS.getDefaultState();               // 额枋/梁/檐口
+        BlockState roofMain = Blocks.DEEPSLATE_TILES.getDefaultState();           // 灰瓦（用深板岩瓦近似）
+        BlockState roofSlab = Blocks.DEEPSLATE_TILE_SLAB.getDefaultState();
+        BlockState roofStairs = Blocks.DEEPSLATE_TILE_STAIRS.getDefaultState();
+
+        // imperial: 黄瓦（可选）
+        boolean imperial = false;
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object v = spec.getExtra().get("imperial");
+                if (v instanceof Boolean b) imperial = b;
+                if (v instanceof String s && (s.equalsIgnoreCase("true") || s.equals("1"))) imperial = true;
+            }
+        } catch (Throwable ignored) {}
+        if (imperial) {
+            roofMain = Blocks.YELLOW_GLAZED_TERRACOTTA.getDefaultState();
+            roofSlab = Blocks.SMOOTH_SANDSTONE_SLAB.getDefaultState();
+            roofStairs = Blocks.SMOOTH_SANDSTONE_STAIRS.getDefaultState();
+        }
+
+        // 1) 清空空间（避免山体干扰）
+        int clearH = 14;
+        for (int x = -1; x <= width + 1; x++) {
+            for (int z = -1; z <= depth + 1; z++) {
+                for (int y = 0; y <= clearH; y++) {
+                    blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
+                }
+            }
+        }
+
+        // 2) 外围围墙（红墙 + 台基）
+        int wallH = 4;
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < wallH; y++) {
+                blocks.add(new PlannedBlock(origin.add(x, 0, 0), foundation));
+                blocks.add(new PlannedBlock(origin.add(x, 0, depth - 1), foundation));
+                if (y > 0) {
+                    blocks.add(new PlannedBlock(origin.add(x, y, 0), wall));
+                    blocks.add(new PlannedBlock(origin.add(x, y, depth - 1), wall));
+                }
+            }
+        }
+        for (int z = 0; z < depth; z++) {
+            for (int y = 0; y < wallH; y++) {
+                blocks.add(new PlannedBlock(origin.add(0, 0, z), foundation));
+                blocks.add(new PlannedBlock(origin.add(width - 1, 0, z), foundation));
+                if (y > 0) {
+                    blocks.add(new PlannedBlock(origin.add(0, y, z), wall));
+                    blocks.add(new PlannedBlock(origin.add(width - 1, y, z), wall));
+                }
+            }
+        }
+
+        // 3) 门楼（南侧中门，z=0）
+        int gateW = 4;
+        int gateX0 = width / 2 - gateW / 2;
+        int gateH = 3;
+        for (int x = gateX0; x < gateX0 + gateW; x++) {
+            for (int y = 1; y <= gateH; y++) {
+                blocks.add(new PlannedBlock(origin.add(x, y, 0), Blocks.AIR.getDefaultState()));
+            }
+        }
+        // 门柱
+        blocks.add(new PlannedBlock(origin.add(gateX0 - 1, 1, 0), pillar));
+        blocks.add(new PlannedBlock(origin.add(gateX0 - 1, 2, 0), pillar));
+        blocks.add(new PlannedBlock(origin.add(gateX0 + gateW, 1, 0), pillar));
+        blocks.add(new PlannedBlock(origin.add(gateX0 + gateW, 2, 0), pillar));
+        // 门楣
+        for (int x = gateX0 - 1; x <= gateX0 + gateW; x++) {
+            blocks.add(new PlannedBlock(origin.add(x, gateH + 1, 0), trim));
+        }
+        // 门楼小屋顶（hipped）
+        addHippedRoof(blocks, origin.add(gateX0 - 2, 1, 0), gateW + 4, 3, gateH + 1, roofMain, roofStairs, roofSlab, trim, false, false);
+
+        // 4) 院落地面（石砖，留出主殿/厢房占地）
+        for (int x = 1; x < width - 1; x++) {
+            for (int z = 1; z < depth - 1; z++) {
+                blocks.add(new PlannedBlock(origin.add(x, 0, z), courtyardFloor));
+            }
+        }
+        // 中轴道路（更像官式）
+        int cx = width / 2;
+        for (int z = 1; z < depth - 2; z++) {
+            blocks.add(new PlannedBlock(origin.add(cx, 0, z), Blocks.POLISHED_ANDESITE.getDefaultState()));
+            blocks.add(new PlannedBlock(origin.add(cx - 1, 0, z), Blocks.POLISHED_ANDESITE.getDefaultState()));
+        }
+
+        // 5) 主殿（北侧，面向院落）
+        int hallW = Math.max(8, width - 6);
+        int hallD = 6;
+        int hallX0 = (width - hallW) / 2;
+        int hallZ0 = depth - hallD - 2;
+        int hallH = 6;
+        addMingQingHall(blocks, origin.add(hallX0, 0, hallZ0), hallW, hallD, hallH,
+                wall, foundation, pillar, trim, roofMain, roofStairs, roofSlab, true);
+
+        // 6) 东西厢房（可选：宽度足够时加）
+        if (width >= 20) {
+            int wingW = 6;
+            int wingD = depth - hallD - 6;
+            int wingH = 5;
+            int leftX = 2;
+            int rightX = width - wingW - 2;
+            int wingZ = 4;
+            addMingQingHall(blocks, origin.add(leftX, 0, wingZ), wingW, wingD, wingH,
+                    wall, foundation, pillar, trim, roofMain, roofStairs, roofSlab, false);
+            addMingQingHall(blocks, origin.add(rightX, 0, wingZ), wingW, wingD, wingH,
+                    wall, foundation, pillar, trim, roofMain, roofStairs, roofSlab, false);
+        }
+    }
+
+    private static void addMingQingHall(List<PlannedBlock> blocks, BlockPos o, int w, int d, int h,
+                                        BlockState wall, BlockState foundation, BlockState pillar, BlockState trim,
+                                        BlockState roofMain, BlockState roofStairs, BlockState roofSlab,
+                                        boolean mainHall) {
+        // 台基
+        for (int x = -1; x <= w; x++) {
+            for (int z = -1; z <= d; z++) {
+                blocks.add(new PlannedBlock(o.add(x, 0, z), foundation));
+            }
+        }
+
+        // 柱网 + 墙体（留门洞）
+        int doorW = mainHall ? 3 : 2;
+        int dx0 = w / 2 - doorW / 2;
+        for (int y = 1; y <= h; y++) {
+            for (int x = 0; x < w; x++) {
+                for (int z = 0; z < d; z++) {
+                    boolean edge = (x == 0 || x == w - 1 || z == 0 || z == d - 1);
+                    if (!edge) continue;
+
+                    // 柱（四角+门廊柱）
+                    boolean isCorner = (x == 0 || x == w - 1) && (z == 0 || z == d - 1);
+                    boolean isPorchPillar = (z == 0) && (x == dx0 - 1 || x == dx0 + doorW);
+                    if (isCorner || isPorchPillar) {
+                        blocks.add(new PlannedBlock(o.add(x, y, z), pillar));
+                        continue;
+                    }
+
+                    // 门洞（朝院落方向：z==0）
+                    boolean inDoor = (z == 0) && (x >= dx0 && x < dx0 + doorW) && (y <= 3);
+                    if (inDoor) {
+                        blocks.add(new PlannedBlock(o.add(x, y, z), Blocks.AIR.getDefaultState()));
+                        continue;
+                    }
+
+                    // 窗带（格栅窗）
+                    boolean windowBand = (y == 2);
+                    boolean inWindow = windowBand && (z == 0 || z == d - 1 || x == 0 || x == w - 1);
+                    if (inWindow && !((z == 0) && (x >= dx0 - 1 && x <= dx0 + doorW))) {
+                        blocks.add(new PlannedBlock(o.add(x, y, z), Blocks.DARK_OAK_TRAPDOOR.getDefaultState()));
+                        continue;
+                    }
+
+                    // 腰线/额枋
+                    if (y == 4 || y == h) {
+                        blocks.add(new PlannedBlock(o.add(x, y, z), trim));
+                        continue;
+                    }
+
+                    blocks.add(new PlannedBlock(o.add(x, y, z), wall));
+                }
+            }
+        }
+
+        // 地面（室内）
+        for (int x = 1; x < w - 1; x++) {
+            for (int z = 1; z < d - 1; z++) {
+                blocks.add(new PlannedBlock(o.add(x, 0, z), Blocks.OAK_PLANKS.getDefaultState()));
+            }
+        }
+
+        // 屋顶（官式：hipped）
+        // 主殿开启飞檐角 + 更细檐口层次；厢房不开启（避免过花）
+        addHippedRoof(blocks, o, w, d, h, roofMain, roofStairs, roofSlab, trim, true, mainHall);
+
+        // 彩画点缀：檐下绿/蓝条带（少量即可）
+        for (int x = 0; x < w; x++) {
+            blocks.add(new PlannedBlock(o.add(x, h - 1, -1), Blocks.GREEN_GLAZED_TERRACOTTA.getDefaultState()));
+            blocks.add(new PlannedBlock(o.add(x, h - 1, d), Blocks.BLUE_GLAZED_TERRACOTTA.getDefaultState()));
+        }
+    }
+
+    private static void addHippedRoof(List<PlannedBlock> blocks, BlockPos o, int w, int d, int baseH,
+                                      BlockState roofMain, BlockState roofStairs, BlockState roofSlab, BlockState trim) {
+        addHippedRoof(blocks, o, w, d, baseH, roofMain, roofStairs, roofSlab, trim, true, false);
+    }
+
+    /**
+     * 官式四坡屋顶（近似庑殿/歇山的屋面表达）
+     * - overhang: 出檐（扩大一圈）
+     * - flyingEaves: 飞檐角（四角上翘）+ 更细檐口层次
+     */
+    private static void addHippedRoof(List<PlannedBlock> blocks, BlockPos o, int w, int d, int baseH,
+                                      BlockState roofMain, BlockState roofStairs, BlockState roofSlab, BlockState trim,
+                                      boolean overhang, boolean flyingEaves) {
+        int ox = overhang ? -1 : 0;
+        int oz = overhang ? -1 : 0;
+        int ow = w + (overhang ? 2 : 0);
+        int od = d + (overhang ? 2 : 0);
+
+        // 更细的檐口层次：屋顶起坡之前先做两道“檐口线脚”（更像官式）
+        if (overhang) {
+            int y0 = baseH - 1;
+            // 外圈：roofSlab（滴水线）
+            for (int x = ox - 1; x <= ox + ow; x++) {
+                blocks.add(new PlannedBlock(o.add(x, y0, oz - 1), roofSlab));
+                blocks.add(new PlannedBlock(o.add(x, y0, oz + od), roofSlab));
+            }
+            for (int z = oz - 1; z <= oz + od; z++) {
+                blocks.add(new PlannedBlock(o.add(ox - 1, y0, z), roofSlab));
+                blocks.add(new PlannedBlock(o.add(ox + ow, y0, z), roofSlab));
+            }
+            // 内圈：trim（额枋/檐口线）
+            for (int x = ox; x <= ox + ow - 1; x++) {
+                blocks.add(new PlannedBlock(o.add(x, y0, oz), trim));
+                blocks.add(new PlannedBlock(o.add(x, y0, oz + od - 1), trim));
+            }
+            for (int z = oz; z <= oz + od - 1; z++) {
+                blocks.add(new PlannedBlock(o.add(ox, y0, z), trim));
+                blocks.add(new PlannedBlock(o.add(ox + ow - 1, y0, z), trim));
+            }
+        }
+
+        int layers = Math.min(Math.min(ow, od) / 2 + 1, 7);
+        for (int i = 0; i < layers; i++) {
+            int x0 = ox + i;
+            int x1 = ox + ow - 1 - i;
+            int z0 = oz + i;
+            int z1 = oz + od - 1 - i;
+            if (x0 > x1 || z0 > z1) break;
+
+            int y = baseH + i;
+
+            // 屋面边缘用 stairs，内部用 roofMain（近似瓦面层次）
+            for (int x = x0; x <= x1; x++) {
+                blocks.add(new PlannedBlock(o.add(x, y, z0), withFacingIfPossible(roofStairs, Direction.SOUTH)));
+                blocks.add(new PlannedBlock(o.add(x, y, z1), withFacingIfPossible(roofStairs, Direction.NORTH)));
+            }
+            for (int z = z0; z <= z1; z++) {
+                blocks.add(new PlannedBlock(o.add(x0, y, z), withFacingIfPossible(roofStairs, Direction.EAST)));
+                blocks.add(new PlannedBlock(o.add(x1, y, z), withFacingIfPossible(roofStairs, Direction.WEST)));
+            }
+
+            for (int x = x0 + 1; x <= x1 - 1; x++) {
+                for (int z = z0 + 1; z <= z1 - 1; z++) {
+                    blocks.add(new PlannedBlock(o.add(x, y, z), roofMain));
+                }
+            }
+
+            // 檐口收边（每层下沿一圈 trim）
+            if (i == 0 && overhang) {
+                for (int x = x0; x <= x1; x++) {
+                    blocks.add(new PlannedBlock(o.add(x, baseH - 1, z0), trim));
+                    blocks.add(new PlannedBlock(o.add(x, baseH - 1, z1), trim));
+                }
+                for (int z = z0; z <= z1; z++) {
+                    blocks.add(new PlannedBlock(o.add(x0, baseH - 1, z), trim));
+                    blocks.add(new PlannedBlock(o.add(x1, baseH - 1, z), trim));
+                }
+            }
+        }
+
+        // 顶部封顶
+        int topY = baseH + layers;
+        int cx = ox + ow / 2;
+        int cz = oz + od / 2;
+        blocks.add(new PlannedBlock(o.add(cx, topY, cz), roofSlab));
+
+        // 飞檐角：四角外挑 + 上翘（用 slab 逐级抬升，稳定且不会出现“空洞”）
+        if (flyingEaves && overhang) {
+            addFlyingEavesCorners(blocks, o, baseH, ox, oz, ow, od, roofSlab);
+        }
+    }
+
+    private static void addFlyingEavesCorners(List<PlannedBlock> blocks, BlockPos o, int baseH,
+                                              int ox, int oz, int ow, int od, BlockState roofSlab) {
+        // 四角坐标（以 overhang 扩展后的外轮廓为基准）
+        int x1 = ox + ow - 1;
+        int z1 = oz + od - 1;
+
+        // 每个角向外延伸 2 格，并逐级抬升 2 格
+        // 角1：(-,-)
+        addCornerHorn(blocks, o, ox, oz, -1, -1, baseH, roofSlab);
+        // 角2：(+, -)
+        addCornerHorn(blocks, o, x1, oz, +1, -1, baseH, roofSlab);
+        // 角3：(-, +)
+        addCornerHorn(blocks, o, ox, z1, -1, +1, baseH, roofSlab);
+        // 角4：(+, +)
+        addCornerHorn(blocks, o, x1, z1, +1, +1, baseH, roofSlab);
+    }
+
+    private static void addCornerHorn(List<PlannedBlock> blocks, BlockPos o,
+                                      int cx, int cz, int sx, int sz, int baseH, BlockState slab) {
+        // level 0：角点本身稍微抬起一点（让角更“翘”）
+        blocks.add(new PlannedBlock(o.add(cx, baseH + 1, cz), slab));
+
+        // level 1：向外 1 格（对角），抬升 1
+        blocks.add(new PlannedBlock(o.add(cx + sx, baseH + 2, cz), slab));
+        blocks.add(new PlannedBlock(o.add(cx, baseH + 2, cz + sz), slab));
+        blocks.add(new PlannedBlock(o.add(cx + sx, baseH + 2, cz + sz), slab));
+
+        // level 2：向外 2 格（对角），再抬升 1
+        blocks.add(new PlannedBlock(o.add(cx + sx * 2, baseH + 3, cz + sz), slab));
+        blocks.add(new PlannedBlock(o.add(cx + sx, baseH + 3, cz + sz * 2), slab));
+        blocks.add(new PlannedBlock(o.add(cx + sx * 2, baseH + 3, cz + sz * 2), slab));
+    }
+
+    private static void addDougongAndPainting(List<PlannedBlock> blocks, BlockPos origin, int width, int depth, int height, BlockState trim) {
+        // 檐下“斗拱”简化：每隔 2 格在外墙下沿挂一块（stairs/slab/栅栏都可），这里用 trapdoor/柱材太花，先用 trim
+        int y = height - 2;
+        for (int x = 0; x < width; x += 2) {
+            blocks.add(new PlannedBlock(origin.add(x, y, -1), trim));
+            blocks.add(new PlannedBlock(origin.add(x, y, depth), trim));
+        }
+        for (int z = 0; z < depth; z += 2) {
+            blocks.add(new PlannedBlock(origin.add(-1, y, z), trim));
+            blocks.add(new PlannedBlock(origin.add(width, y, z), trim));
+        }
+
+        // 彩画点缀：檐下用少量绿/蓝，避免过花
+        for (int x = 1; x < width - 1; x += 3) {
+            blocks.add(new PlannedBlock(origin.add(x, height - 2, -1), Blocks.GREEN_TERRACOTTA.getDefaultState()));
+        }
+        for (int z = 1; z < depth - 1; z += 3) {
+            blocks.add(new PlannedBlock(origin.add(width, height - 2, z), Blocks.BLUE_TERRACOTTA.getDefaultState()));
+        }
+    }
+
     private static BlockState defaultWall(BuildingStyle style) {
         return switch (style) {
             case MODERN -> Blocks.WHITE_CONCRETE.getDefaultState();
-            case ASIAN -> Blocks.SMOOTH_SANDSTONE.getDefaultState();
+            // 明清官式默认红墙
+            case ASIAN -> Blocks.RED_TERRACOTTA.getDefaultState();
             case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
             case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
             case MEDIEVAL -> Blocks.STONE_BRICKS.getDefaultState();
@@ -408,7 +772,9 @@ public class HouseGenerator implements StructureGenerator {
         return switch (style) {
             case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
             case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
-            case ASIAN, MEDIEVAL, DEFAULT -> Blocks.DARK_OAK_PLANKS.getDefaultState();
+            // 官式灰瓦（近似）：深板岩瓦
+            case ASIAN -> Blocks.DEEPSLATE_TILES.getDefaultState();
+            case MEDIEVAL, DEFAULT -> Blocks.DARK_OAK_PLANKS.getDefaultState();
             case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
         };
     }
