@@ -20,6 +20,7 @@ import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
@@ -66,13 +67,43 @@ public class BuildConfirmPanel {
     
     private BuildConfirmPanel() {}
 
+    private void layoutBuildButtons(int screenW, int screenH) {
+        // 放在屏幕底部居中，略高于热键栏
+        int btnW = 60; // 原来的一半
+        int spacing = 10;
+        int centerX = screenW / 2;
+
+        int confirmX = centerX - btnW - spacing / 2;
+        int cancelX = centerX + spacing / 2;
+
+        int btnY = screenH - 56; // 经验值：避免遮挡热键栏
+        if (btnY < 16) btnY = 16;
+
+        confirmButton.setPosition(confirmX, btnY);
+        confirmButton.setWidth(btnW);
+        confirmButton.visible = true;
+        confirmButton.active = true;
+
+        cancelButton.setPosition(cancelX, btnY);
+        cancelButton.setWidth(btnW);
+        cancelButton.visible = true;
+        cancelButton.active = true;
+
+        // BUILD 模式下不显示 patch 按钮
+        if (applyPatchButton != null) applyPatchButton.visible = false;
+        if (undoPatchButton != null) undoPatchButton.visible = false;
+        if (redoPatchButton != null) redoPatchButton.visible = false;
+    }
+
     private void ensureWidgets() {
         if (confirmButton != null) return;
         confirmButton = ButtonWidget.builder(Text.translatable("formacraft.preview.confirm"), b -> confirm())
                 .dimensions(0, 0, 120, 16)
+                .tooltip(Tooltip.of(Text.translatable("formacraft.preview.confirm.tooltip")))
                 .build();
         cancelButton = ButtonWidget.builder(Text.translatable("formacraft.preview.cancel"), b -> cancel())
                 .dimensions(0, 0, 120, 16)
+                .tooltip(Tooltip.of(Text.translatable("formacraft.preview.cancel.tooltip")))
                 .build();
 
         applyPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.apply"), b -> applyPatch())
@@ -181,6 +212,16 @@ public class BuildConfirmPanel {
         
         int screenW = client.getWindow().getScaledWidth();
         int screenH = client.getWindow().getScaledHeight();
+
+        // BUILD 模式：只显示按钮，不画半透明面板（用户体验更轻量）
+        if (mode == Mode.BUILD) {
+            double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
+            double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
+            layoutBuildButtons(screenW, screenH);
+            confirmButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+            cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+            return;
+        }
         
         int centerX = screenW / 2;
         int centerY = screenH / 2;
@@ -476,6 +517,15 @@ public class BuildConfirmPanel {
         
         int screenW = client.getWindow().getScaledWidth();
         int screenH = client.getWindow().getScaledHeight();
+
+        // BUILD 模式：没有面板区域，任何点击都应被消费（避免点到世界），但允许点击两个按钮
+        if (mode == Mode.BUILD) {
+            layoutBuildButtons(screenW, screenH);
+            Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+            if (confirmButton.mouseClicked(click, false)) return true;
+            cancelButton.mouseClicked(click, false);
+            return true;
+        }
         
         int centerX = screenW / 2;
         int centerY = screenH / 2;
