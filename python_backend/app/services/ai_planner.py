@@ -249,6 +249,174 @@ def _normalize_building_spec_dict(data: Any) -> Any:
     return data
 
 
+def _normalize_building_style_value(v: Any) -> Optional[str]:
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    u = s.upper()
+    # valid enum values
+    if u in ("MEDIEVAL", "MODERN", "ASIAN", "FUTURISTIC", "RUSTIC", "DEFAULT"):
+        return u
+    # common LLM drift for Chinese-themed labels
+    low = s.lower()
+    if "chinese" in low or "ming" in low or "qing" in low or "palace" in low or "asian" in low:
+        return "ASIAN"
+    if "modern" in low:
+        return "MODERN"
+    if "medieval" in low:
+        return "MEDIEVAL"
+    return "DEFAULT"
+
+
+def _normalize_features_value(v: Any) -> Dict[str, Any]:
+    # Features in our schema is an object, but LLMs often output a list like ["windows","doors",...]
+    if isinstance(v, dict):
+        return v
+    flags: Dict[str, Any] = {
+        "hasWindows": True,
+        "hasStairs": True,
+        "hasDoor": True,
+        "hasBalcony": False,
+        "hasRoof": True,
+        "hasRoofDecoration": False,
+        "windowCount": 0,
+        "floorCount": 1,
+    }
+    if isinstance(v, list):
+        low = {str(x).strip().lower() for x in v if x is not None}
+        flags["hasWindows"] = ("windows" in low) or ("window" in low)
+        flags["hasDoor"] = ("doors" in low) or ("door" in low) or ("gate" in low) or ("gates" in low)
+        flags["hasStairs"] = ("stairs" in low) or ("stair" in low)
+        flags["hasRoof"] = ("roof" in low) or ("curved_roof" in low) or ("decorative_eaves" in low)
+        flags["hasRoofDecoration"] = ("decorative_cornices" in low) or ("decorative_top" in low) or ("decorative_eaves" in low)
+    return flags
+
+
+def _guess_building_type_from_name(name: str) -> str:
+    n = (name or "").strip().lower()
+    if not n:
+        return "HOUSE"
+    if "wall" in n or "enclosure" in n or "courtyard_wall" in n:
+        return "WALL"
+    if "gate" in n:
+        return "HOUSE"
+    if "tower" in n:
+        return "TOWER"
+    if "bridge" in n:
+        return "BRIDGE"
+    if "hall" in n or "wing" in n:
+        return "HOUSE"
+    return "HOUSE"
+
+
+def _normalize_substructure_item(item: Any, idx: int) -> Dict[str, Any]:
+    """
+    Normalize one element of CompositeSpec.structures.
+    Accept either proper {type, spec, offset} or LLM "plan-like" objects.
+    """
+    if not isinstance(item, dict):
+        return {
+            "type": "HOUSE",
+            "spec": _normalize_building_spec_dict({
+                "type": "HOUSE",
+                "style": "ASIAN",
+                "materials": {},
+                "features": {},
+                "footprint": {"shape": "rectangle", "width": 8, "depth": 6},
+                "height": 6
+            }),
+            "offset": {"x": idx * 16, "y": 0, "z": 0},
+        }
+
+    # offset
+    off = item.get("offset") or item.get("pos") or item.get("position") or item.get("relativePos") or item.get("relative_pos")
+    if isinstance(off, dict) and all(k in off for k in ("x", "y", "z")):
+        offset = {"x": int(off.get("x", 0)), "y": int(off.get("y", 0)), "z": int(off.get("z", 0))}
+    else:
+        offset = {"x": idx * 16, "y": 0, "z": 0}
+
+    # outer type
+    name = str(item.get("name") or "")
+    t = item.get("type")
+    if t is None or (isinstance(t, str) and not t.strip()):
+        t = _guess_building_type_from_name(name)
+    t_str = str(t).strip().upper()
+    if t_str in ("ASIAN", "MODERN", "MEDIEVAL", "FUTURISTIC", "RUSTIC", "DEFAULT"):
+        t_str = "HOUSE"
+
+    spec = item.get("spec")
+    if isinstance(spec, dict):
+        spec = _normalize_building_spec_dict(spec)
+        spec["style"] = _normalize_building_style_value(spec.get("style")) or "ASIAN"
+        spec["features"] = _normalize_features_value(spec.get("features"))
+        if "type" not in spec or not spec.get("type"):
+            spec["type"] = t_str
+        else:
+            st = str(spec.get("type")).strip().upper()
+            if st in ("ASIAN", "MODERN", "MEDIEVAL", "FUTURISTIC", "RUSTIC", "DEFAULT"):
+                spec["type"] = t_str
+        return {"type": t_str, "spec": spec, "offset": offset}
+
+    # plan-like fallback -> minimal BuildingSpec
+    dims = item.get("dimensions") or item.get("dimension") or {}
+    if not isinstance(dims, dict):
+        dims = {}
+    w = int(dims.get("width", 8) or 8)
+    d = int(dims.get("depth", 6) or 6)
+    h = int(dims.get("height", 6) or 6)
+    if w <= 0: w = 8
+    if d <= 0: d = 6
+    if h <= 0: h = 6
+
+    style = _normalize_building_style_value(item.get("style")) or "ASIAN"
+    features = _normalize_features_value(item.get("features"))
+
+    spec_dict: Dict[str, Any] = {
+        "type": t_str,
+        "style": style,
+        "footprint": {"shape": "rectangle", "width": w, "depth": d, "radius": None},
+        "height": h,
+        "floors": 1,
+        "materials": {},
+        "features": features,
+        "styleOptions": {"roofType": "hipped", "windowRatio": 0.18, "windowStyle": "fence", "wallPattern": "uniform"},
+        "notes": "normalized_from_plan",
+    }
+    spec_dict = _normalize_building_spec_dict(spec_dict)
+    spec_dict["style"] = _normalize_building_style_value(spec_dict.get("style")) or "ASIAN"
+    spec_dict["features"] = _normalize_features_value(spec_dict.get("features"))
+
+    return {"type": t_str, "spec": spec_dict, "offset": offset}
+
+
+def _normalize_composite_spec_dict(data: Any) -> Any:
+    if not isinstance(data, dict):
+        return data
+
+    # tolerate alternative top-level keys
+    if "structures" not in data and "buildings" in data:
+        data["structures"] = data.get("buildings")
+    if "structures" not in data and "components" in data:
+        data["structures"] = data.get("components")
+
+    structures = data.get("structures")
+    if not isinstance(structures, list):
+        structures = []
+    data["structures"] = [_normalize_substructure_item(it, i) for i, it in enumerate(structures)]
+
+    # paths is optional
+    if "paths" not in data and "roads" in data:
+        data["paths"] = data.get("roads")
+    if "paths" not in data or data.get("paths") is None:
+        data["paths"] = []
+    if not isinstance(data["paths"], list):
+        data["paths"] = []
+
+    return data
+
+
 def _generate_fallback_spec(req: BuildRequest) -> BuildingSpec:
     """规则基础的回退方案（当 LLM 不可用时）"""
     request_lower = req.requestText.lower()
@@ -522,13 +690,16 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
         "Requirements:\n"
         "- Always respond with pure JSON (no comments, no extra text).\n"
         "- Return a CompositeSpec with a 'structures' array and a 'paths' array.\n"
-        "- Each structure must have: type (TOWER/HOUSE/BRIDGE/WALL), spec (BuildingSpec), offset (Vec3i with x, y, z).\n"
+        "- Each structure must have: type (TOWER/HOUSE/BRIDGE/WALL/CASTLE/CUSTOM), spec (BuildingSpec), offset (Vec3i with x, y, z).\n"
         "- Each path must have: from_pos (Vec3i), to_pos (Vec3i), width (int, default 3), "
         "material (string, e.g. 'minecraft:gravel'), style (string, default 'default').\n"
         "- Generate paths to connect structures logically (house to house, house to tower, bridge to gate, etc.).\n"
         "- Use reasonable offsets to position structures relative to the origin.\n"
         "- Only use block IDs that exist in vanilla Minecraft.\n"
-        "- Each spec in structures must be a complete BuildingSpec with all required fields.\n"
+        "- Each spec in structures must be a complete BuildingSpec with EXACT field names.\n"
+        "- BuildingSpec.type MUST be one of: HOUSE/TOWER/BRIDGE/CASTLE/WALL/CUSTOM (NOT 'ASIAN').\n"
+        "- BuildingSpec.style MUST be one of: MEDIEVAL/MODERN/ASIAN/FUTURISTIC/RUSTIC/DEFAULT (NOT 'chinese_palace').\n"
+        "- BuildingSpec.features MUST be an object (NOT a list).\n"
     )
     
     user_prompt = _build_user_prompt(req)
@@ -553,7 +724,8 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
             raise ValueError("Empty response from OpenAI")
         
         data = json.loads(raw_output)
-        return CompositeSpec(**data)
+        data = _normalize_composite_spec_dict(data)
+        return CompositeSpec.model_validate(data)
         
     except Exception as e:
         raise RuntimeError(f"LLM call failed for composite spec: {e}") from e
