@@ -1,14 +1,18 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -31,11 +35,22 @@ public class HouseGenerator implements StructureGenerator {
         int height = Math.max(4, spec.getHeight());
         int floors = Math.max(1, spec.getFloors());
 
+        BuildingStyle style = (spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
+
         // 获取材质
-        BlockState wall = getState(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null);
-        BlockState floor = getState(world, spec.getMaterials() != null ? spec.getMaterials().getFloor() : null);
-        BlockState window = getState(world, spec.getMaterials() != null ? spec.getMaterials().getWindow() : null);
-        BlockState roof = getState(world, spec.getMaterials() != null ? spec.getMaterials().getRoof() : null);
+        BlockState wall = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null, defaultWall(style));
+        BlockState floor = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getFloor() : null, defaultFloor(style));
+        BlockState window = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getWindow() : null, defaultWindow(style));
+        BlockState roof = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getRoof() : null, defaultRoof(style));
+
+        // 装饰/细节材质（不要求模型显式提供，但能显著提升观感）
+        BlockState trim = defaultTrim(style, wall);
+        BlockState foundation = defaultFoundation(style, wall);
+        BlockState pillar = defaultPillar(style);
+        BlockState roofStairs = defaultRoofStairs(style, roof);
+        BlockState roofSlab = defaultRoofSlab(style, roof);
+        BlockState windowBlock = resolveWindowByStyleOption(style, spec, window);
+        BlockState doorLower = defaultDoor(style);
 
         // 获取特性
         boolean hasWindows = spec.getFeatures() != null && spec.getFeatures().hasWindows();
@@ -49,9 +64,8 @@ public class HouseGenerator implements StructureGenerator {
             spec.getStyleOptions().getRoofType() : "flat";
         double windowRatio = spec.getStyleOptions() != null ? 
             spec.getStyleOptions().getWindowRatio() : 0.3;
-        // TODO: 未来实现 wallPattern（uniform/striped/gradient/random）
-        // String wallPattern = spec.getStyleOptions() != null ? 
-        //     spec.getStyleOptions().getWallPattern() : "uniform";
+        String wallPattern = spec.getStyleOptions() != null ?
+                spec.getStyleOptions().getWallPattern() : "uniform";
 
         // -------------------------------------
         // 1. 清空内部空间（避免房屋和山体重叠）
@@ -65,9 +79,31 @@ public class HouseGenerator implements StructureGenerator {
         }
 
         // -------------------------------------
-        // 2. 生成墙体
+        // 2. 生成墙体（加入：地基/转角柱/腰线/多层窗/门）
         // -------------------------------------
+        int floorHeight = Math.max(3, height / floors);
+
+        // 2.1 地基（y=0 一圈）
+        for (int x = 0; x < width; x++) {
+            blocks.add(new PlannedBlock(origin.add(x, 0, 0), foundation));
+            blocks.add(new PlannedBlock(origin.add(x, 0, depth - 1), foundation));
+        }
+        for (int z = 0; z < depth; z++) {
+            blocks.add(new PlannedBlock(origin.add(0, 0, z), foundation));
+            blocks.add(new PlannedBlock(origin.add(width - 1, 0, z), foundation));
+        }
+
+        // 2.2 转角柱（四角贯穿到檐口）
         for (int y = 0; y < height; y++) {
+            blocks.add(new PlannedBlock(origin.add(0, y, 0), pillar));
+            blocks.add(new PlannedBlock(origin.add(width - 1, y, 0), pillar));
+            blocks.add(new PlannedBlock(origin.add(0, y, depth - 1), pillar));
+            blocks.add(new PlannedBlock(origin.add(width - 1, y, depth - 1), pillar));
+        }
+
+        for (int y = 0; y < height; y++) {
+            // 腰线/檐口：每层楼板上方一圈（更“像建筑”）
+            boolean isBandY = (y > 0 && (y % floorHeight == 0)) || (y == height - 1);
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     boolean isEdgeX = (x == 0 || x == width - 1);
@@ -78,56 +114,98 @@ public class HouseGenerator implements StructureGenerator {
                         BlockPos pos = origin.add(x, y, z);
 
                         // 门位置逻辑（根据 doorStyle）
-                        boolean isDoor = hasDoor && (z == 0) &&
-                                ((doorStyle.equalsIgnoreCase("double") &&
-                                        (x == width / 2 || x == width / 2 - 1)) ||
-                                        (doorStyle.equalsIgnoreCase("single") &&
-                                                x == width / 2) ||
-                                        (doorStyle.equalsIgnoreCase("arched") &&
-                                                (x == width / 2 || x == width / 2 - 1))) &&
-                                (y == 0 || y == 1);
-
-                        if (isDoor) {
-                            blocks.add(new PlannedBlock(pos, Blocks.AIR.getDefaultState()));
-                            continue;
-                        }
-
-                        // 窗户逻辑（根据 windowRatio）
-                        if (hasWindows && y >= 1 && y <= 2) {
-                            // 根据 windowRatio 决定是否开窗
-                            boolean shouldPlaceWindow = isShouldPlaceWindow(windowRatio, x, z);
-
-                            // 避免在门的位置开窗
-                            if (shouldPlaceWindow && 
-                                !(z == 0 && (x == width / 2 || x == width / 2 - 1))) {
-                                blocks.add(new PlannedBlock(pos, window));
-                                continue;
+                        if (hasDoor && z == 0) {
+                            // 单门：width/2；双门：width/2 与 width/2-1；拱门：同双门但上方更高留空
+                            boolean doorX = (doorStyle.equalsIgnoreCase("double") || doorStyle.equalsIgnoreCase("arched"))
+                                    ? (x == width / 2 || x == width / 2 - 1)
+                                    : (x == width / 2);
+                            if (doorX) {
+                                if (y == 0) {
+                                    // 放门（下半）
+                                    blocks.add(new PlannedBlock(pos, withDoorState(doorLower, Direction.NORTH, DoubleBlockHalf.LOWER, x < width / 2)));
+                                    continue;
+                                }
+                                if (y == 1) {
+                                    // 放门（上半）
+                                    blocks.add(new PlannedBlock(pos, withDoorState(doorLower, Direction.NORTH, DoubleBlockHalf.UPPER, x < width / 2)));
+                                    continue;
+                                }
+                                if (doorStyle.equalsIgnoreCase("arched") && y == 2) {
+                                    // 拱门顶部留空 + 装饰
+                                    blocks.add(new PlannedBlock(pos, Blocks.AIR.getDefaultState()));
+                                    continue;
+                                }
                             }
                         }
 
+                        // 窗户逻辑（根据 windowRatio）
+                        if (hasWindows) {
+                            // 每层 2 格高的窗带（localY=1/2）
+                            int localY = y % floorHeight;
+                            boolean inWindowBand = (localY == 1 || localY == 2);
+                            // 很高的建筑：顶层再多一条细窗带（更有层次）
+                            if (!inWindowBand && height >= 9 && y == height - 3) inWindowBand = true;
+
+                            if (inWindowBand) {
+                                boolean shouldPlaceWindow = isShouldPlaceWindow(windowRatio, x, z);
+                                // 避免在门附近开窗
+                                boolean nearDoor = (z == 0) && (x == width / 2 || x == width / 2 - 1);
+                                if (shouldPlaceWindow && !nearDoor) {
+                                    blocks.add(new PlannedBlock(pos, windowBlock));
+                                    // 简单窗框：窗上下用 trim（不占用对外空间）
+                                    if (y > 0) blocks.add(new PlannedBlock(origin.add(x, y - 1, z), trim));
+                                    if (y + 1 < height) blocks.add(new PlannedBlock(origin.add(x, y + 1, z), trim));
+                                    continue;
+                                }
+                            }
+                        }
+
+                        // 腰线/檐口优先用 trim（视觉提升很大）
+                        if (isBandY) {
+                            blocks.add(new PlannedBlock(pos, trim));
+                            continue;
+                        }
+
+                        // 墙体花纹（striped/gradient/random）
+                        BlockState wallToUse = applyWallPattern(wall, trim, foundation, wallPattern, y, height);
+
                         // 普通墙
-                        blocks.add(new PlannedBlock(pos, wall));
+                        blocks.add(new PlannedBlock(pos, wallToUse));
                     }
                 }
             }
         }
 
         // -------------------------------------
-        // 3. 地板（每层一层）
+        // 3. 地板/天花（每层一层）
         // -------------------------------------
-        int floorHeight = height / floors;
         for (int f = 0; f < floors; f++) {
-            int y = f * floorHeight;
+            int y0 = f * floorHeight;
 
             for (int x = 1; x < width - 1; x++) {
                 for (int z = 1; z < depth - 1; z++) {
-                    blocks.add(new PlannedBlock(origin.add(x, y, z), floor));
+                    blocks.add(new PlannedBlock(origin.add(x, y0, z), floor));
+                }
+            }
+
+            // 天花（除了顶层）：用 trim 做“梁/檐线”，更有层次
+            if (f < floors - 1) {
+                int cy = y0 + floorHeight;
+                if (cy > 0 && cy < height) {
+                    for (int x = 1; x < width - 1; x++) {
+                        blocks.add(new PlannedBlock(origin.add(x, cy, 1), trim));
+                        blocks.add(new PlannedBlock(origin.add(x, cy, depth - 2), trim));
+                    }
+                    for (int z = 1; z < depth - 1; z++) {
+                        blocks.add(new PlannedBlock(origin.add(1, cy, z), trim));
+                        blocks.add(new PlannedBlock(origin.add(width - 2, cy, z), trim));
+                    }
                 }
             }
         }
 
         // -------------------------------------
-        // 4. 屋顶（根据 roofType）
+        // 4. 屋顶（根据 roofType；加入：檐口/楼梯屋顶/平顶女儿墙）
         // -------------------------------------
         if (hasRoof) {
             // 从 styleOptions 获取屋顶类型（向后兼容 extra）
@@ -140,37 +218,79 @@ public class HouseGenerator implements StructureGenerator {
                 }
             }
             
-            if ("gable".equalsIgnoreCase(actualRoofType)) {
-                // 双坡屋顶（gable roof）
-                int roofHeight = Math.min(width / 2 + 2, 8); // 限制屋顶高度
+            if ("gable".equalsIgnoreCase(actualRoofType) || style == BuildingStyle.MEDIEVAL || style == BuildingStyle.RUSTIC) {
+                // 双坡屋顶（沿 X 方向上升）；优先用 stairs/slab，视觉明显更好
+                int roofHeight = Math.min(width / 2 + 1, 7);
 
-                // 正面与背面方向（沿 X 形成双坡）
                 for (int i = 0; i < roofHeight; i++) {
+                    int leftX = i;
                     int rightX = width - 1 - i;
+                    if (leftX > rightX) break;
 
-                    if (i > rightX) break;
-
-                    for (int z = 0; z < depth; z++) {
-                        blocks.add(new PlannedBlock(origin.add(i, height + i, z), roof));
-                        blocks.add(new PlannedBlock(origin.add(rightX, height + i, z), roof));
+                    for (int z = -1; z <= depth; z++) {
+                        // 左坡
+                        blocks.add(new PlannedBlock(origin.add(leftX, height + i, z), withFacingIfPossible(roofStairs, Direction.EAST)));
+                        // 右坡
+                        blocks.add(new PlannedBlock(origin.add(rightX, height + i, z), withFacingIfPossible(roofStairs, Direction.WEST)));
                     }
                 }
 
-                // 封顶（最上层 ridge）
-                int ridgeY = height + roofHeight;
-                int midX = width / 2;
-
-                for (int z = 0; z < depth; z++) {
-                    blocks.add(new PlannedBlock(origin.add(midX, ridgeY, z), roof));
+                // 屋脊：用 slab
+                int ridgeY = height + roofHeight - 1;
+                int midLeft = (width - 1) / 2;
+                int midRight = width / 2;
+                for (int z = -1; z <= depth; z++) {
+                    blocks.add(new PlannedBlock(origin.add(midLeft, ridgeY + 1, z), roofSlab));
+                    blocks.add(new PlannedBlock(origin.add(midRight, ridgeY + 1, z), roofSlab));
                 }
+
             } else {
-                // 平顶
-                for (int x = 0; x < width; x++) {
-                    for (int z = 0; z < depth; z++) {
-                        blocks.add(new PlannedBlock(origin.add(x, height, z), roof));
+                // 平顶（现代/未来风格）：屋面 + 女儿墙边框
+                for (int x = -1; x <= width; x++) {
+                    for (int z = -1; z <= depth; z++) {
+                        boolean edge = (x == -1 || x == width || z == -1 || z == depth);
+                        if (edge) {
+                            blocks.add(new PlannedBlock(origin.add(x, height, z), trim));
+                            blocks.add(new PlannedBlock(origin.add(x, height + 1, z), trim));
+                        } else {
+                            blocks.add(new PlannedBlock(origin.add(x, height, z), roof));
+                        }
+                    }
+                }
+
+                // 现代风格：简单天窗（中间一条玻璃）
+                if (style == BuildingStyle.MODERN || style == BuildingStyle.FUTURISTIC) {
+                    int midZ = depth / 2;
+                    for (int x = 2; x < width - 2; x++) {
+                        blocks.add(new PlannedBlock(origin.add(x, height, midZ), Blocks.GLASS.getDefaultState()));
                     }
                 }
             }
+
+            // 檐口装饰（y=height-1 一圈 slab）
+            for (int x = -1; x <= width; x++) {
+                blocks.add(new PlannedBlock(origin.add(x, height - 1, -1), roofSlab));
+                blocks.add(new PlannedBlock(origin.add(x, height - 1, depth), roofSlab));
+            }
+            for (int z = -1; z <= depth; z++) {
+                blocks.add(new PlannedBlock(origin.add(-1, height - 1, z), roofSlab));
+                blocks.add(new PlannedBlock(origin.add(width, height - 1, z), roofSlab));
+            }
+        }
+
+        // -------------------------------------
+        // 4.5 门口装饰（火把/墙灯）
+        // -------------------------------------
+        if (hasDoor) {
+            int dx = width / 2;
+            // 贴墙火把（更稳定，不需要额外支撑）
+            BlockState wallTorch = Blocks.WALL_TORCH.getDefaultState();
+            if (wallTorch.contains(Properties.HORIZONTAL_FACING)) {
+                wallTorch = wallTorch.with(Properties.HORIZONTAL_FACING, Direction.SOUTH);
+            }
+            int y = 2;
+            if (dx - 2 >= 1) blocks.add(new PlannedBlock(origin.add(dx - 2, y, 0), wallTorch));
+            if (dx + 2 <= width - 2) blocks.add(new PlannedBlock(origin.add(dx + 2, y, 0), wallTorch));
         }
 
         // -------------------------------------
@@ -200,6 +320,195 @@ public class HouseGenerator implements StructureGenerator {
             shouldPlaceWindow = (x % 4 == 0 || z % 4 == 0);
         }
         return shouldPlaceWindow;
+    }
+
+    private static BlockState withFacingIfPossible(BlockState state, Direction facing) {
+        if (state == null) return null;
+        try {
+            if (state.contains(Properties.HORIZONTAL_FACING)) {
+                return state.with(Properties.HORIZONTAL_FACING, facing);
+            }
+        } catch (Throwable ignored) {}
+        return state;
+    }
+
+    private static BlockState withDoorState(BlockState door, Direction facing, DoubleBlockHalf half, boolean leftSide) {
+        BlockState s = door;
+        try {
+            if (s.contains(Properties.HORIZONTAL_FACING)) s = s.with(Properties.HORIZONTAL_FACING, facing);
+        } catch (Throwable ignored) {}
+        try {
+            if (s.contains(Properties.DOUBLE_BLOCK_HALF)) s = s.with(Properties.DOUBLE_BLOCK_HALF, half);
+        } catch (Throwable ignored) {}
+        // 双门时用相反铰链，避免都向同一侧开（即便不完美，也比默认好）
+        try {
+            if (s.contains(Properties.DOOR_HINGE)) {
+                s = s.with(Properties.DOOR_HINGE, leftSide ? net.minecraft.block.enums.DoorHinge.LEFT : net.minecraft.block.enums.DoorHinge.RIGHT);
+            }
+        } catch (Throwable ignored) {}
+        return s;
+    }
+
+    private static BlockState applyWallPattern(BlockState wall, BlockState trim, BlockState foundation, String pattern, int y, int height) {
+        String p = (pattern == null) ? "uniform" : pattern.trim().toLowerCase();
+        // gradient：底部更“厚重”、顶部更“收边”
+        if ("gradient".equals(p)) {
+            if (y <= 1) return foundation != null ? foundation : wall;
+            if (y >= height - 2) return trim != null ? trim : wall;
+            return wall;
+        }
+        // striped：每 3 层一条横向条带
+        if ("striped".equals(p)) {
+            if (y % 3 == 0) return trim != null ? trim : wall;
+            return wall;
+        }
+        // random：对 stone_bricks 加一点 cracked/mossy 变化
+        if ("random".equals(p)) {
+            Block b = wall != null ? wall.getBlock() : null;
+            if (b == Blocks.STONE_BRICKS) {
+                int r = (y * 31 + height * 17) & 7;
+                if (r == 0) return Blocks.CRACKED_STONE_BRICKS.getDefaultState();
+                if (r == 1) return Blocks.MOSSY_STONE_BRICKS.getDefaultState();
+            }
+            return wall;
+        }
+        return wall;
+    }
+
+    private static BlockState defaultWall(BuildingStyle style) {
+        return switch (style) {
+            case MODERN -> Blocks.WHITE_CONCRETE.getDefaultState();
+            case ASIAN -> Blocks.SMOOTH_SANDSTONE.getDefaultState();
+            case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
+            case MEDIEVAL -> Blocks.STONE_BRICKS.getDefaultState();
+            case DEFAULT -> Blocks.OAK_PLANKS.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultFloor(BuildingStyle style) {
+        return switch (style) {
+            case MODERN -> Blocks.SMOOTH_QUARTZ.getDefaultState();
+            case FUTURISTIC -> Blocks.SMOOTH_QUARTZ.getDefaultState();
+            case ASIAN -> Blocks.OAK_PLANKS.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
+            case MEDIEVAL -> Blocks.OAK_PLANKS.getDefaultState();
+            case DEFAULT -> Blocks.OAK_PLANKS.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultWindow(BuildingStyle style) {
+        return switch (style) {
+            case MODERN, FUTURISTIC -> Blocks.GLASS.getDefaultState();
+            default -> Blocks.GLASS_PANE.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultRoof(BuildingStyle style) {
+        return switch (style) {
+            case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
+            case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
+            case ASIAN -> Blocks.DARK_OAK_PLANKS.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
+            case MEDIEVAL -> Blocks.DARK_OAK_PLANKS.getDefaultState();
+            case DEFAULT -> Blocks.DARK_OAK_PLANKS.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultTrim(BuildingStyle style, BlockState wall) {
+        // 如果墙材本身是 stone bricks，trim 用石砖更一致
+        if (wall != null && wall.getBlock() == Blocks.STONE_BRICKS) {
+            return Blocks.CHISELED_STONE_BRICKS.getDefaultState();
+        }
+        return switch (style) {
+            case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
+            case FUTURISTIC -> Blocks.LIGHT_BLUE_STAINED_GLASS.getDefaultState();
+            case ASIAN -> Blocks.RED_TERRACOTTA.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_LOG.getDefaultState();
+            case MEDIEVAL -> Blocks.SPRUCE_LOG.getDefaultState();
+            case DEFAULT -> Blocks.SPRUCE_LOG.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultFoundation(BuildingStyle style, BlockState wall) {
+        if (wall != null && (wall.getBlock() == Blocks.WHITE_CONCRETE || wall.getBlock() == Blocks.QUARTZ_BLOCK)) {
+            return Blocks.SMOOTH_STONE.getDefaultState();
+        }
+        return switch (style) {
+            case MODERN, FUTURISTIC -> Blocks.SMOOTH_STONE.getDefaultState();
+            case ASIAN -> Blocks.POLISHED_BLACKSTONE.getDefaultState();
+            case RUSTIC -> Blocks.COBBLESTONE.getDefaultState();
+            case MEDIEVAL -> Blocks.COBBLESTONE.getDefaultState();
+            case DEFAULT -> Blocks.COBBLESTONE.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultPillar(BuildingStyle style) {
+        return switch (style) {
+            case MODERN -> Blocks.QUARTZ_PILLAR.getDefaultState();
+            case FUTURISTIC -> Blocks.QUARTZ_PILLAR.getDefaultState();
+            case ASIAN -> Blocks.DARK_OAK_LOG.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_LOG.getDefaultState();
+            case MEDIEVAL -> Blocks.OAK_LOG.getDefaultState();
+            case DEFAULT -> Blocks.OAK_LOG.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultRoofStairs(BuildingStyle style, BlockState roof) {
+        Block b = roof != null ? roof.getBlock() : null;
+        if (b == Blocks.DARK_OAK_PLANKS) return Blocks.DARK_OAK_STAIRS.getDefaultState();
+        if (b == Blocks.SPRUCE_PLANKS) return Blocks.SPRUCE_STAIRS.getDefaultState();
+        if (b == Blocks.OAK_PLANKS) return Blocks.OAK_STAIRS.getDefaultState();
+        if (b == Blocks.BRICKS) return Blocks.BRICK_STAIRS.getDefaultState();
+        if (b == Blocks.STONE_BRICKS) return Blocks.STONE_BRICK_STAIRS.getDefaultState();
+        if (b == Blocks.BLACK_CONCRETE) return Blocks.POLISHED_BLACKSTONE_STAIRS.getDefaultState();
+        return switch (style) {
+            case MEDIEVAL, ASIAN -> Blocks.DARK_OAK_STAIRS.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_STAIRS.getDefaultState();
+            case MODERN, FUTURISTIC -> Blocks.POLISHED_BLACKSTONE_STAIRS.getDefaultState();
+            case DEFAULT -> Blocks.DARK_OAK_STAIRS.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultRoofSlab(BuildingStyle style, BlockState roof) {
+        Block b = roof != null ? roof.getBlock() : null;
+        if (b == Blocks.DARK_OAK_PLANKS) return Blocks.DARK_OAK_SLAB.getDefaultState();
+        if (b == Blocks.SPRUCE_PLANKS) return Blocks.SPRUCE_SLAB.getDefaultState();
+        if (b == Blocks.OAK_PLANKS) return Blocks.OAK_SLAB.getDefaultState();
+        if (b == Blocks.BLACK_CONCRETE) return Blocks.POLISHED_BLACKSTONE_SLAB.getDefaultState();
+        if (b == Blocks.STONE_BRICKS) return Blocks.STONE_BRICK_SLAB.getDefaultState();
+        return switch (style) {
+            case MODERN, FUTURISTIC -> Blocks.SMOOTH_STONE_SLAB.getDefaultState();
+            case ASIAN -> Blocks.DARK_OAK_SLAB.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_SLAB.getDefaultState();
+            case MEDIEVAL -> Blocks.DARK_OAK_SLAB.getDefaultState();
+            case DEFAULT -> Blocks.DARK_OAK_SLAB.getDefaultState();
+        };
+    }
+
+    private static BlockState defaultDoor(BuildingStyle style) {
+        return switch (style) {
+            case MODERN -> Blocks.IRON_DOOR.getDefaultState();
+            case FUTURISTIC -> Blocks.IRON_DOOR.getDefaultState();
+            case ASIAN -> Blocks.DARK_OAK_DOOR.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_DOOR.getDefaultState();
+            case MEDIEVAL -> Blocks.OAK_DOOR.getDefaultState();
+            case DEFAULT -> Blocks.OAK_DOOR.getDefaultState();
+        };
+    }
+
+    private static BlockState resolveWindowByStyleOption(BuildingStyle style, BuildingSpec spec, BlockState fallback) {
+        String w = (spec.getStyleOptions() != null && spec.getStyleOptions().getWindowStyle() != null)
+                ? spec.getStyleOptions().getWindowStyle().trim().toLowerCase()
+                : "pane";
+        if ("stained".equals(w)) {
+            return (style == BuildingStyle.FUTURISTIC) ? Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.getDefaultState()
+                    : Blocks.WHITE_STAINED_GLASS_PANE.getDefaultState();
+        }
+        if ("fence".equals(w)) {
+            return (style == BuildingStyle.ASIAN) ? Blocks.DARK_OAK_FENCE.getDefaultState() : Blocks.OAK_FENCE.getDefaultState();
+        }
+        return fallback != null ? fallback : Blocks.GLASS_PANE.getDefaultState();
     }
 
     /**
@@ -288,6 +597,15 @@ public class HouseGenerator implements StructureGenerator {
         
         // 默认返回橡木木板
         return Blocks.OAK_PLANKS.getDefaultState();
+    }
+
+    private BlockState getStateOrDefault(ServerWorld world, String id, BlockState defaultState) {
+        if (id == null || id.isBlank()) return defaultState;
+        try {
+            return getState(world, id);
+        } catch (Throwable ignored) {
+            return defaultState;
+        }
     }
 }
 
