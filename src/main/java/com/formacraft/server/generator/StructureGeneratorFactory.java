@@ -1,8 +1,7 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.common.model.build.BuildingType;
-import com.formacraft.FormacraftMod;
+import com.formacraft.server.generator.router.GeneratorRouter;
 
 /**
  * 建筑生成器工厂
@@ -10,24 +9,9 @@ import com.formacraft.FormacraftMod;
  */
 public class StructureGeneratorFactory {
     public static StructureGenerator getGenerator(BuildingSpec spec) {
-        if (spec == null || spec.getType() == null) {
-            FormacraftMod.LOGGER.warn("BuildingSpec or type is null, using default TowerGenerator");
-            return new TowerGenerator();
-        }
-
-        BuildingType type = spec.getType();
-        return switch (type) {
-            case TOWER -> new TowerGenerator();
-            case HOUSE -> new HouseGenerator();
-            case BRIDGE -> new BridgeGenerator();
-            case WALL -> new WallGenerator();
-            case CASTLE -> new HouseGenerator(); // 暂时使用房屋生成器
-            case CUSTOM -> {
-                // CUSTOM 目前没有专用生成器；回退到 HouseGenerator 更安全（不会生成无关的圆塔）
-                FormacraftMod.LOGGER.warn("CUSTOM building type not yet implemented, using HouseGenerator");
-                yield new HouseGenerator();
-            }
-        };
+        // 统一入口：BuildingGenome -> Router -> ConcreteGenerator
+        // IMPORTANT：若 spec.extra 不含 genome，则 Router 会回退到旧的 type 路由，保持现有行为不变。
+        return GeneratorRouter.route(spec);
     }
 }
 

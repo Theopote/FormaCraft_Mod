@@ -52,11 +52,10 @@ public class CompositeStructureGenerator {
                 continue;
             }
 
-            StructureGenerator gen = registry.get(sub.getType().toUpperCase());
-            if (gen == null) {
-                // 如果找不到生成器，尝试使用 StructureGeneratorFactory
-                gen = StructureGeneratorFactory.getGenerator(sub.getSpec());
-            }
+            // IMPORTANT: 统一走 StructureGeneratorFactory，支持按 spec.extra 做地标/特殊结构路由（如土楼）
+            // registry 仅作为 legacy fallback（理论上不会走到）
+            StructureGenerator gen = StructureGeneratorFactory.getGenerator(sub.getSpec());
+            if (gen == null) gen = registry.get(sub.getType().toUpperCase());
 
             // 计算子结构的绝对坐标
             CompositeSpec.Offset offset = sub.getOffset();

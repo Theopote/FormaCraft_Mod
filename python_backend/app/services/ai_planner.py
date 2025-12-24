@@ -21,8 +21,10 @@ from ..models.building_spec import (
     BuildingSpec, BuildingType, BuildingStyle, 
     Footprint, Materials, Features, StyleOptions
 )
+from ..models.building_genome import BuildingGenome, Archetype as GenomeArchetype
 from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
+from .archetype_detector import detect_archetype_local, should_force_strong_mode
 
 _LLM_CALL_TIMEOUT_SEC = float(os.getenv("LLM_CALL_TIMEOUT_SEC", "45"))
 _LLM_CALL_TIMEOUT_DEEPSEEK_SEC = float(os.getenv("LLM_CALL_TIMEOUT_DEEPSEEK_SEC", "60"))
@@ -99,6 +101,10 @@ def _build_system_prompt() -> str:
         "- windowRatio (0.0~1.0) - controls window density on walls\n"
         "- windowStyle (pane/fence/stained) - window appearance\n"
         "- wallPattern (uniform/striped/gradient/random) - wall texture pattern\n"
+        "\nOptional extra fields (use when player requests special details):\n"
+        "- If player asks for shutters / trapdoor window shutters / 百叶窗 / 木窗扇:\n"
+        "  set extra.windowShutter=true and optionally extra.windowShutterOpen=true/false\n"
+        "  You may set extra.windowShutterBlock like 'minecraft:oak_trapdoor'\n"
     )
 
 
@@ -242,6 +248,254 @@ def _should_use_mingqing_courtyard_template(req: Optional[BuildRequest]) -> bool
     # 如果用户写“主殿/厢房/门楼/院墙”也强烈暗示院落模板
     has_parts = any(k in s for k in ("主殿", "厢房", "门楼", "院墙", "影壁"))
     return (has_dynasty and (has_courtyard or has_parts)) or (has_courtyard and has_parts)
+
+
+def _should_use_tulou_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+
+    # 用户明确允许随意/自由发挥：不要强行套模板
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+
+    # 福建永定土楼 / Tulou（强形象地标）
+    return any(k in s for k in ("土楼", "永定", "福建土楼", "tulou"))
+
+
+def _parse_diameter_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：直径为20 / 直径20 / diameter 20 / 直径=20
+    m = re.search(r"(?:直径|diameter)\s*(?:为|=|:)?\s*(\d{1,3})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        d = int(m.group(1))
+        if d <= 0:
+            return None
+        return d
+    except Exception:
+        return None
+
+
+def _parse_door_facing_from_text(s: str) -> Optional[str]:
+    if not s:
+        return None
+    t = s.lower()
+    # 中文：门朝南/南门/大门朝北 等
+    if any(k in t for k in ("朝南", "南门", "面南", "向南")):
+        return "SOUTH"
+    if any(k in t for k in ("朝北", "北门", "面北", "向北")):
+        return "NORTH"
+    if any(k in t for k in ("朝东", "东门", "面东", "向东")):
+        return "EAST"
+    if any(k in t for k in ("朝西", "西门", "面西", "向西")):
+        return "WEST"
+    # 英文
+    if "south" in t:
+        return "SOUTH"
+    if "north" in t:
+        return "NORTH"
+    if "east" in t:
+        return "EAST"
+    if "west" in t:
+        return "WEST"
+    return None
+
+
+def _parse_ring_thickness_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：环带厚度 5 / 墙厚 4 / 厚度=6
+    m = re.search(r"(?:环带厚度|居住带厚度|墙厚|厚度)\s*(?:为|=|:)?\s*(\d{1,2})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        if v <= 0:
+            return None
+        return v
+    except Exception:
+        return None
+
+
+def _parse_courtyard_from_text(s: str) -> tuple[Optional[int], Optional[float]]:
+    """
+    Returns: (courtyard_diameter, courtyard_ratio)
+    - 内院直径：内院直径为10 / courtyard diameter 12
+    - 内院占比：内院占比50% / courtyard ratio 0.5
+    """
+    if not s:
+        return None, None
+    t = s.lower()
+
+    # diameter
+    m = re.search(r"(?:内院直径|庭院直径|courtyard\s*diameter)\s*(?:为|=|:)?\s*(\d{1,3})", t, flags=re.IGNORECASE)
+    if m:
+        try:
+            d = int(m.group(1))
+            if d > 0:
+                return d, None
+        except Exception:
+            pass
+
+    # ratio: 50% / 0.5
+    m = re.search(r"(?:内院占比|庭院占比|courtyard\s*ratio)\s*(?:为|=|:)?\s*(\d{1,3})\s*%", t, flags=re.IGNORECASE)
+    if m:
+        try:
+            p = int(m.group(1))
+            if 1 <= p <= 99:
+                return None, p / 100.0
+        except Exception:
+            pass
+    m = re.search(r"(?:内院占比|庭院占比|courtyard\s*ratio)\s*(?:为|=|:)?\s*(0\.\d+)", t, flags=re.IGNORECASE)
+    if m:
+        try:
+            r = float(m.group(1))
+            if 0.1 < r < 0.9:
+                return None, r
+        except Exception:
+            pass
+
+    return None, None
+
+
+def _parse_window_shutter_from_text(s: str) -> tuple[bool, Optional[bool]]:
+    """
+    Returns: (enabled, open)
+    enabled: 是否需要百叶/窗扇（trapdoor shutter）
+    open: 是否要求打开/半开（None 表示不指定）
+    """
+    if not s:
+        return False, None
+    t = s.lower()
+    enabled = any(k in t for k in ("百叶", "窗扇", "百叶窗", "trapdoor", "shutter", "window shutter", "木窗", "木质窗"))
+    if not enabled:
+        return False, None
+    # open/close hints
+    if any(k in t for k in ("半开", "打开", "开启", "open", "opened", "ajar")):
+        return True, True
+    if any(k in t for k in ("关闭", "关上", "闭合", "closed", "shut", "不开")):
+        return True, False
+    return True, None
+
+
+def _parse_shutter_color_from_text(s: str) -> Optional[str]:
+    """
+    Returns a block id for trapdoor shutter:
+    - light -> minecraft:oak_trapdoor
+    - dark -> minecraft:dark_oak_trapdoor
+    None -> unspecified
+    """
+    if not s:
+        return None
+    t = s.lower()
+    # light hints
+    if any(k in t for k in ("浅色", "浅木", "亮色", "橡木", "oak")) and not any(k in t for k in ("深橡木", "dark oak", "dark_oak", "深色", "深木")):
+        return "minecraft:oak_trapdoor"
+    # dark hints
+    if any(k in t for k in ("深色", "深木", "深橡木", "dark oak", "dark_oak")):
+        return "minecraft:dark_oak_trapdoor"
+    return None
+
+
+def _generate_tulou_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+    diameter = _parse_diameter_from_text(text) or 20
+    diameter = max(12, min(80, diameter))
+    radius = max(6, diameter // 2)
+
+    # 层数：可从文本粗略提取，如“3层/三层”；没写则默认 3
+    floors = 3
+    m = re.search(r"(\d)\s*(?:层|floor)", text, flags=re.IGNORECASE)
+    if m:
+        try:
+            floors = int(m.group(1))
+        except Exception:
+            floors = 3
+    floors = max(2, min(6, floors))
+
+    door_facing = _parse_door_facing_from_text(text) or "SOUTH"
+    ring_thickness_req = _parse_ring_thickness_from_text(text)
+    courtyard_diam, courtyard_ratio = _parse_courtyard_from_text(text)
+    shutter_enabled, shutter_open_hint = _parse_window_shutter_from_text(text)
+    shutter_block = _parse_shutter_color_from_text(text)
+
+    # 细节偏好：用户当前默认更“观赏性”，但如果明确说“精致/细节更多/更复杂”则切 refined
+    t_low = text.lower()
+    detail_level = "aesthetic"
+    if any(k in t_low for k in ("精致", "细节", "更复杂", "more detail", "refined", "ornate")):
+        detail_level = "refined"
+
+    materials = Materials(
+        wall="minecraft:mud_bricks",
+        roof="minecraft:deepslate_tiles",
+        floor="minecraft:spruce_planks",
+        window="minecraft:glass_pane",
+        foundation="minecraft:stone_bricks",
+    )
+    features = Features(
+        hasWindows=True,
+        hasStairs=True,
+        hasDoor=True,
+        hasBalcony=True,
+        hasRoof=True,
+        hasRoofDecoration=False,
+        windowCount=0,
+        floorCount=floors,
+    )
+    style_options = StyleOptions(
+        doorStyle="single",
+        roofType="cone",
+        bridgeType="flat",
+        windowRatio=0.20,
+        windowStyle="pane",
+        wallPattern="uniform",
+    )
+
+    ring_thickness = min(8, max(3, radius // 3))
+    if ring_thickness_req is not None:
+        ring_thickness = max(3, min(8, int(ring_thickness_req)))
+
+    extra: Dict[str, Any] = {
+        "template": "tulou",
+        "landmark": "tulou",
+        "diameter": radius * 2,
+        "ringThickness": ring_thickness,
+        "doorFacing": door_facing,
+        "detailLevel": detail_level,
+    }
+    if courtyard_diam is not None:
+        # store courtyard radius for generator
+        extra["courtyardRadius"] = max(3, min(radius - 3, int(courtyard_diam // 2)))
+    if courtyard_ratio is not None:
+        extra["courtyardRatio"] = float(courtyard_ratio)
+    if shutter_enabled:
+        extra["windowShutter"] = True
+        # 默认：观赏性更“规整”所以关闭；精致更立体所以半开
+        if shutter_open_hint is None:
+            extra["windowShutterOpen"] = (detail_level == "refined")
+        else:
+            extra["windowShutterOpen"] = bool(shutter_open_hint)
+        # 默认深色；用户明确“浅色/橡木”则覆盖
+        extra["windowShutterBlock"] = shutter_block or "minecraft:dark_oak_trapdoor"
+
+    return BuildingSpec(
+        type=BuildingType.HOUSE,
+        style=BuildingStyle.ASIAN,
+        footprint=Footprint(shape="circle", radius=radius),
+        height=max(10, floors * 4 + 4),
+        floors=floors,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes=f"模板：福建土楼（直径≈{radius*2}，{floors}层，门朝{door_facing}）。使用确定性模板以保证形态稳定。",
+        extra=extra,
+    )
 
 
 def _parse_rect_size_from_text(s: str) -> Optional[tuple[int, int]]:
@@ -987,6 +1241,53 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     """
     调用大模型，把 BuildRequest -> BuildingSpec
     """
+    # -----------------------------
+    # Archetype / Landmark v1
+    # -----------------------------
+    # 两段式识别（v1 先启用 Stage-1 本地规则）：快且稳定，避免 AI 胡猜新 archetype
+    text_for_archetype = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    arche = detect_archetype_local(text_for_archetype)
+    force_strong = should_force_strong_mode(text_for_archetype)
+
+    # Strong/Soft 模式判定
+    # - 强还原：用户显式要求 或 本地命中强原型且置信度足够
+    # - 软灵感：只继承原型关键语义，但不强制专用 generator
+    strong = False
+    if arche is not None:
+        strong = force_strong or (arche.confidence >= 0.85)
+
+    # 已实现的强原型：土楼（其它 archetype 已进入 Registry/候选集，后续补专用生成器）
+    if arche is not None and arche.id == "tulou" and strong:
+        spec = _generate_tulou_building_spec(req)
+        # attach genome IR for routing/debug (does not change current behavior)
+        try:
+            g = BuildingGenome()
+            g.archetype = GenomeArchetype(id="tulou", confidence=float(arche.confidence))
+            if spec.extra is None:
+                spec.extra = {}
+            spec.extra["genome"] = g.model_dump()
+            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
+            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
+        except Exception:
+            pass
+        return spec
+
+    # 兼容旧逻辑：土楼（强形象地标）仍优先使用确定性模板（除非用户明确要求“随意/自由发挥”）
+    if _should_use_tulou_template(req):
+        spec = _generate_tulou_building_spec(req)
+        try:
+            if spec.extra is None:
+                spec.extra = {}
+            # soft inspired mode tagging
+            if arche is not None and arche.id == "tulou":
+                g = BuildingGenome()
+                g.archetype = GenomeArchetype(id="tulou", confidence=float(arche.confidence))
+                spec.extra["genome"] = g.model_dump()
+                spec.extra["archetypeMode"] = "INSPIRED"
+        except Exception:
+            pass
+        return spec
+
     # 明清官式院落：优先使用确定性模板（除非用户明确要求“随意/自由发挥”）
     if _should_use_mingqing_courtyard_template(req):
         return _generate_mingqing_courtyard_building_spec(req)
