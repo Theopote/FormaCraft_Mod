@@ -1,0 +1,23 @@
+{
+  "id": "mingqing_official",
+  "name": "Ming/Qing Official Courtyard",
+  "style": "ASIAN",
+  "palette": {
+    "wall": "minecraft:red_terracotta",
+    "roof": "minecraft:deepslate_tiles",
+    "floor": "minecraft:polished_andesite",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:stone_bricks",
+    "trim": "minecraft:dark_oak_planks",
+    "pillar": "minecraft:dark_oak_log"
+  },
+  "params": {
+    "roofType": "hipped",
+    "windowRatio": 0.18,
+    "windowStyle": "fence",
+    "wallPattern": "uniform",
+    "doorStyle": "double"
+  }
+}
+
+

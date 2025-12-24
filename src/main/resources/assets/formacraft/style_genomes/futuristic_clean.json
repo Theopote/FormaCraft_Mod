@@ -1,0 +1,23 @@
+{
+  "id": "futuristic_clean",
+  "name": "Futuristic Clean",
+  "style": "FUTURISTIC",
+  "palette": {
+    "wall": "minecraft:quartz_block",
+    "roof": "minecraft:quartz_block",
+    "floor": "minecraft:smooth_quartz",
+    "window": "minecraft:glass",
+    "foundation": "minecraft:smooth_stone",
+    "trim": "minecraft:light_blue_stained_glass",
+    "pillar": "minecraft:quartz_pillar"
+  },
+  "params": {
+    "roofType": "flat",
+    "windowRatio": 0.55,
+    "windowStyle": "stained",
+    "wallPattern": "uniform",
+    "doorStyle": "single"
+  }
+}
+
+

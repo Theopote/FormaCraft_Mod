@@ -1,0 +1,23 @@
+{
+  "id": "default",
+  "name": "Default",
+  "style": "DEFAULT",
+  "palette": {
+    "wall": "minecraft:oak_planks",
+    "roof": "minecraft:dark_oak_planks",
+    "floor": "minecraft:oak_planks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:cobblestone",
+    "trim": "minecraft:oak_log",
+    "pillar": "minecraft:oak_log"
+  },
+  "params": {
+    "roofType": "gable",
+    "windowRatio": 0.30,
+    "windowStyle": "pane",
+    "wallPattern": "uniform",
+    "doorStyle": "single"
+  }
+}
+
+

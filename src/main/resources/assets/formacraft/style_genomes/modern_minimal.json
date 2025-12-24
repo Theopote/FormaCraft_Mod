@@ -1,0 +1,23 @@
+{
+  "id": "modern_minimal",
+  "name": "Modern Minimal",
+  "style": "MODERN",
+  "palette": {
+    "wall": "minecraft:white_concrete",
+    "roof": "minecraft:black_concrete",
+    "floor": "minecraft:smooth_quartz",
+    "window": "minecraft:glass",
+    "foundation": "minecraft:smooth_stone",
+    "trim": "minecraft:black_concrete",
+    "pillar": "minecraft:quartz_pillar"
+  },
+  "params": {
+    "roofType": "flat",
+    "windowRatio": 0.45,
+    "windowStyle": "pane",
+    "wallPattern": "uniform",
+    "doorStyle": "single"
+  }
+}
+
+

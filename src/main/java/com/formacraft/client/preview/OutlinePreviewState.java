@@ -28,14 +28,14 @@ public class OutlinePreviewState {
     public static void setBlocks(List<OutlineBlock> newBlocks) {
         blocks = newBlocks != null ? new ArrayList<>(newBlocks) : new ArrayList<>();
         active = !blocks.isEmpty();
-        mergedBoxes = greedyMergeToBoxes(blocks, 2500);
+        mergedBoxes = greedyMergeToBoxes(blocks);
     }
 
     /**
      * 2D 贪婪合并（按每层 y）：将相邻的方块合并为更少的长方体盒子，减少“密密麻麻小框”。
      * 上限用于避免极端情况下合并结果过多导致卡顿。
      */
-    private static List<Box> greedyMergeToBoxes(List<OutlineBlock> blocks, int maxBoxes) {
+    private static List<Box> greedyMergeToBoxes(List<OutlineBlock> blocks) {
         List<Box> out = new ArrayList<>();
         if (blocks == null || blocks.isEmpty()) return out;
 
@@ -53,7 +53,7 @@ public class OutlinePreviewState {
             int y = e.getKey();
             Set<Long> set = e.getValue();
             while (!set.isEmpty()) {
-                if (out.size() >= maxBoxes) return out;
+                if (out.size() >= 2500) return out;
 
                 long seed = set.iterator().next();
                 int x0 = (int) (seed >> 32);

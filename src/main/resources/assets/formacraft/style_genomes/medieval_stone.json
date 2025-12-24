@@ -1,0 +1,23 @@
+{
+  "id": "medieval_stone",
+  "name": "Medieval Stone",
+  "style": "MEDIEVAL",
+  "palette": {
+    "wall": "minecraft:stone_bricks",
+    "roof": "minecraft:dark_oak_planks",
+    "floor": "minecraft:oak_planks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:cobblestone",
+    "trim": "minecraft:chiseled_stone_bricks",
+    "pillar": "minecraft:oak_log"
+  },
+  "params": {
+    "roofType": "gable",
+    "windowRatio": 0.20,
+    "windowStyle": "pane",
+    "wallPattern": "uniform",
+    "doorStyle": "arched"
+  }
+}
+
+

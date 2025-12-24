@@ -2,6 +2,8 @@ package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.style.StyleGenome;
+import com.formacraft.common.style.StyleGenomeRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.block.Block;
@@ -37,6 +39,10 @@ public class HouseGenerator implements StructureGenerator {
 
         BuildingStyle style = (spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
 
+        // 风格“基因”（数据驱动）：用于提供默认材质与部分默认参数
+        // 约定：spec.materials / spec.styleOptions 显式值永远优先。
+        StyleGenome genome = StyleGenomeRegistry.forStyle(style);
+
         // ===============================
         // Ming/Qing 官式中式宅院（优先实现）
         // ===============================
@@ -48,15 +54,30 @@ public class HouseGenerator implements StructureGenerator {
         }
 
         // 获取材质
-        BlockState wall = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null, defaultWall(style));
-        BlockState floor = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getFloor() : null, defaultFloor(style));
-        BlockState window = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getWindow() : null, defaultWindow(style));
-        BlockState roof = getStateOrDefault(world, spec.getMaterials() != null ? spec.getMaterials().getRoof() : null, defaultRoof(style));
+        String wallId = spec.getMaterials() != null ? spec.getMaterials().getWall() : null;
+        String floorId = spec.getMaterials() != null ? spec.getMaterials().getFloor() : null;
+        String windowId = spec.getMaterials() != null ? spec.getMaterials().getWindow() : null;
+        String roofId = spec.getMaterials() != null ? spec.getMaterials().getRoof() : null;
+
+        BlockState wall = getStateOrDefault(world, wallId,
+                getStateOrDefault(world, genome != null && genome.palette != null ? genome.palette.wall : null, defaultWall(style)));
+        BlockState floor = getStateOrDefault(world, floorId,
+                getStateOrDefault(world, genome != null && genome.palette != null ? genome.palette.floor : null, defaultFloor(style)));
+        BlockState window = getStateOrDefault(world, windowId,
+                getStateOrDefault(world, genome != null && genome.palette != null ? genome.palette.window : null, defaultWindow(style)));
+        BlockState roof = getStateOrDefault(world, roofId,
+                getStateOrDefault(world, genome != null && genome.palette != null ? genome.palette.roof : null, defaultRoof(style)));
 
         // 装饰/细节材质（不要求模型显式提供，但能显著提升观感）
-        BlockState trim = defaultTrim(style, wall);
-        BlockState foundation = defaultFoundation(style, wall);
-        BlockState pillar = defaultPillar(style);
+        BlockState trim = getStateOrDefault(world,
+                genome != null && genome.palette != null ? genome.palette.trim : null,
+                defaultTrim(style, wall));
+        BlockState foundation = getStateOrDefault(world,
+                genome != null && genome.palette != null ? genome.palette.foundation : null,
+                defaultFoundation(style, wall));
+        BlockState pillar = getStateOrDefault(world,
+                genome != null && genome.palette != null ? genome.palette.pillar : null,
+                defaultPillar(style));
         BlockState roofStairs = defaultRoofStairs(style, roof);
         BlockState roofSlab = defaultRoofSlab(style, roof);
         BlockState windowBlock = resolveWindowByStyleOption(style, spec, window);
@@ -67,15 +88,22 @@ public class HouseGenerator implements StructureGenerator {
         boolean hasDoor = spec.getFeatures() != null && spec.getFeatures().hasDoor();
         boolean hasRoof = spec.getFeatures() != null && spec.getFeatures().hasRoof();
         
-        // 获取风格选项（BuildingSpec 2.0）
-        String doorStyle = spec.getStyleOptions() != null ? 
-            spec.getStyleOptions().getDoorStyle() : "single";
-        String roofType = spec.getStyleOptions() != null ? 
-            spec.getStyleOptions().getRoofType() : "flat";
-        double windowRatio = spec.getStyleOptions() != null ? 
-            spec.getStyleOptions().getWindowRatio() : 0.3;
-        String wallPattern = spec.getStyleOptions() != null ?
-                spec.getStyleOptions().getWallPattern() : "uniform";
+        // 获取风格选项（BuildingSpec 2.0）：显式 styleOptions 优先，其次 genome.params，最后硬编码兜底
+        String doorStyle = (spec.getStyleOptions() != null && spec.getStyleOptions().getDoorStyle() != null)
+                ? spec.getStyleOptions().getDoorStyle()
+                : (genome != null && genome.params != null && genome.params.doorStyle != null ? genome.params.doorStyle : "single");
+
+        String roofType = (spec.getStyleOptions() != null && spec.getStyleOptions().getRoofType() != null)
+                ? spec.getStyleOptions().getRoofType()
+                : (genome != null && genome.params != null && genome.params.roofType != null ? genome.params.roofType : "flat");
+
+        double windowRatio = (spec.getStyleOptions() != null)
+                ? spec.getStyleOptions().getWindowRatio()
+                : (genome != null && genome.params != null && genome.params.windowRatio != null ? genome.params.windowRatio : 0.3);
+
+        String wallPattern = (spec.getStyleOptions() != null && spec.getStyleOptions().getWallPattern() != null)
+                ? spec.getStyleOptions().getWallPattern()
+                : (genome != null && genome.params != null && genome.params.wallPattern != null ? genome.params.wallPattern : "uniform");
 
         // 中式官式：默认用“攒尖/庑殿”类屋顶（近似 hipped/pyramid），并收紧开窗比例
         if (style == BuildingStyle.ASIAN) {

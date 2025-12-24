@@ -1,0 +1,23 @@
+{
+  "id": "rustic_wood",
+  "name": "Rustic Wood",
+  "style": "RUSTIC",
+  "palette": {
+    "wall": "minecraft:spruce_planks",
+    "roof": "minecraft:spruce_planks",
+    "floor": "minecraft:spruce_planks",
+    "window": "minecraft:glass_pane",
+    "foundation": "minecraft:cobblestone",
+    "trim": "minecraft:spruce_log",
+    "pillar": "minecraft:spruce_log"
+  },
+  "params": {
+    "roofType": "gable",
+    "windowRatio": 0.25,
+    "windowStyle": "pane",
+    "wallPattern": "striped",
+    "doorStyle": "single"
+  }
+}
+
+
