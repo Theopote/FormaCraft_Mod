@@ -4,6 +4,7 @@ AI Planner Service
 """
 import os
 import json
+import re
 import concurrent.futures
 from typing import Any, Dict, Optional, Union
 
@@ -221,6 +222,92 @@ def _resolve_timeout_sec_for_task(task: str, req: Optional[BuildRequest], model:
     if t == "city":
         return max(base, _LLM_CALL_TIMEOUT_CITY_SEC)
     return base
+
+
+def _should_use_mingqing_courtyard_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+
+    # 用户明确允许随意/自由发挥：不要强行套模板
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+
+    # 明清官式院落/四合院/宅院
+    has_dynasty = ("明清" in s) or ("ming" in s and "qing" in s) or ("qing" in s) or ("官式" in s)
+    has_courtyard = any(k in s for k in ("四合院", "院落", "宅院", "大院", "courtyard"))
+    # 如果用户写“主殿/厢房/门楼/院墙”也强烈暗示院落模板
+    has_parts = any(k in s for k in ("主殿", "厢房", "门楼", "院墙", "影壁"))
+    return (has_dynasty and (has_courtyard or has_parts)) or (has_courtyard and has_parts)
+
+
+def _parse_rect_size_from_text(s: str) -> Optional[tuple[int, int]]:
+    if not s:
+        return None
+    # 支持：20×20 / 20x20 / 20*20 / 20 X 20
+    m = re.search(r"(\d{1,3})\s*(?:×|x|\*)\s*(\d{1,3})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        w = int(m.group(1))
+        d = int(m.group(2))
+        if w <= 0 or d <= 0:
+            return None
+        return w, d
+    except Exception:
+        return None
+
+
+def _generate_mingqing_courtyard_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+    size = _parse_rect_size_from_text(text)
+    # 触发我们 Java 侧 ASIAN courtyard 生成器的最小安全尺寸
+    w, d = size if size else (20, 20)
+    w = max(16, min(64, w))
+    d = max(16, min(64, d))
+
+    # 明清官式 palette（尽量避免风格漂移成 stone+oak）
+    materials = Materials(
+        wall="minecraft:red_terracotta",
+        roof="minecraft:deepslate_tiles",
+        floor="minecraft:polished_andesite",
+        window="minecraft:glass_pane",
+        foundation="minecraft:stone_bricks",
+    )
+    features = Features(
+        hasWindows=True,
+        hasStairs=True,
+        hasDoor=True,
+        hasBalcony=False,
+        hasRoof=True,
+        hasRoofDecoration=True,
+        windowCount=0,
+        floorCount=1,
+    )
+    style_options = StyleOptions(
+        doorStyle="double",
+        roofType="hipped",
+        bridgeType="flat",
+        windowRatio=0.18,
+        windowStyle="fence",
+        wallPattern="uniform",
+    )
+
+    return BuildingSpec(
+        type=BuildingType.HOUSE,
+        style=BuildingStyle.ASIAN,
+        footprint=Footprint(shape="rectangle", width=w, depth=d),
+        height=10,
+        floors=1,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes=f"模板：明清官式院落（{w}×{d}）。为保证按描述生成，使用确定性模板（除非用户要求随意）。",
+        extra={"template": "mingqing_courtyard"},
+    )
 
 
 def _normalize_building_spec_dict(data: Any) -> Any:
@@ -900,6 +987,10 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     """
     调用大模型，把 BuildRequest -> BuildingSpec
     """
+    # 明清官式院落：优先使用确定性模板（除非用户明确要求“随意/自由发挥”）
+    if _should_use_mingqing_courtyard_template(req):
+        return _generate_mingqing_courtyard_building_spec(req)
+
     client = get_client(req)
 
     # 如果 OpenAI 客户端不可用，使用回退方案

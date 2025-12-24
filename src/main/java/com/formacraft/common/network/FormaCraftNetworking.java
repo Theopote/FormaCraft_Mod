@@ -392,6 +392,14 @@ public class FormaCraftNetworking {
                     requestText.contains("settlement") || requestText.contains("urban") ||
                     requestText.contains("城区") || requestText.contains("市中心") ||
                     requestText.contains("广场") || requestText.contains("集市");
+
+            // 明清官式院落（四合院/宅院）已经有确定性生成器（ASIAN 大 footprint 会直接生成主殿+厢房+门楼+院墙）。
+            // 这类请求如果走 Composite，LLM 往往会产出“多栋相同默认房子”，不符合用户预期。
+            // 因此优先走单体 BuildingSpec 链路，让生成更稳定可控。
+            boolean isMingQingCourtyard =
+                    (requestText.contains("明清") || requestText.contains("官式") || requestText.contains("ming") || requestText.contains("qing")) &&
+                    (requestText.contains("四合院") || requestText.contains("院落") || requestText.contains("宅院") || requestText.contains("大院") ||
+                            requestText.contains("courtyard"));
             boolean isComposite = !isCity && (
                     requestText.contains("要塞") || requestText.contains("fort") ||
                     requestText.contains("复合") || requestText.contains("组合") ||
@@ -403,6 +411,9 @@ public class FormaCraftNetworking {
                     requestText.contains("多栋") || requestText.contains("多座") ||
                     requestText.contains("院落群")
             );
+            if (isMingQingCourtyard) {
+                isComposite = false;
+            }
 
             if (isCity) {
                 AtomicBoolean hbAlive = new AtomicBoolean(true);
