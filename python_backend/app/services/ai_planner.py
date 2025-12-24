@@ -349,7 +349,9 @@ def _should_generate_composite(req: BuildRequest) -> bool:
     composite_keywords = [
         "城墙", "要塞", "复合", "组合", "village", "fort", "compound",
         "城堡", "村庄", "multiple", "several", "many", "多个", "几座", "几栋",
-        "围起来", "surround", "enclose"
+        "围起来", "surround", "enclose",
+        # 组团/群落（用户经常会这样描述“建筑群”，如果不识别会退化成单体建筑）
+        "群落", "建筑群", "建筑群落", "组团", "组群", "聚落", "多栋", "多座", "院落群"
     ]
     return any(keyword in request_lower for keyword in composite_keywords)
 

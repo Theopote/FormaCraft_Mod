@@ -349,7 +349,13 @@ public class FormaCraftNetworking {
             boolean isComposite = !isCity && (
                     requestText.contains("要塞") || requestText.contains("fort") ||
                     requestText.contains("复合") || requestText.contains("组合") ||
-                    requestText.contains("village") || requestText.contains("multiple")
+                    requestText.contains("village") || requestText.contains("multiple") ||
+                    // 建筑群落/组团（避免被当成单体建筑，结果生成一个塔楼）
+                    requestText.contains("群落") || requestText.contains("建筑群") ||
+                    requestText.contains("建筑群落") || requestText.contains("组团") ||
+                    requestText.contains("组群") || requestText.contains("聚落") ||
+                    requestText.contains("多栋") || requestText.contains("多座") ||
+                    requestText.contains("院落群")
             );
 
             if (isCity) {
