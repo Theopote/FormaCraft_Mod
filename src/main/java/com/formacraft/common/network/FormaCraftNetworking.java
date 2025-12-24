@@ -553,6 +553,10 @@ public class FormaCraftNetworking {
                             spec,
                             player.getUuid()
                     );
+                    // 明确提示：已开始执行（逐 tick 放置）
+                    try {
+                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已确认建造：开始放置方块…（若无变化，请等待几秒）"));
+                    } catch (Throwable ignored) {}
                     FormacraftMod.LOGGER.info("Player {} confirmed build at {}",
                             player.getName().getString(), origin);
                 }

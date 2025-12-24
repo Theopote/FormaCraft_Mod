@@ -75,13 +75,13 @@ public class BuildConfirmPanel {
                 .dimensions(0, 0, 120, 16)
                 .build();
 
-        applyPatchButton = ButtonWidget.builder(Text.literal("Apply"), b -> applyPatch())
+        applyPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.apply"), b -> applyPatch())
                 .dimensions(0, 0, 90, 16)
                 .build();
-        undoPatchButton = ButtonWidget.builder(Text.literal("Undo"), b -> FormaCraftNetworking.sendPatchUndo())
+        undoPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.undo"), b -> FormaCraftNetworking.sendPatchUndo())
                 .dimensions(0, 0, 70, 16)
                 .build();
-        redoPatchButton = ButtonWidget.builder(Text.literal("Redo"), b -> FormaCraftNetworking.sendPatchRedo())
+        redoPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.redo"), b -> FormaCraftNetworking.sendPatchRedo())
                 .dimensions(0, 0, 70, 16)
                 .build();
     }
@@ -205,7 +205,7 @@ public class BuildConfirmPanel {
         int titleY = y0 + 10;
         context.drawCenteredTextWithShadow(
                 client.textRenderer,
-                mode == Mode.PATCH ? Text.literal("Patch Preview") : Text.translatable("formacraft.preview.title"),
+                mode == Mode.PATCH ? Text.translatable("formacraft.preview.patch.title") : Text.translatable("formacraft.preview.title"),
                 centerX,
                 titleY,
                 0xFFFFFF
@@ -214,6 +214,14 @@ public class BuildConfirmPanel {
         int infoY = titleY + 20;
         int lineHeight = 12;
         int textX = x0 + 12;
+
+        // 一行明确提示：避免“面板看起来什么都没显示”
+        context.drawTextWithShadow(
+                client.textRenderer,
+                mode == Mode.PATCH ? Text.translatable("formacraft.preview.patch.hint") : Text.translatable("formacraft.preview.hint"),
+                textX, infoY, 0xAAAAAA
+        );
+        infoY += lineHeight + 2;
         
         if (mode == Mode.PATCH) {
             int place = 0, remove = 0, replace = 0;
@@ -230,14 +238,19 @@ public class BuildConfirmPanel {
             }
             context.drawTextWithShadow(
                     client.textRenderer,
-                    Text.literal("Origin: " + patchOrigin.getX() + ", " + patchOrigin.getY() + ", " + patchOrigin.getZ()),
+                    Text.translatable("formacraft.preview.patch.origin", patchOrigin.getX(), patchOrigin.getY(), patchOrigin.getZ()),
                     textX, infoY, 0xCCCCCC
             );
             infoY += lineHeight;
             context.drawTextWithShadow(
                     client.textRenderer,
-                    Text.literal("place: " + place + "  remove: " + remove + "  replace: " + replace
-                            + "  rejected: " + (rejectedPatchList != null ? rejectedPatchList.size() : 0)),
+                    Text.translatable(
+                            "formacraft.preview.patch.summary",
+                            place,
+                            remove,
+                            replace,
+                            (rejectedPatchList != null ? rejectedPatchList.size() : 0)
+                    ),
                     textX, infoY, 0xAAAAAA
             );
             infoY += lineHeight;

@@ -36,5 +36,30 @@
   "formacraft.settings.tooltip.cancel": "Discard changes",
   "formacraft.settings.tooltip.reset": "Reset to defaults",
   "formacraft.settings.error.api_key_empty": "API Key cannot be empty or invalid format",
-  "formacraft.settings.error.save_failed": "Failed to save: %s"
+  "formacraft.settings.error.save_failed": "Failed to save: %s",
+
+  "formacraft.preview.title": "Build Preview",
+  "formacraft.preview.hint": "Preview is ready. Click Confirm to build, or Cancel to discard (Esc to cancel).",
+  "formacraft.preview.confirm": "Confirm",
+  "formacraft.preview.cancel": "Cancel",
+  "formacraft.preview.type": "Type: %s",
+  "formacraft.preview.style": "Style: %s",
+  "formacraft.preview.radius": "Radius: %s",
+  "formacraft.preview.size": "Size: %s × %s",
+  "formacraft.preview.height": "Height: %s",
+  "formacraft.preview.materials": "Materials",
+  "formacraft.preview.wall": "Wall: %s",
+  "formacraft.preview.roof": "Roof: %s",
+  "formacraft.preview.features": "Features",
+  "formacraft.preview.has_windows": "Has windows",
+  "formacraft.preview.has_stairs": "Has stairs",
+  "formacraft.preview.notes": "AI Notes",
+
+  "formacraft.preview.patch.title": "Patch Preview",
+  "formacraft.preview.patch.hint": "Review changes, then click Apply. You can also Undo/Redo (Esc to cancel).",
+  "formacraft.preview.patch.apply": "Apply",
+  "formacraft.preview.patch.undo": "Undo",
+  "formacraft.preview.patch.redo": "Redo",
+  "formacraft.preview.patch.origin": "Origin: %s, %s, %s",
+  "formacraft.preview.patch.summary": "place: %s  remove: %s  replace: %s  rejected: %s"
 }

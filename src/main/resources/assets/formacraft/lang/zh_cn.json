@@ -36,5 +36,30 @@
   "formacraft.settings.tooltip.cancel": "放弃修改",
   "formacraft.settings.tooltip.reset": "恢复默认",
   "formacraft.settings.error.api_key_empty": "API 密钥不能为空或格式无效",
-  "formacraft.settings.error.save_failed": "保存失败: %s"
+  "formacraft.settings.error.save_failed": "保存失败: %s",
+
+  "formacraft.preview.title": "建造预览",
+  "formacraft.preview.hint": "已生成半透明预览；点击“确认”开始建造，或点“取消”放弃（Esc 取消）。",
+  "formacraft.preview.confirm": "确认",
+  "formacraft.preview.cancel": "取消",
+  "formacraft.preview.type": "类型：%s",
+  "formacraft.preview.style": "风格：%s",
+  "formacraft.preview.radius": "半径：%s",
+  "formacraft.preview.size": "尺寸：%s × %s",
+  "formacraft.preview.height": "高度：%s",
+  "formacraft.preview.materials": "材质",
+  "formacraft.preview.wall": "墙体：%s",
+  "formacraft.preview.roof": "屋顶：%s",
+  "formacraft.preview.features": "特性",
+  "formacraft.preview.has_windows": "包含窗户",
+  "formacraft.preview.has_stairs": "包含楼梯",
+  "formacraft.preview.notes": "AI 备注",
+
+  "formacraft.preview.patch.title": "补丁预览",
+  "formacraft.preview.patch.hint": "检查改动后点击“应用”；也可撤销/重做（Esc 取消）。",
+  "formacraft.preview.patch.apply": "应用",
+  "formacraft.preview.patch.undo": "撤销",
+  "formacraft.preview.patch.redo": "重做",
+  "formacraft.preview.patch.origin": "原点：%s, %s, %s",
+  "formacraft.preview.patch.summary": "放置：%s  移除：%s  替换：%s  被拒绝：%s"
 }

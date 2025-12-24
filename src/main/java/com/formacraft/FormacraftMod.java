@@ -2,6 +2,7 @@ package com.formacraft;
 
 import com.formacraft.common.config.ConfigManager;
 import com.formacraft.common.item.FormaCraftToolItem;
+import com.formacraft.server.build.BuildExecutionService;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
@@ -42,6 +43,10 @@ public class FormacraftMod implements ModInitializer {
 
 		LOGGER.info("FormaCraft initialized!");
 		ConfigManager.loadConfig();
+
+		// 关键：BuildExecutionService 的 Tick 处理器必须在“集成服务器（单机）”中也注册。
+		// DedicatedServerModInitializer 不会在单机触发；如果不在这里注册，确认建造只会入队但永远不执行。
+		BuildExecutionService.registerTickHandler();
 
 		// 先把 ID 写入 Settings，再创建物品，避免 "Item id not set" 崩溃
 		Item.Settings toolSettings = new Item.Settings().maxCount(1);
