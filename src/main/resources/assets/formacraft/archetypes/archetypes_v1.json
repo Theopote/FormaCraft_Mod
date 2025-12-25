@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "archetypes": [
+    {
+      "id": "tulou",
+      "aliases": ["土楼", "福建土楼", "永定土楼", "永定", "tulou", "fujian tulou", "yongding tulou"],
+      "category": "LANDMARK",
+      "generatorId": "tulou",
+      "defaults": { "diameter": 20, "floors": 3 },
+      "constraints": { "minDiameter": 12, "maxDiameter": 80 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "eiffel_tower",
+      "aliases": ["埃菲尔铁塔", "埃菲尔塔", "埃菲尔", "eiffel", "eiffel tower", "tour eiffel"],
+      "category": "LANDMARK",
+      "generatorId": "eiffel_tower",
+      "defaults": { "height": 60, "baseWidth": 27 },
+      "constraints": { "minHeight": 24, "maxHeight": 180, "minBaseWidth": 15, "maxBaseWidth": 81 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "temple_of_heaven",
+      "aliases": ["天坛", "祈年殿", "temple of heaven", "qiniandian"],
+      "category": "LANDMARK",
+      "generatorId": "temple_of_heaven",
+      "defaults": { "baseRadius": 18, "tiers": 3 },
+      "constraints": { "minBaseRadius": 10, "maxBaseRadius": 60 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "great_wall",
+      "aliases": ["长城", "万里长城", "great wall", "great wall of china"],
+      "category": "FORTIFICATION",
+      "generatorId": "great_wall",
+      "defaults": { "length": 120, "height": 10, "thickness": 5, "towerSpacing": 48, "followTerrain": true },
+      "constraints": { "minLength": 30, "maxLength": 800, "minHeight": 6, "maxHeight": 40, "minThickness": 3, "maxThickness": 15 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "golden_gate_bridge",
+      "aliases": ["金门大桥", "golden gate bridge", "golden gate"],
+      "category": "INFRASTRUCTURE",
+      "generatorId": "golden_gate_bridge",
+      "defaults": { "span": 180, "deckWidth": 9, "towerHeight": 44, "followTerrain": true },
+      "constraints": { "minSpan": 60, "maxSpan": 800, "minDeckWidth": 5, "maxDeckWidth": 41, "minTowerHeight": 18, "maxTowerHeight": 120 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "giant_wild_goose_pagoda",
+      "aliases": ["大慈恩寺", "大雁塔", "giant wild goose pagoda", "dayanta", "wild goose pagoda"],
+      "category": "LANDMARK",
+      "generatorId": "giant_wild_goose_pagoda",
+      "defaults": { "levels": 7, "height": 41, "baseWidth": 17 },
+      "constraints": { "minLevels": 3, "maxLevels": 13, "minHeight": 18, "maxHeight": 120, "minBaseWidth": 9, "maxBaseWidth": 41 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    }
+  ]
+}
+
+

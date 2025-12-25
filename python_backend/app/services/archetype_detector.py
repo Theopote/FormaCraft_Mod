@@ -14,9 +14,6 @@ class ArchetypeMatch:
     matched_alias: Optional[str] = None
 
 
-_ALIAS_MAP = alias_index()
-
-
 def detect_archetype_local(text: str) -> Optional[ArchetypeMatch]:
     """
     Stage 1: local fast/robust matching.
@@ -25,6 +22,7 @@ def detect_archetype_local(text: str) -> Optional[ArchetypeMatch]:
     if not text:
         return None
     s = text.lower()
+    _ALIAS_MAP = alias_index()
     hits: List[Tuple[str, str]] = []  # (alias, id)
     for alias, aid in _ALIAS_MAP.items():
         if alias and alias in s:

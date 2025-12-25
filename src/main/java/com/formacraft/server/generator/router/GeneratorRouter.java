@@ -1,6 +1,8 @@
 package com.formacraft.server.generator.router;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.archetype.ArchetypeCatalog;
+import com.formacraft.common.archetype.ArchetypeRegistry;
 import com.formacraft.common.genome.BuildingGenome;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.build.BuildingSpec;
@@ -32,18 +34,16 @@ public final class GeneratorRouter {
         }
 
         // 0) legacy landmark flag (keeps current behavior)
-        if (hasLandmark(spec, "tulou")) {
-            return new TulouGenerator();
-        }
+        StructureGenerator legacy = routeLegacyLandmark(spec);
+        if (legacy != null) return legacy;
 
         BuildingGenome genome = tryGetGenome(spec);
 
         // 1) archetype -> landmark (strong prototype)
         if (genome != null && genome.archetype != null && genome.archetype.id != null) {
             double conf = genome.archetype.confidence;
-            String a = genome.archetype.id.trim().toLowerCase();
             if (conf >= ARCHETYPE_STRONG_THRESHOLD) {
-                StructureGenerator g = routeStrongArchetype(a);
+                StructureGenerator g = routeByArchetypeId(genome.archetype.id);
                 if (g != null) return g;
             }
         }
@@ -66,14 +66,27 @@ public final class GeneratorRouter {
         };
     }
 
-    private static StructureGenerator routeStrongArchetype(String archetypeIdLower) {
-        if (archetypeIdLower == null) return null;
-        if (archetypeIdLower.contains("tulou") || archetypeIdLower.contains("土楼")) return new TulouGenerator();
-        if (archetypeIdLower.contains("great_wall") || archetypeIdLower.contains("wall") || archetypeIdLower.contains("长城")) return new WallGenerator();
-        if (archetypeIdLower.contains("bridge") || archetypeIdLower.contains("golden_gate") || archetypeIdLower.contains("桥")) return new BridgeGenerator();
-        if (archetypeIdLower.contains("tower") || archetypeIdLower.contains("eiffel") || archetypeIdLower.contains("塔")) return new TowerGenerator();
-        if (archetypeIdLower.contains("temple") || archetypeIdLower.contains("heaven") || archetypeIdLower.contains("天坛")) return new HouseGenerator();
-        return null;
+    private static StructureGenerator routeByArchetypeId(String archetypeId) {
+        if (archetypeId == null || archetypeId.isBlank()) return null;
+        ArchetypeCatalog.ArchetypeDef def = ArchetypeRegistry.getById(archetypeId);
+        if (def == null) return null;
+        return ArchetypeGeneratorFactory.fromGeneratorId(def.generatorId);
+    }
+
+    private static StructureGenerator routeLegacyLandmark(BuildingSpec spec) {
+        if (spec == null) return null;
+        Map<String, Object> extra = spec.getExtra();
+        if (extra == null) return null;
+        Object lm = extra.get("landmark");
+        if (lm == null) return null;
+        String s = String.valueOf(lm).trim();
+        if (s.isEmpty()) return null;
+
+        // legacy field usually already uses id, but allow keyword/alias match as well.
+        ArchetypeCatalog.ArchetypeDef def = ArchetypeRegistry.getById(s);
+        if (def == null) def = ArchetypeRegistry.matchByKeyword(s);
+        if (def == null) return null;
+        return ArchetypeGeneratorFactory.fromGeneratorId(def.generatorId);
     }
 
     private static BuildingGenome tryGetGenome(BuildingSpec spec) {
@@ -93,15 +106,7 @@ public final class GeneratorRouter {
         }
     }
 
-    private static boolean hasLandmark(BuildingSpec spec, String landmarkIdLower) {
-        if (spec == null) return false;
-        Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return false;
-        Object lm = extra.get("landmark");
-        if (lm == null) return false;
-        String s = String.valueOf(lm).trim().toLowerCase();
-        return s.contains(landmarkIdLower);
-    }
+    // NOTE: old hasLandmark helper removed in favor of data-driven ArchetypeRegistry
 }
 
 

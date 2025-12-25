@@ -1,8 +1,13 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.skeleton.radial.RadialPlan;
+import com.formacraft.common.skeleton.radial.RadialPrimitive;
+import com.formacraft.common.skeleton.radial.RadialPrimitiveKind;
+import com.formacraft.common.skeleton.radial.RadialRole;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.enums.BlockHalf;
@@ -13,6 +18,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.server.world.ServerWorld;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
@@ -118,28 +124,20 @@ public class TulouGenerator implements StructureGenerator {
         }
 
         // --- foundation ring (y=0) ---
-        for (int x = -radius; x <= radius; x++) {
-            for (int z = -radius; z <= radius; z++) {
-                int d2 = x * x + z * z;
-                // 底面承托：避免内部出现“空洞/悬空”
-                // - 居住环带：用 foundation 承托
-                // - 内院：用粗泥土（更像夯土庭院）
-                int outerFillR = radius - 1;
-                int innerFillR = innerRadius + 1;
-                if (d2 <= outerFillR * outerFillR && d2 >= innerFillR * innerFillR) {
-                    blocks.add(new PlannedBlock(c.add(x, 0, z), foundation));
-                } else if (d2 <= (innerRadius - 1) * (innerRadius - 1)) {
-                    blocks.add(new PlannedBlock(c.add(x, 0, z), Blocks.COARSE_DIRT.getDefaultState()));
-                }
-                if (d2 <= radius * radius && d2 >= (radius - 1) * (radius - 1)) {
-                    blocks.add(new PlannedBlock(c.add(x, 0, z), foundation));
-                }
-                // 内圈也做一圈地基，保证结构完整
-                if (d2 <= innerRadius * innerRadius && d2 >= (innerRadius - 1) * (innerRadius - 1)) {
-                    blocks.add(new PlannedBlock(c.add(x, 0, z), foundation));
-                }
-            }
-        }
+        RadialPlan basePlan = new RadialPlan();
+        int outerFillR = radius - 1;
+        int innerFillR = innerRadius + 1;
+        // 居住环带承托：annulus fill
+        basePlan.add(new RadialPrimitive(RadialPrimitiveKind.ANNULUS_FILL, RadialRole.BASE, outerFillR, innerFillR, 0, 0));
+        // 内院夯土：disk fill
+        basePlan.add(new RadialPrimitive(RadialPrimitiveKind.DISK_FILL, RadialRole.COURTYARD, innerRadius - 1, 0, 0, 0));
+        // 外圈/内圈地基 ring outline
+        basePlan.add(new RadialPrimitive(RadialPrimitiveKind.RING_OUTLINE, RadialRole.BASE, radius, 0, 0, 0));
+        basePlan.add(new RadialPrimitive(RadialPrimitiveKind.RING_OUTLINE, RadialRole.BASE, innerRadius, 0, 0, 0));
+        EnumMap<RadialRole, BlockState> basePalette = new EnumMap<>(RadialRole.class);
+        basePalette.put(RadialRole.BASE, foundation);
+        basePalette.put(RadialRole.COURTYARD, Blocks.COARSE_DIRT.getDefaultState());
+        blocks.addAll(new RadialPrimitiveInterpreter(basePalette).interpret(basePlan, c, world));
 
         // --- outer wall + windows ---
         for (int y = 1; y <= wallHeight; y++) {
@@ -207,19 +205,14 @@ public class TulouGenerator implements StructureGenerator {
         }
 
         // --- floors: ring area only, keep courtyard empty ---
+        RadialPlan floorPlan = new RadialPlan();
         for (int f = 0; f < floors; f++) {
             int y = 1 + f * floorHeight;
-            int outerFillR = radius - 1;
-            int innerFillR = innerRadius + 1;
-            for (int x = -outerFillR; x <= outerFillR; x++) {
-                for (int z = -outerFillR; z <= outerFillR; z++) {
-                    int d2 = x * x + z * z;
-                    if (d2 <= outerFillR * outerFillR && d2 >= innerFillR * innerFillR) {
-                        blocks.add(new PlannedBlock(c.add(x, y, z), floor));
-                    }
-                }
-            }
+            floorPlan.add(new RadialPrimitive(RadialPrimitiveKind.ANNULUS_FILL, RadialRole.FLOOR, outerFillR, innerFillR, y, y));
         }
+        EnumMap<RadialRole, BlockState> floorPalette = new EnumMap<>(RadialRole.class);
+        floorPalette.put(RadialRole.FLOOR, floor);
+        blocks.addAll(new RadialPrimitiveInterpreter(floorPalette).interpret(floorPlan, c, world));
 
         // --- vertical ladder shaft near inner ring (简化楼梯) ---
         // 位置：门的顺时针 90°（避免与大门冲突）

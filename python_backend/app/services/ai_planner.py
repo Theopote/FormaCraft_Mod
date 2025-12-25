@@ -25,6 +25,7 @@ from ..models.building_genome import BuildingGenome, Archetype as GenomeArchetyp
 from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
 from .archetype_detector import detect_archetype_local, should_force_strong_mode
+from .archetype_registry import get_archetype_def
 
 _LLM_CALL_TIMEOUT_SEC = float(os.getenv("LLM_CALL_TIMEOUT_SEC", "45"))
 _LLM_CALL_TIMEOUT_DEEPSEEK_SEC = float(os.getenv("LLM_CALL_TIMEOUT_DEEPSEEK_SEC", "60"))
@@ -266,6 +267,687 @@ def _should_use_tulou_template(req: Optional[BuildRequest]) -> bool:
     return any(k in s for k in ("土楼", "永定", "福建土楼", "tulou"))
 
 
+def _should_use_eiffel_tower_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+
+    # 用户明确允许随意/自由发挥：不要强行套模板
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+
+    return any(k in s for k in ("埃菲尔", "埃菲尔铁塔", "埃菲尔塔", "eiffel", "eiffel tower", "tour eiffel"))
+
+
+def _should_use_temple_of_heaven_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+
+    return any(k in s for k in ("天坛", "祈年殿", "temple of heaven", "qiniandian"))
+
+
+def _parse_radius_or_diameter_from_text(s: str) -> tuple[Optional[int], Optional[int]]:
+    """
+    Returns: (radius, diameter)
+    Accepts: 半径 12 / radius 12; 直径 24 / diameter 24
+    """
+    if not s:
+        return None, None
+    t = s.lower()
+    mr = re.search(r"(?:半径|radius)\s*(?:为|=|:)?\s*(\d{1,3})", t, flags=re.IGNORECASE)
+    md = re.search(r"(?:直径|diameter)\s*(?:为|=|:)?\s*(\d{1,3})", t, flags=re.IGNORECASE)
+    r = None
+    d = None
+    try:
+        if mr:
+            r = int(mr.group(1))
+            if r <= 0:
+                r = None
+    except Exception:
+        r = None
+    try:
+        if md:
+            d = int(md.group(1))
+            if d <= 0:
+                d = None
+    except Exception:
+        d = None
+    return r, d
+
+
+def _generate_temple_of_heaven_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+
+    # base size
+    arche_id = "temple_of_heaven"
+    r, d = _parse_radius_or_diameter_from_text(text)
+    base_radius = r if r is not None else (d // 2 if d is not None else _arche_default_int(arche_id, "baseRadius", 18))
+    base_radius = _clamp_with_arche_constraints(arche_id, base_radius, "minBaseRadius", "maxBaseRadius")
+    base_radius = max(10, min(60, base_radius))  # safety fallback
+    base_diam = base_radius * 2
+
+    # hall radius (usually smaller than base)
+    hall_radius = int(round(base_radius * 0.55))
+    hall_radius = max(6, min(base_radius - 3, hall_radius))
+
+    # overall height
+    height = _parse_height_from_text(text) or _arche_default_int(arche_id, "height", 28)
+    height = _clamp_with_arche_constraints(arche_id, height, "minHeight", "maxHeight")
+    height = max(18, min(80, height))  # safety fallback
+
+    tiers = 3  # 三层台基（标志性）
+    t_low = text.lower()
+    if any(k in t_low for k in ("两层台基", "2层台基", "two tiers")):
+        tiers = 2
+    if any(k in t_low for k in ("三层台基", "3层台基", "three tiers")):
+        tiers = 3
+
+    detail_level = "aesthetic"
+    if any(k in t_low for k in ("精致", "细节", "更复杂", "more detail", "refined", "ornate")):
+        detail_level = "refined"
+
+    materials = Materials(
+        wall="minecraft:white_concrete",
+        roof="minecraft:cyan_terracotta",
+        floor="minecraft:smooth_quartz",
+        window="minecraft:glass_pane",
+        foundation="minecraft:smooth_quartz",
+    )
+    features = Features(
+        hasWindows=False,
+        hasStairs=True,
+        hasDoor=True,
+        hasBalcony=True,
+        hasRoof=True,
+        hasRoofDecoration=True,
+        windowCount=0,
+        floorCount=1,
+    )
+    style_options = StyleOptions(
+        doorStyle="arched",
+        roofType="cone",
+        bridgeType="flat",
+        windowRatio=0.0,
+        windowStyle="pane",
+        wallPattern="uniform",
+    )
+
+    spec = BuildingSpec(
+        type=BuildingType.HOUSE,
+        style=BuildingStyle.ASIAN,
+        footprint=Footprint(shape="circle", radius=base_radius),
+        height=height,
+        floors=1,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes="Temple of Heaven (Qiniandian) (landmark archetype, parameterized)",
+        extra={
+            "landmark": "temple_of_heaven",
+            "baseRadius": base_radius,
+            "baseDiameter": base_diam,
+            "tiers": tiers,
+            "hallRadius": hall_radius,
+            "hallHeight": int(round(height * 0.62)),
+            "detailLevel": detail_level,
+            # allow material overrides in generator
+            "baseBlock": "minecraft:smooth_quartz",
+            "stairBlock": "minecraft:quartz_stairs",
+            "pillarBlock": "minecraft:white_concrete",
+            "wallBlock": "minecraft:white_concrete",
+            "roofBlock": "minecraft:cyan_terracotta",
+            "trimBlock": "minecraft:quartz_slab",
+            "railBlock": "minecraft:quartz_slab",
+            "accentBlock": "minecraft:yellow_terracotta",
+        },
+    )
+    return spec
+
+
+def _should_use_great_wall_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+    return any(k in s for k in ("长城", "万里长城", "great wall", "great wall of china"))
+
+
+def _parse_length_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：长度 120 / length=80 / 延伸 100
+    m = re.search(r"(?:长度|length|延伸|延长)\s*(?:为|=|:)?\s*(\d{1,4})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _parse_thickness_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    m = re.search(r"(?:厚度|宽度|thickness|width)\s*(?:为|=|:)?\s*(\d{1,2})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _parse_tower_spacing_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：烽火台间距 40 / 塔间距 32 / tower spacing 30
+    m = re.search(r"(?:烽火台间距|塔间距|tower\s*spacing|spacing)\s*(?:为|=|:)?\s*(\d{1,4})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _parse_follow_terrain_from_text(s: str) -> Optional[bool]:
+    if not s:
+        return None
+    t = s.lower()
+    if any(k in t for k in ("贴地形", "跟随地形", "沿地形", "follow terrain", "terrain")):
+        return True
+    if any(k in t for k in ("不贴地形", "不要跟随地形", "不要贴地形", "flat")):
+        return False
+    return None
+
+
+def _generate_great_wall_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+
+    arche_id = "great_wall"
+    length = _parse_length_from_text(text) or _arche_default_int(arche_id, "length", 120)
+    length = _clamp_with_arche_constraints(arche_id, length, "minLength", "maxLength")
+    length = max(30, min(800, length))  # safety fallback
+
+    height = _parse_height_from_text(text) or _arche_default_int(arche_id, "height", 10)
+    height = _clamp_with_arche_constraints(arche_id, height, "minHeight", "maxHeight")
+    height = max(6, min(40, height))  # safety fallback
+
+    thickness = _parse_thickness_from_text(text) or _arche_default_int(arche_id, "thickness", 5)
+    thickness = _clamp_with_arche_constraints(arche_id, thickness, "minThickness", "maxThickness")
+    thickness = max(3, min(15, thickness))  # safety fallback
+
+    facing = _parse_door_facing_from_text(text)  # reuse existing facing parser
+    if not facing:
+        # try from player facing
+        try:
+            facing = str(getattr(req.player, "facing", "")).strip().upper() if req and getattr(req, "player", None) else ""
+        except Exception:
+            facing = ""
+    if facing not in ("NORTH", "SOUTH", "EAST", "WEST"):
+        facing = "EAST"  # default: extend to east
+
+    tower_spacing = _parse_tower_spacing_from_text(text) or _arche_default_int(arche_id, "towerSpacing", 48)
+    tower_spacing = max(20, min(200, tower_spacing))
+
+    follow_terrain = _parse_follow_terrain_from_text(text)
+    if follow_terrain is None:
+        follow_terrain = _arche_default_bool(arche_id, "followTerrain", True)
+
+    t_low = text.lower()
+    detail_level = "aesthetic"
+    if any(k in t_low for k in ("精致", "细节", "更复杂", "more detail", "refined", "ornate")):
+        detail_level = "refined"
+
+    materials = Materials(
+        wall="minecraft:stone_bricks",
+        roof="minecraft:stone_bricks",
+        floor="minecraft:stone_bricks",
+        window="minecraft:iron_bars",
+        foundation="minecraft:cobblestone",
+    )
+    features = Features(
+        hasWindows=False,
+        hasStairs=True,
+        hasDoor=True,
+        hasBalcony=True,
+        hasRoof=False,
+        hasRoofDecoration=True,
+        windowCount=0,
+        floorCount=1,
+    )
+    style_options = StyleOptions(
+        doorStyle="arched",
+        roofType="flat",
+        bridgeType="flat",
+        windowRatio=0.0,
+        windowStyle="fence",
+        wallPattern="random",
+    )
+
+    # WallGenerator uses footprint.depth as length; GreatWallGenerator will read extras, but keep footprint consistent.
+    spec = BuildingSpec(
+        type=BuildingType.WALL,
+        style=BuildingStyle.MEDIEVAL,
+        footprint=Footprint(shape="rectangle", width=thickness, depth=length),
+        height=height,
+        floors=1,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes=f"模板：长城（length≈{length}，height≈{height}，thickness≈{thickness}，facing={facing}）。",
+        extra={
+            "landmark": "great_wall",
+            "wallLength": length,
+            "wallHeight": height,
+            "wallThickness": thickness,
+            "facing": facing,
+            "towerSpacing": tower_spacing,
+            "followTerrain": follow_terrain,
+            "detailLevel": detail_level,
+            "wallBlock": "minecraft:stone_bricks",
+            "mixWallBlocks": True,
+            "walkwayBlock": "minecraft:stone_bricks",
+            "crenelBlock": "minecraft:stone_brick_wall",
+            "towerBlock": "minecraft:stone_bricks",
+            "accentBlock": "minecraft:mossy_stone_bricks",
+        },
+    )
+    return spec
+
+
+def _should_use_golden_gate_bridge_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+    return any(k in s for k in ("金门大桥", "golden gate bridge", "golden gate"))
+
+
+def _parse_span_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：跨度 200 / span 180 / 主跨 220
+    m = re.search(r"(?:跨度|主跨|span)\s*(?:为|=|:)?\s*(\d{1,4})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _parse_deck_width_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：桥面宽度 9 / deck width 11
+    m = re.search(r"(?:桥面宽度|桥宽|deck\s*width|deckwidth)\s*(?:为|=|:)?\s*(\d{1,3})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _parse_tower_height_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：塔高 40 / 主塔高度 42 / tower height 45
+    m = re.search(r"(?:塔高|主塔高度|tower\s*height)\s*(?:为|=|:)?\s*(\d{1,3})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _generate_golden_gate_bridge_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+
+    arche_id = "golden_gate_bridge"
+    span = _parse_span_from_text(text) or _parse_length_from_text(text) or _arche_default_int(arche_id, "span", 180)
+    span = _clamp_with_arche_constraints(arche_id, span, "minSpan", "maxSpan")
+    span = max(60, min(800, span))  # safety fallback
+
+    deck_width = _parse_deck_width_from_text(text) or _parse_thickness_from_text(text) or _arche_default_int(arche_id, "deckWidth", 9)
+    deck_width = _clamp_with_arche_constraints(arche_id, deck_width, "minDeckWidth", "maxDeckWidth")
+    deck_width = max(5, min(41, deck_width))  # safety fallback
+    if deck_width % 2 == 0:
+        deck_width += 1
+
+    tower_height = _parse_tower_height_from_text(text) or _arche_default_int(arche_id, "towerHeight", 44)
+    tower_height = _clamp_with_arche_constraints(arche_id, tower_height, "minTowerHeight", "maxTowerHeight")
+    tower_height = max(18, min(120, tower_height))  # safety fallback
+
+    facing = _parse_door_facing_from_text(text)
+    if not facing:
+        try:
+            facing = str(getattr(req.player, "facing", "")).strip().upper() if req and getattr(req, "player", None) else ""
+        except Exception:
+            facing = ""
+    if facing not in ("NORTH", "SOUTH", "EAST", "WEST"):
+        facing = "EAST"
+
+    follow_terrain = _parse_follow_terrain_from_text(text)
+    if follow_terrain is None:
+        follow_terrain = _arche_default_bool(arche_id, "followTerrain", True)
+
+    t_low = text.lower()
+    detail_level = "aesthetic"
+    if any(k in t_low for k in ("精致", "细节", "更复杂", "more detail", "refined", "ornate")):
+        detail_level = "refined"
+
+    materials = Materials(
+        wall="minecraft:red_terracotta",      # towers
+        roof="minecraft:red_terracotta",
+        floor="minecraft:polished_andesite",  # deck
+        window="minecraft:iron_bars",         # hangers
+        foundation="minecraft:stone_bricks",
+    )
+    features = Features(
+        hasWindows=False,
+        hasStairs=True,
+        hasDoor=False,
+        hasBalcony=True,
+        hasRoof=False,
+        hasRoofDecoration=True,
+        windowCount=0,
+        floorCount=1,
+    )
+    style_options = StyleOptions(
+        doorStyle="none",
+        roofType="flat",
+        bridgeType="suspension",
+        windowRatio=0.0,
+        windowStyle="fence",
+        wallPattern="uniform",
+    )
+
+    spec = BuildingSpec(
+        type=BuildingType.BRIDGE,
+        style=BuildingStyle.MODERN,
+        footprint=Footprint(shape="rectangle", width=deck_width, depth=span),
+        height=max(10, tower_height),
+        floors=1,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes=f"模板：金门大桥（span≈{span}，deck≈{deck_width}，tower≈{tower_height}，facing={facing}）。",
+        extra={
+            "landmark": "golden_gate_bridge",
+            "span": span,
+            "deckWidth": deck_width,
+            "towerHeight": tower_height,
+            "facing": facing,
+            "followTerrain": follow_terrain,
+            "detailLevel": detail_level,
+            "towerBlock": "minecraft:red_terracotta",
+            "deckBlock": "minecraft:polished_andesite",
+            "cableBlock": "minecraft:red_wool",
+            "hangerBlock": "minecraft:iron_bars",
+            "railBlock": "minecraft:iron_bars",
+            "foundationBlock": "minecraft:stone_bricks",
+        },
+    )
+    return spec
+
+
+def _should_use_giant_wild_goose_pagoda_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+    return any(k in s for k in ("大慈恩寺", "大雁塔", "giant wild goose pagoda", "dayanta", "wild goose pagoda"))
+
+
+def _parse_levels_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：7层/七层/层数 7 / levels 7
+    m = re.search(r"(?:层数|levels|storeys|stories)\s*(?:为|=|:)?\s*(\d{1,2})", s, flags=re.IGNORECASE)
+    if m:
+        try:
+            v = int(m.group(1))
+            return v if v > 0 else None
+        except Exception:
+            return None
+    m = re.search(r"(\d{1,2})\s*(?:层|floor|storey|story)", s, flags=re.IGNORECASE)
+    if m:
+        try:
+            v = int(m.group(1))
+            return v if v > 0 else None
+        except Exception:
+            return None
+    # 中文数字（简化：只覆盖常用）
+    t = s.lower()
+    if "七层" in t:
+        return 7
+    if "五层" in t:
+        return 5
+    if "九层" in t:
+        return 9
+    return None
+
+
+def _generate_giant_wild_goose_pagoda_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+
+    arche_id = "giant_wild_goose_pagoda"
+    levels = _parse_levels_from_text(text) or _arche_default_int(arche_id, "levels", 7)
+    levels = _clamp_with_arche_constraints(arche_id, levels, "minLevels", "maxLevels")
+    levels = max(3, min(13, levels))  # safety fallback
+
+    height = _parse_height_from_text(text) or _arche_default_int(arche_id, "height", (levels * 5 + 6))
+    height = _clamp_with_arche_constraints(arche_id, height, "minHeight", "maxHeight")
+    height = max(18, min(120, height))  # safety fallback
+
+    base_w = _parse_base_width_from_text(text) or _arche_default_int(arche_id, "baseWidth", 17)
+    base_w = _clamp_with_arche_constraints(arche_id, base_w, "minBaseWidth", "maxBaseWidth")
+    base_w = max(9, min(41, base_w))  # safety fallback
+    if base_w % 2 == 0:
+        base_w += 1
+
+    facing = _parse_door_facing_from_text(text)
+    if not facing:
+        try:
+            facing = str(getattr(req.player, "facing", "")).strip().upper() if req and getattr(req, "player", None) else ""
+        except Exception:
+            facing = ""
+    if facing not in ("NORTH", "SOUTH", "EAST", "WEST"):
+        facing = "SOUTH"
+
+    t_low = text.lower()
+    detail_level = "aesthetic"
+    if any(k in t_low for k in ("精致", "细节", "更复杂", "more detail", "refined", "ornate")):
+        detail_level = "refined"
+
+    materials = Materials(
+        wall="minecraft:bricks",
+        roof="minecraft:brick_slab",
+        floor="minecraft:smooth_stone",
+        window="minecraft:air",
+        foundation="minecraft:stone_bricks",
+    )
+    features = Features(
+        hasWindows=False,
+        hasStairs=True,
+        hasDoor=True,
+        hasBalcony=True,
+        hasRoof=True,
+        hasRoofDecoration=True,
+        windowCount=0,
+        floorCount=levels,
+    )
+    style_options = StyleOptions(
+        doorStyle="arched",
+        roofType="hipped",
+        bridgeType="flat",
+        windowRatio=0.0,
+        windowStyle="pane",
+        wallPattern="uniform",
+    )
+
+    spec = BuildingSpec(
+        type=BuildingType.TOWER,
+        style=BuildingStyle.ASIAN,
+        footprint=Footprint(shape="rectangle", width=base_w, depth=base_w),
+        height=height,
+        floors=levels,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes=f"模板：大慈恩寺·大雁塔（levels={levels}，h≈{height}，base≈{base_w}，facing={facing}）。",
+        extra={
+            "landmark": "giant_wild_goose_pagoda",
+            "levels": levels,
+            "towerHeight": height,
+            "baseWidth": base_w,
+            "facing": facing,
+            "detailLevel": detail_level,
+            "bodyBlock": "minecraft:bricks",
+            "trimBlock": "minecraft:stone_brick_slab",
+            "eaveBlock": "minecraft:brick_slab",
+            "accentBlock": "minecraft:chiseled_stone_bricks",
+        },
+    )
+    return spec
+
+
+def _parse_height_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：高度 80 / 高80 / height=80
+    m = re.search(r"(?:高度|height)\s*(?:为|=|:)?\s*(\d{1,3})", s, flags=re.IGNORECASE)
+    if not m:
+        m = re.search(r"(?:\bhigh|\bheight)\s*(?:=|:)?\s*(\d{1,3})", s, flags=re.IGNORECASE)
+    if not m:
+        m = re.search(r"(?:\b高)\s*(\d{1,3})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _parse_base_width_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    # 支持：底座宽度 24 / 底边 30 / base width=20 / span 18
+    m = re.search(r"(?:底座宽度|底座宽|底边|底宽|base\s*width|basewidth|span)\s*(?:为|=|:)?\s*(\d{1,3})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _generate_eiffel_tower_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+
+    arche_id = "eiffel_tower"
+    height = _parse_height_from_text(text) or _arche_default_int(arche_id, "height", 60)
+    height = _clamp_with_arche_constraints(arche_id, height, "minHeight", "maxHeight")
+    height = max(24, min(180, height))  # safety fallback
+
+    base_w = _parse_base_width_from_text(text) or _arche_default_int(arche_id, "baseWidth", 27)
+    base_w = _clamp_with_arche_constraints(arche_id, base_w, "minBaseWidth", "maxBaseWidth")
+    base_w = max(14, min(80, base_w))  # safety fallback
+    # prefer odd width for nicer symmetry (centered on origin)
+    if base_w % 2 == 0:
+        base_w += 1
+
+    t_low = text.lower()
+    detail_level = "aesthetic"
+    if any(k in t_low for k in ("精致", "细节", "更复杂", "more detail", "refined", "ornate")):
+        detail_level = "refined"
+
+    materials = Materials(
+        wall="minecraft:iron_block",
+        roof="minecraft:iron_block",
+        floor="minecraft:smooth_stone",
+        window="minecraft:glass_pane",
+        foundation="minecraft:stone_bricks",
+    )
+    features = Features(
+        hasWindows=False,
+        hasStairs=True,
+        hasDoor=False,
+        hasBalcony=True,
+        hasRoof=False,
+        hasRoofDecoration=False,
+        windowCount=0,
+        floorCount=1,
+    )
+    style_options = StyleOptions(
+        doorStyle="none",
+        roofType="flat",
+        bridgeType="flat",
+        windowRatio=0.0,
+        windowStyle="pane",
+        wallPattern="uniform",
+    )
+
+    spec = BuildingSpec(
+        type=BuildingType.TOWER,
+        style=BuildingStyle.MODERN,
+        footprint=Footprint(shape="rectangle", width=base_w, depth=base_w),
+        height=height,
+        floors=1,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes="Eiffel Tower (landmark archetype, parameterized)",
+        extra={
+            "landmark": "eiffel_tower",
+            "towerHeight": height,
+            "baseWidth": base_w,
+            "platformCount": 2,
+            "detailLevel": detail_level,
+            # allow future overrides in generator
+            "legBlock": "minecraft:iron_block",
+            "braceBlock": "minecraft:iron_bars",
+            "platformBlock": "minecraft:smooth_stone",
+            "railBlock": "minecraft:iron_bars",
+            "spireBlock": "minecraft:iron_block",
+        },
+    )
+    return spec
+
+
 def _parse_diameter_from_text(s: str) -> Optional[int]:
     if not s:
         return None
@@ -305,6 +987,72 @@ def _parse_door_facing_from_text(s: str) -> Optional[str]:
     if "west" in t:
         return "WEST"
     return None
+
+
+def _to_int_safe(v: Any) -> Optional[int]:
+    try:
+        if v is None:
+            return None
+        if isinstance(v, bool):
+            return int(v)
+        if isinstance(v, (int, float)):
+            return int(v)
+        s = str(v).strip()
+        if not s:
+            return None
+        return int(float(s))
+    except Exception:
+        return None
+
+
+def _to_bool_safe(v: Any) -> Optional[bool]:
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return v
+    s = str(v).strip().lower()
+    if not s:
+        return None
+    if s in ("true", "1", "yes", "y", "on"):
+        return True
+    if s in ("false", "0", "no", "n", "off"):
+        return False
+    return None
+
+
+def _arche_default_int(archetype_id: str, key: str, fallback: int) -> int:
+    d = get_archetype_def(archetype_id)
+    if d and isinstance(d.defaults_map, dict):
+        v = _to_int_safe(d.defaults_map.get(key))
+        if v is not None:
+            return v
+    return fallback
+
+
+def _arche_default_bool(archetype_id: str, key: str, fallback: bool) -> bool:
+    d = get_archetype_def(archetype_id)
+    if d and isinstance(d.defaults_map, dict):
+        v = _to_bool_safe(d.defaults_map.get(key))
+        if v is not None:
+            return v
+    return fallback
+
+
+def _arche_constraint_int(archetype_id: str, key: str) -> Optional[int]:
+    d = get_archetype_def(archetype_id)
+    if d and isinstance(d.constraints_map, dict):
+        return _to_int_safe(d.constraints_map.get(key))
+    return None
+
+
+def _clamp_with_arche_constraints(archetype_id: str, value: int, min_key: str, max_key: str) -> int:
+    mn = _arche_constraint_int(archetype_id, min_key)
+    mx = _arche_constraint_int(archetype_id, max_key)
+    if mn is not None:
+        value = max(mn, value)
+    if mx is not None:
+        value = min(mx, value)
+    return value
 
 
 def _parse_ring_thickness_from_text(s: str) -> Optional[int]:
@@ -405,19 +1153,22 @@ def _parse_shutter_color_from_text(s: str) -> Optional[str]:
 
 def _generate_tulou_building_spec(req: BuildRequest) -> BuildingSpec:
     text = (req.requestText or "") + "\n" + (req.userMessage or "")
-    diameter = _parse_diameter_from_text(text) or 20
-    diameter = max(12, min(80, diameter))
+    arche_id = "tulou"
+    diameter = _parse_diameter_from_text(text) or _arche_default_int(arche_id, "diameter", 20)
+    diameter = _clamp_with_arche_constraints(arche_id, diameter, "minDiameter", "maxDiameter")
+    diameter = max(12, min(80, diameter))  # safety fallback
     radius = max(6, diameter // 2)
 
     # 层数：可从文本粗略提取，如“3层/三层”；没写则默认 3
-    floors = 3
+    floors = _arche_default_int(arche_id, "floors", 3)
     m = re.search(r"(\d)\s*(?:层|floor)", text, flags=re.IGNORECASE)
     if m:
         try:
             floors = int(m.group(1))
         except Exception:
-            floors = 3
-    floors = max(2, min(6, floors))
+            floors = _arche_default_int(arche_id, "floors", 3)
+    floors = _clamp_with_arche_constraints(arche_id, floors, "minFloors", "maxFloors")
+    floors = max(2, min(6, floors))  # safety fallback
 
     door_facing = _parse_door_facing_from_text(text) or "SOUTH"
     ring_thickness_req = _parse_ring_thickness_from_text(text)
@@ -1256,13 +2007,83 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     if arche is not None:
         strong = force_strong or (arche.confidence >= 0.85)
 
-    # 已实现的强原型：土楼（其它 archetype 已进入 Registry/候选集，后续补专用生成器）
+    # 已实现的强原型：土楼、埃菲尔铁塔（其它 archetype 已进入 Registry/候选集，后续补专用生成器）
     if arche is not None and arche.id == "tulou" and strong:
         spec = _generate_tulou_building_spec(req)
         # attach genome IR for routing/debug (does not change current behavior)
         try:
             g = BuildingGenome()
             g.archetype = GenomeArchetype(id="tulou", confidence=float(arche.confidence))
+            if spec.extra is None:
+                spec.extra = {}
+            spec.extra["genome"] = g.model_dump()
+            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
+            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
+        except Exception:
+            pass
+        return spec
+
+    if arche is not None and arche.id == "eiffel_tower" and strong:
+        spec = _generate_eiffel_tower_building_spec(req)
+        try:
+            g = BuildingGenome()
+            g.archetype = GenomeArchetype(id="eiffel_tower", confidence=float(arche.confidence))
+            if spec.extra is None:
+                spec.extra = {}
+            spec.extra["genome"] = g.model_dump()
+            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
+            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
+        except Exception:
+            pass
+        return spec
+
+    if arche is not None and arche.id == "temple_of_heaven" and strong:
+        spec = _generate_temple_of_heaven_building_spec(req)
+        try:
+            g = BuildingGenome()
+            g.archetype = GenomeArchetype(id="temple_of_heaven", confidence=float(arche.confidence))
+            if spec.extra is None:
+                spec.extra = {}
+            spec.extra["genome"] = g.model_dump()
+            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
+            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
+        except Exception:
+            pass
+        return spec
+
+    if arche is not None and arche.id == "great_wall" and strong:
+        spec = _generate_great_wall_building_spec(req)
+        try:
+            g = BuildingGenome()
+            g.archetype = GenomeArchetype(id="great_wall", confidence=float(arche.confidence))
+            if spec.extra is None:
+                spec.extra = {}
+            spec.extra["genome"] = g.model_dump()
+            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
+            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
+        except Exception:
+            pass
+        return spec
+
+    if arche is not None and arche.id == "golden_gate_bridge" and strong:
+        spec = _generate_golden_gate_bridge_building_spec(req)
+        try:
+            g = BuildingGenome()
+            g.archetype = GenomeArchetype(id="golden_gate_bridge", confidence=float(arche.confidence))
+            if spec.extra is None:
+                spec.extra = {}
+            spec.extra["genome"] = g.model_dump()
+            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
+            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
+        except Exception:
+            pass
+        return spec
+
+    if arche is not None and arche.id == "giant_wild_goose_pagoda" and strong:
+        spec = _generate_giant_wild_goose_pagoda_building_spec(req)
+        try:
+            g = BuildingGenome()
+            g.archetype = GenomeArchetype(id="giant_wild_goose_pagoda", confidence=float(arche.confidence))
             if spec.extra is None:
                 spec.extra = {}
             spec.extra["genome"] = g.model_dump()
@@ -1282,6 +2103,81 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
             if arche is not None and arche.id == "tulou":
                 g = BuildingGenome()
                 g.archetype = GenomeArchetype(id="tulou", confidence=float(arche.confidence))
+                spec.extra["genome"] = g.model_dump()
+                spec.extra["archetypeMode"] = "INSPIRED"
+        except Exception:
+            pass
+        return spec
+
+    # 兼容旧逻辑：埃菲尔铁塔（强形象地标）
+    if _should_use_eiffel_tower_template(req):
+        spec = _generate_eiffel_tower_building_spec(req)
+        try:
+            if spec.extra is None:
+                spec.extra = {}
+            if arche is not None and arche.id == "eiffel_tower":
+                g = BuildingGenome()
+                g.archetype = GenomeArchetype(id="eiffel_tower", confidence=float(arche.confidence))
+                spec.extra["genome"] = g.model_dump()
+                spec.extra["archetypeMode"] = "INSPIRED"
+        except Exception:
+            pass
+        return spec
+
+    # 兼容旧逻辑：天坛（祈年殿）（强形象地标）
+    if _should_use_temple_of_heaven_template(req):
+        spec = _generate_temple_of_heaven_building_spec(req)
+        try:
+            if spec.extra is None:
+                spec.extra = {}
+            if arche is not None and arche.id == "temple_of_heaven":
+                g = BuildingGenome()
+                g.archetype = GenomeArchetype(id="temple_of_heaven", confidence=float(arche.confidence))
+                spec.extra["genome"] = g.model_dump()
+                spec.extra["archetypeMode"] = "INSPIRED"
+        except Exception:
+            pass
+        return spec
+
+    # 兼容旧逻辑：长城（强形象地标）
+    if _should_use_great_wall_template(req):
+        spec = _generate_great_wall_building_spec(req)
+        try:
+            if spec.extra is None:
+                spec.extra = {}
+            if arche is not None and arche.id == "great_wall":
+                g = BuildingGenome()
+                g.archetype = GenomeArchetype(id="great_wall", confidence=float(arche.confidence))
+                spec.extra["genome"] = g.model_dump()
+                spec.extra["archetypeMode"] = "INSPIRED"
+        except Exception:
+            pass
+        return spec
+
+    # 兼容旧逻辑：金门大桥（强形象地标）
+    if _should_use_golden_gate_bridge_template(req):
+        spec = _generate_golden_gate_bridge_building_spec(req)
+        try:
+            if spec.extra is None:
+                spec.extra = {}
+            if arche is not None and arche.id == "golden_gate_bridge":
+                g = BuildingGenome()
+                g.archetype = GenomeArchetype(id="golden_gate_bridge", confidence=float(arche.confidence))
+                spec.extra["genome"] = g.model_dump()
+                spec.extra["archetypeMode"] = "INSPIRED"
+        except Exception:
+            pass
+        return spec
+
+    # 兼容旧逻辑：大慈恩寺（大雁塔）（强形象地标）
+    if _should_use_giant_wild_goose_pagoda_template(req):
+        spec = _generate_giant_wild_goose_pagoda_building_spec(req)
+        try:
+            if spec.extra is None:
+                spec.extra = {}
+            if arche is not None and arche.id == "giant_wild_goose_pagoda":
+                g = BuildingGenome()
+                g.archetype = GenomeArchetype(id="giant_wild_goose_pagoda", confidence=float(arche.confidence))
                 spec.extra["genome"] = g.model_dump()
                 spec.extra["archetypeMode"] = "INSPIRED"
         except Exception:

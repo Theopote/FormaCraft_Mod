@@ -15,6 +15,9 @@
 实现：
 - `python_backend/app/services/archetype_registry.py`
 - `python_backend/app/services/archetype_detector.py`
+- 统一数据源：`src/main/resources/assets/formacraft/archetypes/archetypes_v1.json`
+  - Python 默认直接读取该文件（可用环境变量 `FORMACRAFT_ARCHETYPES_JSON` 覆盖路径）
+  - Java 从 classpath 读取同路径资源
 
 ### Stage 2：AI 多选确认（v1 预留）
 v1 先不强制启用（避免增加额外 LLM 调用），后续接入时必须采用“候选列表多选一”，防止幻觉创造新 archetype。
