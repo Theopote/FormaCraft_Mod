@@ -86,7 +86,7 @@ public final class CandidateGenerator {
                 double slopeScore = 1.0 / (1.0 + (m.slopeAvg() * 4.0));
                 double costScore = 1.0 / (1.0 + (m.flattenCost() / 20.0));
                 double centerBias = 1.0 - area2.normalizedDistanceToCenter(rel);
-                double importance = clamp01(unit != null ? (unit.importance / 10.0) : 0.0);
+                double importance = clamp01(unit.importance / 10.0);
 
                 double wCost = (cfg != null) ? cfg.wCost : 0.40;
                 double wSlope = (cfg != null) ? cfg.wSlope : 0.25;
@@ -124,8 +124,7 @@ public final class CandidateGenerator {
 
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
     }
 }
 

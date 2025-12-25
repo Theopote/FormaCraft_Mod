@@ -97,20 +97,35 @@ public class CityBuilder {
                     if (sp0 == null || sp0.getSpec() == null || sp0.getOffset() != null) continue;
                     missing.add(sp0);
                 }
+
+                // Pick a "main building" by volume proxy (w*d*h) among missing-offset structures.
+                int mainIdx = -1;
+                long bestVol = -1;
+                for (int i = 0; i < missing.size(); i++) {
+                    BuildingSpec bs = missing.get(i).getSpec();
+                    if (bs == null) continue;
+                    int w0 = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 8;
+                    int d0 = (bs.getFootprint() != null && bs.getFootprint().getDepth() > 0) ? bs.getFootprint().getDepth() : 6;
+                    int h0 = Math.max(4, bs.getHeight());
+                    long vol = (long) w0 * (long) d0 * (long) h0;
+                    if (vol > bestVol) { bestVol = vol; mainIdx = i; }
+                }
+
                 for (CitySpec.StructurePlan sp0 : missing) {
                     BuildingSpec bs = sp0.getSpec();
                     int w = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 8;
                     int d = (bs.getFootprint() != null && bs.getFootprint().getDepth() > 0) ? bs.getFootprint().getDepth() : 6;
                     int h = Math.max(4, bs.getHeight());
                     String id = "city_unit_" + idx;
-                    BuildingUnit u = new BuildingUnit(id, w, d, h, 5);
+                    int importance = computeAutoImportance(bs, idx, mainIdx, bestVol);
+                    BuildingUnit u = new BuildingUnit(id, w, d, h, importance);
                     units.add(u);
                     List<Candidate> cands = CandidateGenerator.generate(u, area, fields, world, origin, cfg);
                     candidatesById.put(id, cands);
                     idx++;
                 }
 
-                List<BuildingPlacement> placed = PlacementSolver.solve(units, candidatesById, cfg.minGap, cfg.maxBacktrack);
+                List<BuildingPlacement> placed = PlacementSolver.solve(units, candidatesById, cfg.minGap, cfg.maxBacktrack, cfg);
                 java.util.Map<CitySpec.StructurePlan, BlockPos> m = new java.util.HashMap<>();
                 for (int i = 0; i < Math.min(missing.size(), placed.size()); i++) {
                     BuildingPlacement p = placed.get(i);
@@ -370,6 +385,70 @@ public class CityBuilder {
             }
         } catch (Exception ignored) {}
         return Math.max(min, Math.min(max, n));
+    }
+
+    private static int computeAutoImportance(BuildingSpec bs, int idx, int mainIdx, long bestVol) {
+        // 1) explicit override: spec.extra.importance in [1..10]
+        if (bs != null && bs.getExtra() != null) {
+            Integer ov = tryParseInt(bs.getExtra().get("importance"));
+            if (ov != null) return clampInt(ov, 5, 1, 10);
+        }
+
+        int imp = 5;
+
+        // 2) main building gets priority
+        if (idx == mainIdx) imp = 9;
+
+        // 3) archetype/template hints
+        String template = null;
+        if (bs != null && bs.getExtra() != null) {
+            Object t = bs.getExtra().get("template");
+            if (t != null) template = String.valueOf(t).trim().toLowerCase(java.util.Locale.ROOT);
+            Object a = bs.getExtra().get("archetypeId");
+            if (a != null && String.valueOf(a).trim().length() > 0) imp = Math.max(imp, 10);
+        }
+        if (template != null) {
+            if (template.contains("eiffel") || template.contains("temple_of_heaven") || template.contains("tulou")
+                    || template.contains("golden_gate") || template.contains("great_wall") || template.contains("pagoda")
+                    || template.contains("mingqing_courtyard") || template.contains("castle_compound")) {
+                imp = Math.max(imp, 10);
+            }
+        }
+
+        // 4) type heuristics
+        if (bs != null && bs.getType() != null) {
+            switch (bs.getType()) {
+                case TOWER -> imp = Math.max(imp, 9);
+                case CASTLE, BRIDGE, WALL -> imp = Math.max(imp, 8);
+                default -> {}
+            }
+        }
+
+        // 5) volume proxy relative to max
+        if (bs != null && bestVol > 0) {
+            int w = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 8;
+            int d = (bs.getFootprint() != null && bs.getFootprint().getDepth() > 0) ? bs.getFootprint().getDepth() : 6;
+            int h = Math.max(4, bs.getHeight());
+            long vol = (long) w * (long) d * (long) h;
+            double r = (double) vol / (double) bestVol;
+            if (r >= 0.90) imp = Math.max(imp, 9);
+            else if (r >= 0.65) imp = Math.max(imp, 7);
+            else if (r >= 0.40) imp = Math.max(imp, 6);
+        }
+
+        return clampInt(imp, 5, 1, 10);
+    }
+
+    private static Integer tryParseInt(Object v) {
+        if (v == null) return null;
+        try {
+            if (v instanceof Number n) return n.intValue();
+            String s = String.valueOf(v).trim();
+            if (s.isEmpty()) return null;
+            return Integer.parseInt(s);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }
 

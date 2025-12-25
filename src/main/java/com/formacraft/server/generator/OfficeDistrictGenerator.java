@@ -29,6 +29,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
@@ -55,40 +56,12 @@ public class OfficeDistrictGenerator implements StructureGenerator {
         int blockH = getInt(extra, "blockHeight", 22);
 
         // build module spec that routes to OfficeBlockGenerator via template
-        BuildingSpec module = new BuildingSpec();
-        module.setType(BuildingType.HOUSE);
-        module.setStyle(BuildingStyle.MODERN);
-        module.setFootprint(new Footprint(blockW, blockD));
-        module.setHeight(blockH);
-        module.setFloors(Math.max(1, blockH / 6));
-
-        Materials m = new Materials();
-        m.setWall("minecraft:light_gray_concrete");
-        m.setWindow("minecraft:glass_pane");
-        m.setFloor("minecraft:smooth_stone");
-        m.setRoof("minecraft:smooth_stone");
-        module.setMaterials(m);
-
-        Features f = new Features();
-        f.setHasWindows(true);
-        f.setHasStairs(false);
-        f.setHasDoor(true);
-        f.setHasRoof(true);
-        f.setHasRoofDecoration(false);
-        f.setFloorCount(Math.max(1, blockH / 6));
-        module.setFeatures(f);
-
-        StyleOptions so = new StyleOptions();
-        so.setRoofType("flat");
-        so.setWindowRatio(0.6);
-        module.setStyleOptions(so);
-
-        module.setExtra(Map.of("template", "office_block"));
+        BuildingSpec module = getBuildingSpec(blockW, blockD, blockH);
 
         TerrainPolicy terrainPolicy = TerrainPolicyResolver.resolve(extra);
-        int padDepth = clamp(getInt(extra, "terrainPadDepth", 2), 0, 6);
-        int clearHeight = clamp(getInt(extra, "terrainClearHeight", 6), 0, 16);
-        int terrainBudgetBlocks = clamp(getInt(extra, "terrainBudgetBlocks", 8000), 0, 200000);
+        int padDepth = clamp(getInt(extra, "terrainPadDepth", 2), 6);
+        int clearHeight = clamp(getInt(extra, "terrainClearHeight", 6), 16);
+        int terrainBudgetBlocks = clamp(getInt(extra, "terrainBudgetBlocks", 8000), 200000);
 
         GridPlan grid = new GridPlan(new GeneratorBackedPlan(module));
         boolean clusterRequested = ClusterLayoutConfig.isClusterMode(extra != null ? extra.get("layoutMode") : null);
@@ -112,7 +85,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
             java.util.Map<String, List<Candidate>> byId = new java.util.HashMap<>();
             byId.put(unit.id, cands);
 
-            List<BuildingPlacement> placed = PlacementSolver.solve(units, byId, cfg.minGap, cfg.maxBacktrack);
+            List<BuildingPlacement> placed = PlacementSolver.solve(units, byId, cfg.minGap, cfg.maxBacktrack, cfg);
 
             // If placement fails (too constrained), fall back to grid skeleton.
             if (placed.size() >= count) {
@@ -130,8 +103,8 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                     TerrainFields.FootprintMetrics fm = fields.rectMetricsFromMinCorner(world, origin.getX() + dx, origin.getZ() + dz, wEff, dEff);
                     int r = fm.range();
                     boolean stilt = r >= 11;
-                    int pd = stilt ? 0 : (r <= 6 ? Math.max(1, padDepth) : clamp(Math.max(padDepth, 4), 0, 6));
-                    int ch = stilt ? clamp(Math.max(3, clearHeight / 2), 0, 16) : clearHeight;
+                    int pd = stilt ? 0 : (r <= 6 ? Math.max(1, padDepth) : clamp(Math.max(padDepth, 4), 6));
+                    int ch = stilt ? clamp(Math.max(3, clearHeight / 2), 16) : clearHeight;
                     footingByRelXZ.put(relKey(dx, dz), new FootingParams(pd, ch, stilt));
                 }
             }
@@ -267,6 +240,39 @@ public class OfficeDistrictGenerator implements StructureGenerator {
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 
+    private static @NotNull BuildingSpec getBuildingSpec(int blockW, int blockD, int blockH) {
+        BuildingSpec module = new BuildingSpec();
+        module.setType(BuildingType.HOUSE);
+        module.setStyle(BuildingStyle.MODERN);
+        module.setFootprint(new Footprint(blockW, blockD));
+        module.setHeight(blockH);
+        module.setFloors(Math.max(1, blockH / 6));
+
+        Materials m = new Materials();
+        m.setWall("minecraft:light_gray_concrete");
+        m.setWindow("minecraft:glass_pane");
+        m.setFloor("minecraft:smooth_stone");
+        m.setRoof("minecraft:smooth_stone");
+        module.setMaterials(m);
+
+        Features f = new Features();
+        f.setHasWindows(true);
+        f.setHasStairs(false);
+        f.setHasDoor(true);
+        f.setHasRoof(true);
+        f.setHasRoofDecoration(false);
+        f.setFloorCount(Math.max(1, blockH / 6));
+        module.setFeatures(f);
+
+        StyleOptions so = new StyleOptions();
+        so.setRoofType("flat");
+        so.setWindowRatio(0.6);
+        module.setStyleOptions(so);
+
+        module.setExtra(Map.of("template", "office_block"));
+        return module;
+    }
+
     private BlockState getStateOrDefault(ServerWorld world, String id, BlockState def) {
         if (id == null || id.isBlank()) return def;
         try {
@@ -291,8 +297,8 @@ public class OfficeDistrictGenerator implements StructureGenerator {
         }
     }
 
-    private static int clamp(int v, int min, int max) {
-        return Math.max(min, Math.min(max, v));
+    private static int clamp(int v, int max) {
+        return Math.max(0, Math.min(max, v));
     }
 
     private static long relKey(int dx, int dz) {

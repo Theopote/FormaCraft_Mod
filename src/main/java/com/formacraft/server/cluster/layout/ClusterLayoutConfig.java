@@ -20,6 +20,10 @@ public final class ClusterLayoutConfig {
     public final double wCenter;
     public final double wImportance;
     public final double centerBiasImportanceBoost; // 0..1
+    public final double compactnessWeight; // 0..1 (higher => tighter around main)
+    public final double compactnessMaxDist; // <=0 => auto
+    public final String axisMode; // "none" / "x" / "z"
+    public final double axisWeight; // 0..1
 
     public ClusterLayoutConfig(int halfX,
                                int halfZ,
@@ -32,7 +36,11 @@ public final class ClusterLayoutConfig {
                                double wSlope,
                                double wCenter,
                                double wImportance,
-                               double centerBiasImportanceBoost) {
+                               double centerBiasImportanceBoost,
+                               double compactnessWeight,
+                               double compactnessMaxDist,
+                               String axisMode,
+                               double axisWeight) {
         this.halfX = Math.max(8, halfX);
         this.halfZ = Math.max(8, halfZ);
         this.samples = Math.max(50, samples);
@@ -45,6 +53,10 @@ public final class ClusterLayoutConfig {
         this.wCenter = Math.max(0.0, wCenter);
         this.wImportance = Math.max(0.0, wImportance);
         this.centerBiasImportanceBoost = clamp01(centerBiasImportanceBoost);
+        this.compactnessWeight = clamp01(compactnessWeight);
+        this.compactnessMaxDist = compactnessMaxDist;
+        this.axisMode = normalizeAxisMode(axisMode);
+        this.axisWeight = clamp01(axisWeight);
     }
 
     public static ClusterLayoutConfig fromExtra(Map<String, Object> extra, int defaultHalfX, int defaultHalfZ, int count, int spacing) {
@@ -63,7 +75,7 @@ public final class ClusterLayoutConfig {
         double wCenter = getDouble(extra, "scoreWCenter", defCenter);
         double wImp = getDouble(extra, "scoreWImportance", defImp);
 
-        Map<String, Object> sw = getMap(extra, "scoreWeights");
+        Map<String, Object> sw = getMap(extra);
         if (sw != null) {
             wCost = getDouble(sw, "cost", wCost);
             wSlope = getDouble(sw, "slope", wSlope);
@@ -74,6 +86,14 @@ public final class ClusterLayoutConfig {
         // boost center bias for higher-importance units (main buildings)
         double boost = getDouble(extra, "centerBiasImportanceBoost", 0.50);
 
+        // global compactness: make the cluster tighter around the main building
+        double compactW = getDouble(extra, "compactnessWeight", 0.20);
+        double compactMaxDist = getDouble(extra, "compactnessMaxDist", 0.0); // auto
+
+        // axis alignment (optional): encourage placements along a main axis through the main building
+        String axisMode = getString(extra, "axisMode", "none"); // none/x/z
+        double axisWeight = getDouble(extra, "axisWeight", 0.0);
+
         // if all weights become zero (bad config), fall back to defaults
         if (Math.max(0.0, wCost) + Math.max(0.0, wSlope) + Math.max(0.0, wCenter) + Math.max(0.0, wImp) <= 1e-9) {
             wCost = defCost;
@@ -82,7 +102,13 @@ public final class ClusterLayoutConfig {
             wImp = defImp;
         }
 
-        return new ClusterLayoutConfig(halfX, halfZ, samples, maxRange, maxCost, minGap, back, wCost, wSlope, wCenter, wImp, boost);
+        return new ClusterLayoutConfig(halfX, halfZ, samples, maxRange, maxCost, minGap, back,
+                wCost, wSlope, wCenter, wImp,
+                boost,
+                compactW,
+                compactMaxDist,
+                axisMode,
+                axisWeight);
     }
 
     private static int getInt(Map<String, Object> extra, String key, int def) {
@@ -113,10 +139,18 @@ public final class ClusterLayoutConfig {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> getMap(Map<String, Object> extra, String key) {
-        if (extra == null) return null;
+    private static String getString(Map<String, Object> extra, String key, String def) {
+        if (extra == null) return def;
         Object v = extra.get(key);
+        if (v == null) return def;
+        String s = String.valueOf(v).trim();
+        return s.isEmpty() ? def : s;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> getMap(Map<String, Object> extra) {
+        if (extra == null) return null;
+        Object v = extra.get("scoreWeights");
         if (v instanceof Map<?, ?> m) {
             try {
                 return (Map<String, Object>) m;
@@ -129,8 +163,14 @@ public final class ClusterLayoutConfig {
 
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
+    }
+
+    private static String normalizeAxisMode(String v) {
+        if (v == null) return "none";
+        String s = v.trim().toLowerCase(Locale.ROOT);
+        if (s.equals("x") || s.equals("z")) return s;
+        return "none";
     }
 
     public static boolean isClusterMode(Object v) {
