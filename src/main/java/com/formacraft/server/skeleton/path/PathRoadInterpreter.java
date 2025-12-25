@@ -45,8 +45,10 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
             for (BlockPos p : line) {
                 int y = p.getY();
                 if (plan.followTerrain) {
-                    int top = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ());
-                    y = Math.max(y, top);
+                    // Prefer a walkable ground height that ignores leaves, so roads don't sit on tree canopies.
+                    int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, p.getX(), p.getZ());
+                    // 路/道默认应“贴地”而不是只抬高：直接使用地表高度（避免悬空/桥梁式道路）
+                    y = top;
                 }
 
                 // determine perpendicular direction from segment direction (cardinal-ish)

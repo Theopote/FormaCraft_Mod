@@ -447,8 +447,15 @@ public class FormaCraftNetworking {
                             // 生成城市结构
                             com.formacraft.server.city.CityBuilder cityBuilder =
                                     new com.formacraft.server.city.CityBuilder();
-                            final com.formacraft.server.build.GeneratedStructure generated =
-                                    BuildConstraintContext.withRequest(req, () -> cityBuilder.generate(citySpec, origin, serverWorld));
+                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
+                                    com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
+                                            BuildConstraintContext.withRequest(req, () -> cityBuilder.generate(citySpec, origin, serverWorld))
+                                    );
+                            final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                            String terrainSummary = reported.report().summaryZh();
+                            if (terrainSummary != null && !terrainSummary.isBlank()) {
+                                ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
+                            }
 
                             // H-layer (MVP): auto validation & repair before preview
                             com.formacraft.server.build.BuildAutoRepair.Result repair =
@@ -526,8 +533,15 @@ public class FormaCraftNetworking {
                             // 生成结构
                             com.formacraft.server.generator.composite.CompositeStructureGenerator generator =
                                     new com.formacraft.server.generator.composite.CompositeStructureGenerator();
-                            final com.formacraft.server.build.GeneratedStructure generated =
-                                    BuildConstraintContext.withRequest(req, () -> generator.generate(compositeSpec, origin, serverWorld));
+                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
+                                    com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
+                                            BuildConstraintContext.withRequest(req, () -> generator.generate(compositeSpec, origin, serverWorld))
+                                    );
+                            final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                            String terrainSummary = reported.report().summaryZh();
+                            if (terrainSummary != null && !terrainSummary.isBlank()) {
+                                ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
+                            }
 
                             // H-layer (MVP): auto validation & repair before preview
                             com.formacraft.server.build.BuildAutoRepair.Result repair =
@@ -611,8 +625,15 @@ public class FormaCraftNetworking {
                             if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
                                 com.formacraft.server.generator.StructureGenerator generator =
                                         com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(updated);
-                                final com.formacraft.server.build.GeneratedStructure generated =
-                                        BuildConstraintContext.withRequest(req, () -> generator.generate(updated, origin, serverWorld));
+                                final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
+                                        com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
+                                                BuildConstraintContext.withRequest(req, () -> generator.generate(updated, origin, serverWorld))
+                                        );
+                                final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                                String terrainSummary = reported.report().summaryZh();
+                                if (terrainSummary != null && !terrainSummary.isBlank()) {
+                                    ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
+                                }
 
                                 // H-layer (MVP): auto validation & repair before preview
                                 com.formacraft.server.build.BuildAutoRepair.Result repair =
@@ -684,8 +705,15 @@ public class FormaCraftNetworking {
                             // 生成结构用于预览
                             com.formacraft.server.generator.StructureGenerator generator =
                                     com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(spec);
-                            final com.formacraft.server.build.GeneratedStructure generated =
-                                    BuildConstraintContext.withRequest(req, () -> generator.generate(spec, origin, serverWorld));
+                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
+                                    com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
+                                            BuildConstraintContext.withRequest(req, () -> generator.generate(spec, origin, serverWorld))
+                                    );
+                            final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                            String terrainSummary = reported.report().summaryZh();
+                            if (terrainSummary != null && !terrainSummary.isBlank()) {
+                                ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
+                            }
 
                             // H-layer (MVP): auto validation & repair before preview
                             com.formacraft.server.build.BuildAutoRepair.Result repair =

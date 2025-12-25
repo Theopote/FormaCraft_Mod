@@ -13,6 +13,10 @@ import com.formacraft.server.skeleton.compound.PlanDispatcher;
 import com.formacraft.server.skeleton.path.PathPlanner;
 import com.formacraft.server.skeleton.path.PathRoadInterpreter;
 import com.formacraft.server.skeleton.rect.RectEnclosureInterpreter;
+import com.formacraft.server.terrain.TerrainFit;
+import com.formacraft.server.terrain.TerrainPolicy;
+import com.formacraft.server.terrain.TerrainPolicyResolver;
+import com.formacraft.server.build.BuildReportContext;
 import com.formacraft.common.style.profile.BuildStrategy;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
@@ -44,6 +48,10 @@ public class CastleCompoundGenerator implements StructureGenerator {
         Map<String, Object> extra = spec != null ? spec.getExtra() : null;
         boolean includePaths = getBool(extra, "includePaths", true);
         int pathWidth = clamp(getInt(extra, "pathWidth", 3), 1, 7);
+        TerrainPolicy terrainPolicy = TerrainPolicyResolver.resolve(extra);
+        int padDepth = clamp(getInt(extra, "terrainPadDepth", 2), 0, 6);
+        int clearHeight = clamp(getInt(extra, "terrainClearHeight", 6), 0, 16);
+        int terrainBudgetBlocks = clamp(getInt(extra, "terrainBudgetBlocks", 8000), 0, 200000);
 
         int w = (spec != null && spec.getFootprint() != null) ? Math.max(24, spec.getFootprint().getWidth()) : 48;
         int d = (spec != null && spec.getFootprint() != null) ? Math.max(24, spec.getFootprint().getDepth()) : 36;
@@ -113,23 +121,78 @@ public class CastleCompoundGenerator implements StructureGenerator {
             BlockPos center = new BlockPos(0, 0, 0);
             BlockPos keep = new BlockPos(0, 0, -(d / 4)); // simple bias towards north interior
 
-            compound.add(new PolylinePathPlan(List.of(start, center, keep), pathWidth, false, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(List.of(start, center, keep), pathWidth, true, false, 10), BlockTransform.identity());
 
             // Branches to corner towers
             BlockPos t1 = new BlockPos(tx, 0, tz);
             BlockPos t2 = new BlockPos(-tx, 0, tz);
             BlockPos t3 = new BlockPos(tx, 0, -tz);
             BlockPos t4 = new BlockPos(-tx, 0, -tz);
-            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t1), pathWidth, false, false, 10), BlockTransform.identity());
-            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t2), pathWidth, false, false, 10), BlockTransform.identity());
-            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t3), pathWidth, false, false, 10), BlockTransform.identity());
-            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t4), pathWidth, false, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t1), pathWidth, true, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t2), pathWidth, true, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t3), pathWidth, true, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t4), pathWidth, true, false, 10), BlockTransform.identity());
         }
 
         PlanDispatcher dispatcher = (plan, o, wld) -> {
             if (plan instanceof GeneratorBackedPlan gbp) {
                 if (gbp.spec == null) return List.of();
-                return StructureGeneratorFactory.getGenerator(gbp.spec).generate(gbp.spec, o, wld).getBlocks();
+                BlockPos origin2 = o;
+                List<PlannedBlock> pad = List.of();
+                if (terrainPolicy == TerrainPolicy.ADAPTIVE) {
+                    origin2 = TerrainFit.snapOrigin(wld, o, gbp.spec);
+                    int avg = TerrainFit.averageFootprintHeight(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth());
+                    int targetY = avg + 1;
+                    BlockState fill = getStateOrDefault(wld, mats != null ? mats.getFoundation() : null, Blocks.COBBLESTONE.getDefaultState());
+                    int range = TerrainFit.analyze(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth()).range();
+                    boolean stilt = range >= 11;
+                    int pd2 = stilt ? 0 : (range <= 6 ? Math.max(1, padDepth) : Math.max(padDepth, 4));
+                    int ch2 = stilt ? Math.max(2, clearHeight / 2) : clearHeight;
+                    if (stilt) BuildReportContext.addFootingStiltUnit();
+                    else if (pd2 > 0) BuildReportContext.addFootingPadUnit();
+                    BuildReportContext.setTerrainBudgetBlocks(terrainBudgetBlocks);
+                    List<PlannedBlock> p0 = TerrainFit.adaptivePad(wld, origin2,
+                            gbp.spec.getFootprint().getWidth(),
+                            gbp.spec.getFootprint().getDepth(),
+                            targetY,
+                            fill,
+                            pd2,
+                            ch2);
+                    if (terrainBudgetBlocks > 0 && p0.size() > terrainBudgetBlocks) {
+                        BuildReportContext.addTerrainBudgetDegrade();
+                        List<PlannedBlock> p1 = TerrainFit.adaptivePad(wld, origin2,
+                                gbp.spec.getFootprint().getWidth(),
+                                gbp.spec.getFootprint().getDepth(),
+                                targetY,
+                                fill,
+                                0,
+                                Math.max(0, Math.min(6, ch2)));
+                        if (p1.size() <= terrainBudgetBlocks) pad = p1;
+                        else {
+                            BuildReportContext.addTerrainBudgetDegrade();
+                            List<PlannedBlock> p2 = TerrainFit.adaptivePad(wld, origin2,
+                                    gbp.spec.getFootprint().getWidth(),
+                                    gbp.spec.getFootprint().getDepth(),
+                                    targetY,
+                                    fill,
+                                    0,
+                                    2);
+                            if (p2.size() <= terrainBudgetBlocks) pad = p2;
+                            else {
+                                BuildReportContext.addTerrainBudgetDegrade();
+                                pad = List.of();
+                            }
+                        }
+                    } else {
+                        pad = p0;
+                    }
+                }
+                List<PlannedBlock> building = StructureGeneratorFactory.getGenerator(gbp.spec).generate(gbp.spec, origin2, wld).getBlocks();
+                if (pad.isEmpty()) return building;
+                List<PlannedBlock> merged = new java.util.ArrayList<>(pad.size() + building.size());
+                merged.addAll(pad);
+                merged.addAll(building);
+                return merged;
             }
             if (plan instanceof RectEnclosurePlan rep) {
                 StyleProfile profile = StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
