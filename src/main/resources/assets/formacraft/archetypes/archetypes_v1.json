@@ -56,12 +56,21 @@
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     },
     {
+      "id": "mingqing_courtyard",
+      "aliases": ["明清官式院落", "明清官式建筑群落", "四合院", "院落", "courtyard", "ming qing courtyard"],
+      "category": "LANDMARK",
+      "generatorId": "mingqing_courtyard",
+      "defaults": { "width": 32, "depth": 28, "includePaths": true, "pathWidth": 3 },
+      "constraints": { "minWidth": 16, "maxWidth": 96, "minDepth": 16, "maxDepth": 96, "minPathWidth": 1, "maxPathWidth": 7 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
       "id": "castle_compound",
       "aliases": ["城堡", "中世纪城堡", "要塞", "堡垒", "castle", "medieval castle", "fortress", "keep"],
       "category": "FORTIFICATION",
       "generatorId": "castle_compound",
-      "defaults": { "width": 48, "depth": 36, "wallHeight": 6, "towerHeight": 18, "followTerrain": true },
-      "constraints": { "minWidth": 24, "maxWidth": 128, "minDepth": 24, "maxDepth": 128, "minWallHeight": 4, "maxWallHeight": 12, "minTowerHeight": 10, "maxTowerHeight": 40 },
+      "defaults": { "width": 48, "depth": 36, "wallHeight": 6, "towerHeight": 18, "followTerrain": true, "includePaths": true, "pathWidth": 3 },
+      "constraints": { "minWidth": 24, "maxWidth": 128, "minDepth": 24, "maxDepth": 128, "minWallHeight": 4, "maxWallHeight": 12, "minTowerHeight": 10, "maxTowerHeight": 40, "minPathWidth": 1, "maxPathWidth": 7 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     },
     {
@@ -69,8 +78,8 @@
       "aliases": ["办公楼群", "办公园区", "写字楼群", "商业区", "office district", "office park", "business district"],
       "category": "INFRASTRUCTURE",
       "generatorId": "office_district",
-      "defaults": { "rows": 3, "cols": 4, "spacing": 18, "blockWidth": 11, "blockDepth": 11, "blockHeight": 22 },
-      "constraints": { "minRows": 1, "maxRows": 12, "minCols": 1, "maxCols": 12, "minSpacing": 10, "maxSpacing": 40, "minBlockWidth": 9, "maxBlockWidth": 21, "minBlockDepth": 9, "maxBlockDepth": 21, "minBlockHeight": 14, "maxBlockHeight": 60 },
+      "defaults": { "rows": 3, "cols": 4, "spacing": 18, "blockWidth": 11, "blockDepth": 11, "blockHeight": 22, "includeRoads": true, "roadWidth": 3 },
+      "constraints": { "minRows": 1, "maxRows": 12, "minCols": 1, "maxCols": 12, "minSpacing": 10, "maxSpacing": 40, "minBlockWidth": 9, "maxBlockWidth": 21, "minBlockDepth": 9, "maxBlockDepth": 21, "minBlockHeight": 14, "maxBlockHeight": 60, "minRoadWidth": 1, "maxRoadWidth": 7 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     }
   ]

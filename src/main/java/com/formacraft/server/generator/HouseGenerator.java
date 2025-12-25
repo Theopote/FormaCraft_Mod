@@ -2,6 +2,9 @@ package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.style.profile.BuildStrategy;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.common.style.StyleGenome;
 import com.formacraft.common.style.StyleGenomeRegistry;
 import com.formacraft.server.build.GeneratedStructure;
@@ -18,7 +21,9 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 房屋生成器
@@ -30,6 +35,7 @@ public class HouseGenerator implements StructureGenerator {
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         List<PlannedBlock> blocks = new ArrayList<>();
+        Set<BlockPos> fenceFramePositions = new HashSet<>();
 
         // 获取参数
         int width = Math.max(6, spec.getFootprint() != null ? spec.getFootprint().getWidth() : 8);
@@ -42,6 +48,7 @@ public class HouseGenerator implements StructureGenerator {
         // 风格“基因”（数据驱动）：用于提供默认材质与部分默认参数
         // 约定：spec.materials / spec.styleOptions 显式值永远优先。
         StyleGenome genome = StyleGenomeRegistry.forStyle(style);
+        StyleProfile profile = StyleProfileRegistry.forStyle(style);
 
         // ===============================
         // Ming/Qing 官式中式宅院（优先实现）
@@ -80,7 +87,7 @@ public class HouseGenerator implements StructureGenerator {
                 defaultPillar(style));
         BlockState roofStairs = defaultRoofStairs(style, roof);
         BlockState roofSlab = defaultRoofSlab(style, roof);
-        BlockState windowBlock = resolveWindowByStyleOption(style, spec, window);
+        BlockState windowBlock = resolveWindowByStyleOption(world, style, spec, genome, profile, window, pillar, trim);
         BlockState doorLower = defaultDoor(style);
 
         // 获取特性
@@ -95,11 +102,24 @@ public class HouseGenerator implements StructureGenerator {
 
         String roofType = (spec.getStyleOptions() != null && spec.getStyleOptions().getRoofType() != null)
                 ? spec.getStyleOptions().getRoofType()
-                : (genome != null && genome.params != null && genome.params.roofType != null ? genome.params.roofType : "flat");
+                : (genome != null && genome.params != null && genome.params.roofType != null
+                    ? genome.params.roofType
+                    : ((profile != null && profile.rules() != null && !profile.rules().allowFlatRoof) ? "gable" : "flat"));
 
-        double windowRatio = (spec.getStyleOptions() != null)
-                ? spec.getStyleOptions().getWindowRatio()
-                : (genome != null && genome.params != null && genome.params.windowRatio != null ? genome.params.windowRatio : 0.3);
+        // windowRatio/windowDensity: StyleOptions（显式）> genome.windowDensity > genome.windowRatio > styleProfile.rules.windowDensity > fallback
+        double windowRatio;
+        if (spec.getStyleOptions() != null) {
+            windowRatio = spec.getStyleOptions().getWindowRatio();
+        } else if (genome != null && genome.params != null && genome.params.windowDensity != null) {
+            windowRatio = genome.params.windowDensity;
+        } else if (genome != null && genome.params != null && genome.params.windowRatio != null) {
+            windowRatio = genome.params.windowRatio;
+        } else if (profile != null && profile.rules() != null) {
+            windowRatio = profile.rules().windowDensity;
+        } else {
+            windowRatio = 0.3;
+        }
+        windowRatio = Math.max(0.0, Math.min(1.0, windowRatio));
 
         String wallPattern = (spec.getStyleOptions() != null && spec.getStyleOptions().getWallPattern() != null)
                 ? spec.getStyleOptions().getWallPattern()
@@ -111,6 +131,16 @@ public class HouseGenerator implements StructureGenerator {
                 roofType = "hipped";
             }
             if (windowRatio < 0.15) windowRatio = 0.18;
+        }
+
+        // StyleProfile strategy for wall expression (v1): influences both density and deterministic window cadence.
+        BuildStrategy wallStrategy = BuildStrategy.WINDOWED_WALL;
+        if (profile != null) {
+            wallStrategy = profile.resolve("WALL", java.util.Collections.emptySet());
+        }
+        // If style prefers solid walls, clamp windowRatio down (but don't force-disable windows).
+        if (hasWindows && wallStrategy == BuildStrategy.SOLID_WALL) {
+            windowRatio = Math.min(windowRatio, 0.22);
         }
 
         // -------------------------------------
@@ -127,7 +157,14 @@ public class HouseGenerator implements StructureGenerator {
         // -------------------------------------
         // 2. 生成墙体（加入：地基/转角柱/腰线/多层窗/门）
         // -------------------------------------
-        int floorHeight = Math.max(3, height / floors);
+        // floorHeight (style-driven): keep the rhythm stable across styles while avoiding out-of-range floor placement.
+        int baseFloorHeight = Math.max(3, height / floors);
+        int maxFloorHeight = (floors > 1) ? Math.max(3, (height - 1) / (floors - 1)) : Math.max(3, height);
+        int floorHeight = Math.min(baseFloorHeight, maxFloorHeight);
+        if (profile != null && profile.rules() != null && profile.rules().floorHeight > 0) {
+            int pref = profile.rules().floorHeight;
+            floorHeight = Math.max(3, Math.min(pref, maxFloorHeight));
+        }
 
         // 2.1 地基（y=0 一圈）
         for (int x = 0; x < width; x++) {
@@ -181,6 +218,11 @@ public class HouseGenerator implements StructureGenerator {
                                     blocks.add(new PlannedBlock(pos, Blocks.AIR.getDefaultState()));
                                     continue;
                                 }
+                                if (doorStyle.equalsIgnoreCase("arched") && y == 3) {
+                                    // 拱门门楣（用 trim 强化轮廓；不降低门洞净高）
+                                    blocks.add(new PlannedBlock(pos, trim));
+                                    continue;
+                                }
                             }
                         }
 
@@ -189,18 +231,47 @@ public class HouseGenerator implements StructureGenerator {
                             // 每层 2 格高的窗带（localY=1/2）
                             int localY = y % floorHeight;
                             boolean inWindowBand = (localY == 1 || localY == 2);
-                            // 很高的建筑：顶层再多一条细窗带（更有层次）
-                            if (!inWindowBand && height >= 9 && y == height - 3) inWindowBand = true;
+                            // SOLID_WALL：窗带更矮、更克制（只保留 1 格高）
+                            if (wallStrategy == BuildStrategy.SOLID_WALL) {
+                                inWindowBand = (localY == 1);
+                            }
+                            // 很高的建筑：顶层再多一条细窗带（更有层次）——仅对 WINDOWED_WALL 开启
+                            if (wallStrategy != BuildStrategy.SOLID_WALL && !inWindowBand && height >= 9 && y == height - 3) inWindowBand = true;
 
                             if (inWindowBand) {
-                                boolean shouldPlaceWindow = isShouldPlaceWindow(windowRatio, x, z);
+                                boolean preferSymmetry = (profile != null && profile.rules() != null && profile.rules().preferSymmetry);
+                                boolean shouldPlaceWindow = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth);
                                 // 避免在门附近开窗
                                 boolean nearDoor = (z == 0) && (x == width / 2 || x == width / 2 - 1);
                                 if (shouldPlaceWindow && !nearDoor) {
                                     blocks.add(new PlannedBlock(pos, windowBlock));
-                                    // 简单窗框：窗上下用 trim（不占用对外空间）
-                                    if (y > 0) blocks.add(new PlannedBlock(origin.add(x, y - 1, z), trim));
-                                    if (y + 1 < height) blocks.add(new PlannedBlock(origin.add(x, y + 1, z), trim));
+                                    // 窗套/窗框（v1）：
+                                    // 只在窗带“上下边缘”放 trim，避免双层窗时互相覆盖。
+                                    int localYForBand = y % floorHeight;
+                                    boolean isExtraHighBand = (wallStrategy != BuildStrategy.SOLID_WALL) && height >= 9 && y == height - 3;
+                                    boolean isTwoHighBand = (wallStrategy != BuildStrategy.SOLID_WALL)
+                                            && !isExtraHighBand
+                                            && (localYForBand == 1 || localYForBand == 2);
+                                    boolean isBottomOfBand = isTwoHighBand ? (localYForBand == 1) : true;
+                                    boolean isTopOfBand = isTwoHighBand ? (localYForBand == 2) : true;
+
+                                    if (isBottomOfBand && y > 0) blocks.add(new PlannedBlock(origin.add(x, y - 1, z), trim));
+                                    if (isTopOfBand && y + 1 < height) blocks.add(new PlannedBlock(origin.add(x, y + 1, z), trim));
+
+                                    // fence 栅窗：额外补左右窗套（同一墙面内），但避免覆盖相邻窗/门/角柱
+                                    if (isFenceLikeWindow(windowBlock)) {
+                                        if (isEdgeZ) {
+                                            tryCollectFenceFrame(fenceFramePositions, origin, wallStrategy, windowRatio, preferSymmetry,
+                                                    x - 1, y, z, width, depth);
+                                            tryCollectFenceFrame(fenceFramePositions, origin, wallStrategy, windowRatio, preferSymmetry,
+                                                    x + 1, y, z, width, depth);
+                                        } else {
+                                            tryCollectFenceFrame(fenceFramePositions, origin, wallStrategy, windowRatio, preferSymmetry,
+                                                    x, y, z - 1, width, depth);
+                                            tryCollectFenceFrame(fenceFramePositions, origin, wallStrategy, windowRatio, preferSymmetry,
+                                                    x, y, z + 1, width, depth);
+                                        }
+                                    }
                                     continue;
                                 }
                             }
@@ -225,6 +296,13 @@ public class HouseGenerator implements StructureGenerator {
         // -------------------------------------
         // 3. 地板/天花（每层一层）
         // -------------------------------------
+        // fence 栅窗窗套（左右 trim）统一在墙体生成之后落位，避免被后续墙体迭代覆盖。
+        if (!fenceFramePositions.isEmpty()) {
+            for (BlockPos fp : fenceFramePositions) {
+                blocks.add(new PlannedBlock(fp, trim));
+            }
+        }
+
         for (int f = 0; f < floors; f++) {
             int y0 = f * floorHeight;
 
@@ -256,18 +334,42 @@ public class HouseGenerator implements StructureGenerator {
         if (hasRoof) {
             // 从 styleOptions 获取屋顶类型（向后兼容 extra）
             String actualRoofType = roofType;
+            BuildStrategy roofStrategy = BuildStrategy.ROOF_SLOPE;
+            if (profile != null) {
+                roofStrategy = profile.resolve("ROOF", java.util.Collections.emptySet());
+            } else {
+                roofStrategy = ("flat".equalsIgnoreCase(actualRoofType)) ? BuildStrategy.ROOF_FLAT : BuildStrategy.ROOF_SLOPE;
+            }
+
+            boolean roofExplicit = (spec.getStyleOptions() != null && spec.getStyleOptions().getRoofType() != null);
+            boolean roofFromExtra = false;
             if (actualRoofType == null || actualRoofType.isEmpty()) {
                 if (spec.getExtra() != null && spec.getExtra().containsKey("roofType")) {
                     actualRoofType = String.valueOf(spec.getExtra().get("roofType"));
+                    roofFromExtra = true;
                 } else {
-                    actualRoofType = "gable"; // 默认双坡
+                    // 完全没有 roofType 时：由 StyleProfile 的 ROOF 策略决定默认
+                    if (roofStrategy == BuildStrategy.ROOF_FLAT) {
+                        actualRoofType = "flat";
+                    } else {
+                        actualRoofType = (style == BuildingStyle.ASIAN) ? "hipped" : "gable";
+                    }
+                }
+            }
+            // 如果不是显式指定（StyleOptions/extra），则允许 StyleProfile 修正“平/坡”大方向
+            if (!roofExplicit && !roofFromExtra) {
+                if (roofStrategy == BuildStrategy.ROOF_FLAT) {
+                    actualRoofType = "flat";
+                } else if (roofStrategy == BuildStrategy.ROOF_SLOPE && "flat".equalsIgnoreCase(actualRoofType)) {
+                    actualRoofType = (style == BuildingStyle.ASIAN) ? "hipped" : "gable";
                 }
             }
             
-            // 中式官式：hipped/pyramid（四坡/攒尖）
-            if (style == BuildingStyle.ASIAN && ("hipped".equalsIgnoreCase(actualRoofType) || "pyramid".equalsIgnoreCase(actualRoofType))) {
+            // 四坡/攒尖（hipped/pyramid）
+            if ("hipped".equalsIgnoreCase(actualRoofType) || "pyramid".equalsIgnoreCase(actualRoofType)) {
                 addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim);
-            } else if ("gable".equalsIgnoreCase(actualRoofType) || style == BuildingStyle.MEDIEVAL || style == BuildingStyle.RUSTIC) {
+            } else if ("gable".equalsIgnoreCase(actualRoofType) || roofStrategy == BuildStrategy.ROOF_SLOPE
+                    || style == BuildingStyle.MEDIEVAL || style == BuildingStyle.RUSTIC) {
                 // 双坡屋顶（沿 X 方向上升）；优先用 stairs/slab，视觉明显更好
                 int roofHeight = Math.min(width / 2 + 1, 7);
 
@@ -325,6 +427,19 @@ public class HouseGenerator implements StructureGenerator {
                 blocks.add(new PlannedBlock(origin.add(width, height - 1, z), roofSlab));
             }
 
+            // 额外一圈线脚（更有“屋檐层次”）：仅在“偏层次屋顶”的风格下启用
+            if (height >= 4 && profile != null && profile.rules() != null && profile.rules().layeredRoof) {
+                int y = height - 2;
+                for (int x = -1; x <= width; x++) {
+                    blocks.add(new PlannedBlock(origin.add(x, y, -1), trim));
+                    blocks.add(new PlannedBlock(origin.add(x, y, depth), trim));
+                }
+                for (int z = -1; z <= depth; z++) {
+                    blocks.add(new PlannedBlock(origin.add(-1, y, z), trim));
+                    blocks.add(new PlannedBlock(origin.add(width, y, z), trim));
+                }
+            }
+
             // 中式：简化斗拱/雀替（檐下 1 格）+ 彩画点缀
             if (style == BuildingStyle.ASIAN) {
                 addDougongAndPainting(blocks, origin, width, depth, height, trim);
@@ -360,19 +475,52 @@ public class HouseGenerator implements StructureGenerator {
         );
     }
 
-    private static boolean isShouldPlaceWindow(double windowRatio, int x, int z) {
-        boolean shouldPlaceWindow;
-        if (windowRatio >= 0.5) {
-            // 高比例：每隔 2 格开窗
-            shouldPlaceWindow = (x % 2 == 0 || z % 2 == 0);
-        } else if (windowRatio >= 0.3) {
-            // 中等比例：每隔 3 格开窗
-            shouldPlaceWindow = (x % 3 == 0 || z % 3 == 0);
-        } else {
-            // 低比例：每隔 4 格开窗
-            shouldPlaceWindow = (x % 4 == 0 || z % 4 == 0);
+    private static boolean isShouldPlaceWindow(BuildStrategy wallStrategy, double windowRatio, boolean preferSymmetry,
+                                               int x, int z, int width, int depth) {
+        // Only meaningful on exterior ring; caller already checks edges.
+        // Derive spacing from density suggestion (still respects explicit windowRatio values).
+        int spacing;
+        if (windowRatio >= 0.65) spacing = 2;
+        else if (windowRatio >= 0.38) spacing = 3;
+        else spacing = 4;
+
+        // Don't place windows at corners (corner pillars take that space and look better without glass).
+        boolean corner = (x == 0 || x == width - 1) && (z == 0 || z == depth - 1);
+        if (corner) return false;
+
+        // Keep a small margin away from corners for better rhythm
+        if (x <= 1 || z <= 1 || x >= width - 2 || z >= depth - 2) {
+            // still allow on the outermost ring if it's not a corner, but be conservative for SOLID_WALL
+            if (wallStrategy == BuildStrategy.SOLID_WALL) return false;
         }
-        return shouldPlaceWindow;
+
+        boolean onNorthSouth = (z == 0 || z == depth - 1);
+        boolean onWestEast = (x == 0 || x == width - 1);
+
+        if (wallStrategy == BuildStrategy.SOLID_WALL) {
+            // Solid walls: sparse, centered rhythm (stronger silhouette).
+            if (onNorthSouth) {
+                int cx = width / 2;
+                return (Math.abs(x - cx) % spacing == 0) && x >= 2 && x <= width - 3;
+            }
+            if (onWestEast) {
+                int cz = depth / 2;
+                return (Math.abs(z - cz) % spacing == 0) && z >= 2 && z <= depth - 3;
+            }
+            return false;
+        }
+
+        // WINDOWED_WALL (default): regular cadence along edges.
+        if (preferSymmetry) {
+            int cx = width / 2;
+            int cz = depth / 2;
+            if (onNorthSouth) return (Math.abs(x - cx) % spacing == 0) && x >= 2 && x <= width - 3;
+            if (onWestEast) return (Math.abs(z - cz) % spacing == 0) && z >= 2 && z <= depth - 3;
+            return false;
+        }
+        if (onNorthSouth) return (x % spacing == 0) && x >= 2 && x <= width - 3;
+        if (onWestEast) return (z % spacing == 0) && z >= 2 && z <= depth - 3;
+        return false;
     }
 
     private static BlockState withFacingIfPossible(BlockState state, Direction facing) {
@@ -878,18 +1026,104 @@ public class HouseGenerator implements StructureGenerator {
         };
     }
 
-    private static BlockState resolveWindowByStyleOption(BuildingStyle style, BuildingSpec spec, BlockState fallback) {
-        String w = (spec.getStyleOptions() != null && spec.getStyleOptions().getWindowStyle() != null)
-                ? spec.getStyleOptions().getWindowStyle().trim().toLowerCase()
-                : "pane";
-        if ("stained".equals(w)) {
-            return (style == BuildingStyle.FUTURISTIC) ? Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.getDefaultState()
-                    : Blocks.WHITE_STAINED_GLASS_PANE.getDefaultState();
+    private BlockState resolveWindowByStyleOption(ServerWorld world,
+                                                BuildingStyle style,
+                                                BuildingSpec spec,
+                                                StyleGenome genome,
+                                                StyleProfile profile,
+                                                BlockState fallback,
+                                                BlockState pillar,
+                                                BlockState trim) {
+        // Effective windowStyle:
+        // StyleOptions（显式） > genome.params.windowStyle > heuristic default
+        String windowStyle = (spec != null && spec.getStyleOptions() != null) ? spec.getStyleOptions().getWindowStyle() : null;
+        if (windowStyle == null || windowStyle.isBlank()) {
+            windowStyle = (genome != null && genome.params != null) ? genome.params.windowStyle : null;
         }
-        if ("fence".equals(w)) {
-            return (style == BuildingStyle.ASIAN) ? Blocks.DARK_OAK_FENCE.getDefaultState() : Blocks.OAK_FENCE.getDefaultState();
+        if (windowStyle == null || windowStyle.isBlank()) {
+            windowStyle = switch (style) {
+                case ASIAN -> "fence";
+                case MEDIEVAL -> "pane";
+                case MODERN, FUTURISTIC -> "pane";
+                case RUSTIC -> "pane";
+                default -> "pane";
+            };
         }
-        return fallback != null ? fallback : Blocks.GLASS_PANE.getDefaultState();
+        String ws = windowStyle.trim().toLowerCase();
+
+        switch (ws) {
+            case "fence" -> {
+                // lattice window: pick wood fence matching pillars if possible
+                String pid = (profile != null && profile.palette() != null) ? profile.palette().pillar : null;
+                if ((pid == null || pid.isBlank()) && pillar != null) {
+                    pid = Registries.BLOCK.getId(pillar.getBlock()).toString();
+                }
+                String fenceId;
+                if (pid != null && pid.contains("dark_oak")) fenceId = "minecraft:dark_oak_fence";
+                else if (pid != null && pid.contains("spruce")) fenceId = "minecraft:spruce_fence";
+                else fenceId = (style == BuildingStyle.ASIAN) ? "minecraft:oak_fence" : "minecraft:oak_fence";
+                return getStateOrDefault(world, fenceId, Blocks.OAK_FENCE.getDefaultState());
+            }
+            case "bars", "iron_bars" -> {
+                // medieval/castle: iron bar windows
+                return Blocks.IRON_BARS.getDefaultState();
+            }
+            case "stained" -> {
+                // stained glass pane: derive color from trim first (if it's stained glass)
+                String tid = (profile != null && profile.palette() != null) ? profile.palette().trim : null;
+                if ((tid == null || tid.isBlank()) && trim != null) {
+                    tid = Registries.BLOCK.getId(trim.getBlock()).toString();
+                }
+                String paneId = deriveStainedPaneId(tid);
+                return getStateOrDefault(world, paneId, Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.getDefaultState());
+            }
+            default -> {
+                // pane: if fallback is full glass, use glass pane for better proportions
+                try {
+                    if (fallback != null && fallback.getBlock() == Blocks.GLASS) {
+                        return Blocks.GLASS_PANE.getDefaultState();
+                    }
+                } catch (Throwable ignored) {}
+                return fallback != null ? fallback : Blocks.GLASS_PANE.getDefaultState();
+            }
+        }
+    }
+
+    private static boolean isFenceLikeWindow(BlockState windowBlock) {
+        if (windowBlock == null) return false;
+        String id = Registries.BLOCK.getId(windowBlock.getBlock()).toString();
+        return id.endsWith("_fence") && !id.endsWith("_fence_gate");
+    }
+
+    private static void tryCollectFenceFrame(Set<BlockPos> out,
+                                             BlockPos origin,
+                                             BuildStrategy wallStrategy,
+                                             double windowRatio,
+                                             boolean preferSymmetry,
+                                             int x,
+                                             int y,
+                                             int z,
+                                             int width,
+                                             int depth) {
+        if (x < 0 || z < 0 || x >= width || z >= depth) return;
+        // avoid corner pillars
+        if ((x == 0 || x == width - 1) && (z == 0 || z == depth - 1)) return;
+        // avoid door area (front center)
+        boolean nearDoor = (z == 0) && (x == width / 2 || x == width / 2 - 1);
+        if (nearDoor) return;
+        // avoid overwriting adjacent windows
+        boolean wouldBeWindow = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth);
+        if (wouldBeWindow) return;
+        out.add(origin.add(x, y, z));
+    }
+
+    private static String deriveStainedPaneId(String id) {
+        if (id == null || id.isBlank()) return "minecraft:light_blue_stained_glass_pane";
+        String s = id.trim();
+        if (s.endsWith("_stained_glass_pane")) return s;
+        if (s.endsWith("_stained_glass")) return s + "_pane";
+        // best-effort: unknown stained id, use safe fallback
+        return "minecraft:light_blue_stained_glass_pane";
     }
 
     /**

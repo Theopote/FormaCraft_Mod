@@ -3,13 +3,19 @@ package com.formacraft.server.generator;
 import com.formacraft.common.model.build.*;
 import com.formacraft.common.skeleton.compound.CompoundPlan;
 import com.formacraft.common.skeleton.compound.GeneratorBackedPlan;
+import com.formacraft.common.skeleton.path.PolylinePathPlan;
 import com.formacraft.common.skeleton.rect.RectEnclosurePlan;
 import com.formacraft.common.skeleton.transform.BlockTransform;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.skeleton.compound.CompoundInterpreter;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
+import com.formacraft.server.skeleton.path.PathPlanner;
+import com.formacraft.server.skeleton.path.PathRoadInterpreter;
 import com.formacraft.server.skeleton.rect.RectEnclosureInterpreter;
+import com.formacraft.common.style.profile.BuildStrategy;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -18,6 +24,7 @@ import net.minecraft.util.math.Direction;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * CastleCompoundGenerator (v1):
@@ -34,6 +41,10 @@ public class CastleCompoundGenerator implements StructureGenerator {
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        Map<String, Object> extra = spec != null ? spec.getExtra() : null;
+        boolean includePaths = getBool(extra, "includePaths", true);
+        int pathWidth = clamp(getInt(extra, "pathWidth", 3), 1, 7);
+
         int w = (spec != null && spec.getFootprint() != null) ? Math.max(24, spec.getFootprint().getWidth()) : 48;
         int d = (spec != null && spec.getFootprint() != null) ? Math.max(24, spec.getFootprint().getDepth()) : 36;
         w = clamp(w, 24, 160);
@@ -48,7 +59,16 @@ public class CastleCompoundGenerator implements StructureGenerator {
 
         Materials mats = (spec != null && spec.getMaterials() != null) ? spec.getMaterials() : new Materials();
         BlockState wallBlock = getStateOrDefault(world, mats.getWall(), Blocks.STONE_BRICKS.getDefaultState());
-        BlockState capBlock = Blocks.STONE_BRICK_SLAB.getDefaultState();
+        // cap resolved from style profile (data-driven); fallback to stone brick slab
+        StyleProfile styleProfile = StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
+        BlockState capBlock = getStateOrDefault(world,
+                styleProfile != null && styleProfile.palette() != null ? styleProfile.palette().cap : null,
+                Blocks.STONE_BRICK_SLAB.getDefaultState());
+        BlockState cap2Block = getStateOrDefault(world,
+                styleProfile != null && styleProfile.palette() != null ? styleProfile.palette().trim : null,
+                wallBlock);
+        int capLayers = (styleProfile != null && styleProfile.rules() != null) ? styleProfile.rules().capLayers : 1;
+        int capOverhang = (styleProfile != null && styleProfile.rules() != null) ? styleProfile.rules().capOverhang : 0;
 
         // child specs
         BuildingSpec towerSpec = makeTowerSpec(towerHeight, mats);
@@ -78,13 +98,49 @@ public class CastleCompoundGenerator implements StructureGenerator {
                 .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(-tx, 0, -tz))
                 .add(new GeneratorBackedPlan(gateHouseSpec), BlockTransform.translate(gateOffX, 0, gateOffZ));
 
+        if (includePaths) {
+            // Start just inside the gate opening, then to courtyard center, then towards inner keep area.
+            int startX = 0;
+            int startZ = 0;
+            switch (gateSide) {
+                case SOUTH -> { startX = gateOffX; startZ = (d / 2) - 1; }
+                case NORTH -> { startX = gateOffX; startZ = -(d / 2) + 1; }
+                case EAST -> { startX = (w / 2) - 1; startZ = gateOffZ; }
+                case WEST -> { startX = -(w / 2) + 1; startZ = gateOffZ; }
+                default -> { startX = 0; startZ = (d / 2) - 1; }
+            }
+            BlockPos start = new BlockPos(startX, 0, startZ);
+            BlockPos center = new BlockPos(0, 0, 0);
+            BlockPos keep = new BlockPos(0, 0, -(d / 4)); // simple bias towards north interior
+
+            compound.add(new PolylinePathPlan(List.of(start, center, keep), pathWidth, false, false, 10), BlockTransform.identity());
+
+            // Branches to corner towers
+            BlockPos t1 = new BlockPos(tx, 0, tz);
+            BlockPos t2 = new BlockPos(-tx, 0, tz);
+            BlockPos t3 = new BlockPos(tx, 0, -tz);
+            BlockPos t4 = new BlockPos(-tx, 0, -tz);
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t1), pathWidth, false, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t2), pathWidth, false, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t3), pathWidth, false, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t4), pathWidth, false, false, 10), BlockTransform.identity());
+        }
+
         PlanDispatcher dispatcher = (plan, o, wld) -> {
             if (plan instanceof GeneratorBackedPlan gbp) {
                 if (gbp.spec == null) return List.of();
                 return StructureGeneratorFactory.getGenerator(gbp.spec).generate(gbp.spec, o, wld).getBlocks();
             }
             if (plan instanceof RectEnclosurePlan rep) {
-                return new RectEnclosureInterpreter(wallBlock, capBlock).interpret(rep, o, wld);
+                StyleProfile profile = StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
+                BlockState pillar = getStateOrDefault(wld, profile != null && profile.palette() != null ? profile.palette().pillar : null, wallBlock);
+                boolean openArcade = profile != null && profile.resolve("GATE", Set.of("gate")) == BuildStrategy.OPEN_ARCADE;
+                return new RectEnclosureInterpreter(wallBlock, capBlock, cap2Block, capLayers, capOverhang, pillar, openArcade).interpret(rep, o, wld);
+            }
+            if (plan instanceof PolylinePathPlan pp) {
+                BlockState road = Blocks.COBBLESTONE.getDefaultState();
+                BlockState border = Blocks.STONE_BRICKS.getDefaultState();
+                return new PathRoadInterpreter(road, border, true).interpret(pp, o, wld);
             }
             return List.of();
         };
@@ -225,6 +281,28 @@ public class CastleCompoundGenerator implements StructureGenerator {
 
     private static int clamp(int v, int min, int max) {
         return Math.max(min, Math.min(max, v));
+    }
+
+    private static int getInt(Map<String, Object> extra, String key, int def) {
+        if (extra == null) return def;
+        Object v = extra.get(key);
+        if (v == null) return def;
+        if (v instanceof Number n) return n.intValue();
+        try {
+            return Integer.parseInt(String.valueOf(v).trim());
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private static boolean getBool(Map<String, Object> extra, String key, boolean def) {
+        if (extra == null) return def;
+        Object v = extra.get(key);
+        if (v == null) return def;
+        if (v instanceof Boolean b) return b;
+        String s = String.valueOf(v).trim().toLowerCase();
+        if (s.isEmpty()) return def;
+        return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 }
 

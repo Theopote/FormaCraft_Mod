@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.radial;
 
 import com.formacraft.common.skeleton.radial.*;
+import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
@@ -43,7 +44,8 @@ public final class RadialPrimitiveInterpreter implements SkeletonInterpreter<Rad
         for (int x = -r; x <= r; x++) {
             for (int z = -r; z <= r; z++) {
                 if (x * x + z * z <= r2) {
-                    out.add(new PlannedBlock(c.add(x, y, z), s));
+                    BlockPos p = c.add(x, y, z);
+                    if (BuildConstraintContext.allow(p)) out.add(new PlannedBlock(p, s));
                 }
             }
         }
@@ -56,7 +58,8 @@ public final class RadialPrimitiveInterpreter implements SkeletonInterpreter<Rad
             for (int z = -rOuter; z <= rOuter; z++) {
                 int d2 = x * x + z * z;
                 if (d2 <= ro2 && d2 >= ri2) {
-                    out.add(new PlannedBlock(c.add(x, y, z), s));
+                    BlockPos p = c.add(x, y, z);
+                    if (BuildConstraintContext.allow(p)) out.add(new PlannedBlock(p, s));
                 }
             }
         }
@@ -69,7 +72,8 @@ public final class RadialPrimitiveInterpreter implements SkeletonInterpreter<Rad
             for (int z = -r; z <= r; z++) {
                 int d2 = x * x + z * z;
                 if (d2 <= r2 && d2 >= ri2) {
-                    out.add(new PlannedBlock(c.add(x, y, z), s));
+                    BlockPos p = c.add(x, y, z);
+                    if (BuildConstraintContext.allow(p)) out.add(new PlannedBlock(p, s));
                 }
             }
         }

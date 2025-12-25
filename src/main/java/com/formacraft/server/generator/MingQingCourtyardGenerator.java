@@ -3,13 +3,19 @@ package com.formacraft.server.generator;
 import com.formacraft.common.model.build.*;
 import com.formacraft.common.skeleton.compound.CompoundPlan;
 import com.formacraft.common.skeleton.compound.GeneratorBackedPlan;
+import com.formacraft.common.skeleton.path.PolylinePathPlan;
 import com.formacraft.common.skeleton.rect.RectEnclosurePlan;
 import com.formacraft.common.skeleton.transform.BlockTransform;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.skeleton.compound.CompoundInterpreter;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
+import com.formacraft.server.skeleton.path.PathPlanner;
+import com.formacraft.server.skeleton.path.PathRoadInterpreter;
 import com.formacraft.server.skeleton.rect.RectEnclosureInterpreter;
+import com.formacraft.common.style.profile.BuildStrategy;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -18,6 +24,7 @@ import net.minecraft.util.math.Direction;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * MingQingCourtyardGenerator (v1):
@@ -35,6 +42,10 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
         int d = (spec != null && spec.getFootprint() != null) ? Math.max(16, spec.getFootprint().getDepth()) : 20;
         w = clamp(w, 16, 96);
         d = clamp(d, 16, 96);
+
+        Map<String, Object> extra = spec != null ? spec.getExtra() : null;
+        boolean includePaths = getBool(extra, "includePaths", true);
+        int pathWidth = clamp(getInt(extra, "pathWidth", 3), 1, 7);
 
         Materials mats = (spec != null && spec.getMaterials() != null) ? spec.getMaterials() : new Materials();
 
@@ -87,6 +98,23 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                 .add(new GeneratorBackedPlan(eastWing), BlockTransform.translate(wingOffX, 0, wingOffZ))
                 .add(new GeneratorBackedPlan(gateHouse), BlockTransform.translate(0, 0, gateOffZ));
 
+        // simple courtyard paths (v1): gate -> center -> main hall; center -> wings
+        if (includePaths) {
+            // start just inside the south wall opening
+            BlockPos start = new BlockPos(0, 0, (d / 2) - 1);
+            BlockPos center = new BlockPos(0, 0, 0);
+            int mainDoorZ = mainOffZ + (mainD / 2) + 1;
+            BlockPos mainDoor = new BlockPos(0, 0, mainDoorZ);
+
+            compound.add(new PolylinePathPlan(List.of(start, center, mainDoor), pathWidth, false, false, 10), BlockTransform.identity());
+
+            int wingDoorZ = (wingD / 2) + 1;
+            BlockPos westDoor = new BlockPos(-wingOffX, 0, wingDoorZ);
+            BlockPos eastDoor = new BlockPos(wingOffX, 0, wingDoorZ);
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, westDoor), pathWidth, false, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, eastDoor), pathWidth, false, false, 10), BlockTransform.identity());
+        }
+
         // dispatcher wires child plan types to interpreters/generators
         PlanDispatcher dispatcher = (plan, o, wld) -> {
             if (plan instanceof GeneratorBackedPlan gbp) {
@@ -94,8 +122,23 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                 return StructureGeneratorFactory.getGenerator(gbp.spec).generate(gbp.spec, o, wld).getBlocks();
             }
             if (plan instanceof RectEnclosurePlan rep) {
-                BlockState cap = Blocks.DARK_OAK_SLAB.getDefaultState();
-                return new RectEnclosureInterpreter(wallBlock, cap).interpret(rep, o, wld);
+                StyleProfile profile = StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
+                BlockState pillar = getStateOrDefault(wld, profile != null && profile.palette() != null ? profile.palette().pillar : null, wallBlock);
+                boolean openArcade = profile != null && profile.resolve("GATE", Set.of("gate")) == BuildStrategy.OPEN_ARCADE;
+                BlockState cap = getStateOrDefault(wld,
+                        profile != null && profile.palette() != null ? profile.palette().cap : null,
+                        Blocks.DARK_OAK_SLAB.getDefaultState());
+                BlockState cap2 = getStateOrDefault(wld,
+                        profile != null && profile.palette() != null ? profile.palette().trim : null,
+                        wallBlock);
+                int capLayers = (profile != null && profile.rules() != null) ? profile.rules().capLayers : 1;
+                int capOverhang = (profile != null && profile.rules() != null) ? profile.rules().capOverhang : 0;
+                return new RectEnclosureInterpreter(wallBlock, cap, cap2, capLayers, capOverhang, pillar, openArcade).interpret(rep, o, wld);
+            }
+            if (plan instanceof PolylinePathPlan pp) {
+                // use floor as paving + stone brick border
+                BlockState border = Blocks.STONE_BRICKS.getDefaultState();
+                return new PathRoadInterpreter(floorBlock, border, true).interpret(pp, o, wld);
             }
             return List.of();
         };
@@ -134,6 +177,7 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
         so.setRoofType("hipped");
         so.setDoorStyle("double");
         so.setWindowRatio(0.18);
+        so.setWindowStyle("fence");
         s.setStyleOptions(so);
 
         // role hint for future refinements
@@ -160,6 +204,28 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
 
     private static int clamp(int v, int min, int max) {
         return Math.max(min, Math.min(max, v));
+    }
+
+    private static int getInt(Map<String, Object> extra, String key, int def) {
+        if (extra == null) return def;
+        Object v = extra.get(key);
+        if (v == null) return def;
+        if (v instanceof Number n) return n.intValue();
+        try {
+            return Integer.parseInt(String.valueOf(v).trim());
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private static boolean getBool(Map<String, Object> extra, String key, boolean def) {
+        if (extra == null) return def;
+        Object v = extra.get(key);
+        if (v == null) return def;
+        if (v instanceof Boolean b) return b;
+        String s = String.valueOf(v).trim().toLowerCase();
+        if (s.isEmpty()) return def;
+        return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 }
 

@@ -9,12 +9,16 @@
     "window": "minecraft:glass_pane",
     "foundation": "minecraft:cobblestone",
     "trim": "minecraft:spruce_log",
-    "pillar": "minecraft:spruce_log"
+    "pillar": "minecraft:spruce_log",
+    "cap": "minecraft:spruce_slab"
   },
   "params": {
     "roofType": "gable",
     "windowRatio": 0.25,
-    "windowStyle": "pane",
+    "windowDensity": 0.18,
+    "preferSymmetry": false,
+    "floorHeight": 4,
+    "windowStyle": "fence",
     "wallPattern": "striped",
     "doorStyle": "single"
   }

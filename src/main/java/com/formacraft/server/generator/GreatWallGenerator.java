@@ -7,6 +7,9 @@ import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.linear.LinearPathPlan;
 import com.formacraft.server.skeleton.linear.LinearPathSkeleton;
 import com.formacraft.server.skeleton.linear.LinearWallInterpreter;
+import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -40,11 +43,17 @@ public class GreatWallGenerator implements StructureGenerator {
 
         Direction facing = parseFacing(getStringExtra(spec, "facing", "EAST"));
 
-        BlockState wall = getStateOrDefault(world, getStringExtra(spec, "wallBlock", "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
-        BlockState accent = getStateOrDefault(world, getStringExtra(spec, "accentBlock", "minecraft:mossy_stone_bricks"), Blocks.MOSSY_STONE_BRICKS.getDefaultState());
-        BlockState walkway = getStateOrDefault(world, getStringExtra(spec, "walkwayBlock", "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MEDIEVAL;
+        StyleProfile profile = StyleProfileRegistry.forStyle(style);
+        String pWall = profile != null && profile.palette() != null ? profile.palette().wall : null;
+        String pTrim = profile != null && profile.palette() != null ? profile.palette().trim : null;
+
+        // extra 显式优先；否则使用 StyleProfile；最后才是硬编码默认
+        BlockState wall = getStateOrDefault(world, getStringExtra(spec, "wallBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
+        BlockState accent = getStateOrDefault(world, getStringExtra(spec, "accentBlock", pTrim != null ? pTrim : "minecraft:mossy_stone_bricks"), Blocks.MOSSY_STONE_BRICKS.getDefaultState());
+        BlockState walkway = getStateOrDefault(world, getStringExtra(spec, "walkwayBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
         BlockState crenel = getStateOrDefault(world, getStringExtra(spec, "crenelBlock", "minecraft:stone_brick_wall"), Blocks.STONE_BRICK_WALL.getDefaultState());
-        BlockState towerBlock = getStateOrDefault(world, getStringExtra(spec, "towerBlock", "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
+        BlockState towerBlock = getStateOrDefault(world, getStringExtra(spec, "towerBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
 
         // -----------------------------
         // Skeleton-driven generation (v1)

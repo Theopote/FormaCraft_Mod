@@ -6,6 +6,7 @@ package com.formacraft.common.skeleton;
  */
 public enum SkeletonType {
     LINEAR_PATH,
+    PATH_POLYLINE,
     RADIAL_RING,
     SPAN_SUSPENSION,
     VERTICAL_TAPER,

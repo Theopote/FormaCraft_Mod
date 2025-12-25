@@ -823,6 +823,13 @@ public class ChatPanel extends BasePanel {
         req.setDimension(dimensionId);
         req.setSelectionMin(SelectionContext.hasSelection() ? SelectionContext.min() : null);
         req.setSelectionMax(SelectionContext.hasSelection() ? SelectionContext.max() : null);
+        try {
+            // 用于服务端“生成阶段硬裁剪”：禁区/轮廓不再只靠 AI 遵守
+            if (bc != null) {
+                req.setOutline(bc.outline);
+                req.setProtectedZones(bc.protectedZones);
+            }
+        } catch (Throwable ignored) {}
         req.setSessionId(sessionId);
         req.setChatHistory(history);
 

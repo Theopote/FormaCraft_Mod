@@ -9,11 +9,15 @@
     "window": "minecraft:glass",
     "foundation": "minecraft:smooth_stone",
     "trim": "minecraft:black_concrete",
-    "pillar": "minecraft:quartz_pillar"
+    "pillar": "minecraft:quartz_pillar",
+    "cap": "minecraft:smooth_quartz_slab"
   },
   "params": {
     "roofType": "flat",
     "windowRatio": 0.45,
+    "windowDensity": 0.80,
+    "preferSymmetry": true,
+    "floorHeight": 3,
     "windowStyle": "pane",
     "wallPattern": "uniform",
     "doorStyle": "single"

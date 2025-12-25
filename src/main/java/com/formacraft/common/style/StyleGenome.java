@@ -29,6 +29,8 @@ public class StyleGenome {
         public String foundation;
         public String trim;
         public String pillar;
+        /** 围墙/院墙“帽檐”/压顶（可选） */
+        public String cap;
     }
 
     public static class Params {
@@ -36,12 +38,24 @@ public class StyleGenome {
         public String roofType;
         /** 0.0~1.0 */
         public Double windowRatio;
+        /** 0.0~1.0（更偏“表达层”的密度建议，优先级低于 windowRatio/显式 styleOptions） */
+        public Double windowDensity;
+        /** 每层高度建议（可用于生成器默认分层节奏） */
+        public Integer floorHeight;
+        /** 是否偏好对称（布局/构件节奏） */
+        public Boolean preferSymmetry;
+        /** 是否偏好屋檐层次（多道檐口线脚/层叠屋面表达） */
+        public Boolean layeredRoof;
         /** pane / fence / stained */
         public String windowStyle;
         /** uniform / striped / gradient / random */
         public String wallPattern;
         /** single / double / arched / none */
         public String doorStyle;
+        /** RectEnclosure cap layering (1..3). When >=2, interpreters may add an extra coping band below the cap. */
+        public Integer capLayers;
+        /** RectEnclosure cap overhang outward in blocks (0..1). */
+        public Integer capOverhang;
     }
 
     public boolean hasPalette() {

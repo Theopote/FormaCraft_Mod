@@ -9,6 +9,8 @@ import com.formacraft.common.network.packet.ResponseBuildSpecPacket;
 import com.formacraft.common.network.packet.ResponseBuildStatusPacket;
 import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.server.build.BuildExecutionService;
+import com.formacraft.server.build.BuildConstraintContext;
+import com.formacraft.server.build.BuildConstraintClipper;
 import com.formacraft.server.orchestrator.OrchestratorClient;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.model.constraint.ProtectedZone;
@@ -445,15 +447,24 @@ public class FormaCraftNetworking {
                             // 生成城市结构
                             com.formacraft.server.city.CityBuilder cityBuilder =
                                     new com.formacraft.server.city.CityBuilder();
-                            com.formacraft.server.build.GeneratedStructure structure =
-                                    cityBuilder.generate(citySpec, origin, serverWorld);
+                            final com.formacraft.server.build.GeneratedStructure generated =
+                                    BuildConstraintContext.withRequest(req, () -> cityBuilder.generate(citySpec, origin, serverWorld));
+
+                            // H-layer (MVP): auto validation & repair before preview
+                            com.formacraft.server.build.BuildAutoRepair.Result repair =
+                                    BuildConstraintContext.withRequest(req, () ->
+                                            com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.empty(), generated.getBlocks())
+                                    );
+                            if (repair.summary() != null && !repair.summary().isBlank()) {
+                                ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(repair.summary()));
+                            }
 
                             // 设置玩家 UUID
-                            structure = new com.formacraft.server.build.GeneratedStructure(
+                            com.formacraft.server.build.GeneratedStructure structure = new com.formacraft.server.build.GeneratedStructure(
                                     player.getUuid(),
                                     origin,
-                                    structure.getDescription(),
-                                    structure.getBlocks()
+                                    generated.getDescription(),
+                                    BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
                             );
 
                             // 存储结构用于预览
@@ -515,15 +526,24 @@ public class FormaCraftNetworking {
                             // 生成结构
                             com.formacraft.server.generator.composite.CompositeStructureGenerator generator =
                                     new com.formacraft.server.generator.composite.CompositeStructureGenerator();
-                            com.formacraft.server.build.GeneratedStructure structure =
-                                    generator.generate(compositeSpec, origin, serverWorld);
+                            final com.formacraft.server.build.GeneratedStructure generated =
+                                    BuildConstraintContext.withRequest(req, () -> generator.generate(compositeSpec, origin, serverWorld));
+
+                            // H-layer (MVP): auto validation & repair before preview
+                            com.formacraft.server.build.BuildAutoRepair.Result repair =
+                                    BuildConstraintContext.withRequest(req, () ->
+                                            com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.empty(), generated.getBlocks())
+                                    );
+                            if (repair.summary() != null && !repair.summary().isBlank()) {
+                                ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(repair.summary()));
+                            }
 
                             // 设置玩家 UUID
-                            structure = new com.formacraft.server.build.GeneratedStructure(
+                            com.formacraft.server.build.GeneratedStructure structure = new com.formacraft.server.build.GeneratedStructure(
                                     player.getUuid(),
                                     origin,
-                                    structure.getDescription(),
-                                    structure.getBlocks()
+                                    generated.getDescription(),
+                                    BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
                             );
 
                             // 存储结构用于预览
@@ -591,14 +611,24 @@ public class FormaCraftNetworking {
                             if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
                                 com.formacraft.server.generator.StructureGenerator generator =
                                         com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(updated);
-                                com.formacraft.server.build.GeneratedStructure structure =
-                                        generator.generate(updated, origin, serverWorld);
+                                final com.formacraft.server.build.GeneratedStructure generated =
+                                        BuildConstraintContext.withRequest(req, () -> generator.generate(updated, origin, serverWorld));
 
-                                structure = new com.formacraft.server.build.GeneratedStructure(
+                                // H-layer (MVP): auto validation & repair before preview
+                                com.formacraft.server.build.BuildAutoRepair.Result repair =
+                                        BuildConstraintContext.withRequest(req, () ->
+                                                com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.ofNullable(updated.getStyle()), generated.getBlocks())
+                                        );
+                                if (repair.summary() != null && !repair.summary().isBlank()) {
+                                    ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(repair.summary()));
+                                }
+
+                                // 生成阶段硬裁剪：禁区/轮廓/选区（由工具提供）
+                                com.formacraft.server.build.GeneratedStructure structure = new com.formacraft.server.build.GeneratedStructure(
                                         player.getUuid(),
                                         origin,
-                                        structure.getDescription(),
-                                        structure.getBlocks()
+                                        generated.getDescription(),
+                                        BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
                                 );
 
                                 com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
@@ -654,15 +684,24 @@ public class FormaCraftNetworking {
                             // 生成结构用于预览
                             com.formacraft.server.generator.StructureGenerator generator =
                                     com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(spec);
-                            com.formacraft.server.build.GeneratedStructure structure =
-                                    generator.generate(spec, origin, serverWorld);
+                            final com.formacraft.server.build.GeneratedStructure generated =
+                                    BuildConstraintContext.withRequest(req, () -> generator.generate(spec, origin, serverWorld));
 
-                            // 设置玩家 UUID
-                            structure = new com.formacraft.server.build.GeneratedStructure(
+                            // H-layer (MVP): auto validation & repair before preview
+                            com.formacraft.server.build.BuildAutoRepair.Result repair =
+                                    BuildConstraintContext.withRequest(req, () ->
+                                            com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.ofNullable(spec.getStyle()), generated.getBlocks())
+                                    );
+                            if (repair.summary() != null && !repair.summary().isBlank()) {
+                                ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(repair.summary()));
+                            }
+
+                            // 生成阶段硬裁剪：禁区/轮廓/选区（由工具提供）
+                            com.formacraft.server.build.GeneratedStructure structure = new com.formacraft.server.build.GeneratedStructure(
                                     player.getUuid(),
                                     origin,
-                                    structure.getDescription(),
-                                    structure.getBlocks()
+                                    generated.getDescription(),
+                                    BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
                             );
 
                             // 存储结构用于预览
@@ -701,12 +740,26 @@ public class FormaCraftNetworking {
             }
 
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                // 优先：按“预览已生成的结构”执行，保证与预览一致（也包含禁区/轮廓硬裁剪）
+                com.formacraft.server.build.GeneratedStructure preview = com.formacraft.server.preview.PreviewStorage.getStructure(player);
+                boolean hasPreview = com.formacraft.server.preview.PreviewStorage.hasPreview(player);
+                if (hasPreview && preview != null) {
+                    try { sendClearOutline(player); } catch (Throwable ignored) {}
+                    com.formacraft.server.preview.PreviewStorage.setPreview(player, false);
+                    BuildExecutionService.getInstance().enqueueBuild(serverWorld, preview);
+                    try {
+                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已确认建造：开始放置方块…（按预览结果执行）"));
+                    } catch (Throwable ignored) {}
+                    FormacraftMod.LOGGER.info("Player {} confirmed build (from preview) at {}",
+                            player.getName().getString(), preview.getOrigin());
+                    return;
+                }
+
+                // 回退：重新生成（兼容旧流程/无预览时）
                 BuildingSpec spec = payload.spec();
                 int[] originArray = payload.origin();
                 if (originArray != null && originArray.length == 3) {
-                    BlockPos origin = new BlockPos(
-                            originArray[0], originArray[1], originArray[2]
-                    );
+                    BlockPos origin = new BlockPos(originArray[0], originArray[1], originArray[2]);
                     // 保存 BuildingSpec 到 PlayerSpecRepository（供 PATCH/编辑使用）
                     try {
                         String buildingId = "player_" + player.getName().getString() + "_world_" +
@@ -715,16 +768,9 @@ public class FormaCraftNetworking {
                         com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, buildingJson);
                     } catch (Throwable ignored) {}
 
-                    // 使用玩家 UUID 创建 GeneratedStructure
-                    BuildExecutionService.getInstance().queueBuild(
-                            serverWorld,
-                            origin,
-                            spec,
-                            player.getUuid()
-                    );
-                    // 明确提示：已开始执行（逐 tick 放置）
+                    BuildExecutionService.getInstance().queueBuild(serverWorld, origin, spec, player.getUuid());
                     try {
-                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已确认建造：开始放置方块…（若无变化，请等待几秒）"));
+                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已确认建造：开始放置方块…（重新生成）"));
                     } catch (Throwable ignored) {}
                     FormacraftMod.LOGGER.info("Player {} confirmed build at {}",
                             player.getName().getString(), origin);

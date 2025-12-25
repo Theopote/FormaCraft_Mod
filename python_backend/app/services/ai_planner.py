@@ -763,6 +763,12 @@ def _generate_castle_compound_building_spec(req: BuildRequest) -> BuildingSpec:
     if not facing:
         facing = "SOUTH"
 
+    include_paths = _parse_include_paths_from_text(text)
+    if include_paths is None:
+        include_paths = _arche_default_bool(arche_id, "includePaths", True)
+    path_width = _parse_path_width_from_text(text) or _arche_default_int(arche_id, "pathWidth", 3)
+    path_width = _clamp_with_arche_constraints(arche_id, path_width, "minPathWidth", "maxPathWidth")
+
     t_low = text.lower()
     detail_level = "aesthetic"
     if any(k in t_low for k in ("精致", "细节", "更复杂", "more detail", "refined", "ornate")):
@@ -814,6 +820,8 @@ def _generate_castle_compound_building_spec(req: BuildRequest) -> BuildingSpec:
             "facing": facing,
             "followTerrain": follow_terrain,
             "detailLevel": detail_level,
+            "includePaths": bool(include_paths),
+            "pathWidth": int(path_width),
         },
     )
 
@@ -872,6 +880,54 @@ def _parse_grid_from_text(s: str) -> tuple[Optional[int], Optional[int], Optiona
     return rows, cols, spacing
 
 
+def _parse_include_roads_from_text(s: str) -> Optional[bool]:
+    if not s:
+        return None
+    t = s.lower()
+    if any(k in t for k in ("不要道路", "无道路", "不需要道路", "no roads", "without roads")):
+        return False
+    if any(k in t for k in ("道路", "路网", "road", "roads", "street", "streets")):
+        return True
+    return None
+
+
+def _parse_road_width_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    m = re.search(r"(?:道路宽度|路宽|road\s*width)\s*(?:为|=|:)?\s*(\d{1,2})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
+def _parse_include_paths_from_text(s: str) -> Optional[bool]:
+    if not s:
+        return None
+    t = s.lower()
+    if any(k in t for k in ("不要路", "不铺路", "不要铺路", "无路", "no path", "no paths", "without path", "without paths")):
+        return False
+    if any(k in t for k in ("铺路", "石板路", "路面", "小路", "path", "paths", "walkway", "walkways")):
+        return True
+    return None
+
+
+def _parse_path_width_from_text(s: str) -> Optional[int]:
+    if not s:
+        return None
+    m = re.search(r"(?:路宽|小路宽度|路径宽度|path\s*width)\s*(?:为|=|:)?\s*(\d{1,2})", s, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        v = int(m.group(1))
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+
 def _generate_office_district_building_spec(req: BuildRequest) -> BuildingSpec:
     text = (req.requestText or "") + "\n" + (req.userMessage or "")
     arche_id = "office_district"
@@ -891,6 +947,12 @@ def _generate_office_district_building_spec(req: BuildRequest) -> BuildingSpec:
     block_w = _clamp_with_arche_constraints(arche_id, block_w, "minBlockWidth", "maxBlockWidth")
     block_d = _clamp_with_arche_constraints(arche_id, block_d, "minBlockDepth", "maxBlockDepth")
     block_h = _clamp_with_arche_constraints(arche_id, block_h, "minBlockHeight", "maxBlockHeight")
+
+    include_roads = _parse_include_roads_from_text(text)
+    if include_roads is None:
+        include_roads = _arche_default_bool(arche_id, "includeRoads", True)
+    road_width = _parse_road_width_from_text(text) or _arche_default_int(arche_id, "roadWidth", 3)
+    road_width = _clamp_with_arche_constraints(arche_id, road_width, "minRoadWidth", "maxRoadWidth")
 
     materials = Materials(
         wall="minecraft:light_gray_concrete",
@@ -937,6 +999,8 @@ def _generate_office_district_building_spec(req: BuildRequest) -> BuildingSpec:
             "blockWidth": block_w,
             "blockDepth": block_d,
             "blockHeight": block_h,
+            "includeRoads": bool(include_roads),
+            "roadWidth": int(road_width),
         },
     )
 
@@ -1478,11 +1542,12 @@ def _parse_rect_size_from_text(s: str) -> Optional[tuple[int, int]]:
 
 def _generate_mingqing_courtyard_building_spec(req: BuildRequest) -> BuildingSpec:
     text = (req.requestText or "") + "\n" + (req.userMessage or "")
+    arche_id = "mingqing_courtyard"
     size = _parse_rect_size_from_text(text)
     # 触发我们 Java 侧 ASIAN courtyard 生成器的最小安全尺寸
     w, d = size if size else (20, 20)
-    w = max(16, min(64, w))
-    d = max(16, min(64, d))
+    w = _clamp_with_arche_constraints(arche_id, w, "minWidth", "maxWidth")
+    d = _clamp_with_arche_constraints(arche_id, d, "minDepth", "maxDepth")
 
     # 明清官式 palette（尽量避免风格漂移成 stone+oak）
     materials = Materials(
@@ -1511,6 +1576,12 @@ def _generate_mingqing_courtyard_building_spec(req: BuildRequest) -> BuildingSpe
         wallPattern="uniform",
     )
 
+    include_paths = _parse_include_paths_from_text(text)
+    if include_paths is None:
+        include_paths = _arche_default_bool(arche_id, "includePaths", True)
+    path_width = _parse_path_width_from_text(text) or _arche_default_int(arche_id, "pathWidth", 3)
+    path_width = _clamp_with_arche_constraints(arche_id, path_width, "minPathWidth", "maxPathWidth")
+
     return BuildingSpec(
         type=BuildingType.HOUSE,
         style=BuildingStyle.ASIAN,
@@ -1521,7 +1592,7 @@ def _generate_mingqing_courtyard_building_spec(req: BuildRequest) -> BuildingSpe
         features=features,
         styleOptions=style_options,
         notes=f"模板：明清官式院落（{w}×{d}）。为保证按描述生成，使用确定性模板（除非用户要求随意）。",
-        extra={"template": "mingqing_courtyard"},
+        extra={"template": "mingqing_courtyard", "includePaths": bool(include_paths), "pathWidth": int(path_width)},
     )
 
 

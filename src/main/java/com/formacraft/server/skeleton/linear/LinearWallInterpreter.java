@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.linear;
 
 import com.formacraft.common.skeleton.linear.LinearPathPlan;
+import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
@@ -75,7 +76,7 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
                 int tz = rz * t;
                 for (int y = 0; y < segHeight; y++) {
                     BlockPos bp = new BlockPos(p.getX() + tx, baseY + y, p.getZ() + tz);
-                    blocks.add(new PlannedBlock(bp, pickWallBlock(i, y, t)));
+                    if (BuildConstraintContext.allow(bp)) blocks.add(new PlannedBlock(bp, pickWallBlock(i, y, t)));
                 }
             }
 
@@ -83,14 +84,16 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
             int walkwayY = baseY + (height - 1) + towerExtraH;
             for (int t = -halfT; t <= halfT; t++) {
                 BlockPos wp = new BlockPos(p.getX() + rx * t, walkwayY, p.getZ() + rz * t);
-                blocks.add(new PlannedBlock(wp, walkway));
+                if (BuildConstraintContext.allow(wp)) blocks.add(new PlannedBlock(wp, walkway));
             }
 
             // crenels on edges (alternating)
             if (crenels && (i % 2 == 0)) {
                 int crenelY = baseY + height + towerExtraH;
-                blocks.add(new PlannedBlock(new BlockPos(p.getX() + rx * (-halfT), crenelY, p.getZ() + rz * (-halfT)), crenel));
-                blocks.add(new PlannedBlock(new BlockPos(p.getX() + rx * (halfT), crenelY, p.getZ() + rz * (halfT)), crenel));
+                BlockPos c1 = new BlockPos(p.getX() + rx * (-halfT), crenelY, p.getZ() + rz * (-halfT));
+                if (BuildConstraintContext.allow(c1)) blocks.add(new PlannedBlock(c1, crenel));
+                BlockPos c2 = new BlockPos(p.getX() + rx * (halfT), crenelY, p.getZ() + rz * (halfT));
+                if (BuildConstraintContext.allow(c2)) blocks.add(new PlannedBlock(c2, crenel));
             }
 
             // watchtower (very simple): a small hollow square around the center point
@@ -115,21 +118,26 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
                 for (int z = -r; z <= r; z++) {
                     boolean edge = (Math.abs(x) == r) || (Math.abs(z) == r);
                     if (!edge) continue;
-                    blocks.add(new PlannedBlock(new BlockPos(x0 + x, y0 + y, z0 + z), tower));
+                    BlockPos p = new BlockPos(x0 + x, y0 + y, z0 + z);
+                    if (BuildConstraintContext.allow(p)) blocks.add(new PlannedBlock(p, tower));
                 }
             }
         }
         // top crenels
         for (int x = -r; x <= r; x++) {
             if ((x & 1) == 0) {
-                blocks.add(new PlannedBlock(new BlockPos(x0 + x, y0 + h + 1, z0 - r), Blocks.STONE_BRICK_WALL.getDefaultState()));
-                blocks.add(new PlannedBlock(new BlockPos(x0 + x, y0 + h + 1, z0 + r), Blocks.STONE_BRICK_WALL.getDefaultState()));
+                BlockPos p1 = new BlockPos(x0 + x, y0 + h + 1, z0 - r);
+                if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, Blocks.STONE_BRICK_WALL.getDefaultState()));
+                BlockPos p2 = new BlockPos(x0 + x, y0 + h + 1, z0 + r);
+                if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, Blocks.STONE_BRICK_WALL.getDefaultState()));
             }
         }
         for (int z = -r; z <= r; z++) {
             if ((z & 1) == 0) {
-                blocks.add(new PlannedBlock(new BlockPos(x0 - r, y0 + h + 1, z0 + z), Blocks.STONE_BRICK_WALL.getDefaultState()));
-                blocks.add(new PlannedBlock(new BlockPos(x0 + r, y0 + h + 1, z0 + z), Blocks.STONE_BRICK_WALL.getDefaultState()));
+                BlockPos p1 = new BlockPos(x0 - r, y0 + h + 1, z0 + z);
+                if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, Blocks.STONE_BRICK_WALL.getDefaultState()));
+                BlockPos p2 = new BlockPos(x0 + r, y0 + h + 1, z0 + z);
+                if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, Blocks.STONE_BRICK_WALL.getDefaultState()));
             }
         }
     }

@@ -1,6 +1,8 @@
 package com.formacraft.common.model.request;
 
 import net.minecraft.util.math.BlockPos;
+import com.formacraft.common.buildcontext.OutlineShape;
+import com.formacraft.common.model.constraint.ProtectedZone;
 
 /**
  * 玩家请求数据结构（Minecraft → Python）
@@ -18,6 +20,10 @@ public class FormaRequest {
     private String biome;
     private BlockPos selectionMin;
     private BlockPos selectionMax;
+    /** 可选：轮廓/Footprint（用于服务端生成阶段硬裁剪；与客户端 OutlineTool 同源） */
+    private OutlineShape outline;
+    /** 可选：禁区/保护区（用于服务端生成阶段硬裁剪；与客户端 ProtectedZoneTool 同源） */
+    private java.util.List<ProtectedZone> protectedZones;
     private String sessionId;
     private java.util.List<String> chatHistory;
 
@@ -32,6 +38,7 @@ public class FormaRequest {
 
     public FormaRequest() {
         this.chatHistory = java.util.Collections.emptyList();
+        this.protectedZones = java.util.Collections.emptyList();
     }
 
     public FormaRequest(String requestText, BlockPos playerPos, String facing, String dimension,
@@ -43,6 +50,7 @@ public class FormaRequest {
         this.biome = biome;
         this.selectionMin = selectionMin;
         this.selectionMax = selectionMax;
+        this.protectedZones = java.util.Collections.emptyList();
         this.chatHistory = java.util.Collections.emptyList();
     }
 
@@ -117,6 +125,22 @@ public class FormaRequest {
 
     public void setSelectionMax(BlockPos selectionMax) {
         this.selectionMax = selectionMax;
+    }
+
+    public OutlineShape getOutline() {
+        return outline;
+    }
+
+    public void setOutline(OutlineShape outline) {
+        this.outline = outline;
+    }
+
+    public java.util.List<ProtectedZone> getProtectedZones() {
+        return protectedZones;
+    }
+
+    public void setProtectedZones(java.util.List<ProtectedZone> protectedZones) {
+        this.protectedZones = protectedZones != null ? protectedZones : java.util.Collections.emptyList();
     }
 
     public String getSessionId() {

@@ -9,12 +9,17 @@
     "window": "minecraft:glass_pane",
     "foundation": "minecraft:cobblestone",
     "trim": "minecraft:chiseled_stone_bricks",
-    "pillar": "minecraft:oak_log"
+    "pillar": "minecraft:stone_brick_wall",
+    "cap": "minecraft:stone_brick_slab"
   },
   "params": {
     "roofType": "gable",
     "windowRatio": 0.20,
-    "windowStyle": "pane",
+    "windowDensity": 0.25,
+    "layeredRoof": true,
+    "preferSymmetry": false,
+    "floorHeight": 5,
+    "windowStyle": "bars",
     "wallPattern": "uniform",
     "doorStyle": "arched"
   }
