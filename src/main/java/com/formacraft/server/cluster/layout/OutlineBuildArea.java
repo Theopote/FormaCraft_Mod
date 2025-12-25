@@ -20,6 +20,7 @@ public final class OutlineBuildArea extends BuildArea {
     private final BlockPos clusterOrigin; // world coords
     private final int maxTries;
     private final int sampleY;
+    private final BlockPos outlineCenter; // world coords (XZ used)
 
     public OutlineBuildArea(OutlineShape outline, BlockPos clusterOrigin, int fallbackHalfX, int fallbackHalfZ) {
         super(fallbackHalfX, fallbackHalfZ);
@@ -32,6 +33,7 @@ public final class OutlineBuildArea extends BuildArea {
         } else {
             this.sampleY = clusterOrigin != null ? clusterOrigin.getY() : 64;
         }
+        this.outlineCenter = computeOutlineCenter(outline, clusterOrigin);
     }
 
     @Override
@@ -120,8 +122,36 @@ public final class OutlineBuildArea extends BuildArea {
         return true;
     }
 
+    @Override
+    public double normalizedDistanceToCenter(BlockPos relOrigin) {
+        if (outlineCenter == null || clusterOrigin == null) return super.normalizedDistanceToCenter(relOrigin);
+        int worldX = clusterOrigin.getX() + relOrigin.getX();
+        int worldZ = clusterOrigin.getZ() + relOrigin.getZ();
+        double dx = worldX - outlineCenter.getX();
+        double dz = worldZ - outlineCenter.getZ();
+
+        double denom;
+        if (outline != null && "circle".equalsIgnoreCase(outline.shapeType()) && outline.radius() > 0) {
+            denom = outline.radius();
+        } else {
+            // Fallback: normalize by the bounding box diagonal inside the fallback halfX/halfZ window.
+            denom = Math.sqrt((double) halfX * halfX + (double) halfZ * halfZ);
+        }
+        if (denom <= 0.0) return 0.0;
+        return Math.min(1.0, Math.sqrt(dx * dx + dz * dz) / denom);
+    }
+
     private boolean allowXZ(int x, int z) {
         return BuildConstraintContext.allow(new BlockPos(x, sampleY, z));
+    }
+
+    private static BlockPos computeOutlineCenter(OutlineShape outline, BlockPos clusterOrigin) {
+        if (outline == null) return clusterOrigin;
+        if ("circle".equalsIgnoreCase(outline.shapeType()) && outline.center() != null) {
+            return new BlockPos(outline.center().getX(), outline.minY(), outline.center().getZ());
+        }
+        BlockPos c = outline.computeCenterOrigin();
+        return c != null ? c : clusterOrigin;
     }
 }
 
