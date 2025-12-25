@@ -123,6 +123,8 @@ public final class PlacementSolver {
         final double wServ = cfg.semanticWeightService;
         final double bufferMinN = cfg.semanticBufferMinDistN;
         final double bufferW = cfg.semanticBufferWeight;
+        final double spMinN = cfg.semanticServicePrivateMinDistN;
+        final double spW = cfg.semanticServicePrivateWeight;
 
         // Collect already-placed key role centers (relative).
         final java.util.List<int[]> placedPublic = new java.util.ArrayList<>();
@@ -143,11 +145,13 @@ public final class PlacementSolver {
             double sa = adjustedScore(a, mx, mz, w, maxDistFinal, axisW, axisMode, halfX, halfZ,
                     pubTargetN, pubBandN, privMinN, servMinN, wPub, wPriv, wServ,
                     bufferMinN, bufferW,
-                    placedPublic, placedService, placedPrivate);
+                    placedPublic, placedService, placedPrivate,
+                    spMinN, spW);
             double sb = adjustedScore(b, mx, mz, w, maxDistFinal, axisW, axisMode, halfX, halfZ,
                     pubTargetN, pubBandN, privMinN, servMinN, wPub, wPriv, wServ,
                     bufferMinN, bufferW,
-                    placedPublic, placedService, placedPrivate);
+                    placedPublic, placedService, placedPrivate,
+                    spMinN, spW);
             return Double.compare(sb, sa);
         });
         return out;
@@ -173,7 +177,9 @@ public final class PlacementSolver {
                                         double bufferW,
                                         java.util.List<int[]> placedPublic,
                                         java.util.List<int[]> placedService,
-                                        java.util.List<int[]> placedPrivate) {
+                                        java.util.List<int[]> placedPrivate,
+                                        double spMinN,
+                                        double spW) {
         if (c == null) return -1e9;
         int x = c.originRel.getX();
         int z = c.originRel.getZ();
@@ -246,6 +252,18 @@ public final class PlacementSolver {
             if ("PUBLIC".equals(role) && placedPrivate != null && !placedPrivate.isEmpty()) {
                 double dnMin = minDnToPoints(x, z, placedPrivate, maxDist);
                 if (dnMin < bufferMinN) s -= bufferW * ((bufferMinN - dnMin) / bufferMinN);
+            }
+        }
+
+        // SERVICE <-> PRIVATE stronger separation (soft forbidden):
+        if (spW > 1e-6 && spMinN > 1e-6) {
+            if ("SERVICE".equals(role) && placedPrivate != null && !placedPrivate.isEmpty()) {
+                double dnMin = minDnToPoints(x, z, placedPrivate, maxDist);
+                if (dnMin < spMinN) s -= spW * ((spMinN - dnMin) / spMinN);
+            }
+            if ("PRIVATE".equals(role) && placedService != null && !placedService.isEmpty()) {
+                double dnMin = minDnToPoints(x, z, placedService, maxDist);
+                if (dnMin < spMinN) s -= spW * ((spMinN - dnMin) / spMinN);
             }
         }
         return s;
