@@ -35,6 +35,10 @@ public final class ClusterLayoutConfig {
     public final double semanticBufferWeight;      // 0..1 (penalty weight when buffer is violated)
     public final double semanticServicePrivateMinDistN; // 0..1 (min normalized distance between SERVICE and PRIVATE)
     public final double semanticServicePrivateWeight;   // 0..1
+    public final double semanticTransitionMaxDistN;     // 0..1 (TRANSITION should not be too far from CORE)
+    public final double semanticTransitionToPublicMaxDistN; // 0..1 (TRANSITION should stay close to PUBLIC)
+    public final double semanticWeightTransition;       // 0..1
+    public final double semanticWeightTransitionToPublic; // 0..1
 
     public ClusterLayoutConfig(int halfX,
                                int halfZ,
@@ -62,7 +66,11 @@ public final class ClusterLayoutConfig {
                                double semanticBufferMinDistN,
                                double semanticBufferWeight,
                                double semanticServicePrivateMinDistN,
-                               double semanticServicePrivateWeight) {
+                               double semanticServicePrivateWeight,
+                               double semanticTransitionMaxDistN,
+                               double semanticTransitionToPublicMaxDistN,
+                               double semanticWeightTransition,
+                               double semanticWeightTransitionToPublic) {
         this.halfX = Math.max(8, halfX);
         this.halfZ = Math.max(8, halfZ);
         this.samples = Math.max(50, samples);
@@ -90,6 +98,10 @@ public final class ClusterLayoutConfig {
         this.semanticBufferWeight = clamp01(semanticBufferWeight);
         this.semanticServicePrivateMinDistN = clamp01(semanticServicePrivateMinDistN);
         this.semanticServicePrivateWeight = clamp01(semanticServicePrivateWeight);
+        this.semanticTransitionMaxDistN = clamp01(semanticTransitionMaxDistN);
+        this.semanticTransitionToPublicMaxDistN = clamp01(semanticTransitionToPublicMaxDistN);
+        this.semanticWeightTransition = clamp01(semanticWeightTransition);
+        this.semanticWeightTransitionToPublic = clamp01(semanticWeightTransitionToPublic);
     }
 
     public static ClusterLayoutConfig fromExtra(Map<String, Object> extra, int defaultHalfX, int defaultHalfZ, int count, int spacing) {
@@ -139,6 +151,10 @@ public final class ClusterLayoutConfig {
         double bufferW = getDouble(extra, "semanticBufferWeight", 0.35);
         double spMinN = getDouble(extra, "semanticServicePrivateMinDistN", 0.25);
         double spW = getDouble(extra, "semanticServicePrivateWeight", 0.45);
+        double trMaxN = getDouble(extra, "semanticTransitionMaxDistN", 0.30);
+        double trToPubMaxN = getDouble(extra, "semanticTransitionToPublicMaxDistN", 0.22);
+        double wTr = getDouble(extra, "semanticWeightTransition", 0.20);
+        double wTrPub = getDouble(extra, "semanticWeightTransitionToPublic", 0.25);
 
         // if all weights become zero (bad config), fall back to defaults
         if (Math.max(0.0, wCost) + Math.max(0.0, wSlope) + Math.max(0.0, wCenter) + Math.max(0.0, wImp) <= 1e-9) {
@@ -165,7 +181,11 @@ public final class ClusterLayoutConfig {
                 bufferMinN,
                 bufferW,
                 spMinN,
-                spW);
+                spW,
+                trMaxN,
+                trToPubMaxN,
+                wTr,
+                wTrPub);
     }
 
     private static int getInt(Map<String, Object> extra, String key, int def) {

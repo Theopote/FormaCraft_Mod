@@ -125,6 +125,10 @@ public final class PlacementSolver {
         final double bufferW = cfg.semanticBufferWeight;
         final double spMinN = cfg.semanticServicePrivateMinDistN;
         final double spW = cfg.semanticServicePrivateWeight;
+        final double trMaxN = cfg.semanticTransitionMaxDistN;
+        final double trToPubMaxN = cfg.semanticTransitionToPublicMaxDistN;
+        final double wTr = cfg.semanticWeightTransition;
+        final double wTrPub = cfg.semanticWeightTransitionToPublic;
 
         // Collect already-placed key role centers (relative).
         final java.util.List<int[]> placedPublic = new java.util.ArrayList<>();
@@ -146,12 +150,14 @@ public final class PlacementSolver {
                     pubTargetN, pubBandN, privMinN, servMinN, wPub, wPriv, wServ,
                     bufferMinN, bufferW,
                     placedPublic, placedService, placedPrivate,
-                    spMinN, spW);
+                    spMinN, spW,
+                    trMaxN, trToPubMaxN, wTr, wTrPub);
             double sb = adjustedScore(b, mx, mz, w, maxDistFinal, axisW, axisMode, halfX, halfZ,
                     pubTargetN, pubBandN, privMinN, servMinN, wPub, wPriv, wServ,
                     bufferMinN, bufferW,
                     placedPublic, placedService, placedPrivate,
-                    spMinN, spW);
+                    spMinN, spW,
+                    trMaxN, trToPubMaxN, wTr, wTrPub);
             return Double.compare(sb, sa);
         });
         return out;
@@ -179,7 +185,11 @@ public final class PlacementSolver {
                                         java.util.List<int[]> placedService,
                                         java.util.List<int[]> placedPrivate,
                                         double spMinN,
-                                        double spW) {
+                                        double spW,
+                                        double trMaxN,
+                                        double trToPubMaxN,
+                                        double wTr,
+                                        double wTrPub) {
         if (c == null) return -1e9;
         int x = c.originRel.getX();
         int z = c.originRel.getZ();
@@ -264,6 +274,23 @@ public final class PlacementSolver {
             if ("PRIVATE".equals(role) && placedService != null && !placedService.isEmpty()) {
                 double dnMin = minDnToPoints(x, z, placedService, maxDist);
                 if (dnMin < spMinN) s -= spW * ((spMinN - dnMin) / spMinN);
+            }
+        }
+
+        // TRANSITION should sit between PUBLIC and CORE (soft):
+        // - not too far from CORE (max distance)
+        // - close to PUBLIC (if any public is already placed)
+        if ("TRANSITION".equals(role)) {
+            if (wTr > 1e-6 && trMaxN > 1e-6 && dn > trMaxN) {
+                double pen = Math.min(1.0, (dn - trMaxN) / Math.max(1e-6, (1.0 - trMaxN)));
+                s -= (wTr * pen);
+            }
+            if (wTrPub > 1e-6 && trToPubMaxN > 1e-6 && placedPublic != null && !placedPublic.isEmpty()) {
+                double dnMinPub = minDnToPoints(x, z, placedPublic, maxDist);
+                if (dnMinPub > trToPubMaxN) {
+                    double pen = Math.min(1.0, (dnMinPub - trToPubMaxN) / Math.max(1e-6, (1.0 - trToPubMaxN)));
+                    s -= (wTrPub * pen);
+                }
             }
         }
         return s;
