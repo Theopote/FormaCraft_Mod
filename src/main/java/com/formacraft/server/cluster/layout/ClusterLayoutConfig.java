@@ -24,6 +24,17 @@ public final class ClusterLayoutConfig {
     public final double compactnessMaxDist; // <=0 => auto
     public final String axisMode; // "none" / "x" / "z"
     public final double axisWeight; // 0..1
+    public final double semanticPublicTargetDistN; // 0..1 (distance band target from CORE/main)
+    public final double semanticPublicBandN;       // 0..1 (band half-width)
+    public final double semanticPrivateMinDistN;   // 0..1 (min distance from CORE/main)
+    public final double semanticServiceMinDistN;   // 0..1
+    public final double semanticWeightPublic;      // 0..1
+    public final double semanticWeightPrivate;     // 0..1
+    public final double semanticWeightService;     // 0..1
+    public final double semanticBufferMinDistN;    // 0..1 (min normalized distance between buffered roles)
+    public final double semanticBufferWeight;      // 0..1 (penalty weight when buffer is violated)
+    public final double semanticServicePrivateMinDistN; // 0..1 (min normalized distance between SERVICE and PRIVATE)
+    public final double semanticServicePrivateWeight;   // 0..1
 
     public ClusterLayoutConfig(int halfX,
                                int halfZ,
@@ -40,7 +51,18 @@ public final class ClusterLayoutConfig {
                                double compactnessWeight,
                                double compactnessMaxDist,
                                String axisMode,
-                               double axisWeight) {
+                               double axisWeight,
+                               double semanticPublicTargetDistN,
+                               double semanticPublicBandN,
+                               double semanticPrivateMinDistN,
+                               double semanticServiceMinDistN,
+                               double semanticWeightPublic,
+                               double semanticWeightPrivate,
+                               double semanticWeightService,
+                               double semanticBufferMinDistN,
+                               double semanticBufferWeight,
+                               double semanticServicePrivateMinDistN,
+                               double semanticServicePrivateWeight) {
         this.halfX = Math.max(8, halfX);
         this.halfZ = Math.max(8, halfZ);
         this.samples = Math.max(50, samples);
@@ -57,6 +79,17 @@ public final class ClusterLayoutConfig {
         this.compactnessMaxDist = compactnessMaxDist;
         this.axisMode = normalizeAxisMode(axisMode);
         this.axisWeight = clamp01(axisWeight);
+        this.semanticPublicTargetDistN = clamp01(semanticPublicTargetDistN);
+        this.semanticPublicBandN = clamp01(semanticPublicBandN);
+        this.semanticPrivateMinDistN = clamp01(semanticPrivateMinDistN);
+        this.semanticServiceMinDistN = clamp01(semanticServiceMinDistN);
+        this.semanticWeightPublic = clamp01(semanticWeightPublic);
+        this.semanticWeightPrivate = clamp01(semanticWeightPrivate);
+        this.semanticWeightService = clamp01(semanticWeightService);
+        this.semanticBufferMinDistN = clamp01(semanticBufferMinDistN);
+        this.semanticBufferWeight = clamp01(semanticBufferWeight);
+        this.semanticServicePrivateMinDistN = clamp01(semanticServicePrivateMinDistN);
+        this.semanticServicePrivateWeight = clamp01(semanticServicePrivateWeight);
     }
 
     public static ClusterLayoutConfig fromExtra(Map<String, Object> extra, int defaultHalfX, int defaultHalfZ, int count, int spacing) {
@@ -94,6 +127,19 @@ public final class ClusterLayoutConfig {
         String axisMode = getString(extra, "axisMode", "none"); // none/x/z
         double axisWeight = getDouble(extra, "axisWeight", 0.0);
 
+        // semantic spacing (optional): "space role" constraints around CORE/main
+        double pubTargetN = getDouble(extra, "semanticPublicTargetDistN", 0.30);
+        double pubBandN = getDouble(extra, "semanticPublicBandN", 0.18);
+        double privMinN = getDouble(extra, "semanticPrivateMinDistN", 0.45);
+        double servMinN = getDouble(extra, "semanticServiceMinDistN", 0.40);
+        double wPub = getDouble(extra, "semanticWeightPublic", 0.20);
+        double wPriv = getDouble(extra, "semanticWeightPrivate", 0.25);
+        double wServ = getDouble(extra, "semanticWeightService", 0.20);
+        double bufferMinN = getDouble(extra, "semanticBufferMinDistN", 0.18);
+        double bufferW = getDouble(extra, "semanticBufferWeight", 0.35);
+        double spMinN = getDouble(extra, "semanticServicePrivateMinDistN", 0.25);
+        double spW = getDouble(extra, "semanticServicePrivateWeight", 0.45);
+
         // if all weights become zero (bad config), fall back to defaults
         if (Math.max(0.0, wCost) + Math.max(0.0, wSlope) + Math.max(0.0, wCenter) + Math.max(0.0, wImp) <= 1e-9) {
             wCost = defCost;
@@ -108,7 +154,18 @@ public final class ClusterLayoutConfig {
                 compactW,
                 compactMaxDist,
                 axisMode,
-                axisWeight);
+                axisWeight,
+                pubTargetN,
+                pubBandN,
+                privMinN,
+                servMinN,
+                wPub,
+                wPriv,
+                wServ,
+                bufferMinN,
+                bufferW,
+                spMinN,
+                spW);
     }
 
     private static int getInt(Map<String, Object> extra, String key, int def) {

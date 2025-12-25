@@ -56,28 +56,28 @@ public final class FoundationPlanner {
                                     int buildingHeight,
                                     int basePadDepth,
                                     int baseClearHeight) {
-        int pad = clamp(basePadDepth, 0, 6);
-        int clear = clamp(baseClearHeight, 0, 16);
+        int pad = clamp(basePadDepth, 6);
+        int clear = clamp(baseClearHeight, 16);
         int r = Math.max(0, range);
         int h = Math.max(4, buildingHeight);
 
         return switch (type) {
-            case STILT -> new Decision(FoundationType.STILT, 0, clamp(Math.max(2, clear / 2), 0, 16), true);
+            case STILT -> new Decision(FoundationType.STILT, 0, clamp(Math.max(2, clear / 2), 16), true);
             case EMBEDDED -> {
                 // Prefer carving/clearing more than filling on slopes.
-                int clear2 = clamp(Math.max(clear, Math.min(16, (h / 3) + 3)), 0, 16);
+                int clear2 = clamp(Math.max(clear, Math.min(16, (h / 3) + 3)), 16);
                 yield new Decision(FoundationType.EMBEDDED, 0, clear2, false);
             }
             case STEPPED -> {
                 // Medium variance: slightly stronger pad and standard clear.
-                int pad2 = clamp(Math.max(2, pad), 0, 6);
-                if (r >= 7) pad2 = clamp(Math.max(pad2, 4), 0, 6);
+                int pad2 = clamp(Math.max(2, pad), 6);
+                if (r >= 7) pad2 = clamp(Math.max(pad2, 4), 6);
                 yield new Decision(FoundationType.STEPPED, pad2, clear, false);
             }
             case FLAT_PAD -> {
                 // Small variance: keep edits minimal.
-                int pad2 = clamp(Math.max(1, Math.min(2, pad <= 0 ? 1 : pad)), 0, 6);
-                int clear2 = clamp(Math.min(clear, 6), 0, 16);
+                int pad2 = clamp(Math.min(2, pad <= 0 ? 1 : pad), 6);
+                int clear2 = clamp(Math.min(clear, 6), 16);
                 yield new Decision(FoundationType.FLAT_PAD, pad2, clear2, false);
             }
         };
@@ -96,8 +96,8 @@ public final class FoundationPlanner {
         };
     }
 
-    private static int clamp(int v, int min, int max) {
-        return Math.max(min, Math.min(max, v));
+    private static int clamp(int v, int max) {
+        return Math.max(0, Math.min(max, v));
     }
 }
 

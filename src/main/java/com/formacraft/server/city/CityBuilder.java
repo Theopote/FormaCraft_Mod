@@ -16,6 +16,9 @@ import com.formacraft.server.generator.path.PathGenerator;
 import com.formacraft.server.terrain.TerrainFit;
 import com.formacraft.server.terrain.TerrainPolicy;
 import com.formacraft.server.terrain.TerrainPolicyResolver;
+import com.formacraft.server.terrain.ClusterTerrainStrategy;
+import com.formacraft.server.terrain.ZoneTerrainRule;
+import com.formacraft.server.terrain.ClusterTerrainPolicy;
 import com.formacraft.server.build.BuildReportContext;
 import com.formacraft.server.cluster.TerrainFields;
 import com.formacraft.server.cluster.layout.BuildArea;
@@ -130,7 +133,8 @@ public class CityBuilder {
                     int h = Math.max(4, bs.getHeight());
                     String id = "city_unit_" + idx;
                     int importance = computeAutoImportance(bs, idx, mainIdx, bestVol);
-                    BuildingUnit u = new BuildingUnit(id, w, d, h, importance);
+                    String role = inferSemanticRoleForPlan(bs, sp0, city, idx == mainIdx);
+                    BuildingUnit u = new BuildingUnit(id, w, d, h, importance, role);
                     units.add(u);
                     List<Candidate> cands = CandidateGenerator.generate(u, area, fields, world, origin, cfg);
                     candidatesById.put(id, cands);
@@ -147,6 +151,60 @@ public class CityBuilder {
                 autoOffsets = java.util.Collections.unmodifiableMap(m);
             }
 
+            // Cluster-scale terrain strategy (policy + total budget + water edit flags)
+            ClusterTerrainStrategy clusterTerrain = ClusterTerrainStrategy.fromExtra(extra0);
+            java.util.Map<String, ZoneTerrainRule> zoneRules = ZoneTerrainRule.fromExtra(extra0);
+            java.util.Map<String, CitySpec.Zone> zonesByName = new java.util.HashMap<>();
+            if (city.getZones() != null) {
+                for (CitySpec.Zone z : city.getZones()) {
+                    if (z == null || z.getName() == null) continue;
+                    String name = z.getName().trim();
+                    if (!name.isEmpty()) zonesByName.put(name, z);
+                }
+            }
+            java.util.Map<CitySpec.StructurePlan, Integer> allocatedBudgetByPlan = java.util.Map.of();
+            if (clusterTerrain.clusterTerrainBudgetBlocks() > 0) {
+                java.util.Map<CitySpec.StructurePlan, Integer> alloc = new java.util.HashMap<>();
+                int total = clusterTerrain.clusterTerrainBudgetBlocks();
+                double sumW = 0.0;
+                java.util.Map<CitySpec.StructurePlan, Double> weights = new java.util.HashMap<>();
+                for (CitySpec.StructurePlan sp0 : city.getStructures()) {
+                    if (sp0 == null || sp0.getSpec() == null) continue;
+                    BuildingSpec bs = sp0.getSpec();
+                    int imp = computeAutoImportance(bs, 0, -1, 0);
+                    int w = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 8;
+                    int d = (bs.getFootprint() != null && bs.getFootprint().getDepth() > 0) ? bs.getFootprint().getDepth() : 6;
+                    int h = Math.max(4, bs.getHeight());
+                    long vol = (long) w * (long) d * (long) h;
+                    double ww = Math.max(1.0, imp) * (1.0 + Math.sqrt(Math.max(1.0, (double) vol)) / 50.0);
+                    weights.put(sp0, ww);
+                    sumW += ww;
+                }
+                if (sumW <= 1e-9) sumW = 1.0;
+                int used = 0;
+                for (var e : weights.entrySet()) {
+                    int b = (int) Math.floor(total * (e.getValue() / sumW));
+                    b = Math.max(200, b); // avoid tiny budgets
+                    alloc.put(e.getKey(), b);
+                    used += b;
+                }
+                // adjust remainder to stay within total
+                int over = used - total;
+                if (over > 0) {
+                    // subtract evenly but keep minimum 200
+                    for (var sp0 : alloc.keySet()) {
+                        if (over <= 0) break;
+                        int cur = alloc.get(sp0);
+                        int dec = Math.min(over, Math.max(0, cur - 200));
+                        if (dec > 0) {
+                            alloc.put(sp0, cur - dec);
+                            over -= dec;
+                        }
+                    }
+                }
+                allocatedBudgetByPlan = java.util.Collections.unmodifiableMap(alloc);
+            }
+
             // Optional: auto road planning between main building and others (when roads are not explicitly provided).
             boolean autoRoads = false;
             int autoRoadWidth = 3;
@@ -155,6 +213,7 @@ public class CityBuilder {
             boolean autoRoadUseBorder = false;
             int autoRoadStepPenalty = 12;
             int autoRoadLocalSlopePenalty = 2;
+            int autoRoadBridgePenalty = 6;
             if (extra0 != null) {
                 autoRoads = parseBool(extra0.get("autoRoads"), true); // default true when config exists
                 autoRoadWidth = clampInt(extra0.get("autoRoadWidth"), 3, 1, 7);
@@ -164,6 +223,7 @@ public class CityBuilder {
                 // slope-aware: higher => prefer detours to keep road flatter on steep terrain
                 autoRoadStepPenalty = clampInt(extra0.get("autoRoadStepPenalty"), 12, 0, 60);
                 autoRoadLocalSlopePenalty = clampInt(extra0.get("autoRoadSlopePenalty"), 2, 0, 20);
+                autoRoadBridgePenalty = clampInt(extra0.get("autoRoadBridgePenalty"), 6, 0, 60);
             }
             boolean hasRoads = city.getRoads() != null && !city.getRoads().isEmpty();
 
@@ -196,7 +256,8 @@ public class CityBuilder {
             BlockState deckMat = stateFromIdOrDefault(deckId, net.minecraft.block.Blocks.OAK_PLANKS.getDefaultState());
             BlockState railMat = stateFromIdOrDefault(railId, net.minecraft.block.Blocks.OAK_FENCE.getDefaultState());
 
-            java.util.List<BlockPos> roadEndpoints = new java.util.ArrayList<>();
+            record RoadEndpoint(BlockPos pos, ClusterTerrainPolicy policy) {}
+            java.util.List<RoadEndpoint> roadEndpoints = new java.util.ArrayList<>();
             int mainRoadIdx = -1;
             long mainRoadVol = -1;
 
@@ -240,6 +301,48 @@ public class CityBuilder {
                         clearHeight = clampInt(ch, 6, 0, 16);
                         terrainBudgetBlocks = clampInt(tb, 8000, 0, 200000);
                     }
+
+                    // Cluster policy defaults (if unit didn't explicitly override pad/clear)
+                    // Apply zone override first (if any), then cluster fallback.
+                    CitySpec.Zone zone = null;
+                    ZoneTerrainRule zrule = null;
+                    if (sp.getZone() != null) {
+                        zone = zonesByName.get(sp.getZone().trim());
+                        if (zone != null && zone.getType() != null) {
+                            String zt = zone.getType().trim().toUpperCase(java.util.Locale.ROOT);
+                            zrule = zoneRules.getOrDefault(zt, ZoneTerrainRule.defaultsForZoneType(zt));
+                        }
+                    }
+                    ClusterTerrainPolicy effPolicy = (zrule != null && zrule.policy() != null) ? zrule.policy() : clusterTerrain.policy();
+                    boolean allowWater = (zrule != null && zrule.allowWaterEdit() != null) ? zrule.allowWaterEdit() : clusterTerrain.allowWaterEdit();
+                    boolean allowLava = (zrule != null && zrule.allowLavaEdit() != null) ? zrule.allowLavaEdit() : clusterTerrain.allowLavaEdit();
+
+                    if (sp.getSpec().getExtra() == null || !sp.getSpec().getExtra().containsKey("terrainPadDepth")) {
+                        switch (effPolicy) {
+                            case PRESERVE_DOMINANT -> padDepth = Math.min(padDepth, 1);
+                            case ENGINEERED -> padDepth = Math.max(padDepth, 4);
+                            default -> {}
+                        }
+                    }
+                    if (sp.getSpec().getExtra() == null || !sp.getSpec().getExtra().containsKey("terrainClearHeight")) {
+                        switch (effPolicy) {
+                            case PRESERVE_DOMINANT -> clearHeight = Math.min(clearHeight, 4);
+                            case ENGINEERED -> clearHeight = Math.max(clearHeight, 8);
+                            default -> {}
+                        }
+                    }
+
+                    // Cluster-level budget allocation (optional): cap per-unit budget to allocated share
+                    if (clusterTerrain.clusterTerrainBudgetBlocks() > 0) {
+                        Integer alloc = allocatedBudgetByPlan.get(sp);
+                        if (alloc != null && alloc > 0) {
+                            terrainBudgetBlocks = Math.min(terrainBudgetBlocks, alloc);
+                        }
+                    }
+                    // Zone local budget override (optional): cap again by zone budget
+                    if (zrule != null && zrule.localBudgetBlocks() != null && zrule.localBudgetBlocks() > 0) {
+                        terrainBudgetBlocks = Math.min(terrainBudgetBlocks, zrule.localBudgetBlocks());
+                    }
                     BuildReportContext.setTerrainBudgetBlocks(terrainBudgetBlocks);
                     net.minecraft.block.BlockState fillMaterial = net.minecraft.block.Blocks.DIRT.getDefaultState();
                     if (sp.getSpec().getMaterials() != null && sp.getSpec().getMaterials().getFoundation() != null) {
@@ -255,35 +358,57 @@ public class CityBuilder {
                     // - derive knobs (padDepth/clearHeight) without flattening a whole region
                     var analysis = TerrainFit.analyze(world, buildingOrigin2, fpW, fpD);
                     FoundationPlanner.Decision fd = FoundationPlanner.decide(sp.getSpec(), analysis, padDepth, clearHeight);
-                    BuildReportContext.addFoundationType(fd.type());
                     if (fd.stilt()) BuildReportContext.addFootingStiltUnit();
                     else if (fd.padDepth() > 0) BuildReportContext.addFootingPadUnit();
 
                     int pdClamped = Math.max(0, Math.min(6, fd.padDepth()));
                     int chClamped = Math.max(0, Math.min(16, fd.clearHeight()));
                     List<PlannedBlock> p0 = TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, targetY, fillMaterial,
-                            pdClamped, chClamped);
+                            pdClamped, chClamped,
+                            allowWater,
+                            allowLava);
 
                     // Budget control: if too many terrain edits, degrade (reduce pad, then reduce clear, else skip).
+                    int usedPadDepth = pdClamped;
+                    int usedClearHeight = chClamped;
+                    int foundationDegradeSteps = 0;
                     if (terrainBudgetBlocks > 0 && p0.size() > terrainBudgetBlocks) {
                         BuildReportContext.addTerrainBudgetDegrade();
                         List<PlannedBlock> p1 = TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, targetY, fillMaterial,
-                                0, Math.max(0, Math.min(6, chClamped)));
+                                0, Math.max(0, Math.min(6, chClamped)),
+                                allowWater,
+                                allowLava);
                         if (p1.size() <= terrainBudgetBlocks) {
                             pad = p1;
+                            usedPadDepth = 0;
+                            usedClearHeight = Math.max(0, Math.min(6, chClamped));
+                            foundationDegradeSteps = 1;
                         } else {
                             BuildReportContext.addTerrainBudgetDegrade();
                             List<PlannedBlock> p2 = TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, targetY, fillMaterial,
-                                    0, 2);
-                            if (p2.size() <= terrainBudgetBlocks) pad = p2;
+                                    0, 2,
+                                    allowWater,
+                                    allowLava);
+                            if (p2.size() <= terrainBudgetBlocks) {
+                                pad = p2;
+                                usedPadDepth = 0;
+                                usedClearHeight = 2;
+                                foundationDegradeSteps = 2;
+                            }
                             else {
                                 BuildReportContext.addTerrainBudgetDegrade();
                                 pad = List.of();
+                                usedPadDepth = 0;
+                                usedClearHeight = 0;
+                                foundationDegradeSteps = 3;
                             }
                         }
                     } else {
                         pad = p0;
                     }
+
+                    BuildReportContext.addFoundationExecution(fd.type(), analysis.range(), pdClamped, chClamped,
+                            usedPadDepth, usedClearHeight, foundationDegradeSteps);
                 }
 
                 // 生成建筑
@@ -339,7 +464,17 @@ public class CityBuilder {
                     // prefer door-based endpoint if present
                     BlockPos c = findDoorEndpoint(building);
                     if (c == null) c = buildingOrigin2.add(fpW / 2, 0, fpD / 2);
-                    roadEndpoints.add(c);
+                    // derive an effective policy for this structure from its zone (if any), else fall back to cluster policy
+                    ClusterTerrainPolicy rp = clusterTerrain.policy();
+                    if (sp.getZone() != null) {
+                        CitySpec.Zone zz = zonesByName.get(sp.getZone().trim());
+                        if (zz != null && zz.getType() != null) {
+                            String zt = zz.getType().trim().toUpperCase(java.util.Locale.ROOT);
+                            ZoneTerrainRule zr = zoneRules.getOrDefault(zt, ZoneTerrainRule.defaultsForZoneType(zt));
+                            if (zr != null && zr.policy() != null) rp = zr.policy();
+                        }
+                    }
+                    roadEndpoints.add(new RoadEndpoint(c, rp));
                     long vol = (long) fpW * (long) fpD * (long) Math.max(4, sp.getSpec().getHeight());
                     if (vol > mainRoadVol) {
                         mainRoadVol = vol;
@@ -351,24 +486,43 @@ public class CityBuilder {
             // Build auto roads after all buildings are merged (so preview includes them as well).
             if (autoRoads && !hasRoads && roadEndpoints.size() >= 2) {
                 // main endpoint: pick the largest-volume building center
-                BlockPos main = roadEndpoints.get(Math.max(0, mainRoadIdx));
-                com.formacraft.server.road.RoadPlanner.Config cfg = new com.formacraft.server.road.RoadPlanner.Config(
-                        autoRoadWidth,
-                        autoRoadClearHeight,
-                        1,
-                        autoRoadMaxSearch,
-                        autoRoadStepPenalty,
-                        autoRoadLocalSlopePenalty,
-                        roadMat,
-                        borderMat,
-                        autoRoadUseBorder,
-                        deckMat,
-                        railMat
-                );
-                for (int i = 1; i < roadEndpoints.size(); i++) {
-                    BlockPos other = roadEndpoints.get(i);
-                    if (other.equals(main)) continue;
-                    merged.addAll(com.formacraft.server.road.RoadPlanner.build(world, main, other, cfg));
+                RoadEndpoint main = roadEndpoints.get(Math.max(0, mainRoadIdx));
+                for (int i = 0; i < roadEndpoints.size(); i++) {
+                    if (i == mainRoadIdx) continue;
+                    RoadEndpoint other = roadEndpoints.get(i);
+                    if (other.pos().equals(main.pos())) continue;
+
+                    ClusterTerrainPolicy linkPolicy = roadLinkPolicy(main.policy(), other.policy());
+                    int stepP = autoRoadStepPenalty;
+                    int slopeP = autoRoadLocalSlopePenalty;
+                    int bridgeP = autoRoadBridgePenalty;
+                    int maxSearch = autoRoadMaxSearch;
+                    if (linkPolicy == ClusterTerrainPolicy.PRESERVE_DOMINANT) {
+                        stepP = Math.max(stepP, 24);
+                        slopeP = Math.max(slopeP, 4);
+                        bridgeP = Math.max(bridgeP, 12);
+                        maxSearch = Math.min(60000, Math.max(maxSearch, autoRoadMaxSearch * 2));
+                    } else if (linkPolicy == ClusterTerrainPolicy.ENGINEERED) {
+                        stepP = Math.min(stepP, 10);
+                        slopeP = Math.min(slopeP, 2);
+                        bridgeP = Math.min(bridgeP, 6);
+                    }
+
+                    com.formacraft.server.road.RoadPlanner.Config cfg = new com.formacraft.server.road.RoadPlanner.Config(
+                            autoRoadWidth,
+                            autoRoadClearHeight,
+                            1,
+                            maxSearch,
+                            stepP,
+                            slopeP,
+                            bridgeP,
+                            roadMat,
+                            borderMat,
+                            autoRoadUseBorder,
+                            deckMat,
+                            railMat
+                    );
+                    merged.addAll(com.formacraft.server.road.RoadPlanner.build(world, main.pos(), other.pos(), cfg));
                 }
             }
         }
@@ -590,6 +744,55 @@ public class CityBuilder {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private static ClusterTerrainPolicy roadLinkPolicy(ClusterTerrainPolicy a, ClusterTerrainPolicy b) {
+        ClusterTerrainPolicy aa = a != null ? a : ClusterTerrainPolicy.BALANCED;
+        ClusterTerrainPolicy bb = b != null ? b : ClusterTerrainPolicy.BALANCED;
+        if (aa == ClusterTerrainPolicy.PRESERVE_DOMINANT || bb == ClusterTerrainPolicy.PRESERVE_DOMINANT) return ClusterTerrainPolicy.PRESERVE_DOMINANT;
+        if (aa == ClusterTerrainPolicy.ENGINEERED || bb == ClusterTerrainPolicy.ENGINEERED) return ClusterTerrainPolicy.ENGINEERED;
+        return ClusterTerrainPolicy.BALANCED;
+    }
+
+    private static String inferSemanticRoleForPlan(BuildingSpec bs, CitySpec.StructurePlan sp, CitySpec city, boolean isMain) {
+        // explicit override: spec.extra.semanticRole (CORE/PUBLIC/PRIVATE/SERVICE/TRANSITION/SEMI_PUBLIC...)
+        if (bs != null && bs.getExtra() != null) {
+            Object v = bs.getExtra().get("semanticRole");
+            if (v != null) {
+                String s = String.valueOf(v).trim().toUpperCase(java.util.Locale.ROOT);
+                if (!s.isEmpty()) return s;
+            }
+        }
+
+        if (isMain) return "CORE";
+
+        // Use zone type as primary hint (CitySpec.Zone.type).
+        if (sp != null && sp.getZone() != null && city != null && city.getZones() != null) {
+            String zn = sp.getZone().trim();
+            for (CitySpec.Zone z : city.getZones()) {
+                if (z == null || z.getName() == null) continue;
+                if (!z.getName().trim().equals(zn)) continue;
+                String t = z.getType() != null ? z.getType().trim().toUpperCase(java.util.Locale.ROOT) : "";
+                return switch (t) {
+                    case "PLAZA", "MARKET", "COMMERCIAL" -> "PUBLIC";
+                    case "RESIDENTIAL" -> "PRIVATE";
+                    case "INDUSTRIAL" -> "SERVICE";
+                    case "WALL", "GATE" -> "TRANSITION";
+                    default -> "SEMI_PUBLIC";
+                };
+            }
+        }
+
+        // Fallback: derive from building type/template hints.
+        if (bs != null && bs.getExtra() != null) {
+            Object template = bs.getExtra().get("template");
+            if (template != null) {
+                String t = String.valueOf(template).trim().toLowerCase(java.util.Locale.ROOT);
+                if (t.contains("plaza") || t.contains("market")) return "PUBLIC";
+                if (t.contains("service") || t.contains("warehouse")) return "SERVICE";
+            }
+        }
+        return "SEMI_PUBLIC";
     }
 }
 

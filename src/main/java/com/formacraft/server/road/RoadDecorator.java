@@ -64,7 +64,7 @@ public final class RoadDecorator {
 
             Direction facing = dirFromDelta(dx, dz);
             // For downward movement, stairs should face towards the higher block.
-            if (dyFromPrev < 0 && prev != null) facing = dirFromDelta(Integer.compare(prev.getX() - p.getX(), 0),
+            if (dyFromPrev < 0) facing = dirFromDelta(Integer.compare(prev.getX() - p.getX(), 0),
                     Integer.compare(prev.getZ() - p.getZ(), 0));
 
             for (int ww = -half; ww <= half; ww++) {

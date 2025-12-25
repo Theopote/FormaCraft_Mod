@@ -52,9 +52,10 @@ public final class PlacementSolver {
         List<Candidate> list = (unit != null) ? candidatesByUnitId.get(unit.id) : null;
         if (list == null || list.isEmpty()) return false;
 
-        // Prefer candidates that keep the cluster compact around the first placed (main) building.
-        List<Candidate> ordered = (cfg != null && cfg.compactnessWeight > 1e-6 && !placed.isEmpty())
-                ? orderByCompactness(list, placed.get(0), cfg)
+        // Prefer candidates that keep the cluster compact around the first placed (main) building,
+        // and respect semantic buffers against already-placed key roles (v2: soft constraints).
+        List<Candidate> ordered = (cfg != null && !placed.isEmpty())
+                ? orderByHeuristics(list, placed, cfg)
                 : list;
 
         for (Candidate c : ordered) {
@@ -85,12 +86,17 @@ public final class PlacementSolver {
         return false;
     }
 
-    private static List<Candidate> orderByCompactness(List<Candidate> list, BuildingPlacement main, ClusterLayoutConfig cfg) {
-        if (list == null || list.isEmpty() || main == null || cfg == null) return list;
+    private static List<Candidate> orderByHeuristics(List<Candidate> list, List<BuildingPlacement> placed, ClusterLayoutConfig cfg) {
+        if (list == null || list.isEmpty() || placed == null || placed.isEmpty() || cfg == null) return list;
+        BuildingPlacement main = placed.get(0);
+        if (main == null) return list;
+
         double w = cfg.compactnessWeight;
         double axisW = cfg.axisWeight;
         boolean hasAxis = cfg.axisMode != null && !cfg.axisMode.equals("none") && axisW > 1e-6;
-        if (w <= 1e-6 && !hasAxis) return list;
+        boolean hasSemantic = cfg.semanticWeightPublic > 1e-6 || cfg.semanticWeightPrivate > 1e-6 || cfg.semanticWeightService > 1e-6
+                || cfg.semanticBufferWeight > 1e-6;
+        if (w <= 1e-6 && !hasAxis && !hasSemantic) return list;
 
         // Normalize distance by a configurable maxDist; auto uses half box diagonal.
         final double maxDistFinal;
@@ -108,12 +114,40 @@ public final class PlacementSolver {
         final int halfX = cfg.halfX;
         final int halfZ = cfg.halfZ;
         final String axisMode = cfg.axisMode;
+        final double pubTargetN = cfg.semanticPublicTargetDistN;
+        final double pubBandN = Math.max(1e-6, cfg.semanticPublicBandN);
+        final double privMinN = cfg.semanticPrivateMinDistN;
+        final double servMinN = cfg.semanticServiceMinDistN;
+        final double wPub = cfg.semanticWeightPublic;
+        final double wPriv = cfg.semanticWeightPrivate;
+        final double wServ = cfg.semanticWeightService;
+        final double bufferMinN = cfg.semanticBufferMinDistN;
+        final double bufferW = cfg.semanticBufferWeight;
+
+        // Collect already-placed key role centers (relative).
+        final java.util.List<int[]> placedPublic = new java.util.ArrayList<>();
+        final java.util.List<int[]> placedService = new java.util.ArrayList<>();
+        final java.util.List<int[]> placedPrivate = new java.util.ArrayList<>();
+        for (BuildingPlacement bp : placed) {
+            if (bp == null || bp.unit == null) continue;
+            String r = bp.unit.semanticRole != null ? bp.unit.semanticRole : "";
+            int[] pt = new int[]{bp.originRel.getX(), bp.originRel.getZ()};
+            if ("PUBLIC".equals(r)) placedPublic.add(pt);
+            else if ("SERVICE".equals(r)) placedService.add(pt);
+            else if ("PRIVATE".equals(r)) placedPrivate.add(pt);
+        }
 
         // Copy + sort by adjusted score
         List<Candidate> out = new ArrayList<>(list);
         out.sort((a, b) -> {
-            double sa = adjustedScore(a, mx, mz, w, maxDistFinal, axisW, axisMode, halfX, halfZ);
-            double sb = adjustedScore(b, mx, mz, w, maxDistFinal, axisW, axisMode, halfX, halfZ);
+            double sa = adjustedScore(a, mx, mz, w, maxDistFinal, axisW, axisMode, halfX, halfZ,
+                    pubTargetN, pubBandN, privMinN, servMinN, wPub, wPriv, wServ,
+                    bufferMinN, bufferW,
+                    placedPublic, placedService, placedPrivate);
+            double sb = adjustedScore(b, mx, mz, w, maxDistFinal, axisW, axisMode, halfX, halfZ,
+                    pubTargetN, pubBandN, privMinN, servMinN, wPub, wPriv, wServ,
+                    bufferMinN, bufferW,
+                    placedPublic, placedService, placedPrivate);
             return Double.compare(sb, sa);
         });
         return out;
@@ -127,7 +161,19 @@ public final class PlacementSolver {
                                         double axisW,
                                         String axisMode,
                                         int halfX,
-                                        int halfZ) {
+                                        int halfZ,
+                                        double pubTargetN,
+                                        double pubBandN,
+                                        double privMinN,
+                                        double servMinN,
+                                        double wPub,
+                                        double wPriv,
+                                        double wServ,
+                                        double bufferMinN,
+                                        double bufferW,
+                                        java.util.List<int[]> placedPublic,
+                                        java.util.List<int[]> placedService,
+                                        java.util.List<int[]> placedPrivate) {
         if (c == null) return -1e9;
         int x = c.originRel.getX();
         int z = c.originRel.getZ();
@@ -151,7 +197,70 @@ public final class PlacementSolver {
             }
             s -= (axisW * an);
         }
+
+        // Semantic role spacing (optional): by default this is a soft preference.
+        // - PUBLIC prefers a distance band away from CORE (not too close, not too far)
+        // - PRIVATE/SERVICE prefer being at least minDist away from CORE
+        String role = (c.unit != null && c.unit.semanticRole != null) ? c.unit.semanticRole : "";
+        if (!role.isEmpty()) {
+            switch (role) {
+                case "PUBLIC" -> {
+                    if (wPub > 1e-6) {
+                        double diff = Math.abs(dn - pubTargetN);
+                        double pen = Math.min(1.0, diff / pubBandN);
+                        s -= (wPub * pen);
+                    }
+                }
+                case "PRIVATE" -> {
+                    if (wPriv > 1e-6 && dn < privMinN && privMinN > 1e-6) {
+                        double pen = (privMinN - dn) / privMinN;
+                        s -= (wPriv * pen);
+                    }
+                }
+                case "SERVICE" -> {
+                    if (wServ > 1e-6 && dn < servMinN && servMinN > 1e-6) {
+                        double pen = (servMinN - dn) / servMinN;
+                        s -= (wServ * pen);
+                    }
+                }
+                default -> {}
+            }
+        }
+
+        // Semantic buffers between roles (soft):
+        // - SERVICE should not be too close to PUBLIC
+        // - PRIVATE should not be too close to PUBLIC
+        if (bufferW > 1e-6 && bufferMinN > 1e-6) {
+            if ("SERVICE".equals(role) && placedPublic != null && !placedPublic.isEmpty()) {
+                double dnMin = minDnToPoints(x, z, placedPublic, maxDist);
+                if (dnMin < bufferMinN) s -= bufferW * ((bufferMinN - dnMin) / bufferMinN);
+            }
+            if ("PRIVATE".equals(role) && placedPublic != null && !placedPublic.isEmpty()) {
+                double dnMin = minDnToPoints(x, z, placedPublic, maxDist);
+                if (dnMin < bufferMinN) s -= bufferW * ((bufferMinN - dnMin) / bufferMinN);
+            }
+            if ("PUBLIC".equals(role) && placedService != null && !placedService.isEmpty()) {
+                double dnMin = minDnToPoints(x, z, placedService, maxDist);
+                if (dnMin < bufferMinN) s -= bufferW * ((bufferMinN - dnMin) / bufferMinN);
+            }
+            if ("PUBLIC".equals(role) && placedPrivate != null && !placedPrivate.isEmpty()) {
+                double dnMin = minDnToPoints(x, z, placedPrivate, maxDist);
+                if (dnMin < bufferMinN) s -= bufferW * ((bufferMinN - dnMin) / bufferMinN);
+            }
+        }
         return s;
+    }
+
+    private static double minDnToPoints(int x, int z, java.util.List<int[]> pts, double maxDist) {
+        double best = 1.0;
+        if (pts == null || pts.isEmpty()) return best;
+        for (int[] p : pts) {
+            if (p == null || p.length < 2) continue;
+            double d = Math.sqrt((double) (x - p[0]) * (x - p[0]) + (double) (z - p[1]) * (z - p[1]));
+            double dn = Math.min(1.0, d / Math.max(1e-6, maxDist));
+            if (dn < best) best = dn;
+        }
+        return best;
     }
 }
 

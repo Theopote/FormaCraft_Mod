@@ -111,6 +111,19 @@ public final class TerrainFit {
                                                  BlockState fill,
                                                  int padDepth,
                                                  int clearHeight) {
+        return adaptivePad(world, origin, width, depth, targetY, fill, padDepth, clearHeight, true, true);
+    }
+
+    public static List<PlannedBlock> adaptivePad(ServerWorld world,
+                                                 BlockPos origin,
+                                                 int width,
+                                                 int depth,
+                                                 int targetY,
+                                                 BlockState fill,
+                                                 int padDepth,
+                                                 int clearHeight,
+                                                 boolean allowWaterEdit,
+                                                 boolean allowLavaEdit) {
         if (world == null || origin == null) return List.of();
         int w = Math.max(3, width);
         int d = Math.max(3, depth);
@@ -131,7 +144,12 @@ public final class TerrainFit {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
-                    if (cur.isAir() || cur.getBlock() == Blocks.WATER || cur.getBlock() == Blocks.LAVA) {
+                    boolean isAir = cur.isAir();
+                    boolean isWater = cur.getBlock() == Blocks.WATER;
+                    boolean isLava = cur.getBlock() == Blocks.LAVA;
+                    if (isAir
+                            || (allowWaterEdit && isWater)
+                            || (allowLavaEdit && isLava)) {
                         out.add(new PlannedBlock(p, fillState));
                         fillCount++;
                     }

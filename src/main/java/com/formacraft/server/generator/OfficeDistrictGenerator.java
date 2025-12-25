@@ -67,7 +67,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
 
         GridPlan grid = new GridPlan(new GeneratorBackedPlan(module));
         boolean clusterRequested = ClusterLayoutConfig.isClusterMode(extra != null ? extra.get("layoutMode") : null);
-        record FootingParams(int padDepth, int clearHeight, FoundationType type) {}
+        record FootingParams(int padDepth, int clearHeight, int range, FoundationType type) {}
         Map<Long, FootingParams> footingByRelXZ = new HashMap<>();
         boolean clusterEnabled = false;
         if (clusterRequested) {
@@ -106,7 +106,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                     int r = fm.range();
                     FoundationType ft = FoundationPlanner.chooseType(r, blockH, extra);
                     FoundationPlanner.Decision fd = FoundationPlanner.knobsFor(ft, r, blockH, padDepth, clearHeight);
-                    footingByRelXZ.put(relKey(dx, dz), new FootingParams(fd.padDepth(), fd.clearHeight(), fd.type()));
+                    footingByRelXZ.put(relKey(dx, dz), new FootingParams(fd.padDepth(), fd.clearHeight(), r, fd.type()));
                 }
             }
         }
@@ -145,14 +145,12 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                         if (fp != null) {
                             pd = fp.padDepth;
                             ch = fp.clearHeight;
-                            BuildReportContext.addFoundationType(fp.type);
                             if (fp.type == FoundationType.STILT) BuildReportContext.addFootingStiltUnit();
                             else if (pd > 0) BuildReportContext.addFootingPadUnit();
                         }
                     } else {
                         // non-cluster: treat as pad footing by default when ADAPTIVE is enabled
                         if (pd > 0) {
-                            BuildReportContext.addFoundationType(FoundationType.FLAT_PAD);
                             BuildReportContext.addFootingPadUnit();
                         }
                     }
@@ -164,6 +162,9 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                             fill,
                             pd,
                             ch);
+                    int usedPd = pd;
+                    int usedCh = ch;
+                    int degradeSteps = 0;
                     if (terrainBudgetBlocks > 0 && p0.size() > terrainBudgetBlocks) {
                         BuildReportContext.addTerrainBudgetDegrade();
                         List<PlannedBlock> p1 = TerrainFit.adaptivePad(wld, origin2,
@@ -173,7 +174,12 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                                 fill,
                                 0,
                                 Math.max(0, Math.min(6, ch)));
-                        if (p1.size() <= terrainBudgetBlocks) pad = p1;
+                        if (p1.size() <= terrainBudgetBlocks) {
+                            pad = p1;
+                            usedPd = 0;
+                            usedCh = Math.max(0, Math.min(6, ch));
+                            degradeSteps = 1;
+                        }
                         else {
                             BuildReportContext.addTerrainBudgetDegrade();
                             List<PlannedBlock> p2 = TerrainFit.adaptivePad(wld, origin2,
@@ -183,14 +189,36 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                                     fill,
                                     0,
                                     2);
-                            if (p2.size() <= terrainBudgetBlocks) pad = p2;
+                            if (p2.size() <= terrainBudgetBlocks) {
+                                pad = p2;
+                                usedPd = 0;
+                                usedCh = 2;
+                                degradeSteps = 2;
+                            }
                             else {
                                 BuildReportContext.addTerrainBudgetDegrade();
                                 pad = List.of();
+                                usedPd = 0;
+                                usedCh = 0;
+                                degradeSteps = 3;
                             }
                         }
                     } else {
                         pad = p0;
+                    }
+
+                    // report planned vs used
+                    if (clusterEnabledFinal) {
+                        BlockPos rel = o.subtract(origin);
+                        FootingParams fp = footingByRelXZ.get(relKey(rel.getX(), rel.getZ()));
+                        if (fp != null) {
+                            BuildReportContext.addFoundationExecution(fp.type, fp.range, fp.padDepth, fp.clearHeight, usedPd, usedCh, degradeSteps);
+                        }
+                    } else {
+                        if (pd > 0) {
+                            int rr = TerrainFit.analyze(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth()).range();
+                            BuildReportContext.addFoundationExecution(FoundationType.FLAT_PAD, rr, pd, ch, usedPd, usedCh, degradeSteps);
+                        }
                     }
                 } else if (terrainPolicy == TerrainPolicy.FOLLOW) {
                     // no pad, no snap

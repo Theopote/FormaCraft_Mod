@@ -147,17 +147,21 @@ public class CastleCompoundGenerator implements StructureGenerator {
                     BlockState fill = getStateOrDefault(wld, mats != null ? mats.getFoundation() : null, Blocks.COBBLESTONE.getDefaultState());
                     var analysis = TerrainFit.analyze(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth());
                     FoundationPlanner.Decision fd = FoundationPlanner.decide(gbp.spec, analysis, padDepth, clearHeight);
-                    BuildReportContext.addFoundationType(fd.type());
                     if (fd.stilt()) BuildReportContext.addFootingStiltUnit();
                     else if (fd.padDepth() > 0) BuildReportContext.addFootingPadUnit();
                     BuildReportContext.setTerrainBudgetBlocks(terrainBudgetBlocks);
+                    int plannedPad = Math.max(0, Math.min(6, fd.padDepth()));
+                    int plannedClear = Math.max(0, Math.min(16, fd.clearHeight()));
                     List<PlannedBlock> p0 = TerrainFit.adaptivePad(wld, origin2,
                             gbp.spec.getFootprint().getWidth(),
                             gbp.spec.getFootprint().getDepth(),
                             targetY,
                             fill,
-                            fd.padDepth(),
-                            fd.clearHeight());
+                            plannedPad,
+                            plannedClear);
+                    int usedPad = plannedPad;
+                    int usedClear = plannedClear;
+                    int degradeSteps = 0;
                     if (terrainBudgetBlocks > 0 && p0.size() > terrainBudgetBlocks) {
                         BuildReportContext.addTerrainBudgetDegrade();
                         List<PlannedBlock> p1 = TerrainFit.adaptivePad(wld, origin2,
@@ -166,8 +170,13 @@ public class CastleCompoundGenerator implements StructureGenerator {
                                 targetY,
                                 fill,
                                 0,
-                                Math.max(0, Math.min(6, fd.clearHeight())));
-                        if (p1.size() <= terrainBudgetBlocks) pad = p1;
+                                Math.max(0, Math.min(6, plannedClear)));
+                        if (p1.size() <= terrainBudgetBlocks) {
+                            pad = p1;
+                            usedPad = 0;
+                            usedClear = Math.max(0, Math.min(6, plannedClear));
+                            degradeSteps = 1;
+                        }
                         else {
                             BuildReportContext.addTerrainBudgetDegrade();
                             List<PlannedBlock> p2 = TerrainFit.adaptivePad(wld, origin2,
@@ -177,15 +186,24 @@ public class CastleCompoundGenerator implements StructureGenerator {
                                     fill,
                                     0,
                                     2);
-                            if (p2.size() <= terrainBudgetBlocks) pad = p2;
+                            if (p2.size() <= terrainBudgetBlocks) {
+                                pad = p2;
+                                usedPad = 0;
+                                usedClear = 2;
+                                degradeSteps = 2;
+                            }
                             else {
                                 BuildReportContext.addTerrainBudgetDegrade();
                                 pad = List.of();
+                                usedPad = 0;
+                                usedClear = 0;
+                                degradeSteps = 3;
                             }
                         }
                     } else {
                         pad = p0;
                     }
+                    BuildReportContext.addFoundationExecution(fd.type(), analysis.range(), plannedPad, plannedClear, usedPad, usedClear, degradeSteps);
                 }
                 List<PlannedBlock> building = StructureGeneratorFactory.getGenerator(gbp.spec).generate(gbp.spec, origin2, wld).getBlocks();
                 if (pad.isEmpty()) return building;
