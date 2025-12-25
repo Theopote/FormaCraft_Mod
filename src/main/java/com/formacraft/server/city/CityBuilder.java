@@ -60,6 +60,7 @@ public class CityBuilder {
             }
 
             java.util.Map<CitySpec.StructurePlan, BlockPos> autoOffsets = java.util.Map.of();
+            java.util.Map<String, Object> extra0 = null;
             if (anyMissingOffset) {
                 int count = 0;
                 int maxW = 10;
@@ -78,7 +79,6 @@ public class CityBuilder {
                 int boxHalf = Math.max(24, (int) Math.round(Math.sqrt(Math.max(1, count)) * spacing));
 
                 // Use the first spec.extra as config source if available (fallback defaults).
-                java.util.Map<String, Object> extra0 = null;
                 for (CitySpec.StructurePlan sp0 : city.getStructures()) {
                     if (sp0 != null && sp0.getSpec() != null && sp0.getSpec().getExtra() != null) { extra0 = sp0.getSpec().getExtra(); break; }
                 }
@@ -134,6 +134,23 @@ public class CityBuilder {
                 }
                 autoOffsets = java.util.Collections.unmodifiableMap(m);
             }
+
+            // Optional: auto road planning between main building and others (when roads are not explicitly provided).
+            boolean autoRoads = false;
+            int autoRoadWidth = 3;
+            int autoRoadClearHeight = 2;
+            int autoRoadMaxSearch = 12000;
+            if (extra0 != null) {
+                autoRoads = parseBool(extra0.get("autoRoads"), true); // default true when config exists
+                autoRoadWidth = clampInt(extra0.get("autoRoadWidth"), 3, 1, 7);
+                autoRoadClearHeight = clampInt(extra0.get("autoRoadClearHeight"), 2, 0, 6);
+                autoRoadMaxSearch = clampInt(extra0.get("autoRoadMaxSearch"), 12000, 2000, 60000);
+            }
+            boolean hasRoads = city.getRoads() != null && !city.getRoads().isEmpty();
+
+            java.util.List<BlockPos> roadEndpoints = new java.util.ArrayList<>();
+            int mainRoadIdx = -1;
+            long mainRoadVol = -1;
 
             for (CitySpec.StructurePlan sp : city.getStructures()) {
                 if (sp == null || sp.getSpec() == null) {
@@ -269,6 +286,41 @@ public class CityBuilder {
                     if (!pad.isEmpty()) merged.addAll(pad);
                     merged.addAll(building.getBlocks());
                 }
+
+                // collect endpoints for auto roads (use footprint center; keep y from buildingOrigin2)
+                if (autoRoads && !hasRoads) {
+                    int fpW = (sp.getSpec().getFootprint() != null && sp.getSpec().getFootprint().getWidth() > 0) ? sp.getSpec().getFootprint().getWidth() : 8;
+                    int fpD = (sp.getSpec().getFootprint() != null && sp.getSpec().getFootprint().getDepth() > 0) ? sp.getSpec().getFootprint().getDepth() : 6;
+                    BlockPos c = buildingOrigin2.add(fpW / 2, 0, fpD / 2);
+                    roadEndpoints.add(c);
+                    long vol = (long) fpW * (long) fpD * (long) Math.max(4, sp.getSpec().getHeight());
+                    if (vol > mainRoadVol) {
+                        mainRoadVol = vol;
+                        mainRoadIdx = roadEndpoints.size() - 1;
+                    }
+                }
+            }
+
+            // Build auto roads after all buildings are merged (so preview includes them as well).
+            if (autoRoads && !hasRoads && roadEndpoints.size() >= 2) {
+                // main endpoint: pick the largest-volume building center
+                BlockPos main = roadEndpoints.get(Math.max(0, mainRoadIdx));
+                com.formacraft.server.road.RoadPlanner.Config cfg = new com.formacraft.server.road.RoadPlanner.Config(
+                        autoRoadWidth,
+                        autoRoadClearHeight,
+                        1,
+                        autoRoadMaxSearch,
+                        net.minecraft.block.Blocks.GRAVEL.getDefaultState(),
+                        net.minecraft.block.Blocks.COBBLESTONE.getDefaultState(),
+                        false,
+                        net.minecraft.block.Blocks.OAK_PLANKS.getDefaultState(),
+                        net.minecraft.block.Blocks.OAK_FENCE.getDefaultState()
+                );
+                for (int i = 1; i < roadEndpoints.size(); i++) {
+                    BlockPos other = roadEndpoints.get(i);
+                    if (other.equals(main)) continue;
+                    merged.addAll(com.formacraft.server.road.RoadPlanner.build(world, main, other, cfg));
+                }
             }
         }
 
@@ -385,6 +437,14 @@ public class CityBuilder {
             }
         } catch (Exception ignored) {}
         return Math.max(min, Math.min(max, n));
+    }
+
+    private static boolean parseBool(Object v, boolean def) {
+        if (v == null) return def;
+        if (v instanceof Boolean b) return b;
+        String s = String.valueOf(v).trim().toLowerCase(java.util.Locale.ROOT);
+        if (s.isEmpty()) return def;
+        return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 
     private static int computeAutoImportance(BuildingSpec bs, int idx, int mainIdx, long bestVol) {
