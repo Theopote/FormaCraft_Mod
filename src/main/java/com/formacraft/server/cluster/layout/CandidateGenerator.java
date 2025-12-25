@@ -22,6 +22,31 @@ public final class CandidateGenerator {
                                            TerrainFields fields,
                                            ServerWorld world,
                                            BlockPos clusterOrigin,
+                                           ClusterLayoutConfig cfg) {
+        if (cfg == null) {
+            // fall back to v1 signature defaults
+            return generate(unit, area, fields, world, clusterOrigin, 200, 14, 0);
+        }
+        return generate(unit, area, fields, world, clusterOrigin, cfg, cfg.samples, cfg.maxRange, cfg.maxFlattenCost);
+    }
+
+    public static List<Candidate> generate(BuildingUnit unit,
+                                           BuildArea area,
+                                           TerrainFields fields,
+                                           ServerWorld world,
+                                           BlockPos clusterOrigin,
+                                           int samples,
+                                           int maxRange,
+                                           int maxBackfillCost) {
+        return generate(unit, area, fields, world, clusterOrigin, null, samples, maxRange, maxBackfillCost);
+    }
+
+    private static List<Candidate> generate(BuildingUnit unit,
+                                           BuildArea area,
+                                           TerrainFields fields,
+                                           ServerWorld world,
+                                           BlockPos clusterOrigin,
+                                           ClusterLayoutConfig cfg,
                                            int samples,
                                            int maxRange,
                                            int maxBackfillCost) {
@@ -61,8 +86,22 @@ public final class CandidateGenerator {
                 double slopeScore = 1.0 / (1.0 + (m.slopeAvg() * 4.0));
                 double costScore = 1.0 / (1.0 + (m.flattenCost() / 20.0));
                 double centerBias = 1.0 - area2.normalizedDistanceToCenter(rel);
-                double importance = Math.max(0.0, unit.importance / 10.0);
-                double score = 0.40 * costScore + 0.25 * slopeScore + 0.25 * centerBias + 0.10 * importance;
+                double importance = clamp01(unit != null ? (unit.importance / 10.0) : 0.0);
+
+                double wCost = (cfg != null) ? cfg.wCost : 0.40;
+                double wSlope = (cfg != null) ? cfg.wSlope : 0.25;
+                double wCenter = (cfg != null) ? cfg.wCenter : 0.25;
+                double wImp = (cfg != null) ? cfg.wImportance : 0.10;
+                double boost = (cfg != null) ? cfg.centerBiasImportanceBoost : 0.0;
+
+                // Main buildings (higher importance) get more "center bias" weight; secondary buildings get less.
+                // importance in [0..1] => scale in [1-boost .. 1+boost]
+                double centerScale = 1.0 + boost * ((importance - 0.5) * 2.0);
+                double wCenterEff = Math.max(0.0, wCenter * centerScale);
+
+                double denom = wCost + wSlope + wCenterEff + wImp;
+                if (denom <= 1e-9) denom = 1.0;
+                double score = (wCost * costScore + wSlope * slopeScore + wCenterEff * centerBias + wImp * importance) / denom;
 
                 out.add(new Candidate(unit, rel, rot, score, m.flattenCost(), m.slopeAvg(), m.range()));
             }
@@ -81,6 +120,12 @@ public final class CandidateGenerator {
         }
         if (unit != null && unit.id != null) s ^= unit.id.hashCode();
         return s ^ (s >>> 33);
+    }
+
+    private static double clamp01(double v) {
+        if (v < 0.0) return 0.0;
+        if (v > 1.0) return 1.0;
+        return v;
     }
 }
 

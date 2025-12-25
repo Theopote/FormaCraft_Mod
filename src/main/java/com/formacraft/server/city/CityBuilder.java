@@ -105,7 +105,7 @@ public class CityBuilder {
                     String id = "city_unit_" + idx;
                     BuildingUnit u = new BuildingUnit(id, w, d, h, 5);
                     units.add(u);
-                    List<Candidate> cands = CandidateGenerator.generate(u, area, fields, world, origin, cfg.samples, cfg.maxRange, cfg.maxFlattenCost);
+                    List<Candidate> cands = CandidateGenerator.generate(u, area, fields, world, origin, cfg);
                     candidatesById.put(id, cands);
                     idx++;
                 }

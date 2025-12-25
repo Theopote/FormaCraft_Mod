@@ -108,7 +108,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
             List<BuildingUnit> units = new ArrayList<>(count);
             for (int i = 0; i < count; i++) units.add(unit);
 
-            List<Candidate> cands = CandidateGenerator.generate(unit, area, fields, world, origin, cfg.samples, cfg.maxRange, cfg.maxFlattenCost);
+            List<Candidate> cands = CandidateGenerator.generate(unit, area, fields, world, origin, cfg);
             java.util.Map<String, List<Candidate>> byId = new java.util.HashMap<>();
             byId.put(unit.id, cands);
 

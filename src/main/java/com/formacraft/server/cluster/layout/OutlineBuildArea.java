@@ -10,7 +10,7 @@ import java.util.Random;
 /**
  * OutlineBuildArea:
  * Candidate sampling directly within OutlineShape (circle/polygon) for higher efficiency/stability.
- *
+ * <p>
  * Notes:
  * - Still respects BuildConstraintContext.allow(...) as final authority.
  * - Produces rel origins (dx,0,dz) relative to cluster origin.
