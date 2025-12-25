@@ -25,6 +25,8 @@ public final class RoadPlanner {
             int clearHeight,
             int maxStep,
             int maxSearch,
+            int stepPenalty,
+            int localSlopePenalty,
             BlockState road,
             BlockState border,
             boolean useBorder,
@@ -37,6 +39,8 @@ public final class RoadPlanner {
                     2,
                     1,
                     12000,
+                    12,
+                    2,
                     Blocks.GRAVEL.getDefaultState(),
                     Blocks.COBBLESTONE.getDefaultState(),
                     false,
@@ -51,7 +55,7 @@ public final class RoadPlanner {
         Config c = (cfg != null) ? cfg : Config.defaults();
 
         RoadSurfaceAnalyzer analyzer = new RoadSurfaceAnalyzer(world, c.clearHeight, c.maxStep);
-        List<BlockPos> path = RoadAStar.findPath(start, end, analyzer, c.maxSearch);
+        List<BlockPos> path = RoadAStar.findPath(start, end, analyzer, c.maxSearch, c.stepPenalty, c.localSlopePenalty);
         if (path.isEmpty()) return List.of();
 
         return RoadDecorator.decorate(world, path, c.width, c.clearHeight, c.road, c.border, c.useBorder, c.bridgeDeck, c.bridgeRail);

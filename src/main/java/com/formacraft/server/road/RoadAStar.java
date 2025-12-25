@@ -25,8 +25,23 @@ public final class RoadAStar {
                                           BlockPos goal,
                                           RoadSurfaceAnalyzer analyzer,
                                           int maxSearch) {
+        return findPath(start, goal, analyzer, maxSearch, 12, 2);
+    }
+
+    /**
+     * @param stepPenalty extra cost for dy=±1 moves (higher => prefer detours to keep flatter grade)
+     * @param localSlopePenalty cost per localSlope unit (higher => avoid rugged/steep areas)
+     */
+    public static List<BlockPos> findPath(BlockPos start,
+                                          BlockPos goal,
+                                          RoadSurfaceAnalyzer analyzer,
+                                          int maxSearch,
+                                          int stepPenalty,
+                                          int localSlopePenalty) {
         if (start == null || goal == null || analyzer == null) return List.of();
         int budget = Math.max(500, maxSearch);
+        int stepP = Math.max(0, stepPenalty);
+        int slopeP = Math.max(0, localSlopePenalty);
 
         RoadSurfaceAnalyzer.SurfaceInfo s0 = analyzer.sample(start.getX(), start.getZ());
         RoadSurfaceAnalyzer.SurfaceInfo g0 = analyzer.sample(goal.getX(), goal.getZ());
@@ -57,7 +72,7 @@ public final class RoadAStar {
                 int dy = next.getY() - cur.pos.getY();
                 if (Math.abs(dy) > analyzer.maxStep()) continue;
 
-                int move = moveCost(ni.surface(), dy);
+                int move = moveCost(ni.surface(), dy, ni.localSlope(), stepP, slopeP);
                 int ng = cur.gCost + move;
 
                 long k = keyXZ(next);
@@ -80,10 +95,11 @@ public final class RoadAStar {
         return Math.abs(a.getX() - b.getX()) + Math.abs(a.getZ() - b.getZ());
     }
 
-    private static int moveCost(RoadSurface surface, int dy) {
+    private static int moveCost(RoadSurface surface, int dy, int localSlope, int stepPenalty, int slopePenalty) {
         int base = 1;
         if (surface == RoadSurface.BRIDGE) base += 6;
-        if (Math.abs(dy) == 1) base += 3;
+        if (Math.abs(dy) == 1) base += stepPenalty;
+        if (slopePenalty > 0 && localSlope > 0) base += (localSlope * slopePenalty);
         return base;
     }
 

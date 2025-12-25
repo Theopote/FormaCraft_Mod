@@ -33,31 +33,45 @@ public final class RoadSurfaceAnalyzer {
         BlockPos p = new BlockPos(x, y, z);
 
         // hard constraints (selection/outline/protected zones)
-        if (!BuildConstraintContext.allow(p)) return new SurfaceInfo(p, RoadSurface.BLOCKED);
+        if (!BuildConstraintContext.allow(p)) return new SurfaceInfo(p, RoadSurface.BLOCKED, 0);
 
         // clearance check: ensure enough headroom for walking
         for (int i = 1; i <= clearHeight; i++) {
             BlockPos up = p.up(i);
-            if (!BuildConstraintContext.allow(up)) return new SurfaceInfo(p, RoadSurface.BLOCKED);
+            if (!BuildConstraintContext.allow(up)) return new SurfaceInfo(p, RoadSurface.BLOCKED, 0);
         }
 
         // If the road block would replace something unbreakable? keep it simple: avoid bedrock.
         BlockState at = world.getBlockState(p);
-        if (at.isOf(net.minecraft.block.Blocks.BEDROCK)) return new SurfaceInfo(p, RoadSurface.BLOCKED);
+        if (at.isOf(net.minecraft.block.Blocks.BEDROCK)) return new SurfaceInfo(p, RoadSurface.BLOCKED, 0);
 
         BlockState below = world.getBlockState(p.down());
         boolean isWater = !below.getFluidState().isEmpty();
         boolean isGap = below.isAir();
-        if (isWater || isGap) return new SurfaceInfo(p, RoadSurface.BRIDGE);
+        int localSlope = estimateLocalSlope(y, x, z);
+        if (isWater || isGap) return new SurfaceInfo(p, RoadSurface.BRIDGE, localSlope);
 
-        return new SurfaceInfo(p, RoadSurface.GROUND);
+        return new SurfaceInfo(p, RoadSurface.GROUND, localSlope);
     }
 
     public int maxStep() {
         return maxStep;
     }
 
-    public record SurfaceInfo(BlockPos pos, RoadSurface surface) {}
+    /**
+     * localSlope: average abs height delta to 4-neighbors (0..n).
+     * Larger => more rugged terrain around this point.
+     */
+    private int estimateLocalSlope(int y, int x, int z) {
+        int yE = surfaceY(x + 1, z);
+        int yW = surfaceY(x - 1, z);
+        int yS = surfaceY(x, z + 1);
+        int yN = surfaceY(x, z - 1);
+        int sum = Math.abs(y - yE) + Math.abs(y - yW) + Math.abs(y - yS) + Math.abs(y - yN);
+        return sum / 4;
+    }
+
+    public record SurfaceInfo(BlockPos pos, RoadSurface surface, int localSlope) {}
 }
 
 

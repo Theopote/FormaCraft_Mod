@@ -25,6 +25,7 @@ import com.formacraft.server.cluster.layout.Candidate;
 import com.formacraft.server.cluster.layout.CandidateGenerator;
 import com.formacraft.server.cluster.layout.ClusterLayoutConfig;
 import com.formacraft.server.cluster.layout.PlacementSolver;
+import com.formacraft.server.foundation.FoundationPlanner;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.DoorBlock;
@@ -152,12 +153,17 @@ public class CityBuilder {
             int autoRoadClearHeight = 2;
             int autoRoadMaxSearch = 12000;
             boolean autoRoadUseBorder = false;
+            int autoRoadStepPenalty = 12;
+            int autoRoadLocalSlopePenalty = 2;
             if (extra0 != null) {
                 autoRoads = parseBool(extra0.get("autoRoads"), true); // default true when config exists
                 autoRoadWidth = clampInt(extra0.get("autoRoadWidth"), 3, 1, 7);
                 autoRoadClearHeight = clampInt(extra0.get("autoRoadClearHeight"), 2, 0, 6);
                 autoRoadMaxSearch = clampInt(extra0.get("autoRoadMaxSearch"), 12000, 2000, 60000);
                 autoRoadUseBorder = parseBool(extra0.get("autoRoadUseBorder"), false);
+                // slope-aware: higher => prefer detours to keep road flatter on steep terrain
+                autoRoadStepPenalty = clampInt(extra0.get("autoRoadStepPenalty"), 12, 0, 60);
+                autoRoadLocalSlopePenalty = clampInt(extra0.get("autoRoadSlopePenalty"), 2, 0, 20);
             }
             boolean hasRoads = city.getRoads() != null && !city.getRoads().isEmpty();
 
@@ -245,19 +251,16 @@ public class CityBuilder {
                     }
 
                     // Minimal FootingPlan (v1):
-                    // - range small -> pad
-                    // - range medium -> deeper pad
-                    // - range large -> stilt (minimal fill; rely on H-layer supports)
-                    int range = TerrainFit.analyze(world, buildingOrigin2, fpW, fpD).range();
-                    boolean stilt = range >= 11;
-                    int pd2 = stilt ? 0 : (range <= 6 ? Math.max(1, padDepth) : Math.max(padDepth, 4));
-                    int ch2 = stilt ? Math.max(2, clearHeight / 2) : clearHeight;
+                    // - choose explicit FoundationType from terrain variance
+                    // - derive knobs (padDepth/clearHeight) without flattening a whole region
+                    var analysis = TerrainFit.analyze(world, buildingOrigin2, fpW, fpD);
+                    FoundationPlanner.Decision fd = FoundationPlanner.decide(sp.getSpec(), analysis, padDepth, clearHeight);
+                    BuildReportContext.addFoundationType(fd.type());
+                    if (fd.stilt()) BuildReportContext.addFootingStiltUnit();
+                    else if (fd.padDepth() > 0) BuildReportContext.addFootingPadUnit();
 
-                    if (stilt) BuildReportContext.addFootingStiltUnit();
-                    else if (pd2 > 0) BuildReportContext.addFootingPadUnit();
-
-                    int pdClamped = Math.max(0, Math.min(6, pd2));
-                    int chClamped = Math.max(0, Math.min(16, ch2));
+                    int pdClamped = Math.max(0, Math.min(6, fd.padDepth()));
+                    int chClamped = Math.max(0, Math.min(16, fd.clearHeight()));
                     List<PlannedBlock> p0 = TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, targetY, fillMaterial,
                             pdClamped, chClamped);
 
@@ -354,6 +357,8 @@ public class CityBuilder {
                         autoRoadClearHeight,
                         1,
                         autoRoadMaxSearch,
+                        autoRoadStepPenalty,
+                        autoRoadLocalSlopePenalty,
                         roadMat,
                         borderMat,
                         autoRoadUseBorder,

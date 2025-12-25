@@ -22,6 +22,8 @@ import com.formacraft.server.cluster.layout.CandidateGenerator;
 import com.formacraft.server.cluster.layout.ClusterLayoutConfig;
 import com.formacraft.server.cluster.layout.PlacementSolver;
 import com.formacraft.server.build.BuildReportContext;
+import com.formacraft.server.foundation.FoundationPlanner;
+import com.formacraft.server.foundation.FoundationType;
 import com.formacraft.server.terrain.TerrainFit;
 import com.formacraft.server.terrain.TerrainPolicy;
 import com.formacraft.server.terrain.TerrainPolicyResolver;
@@ -65,7 +67,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
 
         GridPlan grid = new GridPlan(new GeneratorBackedPlan(module));
         boolean clusterRequested = ClusterLayoutConfig.isClusterMode(extra != null ? extra.get("layoutMode") : null);
-        record FootingParams(int padDepth, int clearHeight, boolean stilt) {}
+        record FootingParams(int padDepth, int clearHeight, FoundationType type) {}
         Map<Long, FootingParams> footingByRelXZ = new HashMap<>();
         boolean clusterEnabled = false;
         if (clusterRequested) {
@@ -102,10 +104,9 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                     int dEff = p.effectiveDepth();
                     TerrainFields.FootprintMetrics fm = fields.rectMetricsFromMinCorner(world, origin.getX() + dx, origin.getZ() + dz, wEff, dEff);
                     int r = fm.range();
-                    boolean stilt = r >= 11;
-                    int pd = stilt ? 0 : (r <= 6 ? Math.max(1, padDepth) : clamp(Math.max(padDepth, 4), 6));
-                    int ch = stilt ? clamp(Math.max(3, clearHeight / 2), 16) : clearHeight;
-                    footingByRelXZ.put(relKey(dx, dz), new FootingParams(pd, ch, stilt));
+                    FoundationType ft = FoundationPlanner.chooseType(r, blockH, extra);
+                    FoundationPlanner.Decision fd = FoundationPlanner.knobsFor(ft, r, blockH, padDepth, clearHeight);
+                    footingByRelXZ.put(relKey(dx, dz), new FootingParams(fd.padDepth(), fd.clearHeight(), fd.type()));
                 }
             }
         }
@@ -144,12 +145,16 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                         if (fp != null) {
                             pd = fp.padDepth;
                             ch = fp.clearHeight;
-                            if (fp.stilt) BuildReportContext.addFootingStiltUnit();
-                            else BuildReportContext.addFootingPadUnit();
+                            BuildReportContext.addFoundationType(fp.type);
+                            if (fp.type == FoundationType.STILT) BuildReportContext.addFootingStiltUnit();
+                            else if (pd > 0) BuildReportContext.addFootingPadUnit();
                         }
                     } else {
                         // non-cluster: treat as pad footing by default when ADAPTIVE is enabled
-                        if (pd > 0) BuildReportContext.addFootingPadUnit();
+                        if (pd > 0) {
+                            BuildReportContext.addFoundationType(FoundationType.FLAT_PAD);
+                            BuildReportContext.addFootingPadUnit();
+                        }
                     }
                     BuildReportContext.setTerrainBudgetBlocks(terrainBudgetBlocks);
                     List<PlannedBlock> p0 = TerrainFit.adaptivePad(wld, origin2,

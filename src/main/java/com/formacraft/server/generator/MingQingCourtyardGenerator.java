@@ -17,6 +17,7 @@ import com.formacraft.server.terrain.TerrainFit;
 import com.formacraft.server.terrain.TerrainPolicy;
 import com.formacraft.server.terrain.TerrainPolicyResolver;
 import com.formacraft.server.build.BuildReportContext;
+import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.common.style.profile.BuildStrategy;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
@@ -133,20 +134,19 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                     origin2 = TerrainFit.snapOrigin(wld, o, gbp.spec);
                     int avg = TerrainFit.averageFootprintHeight(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth());
                     int targetY = avg + 1;
-                    int range = TerrainFit.analyze(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth()).range();
-                    boolean stilt = range >= 11;
-                    int pd2 = stilt ? 0 : (range <= 6 ? Math.max(1, padDepth) : Math.max(padDepth, 4));
-                    int ch2 = stilt ? Math.max(2, clearHeight / 2) : clearHeight;
-                    if (stilt) BuildReportContext.addFootingStiltUnit();
-                    else if (pd2 > 0) BuildReportContext.addFootingPadUnit();
+                    var analysis = TerrainFit.analyze(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth());
+                    FoundationPlanner.Decision fd = FoundationPlanner.decide(gbp.spec, analysis, padDepth, clearHeight);
+                    BuildReportContext.addFoundationType(fd.type());
+                    if (fd.stilt()) BuildReportContext.addFootingStiltUnit();
+                    else if (fd.padDepth() > 0) BuildReportContext.addFootingPadUnit();
                     BuildReportContext.setTerrainBudgetBlocks(terrainBudgetBlocks);
                     List<PlannedBlock> p0 = TerrainFit.adaptivePad(wld, origin2,
                             gbp.spec.getFootprint().getWidth(),
                             gbp.spec.getFootprint().getDepth(),
                             targetY,
                             foundationBlock,
-                            pd2,
-                            ch2);
+                            fd.padDepth(),
+                            fd.clearHeight());
                     if (terrainBudgetBlocks > 0 && p0.size() > terrainBudgetBlocks) {
                         BuildReportContext.addTerrainBudgetDegrade();
                         List<PlannedBlock> p1 = TerrainFit.adaptivePad(wld, origin2,
@@ -155,7 +155,7 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                                 targetY,
                                 foundationBlock,
                                 0,
-                                Math.max(0, Math.min(6, ch2)));
+                                Math.max(0, Math.min(6, fd.clearHeight())));
                         if (p1.size() <= terrainBudgetBlocks) pad = p1;
                         else {
                             BuildReportContext.addTerrainBudgetDegrade();
