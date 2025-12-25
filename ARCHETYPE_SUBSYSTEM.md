@@ -48,4 +48,21 @@ BuildingGenome 作为 IR：Archetype 检测结果会挂到：
 - `great_wall`
 - `giant_wild_goose_pagoda`
 
+## 6. Topology Skeleton（几何骨架）主干（v1）
+为避免“每个 archetype 都各写一套拓扑循环”，我们引入 Skeleton 层（拓扑）与 Interpreter（落块）：
+- **LINEAR_PATH**：线性延展（长城/道路/城墙类）
+- **RADIAL_RING**：环形/圆形（台基/环墙/庭院/圆殿基础）
+- **SPAN_SUSPENSION**：跨越/悬索桥（桥面+主塔+主缆+吊索）
+- **VERTICAL_TAPER**：垂直收分（四腿收分塔/尖塔/高层骨架）
+- **VERTICAL_STACK**：层级叠加（密檐塔/层层退台）
+- **COMPOUND**：复合拓扑组合器（多个 skeleton 通过 Transform 拼装：平移/旋转/镜像）
+
+其中 COMPOUND 由 `CompoundPlan + BlockTransform + CompoundInterpreter` 提供，将“轴对称建筑群/围合+塔楼/模块拼装”变成可复用的组合能力。
+
+### 示例：明清官式院落（COMPOUND）
+当 `BuildingSpec.extra.template = "mingqing_courtyard"` 时，Java 侧会路由到 `MingQingCourtyardGenerator`：
+- 使用 `RectEnclosurePlan` 生成围墙与门洞
+- 使用 `GeneratorBackedPlan` 复用现有 `HouseGenerator` 生成主殿/厢房/门楼
+- 使用 `CompoundPlan + BlockTransform` 做中轴对称拼装
+
 

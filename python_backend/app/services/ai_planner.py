@@ -730,6 +730,216 @@ def _should_use_giant_wild_goose_pagoda_template(req: Optional[BuildRequest]) ->
     return any(k in s for k in ("大慈恩寺", "大雁塔", "giant wild goose pagoda", "dayanta", "wild goose pagoda"))
 
 
+def _should_use_castle_compound_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+    return any(k in s for k in ("城堡", "中世纪城堡", "要塞", "堡垒", "castle", "fortress", "keep"))
+
+
+def _generate_castle_compound_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+    arche_id = "castle_compound"
+
+    size = _parse_rect_size_from_text(text)
+    w, d = size if size else (_arche_default_int(arche_id, "width", 48), _arche_default_int(arche_id, "depth", 36))
+    w = _clamp_with_arche_constraints(arche_id, int(w), "minWidth", "maxWidth")
+    d = _clamp_with_arche_constraints(arche_id, int(d), "minDepth", "maxDepth")
+    w = max(24, min(128, w))
+    d = max(24, min(128, d))
+
+    wall_h = _arche_default_int(arche_id, "wallHeight", 6)
+    wall_h = _clamp_with_arche_constraints(arche_id, wall_h, "minWallHeight", "maxWallHeight")
+    tower_h = _arche_default_int(arche_id, "towerHeight", 18)
+    tower_h = _clamp_with_arche_constraints(arche_id, tower_h, "minTowerHeight", "maxTowerHeight")
+    follow_terrain = _arche_default_bool(arche_id, "followTerrain", True)
+
+    facing = _parse_door_facing_from_text(text)
+    if not facing:
+        facing = "SOUTH"
+
+    t_low = text.lower()
+    detail_level = "aesthetic"
+    if any(k in t_low for k in ("精致", "细节", "更复杂", "more detail", "refined", "ornate")):
+        detail_level = "refined"
+
+    materials = Materials(
+        wall="minecraft:stone_bricks",
+        roof="minecraft:stone_bricks",
+        floor="minecraft:spruce_planks",
+        window="minecraft:glass_pane",
+        foundation="minecraft:stone_bricks",
+    )
+    features = Features(
+        hasWindows=True,
+        hasStairs=True,
+        hasDoor=True,
+        hasBalcony=True,
+        hasRoof=True,
+        hasRoofDecoration=True,
+        windowCount=0,
+        floorCount=max(2, min(6, tower_h // 6)),
+    )
+    style_options = StyleOptions(
+        doorStyle="arched",
+        roofType="cone",
+        bridgeType="flat",
+        windowRatio=0.2,
+        windowStyle="pane",
+        wallPattern="random",
+    )
+
+    return BuildingSpec(
+        type=BuildingType.CASTLE,
+        style=BuildingStyle.MEDIEVAL,
+        footprint=Footprint(shape="rectangle", width=w, depth=d),
+        height=max(12, tower_h),
+        floors=1,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes=f"模板：城堡复合体（{w}×{d}，wallH={wall_h}，towerH={tower_h}，facing={facing}）。使用 COMPOUND 组合器。",
+        extra={
+            "template": "castle_compound",
+            "landmark": "castle_compound",
+            "wallHeight": wall_h,
+            "towerHeight": tower_h,
+            "wallThickness": 2,
+            "gateWidth": 3,
+            "facing": facing,
+            "followTerrain": follow_terrain,
+            "detailLevel": detail_level,
+        },
+    )
+
+
+def _should_use_office_district_template(req: Optional[BuildRequest]) -> bool:
+    if req is None:
+        return False
+    text = (getattr(req, "requestText", None) or "") + "\n" + (getattr(req, "userMessage", None) or "")
+    s = text.lower()
+    if not s.strip():
+        return False
+    if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
+        return False
+    return any(k in s for k in ("办公楼群", "办公园区", "写字楼群", "商业区", "office district", "office park", "business district"))
+
+
+def _parse_grid_from_text(s: str) -> tuple[Optional[int], Optional[int], Optional[int]]:
+    """
+    Returns: (rows, cols, spacing)
+    Accepts:
+    - 3x4 / 3×4
+    - rows=3 cols=4
+    - 间距 18 / spacing 18
+    """
+    if not s:
+        return None, None, None
+    t = s.lower()
+    rows = None
+    cols = None
+    spacing = None
+    m = re.search(r"(\d{1,2})\s*(?:x|×)\s*(\d{1,2})", t)
+    if m:
+        try:
+            rows = int(m.group(1))
+            cols = int(m.group(2))
+        except Exception:
+            pass
+    m = re.search(r"(?:rows)\s*(?:=|:)?\s*(\d{1,2})", t)
+    if m:
+        try:
+            rows = int(m.group(1))
+        except Exception:
+            pass
+    m = re.search(r"(?:cols|columns)\s*(?:=|:)?\s*(\d{1,2})", t)
+    if m:
+        try:
+            cols = int(m.group(1))
+        except Exception:
+            pass
+    m = re.search(r"(?:间距|spacing)\s*(?:为|=|:)?\s*(\d{1,3})", t)
+    if m:
+        try:
+            spacing = int(m.group(1))
+        except Exception:
+            pass
+    return rows, cols, spacing
+
+
+def _generate_office_district_building_spec(req: BuildRequest) -> BuildingSpec:
+    text = (req.requestText or "") + "\n" + (req.userMessage or "")
+    arche_id = "office_district"
+
+    r_in, c_in, sp_in = _parse_grid_from_text(text)
+    rows = r_in or _arche_default_int(arche_id, "rows", 3)
+    cols = c_in or _arche_default_int(arche_id, "cols", 4)
+    spacing = sp_in or _arche_default_int(arche_id, "spacing", 18)
+
+    rows = _clamp_with_arche_constraints(arche_id, rows, "minRows", "maxRows")
+    cols = _clamp_with_arche_constraints(arche_id, cols, "minCols", "maxCols")
+    spacing = _clamp_with_arche_constraints(arche_id, spacing, "minSpacing", "maxSpacing")
+
+    block_w = _arche_default_int(arche_id, "blockWidth", 11)
+    block_d = _arche_default_int(arche_id, "blockDepth", 11)
+    block_h = _arche_default_int(arche_id, "blockHeight", 22)
+    block_w = _clamp_with_arche_constraints(arche_id, block_w, "minBlockWidth", "maxBlockWidth")
+    block_d = _clamp_with_arche_constraints(arche_id, block_d, "minBlockDepth", "maxBlockDepth")
+    block_h = _clamp_with_arche_constraints(arche_id, block_h, "minBlockHeight", "maxBlockHeight")
+
+    materials = Materials(
+        wall="minecraft:light_gray_concrete",
+        roof="minecraft:smooth_stone",
+        floor="minecraft:smooth_stone",
+        window="minecraft:glass_pane",
+        foundation="minecraft:stone_bricks",
+    )
+    features = Features(
+        hasWindows=True,
+        hasStairs=False,
+        hasDoor=True,
+        hasBalcony=False,
+        hasRoof=True,
+        hasRoofDecoration=False,
+        windowCount=0,
+        floorCount=max(2, min(12, block_h // 4)),
+    )
+    style_options = StyleOptions(
+        doorStyle="single",
+        roofType="flat",
+        bridgeType="flat",
+        windowRatio=0.6,
+        windowStyle="pane",
+        wallPattern="uniform",
+    )
+
+    return BuildingSpec(
+        type=BuildingType.HOUSE,
+        style=BuildingStyle.MODERN,
+        footprint=Footprint(shape="rectangle", width=max(24, cols * spacing), depth=max(24, rows * spacing)),
+        height=max(12, block_h),
+        floors=1,
+        materials=materials,
+        features=features,
+        styleOptions=style_options,
+        notes=f"模板：办公楼群（{rows}×{cols}，间距≈{spacing}，单体≈{block_w}×{block_d}×{block_h}）。使用 GRID 骨架。",
+        extra={
+            "template": "office_district",
+            "landmark": "office_district",
+            "rows": rows,
+            "cols": cols,
+            "spacing": spacing,
+            "blockWidth": block_w,
+            "blockDepth": block_d,
+            "blockHeight": block_h,
+        },
+    )
+
 def _parse_levels_from_text(s: str) -> Optional[int]:
     if not s:
         return None
@@ -2093,6 +2303,34 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
             pass
         return spec
 
+    if arche is not None and arche.id == "castle_compound" and strong:
+        spec = _generate_castle_compound_building_spec(req)
+        try:
+            g = BuildingGenome()
+            g.archetype = GenomeArchetype(id="castle_compound", confidence=float(arche.confidence))
+            if spec.extra is None:
+                spec.extra = {}
+            spec.extra["genome"] = g.model_dump()
+            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
+            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
+        except Exception:
+            pass
+        return spec
+
+    if arche is not None and arche.id == "office_district" and strong:
+        spec = _generate_office_district_building_spec(req)
+        try:
+            g = BuildingGenome()
+            g.archetype = GenomeArchetype(id="office_district", confidence=float(arche.confidence))
+            if spec.extra is None:
+                spec.extra = {}
+            spec.extra["genome"] = g.model_dump()
+            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
+            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
+        except Exception:
+            pass
+        return spec
+
     # 兼容旧逻辑：土楼（强形象地标）仍优先使用确定性模板（除非用户明确要求“随意/自由发挥”）
     if _should_use_tulou_template(req):
         spec = _generate_tulou_building_spec(req)
@@ -2178,6 +2416,36 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
             if arche is not None and arche.id == "giant_wild_goose_pagoda":
                 g = BuildingGenome()
                 g.archetype = GenomeArchetype(id="giant_wild_goose_pagoda", confidence=float(arche.confidence))
+                spec.extra["genome"] = g.model_dump()
+                spec.extra["archetypeMode"] = "INSPIRED"
+        except Exception:
+            pass
+        return spec
+
+    # 兼容旧逻辑：城堡复合体（COMPOUND）
+    if _should_use_castle_compound_template(req):
+        spec = _generate_castle_compound_building_spec(req)
+        try:
+            if spec.extra is None:
+                spec.extra = {}
+            if arche is not None and arche.id == "castle_compound":
+                g = BuildingGenome()
+                g.archetype = GenomeArchetype(id="castle_compound", confidence=float(arche.confidence))
+                spec.extra["genome"] = g.model_dump()
+                spec.extra["archetypeMode"] = "INSPIRED"
+        except Exception:
+            pass
+        return spec
+
+    # 兼容旧逻辑：办公楼群（GRID/CLUSTER）
+    if _should_use_office_district_template(req):
+        spec = _generate_office_district_building_spec(req)
+        try:
+            if spec.extra is None:
+                spec.extra = {}
+            if arche is not None and arche.id == "office_district":
+                g = BuildingGenome()
+                g.archetype = GenomeArchetype(id="office_district", confidence=float(arche.confidence))
                 spec.extra["genome"] = g.model_dump()
                 spec.extra["archetypeMode"] = "INSPIRED"
         except Exception:

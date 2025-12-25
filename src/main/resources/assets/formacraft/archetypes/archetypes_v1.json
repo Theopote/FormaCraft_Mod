@@ -54,6 +54,24 @@
       "defaults": { "levels": 7, "height": 41, "baseWidth": 17 },
       "constraints": { "minLevels": 3, "maxLevels": 13, "minHeight": 18, "maxHeight": 120, "minBaseWidth": 9, "maxBaseWidth": 41 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "castle_compound",
+      "aliases": ["城堡", "中世纪城堡", "要塞", "堡垒", "castle", "medieval castle", "fortress", "keep"],
+      "category": "FORTIFICATION",
+      "generatorId": "castle_compound",
+      "defaults": { "width": 48, "depth": 36, "wallHeight": 6, "towerHeight": 18, "followTerrain": true },
+      "constraints": { "minWidth": 24, "maxWidth": 128, "minDepth": 24, "maxDepth": 128, "minWallHeight": 4, "maxWallHeight": 12, "minTowerHeight": 10, "maxTowerHeight": 40 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "office_district",
+      "aliases": ["办公楼群", "办公园区", "写字楼群", "商业区", "office district", "office park", "business district"],
+      "category": "INFRASTRUCTURE",
+      "generatorId": "office_district",
+      "defaults": { "rows": 3, "cols": 4, "spacing": 18, "blockWidth": 11, "blockDepth": 11, "blockHeight": 22 },
+      "constraints": { "minRows": 1, "maxRows": 12, "minCols": 1, "maxCols": 12, "minSpacing": 10, "maxSpacing": 40, "minBlockWidth": 9, "maxBlockWidth": 21, "minBlockDepth": 9, "maxBlockDepth": 21, "minBlockHeight": 14, "maxBlockHeight": 60 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     }
   ]
 }

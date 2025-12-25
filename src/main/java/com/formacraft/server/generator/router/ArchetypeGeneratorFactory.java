@@ -21,6 +21,8 @@ public final class ArchetypeGeneratorFactory {
             case "great_wall" -> new GreatWallGenerator();
             case "golden_gate_bridge" -> new GoldenGateBridgeGenerator();
             case "giant_wild_goose_pagoda" -> new GiantWildGoosePagodaGenerator();
+            case "castle_compound" -> new CastleCompoundGenerator();
+            case "office_district" -> new OfficeDistrictGenerator();
             default -> null;
         };
     }

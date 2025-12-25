@@ -33,6 +33,10 @@ public final class GeneratorRouter {
             return new TowerGenerator();
         }
 
+        // 0) template-based routing (deterministic templates)
+        StructureGenerator byTemplate = routeByTemplate(spec);
+        if (byTemplate != null) return byTemplate;
+
         // 0) legacy landmark flag (keeps current behavior)
         StructureGenerator legacy = routeLegacyLandmark(spec);
         if (legacy != null) return legacy;
@@ -64,6 +68,29 @@ public final class GeneratorRouter {
                 yield new HouseGenerator();
             }
         };
+    }
+
+    private static StructureGenerator routeByTemplate(BuildingSpec spec) {
+        if (spec == null) return null;
+        Map<String, Object> extra = spec.getExtra();
+        if (extra == null) return null;
+        Object t = extra.get("template");
+        if (t == null) return null;
+        String s = String.valueOf(t).trim().toLowerCase();
+        if (s.isEmpty()) return null;
+        if (s.contains("mingqing_courtyard") || s.contains("mingqing")) {
+            return new MingQingCourtyardGenerator();
+        }
+        if (s.contains("castle_compound") || s.contains("castle")) {
+            return new CastleCompoundGenerator();
+        }
+        if (s.contains("office_district") || s.contains("office_park") || s.contains("office")) {
+            return new OfficeDistrictGenerator();
+        }
+        if (s.contains("office_block")) {
+            return new OfficeBlockGenerator();
+        }
+        return null;
     }
 
     private static StructureGenerator routeByArchetypeId(String archetypeId) {

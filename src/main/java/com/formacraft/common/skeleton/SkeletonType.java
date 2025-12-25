@@ -9,6 +9,8 @@ public enum SkeletonType {
     RADIAL_RING,
     SPAN_SUSPENSION,
     VERTICAL_TAPER,
+    VERTICAL_STACK,
+    GRID,
     COMPOUND
 }
 
