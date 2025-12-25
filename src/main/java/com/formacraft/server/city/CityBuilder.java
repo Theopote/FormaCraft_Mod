@@ -1,9 +1,12 @@
 package com.formacraft.server.city;
 
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.build.BuildingType;
 import com.formacraft.common.model.city.CitySpec;
 import com.formacraft.common.model.path.PathSpec;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.generator.BridgeGenerator;
@@ -22,8 +25,16 @@ import com.formacraft.server.cluster.layout.Candidate;
 import com.formacraft.server.cluster.layout.CandidateGenerator;
 import com.formacraft.server.cluster.layout.ClusterLayoutConfig;
 import com.formacraft.server.cluster.layout.PlacementSolver;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.DoorBlock;
+import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -140,13 +151,44 @@ public class CityBuilder {
             int autoRoadWidth = 3;
             int autoRoadClearHeight = 2;
             int autoRoadMaxSearch = 12000;
+            boolean autoRoadUseBorder = false;
             if (extra0 != null) {
                 autoRoads = parseBool(extra0.get("autoRoads"), true); // default true when config exists
                 autoRoadWidth = clampInt(extra0.get("autoRoadWidth"), 3, 1, 7);
                 autoRoadClearHeight = clampInt(extra0.get("autoRoadClearHeight"), 2, 0, 6);
                 autoRoadMaxSearch = clampInt(extra0.get("autoRoadMaxSearch"), 12000, 2000, 60000);
+                autoRoadUseBorder = parseBool(extra0.get("autoRoadUseBorder"), false);
             }
             boolean hasRoads = city.getRoads() != null && !city.getRoads().isEmpty();
+
+            // Resolve road materials from city style profile (can be overridden by extra0.* ids).
+            BuildingStyle cityStyle = BuildingStyle.DEFAULT;
+            if (city.getStyle() != null) {
+                try {
+                    cityStyle = BuildingStyle.valueOf(city.getStyle().trim().toUpperCase());
+                } catch (Exception ignored) {
+                    cityStyle = BuildingStyle.DEFAULT;
+                }
+            }
+            StyleProfile profile = StyleProfileRegistry.forStyle(cityStyle);
+            String roadId = profile != null && profile.palette() != null ? profile.palette().floor : null;
+            String borderId = profile != null && profile.palette() != null ? profile.palette().trim : null;
+            String deckId = profile != null && profile.palette() != null ? profile.palette().floor : null;
+            String railId = "minecraft:oak_fence";
+            if (extra0 != null) {
+                Object r0 = extra0.get("autoRoadMaterial");
+                Object b0 = extra0.get("autoRoadBorder");
+                Object d0 = extra0.get("autoRoadBridgeDeck");
+                Object rr0 = extra0.get("autoRoadBridgeRail");
+                if (r0 != null) roadId = String.valueOf(r0).trim();
+                if (b0 != null) borderId = String.valueOf(b0).trim();
+                if (d0 != null) deckId = String.valueOf(d0).trim();
+                if (rr0 != null) railId = String.valueOf(rr0).trim();
+            }
+            BlockState roadMat = stateFromIdOrDefault(roadId, net.minecraft.block.Blocks.GRAVEL.getDefaultState());
+            BlockState borderMat = stateFromIdOrDefault(borderId, net.minecraft.block.Blocks.COBBLESTONE.getDefaultState());
+            BlockState deckMat = stateFromIdOrDefault(deckId, net.minecraft.block.Blocks.OAK_PLANKS.getDefaultState());
+            BlockState railMat = stateFromIdOrDefault(railId, net.minecraft.block.Blocks.OAK_FENCE.getDefaultState());
 
             java.util.List<BlockPos> roadEndpoints = new java.util.ArrayList<>();
             int mainRoadIdx = -1;
@@ -291,7 +333,9 @@ public class CityBuilder {
                 if (autoRoads && !hasRoads) {
                     int fpW = (sp.getSpec().getFootprint() != null && sp.getSpec().getFootprint().getWidth() > 0) ? sp.getSpec().getFootprint().getWidth() : 8;
                     int fpD = (sp.getSpec().getFootprint() != null && sp.getSpec().getFootprint().getDepth() > 0) ? sp.getSpec().getFootprint().getDepth() : 6;
-                    BlockPos c = buildingOrigin2.add(fpW / 2, 0, fpD / 2);
+                    // prefer door-based endpoint if present
+                    BlockPos c = findDoorEndpoint(building);
+                    if (c == null) c = buildingOrigin2.add(fpW / 2, 0, fpD / 2);
                     roadEndpoints.add(c);
                     long vol = (long) fpW * (long) fpD * (long) Math.max(4, sp.getSpec().getHeight());
                     if (vol > mainRoadVol) {
@@ -310,11 +354,11 @@ public class CityBuilder {
                         autoRoadClearHeight,
                         1,
                         autoRoadMaxSearch,
-                        net.minecraft.block.Blocks.GRAVEL.getDefaultState(),
-                        net.minecraft.block.Blocks.COBBLESTONE.getDefaultState(),
-                        false,
-                        net.minecraft.block.Blocks.OAK_PLANKS.getDefaultState(),
-                        net.minecraft.block.Blocks.OAK_FENCE.getDefaultState()
+                        roadMat,
+                        borderMat,
+                        autoRoadUseBorder,
+                        deckMat,
+                        railMat
                 );
                 for (int i = 1; i < roadEndpoints.size(); i++) {
                     BlockPos other = roadEndpoints.get(i);
@@ -445,6 +489,38 @@ public class CityBuilder {
         String s = String.valueOf(v).trim().toLowerCase(java.util.Locale.ROOT);
         if (s.isEmpty()) return def;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+    }
+
+    private static BlockState stateFromIdOrDefault(String id, BlockState def) {
+        if (id == null) return def;
+        String s = id.trim();
+        if (s.isEmpty()) return def;
+        try {
+            Identifier identifier = s.contains(":") ? Identifier.of(s) : Identifier.of("minecraft", s);
+            Block b = Registries.BLOCK.get(identifier);
+            if (b == null) return def;
+            return b.getDefaultState();
+        } catch (Exception ignored) {
+            return def;
+        }
+    }
+
+    /**
+     * Try to find an outside point near a door as a road endpoint.
+     * Works purely from planned blocks (no world scan) for determinism.
+     */
+    private static BlockPos findDoorEndpoint(GeneratedStructure building) {
+        if (building == null || building.getBlocks() == null) return null;
+        for (PlannedBlock pb : building.getBlocks()) {
+            if (pb == null || pb.getPos() == null || pb.getTargetState() == null) continue;
+            BlockState st = pb.getTargetState();
+            if (!(st.getBlock() instanceof DoorBlock)) continue;
+            if (st.contains(Properties.DOUBLE_BLOCK_HALF) && st.get(Properties.DOUBLE_BLOCK_HALF) != DoubleBlockHalf.LOWER) continue;
+            Direction facing = st.contains(Properties.HORIZONTAL_FACING) ? st.get(Properties.HORIZONTAL_FACING) : Direction.NORTH;
+            // endpoint one block outside the door
+            return pb.getPos().offset(facing);
+        }
+        return null;
     }
 
     private static int computeAutoImportance(BuildingSpec bs, int idx, int mainIdx, long bestVol) {
