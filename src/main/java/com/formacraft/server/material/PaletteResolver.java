@@ -41,12 +41,12 @@ public final class PaletteResolver {
         }
         if (total <= 0) return fallback;
 
-        int r = (int) (Math.floorMod(hash(pos, paletteId, key, salt), total));
+        int r = Math.floorMod(hash(pos, paletteId, key, salt), total);
         int acc = 0;
         for (PaletteCatalog.WeightedBlock wb : list) {
             if (wb == null) continue;
             int w = Math.max(0, wb.weight);
-            if (w <= 0) continue;
+            if (w == 0) continue;
             acc += w;
             if (r < acc) {
                 BlockState st = stateFromId(world, wb.id);
@@ -72,7 +72,6 @@ public final class PaletteResolver {
             Identifier key = Identifier.tryParse(s);
             if (key == null) return null;
             var block = Registries.BLOCK.get(key);
-            if (block == null) return null;
             return block.getDefaultState();
         } catch (Throwable ignored) {
             return null;
@@ -91,7 +90,7 @@ public final class PaletteResolver {
     }
 
     private static long fnv(long h, int v) {
-        h ^= (v * 0x9E3779B9);
+        h ^= (v * 0x9E3779B9L);
         return h * 1099511628211L;
     }
 

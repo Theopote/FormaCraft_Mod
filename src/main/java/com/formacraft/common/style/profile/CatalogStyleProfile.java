@@ -175,16 +175,22 @@ public final class CatalogStyleProfile implements StyleProfile {
     }
 
     private static String pickBlockId(Object v, String fallback) {
-        if (v == null) return fallback;
-        if (v instanceof String s) {
-            String id = normalizeMcId(s);
-            return id != null ? id : fallback;
-        }
-        if (v instanceof List<?> list && !list.isEmpty()) {
-            Object first = list.get(0);
-            if (first instanceof String s) {
+        switch (v) {
+            case null -> {
+                return fallback;
+            }
+            case String s -> {
                 String id = normalizeMcId(s);
                 return id != null ? id : fallback;
+            }
+            case List<?> list when !list.isEmpty() -> {
+                Object first = list.getFirst();
+                if (first instanceof String s) {
+                    String id = normalizeMcId(s);
+                    return id != null ? id : fallback;
+                }
+            }
+            default -> {
             }
         }
         return fallback;

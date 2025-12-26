@@ -38,8 +38,8 @@ public class GreatWallGenerator implements StructureGenerator {
         int thickness = clamp(getIntExtra(spec, "wallThickness", spec != null && spec.getFootprint() != null ? Math.max(3, spec.getFootprint().getWidth()) : 5), 3, 21);
 
         int towerSpacing = clamp(getIntExtra(spec, "towerSpacing", 48), 16, 256);
-        boolean followTerrain = getBoolExtra(spec, "followTerrain", true);
-        boolean mixBlocks = getBoolExtra(spec, "mixWallBlocks", true);
+        boolean followTerrain = getBoolExtra(spec, "followTerrain");
+        boolean mixBlocks = getBoolExtra(spec, "mixWallBlocks");
         String paletteId = getStringExtra(spec, "paletteId", null);
 
         Direction facing = parseFacing(getStringExtra(spec, "facing", "EAST"));
@@ -91,24 +91,23 @@ public class GreatWallGenerator implements StructureGenerator {
         return switch (v) {
             case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
             case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
             case "W", "WEST", "西", "朝西" -> Direction.WEST;
             default -> Direction.EAST;
         };
     }
 
-    private static boolean getBoolExtra(BuildingSpec spec, String key, boolean def) {
-        if (spec == null) return def;
+    private static boolean getBoolExtra(BuildingSpec spec, String key) {
+        if (spec == null) return true;
         Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
+        if (extra == null) return true;
         Object v = extra.get(key);
-        if (v == null) return def;
+        if (v == null) return true;
         if (v instanceof Boolean b) return b;
         String s = String.valueOf(v).trim().toLowerCase();
-        if (s.isEmpty()) return def;
+        if (s.isEmpty()) return true;
         if ("true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s)) return true;
         if ("false".equals(s) || "0".equals(s) || "no".equals(s) || "n".equals(s)) return false;
-        return def;
+        return true;
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {
@@ -153,8 +152,7 @@ public class GreatWallGenerator implements StructureGenerator {
 
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
     }
 }
 

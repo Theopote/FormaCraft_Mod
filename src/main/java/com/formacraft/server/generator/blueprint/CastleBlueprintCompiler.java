@@ -93,148 +93,147 @@ public final class CastleBlueprintCompiler {
             int rz0 = clampInt(rel != null ? rel.get("z") : null, 0, -99999, 99999);
 
             // compile per component
-            if (type.equals("KEEP") || type.equals("HALL") || type.equals("MAIN_BUILDING")) {
-                int w = clampInt(dim != null ? dim.get("width") : null, 16, 6, 128);
-                int d = clampInt(dim != null ? dim.get("depth") : null, 16, 6, 128);
-                int h = clampInt(dim != null ? dim.get("height") : null, 18, 4, 80);
+            switch (type) {
+                case "KEEP", "HALL", "MAIN_BUILDING" -> {
+                    int w = clampInt(dim != null ? dim.get("width") : null, 16, 6, 128);
+                    int d = clampInt(dim != null ? dim.get("depth") : null, 16, 6, 128);
+                    int h = clampInt(dim != null ? dim.get("height") : null, 18, 4, 80);
 
-                // HouseGenerator uses min-corner origin.
-                int dx = cornerCoords ? (rx0 - halfX) : rx0;
-                int dz = cornerCoords ? (rz0 - halfZ) : rz0;
+                    // HouseGenerator uses min-corner origin.
+                    int dx = cornerCoords ? (rx0 - halfX) : rx0;
+                    int dz = cornerCoords ? (rz0 - halfZ) : rz0;
 
-                BuildingSpec keep = new BuildingSpec();
-                keep.setType(BuildingType.HOUSE);
-                keep.setStyle(style);
-                keep.setFootprint(new Footprint(w, d));
-                keep.setHeight(h);
-                keep.setFloors(Math.max(1, Math.min(6, h / 5)));
-                keep.setMaterials(mats);
-                keep.setFeatures(defaultFeaturesForKeep());
-                keep.setStyleOptions(defaultStyleOptionsForKeep(style));
-                // pass through extra knobs (styleProfileId/paletteId/terrain policy)
-                keep.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
-                // features (optional): arches/lighting
-                applyHouseFeatures(keep, c);
+                    BuildingSpec keep = new BuildingSpec();
+                    keep.setType(BuildingType.HOUSE);
+                    keep.setStyle(style);
+                    keep.setFootprint(new Footprint(w, d));
+                    keep.setHeight(h);
+                    keep.setFloors(Math.max(1, Math.min(6, h / 5)));
+                    keep.setMaterials(mats);
+                    keep.setFeatures(defaultFeaturesForKeep());
+                    keep.setStyleOptions(defaultStyleOptionsForKeep(style));
+                    // pass through extra knobs (styleProfileId/paletteId/terrain policy)
+                    keep.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
+                    // features (optional): arches/lighting
+                    applyHouseFeatures(keep, c);
 
-                plan.add(new GeneratorBackedPlan(keep), BlockTransform.translate(dx, ry, dz));
-                continue;
-            }
-
-            if (type.equals("GATEHOUSE")) {
-                int w = clampInt(dim != null ? dim.get("width") : null, 12, 6, 96);
-                int d = clampInt(dim != null ? dim.get("depth") : null, 9, 6, 96);
-                int h = clampInt(dim != null ? dim.get("height") : null, 10, 4, 40);
-
-                int dx = cornerCoords ? (rx0 - halfX) : rx0;
-                int dz = cornerCoords ? (rz0 - halfZ) : rz0;
-
-                BuildingSpec gatehouse = new BuildingSpec();
-                gatehouse.setType(BuildingType.HOUSE);
-                gatehouse.setStyle(style);
-                gatehouse.setFootprint(new Footprint(w, d));
-                gatehouse.setHeight(h);
-                gatehouse.setFloors(1);
-                gatehouse.setMaterials(mats);
-                Features f = new Features();
-                f.setHasDoor(true);
-                f.setHasWindows(true);
-                f.setHasStairs(false);
-                f.setHasRoof(true);
-                gatehouse.setFeatures(f);
-                StyleOptions so = new StyleOptions();
-                so.setDoorStyle("arched");
-                so.setRoofType("hipped");
-                so.setWindowRatio(0.15);
-                gatehouse.setStyleOptions(so);
-                // Ensure its door aligns with the gate side.
-                gatehouse.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
-                if (gatehouse.getExtra() != null) {
-                    gatehouse.getExtra().put("doorSide", gateSide.name());
+                    plan.add(new GeneratorBackedPlan(keep), BlockTransform.translate(dx, ry, dz));
                 }
-                applyHouseFeatures(gatehouse, c);
+                case "GATEHOUSE" -> {
+                    int w = clampInt(dim != null ? dim.get("width") : null, 12, 6, 96);
+                    int d = clampInt(dim != null ? dim.get("depth") : null, 9, 6, 96);
+                    int h = clampInt(dim != null ? dim.get("height") : null, 10, 4, 40);
 
-                plan.add(new GeneratorBackedPlan(gatehouse), BlockTransform.translate(dx, ry, dz));
-                continue;
-            }
+                    int dx = cornerCoords ? (rx0 - halfX) : rx0;
+                    int dz = cornerCoords ? (rz0 - halfZ) : rz0;
 
-            if (type.equals("TOWER")) {
-                int diameter = clampInt(dim != null ? dim.get("diameter") : null, 7, 5, 41);
-                int radius = Math.max(3, diameter / 2);
-                int h = clampInt(dim != null ? dim.get("height") : null, 15, 8, 90);
-
-                // TowerGenerator uses center origin.
-                int dx = cornerCoords ? (rx0 + radius - halfX) : rx0;
-                int dz = cornerCoords ? (rz0 + radius - halfZ) : rz0;
-
-                BuildingSpec tower = new BuildingSpec();
-                tower.setType(BuildingType.TOWER);
-                tower.setStyle(style);
-                tower.setFootprint(new Footprint(radius));
-                tower.setHeight(h);
-                tower.setFloors(Math.max(1, Math.min(8, h / 6)));
-                tower.setMaterials(mats);
-                Features f = new Features();
-                f.setHasWindows(true);
-                f.setHasStairs(true);
-                f.setHasDoor(false);
-                f.setHasRoof(true);
-                tower.setFeatures(f);
-                StyleOptions so = new StyleOptions();
-                so.setRoofType("cone");
-                so.setWindowRatio(0.18);
-                tower.setStyleOptions(so);
-                tower.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
-
-                // features (optional): accept object or list. MVP supports battlements/flag.
-                Map<String, Object> feat = asMap(c.get("features"));
-                if (feat != null) {
-                    if (tower.getExtra() != null) {
-                        if (feat.containsKey("battlements")) tower.getExtra().put("battlements", feat.get("battlements"));
-                        if (feat.containsKey("flag")) tower.getExtra().put("flag", feat.get("flag"));
+                    BuildingSpec gatehouse = new BuildingSpec();
+                    gatehouse.setType(BuildingType.HOUSE);
+                    gatehouse.setStyle(style);
+                    gatehouse.setFootprint(new Footprint(w, d));
+                    gatehouse.setHeight(h);
+                    gatehouse.setFloors(1);
+                    gatehouse.setMaterials(mats);
+                    Features f = new Features();
+                    f.setHasDoor(true);
+                    f.setHasWindows(true);
+                    f.setHasStairs(false);
+                    f.setHasRoof(true);
+                    gatehouse.setFeatures(f);
+                    StyleOptions so = new StyleOptions();
+                    so.setDoorStyle("arched");
+                    so.setRoofType("hipped");
+                    so.setWindowRatio(0.15);
+                    gatehouse.setStyleOptions(so);
+                    // Ensure its door aligns with the gate side.
+                    gatehouse.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
+                    if (gatehouse.getExtra() != null) {
+                        gatehouse.getExtra().put("doorSide", gateSide.name());
                     }
+                    applyHouseFeatures(gatehouse, c);
+
+                    plan.add(new GeneratorBackedPlan(gatehouse), BlockTransform.translate(dx, ry, dz));
                 }
+                case "TOWER" -> {
+                    int diameter = clampInt(dim != null ? dim.get("diameter") : null, 7, 5, 41);
+                    int radius = Math.max(3, diameter / 2);
+                    int h = clampInt(dim != null ? dim.get("height") : null, 15, 8, 90);
 
-                plan.add(new GeneratorBackedPlan(tower), BlockTransform.translate(dx, ry, dz));
-                continue;
-            }
+                    // TowerGenerator uses center origin.
+                    int dx = cornerCoords ? (rx0 + radius - halfX) : rx0;
+                    int dz = cornerCoords ? (rz0 + radius - halfZ) : rz0;
 
-            if (type.equals("WALL_CONNECTOR") || type.equals("WALL") || type.equals("BOX_FRAME")) {
-                int w = clampInt(dim != null ? dim.get("width") : null, overallX, 7, 256);
-                int d = clampInt(dim != null ? dim.get("depth") : null, overallZ, 7, 256);
-                int h = clampInt(dim != null ? dim.get("height") : null, 8, 2, 32);
+                    BuildingSpec tower = new BuildingSpec();
+                    tower.setType(BuildingType.TOWER);
+                    tower.setStyle(style);
+                    tower.setFootprint(new Footprint(radius));
+                    tower.setHeight(h);
+                    tower.setFloors(Math.max(1, Math.min(8, h / 6)));
+                    tower.setMaterials(mats);
+                    Features f = new Features();
+                    f.setHasWindows(true);
+                    f.setHasStairs(true);
+                    f.setHasDoor(false);
+                    f.setHasRoof(true);
+                    tower.setFeatures(f);
+                    StyleOptions so = new StyleOptions();
+                    so.setRoofType("cone");
+                    so.setWindowRatio(0.18);
+                    tower.setStyleOptions(so);
+                    tower.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
 
-                // RectEnclosurePlan uses center origin.
-                int dx = cornerCoords ? (rx0 + (w / 2) - halfX) : rx0;
-                int dz = cornerCoords ? (rz0 + (d / 2) - halfZ) : rz0;
-
-                // For the main enclosure, we keep the gate opening (gateWidth >= 1).
-                int gw = gateWidth;
-                // If explicitly marked as no-gate frame, allow gateWidth=0
-                if (type.equals("BOX_FRAME")) gw = 0;
-
-                boolean battlements = false;
-                int battlementSpacing = 2;
-                Map<String, Object> feat = asMap(c.get("features"));
-                if (feat != null) {
-                    Object b = feat.get("battlements");
-                    if (b instanceof Boolean bb) battlements = bb;
-                    else if (b != null) {
-                        String s = String.valueOf(b).trim().toLowerCase(Locale.ROOT);
-                        if (!s.isEmpty()) battlements = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
+                    // features (optional): accept object or list. MVP supports battlements/flag.
+                    Map<String, Object> feat = asMap(c.get("features"));
+                    if (feat != null) {
+                        if (tower.getExtra() != null) {
+                            if (feat.containsKey("battlements"))
+                                tower.getExtra().put("battlements", feat.get("battlements"));
+                            if (feat.containsKey("flag")) tower.getExtra().put("flag", feat.get("flag"));
+                        }
                     }
-                    Object sp = feat.get("spacing");
-                    if (sp != null) {
-                        try {
-                            int v = (sp instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(sp).trim());
-                            battlementSpacing = Math.max(1, Math.min(6, v));
-                        } catch (Exception ignored) {}
-                    }
+
+                    plan.add(new GeneratorBackedPlan(tower), BlockTransform.translate(dx, ry, dz));
                 }
+                case "WALL_CONNECTOR", "WALL", "BOX_FRAME" -> {
+                    int w = clampInt(dim != null ? dim.get("width") : null, overallX, 7, 256);
+                    int d = clampInt(dim != null ? dim.get("depth") : null, overallZ, 7, 256);
+                    int h = clampInt(dim != null ? dim.get("height") : null, 8, 2, 32);
 
-                RectEnclosurePlan rep = new RectEnclosurePlan(w, d, h, wallThickness, gateSide, gw, battlements, battlementSpacing);
-                plan.add(rep, BlockTransform.translate(dx, ry, dz));
-                continue;
+                    // RectEnclosurePlan uses center origin.
+                    int dx = cornerCoords ? (rx0 + (w / 2) - halfX) : rx0;
+                    int dz = cornerCoords ? (rz0 + (d / 2) - halfZ) : rz0;
+
+                    // For the main enclosure, we keep the gate opening (gateWidth >= 1).
+                    int gw = gateWidth;
+                    // If explicitly marked as no-gate frame, allow gateWidth=0
+                    if (type.equals("BOX_FRAME")) gw = 0;
+
+                    boolean battlements = false;
+                    int battlementSpacing = 2;
+                    Map<String, Object> feat = asMap(c.get("features"));
+                    if (feat != null) {
+                        Object b = feat.get("battlements");
+                        if (b instanceof Boolean bb) battlements = bb;
+                        else if (b != null) {
+                            String s = String.valueOf(b).trim().toLowerCase(Locale.ROOT);
+                            if (!s.isEmpty())
+                                battlements = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
+                        }
+                        Object sp = feat.get("spacing");
+                        if (sp != null) {
+                            try {
+                                int v = (sp instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(sp).trim());
+                                battlementSpacing = Math.max(1, Math.min(6, v));
+                            } catch (Exception ignored) {
+                            }
+                        }
+                    }
+
+                    RectEnclosurePlan rep = new RectEnclosurePlan(w, d, h, wallThickness, gateSide, gw, battlements, battlementSpacing);
+                    plan.add(rep, BlockTransform.translate(dx, ry, dz));
+                }
             }
+
         }
 
         return plan.components.isEmpty() ? null : plan;

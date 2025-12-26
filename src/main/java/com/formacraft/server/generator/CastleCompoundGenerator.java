@@ -48,7 +48,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         Map<String, Object> extra = spec != null ? spec.getExtra() : null;
-        boolean includePaths = getBool(extra, "includePaths", true);
+        boolean includePaths = getBool(extra);
         int pathWidth = clamp(getInt(extra, "pathWidth", 3), 1, 7);
         TerrainPolicy terrainPolicy = TerrainPolicyResolver.resolve(extra);
         int padDepth = clamp(getInt(extra, "terrainPadDepth", 2), 0, 6);
@@ -65,7 +65,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
         int gateWidth = clamp(getIntExtra(spec, "gateWidth", 3), 2, 7);
         int wallThickness = clamp(getIntExtra(spec, "wallThickness", 2), 1, 5);
 
-        Direction gateSide = parseFacing(getStringExtra(spec, "facing", "SOUTH"));
+        Direction gateSide = parseFacing(getStringExtra(spec));
 
         Materials mats = (spec != null && spec.getMaterials() != null) ? spec.getMaterials() : new Materials();
         BlockState wallBlock = getStateOrDefault(world, mats.getWall(), Blocks.STONE_BRICKS.getDefaultState());
@@ -142,8 +142,8 @@ public class CastleCompoundGenerator implements StructureGenerator {
 
         if (includePaths) {
             // Start just inside the gate opening, then to courtyard center, then towards inner keep area.
-            int startX = 0;
-            int startZ = 0;
+            int startX;
+            int startZ;
             switch (gateSide) {
                 case SOUTH -> { startX = gateOffX; startZ = (d / 2) - 1; }
                 case NORTH -> { startX = gateOffX; startZ = -(d / 2) + 1; }
@@ -177,7 +177,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
                     origin2 = TerrainFit.snapOrigin(wld, o, gbp.spec);
                     int avg = TerrainFit.averageFootprintHeight(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth());
                     int targetY = avg + 1;
-                    BlockState fill = getStateOrDefault(wld, mats != null ? mats.getFoundation() : null, Blocks.COBBLESTONE.getDefaultState());
+                    BlockState fill = getStateOrDefault(wld, mats.getFoundation(), Blocks.COBBLESTONE.getDefaultState());
                     var analysis = TerrainFit.analyze(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth());
                     FoundationPlanner.Decision fd = FoundationPlanner.decide(gbp.spec, analysis, padDepth, clearHeight);
                     if (fd.stilt()) BuildReportContext.addFootingStiltUnit();
@@ -377,21 +377,20 @@ public class CastleCompoundGenerator implements StructureGenerator {
         }
     }
 
-    private static String getStringExtra(BuildingSpec spec, String key, String def) {
-        if (spec == null) return def;
+    private static String getStringExtra(BuildingSpec spec) {
+        if (spec == null) return "SOUTH";
         Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
+        if (extra == null) return "SOUTH";
+        Object v = extra.get("facing");
+        if (v == null) return "SOUTH";
         String s = String.valueOf(v).trim();
-        return s.isEmpty() ? def : s;
+        return s.isEmpty() ? "SOUTH" : s;
     }
 
     private static Direction parseFacing(String s) {
         String v = (s == null ? "" : s).trim().toUpperCase();
         return switch (v) {
             case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
             case "E", "EAST", "东", "朝东" -> Direction.EAST;
             case "W", "WEST", "西", "朝西" -> Direction.WEST;
             default -> Direction.SOUTH;
@@ -414,13 +413,13 @@ public class CastleCompoundGenerator implements StructureGenerator {
         }
     }
 
-    private static boolean getBool(Map<String, Object> extra, String key, boolean def) {
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
+    private static boolean getBool(Map<String, Object> extra) {
+        if (extra == null) return true;
+        Object v = extra.get("includePaths");
+        if (v == null) return true;
         if (v instanceof Boolean b) return b;
         String s = String.valueOf(v).trim().toLowerCase();
-        if (s.isEmpty()) return def;
+        if (s.isEmpty()) return true;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 }

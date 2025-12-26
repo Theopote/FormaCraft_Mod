@@ -116,7 +116,7 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         int gateHalf = gateW / 2;
 
         List<PlannedBlock> blocks = new ArrayList<>(Math.max(2000, (w + d) * h * t));
-        int gateClearH = (gateW <= 0) ? 0 : Math.min(h, openArcadeGate ? 4 : 2); // how tall the opening is carved
+        int gateClearH = (gateW == 0) ? 0 : Math.min(h, openArcadeGate ? 4 : 2); // how tall the opening is carved
 
         // perimeter bands at thickness t
         for (int layer = 0; layer < t; layer++) {
@@ -138,7 +138,6 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         }
 
         // cap line (supports outward overhang)
-        int capY = h;
         int oh = Math.max(0, capOverhang);
         int capXMin = -halfW - oh;
         int capXMax = halfW + oh;
@@ -146,34 +145,32 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         int capZMax = halfD + oh;
 
         for (int x = capXMin; x <= capXMax; x++) {
-            BlockPos p1 = origin.add(x, capY, capZMin);
+            BlockPos p1 = origin.add(x, h, capZMin);
             if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, cap));
-            BlockPos p2 = origin.add(x, capY, capZMax);
+            BlockPos p2 = origin.add(x, h, capZMax);
             if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, cap));
         }
         for (int z = capZMin; z <= capZMax; z++) {
-            BlockPos p1 = origin.add(capXMin, capY, z);
+            BlockPos p1 = origin.add(capXMin, h, z);
             if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, cap));
-            BlockPos p2 = origin.add(capXMax, capY, z);
+            BlockPos p2 = origin.add(capXMax, h, z);
             if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, cap));
         }
 
         // extra coping band below the cap (v2+) - follows the same overhang footprint
         if (capLayers >= 2) {
             int y2 = h - 1;
-            if (y2 >= 0) {
-                for (int x = capXMin; x <= capXMax; x++) {
-                    BlockPos p1 = origin.add(x, y2, capZMin);
-                    if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, cap2));
-                    BlockPos p2 = origin.add(x, y2, capZMax);
-                    if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, cap2));
-                }
-                for (int z = capZMin; z <= capZMax; z++) {
-                    BlockPos p1 = origin.add(capXMin, y2, z);
-                    if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, cap2));
-                    BlockPos p2 = origin.add(capXMax, y2, z);
-                    if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, cap2));
-                }
+            for (int x = capXMin; x <= capXMax; x++) {
+                BlockPos p1 = origin.add(x, y2, capZMin);
+                if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, cap2));
+                BlockPos p2 = origin.add(x, y2, capZMax);
+                if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, cap2));
+            }
+            for (int z = capZMin; z <= capZMax; z++) {
+                BlockPos p1 = origin.add(capXMin, y2, z);
+                if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, cap2));
+                BlockPos p2 = origin.add(capXMax, y2, z);
+                if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, cap2));
             }
         }
 
@@ -185,13 +182,11 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
 
             // Use outer perimeter (layer=0) for crenels
             int xMin = -halfW;
-            int xMax = halfW;
             int zMin = -halfD;
-            int zMax = halfD;
 
             int idx = 0;
             // north edge
-            for (int x = xMin; x <= xMax; x++) {
+            for (int x = xMin; x <= halfW; x++) {
                 if ((idx++ % spacing) != 0) continue;
                 if (plan.gateWidth > 0 && isGateOpening(x, zMin, plan, gateHalf)) continue;
                 BlockPos p = origin.add(x, by, zMin);
@@ -204,20 +199,20 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
                 blocks.add(new PlannedBlock(p, st));
             }
             // south edge
-            for (int x = xMin; x <= xMax; x++) {
+            for (int x = xMin; x <= halfW; x++) {
                 if ((idx++ % spacing) != 0) continue;
-                if (plan.gateWidth > 0 && isGateOpening(x, zMax, plan, gateHalf)) continue;
-                BlockPos p = origin.add(x, by, zMax);
+                if (plan.gateWidth > 0 && isGateOpening(x, halfD, plan, gateHalf)) continue;
+                BlockPos p = origin.add(x, by, halfD);
                 if (!BuildConstraintContext.allow(p)) continue;
                 BlockState st = crenel;
                 if (paletteId != null) {
-                    long salt = (x * 31L) ^ (zMax * 17L) ^ (by * 13L);
+                    long salt = (x * 31L) ^ (halfD * 17L) ^ (by * 13L);
                     st = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p, salt, crenel);
                 }
                 blocks.add(new PlannedBlock(p, st));
             }
             // west edge
-            for (int z = zMin; z <= zMax; z++) {
+            for (int z = zMin; z <= halfD; z++) {
                 if ((idx++ % spacing) != 0) continue;
                 if (plan.gateWidth > 0 && isGateOpening(xMin, z, plan, gateHalf)) continue;
                 BlockPos p = origin.add(xMin, by, z);
@@ -230,14 +225,14 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
                 blocks.add(new PlannedBlock(p, st));
             }
             // east edge
-            for (int z = zMin; z <= zMax; z++) {
+            for (int z = zMin; z <= halfD; z++) {
                 if ((idx++ % spacing) != 0) continue;
-                if (plan.gateWidth > 0 && isGateOpening(xMax, z, plan, gateHalf)) continue;
-                BlockPos p = origin.add(xMax, by, z);
+                if (plan.gateWidth > 0 && isGateOpening(halfW, z, plan, gateHalf)) continue;
+                BlockPos p = origin.add(halfW, by, z);
                 if (!BuildConstraintContext.allow(p)) continue;
                 BlockState st = crenel;
                 if (paletteId != null) {
-                    long salt = (xMax * 31L) ^ (z * 17L) ^ (by * 13L);
+                    long salt = (halfW * 31L) ^ (z * 17L) ^ (by * 13L);
                     st = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p, salt, crenel);
                 }
                 blocks.add(new PlannedBlock(p, st));
@@ -280,7 +275,6 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         Direction side = plan.gateSide;
         // gate at center of selected side
         return switch (side) {
-            case SOUTH -> z > 0 && Math.abs(x) <= gateHalf;
             case NORTH -> z < 0 && Math.abs(x) <= gateHalf;
             case EAST -> x > 0 && Math.abs(z) <= gateHalf;
             case WEST -> x < 0 && Math.abs(z) <= gateHalf;
@@ -291,7 +285,6 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
     private boolean isGateEdgeColumn(int x, int z, RectEnclosurePlan plan, int gateHalf) {
         Direction side = plan.gateSide;
         return switch (side) {
-            case SOUTH, NORTH -> Math.abs(x) == gateHalf;
             case EAST, WEST -> Math.abs(z) == gateHalf;
             default -> Math.abs(x) == gateHalf;
         };

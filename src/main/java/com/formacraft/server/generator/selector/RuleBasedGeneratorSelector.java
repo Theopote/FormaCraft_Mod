@@ -182,7 +182,10 @@ public final class RuleBasedGeneratorSelector {
         if (!hasTemplate && !hasLandmark) {
             // 1) Strong circular core in ASIAN cities often means tulou or temple-like.
             if (role.equals("CORE") && "CIRCLE".equals(shape) && style == BuildingStyle.ASIAN) {
-                int r = fp.getRadius() > 0 ? fp.getRadius() : skRadius;
+                int r = 0;
+                if (fp != null) {
+                    r = fp.getRadius() > 0 ? fp.getRadius() : skRadius;
+                }
                 if (r <= 0) r = 10;
                 // Heuristic: medium radius => tulou
                 if (r >= 8 && r <= 24) {
@@ -195,7 +198,7 @@ public final class RuleBasedGeneratorSelector {
             }
 
             // 2) SEMI_PUBLIC in MODERN: office block
-            if (!hasTemplate && role.equals("SEMI_PUBLIC") && style == BuildingStyle.MODERN) {
+            if (role.equals("SEMI_PUBLIC") && style == BuildingStyle.MODERN) {
                 extra.put("template", "office_block");
                 if (spec.getType() != BuildingType.HOUSE) spec.setType(BuildingType.HOUSE);
                 changed = true;
