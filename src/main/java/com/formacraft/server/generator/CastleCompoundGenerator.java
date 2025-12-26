@@ -96,6 +96,8 @@ public class CastleCompoundGenerator implements StructureGenerator {
         // Default castle walls should have battlements for strong silhouette.
         boolean wallBattlements = true;
         int wallBattlementSpacing = 2;
+        boolean wallBanner = false;
+        String wallBannerColor = "red";
         if (extra != null) {
             Object wb = extra.get("wallBattlements");
             if (wb instanceof Boolean b) wallBattlements = b;
@@ -110,8 +112,21 @@ public class CastleCompoundGenerator implements StructureGenerator {
                     wallBattlementSpacing = Math.max(1, Math.min(6, v));
                 } catch (Exception ignored) {}
             }
+
+            Object wban = extra.get("wallBanner");
+            if (wban instanceof Boolean b) wallBanner = b;
+            else if (wban != null) {
+                String s = String.valueOf(wban).trim().toLowerCase(java.util.Locale.ROOT);
+                if (!s.isEmpty()) wallBanner = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
+            }
+            Object wbc = extra.get("wallBannerColor");
+            if (wbc != null) {
+                String s = String.valueOf(wbc).trim().toLowerCase(java.util.Locale.ROOT);
+                if (!s.isEmpty()) wallBannerColor = s;
+            }
         }
-        RectEnclosurePlan enclosure = new RectEnclosurePlan(w, d, wallHeight, wallThickness, gateSide, gateWidth, wallBattlements, wallBattlementSpacing);
+        RectEnclosurePlan enclosure = new RectEnclosurePlan(w, d, wallHeight, wallThickness, gateSide, gateWidth,
+                wallBattlements, wallBattlementSpacing, wallBanner, wallBannerColor);
 
         // gatehouse placed just inside the gate side
         int gateOffZ = (gateSide == Direction.SOUTH ? (halfD - inset - (gateHouseSpec.getDepth() / 2)) :
