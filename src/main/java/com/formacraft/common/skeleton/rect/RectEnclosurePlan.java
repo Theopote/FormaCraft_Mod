@@ -21,6 +21,11 @@ public final class RectEnclosurePlan implements SkeletonPlan {
     /** Spacing of battlements along edges (>=1). */
     public final int battlementSpacing;
 
+    /** Optional: wall banners/crests near the gate. */
+    public final boolean banner;
+    /** Banner color id suffix, e.g. "red" -> minecraft:red_wall_banner. */
+    public final String bannerColor;
+
     public RectEnclosurePlan(int width, int depth, int wallHeight, int thickness, Direction gateSide, int gateWidth) {
         this.width = width;
         this.depth = depth;
@@ -31,6 +36,8 @@ public final class RectEnclosurePlan implements SkeletonPlan {
         this.gateWidth = Math.max(0, gateWidth);
         this.battlements = false;
         this.battlementSpacing = 2;
+        this.banner = false;
+        this.bannerColor = "red";
     }
 
     public RectEnclosurePlan(int width, int depth, int wallHeight, int thickness, Direction gateSide, int gateWidth,
@@ -43,6 +50,22 @@ public final class RectEnclosurePlan implements SkeletonPlan {
         this.gateWidth = Math.max(0, gateWidth);
         this.battlements = battlements;
         this.battlementSpacing = Math.max(1, battlementSpacing);
+        this.banner = false;
+        this.bannerColor = "red";
+    }
+
+    public RectEnclosurePlan(int width, int depth, int wallHeight, int thickness, Direction gateSide, int gateWidth,
+                             boolean battlements, int battlementSpacing, boolean banner, String bannerColor) {
+        this.width = width;
+        this.depth = depth;
+        this.wallHeight = wallHeight;
+        this.thickness = thickness;
+        this.gateSide = gateSide == null ? Direction.SOUTH : gateSide;
+        this.gateWidth = Math.max(0, gateWidth);
+        this.battlements = battlements;
+        this.battlementSpacing = Math.max(1, battlementSpacing);
+        this.banner = banner;
+        this.bannerColor = (bannerColor == null || bannerColor.isBlank()) ? "red" : bannerColor.trim().toLowerCase();
     }
 
     @Override

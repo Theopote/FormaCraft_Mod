@@ -189,6 +189,9 @@ public final class CastleBlueprintCompiler {
                             if (feat.containsKey("battlements"))
                                 tower.getExtra().put("battlements", feat.get("battlements"));
                             if (feat.containsKey("flag")) tower.getExtra().put("flag", feat.get("flag"));
+                            if (feat.containsKey("banner")) tower.getExtra().put("banner", feat.get("banner"));
+                            if (feat.containsKey("bannerColor"))
+                                tower.getExtra().put("bannerColor", String.valueOf(feat.get("bannerColor")).trim());
                         }
                     }
 
@@ -210,6 +213,8 @@ public final class CastleBlueprintCompiler {
 
                     boolean battlements = false;
                     int battlementSpacing = 2;
+                    boolean banner = false;
+                    String bannerColor = "red";
                     Map<String, Object> feat = asMap(c.get("features"));
                     if (feat != null) {
                         Object b = feat.get("battlements");
@@ -227,9 +232,22 @@ public final class CastleBlueprintCompiler {
                             } catch (Exception ignored) {
                             }
                         }
+
+                        Object bn = feat.get("banner");
+                        if (bn instanceof Boolean bb) banner = bb;
+                        else if (bn != null) {
+                            String s = String.valueOf(bn).trim().toLowerCase(Locale.ROOT);
+                            if (!s.isEmpty()) banner = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
+                        }
+                        Object bc = feat.get("bannerColor");
+                        if (bc != null) {
+                            String s = String.valueOf(bc).trim().toLowerCase(Locale.ROOT);
+                            if (!s.isEmpty()) bannerColor = s;
+                        }
                     }
 
-                    RectEnclosurePlan rep = new RectEnclosurePlan(w, d, h, wallThickness, gateSide, gw, battlements, battlementSpacing);
+                    RectEnclosurePlan rep = new RectEnclosurePlan(w, d, h, wallThickness, gateSide, gw,
+                            battlements, battlementSpacing, banner, bannerColor);
                     plan.add(rep, BlockTransform.translate(dx, ry, dz));
                 }
             }

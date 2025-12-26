@@ -8,8 +8,10 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +53,8 @@ public class TowerGenerator implements StructureGenerator {
         Map<String, Object> extra = spec.getExtra();
         boolean battlements = getBool(extra, "battlements", false);
         boolean flag = getBool(extra, "flag", false);
+        boolean banner = getBool(extra, "banner", false);
+        String bannerColor = getStr(extra, "bannerColor", "red");
 
         // 内部楼梯旋转方向偏移（螺旋楼梯）
         BlockPos[] spiralOffsets = {
@@ -192,6 +196,11 @@ public class TowerGenerator implements StructureGenerator {
             result.add(new PlannedBlock(poleBase.add(0, -1, 0), Blocks.LANTERN.getDefaultState()));
         }
 
+        // Banner: crest on the outer face at cardinal points (optional).
+        if (banner) {
+            addTopBanners(result, origin, world, radius, height, bannerColor);
+        }
+
         String description = String.format("Tower (%s, height=%d, radius=%d, floors=%d)", 
                 spec.getType(), height, radius, floors);
 
@@ -211,6 +220,42 @@ public class TowerGenerator implements StructureGenerator {
         String s = String.valueOf(v).trim().toLowerCase();
         if (s.isEmpty()) return def;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+    }
+
+    private static String getStr(Map<String, Object> extra, String key, String def) {
+        if (extra == null) return def;
+        Object v = extra.get(key);
+        if (v == null) return def;
+        String s = String.valueOf(v).trim();
+        return s.isEmpty() ? def : s;
+    }
+
+    private static void addTopBanners(List<PlannedBlock> out, BlockPos origin, ServerWorld world,
+                                      int radius, int height, String bannerColor) {
+        int y = Math.max(2, height - 1);
+        String c = (bannerColor == null || bannerColor.isBlank()) ? "red" : bannerColor.trim().toLowerCase();
+        String id = "minecraft:" + c + "_wall_banner";
+        if (!c.matches("^[a-z_]{3,20}$")) id = "minecraft:red_wall_banner";
+        BlockState banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, id);
+        if (banner == null) banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        if (banner == null) banner = Blocks.RED_WOOL.getDefaultState();
+
+        // East
+        placeBanner(out, origin.add(radius + 1, y, 0), banner, Direction.EAST);
+        // West
+        placeBanner(out, origin.add(-radius - 1, y, 0), banner, Direction.WEST);
+        // South
+        placeBanner(out, origin.add(0, y, radius + 1), banner, Direction.SOUTH);
+        // North
+        placeBanner(out, origin.add(0, y, -radius - 1), banner, Direction.NORTH);
+    }
+
+    private static void placeBanner(List<PlannedBlock> out, BlockPos pos, BlockState banner, Direction facing) {
+        BlockState st = banner;
+        if (st.contains(Properties.HORIZONTAL_FACING)) {
+            st = st.with(Properties.HORIZONTAL_FACING, facing);
+        }
+        out.add(new PlannedBlock(pos, st));
     }
 
     /**

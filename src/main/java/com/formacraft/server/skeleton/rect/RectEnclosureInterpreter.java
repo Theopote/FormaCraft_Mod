@@ -8,6 +8,7 @@ import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -239,7 +240,75 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
             }
         }
 
+        // banners near the gate (optional, recognizable landmark detail)
+        if (plan.banner && plan.gateWidth > 0) {
+            addGateBanners(blocks, plan, origin, world, halfW, halfD, h, gateClearH, gateHalf);
+        }
+
         return blocks;
+    }
+
+    private void addGateBanners(List<PlannedBlock> blocks, RectEnclosurePlan plan, BlockPos origin, ServerWorld world,
+                                int halfW, int halfD, int h, int gateClearH, int gateHalf) {
+        // Place 2 banners flanking the gate opening, on the inside face.
+        int y = Math.max(2, Math.min(h - 1, gateClearH + 1));
+        int margin = 1;
+
+        String c = (plan.bannerColor == null || plan.bannerColor.isBlank()) ? "red" : plan.bannerColor.trim().toLowerCase();
+        String id = "minecraft:" + c + "_wall_banner";
+        if (!c.matches("^[a-z_]{3,20}$")) id = "minecraft:red_wall_banner";
+        BlockState banner = PaletteResolver.stateFromId(world, id);
+        if (banner == null) banner = PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        if (banner == null) banner = Blocks.RED_WOOL.getDefaultState();
+
+        Direction faceToCenter = plan.gateSide.getOpposite();
+        if (banner.contains(Properties.HORIZONTAL_FACING)) {
+            banner = banner.with(Properties.HORIZONTAL_FACING, faceToCenter);
+        }
+
+        switch (plan.gateSide) {
+            case SOUTH -> {
+                int zWall = halfD;
+                int zInside = zWall - 1;
+                int x0 = -(gateHalf + margin);
+                int x1 = (gateHalf + margin);
+                BlockPos p0 = origin.add(x0, y, zInside);
+                BlockPos p1 = origin.add(x1, y, zInside);
+                if (BuildConstraintContext.allow(p0)) blocks.add(new PlannedBlock(p0, banner));
+                if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, banner));
+            }
+            case NORTH -> {
+                int zWall = -halfD;
+                int zInside = zWall + 1;
+                int x0 = -(gateHalf + margin);
+                int x1 = (gateHalf + margin);
+                BlockPos p0 = origin.add(x0, y, zInside);
+                BlockPos p1 = origin.add(x1, y, zInside);
+                if (BuildConstraintContext.allow(p0)) blocks.add(new PlannedBlock(p0, banner));
+                if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, banner));
+            }
+            case EAST -> {
+                int xWall = halfW;
+                int xInside = xWall - 1;
+                int z0 = -(gateHalf + margin);
+                int z1 = (gateHalf + margin);
+                BlockPos p0 = origin.add(xInside, y, z0);
+                BlockPos p1 = origin.add(xInside, y, z1);
+                if (BuildConstraintContext.allow(p0)) blocks.add(new PlannedBlock(p0, banner));
+                if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, banner));
+            }
+            case WEST -> {
+                int xWall = -halfW;
+                int xInside = xWall + 1;
+                int z0 = -(gateHalf + margin);
+                int z1 = (gateHalf + margin);
+                BlockPos p0 = origin.add(xInside, y, z0);
+                BlockPos p1 = origin.add(xInside, y, z1);
+                if (BuildConstraintContext.allow(p0)) blocks.add(new PlannedBlock(p0, banner));
+                if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, banner));
+            }
+            default -> {}
+        }
     }
 
     private void placeWallColumn(List<PlannedBlock> blocks, BlockPos origin, ServerWorld world, int x, int z, int h, int gateClearH,
