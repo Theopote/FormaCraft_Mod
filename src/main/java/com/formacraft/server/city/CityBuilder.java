@@ -22,6 +22,7 @@ import com.formacraft.server.terrain.ClusterTerrainPolicy;
 import com.formacraft.server.build.BuildReportContext;
 import com.formacraft.server.cluster.TerrainFields;
 import com.formacraft.server.cluster.layout.BuildArea;
+import com.formacraft.server.cluster.layout.AnchoredBuildArea;
 import com.formacraft.server.cluster.layout.BuildingPlacement;
 import com.formacraft.server.cluster.layout.BuildingUnit;
 import com.formacraft.server.cluster.layout.Candidate;
@@ -102,6 +103,11 @@ public class CityBuilder {
                 BuildArea area = new BuildArea(cfg.halfX, cfg.halfZ);
                 TerrainFields fields = TerrainFields.sample(world, origin, cfg.halfX, cfg.halfZ, 2);
 
+                // Optional: J-layer skeleton layout anchors (spec.extra.skeletonLayout).
+                // Keyed by zoneType (CORE/PUBLIC/PRIVATE/SERVICE/TRANSITION/SEMI_PUBLIC...).
+                final java.util.Map<String, BlockPos> skeletonAnchorByZoneType = parseSkeletonAnchorsByZoneType(extra0);
+                final java.util.Map<String, SkeletonNodeInfo> skeletonNodeByZoneType = parseSkeletonNodesByZoneType(extra0);
+
                 List<BuildingUnit> units = new ArrayList<>(count);
                 java.util.Map<String, List<Candidate>> candidatesById = new java.util.HashMap<>();
 
@@ -128,15 +134,46 @@ public class CityBuilder {
 
                 for (CitySpec.StructurePlan sp0 : missing) {
                     BuildingSpec bs = sp0.getSpec();
-                    int w = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 8;
-                    int d = (bs.getFootprint() != null && bs.getFootprint().getDepth() > 0) ? bs.getFootprint().getDepth() : 6;
+                    String role = inferSemanticRoleForPlan(bs, sp0, city, idx == mainIdx);
+
+                    // Prefer explicit footprint; if missing/invalid, fall back to skeleton node dimensions (J-layer).
+                    int w = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 0;
+                    int d = (bs.getFootprint() != null && bs.getFootprint().getDepth() > 0) ? bs.getFootprint().getDepth() : 0;
+                    if ((w <= 0 || d <= 0) && skeletonNodeByZoneType != null && role != null) {
+                        SkeletonNodeInfo info = skeletonNodeByZoneType.get(role);
+                        if (info != null) {
+                            if ("CIRCLE".equals(info.shapeUpper) && info.radius > 0) {
+                                // approximate circle as square for placement footprint (conservative)
+                                w = Math.max(w, info.radius * 2 + 2);
+                                d = Math.max(d, info.radius * 2 + 2);
+                                // optional: steer generator toward circular topology when spec footprint is missing
+                                tryEnsureCircleFootprint(bs, info.radius);
+                            } else if ("RECTANGLE".equals(info.shapeUpper) && info.width > 0 && info.depth > 0) {
+                                w = Math.max(w, info.width);
+                                d = Math.max(d, info.depth);
+                                tryEnsureRectFootprint(bs, w, d);
+                            }
+                        }
+                    }
+                    if (w <= 0) w = 8;
+                    if (d <= 0) d = 6;
                     int h = Math.max(4, bs.getHeight());
                     String id = "city_unit_" + idx;
                     int importance = computeAutoImportance(bs, idx, mainIdx, bestVol);
-                    String role = inferSemanticRoleForPlan(bs, sp0, city, idx == mainIdx);
                     BuildingUnit u = new BuildingUnit(id, w, d, h, importance, role);
                     units.add(u);
-                    List<Candidate> cands = CandidateGenerator.generate(u, area, fields, world, origin, cfg);
+
+                    // If skeleton layout provides an anchor for this role, bias candidate sampling around it.
+                    BuildArea areaForUnit = area;
+                    try {
+                        BlockPos centerRel = (skeletonAnchorByZoneType != null && role != null) ? skeletonAnchorByZoneType.get(role) : null;
+                        if (centerRel != null) {
+                            int sampleHalf = Math.max(10, Math.min(cfg.halfX, spacing));
+                            areaForUnit = new AnchoredBuildArea(centerRel, cfg.halfX, cfg.halfZ, sampleHalf, sampleHalf);
+                        }
+                    } catch (Throwable ignored) {}
+
+                    List<Candidate> cands = CandidateGenerator.generate(u, areaForUnit, fields, world, origin, cfg);
                     candidatesById.put(id, cands);
                     idx++;
                 }
@@ -793,6 +830,118 @@ public class CityBuilder {
             }
         }
         return "SEMI_PUBLIC";
+    }
+
+    /**
+     * Parse J-layer skeletonLayout anchors from spec.extra, returning a map keyed by zoneType (CORE/PUBLIC/...)
+     * to a rel anchor BlockPos (dx,0,dz) relative to city origin.
+     *
+     * Expected schema (Python emits):
+     * skeletonLayout: { skeletons: [ { zoneType: "CORE", anchor: {x:0,y:0,z:0}, ... }, ... ] }
+     */
+    private static java.util.Map<String, BlockPos> parseSkeletonAnchorsByZoneType(java.util.Map<String, Object> extra) {
+        if (extra == null) return null;
+        Object v = extra.get("skeletonLayout");
+        if (!(v instanceof java.util.Map<?, ?> m)) return null;
+        Object s = m.get("skeletons");
+        if (!(s instanceof java.util.List<?> list)) return null;
+
+        java.util.Map<String, BlockPos> out = new java.util.HashMap<>();
+        for (Object o : list) {
+            if (!(o instanceof java.util.Map<?, ?> sm)) continue;
+            Object zt0 = sm.get("zoneType");
+            if (zt0 == null) continue;
+            String zt = String.valueOf(zt0).trim().toUpperCase(java.util.Locale.ROOT);
+            if (zt.isEmpty()) continue;
+            Object a0 = sm.get("anchor");
+            if (!(a0 instanceof java.util.Map<?, ?> am)) continue;
+            int ax = parseIntOrDef(am.get("x"), 0);
+            int az = parseIntOrDef(am.get("z"), 0);
+            out.putIfAbsent(zt, new BlockPos(ax, 0, az));
+        }
+        return out.isEmpty() ? null : java.util.Collections.unmodifiableMap(out);
+    }
+
+    /** Minimal parsed skeleton node info keyed by zoneType. */
+    private static final class SkeletonNodeInfo {
+        final String shapeUpper;
+        final int width;
+        final int depth;
+        final int radius;
+
+        SkeletonNodeInfo(String shapeUpper, int width, int depth, int radius) {
+            this.shapeUpper = shapeUpper;
+            this.width = width;
+            this.depth = depth;
+            this.radius = radius;
+        }
+    }
+
+    /**
+     * Parse skeletonLayout nodes keyed by zoneType (first occurrence wins).
+     * Used for footprint fallbacks and placement bias.
+     */
+    private static java.util.Map<String, SkeletonNodeInfo> parseSkeletonNodesByZoneType(java.util.Map<String, Object> extra) {
+        if (extra == null) return null;
+        Object v = extra.get("skeletonLayout");
+        if (!(v instanceof java.util.Map<?, ?> m)) return null;
+        Object s = m.get("skeletons");
+        if (!(s instanceof java.util.List<?> list)) return null;
+
+        java.util.Map<String, SkeletonNodeInfo> out = new java.util.HashMap<>();
+        for (Object o : list) {
+            if (!(o instanceof java.util.Map<?, ?> sm)) continue;
+            Object zt0 = sm.get("zoneType");
+            if (zt0 == null) continue;
+            String zt = String.valueOf(zt0).trim().toUpperCase(java.util.Locale.ROOT);
+            if (zt.isEmpty()) continue;
+            if (out.containsKey(zt)) continue;
+
+            String shape = sm.get("shape") != null ? String.valueOf(sm.get("shape")).trim().toUpperCase(java.util.Locale.ROOT) : "";
+            Object a0 = sm.get("anchor");
+            if (!(a0 instanceof java.util.Map<?, ?>)) continue; // anchor required, but we don't consume it in this v0 parser
+
+            int w = parseIntOrDef(sm.get("width"), 0);
+            int d = parseIntOrDef(sm.get("depth"), 0);
+            int r = parseIntOrDef(sm.get("radius"), 0);
+
+            out.put(zt, new SkeletonNodeInfo(shape, w, d, r));
+        }
+        return out.isEmpty() ? null : java.util.Collections.unmodifiableMap(out);
+    }
+
+    private static void tryEnsureRectFootprint(BuildingSpec bs, int w, int d) {
+        if (bs == null) return;
+        try {
+            if (bs.getFootprint() == null) bs.setFootprint(new com.formacraft.common.model.build.Footprint());
+            var fp = bs.getFootprint();
+            if (fp.getShape() == null || fp.getShape().isBlank()) fp.setShape("rectangle");
+            if (!"rectangle".equalsIgnoreCase(fp.getShape())) fp.setShape("rectangle");
+            if (fp.getWidth() <= 0) fp.setWidth(Math.max(3, w));
+            if (fp.getDepth() <= 0) fp.setDepth(Math.max(3, d));
+        } catch (Throwable ignored) {}
+    }
+
+    private static void tryEnsureCircleFootprint(BuildingSpec bs, int radius) {
+        if (bs == null) return;
+        try {
+            if (bs.getFootprint() == null) bs.setFootprint(new com.formacraft.common.model.build.Footprint());
+            var fp = bs.getFootprint();
+            fp.setShape("circle");
+            if (fp.getRadius() <= 0) fp.setRadius(Math.max(3, radius));
+        } catch (Throwable ignored) {}
+    }
+
+    private static int parseIntOrDef(Object v, int def) {
+        if (v == null) return def;
+        try {
+            if (v instanceof Number n) return n.intValue();
+            String s = String.valueOf(v).trim();
+            if (s.isEmpty()) return def;
+            return Integer.parseInt(s);
+        } catch (Exception ignored) {
+            return def;
+        }
     }
 }
 

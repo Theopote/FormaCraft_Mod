@@ -3,6 +3,7 @@ package com.formacraft.common.network;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.network.packet.PreviewOutlinePacket;
+import com.formacraft.common.network.packet.PreviewSkeletonPacket;
 import com.formacraft.common.network.packet.RequestBuildPacket;
 import com.formacraft.common.network.packet.ResponseBuildErrorPacket;
 import com.formacraft.common.network.packet.ResponseBuildSpecPacket;
@@ -45,6 +46,7 @@ public class FormaCraftNetworking {
     public static final Identifier RESPONSE_BUILD_ERROR = Identifier.of("formacraft", "response_builderror");
     public static final Identifier RESPONSE_BUILD_STATUS = Identifier.of("formacraft", "response_buildstatus");
     public static final Identifier PREVIEW_OUTLINE = Identifier.of("formacraft", "preview_outline");
+    public static final Identifier PREVIEW_SKELETON = Identifier.of("formacraft", "preview_skeleton");
     public static final Identifier CLEAR_OUTLINE = Identifier.of("formacraft", "clear_outline");
     public static final Identifier PATCH_UNDO = Identifier.of("formacraft", "patch_undo");
     public static final Identifier PATCH_REDO = Identifier.of("formacraft", "patch_redo");
@@ -256,6 +258,27 @@ public class FormaCraftNetworking {
         public static final PacketCodec<PacketByteBuf, PreviewOutlinePayload> CODEC = PacketCodec.of(
                 (payload, buf) -> PreviewOutlinePacket.write(buf, payload.blocks),
                 buf -> new PreviewOutlinePayload(PreviewOutlinePacket.read(buf))
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /**
+     * J-layer skeleton preview payload (server -> client).
+     * Payload body is a JSON string:
+     * {
+     *   "origin": {"x": int, "y": int, "z": int},
+     *   "skeletonLayout": {...}   // same shape as spec.extra.skeletonLayout
+     * }
+     */
+    public record PreviewSkeletonPayload(String json) implements CustomPayload {
+        public static final CustomPayload.Id<PreviewSkeletonPayload> ID = new CustomPayload.Id<>(PREVIEW_SKELETON);
+        public static final PacketCodec<PacketByteBuf, PreviewSkeletonPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> PreviewSkeletonPacket.write(buf, payload.json),
+                buf -> new PreviewSkeletonPayload(PreviewSkeletonPacket.read(buf))
         );
 
         @Override
@@ -481,6 +504,15 @@ public class FormaCraftNetworking {
                             List<OutlineBlock> outline =
                                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
                             sendPreviewOutline(player, outline);
+                            // Send skeleton layout preview (if present in CitySpec's first structure extra)
+                            try {
+                                if (citySpec.getStructures() != null && !citySpec.getStructures().isEmpty()) {
+                                    var sp0 = citySpec.getStructures().get(0);
+                                    if (sp0 != null && sp0.getSpec() != null && sp0.getSpec().getExtra() != null) {
+                                        sendPreviewSkeleton(player, origin, sp0.getSpec().getExtra());
+                                    }
+                                }
+                            } catch (Throwable ignored) {}
                             com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
                             // 保存 CitySpec 到 PlayerSpecRepository
@@ -567,6 +599,15 @@ public class FormaCraftNetworking {
                             List<OutlineBlock> outline =
                                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
                             sendPreviewOutline(player, outline);
+                            // Send skeleton layout preview (if present in CompositeSpec's first structure extra)
+                            try {
+                                if (compositeSpec.getStructures() != null && !compositeSpec.getStructures().isEmpty()) {
+                                    var s0 = compositeSpec.getStructures().get(0);
+                                    if (s0 != null && s0.getSpec() != null && s0.getSpec().getExtra() != null) {
+                                        sendPreviewSkeleton(player, origin, s0.getSpec().getExtra());
+                                    }
+                                }
+                            } catch (Throwable ignored) {}
                             com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
                             player.sendMessage(net.minecraft.text.Text.translatable(
@@ -656,6 +697,11 @@ public class FormaCraftNetworking {
                                 List<OutlineBlock> outline =
                                         com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
                                 sendPreviewOutline(player, outline);
+                                try {
+                                    if (updated.getExtra() != null) {
+                                        sendPreviewSkeleton(player, origin, updated.getExtra());
+                                    }
+                                } catch (Throwable ignored) {}
                                 com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
                                 player.sendMessage(net.minecraft.text.Text.translatable(
@@ -739,6 +785,11 @@ public class FormaCraftNetworking {
                             List<OutlineBlock> outline =
                                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
                             sendPreviewOutline(player, outline);
+                            try {
+                                if (spec.getExtra() != null) {
+                                    sendPreviewSkeleton(player, origin, spec.getExtra());
+                                }
+                            } catch (Throwable ignored) {}
                             com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
                             player.sendMessage(net.minecraft.text.Text.translatable(
@@ -917,9 +968,17 @@ public class FormaCraftNetworking {
             }
         }));
 
+        // 预览骨架数据包接收器（J-layer skeleton layout preview）
+        ClientPlayNetworking.registerGlobalReceiver(PreviewSkeletonPayload.ID, (payload, context) -> context.client().execute(() -> {
+            String json = payload.json();
+            com.formacraft.client.preview.SkeletonPreviewState.setFromJson(json);
+            FormacraftMod.LOGGER.info("Received preview skeleton: {} chars", json != null ? json.length() : 0);
+        }));
+
         // 清除预览数据包接收器
         ClientPlayNetworking.registerGlobalReceiver(ClearOutlinePayload.ID, (payload, context) -> context.client().execute(() -> {
             com.formacraft.client.preview.OutlinePreviewState.clear();
+            com.formacraft.client.preview.SkeletonPreviewState.clear();
             FormacraftMod.LOGGER.info("Preview outline cleared");
         }));
     }
@@ -945,6 +1004,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playS2C().register(ResponseBuildErrorPayload.ID, ResponseBuildErrorPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ResponseBuildStatusPayload.ID, ResponseBuildStatusPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewOutlinePayload.ID, PreviewOutlinePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(PreviewSkeletonPayload.ID, PreviewSkeletonPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
     }
 
@@ -1016,6 +1076,30 @@ public class FormaCraftNetworking {
      */
     public static void sendPreviewOutline(ServerPlayerEntity player, List<OutlineBlock> blocks) {
         ServerPlayNetworking.send(player, new PreviewOutlinePayload(blocks));
+    }
+
+    /**
+     * 服务端发送骨架预览（J-layer skeleton layout）。
+     * @param player 目标玩家
+     * @param origin 预览原点（世界坐标）
+     * @param extra  任意 spec.extra（期望包含 skeletonLayout）
+     */
+    public static void sendPreviewSkeleton(ServerPlayerEntity player, BlockPos origin, java.util.Map<String, Object> extra) {
+        if (player == null || origin == null || extra == null) return;
+        Object sk = extra.get("skeletonLayout");
+        if (sk == null) return;
+
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        java.util.Map<String, Object> o = new java.util.HashMap<>();
+        o.put("x", origin.getX());
+        o.put("y", origin.getY());
+        o.put("z", origin.getZ());
+        payload.put("origin", o);
+        payload.put("skeletonLayout", sk);
+
+        String json = JsonUtil.toJson(payload);
+        if (json == null) json = "";
+        ServerPlayNetworking.send(player, new PreviewSkeletonPayload(json));
     }
 
     /**

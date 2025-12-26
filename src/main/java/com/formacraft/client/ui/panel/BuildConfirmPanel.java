@@ -12,6 +12,7 @@ import com.formacraft.client.preview.OutlinePreviewState;
 import com.formacraft.client.preview.PatchPreviewState;
 import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.client.preview.PreviewModalState;
+import com.formacraft.client.preview.SkeletonPreviewState;
 import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.patch.filter.ToolPatchFilter;
 import com.formacraft.client.buildcontext.BuildContextResolver;
@@ -184,6 +185,7 @@ public class BuildConfirmPanel {
 
         BuildingPreviewState.clear();
         OutlinePreviewState.clear(); // 关闭预览线框
+        SkeletonPreviewState.clear(); // 关闭骨架预览
         PatchPreviewState.clear();   // 关闭 patch 预览
         PreviewModalState.unlock();
     }

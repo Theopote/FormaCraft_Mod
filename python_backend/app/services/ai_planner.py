@@ -6,7 +6,7 @@ import os
 import json
 import re
 import concurrent.futures
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 try:
     from openai import OpenAI
@@ -24,6 +24,8 @@ from ..models.building_spec import (
 from ..models.building_genome import BuildingGenome, Archetype as GenomeArchetype
 from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
+from ..models.semantic_spatial_plan import SemanticSpatialPlan
+from ..models.skeleton_layout import SkeletonLayout, SkeletonNode, IntVec3
 from .archetype_detector import detect_archetype_local, should_force_strong_mode
 from .archetype_registry import get_archetype_def
 
@@ -132,6 +134,490 @@ def _build_user_prompt(req: BuildRequest) -> str:
             parts.append(f"  {msg}")
     
     return "\n".join(parts)
+
+
+def _infer_scale(req: BuildRequest) -> str:
+    """Infer a coarse cluster scale for planning prompts."""
+    text = (req.requestText or "").lower()
+    if req.selection is not None:
+        dx = abs(req.selection.max.x - req.selection.min.x) + 1
+        dz = abs(req.selection.max.z - req.selection.min.z) + 1
+        m = max(dx, dz)
+        if m <= 48:
+            return "SMALL"
+        if m <= 96:
+            return "MEDIUM"
+        return "LARGE"
+    if any(k in text for k in ["large", "huge", "gigantic", "大型", "巨型", "超大"]):
+        return "LARGE"
+    if any(k in text for k in ["small", "tiny", "小型", "迷你"]):
+        return "SMALL"
+    return "MEDIUM"
+
+
+def _infer_terrain(req: BuildRequest) -> str:
+    """Best-effort terrain hint from user text (we do NOT sample terrain here)."""
+    t = (req.requestText or "").lower()
+    if any(k in t for k in ["flat", "平坦", "平地", "平原"]):
+        return "FLAT"
+    if any(k in t for k in ["mountain", "mountainous", "山", "高山", "山地", "峭壁"]):
+        return "MOUNTAINOUS"
+    if any(k in t for k in ["hill", "hilly", "丘", "丘陵", "起伏", "坡地", "崎岖"]):
+        return "HILLY"
+    return "UNKNOWN"
+
+
+def generate_semantic_spatial_plan(req: BuildRequest) -> Optional[SemanticSpatialPlan]:
+    """
+    I-layer: Semantic Spatial Plan (zone graph) for clusters/cities.
+    Returns None on any failure (best-effort, never blocks city generation).
+    """
+    client = get_client(req)
+    if not client:
+        return None
+
+    # IMPORTANT: keep enums aligned with Java side:
+    # - SemanticZoneType: CORE/PUBLIC/SEMI_PUBLIC/PRIVATE/SERVICE/TRANSITION/LANDSCAPE/CIRCULATION
+    # - TerrainPolicy: PRESERVE_DOMINANT/BALANCED/ENGINEERED
+    system_prompt = (
+        "You are FormaCraft Spatial Planner.\n"
+        "Your task is NOT to generate blocks or buildings directly.\n"
+        "Your task is to analyze user intent and produce a structured Semantic Spatial Plan for a Minecraft build cluster.\n"
+        "You must think like an architect + urban planner. Terrain, circulation, hierarchy, and spatial meaning matter.\n\n"
+        "STRICT OUTPUT RULES:\n"
+        "- Output MUST be valid JSON only. No markdown. No explanations.\n"
+        "- Output MUST match the schema exactly. Do NOT add extra keys.\n"
+        "- All enum values MUST be one of the allowed strings listed in the schema.\n\n"
+        "SCHEMA:\n"
+        "{\n"
+        '  "zones": [\n'
+        "    {\n"
+        '      "id": "string",\n'
+        '      "type": "CORE|PUBLIC|SEMI_PUBLIC|PRIVATE|SERVICE|LANDSCAPE|TRANSITION|CIRCULATION",\n'
+        '      "priority": 1,\n'
+        '      "terrain_policy": "PRESERVE_DOMINANT|BALANCED|ENGINEERED",\n'
+        '      "notes": "string"\n'
+        "    }\n"
+        "  ],\n"
+        '  "relations": [\n'
+        "    {\n"
+        '      "from": "zone_id",\n'
+        '      "to": "zone_id",\n'
+        '      "relation": "DIRECT|BUFFERED|FORBIDDEN|AXIAL|VISUAL_ONLY",\n'
+        '      "notes": "string"\n'
+        "    }\n"
+        "  ],\n"
+        '  "circulation": {\n'
+        '    "primary_flow": ["zone_id"],\n'
+        '    "secondary_flow": ["zone_id"]\n'
+        "  },\n"
+        '  "constraints": {\n'
+        '    "prefer_axis_alignment": true,\n'
+        '    "avoid_direct_private_access": true,\n'
+        '    "max_terrain_disturbance": "LOW|MEDIUM|HIGH",\n'
+        '    "terrain_budget_blocks": 0\n'
+        "  }\n"
+        "}\n"
+    )
+
+    scale = _infer_scale(req)
+    terrain = _infer_terrain(req)
+    anchor = req.player.pos
+
+    selection_str = "none"
+    if req.selection is not None:
+        smin = req.selection.min
+        smax = req.selection.max
+        selection_str = f"box(min=({smin.x},{smin.y},{smin.z}), max=({smax.x},{smax.y},{smax.z}))"
+
+    user_prompt = (
+        "User Intent:\n"
+        f"\"{req.requestText}\"\n\n"
+        "Context:\n"
+        "- Minecraft world\n"
+        "- Building cluster (multiple structures possible)\n"
+        f"- Scale: {scale}\n"
+        f"- Terrain: {terrain}\n"
+        f"- Anchor: anchor=({anchor.x},{anchor.y},{anchor.z}) facing={req.player.facing}\n"
+        f"- Selection Area: {selection_str}\n\n"
+        "Your task:\n"
+        "1) Identify the major semantic zones required.\n"
+        "2) Assign each zone a semantic type and priority.\n"
+        "3) Describe spatial relationships between zones.\n"
+        "4) Indicate terrain sensitivity per zone.\n"
+        "5) Indicate circulation and access logic.\n\n"
+        "Output JSON ONLY matching the schema.\n"
+    )
+
+    try:
+        model = _resolve_model(req, "gpt-4o-mini")
+        # Semantic planning is cheaper than full city planning; keep a moderate timeout.
+        timeout_sec = min(_resolve_timeout_sec_for_task("city", req, model), 180.0)
+        response = _call_with_timeout(
+            lambda: client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=_clamp_temperature(getattr(req, "temperature", None), 0.2),
+            ),
+            timeout_sec,
+        )
+        raw_output = response.choices[0].message.content
+        if not raw_output:
+            return None
+        data = json.loads(raw_output)
+        return SemanticSpatialPlan.model_validate(data)
+    except Exception:
+        return None
+
+
+def _disturbance_to_policy_and_budget(level: str, scale: str) -> tuple[str, int]:
+    lvl = (level or "MEDIUM").strip().upper()
+    sc = (scale or "MEDIUM").strip().upper()
+    mult = 1.0
+    if sc == "SMALL":
+        mult = 0.7
+    elif sc == "LARGE":
+        mult = 1.8
+
+    if lvl == "LOW":
+        return "preserve_dominant", int(900 * mult)
+    if lvl == "HIGH":
+        return "engineered", int(6500 * mult)
+    return "balanced", int(2600 * mult)
+
+
+def _policy_upper_to_lower(policy: Optional[str]) -> Optional[str]:
+    if policy is None:
+        return None
+    p = policy.strip().upper()
+    return {
+        "PRESERVE_DOMINANT": "preserve_dominant",
+        "BALANCED": "balanced",
+        "ENGINEERED": "engineered",
+    }.get(p)
+
+
+def _compile_semantic_plan_extra(req: BuildRequest, plan: SemanticSpatialPlan) -> Dict[str, Any]:
+    """
+    Convert SemanticSpatialPlan -> spec.extra knobs that Java CityBuilder/ClusterLayoutConfig already consumes.
+    This avoids protocol changes while making I-layer effective immediately.
+    """
+    scale = _infer_scale(req)
+
+    # Default from constraints
+    policy_s, budget = _disturbance_to_policy_and_budget(plan.constraints.max_terrain_disturbance, scale)
+    if plan.constraints.terrain_budget_blocks is not None and plan.constraints.terrain_budget_blocks > 0:
+        budget = int(plan.constraints.terrain_budget_blocks)
+
+    # If any high-priority zone is engineered, promote cluster policy.
+    for z in plan.zones:
+        if z.priority >= 8 and z.terrain_policy == "ENGINEERED":
+            policy_s = "engineered"
+            break
+
+    extra: Dict[str, Any] = {}
+    extra["clusterTerrainPolicy"] = policy_s
+    extra["clusterTerrainBudgetBlocks"] = budget
+    # be conservative: preserve/balanced avoid water/lava edits by default
+    extra["allowWaterEdit"] = (policy_s == "engineered")
+    extra["allowLavaEdit"] = False
+
+    # Axis alignment hint: if any AXIAL relation exists, enable axis scoring.
+    axial = plan.constraints.prefer_axis_alignment or any(r.relation == "AXIAL" for r in plan.relations)
+    if axial:
+        extra["axisMode"] = "z"
+        extra["axisWeight"] = 0.18
+
+    # Semantic spacing knobs: tighten buffers when user wants privacy/access separation.
+    if plan.constraints.avoid_direct_private_access:
+        extra["semanticBufferMinDistN"] = 0.22
+        extra["semanticBufferWeight"] = 0.55
+        extra["semanticServicePrivateMinDistN"] = 0.30
+        extra["semanticServicePrivateWeight"] = 0.55
+        extra["semanticWeightPrivate"] = 0.30
+        extra["semanticWeightService"] = 0.25
+        extra["semanticWeightPublic"] = 0.22
+
+    # zoneTerrainRules: map semantic zones -> CitySpec zone types (best-effort)
+    # pick the highest-priority policy per semantic type
+    best_policy: Dict[str, str] = {}
+    best_pri: Dict[str, int] = {}
+    for z in plan.zones:
+        t = z.type
+        pri = int(z.priority)
+        if t not in best_pri or pri > best_pri[t]:
+            p = _policy_upper_to_lower(z.terrain_policy) or policy_s
+            best_pri[t] = pri
+            best_policy[t] = p
+
+    def policy_for(semantic_type: str) -> Optional[str]:
+        return best_policy.get(semantic_type)
+
+    zone_rules: Dict[str, Any] = {}
+    mapping = {
+        "PLAZA": policy_for("PUBLIC"),
+        "MARKET": policy_for("PUBLIC"),
+        "COMMERCIAL": policy_for("PUBLIC"),
+        "RESIDENTIAL": policy_for("PRIVATE"),
+        "INDUSTRIAL": policy_for("SERVICE"),
+        "WALL": policy_for("TRANSITION"),
+        "GATE": policy_for("TRANSITION"),
+    }
+    for zone_type, pol in mapping.items():
+        if not pol:
+            continue
+        rule: Dict[str, Any] = {"policy": pol}
+        # optional per-zone budget: small slice of cluster budget
+        if budget > 0:
+            rule["budget"] = max(0, int(budget * 0.25))
+        if pol != "preserve_dominant":
+            rule["allowWaterEdit"] = (pol == "engineered")
+            rule["allowLavaEdit"] = False
+        zone_rules[zone_type] = rule
+    if zone_rules:
+        extra["zoneTerrainRules"] = zone_rules
+
+    return extra
+
+
+def _cardinal_facing_from_dxz(dx: int, dz: int) -> str:
+    # Default to player's facing if degenerate
+    if abs(dx) <= 0 and abs(dz) <= 0:
+        return "NORTH"
+    # Prefer dominant axis
+    if abs(dz) >= abs(dx):
+        return "SOUTH" if dz > 0 else "NORTH"
+    return "EAST" if dx > 0 else "WEST"
+
+
+def _default_size_for_zone(zone_type: str, scale: str) -> tuple[int, int]:
+    """
+    Returns (w, d) for RECTANGLE zones. Keep conservative; actual building specs may override.
+    """
+    sc = (scale or "MEDIUM").upper()
+    base = 12
+    if sc == "SMALL":
+        base = 10
+    elif sc == "LARGE":
+        base = 16
+
+    zt = (zone_type or "").upper()
+    if zt == "CORE":
+        return base + 2, base
+    if zt in ("PUBLIC", "SEMI_PUBLIC"):
+        return base + 6, base + 4
+    if zt == "PRIVATE":
+        return base, base
+    if zt == "SERVICE":
+        return base, base - 2 if base > 6 else base
+    if zt == "TRANSITION":
+        return base + 2, max(6, base - 4)
+    return base, base
+
+
+def _default_radius_for_core(scale: str) -> int:
+    sc = (scale or "MEDIUM").upper()
+    if sc == "SMALL":
+        return 8
+    if sc == "LARGE":
+        return 14
+    return 10
+
+
+def _semantic_to_skeleton_layout(req: BuildRequest, plan: SemanticSpatialPlan) -> SkeletonLayout:
+    """
+    J-layer (v0): Convert SemanticSpatialPlan -> SkeletonLayout.
+    This is a light, deterministic layout hint (no world sampling).
+    Coordinates are relative to cluster center (0,0,0), matching CitySpec conventions.
+    """
+    scale = _infer_scale(req)
+    t = (req.requestText or "").lower()
+    # Hint for iconic circular core (tulou/temple/ring)
+    prefer_circular_core = any(k in t for k in ["土楼", "tulou", "天坛", "temple of heaven", "ring", "圆形", "环形"])
+
+    # Index zones by id for quick lookup
+    zones_by_id: Dict[str, Any] = {z.id: z for z in (plan.zones or []) if z and z.id}
+    # Choose a CORE zone id if present, else highest priority
+    core_id: Optional[str] = None
+    for z in (plan.zones or []):
+        if z.type == "CORE":
+            core_id = z.id
+            break
+    if core_id is None and plan.zones:
+        core_id = sorted(plan.zones, key=lambda zz: (-int(zz.priority), zz.id))[0].id
+
+    # Build adjacency from relations (treat as undirected for placement order)
+    adj: Dict[str, List[str]] = {}
+    axial_edges: List[tuple[str, str]] = []
+    for r in (plan.relations or []):
+        a = getattr(r, "from_zone", None) or getattr(r, "from", None)
+        b = getattr(r, "to_zone", None) or getattr(r, "to", None)
+        if not a or not b:
+            continue
+        adj.setdefault(a, []).append(b)
+        adj.setdefault(b, []).append(a)
+        if r.relation == "AXIAL":
+            axial_edges.append((a, b))
+
+    # Basic placement: CORE at origin, expand neighbors on rings.
+    spacing = 18
+    if scale == "SMALL":
+        spacing = 14
+    elif scale == "LARGE":
+        spacing = 24
+
+    pos: Dict[str, tuple[int, int]] = {}
+    if core_id:
+        pos[core_id] = (0, 0)
+
+    # If we have an axial edge involving core, place its counterpart along +Z (forward).
+    for a, b in axial_edges:
+        if core_id and a == core_id and b not in pos:
+            pos[b] = (0, -spacing)  # north
+        elif core_id and b == core_id and a not in pos:
+            pos[a] = (0, -spacing)
+
+    # BFS from core
+    if core_id:
+        q = [core_id]
+        visited = set(q)
+        while q:
+            cur = q.pop(0)
+            cx, cz = pos.get(cur, (0, 0))
+            neigh = adj.get(cur, [])
+            # deterministic order by zone priority (higher first)
+            neigh_sorted = sorted(
+                [n for n in neigh if n in zones_by_id],
+                key=lambda nid: (-int(zones_by_id[nid].priority), nid),
+            )
+            # fan out around current
+            fan = [
+                (0, -1),  # north
+                (1, 0),   # east
+                (-1, 0),  # west
+                (0, 1),   # south
+                (1, -1),
+                (-1, -1),
+                (1, 1),
+                (-1, 1),
+            ]
+            fi = 0
+            for n in neigh_sorted:
+                if n in visited:
+                    continue
+                visited.add(n)
+                # find first free slot
+                while fi < len(fan):
+                    dx, dz = fan[fi]
+                    fi += 1
+                    nx, nz = cx + dx * spacing, cz + dz * spacing
+                    if (nx, nz) in pos.values():
+                        continue
+                    pos[n] = (nx, nz)
+                    break
+                q.append(n)
+
+    # Any unplaced zones: place on a loose ring
+    ring_i = 0
+    for z in (plan.zones or []):
+        if z.id in pos:
+            continue
+        ring_i += 1
+        pos[z.id] = (ring_i * 6, -spacing - ring_i * 4)
+
+    # Facing: use player's facing as default, or infer from axial core->other direction
+    default_facing = (req.player.facing or "NORTH").strip().upper()
+    if default_facing not in ("NORTH", "SOUTH", "EAST", "WEST"):
+        default_facing = "NORTH"
+
+    def infer_facing_for_zone(zid: str) -> str:
+        # if axial edge touches zid, face toward its axial partner
+        for a, b in axial_edges:
+            if a == zid and b in pos:
+                ax, az = pos[a]
+                bx, bz = pos[b]
+                return _cardinal_facing_from_dxz(bx - ax, bz - az)
+            if b == zid and a in pos:
+                bx, bz = pos[b]
+                ax, az = pos[a]
+                return _cardinal_facing_from_dxz(ax - bx, az - bz)
+        # if core exists, non-core face toward core (helps entrances)
+        if core_id and zid != core_id and core_id in pos:
+            zx, zz = pos[zid]
+            cx, cz = pos[core_id]
+            return _cardinal_facing_from_dxz(cx - zx, cz - zz)
+        return default_facing
+
+    sks: List[SkeletonNode] = []
+    for z in (plan.zones or []):
+        zx, zz = pos.get(z.id, (0, 0))
+        facing = infer_facing_for_zone(z.id)
+
+        if z.type == "CIRCULATION":
+            # Minimal: linear from core to this zone if core exists
+            pts = []
+            if core_id and core_id in pos:
+                cx, cz = pos[core_id]
+                pts = [
+                    IntVec3(x=cx, y=0, z=cz),
+                    IntVec3(x=zx, y=0, z=zz),
+                ]
+            sks.append(
+                SkeletonNode(
+                    zone=z.id,
+                    zoneType=z.type,
+                    shape="LINEAR",
+                    anchor=IntVec3(x=zx, y=0, z=zz),
+                    facing=facing,
+                    points=pts or None,
+                    notes=z.notes or "",
+                )
+            )
+            continue
+
+        if z.type == "CORE" and prefer_circular_core:
+            sks.append(
+                SkeletonNode(
+                    zone=z.id,
+                    zoneType=z.type,
+                    shape="CIRCLE",
+                    anchor=IntVec3(x=zx, y=0, z=zz),
+                    facing=facing,
+                    radius=_default_radius_for_core(scale),
+                    notes=z.notes or "",
+                )
+            )
+            continue
+
+        # Default: rectangles for most zones
+        w, d = _default_size_for_zone(z.type, scale)
+        sks.append(
+            SkeletonNode(
+                zone=z.id,
+                zoneType=z.type,
+                shape="RECTANGLE",
+                anchor=IntVec3(x=zx, y=0, z=zz),
+                facing=facing,
+                width=w,
+                depth=d,
+                notes=z.notes or "",
+            )
+        )
+
+    # Ensure CORE is first (helps debug/consumption)
+    def sort_key(node: SkeletonNode) -> tuple[int, str]:
+        zz = zones_by_id.get(node.zone)
+        t0 = zz.type if zz else ""
+        pri = int(zz.priority) if zz else 1
+        core_rank = 0 if t0 == "CORE" else 1
+        return (core_rank, -pri, node.zone)
+
+    sks_sorted = sorted(sks, key=sort_key)
+    return SkeletonLayout(skeletons=sks_sorted)
 
 
 def _default_schema() -> Dict[str, Any]:
@@ -1926,6 +2412,10 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
 
     if not client:
         return _generate_fallback_city_spec(req)
+
+    # I-layer: best-effort semantic spatial planning before full city generation.
+    # This is used both as prompt context and as a source of spec.extra knobs (terrain/semantic scoring).
+    semantic_plan = generate_semantic_spatial_plan(req)
     
     system_prompt = (
         "You are FormaCraft AI City Planner.\n\n"
@@ -1949,6 +2439,12 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
     )
     
     user_prompt = _build_user_prompt(req)
+    if semantic_plan is not None:
+        try:
+            sp_json = json.dumps(semantic_plan.model_dump(by_alias=True), ensure_ascii=False)
+            user_prompt = user_prompt + "\n\nSemanticSpatialPlan(JSON):\n" + sp_json + "\n"
+        except Exception:
+            pass
     
     try:
         model = _resolve_model(req, "gpt-4o-mini")
@@ -1971,7 +2467,64 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
             raise ValueError("Empty response from OpenAI for city spec")
         
         data = json.loads(raw_output)
-        return CitySpec.model_validate(data)
+        spec = CitySpec.model_validate(data)
+
+        # Fill per-structure semanticRole hints (do not override explicit user/LLM overrides).
+        # This makes Java-side semantic placement constraints deterministic even when zone inference is weak.
+        try:
+            zone_type_by_name: Dict[str, str] = {}
+            if spec.zones:
+                for z in spec.zones:
+                    if z and z.name:
+                        zone_type_by_name[z.name.strip()] = (z.type or "").strip().upper()
+
+            def role_from_zone_type(t: str) -> str:
+                tt = (t or "").strip().upper()
+                if tt in ("PLAZA", "MARKET", "COMMERCIAL", "COMMERCIAL_AREA"):
+                    return "PUBLIC"
+                if tt in ("RESIDENTIAL",):
+                    return "PRIVATE"
+                if tt in ("INDUSTRIAL",):
+                    return "SERVICE"
+                if tt in ("WALL", "GATE"):
+                    return "TRANSITION"
+                return "SEMI_PUBLIC"
+
+            for sp in (spec.structures or []):
+                bs = getattr(sp, "spec", None)
+                if bs is None:
+                    continue
+                if bs.extra is None:
+                    bs.extra = {}
+                if "semanticRole" in bs.extra and bs.extra.get("semanticRole") not in (None, "", "null"):
+                    continue
+                zn = (sp.zone or "").strip()
+                if zn and zn in zone_type_by_name:
+                    bs.extra["semanticRole"] = role_from_zone_type(zone_type_by_name.get(zn, ""))
+        except Exception:
+            pass
+
+        # Compile I-layer plan into spec.extra so Java CityBuilder can consume it immediately.
+        if semantic_plan is not None and spec.structures:
+            try:
+                extra_knobs = _compile_semantic_plan_extra(req, semantic_plan)
+                # Inject into the first structure's spec.extra (CityBuilder uses extra0 from first available).
+                sp0 = spec.structures[0]
+                if sp0.spec.extra is None:
+                    sp0.spec.extra = {}
+                # Do not clobber explicit user/LLM-provided overrides.
+                for k, v in extra_knobs.items():
+                    if k not in sp0.spec.extra:
+                        sp0.spec.extra[k] = v
+
+                # Also attach an explicit J-layer skeleton layout for debugging and future routing.
+                if "skeletonLayout" not in sp0.spec.extra:
+                    layout = _semantic_to_skeleton_layout(req, semantic_plan)
+                    sp0.spec.extra["skeletonLayout"] = layout.model_dump()
+            except Exception:
+                pass
+
+        return spec
         
     except Exception as e:
         # 有 client 说明用户配置了 LLM；失败应直接报错，让上游给用户明确提示
@@ -2077,6 +2630,9 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
     # 如果 OpenAI 客户端不可用，使用回退方案
     if not client:
         return _generate_fallback_composite_spec(req)
+
+    # I-layer: best-effort semantic plan as context for composite generation (clusters/courtyards/compounds).
+    semantic_plan = generate_semantic_spatial_plan(req)
     
     system_prompt = (
         "You are FormaCraft city planner. Your job is to generate a CompositeSpec JSON "
@@ -2098,6 +2654,12 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
     )
     
     user_prompt = _build_user_prompt(req)
+    if semantic_plan is not None:
+        try:
+            sp_json = json.dumps(semantic_plan.model_dump(by_alias=True), ensure_ascii=False)
+            user_prompt = user_prompt + "\n\nSemanticSpatialPlan(JSON):\n" + sp_json + "\n"
+        except Exception:
+            pass
     
     try:
         model = _resolve_model(req, "gpt-4o-mini")
@@ -2121,7 +2683,27 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
         
         data = json.loads(raw_output)
         data = _normalize_composite_spec_dict(data)
-        return CompositeSpec.model_validate(data)
+        spec = CompositeSpec.model_validate(data)
+
+        # Compile I-layer plan into the first sub-structure's spec.extra (best-effort).
+        # Not all composite generators consume these knobs today, but it provides a forward-compatible hook.
+        if semantic_plan is not None and spec.structures:
+            try:
+                extra_knobs = _compile_semantic_plan_extra(req, semantic_plan)
+                s0 = spec.structures[0]
+                if s0.spec.extra is None:
+                    s0.spec.extra = {}
+                for k, v in extra_knobs.items():
+                    if k not in s0.spec.extra:
+                        s0.spec.extra[k] = v
+
+                if "skeletonLayout" not in s0.spec.extra:
+                    layout = _semantic_to_skeleton_layout(req, semantic_plan)
+                    s0.spec.extra["skeletonLayout"] = layout.model_dump()
+            except Exception:
+                pass
+
+        return spec
         
     except Exception as e:
         raise RuntimeError(f"LLM call failed for composite spec: {e}") from e
