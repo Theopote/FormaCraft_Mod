@@ -88,43 +88,49 @@ public final class SkeletonPreviewState {
                 float[] c = colorForZoneType(zoneType);
                 float r = c[0], g = c[1], b = c[2], a = c[3];
 
-                if ("RECTANGLE".equals(shape)) {
-                    int w = intOr(m.get("width"), 12);
-                    int d = intOr(m.get("depth"), 10);
-                    Box box = new Box(anchor.getX(), anchor.getY(), anchor.getZ(),
-                            anchor.getX() + w, anchor.getY() + 1, anchor.getZ() + d).expand(0.02);
-                    out.add(new Visual(box, r, g, b, a));
-                    budget--;
-                } else if ("CIRCLE".equals(shape)) {
-                    int radius = intOr(m.get("radius"), 10);
-                    budget = addCircleRing(out, anchor, radius, r, g, b, a, budget);
-                } else if ("POINT".equals(shape)) {
-                    Box box = new Box(anchor).expand(0.30);
-                    out.add(new Visual(box, r, g, b, 0.95f));
-                    budget--;
-                } else if ("LINEAR".equals(shape)) {
-                    Object pts0 = m.get("points");
-                    if (pts0 instanceof List<?> pts && pts.size() >= 2) {
-                        Object pA0 = pts.get(0);
-                        Object pB0 = pts.get(pts.size() - 1);
-                        if (pA0 instanceof Map<?, ?> && pB0 instanceof Map<?, ?>) {
-                            Map<String, Object> pA = (Map<String, Object>) pA0;
-                            Map<String, Object> pB = (Map<String, Object>) pB0;
-                            BlockPos aPos = origin.add(intOr(pA.get("x"), 0), intOr(pA.get("y"), 0), intOr(pA.get("z"), 0));
-                            BlockPos bPos = origin.add(intOr(pB.get("x"), 0), intOr(pB.get("y"), 0), intOr(pB.get("z"), 0));
-                            budget = addLine(out, aPos, bPos, r, g, b, a, budget);
+                switch (shape) {
+                    case "RECTANGLE" -> {
+                        int w = intOr(m.get("width"), 12);
+                        int d = intOr(m.get("depth"), 10);
+                        Box box = new Box(anchor.getX(), anchor.getY(), anchor.getZ(),
+                                anchor.getX() + w, anchor.getY() + 1, anchor.getZ() + d).expand(0.02);
+                        out.add(new Visual(box, r, g, b, a));
+                        budget--;
+                    }
+                    case "CIRCLE" -> {
+                        int radius = intOr(m.get("radius"), 10);
+                        budget = addCircleRing(out, anchor, radius, r, g, b, a, budget);
+                    }
+                    case "POINT" -> {
+                        Box box = new Box(anchor).expand(0.30);
+                        out.add(new Visual(box, r, g, b, 0.95f));
+                        budget--;
+                    }
+                    case "LINEAR" -> {
+                        Object pts0 = m.get("points");
+                        if (pts0 instanceof List<?> pts && pts.size() >= 2) {
+                            Object pA0 = pts.getFirst();
+                            Object pB0 = pts.getLast();
+                            if (pA0 instanceof Map<?, ?> && pB0 instanceof Map<?, ?>) {
+                                Map<String, Object> pA = (Map<String, Object>) pA0;
+                                Map<String, Object> pB = (Map<String, Object>) pB0;
+                                BlockPos aPos = origin.add(intOr(pA.get("x"), 0), intOr(pA.get("y"), 0), intOr(pA.get("z"), 0));
+                                BlockPos bPos = origin.add(intOr(pB.get("x"), 0), intOr(pB.get("y"), 0), intOr(pB.get("z"), 0));
+                                budget = addLine(out, aPos, bPos, r, g, b, a, budget);
+                            }
+                        } else {
+                            // fallback: show a point marker at anchor
+                            Box box = new Box(anchor).expand(0.25);
+                            out.add(new Visual(box, r, g, b, a));
+                            budget--;
                         }
-                    } else {
-                        // fallback: show a point marker at anchor
+                    }
+                    default -> {
+                        // POLYGON or unknown: draw a small marker at anchor
                         Box box = new Box(anchor).expand(0.25);
                         out.add(new Visual(box, r, g, b, a));
                         budget--;
                     }
-                } else {
-                    // POLYGON or unknown: draw a small marker at anchor
-                    Box box = new Box(anchor).expand(0.25);
-                    out.add(new Visual(box, r, g, b, a));
-                    budget--;
                 }
 
                 if (budget <= 0) break;
@@ -212,8 +218,7 @@ public final class SkeletonPreviewState {
 
     private static String str(Object v) {
         if (v == null) return "";
-        String s = String.valueOf(v).trim();
-        return s != null ? s : "";
+        return String.valueOf(v).trim();
     }
 }
 

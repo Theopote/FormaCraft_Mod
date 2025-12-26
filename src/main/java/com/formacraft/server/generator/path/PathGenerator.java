@@ -3,6 +3,7 @@ package com.formacraft.server.generator.path;
 import com.formacraft.common.model.path.PathSpec;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.road.RoadPlanner;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -47,6 +48,28 @@ public class PathGenerator {
 
         // 根据样式选择生成方式
         String style = path.getStyle() != null ? path.getStyle() : "default";
+
+        // Smart road mode (A* + slope-aware), reuses RoadPlanner for better terrain hugging / detours.
+        if ("astar".equalsIgnoreCase(style) || "road_planner".equalsIgnoreCase(style) || "smart".equalsIgnoreCase(style)) {
+            BlockState road = material != null ? material : Blocks.GRAVEL.getDefaultState();
+            RoadPlanner.Config cfg = new RoadPlanner.Config(
+                    width,
+                    2,
+                    1,
+                    12000,
+                    12,
+                    2,
+                    6,
+                    road,
+                    Blocks.COBBLESTONE.getDefaultState(),
+                    false,
+                    Blocks.OAK_PLANKS.getDefaultState(),
+                    Blocks.OAK_FENCE.getDefaultState()
+            );
+            List<PlannedBlock> out = RoadPlanner.build(world, p0, p1, cfg);
+            String description = String.format("Path (width=%d, style=%s)", width, style);
+            return new GeneratedStructure(null, origin, description, out != null ? out : new ArrayList<>());
+        }
         
         List<BlockPos> pathPoints = switch (style.toLowerCase()) {
             case "curved" -> generateCurvedPath(p0, p1);

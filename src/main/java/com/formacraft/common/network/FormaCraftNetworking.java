@@ -476,7 +476,7 @@ public class FormaCraftNetworking {
                                     );
                             final com.formacraft.server.build.GeneratedStructure generated = reported.value();
                             String terrainSummary = reported.report().summaryZh();
-                            if (terrainSummary != null && !terrainSummary.isBlank()) {
+                            if (!terrainSummary.isBlank()) {
                                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
                             }
 
@@ -507,7 +507,7 @@ public class FormaCraftNetworking {
                             // Send skeleton layout preview (if present in CitySpec's first structure extra)
                             try {
                                 if (citySpec.getStructures() != null && !citySpec.getStructures().isEmpty()) {
-                                    var sp0 = citySpec.getStructures().get(0);
+                                    var sp0 = citySpec.getStructures().getFirst();
                                     if (sp0 != null && sp0.getSpec() != null && sp0.getSpec().getExtra() != null) {
                                         sendPreviewSkeleton(player, origin, sp0.getSpec().getExtra());
                                     }
@@ -571,7 +571,7 @@ public class FormaCraftNetworking {
                                     );
                             final com.formacraft.server.build.GeneratedStructure generated = reported.value();
                             String terrainSummary = reported.report().summaryZh();
-                            if (terrainSummary != null && !terrainSummary.isBlank()) {
+                            if (!terrainSummary.isBlank()) {
                                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
                             }
 
@@ -602,7 +602,7 @@ public class FormaCraftNetworking {
                             // Send skeleton layout preview (if present in CompositeSpec's first structure extra)
                             try {
                                 if (compositeSpec.getStructures() != null && !compositeSpec.getStructures().isEmpty()) {
-                                    var s0 = compositeSpec.getStructures().get(0);
+                                    var s0 = compositeSpec.getStructures().getFirst();
                                     if (s0 != null && s0.getSpec() != null && s0.getSpec().getExtra() != null) {
                                         sendPreviewSkeleton(player, origin, s0.getSpec().getExtra());
                                     }
@@ -672,7 +672,7 @@ public class FormaCraftNetworking {
                                         );
                                 final com.formacraft.server.build.GeneratedStructure generated = reported.value();
                                 String terrainSummary = reported.report().summaryZh();
-                                if (terrainSummary != null && !terrainSummary.isBlank()) {
+                                if (!terrainSummary.isBlank()) {
                                     ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
                                 }
 
@@ -757,7 +757,7 @@ public class FormaCraftNetworking {
                                     );
                             final com.formacraft.server.build.GeneratedStructure generated = reported.value();
                             String terrainSummary = reported.report().summaryZh();
-                            if (terrainSummary != null && !terrainSummary.isBlank()) {
+                            if (!terrainSummary.isBlank()) {
                                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
                             }
 

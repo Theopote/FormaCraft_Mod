@@ -132,8 +132,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                     // use style foundation language if possible
                     BlockState fill = Blocks.COBBLESTONE.getDefaultState();
                     if (spec != null) {
-                        BuildingStyle style = (spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
-                        StyleProfile profile = StyleProfileRegistry.forStyle(style);
+                        StyleProfile profile = StyleProfileRegistry.resolve(spec);
                         String fid = profile != null && profile.palette() != null ? profile.palette().foundation : null;
                         fill = getStateOrDefault(wld, fid, fill);
                     }

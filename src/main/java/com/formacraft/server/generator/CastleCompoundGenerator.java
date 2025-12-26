@@ -69,7 +69,8 @@ public class CastleCompoundGenerator implements StructureGenerator {
         Materials mats = (spec != null && spec.getMaterials() != null) ? spec.getMaterials() : new Materials();
         BlockState wallBlock = getStateOrDefault(world, mats.getWall(), Blocks.STONE_BRICKS.getDefaultState());
         // cap resolved from style profile (data-driven); fallback to stone brick slab
-        StyleProfile styleProfile = StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
+        // Prefer per-request styleProfileId when present.
+        StyleProfile styleProfile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
         BlockState capBlock = getStateOrDefault(world,
                 styleProfile != null && styleProfile.palette() != null ? styleProfile.palette().cap : null,
                 Blocks.STONE_BRICK_SLAB.getDefaultState());
@@ -213,7 +214,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
                 return merged;
             }
             if (plan instanceof RectEnclosurePlan rep) {
-                StyleProfile profile = StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
+                StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
                 BlockState pillar = getStateOrDefault(wld, profile != null && profile.palette() != null ? profile.palette().pillar : null, wallBlock);
                 boolean openArcade = profile != null && profile.resolve("GATE", Set.of("gate")) == BuildStrategy.OPEN_ARCADE;
                 return new RectEnclosureInterpreter(wallBlock, capBlock, cap2Block, capLayers, capOverhang, pillar, openArcade).interpret(rep, o, wld);

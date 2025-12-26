@@ -44,7 +44,7 @@ public class GreatWallGenerator implements StructureGenerator {
         Direction facing = parseFacing(getStringExtra(spec, "facing", "EAST"));
 
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MEDIEVAL;
-        StyleProfile profile = StyleProfileRegistry.forStyle(style);
+        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
         String pWall = profile != null && profile.palette() != null ? profile.palette().wall : null;
         String pTrim = profile != null && profile.palette() != null ? profile.palette().trim : null;
 

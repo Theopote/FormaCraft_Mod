@@ -108,6 +108,9 @@ def _build_system_prompt() -> str:
         "- If player asks for shutters / trapdoor window shutters / 百叶窗 / 木窗扇:\n"
         "  set extra.windowShutter=true and optionally extra.windowShutterOpen=true/false\n"
         "  You may set extra.windowShutterBlock like 'minecraft:oak_trapdoor'\n"
+        "\nStyle gene library (optional, strongly recommended when user requests a specific architectural vibe):\n"
+        "- You MAY set extra.styleProfileId to pick a fine-grained style profile (data-driven).\n"
+        "- If set, it should be a string id from the StyleProfileCatalog provided in the user prompt.\n"
     )
 
 
@@ -132,6 +135,15 @@ def _build_user_prompt(req: BuildRequest) -> str:
         parts.append("\nChat History:")
         for msg in req.chatHistory:
             parts.append(f"  {msg}")
+
+    # Provide data-driven style profile candidates (multiple-choice), so the model can set extra.styleProfileId deterministically.
+    try:
+        from app.services.style_profile_registry import catalog_prompt_block
+        block = catalog_prompt_block(max_items=30)
+        if block:
+            parts.append("\n" + block)
+    except Exception:
+        pass
     
     return "\n".join(parts)
 

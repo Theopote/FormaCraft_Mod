@@ -30,6 +30,7 @@ import com.formacraft.server.cluster.layout.CandidateGenerator;
 import com.formacraft.server.cluster.layout.ClusterLayoutConfig;
 import com.formacraft.server.cluster.layout.PlacementSolver;
 import com.formacraft.server.foundation.FoundationPlanner;
+import com.formacraft.server.generator.selector.RuleBasedGeneratorSelector;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.DoorBlock;
@@ -83,13 +84,13 @@ public class CityBuilder {
                 int maxD = 10;
                 int maxH = 12;
                 for (CitySpec.StructurePlan sp0 : city.getStructures()) {
-                    if (sp0 == null || sp0.getSpec() == null || sp0.getOffset() != null) continue;
+                    if (sp0 == null || sp0.getOffset() != null) continue;
                     count++;
-                    if (sp0.getSpec().getFootprint() != null) {
+                    if (sp0.getSpec() != null && sp0.getSpec().getFootprint() != null) {
                         maxW = Math.max(maxW, sp0.getSpec().getFootprint().getWidth());
                         maxD = Math.max(maxD, sp0.getSpec().getFootprint().getDepth());
                     }
-                    maxH = Math.max(maxH, sp0.getSpec().getHeight());
+                    if (sp0.getSpec() != null) maxH = Math.max(maxH, sp0.getSpec().getHeight());
                 }
                 int spacing = Math.max(14, Math.max(maxW, maxD) + 4);
                 int boxHalf = Math.max(24, (int) Math.round(Math.sqrt(Math.max(1, count)) * spacing));
@@ -115,7 +116,11 @@ public class CityBuilder {
                 int idx = 0;
                 java.util.List<CitySpec.StructurePlan> missing = new java.util.ArrayList<>();
                 for (CitySpec.StructurePlan sp0 : city.getStructures()) {
-                    if (sp0 == null || sp0.getSpec() == null || sp0.getOffset() != null) continue;
+                    if (sp0 == null || sp0.getOffset() != null) continue;
+                    if (sp0.getSpec() == null) {
+                        // allow selector to synthesize a minimal spec later
+                        sp0.setSpec(new BuildingSpec());
+                    }
                     missing.add(sp0);
                 }
 
@@ -135,6 +140,24 @@ public class CityBuilder {
                 for (CitySpec.StructurePlan sp0 : missing) {
                     BuildingSpec bs = sp0.getSpec();
                     String role = inferSemanticRoleForPlan(bs, sp0, city, idx == mainIdx);
+
+                    // Apply K+ selector: fill deterministic template/landmark + minimal defaults from skeleton.
+                    try {
+                        BuildingStyle cityStyle = null;
+                        try {
+                            if (city.getStyle() != null && !city.getStyle().isBlank()) {
+                                cityStyle = BuildingStyle.valueOf(city.getStyle().trim().toUpperCase(java.util.Locale.ROOT));
+                            }
+                        } catch (Exception ignored) {}
+                        if (cityStyle == null) cityStyle = (bs != null && bs.getStyle() != null) ? bs.getStyle() : BuildingStyle.DEFAULT;
+
+                        SkeletonNodeInfo sk = (skeletonNodeByZoneType != null && role != null) ? skeletonNodeByZoneType.get(role) : null;
+                        String skShape = (sk != null) ? sk.shapeUpper : "";
+                        int skW = (sk != null) ? sk.width : 0;
+                        int skD = (sk != null) ? sk.depth : 0;
+                        int skR = (sk != null) ? sk.radius : 0;
+                        RuleBasedGeneratorSelector.apply(bs, cityStyle, role, skShape, skW, skD, skR);
+                    } catch (Throwable ignored) {}
 
                     // Prefer explicit footprint; if missing/invalid, fall back to skeleton node dimensions (J-layer).
                     int w = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 0;
@@ -273,7 +296,7 @@ public class CityBuilder {
                     cityStyle = BuildingStyle.DEFAULT;
                 }
             }
-            StyleProfile profile = StyleProfileRegistry.forStyle(cityStyle);
+            StyleProfile profile = StyleProfileRegistry.resolveByExtra(extra0, cityStyle);
             String roadId = profile != null && profile.palette() != null ? profile.palette().floor : null;
             String borderId = profile != null && profile.palette() != null ? profile.palette().trim : null;
             String deckId = profile != null && profile.palette() != null ? profile.palette().floor : null;
@@ -287,6 +310,18 @@ public class CityBuilder {
                 if (b0 != null) borderId = String.valueOf(b0).trim();
                 if (d0 != null) deckId = String.valueOf(d0).trim();
                 if (rr0 != null) railId = String.valueOf(rr0).trim();
+            }
+
+            // If no explicit roads, try to materialize J-layer CIRCULATION skeleton paths into PathSpec roads.
+            // This makes "semantic circulation" become real roads without requiring the LLM to output roads perfectly.
+            if (!hasRoads && extra0 != null) {
+                try {
+                    java.util.List<PathSpec> skRoads = parseSkeletonRoads(extra0, roadId);
+                    if (skRoads != null && !skRoads.isEmpty()) {
+                        city.setRoads(skRoads);
+                        hasRoads = true;
+                    }
+                } catch (Throwable ignored) {}
             }
             BlockState roadMat = stateFromIdOrDefault(roadId, net.minecraft.block.Blocks.GRAVEL.getDefaultState());
             BlockState borderMat = stateFromIdOrDefault(borderId, net.minecraft.block.Blocks.COBBLESTONE.getDefaultState());
@@ -341,7 +376,7 @@ public class CityBuilder {
 
                     // Cluster policy defaults (if unit didn't explicitly override pad/clear)
                     // Apply zone override first (if any), then cluster fallback.
-                    CitySpec.Zone zone = null;
+                    CitySpec.Zone zone;
                     ZoneTerrainRule zrule = null;
                     if (sp.getZone() != null) {
                         zone = zonesByName.get(sp.getZone().trim());
@@ -694,7 +729,6 @@ public class CityBuilder {
         try {
             Identifier identifier = s.contains(":") ? Identifier.of(s) : Identifier.of("minecraft", s);
             Block b = Registries.BLOCK.get(identifier);
-            if (b == null) return def;
             return b.getDefaultState();
         } catch (Exception ignored) {
             return def;
@@ -737,13 +771,13 @@ public class CityBuilder {
             Object t = bs.getExtra().get("template");
             if (t != null) template = String.valueOf(t).trim().toLowerCase(java.util.Locale.ROOT);
             Object a = bs.getExtra().get("archetypeId");
-            if (a != null && String.valueOf(a).trim().length() > 0) imp = Math.max(imp, 10);
+            if (a != null && !String.valueOf(a).trim().isEmpty()) imp = 10;
         }
         if (template != null) {
             if (template.contains("eiffel") || template.contains("temple_of_heaven") || template.contains("tulou")
                     || template.contains("golden_gate") || template.contains("great_wall") || template.contains("pagoda")
                     || template.contains("mingqing_courtyard") || template.contains("castle_compound")) {
-                imp = Math.max(imp, 10);
+                imp = 10;
             }
         }
 
@@ -930,6 +964,54 @@ public class CityBuilder {
             fp.setShape("circle");
             if (fp.getRadius() <= 0) fp.setRadius(Math.max(3, radius));
         } catch (Throwable ignored) {}
+    }
+
+    /**
+     * Convert skeletonLayout CIRCULATION / LINEAR nodes into PathSpec list (relative to city origin).
+     * Expected skeleton node shape:
+     * { zoneType:"CIRCULATION", shape:"LINEAR", points:[{x,y,z}, {x,y,z}, ...] }
+     */
+    private static java.util.List<PathSpec> parseSkeletonRoads(java.util.Map<String, Object> extra, String materialId) {
+        if (extra == null) return java.util.List.of();
+        Object v = extra.get("skeletonLayout");
+        if (!(v instanceof java.util.Map<?, ?> m)) return java.util.List.of();
+        Object s = m.get("skeletons");
+        if (!(s instanceof java.util.List<?> list)) return java.util.List.of();
+
+        String mat = (materialId == null || materialId.isBlank()) ? "minecraft:gravel" : materialId.trim();
+        java.util.List<PathSpec> out = new java.util.ArrayList<>();
+        int id = 0;
+        for (Object o : list) {
+            if (!(o instanceof java.util.Map<?, ?> sm)) continue;
+            String zoneType = sm.get("zoneType") != null ? String.valueOf(sm.get("zoneType")).trim().toUpperCase(java.util.Locale.ROOT) : "";
+            String shape = sm.get("shape") != null ? String.valueOf(sm.get("shape")).trim().toUpperCase(java.util.Locale.ROOT) : "";
+            if (!(zoneType.equals("CIRCULATION") || shape.equals("LINEAR"))) continue;
+            Object pts0 = sm.get("points");
+            if (!(pts0 instanceof java.util.List<?> pts) || pts.size() < 2) continue;
+
+            // Build segments between consecutive points.
+            for (int i = 0; i < pts.size() - 1; i++) {
+                Object a0 = pts.get(i);
+                Object b0 = pts.get(i + 1);
+                if (!(a0 instanceof java.util.Map<?, ?> am) || !(b0 instanceof java.util.Map<?, ?> bm)) continue;
+                int ax = parseIntOrDef(am.get("x"), 0);
+                int ay = parseIntOrDef(am.get("y"), 0);
+                int az = parseIntOrDef(am.get("z"), 0);
+                int bx = parseIntOrDef(bm.get("x"), 0);
+                int by = parseIntOrDef(bm.get("y"), 0);
+                int bz = parseIntOrDef(bm.get("z"), 0);
+
+                PathSpec road = new PathSpec();
+                road.setId("sk_road_" + (id++));
+                road.setFrom(new PathSpec.Point(ax, ay, az));
+                road.setTo(new PathSpec.Point(bx, by, bz));
+                road.setWidth(3);
+                road.setMaterial(mat);
+                road.setStyle("astar");
+                out.add(road);
+            }
+        }
+        return out;
     }
 
     private static int parseIntOrDef(Object v, int def) {

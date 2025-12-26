@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "asian_core_circle_tulou",
+      "when": { "cityStyle": "ASIAN", "zoneType": "CORE", "shape": "CIRCLE", "minRadius": 8, "maxRadius": 24 },
+      "then": {
+        "landmark": "tulou",
+        "buildingType": "HOUSE",
+        "floors": 3
+      }
+    },
+    {
+      "id": "asian_core_circle_temple_of_heaven",
+      "when": { "cityStyle": "ASIAN", "zoneType": "CORE", "shape": "CIRCLE", "minRadius": 25 },
+      "then": {
+        "landmark": "temple_of_heaven",
+        "buildingType": "CUSTOM",
+        "height": 36,
+        "extraDefaults": {
+          "tiers": 3,
+          "detailLevel": "aesthetic"
+        }
+      }
+    },
+    {
+      "id": "modern_semi_public_office_block",
+      "when": { "cityStyle": "MODERN", "zoneType": "SEMI_PUBLIC", "shape": "RECTANGLE" },
+      "then": {
+        "template": "office_block",
+        "buildingType": "HOUSE"
+      }
+    }
+  ]
+}
+
+

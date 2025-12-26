@@ -202,7 +202,7 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                 return merged;
             }
             if (plan instanceof RectEnclosurePlan rep) {
-                StyleProfile profile = StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
+                StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
                 BlockState pillar = getStateOrDefault(wld, profile != null && profile.palette() != null ? profile.palette().pillar : null, wallBlock);
                 boolean openArcade = profile != null && profile.resolve("GATE", Set.of("gate")) == BuildStrategy.OPEN_ARCADE;
                 BlockState cap = getStateOrDefault(wld,

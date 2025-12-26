@@ -48,7 +48,7 @@ public class HouseGenerator implements StructureGenerator {
         // 风格“基因”（数据驱动）：用于提供默认材质与部分默认参数
         // 约定：spec.materials / spec.styleOptions 显式值永远优先。
         StyleGenome genome = StyleGenomeRegistry.forStyle(style);
-        StyleProfile profile = StyleProfileRegistry.forStyle(style);
+        StyleProfile profile = StyleProfileRegistry.resolve(spec);
 
         // ===============================
         // Ming/Qing 官式中式宅院（优先实现）
@@ -66,24 +66,37 @@ public class HouseGenerator implements StructureGenerator {
         String windowId = spec.getMaterials() != null ? spec.getMaterials().getWindow() : null;
         String roofId = spec.getMaterials() != null ? spec.getMaterials().getRoof() : null;
 
+        String pWall = (profile != null && profile.palette() != null) ? profile.palette().wall : null;
+        String pFloor = (profile != null && profile.palette() != null) ? profile.palette().floor : null;
+        String pWindow = (profile != null && profile.palette() != null) ? profile.palette().window : null;
+        String pRoof = (profile != null && profile.palette() != null) ? profile.palette().roof : null;
+
         BlockState wall = getStateOrDefault(world, wallId,
-                getStateOrDefault(world, genome != null && genome.palette != null ? genome.palette.wall : null, defaultWall(style)));
+                getStateOrDefault(world,
+                        genome != null && genome.palette != null ? genome.palette.wall : pWall,
+                        defaultWall(style)));
         BlockState floor = getStateOrDefault(world, floorId,
-                getStateOrDefault(world, genome != null && genome.palette != null ? genome.palette.floor : null, defaultFloor(style)));
+                getStateOrDefault(world,
+                        genome != null && genome.palette != null ? genome.palette.floor : pFloor,
+                        defaultFloor(style)));
         BlockState window = getStateOrDefault(world, windowId,
-                getStateOrDefault(world, genome != null && genome.palette != null ? genome.palette.window : null, defaultWindow(style)));
+                getStateOrDefault(world,
+                        genome != null && genome.palette != null ? genome.palette.window : pWindow,
+                        defaultWindow(style)));
         BlockState roof = getStateOrDefault(world, roofId,
-                getStateOrDefault(world, genome != null && genome.palette != null ? genome.palette.roof : null, defaultRoof(style)));
+                getStateOrDefault(world,
+                        genome != null && genome.palette != null ? genome.palette.roof : pRoof,
+                        defaultRoof(style)));
 
         // 装饰/细节材质（不要求模型显式提供，但能显著提升观感）
         BlockState trim = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.trim : null,
+                genome != null && genome.palette != null ? genome.palette.trim : (profile != null && profile.palette() != null ? profile.palette().trim : null),
                 defaultTrim(style, wall));
         BlockState foundation = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.foundation : null,
+                genome != null && genome.palette != null ? genome.palette.foundation : (profile != null && profile.palette() != null ? profile.palette().foundation : null),
                 defaultFoundation(style, wall));
         BlockState pillar = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.pillar : null,
+                genome != null && genome.palette != null ? genome.palette.pillar : (profile != null && profile.palette() != null ? profile.palette().pillar : null),
                 defaultPillar(style));
         BlockState roofStairs = defaultRoofStairs(style, roof);
         BlockState roofSlab = defaultRoofSlab(style, roof);
