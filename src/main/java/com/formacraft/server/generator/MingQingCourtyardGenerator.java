@@ -213,7 +213,12 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                         wallBlock);
                 int capLayers = (profile != null && profile.rules() != null) ? profile.rules().capLayers : 1;
                 int capOverhang = (profile != null && profile.rules() != null) ? profile.rules().capOverhang : 0;
-                return new RectEnclosureInterpreter(wallBlock, cap, cap2, capLayers, capOverhang, pillar, openArcade).interpret(rep, o, wld);
+                String paletteId = null;
+                if (spec != null && spec.getExtra() != null) {
+                    Object pid = spec.getExtra().get("paletteId");
+                    if (pid != null) paletteId = String.valueOf(pid).trim();
+                }
+                return new RectEnclosureInterpreter(wallBlock, cap, cap2, capLayers, capOverhang, pillar, openArcade, paletteId).interpret(rep, o, wld);
             }
             if (plan instanceof PolylinePathPlan pp) {
                 // use floor as paving + stone brick border

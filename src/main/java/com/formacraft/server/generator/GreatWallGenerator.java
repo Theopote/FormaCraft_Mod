@@ -40,6 +40,7 @@ public class GreatWallGenerator implements StructureGenerator {
         int towerSpacing = clamp(getIntExtra(spec, "towerSpacing", 48), 16, 256);
         boolean followTerrain = getBoolExtra(spec, "followTerrain", true);
         boolean mixBlocks = getBoolExtra(spec, "mixWallBlocks", true);
+        String paletteId = getStringExtra(spec, "paletteId", null);
 
         Direction facing = parseFacing(getStringExtra(spec, "facing", "EAST"));
 
@@ -69,7 +70,7 @@ public class GreatWallGenerator implements StructureGenerator {
                 .put("crenels", true);
 
         LinearPathPlan plan = new LinearPathSkeleton(world, origin).generate(params);
-        List<PlannedBlock> blocks = new LinearWallInterpreter(wall, accent, mixBlocks, walkway, crenel, towerBlock)
+        List<PlannedBlock> blocks = new LinearWallInterpreter(wall, accent, mixBlocks, walkway, crenel, towerBlock, paletteId)
                 .interpret(plan, origin, world);
 
         // scoring: linear+crenels+towers

@@ -9,6 +9,7 @@ import com.formacraft.common.style.StyleGenome;
 import com.formacraft.common.style.StyleGenomeRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -179,14 +180,40 @@ public class HouseGenerator implements StructureGenerator {
             floorHeight = Math.max(3, Math.min(pref, maxFloorHeight));
         }
 
+        // Optional palette (weighted randomness): for material variation/aging.
+        String paletteId = null;
+        if (spec.getExtra() != null) {
+            Object pid = spec.getExtra().get("paletteId");
+            if (pid != null) paletteId = String.valueOf(pid).trim();
+        }
+
+        // Door side (for compounds like gatehouses): default keeps legacy behavior (NORTH wall, z==0).
+        Direction doorSide = resolveDoorSide(spec);
+
         // 2.1 地基（y=0 一圈）
         for (int x = 0; x < width; x++) {
-            blocks.add(new PlannedBlock(origin.add(x, 0, 0), foundation));
-            blocks.add(new PlannedBlock(origin.add(x, 0, depth - 1), foundation));
+            BlockPos p1 = origin.add(x, 0, 0);
+            BlockPos p2 = origin.add(x, 0, depth - 1);
+            BlockState f1 = foundation;
+            BlockState f2 = foundation;
+            if (paletteId != null && !paletteId.isBlank()) {
+                f1 = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p1, (x * 31L) ^ 0xBEEF, foundation);
+                f2 = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p2, (x * 31L) ^ 0xCAFE, foundation);
+            }
+            blocks.add(new PlannedBlock(p1, f1));
+            blocks.add(new PlannedBlock(p2, f2));
         }
         for (int z = 0; z < depth; z++) {
-            blocks.add(new PlannedBlock(origin.add(0, 0, z), foundation));
-            blocks.add(new PlannedBlock(origin.add(width - 1, 0, z), foundation));
+            BlockPos p1 = origin.add(0, 0, z);
+            BlockPos p2 = origin.add(width - 1, 0, z);
+            BlockState f1 = foundation;
+            BlockState f2 = foundation;
+            if (paletteId != null && !paletteId.isBlank()) {
+                f1 = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p1, (z * 31L) ^ 0xD00D, foundation);
+                f2 = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p2, (z * 31L) ^ 0xF00D, foundation);
+            }
+            blocks.add(new PlannedBlock(p1, f1));
+            blocks.add(new PlannedBlock(p2, f2));
         }
 
         // 2.2 转角柱（四角贯穿到檐口）
@@ -209,21 +236,25 @@ public class HouseGenerator implements StructureGenerator {
                     if (isEdgeX || isEdgeZ) {
                         BlockPos pos = origin.add(x, y, z);
 
-                        // 门位置逻辑（根据 doorStyle）
-                        if (hasDoor && z == 0) {
-                            // 单门：width/2；双门：width/2 与 width/2-1；拱门：同双门但上方更高留空
-                            boolean doorX = (doorStyle.equalsIgnoreCase("double") || doorStyle.equalsIgnoreCase("arched"))
-                                    ? (x == width / 2 || x == width / 2 - 1)
-                                    : (x == width / 2);
-                            if (doorX) {
+                        // 门位置逻辑（根据 doorStyle + doorSide）
+                        if (hasDoor && isDoorEdge(doorSide, x, z, width, depth)) {
+                            // 单门：居中；双门/拱门：两格门洞
+                            boolean onNorthSouth = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+                            int center = onNorthSouth ? (width / 2) : (depth / 2);
+                            boolean doorAxis = (doorStyle.equalsIgnoreCase("double") || doorStyle.equalsIgnoreCase("arched"))
+                                    ? ((onNorthSouth ? x : z) == center || (onNorthSouth ? x : z) == center - 1)
+                                    : ((onNorthSouth ? x : z) == center);
+                            if (doorAxis) {
+                                // choose hinge side based on axis position (best-effort)
+                                boolean leftSide = ((onNorthSouth ? x : z) < center);
                                 if (y == 0) {
                                     // 放门（下半）
-                                    blocks.add(new PlannedBlock(pos, withDoorState(doorLower, DoubleBlockHalf.LOWER, x < width / 2)));
+                                    blocks.add(new PlannedBlock(pos, withDoorState(doorLower, DoubleBlockHalf.LOWER, leftSide, doorSide)));
                                     continue;
                                 }
                                 if (y == 1) {
                                     // 放门（上半）
-                                    blocks.add(new PlannedBlock(pos, withDoorState(doorLower, DoubleBlockHalf.UPPER, x < width / 2)));
+                                    blocks.add(new PlannedBlock(pos, withDoorState(doorLower, DoubleBlockHalf.UPPER, leftSide, doorSide)));
                                     continue;
                                 }
                                 if (doorStyle.equalsIgnoreCase("arched") && y == 2) {
@@ -254,8 +285,8 @@ public class HouseGenerator implements StructureGenerator {
                             if (inWindowBand) {
                                 boolean preferSymmetry = (profile != null && profile.rules() != null && profile.rules().preferSymmetry);
                                 boolean shouldPlaceWindow = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth);
-                                // 避免在门附近开窗
-                                boolean nearDoor = (z == 0) && (x == width / 2 || x == width / 2 - 1);
+                                // 避免在门附近开窗（门所在边 + 附近轴线）
+                                boolean nearDoor = isNearDoor(doorSide, x, z, width, depth);
                                 if (shouldPlaceWindow && !nearDoor) {
                                     blocks.add(new PlannedBlock(pos, windowBlock));
                                     // 窗套/窗框（v1）：
@@ -298,6 +329,11 @@ public class HouseGenerator implements StructureGenerator {
 
                         // 墙体花纹（striped/gradient/random）
                         BlockState wallToUse = applyWallPattern(wall, trim, foundation, wallPattern, y, height);
+                        // Palette override only for "base wall" material; do not touch trim/foundation/pillars/windows/doors.
+                        if (paletteId != null && !paletteId.isBlank() && wallToUse == wall) {
+                            long salt = (x * 1315423911L) ^ (z * 2654435761L) ^ (y * 97531L);
+                            wallToUse = PaletteResolver.pick(world, paletteId, "WALL_BASE", pos, salt, wallToUse);
+                        }
 
                         // 普通墙
                         blocks.add(new PlannedBlock(pos, wallToUse));
@@ -321,7 +357,13 @@ public class HouseGenerator implements StructureGenerator {
 
             for (int x = 1; x < width - 1; x++) {
                 for (int z = 1; z < depth - 1; z++) {
-                    blocks.add(new PlannedBlock(origin.add(x, y0, z), floor));
+                    BlockPos fp = origin.add(x, y0, z);
+                    BlockState fl = floor;
+                    if (paletteId != null && !paletteId.isBlank()) {
+                        long salt = (x * 31L) ^ (z * 17L) ^ (y0 * 13L);
+                        fl = PaletteResolver.pick(world, paletteId, "FLOORING", fp, salt, floor);
+                    }
+                    blocks.add(new PlannedBlock(fp, fl));
                 }
             }
 
@@ -460,18 +502,49 @@ public class HouseGenerator implements StructureGenerator {
         }
 
         // -------------------------------------
-        // 4.5 门口装饰（火把/墙灯）
+        // 4.5 门口/围墙照明（可由 extra.features 控制）
         // -------------------------------------
         if (hasDoor) {
-            int dx = width / 2;
-            // 贴墙火把（更稳定，不需要额外支撑）
-            BlockState wallTorch = Blocks.WALL_TORCH.getDefaultState();
-            if (wallTorch.contains(Properties.HORIZONTAL_FACING)) {
-                wallTorch = wallTorch.with(Properties.HORIZONTAL_FACING, Direction.SOUTH);
+            String lightingMode = "door";     // none | door | perimeter
+            String lightingType = "torch";    // torch | lantern
+            int lightingSpacing = 6;          // only used for perimeter
+            boolean banner = false;           // door banners / crests
+            String bannerColor = "red";       // red/black/white/blue...
+            if (spec.getExtra() != null) {
+                Object lm = spec.getExtra().get("lighting");
+                Object lt = spec.getExtra().get("lightingType");
+                Object ls = spec.getExtra().get("lightingSpacing");
+                Object bn = spec.getExtra().get("banner");
+                Object bc = spec.getExtra().get("bannerColor");
+                if (lm != null) lightingMode = String.valueOf(lm).trim().toLowerCase();
+                if (lt != null) lightingType = String.valueOf(lt).trim().toLowerCase();
+                if (ls != null) {
+                    try {
+                        int v = (ls instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(ls).trim());
+                        lightingSpacing = Math.max(2, Math.min(12, v));
+                    } catch (Exception ignored) {}
+                }
+                if (bn instanceof Boolean b) banner = b;
+                else if (bn != null) {
+                    String s = String.valueOf(bn).trim().toLowerCase();
+                    if (!s.isEmpty()) banner = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
+                }
+                if (bc != null) {
+                    String s = String.valueOf(bc).trim().toLowerCase();
+                    if (!s.isEmpty()) bannerColor = s;
+                }
             }
-            int y = 2;
-            blocks.add(new PlannedBlock(origin.add(dx - 2, y, 0), wallTorch));
-            if (dx + 2 <= width - 2) blocks.add(new PlannedBlock(origin.add(dx + 2, y, 0), wallTorch));
+
+            if (!"none".equals(lightingMode)) {
+                addDoorLighting(blocks, origin, width, depth, foundation, doorSide, lightingType);
+                if ("perimeter".equals(lightingMode)) {
+                    addPerimeterLighting(blocks, origin, width, depth, doorSide, lightingType, lightingSpacing);
+                }
+            }
+
+            if (banner) {
+                addDoorBanners(blocks, origin, width, depth, doorSide, bannerColor, world);
+            }
         }
 
         // -------------------------------------
@@ -546,10 +619,10 @@ public class HouseGenerator implements StructureGenerator {
         return state;
     }
 
-    private static BlockState withDoorState(BlockState door, DoubleBlockHalf half, boolean leftSide) {
+    private static BlockState withDoorState(BlockState door, DoubleBlockHalf half, boolean leftSide, Direction facing) {
         BlockState s = door;
         try {
-            if (s.contains(Properties.HORIZONTAL_FACING)) s = s.with(Properties.HORIZONTAL_FACING, Direction.NORTH);
+            if (s.contains(Properties.HORIZONTAL_FACING)) s = s.with(Properties.HORIZONTAL_FACING, facing != null ? facing : Direction.NORTH);
         } catch (Throwable ignored) {}
         try {
             if (s.contains(Properties.DOUBLE_BLOCK_HALF)) s = s.with(Properties.DOUBLE_BLOCK_HALF, half);
@@ -561,6 +634,177 @@ public class HouseGenerator implements StructureGenerator {
             }
         } catch (Throwable ignored) {}
         return s;
+    }
+
+    private static void addDoorLighting(List<PlannedBlock> blocks, BlockPos origin, int width, int depth, BlockState foundation,
+                                        Direction doorSide, String lightingType) {
+        // Two lights flanking the door, placed without overwriting wall blocks.
+        boolean onNorthSouth = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        int center = onNorthSouth ? (width / 2) : (depth / 2);
+        int y = 2;
+
+        // positions in the "air" adjacent to the wall: inside by default for wall torches, outside posts for lanterns
+        int off = 2;
+        int a0 = center - off;
+        int a1 = center + off;
+        if (onNorthSouth) {
+            a0 = Math.max(2, Math.min(width - 3, a0));
+            a1 = Math.max(2, Math.min(width - 3, a1));
+        } else {
+            a0 = Math.max(2, Math.min(depth - 3, a0));
+            a1 = Math.max(2, Math.min(depth - 3, a1));
+        }
+
+        if ("lantern".equals(lightingType)) {
+            // Outside posts: foundation base + fence + lantern
+            placeLanternPost(blocks, origin, foundation, doorSide, a0, y, width, depth);
+            if (a1 != a0) placeLanternPost(blocks, origin, foundation, doorSide, a1, y, width, depth);
+        } else {
+            // Wall torch: place at inside air cell and face toward the wall block.
+            BlockState wallTorch = Blocks.WALL_TORCH.getDefaultState();
+            wallTorch = withFacingIfPossible(wallTorch, doorSide);
+            BlockPos p0 = doorTorchPos(origin, doorSide, a0, y, width, depth);
+            blocks.add(new PlannedBlock(p0, wallTorch));
+            if (a1 != a0) {
+                BlockPos p1 = doorTorchPos(origin, doorSide, a1, y, width, depth);
+                blocks.add(new PlannedBlock(p1, wallTorch));
+            }
+        }
+    }
+
+    private static void addPerimeterLighting(List<PlannedBlock> blocks, BlockPos origin, int width, int depth,
+                                            Direction doorSide, String lightingType, int spacing) {
+        // MVP: perimeter lighting only for torches (lantern perimeter is more intrusive and terrain-sensitive).
+        if (!"torch".equals(lightingType)) return;
+        BlockState wallTorch = Blocks.WALL_TORCH.getDefaultState();
+        int y = 2;
+
+        // north wall (inside z=1, facing NORTH to attach to z=0)
+        wallTorch = withFacingIfPossible(wallTorch, Direction.NORTH);
+        for (int x = 2; x <= width - 3; x += spacing) {
+            if (doorSide == Direction.NORTH && isNearDoor(Direction.NORTH, x, 0, width, depth)) continue;
+            blocks.add(new PlannedBlock(origin.add(x, y, 1), wallTorch));
+        }
+        // south wall (inside z=depth-2, facing SOUTH)
+        wallTorch = withFacingIfPossible(Blocks.WALL_TORCH.getDefaultState(), Direction.SOUTH);
+        for (int x = 2; x <= width - 3; x += spacing) {
+            if (doorSide == Direction.SOUTH && isNearDoor(Direction.SOUTH, x, depth - 1, width, depth)) continue;
+            blocks.add(new PlannedBlock(origin.add(x, y, depth - 2), wallTorch));
+        }
+        // west wall (inside x=1, facing WEST)
+        wallTorch = withFacingIfPossible(Blocks.WALL_TORCH.getDefaultState(), Direction.WEST);
+        for (int z = 2; z <= depth - 3; z += spacing) {
+            if (doorSide == Direction.WEST && isNearDoor(Direction.WEST, 0, z, width, depth)) continue;
+            blocks.add(new PlannedBlock(origin.add(1, y, z), wallTorch));
+        }
+        // east wall (inside x=width-2, facing EAST)
+        wallTorch = withFacingIfPossible(Blocks.WALL_TORCH.getDefaultState(), Direction.EAST);
+        for (int z = 2; z <= depth - 3; z += spacing) {
+            if (doorSide == Direction.EAST && isNearDoor(Direction.EAST, width - 1, z, width, depth)) continue;
+            blocks.add(new PlannedBlock(origin.add(width - 2, y, z), wallTorch));
+        }
+    }
+
+    private static BlockPos doorTorchPos(BlockPos origin, Direction doorSide, int axis, int y, int width, int depth) {
+        return switch (doorSide) {
+            case NORTH -> origin.add(axis, y, 1);
+            case SOUTH -> origin.add(axis, y, depth - 2);
+            case WEST -> origin.add(1, y, axis);
+            case EAST -> origin.add(width - 2, y, axis);
+            default -> origin.add(axis, y, 1);
+        };
+    }
+
+    private static void placeLanternPost(List<PlannedBlock> blocks, BlockPos origin, BlockState foundation,
+                                         Direction doorSide, int axis, int lanternY, int width, int depth) {
+        // outside coordinate (just outside wall), with a small post and lantern
+        BlockPos base = switch (doorSide) {
+            case NORTH -> origin.add(axis, 0, -1);
+            case SOUTH -> origin.add(axis, 0, depth);
+            case WEST -> origin.add(-1, 0, axis);
+            case EAST -> origin.add(width, 0, axis);
+            default -> origin.add(axis, 0, -1);
+        };
+        blocks.add(new PlannedBlock(base, foundation));
+        blocks.add(new PlannedBlock(base.up(), Blocks.OAK_FENCE.getDefaultState()));
+        blocks.add(new PlannedBlock(base.up(2), Blocks.LANTERN.getDefaultState()));
+    }
+
+    private static void addDoorBanners(List<PlannedBlock> blocks, BlockPos origin, int width, int depth,
+                                       Direction doorSide, String bannerColor, ServerWorld world) {
+        // Place 1-2 wall banners on the inside face near the door side, attached to the wall.
+        boolean onNorthSouth = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        int center = onNorthSouth ? (width / 2) : (depth / 2);
+        int y = 3;
+        int off = 3;
+        int a0 = center - off;
+        int a1 = center + off;
+        if (onNorthSouth) {
+            a0 = Math.max(2, Math.min(width - 3, a0));
+            a1 = Math.max(2, Math.min(width - 3, a1));
+        } else {
+            a0 = Math.max(2, Math.min(depth - 3, a0));
+            a1 = Math.max(2, Math.min(depth - 3, a1));
+        }
+
+        String id = "minecraft:red_wall_banner";
+        if (bannerColor != null && !bannerColor.isBlank()) {
+            String c = bannerColor.trim().toLowerCase();
+            // keep it safe: only allow a small set of common colors (fallback to red)
+            if (c.matches("^[a-z_]{3,20}$")) {
+                id = "minecraft:" + c + "_wall_banner";
+            }
+        }
+        // Use red wool as safe fallback when banner blocks are not available / id invalid.
+        BlockState banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, id);
+        if (banner == null) banner = Blocks.RED_WOOL.getDefaultState();
+        banner = withFacingIfPossible(banner, doorSide);
+
+        BlockPos p0 = doorTorchPos(origin, doorSide, a0, y, width, depth);
+        blocks.add(new PlannedBlock(p0, banner));
+        if (a1 != a0) {
+            BlockPos p1 = doorTorchPos(origin, doorSide, a1, y, width, depth);
+            blocks.add(new PlannedBlock(p1, banner));
+        }
+    }
+
+    private static Direction resolveDoorSide(BuildingSpec spec) {
+        if (spec == null || spec.getExtra() == null) return Direction.NORTH;
+        Object v = spec.getExtra().get("doorSide");
+        if (v == null) v = spec.getExtra().get("facing"); // tolerate reuse of facing as "front side"
+        if (v == null) return Direction.NORTH;
+        String s = String.valueOf(v).trim().toUpperCase();
+        return switch (s) {
+            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
+            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
+            case "E", "EAST", "东", "朝东" -> Direction.EAST;
+            case "W", "WEST", "西", "朝西" -> Direction.WEST;
+            default -> Direction.NORTH;
+        };
+    }
+
+    private static boolean isDoorEdge(Direction doorSide, int x, int z, int width, int depth) {
+        if (doorSide == null) return (z == 0);
+        return switch (doorSide) {
+            case NORTH -> z == 0;
+            case SOUTH -> z == depth - 1;
+            case WEST -> x == 0;
+            case EAST -> x == width - 1;
+            default -> z == 0;
+        };
+    }
+
+    private static boolean isNearDoor(Direction doorSide, int x, int z, int width, int depth) {
+        int cx = width / 2;
+        int cz = depth / 2;
+        if (doorSide == null) doorSide = Direction.NORTH;
+        return switch (doorSide) {
+            case NORTH -> (z == 0) && (x == cx || x == cx - 1);
+            case SOUTH -> (z == depth - 1) && (x == cx || x == cx - 1);
+            case WEST -> (x == 0) && (z == cz || z == cz - 1);
+            case EAST -> (x == width - 1) && (z == cz || z == cz - 1);
+            default -> (z == 0) && (x == cx || x == cx - 1);
+        };
     }
 
     private static BlockState applyWallPattern(BlockState wall, BlockState trim, BlockState foundation, String pattern, int y, int height) {

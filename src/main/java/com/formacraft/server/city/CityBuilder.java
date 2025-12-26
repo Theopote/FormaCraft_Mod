@@ -889,8 +889,8 @@ public class CityBuilder {
             if (zt.isEmpty()) continue;
             Object a0 = sm.get("anchor");
             if (!(a0 instanceof java.util.Map<?, ?> am)) continue;
-            int ax = parseIntOrDef(am.get("x"), 0);
-            int az = parseIntOrDef(am.get("z"), 0);
+            int ax = parseIntOrDef(am.get("x"));
+            int az = parseIntOrDef(am.get("z"));
             out.putIfAbsent(zt, new BlockPos(ax, 0, az));
         }
         return out.isEmpty() ? null : java.util.Collections.unmodifiableMap(out);
@@ -935,9 +935,9 @@ public class CityBuilder {
             Object a0 = sm.get("anchor");
             if (!(a0 instanceof java.util.Map<?, ?>)) continue; // anchor required, but we don't consume it in this v0 parser
 
-            int w = parseIntOrDef(sm.get("width"), 0);
-            int d = parseIntOrDef(sm.get("depth"), 0);
-            int r = parseIntOrDef(sm.get("radius"), 0);
+            int w = parseIntOrDef(sm.get("width"));
+            int d = parseIntOrDef(sm.get("depth"));
+            int r = parseIntOrDef(sm.get("radius"));
 
             out.put(zt, new SkeletonNodeInfo(shape, w, d, r));
         }
@@ -994,12 +994,12 @@ public class CityBuilder {
                 Object a0 = pts.get(i);
                 Object b0 = pts.get(i + 1);
                 if (!(a0 instanceof java.util.Map<?, ?> am) || !(b0 instanceof java.util.Map<?, ?> bm)) continue;
-                int ax = parseIntOrDef(am.get("x"), 0);
-                int ay = parseIntOrDef(am.get("y"), 0);
-                int az = parseIntOrDef(am.get("z"), 0);
-                int bx = parseIntOrDef(bm.get("x"), 0);
-                int by = parseIntOrDef(bm.get("y"), 0);
-                int bz = parseIntOrDef(bm.get("z"), 0);
+                int ax = parseIntOrDef(am.get("x"));
+                int ay = parseIntOrDef(am.get("y"));
+                int az = parseIntOrDef(am.get("z"));
+                int bx = parseIntOrDef(bm.get("x"));
+                int by = parseIntOrDef(bm.get("y"));
+                int bz = parseIntOrDef(bm.get("z"));
 
                 PathSpec road = new PathSpec();
                 road.setId("sk_road_" + (id++));
@@ -1014,15 +1014,15 @@ public class CityBuilder {
         return out;
     }
 
-    private static int parseIntOrDef(Object v, int def) {
-        if (v == null) return def;
+    private static int parseIntOrDef(Object v) {
+        if (v == null) return 0;
         try {
             if (v instanceof Number n) return n.intValue();
             String s = String.valueOf(v).trim();
-            if (s.isEmpty()) return def;
+            if (s.isEmpty()) return 0;
             return Integer.parseInt(s);
         } catch (Exception ignored) {
-            return def;
+            return 0;
         }
     }
 }

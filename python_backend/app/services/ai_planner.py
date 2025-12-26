@@ -111,6 +111,9 @@ def _build_system_prompt() -> str:
         "\nStyle gene library (optional, strongly recommended when user requests a specific architectural vibe):\n"
         "- You MAY set extra.styleProfileId to pick a fine-grained style profile (data-driven).\n"
         "- If set, it should be a string id from the StyleProfileCatalog provided in the user prompt.\n"
+        "\nBlueprint mode (advanced, optional):\n"
+        "- For complex structures like CASTLE compounds, you MAY include extra.blueprint as a semantic component blueprint.\n"
+        "- extra.blueprint MUST be valid JSON (no comments) and should include: overall_dimensions{x,z,height_max}, components[].\n"
     )
 
 
@@ -138,10 +141,13 @@ def _build_user_prompt(req: BuildRequest) -> str:
 
     # Provide data-driven style profile candidates (multiple-choice), so the model can set extra.styleProfileId deterministically.
     try:
-        from app.services.style_profile_registry import catalog_prompt_block
+        from app.services.style_profile_registry import catalog_prompt_block, palette_prompt_block
         block = catalog_prompt_block(max_items=30)
         if block:
             parts.append("\n" + block)
+        pblock = palette_prompt_block(max_items=30)
+        if pblock:
+            parts.append("\n" + pblock)
     except Exception:
         pass
     
@@ -1322,6 +1328,108 @@ def _generate_castle_compound_building_spec(req: BuildRequest) -> BuildingSpec:
             "pathWidth": int(path_width),
         },
     )
+
+
+def _try_generate_castle_blueprint(req: BuildRequest, spec: BuildingSpec) -> None:
+    """
+    Best-effort: ask LLM for a semantic component blueprint and attach to spec.extra.blueprint.
+    Never throws; if anything fails, we keep deterministic castle_compound behavior.
+    """
+    try:
+        client = get_client(req)
+        if not client:
+            return
+        if spec is None:
+            return
+        if spec.extra is None:
+            spec.extra = {}
+        # Don't clobber user-provided blueprint
+        if "blueprint" in spec.extra and spec.extra.get("blueprint") is not None:
+            return
+
+        w = 48
+        d = 36
+        try:
+            if spec.footprint and spec.footprint.width:
+                w = int(spec.footprint.width)
+            if spec.footprint and spec.footprint.depth:
+                d = int(spec.footprint.depth)
+        except Exception:
+            pass
+        facing = str((spec.extra or {}).get("facing") or "SOUTH")
+
+        system_prompt = (
+            "You are FormaCraft Blueprint Planner.\n"
+            "Your job is to output a semantic component blueprint for a CASTLE compound.\n"
+            "IMPORTANT:\n"
+            "- Output MUST be valid JSON only. No markdown. No comments. No extra keys.\n"
+            "- Coordinate system: CORNER (x,z start at 0..overall_dimensions.x/z).\n"
+            "- For CUBOID components (KEEP), relative_position is the MIN CORNER.\n"
+            "- For CYLINDER components (TOWER), relative_position is the MIN CORNER of its bounding box.\n"
+            "- For BOX_FRAME (WALL_CONNECTOR), relative_position is the MIN CORNER of the frame.\n\n"
+            "SCHEMA:\n"
+            "{\n"
+            '  "project_name": "string",\n'
+            '  "coordinate_system": "CORNER",\n'
+            '  "overall_dimensions": {"x": int, "z": int, "height_max": int},\n'
+            '  "gate": {"side": "NORTH|SOUTH|EAST|WEST", "width": int},\n'
+            '  "components": [\n'
+            "    {\n"
+            '      "type": "KEEP|GATEHOUSE|TOWER|WALL_CONNECTOR",\n'
+            '      "shape": "CUBOID|CYLINDER|BOX_FRAME",\n'
+            '      "relative_position": {"x": int, "y": int, "z": int},\n'
+            '      "dimensions": {"width": int, "depth": int, "height": int} OR {"diameter": int, "height": int},\n'
+             '      "features": {"battlements": bool, "flag": bool, "arches": bool, "banner": bool, "bannerColor": "red|black|white|blue|green", "lighting": "none|door|perimeter", "lightingType": "torch|lantern", "spacing": int} OR []\n'
+            "    }\n"
+            "  ]\n"
+            "}\n"
+        )
+
+        user_prompt = (
+            f"Request: {req.requestText}\n"
+            f"Desired overall footprint: {w}x{d}\n"
+            f"Facing (gate side): {facing}\n"
+            "Make a reasonable medieval castle compound layout:\n"
+            "- gate.side must match the facing (gate side)\n"
+            "- include a central KEEP\n"
+            "- include a GATEHOUSE just inside the gate opening\n"
+            "- include four corner TOWERs\n"
+            "- include one WALL_CONNECTOR box_frame that represents the perimeter wall rectangle (same overall footprint)\n"
+        )
+
+        model = _resolve_model(req, "gpt-4o-mini")
+        timeout_sec = _resolve_timeout_sec_for_task("building", req, model)
+        response = _call_with_timeout(
+            lambda: client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=_clamp_temperature(getattr(req, "temperature", None), 0.2),
+            ),
+            timeout_sec,
+        )
+        raw = response.choices[0].message.content
+        if not raw:
+            return
+        data = json.loads(raw)
+        # basic cleanup: strip any accidental comment-like keys
+        if isinstance(data, dict):
+            if "components" in data and isinstance(data["components"], list):
+                cleaned = []
+                for c in data["components"]:
+                    if isinstance(c, dict):
+                        c2 = {k: v for k, v in c.items() if not str(k).startswith("//")}
+                        cleaned.append(c2)
+                data["components"] = cleaned
+        spec.extra["blueprint"] = data
+        # Recommend a fitting palette if user didn't set one.
+        if "paletteId" not in spec.extra:
+            spec.extra["paletteId"] = "PALETTE_STONE_FORTRESS_A"
+    except Exception:
+        return
 
 
 def _should_use_office_district_template(req: Optional[BuildRequest]) -> bool:
@@ -2980,6 +3088,8 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
             spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
         except Exception:
             pass
+        # Best-effort blueprint augmentation: lets LLM describe semantic components without direct blocks.
+        _try_generate_castle_blueprint(req, spec)
         return spec
 
     if arche is not None and arche.id == "office_district" and strong:

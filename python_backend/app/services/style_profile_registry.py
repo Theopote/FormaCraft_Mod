@@ -108,3 +108,39 @@ def catalog_prompt_block(max_items: int = 30) -> str:
     return "\n".join(lines)
 
 
+def palette_prompt_block(max_items: int = 30) -> str:
+    """
+    Provide palette candidates (weighted block palettes) for semantic-part-driven generators.
+    """
+    # Palette catalog is currently stored in the Java resources tree; load it similarly.
+    repo_root = Path(__file__).resolve().parents[3]
+    p = (
+        repo_root
+        / "src"
+        / "main"
+        / "resources"
+        / "assets"
+        / "formacraft"
+        / "palettes"
+        / "palette_catalog_v1.json"
+    )
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        palettes = raw.get("palettes") or {}
+        if not palettes:
+            return ""
+        ids = sorted([str(k) for k in palettes.keys()])
+        ids = ids[: max(1, max_items)]
+        lines: List[str] = []
+        lines.append("PaletteCatalog (optional): choose at most ONE paletteId when you want material variation/aging.")
+        for pid in ids:
+            meta = (palettes.get(pid) or {}).get("meta") or {}
+            dn = str(meta.get("display_name") or "")
+            tags = ",".join(list(meta.get("tags") or []))
+            lines.append(f"- {pid} | {dn} | tags=[{tags}]")
+        lines.append("If you choose one, set: extra.paletteId = <palette_id> (string).")
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+

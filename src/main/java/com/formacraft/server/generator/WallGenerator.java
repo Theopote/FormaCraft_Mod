@@ -3,6 +3,7 @@ package com.formacraft.server.generator;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -32,13 +33,23 @@ public class WallGenerator implements StructureGenerator {
 
         // 获取材质
         BlockState wallBlock = getState(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null);
+        String paletteId = null;
+        if (spec.getExtra() != null) {
+            Object pid = spec.getExtra().get("paletteId");
+            if (pid != null) paletteId = String.valueOf(pid).trim();
+        }
 
         // 生成城墙（沿 Z 轴延伸）
         for (int z = 0; z < length; z++) {
             for (int t = 0; t < thickness; t++) {
                 for (int y = 0; y < height; y++) {
                     BlockPos pos = origin.add(t, y, z);
-                    blocks.add(new PlannedBlock(pos, wallBlock));
+                    BlockState st = wallBlock;
+                    if (paletteId != null && !paletteId.isBlank()) {
+                        long salt = (t * 31L) ^ (y * 17L) ^ (z * 13L);
+                        st = PaletteResolver.pick(world, paletteId, "WALL_BASE", pos, salt, wallBlock);
+                    }
+                    blocks.add(new PlannedBlock(pos, st));
                 }
             }
         }

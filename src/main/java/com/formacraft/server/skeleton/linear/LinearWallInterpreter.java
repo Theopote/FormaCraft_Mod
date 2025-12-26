@@ -3,6 +3,7 @@ package com.formacraft.server.skeleton.linear;
 import com.formacraft.common.skeleton.linear.LinearPathPlan;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -30,14 +31,20 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
     private final BlockState walkway;
     private final BlockState crenel;
     private final BlockState tower;
+    private final String paletteId;
 
     public LinearWallInterpreter(BlockState wall, BlockState accent, boolean mixWallBlocks, BlockState walkway, BlockState crenel, BlockState tower) {
+        this(wall, accent, mixWallBlocks, walkway, crenel, tower, null);
+    }
+
+    public LinearWallInterpreter(BlockState wall, BlockState accent, boolean mixWallBlocks, BlockState walkway, BlockState crenel, BlockState tower, String paletteId) {
         this.wall = wall;
         this.accent = accent;
         this.mixWallBlocks = mixWallBlocks;
         this.walkway = walkway;
         this.crenel = crenel;
         this.tower = tower;
+        this.paletteId = paletteId;
     }
 
     @Override
@@ -76,7 +83,7 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
                 int tz = rz * t;
                 for (int y = 0; y < segHeight; y++) {
                     BlockPos bp = new BlockPos(p.getX() + tx, baseY + y, p.getZ() + tz);
-                    if (BuildConstraintContext.allow(bp)) blocks.add(new PlannedBlock(bp, pickWallBlock(i, y, t)));
+                    if (BuildConstraintContext.allow(bp)) blocks.add(new PlannedBlock(bp, pickWallBlock(world, i, y, t, bp)));
                 }
             }
 
@@ -105,8 +112,18 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
         return blocks;
     }
 
-    private BlockState pickWallBlock(int i, int y, int t) {
-        if (!mixWallBlocks) return wall;
+    private BlockState pickWallBlock(ServerWorld world, int i, int y, int t, BlockPos pos) {
+        // If a paletteId is provided, let palette drive the wall base variation.
+        if (paletteId != null && !paletteId.isBlank()) {
+            // Salt: keep stable across ticks; incorporate segment+layer
+            long salt = (i * 1315423911L) ^ (y * 2654435761L) ^ (t * 97531L);
+            BlockState fallback = mixWallBlocks ? pickWallBlockLegacy(i, y, t) : wall;
+            return PaletteResolver.pick(world, paletteId, "WALL_BASE", pos, salt, fallback);
+        }
+        return mixWallBlocks ? pickWallBlockLegacy(i, y, t) : wall;
+    }
+
+    private BlockState pickWallBlockLegacy(int i, int y, int t) {
         int h = (i * 31 + y * 17 + t * 13);
         if ((h % 23) == 0) return accent;
         return wall;

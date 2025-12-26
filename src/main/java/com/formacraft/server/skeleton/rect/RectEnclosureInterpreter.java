@@ -3,6 +3,7 @@ package com.formacraft.server.skeleton.rect;
 import com.formacraft.common.skeleton.rect.RectEnclosurePlan;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -25,6 +26,7 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
     private final int capOverhang;
     private final BlockState gatePillar;
     private final boolean openArcadeGate;
+    private final String paletteId;
 
     public RectEnclosureInterpreter(BlockState wall, BlockState cap) {
         this.wall = wall;
@@ -34,6 +36,7 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         this.capOverhang = 0;
         this.gatePillar = wall;
         this.openArcadeGate = false;
+        this.paletteId = null;
     }
 
     /**
@@ -48,6 +51,7 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         this.capOverhang = 0;
         this.gatePillar = gatePillar != null ? gatePillar : wall;
         this.openArcadeGate = openArcadeGate;
+        this.paletteId = null;
     }
 
     /**
@@ -62,6 +66,7 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         this.capOverhang = 0;
         this.gatePillar = gatePillar != null ? gatePillar : wall;
         this.openArcadeGate = openArcadeGate;
+        this.paletteId = null;
     }
 
     /**
@@ -78,6 +83,23 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         this.capOverhang = Math.max(0, Math.min(1, capOverhang));
         this.gatePillar = gatePillar != null ? gatePillar : wall;
         this.openArcadeGate = openArcadeGate;
+        this.paletteId = null;
+    }
+
+    /**
+     * Palette-aware constructor (v4):
+     * - If paletteId is present, wall blocks are picked from semantic part WALL_BASE with weighted randomness (deterministic per position).
+     */
+    public RectEnclosureInterpreter(BlockState wall, BlockState cap, BlockState cap2, int capLayers, int capOverhang,
+                                    BlockState gatePillar, boolean openArcadeGate, String paletteId) {
+        this.wall = wall;
+        this.cap = cap;
+        this.cap2 = cap2 != null ? cap2 : cap;
+        this.capLayers = Math.max(1, Math.min(3, capLayers));
+        this.capOverhang = Math.max(0, Math.min(1, capOverhang));
+        this.gatePillar = gatePillar != null ? gatePillar : wall;
+        this.openArcadeGate = openArcadeGate;
+        this.paletteId = (paletteId == null || paletteId.isBlank()) ? null : paletteId.trim();
     }
 
     @Override
@@ -90,11 +112,11 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         int halfW = w / 2;
         int halfD = d / 2;
 
-        int gateW = Math.max(1, plan.gateWidth);
+        int gateW = Math.max(0, plan.gateWidth);
         int gateHalf = gateW / 2;
 
         List<PlannedBlock> blocks = new ArrayList<>(Math.max(2000, (w + d) * h * t));
-        int gateClearH = Math.min(h, openArcadeGate ? 4 : 2); // how tall the opening is carved
+        int gateClearH = (gateW <= 0) ? 0 : Math.min(h, openArcadeGate ? 4 : 2); // how tall the opening is carved
 
         // perimeter bands at thickness t
         for (int layer = 0; layer < t; layer++) {
@@ -105,13 +127,13 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
 
             // north/south edges (z fixed)
             for (int x = xMin; x <= xMax; x++) {
-                placeWallColumn(blocks, origin, x, zMin, h, gateClearH, plan, gateHalf); // north
-                placeWallColumn(blocks, origin, x, zMax, h, gateClearH, plan, gateHalf); // south
+                placeWallColumn(blocks, origin, world, x, zMin, h, gateClearH, plan, gateHalf); // north
+                placeWallColumn(blocks, origin, world, x, zMax, h, gateClearH, plan, gateHalf); // south
             }
             // west/east edges (x fixed)
             for (int z = zMin; z <= zMax; z++) {
-                placeWallColumn(blocks, origin, xMin, z, h, gateClearH, plan, gateHalf); // west
-                placeWallColumn(blocks, origin, xMax, z, h, gateClearH, plan, gateHalf); // east
+                placeWallColumn(blocks, origin, world, xMin, z, h, gateClearH, plan, gateHalf); // west
+                placeWallColumn(blocks, origin, world, xMax, z, h, gateClearH, plan, gateHalf); // east
             }
         }
 
@@ -155,12 +177,79 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
             }
         }
 
+        // battlements (crenels) on top edge (optional)
+        if (plan.battlements) {
+            int by = h + 1;
+            int spacing = Math.max(1, plan.battlementSpacing);
+            BlockState crenel = Blocks.STONE_BRICK_WALL.getDefaultState();
+
+            // Use outer perimeter (layer=0) for crenels
+            int xMin = -halfW;
+            int xMax = halfW;
+            int zMin = -halfD;
+            int zMax = halfD;
+
+            int idx = 0;
+            // north edge
+            for (int x = xMin; x <= xMax; x++) {
+                if ((idx++ % spacing) != 0) continue;
+                if (plan.gateWidth > 0 && isGateOpening(x, zMin, plan, gateHalf)) continue;
+                BlockPos p = origin.add(x, by, zMin);
+                if (!BuildConstraintContext.allow(p)) continue;
+                BlockState st = crenel;
+                if (paletteId != null) {
+                    long salt = (x * 31L) ^ (zMin * 17L) ^ (by * 13L);
+                    st = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p, salt, crenel);
+                }
+                blocks.add(new PlannedBlock(p, st));
+            }
+            // south edge
+            for (int x = xMin; x <= xMax; x++) {
+                if ((idx++ % spacing) != 0) continue;
+                if (plan.gateWidth > 0 && isGateOpening(x, zMax, plan, gateHalf)) continue;
+                BlockPos p = origin.add(x, by, zMax);
+                if (!BuildConstraintContext.allow(p)) continue;
+                BlockState st = crenel;
+                if (paletteId != null) {
+                    long salt = (x * 31L) ^ (zMax * 17L) ^ (by * 13L);
+                    st = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p, salt, crenel);
+                }
+                blocks.add(new PlannedBlock(p, st));
+            }
+            // west edge
+            for (int z = zMin; z <= zMax; z++) {
+                if ((idx++ % spacing) != 0) continue;
+                if (plan.gateWidth > 0 && isGateOpening(xMin, z, plan, gateHalf)) continue;
+                BlockPos p = origin.add(xMin, by, z);
+                if (!BuildConstraintContext.allow(p)) continue;
+                BlockState st = crenel;
+                if (paletteId != null) {
+                    long salt = (xMin * 31L) ^ (z * 17L) ^ (by * 13L);
+                    st = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p, salt, crenel);
+                }
+                blocks.add(new PlannedBlock(p, st));
+            }
+            // east edge
+            for (int z = zMin; z <= zMax; z++) {
+                if ((idx++ % spacing) != 0) continue;
+                if (plan.gateWidth > 0 && isGateOpening(xMax, z, plan, gateHalf)) continue;
+                BlockPos p = origin.add(xMax, by, z);
+                if (!BuildConstraintContext.allow(p)) continue;
+                BlockState st = crenel;
+                if (paletteId != null) {
+                    long salt = (xMax * 31L) ^ (z * 17L) ^ (by * 13L);
+                    st = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p, salt, crenel);
+                }
+                blocks.add(new PlannedBlock(p, st));
+            }
+        }
+
         return blocks;
     }
 
-    private void placeWallColumn(List<PlannedBlock> blocks, BlockPos origin, int x, int z, int h, int gateClearH,
+    private void placeWallColumn(List<PlannedBlock> blocks, BlockPos origin, ServerWorld world, int x, int z, int h, int gateClearH,
                                  RectEnclosurePlan plan, int gateHalf) {
-        if (isGateOpening(x, z, plan, gateHalf)) {
+        if (gateHalf >= 0 && plan.gateWidth > 0 && isGateOpening(x, z, plan, gateHalf)) {
             // v1: carve opening; if openArcadeGate, keep pillars on the edges of the opening.
             boolean edge = isGateEdgeColumn(x, z, plan, gateHalf);
             for (int y = 1; y <= gateClearH; y++) {
@@ -176,7 +265,14 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         }
         for (int y = 0; y <= h; y++) {
             BlockPos p = origin.add(x, y, z);
-            if (BuildConstraintContext.allow(p)) blocks.add(new PlannedBlock(p, wall));
+            if (BuildConstraintContext.allow(p)) {
+                BlockState st = wall;
+                if (paletteId != null) {
+                    long salt = (x * 1315423911L) ^ (z * 2654435761L) ^ (y * 97531L);
+                    st = PaletteResolver.pick(world, paletteId, "WALL_BASE", p, salt, wall);
+                }
+                blocks.add(new PlannedBlock(p, st));
+            }
         }
     }
 

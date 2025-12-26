@@ -16,13 +16,33 @@ public final class RectEnclosurePlan implements SkeletonPlan {
     public final Direction gateSide;
     public final int gateWidth;
 
+    /** Optional: crenels/battlements on top. */
+    public final boolean battlements;
+    /** Spacing of battlements along edges (>=1). */
+    public final int battlementSpacing;
+
     public RectEnclosurePlan(int width, int depth, int wallHeight, int thickness, Direction gateSide, int gateWidth) {
         this.width = width;
         this.depth = depth;
         this.wallHeight = wallHeight;
         this.thickness = thickness;
         this.gateSide = gateSide == null ? Direction.SOUTH : gateSide;
-        this.gateWidth = Math.max(1, gateWidth);
+        // gateWidth==0 means "no gate opening"
+        this.gateWidth = Math.max(0, gateWidth);
+        this.battlements = false;
+        this.battlementSpacing = 2;
+    }
+
+    public RectEnclosurePlan(int width, int depth, int wallHeight, int thickness, Direction gateSide, int gateWidth,
+                             boolean battlements, int battlementSpacing) {
+        this.width = width;
+        this.depth = depth;
+        this.wallHeight = wallHeight;
+        this.thickness = thickness;
+        this.gateSide = gateSide == null ? Direction.SOUTH : gateSide;
+        this.gateWidth = Math.max(0, gateWidth);
+        this.battlements = battlements;
+        this.battlementSpacing = Math.max(1, battlementSpacing);
     }
 
     @Override

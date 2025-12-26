@@ -10,9 +10,9 @@ import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 塔楼生成器
@@ -46,6 +46,11 @@ public class TowerGenerator implements StructureGenerator {
             spec.getStyleOptions().getRoofType() : "flat";
         double windowRatio = spec.getStyleOptions() != null ? 
             spec.getStyleOptions().getWindowRatio() : 0.3;
+
+        // Semantic features (Blueprint-driven, optional)
+        Map<String, Object> extra = spec.getExtra();
+        boolean battlements = getBool(extra, "battlements", false);
+        boolean flag = getBool(extra, "flag", false);
 
         // 内部楼梯旋转方向偏移（螺旋楼梯）
         BlockPos[] spiralOffsets = {
@@ -160,6 +165,33 @@ public class TowerGenerator implements StructureGenerator {
             }
         }
 
+        // Battlements: a crenel ring above the roof line.
+        if (battlements) {
+            int by = height + 1;
+            BlockState crenel = Blocks.STONE_BRICK_WALL.getDefaultState();
+            // Use radius ring at 45-degree-ish sampling (cheap & recognizable).
+            for (int x = -radius; x <= radius; x++) {
+                for (int z = -radius; z <= radius; z++) {
+                    double dist = Math.sqrt(x * x + z * z);
+                    if (dist < radius - 0.4 || dist > radius + 0.7) continue;
+                    // alternate to avoid dense walls
+                    if (((Math.abs(x) + Math.abs(z)) & 1) == 0) {
+                        result.add(new PlannedBlock(origin.add(x, by, z), crenel));
+                    }
+                }
+            }
+        }
+
+        // Flag: a small marker near the top (safe vanilla blocks).
+        if (flag) {
+            BlockPos poleBase = origin.add(0, height + 2, 0);
+            result.add(new PlannedBlock(poleBase, Blocks.OAK_FENCE.getDefaultState()));
+            // flag cloth
+            result.add(new PlannedBlock(poleBase.add(1, 0, 0), Blocks.RED_WOOL.getDefaultState()));
+            // small light
+            result.add(new PlannedBlock(poleBase.add(0, -1, 0), Blocks.LANTERN.getDefaultState()));
+        }
+
         String description = String.format("Tower (%s, height=%d, radius=%d, floors=%d)", 
                 spec.getType(), height, radius, floors);
 
@@ -169,6 +201,16 @@ public class TowerGenerator implements StructureGenerator {
                 description,
                 result
         );
+    }
+
+    private static boolean getBool(Map<String, Object> extra, String key, boolean def) {
+        if (extra == null) return def;
+        Object v = extra.get(key);
+        if (v == null) return def;
+        if (v instanceof Boolean b) return b;
+        String s = String.valueOf(v).trim().toLowerCase();
+        if (s.isEmpty()) return def;
+        return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 
     /**

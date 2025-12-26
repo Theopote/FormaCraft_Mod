@@ -6,6 +6,7 @@ import com.formacraft.common.skeleton.compound.GeneratorBackedPlan;
 import com.formacraft.common.skeleton.path.PolylinePathPlan;
 import com.formacraft.common.skeleton.rect.RectEnclosurePlan;
 import com.formacraft.common.skeleton.transform.BlockTransform;
+import com.formacraft.server.generator.blueprint.CastleBlueprintCompiler;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.skeleton.compound.CompoundInterpreter;
@@ -92,7 +93,25 @@ public class CastleCompoundGenerator implements StructureGenerator {
         int tx = halfW - inset;
         int tz = halfD - inset;
 
-        RectEnclosurePlan enclosure = new RectEnclosurePlan(w, d, wallHeight, wallThickness, gateSide, gateWidth);
+        // Default castle walls should have battlements for strong silhouette.
+        boolean wallBattlements = true;
+        int wallBattlementSpacing = 2;
+        if (extra != null) {
+            Object wb = extra.get("wallBattlements");
+            if (wb instanceof Boolean b) wallBattlements = b;
+            else if (wb != null) {
+                String s = String.valueOf(wb).trim().toLowerCase(java.util.Locale.ROOT);
+                if (!s.isEmpty()) wallBattlements = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
+            }
+            Object sp = extra.get("wallBattlementSpacing");
+            if (sp != null) {
+                try {
+                    int v = (sp instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(sp).trim());
+                    wallBattlementSpacing = Math.max(1, Math.min(6, v));
+                } catch (Exception ignored) {}
+            }
+        }
+        RectEnclosurePlan enclosure = new RectEnclosurePlan(w, d, wallHeight, wallThickness, gateSide, gateWidth, wallBattlements, wallBattlementSpacing);
 
         // gatehouse placed just inside the gate side
         int gateOffZ = (gateSide == Direction.SOUTH ? (halfD - inset - (gateHouseSpec.getDepth() / 2)) :
@@ -100,13 +119,26 @@ public class CastleCompoundGenerator implements StructureGenerator {
         int gateOffX = (gateSide == Direction.EAST ? (halfW - inset - (gateHouseSpec.getWidth() / 2)) :
                 (gateSide == Direction.WEST ? -(halfW - inset - (gateHouseSpec.getWidth() / 2)) : 0));
 
-        CompoundPlan compound = new CompoundPlan()
-                .add(enclosure, BlockTransform.identity())
-                .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(tx, 0, tz))
-                .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(-tx, 0, tz))
-                .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(tx, 0, -tz))
-                .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(-tx, 0, -tz))
-                .add(new GeneratorBackedPlan(gateHouseSpec), BlockTransform.translate(gateOffX, 0, gateOffZ));
+        // Optional: blueprint-driven castle composition (semantic components -> CompoundPlan).
+        // If present, this overrides the default part layout but keeps existing terrain/path policies.
+        CompoundPlan compound = null;
+        if (extra != null) {
+            Object bp = extra.get("blueprint");
+            if (bp instanceof Map<?, ?> m) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> bpMap = (Map<String, Object>) m;
+                compound = CastleBlueprintCompiler.tryCompile(bpMap, spec, gateSide);
+            }
+        }
+        if (compound == null) {
+            compound = new CompoundPlan()
+                    .add(enclosure, BlockTransform.identity())
+                    .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(tx, 0, tz))
+                    .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(-tx, 0, tz))
+                    .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(tx, 0, -tz))
+                    .add(new GeneratorBackedPlan(towerSpec), BlockTransform.translate(-tx, 0, -tz))
+                    .add(new GeneratorBackedPlan(gateHouseSpec), BlockTransform.translate(gateOffX, 0, gateOffZ));
+        }
 
         if (includePaths) {
             // Start just inside the gate opening, then to courtyard center, then towards inner keep area.
@@ -217,7 +249,12 @@ public class CastleCompoundGenerator implements StructureGenerator {
                 StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
                 BlockState pillar = getStateOrDefault(wld, profile != null && profile.palette() != null ? profile.palette().pillar : null, wallBlock);
                 boolean openArcade = profile != null && profile.resolve("GATE", Set.of("gate")) == BuildStrategy.OPEN_ARCADE;
-                return new RectEnclosureInterpreter(wallBlock, capBlock, cap2Block, capLayers, capOverhang, pillar, openArcade).interpret(rep, o, wld);
+                String paletteId = null;
+                if (spec != null && spec.getExtra() != null) {
+                    Object pid = spec.getExtra().get("paletteId");
+                    if (pid != null) paletteId = String.valueOf(pid).trim();
+                }
+                return new RectEnclosureInterpreter(wallBlock, capBlock, cap2Block, capLayers, capOverhang, pillar, openArcade, paletteId).interpret(rep, o, wld);
             }
             if (plan instanceof PolylinePathPlan pp) {
                 BlockState road = Blocks.COBBLESTONE.getDefaultState();
