@@ -50,10 +50,11 @@ public final class StyleProfileRegistry {
         String styleProfileId = resolveStyleProfileId(extra);
         StyleProfile profile = (styleProfileId != null) ? load(styleProfileId, style) : forStyle(style);
 
-        // Apply catalog constraint knobs into spec.extra (only when missing)
+        // Apply catalog knobs into spec.extra (only when missing)
         if (spec != null && profile instanceof CatalogStyleProfile cp) {
             ensureExtraMap(spec);
             applyCatalogConstraintDefaults(spec.getExtra(), cp);
+            applyCatalogDefaultAlgorithmHints(spec.getExtra(), cp);
         }
         return profile;
     }
@@ -105,6 +106,62 @@ public final class StyleProfileRegistry {
         // allowed archetypes (do not clobber if user already set)
         if (!extra.containsKey("allowedArchetypes") && c.allowed_archetypes != null && !c.allowed_archetypes.isEmpty()) {
             extra.put("allowedArchetypes", c.allowed_archetypes);
+        }
+    }
+
+    /**
+     * v1: allow StyleProfileCatalog.defaults.algorithm.generator to nudge routing when user/LLM didn't specify intent.
+     * This keeps "style" and "archetype" cooperating: style can provide a stable default generator family.
+     *
+     * IMPORTANT:
+     * - Never override explicit extra.template / extra.landmark
+     * - Only map to generators that exist in the current mod (otherwise just store as algorithmHint)
+     */
+    private static void applyCatalogDefaultAlgorithmHints(Map<String, Object> extra, CatalogStyleProfile profile) {
+        if (extra == null || profile == null) return;
+        var d = profile.defaults();
+        if (d == null || d.algorithm == null || d.algorithm.isEmpty()) return;
+
+        // Don't override explicit intent
+        boolean hasTemplate = extra.get("template") != null && !String.valueOf(extra.get("template")).trim().isEmpty();
+        boolean hasLandmark = extra.get("landmark") != null && !String.valueOf(extra.get("landmark")).trim().isEmpty();
+
+        Object gen0 = d.algorithm.get("generator");
+        String gen = gen0 == null ? "" : String.valueOf(gen0).trim().toLowerCase(java.util.Locale.ROOT);
+        if (gen.isBlank()) return;
+
+        // Always keep raw hint (future-facing)
+        if (!extra.containsKey("algorithmHint")) {
+            extra.put("algorithmHint", gen);
+        }
+
+        if (hasTemplate || hasLandmark) return;
+
+        // Minimal mapping table (only to existing generators/templates)
+        // - tulou -> landmark tulou
+        // - castle -> template castle_compound
+        // - courtyard_temple -> template mingqing_courtyard (closest existing)
+        // - office/block_stack -> template office_block
+        // - office_district -> template office_district
+        // Other (cathedral/parametric/truss/organic/wooden_frame...) are stored as algorithmHint only (no routing yet).
+        if (gen.contains("tulou")) {
+            extra.put("landmark", "tulou");
+            return;
+        }
+        if (gen.contains("castle")) {
+            extra.put("template", "castle_compound");
+            return;
+        }
+        if (gen.contains("courtyard")) {
+            extra.put("template", "mingqing_courtyard");
+            return;
+        }
+        if (gen.contains("office_district") || gen.contains("office_park")) {
+            extra.put("template", "office_district");
+            return;
+        }
+        if (gen.contains("office") || gen.contains("block_stack")) {
+            extra.put("template", "office_block");
         }
     }
 }

@@ -7,6 +7,7 @@ import com.formacraft.common.skeleton.radial.RadialPrimitiveKind;
 import com.formacraft.common.skeleton.radial.RadialRole;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -37,6 +38,7 @@ public class TulouGenerator implements StructureGenerator {
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         List<PlannedBlock> blocks = new ArrayList<>();
+        String paletteId = getStringExtra(spec, "paletteId", null);
 
         int radius = 10;
         if (spec != null && spec.getFootprint() != null && "circle".equalsIgnoreCase(spec.getFootprint().getShape())) {
@@ -84,6 +86,16 @@ public class TulouGenerator implements StructureGenerator {
                 Blocks.DEEPSLATE_TILES.getDefaultState());
         BlockState window = getStateOrDefault(world, spec != null && spec.getMaterials() != null ? spec.getMaterials().getWindow() : null,
                 Blocks.GLASS_PANE.getDefaultState());
+
+        // palette overrides (fallback to current material choices if palette part missing)
+        if (paletteId != null && !paletteId.isBlank()) {
+            BlockPos p0 = origin;
+            wall = PaletteResolver.pick(world, paletteId, "WALL_BASE", p0, 0x71A0L, wall);
+            foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p0, 0x71A1L, foundation);
+            floor = PaletteResolver.pick(world, paletteId, "FLOORING", p0, 0x71A2L, floor);
+            roof = PaletteResolver.pick(world, paletteId, "ROOF_TILE", p0, 0x71A3L, roof);
+            window = PaletteResolver.pick(world, paletteId, "WINDOW", p0, 0x71A4L, window);
+        }
 
         BlockState pillar = Blocks.DARK_OAK_LOG.getDefaultState();
         BlockState railing = Blocks.DARK_OAK_FENCE.getDefaultState();
@@ -175,6 +187,15 @@ public class TulouGenerator implements StructureGenerator {
                                 continue;
                             } else {
                                 s = window;
+                            }
+                        }
+                        if (paletteId != null && !paletteId.isBlank()) {
+                            // Per-block texture: allow subtle variation while staying deterministic
+                            long salt = ((long) x * 73471L) ^ ((long) z * 91213L) ^ ((long) y * 193L);
+                            if (s == wall || s == wallAccent || s == band) {
+                                s = PaletteResolver.pick(world, paletteId, "WALL_BASE", c.add(x, y, z), salt, s);
+                            } else if (s == window) {
+                                s = PaletteResolver.pick(world, paletteId, "WINDOW", c.add(x, y, z), salt, s);
                             }
                         }
                         blocks.add(new PlannedBlock(c.add(x, y, z), s));
@@ -336,7 +357,13 @@ public class TulouGenerator implements StructureGenerator {
                 for (int z = -outerR; z <= outerR; z++) {
                     int d2 = x * x + z * z;
                     if (d2 <= outerR * outerR && d2 >= innerR * innerR) {
-                        blocks.add(new PlannedBlock(c.add(x, y, z), roof));
+                        BlockPos p = c.add(x, y, z);
+                        BlockState rr = roof;
+                        if (paletteId != null && !paletteId.isBlank()) {
+                            long salt = ((long) x * 91213L) ^ ((long) z * 73471L) ^ ((long) y * 97L);
+                            rr = PaletteResolver.pick(world, paletteId, "ROOF_TILE", p, salt, roof);
+                        }
+                        blocks.add(new PlannedBlock(p, rr));
                     }
                 }
             }
@@ -347,7 +374,13 @@ public class TulouGenerator implements StructureGenerator {
             for (int z = -eaveR; z <= eaveR; z++) {
                 int d2 = x * x + z * z;
                 if (d2 <= eaveR * eaveR && d2 >= (eaveR - 1) * (eaveR - 1)) {
-                    blocks.add(new PlannedBlock(c.add(x, roofBaseY, z), roof));
+                    BlockPos p = c.add(x, roofBaseY, z);
+                    BlockState rr = roof;
+                    if (paletteId != null && !paletteId.isBlank()) {
+                        long salt = ((long) x * 7127L) ^ ((long) z * 9137L) ^ ((long) roofBaseY * 31L);
+                        rr = PaletteResolver.pick(world, paletteId, "ROOF_TILE", p, salt, roof);
+                    }
+                    blocks.add(new PlannedBlock(p, rr));
                 }
             }
         }

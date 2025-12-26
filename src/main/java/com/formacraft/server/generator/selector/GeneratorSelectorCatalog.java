@@ -22,6 +22,14 @@ public final class GeneratorSelectorCatalog {
         public String shape;         // CIRCLE/RECTANGLE/LINEAR/POINT/POLYGON
         public Integer minRadius;    // for CIRCLE
         public Integer maxRadius;
+
+        // for RECTANGLE (uses effective footprint width/depth)
+        public Integer minWidth;
+        public Integer maxWidth;
+        public Integer minDepth;
+        public Integer maxDepth;
+        public Integer minArea;      // width*depth
+        public Integer maxArea;      // width*depth
     }
 
     public static final class Then {

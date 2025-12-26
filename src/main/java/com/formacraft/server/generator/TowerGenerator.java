@@ -16,6 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
+
 /**
  * 塔楼生成器
  * 支持 AI 生成的 BuildingSpec
@@ -44,8 +48,8 @@ public class TowerGenerator implements StructureGenerator {
         boolean hasStairs = spec.getFeatures() != null && spec.getFeatures().hasStairs();
         
         // 获取风格选项（BuildingSpec 2.0）
-        String roofType = spec.getStyleOptions() != null ? 
-            spec.getStyleOptions().getRoofType() : "flat";
+        String roofType = spec.getStyleOptions() != null ?
+            spec.getStyleOptions().getRoofType() : "";
         double windowRatio = spec.getStyleOptions() != null ? 
             spec.getStyleOptions().getWindowRatio() : 0.3;
 
@@ -55,6 +59,11 @@ public class TowerGenerator implements StructureGenerator {
         boolean flag = getBool(extra, "flag", false);
         boolean banner = getBool(extra, "banner", false);
         String bannerColor = getStr(extra, "bannerColor", "red");
+        String paletteId = getStr(extra, "paletteId", "");
+
+        // StyleProfile hinting (for catalog-driven roof types like "cone"/"spires")
+        BuildingStyle style = spec.getStyle() != null ? spec.getStyle() : BuildingStyle.DEFAULT;
+        StyleProfile profile = StyleProfileRegistry.resolve(spec);
 
         // 内部楼梯旋转方向偏移（螺旋楼梯）
         BlockPos[] spiralOffsets = {
@@ -138,9 +147,15 @@ public class TowerGenerator implements StructureGenerator {
                 if (spec.getExtra() != null && spec.getExtra().containsKey("roofType")) {
                     actualRoofType = String.valueOf(spec.getExtra().get("roofType"));
                 } else {
-                    actualRoofType = "flat"; // 默认平顶
+                    // Prefer catalog style hint, otherwise default by style
+                    if (profile != null && profile.rules() != null && profile.rules().roofTypeHint != null && !profile.rules().roofTypeHint.isBlank()) {
+                        actualRoofType = profile.rules().roofTypeHint;
+                    } else {
+                        actualRoofType = (style == BuildingStyle.MEDIEVAL) ? "cone" : "flat";
+                    }
                 }
             }
+            if ("hip".equalsIgnoreCase(actualRoofType)) actualRoofType = "hipped";
             
             if ("cone".equalsIgnoreCase(actualRoofType)) {
                 // 锥形屋顶：从顶部向下逐渐缩小
@@ -151,6 +166,34 @@ public class TowerGenerator implements StructureGenerator {
                         for (int z = -currentRadius; z <= currentRadius; z++) {
                             double dist = Math.sqrt(x * x + z * z);
                             if (dist <= currentRadius + 0.3) {
+                                result.add(new PlannedBlock(origin.add(x, height + roofY, z), roof));
+                            }
+                        }
+                    }
+                }
+            } else if ("pyramid".equalsIgnoreCase(actualRoofType) || "hipped".equalsIgnoreCase(actualRoofType)) {
+                // Stepped "pyramid" cap: square-ish taper for a distinct silhouette (cheap & stable)
+                int roofH = Math.min(radius, 6);
+                for (int i = 0; i < roofH; i++) {
+                    int r = Math.max(1, radius - i);
+                    int y = height + i;
+                    for (int x = -r; x <= r; x++) {
+                        for (int z = -r; z <= r; z++) {
+                            if (Math.abs(x) == r || Math.abs(z) == r) {
+                                result.add(new PlannedBlock(origin.add(x, y, z), roof));
+                            }
+                        }
+                    }
+                }
+            } else if ("spires".equalsIgnoreCase(actualRoofType) || "spire".equalsIgnoreCase(actualRoofType)) {
+                // Gothic-ish spire: taller cone
+                int roofHeight = Math.min(Math.max(6, radius + 2), 12);
+                for (int roofY = 0; roofY < roofHeight; roofY++) {
+                    int currentRadius = Math.max(1, radius - (roofY / 2));
+                    for (int x = -currentRadius; x <= currentRadius; x++) {
+                        for (int z = -currentRadius; z <= currentRadius; z++) {
+                            double dist = Math.sqrt(x * x + z * z);
+                            if (dist <= currentRadius + 0.2) {
                                 result.add(new PlannedBlock(origin.add(x, height + roofY, z), roof));
                             }
                         }
@@ -198,7 +241,7 @@ public class TowerGenerator implements StructureGenerator {
 
         // Banner: crest on the outer face at cardinal points (optional).
         if (banner) {
-            addTopBanners(result, origin, world, radius, height, bannerColor);
+            addTopBanners(result, origin, world, radius, height, bannerColor, paletteId);
         }
 
         String description = String.format("Tower (%s, height=%d, radius=%d, floors=%d)", 
@@ -231,13 +274,24 @@ public class TowerGenerator implements StructureGenerator {
     }
 
     private static void addTopBanners(List<PlannedBlock> out, BlockPos origin, ServerWorld world,
-                                      int radius, int height, String bannerColor) {
+                                      int radius, int height, String bannerColor, String paletteId) {
         int y = Math.max(2, height - 1);
-        String c = (bannerColor == null || bannerColor.isBlank()) ? "red" : bannerColor.trim().toLowerCase();
-        String id = "minecraft:" + c + "_wall_banner";
-        if (!c.matches("^[a-z_]{3,20}$")) id = "minecraft:red_wall_banner";
-        BlockState banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, id);
-        if (banner == null) banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        // Priority: explicit bannerColor > paletteId(BANNER) > red_wall_banner.
+        BlockPos pickPos = origin.add(radius + 1, y, 0);
+        BlockState banner;
+        if (bannerColor != null && !bannerColor.isBlank()) {
+            String c = bannerColor.trim().toLowerCase();
+            String id = "minecraft:red_wall_banner";
+            if (c.matches("^[a-z_]{3,20}$")) id = "minecraft:" + c + "_wall_banner";
+            banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, id);
+            if (banner == null) banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        } else if (paletteId != null && !paletteId.isBlank()) {
+            long salt = (pickPos.getX() * 31L) ^ (pickPos.getZ() * 17L) ^ (pickPos.getY() * 13L);
+            banner = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "BANNER", pickPos, salt,
+                    com.formacraft.server.material.PaletteResolver.stateFromId(world, "minecraft:red_wall_banner"));
+        } else {
+            banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        }
         if (banner == null) banner = Blocks.RED_WOOL.getDefaultState();
 
         // East

@@ -143,7 +143,8 @@
         },
         "components": {
           "windows": "rose_window",
-          "balcony": "none"
+          "balcony": "none",
+          "buttresses": true
         },
         "algorithm": {
           "generator": "cathedral",
@@ -181,6 +182,10 @@
         },
         "components": {
           "defense": { "battlement": true, "tower_count": 4 }
+        },
+        "banner": {
+          "enabled": true,
+          "color": "black"
         },
         "algorithm": {
           "generator": "castle",
@@ -353,6 +358,161 @@
         "terrain_policy": "follow",
         "symmetry_preference": "none",
         "silhouette_strength": "medium"
+      }
+    },
+
+    "Greco_Roman_Classical": {
+      "meta": {
+        "display_name": "Greco-Roman Classical",
+        "family": "Western",
+        "tags": ["classical", "greco_roman", "colonnade", "pediment", "marble"],
+        "description": "Classical temples with colonnades, pediments, and clean proportional geometry"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": { "type": "gable" }
+        },
+        "materials": {
+          "wall": ["minecraft:smooth_quartz", "minecraft:quartz_block"],
+          "roof": ["minecraft:smooth_quartz_slab"],
+          "floor": ["minecraft:smooth_quartz"],
+          "foundation": ["minecraft:smooth_quartz"],
+          "trim": ["minecraft:quartz_pillar"],
+          "cap": ["minecraft:quartz_slab"]
+        },
+        "components": {
+          "columns": "dense",
+          "pediment": true,
+          "windows": "none"
+        },
+        "algorithm": {
+          "generator": "classical_temple",
+          "quality": "high"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": ["temple", "hall", "monument"],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "high"
+      }
+    },
+
+    "Chinese_Vernacular_Huizhou": {
+      "meta": {
+        "display_name": "Chinese Huizhou (White Wall / Black Tile)",
+        "family": "Eastern",
+        "tags": ["vernacular", "huizhou", "white_wall", "black_tile", "horse_head_wall"],
+        "description": "Huizhou-style vernacular buildings with white walls, black tiles, and horse-head gables"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "mirror",
+          "roof": { "type": "gable" }
+        },
+        "materials": {
+          "wall": ["minecraft:white_concrete", "minecraft:calcite"],
+          "roof": ["minecraft:deepslate_tiles", "minecraft:polished_deepslate"],
+          "frame": ["minecraft:dark_oak_log"],
+          "floor": ["minecraft:stone_bricks"],
+          "foundation": ["minecraft:stone_bricks"],
+          "trim": ["minecraft:blackstone_wall"],
+          "cap": ["minecraft:deepslate_tile_slab"]
+        },
+        "components": {
+          "courtyard": true,
+          "windows": "small_high",
+          "balcony": "none"
+        },
+        "algorithm": {
+          "generator": "courtyard_house",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": ["house", "residential", "courtyard"],
+        "terrain_policy": "local_level",
+        "symmetry_preference": "mirror",
+        "silhouette_strength": "medium"
+      }
+    },
+
+    "Steampunk": {
+      "meta": {
+        "display_name": "Steampunk",
+        "family": "Fantasy",
+        "tags": ["steampunk", "gears", "pipes", "copper", "victorian"],
+        "description": "Victorian industrial fantasy with copper, pipes, chimneys, and mechanical details"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "none",
+          "roof": { "type": "hipped" }
+        },
+        "materials": {
+          "wall": ["minecraft:copper_block", "minecraft:cut_copper"],
+          "roof": ["minecraft:weathered_copper", "minecraft:oxidized_cut_copper_stairs"],
+          "frame": ["minecraft:dark_oak_log"],
+          "floor": ["minecraft:granite"],
+          "foundation": ["minecraft:deepslate_bricks"],
+          "trim": ["minecraft:iron_bars"],
+          "cap": ["minecraft:cut_copper_slab"]
+        },
+        "components": {
+          "chimneys": true,
+          "pipes": true,
+          "windows": "small"
+        },
+        "algorithm": {
+          "generator": "industrial_modular",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": ["factory", "tower", "bridge", "workshop", "airship_dock"],
+        "terrain_policy": "follow",
+        "symmetry_preference": "none",
+        "silhouette_strength": "high"
+      }
+    },
+
+    "Cyberpunk": {
+      "meta": {
+        "display_name": "Cyberpunk",
+        "family": "Fantasy",
+        "tags": ["cyberpunk", "neon", "dense", "hologram", "night"],
+        "description": "Neon-dense futuristic city vibe with glowing accents and layered facades"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "none",
+          "roof": { "type": "flat" }
+        },
+        "materials": {
+          "wall": ["minecraft:blackstone", "minecraft:polished_blackstone"],
+          "accent": ["minecraft:cyan_concrete", "minecraft:purple_concrete"],
+          "roof": ["minecraft:black_concrete"],
+          "floor": ["minecraft:smooth_stone"],
+          "foundation": ["minecraft:deepslate"],
+          "trim": ["minecraft:cyan_stained_glass"],
+          "cap": ["minecraft:blackstone_slab"]
+        },
+        "components": {
+          "windows": "large_glass",
+          "neon": true,
+          "signage": true
+        },
+        "algorithm": {
+          "generator": "neon_tower",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": ["tower", "office", "residential", "market"],
+        "terrain_policy": "follow",
+        "symmetry_preference": "none",
+        "silhouette_strength": "high"
       }
     }
   }

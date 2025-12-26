@@ -7,6 +7,7 @@ import com.formacraft.common.skeleton.radial.RadialPrimitiveKind;
 import com.formacraft.common.skeleton.radial.RadialRole;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -30,6 +31,7 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        String paletteId = getStringExtra(spec, "paletteId", null);
         int baseRadius = clamp(getIntExtra(spec, "baseRadius", getCircleRadiusFromFootprint(spec, 18)), 10, 80);
         int tiers = clamp(getIntExtra(spec, "tiers", 3), 2, 3);
         int hallRadius = clamp(getIntExtra(spec, "hallRadius", (int) Math.round(baseRadius * 0.55)), 6, Math.max(6, baseRadius - 3));
@@ -47,6 +49,17 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
         BlockState wall = getStateOrDefault(world, getStringExtra(spec, "wallBlock", "minecraft:white_concrete"), Blocks.WHITE_CONCRETE.getDefaultState());
         BlockState roof = getStateOrDefault(world, getStringExtra(spec, "roofBlock", "minecraft:cyan_terracotta"), Blocks.CYAN_TERRACOTTA.getDefaultState());
         BlockState accent = getStateOrDefault(world, getStringExtra(spec, "accentBlock", "minecraft:yellow_terracotta"), Blocks.YELLOW_TERRACOTTA.getDefaultState());
+
+        // Palette overrides (optional): keep existing per-spec block overrides as fallback.
+        if (paletteId != null && !paletteId.isBlank()) {
+            // Use origin as deterministic selector position for global materials.
+            base = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0x51E0L, base);
+            trim = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x51E1L, trim);
+            pillar = PaletteResolver.pick(world, paletteId, "PILLAR", origin, 0x51E2L, pillar);
+            wall = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0x51E3L, wall);
+            roof = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0x51E4L, roof);
+            accent = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x51E5L, accent);
+        }
 
         List<PlannedBlock> blocks = new ArrayList<>(Math.max(4000, baseRadius * baseRadius * 20));
 

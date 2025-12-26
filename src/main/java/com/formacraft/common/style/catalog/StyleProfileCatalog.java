@@ -36,6 +36,14 @@ public final class StyleProfileCatalog {
         public Map<String, Object> materials = Map.of();
         public Map<String, Object> components = Map.of();
         public Map<String, Object> algorithm = Map.of();
+        public Banner banner = new Banner();
+    }
+
+    public static final class Banner {
+        /** When present, can drive wall banners / decorative flags as a style default. */
+        public Boolean enabled = null;
+        /** e.g. "black", "red". Generators may map this to Minecraft banner blocks. */
+        public String color = "";
     }
 
     public static final class Constraints {

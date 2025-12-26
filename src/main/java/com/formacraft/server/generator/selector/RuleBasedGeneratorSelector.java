@@ -6,6 +6,8 @@ import com.formacraft.common.model.build.BuildingType;
 import com.formacraft.common.model.build.Features;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.model.build.Materials;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -112,7 +114,15 @@ public final class RuleBasedGeneratorSelector {
             String cityStyleUpper = style != null ? style.name() : (cityStyle != null ? cityStyle.name() : "DEFAULT");
             int rr = 0;
             if (fp != null && "circle".equalsIgnoreCase(fp.getShape())) rr = Math.max(0, fp.getRadius());
-            GeneratorSelectorCatalog.Rule rule = GeneratorSelectorRegistry.match(cityStyleUpper, role, shape, rr);
+            int ww = 0;
+            int dd = 0;
+            if (fp != null && "rectangle".equalsIgnoreCase(fp.getShape())) {
+                ww = Math.max(0, fp.getWidth());
+                dd = Math.max(0, fp.getDepth());
+            }
+            if (ww <= 0) ww = Math.max(0, skWidth);
+            if (dd <= 0) dd = Math.max(0, skDepth);
+            GeneratorSelectorCatalog.Rule rule = GeneratorSelectorRegistry.match(cityStyleUpper, role, shape, rr, ww, dd);
             if (rule != null && rule.then != null) {
                 GeneratorSelectorCatalog.Then t = rule.then;
 
@@ -204,6 +214,38 @@ public final class RuleBasedGeneratorSelector {
                 changed = true;
             }
         }
+
+        // --- StyleProfile-driven defaults (do not override explicit user/LLM values) ---
+        try {
+            StyleProfile profile = StyleProfileRegistry.resolve(spec);
+            if (profile != null && profile.details() != null) {
+                // wall banners (for RectEnclosure / castle walls)
+                if (!extra.containsKey("wallBanner") && profile.details().bannerEnabled != null) {
+                    extra.put("wallBanner", profile.details().bannerEnabled);
+                    changed = true;
+                }
+                if (!extra.containsKey("wallBannerColor")
+                        && Boolean.TRUE.equals(extra.get("wallBanner"))
+                        && profile.details().bannerColor != null
+                        && !profile.details().bannerColor.isBlank()) {
+                    extra.put("wallBannerColor", profile.details().bannerColor);
+                    changed = true;
+                }
+
+                // building banners (House/Tower generators)
+                if (!extra.containsKey("banner") && profile.details().bannerEnabled != null) {
+                    extra.put("banner", profile.details().bannerEnabled);
+                    changed = true;
+                }
+                if (!extra.containsKey("bannerColor")
+                        && Boolean.TRUE.equals(extra.get("banner"))
+                        && profile.details().bannerColor != null
+                        && !profile.details().bannerColor.isBlank()) {
+                    extra.put("bannerColor", profile.details().bannerColor);
+                    changed = true;
+                }
+            }
+        } catch (Throwable ignored) {}
 
         return changed;
     }

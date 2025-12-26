@@ -113,7 +113,10 @@ def _build_system_prompt() -> str:
         "- If set, it should be a string id from the StyleProfileCatalog provided in the user prompt.\n"
         "\nBlueprint mode (advanced, optional):\n"
         "- For complex structures like CASTLE compounds, you MAY include extra.blueprint as a semantic component blueprint.\n"
-        "- extra.blueprint MUST be valid JSON (no comments) and should include: overall_dimensions{x,z,height_max}, components[].\n"
+        "- extra.blueprint MUST be valid JSON (no comments).\n"
+        "- extra.blueprint MUST include: blueprint_type (string), blueprint_version (int, must be 1).\n"
+        "- Recommended: blueprint_type values: castle, tulou, temple_of_heaven, great_wall, eiffel_tower, golden_gate_bridge, giant_wild_goose_pagoda.\n"
+        "- Blueprint should also include: overall_dimensions{x,z,height_max}, components[] (for castle).\n"
     )
 
 
@@ -1362,13 +1365,17 @@ def _try_generate_castle_blueprint(req: BuildRequest, spec: BuildingSpec) -> Non
             "You are FormaCraft Blueprint Planner.\n"
             "Your job is to output a semantic component blueprint for a CASTLE compound.\n"
             "IMPORTANT:\n"
-            "- Output MUST be valid JSON only. No markdown. No comments. No extra keys.\n"
+            "- Output MUST be valid JSON only. No markdown. No comments.\n"
+            "- Output MUST include blueprint_type and blueprint_version.\n"
+            "- blueprint_version MUST be 1.\n"
             "- Coordinate system: CORNER (x,z start at 0..overall_dimensions.x/z).\n"
             "- For CUBOID components (KEEP), relative_position is the MIN CORNER.\n"
             "- For CYLINDER components (TOWER), relative_position is the MIN CORNER of its bounding box.\n"
             "- For BOX_FRAME (WALL_CONNECTOR), relative_position is the MIN CORNER of the frame.\n\n"
             "SCHEMA:\n"
             "{\n"
+            '  "blueprint_type": "castle",\n'
+            '  "blueprint_version": 1,\n'
             '  "project_name": "string",\n'
             '  "coordinate_system": "CORNER",\n'
             '  "overall_dimensions": {"x": int, "z": int, "height_max": int},\n'
@@ -1417,6 +1424,11 @@ def _try_generate_castle_blueprint(req: BuildRequest, spec: BuildingSpec) -> Non
         data = json.loads(raw)
         # basic cleanup: strip any accidental comment-like keys
         if isinstance(data, dict):
+            # Ensure schema keys exist for Java-side validation.
+            if not data.get("blueprint_type"):
+                data["blueprint_type"] = "castle"
+            if not data.get("blueprint_version"):
+                data["blueprint_version"] = 1
             if "components" in data and isinstance(data["components"], list):
                 cleaned = []
                 for c in data["components"]:

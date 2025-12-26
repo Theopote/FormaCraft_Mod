@@ -54,6 +54,7 @@ public final class GenomeStyleProfile implements StyleProfile {
             String rt = roofType.trim().toLowerCase(Locale.ROOT);
             this.rules.allowFlatRoof = rt.equals("flat");
             this.rules.layeredRoof = rt.equals("hipped") || rt.equals("pyramid");
+            this.rules.roofTypeHint = rt;
         }
         if (windowDensity != null) {
             this.rules.windowDensity = (float) Math.max(0.0, Math.min(1.0, windowDensity));

@@ -45,12 +45,17 @@ public final class GeneratorSelectorRegistry {
     public static GeneratorSelectorCatalog.Rule match(String cityStyleUpper,
                                                       String zoneTypeUpper,
                                                       String shapeUpper,
-                                                      int radius) {
+                                                      int radius,
+                                                      int width,
+                                                      int depth) {
         ensureLoaded();
         String cs = cityStyleUpper != null ? cityStyleUpper.trim().toUpperCase(Locale.ROOT) : "";
         String zt = zoneTypeUpper != null ? zoneTypeUpper.trim().toUpperCase(Locale.ROOT) : "";
         String sh = shapeUpper != null ? shapeUpper.trim().toUpperCase(Locale.ROOT) : "";
         int r = Math.max(0, radius);
+        int wEff = Math.max(0, width);
+        int dEff = Math.max(0, depth);
+        int areaEff = (wEff <= 0 || dEff <= 0) ? 0 : (wEff * dEff);
 
         for (GeneratorSelectorCatalog.Rule rule : RULES) {
             if (rule == null || rule.when == null || rule.then == null) continue;
@@ -66,6 +71,12 @@ public final class GeneratorSelectorRegistry {
             }
             if (w.minRadius != null && r < w.minRadius) continue;
             if (w.maxRadius != null && r > w.maxRadius) continue;
+            if (w.minWidth != null && wEff < w.minWidth) continue;
+            if (w.maxWidth != null && wEff > w.maxWidth) continue;
+            if (w.minDepth != null && dEff < w.minDepth) continue;
+            if (w.maxDepth != null && dEff > w.maxDepth) continue;
+            if (w.minArea != null && areaEff < w.minArea) continue;
+            if (w.maxArea != null && areaEff > w.maxArea) continue;
             return rule;
         }
         return null;

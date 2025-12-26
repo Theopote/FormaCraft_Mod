@@ -7,6 +7,8 @@ import com.formacraft.common.genome.BuildingGenome;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingType;
+import com.formacraft.server.generator.blueprint.BlueprintCompilerRegistry;
+import com.formacraft.server.generator.blueprint.BlueprintStructureGenerator;
 import com.formacraft.server.generator.*;
 
 import java.util.Map;
@@ -32,6 +34,11 @@ public final class GeneratorRouter {
             FormacraftMod.LOGGER.warn("BuildingSpec or type is null, using default TowerGenerator");
             return new TowerGenerator();
         }
+
+        // 0) blueprint-based routing (semantic components -> plan -> blocks)
+        // This is the primary path when LLM provides a blueprint.
+        StructureGenerator byBlueprint = routeByBlueprint(spec);
+        if (byBlueprint != null) return byBlueprint;
 
         // 0) template-based routing (deterministic templates)
         StructureGenerator byTemplate = routeByTemplate(spec);
@@ -68,6 +75,32 @@ public final class GeneratorRouter {
                 yield new HouseGenerator();
             }
         };
+    }
+
+    private static StructureGenerator routeByBlueprint(BuildingSpec spec) {
+        if (spec == null) return null;
+        Map<String, Object> extra = spec.getExtra();
+        if (extra == null) return null;
+        Object bp = extra.get("blueprint");
+        if (bp == null) return null;
+        // If compiler can be resolved, use the generic blueprint generator.
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> m = (bp instanceof Map<?, ?> mm) ? (Map<String, Object>) mm : null;
+            if (m == null) {
+                // try parse via json
+                String json = (bp instanceof String s) ? s : JsonUtil.toJson(bp);
+                if (json != null && !json.isBlank()) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> parsed = JsonUtil.fromJson(json, Map.class);
+                    m = parsed;
+                }
+            }
+            if (m != null && BlueprintCompilerRegistry.resolve(spec, m) != null) {
+                return new BlueprintStructureGenerator();
+            }
+        } catch (Throwable ignored) {}
+        return null;
     }
 
     private static StructureGenerator routeByTemplate(BuildingSpec spec) {

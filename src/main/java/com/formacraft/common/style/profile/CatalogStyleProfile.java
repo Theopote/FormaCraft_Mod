@@ -78,6 +78,7 @@ public final class CatalogStyleProfile implements StyleProfile {
                     rules.allowFlatRoof = rt.contains("flat");
                     // layered roof is a good default for hipped/pyramid-ish silhouettes
                     rules.layeredRoof = rt.contains("hip") || rt.contains("pyramid");
+                    rules.roofTypeHint = normalizeRoofTypeHint(rt);
                 }
             }
         }
@@ -92,6 +93,30 @@ public final class CatalogStyleProfile implements StyleProfile {
                 else if (win.contains("rose")) rules.windowDensity = 0.65f;
                 else if (win.contains("large")) rules.windowDensity = 0.75f;
             }
+
+            // Gothic: rose windows + buttresses
+            if (win.contains("rose")) {
+                details.roseWindow = true;
+                details.buttresses = true;
+            }
+
+            // Classical: columns + pediment
+            String cols = asString(comps.get("columns")).toLowerCase(Locale.ROOT);
+            if (!cols.isBlank()) {
+                details.colonnade = cols.contains("dense") || cols.contains("colonnade") || cols.contains("portico");
+                if (details.colonnade) details.decorativeColumns = true;
+            }
+            Object ped = comps.get("pediment");
+            if (ped instanceof Boolean b) {
+                details.pediment = b;
+            } else if (ped != null) {
+                String s = String.valueOf(ped).trim().toLowerCase(Locale.ROOT);
+                if (!s.isBlank()) details.pediment = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
+            }
+
+            // Explicit buttresses override
+            Object butt = comps.get("buttresses");
+            if (butt instanceof Boolean b) details.buttresses = b;
         }
 
         // ---------- constraints -> extra behavioral knobs ----------
@@ -105,6 +130,13 @@ public final class CatalogStyleProfile implements StyleProfile {
                 // broad hint: push recognizable details
                 details.decorativeColumns = true;
             }
+        }
+
+        // ---------- banner defaults ----------
+        if (defaults != null && defaults.banner != null) {
+            details.bannerEnabled = defaults.banner.enabled;
+            String c = asString(defaults.banner.color).toLowerCase(Locale.ROOT);
+            details.bannerColor = c.isBlank() ? null : c;
         }
     }
 
@@ -171,6 +203,19 @@ public final class CatalogStyleProfile implements StyleProfile {
         if (s.isBlank()) return null;
         // allow users to omit namespace
         if (!s.contains(":")) return "minecraft:" + s;
+        return s;
+    }
+
+    private static String normalizeRoofTypeHint(String rt) {
+        if (rt == null) return null;
+        String s = rt.trim().toLowerCase(Locale.ROOT);
+        if (s.isBlank()) return null;
+        if (s.contains("spires") || s.contains("spire")) return "spires";
+        if (s.contains("hip")) return "hipped";
+        if (s.contains("pyramid")) return "pyramid";
+        if (s.contains("cone")) return "cone";
+        if (s.contains("gable")) return "gable";
+        if (s.contains("flat")) return "flat";
         return s;
     }
 

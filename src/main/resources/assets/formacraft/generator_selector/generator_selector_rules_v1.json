@@ -28,7 +28,37 @@
       "when": { "cityStyle": "MODERN", "zoneType": "SEMI_PUBLIC", "shape": "RECTANGLE" },
       "then": {
         "template": "office_block",
-        "buildingType": "HOUSE"
+        "buildingType": "HOUSE",
+        "extraDefaults": {
+          "paletteId": "PALETTE_MODERN_GLASS_B"
+        }
+      }
+    },
+    {
+      "id": "medieval_core_rectangle_keep_small",
+      "when": { "cityStyle": "MEDIEVAL", "zoneType": "CORE", "shape": "RECTANGLE", "minArea": 180, "maxArea": 559 },
+      "then": {
+        "buildingType": "HOUSE",
+        "floors": 4,
+        "extraDefaults": {
+          "styleProfileId": "Medieval_Castle",
+          "paletteId": "PALETTE_STONE_FORTRESS_A",
+          "lighting": true,
+          "lightingType": "lantern",
+          "lightingSpacing": 4
+        }
+      }
+    },
+    {
+      "id": "medieval_core_rectangle_castle_compound",
+      "when": { "cityStyle": "MEDIEVAL", "zoneType": "CORE", "shape": "RECTANGLE", "minArea": 560 },
+      "then": {
+        "template": "castle_compound",
+        "buildingType": "CUSTOM",
+        "extraDefaults": {
+          "styleProfileId": "Medieval_Castle",
+          "paletteId": "PALETTE_STONE_FORTRESS_A"
+        }
       }
     }
   ]

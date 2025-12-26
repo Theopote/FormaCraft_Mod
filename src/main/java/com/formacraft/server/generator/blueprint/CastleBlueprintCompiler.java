@@ -113,7 +113,7 @@ public final class CastleBlueprintCompiler {
                     keep.setFeatures(defaultFeaturesForKeep());
                     keep.setStyleOptions(defaultStyleOptionsForKeep(style));
                     // pass through extra knobs (styleProfileId/paletteId/terrain policy)
-                    keep.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
+                    keep.setExtra(copyExtraWithoutBlueprint(parentSpec != null ? parentSpec.getExtra() : null));
                     // features (optional): arches/lighting
                     applyHouseFeatures(keep, c);
 
@@ -146,7 +146,7 @@ public final class CastleBlueprintCompiler {
                     so.setWindowRatio(0.15);
                     gatehouse.setStyleOptions(so);
                     // Ensure its door aligns with the gate side.
-                    gatehouse.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
+                    gatehouse.setExtra(copyExtraWithoutBlueprint(parentSpec != null ? parentSpec.getExtra() : null));
                     if (gatehouse.getExtra() != null) {
                         gatehouse.getExtra().put("doorSide", gateSide.name());
                     }
@@ -180,7 +180,7 @@ public final class CastleBlueprintCompiler {
                     so.setRoofType("cone");
                     so.setWindowRatio(0.18);
                     tower.setStyleOptions(so);
-                    tower.setExtra(parentSpec != null ? parentSpec.getExtra() : null);
+                    tower.setExtra(copyExtraWithoutBlueprint(parentSpec != null ? parentSpec.getExtra() : null));
 
                     // features (optional): accept object or list. MVP supports battlements/flag.
                     Map<String, Object> feat = asMap(c.get("features"));
@@ -330,6 +330,15 @@ public final class CastleBlueprintCompiler {
         if (banner != null) s.getExtra().put("banner", banner);
         Object bannerColor = feat.get("bannerColor");
         if (bannerColor != null) s.getExtra().put("bannerColor", String.valueOf(bannerColor).trim());
+    }
+
+    private static Map<String, Object> copyExtraWithoutBlueprint(Map<String, Object> extra) {
+        if (extra == null || extra.isEmpty()) return extra;
+        java.util.HashMap<String, Object> copy = new java.util.HashMap<>(extra);
+        copy.remove("blueprint");
+        copy.remove("blueprint_json");
+        copy.remove("blueprintJson");
+        return copy;
     }
 }
 

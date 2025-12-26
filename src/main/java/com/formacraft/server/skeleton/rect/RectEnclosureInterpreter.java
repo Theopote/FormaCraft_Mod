@@ -254,11 +254,23 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
         int y = Math.max(2, Math.min(h - 1, gateClearH + 1));
         int margin = 1;
 
-        String c = (plan.bannerColor == null || plan.bannerColor.isBlank()) ? "red" : plan.bannerColor.trim().toLowerCase();
-        String id = "minecraft:" + c + "_wall_banner";
-        if (!c.matches("^[a-z_]{3,20}$")) id = "minecraft:red_wall_banner";
-        BlockState banner = PaletteResolver.stateFromId(world, id);
-        if (banner == null) banner = PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        // Priority: explicit bannerColor > paletteId(BANNER) > red_wall_banner.
+        BlockState banner;
+        if (plan.bannerColor != null && !plan.bannerColor.isBlank()) {
+            String c = plan.bannerColor.trim().toLowerCase();
+            String id = "minecraft:red_wall_banner";
+            if (c.matches("^[a-z_]{3,20}$")) id = "minecraft:" + c + "_wall_banner";
+            banner = PaletteResolver.stateFromId(world, id);
+            if (banner == null) banner = PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        } else if (paletteId != null) {
+            // Pick once; same banner for both sides to look intentional.
+            BlockPos pickPos = origin;
+            long salt = (halfW * 31L) ^ (halfD * 17L) ^ (y * 13L);
+            banner = PaletteResolver.pick(world, paletteId, "BANNER", pickPos, salt,
+                    PaletteResolver.stateFromId(world, "minecraft:red_wall_banner"));
+        } else {
+            banner = PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        }
         if (banner == null) banner = Blocks.RED_WOOL.getDefaultState();
 
         Direction faceToCenter = plan.gateSide.getOpposite();

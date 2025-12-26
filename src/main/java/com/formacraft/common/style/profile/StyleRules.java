@@ -8,6 +8,11 @@ public final class StyleRules {
     public boolean allowFlatRoof = true;
     public boolean preferSymmetry = false;
     public boolean layeredRoof = false;
+    /**
+     * Optional roof type hint (e.g. "hipped", "gable", "flat", "spires").
+     * This should NOT override explicit spec.styleOptions.roofType / spec.extra.roofType.
+     */
+    public String roofTypeHint = null;
 
     /** Suggested floor height in blocks (for multi-floor buildings). */
     public int floorHeight = 4;

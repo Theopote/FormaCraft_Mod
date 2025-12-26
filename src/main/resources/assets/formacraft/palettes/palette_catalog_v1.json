@@ -26,14 +26,32 @@
           { "id": "minecraft:dark_oak_stairs", "weight": 90 },
           { "id": "minecraft:spruce_stairs", "weight": 10 }
         ],
+        "ROOF_TILE": [
+          { "id": "minecraft:deepslate_tiles", "weight": 70 },
+          { "id": "minecraft:deepslate_bricks", "weight": 20 },
+          { "id": "minecraft:polished_deepslate", "weight": 10 }
+        ],
         "FLOORING": [
           { "id": "minecraft:coarse_dirt", "weight": 40 },
           { "id": "minecraft:gravel", "weight": 30 },
           { "id": "minecraft:cobblestone", "weight": 30 }
         ],
+        "WINDOW": [
+          { "id": "minecraft:glass_pane", "weight": 70 },
+          { "id": "minecraft:iron_bars", "weight": 30 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:spruce_log", "weight": 70 },
+          { "id": "minecraft:stripped_spruce_log", "weight": 30 }
+        ],
         "DECOR_DETAIL": [
           { "id": "minecraft:iron_bars", "weight": 60 },
           { "id": "minecraft:stone_brick_wall", "weight": 40 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:black_wall_banner", "weight": 55 },
+          { "id": "minecraft:red_wall_banner", "weight": 35 },
+          { "id": "minecraft:white_wall_banner", "weight": 10 }
         ],
         "LIGHTING": [
           { "id": "minecraft:lantern", "weight": 100 }

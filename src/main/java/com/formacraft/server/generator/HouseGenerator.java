@@ -407,10 +407,17 @@ public class HouseGenerator implements StructureGenerator {
                     if (roofStrategy == BuildStrategy.ROOF_FLAT) {
                         actualRoofType = "flat";
                     } else {
-                        actualRoofType = (style == BuildingStyle.ASIAN) ? "hipped" : "gable";
+                        // prefer style profile hint when available (CatalogStyleProfile uses StyleProfileCatalog.defaults.geometry.roof.type)
+                        if (profile != null && profile.rules() != null && profile.rules().roofTypeHint != null && !profile.rules().roofTypeHint.isBlank()) {
+                            actualRoofType = profile.rules().roofTypeHint;
+                        } else {
+                            actualRoofType = (style == BuildingStyle.ASIAN) ? "hipped" : "gable";
+                        }
                     }
                 }
             }
+            // normalize aliases
+            if ("hip".equalsIgnoreCase(actualRoofType)) actualRoofType = "hipped";
             // 如果不是显式指定（StyleOptions/extra），则允许 StyleProfile 修正“平/坡”大方向
             if (!roofExplicit && !roofFromExtra) {
                 if (roofStrategy == BuildStrategy.ROOF_FLAT) {
@@ -422,7 +429,13 @@ public class HouseGenerator implements StructureGenerator {
             
             // 四坡/攒尖（hipped/pyramid）
             if ("hipped".equalsIgnoreCase(actualRoofType) || "pyramid".equalsIgnoreCase(actualRoofType)) {
-                addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim);
+                boolean emphasizeEaves = (profile != null && profile.details() != null && profile.details().emphasizeEaves);
+                boolean overhang = (style == BuildingStyle.ASIAN) || emphasizeEaves;
+                boolean flying = emphasizeEaves;
+                addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, flying);
+            } else if ("spires".equalsIgnoreCase(actualRoofType) || "spire".equalsIgnoreCase(actualRoofType)) {
+                // Gothic-ish: steep gable + corner spires
+                addSpireRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim);
             } else if ("gable".equalsIgnoreCase(actualRoofType) || roofStrategy == BuildStrategy.ROOF_SLOPE
                     || style == BuildingStyle.MEDIEVAL || style == BuildingStyle.RUSTIC) {
                 // 双坡屋顶（沿 X 方向上升）；优先用 stairs/slab，视觉明显更好
@@ -496,7 +509,7 @@ public class HouseGenerator implements StructureGenerator {
             }
 
             // 中式：简化斗拱/雀替（檐下 1 格）+ 彩画点缀
-            if (style == BuildingStyle.ASIAN) {
+            if (style == BuildingStyle.ASIAN || (profile != null && profile.details() != null && profile.details().emphasizeEaves)) {
                 addDougongAndPainting(blocks, origin, width, depth, height, trim);
             }
         }
@@ -543,13 +556,22 @@ public class HouseGenerator implements StructureGenerator {
             }
 
             if (banner) {
-                addDoorBanners(blocks, origin, width, depth, doorSide, bannerColor, world);
+                addDoorBanners(blocks, origin, width, depth, doorSide, bannerColor, paletteId, world);
             }
         }
 
         // -------------------------------------
         // 5. 返回结构对象
         // -------------------------------------
+        // --- Facade component library (Greco-Roman / Gothic), best-effort ---
+        try {
+            if (profile != null && profile.details() != null) {
+                addFacadeComponents(blocks, origin, world, spec, width, depth, height,
+                        wall, trim, foundation, pillar, roof, roofStairs, roofSlab, windowBlock,
+                        profile.details());
+            }
+        } catch (Throwable ignored) {}
+
         String description = String.format("House (%s, %dx%dx%d, floors=%d)", 
                 spec.getType(), width, height, depth, floors);
 
@@ -731,7 +753,7 @@ public class HouseGenerator implements StructureGenerator {
     }
 
     private static void addDoorBanners(List<PlannedBlock> blocks, BlockPos origin, int width, int depth,
-                                       Direction doorSide, String bannerColor, ServerWorld world) {
+                                       Direction doorSide, String bannerColor, String paletteId, ServerWorld world) {
         // Place 1-2 wall banners on the inside face near the door side, attached to the wall.
         boolean onNorthSouth = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
         int center = onNorthSouth ? (width / 2) : (depth / 2);
@@ -747,16 +769,23 @@ public class HouseGenerator implements StructureGenerator {
             a1 = Math.max(2, Math.min(depth - 3, a1));
         }
 
-        String id = "minecraft:red_wall_banner";
+        // Priority: explicit bannerColor > paletteId(BANNER) > red_wall_banner.
+        BlockState banner;
         if (bannerColor != null && !bannerColor.isBlank()) {
             String c = bannerColor.trim().toLowerCase();
-            // keep it safe: only allow a small set of common colors (fallback to red)
-            if (c.matches("^[a-z_]{3,20}$")) {
-                id = "minecraft:" + c + "_wall_banner";
-            }
+            String id = "minecraft:red_wall_banner";
+            if (c.matches("^[a-z_]{3,20}$")) id = "minecraft:" + c + "_wall_banner";
+            banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, id);
+            if (banner == null) banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
+        } else if (paletteId != null && !paletteId.isBlank()) {
+            // deterministic pick based on position
+            BlockPos p0 = doorTorchPos(origin, doorSide, a0, y, width, depth);
+            long salt = (p0.getX() * 31L) ^ (p0.getZ() * 17L) ^ (p0.getY() * 13L);
+            banner = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "BANNER", p0, salt,
+                    com.formacraft.server.material.PaletteResolver.stateFromId(world, "minecraft:red_wall_banner"));
+        } else {
+            banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
         }
-        // Use red wool as safe fallback when banner blocks are not available / id invalid.
-        BlockState banner = com.formacraft.server.material.PaletteResolver.stateFromId(world, id);
         if (banner == null) banner = Blocks.RED_WOOL.getDefaultState();
         banner = withFacingIfPossible(banner, doorSide);
 
@@ -835,6 +864,191 @@ public class HouseGenerator implements StructureGenerator {
             }
         }
         return wall;
+    }
+
+    private static void addFacadeComponents(List<PlannedBlock> blocks,
+                                           BlockPos origin,
+                                           ServerWorld world,
+                                           BuildingSpec spec,
+                                           int width,
+                                           int depth,
+                                           int height,
+                                           BlockState wall,
+                                           BlockState trim,
+                                           BlockState foundation,
+                                           BlockState pillar,
+                                           BlockState roof,
+                                           BlockState roofStairs,
+                                           BlockState roofSlab,
+                                           BlockState windowBlock,
+                                           com.formacraft.common.style.profile.DetailPreferences details) {
+        if (blocks == null || origin == null || details == null) return;
+        if (width < 9 || depth < 9 || height < 6) return; // too small
+
+        Direction doorSide = resolveDoorSide(spec);
+
+        // --- Greco-Roman: colonnade + pediment ---
+        if (details.colonnade || details.pediment) {
+            // only build a front portico to avoid heavy intrusion
+            addFrontColonnade(blocks, origin, width, depth, height, doorSide, foundation, pillar, roofSlab);
+            if (details.pediment) {
+                addPediment(blocks, origin, width, depth, height, doorSide, trim, roofSlab);
+            }
+        }
+
+        // --- Gothic: rose window + buttresses ---
+        if (details.roseWindow) {
+            addRoseWindow(blocks, origin, width, depth, height, doorSide, windowBlock, trim);
+        }
+        if (details.buttresses) {
+            addFlyingButtresses(blocks, origin, width, depth, height, doorSide, foundation, trim, roofStairs);
+        }
+    }
+
+    private static void addFrontColonnade(List<PlannedBlock> blocks,
+                                          BlockPos origin,
+                                          int width,
+                                          int depth,
+                                          int height,
+                                          Direction doorSide,
+                                          BlockState foundation,
+                                          BlockState pillar,
+                                          BlockState roofSlab) {
+        if (width < 11 && depth < 11) return;
+        int colH = Math.max(4, Math.min(height - 2, 8));
+        int spacing = 2;
+
+        // place 1 block outside the door side
+        int zOutside = (doorSide == Direction.NORTH) ? -2 : (doorSide == Direction.SOUTH ? depth + 1 : -2);
+        int xOutside = (doorSide == Direction.WEST) ? -2 : (doorSide == Direction.EAST ? width + 1 : -2);
+
+        if (doorSide == Direction.NORTH || doorSide == Direction.SOUTH) {
+            for (int x = 1; x <= width - 2; x += spacing) {
+                BlockPos base = origin.add(x, 0, zOutside);
+                blocks.add(new PlannedBlock(base, foundation));
+                for (int y = 1; y <= colH; y++) blocks.add(new PlannedBlock(base.up(y), pillar));
+                blocks.add(new PlannedBlock(base.up(colH + 1), roofSlab));
+            }
+        } else {
+            for (int z = 1; z <= depth - 2; z += spacing) {
+                BlockPos base = origin.add(xOutside, 0, z);
+                blocks.add(new PlannedBlock(base, foundation));
+                for (int y = 1; y <= colH; y++) blocks.add(new PlannedBlock(base.up(y), pillar));
+                blocks.add(new PlannedBlock(base.up(colH + 1), roofSlab));
+            }
+        }
+    }
+
+    private static void addPediment(List<PlannedBlock> blocks,
+                                    BlockPos origin,
+                                    int width,
+                                    int depth,
+                                    int height,
+                                    Direction doorSide,
+                                    BlockState trim,
+                                    BlockState roofSlab) {
+        // Pediment only looks right on a gable end; for MVP, attach to door-facing side if it's N/S, else north.
+        boolean onNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        int z = onNS ? (doorSide == Direction.NORTH ? -1 : depth) : -1;
+        int yBase = Math.max(3, height - 1);
+        int mid = width / 2;
+        int pedH = Math.max(3, Math.min(7, width / 2));
+
+        // Outline triangle
+        for (int i = 0; i < pedH; i++) {
+            int x0 = Math.max(0, mid - i);
+            int x1 = Math.min(width - 1, mid + i);
+            int y = yBase + i;
+            blocks.add(new PlannedBlock(origin.add(x0, y, z), trim));
+            blocks.add(new PlannedBlock(origin.add(x1, y, z), trim));
+            if (i == pedH - 1) {
+                for (int x = x0; x <= x1; x++) blocks.add(new PlannedBlock(origin.add(x, y + 1, z), roofSlab));
+            }
+        }
+        // Base line
+        for (int x = 0; x < width; x++) blocks.add(new PlannedBlock(origin.add(x, yBase, z), trim));
+    }
+
+    private static void addRoseWindow(List<PlannedBlock> blocks,
+                                      BlockPos origin,
+                                      int width,
+                                      int depth,
+                                      int height,
+                                      Direction doorSide,
+                                      BlockState windowBlock,
+                                      BlockState trim) {
+        // place on door side if N/S else on north wall
+        boolean onNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        Direction face = onNS ? doorSide : Direction.NORTH;
+        int zWall = (face == Direction.NORTH) ? 0 : (face == Direction.SOUTH ? depth - 1 : 0);
+
+        int cx = width / 2;
+        int cy = Math.max(4, Math.min(height - 2, height / 2));
+        int r = Math.max(2, Math.min(4, Math.min(width, height) / 4));
+
+        // carve + fill a simple circle on the wall plane (1-block thick)
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dy = -r; dy <= r; dy++) {
+                int d2 = dx * dx + dy * dy;
+                if (d2 > r * r) continue;
+                boolean edge = d2 >= (r - 1) * (r - 1);
+                int x = cx + dx;
+                int y = cy + dy;
+                if (x <= 0 || x >= width - 1 || y <= 2 || y >= height - 1) continue;
+                BlockPos p = origin.add(x, y, zWall);
+                blocks.add(new PlannedBlock(p, edge ? trim : windowBlock));
+            }
+        }
+    }
+
+    private static void addFlyingButtresses(List<PlannedBlock> blocks,
+                                           BlockPos origin,
+                                           int width,
+                                           int depth,
+                                           int height,
+                                           Direction doorSide,
+                                           BlockState foundation,
+                                           BlockState trim,
+                                           BlockState roofStairs) {
+        if (width < 13 || depth < 13 || height < 10) return;
+        // Put buttresses on the two long sides (avoid door side so entrance remains clean)
+        boolean alongX = width >= depth;
+        int step = 4;
+        int yTop = Math.max(6, height - 2);
+        if (alongX) {
+            // buttress on north/south walls (z = -1 and z = depth)
+            for (int x = 2; x <= width - 3; x += step) {
+                if (doorSide == Direction.NORTH) continue;
+                placeButtress(blocks, origin.add(x, 0, -2), yTop, foundation, trim, roofStairs, Direction.SOUTH);
+                if (doorSide == Direction.SOUTH) continue;
+                placeButtress(blocks, origin.add(x, 0, depth + 1), yTop, foundation, trim, roofStairs, Direction.NORTH);
+            }
+        } else {
+            // buttress on west/east walls (x=-1 and x=width)
+            for (int z = 2; z <= depth - 3; z += step) {
+                if (doorSide == Direction.WEST) continue;
+                placeButtress(blocks, origin.add(-2, 0, z), yTop, foundation, trim, roofStairs, Direction.EAST);
+                if (doorSide == Direction.EAST) continue;
+                placeButtress(blocks, origin.add(width + 1, 0, z), yTop, foundation, trim, roofStairs, Direction.WEST);
+            }
+        }
+    }
+
+    private static void placeButtress(List<PlannedBlock> blocks,
+                                      BlockPos base,
+                                      int yTop,
+                                      BlockState foundation,
+                                      BlockState trim,
+                                      BlockState roofStairs,
+                                      Direction towardWall) {
+        // vertical pier
+        blocks.add(new PlannedBlock(base, foundation));
+        for (int y = 1; y <= yTop - 3; y++) blocks.add(new PlannedBlock(base.up(y), trim));
+        // diagonal-ish arm using stairs (2 steps)
+        BlockPos a0 = base.up(yTop - 3).offset(towardWall, 1);
+        BlockPos a1 = base.up(yTop - 2).offset(towardWall, 2);
+        blocks.add(new PlannedBlock(a0, withFacingIfPossible(roofStairs, towardWall)));
+        blocks.add(new PlannedBlock(a1, withFacingIfPossible(roofStairs, towardWall)));
     }
 
     // ========== Ming/Qing courtyard ==========
@@ -1028,9 +1242,60 @@ public class HouseGenerator implements StructureGenerator {
         }
     }
 
+    @SuppressWarnings("unused")
     private static void addHippedRoof(List<PlannedBlock> blocks, BlockPos o, int w, int d, int baseH,
                                       BlockState roofMain, BlockState roofStairs, BlockState roofSlab, BlockState trim) {
         addHippedRoof(blocks, o, w, d, baseH, roofMain, roofStairs, roofSlab, trim, true, false);
+    }
+
+    /**
+     * Spire roof (MVP):
+     * - Build a steep gable as base.
+     * - Add 4 corner spires for a gothic silhouette.
+     */
+    private static void addSpireRoof(List<PlannedBlock> blocks, BlockPos origin, int width, int depth, int height,
+                                     BlockState roofMain, BlockState roofStairs, BlockState roofSlab, BlockState trim) {
+        int roofHeight = Math.min(Math.min(width, depth) / 2 + 2, 9);
+        // Steep gable (along X)
+        for (int i = 0; i < roofHeight; i++) {
+            int rightX = width - 1 - i;
+            if (i > rightX) break;
+            for (int z = -1; z <= depth; z++) {
+                blocks.add(new PlannedBlock(origin.add(i, height + i, z), withFacingIfPossible(roofStairs, Direction.EAST)));
+                blocks.add(new PlannedBlock(origin.add(rightX, height + i, z), withFacingIfPossible(roofStairs, Direction.WEST)));
+            }
+        }
+        // Ridge spike line (slab + trim)
+        int ridgeY = height + roofHeight - 1;
+        int midLeft = (width - 1) / 2;
+        int midRight = width / 2;
+        for (int z = -1; z <= depth; z++) {
+            blocks.add(new PlannedBlock(origin.add(midLeft, ridgeY + 1, z), roofSlab));
+            blocks.add(new PlannedBlock(origin.add(midRight, ridgeY + 1, z), roofSlab));
+            if ((z & 1) == 0) {
+                blocks.add(new PlannedBlock(origin.add(midLeft, ridgeY + 2, z), trim));
+            }
+        }
+
+        // Corner spires (small vertical tapers)
+        int spireBaseY = height + 1;
+        int spireH = Math.max(4, Math.min(10, roofHeight + 1));
+        addCornerSpire(blocks, origin.add(0, spireBaseY, 0), spireH, roofMain, trim);
+        addCornerSpire(blocks, origin.add(width - 1, spireBaseY, 0), spireH, roofMain, trim);
+        addCornerSpire(blocks, origin.add(0, spireBaseY, depth - 1), spireH, roofMain, trim);
+        addCornerSpire(blocks, origin.add(width - 1, spireBaseY, depth - 1), spireH, roofMain, trim);
+    }
+
+    private static void addCornerSpire(List<PlannedBlock> blocks, BlockPos base, int h, BlockState body, BlockState tip) {
+        for (int i = 0; i < h; i++) {
+            int r = Math.max(0, 1 - (i / 3)); // taper quickly (2x2 then 1x1)
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    BlockPos p = base.add(dx, i, dz);
+                    blocks.add(new PlannedBlock(p, (i == h - 1) ? tip : body));
+                }
+            }
+        }
     }
 
     /**
