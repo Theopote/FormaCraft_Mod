@@ -75,7 +75,7 @@ public class TowerGenerator implements StructureGenerator {
         window = resolveWindowBlock(world, effWindowStyle, window);
 
         // windowRatio: broad style-driven clamps (cross-style)
-        String ews = (effWindowStyle == null) ? "" : effWindowStyle.trim().toLowerCase(java.util.Locale.ROOT);
+        String ews = effWindowStyle.trim().toLowerCase(java.util.Locale.ROOT);
         if (!ews.isBlank()) {
             if (ews.contains("curtain")) windowRatio = Math.max(windowRatio, 0.70);
             else if (ews.contains("slit") || ews.contains("bars")) windowRatio = Math.min(windowRatio, 0.14);
@@ -96,7 +96,7 @@ public class TowerGenerator implements StructureGenerator {
         boolean flagExplicit = (extra != null && extra.containsKey("flag"));
         if (!bannerExplicit && ornamentProfile != null && ornamentProfile.contains("banner")) {
             banner = true;
-            if (details != null && details.bannerColor != null && !details.bannerColor.isBlank()) {
+            if (details.bannerColor != null && !details.bannerColor.isBlank()) {
                 bannerColor = details.bannerColor;
             }
         }
@@ -309,8 +309,6 @@ public class TowerGenerator implements StructureGenerator {
             ws = switch (style) {
                 case ASIAN -> "fence";
                 case MEDIEVAL -> "bars";
-                case MODERN, FUTURISTIC -> "pane";
-                case RUSTIC -> "pane";
                 default -> "pane";
             };
         }

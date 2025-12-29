@@ -27,6 +27,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
@@ -242,11 +243,11 @@ public class CastleCompoundGenerator implements StructureGenerator {
                                 targetY,
                                 fill,
                                 0,
-                                Math.max(0, Math.min(6, plannedClear)));
+                                Math.min(6, plannedClear));
                         if (p1.size() <= terrainBudgetBlocks) {
                             pad = p1;
                             usedPad = 0;
-                            usedClear = Math.max(0, Math.min(6, plannedClear));
+                            usedClear = Math.min(6, plannedClear);
                             degradeSteps = 1;
                         }
                         else {
@@ -337,18 +338,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
         s.setHeight(height);
         s.setFloors(Math.max(1, height / 6));
 
-        Materials m = new Materials();
-        if (mats != null) {
-            m.setWall(mats.getWall());
-            m.setRoof(mats.getRoof());
-            m.setFloor(mats.getFloor());
-            m.setFoundation(mats.getFoundation());
-            m.setWindow(mats.getWindow());
-        }
-        if (m.getWall() == null) m.setWall("minecraft:stone_bricks");
-        if (m.getRoof() == null) m.setRoof("minecraft:stone_bricks");
-        if (m.getFloor() == null) m.setFloor("minecraft:spruce_planks");
-        if (m.getWindow() == null) m.setWindow("minecraft:glass_pane");
+        Materials m = getMaterials(mats);
         s.setMaterials(m);
 
         Features f = new Features();
@@ -370,14 +360,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
         return s;
     }
 
-    private static BuildingSpec makeGateHouseSpec(int w, int d, Materials mats) {
-        BuildingSpec s = new BuildingSpec();
-        s.setType(BuildingType.HOUSE);
-        s.setStyle(BuildingStyle.MEDIEVAL);
-        s.setFootprint(new Footprint(w, d));
-        s.setHeight(10);
-        s.setFloors(1);
-
+    private static @NotNull Materials getMaterials(Materials mats) {
         Materials m = new Materials();
         if (mats != null) {
             m.setWall(mats.getWall());
@@ -390,6 +373,18 @@ public class CastleCompoundGenerator implements StructureGenerator {
         if (m.getRoof() == null) m.setRoof("minecraft:stone_bricks");
         if (m.getFloor() == null) m.setFloor("minecraft:spruce_planks");
         if (m.getWindow() == null) m.setWindow("minecraft:glass_pane");
+        return m;
+    }
+
+    private static BuildingSpec makeGateHouseSpec(int w, int d, Materials mats) {
+        BuildingSpec s = new BuildingSpec();
+        s.setType(BuildingType.HOUSE);
+        s.setStyle(BuildingStyle.MEDIEVAL);
+        s.setFootprint(new Footprint(w, d));
+        s.setHeight(10);
+        s.setFloors(1);
+
+        Materials m = getMaterials(mats);
         s.setMaterials(m);
 
         Features f = new Features();

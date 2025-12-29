@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  * 福建土楼（永定等）参数化生成器
- *
+ * <p>
  * 约定：
  * - footprint.shape = "circle"
  * - footprint.radius = 外半径（单位：方块）
@@ -54,9 +54,9 @@ public class TulouGenerator implements StructureGenerator {
 
         // --- parameters (extra.*) ---
         // ringThickness 优先级最高；其次 courtyardRadius/courtyardRatio
-        int ringThicknessExtra = getIntExtra(spec, "ringThickness", -1);
-        int courtyardRadiusExtra = getIntExtra(spec, "courtyardRadius", -1);
-        double courtyardRatio = getDoubleExtra(spec, "courtyardRatio", Double.NaN);
+        int ringThicknessExtra = getIntExtra(spec, "ringThickness");
+        int courtyardRadiusExtra = getIntExtra(spec, "courtyardRadius");
+        double courtyardRatio = getDoubleExtra(spec);
 
         int ringThickness = (ringThicknessExtra > 0) ? ringThicknessExtra : Math.min(6, Math.max(3, radius / 3));
         ringThickness = Math.max(3, Math.min(8, ringThickness));
@@ -105,12 +105,11 @@ public class TulouGenerator implements StructureGenerator {
 
         // palette overrides (fallback to current material choices if palette part missing)
         if (paletteId != null && !paletteId.isBlank()) {
-            BlockPos p0 = origin;
-            wall = PaletteResolver.pick(world, paletteId, "WALL_BASE", p0, 0x71A0L, wall);
-            foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p0, 0x71A1L, foundation);
-            floor = PaletteResolver.pick(world, paletteId, "FLOORING", p0, 0x71A2L, floor);
-            roof = PaletteResolver.pick(world, paletteId, "ROOF_TILE", p0, 0x71A3L, roof);
-            window = PaletteResolver.pick(world, paletteId, "WINDOW", p0, 0x71A4L, window);
+            wall = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0x71A0L, wall);
+            foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0x71A1L, foundation);
+            floor = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0x71A2L, floor);
+            roof = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0x71A3L, roof);
+            window = PaletteResolver.pick(world, paletteId, "WINDOW", origin, 0x71A4L, window);
         }
 
         BlockState pillar = Blocks.DARK_OAK_LOG.getDefaultState();
@@ -137,7 +136,6 @@ public class TulouGenerator implements StructureGenerator {
         BlockState courtyardPaveAlt = Blocks.MOSSY_STONE_BRICKS.getDefaultState();
 
         // --- origin 作为圆心（更符合“直径为X”的直觉） ---
-        BlockPos c = origin;
 
         // --- clear volume (避免与山体冲突) ---
         int clearR = radius + 2;
@@ -146,7 +144,7 @@ public class TulouGenerator implements StructureGenerator {
                 int d2 = x * x + z * z;
                 if (d2 > (clearR * clearR)) continue;
                 for (int y = 0; y <= wallHeight + 8; y++) {
-                    blocks.add(new PlannedBlock(c.add(x, y, z), air));
+                    blocks.add(new PlannedBlock(origin.add(x, y, z), air));
                 }
             }
         }
@@ -165,7 +163,7 @@ public class TulouGenerator implements StructureGenerator {
         EnumMap<RadialRole, BlockState> basePalette = new EnumMap<>(RadialRole.class);
         basePalette.put(RadialRole.BASE, foundation);
         basePalette.put(RadialRole.COURTYARD, Blocks.COARSE_DIRT.getDefaultState());
-        blocks.addAll(new RadialPrimitiveInterpreter(basePalette).interpret(basePlan, c, world));
+        blocks.addAll(new RadialPrimitiveInterpreter(basePalette).interpret(basePlan, origin, world));
 
         // --- outer wall + windows ---
         for (int y = 1; y <= wallHeight; y++) {
@@ -180,8 +178,8 @@ public class TulouGenerator implements StructureGenerator {
                         boolean isRammedLayer = (y % 6 == 0);
 
                         boolean isWindowBand = (y % floorHeight == 2) && y >= 2 && y <= wallHeight - 2;
-                        int windowMask = refined ? 3 : 7; // refined 窗更密
-                        int effectiveWindowMask = windowMask;
+                        // refined 窗更密
+                        int effectiveWindowMask = refined ? 3 : 7;
                         // windowStyle broad density knobs (cross-style)
                         String ws = (effWindowStyle == null) ? "" : effWindowStyle.trim().toLowerCase(java.util.Locale.ROOT);
                         if (ws.contains("slit") || ws.contains("bars")) effectiveWindowMask = refined ? 7 : 15;
@@ -200,11 +198,11 @@ public class TulouGenerator implements StructureGenerator {
                                 shutter = withIfPresent(shutter, Properties.OPEN, windowShutterOpen);
                                 shutter = withIfPresent(shutter, Properties.BLOCK_HALF, BlockHalf.TOP);
                                 // 外侧放百叶
-                                blocks.add(new PlannedBlock(c.add(x, y, z), shutter));
+                                blocks.add(new PlannedBlock(origin.add(x, y, z), shutter));
                                 // 内侧补玻璃（更观赏性）
                                 int ix = x - out.getOffsetX();
                                 int iz = z - out.getOffsetZ();
-                                blocks.add(new PlannedBlock(c.add(ix, y, iz), window));
+                                blocks.add(new PlannedBlock(origin.add(ix, y, iz), window));
                                 continue;
                             } else {
                                 s = window;
@@ -214,12 +212,12 @@ public class TulouGenerator implements StructureGenerator {
                             // Per-block texture: allow subtle variation while staying deterministic
                             long salt = ((long) x * 73471L) ^ ((long) z * 91213L) ^ ((long) y * 193L);
                             if (s == wall || s == wallAccent || s == band) {
-                                s = PaletteResolver.pick(world, paletteId, "WALL_BASE", c.add(x, y, z), salt, s);
+                                s = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin.add(x, y, z), salt, s);
                             } else if (s == window) {
-                                s = PaletteResolver.pick(world, paletteId, "WINDOW", c.add(x, y, z), salt, s);
+                                s = PaletteResolver.pick(world, paletteId, "WINDOW", origin.add(x, y, z), salt, s);
                             }
                         }
-                        blocks.add(new PlannedBlock(c.add(x, y, z), s));
+                        blocks.add(new PlannedBlock(origin.add(x, y, z), s));
                     }
                 }
             }
@@ -236,10 +234,10 @@ public class TulouGenerator implements StructureGenerator {
                     if (d2 <= innerRadius * innerRadius && d2 >= (innerRadius - 1) * (innerRadius - 1)) {
                         // posts every ~3 blocks
                         if (((x + z) % 3) == 0) {
-                            blocks.add(new PlannedBlock(c.add(x, yBase, z), pillar));
-                            blocks.add(new PlannedBlock(c.add(x, yBase + 1, z), pillar));
+                            blocks.add(new PlannedBlock(origin.add(x, yBase, z), pillar));
+                            blocks.add(new PlannedBlock(origin.add(x, yBase + 1, z), pillar));
                         } else {
-                            blocks.add(new PlannedBlock(c.add(x, yRail, z), railing));
+                            blocks.add(new PlannedBlock(origin.add(x, yRail, z), railing));
                         }
                     }
                 }
@@ -254,7 +252,7 @@ public class TulouGenerator implements StructureGenerator {
         }
         EnumMap<RadialRole, BlockState> floorPalette = new EnumMap<>(RadialRole.class);
         floorPalette.put(RadialRole.FLOOR, floor);
-        blocks.addAll(new RadialPrimitiveInterpreter(floorPalette).interpret(floorPlan, c, world));
+        blocks.addAll(new RadialPrimitiveInterpreter(floorPalette).interpret(floorPlan, origin, world));
 
         // --- vertical ladder shaft near inner ring (简化楼梯) ---
         // 位置：门的顺时针 90°（避免与大门冲突）
@@ -263,7 +261,7 @@ public class TulouGenerator implements StructureGenerator {
         int ladderZ = (ladderPosDir == Direction.SOUTH ? innerRadius : (ladderPosDir == Direction.NORTH ? -innerRadius : 0));
         Direction ladderFacing = ladderPosDir.getOpposite(); // 面向内院
         for (int y = 1; y <= wallHeight - 1; y++) {
-            blocks.add(new PlannedBlock(c.add(ladderX, y, ladderZ), Blocks.LADDER.getDefaultState().with(Properties.HORIZONTAL_FACING, ladderFacing)));
+            blocks.add(new PlannedBlock(origin.add(ladderX, y, ladderZ), Blocks.LADDER.getDefaultState().with(Properties.HORIZONTAL_FACING, ladderFacing)));
         }
         // 预留洞口：每层楼面打一格空气
         for (int f = 1; f < floors; f++) {
@@ -271,31 +269,31 @@ public class TulouGenerator implements StructureGenerator {
             // 洞口放在楼梯“内侧”一格
             int hx = ladderX + (ladderPosDir == Direction.EAST ? -1 : (ladderPosDir == Direction.WEST ? 1 : 0));
             int hz = ladderZ + (ladderPosDir == Direction.SOUTH ? -1 : (ladderPosDir == Direction.NORTH ? 1 : 0));
-            blocks.add(new PlannedBlock(c.add(hx, y, hz), air));
+            blocks.add(new PlannedBlock(origin.add(hx, y, hz), air));
         }
 
         // --- entrance door (configurable facing) ---
         int doorX = (doorFacing == Direction.EAST ? radius : (doorFacing == Direction.WEST ? -radius : 0));
         int doorZ = (doorFacing == Direction.SOUTH ? radius : (doorFacing == Direction.NORTH ? -radius : 0));
         // 清空门洞
-        blocks.add(new PlannedBlock(c.add(doorX, 1, doorZ), air));
-        blocks.add(new PlannedBlock(c.add(doorX, 2, doorZ), air));
+        blocks.add(new PlannedBlock(origin.add(doorX, 1, doorZ), air));
+        blocks.add(new PlannedBlock(origin.add(doorX, 2, doorZ), air));
         BlockState door = Blocks.OAK_DOOR.getDefaultState().with(Properties.HORIZONTAL_FACING, doorFacing);
-        blocks.add(new PlannedBlock(c.add(doorX, 1, doorZ), door.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER)));
-        blocks.add(new PlannedBlock(c.add(doorX, 2, doorZ), door.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER)));
+        blocks.add(new PlannedBlock(origin.add(doorX, 1, doorZ), door.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER)));
+        blocks.add(new PlannedBlock(origin.add(doorX, 2, doorZ), door.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER)));
         // 门楼略做加厚
         BlockState gateCap = Blocks.DARK_OAK_PLANKS.getDefaultState();
-        blocks.add(new PlannedBlock(c.add(doorX, 3, doorZ), gateCap));
-        blocks.add(new PlannedBlock(c.add(doorX, 4, doorZ), gateCap));
+        blocks.add(new PlannedBlock(origin.add(doorX, 3, doorZ), gateCap));
+        blocks.add(new PlannedBlock(origin.add(doorX, 4, doorZ), gateCap));
         // 门两侧加一点“门框”
         int sideX = (doorFacing == Direction.NORTH || doorFacing == Direction.SOUTH) ? 1 : 0;
         int sideZ = (doorFacing == Direction.EAST || doorFacing == Direction.WEST) ? 1 : 0;
-        blocks.add(new PlannedBlock(c.add(doorX + sideX, 1, doorZ + sideZ), wall));
-        blocks.add(new PlannedBlock(c.add(doorX - sideX, 1, doorZ - sideZ), wall));
+        blocks.add(new PlannedBlock(origin.add(doorX + sideX, 1, doorZ + sideZ), wall));
+        blocks.add(new PlannedBlock(origin.add(doorX - sideX, 1, doorZ - sideZ), wall));
 
         // Ornament near entrance (cross-style, best-effort)
         if (ornamentProfile != null && !ornamentProfile.isBlank()) {
-            addEntranceOrnaments(blocks, c, world, doorFacing, doorX, doorZ, ornamentProfile, details, paletteId);
+            addEntranceOrnaments(blocks, origin, world, doorFacing, doorX, doorZ, ornamentProfile, details, paletteId);
         }
 
         // 门前台阶 + 门楼（更观赏性）
@@ -315,36 +313,36 @@ public class TulouGenerator implements StructureGenerator {
         for (int o = 1; o <= 3; o++) {
             int bx = doorX + fx * o;
             int bz = doorZ + fz * o;
-            blocks.add(new PlannedBlock(c.add(bx, 0, bz), slab));
+            blocks.add(new PlannedBlock(origin.add(bx, 0, bz), slab));
             // 稍微加宽
-            blocks.add(new PlannedBlock(c.add(bx + px, 0, bz + pz), slab));
-            blocks.add(new PlannedBlock(c.add(bx - px, 0, bz - pz), slab));
+            blocks.add(new PlannedBlock(origin.add(bx + px, 0, bz + pz), slab));
+            blocks.add(new PlannedBlock(origin.add(bx - px, 0, bz - pz), slab));
         }
         // 台阶（门外第一格）
-        blocks.add(new PlannedBlock(c.add(doorX + fx, 0, doorZ + fz), stair));
+        blocks.add(new PlannedBlock(origin.add(doorX + fx, 0, doorZ + fz), stair));
 
         // 门楼立柱（门外 2 格处两根）
         int gx = doorX + fx * 2;
         int gz = doorZ + fz * 2;
         for (int y = 1; y <= 4; y++) {
-            blocks.add(new PlannedBlock(c.add(gx + px, y, gz + pz), pillar));
-            blocks.add(new PlannedBlock(c.add(gx - px, y, gz - pz), pillar));
+            blocks.add(new PlannedBlock(origin.add(gx + px, y, gz + pz), pillar));
+            blocks.add(new PlannedBlock(origin.add(gx - px, y, gz - pz), pillar));
         }
         // 横梁/匾额
-        blocks.add(new PlannedBlock(c.add(gx, 4, gz), band));
-        blocks.add(new PlannedBlock(c.add(gx, 3, gz), Blocks.OCHRE_FROGLIGHT.getDefaultState())); // “匾额”发光点缀
+        blocks.add(new PlannedBlock(origin.add(gx, 4, gz), band));
+        blocks.add(new PlannedBlock(origin.add(gx, 3, gz), Blocks.OCHRE_FROGLIGHT.getDefaultState())); // “匾额”发光点缀
         // 灯笼（两侧）
-        blocks.add(new PlannedBlock(c.add(gx + px, 5, gz + pz), chain));
-        blocks.add(new PlannedBlock(c.add(gx - px, 5, gz - pz), chain));
-        blocks.add(new PlannedBlock(c.add(gx + px, 4, gz + pz), lantern));
-        blocks.add(new PlannedBlock(c.add(gx - px, 4, gz - pz), lantern));
+        blocks.add(new PlannedBlock(origin.add(gx + px, 5, gz + pz), chain));
+        blocks.add(new PlannedBlock(origin.add(gx - px, 5, gz - pz), chain));
+        blocks.add(new PlannedBlock(origin.add(gx + px, 4, gz + pz), lantern));
+        blocks.add(new PlannedBlock(origin.add(gx - px, 4, gz - pz), lantern));
 
         // 内院铺装与景观（更观赏性）
         // - 中心井
-        blocks.add(new PlannedBlock(c.add(0, 0, 0), Blocks.STONE_BRICKS.getDefaultState()));
-        blocks.add(new PlannedBlock(c.add(0, 1, 0), Blocks.COBBLESTONE_WALL.getDefaultState()));
-        blocks.add(new PlannedBlock(c.add(0, 2, 0), chain));
-        blocks.add(new PlannedBlock(c.add(0, 3, 0), lantern));
+        blocks.add(new PlannedBlock(origin.add(0, 0, 0), Blocks.STONE_BRICKS.getDefaultState()));
+        blocks.add(new PlannedBlock(origin.add(0, 1, 0), Blocks.COBBLESTONE_WALL.getDefaultState()));
+        blocks.add(new PlannedBlock(origin.add(0, 2, 0), chain));
+        blocks.add(new PlannedBlock(origin.add(0, 3, 0), lantern));
         // - 从门到内院中心的“主路”
         int start = innerRadius - 1;
         for (int t = start; t >= 1; t--) {
@@ -355,7 +353,7 @@ public class TulouGenerator implements StructureGenerator {
                 int sx = (doorFacing == Direction.NORTH || doorFacing == Direction.SOUTH) ? w : 0;
                 int sz = (doorFacing == Direction.EAST || doorFacing == Direction.WEST) ? w : 0;
                 BlockState p = (((t + w) & 3) == 0) ? courtyardPaveAlt : courtyardPave;
-                blocks.add(new PlannedBlock(c.add(wx + sx, 0, wz + sz), p));
+                blocks.add(new PlannedBlock(origin.add(wx + sx, 0, wz + sz), p));
             }
         }
         // - 内院随机铺装（不超过半径，避免太密）
@@ -365,7 +363,7 @@ public class TulouGenerator implements StructureGenerator {
                 int d2 = x * x + z * z;
                 if (d2 <= paveR * paveR) {
                     if ((((x * 13) ^ (z * 7)) & 7) == 0) {
-                        blocks.add(new PlannedBlock(c.add(x, 0, z), courtyardPaveAlt));
+                        blocks.add(new PlannedBlock(origin.add(x, 0, z), courtyardPaveAlt));
                     }
                 }
             }
@@ -383,7 +381,7 @@ public class TulouGenerator implements StructureGenerator {
                 for (int z = -outerR; z <= outerR; z++) {
                     int d2 = x * x + z * z;
                     if (d2 <= outerR * outerR && d2 >= innerR * innerR) {
-                        BlockPos p = c.add(x, y, z);
+                        BlockPos p = origin.add(x, y, z);
                         BlockState rr = roof;
                         if (paletteId != null && !paletteId.isBlank()) {
                             long salt = ((long) x * 91213L) ^ ((long) z * 73471L) ^ ((long) y * 97L);
@@ -404,7 +402,7 @@ public class TulouGenerator implements StructureGenerator {
             for (int z = -eaveR; z <= eaveR; z++) {
                 int d2 = x * x + z * z;
                 if (d2 <= eaveR * eaveR && d2 >= (eaveR - 1) * (eaveR - 1)) {
-                    BlockPos p = c.add(x, roofBaseY, z);
+                    BlockPos p = origin.add(x, roofBaseY, z);
                     BlockState rr = roof;
                     if (paletteId != null && !paletteId.isBlank()) {
                         long salt = ((long) x * 7127L) ^ ((long) z * 9137L) ^ ((long) roofBaseY * 31L);
@@ -421,36 +419,36 @@ public class TulouGenerator implements StructureGenerator {
             if (ep.contains("neon")) {
                 BlockState light = Blocks.SEA_LANTERN.getDefaultState();
                 if (paletteId != null && !paletteId.isBlank()) {
-                    light = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", c, 0x7E1001L, light);
-                    light = PaletteResolver.pick(world, paletteId, "LIGHTING", c, 0x7E1002L, light);
+                    light = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0x7E1001L, light);
+                    light = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x7E1002L, light);
                 }
                 for (int x = -eaveR; x <= eaveR; x += 6) {
-                    blocks.add(new PlannedBlock(c.add(x, roofBaseY, eaveR), light));
-                    blocks.add(new PlannedBlock(c.add(x, roofBaseY, -eaveR), light));
+                    blocks.add(new PlannedBlock(origin.add(x, roofBaseY, eaveR), light));
+                    blocks.add(new PlannedBlock(origin.add(x, roofBaseY, -eaveR), light));
                 }
                 for (int z = -eaveR; z <= eaveR; z += 6) {
-                    blocks.add(new PlannedBlock(c.add(eaveR, roofBaseY, z), light));
-                    blocks.add(new PlannedBlock(c.add(-eaveR, roofBaseY, z), light));
+                    blocks.add(new PlannedBlock(origin.add(eaveR, roofBaseY, z), light));
+                    blocks.add(new PlannedBlock(origin.add(-eaveR, roofBaseY, z), light));
                 }
             } else if (ep.contains("organic") || ep.contains("vine")) {
                 BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
                 for (int x = -eaveR; x <= eaveR; x += 5) {
-                    blocks.add(new PlannedBlock(c.add(x, roofBaseY - 1, eaveR + 1), leaf));
-                    blocks.add(new PlannedBlock(c.add(x, roofBaseY - 1, -eaveR - 1), leaf));
+                    blocks.add(new PlannedBlock(origin.add(x, roofBaseY - 1, eaveR + 1), leaf));
+                    blocks.add(new PlannedBlock(origin.add(x, roofBaseY - 1, -eaveR - 1), leaf));
                 }
             } else if (ep.contains("battlement")) {
                 BlockState crenel = Blocks.STONE_BRICK_WALL.getDefaultState();
                 int by = roofBaseY + 1;
                 for (int x = -eaveR; x <= eaveR; x++) {
                     if ((x & 1) == 0) {
-                        blocks.add(new PlannedBlock(c.add(x, by, eaveR), crenel));
-                        blocks.add(new PlannedBlock(c.add(x, by, -eaveR), crenel));
+                        blocks.add(new PlannedBlock(origin.add(x, by, eaveR), crenel));
+                        blocks.add(new PlannedBlock(origin.add(x, by, -eaveR), crenel));
                     }
                 }
                 for (int z = -eaveR; z <= eaveR; z++) {
                     if ((z & 1) == 0) {
-                        blocks.add(new PlannedBlock(c.add(eaveR, by, z), crenel));
-                        blocks.add(new PlannedBlock(c.add(-eaveR, by, z), crenel));
+                        blocks.add(new PlannedBlock(origin.add(eaveR, by, z), crenel));
+                        blocks.add(new PlannedBlock(origin.add(-eaveR, by, z), crenel));
                     }
                 }
             }
@@ -466,7 +464,7 @@ public class TulouGenerator implements StructureGenerator {
                     int d2 = x * x + z * z;
                     if (d2 <= ridgeR * ridgeR && d2 >= (ridgeR - 1) * (ridgeR - 1)) {
                         if ((((x * 9) ^ (z * 5)) & 3) == 0) {
-                            blocks.add(new PlannedBlock(c.add(x, topY, z), ridge));
+                            blocks.add(new PlannedBlock(origin.add(x, topY, z), ridge));
                         }
                     }
                 }
@@ -489,31 +487,31 @@ public class TulouGenerator implements StructureGenerator {
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 
-    private static int getIntExtra(BuildingSpec spec, String key, int def) {
-        if (spec == null) return def;
+    private static int getIntExtra(BuildingSpec spec, String key) {
+        if (spec == null) return -1;
         Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
+        if (extra == null) return -1;
         Object v = extra.get(key);
-        if (v == null) return def;
+        if (v == null) return -1;
         if (v instanceof Number n) return n.intValue();
         try {
             return Integer.parseInt(String.valueOf(v));
         } catch (Exception ignored) {
-            return def;
+            return -1;
         }
     }
 
-    private static double getDoubleExtra(BuildingSpec spec, String key, double def) {
-        if (spec == null) return def;
+    private static double getDoubleExtra(BuildingSpec spec) {
+        if (spec == null) return Double.NaN;
         Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
+        if (extra == null) return Double.NaN;
+        Object v = extra.get("courtyardRatio");
+        if (v == null) return Double.NaN;
         if (v instanceof Number n) return n.doubleValue();
         try {
             return Double.parseDouble(String.valueOf(v));
         } catch (Exception ignored) {
-            return def;
+            return Double.NaN;
         }
     }
 
@@ -549,8 +547,7 @@ public class TulouGenerator implements StructureGenerator {
 
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
     }
 
     private static String resolveEffectiveWindowStyle(BuildingSpec spec, DetailPreferences details, BuildingStyle style) {
@@ -560,8 +557,6 @@ public class TulouGenerator implements StructureGenerator {
             ws = switch (style) {
                 case ASIAN -> "fence";
                 case MEDIEVAL -> "bars";
-                case MODERN, FUTURISTIC -> "pane";
-                case RUSTIC -> "pane";
                 default -> "pane";
             };
         }
@@ -686,7 +681,6 @@ public class TulouGenerator implements StructureGenerator {
         String v = (s == null ? "" : s).trim().toUpperCase();
         return switch (v) {
             case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
             case "E", "EAST", "东", "朝东" -> Direction.EAST;
             case "W", "WEST", "西", "朝西" -> Direction.WEST;
             default -> Direction.SOUTH;

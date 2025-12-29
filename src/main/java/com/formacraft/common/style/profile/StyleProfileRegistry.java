@@ -30,8 +30,7 @@ public final class StyleProfileRegistry {
         // Prefer new StyleProfileCatalog if a profile id exists there.
         var def = StyleProfileCatalogRegistry.get(sid);
         if (def != null) {
-            String key = sid;
-            return CACHE.computeIfAbsent(key, k -> new CatalogStyleProfile(sid, def, StyleCategory.CULTURAL));
+            return CACHE.computeIfAbsent(sid, k -> new CatalogStyleProfile(sid, def, StyleCategory.CULTURAL));
         }
 
         // Fallback: legacy StyleGenome assets.
@@ -112,7 +111,7 @@ public final class StyleProfileRegistry {
     /**
      * v1: allow StyleProfileCatalog.defaults.algorithm.generator to nudge routing when user/LLM didn't specify intent.
      * This keeps "style" and "archetype" cooperating: style can provide a stable default generator family.
-     *
+     * <p>
      * IMPORTANT:
      * - Never override explicit extra.template / extra.landmark
      * - Only map to generators that exist in the current mod (otherwise just store as algorithmHint)

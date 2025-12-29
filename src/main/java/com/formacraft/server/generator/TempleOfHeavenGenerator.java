@@ -43,7 +43,7 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
         if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
             paletteId = details.paletteId.trim();
         }
-        int baseRadius = clamp(getIntExtra(spec, "baseRadius", getCircleRadiusFromFootprint(spec, 18)), 10, 80);
+        int baseRadius = clamp(getIntExtra(spec, "baseRadius", getCircleRadiusFromFootprint(spec)), 10, 80);
         int tiers = clamp(getIntExtra(spec, "tiers", 3), 2, 3);
         int hallRadius = clamp(getIntExtra(spec, "hallRadius", (int) Math.round(baseRadius * 0.55)), 6, Math.max(6, baseRadius - 3));
 
@@ -76,14 +76,13 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
 
         // 1) 三层台基（每层缩半径）
         int y = 0;
-        int r0 = baseRadius;
         int tierH = refined ? 3 : 2;
         int step = refined ? 3 : 2;
         // Skeleton-driven: Radial primitives for tier disks + trims (+ stairs at bottom tier)
         RadialPlan basePlan = new RadialPlan();
         int yTmp = y;
         for (int t = 0; t < tiers; t++) {
-            int rt = Math.max(6, r0 - t * (step + 2));
+            int rt = Math.max(6, baseRadius - t * (step + 2));
             basePlan.add(new RadialPrimitive(RadialPrimitiveKind.DISK_FILL, RadialRole.BASE, rt, 0, yTmp, yTmp));
             basePlan.add(new RadialPrimitive(RadialPrimitiveKind.RING_OUTLINE, RadialRole.TRIM, rt, 0, yTmp + tierH - 1, yTmp + tierH - 1));
             if (t == 0) {
@@ -115,8 +114,7 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
 
         // 3) 三层屋顶（简化：三段圆锥）
         int roofStartY = hallBaseY + (refined ? 9 : 7);
-        int roofMax = hallHeight;
-        int roofTopY = roofStartY + roofMax;
+        int roofTopY = roofStartY + hallHeight;
 
         // 三段：大/中/小
         int[] segH = refined ? new int[]{8, 7, 6} : new int[]{7, 6, 5};
@@ -137,7 +135,7 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
 
         // v1 scoring：台基/圆殿/三层屋顶是否齐全
         double shapeScore = 0.92; // 圆形台基 + 圆殿
-        double ratioScore = clamp01(1.0 - Math.abs((roofMax / (double) baseRadius) - 1.4) * 0.22);
+        double ratioScore = clamp01(1.0 - Math.abs((hallHeight / (double) baseRadius) - 1.4) * 0.22);
         double signatureScore = (tiers >= 3 ? 0.95 : 0.85);
         double overall = clamp01(shapeScore * 0.4 + ratioScore * 0.3 + signatureScore * 0.3);
 
@@ -210,10 +208,9 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
     }
 
     private static void buildConicalRoof(List<PlannedBlock> blocks, BlockPos origin, int baseR, int yStart, int h, BlockState roof) {
-        int r = baseR;
         for (int dy = 0; dy < h; dy++) {
             int y = yStart + dy;
-            int curR = Math.max(1, r - (dy / 2)); // taper
+            int curR = Math.max(1, baseR - (dy / 2)); // taper
             ring(blocks, origin, curR, y, roof);
             // cap top layer
             if (dy == h - 1) {
@@ -222,14 +219,14 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
         }
     }
 
-    private static int getCircleRadiusFromFootprint(BuildingSpec spec, int def) {
+    private static int getCircleRadiusFromFootprint(BuildingSpec spec) {
         try {
-            if (spec == null || spec.getFootprint() == null) return def;
-            if (!"circle".equalsIgnoreCase(spec.getFootprint().getShape())) return def;
+            if (spec == null || spec.getFootprint() == null) return 18;
+            if (!"circle".equalsIgnoreCase(spec.getFootprint().getShape())) return 18;
             int r = spec.getFootprint().getRadius();
-            return r > 0 ? r : def;
+            return r > 0 ? r : 18;
         } catch (Exception e) {
-            return def;
+            return 18;
         }
     }
 
@@ -275,8 +272,7 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
 
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
     }
 }
 

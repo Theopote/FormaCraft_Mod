@@ -66,7 +66,7 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
 
         StyleProfile styleProfile = StyleProfileRegistry.resolve(spec);
         Materials mats = spec.getMaterials() != null ? spec.getMaterials() : new Materials();
-        String paletteId = getString(extra, "paletteId", null);
+        String paletteId = getString(extra);
         if ((paletteId == null || paletteId.isBlank()) && styleProfile != null && styleProfile.details() != null
                 && styleProfile.details().paletteId != null && !styleProfile.details().paletteId.isBlank()) {
             paletteId = styleProfile.details().paletteId.trim();
@@ -98,55 +98,63 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
                                                      SkeletonPlan plan,
                                                      BlockPos origin,
                                                      ServerWorld world) {
-        if (plan == null) return List.of();
+        switch (plan) {
+            case null -> {
+                return List.of();
+            }
 
-        // 1) Delegate to concrete generators
-        if (plan instanceof GeneratorBackedPlan gbp) {
-            if (gbp.spec == null) return List.of();
-            StructureGenerator g = StructureGeneratorFactory.getGenerator(gbp.spec);
-            GeneratedStructure out = g.generate(gbp.spec, origin, world);
-            return out != null ? out.getBlocks() : List.of();
-        }
+            // 1) Delegate to concrete generators
+            case GeneratorBackedPlan gbp -> {
+                if (gbp.spec == null) return List.of();
+                StructureGenerator g = StructureGeneratorFactory.getGenerator(gbp.spec);
+                GeneratedStructure out = g.generate(gbp.spec, origin, world);
+                return out != null ? out.getBlocks() : List.of();
+            }
 
-        // 2) Rect enclosure (palette-aware)
-        if (plan instanceof RectEnclosurePlan rp) {
-            BlockState wall = resolveBlockState(world,
-                    firstNonBlank(mats.getWall(), styleProfile != null ? styleProfile.palette().wall : null),
-                    Blocks.STONE_BRICKS.getDefaultState());
-            // cap: prefer style palette cap -> material roof -> wall
-            String capId = firstNonBlank(styleProfile != null ? styleProfile.palette().cap : null, mats.getRoof(), mats.getWall());
-            BlockState cap = resolveBlockState(world, capId, wall);
-            BlockState cap2 = cap;
 
-            int capLayers = styleProfile != null && styleProfile.rules() != null ? styleProfile.rules().capLayers : 1;
-            int capOverhang = styleProfile != null && styleProfile.rules() != null ? styleProfile.rules().capOverhang : 0;
+            // 2) Rect enclosure (palette-aware)
+            case RectEnclosurePlan rp -> {
+                BlockState wall = resolveBlockState(world,
+                        firstNonBlank(mats.getWall(), styleProfile != null ? styleProfile.palette().wall : null),
+                        Blocks.STONE_BRICKS.getDefaultState());
+                // cap: prefer style palette cap -> material roof -> wall
+                String capId = firstNonBlank(styleProfile != null ? styleProfile.palette().cap : null, mats.getRoof(), mats.getWall());
+                BlockState cap = resolveBlockState(world, capId, wall);
 
-            RectEnclosureInterpreter it = new RectEnclosureInterpreter(
-                    wall, cap, cap2, capLayers, capOverhang,
-                    wall, false,
-                    paletteId
-            );
-            return it.interpret(rp, origin, world);
-        }
+                int capLayers = styleProfile != null && styleProfile.rules() != null ? styleProfile.rules().capLayers : 1;
+                int capOverhang = styleProfile != null && styleProfile.rules() != null ? styleProfile.rules().capOverhang : 0;
 
-        // 3) Polyline roads (simple road for now)
-        if (plan instanceof PolylinePathPlan pp) {
-            BlockState road = Blocks.GRAVEL.getDefaultState();
-            BlockState border = Blocks.COBBLESTONE.getDefaultState();
-            var details = styleProfile != null ? styleProfile.details() : null;
-            String eavesProfile = details != null ? details.eavesProfile : null;
-            String ornamentProfile = details != null ? details.ornamentProfile : null;
-            boolean neon = eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon");
-            boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
-            BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
-            BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
-            return new PathRoadInterpreter(road, border, true, paletteId, lamp, post, ornamentProfile).interpret(pp, origin, world);
-        }
+                RectEnclosureInterpreter it = new RectEnclosureInterpreter(
+                        wall, cap, cap, capLayers, capOverhang,
+                        wall, false,
+                        paletteId
+                );
+                return it.interpret(rp, origin, world);
+            }
 
-        // 4) Nested compounds
-        if (plan instanceof CompoundPlan cp) {
-            PlanDispatcher dispatcher = (child, o, w) -> interpretChild(parentSpec, styleProfile, mats, paletteId, child, o, w);
-            return new CompoundInterpreter(dispatcher).interpret(cp, origin, world);
+
+            // 3) Polyline roads (simple road for now)
+            case PolylinePathPlan pp -> {
+                BlockState road = Blocks.GRAVEL.getDefaultState();
+                BlockState border = Blocks.COBBLESTONE.getDefaultState();
+                var details = styleProfile != null ? styleProfile.details() : null;
+                String eavesProfile = details != null ? details.eavesProfile : null;
+                String ornamentProfile = details != null ? details.ornamentProfile : null;
+                boolean neon = eavesProfile != null && eavesProfile.toLowerCase(Locale.ROOT).contains("neon");
+                boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(Locale.ROOT).contains("sign"));
+                BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
+                BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
+                return new PathRoadInterpreter(road, border, true, paletteId, lamp, post, ornamentProfile).interpret(pp, origin, world);
+            }
+
+
+            // 4) Nested compounds
+            case CompoundPlan cp -> {
+                PlanDispatcher dispatcher = (child, o, w) -> interpretChild(parentSpec, styleProfile, mats, paletteId, child, o, w);
+                return new CompoundInterpreter(dispatcher).interpret(cp, origin, world);
+            }
+            default -> {
+            }
         }
 
         // Unknown plan type: ignore (best-effort)
@@ -155,14 +163,23 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
 
     @SuppressWarnings("unchecked")
     private static Map<String, Object> parseBlueprint(Object raw) {
-        if (raw == null) return null;
-        if (raw instanceof Map<?, ?> m) return (Map<String, Object>) m;
-        if (raw instanceof String s) {
-            String json = s.trim();
-            if (json.isEmpty() || "{}".equals(json)) return null;
-            try {
-                return JsonUtil.fromJson(json, Map.class);
-            } catch (Throwable ignored) {}
+        switch (raw) {
+            case null -> {
+                return null;
+            }
+            case Map<?, ?> m -> {
+                return (Map<String, Object>) m;
+            }
+            case String s -> {
+                String json = s.trim();
+                if (json.isEmpty() || "{}".equals(json)) return null;
+                try {
+                    return JsonUtil.fromJson(json, Map.class);
+                } catch (Throwable ignored) {
+                }
+            }
+            default -> {
+            }
         }
         // last resort: serialize then parse
         try {
@@ -173,12 +190,12 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
         return null;
     }
 
-    private static String getString(Map<String, Object> extra, String key, String fallback) {
-        if (extra == null || key == null) return fallback;
-        Object v = extra.get(key);
-        if (v == null) return fallback;
+    private static String getString(Map<String, Object> extra) {
+        if (extra == null) return null;
+        Object v = extra.get("paletteId");
+        if (v == null) return null;
         String s = String.valueOf(v).trim();
-        return s.isEmpty() ? fallback : s;
+        return s.isEmpty() ? null : s;
     }
 
     private static String firstNonBlank(String a, String b) {
@@ -201,7 +218,6 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
             Identifier id = Identifier.tryParse(s);
             if (id == null) return fallback;
             Block b = Registries.BLOCK.get(id);
-            if (b == null) return fallback;
             BlockState st = b.getDefaultState();
             return st != null ? st : fallback;
         } catch (Throwable ignored) {}

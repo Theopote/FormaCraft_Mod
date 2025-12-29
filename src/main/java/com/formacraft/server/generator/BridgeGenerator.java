@@ -41,9 +41,9 @@ public class BridgeGenerator implements StructureGenerator {
         BlockState railing = Blocks.OAK_FENCE.getDefaultState();
 
         // style + palette (best-effort)
-        Map<String, Object> extra = spec != null ? spec.getExtra() : null;
-        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
-        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        Map<String, Object> extra = spec.getExtra();
+        BuildingStyle style = spec.getStyle() != null ? spec.getStyle() : BuildingStyle.DEFAULT;
+        StyleProfile profile = StyleProfileRegistry.resolve(spec);
         DetailPreferences details = profile != null ? profile.details() : null;
         String eavesProfile = details != null ? details.eavesProfile : null;
         String ornamentProfile = details != null ? details.ornamentProfile : null;

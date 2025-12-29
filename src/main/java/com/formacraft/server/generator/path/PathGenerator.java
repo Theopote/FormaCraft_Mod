@@ -157,7 +157,7 @@ public class PathGenerator {
                 out = merged;
             }
             String description = String.format("Path (width=%d, style=%s)", width, style);
-            return new GeneratedStructure(null, origin, description, out != null ? out : new ArrayList<>());
+            return new GeneratedStructure(null, origin, description, out);
         }
 
         // Non-astar: route everything through PolylinePathPlan + PathRoadInterpreter so roads share the same "genes".
@@ -186,7 +186,7 @@ public class PathGenerator {
         PathRoadInterpreter it = new PathRoadInterpreter(roadBase, borderBase, useBorder, paletteId, lamp, post, ornamentProfile, true, 2);
         List<PlannedBlock> out = it.interpret(plan, origin, world);
         String description = String.format("Path (width=%d, style=%s)", width, style);
-        return new GeneratedStructure(null, origin, description, out != null ? out : new ArrayList<>());
+        return new GeneratedStructure(null, origin, description, out);
     }
 
     /**
@@ -316,19 +316,11 @@ public class PathGenerator {
         boolean cyber = op != null && (op.contains("cyber") || op.contains("sign"));
 
         boolean signageEnabled = (op != null && !op.isBlank());
-        boolean lampsEnabled = roadLamps;
 
         BlockState lampFallback = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
         BlockState postFallback = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
 
-        BlockState signFallback = Blocks.RED_WOOL.getDefaultState();
-        if (op != null) {
-            if (op.contains("cyber") || op.contains("sign")) signFallback = Blocks.GLOWSTONE.getDefaultState();
-            else if (op.contains("organic") || op.contains("lantern")) signFallback = Blocks.SHROOMLIGHT.getDefaultState();
-            else if (op.contains("steam") || op.contains("pipe")) signFallback = Blocks.COPPER_BLOCK.getDefaultState();
-            else if (op.contains("plaque") || op.contains("chinese")) signFallback = Blocks.DARK_OAK_PLANKS.getDefaultState();
-            else if (op.contains("banner")) signFallback = Blocks.RED_WOOL.getDefaultState();
-        }
+        BlockState signFallback = getBlockState(op);
 
         ArrayList<PlannedBlock> out = new ArrayList<>(Math.max(200, center.size() / interval * 6));
         int step = 0;
@@ -355,7 +347,7 @@ public class PathGenerator {
 
             if (step % effInterval == 0) {
                 // lamps on one side
-                if (lampsEnabled) {
+                if (roadLamps) {
                     int lx = p.getX() + rx * (half + 2);
                     int lz = p.getZ() + rz * (half + 2);
                     BlockPos postPos = new BlockPos(lx, p.getY(), lz);
@@ -402,6 +394,18 @@ public class PathGenerator {
         }
 
         return out;
+    }
+
+    private static BlockState getBlockState(String op) {
+        BlockState signFallback = Blocks.RED_WOOL.getDefaultState();
+        if (op != null) {
+            if (op.contains("cyber") || op.contains("sign")) signFallback = Blocks.GLOWSTONE.getDefaultState();
+            else if (op.contains("organic") || op.contains("lantern")) signFallback = Blocks.SHROOMLIGHT.getDefaultState();
+            else if (op.contains("steam") || op.contains("pipe")) signFallback = Blocks.COPPER_BLOCK.getDefaultState();
+            else if (op.contains("plaque") || op.contains("chinese")) signFallback = Blocks.DARK_OAK_PLANKS.getDefaultState();
+            else if (op.contains("banner")) signFallback = Blocks.RED_WOOL.getDefaultState();
+        }
+        return signFallback;
     }
 
     private static boolean isBridgeUnder(ServerWorld world, BlockPos p) {

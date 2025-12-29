@@ -15,7 +15,7 @@ import java.util.Map;
  * GreatWallBlueprintCompiler (v1):
  * Compiles a semantic "great_wall" blueprint into a GeneratorBackedPlan
  * that delegates to GreatWallGenerator via landmark routing.
- *
+ * <p>
  * Suggested blueprint keys:
  * - blueprint_type: "great_wall"
  * - overall_dimensions: { length, height, thickness, facing }
@@ -140,8 +140,7 @@ public final class GreatWallBlueprintCompiler implements BlueprintCompiler {
 
     private static int clamp(int v, int min, int max) {
         if (v < min) return min;
-        if (v > max) return max;
-        return v;
+        return Math.min(v, max);
     }
 }
 

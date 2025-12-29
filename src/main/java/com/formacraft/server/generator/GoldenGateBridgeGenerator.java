@@ -23,7 +23,7 @@ import java.util.Map;
 
 /**
  * GoldenGateBridgeGenerator：金门大桥（强原型）专用生成器（v1）
- *
+ * <p>
  * v1 标志性约束（简化但可识别）：
  * - 双主塔（红色）
  * - 桥面（直线）
@@ -38,7 +38,7 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
         int deckWidth = clamp(getIntExtra(spec, "deckWidth", spec != null && spec.getFootprint() != null ? spec.getFootprint().getWidth() : 9), 5, 63);
         if (deckWidth % 2 == 0) deckWidth += 1;
         int towerH = clamp(getIntExtra(spec, "towerHeight", 44), 18, 160);
-        boolean followTerrain = getBoolExtra(spec, "followTerrain", true);
+        boolean followTerrain = getBoolExtra(spec);
         String detail = getStringExtra(spec, "detailLevel", "aesthetic").toLowerCase();
         boolean refined = detail.contains("refined") || detail.contains("ornate");
 
@@ -78,15 +78,14 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
 
         // Palette overrides (optional): keep explicit per-spec block overrides as fallback.
         if (paletteId != null && !paletteId.isBlank()) {
-            BlockPos p0 = origin;
-            tower = PaletteResolver.pick(world, paletteId, "WALL_BASE", p0, 0x6010L, tower);
-            foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p0, 0x6011L, foundation);
-            deck = PaletteResolver.pick(world, paletteId, "BRIDGE_DECK", p0, 0x6012L, deck);
-            deck = PaletteResolver.pick(world, paletteId, "FLOORING", p0, 0x6013L, deck);
-            rail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", p0, 0x6014L, rail);
-            rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p0, 0x6015L, rail);
-            cable = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p0, 0x6016L, cable);
-            hanger = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p0, 0x6017L, hanger);
+            tower = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0x6010L, tower);
+            foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0x6011L, foundation);
+            deck = PaletteResolver.pick(world, paletteId, "BRIDGE_DECK", origin, 0x6012L, deck);
+            deck = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0x6013L, deck);
+            rail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", origin, 0x6014L, rail);
+            rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6015L, rail);
+            cable = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6016L, cable);
+            hanger = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6017L, hanger);
         }
 
         // -----------------------------
@@ -148,7 +147,6 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
         return switch (v) {
             case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
             case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
             case "W", "WEST", "西", "朝西" -> Direction.WEST;
             default -> Direction.EAST;
         };
@@ -169,15 +167,15 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
         }
     }
 
-    private static boolean getBoolExtra(BuildingSpec spec, String key, boolean def) {
-        if (spec == null) return def;
+    private static boolean getBoolExtra(BuildingSpec spec) {
+        if (spec == null) return true;
         Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
+        if (extra == null) return true;
+        Object v = extra.get("followTerrain");
+        if (v == null) return true;
         if (v instanceof Boolean b) return b;
         String s = String.valueOf(v).trim().toLowerCase();
-        if (s.isEmpty()) return def;
+        if (s.isEmpty()) return true;
         return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s);
     }
 
@@ -208,8 +206,7 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
 
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
     }
 
     // Parabola / lerp / buildTower moved into SpanSuspensionSkeleton/Interpreter

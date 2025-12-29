@@ -214,7 +214,9 @@ public class HouseGenerator implements StructureGenerator {
         }
 
         // Door side (for compounds like gatehouses): default keeps legacy behavior (NORTH wall, z==0).
+        // Layout IR: extra.layout.entranceFacing has higher priority.
         Direction doorSide = resolveDoorSide(spec);
+        LayoutCourtyard courtyard = resolveLayoutCourtyard(spec, width, depth);
 
         // 2.1 地基（y=0 一圈）
         for (int x = 0; x < width; x++) {
@@ -408,6 +410,7 @@ public class HouseGenerator implements StructureGenerator {
 
             for (int x = 1; x < width - 1; x++) {
                 for (int z = 1; z < depth - 1; z++) {
+                    if (courtyard.enabled && courtyard.containsInterior(x, z)) continue;
                     BlockPos fp = origin.add(x, y0, z);
                     BlockState fl = floor;
                     if (paletteId != null && !paletteId.isBlank()) {
@@ -571,6 +574,19 @@ public class HouseGenerator implements StructureGenerator {
             // 中式：简化斗拱/雀替（檐下 1 格）+ 彩画点缀
             if (style == BuildingStyle.ASIAN || (profile != null && profile.details() != null && profile.details().emphasizeEaves)) {
                 addDougongAndPainting(blocks, origin, width, depth, height, trim);
+            }
+
+            // Layout IR: courtyard opening (best-effort)
+            // We carve an open shaft by placing AIR blocks after roof generation.
+            if (courtyard.enabled) {
+                int yMax = height + 14; // conservative upper bound across roof types
+                for (int y = 1; y <= yMax; y++) {
+                    for (int x = courtyard.x0; x <= courtyard.x1; x++) {
+                        for (int z = courtyard.z0; z <= courtyard.z1; z++) {
+                            blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
+                        }
+                    }
+                }
             }
         }
 
@@ -859,6 +875,24 @@ public class HouseGenerator implements StructureGenerator {
 
     private static Direction resolveDoorSide(BuildingSpec spec) {
         if (spec == null || spec.getExtra() == null) return Direction.NORTH;
+
+        // Layout IR: extra.layout.entranceFacing overrides legacy doorSide/facing
+        try {
+            Object layoutObj = spec.getExtra().get("layout");
+            if (layoutObj instanceof java.util.Map<?, ?> m) {
+                Object ef = m.get("entranceFacing");
+                if (ef != null) {
+                    String s = String.valueOf(ef).trim().toUpperCase();
+                    switch (s) {
+                        case "N", "NORTH", "北", "朝北" -> { return Direction.NORTH; }
+                        case "S", "SOUTH", "南", "朝南" -> { return Direction.SOUTH; }
+                        case "E", "EAST", "东", "朝东" -> { return Direction.EAST; }
+                        case "W", "WEST", "西", "朝西" -> { return Direction.WEST; }
+                        default -> {}
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
         Object v = spec.getExtra().get("doorSide");
         if (v == null) v = spec.getExtra().get("facing"); // tolerate reuse of facing as "front side"
         if (v == null) return Direction.NORTH;
@@ -870,6 +904,73 @@ public class HouseGenerator implements StructureGenerator {
             case "W", "WEST", "西", "朝西" -> Direction.WEST;
             default -> Direction.NORTH;
         };
+    }
+
+    private static String resolveLayoutSymmetry(BuildingSpec spec) {
+        if (spec == null || spec.getExtra() == null) return "NONE";
+        try {
+            Object layoutObj = spec.getExtra().get("layout");
+            if (layoutObj instanceof java.util.Map<?, ?> m) {
+                Object sym = m.get("symmetry");
+                if (sym != null) {
+                    String s = String.valueOf(sym).trim().toUpperCase(java.util.Locale.ROOT);
+                    if (s.equals("NONE") || s.equals("X") || s.equals("Z") || s.equals("BOTH")) return s;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "NONE";
+    }
+
+    private record LayoutCourtyard(boolean enabled, int x0, int x1, int z0, int z1) {
+        boolean containsInterior(int x, int z) {
+            return enabled && x >= x0 && x <= x1 && z >= z0 && z <= z1;
+        }
+    }
+
+    private static LayoutCourtyard resolveLayoutCourtyard(BuildingSpec spec, int width, int depth) {
+        // Only meaningful when there is enough interior space.
+        if (width < 9 || depth < 9) return new LayoutCourtyard(false, 0, -1, 0, -1);
+        if (spec == null || spec.getExtra() == null) return new LayoutCourtyard(false, 0, -1, 0, -1);
+
+        boolean enabled = false;
+        double ratio = 0.45; // default when enabled
+        try {
+            Object layoutObj = spec.getExtra().get("layout");
+            if (layoutObj instanceof java.util.Map<?, ?> m) {
+                Object ct = m.get("courtyard");
+                if (ct instanceof Boolean b) enabled = b;
+                else if (ct != null) {
+                    String s = String.valueOf(ct).trim().toLowerCase(java.util.Locale.ROOT);
+                    if (!s.isEmpty()) enabled = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
+                }
+                Object cr = m.get("courtyardRatio");
+                if (cr != null) {
+                    try {
+                        ratio = Double.parseDouble(String.valueOf(cr).trim());
+                    } catch (Exception ignored) {}
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        if (!enabled) return new LayoutCourtyard(false, 0, -1, 0, -1);
+
+        if (ratio < 0.2) ratio = 0.2;
+        if (ratio > 0.8) ratio = 0.8;
+
+        int interiorW = width - 2;
+        int interiorD = depth - 2;
+        int cw = Math.max(3, (int) Math.round(interiorW * ratio));
+        int cd = Math.max(3, (int) Math.round(interiorD * ratio));
+        // keep at least 1 block margin to outer walls for structural stability
+        cw = Math.min(cw, interiorW - 2);
+        cd = Math.min(cd, interiorD - 2);
+        if (cw < 3 || cd < 3) return new LayoutCourtyard(false, 0, -1, 0, -1);
+
+        int x0 = 1 + (interiorW - cw) / 2;
+        int z0 = 1 + (interiorD - cd) / 2;
+        int x1 = x0 + cw - 1;
+        int z1 = z0 + cd - 1;
+        return new LayoutCourtyard(true, x0, x1, z0, z1);
     }
 
     private static boolean isDoorEdge(Direction doorSide, int x, int z, int width, int depth) {
@@ -1018,6 +1119,7 @@ public class HouseGenerator implements StructureGenerator {
         if (width < 9 || depth < 9 || height < 6) return; // too small
 
         Direction doorSide = resolveDoorSide(spec);
+        String layoutSymmetry = resolveLayoutSymmetry(spec);
 
         // --- Entry / portal feature (cross-style) ---
         if (details.portalStyle != null && !details.portalStyle.isBlank()) {
@@ -1026,7 +1128,8 @@ public class HouseGenerator implements StructureGenerator {
 
         // --- Ornaments / props (cross-style) ---
         if (details.ornamentProfile != null && !details.ornamentProfile.isBlank()) {
-            addOrnamentProfile(blocks, origin, world, width, depth, height, doorSide, foundation, trim, roofSlab, paletteId, details.ornamentProfile, details);
+            addOrnamentProfile(blocks, origin, world, width, depth, height, doorSide, foundation, trim, roofSlab,
+                    paletteId, details.ornamentProfile, details, layoutSymmetry);
         }
 
         // --- Classical stylobate / podium ring ---
@@ -1340,7 +1443,8 @@ public class HouseGenerator implements StructureGenerator {
                                           BlockState roofSlab,
                                           String paletteId,
                                           String ornamentProfile,
-                                          com.formacraft.common.style.profile.DetailPreferences details) {
+                                          com.formacraft.common.style.profile.DetailPreferences details,
+                                          String layoutSymmetry) {
         if (blocks == null || origin == null || ornamentProfile == null) return;
         if (width < 7 || depth < 7 || height < 5) return;
         if (doorSide == null) doorSide = Direction.NORTH;
@@ -1348,6 +1452,7 @@ public class HouseGenerator implements StructureGenerator {
         BlockState slab = (roofSlab != null) ? roofSlab : t;
 
         String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+        String sym = (layoutSymmetry == null) ? "NONE" : layoutSymmetry.trim().toUpperCase(java.util.Locale.ROOT);
         boolean onNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
         int center = onNS ? (width / 2) : (depth / 2);
         int a0 = center - 1;
@@ -1420,9 +1525,18 @@ public class HouseGenerator implements StructureGenerator {
             if (onNS) {
                 blocks.add(new PlannedBlock(origin.add(a1, y, oz), plate));
                 blocks.add(new PlannedBlock(origin.add(a2 + 1, y, oz), plate));
+                // symmetry X/BOTH: mirror to the left side as well
+                if (sym.equals("X") || sym.equals("BOTH")) {
+                    blocks.add(new PlannedBlock(origin.add(a0 - 1, y, oz), plate));
+                    blocks.add(new PlannedBlock(origin.add(a0, y, oz), plate));
+                }
             } else {
                 blocks.add(new PlannedBlock(origin.add(ox, y, a1), plate));
                 blocks.add(new PlannedBlock(origin.add(ox, y, a2 + 1), plate));
+                if (sym.equals("Z") || sym.equals("BOTH")) {
+                    blocks.add(new PlannedBlock(origin.add(ox, y, a0 - 1), plate));
+                    blocks.add(new PlannedBlock(origin.add(ox, y, a0), plate));
+                }
             }
             return;
         }

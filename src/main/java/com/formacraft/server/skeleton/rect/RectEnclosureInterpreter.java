@@ -264,9 +264,8 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
             if (banner == null) banner = PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
         } else if (paletteId != null) {
             // Pick once; same banner for both sides to look intentional.
-            BlockPos pickPos = origin;
             long salt = (halfW * 31L) ^ (halfD * 17L) ^ (y * 13L);
-            banner = PaletteResolver.pick(world, paletteId, "BANNER", pickPos, salt,
+            banner = PaletteResolver.pick(world, paletteId, "BANNER", origin, salt,
                     PaletteResolver.stateFromId(world, "minecraft:red_wall_banner"));
         } else {
             banner = PaletteResolver.stateFromId(world, "minecraft:red_wall_banner");
@@ -280,8 +279,7 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
 
         switch (plan.gateSide) {
             case SOUTH -> {
-                int zWall = halfD;
-                int zInside = zWall - 1;
+                int zInside = halfD - 1;
                 int x0 = -(gateHalf + margin);
                 int x1 = (gateHalf + margin);
                 BlockPos p0 = origin.add(x0, y, zInside);
@@ -300,8 +298,7 @@ public final class RectEnclosureInterpreter implements SkeletonInterpreter<RectE
                 if (BuildConstraintContext.allow(p1)) blocks.add(new PlannedBlock(p1, banner));
             }
             case EAST -> {
-                int xWall = halfW;
-                int xInside = xWall - 1;
+                int xInside = halfW - 1;
                 int z0 = -(gateHalf + margin);
                 int z1 = (gateHalf + margin);
                 BlockPos p0 = origin.add(xInside, y, z0);

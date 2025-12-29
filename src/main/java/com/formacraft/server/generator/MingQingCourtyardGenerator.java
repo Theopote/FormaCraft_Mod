@@ -37,7 +37,7 @@ import java.util.Set;
  * A COMPOUND-based courtyard complex composed from reusable parts:
  * - RectEnclosurePlan (walls + gate opening)
  * - Main hall / side rooms / gatehouse as GeneratorBackedPlan (delegates to existing generators)
- *
+ * <p>
  * Anchor convention: origin is the center of the whole complex.
  */
 public class MingQingCourtyardGenerator implements StructureGenerator {
@@ -108,9 +108,9 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
         boolean banner = false;
         String bannerColor = "red";
         if (extra != null) {
-            if (extra.containsKey("wallBattlements")) battlements = getBool(extra, "wallBattlements", battlements);
+            if (extra.containsKey("wallBattlements")) battlements = getBool(extra, "wallBattlements", false);
             if (extra.containsKey("wallBattlementSpacing")) battlementSpacing = clamp(getInt(extra, "wallBattlementSpacing", battlementSpacing), 1, 6);
-            if (extra.containsKey("wallBanner")) banner = getBool(extra, "wallBanner", banner);
+            if (extra.containsKey("wallBanner")) banner = getBool(extra, "wallBanner", false);
             if (extra.containsKey("wallBannerColor")) bannerColor = String.valueOf(extra.get("wallBannerColor")).trim().toLowerCase(java.util.Locale.ROOT);
         }
         // Defaults from style when not explicitly provided
@@ -192,11 +192,11 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                                 targetY,
                                 foundationBlock,
                                 0,
-                                Math.max(0, Math.min(6, plannedClear)));
+                                Math.min(6, plannedClear));
                         if (p1.size() <= terrainBudgetBlocks) {
                             pad = p1;
                             usedPad = 0;
-                            usedClear = Math.max(0, Math.min(6, plannedClear));
+                            usedClear = Math.min(6, plannedClear);
                             degradeSteps = 1;
                         }
                         else {

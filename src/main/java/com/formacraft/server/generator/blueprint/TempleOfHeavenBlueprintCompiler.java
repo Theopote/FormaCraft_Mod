@@ -15,7 +15,7 @@ import java.util.Map;
  * TempleOfHeavenBlueprintCompiler (v1):
  * Compiles a semantic "temple_of_heaven" blueprint into a GeneratorBackedPlan
  * that delegates to the existing TempleOfHeavenGenerator via landmark routing.
- *
+ * <p>
  * Suggested blueprint keys:
  * - blueprint_type: "temple_of_heaven"
  * - overall_dimensions: { radius/baseRadius, tiers, height }
@@ -138,8 +138,7 @@ public final class TempleOfHeavenBlueprintCompiler implements BlueprintCompiler 
 
     private static int clamp(int v, int min, int max) {
         if (v < min) return min;
-        if (v > max) return max;
-        return v;
+        return Math.min(v, max);
     }
 }
 

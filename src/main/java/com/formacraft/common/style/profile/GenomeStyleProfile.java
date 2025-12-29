@@ -18,8 +18,7 @@ public final class GenomeStyleProfile implements StyleProfile {
     private final DetailPreferences details;
 
     public GenomeStyleProfile(StyleGenome genome, BuildingStyle fallbackStyle) {
-        String gid = (genome != null && genome.id != null && !genome.id.isBlank()) ? genome.id : "default";
-        this.id = gid;
+        this.id = (genome != null && genome.id != null && !genome.id.isBlank()) ? genome.id : "default";
 
         // v1 heuristic category
         this.category = StyleCategory.CULTURAL;
@@ -72,7 +71,7 @@ public final class GenomeStyleProfile implements StyleProfile {
             this.rules.layeredRoof = layeredRoof;
         }
         if (capLayers != null && capLayers > 0) {
-            this.rules.capLayers = Math.max(1, Math.min(3, capLayers));
+            this.rules.capLayers = Math.min(3, capLayers);
         }
         if (capOverhang != null) {
             this.rules.capOverhang = Math.max(0, Math.min(1, capOverhang));

@@ -113,7 +113,6 @@ public class OfficeDistrictGenerator implements StructureGenerator {
         }
         final boolean clusterEnabledFinal = clusterEnabled;
         if (!clusterEnabledFinal) {
-            footingByRelXZ.clear();
             new GridSkeleton(grid).generate(new SkeletonParams()
                     .put("rows", rows)
                     .put("cols", cols)
@@ -222,7 +221,6 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                     }
                 } else if (terrainPolicy == TerrainPolicy.FOLLOW) {
                     // no pad, no snap
-                    origin2 = o;
                 }
                 List<PlannedBlock> building = StructureGeneratorFactory.getGenerator(gbp.spec).generate(gbp.spec, origin2, wld).getBlocks();
                 if (pad.isEmpty()) return building;

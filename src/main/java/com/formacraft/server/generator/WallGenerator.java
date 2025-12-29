@@ -1,7 +1,6 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
@@ -40,7 +39,7 @@ public class WallGenerator implements StructureGenerator {
 
         // 获取材质
         BlockState wallBlock = getState(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null);
-        Map<String, Object> extra = spec != null ? spec.getExtra() : null;
+        Map<String, Object> extra = spec.getExtra();
         String paletteId = null;
         if (extra != null) {
             Object pid = extra.get("paletteId");
@@ -48,8 +47,7 @@ public class WallGenerator implements StructureGenerator {
         }
 
         // StyleProfile-driven defaults (extra explicitly overrides)
-        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
-        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        StyleProfile profile = StyleProfileRegistry.resolve(spec);
         DetailPreferences details = (profile != null) ? profile.details() : null;
         if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
             paletteId = details.paletteId.trim();
@@ -58,7 +56,7 @@ public class WallGenerator implements StructureGenerator {
         String ornamentProfile = (details != null) ? details.ornamentProfile : null;
         String bannerColor = (details != null) ? details.bannerColor : null;
 
-        boolean battlements = getBool(extra, "battlements", false);
+        boolean battlements = getBool(extra);
         boolean battlementsExplicit = (extra != null && extra.containsKey("battlements"));
         if (!battlementsExplicit && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("battlement")) {
             battlements = true;
@@ -107,11 +105,10 @@ public class WallGenerator implements StructureGenerator {
         // Battlements on top (optional)
         if (battlements) {
             BlockState crenel = Blocks.STONE_BRICK_WALL.getDefaultState();
-            int y = height;
             for (int z = 0; z < length; z++) {
                 if ((z & 1) == 0) {
-                    blocks.add(new PlannedBlock(origin.add(0, y, z), crenel));
-                    blocks.add(new PlannedBlock(origin.add(thickness - 1, y, z), crenel));
+                    blocks.add(new PlannedBlock(origin.add(0, height, z), crenel));
+                    blocks.add(new PlannedBlock(origin.add(thickness - 1, height, z), crenel));
                 }
             }
         }
@@ -158,13 +155,13 @@ public class WallGenerator implements StructureGenerator {
         );
     }
 
-    private static boolean getBool(Map<String, Object> extra, String key, boolean def) {
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
+    private static boolean getBool(Map<String, Object> extra) {
+        if (extra == null) return false;
+        Object v = extra.get("battlements");
+        if (v == null) return false;
         if (v instanceof Boolean b) return b;
         String s = String.valueOf(v).trim().toLowerCase(java.util.Locale.ROOT);
-        if (s.isEmpty()) return def;
+        if (s.isEmpty()) return false;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 
