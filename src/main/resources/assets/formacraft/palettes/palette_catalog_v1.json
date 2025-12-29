@@ -297,6 +297,95 @@
         ]
       }
     },
+    "PALETTE_BRUTALISM_CONCRETE_A": {
+      "meta": {
+        "display_name": "Brutalism Concrete A",
+        "tags": ["brutalism", "concrete", "massive", "soviet", "gray", "module_grid"],
+        "description": "Raw concrete palette for heavy brutalist massing with minimal glazing"
+      },
+      "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:smooth_stone", "weight": 55 },
+          { "id": "minecraft:gray_concrete", "weight": 30 },
+          { "id": "minecraft:polished_andesite", "weight": 15 }
+        ],
+        "WALL_BASE": [
+          { "id": "minecraft:gray_concrete", "weight": 55 },
+          { "id": "minecraft:light_gray_concrete", "weight": 25 },
+          { "id": "minecraft:gray_concrete_powder", "weight": 20 }
+        ],
+        "FRAME": [
+          { "id": "minecraft:polished_andesite", "weight": 60 },
+          { "id": "minecraft:smooth_stone", "weight": 40 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:iron_block", "weight": 55 },
+          { "id": "minecraft:gray_concrete", "weight": 45 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:polished_andesite", "weight": 60 },
+          { "id": "minecraft:smooth_stone", "weight": 40 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:smooth_stone", "weight": 60 },
+          { "id": "minecraft:polished_andesite", "weight": 25 },
+          { "id": "minecraft:light_gray_concrete", "weight": 15 }
+        ],
+        "FLOOR_SLAB": [
+          { "id": "minecraft:smooth_stone_slab", "weight": 70 },
+          { "id": "minecraft:polished_andesite_slab", "weight": 30 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:iron_bars", "weight": 60 },
+          { "id": "minecraft:gray_stained_glass_pane", "weight": 25 },
+          { "id": "minecraft:glass_pane", "weight": 15 }
+        ],
+        "FACADE_CURTAIN": [
+          { "id": "minecraft:gray_stained_glass", "weight": 70 },
+          { "id": "minecraft:light_gray_stained_glass", "weight": 30 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:iron_bars", "weight": 45 },
+          { "id": "minecraft:polished_andesite", "weight": 35 },
+          { "id": "minecraft:iron_block", "weight": 20 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:smooth_stone", "weight": 70 },
+          { "id": "minecraft:gray_concrete", "weight": 30 }
+        ],
+        "ROOF_SLOPE": [
+          { "id": "minecraft:smooth_stone_stairs", "weight": 70 },
+          { "id": "minecraft:polished_andesite_stairs", "weight": 30 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:smooth_stone", "weight": 60 },
+          { "id": "minecraft:gray_concrete", "weight": 40 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:light_gray_concrete", "weight": 70 },
+          { "id": "minecraft:polished_andesite", "weight": 30 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:sea_lantern", "weight": 80 },
+          { "id": "minecraft:end_rod", "weight": 20 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:smooth_stone", "weight": 70 },
+          { "id": "minecraft:polished_andesite", "weight": 30 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:iron_bars", "weight": 80 },
+          { "id": "minecraft:iron_block", "weight": 20 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:sea_lantern", "weight": 70 },
+          { "id": "minecraft:end_rod", "weight": 30 }
+        ],
+        "INTERNAL_LIGHT": [
+          { "id": "minecraft:sea_lantern", "weight": 100 }
+        ]
+      }
+    },
 
     "PALETTE_CYBER_NEON_A": {
       "meta": {

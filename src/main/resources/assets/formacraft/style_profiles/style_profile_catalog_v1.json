@@ -288,7 +288,7 @@
           "portal": "modern_frame",
           "eaves": "parapet",
           "facade_profile": "module_grid",
-          "palette_id": "PALETTE_MODERN_GLASS_B"
+          "palette_id": "PALETTE_BRUTALISM_CONCRETE_A"
         },
         "algorithm": {
           "generator": "modular_stack",

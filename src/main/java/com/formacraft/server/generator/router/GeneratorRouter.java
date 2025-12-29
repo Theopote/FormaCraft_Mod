@@ -156,6 +156,9 @@ public final class GeneratorRouter {
         if (s.contains("bauhaus_rowhouse") || s.contains("bauhaus") || s.contains("rowhouse") || s.contains("townhouse") || s.contains("terrace") || s.contains("联排") || s.contains("包豪斯")) {
             return new ModernBauhausRowhouseGenerator();
         }
+        if (s.contains("brutalism_megastructure") || s.contains("soviet_megastructure") || s.contains("brutalism") || s.contains("粗野") || s.contains("巨构")) {
+            return new BrutalistMegastructureGenerator();
+        }
         return null;
     }
 
@@ -170,6 +173,7 @@ public final class GeneratorRouter {
         // dedicated style -> generator mapping (v1)
         if (s.equals("Chinese_Vernacular_Jiangnan_WaterTown")) return new JiangnanWaterTownGenerator();
         if (s.equals("Gothic_Cathedral")) return new GothicCathedralGenerator();
+        if (s.equals("Brutalism")) return new BrutalistMegastructureGenerator();
         return null;
     }
 
