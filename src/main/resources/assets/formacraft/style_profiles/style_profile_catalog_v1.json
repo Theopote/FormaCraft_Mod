@@ -324,7 +324,7 @@
           "cap": ["minecraft:smooth_quartz_slab"]
         },
         "components": {
-          "palette_id": "PALETTE_MODERN_GLASS_B"
+          "palette_id": "PALETTE_PARAMETRIC_WHITE_A"
         },
         "algorithm": {
           "generator": "parametric_surface",

@@ -386,6 +386,98 @@
         ]
       }
     },
+    "PALETTE_PARAMETRIC_WHITE_A": {
+      "meta": {
+        "display_name": "Parametric White A",
+        "tags": ["parametric", "deconstructivism", "zaha", "white", "quartz", "clean"],
+        "description": "Clean white palette for parametric/deconstructivist forms with subtle glazing"
+      },
+      "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:smooth_quartz", "weight": 60 },
+          { "id": "minecraft:quartz_block", "weight": 25 },
+          { "id": "minecraft:white_concrete", "weight": 15 }
+        ],
+        "WALL_BASE": [
+          { "id": "minecraft:white_concrete", "weight": 55 },
+          { "id": "minecraft:quartz_block", "weight": 30 },
+          { "id": "minecraft:calcite", "weight": 15 }
+        ],
+        "FRAME": [
+          { "id": "minecraft:smooth_quartz", "weight": 55 },
+          { "id": "minecraft:quartz_pillar", "weight": 30 },
+          { "id": "minecraft:white_concrete", "weight": 15 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:quartz_pillar", "weight": 60 },
+          { "id": "minecraft:smooth_quartz", "weight": 40 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:quartz_pillar", "weight": 70 },
+          { "id": "minecraft:smooth_quartz", "weight": 30 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:quartz_block", "weight": 55 },
+          { "id": "minecraft:smooth_quartz", "weight": 30 },
+          { "id": "minecraft:smooth_stone", "weight": 15 }
+        ],
+        "FLOOR_SLAB": [
+          { "id": "minecraft:smooth_quartz_slab", "weight": 70 },
+          { "id": "minecraft:quartz_slab", "weight": 30 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:light_blue_stained_glass_pane", "weight": 55 },
+          { "id": "minecraft:white_stained_glass_pane", "weight": 25 },
+          { "id": "minecraft:glass_pane", "weight": 20 }
+        ],
+        "FACADE_CURTAIN": [
+          { "id": "minecraft:light_blue_stained_glass", "weight": 70 },
+          { "id": "minecraft:white_stained_glass", "weight": 20 },
+          { "id": "minecraft:glass", "weight": 10 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:chiseled_quartz_block", "weight": 45 },
+          { "id": "minecraft:smooth_quartz_slab", "weight": 35 },
+          { "id": "minecraft:end_rod", "weight": 20 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:smooth_quartz", "weight": 55 },
+          { "id": "minecraft:white_concrete", "weight": 30 },
+          { "id": "minecraft:quartz_block", "weight": 15 }
+        ],
+        "ROOF_SLOPE": [
+          { "id": "minecraft:smooth_quartz_stairs", "weight": 70 },
+          { "id": "minecraft:quartz_stairs", "weight": 30 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:smooth_quartz", "weight": 60 },
+          { "id": "minecraft:smooth_stone", "weight": 40 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:quartz_block", "weight": 60 },
+          { "id": "minecraft:polished_diorite", "weight": 40 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:sea_lantern", "weight": 70 },
+          { "id": "minecraft:end_rod", "weight": 30 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:smooth_quartz", "weight": 70 },
+          { "id": "minecraft:quartz_block", "weight": 30 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:iron_bars", "weight": 60 },
+          { "id": "minecraft:quartz_stairs", "weight": 40 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:sea_lantern", "weight": 70 },
+          { "id": "minecraft:end_rod", "weight": 30 }
+        ],
+        "INTERNAL_LIGHT": [
+          { "id": "minecraft:sea_lantern", "weight": 100 }
+        ]
+      }
+    },
 
     "PALETTE_CYBER_NEON_A": {
       "meta": {
