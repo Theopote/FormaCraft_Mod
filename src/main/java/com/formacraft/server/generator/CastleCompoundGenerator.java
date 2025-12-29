@@ -22,6 +22,7 @@ import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.common.style.profile.BuildStrategy;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -75,6 +76,16 @@ public class CastleCompoundGenerator implements StructureGenerator {
         // cap resolved from style profile (data-driven); fallback to stone brick slab
         // Prefer per-request styleProfileId when present.
         StyleProfile styleProfile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
+        // paletteId for semantic picks (moat/bridge best-effort)
+        String paletteId = null;
+        if (spec != null && spec.getExtra() != null && spec.getExtra().get("paletteId") != null) {
+            paletteId = String.valueOf(spec.getExtra().get("paletteId")).trim();
+        }
+        if ((paletteId == null || paletteId.isBlank()) && styleProfile != null && styleProfile.details() != null
+                && styleProfile.details().paletteId != null && !styleProfile.details().paletteId.isBlank()) {
+            paletteId = styleProfile.details().paletteId.trim();
+        }
+
         BlockState capBlock = getStateOrDefault(world,
                 styleProfile != null && styleProfile.palette() != null ? styleProfile.palette().cap : null,
                 Blocks.STONE_BRICK_SLAB.getDefaultState());
@@ -83,6 +94,20 @@ public class CastleCompoundGenerator implements StructureGenerator {
                 wallBlock);
         int capLayers = (styleProfile != null && styleProfile.rules() != null) ? styleProfile.rules().capLayers : 1;
         int capOverhang = (styleProfile != null && styleProfile.rules() != null) ? styleProfile.rules().capOverhang : 0;
+
+        // Defensive phenotype: moat + drawbridge (style-driven default for Medieval_Castle when not explicitly provided)
+        boolean moatExplicit = extra != null && extra.containsKey("moat");
+        boolean moat = getBool(extra, "moat", false);
+        boolean drawbridge = getBool(extra, "drawbridge", true);
+        if (!moatExplicit && spec != null && spec.getExtra() != null) {
+            Object spid = spec.getExtra().get("styleProfileId");
+            if (spid != null && String.valueOf(spid).trim().equals("Medieval_Castle")) {
+                moat = true;
+            }
+        }
+        int moatWidth = clamp(getInt(extra, "moatWidth", 4), 2, 10);
+        int moatDepth = clamp(getInt(extra, "moatDepth", 3), 1, 8);
+        int moatGap = clamp(getInt(extra, "moatGap", 1), 0, 4); // gap between wall and moat inner edge
 
         // child specs
         BuildingSpec towerSpec = makeTowerSpec(towerHeight, mats);
@@ -320,30 +345,12 @@ public class CastleCompoundGenerator implements StructureGenerator {
                 StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
                 BlockState pillar = getStateOrDefault(wld, profile != null && profile.palette() != null ? profile.palette().pillar : null, wallBlock);
                 boolean openArcade = profile != null && profile.resolve("GATE", Set.of("gate")) == BuildStrategy.OPEN_ARCADE;
-                String paletteId = null;
-                if (spec != null && spec.getExtra() != null) {
-                    Object pid = spec.getExtra().get("paletteId");
-                    if (pid != null) paletteId = String.valueOf(pid).trim();
-                }
-                if ((paletteId == null || paletteId.isBlank()) && profile != null && profile.details() != null
-                        && profile.details().paletteId != null && !profile.details().paletteId.isBlank()) {
-                    paletteId = profile.details().paletteId.trim();
-                }
                 return new RectEnclosureInterpreter(wallBlock, capBlock, cap2Block, capLayers, capOverhang, pillar, openArcade, paletteId).interpret(rep, o, wld);
             }
             if (plan instanceof PolylinePathPlan pp) {
                 BlockState road = Blocks.COBBLESTONE.getDefaultState();
                 BlockState border = Blocks.STONE_BRICKS.getDefaultState();
                 StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
-                String paletteId = null;
-                if (spec != null && spec.getExtra() != null) {
-                    Object pid = spec.getExtra().get("paletteId");
-                    if (pid != null) paletteId = String.valueOf(pid).trim();
-                }
-                if ((paletteId == null || paletteId.isBlank()) && profile != null && profile.details() != null
-                        && profile.details().paletteId != null && !profile.details().paletteId.isBlank()) {
-                    paletteId = profile.details().paletteId.trim();
-                }
                 var details = profile != null ? profile.details() : null;
                 String eavesProfile = details != null ? details.eavesProfile : null;
                 String ornamentProfile = details != null ? details.ornamentProfile : null;
@@ -357,6 +364,84 @@ public class CastleCompoundGenerator implements StructureGenerator {
         };
 
         List<PlannedBlock> blocks = new CompoundInterpreter(dispatcher).interpret(compound, origin, world);
+
+        // --- Defensive extras: moat + drawbridge (post-process, best-effort) ---
+        if (moat) {
+            // materials (semantic)
+            BlockState lining = Blocks.DEEPSLATE_TILES.getDefaultState();
+            BlockState deck = Blocks.SPRUCE_PLANKS.getDefaultState();
+            BlockState rail = Blocks.SPRUCE_FENCE.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank()) {
+                lining = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0xC45A001L, lining);
+                lining = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xC45A002L, lining);
+                deck = PaletteResolver.pick(world, paletteId, "BRIDGE_DECK", origin, 0xC45A003L, deck);
+                rail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", origin, 0xC45A004L, rail);
+                rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xC45A005L, rail);
+            }
+
+            // moat rectangle (around enclosure, axis-aligned)
+            int innerX0 = -halfW - moatGap;
+            int innerX1 = halfW + moatGap;
+            int innerZ0 = -halfD - moatGap;
+            int innerZ1 = halfD + moatGap;
+            int outerX0 = innerX0 - moatWidth;
+            int outerX1 = innerX1 + moatWidth;
+            int outerZ0 = innerZ0 - moatWidth;
+            int outerZ1 = innerZ1 + moatWidth;
+
+            // dig + fill water (y from -moatDepth..0). also add a lining at the bottom ring.
+            for (int x = outerX0; x <= outerX1; x++) {
+                for (int z = outerZ0; z <= outerZ1; z++) {
+                    boolean insideInner = (x >= innerX0 && x <= innerX1 && z >= innerZ0 && z <= innerZ1);
+                    if (insideInner) continue;
+                    for (int y = -moatDepth; y <= 0; y++) {
+                        blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.WATER.getDefaultState()));
+                    }
+                    // bottom lining
+                    blocks.add(new PlannedBlock(origin.add(x, -moatDepth, z), lining));
+                }
+            }
+
+            // drawbridge on gate side
+            if (drawbridge) {
+                int cx = 0;
+                int cz = 0;
+                int deckY = 1; // above water surface
+                int halfGate = gateWidth / 2;
+
+                // local bridge direction: from inside to outside (same as gateSide)
+                int from = (moatGap + 1);
+                int to = (moatGap + moatWidth + 2);
+
+                if (gateSide == Direction.SOUTH || gateSide == Direction.NORTH) {
+                    int zWall = (gateSide == Direction.SOUTH) ? halfD : -halfD;
+                    int dir = (gateSide == Direction.SOUTH) ? 1 : -1;
+                    for (int x = cx - halfGate - 1; x <= cx + halfGate + 1; x++) {
+                        for (int i = -from; i <= to; i++) {
+                            int z = zWall + (dir * i);
+                            blocks.add(new PlannedBlock(origin.add(x, deckY, z), deck));
+                            // simple rails on edges
+                            if (x == cx - halfGate - 1 || x == cx + halfGate + 1) {
+                                blocks.add(new PlannedBlock(origin.add(x, deckY + 1, z), rail));
+                            }
+                        }
+                    }
+                } else {
+                    int xWall = (gateSide == Direction.EAST) ? halfW : -halfW;
+                    int dir = (gateSide == Direction.EAST) ? 1 : -1;
+                    for (int z = cz - halfGate - 1; z <= cz + halfGate + 1; z++) {
+                        for (int i = -from; i <= to; i++) {
+                            int x = xWall + (dir * i);
+                            blocks.add(new PlannedBlock(origin.add(x, deckY, z), deck));
+                            if (z == cz - halfGate - 1 || z == cz + halfGate + 1) {
+                                blocks.add(new PlannedBlock(origin.add(x, deckY + 1, z), rail));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         String desc = String.format("CastleCompound (w=%d,d=%d, towers=4, wallH=%d)", w, d, wallHeight);
         return new GeneratedStructure(null, origin, desc, blocks);
     }
@@ -574,6 +659,16 @@ public class CastleCompoundGenerator implements StructureGenerator {
         if (v instanceof Boolean b) return b;
         String s = String.valueOf(v).trim().toLowerCase();
         if (s.isEmpty()) return true;
+        return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+    }
+
+    private static boolean getBool(Map<String, Object> extra, String key, boolean def) {
+        if (extra == null || key == null) return def;
+        Object v = extra.get(key);
+        if (v == null) return def;
+        if (v instanceof Boolean b) return b;
+        String s = String.valueOf(v).trim().toLowerCase();
+        if (s.isEmpty()) return def;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 }
