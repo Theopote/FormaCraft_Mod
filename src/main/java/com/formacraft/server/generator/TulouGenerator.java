@@ -295,7 +295,7 @@ public class TulouGenerator implements StructureGenerator {
 
         // Ornament near entrance (cross-style, best-effort)
         if (ornamentProfile != null && !ornamentProfile.isBlank()) {
-            addEntranceOrnaments(blocks, c, doorFacing, doorX, doorZ, ornamentProfile, details);
+            addEntranceOrnaments(blocks, c, world, doorFacing, doorX, doorZ, ornamentProfile, details, paletteId);
         }
 
         // 门前台阶 + 门楼（更观赏性）
@@ -420,6 +420,10 @@ public class TulouGenerator implements StructureGenerator {
             String ep = eavesProfile.trim().toLowerCase(java.util.Locale.ROOT);
             if (ep.contains("neon")) {
                 BlockState light = Blocks.SEA_LANTERN.getDefaultState();
+                if (paletteId != null && !paletteId.isBlank()) {
+                    light = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", c, 0x7E1001L, light);
+                    light = PaletteResolver.pick(world, paletteId, "LIGHTING", c, 0x7E1002L, light);
+                }
                 for (int x = -eaveR; x <= eaveR; x += 6) {
                     blocks.add(new PlannedBlock(c.add(x, roofBaseY, eaveR), light));
                     blocks.add(new PlannedBlock(c.add(x, roofBaseY, -eaveR), light));
@@ -578,11 +582,13 @@ public class TulouGenerator implements StructureGenerator {
 
     private static void addEntranceOrnaments(List<PlannedBlock> blocks,
                                              BlockPos c,
+                                             ServerWorld world,
                                              Direction doorFacing,
                                              int doorX,
                                              int doorZ,
                                              String ornamentProfile,
-                                             DetailPreferences details) {
+                                             DetailPreferences details,
+                                             String paletteId) {
         if (blocks == null || c == null || ornamentProfile == null || doorFacing == null) return;
         String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
         int fx = (doorFacing == Direction.EAST ? 1 : (doorFacing == Direction.WEST ? -1 : 0));
@@ -595,6 +601,10 @@ public class TulouGenerator implements StructureGenerator {
 
         if (op.contains("chinese") || op.contains("plaque")) {
             BlockState sign = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                sign = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", base, 0x7E1003L, sign);
+                sign = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", base, 0x7E1004L, sign);
+            }
             sign = withIfPresent(sign, Properties.HORIZONTAL_FACING, doorFacing);
             blocks.add(new PlannedBlock(base, sign));
             blocks.add(new PlannedBlock(base.add(px, 0, pz), Blocks.DARK_OAK_SLAB.getDefaultState()));
@@ -604,6 +614,10 @@ public class TulouGenerator implements StructureGenerator {
 
         if (op.contains("banner")) {
             BlockState b = resolveWallBannerState(details != null ? details.bannerColor : null);
+            if ((details == null || details.bannerColor == null || details.bannerColor.isBlank())
+                    && paletteId != null && !paletteId.isBlank() && world != null) {
+                b = PaletteResolver.pick(world, paletteId, "BANNER", base, 0x7E1005L, b);
+            }
             b = withIfPresent(b, Properties.HORIZONTAL_FACING, doorFacing);
             blocks.add(new PlannedBlock(base.add(px, -1, pz), b));
             blocks.add(new PlannedBlock(base.add(-px, -1, -pz), b));
@@ -611,8 +625,16 @@ public class TulouGenerator implements StructureGenerator {
         }
 
         if (op.contains("cyber") || op.contains("sign")) {
-            blocks.add(new PlannedBlock(base, Blocks.CYAN_STAINED_GLASS.getDefaultState()));
-            blocks.add(new PlannedBlock(base.up(), Blocks.SEA_LANTERN.getDefaultState()));
+            BlockState plate = Blocks.CYAN_STAINED_GLASS.getDefaultState();
+            BlockState light = Blocks.SEA_LANTERN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                plate = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", base, 0x7E1006L, plate);
+                plate = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", base, 0x7E1007L, plate);
+                light = PaletteResolver.pick(world, paletteId, "LIGHTING", base.up(), 0x7E1008L, light);
+                light = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", base.up(), 0x7E1009L, light);
+            }
+            blocks.add(new PlannedBlock(base, plate));
+            blocks.add(new PlannedBlock(base.up(), light));
             return;
         }
 
@@ -624,8 +646,15 @@ public class TulouGenerator implements StructureGenerator {
         }
 
         if (op.contains("organic") || op.contains("lantern") || op.contains("vine")) {
-            blocks.add(new PlannedBlock(base, Blocks.OAK_LEAVES.getDefaultState()));
-            blocks.add(new PlannedBlock(base.up(), Blocks.LANTERN.getDefaultState()));
+            BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
+            BlockState lantern = Blocks.LANTERN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                leaf = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", base, 0x7E1010L, leaf);
+                lantern = PaletteResolver.pick(world, paletteId, "LIGHTING", base.up(), 0x7E1011L, lantern);
+                lantern = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", base.up(), 0x7E1012L, lantern);
+            }
+            blocks.add(new PlannedBlock(base, leaf));
+            blocks.add(new PlannedBlock(base.up(), lantern));
         }
     }
 

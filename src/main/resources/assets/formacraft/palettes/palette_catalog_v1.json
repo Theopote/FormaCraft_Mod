@@ -91,6 +91,46 @@
         "description": "Modern glass curtain wall palette with slight color variance"
       },
       "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:smooth_stone", "weight": 55 },
+          { "id": "minecraft:light_gray_concrete", "weight": 45 }
+        ],
+        "WALL_BASE": [
+          { "id": "minecraft:light_gray_concrete", "weight": 60 },
+          { "id": "minecraft:white_concrete", "weight": 25 },
+          { "id": "minecraft:gray_concrete", "weight": 15 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:light_blue_stained_glass_pane", "weight": 70 },
+          { "id": "minecraft:white_stained_glass_pane", "weight": 15 },
+          { "id": "minecraft:cyan_stained_glass_pane", "weight": 15 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:white_concrete", "weight": 70 },
+          { "id": "minecraft:quartz_pillar", "weight": 30 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:smooth_stone", "weight": 70 },
+          { "id": "minecraft:light_gray_concrete", "weight": 30 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:smooth_stone", "weight": 60 },
+          { "id": "minecraft:gray_concrete", "weight": 40 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:iron_bars", "weight": 45 },
+          { "id": "minecraft:light_gray_stained_glass_pane", "weight": 35 },
+          { "id": "minecraft:end_rod", "weight": 20 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:white_wall_banner", "weight": 60 },
+          { "id": "minecraft:light_blue_wall_banner", "weight": 25 },
+          { "id": "minecraft:cyan_wall_banner", "weight": 15 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:sea_lantern", "weight": 70 },
+          { "id": "minecraft:end_rod", "weight": 30 }
+        ],
         "FACADE_CURTAIN": [
           { "id": "minecraft:light_blue_stained_glass", "weight": 80 },
           { "id": "minecraft:white_stained_glass", "weight": 10 },
@@ -141,10 +181,31 @@
         "description": "Cyberpunk palette with dark massing and neon emissive accents"
       },
       "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:polished_deepslate", "weight": 70 },
+          { "id": "minecraft:deepslate_bricks", "weight": 30 }
+        ],
         "WALL_BASE": [
           { "id": "minecraft:black_concrete", "weight": 55 },
           { "id": "minecraft:gray_concrete", "weight": 35 },
           { "id": "minecraft:polished_deepslate", "weight": 10 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:gray_concrete", "weight": 60 },
+          { "id": "minecraft:black_concrete", "weight": 40 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:cyan_stained_glass_pane", "weight": 40 },
+          { "id": "minecraft:magenta_stained_glass_pane", "weight": 40 },
+          { "id": "minecraft:light_blue_stained_glass_pane", "weight": 20 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:light_gray_concrete", "weight": 70 },
+          { "id": "minecraft:quartz_pillar", "weight": 30 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:black_concrete", "weight": 60 },
+          { "id": "minecraft:polished_deepslate", "weight": 40 }
         ],
         "FACADE_CURTAIN": [
           { "id": "minecraft:cyan_stained_glass", "weight": 35 },
@@ -187,6 +248,11 @@
           { "id": "minecraft:iron_bars", "weight": 70 },
           { "id": "minecraft:light_blue_stained_glass_pane", "weight": 30 }
         ],
+        "BANNER": [
+          { "id": "minecraft:cyan_wall_banner", "weight": 50 },
+          { "id": "minecraft:magenta_wall_banner", "weight": 35 },
+          { "id": "minecraft:black_wall_banner", "weight": 15 }
+        ],
         "LIGHTING": [
           { "id": "minecraft:sea_lantern", "weight": 100 }
         ]
@@ -200,10 +266,27 @@
         "description": "Steampunk palette with copper/iron details and dark stone massing"
       },
       "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:deepslate_bricks", "weight": 70 },
+          { "id": "minecraft:polished_deepslate", "weight": 30 }
+        ],
         "WALL_BASE": [
           { "id": "minecraft:deepslate_bricks", "weight": 55 },
           { "id": "minecraft:tuff", "weight": 25 },
           { "id": "minecraft:copper_block", "weight": 20 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:polished_deepslate", "weight": 55 },
+          { "id": "minecraft:granite", "weight": 25 },
+          { "id": "minecraft:cut_copper", "weight": 20 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:iron_bars", "weight": 70 },
+          { "id": "minecraft:glass_pane", "weight": 30 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:copper_block", "weight": 50 },
+          { "id": "minecraft:cut_copper", "weight": 50 }
         ],
         "STRUCTURAL_BEAM": [
           { "id": "minecraft:spruce_log", "weight": 60 },
@@ -246,6 +329,10 @@
         ],
         "LIGHTING": [
           { "id": "minecraft:lantern", "weight": 100 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:brown_wall_banner", "weight": 60 },
+          { "id": "minecraft:black_wall_banner", "weight": 40 }
         ]
       }
     },
@@ -257,10 +344,24 @@
         "description": "East Asian palette with wood frames, light plaster, and subdued stone bases"
       },
       "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:stone_bricks", "weight": 70 },
+          { "id": "minecraft:polished_blackstone", "weight": 30 }
+        ],
         "WALL_BASE": [
           { "id": "minecraft:white_terracotta", "weight": 45 },
           { "id": "minecraft:packed_mud", "weight": 35 },
           { "id": "minecraft:birch_planks", "weight": 20 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:dark_oak_planks", "weight": 50 },
+          { "id": "minecraft:spruce_planks", "weight": 30 },
+          { "id": "minecraft:stone_bricks", "weight": 20 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:oak_trapdoor", "weight": 40 },
+          { "id": "minecraft:dark_oak_trapdoor", "weight": 40 },
+          { "id": "minecraft:glass_pane", "weight": 20 }
         ],
         "STRUCTURAL_BEAM": [
           { "id": "minecraft:dark_oak_log", "weight": 70 },
@@ -306,6 +407,9 @@
         "BANNER": [
           { "id": "minecraft:red_wall_banner", "weight": 70 },
           { "id": "minecraft:white_wall_banner", "weight": 30 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:lantern", "weight": 100 }
         ]
       }
     },
@@ -317,10 +421,24 @@
         "description": "Classical palette with light stone/marble massing and crisp trims"
       },
       "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:smooth_quartz", "weight": 60 },
+          { "id": "minecraft:quartz_block", "weight": 25 },
+          { "id": "minecraft:polished_diorite", "weight": 15 }
+        ],
         "WALL_BASE": [
           { "id": "minecraft:quartz_block", "weight": 55 },
           { "id": "minecraft:smooth_quartz", "weight": 25 },
           { "id": "minecraft:calcite", "weight": 20 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:smooth_quartz", "weight": 60 },
+          { "id": "minecraft:smooth_stone", "weight": 25 },
+          { "id": "minecraft:polished_diorite", "weight": 15 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:glass_pane", "weight": 70 },
+          { "id": "minecraft:white_stained_glass_pane", "weight": 30 }
         ],
         "PILLAR": [
           { "id": "minecraft:quartz_pillar", "weight": 80 },
@@ -361,6 +479,93 @@
         "BANNER": [
           { "id": "minecraft:white_wall_banner", "weight": 70 },
           { "id": "minecraft:black_wall_banner", "weight": 30 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:lantern", "weight": 100 }
+        ]
+      }
+    },
+    "PALETTE_ELVEN_ORGANIC_A": {
+      "meta": {
+        "display_name": "Elven Organic A",
+        "tags": ["elven", "organic", "nature", "moss", "glow"],
+        "description": "Organic fantasy palette with mossy stone, living wood, and soft bioluminescence"
+      },
+      "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:mossy_cobblestone", "weight": 55 },
+          { "id": "minecraft:mossy_stone_bricks", "weight": 30 },
+          { "id": "minecraft:rooted_dirt", "weight": 15 }
+        ],
+        "WALL_BASE": [
+          { "id": "minecraft:mossy_stone_bricks", "weight": 45 },
+          { "id": "minecraft:oak_log", "weight": 30 },
+          { "id": "minecraft:birch_log", "weight": 25 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:oak_log", "weight": 60 },
+          { "id": "minecraft:birch_log", "weight": 40 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:stripped_oak_log", "weight": 60 },
+          { "id": "minecraft:stripped_birch_log", "weight": 40 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:moss_block", "weight": 55 },
+          { "id": "minecraft:mossy_cobblestone", "weight": 25 },
+          { "id": "minecraft:oak_planks", "weight": 20 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:mossy_cobblestone_slab", "weight": 40 },
+          { "id": "minecraft:dark_oak_slab", "weight": 35 },
+          { "id": "minecraft:spruce_slab", "weight": 25 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:lime_stained_glass_pane", "weight": 35 },
+          { "id": "minecraft:light_blue_stained_glass_pane", "weight": 35 },
+          { "id": "minecraft:glass_pane", "weight": 30 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:oak_leaves", "weight": 45 },
+          { "id": "minecraft:glow_berries", "weight": 30 },
+          { "id": "minecraft:hanging_roots", "weight": 25 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:shroomlight", "weight": 45 },
+          { "id": "minecraft:glowstone", "weight": 25 },
+          { "id": "minecraft:sea_lantern", "weight": 15 },
+          { "id": "minecraft:lantern", "weight": 15 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:lime_wall_banner", "weight": 45 },
+          { "id": "minecraft:light_blue_wall_banner", "weight": 35 },
+          { "id": "minecraft:white_wall_banner", "weight": 20 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:mossy_cobblestone", "weight": 50 },
+          { "id": "minecraft:moss_block", "weight": 30 },
+          { "id": "minecraft:coarse_dirt", "weight": 20 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:mossy_stone_bricks", "weight": 70 },
+          { "id": "minecraft:mossy_cobblestone_wall", "weight": 30 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:shroomlight", "weight": 60 },
+          { "id": "minecraft:lantern", "weight": 40 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:glow_berries", "weight": 50 },
+          { "id": "minecraft:shroomlight", "weight": 30 },
+          { "id": "minecraft:oak_planks", "weight": 20 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:oak_planks", "weight": 60 },
+          { "id": "minecraft:mossy_cobblestone", "weight": 40 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:oak_fence", "weight": 60 },
+          { "id": "minecraft:oak_leaves", "weight": 40 }
         ]
       }
     }

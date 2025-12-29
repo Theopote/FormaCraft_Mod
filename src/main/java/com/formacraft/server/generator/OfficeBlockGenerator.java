@@ -7,6 +7,7 @@ import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -32,13 +33,27 @@ public class OfficeBlockGenerator implements StructureGenerator {
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
         DetailPreferences details = profile != null ? profile.details() : null;
 
-        BlockState wall = getStateOrDefault(world, spec != null && spec.getMaterials() != null ? spec.getMaterials().getWall() : null,
+        // paletteId: explicit extra.paletteId wins, else styleProfile.details.paletteId
+        String paletteId = null;
+        if (spec != null && spec.getExtra() != null && spec.getExtra().get("paletteId") != null) {
+            paletteId = String.valueOf(spec.getExtra().get("paletteId")).trim();
+        }
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
+
+        String wallId = (spec != null && spec.getMaterials() != null) ? spec.getMaterials().getWall() : null;
+        String windowId = (spec != null && spec.getMaterials() != null) ? spec.getMaterials().getWindow() : null;
+        String floorId = (spec != null && spec.getMaterials() != null) ? spec.getMaterials().getFloor() : null;
+        String roofId = (spec != null && spec.getMaterials() != null) ? spec.getMaterials().getRoof() : null;
+
+        BlockState wall = getStateOrDefault(world, wallId,
                 Blocks.LIGHT_GRAY_CONCRETE.getDefaultState());
-        BlockState glass = getStateOrDefault(world, spec != null && spec.getMaterials() != null ? spec.getMaterials().getWindow() : null,
+        BlockState glass = getStateOrDefault(world, windowId,
                 Blocks.GLASS_PANE.getDefaultState());
-        BlockState floor = getStateOrDefault(world, spec != null && spec.getMaterials() != null ? spec.getMaterials().getFloor() : null,
+        BlockState floor = getStateOrDefault(world, floorId,
                 Blocks.SMOOTH_STONE.getDefaultState());
-        BlockState roof = getStateOrDefault(world, spec != null && spec.getMaterials() != null ? spec.getMaterials().getRoof() : null,
+        BlockState roof = getStateOrDefault(world, roofId,
                 Blocks.SMOOTH_STONE.getDefaultState());
 
         // windowStyle from style profile (StyleOptions still can override via spec.materials.window / explicit)
@@ -52,6 +67,24 @@ public class OfficeBlockGenerator implements StructureGenerator {
             else if (ws.contains("stained")) glass = Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.getDefaultState();
             else if (ws.contains("curtain")) glass = Blocks.GLASS_PANE.getDefaultState();
             else if (ws.contains("bars") || ws.contains("slit")) glass = Blocks.IRON_BARS.getDefaultState();
+        }
+
+        // Apply palette semantics only when the caller did NOT explicitly set that material id.
+        if (paletteId != null && !paletteId.isBlank()) {
+            if (wallId == null || wallId.isBlank()) {
+                wall = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0x0FF1CEBL, wall);
+            }
+            if (windowId == null || windowId.isBlank()) {
+                // Modern: prefer WINDOW; if the palette uses curtain-wall, it can still map WINDOW to panes.
+                glass = PaletteResolver.pick(world, paletteId, "WINDOW", origin, 0x0FF1CEB1L, glass);
+            }
+            if (floorId == null || floorId.isBlank()) {
+                floor = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0x0FF1CEF0L, floor);
+            }
+            if (roofId == null || roofId.isBlank()) {
+                roof = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0x0FF1CE0FL, roof);
+                roof = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0x0FF1CE10L, roof);
+            }
         }
 
         List<PlannedBlock> blocks = new ArrayList<>(Math.max(4000, w * d * h / 2));
@@ -111,6 +144,10 @@ public class OfficeBlockGenerator implements StructureGenerator {
             }
             if (ep.contains("neon")) {
                 BlockState light = Blocks.SEA_LANTERN.getDefaultState();
+                if (paletteId != null && !paletteId.isBlank()) {
+                    light = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x0FF1CE11L, light);
+                    light = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0x0FF1CE12L, light);
+                }
                 for (int x = -halfW; x <= halfW; x += 3) {
                     blocks.add(new PlannedBlock(origin.add(x, h + 2, -halfD), light));
                     blocks.add(new PlannedBlock(origin.add(x, h + 2, halfD), light));
@@ -128,11 +165,29 @@ public class OfficeBlockGenerator implements StructureGenerator {
         if (ornament != null && !ornament.isBlank()) {
             String op = ornament.trim().toLowerCase(java.util.Locale.ROOT);
             if (op.contains("cyber") || op.contains("sign")) {
-                blocks.add(new PlannedBlock(origin.add(1, 3, halfD + 1), Blocks.CYAN_STAINED_GLASS.getDefaultState()));
-                blocks.add(new PlannedBlock(origin.add(1, 4, halfD + 1), Blocks.SEA_LANTERN.getDefaultState()));
+                BlockPos signPos = origin.add(1, 3, halfD + 1);
+                BlockPos lightPos = origin.add(1, 4, halfD + 1);
+                BlockState signBlock = Blocks.CYAN_STAINED_GLASS.getDefaultState();
+                BlockState lightBlock = Blocks.SEA_LANTERN.getDefaultState();
+                if (paletteId != null && !paletteId.isBlank()) {
+                    signBlock = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", signPos, 0x0FF1CE13L, signBlock);
+                    signBlock = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", signPos, 0x0FF1CE14L, signBlock);
+                    lightBlock = PaletteResolver.pick(world, paletteId, "LIGHTING", lightPos, 0x0FF1CE15L, lightBlock);
+                    lightBlock = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", lightPos, 0x0FF1CE16L, lightBlock);
+                }
+                blocks.add(new PlannedBlock(signPos, signBlock));
+                blocks.add(new PlannedBlock(lightPos, lightBlock));
             } else if (op.contains("banner")) {
-                blocks.add(new PlannedBlock(origin.add(1, 2, halfD + 1), Blocks.RED_WALL_BANNER.getDefaultState()));
-                blocks.add(new PlannedBlock(origin.add(-1, 2, halfD + 1), Blocks.RED_WALL_BANNER.getDefaultState()));
+                BlockPos b1p = origin.add(1, 2, halfD + 1);
+                BlockPos b2p = origin.add(-1, 2, halfD + 1);
+                BlockState b1 = Blocks.RED_WALL_BANNER.getDefaultState();
+                BlockState b2 = Blocks.RED_WALL_BANNER.getDefaultState();
+                if (paletteId != null && !paletteId.isBlank()) {
+                    b1 = PaletteResolver.pick(world, paletteId, "BANNER", b1p, 0x0FF1CE17L, b1);
+                    b2 = PaletteResolver.pick(world, paletteId, "BANNER", b2p, 0x0FF1CE18L, b2);
+                }
+                blocks.add(new PlannedBlock(b1p, b1));
+                blocks.add(new PlannedBlock(b2p, b2));
             }
         }
 

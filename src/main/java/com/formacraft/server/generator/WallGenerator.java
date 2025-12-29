@@ -85,6 +85,10 @@ public class WallGenerator implements StructureGenerator {
             if (ep.contains("neon")) {
                 // neon strip along top edge
                 BlockState light = Blocks.SEA_LANTERN.getDefaultState();
+                if (paletteId != null && !paletteId.isBlank()) {
+                    light = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0x7A1101L, light);
+                    light = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x7A1102L, light);
+                }
                 int y = height - 1;
                 for (int z = 0; z < length; z += 5) {
                     blocks.add(new PlannedBlock(origin.add(0, y, z), light));
@@ -126,6 +130,15 @@ public class WallGenerator implements StructureGenerator {
             } else if (op.contains("cyber") || op.contains("sign")) {
                 BlockState signW = facing(Blocks.DARK_OAK_WALL_SIGN.getDefaultState(), Direction.WEST);
                 BlockState signE = facing(Blocks.DARK_OAK_WALL_SIGN.getDefaultState(), Direction.EAST);
+                if (paletteId != null && !paletteId.isBlank()) {
+                    // Prefer palette ROAD_SIGNAGE/DECOR_DETAIL when available; keep wall sign as fallback.
+                    signW = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", origin, 0x7A1103L, signW);
+                    signW = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x7A1104L, signW);
+                    signW = facing(signW, Direction.WEST);
+                    signE = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", origin, 0x7A1105L, signE);
+                    signE = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x7A1106L, signE);
+                    signE = facing(signE, Direction.EAST);
+                }
                 int y = Math.max(2, height - 2);
                 for (int z = 3; z < length - 3; z += 11) {
                     blocks.add(new PlannedBlock(origin.add(-1, y, z), signW));

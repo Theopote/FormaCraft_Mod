@@ -323,6 +323,9 @@
           "trim": ["minecraft:quartz_pillar"],
           "cap": ["minecraft:smooth_quartz_slab"]
         },
+        "components": {
+          "palette_id": "PALETTE_MODERN_GLASS_B"
+        },
         "algorithm": {
           "generator": "parametric_surface",
           "voxelizer": "bezier",
@@ -351,7 +354,8 @@
         },
         "components": {
           "eaves": "neon_strip",
-          "ornament_profile": "steampunk_pipes"
+          "ornament_profile": "steampunk_pipes",
+          "palette_id": "PALETTE_STEAMPUNK_COPPER_A"
         },
         "algorithm": {
           "generator": "truss",
@@ -390,7 +394,8 @@
           "windows": "stained",
           "portal": "organic_arch",
           "eaves": "organic_vines",
-          "ornament_profile": "organic_lanterns"
+          "ornament_profile": "organic_lanterns",
+          "palette_id": "PALETTE_ELVEN_ORGANIC_A"
         },
         "algorithm": {
           "generator": "organic_growth",

@@ -619,7 +619,7 @@ public class HouseGenerator implements StructureGenerator {
             if (profile != null && profile.details() != null) {
                 addFacadeComponents(blocks, origin, world, spec, width, depth, height,
                         wall, trim, foundation, pillar, roof, roofStairs, roofSlab, windowBlock,
-                        profile.details());
+                        paletteId, profile.details());
             }
         } catch (Throwable ignored) {}
 
@@ -1003,6 +1003,7 @@ public class HouseGenerator implements StructureGenerator {
                                            BlockState roofStairs,
                                            BlockState roofSlab,
                                            BlockState windowBlock,
+                                           String paletteId,
                                            com.formacraft.common.style.profile.DetailPreferences details) {
         if (blocks == null || origin == null || details == null) return;
         if (width < 9 || depth < 9 || height < 6) return; // too small
@@ -1016,7 +1017,7 @@ public class HouseGenerator implements StructureGenerator {
 
         // --- Ornaments / props (cross-style) ---
         if (details.ornamentProfile != null && !details.ornamentProfile.isBlank()) {
-            addOrnamentProfile(blocks, origin, width, depth, height, doorSide, foundation, trim, roofSlab, details.ornamentProfile, details);
+            addOrnamentProfile(blocks, origin, world, width, depth, height, doorSide, foundation, trim, roofSlab, paletteId, details.ornamentProfile, details);
         }
 
         // --- Classical stylobate / podium ring ---
@@ -1320,6 +1321,7 @@ public class HouseGenerator implements StructureGenerator {
 
     private static void addOrnamentProfile(List<PlannedBlock> blocks,
                                           BlockPos origin,
+                                          ServerWorld world,
                                           int width,
                                           int depth,
                                           int height,
@@ -1327,6 +1329,7 @@ public class HouseGenerator implements StructureGenerator {
                                           BlockState foundation,
                                           BlockState trim,
                                           BlockState roofSlab,
+                                          String paletteId,
                                           String ornamentProfile,
                                           com.formacraft.common.style.profile.DetailPreferences details) {
         if (blocks == null || origin == null || ornamentProfile == null) return;
@@ -1347,6 +1350,11 @@ public class HouseGenerator implements StructureGenerator {
         // --- Chinese plaque: a sign-like lintel above the door axis (outside plane)
         if (op.contains("chinese") || op.contains("plaque")) {
             BlockState sign = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                // Prefer palette semantic signage; keep wall sign as fallback.
+                sign = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", origin, 0xA005E001L, sign);
+                sign = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xA005E002L, sign);
+            }
             sign = withFacingIfPossible(sign, doorSide);
             int y = 3;
             if (onNS) {
@@ -1364,6 +1372,11 @@ public class HouseGenerator implements StructureGenerator {
         // --- Castle banners: two wall banners flanking the door (outside plane)
         if (op.contains("castle") || op.contains("banner")) {
             BlockState wb = resolveWallBannerState(details != null ? details.bannerColor : null);
+            if ((details == null || details.bannerColor == null || details.bannerColor.isBlank())
+                    && paletteId != null && !paletteId.isBlank() && world != null) {
+                // Prefer palette banner when no explicit banner color was chosen.
+                wb = PaletteResolver.pick(world, paletteId, "BANNER", origin, 0xA005E003L, wb);
+            }
             wb = withFacingIfPossible(wb, doorSide);
             int y = 2;
             if (onNS) {
@@ -1409,6 +1422,11 @@ public class HouseGenerator implements StructureGenerator {
         if (op.contains("organic") || op.contains("lantern") || op.contains("vine")) {
             BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
             BlockState lantern = Blocks.LANTERN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                leaf = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xA005E004L, leaf);
+                lantern = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0xA005E005L, lantern);
+                lantern = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0xA005E006L, lantern);
+            }
             int y = 3;
             if (onNS) {
                 blocks.add(new PlannedBlock(origin.add(a0, y, oz), leaf));

@@ -24,6 +24,7 @@ import com.formacraft.server.cluster.layout.PlacementSolver;
 import com.formacraft.server.build.BuildReportContext;
 import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.server.foundation.FoundationType;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.terrain.TerrainFit;
 import com.formacraft.server.terrain.TerrainPolicy;
 import com.formacraft.server.terrain.TerrainPolicyResolver;
@@ -274,6 +275,12 @@ public class OfficeDistrictGenerator implements StructureGenerator {
 
             BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
             BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
+            // If paletteId is available, prefer semantic lighting/decor materials (fallback to the above defaults).
+            if (paletteId != null && !paletteId.isBlank()) {
+                lamp = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0x0D15A11CL, lamp);
+                lamp = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x0D15A11DL, lamp);
+                post = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x0D15A11EL, post);
+            }
             PathRoadInterpreter roadInterp = new PathRoadInterpreter(road, border, true, paletteId, lamp, post, ornamentProfile);
 
             // compute grid origin offsets (must match GridSkeleton)

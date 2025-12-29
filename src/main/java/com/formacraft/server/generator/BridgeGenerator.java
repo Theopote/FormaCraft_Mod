@@ -148,11 +148,24 @@ public class BridgeGenerator implements StructureGenerator {
                 BlockPos left = origin.add(-width / 2 - 2, yOffset + 2, z);
                 BlockPos right = origin.add(width / 2 + 2, yOffset + 2, z);
                 if (op.contains("cyber") || op.contains("sign")) {
-                    blocks.add(new PlannedBlock(left, Blocks.DARK_OAK_WALL_SIGN.getDefaultState()));
-                    blocks.add(new PlannedBlock(right, Blocks.DARK_OAK_WALL_SIGN.getDefaultState()));
+                    BlockState sL = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+                    BlockState sR = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+                    if (paletteId != null && !paletteId.isBlank()) {
+                        // Prefer palette semantic signage blocks when available; fallback keeps the old sign behavior.
+                        sL = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", left, 0xB51D6001L, sL);
+                        sR = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", right, 0xB51D6002L, sR);
+                    }
+                    blocks.add(new PlannedBlock(left, sL));
+                    blocks.add(new PlannedBlock(right, sR));
                 } else if (op.contains("banner")) {
-                    blocks.add(new PlannedBlock(left, Blocks.RED_WALL_BANNER.getDefaultState()));
-                    blocks.add(new PlannedBlock(right, Blocks.RED_WALL_BANNER.getDefaultState()));
+                    BlockState bL = Blocks.RED_WALL_BANNER.getDefaultState();
+                    BlockState bR = Blocks.RED_WALL_BANNER.getDefaultState();
+                    if (paletteId != null && !paletteId.isBlank()) {
+                        bL = PaletteResolver.pick(world, paletteId, "BANNER", left, 0xB51D6003L, bL);
+                        bR = PaletteResolver.pick(world, paletteId, "BANNER", right, 0xB51D6004L, bR);
+                    }
+                    blocks.add(new PlannedBlock(left, bL));
+                    blocks.add(new PlannedBlock(right, bR));
                 }
             }
         }

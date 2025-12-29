@@ -6,6 +6,7 @@ import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.vertical.VerticalTaperPlan;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.vertical.VerticalTaperInterpreter;
 import com.formacraft.server.skeleton.vertical.VerticalTaperSkeleton;
 import com.formacraft.common.style.profile.DetailPreferences;
@@ -48,6 +49,13 @@ public class EiffelTowerGenerator implements StructureGenerator {
         DetailPreferences details = profile != null ? profile.details() : null;
         String eavesProfile = details != null ? details.eavesProfile : null;
         String ornamentProfile = details != null ? details.ornamentProfile : null;
+        String paletteId = null;
+        if (spec != null && spec.getExtra() != null && spec.getExtra().get("paletteId") != null) {
+            paletteId = String.valueOf(spec.getExtra().get("paletteId")).trim();
+        }
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
 
         BlockState leg = getStateOrDefault(world, getStringExtra(spec, "legBlock", "minecraft:iron_block"), Blocks.IRON_BLOCK.getDefaultState());
         BlockState brace = getStateOrDefault(world, getStringExtra(spec, "braceBlock", "minecraft:iron_bars"), Blocks.IRON_BARS.getDefaultState());
@@ -58,6 +66,15 @@ public class EiffelTowerGenerator implements StructureGenerator {
         if ((spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("railBlock"))
                 && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon")) {
             rail = Blocks.SEA_LANTERN.getDefaultState();
+        }
+
+        // Palette overrides (optional): keep explicit per-spec block overrides as fallback.
+        if (paletteId != null && !paletteId.isBlank()) {
+            leg = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", origin, 0xE1FF01L, leg);
+            brace = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xE1FF02L, brace);
+            platform = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0xE1FF03L, platform);
+            rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xE1FF04L, rail);
+            spire = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xE1FF05L, spire);
         }
 
         // -----------------------------

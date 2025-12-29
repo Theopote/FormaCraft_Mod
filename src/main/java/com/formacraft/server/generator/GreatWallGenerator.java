@@ -65,6 +65,12 @@ public class GreatWallGenerator implements StructureGenerator {
         if ((spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("crenelBlock"))
                 && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon")) {
             crenel = Blocks.SEA_LANTERN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank()) {
+                // Prefer palette semantic lighting/decor for neon crenels; keep sea lantern as fallback.
+                crenel = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0xC0E11L, crenel);
+                crenel = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0xC0E12L, crenel);
+                crenel = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xC0E13L, crenel);
+            }
         }
 
         // -----------------------------
@@ -88,6 +94,9 @@ public class GreatWallGenerator implements StructureGenerator {
             String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
             if (op.contains("banner")) {
                 BlockState b = Blocks.RED_WALL_BANNER.getDefaultState();
+                if (paletteId != null && !paletteId.isBlank()) {
+                    b = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "BANNER", origin, 0xBAA3L, b);
+                }
                 for (int i = 8; i < length; i += Math.max(24, towerSpacing)) {
                     BlockPos p = origin.offset(facing, i);
                     blocks.add(new PlannedBlock(p.up(Math.max(2, height - 2)), b));

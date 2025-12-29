@@ -11,6 +11,7 @@ import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -49,6 +50,13 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
         DetailPreferences details = profile != null ? profile.details() : null;
         String eavesProfile = details != null ? details.eavesProfile : null;
         String ornamentProfile = details != null ? details.ornamentProfile : null;
+        String paletteId = null;
+        if (spec != null && spec.getExtra() != null && spec.getExtra().get("paletteId") != null) {
+            paletteId = String.valueOf(spec.getExtra().get("paletteId")).trim();
+        }
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
 
         BlockState tower = getStateOrDefault(world, getStringExtra(spec, "towerBlock", "minecraft:red_terracotta"), Blocks.RED_TERRACOTTA.getDefaultState());
         BlockState deck = getStateOrDefault(world, getStringExtra(spec, "deckBlock", "minecraft:polished_andesite"), Blocks.POLISHED_ANDESITE.getDefaultState());
@@ -58,7 +66,27 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
         BlockState foundation = getStateOrDefault(world, getStringExtra(spec, "foundationBlock", "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
         if ((spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("railBlock"))
                 && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon")) {
-            rail = Blocks.SEA_LANTERN.getDefaultState();
+            // If palette exists, prefer semantic bridge rail/lighting; otherwise keep legacy neon rail = sea lantern.
+            if (paletteId != null && !paletteId.isBlank()) {
+                rail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", origin, 0x6018L, rail);
+                rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6019L, rail);
+                rail = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x601AL, rail);
+            } else {
+                rail = Blocks.SEA_LANTERN.getDefaultState();
+            }
+        }
+
+        // Palette overrides (optional): keep explicit per-spec block overrides as fallback.
+        if (paletteId != null && !paletteId.isBlank()) {
+            BlockPos p0 = origin;
+            tower = PaletteResolver.pick(world, paletteId, "WALL_BASE", p0, 0x6010L, tower);
+            foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p0, 0x6011L, foundation);
+            deck = PaletteResolver.pick(world, paletteId, "BRIDGE_DECK", p0, 0x6012L, deck);
+            deck = PaletteResolver.pick(world, paletteId, "FLOORING", p0, 0x6013L, deck);
+            rail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", p0, 0x6014L, rail);
+            rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p0, 0x6015L, rail);
+            cable = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p0, 0x6016L, cable);
+            hanger = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p0, 0x6017L, hanger);
         }
 
         // -----------------------------
@@ -80,6 +108,10 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
             String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
             if (op.contains("cyber") || op.contains("sign")) {
                 BlockState sign = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+                if (paletteId != null && !paletteId.isBlank()) {
+                    sign = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", origin, 0x6020L, sign);
+                    sign = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6021L, sign);
+                }
                 int y = 3;
                 for (int i = 12; i < span; i += 48) {
                     BlockPos p = origin.offset(facing, i);
@@ -87,6 +119,9 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
                 }
             } else if (op.contains("organic") || op.contains("vine")) {
                 BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
+                if (paletteId != null && !paletteId.isBlank()) {
+                    leaf = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6022L, leaf);
+                }
                 for (int i = 16; i < span; i += 40) {
                     BlockPos p = origin.offset(facing, i);
                     blocks.add(new PlannedBlock(p.up(2).east(), leaf));

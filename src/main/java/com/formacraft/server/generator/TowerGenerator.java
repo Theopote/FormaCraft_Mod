@@ -286,7 +286,7 @@ public class TowerGenerator implements StructureGenerator {
 
         // Extra ornaments on towers (cross-style, best-effort)
         if (ornamentProfile != null && !ornamentProfile.isBlank()) {
-            addTowerOrnaments(result, origin, world, radius, height, ornamentProfile);
+            addTowerOrnaments(result, origin, world, radius, height, ornamentProfile, paletteId);
         }
 
         String description = String.format("Tower (%s, height=%d, radius=%d, floors=%d)", 
@@ -334,7 +334,8 @@ public class TowerGenerator implements StructureGenerator {
                                           ServerWorld world,
                                           int radius,
                                           int height,
-                                          String ornamentProfile) {
+                                          String ornamentProfile,
+                                          String paletteId) {
         if (out == null || origin == null || ornamentProfile == null) return;
         String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
         int y = Math.max(2, height - 2);
@@ -342,6 +343,10 @@ public class TowerGenerator implements StructureGenerator {
         if (op.contains("cyber") || op.contains("sign")) {
             // Place 4 wall signs on the tower, facing outward (best-effort)
             BlockState sign = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                sign = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", origin, 0x70A001L, sign);
+                sign = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x70A002L, sign);
+            }
             placeFacing(out, origin.add(radius + 1, y, 0), sign, Direction.EAST);
             placeFacing(out, origin.add(-radius - 1, y, 0), sign, Direction.WEST);
             placeFacing(out, origin.add(0, y, radius + 1), sign, Direction.SOUTH);
@@ -363,6 +368,11 @@ public class TowerGenerator implements StructureGenerator {
         if (op.contains("organic") || op.contains("lantern") || op.contains("vine")) {
             BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
             BlockState lantern = Blocks.LANTERN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                leaf = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x70A003L, leaf);
+                lantern = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x70A004L, lantern);
+                lantern = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0x70A005L, lantern);
+            }
             out.add(new PlannedBlock(origin.add(radius + 1, y, 0), leaf));
             out.add(new PlannedBlock(origin.add(-radius - 1, y, 0), leaf));
             out.add(new PlannedBlock(origin.add(0, y + 1, radius + 1), lantern));
