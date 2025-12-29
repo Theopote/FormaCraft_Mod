@@ -99,12 +99,20 @@ public class CastleCompoundGenerator implements StructureGenerator {
         boolean wallBanner = false;
         String wallBannerColor = "red";
         if (extra != null) {
+            boolean battlementsExplicit = extra.containsKey("wallBattlements");
             Object wb = extra.get("wallBattlements");
             if (wb instanceof Boolean b) wallBattlements = b;
             else if (wb != null) {
                 String s = String.valueOf(wb).trim().toLowerCase(java.util.Locale.ROOT);
                 if (!s.isEmpty()) wallBattlements = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
             }
+            // StyleProfile fallback (only when not explicitly provided)
+            if (!battlementsExplicit && styleProfile != null && styleProfile.details() != null
+                    && styleProfile.details().eavesProfile != null) {
+                String ep = styleProfile.details().eavesProfile.toLowerCase(java.util.Locale.ROOT);
+                wallBattlements = ep.contains("battlement");
+            }
+
             Object sp = extra.get("wallBattlementSpacing");
             if (sp != null) {
                 try {
@@ -113,16 +121,32 @@ public class CastleCompoundGenerator implements StructureGenerator {
                 } catch (Exception ignored) {}
             }
 
+            boolean bannerExplicit = extra.containsKey("wallBanner");
             Object wban = extra.get("wallBanner");
             if (wban instanceof Boolean b) wallBanner = b;
             else if (wban != null) {
                 String s = String.valueOf(wban).trim().toLowerCase(java.util.Locale.ROOT);
                 if (!s.isEmpty()) wallBanner = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
             }
+            // StyleProfile fallback: banner defaults + ornament hint (only when not explicitly provided)
+            if (!bannerExplicit && styleProfile != null && styleProfile.details() != null) {
+                if (styleProfile.details().bannerEnabled != null) {
+                    wallBanner = Boolean.TRUE.equals(styleProfile.details().bannerEnabled);
+                } else if (styleProfile.details().ornamentProfile != null) {
+                    String op = styleProfile.details().ornamentProfile.toLowerCase(java.util.Locale.ROOT);
+                    if (op.contains("banner")) wallBanner = true;
+                }
+            }
+
+            boolean bannerColorExplicit = extra.containsKey("wallBannerColor");
             Object wbc = extra.get("wallBannerColor");
             if (wbc != null) {
                 String s = String.valueOf(wbc).trim().toLowerCase(java.util.Locale.ROOT);
                 if (!s.isEmpty()) wallBannerColor = s;
+            }
+            if (!bannerColorExplicit && wallBanner && styleProfile != null && styleProfile.details() != null
+                    && styleProfile.details().bannerColor != null && !styleProfile.details().bannerColor.isBlank()) {
+                wallBannerColor = styleProfile.details().bannerColor.trim().toLowerCase(java.util.Locale.ROOT);
             }
         }
         RectEnclosurePlan enclosure = new RectEnclosurePlan(w, d, wallHeight, wallThickness, gateSide, gateWidth,

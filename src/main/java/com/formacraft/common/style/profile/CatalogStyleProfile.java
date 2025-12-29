@@ -92,12 +92,58 @@ public final class CatalogStyleProfile implements StyleProfile {
                 if (win.contains("small")) rules.windowDensity = 0.18f;
                 else if (win.contains("rose")) rules.windowDensity = 0.65f;
                 else if (win.contains("large")) rules.windowDensity = 0.75f;
+
+                // windowStyle hint for generators (best-effort)
+                if (details.windowStyle == null || details.windowStyle.isBlank()) {
+                    if (win.contains("shoji") || win.contains("paper")) details.windowStyle = "shoji";
+                    else if (win.contains("lattice") || win.contains("fence")) details.windowStyle = "fence";
+                    else if (win.contains("curtain")) details.windowStyle = "curtain_wall";
+                    else if (win.contains("slit")) details.windowStyle = "slit";
+                    else if (win.contains("bars")) details.windowStyle = "bars";
+                    else if (win.contains("stained") || win.contains("glass")) details.windowStyle = "stained";
+                    else if (win.contains("none")) details.windowStyle = "slit";
+                }
+            }
+
+            // Entry/portal style hint (cross-style)
+            String portal = asString(comps.get("portal")).toLowerCase(Locale.ROOT);
+            if (portal.isBlank()) portal = asString(comps.get("entry")).toLowerCase(Locale.ROOT);
+            if (!portal.isBlank()) {
+                details.portalStyle = portal;
+                // Some portal types imply arches
+                if (portal.contains("gothic") || portal.contains("pointed")) details.pointedArches = true;
+                if (portal.contains("arch")) details.arches = true;
+            }
+
+            // Eaves / roof-edge profile hint (cross-style)
+            String eaves = asString(comps.get("eaves")).toLowerCase(Locale.ROOT);
+            if (eaves.isBlank()) eaves = asString(comps.get("roof_eaves")).toLowerCase(Locale.ROOT);
+            if (!eaves.isBlank()) {
+                details.eavesProfile = eaves;
+                if (eaves.contains("flying")) details.emphasizeEaves = true;
+            }
+
+            // Facade composition hint (cross-style)
+            String facade = asString(comps.get("facade_profile")).toLowerCase(Locale.ROOT);
+            if (facade.isBlank()) facade = asString(comps.get("facade")).toLowerCase(Locale.ROOT);
+            if (!facade.isBlank()) {
+                details.facadeProfile = facade;
+            }
+
+            // Ornament/props hint (cross-style)
+            String orn = asString(comps.get("ornament_profile")).toLowerCase(Locale.ROOT);
+            if (orn.isBlank()) orn = asString(comps.get("ornament")).toLowerCase(Locale.ROOT);
+            if (!orn.isBlank()) {
+                details.ornamentProfile = orn;
             }
 
             // Gothic: rose windows + buttresses
             if (win.contains("rose")) {
                 details.roseWindow = true;
                 details.buttresses = true;
+                details.pointedArches = true;
+                details.mullions = true;
+                if (details.windowStyle == null || details.windowStyle.isBlank()) details.windowStyle = "stained";
             }
 
             // Classical: columns + pediment
@@ -105,7 +151,26 @@ public final class CatalogStyleProfile implements StyleProfile {
             if (!cols.isBlank()) {
                 details.colonnade = cols.contains("dense") || cols.contains("colonnade") || cols.contains("portico");
                 if (details.colonnade) details.decorativeColumns = true;
+                if (cols.contains("sparse")) details.colonnadeSpacing = 4;
+                else if (cols.contains("medium")) details.colonnadeSpacing = 3;
+                else details.colonnadeSpacing = 2; // dense/default
+                if (cols.contains("peristyle")) details.peristyle = true;
             }
+
+            String order = asString(comps.get("column_order")).toLowerCase(Locale.ROOT);
+            if (!order.isBlank()) {
+                if (order.contains("corinth")) details.classicalColumnOrder = "corinthian";
+                else if (order.contains("ionic")) details.classicalColumnOrder = "ionic";
+                else details.classicalColumnOrder = "doric";
+            }
+
+            Object per = comps.get("peristyle");
+            if (per instanceof Boolean b) details.peristyle = b;
+
+            Object sty = comps.get("stylobate");
+            if (sty instanceof Boolean b) details.stylobate = b;
+            // Peristyle typically reads better with a podium ring
+            if (details.peristyle && !details.stylobate) details.stylobate = true;
             Object ped = comps.get("pediment");
             if (ped instanceof Boolean b) {
                 details.pediment = b;
@@ -113,10 +178,21 @@ public final class CatalogStyleProfile implements StyleProfile {
                 String s = String.valueOf(ped).trim().toLowerCase(Locale.ROOT);
                 if (!s.isBlank()) details.pediment = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
             }
+            if (details.colonnade || details.pediment) {
+                details.entablature = true;
+            }
 
             // Explicit buttresses override
             Object butt = comps.get("buttresses");
             if (butt instanceof Boolean b) details.buttresses = b;
+
+            // Explicit mullions override
+            Object mul = comps.get("mullions");
+            if (mul instanceof Boolean b) details.mullions = b;
+
+            // Explicit pointed arch windows override
+            Object paw = comps.get("pointed_arch_windows");
+            if (paw instanceof Boolean b) details.pointedArches = b;
         }
 
         // ---------- constraints -> extra behavioral knobs ----------
@@ -130,6 +206,11 @@ public final class CatalogStyleProfile implements StyleProfile {
                 // broad hint: push recognizable details
                 details.decorativeColumns = true;
             }
+        }
+
+        // If the catalog hints spires roof, it's very likely a Gothic silhouette; enable pointed arches.
+        if (rules.roofTypeHint != null && rules.roofTypeHint.equalsIgnoreCase("spires")) {
+            details.pointedArches = true;
         }
 
         // ---------- banner defaults ----------

@@ -26,6 +26,10 @@
         "components": {
           "courtyard": true,
           "windows": "small_high",
+          "portal": "paifang",
+          "eaves": "flying_eaves",
+          "facade_profile": "base_plinth",
+          "ornament_profile": "chinese_plaque",
           "balcony": "none"
         },
         "algorithm": {
@@ -67,7 +71,8 @@
         "components": {
           "courtyard": true,
           "balcony": "inner_ring",
-          "windows": "small_high"
+          "windows": "small_high",
+          "portal": "stone_arch"
         },
         "algorithm": {
           "generator": "tulou",
@@ -104,7 +109,10 @@
         },
         "components": {
           "courtyard": false,
-          "windows": "large_glass",
+          "windows": "shoji",
+          "portal": "torii",
+          "eaves": "flying_eaves",
+          "ornament_profile": "chinese_plaque",
           "balcony": "outer"
         },
         "algorithm": {
@@ -143,8 +151,13 @@
         },
         "components": {
           "windows": "rose_window",
+          "portal": "gothic_pointed",
+          "facade_profile": "vertical_pilasters",
+          "ornament_profile": "castle_banners",
           "balcony": "none",
-          "buttresses": true
+          "buttresses": true,
+          "mullions": true,
+          "pointed_arch_windows": true
         },
         "algorithm": {
           "generator": "cathedral",
@@ -181,6 +194,10 @@
           "cap": ["minecraft:stone_slab"]
         },
         "components": {
+          "windows": "slit_bars",
+          "portal": "stone_arch",
+          "eaves": "battlement",
+          "ornament_profile": "castle_banners",
           "defense": { "battlement": true, "tower_count": 4 }
         },
         "banner": {
@@ -221,7 +238,11 @@
           "cap": ["minecraft:smooth_stone_slab"]
         },
         "components": {
-          "windows": "large_glass"
+          "windows": "curtain_wall",
+          "portal": "modern_frame",
+          "eaves": "parapet",
+          "facade_profile": "mullion_grid",
+          "ornament_profile": "cyber_signage"
         },
         "algorithm": {
           "generator": "block_stack",
@@ -255,6 +276,12 @@
           "foundation": ["minecraft:smooth_stone"],
           "trim": ["minecraft:polished_andesite"],
           "cap": ["minecraft:smooth_stone_slab"]
+        },
+        "components": {
+          "windows": "slit",
+          "portal": "modern_frame",
+          "eaves": "parapet",
+          "facade_profile": "module_grid"
         },
         "algorithm": {
           "generator": "modular_stack",
@@ -348,6 +375,12 @@
           "trim": ["minecraft:mossy_cobblestone"],
           "cap": ["minecraft:mossy_cobblestone_slab"]
         },
+        "components": {
+          "windows": "stained",
+          "portal": "organic_arch",
+          "eaves": "organic_vines",
+          "ornament_profile": "organic_lanterns"
+        },
         "algorithm": {
           "generator": "organic_growth",
           "quality": "normal"
@@ -383,6 +416,9 @@
         },
         "components": {
           "columns": "dense",
+          "column_order": "doric",
+          "peristyle": true,
+          "stylobate": true,
           "pediment": true,
           "windows": "none"
         },
@@ -422,7 +458,10 @@
         },
         "components": {
           "courtyard": true,
-          "windows": "small_high",
+          "windows": "lattice_small_high",
+          "portal": "paifang",
+          "eaves": "flying_eaves",
+          "facade_profile": "base_plinth",
           "balcony": "none"
         },
         "algorithm": {
@@ -462,7 +501,9 @@
         "components": {
           "chimneys": true,
           "pipes": true,
-          "windows": "small"
+          "windows": "small_bars",
+          "portal": "steampunk_riveted",
+          "ornament_profile": "steampunk_pipes"
         },
         "algorithm": {
           "generator": "industrial_modular",
@@ -499,7 +540,11 @@
           "cap": ["minecraft:blackstone_slab"]
         },
         "components": {
-          "windows": "large_glass",
+          "windows": "curtain_wall",
+          "portal": "neon_frame",
+          "eaves": "neon_strip",
+          "facade_profile": "mullion_grid",
+          "ornament_profile": "cyber_signage",
           "neon": true,
           "signage": true
         },

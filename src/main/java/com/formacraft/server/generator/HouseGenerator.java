@@ -135,6 +135,19 @@ public class HouseGenerator implements StructureGenerator {
         }
         windowRatio = Math.max(0.0, Math.min(1.0, windowRatio));
 
+        // Apply windowStyle hints (broad, cross-style):
+        // - curtain_wall: more glazing
+        // - slit/bars: fewer, defensive openings
+        // - shoji/fence: moderate density
+        String effWindowStyle = resolveEffectiveWindowStyle(spec, genome, profile, style);
+        String ews = (effWindowStyle == null) ? "" : effWindowStyle.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!ews.isBlank()) {
+            if (ews.contains("curtain")) windowRatio = Math.max(windowRatio, 0.70);
+            else if (ews.contains("slit") || ews.contains("bars")) windowRatio = Math.min(windowRatio, 0.14);
+            else if (ews.contains("shoji")) windowRatio = Math.max(Math.min(windowRatio, 0.55), 0.32);
+            else if (ews.contains("fence") || ews.contains("lattice")) windowRatio = Math.max(Math.min(windowRatio, 0.45), 0.22);
+        }
+
         String wallPattern = (spec.getStyleOptions() != null && spec.getStyleOptions().getWallPattern() != null)
                 ? spec.getStyleOptions().getWallPattern()
                 : (genome != null && genome.params != null && genome.params.wallPattern != null ? genome.params.wallPattern : "uniform");
@@ -289,6 +302,10 @@ public class HouseGenerator implements StructureGenerator {
                                 boolean nearDoor = isNearDoor(doorSide, x, z, width, depth);
                                 if (shouldPlaceWindow && !nearDoor) {
                                     blocks.add(new PlannedBlock(pos, windowBlock));
+                                    // Gothic mullions: place iron bars just behind the glass (inside cell), best-effort.
+                                    if (profile != null && profile.details() != null && profile.details().mullions) {
+                                        addMullionBehindWindow(blocks, origin, x, y, z, width, depth, doorSide);
+                                    }
                                     // 窗套/窗框（v1）：
                                     // 只在窗带“上下边缘”放 trim，避免双层窗时互相覆盖。
                                     int localYForBand = y % floorHeight;
@@ -300,7 +317,15 @@ public class HouseGenerator implements StructureGenerator {
                                     boolean isTopOfBand = isTwoHighBand ? (localYForBand == 2) : true;
 
                                     if (isBottomOfBand && y > 0) blocks.add(new PlannedBlock(origin.add(x, y - 1, z), trim));
-                                    if (isTopOfBand && y + 1 < height) blocks.add(new PlannedBlock(origin.add(x, y + 1, z), trim));
+                                    if (isTopOfBand && y + 1 < height) {
+                                        // Gothic: pointed arch window head (best-effort, don't clobber dense window bands)
+                                        boolean pointed = (profile != null && profile.details() != null && profile.details().pointedArches);
+                                        if (pointed && isPointedArchWindowSafe(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth, doorSide)) {
+                                            addPointedWindowFrame(blocks, origin, x, y + 1, z, width, depth, trim, roofStairs);
+                                        } else {
+                                            blocks.add(new PlannedBlock(origin.add(x, y + 1, z), trim));
+                                        }
+                                    }
 
                                     // fence 栅窗：额外补左右窗套（同一墙面内），但避免覆盖相邻窗/门/角柱
                                     if (isFenceLikeWindow(windowBlock)) {
@@ -333,6 +358,19 @@ public class HouseGenerator implements StructureGenerator {
                         if (paletteId != null && !paletteId.isBlank() && wallToUse == wall) {
                             long salt = (x * 1315423911L) ^ (z * 2654435761L) ^ (y * 97531L);
                             wallToUse = PaletteResolver.pick(world, paletteId, "WALL_BASE", pos, salt, wallToUse);
+                        }
+
+                        // Facade composition hint (cross-style, low intrusion): only affects plain wall cells.
+                        String facadeProfile = null;
+                        try {
+                            if (profile != null && profile.details() != null) facadeProfile = profile.details().facadeProfile;
+                        } catch (Throwable ignored) {}
+                        if (facadeProfile != null && !facadeProfile.isBlank()) {
+                            wallToUse = applyFacadeProfileToWallCell(
+                                    wallToUse, wall, trim, foundation,
+                                    facadeProfile, doorSide, x, y, z, width, depth,
+                                    hasDoor, floorHeight
+                            );
                         }
 
                         // 普通墙
@@ -493,6 +531,15 @@ public class HouseGenerator implements StructureGenerator {
             for (int z = -1; z <= depth; z++) {
                 blocks.add(new PlannedBlock(origin.add(-1, height - 1, z), roofSlab));
                 blocks.add(new PlannedBlock(origin.add(width, height - 1, z), roofSlab));
+            }
+
+            // Cross-style roof-edge/eaves profile
+            String eavesProfile = null;
+            try {
+                if (profile != null && profile.details() != null) eavesProfile = profile.details().eavesProfile;
+            } catch (Throwable ignored) {}
+            if (eavesProfile != null && !eavesProfile.isBlank()) {
+                applyEavesProfile(blocks, origin, width, depth, height, style, eavesProfile, trim, roof, roofSlab);
             }
 
             // 额外一圈线脚（更有“屋檐层次”）：仅在“偏层次屋顶”的风格下启用
@@ -866,6 +913,77 @@ public class HouseGenerator implements StructureGenerator {
         return wall;
     }
 
+    private static BlockState applyFacadeProfileToWallCell(BlockState current,
+                                                           BlockState wall,
+                                                           BlockState trim,
+                                                           BlockState foundation,
+                                                           String facadeProfile,
+                                                           Direction doorSide,
+                                                           int x,
+                                                           int y,
+                                                           int z,
+                                                           int width,
+                                                           int depth,
+                                                           boolean hasDoor,
+                                                           int floorHeight) {
+        if (current == null) return null;
+        String fp = (facadeProfile == null) ? "" : facadeProfile.trim().toLowerCase(java.util.Locale.ROOT);
+        if (fp.isBlank()) return current;
+
+        boolean isEdgeX = (x == 0 || x == width - 1);
+        boolean isEdgeZ = (z == 0 || z == depth - 1);
+        if (!(isEdgeX || isEdgeZ)) return current;
+
+        // Don't clobber non-wall materials (trim/foundation already placed earlier)
+        if (wall != null && current != wall) return current;
+
+        boolean nearDoor = isNearDoor(doorSide, x, z, width, depth);
+        if (hasDoor && nearDoor) return current;
+
+        // base plinth: heavier base band
+        if (fp.contains("base_plinth")) {
+            if (y == 1) return foundation != null ? foundation : current;
+            return current;
+        }
+
+        // vertical pilasters: periodic vertical trim strips
+        if (fp.contains("vertical_pilasters")) {
+            int cadence = 3;
+            if (isEdgeZ) {
+                if (x > 0 && x < width - 1 && (x % cadence == 0) && y > 0) return trim != null ? trim : current;
+            } else {
+                if (z > 0 && z < depth - 1 && (z % cadence == 0) && y > 0) return trim != null ? trim : current;
+            }
+            return current;
+        }
+
+        // mullion grid: stronger floor bands + subtle vertical mullions
+        if (fp.contains("mullion_grid")) {
+            int localY = (floorHeight > 0) ? (y % floorHeight) : 0;
+            if (y > 0 && localY == 0) return trim != null ? trim : current;
+            int cadence = 2;
+            if (isEdgeZ) {
+                if (x > 0 && x < width - 1 && (x % cadence == 0) && y > 0) return trim != null ? trim : current;
+            } else {
+                if (z > 0 && z < depth - 1 && (z % cadence == 0) && y > 0) return trim != null ? trim : current;
+            }
+            return current;
+        }
+
+        // module grid: brutalist-ish panelization (light touch)
+        if (fp.contains("module_grid")) {
+            if (y > 0 && (y % 3 == 0)) return trim != null ? trim : current;
+            if (isEdgeZ) {
+                if (x > 0 && x < width - 1 && (x % 3 == 0) && y > 0) return trim != null ? trim : current;
+            } else {
+                if (z > 0 && z < depth - 1 && (z % 3 == 0) && y > 0) return trim != null ? trim : current;
+            }
+            return current;
+        }
+
+        return current;
+    }
+
     private static void addFacadeComponents(List<PlannedBlock> blocks,
                                            BlockPos origin,
                                            ServerWorld world,
@@ -887,10 +1005,36 @@ public class HouseGenerator implements StructureGenerator {
 
         Direction doorSide = resolveDoorSide(spec);
 
+        // --- Entry / portal feature (cross-style) ---
+        if (details.portalStyle != null && !details.portalStyle.isBlank()) {
+            addPortalFeature(blocks, origin, width, depth, height, doorSide, foundation, trim, roofSlab, roofStairs, details.portalStyle);
+        }
+
+        // --- Ornaments / props (cross-style) ---
+        if (details.ornamentProfile != null && !details.ornamentProfile.isBlank()) {
+            addOrnamentProfile(blocks, origin, width, depth, height, doorSide, foundation, trim, roofSlab, details.ornamentProfile, details);
+        }
+
+        // --- Classical stylobate / podium ring ---
+        if (details.stylobate) {
+            addStylobate(blocks, origin, width, depth, doorSide, foundation, roofSlab, roofStairs);
+        }
+
         // --- Greco-Roman: colonnade + pediment ---
-        if (details.colonnade || details.pediment) {
+        if (details.peristyle) {
+            addPeristyleColonnade(blocks, origin, width, depth, height, doorSide, foundation, pillar, roofSlab,
+                    details.entablature ? trim : null,
+                    Math.max(2, Math.min(4, details.colonnadeSpacing)),
+                    details.classicalColumnOrder);
+            if (details.pediment) {
+                addPediment(blocks, origin, width, depth, height, doorSide, trim, roofSlab);
+            }
+        } else if (details.colonnade || details.pediment) {
             // only build a front portico to avoid heavy intrusion
-            addFrontColonnade(blocks, origin, width, depth, height, doorSide, foundation, pillar, roofSlab);
+            addFrontColonnade(blocks, origin, width, depth, height, doorSide, foundation, pillar, roofSlab,
+                    details.entablature ? trim : null,
+                    Math.max(2, Math.min(4, details.colonnadeSpacing)),
+                    details.classicalColumnOrder);
             if (details.pediment) {
                 addPediment(blocks, origin, width, depth, height, doorSide, trim, roofSlab);
             }
@@ -903,6 +1047,435 @@ public class HouseGenerator implements StructureGenerator {
         if (details.buttresses) {
             addFlyingButtresses(blocks, origin, width, depth, height, doorSide, foundation, trim, roofStairs);
         }
+        if (details.pointedArches || details.arches) {
+            addPointedDoorPortal(blocks, origin, width, depth, height, doorSide, trim, roofStairs);
+        }
+    }
+
+    private static void addPortalFeature(List<PlannedBlock> blocks,
+                                         BlockPos origin,
+                                         int width,
+                                         int depth,
+                                         int height,
+                                         Direction doorSide,
+                                         BlockState foundation,
+                                         BlockState trim,
+                                         BlockState roofSlab,
+                                         BlockState roofStairs,
+                                         String portalStyle) {
+        if (blocks == null || origin == null || portalStyle == null) return;
+        if (width < 7 || depth < 7 || height < 5) return;
+        if (doorSide == null) doorSide = Direction.NORTH;
+        final BlockState t = (trim != null) ? trim : (foundation != null ? foundation : Blocks.STONE_BRICKS.getDefaultState());
+        final BlockState slab = (roofSlab != null) ? roofSlab : t;
+        final BlockState stairs = (roofStairs != null) ? roofStairs : t;
+
+        String ps = portalStyle.trim().toLowerCase(java.util.Locale.ROOT);
+
+        boolean onNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        int center = onNS ? (width / 2) : (depth / 2);
+        int a0 = center - 1;
+        int a1 = center;
+        int a2 = center + 1;
+
+        // Outside plane adjacent to wall (within the "cleared" buffer [-1..+1])
+        int ox = (doorSide == Direction.WEST) ? -1 : (doorSide == Direction.EAST ? width : 0);
+        int oz = (doorSide == Direction.NORTH) ? -1 : (doorSide == Direction.SOUTH ? depth : 0);
+
+        // Helper to place a post + beam in outside plane
+        java.util.function.BiConsumer<Integer, Integer> post = (axis, yMax) -> {
+            if (onNS) {
+                BlockPos b = origin.add(axis, 0, oz);
+                for (int y = 0; y <= yMax; y++) blocks.add(new PlannedBlock(b.up(y), t));
+            } else {
+                BlockPos b = origin.add(ox, 0, axis);
+                for (int y = 0; y <= yMax; y++) blocks.add(new PlannedBlock(b.up(y), t));
+            }
+        };
+
+        if (ps.contains("gothic")) {
+            // Reuse existing pointed portal (inside wall) for strong silhouette
+            addPointedDoorPortal(blocks, origin, width, depth, height, doorSide, t, stairs);
+            return;
+        }
+
+        if (ps.contains("torii")) {
+            // Two posts + top beam (best-effort)
+            post.accept(a0, 3);
+            post.accept(a2, 3);
+            for (int y = 4; y <= 4; y++) {
+                if (onNS) {
+                    for (int x = a0; x <= a2; x++) blocks.add(new PlannedBlock(origin.add(x, y, oz), slab));
+                } else {
+                    for (int z = a0; z <= a2; z++) blocks.add(new PlannedBlock(origin.add(ox, y, z), slab));
+                }
+            }
+            return;
+        }
+
+        if (ps.contains("paifang")) {
+            // Slightly taller: posts + double beam
+            post.accept(a0, 4);
+            post.accept(a2, 4);
+            if (onNS) {
+                for (int x = a0; x <= a2; x++) blocks.add(new PlannedBlock(origin.add(x, 4, oz), t));
+                for (int x = a0; x <= a2; x++) blocks.add(new PlannedBlock(origin.add(x, 5, oz), slab));
+            } else {
+                for (int z = a0; z <= a2; z++) blocks.add(new PlannedBlock(origin.add(ox, 4, z), t));
+                for (int z = a0; z <= a2; z++) blocks.add(new PlannedBlock(origin.add(ox, 5, z), slab));
+            }
+            return;
+        }
+
+        if (ps.contains("neon")) {
+            // Simple glowing frame: use trim (often stained glass in Cyberpunk) around door axis outside
+            post.accept(a0, 3);
+            post.accept(a2, 3);
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a0, 3, oz), t));
+                blocks.add(new PlannedBlock(origin.add(a1, 3, oz), t));
+                blocks.add(new PlannedBlock(origin.add(a2, 3, oz), t));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, 3, a0), t));
+                blocks.add(new PlannedBlock(origin.add(ox, 3, a1), t));
+                blocks.add(new PlannedBlock(origin.add(ox, 3, a2), t));
+            }
+            return;
+        }
+
+        if (ps.contains("modern")) {
+            // Minimal frame + small canopy
+            post.accept(a0, 2);
+            post.accept(a2, 2);
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a0, 3, oz), slab));
+                blocks.add(new PlannedBlock(origin.add(a1, 3, oz), slab));
+                blocks.add(new PlannedBlock(origin.add(a2, 3, oz), slab));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, 3, a0), slab));
+                blocks.add(new PlannedBlock(origin.add(ox, 3, a1), slab));
+                blocks.add(new PlannedBlock(origin.add(ox, 3, a2), slab));
+            }
+            return;
+        }
+
+        if (ps.contains("steampunk")) {
+            // Riveted frame vibe: iron trapdoors around outside door axis (best-effort)
+            BlockState td = Blocks.IRON_TRAPDOOR.getDefaultState();
+            post.accept(a0, 2);
+            post.accept(a2, 2);
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a0, 1, oz), td));
+                blocks.add(new PlannedBlock(origin.add(a2, 1, oz), td));
+                blocks.add(new PlannedBlock(origin.add(a0, 2, oz), td));
+                blocks.add(new PlannedBlock(origin.add(a2, 2, oz), td));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, 1, a0), td));
+                blocks.add(new PlannedBlock(origin.add(ox, 1, a2), td));
+                blocks.add(new PlannedBlock(origin.add(ox, 2, a0), td));
+                blocks.add(new PlannedBlock(origin.add(ox, 2, a2), td));
+            }
+            return;
+        }
+
+        if (ps.contains("organic")) {
+            // Soft arch hint: posts + curved top with stairs
+            post.accept(a0, 2);
+            post.accept(a2, 2);
+            Direction inward = (doorSide == Direction.NORTH) ? Direction.SOUTH
+                    : (doorSide == Direction.SOUTH) ? Direction.NORTH
+                    : (doorSide == Direction.WEST) ? Direction.EAST
+                    : Direction.WEST;
+            BlockState s = withFacingIfPossible(stairs, inward);
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a0, 3, oz), s));
+                blocks.add(new PlannedBlock(origin.add(a2, 3, oz), s));
+                blocks.add(new PlannedBlock(origin.add(a1, 4, oz), t));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, 3, a0), s));
+                blocks.add(new PlannedBlock(origin.add(ox, 3, a2), s));
+                blocks.add(new PlannedBlock(origin.add(ox, 4, a1), t));
+            }
+            return;
+        }
+
+        // Default: stone arch-ish frame
+        // posts + small arch top
+        post.accept(a0, 2);
+        post.accept(a2, 2);
+        Direction inward = (doorSide == Direction.NORTH) ? Direction.SOUTH
+                : (doorSide == Direction.SOUTH) ? Direction.NORTH
+                : (doorSide == Direction.WEST) ? Direction.EAST
+                : Direction.WEST;
+        BlockState s = withFacingIfPossible(stairs, inward);
+        if (onNS) {
+            blocks.add(new PlannedBlock(origin.add(a0, 3, oz), s));
+            blocks.add(new PlannedBlock(origin.add(a2, 3, oz), s));
+            blocks.add(new PlannedBlock(origin.add(a1, 3, oz), slab));
+        } else {
+            blocks.add(new PlannedBlock(origin.add(ox, 3, a0), s));
+            blocks.add(new PlannedBlock(origin.add(ox, 3, a2), s));
+            blocks.add(new PlannedBlock(origin.add(ox, 3, a1), slab));
+        }
+    }
+
+    private static void applyEavesProfile(List<PlannedBlock> blocks,
+                                          BlockPos origin,
+                                          int width,
+                                          int depth,
+                                          int height,
+                                          BuildingStyle style,
+                                          String eavesProfile,
+                                          BlockState trim,
+                                          BlockState roof,
+                                          BlockState roofSlab) {
+        if (blocks == null || origin == null || eavesProfile == null) return;
+        String ep = eavesProfile.trim().toLowerCase(java.util.Locale.ROOT);
+        if (trim == null) trim = Blocks.STONE_BRICKS.getDefaultState();
+        if (roof == null) roof = trim;
+        if (roofSlab == null) roofSlab = trim;
+
+        // battlement: simple crenels on the very top ring for defensive silhouettes
+        if (ep.contains("battlement")) {
+            int y = height + 1;
+            for (int x = -1; x <= width; x++) {
+                if ((x & 1) == 0) {
+                    blocks.add(new PlannedBlock(origin.add(x, y, -1), trim));
+                    blocks.add(new PlannedBlock(origin.add(x, y, depth), trim));
+                }
+            }
+            for (int z = -1; z <= depth; z++) {
+                if ((z & 1) == 0) {
+                    blocks.add(new PlannedBlock(origin.add(-1, y, z), trim));
+                    blocks.add(new PlannedBlock(origin.add(width, y, z), trim));
+                }
+            }
+            return;
+        }
+
+        // neon strip: use trim material as a "light band" (cyberpunk often uses stained-glass trim)
+        if (ep.contains("neon")) {
+            int y = height;
+            for (int x = -1; x <= width; x++) {
+                blocks.add(new PlannedBlock(origin.add(x, y, -1), trim));
+                blocks.add(new PlannedBlock(origin.add(x, y, depth), trim));
+            }
+            for (int z = -1; z <= depth; z++) {
+                blocks.add(new PlannedBlock(origin.add(-1, y, z), trim));
+                blocks.add(new PlannedBlock(origin.add(width, y, z), trim));
+            }
+            return;
+        }
+
+        // parapet: emphasize flat-roof edge ring by extending it one more layer
+        if (ep.contains("parapet")) {
+            int y = height + 2;
+            for (int x = -1; x <= width; x++) {
+                blocks.add(new PlannedBlock(origin.add(x, y, -1), trim));
+                blocks.add(new PlannedBlock(origin.add(x, y, depth), trim));
+            }
+            for (int z = -1; z <= depth; z++) {
+                blocks.add(new PlannedBlock(origin.add(-1, y, z), trim));
+                blocks.add(new PlannedBlock(origin.add(width, y, z), trim));
+            }
+            return;
+        }
+
+        // organic vines: a soft edge band with leaves (best-effort, non-invasive)
+        if (ep.contains("vine") || ep.contains("organic")) {
+            int y = height - 1;
+            BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
+            for (int x = -1; x <= width; x++) {
+                if ((x & 1) == 0) {
+                    blocks.add(new PlannedBlock(origin.add(x, y, -2), leaf));
+                    blocks.add(new PlannedBlock(origin.add(x, y, depth + 1), leaf));
+                }
+            }
+            for (int z = -1; z <= depth; z++) {
+                if ((z & 1) == 0) {
+                    blocks.add(new PlannedBlock(origin.add(-2, y, z), leaf));
+                    blocks.add(new PlannedBlock(origin.add(width + 1, y, z), leaf));
+                }
+            }
+            return;
+        }
+
+        // flying eaves: add an extra slab ring one block further out for stronger silhouette
+        if (ep.contains("flying")) {
+            int y = height - 1;
+            for (int x = -2; x <= width + 1; x++) {
+                blocks.add(new PlannedBlock(origin.add(x, y, -2), roofSlab));
+                blocks.add(new PlannedBlock(origin.add(x, y, depth + 1), roofSlab));
+            }
+            for (int z = -2; z <= depth + 1; z++) {
+                blocks.add(new PlannedBlock(origin.add(-2, y, z), roofSlab));
+                blocks.add(new PlannedBlock(origin.add(width + 1, y, z), roofSlab));
+            }
+        }
+    }
+
+    private static void addOrnamentProfile(List<PlannedBlock> blocks,
+                                          BlockPos origin,
+                                          int width,
+                                          int depth,
+                                          int height,
+                                          Direction doorSide,
+                                          BlockState foundation,
+                                          BlockState trim,
+                                          BlockState roofSlab,
+                                          String ornamentProfile,
+                                          com.formacraft.common.style.profile.DetailPreferences details) {
+        if (blocks == null || origin == null || ornamentProfile == null) return;
+        if (width < 7 || depth < 7 || height < 5) return;
+        if (doorSide == null) doorSide = Direction.NORTH;
+        BlockState t = (trim != null) ? trim : (foundation != null ? foundation : Blocks.STONE_BRICKS.getDefaultState());
+        BlockState slab = (roofSlab != null) ? roofSlab : t;
+
+        String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+        boolean onNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        int center = onNS ? (width / 2) : (depth / 2);
+        int a0 = center - 1;
+        int a1 = center;
+        int a2 = center + 1;
+        int ox = (doorSide == Direction.WEST) ? -1 : (doorSide == Direction.EAST ? width : 0);
+        int oz = (doorSide == Direction.NORTH) ? -1 : (doorSide == Direction.SOUTH ? depth : 0);
+
+        // --- Chinese plaque: a sign-like lintel above the door axis (outside plane)
+        if (op.contains("chinese") || op.contains("plaque")) {
+            BlockState sign = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+            sign = withFacingIfPossible(sign, doorSide);
+            int y = 3;
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a1, y, oz), sign));
+                blocks.add(new PlannedBlock(origin.add(a0, y, oz), slab));
+                blocks.add(new PlannedBlock(origin.add(a2, y, oz), slab));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, y, a1), sign));
+                blocks.add(new PlannedBlock(origin.add(ox, y, a0), slab));
+                blocks.add(new PlannedBlock(origin.add(ox, y, a2), slab));
+            }
+            return;
+        }
+
+        // --- Castle banners: two wall banners flanking the door (outside plane)
+        if (op.contains("castle") || op.contains("banner")) {
+            BlockState wb = resolveWallBannerState(details != null ? details.bannerColor : null);
+            wb = withFacingIfPossible(wb, doorSide);
+            int y = 2;
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a0, y, oz), wb));
+                blocks.add(new PlannedBlock(origin.add(a2, y, oz), wb));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, y, a0), wb));
+                blocks.add(new PlannedBlock(origin.add(ox, y, a2), wb));
+            }
+            return;
+        }
+
+        // --- Steampunk pipes: vertical pipes on one corner + tiny chimney hint on roof edge
+        if (op.contains("steam") || op.contains("pipe")) {
+            BlockState pipe = Blocks.COPPER_BLOCK.getDefaultState();
+            BlockState rib = Blocks.IRON_BARS.getDefaultState();
+            BlockPos base = origin.add(-1, 0, -1);
+            for (int y = 1; y <= Math.min(height + 1, 8); y++) {
+                blocks.add(new PlannedBlock(base.up(y), pipe));
+                if ((y & 1) == 0) blocks.add(new PlannedBlock(base.up(y).east(), rib));
+            }
+            // chimney on roof corner
+            BlockPos top = origin.add(1, height + 1, 1);
+            blocks.add(new PlannedBlock(top, Blocks.CAMPFIRE.getDefaultState()));
+            return;
+        }
+
+        // --- Cyber signage: neon-ish plate using trim (often stained glass) above/side of door
+        if (op.contains("cyber") || op.contains("sign")) {
+            BlockState plate = t;
+            int y = 4;
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a1, y, oz), plate));
+                blocks.add(new PlannedBlock(origin.add(a2 + 1, y, oz), plate));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, y, a1), plate));
+                blocks.add(new PlannedBlock(origin.add(ox, y, a2 + 1), plate));
+            }
+            return;
+        }
+
+        // --- Organic lanterns: leaves + lantern near door
+        if (op.contains("organic") || op.contains("lantern") || op.contains("vine")) {
+            BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
+            BlockState lantern = Blocks.LANTERN.getDefaultState();
+            int y = 3;
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a0, y, oz), leaf));
+                blocks.add(new PlannedBlock(origin.add(a2, y, oz), leaf));
+                blocks.add(new PlannedBlock(origin.add(a1, y + 1, oz), lantern));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, y, a0), leaf));
+                blocks.add(new PlannedBlock(origin.add(ox, y, a2), leaf));
+                blocks.add(new PlannedBlock(origin.add(ox, y + 1, a1), lantern));
+            }
+        }
+    }
+
+    private static BlockState resolveWallBannerState(String color) {
+        String c = (color == null) ? "" : color.trim().toLowerCase(java.util.Locale.ROOT);
+        return switch (c) {
+            case "black" -> Blocks.BLACK_WALL_BANNER.getDefaultState();
+            case "white" -> Blocks.WHITE_WALL_BANNER.getDefaultState();
+            case "blue" -> Blocks.BLUE_WALL_BANNER.getDefaultState();
+            case "green" -> Blocks.GREEN_WALL_BANNER.getDefaultState();
+            case "yellow" -> Blocks.YELLOW_WALL_BANNER.getDefaultState();
+            case "purple" -> Blocks.PURPLE_WALL_BANNER.getDefaultState();
+            case "cyan" -> Blocks.CYAN_WALL_BANNER.getDefaultState();
+            default -> Blocks.RED_WALL_BANNER.getDefaultState();
+        };
+    }
+
+    private static void addStylobate(List<PlannedBlock> blocks,
+                                     BlockPos origin,
+                                     int width,
+                                     int depth,
+                                     Direction doorSide,
+                                     BlockState foundation,
+                                     BlockState capSlab,
+                                     BlockState capStairs) {
+        if (blocks == null || origin == null || foundation == null) return;
+        if (capSlab == null) capSlab = foundation;
+        if (capStairs == null) capStairs = capSlab;
+
+        // Outer ring expands 1 block around footprint: x [-1..width], z [-1..depth]
+        for (int x = -1; x <= width; x++) {
+            for (int z = -1; z <= depth; z++) {
+                boolean inside = (x >= 0 && x <= width - 1 && z >= 0 && z <= depth - 1);
+                if (inside) continue;
+                blocks.add(new PlannedBlock(origin.add(x, 0, z), foundation));
+                blocks.add(new PlannedBlock(origin.add(x, 1, z), capSlab));
+            }
+        }
+
+        // Front steps: 5-wide (clamped) aligned to door axis; placed just outside the ring.
+        int cx = width / 2;
+        int cz = depth / 2;
+        if (doorSide == null) doorSide = Direction.NORTH;
+
+        if (doorSide == Direction.NORTH || doorSide == Direction.SOUTH) {
+            int x0 = Math.max(1, cx - 2);
+            int x1 = Math.min(width - 2, cx + 2);
+            int zOutside = (doorSide == Direction.NORTH) ? -2 : depth + 1;
+            Direction stairFacing = (doorSide == Direction.NORTH) ? Direction.SOUTH : Direction.NORTH;
+            for (int x = x0; x <= x1; x++) {
+                blocks.add(new PlannedBlock(origin.add(x, 0, zOutside), withFacingIfPossible(capStairs, stairFacing)));
+            }
+        } else {
+            int z0 = Math.max(1, cz - 2);
+            int z1 = Math.min(depth - 2, cz + 2);
+            int xOutside = (doorSide == Direction.WEST) ? -2 : width + 1;
+            Direction stairFacing = (doorSide == Direction.WEST) ? Direction.EAST : Direction.WEST;
+            for (int z = z0; z <= z1; z++) {
+                blocks.add(new PlannedBlock(origin.add(xOutside, 0, z), withFacingIfPossible(capStairs, stairFacing)));
+            }
+        }
     }
 
     private static void addFrontColonnade(List<PlannedBlock> blocks,
@@ -913,30 +1486,134 @@ public class HouseGenerator implements StructureGenerator {
                                           Direction doorSide,
                                           BlockState foundation,
                                           BlockState pillar,
-                                          BlockState roofSlab) {
+                                          BlockState roofSlab,
+                                          BlockState entablatureBlock,
+                                          int spacing,
+                                          String columnOrder) {
         if (width < 11 && depth < 11) return;
         int colH = Math.max(4, Math.min(height - 2, 8));
-        int spacing = 2;
+        int sp = Math.max(2, Math.min(4, spacing));
 
         // place 1 block outside the door side
         int zOutside = (doorSide == Direction.NORTH) ? -2 : (doorSide == Direction.SOUTH ? depth + 1 : -2);
         int xOutside = (doorSide == Direction.WEST) ? -2 : (doorSide == Direction.EAST ? width + 1 : -2);
 
         if (doorSide == Direction.NORTH || doorSide == Direction.SOUTH) {
-            for (int x = 1; x <= width - 2; x += spacing) {
+            for (int x = 1; x <= width - 2; x += sp) {
                 BlockPos base = origin.add(x, 0, zOutside);
                 blocks.add(new PlannedBlock(base, foundation));
                 for (int y = 1; y <= colH; y++) blocks.add(new PlannedBlock(base.up(y), pillar));
-                blocks.add(new PlannedBlock(base.up(colH + 1), roofSlab));
+                // simple column base/capital to read more "classical"
+                blocks.add(new PlannedBlock(base.up(colH + 1), pickCapitalBlock(roofSlab, entablatureBlock, columnOrder)));
+            }
+            if (entablatureBlock != null) {
+                int y = colH + 1;
+                for (int x = 1; x <= width - 2; x++) {
+                    blocks.add(new PlannedBlock(origin.add(x, y, zOutside), entablatureBlock));
+                }
             }
         } else {
-            for (int z = 1; z <= depth - 2; z += spacing) {
+            for (int z = 1; z <= depth - 2; z += sp) {
                 BlockPos base = origin.add(xOutside, 0, z);
                 blocks.add(new PlannedBlock(base, foundation));
                 for (int y = 1; y <= colH; y++) blocks.add(new PlannedBlock(base.up(y), pillar));
-                blocks.add(new PlannedBlock(base.up(colH + 1), roofSlab));
+                blocks.add(new PlannedBlock(base.up(colH + 1), pickCapitalBlock(roofSlab, entablatureBlock, columnOrder)));
+            }
+            if (entablatureBlock != null) {
+                int y = colH + 1;
+                for (int z = 1; z <= depth - 2; z++) {
+                    blocks.add(new PlannedBlock(origin.add(xOutside, y, z), entablatureBlock));
+                }
             }
         }
+    }
+
+    private static BlockState pickCapitalBlock(BlockState roofSlab, BlockState entablatureBlock, String columnOrder) {
+        // Best-effort: keep it simple and consistent with available materials.
+        String o = (columnOrder == null) ? "" : columnOrder.trim().toLowerCase();
+        if (o.contains("corinth")) {
+            // "leafy" suggestion using entablature/trim when present
+            return entablatureBlock != null ? entablatureBlock : roofSlab;
+        }
+        if (o.contains("ionic")) {
+            return entablatureBlock != null ? entablatureBlock : roofSlab;
+        }
+        return roofSlab; // doric/simple
+    }
+
+    private static void addPeristyleColonnade(List<PlannedBlock> blocks,
+                                              BlockPos origin,
+                                              int width,
+                                              int depth,
+                                              int height,
+                                              Direction doorSide,
+                                              BlockState foundation,
+                                              BlockState pillar,
+                                              BlockState roofSlab,
+                                              BlockState entablatureBlock,
+                                              int spacing,
+                                              String columnOrder) {
+        if (blocks == null || origin == null) return;
+        // Size gate: avoid clogging small houses
+        if (width < 9 || depth < 9) return;
+
+        int colH = Math.max(3, Math.min(6, height - 2));
+        int sp = Math.max(2, spacing);
+
+        int zNorth = -2;
+        int zSouth = depth + 1;
+        int xWest = -2;
+        int xEast = width + 1;
+
+        int cx = width / 2;
+        int cz = depth / 2;
+
+        java.util.function.BiPredicate<Integer, Integer> shouldSkipForDoor =
+                (x, z) -> {
+                    // Create a 3-wide opening centered on the door axis on the door side only
+                    if (doorSide == Direction.NORTH && z == zNorth) return Math.abs(x - cx) <= 1;
+                    if (doorSide == Direction.SOUTH && z == zSouth) return Math.abs(x - cx) <= 1;
+                    if (doorSide == Direction.WEST && x == xWest) return Math.abs(z - cz) <= 1;
+                    if (doorSide == Direction.EAST && x == xEast) return Math.abs(z - cz) <= 1;
+                    return false;
+                };
+
+        // North/South sides
+        for (int x = 1; x <= width - 2; x += sp) {
+            if (!shouldSkipForDoor.test(x, zNorth)) placeColumn(blocks, origin.add(x, 0, zNorth), colH, foundation, pillar, roofSlab, entablatureBlock, columnOrder);
+            if (!shouldSkipForDoor.test(x, zSouth)) placeColumn(blocks, origin.add(x, 0, zSouth), colH, foundation, pillar, roofSlab, entablatureBlock, columnOrder);
+        }
+        // West/East sides
+        for (int z = 1; z <= depth - 2; z += sp) {
+            if (!shouldSkipForDoor.test(xWest, z)) placeColumn(blocks, origin.add(xWest, 0, z), colH, foundation, pillar, roofSlab, entablatureBlock, columnOrder);
+            if (!shouldSkipForDoor.test(xEast, z)) placeColumn(blocks, origin.add(xEast, 0, z), colH, foundation, pillar, roofSlab, entablatureBlock, columnOrder);
+        }
+
+        // Optional entablature ring (continuous beam) at capital level
+        if (entablatureBlock != null) {
+            int y = colH + 1;
+            for (int x = 0; x <= width - 1; x++) {
+                if (!shouldSkipForDoor.test(x, zNorth)) blocks.add(new PlannedBlock(origin.add(x, y, zNorth), entablatureBlock));
+                if (!shouldSkipForDoor.test(x, zSouth)) blocks.add(new PlannedBlock(origin.add(x, y, zSouth), entablatureBlock));
+            }
+            for (int z = 0; z <= depth - 1; z++) {
+                if (!shouldSkipForDoor.test(xWest, z)) blocks.add(new PlannedBlock(origin.add(xWest, y, z), entablatureBlock));
+                if (!shouldSkipForDoor.test(xEast, z)) blocks.add(new PlannedBlock(origin.add(xEast, y, z), entablatureBlock));
+            }
+        }
+    }
+
+    private static void placeColumn(List<PlannedBlock> blocks,
+                                    BlockPos base,
+                                    int colH,
+                                    BlockState foundation,
+                                    BlockState pillar,
+                                    BlockState roofSlab,
+                                    BlockState entablatureBlock,
+                                    String columnOrder) {
+        blocks.add(new PlannedBlock(base, foundation));
+        for (int y = 1; y <= colH; y++) blocks.add(new PlannedBlock(base.up(y), pillar));
+        blocks.add(new PlannedBlock(base.up(colH + 1), pickCapitalBlock(roofSlab, entablatureBlock, columnOrder)));
     }
 
     private static void addPediment(List<PlannedBlock> blocks,
@@ -1049,6 +1726,142 @@ public class HouseGenerator implements StructureGenerator {
         BlockPos a1 = base.up(yTop - 2).offset(towardWall, 2);
         blocks.add(new PlannedBlock(a0, withFacingIfPossible(roofStairs, towardWall)));
         blocks.add(new PlannedBlock(a1, withFacingIfPossible(roofStairs, towardWall)));
+    }
+
+    private static void addPointedDoorPortal(List<PlannedBlock> blocks,
+                                             BlockPos origin,
+                                             int width,
+                                             int depth,
+                                             int height,
+                                             Direction doorSide,
+                                             BlockState trim,
+                                             BlockState roofStairs) {
+        if (trim == null || roofStairs == null) return;
+        if (width < 9 || depth < 9 || height < 6) return;
+        boolean onNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        int center = onNS ? (width / 2) : (depth / 2);
+        int x = onNS ? center : (doorSide == Direction.EAST ? width - 1 : 0);
+        int z = onNS ? (doorSide == Direction.SOUTH ? depth - 1 : 0) : center;
+
+        // Frame around the door on the wall plane:
+        // - two vertical trims, then a pointed top using stairs
+        int y0 = 1;
+        int yTop = Math.min(height - 2, 5);
+        for (int y = y0; y <= yTop; y++) {
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(x - 1, y, z), trim));
+                blocks.add(new PlannedBlock(origin.add(x + 1, y, z), trim));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(x, y, z - 1), trim));
+                blocks.add(new PlannedBlock(origin.add(x, y, z + 1), trim));
+            }
+        }
+        // pointed apex at yTop+1
+        int apexY = Math.min(height - 1, yTop + 1);
+        if (onNS) {
+            Direction fL = (doorSide == Direction.NORTH) ? Direction.EAST : Direction.EAST;
+            Direction fR = (doorSide == Direction.NORTH) ? Direction.WEST : Direction.WEST;
+            blocks.add(new PlannedBlock(origin.add(x - 1, apexY, z), withFacingIfPossible(roofStairs, fL)));
+            blocks.add(new PlannedBlock(origin.add(x + 1, apexY, z), withFacingIfPossible(roofStairs, fR)));
+            blocks.add(new PlannedBlock(origin.add(x, apexY + 1 <= height ? (apexY + 1) : apexY, z), trim));
+        } else {
+            Direction fL = (doorSide == Direction.EAST) ? Direction.SOUTH : Direction.SOUTH;
+            Direction fR = (doorSide == Direction.EAST) ? Direction.NORTH : Direction.NORTH;
+            blocks.add(new PlannedBlock(origin.add(x, apexY, z - 1), withFacingIfPossible(roofStairs, fR)));
+            blocks.add(new PlannedBlock(origin.add(x, apexY, z + 1), withFacingIfPossible(roofStairs, fL)));
+            blocks.add(new PlannedBlock(origin.add(x, apexY + 1 <= height ? (apexY + 1) : apexY, z), trim));
+        }
+    }
+
+    private static boolean isPointedArchWindowSafe(BuildStrategy wallStrategy,
+                                                   double windowRatio,
+                                                   boolean preferSymmetry,
+                                                   int x,
+                                                   int z,
+                                                   int width,
+                                                   int depth,
+                                                   Direction doorSide) {
+        // avoid door vicinity and corners
+        if (isNearDoor(doorSide, x, z, width, depth)) return false;
+        boolean corner = (x == 0 || x == width - 1) && (z == 0 || z == depth - 1);
+        if (corner) return false;
+
+        boolean onNorthSouth = (z == 0 || z == depth - 1);
+        boolean onWestEast = (x == 0 || x == width - 1);
+        if (!onNorthSouth && !onWestEast) return false;
+
+        // need lateral neighbors to form an arch; ensure they are not also windows
+        if (onNorthSouth) {
+            if (x - 1 <= 1 || x + 1 >= width - 2) return false;
+            boolean leftWouldBeWindow = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x - 1, z, width, depth);
+            boolean rightWouldBeWindow = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x + 1, z, width, depth);
+            return !leftWouldBeWindow && !rightWouldBeWindow;
+        }
+        // onWestEast
+        if (z - 1 <= 1 || z + 1 >= depth - 2) return false;
+        boolean a = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x, z - 1, width, depth);
+        boolean b = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x, z + 1, width, depth);
+        return !a && !b;
+    }
+
+    private static void addPointedWindowFrame(List<PlannedBlock> blocks,
+                                             BlockPos origin,
+                                             int x,
+                                             int yFrame,
+                                             int z,
+                                             int width,
+                                             int depth,
+                                             BlockState trim,
+                                             BlockState roofStairs) {
+        if (blocks == null || origin == null || trim == null || roofStairs == null) return;
+        // Determine inward-facing direction (so stairs slope toward the interior)
+        Direction inward;
+        if (z == 0) inward = Direction.SOUTH;
+        else if (z == depth - 1) inward = Direction.NORTH;
+        else if (x == 0) inward = Direction.EAST;
+        else if (x == width - 1) inward = Direction.WEST;
+        else return;
+
+        // Two side "arch shoulders" + a small lintel line for stronger silhouette
+        if (z == 0 || z == depth - 1) {
+            blocks.add(new PlannedBlock(origin.add(x - 1, yFrame, z), withFacingIfPossible(roofStairs, inward)));
+            blocks.add(new PlannedBlock(origin.add(x + 1, yFrame, z), withFacingIfPossible(roofStairs, inward)));
+            blocks.add(new PlannedBlock(origin.add(x, yFrame, z), trim));
+        } else {
+            blocks.add(new PlannedBlock(origin.add(x, yFrame, z - 1), withFacingIfPossible(roofStairs, inward)));
+            blocks.add(new PlannedBlock(origin.add(x, yFrame, z + 1), withFacingIfPossible(roofStairs, inward)));
+            blocks.add(new PlannedBlock(origin.add(x, yFrame, z), trim));
+        }
+        // Apex
+        blocks.add(new PlannedBlock(origin.add(x, yFrame + 1, z), trim));
+    }
+
+    private static void addMullionBehindWindow(List<PlannedBlock> blocks,
+                                               BlockPos origin,
+                                               int x,
+                                               int y,
+                                               int z,
+                                               int width,
+                                               int depth,
+                                               Direction doorSide) {
+        if (blocks == null || origin == null) return;
+        if (isNearDoor(doorSide, x, z, width, depth)) return;
+        boolean onNorth = (z == 0);
+        boolean onSouth = (z == depth - 1);
+        boolean onWest = (x == 0);
+        boolean onEast = (x == width - 1);
+        if (!(onNorth || onSouth || onWest || onEast)) return;
+
+        // inside-adjacent cell
+        int ix = x;
+        int iz = z;
+        if (onNorth) iz = z + 1;
+        else if (onSouth) iz = z - 1;
+        else if (onWest) ix = x + 1;
+        else if (onEast) ix = x - 1;
+
+        if (ix <= 0 || ix >= width - 1 || iz <= 0 || iz >= depth - 1) return;
+        blocks.add(new PlannedBlock(origin.add(ix, y, iz), Blocks.IRON_BARS.getDefaultState()));
     }
 
     // ========== Ming/Qing courtyard ==========
@@ -1556,24 +2369,13 @@ public class HouseGenerator implements StructureGenerator {
                                                 BlockState fallback,
                                                 BlockState pillar,
                                                 BlockState trim) {
-        // Effective windowStyle:
-        // StyleOptions（显式） > genome.params.windowStyle > heuristic default
-        String windowStyle = (spec != null && spec.getStyleOptions() != null) ? spec.getStyleOptions().getWindowStyle() : null;
-        if (windowStyle == null || windowStyle.isBlank()) {
-            windowStyle = (genome != null && genome.params != null) ? genome.params.windowStyle : null;
-        }
-        if (windowStyle == null || windowStyle.isBlank()) {
-            windowStyle = switch (style) {
-                case ASIAN -> "fence";
-                case MEDIEVAL -> "pane";
-                case MODERN, FUTURISTIC -> "pane";
-                case RUSTIC -> "pane";
-                default -> "pane";
-            };
-        }
-        String ws = windowStyle.trim().toLowerCase();
+        String windowStyle = resolveEffectiveWindowStyle(spec, genome, profile, style);
+        String ws = (windowStyle == null) ? "" : windowStyle.trim().toLowerCase();
 
         switch (ws) {
+            case "shoji", "paper" -> {
+                return Blocks.WHITE_STAINED_GLASS_PANE.getDefaultState();
+            }
             case "fence" -> {
                 // lattice window: pick wood fence matching pillars if possible
                 String pid = (profile != null && profile.palette() != null) ? profile.palette().pillar : null;
@@ -1590,6 +2392,10 @@ public class HouseGenerator implements StructureGenerator {
                 // medieval/castle: iron bar windows
                 return Blocks.IRON_BARS.getDefaultState();
             }
+            case "slit" -> {
+                // Use bars for thin openings; density is handled by windowRatio clamps.
+                return Blocks.IRON_BARS.getDefaultState();
+            }
             case "stained" -> {
                 // stained glass pane: derive color from trim first (if it's stained glass)
                 String tid = (profile != null && profile.palette() != null) ? profile.palette().trim : null;
@@ -1598,6 +2404,15 @@ public class HouseGenerator implements StructureGenerator {
                 }
                 String paneId = deriveStainedPaneId(tid);
                 return getStateOrDefault(world, paneId, Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.getDefaultState());
+            }
+            case "curtain_wall", "curtain" -> {
+                // Modern curtain wall: prefer panes for thin facade, fallback to glass pane.
+                try {
+                    if (fallback != null && fallback.getBlock() == Blocks.TINTED_GLASS) {
+                        return Blocks.TINTED_GLASS.getDefaultState();
+                    }
+                } catch (Throwable ignored) {}
+                return Blocks.GLASS_PANE.getDefaultState();
             }
             default -> {
                 // pane: if fallback is full glass, use glass pane for better proportions
@@ -1609,6 +2424,34 @@ public class HouseGenerator implements StructureGenerator {
                 return fallback != null ? fallback : Blocks.GLASS_PANE.getDefaultState();
             }
         }
+    }
+
+    private static String resolveEffectiveWindowStyle(BuildingSpec spec,
+                                                     StyleGenome genome,
+                                                     StyleProfile profile,
+                                                     BuildingStyle style) {
+        // Priority: StyleOptions（显式） > genome.params.windowStyle > styleProfile.details.windowStyle > heuristic default
+        String windowStyle = (spec != null && spec.getStyleOptions() != null) ? spec.getStyleOptions().getWindowStyle() : null;
+        if (windowStyle == null || windowStyle.isBlank()) {
+            windowStyle = (genome != null && genome.params != null) ? genome.params.windowStyle : null;
+        }
+        if (windowStyle == null || windowStyle.isBlank()) {
+            try {
+                if (profile != null && profile.details() != null) {
+                    windowStyle = profile.details().windowStyle;
+                }
+            } catch (Throwable ignored) {}
+        }
+        if (windowStyle == null || windowStyle.isBlank()) {
+            windowStyle = switch (style) {
+                case ASIAN -> "fence";
+                case MEDIEVAL -> "bars";
+                case MODERN, FUTURISTIC -> "pane";
+                case RUSTIC -> "pane";
+                default -> "pane";
+            };
+        }
+        return windowStyle;
     }
 
     private static boolean isFenceLikeWindow(BlockState windowBlock) {

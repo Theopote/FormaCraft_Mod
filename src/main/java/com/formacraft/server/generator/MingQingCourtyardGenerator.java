@@ -21,6 +21,7 @@ import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.common.style.profile.BuildStrategy;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.common.style.profile.DetailPreferences;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -98,7 +99,39 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
         BuildingSpec gateHouse = makeHallSpec(gateW, gateD, roofBlock, wallBlock, floorBlock, foundationBlock, "gate_house");
 
         // enclosure plan
-        RectEnclosurePlan enclosure = new RectEnclosurePlan(w, d, wallHeight, wallThickness, gateSide, gateWidth);
+        // Style-driven wall expression (extra explicitly overrides)
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.ASIAN;
+        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = (profile != null) ? profile.details() : null;
+        boolean battlements = false;
+        int battlementSpacing = 2;
+        boolean banner = false;
+        String bannerColor = "red";
+        if (extra != null) {
+            if (extra.containsKey("wallBattlements")) battlements = getBool(extra, "wallBattlements", battlements);
+            if (extra.containsKey("wallBattlementSpacing")) battlementSpacing = clamp(getInt(extra, "wallBattlementSpacing", battlementSpacing), 1, 6);
+            if (extra.containsKey("wallBanner")) banner = getBool(extra, "wallBanner", banner);
+            if (extra.containsKey("wallBannerColor")) bannerColor = String.valueOf(extra.get("wallBannerColor")).trim().toLowerCase(java.util.Locale.ROOT);
+        }
+        // Defaults from style when not explicitly provided
+        if (extra == null || !extra.containsKey("wallBattlements")) {
+            if (details != null && details.eavesProfile != null) {
+                battlements = details.eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("battlement");
+            }
+        }
+        if (extra == null || !extra.containsKey("wallBanner")) {
+            if (details != null && details.bannerEnabled != null) banner = Boolean.TRUE.equals(details.bannerEnabled);
+            else if (details != null && details.ornamentProfile != null) {
+                String op = details.ornamentProfile.toLowerCase(java.util.Locale.ROOT);
+                if (op.contains("banner")) banner = true;
+            }
+        }
+        if ((extra == null || !extra.containsKey("wallBannerColor")) && banner && details != null && details.bannerColor != null && !details.bannerColor.isBlank()) {
+            bannerColor = details.bannerColor.trim().toLowerCase(java.util.Locale.ROOT);
+        }
+
+        RectEnclosurePlan enclosure = new RectEnclosurePlan(w, d, wallHeight, wallThickness, gateSide, gateWidth,
+                battlements, battlementSpacing, banner, bannerColor);
 
         CompoundPlan compound = new CompoundPlan()
                 .add(enclosure, BlockTransform.identity())
@@ -202,17 +235,17 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                 return merged;
             }
             if (plan instanceof RectEnclosurePlan rep) {
-                StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
-                BlockState pillar = getStateOrDefault(wld, profile != null && profile.palette() != null ? profile.palette().pillar : null, wallBlock);
-                boolean openArcade = profile != null && profile.resolve("GATE", Set.of("gate")) == BuildStrategy.OPEN_ARCADE;
+                StyleProfile enclosureProfile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
+                BlockState pillar = getStateOrDefault(wld, enclosureProfile != null && enclosureProfile.palette() != null ? enclosureProfile.palette().pillar : null, wallBlock);
+                boolean openArcade = enclosureProfile != null && enclosureProfile.resolve("GATE", Set.of("gate")) == BuildStrategy.OPEN_ARCADE;
                 BlockState cap = getStateOrDefault(wld,
-                        profile != null && profile.palette() != null ? profile.palette().cap : null,
+                        enclosureProfile != null && enclosureProfile.palette() != null ? enclosureProfile.palette().cap : null,
                         Blocks.DARK_OAK_SLAB.getDefaultState());
                 BlockState cap2 = getStateOrDefault(wld,
-                        profile != null && profile.palette() != null ? profile.palette().trim : null,
+                        enclosureProfile != null && enclosureProfile.palette() != null ? enclosureProfile.palette().trim : null,
                         wallBlock);
-                int capLayers = (profile != null && profile.rules() != null) ? profile.rules().capLayers : 1;
-                int capOverhang = (profile != null && profile.rules() != null) ? profile.rules().capOverhang : 0;
+                int capLayers = (enclosureProfile != null && enclosureProfile.rules() != null) ? enclosureProfile.rules().capLayers : 1;
+                int capOverhang = (enclosureProfile != null && enclosureProfile.rules() != null) ? enclosureProfile.rules().capOverhang : 0;
                 String paletteId = null;
                 if (spec != null && spec.getExtra() != null) {
                     Object pid = spec.getExtra().get("paletteId");

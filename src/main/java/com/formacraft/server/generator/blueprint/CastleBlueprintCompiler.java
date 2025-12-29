@@ -246,6 +246,27 @@ public final class CastleBlueprintCompiler {
                         }
                     }
 
+                    // Style defaults when features do not explicitly specify (cross-style)
+                    try {
+                        var prof = com.formacraft.common.style.profile.StyleProfileRegistry.resolve(parentSpec);
+                        var det = (prof != null) ? prof.details() : null;
+                        if (det != null) {
+                            if ((feat == null || !feat.containsKey("battlements")) && det.eavesProfile != null) {
+                                battlements = det.eavesProfile.toLowerCase(Locale.ROOT).contains("battlement");
+                            }
+                            if ((feat == null || !feat.containsKey("banner")) && det.bannerEnabled != null) {
+                                banner = Boolean.TRUE.equals(det.bannerEnabled);
+                            }
+                            if ((feat == null || !feat.containsKey("banner")) && !banner && det.ornamentProfile != null) {
+                                String op = det.ornamentProfile.toLowerCase(Locale.ROOT);
+                                if (op.contains("banner")) banner = true;
+                            }
+                            if ((feat == null || !feat.containsKey("bannerColor")) && banner && det.bannerColor != null && !det.bannerColor.isBlank()) {
+                                bannerColor = det.bannerColor.trim().toLowerCase(Locale.ROOT);
+                            }
+                        }
+                    } catch (Throwable ignored) {}
+
                     RectEnclosurePlan rep = new RectEnclosurePlan(w, d, h, wallThickness, gateSide, gw,
                             battlements, battlementSpacing, banner, bannerColor);
                     plan.add(rep, BlockTransform.translate(dx, ry, dz));

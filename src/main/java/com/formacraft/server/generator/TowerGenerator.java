@@ -19,6 +19,7 @@ import java.util.Map;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.common.style.profile.DetailPreferences;
 
 /**
  * 塔楼生成器
@@ -64,6 +65,42 @@ public class TowerGenerator implements StructureGenerator {
         // StyleProfile hinting (for catalog-driven roof types like "cone"/"spires")
         BuildingStyle style = spec.getStyle() != null ? spec.getStyle() : BuildingStyle.DEFAULT;
         StyleProfile profile = StyleProfileRegistry.resolve(spec);
+        DetailPreferences details = (profile != null) ? profile.details() : null;
+
+        // windowStyle: StyleOptions > styleProfile.details.windowStyle > heuristic
+        String effWindowStyle = resolveEffectiveWindowStyle(spec, details, style);
+        window = resolveWindowBlock(world, effWindowStyle, window);
+
+        // windowRatio: broad style-driven clamps (cross-style)
+        String ews = (effWindowStyle == null) ? "" : effWindowStyle.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!ews.isBlank()) {
+            if (ews.contains("curtain")) windowRatio = Math.max(windowRatio, 0.70);
+            else if (ews.contains("slit") || ews.contains("bars")) windowRatio = Math.min(windowRatio, 0.14);
+            else if (ews.contains("shoji")) windowRatio = Math.max(Math.min(windowRatio, 0.55), 0.32);
+            else if (ews.contains("fence") || ews.contains("lattice")) windowRatio = Math.max(Math.min(windowRatio, 0.45), 0.22);
+        }
+
+        // eavesProfile -> battlements default (only when not explicitly provided)
+        String eavesProfile = details != null ? details.eavesProfile : null;
+        boolean battlementsExplicit = (extra != null && extra.containsKey("battlements"));
+        if (!battlementsExplicit && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("battlement")) {
+            battlements = true;
+        }
+
+        // ornamentProfile -> banner/flag/signage defaults (only when not explicitly provided)
+        String ornamentProfile = details != null ? details.ornamentProfile : null;
+        boolean bannerExplicit = (extra != null && extra.containsKey("banner"));
+        boolean flagExplicit = (extra != null && extra.containsKey("flag"));
+        if (!bannerExplicit && ornamentProfile != null && ornamentProfile.contains("banner")) {
+            banner = true;
+            if (details != null && details.bannerColor != null && !details.bannerColor.isBlank()) {
+                bannerColor = details.bannerColor;
+            }
+        }
+        if (!flagExplicit && ornamentProfile != null && ornamentProfile.contains("cyber")) {
+            // Cyber towers often read better with a top marker
+            flag = true;
+        }
 
         // 内部楼梯旋转方向偏移（螺旋楼梯）
         BlockPos[] spiralOffsets = {
@@ -244,6 +281,11 @@ public class TowerGenerator implements StructureGenerator {
             addTopBanners(result, origin, world, radius, height, bannerColor, paletteId);
         }
 
+        // Extra ornaments on towers (cross-style, best-effort)
+        if (ornamentProfile != null && !ornamentProfile.isBlank()) {
+            addTowerOrnaments(result, origin, world, radius, height, ornamentProfile);
+        }
+
         String description = String.format("Tower (%s, height=%d, radius=%d, floors=%d)", 
                 spec.getType(), height, radius, floors);
 
@@ -253,6 +295,83 @@ public class TowerGenerator implements StructureGenerator {
                 description,
                 result
         );
+    }
+
+    private static String resolveEffectiveWindowStyle(BuildingSpec spec, DetailPreferences details, BuildingStyle style) {
+        String ws = (spec != null && spec.getStyleOptions() != null) ? spec.getStyleOptions().getWindowStyle() : null;
+        if (ws == null || ws.isBlank()) {
+            ws = (details != null) ? details.windowStyle : null;
+        }
+        if (ws == null || ws.isBlank()) {
+            ws = switch (style) {
+                case ASIAN -> "fence";
+                case MEDIEVAL -> "bars";
+                case MODERN, FUTURISTIC -> "pane";
+                case RUSTIC -> "pane";
+                default -> "pane";
+            };
+        }
+        return ws;
+    }
+
+    private static BlockState resolveWindowBlock(ServerWorld world, String windowStyle, BlockState fallback) {
+        String ws = (windowStyle == null) ? "" : windowStyle.trim().toLowerCase(java.util.Locale.ROOT);
+        return switch (ws) {
+            case "shoji", "paper" -> Blocks.WHITE_STAINED_GLASS_PANE.getDefaultState();
+            case "fence", "lattice" -> Blocks.OAK_FENCE.getDefaultState();
+            case "bars", "iron_bars", "slit" -> Blocks.IRON_BARS.getDefaultState();
+            case "stained" -> Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.getDefaultState();
+            case "curtain_wall", "curtain" -> Blocks.GLASS_PANE.getDefaultState();
+            default -> (fallback != null ? fallback : Blocks.GLASS_PANE.getDefaultState());
+        };
+    }
+
+    private static void addTowerOrnaments(List<PlannedBlock> out,
+                                          BlockPos origin,
+                                          ServerWorld world,
+                                          int radius,
+                                          int height,
+                                          String ornamentProfile) {
+        if (out == null || origin == null || ornamentProfile == null) return;
+        String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+        int y = Math.max(2, height - 2);
+
+        if (op.contains("cyber") || op.contains("sign")) {
+            // Place 4 wall signs on the tower, facing outward (best-effort)
+            BlockState sign = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+            placeFacing(out, origin.add(radius + 1, y, 0), sign, Direction.EAST);
+            placeFacing(out, origin.add(-radius - 1, y, 0), sign, Direction.WEST);
+            placeFacing(out, origin.add(0, y, radius + 1), sign, Direction.SOUTH);
+            placeFacing(out, origin.add(0, y, -radius - 1), sign, Direction.NORTH);
+            return;
+        }
+
+        if (op.contains("steam") || op.contains("pipe")) {
+            // A simple copper pipe column outside + a chimney hint
+            BlockState pipe = Blocks.COPPER_BLOCK.getDefaultState();
+            BlockPos base = origin.add(radius + 1, 0, 0);
+            for (int i = 1; i <= Math.min(height, 10); i++) {
+                out.add(new PlannedBlock(base.up(i), pipe));
+            }
+            out.add(new PlannedBlock(origin.add(radius - 1, height + 1, 0), Blocks.CAMPFIRE.getDefaultState()));
+            return;
+        }
+
+        if (op.contains("organic") || op.contains("lantern") || op.contains("vine")) {
+            BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
+            BlockState lantern = Blocks.LANTERN.getDefaultState();
+            out.add(new PlannedBlock(origin.add(radius + 1, y, 0), leaf));
+            out.add(new PlannedBlock(origin.add(-radius - 1, y, 0), leaf));
+            out.add(new PlannedBlock(origin.add(0, y + 1, radius + 1), lantern));
+        }
+    }
+
+    private static void placeFacing(List<PlannedBlock> out, BlockPos pos, BlockState state, Direction facing) {
+        BlockState st = state;
+        if (st.contains(Properties.HORIZONTAL_FACING)) {
+            st = st.with(Properties.HORIZONTAL_FACING, facing);
+        }
+        out.add(new PlannedBlock(pos, st));
     }
 
     private static boolean getBool(Map<String, Object> extra, String key, boolean def) {
