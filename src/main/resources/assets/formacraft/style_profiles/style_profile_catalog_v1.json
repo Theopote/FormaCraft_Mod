@@ -115,7 +115,7 @@
           "portal": "torii",
           "eaves": "flying_eaves",
           "palette_id": "PALETTE_EAST_ASIAN_WOOD_A",
-          "ornament_profile": "chinese_plaque",
+          "ornament_profile": "shrine_lanterns",
           "balcony": "outer"
         },
         "algorithm": {
@@ -478,8 +478,9 @@
           "windows": "lattice_small_high",
           "portal": "paifang",
           "eaves": "flying_eaves",
-          "palette_id": "PALETTE_EAST_ASIAN_WOOD_A",
+          "palette_id": "PALETTE_HUIZHOU_WHITE_BLACK_A",
           "facade_profile": "base_plinth",
+          "ornament_profile": "huizhou_horsehead",
           "balcony": "none"
         },
         "algorithm": {
@@ -491,6 +492,48 @@
         "allowed_archetypes": ["house", "residential", "courtyard"],
         "terrain_policy": "local_level",
         "symmetry_preference": "mirror",
+        "silhouette_strength": "medium"
+      }
+    },
+
+    "Chinese_Vernacular_Jiangnan_WaterTown": {
+      "meta": {
+        "display_name": "Jiangnan Water Town",
+        "family": "Eastern",
+        "tags": ["vernacular", "jiangnan", "water_town", "canal", "bridge", "white_wall", "black_tile"],
+        "description": "Jiangnan water-town settlement: canals, small bridges, waterside lanes, and compact white-wall/black-tile houses"
+      },
+      "defaults": {
+        "geometry": {
+          "symmetry": "none",
+          "roof": { "type": "gable" }
+        },
+        "materials": {
+          "wall": ["minecraft:white_terracotta", "minecraft:calcite"],
+          "roof": ["minecraft:deepslate_tiles", "minecraft:polished_deepslate"],
+          "frame": ["minecraft:spruce_log", "minecraft:dark_oak_log"],
+          "floor": ["minecraft:dark_oak_planks", "minecraft:spruce_planks"],
+          "foundation": ["minecraft:stone_bricks"],
+          "trim": ["minecraft:blackstone_wall"],
+          "cap": ["minecraft:stone_brick_slab"]
+        },
+        "components": {
+          "courtyard": false,
+          "windows": "lattice_small_high",
+          "eaves": "flying_eaves",
+          "palette_id": "PALETTE_JIANGNAN_WATERTOWN_A",
+          "ornament_profile": "water_town_lanterns",
+          "balcony": "outer"
+        },
+        "algorithm": {
+          "generator": "water_town",
+          "quality": "normal"
+        }
+      },
+      "constraints": {
+        "allowed_archetypes": ["house", "residential", "village", "town"],
+        "terrain_policy": "follow",
+        "symmetry_preference": "none",
         "silhouette_strength": "medium"
       }
     },

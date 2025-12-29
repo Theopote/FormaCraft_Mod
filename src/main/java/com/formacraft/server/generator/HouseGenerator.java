@@ -540,6 +540,17 @@ public class HouseGenerator implements StructureGenerator {
                     blocks.add(new PlannedBlock(origin.add(midRight, ridgeY + 1, z), roofSlab));
                 }
 
+                // Japanese Traditional: 唐破风（kara-hafu）MVP（只在门位于 NORTH/SOUTH 时添加到正面山墙）
+                if (isJapaneseTraditionalStyle(spec, paletteId) && (doorSide == Direction.NORTH || doorSide == Direction.SOUTH)) {
+                    addKaraHafuGable(blocks, origin, width, depth, height, roofHeight, doorSide, roofSlab, trim);
+                }
+
+                // Huizhou (徽派) phenotype: 马头墙（阶梯状山墙），在双坡屋顶两端做“墙高逐级上升”的收边。
+                // Trigger when paletteId/styleProfileId indicates Huizhou; keep best-effort and non-invasive.
+                if (isHuizhouStyle(spec, paletteId)) {
+                    addHuizhouHorseHeadWalls(blocks, origin, width, depth, height, roofHeight, wall, trim, roofSlab);
+                }
+
             } else {
                 // 平顶（现代/未来风格）：屋面 + 女儿墙边框
                 for (int x = -1; x <= width; x++) {
@@ -1789,6 +1800,32 @@ public class HouseGenerator implements StructureGenerator {
             return;
         }
 
+        // --- Shrine lanterns (Japanese-ish): two small lanterns flanking the door axis
+        if (op.contains("shrine_lantern") || op.contains("shrine-lantern") || op.contains("shrine lantern")) {
+            BlockState post = t;
+            BlockState lantern = Blocks.LANTERN.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                post = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", origin, 0xA005E0A1L, post);
+                post = PaletteResolver.pick(world, paletteId, "FRAME", origin, 0xA005E0A2L, post);
+                lantern = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0xA005E0A3L, lantern);
+                lantern = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0xA005E0A4L, lantern);
+            }
+            int yPost = 1;
+            int yLantern = 3;
+            if (onNS) {
+                blocks.add(new PlannedBlock(origin.add(a0, yPost, oz), post));
+                blocks.add(new PlannedBlock(origin.add(a2, yPost, oz), post));
+                blocks.add(new PlannedBlock(origin.add(a0, yLantern, oz), lantern));
+                blocks.add(new PlannedBlock(origin.add(a2, yLantern, oz), lantern));
+            } else {
+                blocks.add(new PlannedBlock(origin.add(ox, yPost, a0), post));
+                blocks.add(new PlannedBlock(origin.add(ox, yPost, a2), post));
+                blocks.add(new PlannedBlock(origin.add(ox, yLantern, a0), lantern));
+                blocks.add(new PlannedBlock(origin.add(ox, yLantern, a2), lantern));
+            }
+            return;
+        }
+
         // --- Organic lanterns: leaves + lantern near door
         if (op.contains("organic") || op.contains("lantern") || op.contains("vine")) {
             BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
@@ -2666,6 +2703,117 @@ public class HouseGenerator implements StructureGenerator {
         // flying eaves corners: reuse existing horn for imperial silhouette emphasis
         if (flyingEaves && overhang) {
             addFlyingEavesCorners(blocks, o, baseH, ox, oz, ow, od, roofSlab);
+        }
+    }
+
+    private static boolean isHuizhouStyle(BuildingSpec spec, String paletteId) {
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object spid = spec.getExtra().get("styleProfileId");
+                if (spid != null) {
+                    String s = String.valueOf(spid).trim();
+                    if (s.equals("Chinese_Vernacular_Huizhou")) return true;
+                }
+            }
+        } catch (Throwable ignored) {}
+        if (paletteId == null) return false;
+        return paletteId.trim().equalsIgnoreCase("PALETTE_HUIZHOU_WHITE_BLACK_A");
+    }
+
+    private static boolean isJapaneseTraditionalStyle(BuildingSpec spec, String paletteId) {
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object spid = spec.getExtra().get("styleProfileId");
+                if (spid != null) {
+                    String s = String.valueOf(spid).trim();
+                    if (s.equals("Japanese_Traditional")) return true;
+                }
+            }
+        } catch (Throwable ignored) {}
+        // Current Japanese_Traditional defaults use PALETTE_EAST_ASIAN_WOOD_A, so we can't disambiguate by paletteId.
+        // We still allow palette-based opt-in for future dedicated Japanese palettes.
+        if (paletteId == null) return false;
+        String p = paletteId.trim().toUpperCase(java.util.Locale.ROOT);
+        return p.contains("JAPAN") || p.contains("JAPANESE");
+    }
+
+    /**
+     * 唐破风（kara-hafu）MVP：在正面山墙做一个“拱形/曲线”屋檐轮廓。
+     * - 仅做识别性，不追求精确曲线（方块锯齿近似）
+     * - 依赖 roofSlab/trim，保持材质一致
+     */
+    private static void addKaraHafuGable(List<PlannedBlock> blocks, BlockPos origin,
+                                         int width, int depth, int height, int roofHeight,
+                                         Direction doorSide, BlockState roofSlab, BlockState trim) {
+        if (blocks == null || origin == null) return;
+        if (width < 9 || depth < 7) return;
+        if (doorSide == null) doorSide = Direction.SOUTH;
+        if (roofSlab == null) roofSlab = Blocks.STONE_BRICK_SLAB.getDefaultState();
+        if (trim == null) trim = Blocks.STONE_BRICKS.getDefaultState();
+
+        // Front gable plane: z=-1 for NORTH, z=depth for SOUTH (matches roof overhang loops)
+        int zFront = (doorSide == Direction.NORTH) ? -1 : depth;
+        int yBase = height + Math.max(1, roofHeight / 2);
+        int yPeak = height + roofHeight + 2;
+
+        int mid = width / 2;
+        int span = Math.min(6, Math.max(4, width / 3));
+        int x0 = Math.max(1, mid - span);
+        int x1 = Math.min(width - 2, mid + span);
+
+        // build a stepped "arc": higher in the center, lower toward sides
+        for (int x = x0; x <= x1; x++) {
+            int dx = Math.abs(x - mid);
+            int y = yPeak - (dx / 2); // pseudo curve
+            y = Math.max(yBase, Math.min(yPeak, y));
+            blocks.add(new PlannedBlock(origin.add(x, y, zFront), roofSlab));
+            // add a small vertical trim drop to emphasize the curve silhouette
+            if ((dx & 1) == 0) {
+                blocks.add(new PlannedBlock(origin.add(x, y - 1, zFront), trim));
+            }
+        }
+
+        // center pendant (like a small ridge ornament)
+        blocks.add(new PlannedBlock(origin.add(mid, yPeak - 1, zFront), trim));
+    }
+
+    /**
+     * 徽派马头墙（MVP）：在双坡屋顶两端（z=-1 / z=depth）做阶梯状加高的山墙。
+     * - 使用 wall 填充（白墙），trim/roofSlab 做顶部收边（黑线脚/压顶）
+     * - 仅做轮廓识别性，不尝试精确徽派比例学
+     */
+    private static void addHuizhouHorseHeadWalls(List<PlannedBlock> blocks, BlockPos origin,
+                                                 int width, int depth, int height, int roofHeight,
+                                                 BlockState wall, BlockState trim, BlockState cap) {
+        // gable ends are at the ends of the ridge line (z = -1 and z = depth) for our roof orientation.
+        int[] zEnds = new int[]{-1, depth};
+        int maxTop = height + roofHeight + 2;
+        // step size: every 2 blocks in X distance creates one "horse-head" step
+        for (int ze : zEnds) {
+            for (int x = 0; x < width; x++) {
+                int i = Math.min(x, width - 1 - x);
+                int step = (i / 2);
+                int top = Math.min(maxTop, height + step + 2);
+                // ensure edges still have some height above eaves
+                if (top < height + 2) top = height + 2;
+
+                // Fill the stepped gable wall (outside plane)
+                for (int y = height; y <= top; y++) {
+                    BlockState s = wall;
+                    // cap line
+                    if (y == top) s = cap != null ? cap : trim;
+                    else if (y == top - 1) s = trim;
+                    blocks.add(new PlannedBlock(origin.add(x, y, ze), s));
+                }
+            }
+        }
+
+        // Add two “notches” near the ridge center to avoid a perfectly flat top edge.
+        int mid = width / 2;
+        for (int ze : zEnds) {
+            blocks.add(new PlannedBlock(origin.add(mid, maxTop, ze), trim));
+            if (mid - 1 >= 0) blocks.add(new PlannedBlock(origin.add(mid - 1, maxTop - 1, ze), trim));
+            if (mid + 1 < width) blocks.add(new PlannedBlock(origin.add(mid + 1, maxTop - 1, ze), trim));
         }
     }
 

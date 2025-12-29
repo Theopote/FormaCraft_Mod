@@ -604,6 +604,213 @@
       }
     },
 
+    "PALETTE_HUIZHOU_WHITE_BLACK_A": {
+      "meta": {
+        "display_name": "Huizhou White/Black A",
+        "tags": ["chinese", "huizhou", "vernacular", "white_wall", "black_tile", "horse_head_wall"],
+        "description": "Huizhou vernacular palette with white walls, black tiles, and crisp dark trims"
+      },
+      "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:stone_bricks", "weight": 55 },
+          { "id": "minecraft:polished_andesite", "weight": 25 },
+          { "id": "minecraft:polished_blackstone", "weight": 20 }
+        ],
+        "WALL_BASE": [
+          { "id": "minecraft:white_concrete", "weight": 60 },
+          { "id": "minecraft:calcite", "weight": 25 },
+          { "id": "minecraft:white_terracotta", "weight": 15 }
+        ],
+        "FRAME": [
+          { "id": "minecraft:dark_oak_log", "weight": 65 },
+          { "id": "minecraft:stripped_dark_oak_log", "weight": 35 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:dark_oak_log", "weight": 70 },
+          { "id": "minecraft:stripped_dark_oak_log", "weight": 20 },
+          { "id": "minecraft:dark_oak_planks", "weight": 10 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:dark_oak_log", "weight": 60 },
+          { "id": "minecraft:stripped_dark_oak_log", "weight": 25 },
+          { "id": "minecraft:white_concrete", "weight": 15 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:stone_bricks", "weight": 55 },
+          { "id": "minecraft:polished_andesite", "weight": 25 },
+          { "id": "minecraft:dark_oak_planks", "weight": 20 }
+        ],
+        "FLOOR_SLAB": [
+          { "id": "minecraft:stone_brick_slab", "weight": 60 },
+          { "id": "minecraft:polished_andesite_slab", "weight": 25 },
+          { "id": "minecraft:dark_oak_slab", "weight": 15 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:dark_oak_trapdoor", "weight": 45 },
+          { "id": "minecraft:oak_trapdoor", "weight": 35 },
+          { "id": "minecraft:glass_pane", "weight": 20 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:blackstone_wall", "weight": 55 },
+          { "id": "minecraft:polished_blackstone", "weight": 25 },
+          { "id": "minecraft:deepslate_tiles", "weight": 20 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:deepslate_tiles", "weight": 55 },
+          { "id": "minecraft:polished_deepslate", "weight": 30 },
+          { "id": "minecraft:black_concrete", "weight": 15 }
+        ],
+        "ROOF_SLOPE": [
+          { "id": "minecraft:deepslate_tile_stairs", "weight": 55 },
+          { "id": "minecraft:polished_deepslate_stairs", "weight": 30 },
+          { "id": "minecraft:blackstone_stairs", "weight": 15 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:stone_bricks", "weight": 50 },
+          { "id": "minecraft:gravel", "weight": 30 },
+          { "id": "minecraft:coarse_dirt", "weight": 20 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:blackstone_wall", "weight": 55 },
+          { "id": "minecraft:polished_blackstone", "weight": 25 },
+          { "id": "minecraft:stone_brick_wall", "weight": 20 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 80 },
+          { "id": "minecraft:soul_lantern", "weight": 20 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:dark_oak_planks", "weight": 70 },
+          { "id": "minecraft:black_wool", "weight": 30 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:stone_bricks", "weight": 55 },
+          { "id": "minecraft:polished_andesite", "weight": 25 },
+          { "id": "minecraft:dark_oak_planks", "weight": 20 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:dark_oak_fence", "weight": 70 },
+          { "id": "minecraft:spruce_fence", "weight": 30 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:white_wall_banner", "weight": 60 },
+          { "id": "minecraft:black_wall_banner", "weight": 40 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:lantern", "weight": 100 }
+        ],
+        "INTERNAL_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 80 },
+          { "id": "minecraft:soul_lantern", "weight": 20 }
+        ]
+      }
+    },
+
+    "PALETTE_JIANGNAN_WATERTOWN_A": {
+      "meta": {
+        "display_name": "Jiangnan Water Town A",
+        "tags": ["chinese", "jiangnan", "water_town", "canal", "bridge", "white_wall", "black_tile"],
+        "description": "Jiangnan water-town palette with light plaster walls, dark tiles, gray stone embankments, and warm wood walkways"
+      },
+      "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:stone_bricks", "weight": 50 },
+          { "id": "minecraft:polished_andesite", "weight": 30 },
+          { "id": "minecraft:cobblestone", "weight": 20 }
+        ],
+        "WALL_BASE": [
+          { "id": "minecraft:white_terracotta", "weight": 45 },
+          { "id": "minecraft:calcite", "weight": 35 },
+          { "id": "minecraft:white_concrete", "weight": 20 }
+        ],
+        "FRAME": [
+          { "id": "minecraft:spruce_log", "weight": 55 },
+          { "id": "minecraft:dark_oak_log", "weight": 30 },
+          { "id": "minecraft:stripped_spruce_log", "weight": 15 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:spruce_log", "weight": 60 },
+          { "id": "minecraft:dark_oak_log", "weight": 30 },
+          { "id": "minecraft:stripped_spruce_log", "weight": 10 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:spruce_log", "weight": 55 },
+          { "id": "minecraft:dark_oak_log", "weight": 25 },
+          { "id": "minecraft:stone_bricks", "weight": 20 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:dark_oak_planks", "weight": 40 },
+          { "id": "minecraft:spruce_planks", "weight": 35 },
+          { "id": "minecraft:stone_bricks", "weight": 25 }
+        ],
+        "FLOOR_SLAB": [
+          { "id": "minecraft:dark_oak_slab", "weight": 45 },
+          { "id": "minecraft:spruce_slab", "weight": 35 },
+          { "id": "minecraft:stone_brick_slab", "weight": 20 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:oak_trapdoor", "weight": 40 },
+          { "id": "minecraft:spruce_trapdoor", "weight": 35 },
+          { "id": "minecraft:glass_pane", "weight": 25 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:blackstone_wall", "weight": 35 },
+          { "id": "minecraft:polished_blackstone", "weight": 25 },
+          { "id": "minecraft:dark_oak_trapdoor", "weight": 20 },
+          { "id": "minecraft:mossy_stone_bricks", "weight": 20 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:deepslate_tiles", "weight": 55 },
+          { "id": "minecraft:polished_deepslate", "weight": 30 },
+          { "id": "minecraft:deepslate_bricks", "weight": 15 }
+        ],
+        "ROOF_SLOPE": [
+          { "id": "minecraft:deepslate_tile_stairs", "weight": 55 },
+          { "id": "minecraft:polished_deepslate_stairs", "weight": 30 },
+          { "id": "minecraft:deepslate_brick_stairs", "weight": 15 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:cobblestone", "weight": 45 },
+          { "id": "minecraft:stone_bricks", "weight": 35 },
+          { "id": "minecraft:gravel", "weight": 20 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:stone_brick_wall", "weight": 45 },
+          { "id": "minecraft:stone_bricks", "weight": 35 },
+          { "id": "minecraft:polished_andesite", "weight": 20 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 85 },
+          { "id": "minecraft:soul_lantern", "weight": 15 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:spruce_planks", "weight": 60 },
+          { "id": "minecraft:dark_oak_planks", "weight": 40 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:stone_brick_slab", "weight": 45 },
+          { "id": "minecraft:polished_andesite_slab", "weight": 30 },
+          { "id": "minecraft:dark_oak_slab", "weight": 25 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:spruce_fence", "weight": 55 },
+          { "id": "minecraft:dark_oak_fence", "weight": 35 },
+          { "id": "minecraft:iron_bars", "weight": 10 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:white_wall_banner", "weight": 60 },
+          { "id": "minecraft:black_wall_banner", "weight": 40 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:lantern", "weight": 100 }
+        ],
+        "INTERNAL_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 80 },
+          { "id": "minecraft:soul_lantern", "weight": 20 }
+        ]
+      }
+    },
+
     "PALETTE_CLASSICAL_MARBLE_A": {
       "meta": {
         "display_name": "Classical Marble A",

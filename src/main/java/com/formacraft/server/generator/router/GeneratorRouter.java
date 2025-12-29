@@ -44,6 +44,10 @@ public final class GeneratorRouter {
         StructureGenerator byTemplate = routeByTemplate(spec);
         if (byTemplate != null) return byTemplate;
 
+        // 0) styleProfileId-based routing (data-driven style wants a dedicated generator)
+        StructureGenerator byStyleProfileId = routeByStyleProfileId(spec);
+        if (byStyleProfileId != null) return byStyleProfileId;
+
         // 0) legacy landmark flag (keeps current behavior)
         StructureGenerator legacy = routeLegacyLandmark(spec);
         if (legacy != null) return legacy;
@@ -122,6 +126,25 @@ public final class GeneratorRouter {
         if (s.contains("office_block")) {
             return new OfficeBlockGenerator();
         }
+        if (s.contains("jiangnan_water_town") || s.contains("water_town") || s.contains("watertown")) {
+            return new JiangnanWaterTownGenerator();
+        }
+        if (s.contains("japanese_shrine") || s.contains("shrine") || s.contains("jinja") || s.contains("torii")) {
+            return new JapaneseShrineGenerator();
+        }
+        return null;
+    }
+
+    private static StructureGenerator routeByStyleProfileId(BuildingSpec spec) {
+        if (spec == null) return null;
+        Map<String, Object> extra = spec.getExtra();
+        if (extra == null) return null;
+        Object spid = extra.get("styleProfileId");
+        if (spid == null) return null;
+        String s = String.valueOf(spid).trim();
+        if (s.isEmpty()) return null;
+        // dedicated style -> generator mapping (v1)
+        if (s.equals("Chinese_Vernacular_Jiangnan_WaterTown")) return new JiangnanWaterTownGenerator();
         return null;
     }
 
