@@ -95,6 +95,9 @@ public class TulouGenerator implements StructureGenerator {
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.ASIAN;
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
         DetailPreferences details = (profile != null) ? profile.details() : null;
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
         String effWindowStyle = resolveEffectiveWindowStyle(spec, details, style);
         window = resolveWindowBlock(effWindowStyle, window);
         String eavesProfile = (details != null) ? details.eavesProfile : null;

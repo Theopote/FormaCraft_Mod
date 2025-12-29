@@ -48,6 +48,9 @@ public class GreatWallGenerator implements StructureGenerator {
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MEDIEVAL;
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
         DetailPreferences details = profile != null ? profile.details() : null;
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
         String pWall = profile != null && profile.palette() != null ? profile.palette().wall : null;
         String pTrim = profile != null && profile.palette() != null ? profile.palette().trim : null;
         String eavesProfile = details != null ? details.eavesProfile : null;

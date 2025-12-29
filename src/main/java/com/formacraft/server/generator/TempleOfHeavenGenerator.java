@@ -1,6 +1,7 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.skeleton.radial.RadialPlan;
 import com.formacraft.common.skeleton.radial.RadialPrimitive;
 import com.formacraft.common.skeleton.radial.RadialPrimitiveKind;
@@ -9,6 +10,9 @@ import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter;
+import com.formacraft.common.style.profile.DetailPreferences;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -32,6 +36,13 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         String paletteId = getStringExtra(spec, "paletteId", null);
+        // StyleProfile palette hint fallback (explicit extra.paletteId wins)
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.ASIAN;
+        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = profile != null ? profile.details() : null;
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
         int baseRadius = clamp(getIntExtra(spec, "baseRadius", getCircleRadiusFromFootprint(spec, 18)), 10, 80);
         int tiers = clamp(getIntExtra(spec, "tiers", 3), 2, 3);
         int hallRadius = clamp(getIntExtra(spec, "hallRadius", (int) Math.round(baseRadius * 0.55)), 6, Math.max(6, baseRadius - 3));
