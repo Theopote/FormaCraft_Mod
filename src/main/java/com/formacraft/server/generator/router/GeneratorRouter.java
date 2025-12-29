@@ -138,6 +138,12 @@ public final class GeneratorRouter {
         if (s.contains("japanese_tea_house") || s.contains("tea_house") || s.contains("teahouse") || s.contains("chashitsu") || s.contains("茶室")) {
             return new JapaneseTeaHouseGenerator();
         }
+        if (s.contains("pantheon") || s.contains("万神殿") || s.contains("dome_temple")) {
+            return new PantheonGenerator();
+        }
+        if (s.contains("parthenon") || s.contains("帕特农") || s.contains("classical_temple") || s.contains("greco_roman_temple")) {
+            return new ParthenonTempleGenerator();
+        }
         return null;
     }
 
