@@ -29,6 +29,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,7 +67,8 @@ public class CastleCompoundGenerator implements StructureGenerator {
         int gateWidth = clamp(getIntExtra(spec, "gateWidth", 3), 2, 7);
         int wallThickness = clamp(getIntExtra(spec, "wallThickness", 2), 1, 5);
 
-        Direction gateSide = parseFacing(getStringExtra(spec));
+        Direction gateSide = resolveGateSide(spec);
+        String layoutPlan = resolveLayoutPlan(spec);
 
         Materials mats = (spec != null && spec.getMaterials() != null) ? spec.getMaterials() : new Materials();
         BlockState wallBlock = getStateOrDefault(world, mats.getWall(), Blocks.STONE_BRICKS.getDefaultState());
@@ -85,6 +87,8 @@ public class CastleCompoundGenerator implements StructureGenerator {
         // child specs
         BuildingSpec towerSpec = makeTowerSpec(towerHeight, mats);
         BuildingSpec gateHouseSpec = makeGateHouseSpec(Math.max(9, w / 4), Math.max(7, d / 6), mats);
+        // Propagate style genes + layout hint to gatehouse so its door faces into the courtyard.
+        inheritGenesAndLayoutToGateHouse(spec, gateHouseSpec, gateSide.getOpposite(), layoutPlan);
 
         int halfW = w / 2;
         int halfD = d / 2;
@@ -193,7 +197,15 @@ public class CastleCompoundGenerator implements StructureGenerator {
             }
             BlockPos start = new BlockPos(startX, 0, startZ);
             BlockPos center = new BlockPos(0, 0, 0);
-            BlockPos keep = new BlockPos(0, 0, -(d / 4)); // simple bias towards north interior
+            // keep bias towards the interior opposite the gate (so entrance direction changes the axis)
+            int keepDist = Math.max(6, d / 4);
+            BlockPos keep = switch (gateSide) {
+                case SOUTH -> new BlockPos(0, 0, -keepDist);
+                case NORTH -> new BlockPos(0, 0, keepDist);
+                case EAST -> new BlockPos(-keepDist, 0, 0);
+                case WEST -> new BlockPos(keepDist, 0, 0);
+                default -> new BlockPos(0, 0, -keepDist);
+            };
 
             compound.add(new PolylinePathPlan(List.of(start, center, keep), pathWidth, true, false, 10), BlockTransform.identity());
 
@@ -206,6 +218,25 @@ public class CastleCompoundGenerator implements StructureGenerator {
             compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t2), pathWidth, true, false, 10), BlockTransform.identity());
             compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t3), pathWidth, true, false, 10), BlockTransform.identity());
             compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, t4), pathWidth, true, false, 10), BlockTransform.identity());
+
+            // ring corridor (castle patrol loop): a loop path inset from enclosure walls.
+            if ("ring_corridor".equals(layoutPlan)) {
+                int ringInset = Math.max(3, wallThickness + 2);
+                int x0 = -halfW + ringInset;
+                int x1 = halfW - ringInset;
+                int z0 = -halfD + ringInset;
+                int z1 = halfD - ringInset;
+                if (x1 - x0 >= 10 && z1 - z0 >= 10) {
+                    List<BlockPos> loop = List.of(
+                            new BlockPos(x0, 0, z1),
+                            new BlockPos(x0, 0, z0),
+                            new BlockPos(x1, 0, z0),
+                            new BlockPos(x1, 0, z1),
+                            new BlockPos(x0, 0, z1)
+                    );
+                    compound.add(new PolylinePathPlan(loop, Math.max(2, pathWidth), true, false, 10), BlockTransform.identity());
+                }
+            }
         }
 
         PlanDispatcher dispatcher = (plan, o, wld) -> {
@@ -440,6 +471,74 @@ public class CastleCompoundGenerator implements StructureGenerator {
         if (v == null) return "SOUTH";
         String s = String.valueOf(v).trim();
         return s.isEmpty() ? "SOUTH" : s;
+    }
+
+    private static Direction resolveGateSide(BuildingSpec spec) {
+        // Layout IR: extra.layout.entranceFacing overrides legacy extra.facing (best-effort).
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object ef = m.get("entranceFacing");
+                    if (ef != null) {
+                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
+                        return switch (s) {
+                            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
+                            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
+                            case "E", "EAST", "东", "朝东" -> Direction.EAST;
+                            case "W", "WEST", "西", "朝西" -> Direction.WEST;
+                            default -> Direction.SOUTH;
+                        };
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return parseFacing(getStringExtra(spec));
+    }
+
+    private static String resolveLayoutPlan(BuildingSpec spec) {
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object plan = m.get("plan");
+                    if (plan == null) return "none";
+                    String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
+                    if (p.isEmpty()) return "none";
+                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
+                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
+                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
+                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
+                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
+                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
+                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "none";
+    }
+
+    private static void inheritGenesAndLayoutToGateHouse(BuildingSpec parent, BuildingSpec gateHouse, Direction entranceFacing, String layoutPlan) {
+        if (gateHouse == null) return;
+        HashMap<String, Object> ex = new HashMap<>();
+        if (gateHouse.getExtra() != null) ex.putAll(gateHouse.getExtra());
+
+        if (parent != null && parent.getExtra() != null) {
+            Object spid = parent.getExtra().get("styleProfileId");
+            if (spid != null && !String.valueOf(spid).trim().isEmpty()) ex.put("styleProfileId", String.valueOf(spid).trim());
+            Object pid = parent.getExtra().get("paletteId");
+            if (pid != null && !String.valueOf(pid).trim().isEmpty()) ex.put("paletteId", String.valueOf(pid).trim());
+        }
+
+        HashMap<String, Object> layout = new HashMap<>();
+        layout.put("entranceFacing", entranceFacing.asString().toUpperCase(java.util.Locale.ROOT));
+        // only propagate partition plans; ring_corridor is compound circulation
+        if ("front_back".equals(layoutPlan) || "left_right".equals(layoutPlan)) {
+            layout.put("plan", layoutPlan);
+        }
+        ex.put("layout", layout);
+
+        gateHouse.setExtra(ex);
     }
 
     private static Direction parseFacing(String s) {

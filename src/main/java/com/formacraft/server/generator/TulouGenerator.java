@@ -126,8 +126,11 @@ public class TulouGenerator implements StructureGenerator {
         // 默认深色（更稳重更观赏），用户可通过 extra.windowShutterBlock 覆盖（如 minecraft:oak_trapdoor）
         String shutterBlockId = getStringExtra(spec, "windowShutterBlock", "minecraft:dark_oak_trapdoor");
 
-        // 门朝向：extra.doorFacing = NORTH/SOUTH/EAST/WEST（默认 SOUTH）
-        Direction doorFacing = parseFacing(getStringExtra(spec, "doorFacing", "SOUTH"));
+        // Layout IR (extra.layout): plan + entranceFacing (best-effort)
+        String layoutPlan = resolveLayoutPlan(spec);
+
+        // 门朝向：extra.doorFacing 显式优先；否则使用 extra.layout.entranceFacing；最后默认 SOUTH
+        Direction doorFacing = resolveDoorFacing(spec);
 
         // 观赏性默认增强用的装饰材质
         BlockState wallAccent = Blocks.PACKED_MUD.getDefaultState();
@@ -232,6 +235,13 @@ public class TulouGenerator implements StructureGenerator {
                     int d2 = x * x + z * z;
                     // inner edge: one-block thickness at radius=innerRadius
                     if (d2 <= innerRadius * innerRadius && d2 >= (innerRadius - 1) * (innerRadius - 1)) {
+                        // Layout IR: ring corridor openings on the inner edge (visual circulation cues)
+                        if ("ring_corridor".equals(layoutPlan)) {
+                            int openW = (radius >= 18) ? 3 : 2; // 2~3 wide openings
+                            if (isInnerRingOpening(x, z, innerRadius, openW)) {
+                                continue;
+                            }
+                        }
                         // posts every ~3 blocks
                         if (((x + z) % 3) == 0) {
                             blocks.add(new PlannedBlock(origin.add(x, yBase, z), pillar));
@@ -675,6 +685,68 @@ public class TulouGenerator implements StructureGenerator {
         if (v == null) return def;
         String s = String.valueOf(v).trim();
         return s.isEmpty() ? def : s;
+    }
+
+    private static String resolveLayoutPlan(BuildingSpec spec) {
+        if (spec == null || spec.getExtra() == null) return "none";
+        try {
+            Object layoutObj = spec.getExtra().get("layout");
+            if (layoutObj instanceof Map<?, ?> m) {
+                Object plan = m.get("plan");
+                if (plan != null) {
+                    String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
+                    if (p.isEmpty()) return "none";
+                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
+                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
+                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
+                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
+                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
+                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
+                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "none";
+    }
+
+    private static Direction resolveDoorFacing(BuildingSpec spec) {
+        // explicit extra.doorFacing has highest priority
+        try {
+            if (spec != null && spec.getExtra() != null && spec.getExtra().containsKey("doorFacing")) {
+                return parseFacing(getStringExtra(spec, "doorFacing", "SOUTH"));
+            }
+        } catch (Throwable ignored) {}
+
+        // fallback to extra.layout.entranceFacing
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object ef = m.get("entranceFacing");
+                    if (ef != null) {
+                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
+                        return switch (s) {
+                            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
+                            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
+                            case "E", "EAST", "东", "朝东" -> Direction.EAST;
+                            case "W", "WEST", "西", "朝西" -> Direction.WEST;
+                            default -> Direction.SOUTH;
+                        };
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        return Direction.SOUTH;
+    }
+
+    private static boolean isInnerRingOpening(int x, int z, int innerRadius, int openWidth) {
+        int tol = Math.max(1, openWidth / 2);
+        // N/S openings near x≈0, z≈±innerRadius
+        if (Math.abs(x) <= tol && Math.abs(z) >= innerRadius - 1) return true;
+        // E/W openings near z≈0, x≈±innerRadius
+        if (Math.abs(z) <= tol && Math.abs(x) >= innerRadius - 1) return true;
+        return false;
     }
 
     private static Direction parseFacing(String s) {

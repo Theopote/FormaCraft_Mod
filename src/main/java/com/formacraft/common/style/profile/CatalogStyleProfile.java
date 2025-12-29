@@ -300,6 +300,8 @@ public final class CatalogStyleProfile implements StyleProfile {
         String s = rt.trim().toLowerCase(Locale.ROOT);
         if (s.isBlank()) return null;
         if (s.contains("spires") || s.contains("spire")) return "spires";
+        // Chinese "xie shan" (hip-and-gable) should remain distinguishable from plain hipped roofs.
+        if (s.contains("xie") || s.contains("xieshan") || s.contains("xie_shan") || s.contains("xie-shan") || s.contains("xie shan")) return "xie_shan";
         if (s.contains("hip")) return "hipped";
         if (s.contains("pyramid")) return "pyramid";
         if (s.contains("cone")) return "cone";

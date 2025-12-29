@@ -28,7 +28,7 @@
           "windows": "small_high",
           "portal": "paifang",
           "eaves": "flying_eaves",
-          "palette_id": "PALETTE_EAST_ASIAN_WOOD_A",
+          "palette_id": "PALETTE_CHINESE_IMPERIAL_A",
           "facade_profile": "base_plinth",
           "ornament_profile": "chinese_plaque",
           "balcony": "none"

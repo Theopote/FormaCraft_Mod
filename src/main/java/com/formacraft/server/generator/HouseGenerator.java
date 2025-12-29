@@ -485,6 +485,13 @@ public class HouseGenerator implements StructureGenerator {
             }
             // normalize aliases
             if ("hip".equalsIgnoreCase(actualRoofType)) actualRoofType = "hipped";
+            // Chinese hip-and-gable (歇山): keep it distinguishable from plain hipped roofs
+            if (actualRoofType != null) {
+                String rt = actualRoofType.trim().toLowerCase(java.util.Locale.ROOT);
+                if (rt.equals("xie_shan") || rt.equals("xieshan") || rt.equals("xie-shan") || rt.equals("xie shan") || rt.contains("xie")) {
+                    actualRoofType = "xie_shan";
+                }
+            }
             // 如果不是显式指定（StyleOptions/extra），则允许 StyleProfile 修正“平/坡”大方向
             if (!roofExplicit && !roofFromExtra) {
                 if (roofStrategy == BuildStrategy.ROOF_FLAT) {
@@ -494,12 +501,16 @@ public class HouseGenerator implements StructureGenerator {
                 }
             }
             
-            // 四坡/攒尖（hipped/pyramid）
-            if ("hipped".equalsIgnoreCase(actualRoofType) || "pyramid".equalsIgnoreCase(actualRoofType)) {
+            // 四坡/攒尖/歇山（hipped/pyramid/xie_shan）
+            if ("xie_shan".equalsIgnoreCase(actualRoofType) || "hipped".equalsIgnoreCase(actualRoofType) || "pyramid".equalsIgnoreCase(actualRoofType)) {
                 boolean emphasizeEaves = (profile != null && profile.details() != null && profile.details().emphasizeEaves);
                 boolean overhang = (style == BuildingStyle.ASIAN) || emphasizeEaves;
                 boolean flying = emphasizeEaves;
-                addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, flying);
+                if ("xie_shan".equalsIgnoreCase(actualRoofType)) {
+                    addXieShanRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, flying);
+                } else {
+                    addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, flying);
+                }
             } else if ("spires".equalsIgnoreCase(actualRoofType) || "spire".equalsIgnoreCase(actualRoofType)) {
                 // Gothic-ish: steep gable + corner spires
                 addSpireRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim);
@@ -2575,6 +2586,84 @@ public class HouseGenerator implements StructureGenerator {
         blocks.add(new PlannedBlock(o.add(cx, topY, cz), roofSlab));
 
         // 飞檐角：四角外挑 + 上翘（用 slab 逐级抬升，稳定且不会出现“空洞”）
+        if (flyingEaves && overhang) {
+            addFlyingEavesCorners(blocks, o, baseH, ox, oz, ow, od, roofSlab);
+        }
+    }
+
+    /**
+     * 歇山顶（hip-and-gable, MVP）
+     * 在四坡屋顶基础上“收短屋脊 + 两端斜收”，形成明显区别于纯四坡的轮廓。
+     *
+     * 约束：
+     * - 仍保持轴对齐（不做任意角旋转）
+     * - 以 Z 方向为“进深”，在两端（z=-1 / z=depth）做斜收
+     */
+    private static void addXieShanRoof(List<PlannedBlock> blocks, BlockPos o, int w, int d, int baseH,
+                                       BlockState roofMain, BlockState roofStairs, BlockState roofSlab, BlockState trim,
+                                       boolean overhang, boolean flyingEaves) {
+        int ox = overhang ? -1 : 0;
+        int oz = overhang ? -1 : 0;
+        int ow = w + (overhang ? 2 : 0);
+        int od = d + (overhang ? 2 : 0);
+
+        // reuse the same eaves/cornice layering as hipped roof for consistency
+        if (overhang) {
+            int y0 = baseH - 1;
+            for (int x = ox - 1; x <= ox + ow; x++) {
+                blocks.add(new PlannedBlock(o.add(x, y0, oz - 1), roofSlab));
+                blocks.add(new PlannedBlock(o.add(x, y0, oz + od), roofSlab));
+            }
+            for (int z = oz - 1; z <= oz + od; z++) {
+                blocks.add(new PlannedBlock(o.add(ox - 1, y0, z), roofSlab));
+                blocks.add(new PlannedBlock(o.add(ox + ow, y0, z), roofSlab));
+            }
+            for (int x = ox; x <= ox + ow - 1; x++) {
+                blocks.add(new PlannedBlock(o.add(x, y0, oz), trim));
+                blocks.add(new PlannedBlock(o.add(x, y0, oz + od - 1), trim));
+            }
+            for (int z = oz; z <= oz + od - 1; z++) {
+                blocks.add(new PlannedBlock(o.add(ox, y0, z), trim));
+                blocks.add(new PlannedBlock(o.add(ox + ow - 1, y0, z), trim));
+            }
+        }
+
+        // Roof height: similar to gable, but capped for stability
+        int layers = Math.min(Math.min(ow, od) / 2 + 1, 8);
+        int capDepth = Math.max(2, Math.min(4, layers)); // how much to "hip" the gable ends
+
+        // Build per-Z slices: full height in the middle, reduced height near both ends -> creates hip ends
+        for (int z = oz; z <= oz + od - 1; z++) {
+            int distToEnd = Math.min(z - oz, (oz + od - 1) - z);
+            int reduce = Math.max(0, (capDepth - 1) - distToEnd);
+            int hSlice = layers - reduce;
+            if (hSlice <= 0) continue;
+
+            for (int i = 0; i < hSlice; i++) {
+                int x0 = ox + i;
+                int x1 = ox + ow - 1 - i;
+                if (x0 > x1) break;
+                int y = baseH + i;
+
+                // side slopes (along X) using stairs; these define the main gable silhouette
+                blocks.add(new PlannedBlock(o.add(x0, y, z), withFacingIfPossible(roofStairs, Direction.EAST)));
+                blocks.add(new PlannedBlock(o.add(x1, y, z), withFacingIfPossible(roofStairs, Direction.WEST)));
+
+                // fill between slopes for this slice
+                for (int x = x0 + 1; x <= x1 - 1; x++) {
+                    blocks.add(new PlannedBlock(o.add(x, y, z), roofMain));
+                }
+            }
+
+            // ridge line: shorter at ends due to reduced hSlice -> distinctive xie-shan roof ridge
+            int ridgeY = baseH + hSlice;
+            int midLeft = ox + (ow - 1) / 2;
+            int midRight = ox + (ow / 2);
+            blocks.add(new PlannedBlock(o.add(midLeft, ridgeY, z), roofSlab));
+            blocks.add(new PlannedBlock(o.add(midRight, ridgeY, z), roofSlab));
+        }
+
+        // flying eaves corners: reuse existing horn for imperial silhouette emphasis
         if (flyingEaves && overhang) {
             addFlyingEavesCorners(blocks, o, baseH, ox, oz, ow, od, roofSlab);
         }

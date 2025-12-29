@@ -1,7 +1,6 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
@@ -15,6 +14,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +42,6 @@ public class BridgeGenerator implements StructureGenerator {
 
         // style + palette (best-effort)
         Map<String, Object> extra = spec.getExtra();
-        BuildingStyle style = spec.getStyle() != null ? spec.getStyle() : BuildingStyle.DEFAULT;
         StyleProfile profile = StyleProfileRegistry.resolve(spec);
         DetailPreferences details = profile != null ? profile.details() : null;
         String eavesProfile = details != null ? details.eavesProfile : null;
@@ -51,6 +50,11 @@ public class BridgeGenerator implements StructureGenerator {
         if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
             paletteId = details.paletteId.trim();
         }
+
+        // Layout IR: entranceFacing controls bridge forward direction (main span axis).
+        // Default keeps legacy behavior: forward = SOUTH (+z).
+        Direction forward = resolveEntranceFacing(spec);
+        String layoutPlan = resolveLayoutPlan(spec);
 
         // 获取风格选项（BuildingSpec 2.0）
         String bridgeType = spec.getStyleOptions() != null ? 
@@ -83,7 +87,7 @@ public class BridgeGenerator implements StructureGenerator {
         for (int z = 0; z <= length; z++) {
             for (int x = -width; x <= width; x++) {
                 for (int y = -2; y <= 10; y++) {
-                    blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
+                    blocks.add(new PlannedBlock(p(origin, forward, x, y, z), Blocks.AIR.getDefaultState()));
                 }
             }
         }
@@ -105,7 +109,7 @@ public class BridgeGenerator implements StructureGenerator {
                 yOffset = yOffsets[z];
             }
             for (int x = -width / 2; x <= width / 2; x++) {
-                BlockPos pos = origin.add(x, yOffset, z);
+                BlockPos pos = p(origin, forward, x, yOffset, z);
                 BlockState st = floor;
                 if (paletteId != null && !paletteId.isBlank()) {
                     long salt = (x * 31L) ^ (z * 17L) ^ (yOffset * 13L);
@@ -123,8 +127,8 @@ public class BridgeGenerator implements StructureGenerator {
             if (yOffsets != null) {
                 yOffset = yOffsets[z];
             }
-            BlockPos left = origin.add(-width / 2 - 1, yOffset, z);
-            BlockPos right = origin.add(width / 2 + 1, yOffset, z);
+            BlockPos left = p(origin, forward, -width / 2 - 1, yOffset, z);
+            BlockPos right = p(origin, forward, width / 2 + 1, yOffset, z);
             BlockState lr = railing;
             if (paletteId != null && !paletteId.isBlank()) {
                 long saltL = (-31L) ^ (z * 17L) ^ (yOffset * 13L);
@@ -143,10 +147,14 @@ public class BridgeGenerator implements StructureGenerator {
         if (ornamentProfile != null && !ornamentProfile.isBlank()) {
             String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
             int step = Math.max(10, length / 4);
+            // Layout IR: front_back -> denser ornament cadence near the "front axis"
+            if ("front_back".equals(layoutPlan)) {
+                step = Math.max(6, length / 6);
+            }
             for (int z = step; z < length; z += step) {
                 int yOffset = (yOffsets != null) ? yOffsets[z] : 0;
-                BlockPos left = origin.add(-width / 2 - 2, yOffset + 2, z);
-                BlockPos right = origin.add(width / 2 + 2, yOffset + 2, z);
+                BlockPos left = p(origin, forward, -width / 2 - 2, yOffset + 2, z);
+                BlockPos right = p(origin, forward, width / 2 + 2, yOffset + 2, z);
                 if (op.contains("cyber") || op.contains("sign")) {
                     BlockState sL = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
                     BlockState sR = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
@@ -178,7 +186,7 @@ public class BridgeGenerator implements StructureGenerator {
             if (yOffsets != null) {
                 yOffset = yOffsets[z];
             }
-            BlockPos mid = origin.add(0, yOffset, z);
+            BlockPos mid = p(origin, forward, 0, yOffset, z);
             
             // 向下延伸支撑直到遇到实心方块
             BlockPos p = mid.down();
@@ -200,7 +208,7 @@ public class BridgeGenerator implements StructureGenerator {
         // 6. 悬桥形式：加入主塔和拉索（可选）
         // ---------------------------------------------------------
         if (bridgeType != null && bridgeType.equalsIgnoreCase("suspension")) {
-            generateSuspensionCables(blocks, origin, world, width, length, support);
+            generateSuspensionCables(blocks, origin, forward, world, width, length, support);
         }
 
         // ---------------------------------------------------------
@@ -208,11 +216,11 @@ public class BridgeGenerator implements StructureGenerator {
         // ---------------------------------------------------------
         BlockPos leftEnd = null;
         if (yOffsets != null) {
-            leftEnd = origin.add(0, yOffsets[0], 0);
+            leftEnd = p(origin, forward, 0, yOffsets[0], 0);
         }
         BlockPos rightEnd = null;
         if (yOffsets != null) {
-            rightEnd = origin.add(0, yOffsets[length], length);
+            rightEnd = p(origin, forward, 0, yOffsets[length], length);
         }
 
         // 为桥头创建接地平台
@@ -297,6 +305,7 @@ public class BridgeGenerator implements StructureGenerator {
     private void generateSuspensionCables(
             List<PlannedBlock> blocks,
             BlockPos origin,
+            Direction forward,
             ServerWorld world,
             int width,
             int length,
@@ -310,24 +319,24 @@ public class BridgeGenerator implements StructureGenerator {
         for (int tz : towerZ) {
             // 左塔
             for (int y = 0; y < towerHeight; y++) {
-                blocks.add(new PlannedBlock(origin.add(-width / 2 - 2, y, tz), material));
+                blocks.add(new PlannedBlock(p(origin, forward, -width / 2 - 2, y, tz), material));
             }
             
             // 右塔
             for (int y = 0; y < towerHeight; y++) {
-                blocks.add(new PlannedBlock(origin.add(width / 2 + 2, y, tz), material));
+                blocks.add(new PlannedBlock(p(origin, forward, width / 2 + 2, y, tz), material));
             }
         }
         
         // -----------------------------------------------------
         // 生成主缆线（两侧各一条）
         // -----------------------------------------------------
-        generateMainCable(blocks, origin, length, towerZ, width, towerHeight, material);
+        generateMainCable(blocks, origin, forward, length, towerZ, width, towerHeight, material);
         
         // -----------------------------------------------------
         // 生成垂直吊索（连到桥面）
         // -----------------------------------------------------
-        generateVerticalHangers(blocks, origin, length, width, towerHeight);
+        generateVerticalHangers(blocks, origin, forward, length, width, towerHeight);
     }
 
     // =============================================================================
@@ -336,6 +345,7 @@ public class BridgeGenerator implements StructureGenerator {
     private void generateMainCable(
             List<PlannedBlock> blocks,
             BlockPos origin,
+            Direction forward,
             int length,
             int[] towerZ,
             int width,
@@ -354,8 +364,8 @@ public class BridgeGenerator implements StructureGenerator {
             int y = towerHeight - (int) Math.round(dy);
             
             // 左右主缆
-            blocks.add(new PlannedBlock(origin.add(-width / 2 - 2, y, z), cableMaterial));
-            blocks.add(new PlannedBlock(origin.add(width / 2 + 2, y, z), cableMaterial));
+            blocks.add(new PlannedBlock(p(origin, forward, -width / 2 - 2, y, z), cableMaterial));
+            blocks.add(new PlannedBlock(p(origin, forward, width / 2 + 2, y, z), cableMaterial));
         }
     }
 
@@ -365,6 +375,7 @@ public class BridgeGenerator implements StructureGenerator {
     private void generateVerticalHangers(
             List<PlannedBlock> blocks,
             BlockPos origin,
+            Direction forward,
             int length,
             int width,
             int towerHeight
@@ -374,7 +385,7 @@ public class BridgeGenerator implements StructureGenerator {
         for (int z = 0; z <= length; z++) {
             // 找主缆的 y 值（左缆和右缆理论上相同）
             // 左缆位置：
-            BlockPos cablePos = origin.add(-width / 2 - 2, 0, z);
+            BlockPos cablePos = p(origin, forward, -width / 2 - 2, 0, z);
             
             // 实际 y 值靠扫描 blocks 列表
             int cableY = findHighestNonAir(blocks, cablePos);
@@ -382,17 +393,79 @@ public class BridgeGenerator implements StructureGenerator {
             if (cableY < 0) continue;
             
             // 桥面中央高度：寻找实际 floor 位置
-            int floorY = findHighestNonAir(blocks, origin.add(0, 0, z));
+            int floorY = findHighestNonAir(blocks, p(origin, forward, 0, 0, z));
             
             if (floorY < 0) continue;
             if (cableY <= floorY) continue;
             
             // 垂直放吊索
             for (int y = floorY + 1; y < cableY; y++) {
-                blocks.add(new PlannedBlock(origin.add(-width / 2 - 2, y, z), hangerMaterial));
-                blocks.add(new PlannedBlock(origin.add(width / 2 + 2, y, z), hangerMaterial));
+                blocks.add(new PlannedBlock(p(origin, forward, -width / 2 - 2, y, z), hangerMaterial));
+                blocks.add(new PlannedBlock(p(origin, forward, width / 2 + 2, y, z), hangerMaterial));
             }
         }
+    }
+
+    // =============================================================================
+    // Layout helpers
+    // =============================================================================
+    private static BlockPos p(BlockPos origin, Direction forward, int xRight, int y, int zForward) {
+        if (forward == null) forward = Direction.SOUTH;
+        Direction right = forward.rotateYClockwise();
+        // y can be negative: use add() instead of up()
+        return origin.add(0, y, 0).offset(right, xRight).offset(forward, zForward);
+    }
+
+    private static Direction resolveEntranceFacing(BuildingSpec spec) {
+        // Priority: extra.layout.entranceFacing > extra.facing > default SOUTH
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object ef = m.get("entranceFacing");
+                    if (ef != null) {
+                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
+                        switch (s) {
+                            case "N", "NORTH", "北", "朝北" -> { return Direction.NORTH; }
+                            case "S", "SOUTH", "南", "朝南" -> { return Direction.SOUTH; }
+                            case "E", "EAST", "东", "朝东" -> { return Direction.EAST; }
+                            case "W", "WEST", "西", "朝西" -> { return Direction.WEST; }
+                            default -> {}
+                        }
+                    }
+                }
+                Object v = spec.getExtra().get("facing");
+                if (v != null) return parseFacing(String.valueOf(v));
+            }
+        } catch (Throwable ignored) {}
+        return Direction.SOUTH;
+    }
+
+    private static String resolveLayoutPlan(BuildingSpec spec) {
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object plan = m.get("plan");
+                    if (plan == null) return "none";
+                    String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
+                    if (p.isEmpty()) return "none";
+                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
+                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "none";
+    }
+
+    private static Direction parseFacing(String s) {
+        String v = (s == null ? "" : s).trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (v) {
+            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
+            case "E", "EAST", "东", "朝东" -> Direction.EAST;
+            case "W", "WEST", "西", "朝西" -> Direction.WEST;
+            default -> Direction.SOUTH;
+        };
     }
 
     // =============================================================================

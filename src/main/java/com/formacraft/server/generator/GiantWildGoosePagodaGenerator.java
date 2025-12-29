@@ -1,12 +1,17 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.stack.VerticalStackPlan;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.stack.VerticalStackInterpreter;
 import com.formacraft.server.skeleton.stack.VerticalStackSkeleton;
+import com.formacraft.common.style.profile.DetailPreferences;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -39,12 +44,42 @@ public class GiantWildGoosePagodaGenerator implements StructureGenerator {
         String detail = getStringExtra(spec, "detailLevel", "aesthetic").toLowerCase();
         boolean refined = detail.contains("refined") || detail.contains("ornate");
 
-        Direction facing = parseFacing(getStringExtra(spec, "facing", "SOUTH"));
+        // style + palette (best-effort)
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.ASIAN;
+        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = profile != null ? profile.details() : null;
+        String paletteId = getStringExtra(spec, "paletteId", null);
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
+
+        // Layout IR: extra.layout.entranceFacing overrides legacy extra.facing
+        Direction facing = resolveFacing(spec);
 
         BlockState body = getStateOrDefault(world, getStringExtra(spec, "bodyBlock", "minecraft:bricks"), Blocks.BRICKS.getDefaultState());
         BlockState trim = getStateOrDefault(world, getStringExtra(spec, "trimBlock", "minecraft:stone_brick_slab"), Blocks.STONE_BRICK_SLAB.getDefaultState());
         BlockState eave = getStateOrDefault(world, getStringExtra(spec, "eaveBlock", "minecraft:brick_slab"), Blocks.BRICK_SLAB.getDefaultState());
         BlockState accent = getStateOrDefault(world, getStringExtra(spec, "accentBlock", "minecraft:chiseled_stone_bricks"), Blocks.CHISELED_STONE_BRICKS.getDefaultState());
+
+        // Palette overrides (optional): only when caller did NOT explicitly set that material id.
+        if (paletteId != null && !paletteId.isBlank()) {
+            // Body: WALL_BASE (stone/brick massing)
+            if (getStringExtra(spec, "bodyBlock", "").isBlank()) {
+                body = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0xD4C1A001L, body);
+            }
+            // Trims/eaves: DECOR_DETAIL + FLOOR_SLAB (slabs show up a lot here)
+            if (getStringExtra(spec, "trimBlock", "").isBlank()) {
+                trim = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xD4C1A002L, trim);
+                trim = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xD4C1A003L, trim);
+            }
+            if (getStringExtra(spec, "eaveBlock", "").isBlank()) {
+                eave = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xD4C1A004L, eave);
+                eave = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xD4C1A005L, eave);
+            }
+            if (getStringExtra(spec, "accentBlock", "").isBlank()) {
+                accent = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xD4C1A006L, accent);
+            }
+        }
 
         // -----------------------------
         // Skeleton-driven generation (v1)
@@ -75,6 +110,29 @@ public class GiantWildGoosePagodaGenerator implements StructureGenerator {
     }
 
     // ringSquare / carveDoor moved to VerticalStackInterpreter
+
+    private static Direction resolveFacing(BuildingSpec spec) {
+        // Priority: extra.layout.entranceFacing > extra.facing > SOUTH
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object ef = m.get("entranceFacing");
+                    if (ef != null) {
+                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
+                        switch (s) {
+                            case "N", "NORTH", "北", "朝北" -> { return Direction.NORTH; }
+                            case "S", "SOUTH", "南", "朝南" -> { return Direction.SOUTH; }
+                            case "E", "EAST", "东", "朝东" -> { return Direction.EAST; }
+                            case "W", "WEST", "西", "朝西" -> { return Direction.WEST; }
+                            default -> {}
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return parseFacing(getStringExtra(spec, "facing", "SOUTH"));
+    }
 
     private static Direction parseFacing(String s) {
         String v = (s == null ? "" : s).trim().toUpperCase();

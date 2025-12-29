@@ -69,7 +69,8 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
         int wallHeight = 3;
         int wallThickness = 1;
         int gateWidth = 3;
-        Direction gateSide = Direction.SOUTH;
+        Direction gateSide = resolveGateSide(spec);
+        String layoutPlan = resolveLayoutPlan(spec);
 
         // derived building sizes (v1 heuristics)
         int mainW = clamp((int) Math.round(w * 0.45), 9, w - 6);
@@ -86,17 +87,29 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
         int halfW = w / 2;
         int inset = 2;
 
-        int mainOffZ = -(halfD - inset - (mainD / 2));
-        int gateOffZ = (halfD - inset - (gateD / 2));
-
-        int wingOffX = (halfW - inset - (wingW / 2));
-        int wingOffZ = 0;
+        // Compute child building corner positions relative to the compound center (origin).
+        // We intentionally keep all child buildings axis-aligned; only their door side changes to face the courtyard.
+        BlockPos mainCorner = placeCornerOnSide(gateSide.getOpposite(), halfW, halfD, inset, mainW, mainD);
+        BlockPos gateCorner = placeCornerOnSide(gateSide, halfW, halfD, inset, gateW, gateD);
+        Direction inDir = gateSide.getOpposite(); // direction from gate into the courtyard
+        Direction leftSide = inDir.rotateYCounterclockwise();
+        Direction rightSide = inDir.rotateYClockwise();
+        BlockPos leftCorner = placeCornerOnSide(leftSide, halfW, halfD, inset, wingW, wingD);
+        BlockPos rightCorner = placeCornerOnSide(rightSide, halfW, halfD, inset, wingW, wingD);
 
         // child specs (delegated generators)
         BuildingSpec mainHall = makeHallSpec(mainW, mainD, roofBlock, wallBlock, floorBlock, foundationBlock, "main_hall");
-        BuildingSpec westWing = makeHallSpec(wingW, wingD, roofBlock, wallBlock, floorBlock, foundationBlock, "west_wing");
-        BuildingSpec eastWing = makeHallSpec(wingW, wingD, roofBlock, wallBlock, floorBlock, foundationBlock, "east_wing");
+        BuildingSpec leftWing = makeHallSpec(wingW, wingD, roofBlock, wallBlock, floorBlock, foundationBlock, "left_wing");
+        BuildingSpec rightWing = makeHallSpec(wingW, wingD, roofBlock, wallBlock, floorBlock, foundationBlock, "right_wing");
         BuildingSpec gateHouse = makeHallSpec(gateW, gateD, roofBlock, wallBlock, floorBlock, foundationBlock, "gate_house");
+
+        // Propagate style genes + layout hints down to child specs (best-effort).
+        // - Child doors face toward the courtyard center.
+        // - For ring_corridor (compound circulation), we do NOT force child interior partitions.
+        inheritGenesAndLayout(spec, mainHall, gateSide, layoutPlan);
+        inheritGenesAndLayout(spec, gateHouse, gateSide.getOpposite(), layoutPlan);
+        inheritGenesAndLayout(spec, leftWing, rightSide, layoutPlan);  // left wing sits on leftSide, door faces rightSide
+        inheritGenesAndLayout(spec, rightWing, leftSide, layoutPlan); // right wing sits on rightSide, door faces leftSide
 
         // enclosure plan
         // Style-driven wall expression (extra explicitly overrides)
@@ -135,26 +148,48 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
 
         CompoundPlan compound = new CompoundPlan()
                 .add(enclosure, BlockTransform.identity())
-                .add(new GeneratorBackedPlan(mainHall), BlockTransform.translate(0, 0, mainOffZ))
-                .add(new GeneratorBackedPlan(westWing), BlockTransform.translate(-wingOffX, 0, wingOffZ))
-                .add(new GeneratorBackedPlan(eastWing), BlockTransform.translate(wingOffX, 0, wingOffZ))
-                .add(new GeneratorBackedPlan(gateHouse), BlockTransform.translate(0, 0, gateOffZ));
+                .add(new GeneratorBackedPlan(mainHall), BlockTransform.translate(mainCorner.getX(), 0, mainCorner.getZ()))
+                .add(new GeneratorBackedPlan(leftWing), BlockTransform.translate(leftCorner.getX(), 0, leftCorner.getZ()))
+                .add(new GeneratorBackedPlan(rightWing), BlockTransform.translate(rightCorner.getX(), 0, rightCorner.getZ()))
+                .add(new GeneratorBackedPlan(gateHouse), BlockTransform.translate(gateCorner.getX(), 0, gateCorner.getZ()));
 
         // simple courtyard paths (v1): gate -> center -> main hall; center -> wings
         if (includePaths) {
-            // start just inside the south wall opening
-            BlockPos start = new BlockPos(0, 0, (d / 2) - 1);
+            // start just inside the gate opening
+            BlockPos start = insideGatePoint(gateSide, halfW, halfD);
             BlockPos center = new BlockPos(0, 0, 0);
-            int mainDoorZ = mainOffZ + (mainD / 2) + 1;
-            BlockPos mainDoor = new BlockPos(0, 0, mainDoorZ);
 
+            // door points derived from child corners + entrance-facing directions
+            BlockPos mainDoor = doorPoint(mainCorner, mainW, mainD, gateSide);
+            BlockPos leftDoor = doorPoint(leftCorner, wingW, wingD, rightSide);
+            BlockPos rightDoor = doorPoint(rightCorner, wingW, wingD, leftSide);
+
+            // primary axial path
             compound.add(new PolylinePathPlan(List.of(start, center, mainDoor), pathWidth, true, false, 10), BlockTransform.identity());
 
-            int wingDoorZ = (wingD / 2) + 1;
-            BlockPos westDoor = new BlockPos(-wingOffX, 0, wingDoorZ);
-            BlockPos eastDoor = new BlockPos(wingOffX, 0, wingDoorZ);
-            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, westDoor), pathWidth, true, false, 10), BlockTransform.identity());
-            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, eastDoor), pathWidth, true, false, 10), BlockTransform.identity());
+            // cross paths to wings (orthogonal L to stay "courtyard-like")
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, leftDoor), pathWidth, true, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, rightDoor), pathWidth, true, false, 10), BlockTransform.identity());
+
+            // ring corridor (compound circulation): add a loop path inset from enclosure walls
+            if ("ring_corridor".equals(layoutPlan)) {
+                int ringInset = Math.max(2, wallThickness + 2);
+                int x0 = -halfW + ringInset;
+                int x1 = halfW - ringInset;
+                int z0 = -halfD + ringInset;
+                int z1 = halfD - ringInset;
+                // clamp to avoid degenerate loops on tight footprints
+                if (x1 - x0 >= 6 && z1 - z0 >= 6) {
+                    List<BlockPos> loop = List.of(
+                            new BlockPos(x0, 0, z1),
+                            new BlockPos(x0, 0, z0),
+                            new BlockPos(x1, 0, z0),
+                            new BlockPos(x1, 0, z1),
+                            new BlockPos(x0, 0, z1)
+                    );
+                    compound.add(new PolylinePathPlan(loop, Math.max(2, pathWidth), true, false, 10), BlockTransform.identity());
+                }
+            }
         }
 
         // dispatcher wires child plan types to interpreters/generators
@@ -321,8 +356,123 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
 
         // role hint for future refinements
         s.setNotes("mingqing_part:" + role);
-        s.setExtra(Map.of("courtyardPart", role));
+        java.util.Map<String, Object> ex = new java.util.HashMap<>();
+        ex.put("courtyardPart", role);
+        s.setExtra(ex);
         return s;
+    }
+
+    private static Direction resolveGateSide(BuildingSpec spec) {
+        // Layout IR: extra.layout.entranceFacing -> which side has the gate opening.
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object ef = m.get("entranceFacing");
+                    if (ef != null) {
+                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
+                        return switch (s) {
+                            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
+                            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
+                            case "E", "EAST", "东", "朝东" -> Direction.EAST;
+                            case "W", "WEST", "西", "朝西" -> Direction.WEST;
+                            default -> Direction.SOUTH;
+                        };
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return Direction.SOUTH;
+    }
+
+    private static String resolveLayoutPlan(BuildingSpec spec) {
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object plan = m.get("plan");
+                    if (plan == null) return "none";
+                    String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
+                    if (p.isEmpty()) return "none";
+                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
+                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
+                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
+                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
+                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
+                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
+                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "none";
+    }
+
+    private static void inheritGenesAndLayout(BuildingSpec parent, BuildingSpec child, Direction childEntranceFacing, String layoutPlan) {
+        if (child == null) return;
+        java.util.Map<String, Object> ex = new java.util.HashMap<>();
+        if (child.getExtra() != null) ex.putAll(child.getExtra());
+
+        // style genes
+        if (parent != null && parent.getExtra() != null) {
+            Object spid = parent.getExtra().get("styleProfileId");
+            if (spid != null && !String.valueOf(spid).trim().isEmpty()) ex.put("styleProfileId", String.valueOf(spid).trim());
+            Object pid = parent.getExtra().get("paletteId");
+            if (pid != null && !String.valueOf(pid).trim().isEmpty()) ex.put("paletteId", String.valueOf(pid).trim());
+        }
+
+        // layout hint for child doors (HouseGenerator reads extra.layout.entranceFacing)
+        java.util.Map<String, Object> layout = new java.util.HashMap<>();
+        layout.put("entranceFacing", childEntranceFacing.asString().toUpperCase(java.util.Locale.ROOT));
+        // Only propagate partition plans (front_back/left_right). ring_corridor is a compound circulation plan.
+        if ("front_back".equals(layoutPlan) || "left_right".equals(layoutPlan)) {
+            layout.put("plan", layoutPlan);
+        }
+        ex.put("layout", layout);
+
+        child.setExtra(ex);
+    }
+
+    private static BlockPos placeCornerOnSide(Direction side, int halfW, int halfD, int inset, int bw, int bd) {
+        // Returns a relative corner position (minX,minZ) for an axis-aligned rectangle inside the enclosure.
+        int x;
+        int z;
+        side = (side == null) ? Direction.SOUTH : side;
+        switch (side) {
+            case NORTH -> { x = -(bw / 2); z = -halfD + inset; }
+            case SOUTH -> { x = -(bw / 2); z = halfD - inset - bd; }
+            case WEST -> { x = -halfW + inset; z = -(bd / 2); }
+            case EAST -> { x = halfW - inset - bw; z = -(bd / 2); }
+            default -> { x = -(bw / 2); z = halfD - inset - bd; }
+        }
+        return new BlockPos(x, 0, z);
+    }
+
+    private static BlockPos insideGatePoint(Direction gateSide, int halfW, int halfD) {
+        // A point just inside the gate opening (relative to compound origin).
+        gateSide = (gateSide == null) ? Direction.SOUTH : gateSide;
+        return switch (gateSide) {
+            case NORTH -> new BlockPos(0, 0, -halfD + 1);
+            case SOUTH -> new BlockPos(0, 0, halfD - 1);
+            case WEST -> new BlockPos(-halfW + 1, 0, 0);
+            case EAST -> new BlockPos(halfW - 1, 0, 0);
+            default -> new BlockPos(0, 0, halfD - 1);
+        };
+    }
+
+    private static BlockPos doorPoint(BlockPos corner, int bw, int bd, Direction doorSide) {
+        // Door point on the perimeter of a child building (relative to compound origin).
+        int x0 = corner.getX();
+        int z0 = corner.getZ();
+        int cx = x0 + (bw / 2);
+        int cz = z0 + (bd / 2);
+        doorSide = (doorSide == null) ? Direction.SOUTH : doorSide;
+        return switch (doorSide) {
+            case NORTH -> new BlockPos(cx, 0, z0);
+            case SOUTH -> new BlockPos(cx, 0, z0 + bd - 1);
+            case WEST -> new BlockPos(x0, 0, cz);
+            case EAST -> new BlockPos(x0 + bw - 1, 0, cz);
+            default -> new BlockPos(cx, 0, z0 + bd - 1);
+        };
     }
 
     private BlockState getStateOrDefault(ServerWorld world, String id, BlockState def) {

@@ -501,6 +501,109 @@
       }
     },
 
+    "PALETTE_CHINESE_IMPERIAL_A": {
+      "meta": {
+        "display_name": "Chinese Imperial A",
+        "tags": ["chinese", "imperial", "official", "palace", "red_wall", "gold_roof"],
+        "description": "Chinese imperial palette with red walls, golden roofs, and white stone (quartz) podium"
+      },
+      "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:smooth_quartz", "weight": 55 },
+          { "id": "minecraft:quartz_block", "weight": 25 },
+          { "id": "minecraft:quartz_pillar", "weight": 10 },
+          { "id": "minecraft:polished_diorite", "weight": 10 }
+        ],
+        "WALL_BASE": [
+          { "id": "minecraft:red_concrete", "weight": 55 },
+          { "id": "minecraft:red_terracotta", "weight": 30 },
+          { "id": "minecraft:bricks", "weight": 15 }
+        ],
+        "FRAME": [
+          { "id": "minecraft:dark_oak_log", "weight": 55 },
+          { "id": "minecraft:stripped_dark_oak_log", "weight": 25 },
+          { "id": "minecraft:red_concrete", "weight": 20 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:dark_oak_log", "weight": 65 },
+          { "id": "minecraft:stripped_dark_oak_log", "weight": 25 },
+          { "id": "minecraft:dark_oak_planks", "weight": 10 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:red_concrete", "weight": 60 },
+          { "id": "minecraft:red_terracotta", "weight": 25 },
+          { "id": "minecraft:dark_oak_log", "weight": 15 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:smooth_quartz", "weight": 50 },
+          { "id": "minecraft:quartz_block", "weight": 30 },
+          { "id": "minecraft:polished_andesite", "weight": 20 }
+        ],
+        "FLOOR_SLAB": [
+          { "id": "minecraft:smooth_quartz_slab", "weight": 60 },
+          { "id": "minecraft:quartz_slab", "weight": 30 },
+          { "id": "minecraft:stone_brick_slab", "weight": 10 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:dark_oak_trapdoor", "weight": 45 },
+          { "id": "minecraft:oak_trapdoor", "weight": 35 },
+          { "id": "minecraft:glass_pane", "weight": 20 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:polished_blackstone", "weight": 35 },
+          { "id": "minecraft:chiseled_quartz_block", "weight": 35 },
+          { "id": "minecraft:dark_oak_trapdoor", "weight": 30 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:yellow_concrete", "weight": 55 },
+          { "id": "minecraft:yellow_terracotta", "weight": 25 },
+          { "id": "minecraft:gold_block", "weight": 20 }
+        ],
+        "ROOF_SLOPE": [
+          { "id": "minecraft:yellow_concrete_stairs", "weight": 55 },
+          { "id": "minecraft:yellow_terracotta_stairs", "weight": 25 },
+          { "id": "minecraft:quartz_stairs", "weight": 20 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:stone_bricks", "weight": 55 },
+          { "id": "minecraft:smooth_stone", "weight": 25 },
+          { "id": "minecraft:polished_andesite", "weight": 20 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:polished_blackstone", "weight": 60 },
+          { "id": "minecraft:stone_bricks", "weight": 40 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 70 },
+          { "id": "minecraft:soul_lantern", "weight": 30 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:dark_oak_planks", "weight": 70 },
+          { "id": "minecraft:red_wool", "weight": 30 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:smooth_quartz", "weight": 50 },
+          { "id": "minecraft:quartz_block", "weight": 30 },
+          { "id": "minecraft:dark_oak_planks", "weight": 20 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:dark_oak_fence", "weight": 70 },
+          { "id": "minecraft:spruce_fence", "weight": 30 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:red_wall_banner", "weight": 70 },
+          { "id": "minecraft:yellow_wall_banner", "weight": 30 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:lantern", "weight": 100 }
+        ],
+        "INTERNAL_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 80 },
+          { "id": "minecraft:soul_lantern", "weight": 20 }
+        ]
+      }
+    },
+
     "PALETTE_CLASSICAL_MARBLE_A": {
       "meta": {
         "display_name": "Classical Marble A",

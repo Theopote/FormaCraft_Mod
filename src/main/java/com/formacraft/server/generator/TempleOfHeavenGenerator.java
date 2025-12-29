@@ -15,8 +15,11 @@ import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -107,10 +110,17 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
         // 殿身墙体：内环墙（留门洞）
         int wallR = Math.max(4, hallRadius - 3);
         int doorWidth = refined ? 3 : 2;
-        ringWithDoor(blocks, origin, wallR, hallBaseY, hallBaseY + (refined ? 8 : 6), wall, doorWidth);
+        Direction entranceSide = resolveEntranceSide(spec);
+        String layoutPlan = resolveLayoutPlan(spec);
+        ringWithDoor(blocks, origin, wallR, hallBaseY, hallBaseY + (refined ? 8 : 6), wall, doorWidth, entranceSide);
 
         // 地面
         fillDisk(blocks, origin, wallR - 1, hallBaseY, base);
+
+        // Layout IR: front_back -> emphasize the main axis from entrance to center (best-effort).
+        if ("front_back".equals(layoutPlan)) {
+            addAxialPath(blocks, origin, baseRadius, 0, trim, entranceSide);
+        }
 
         // 3) 三层屋顶（简化：三段圆锥）
         int roofStartY = hallBaseY + (refined ? 9 : 7);
@@ -183,8 +193,9 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
         }
     }
 
-    private static void ringWithDoor(List<PlannedBlock> blocks, BlockPos origin, int r, int y0, int y1, BlockState s, int doorW) {
-        // door on SOUTH (+z) direction: leave opening centered at (0, +r)
+    private static void ringWithDoor(List<PlannedBlock> blocks, BlockPos origin, int r, int y0, int y1, BlockState s, int doorW, Direction doorSide) {
+        // door opening on the specified side: leave opening centered on that axis
+        if (doorSide == null) doorSide = Direction.SOUTH;
         int r2 = r * r;
         int rIn2 = Math.max(0, (r - 1) * (r - 1));
         for (int x = -r; x <= r; x++) {
@@ -192,7 +203,7 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
                 int d2 = x * x + z * z;
                 if (d2 <= r2 && d2 >= rIn2) {
                     // skip door opening
-                    if (z >= r - 1 && Math.abs(x) <= doorW) continue;
+                    if (isDoorOpeningCell(x, z, r, doorW, doorSide)) continue;
                     for (int y = y0; y <= y1; y++) {
                         blocks.add(new PlannedBlock(origin.add(x, y, z), s));
                     }
@@ -200,11 +211,97 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
             }
         }
         // simple door frame accent
+        int fx = (doorSide == Direction.EAST ? 1 : (doorSide == Direction.WEST ? -1 : 0));
+        int fz = (doorSide == Direction.SOUTH ? 1 : (doorSide == Direction.NORTH ? -1 : 0));
+        int px = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH) ? 1 : 0;
+        int pz = (doorSide == Direction.EAST || doorSide == Direction.WEST) ? 1 : 0;
+        int ax = fx * (r - 1);
+        int az = fz * (r - 1);
         for (int y = y0; y <= y0 + 3; y++) {
-            blocks.add(new PlannedBlock(origin.add(doorW + 1, y, r - 1), Blocks.QUARTZ_PILLAR.getDefaultState()));
-            blocks.add(new PlannedBlock(origin.add(-(doorW + 1), y, r - 1), Blocks.QUARTZ_PILLAR.getDefaultState()));
+            blocks.add(new PlannedBlock(origin.add(ax + (doorW + 1) * px, y, az + (doorW + 1) * pz), Blocks.QUARTZ_PILLAR.getDefaultState()));
+            blocks.add(new PlannedBlock(origin.add(ax - (doorW + 1) * px, y, az - (doorW + 1) * pz), Blocks.QUARTZ_PILLAR.getDefaultState()));
         }
-        blocks.add(new PlannedBlock(origin.add(0, y0 + 1, r - 1), Blocks.OAK_DOOR.getDefaultState()));
+        Direction doorFacing = doorSide.getOpposite(); // faces into the hall
+        BlockState doorLower = Blocks.OAK_DOOR.getDefaultState()
+                .with(Properties.HORIZONTAL_FACING, doorFacing)
+                .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER);
+        BlockState doorUpper = Blocks.OAK_DOOR.getDefaultState()
+                .with(Properties.HORIZONTAL_FACING, doorFacing)
+                .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
+        blocks.add(new PlannedBlock(origin.add(ax, y0 + 1, az), doorLower));
+        blocks.add(new PlannedBlock(origin.add(ax, y0 + 2, az), doorUpper));
+    }
+
+    private static boolean isDoorOpeningCell(int x, int z, int r, int doorW, Direction doorSide) {
+        // leave a rectangular opening at the ring boundary, centered on the axis for the chosen side
+        return switch (doorSide) {
+            case SOUTH -> (z >= r - 1) && (Math.abs(x) <= doorW);
+            case NORTH -> (z <= -r + 1) && (Math.abs(x) <= doorW);
+            case EAST -> (x >= r - 1) && (Math.abs(z) <= doorW);
+            case WEST -> (x <= -r + 1) && (Math.abs(z) <= doorW);
+            default -> (z >= r - 1) && (Math.abs(x) <= doorW);
+        };
+    }
+
+    private static Direction resolveEntranceSide(BuildingSpec spec) {
+        // Layout IR: extra.layout.entranceFacing has priority. Default SOUTH.
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object ef = m.get("entranceFacing");
+                    if (ef != null) {
+                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
+                        return switch (s) {
+                            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
+                            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
+                            case "E", "EAST", "东", "朝东" -> Direction.EAST;
+                            case "W", "WEST", "西", "朝西" -> Direction.WEST;
+                            default -> Direction.SOUTH;
+                        };
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return Direction.SOUTH;
+    }
+
+    private static String resolveLayoutPlan(BuildingSpec spec) {
+        try {
+            if (spec != null && spec.getExtra() != null) {
+                Object layoutObj = spec.getExtra().get("layout");
+                if (layoutObj instanceof Map<?, ?> m) {
+                    Object plan = m.get("plan");
+                    if (plan == null) return "none";
+                    String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
+                    if (p.isEmpty()) return "none";
+                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
+                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
+                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
+                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
+                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
+                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
+                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "none";
+    }
+
+    private static void addAxialPath(List<PlannedBlock> blocks, BlockPos origin, int r, int y, BlockState s, Direction entranceSide) {
+        if (entranceSide == null) entranceSide = Direction.SOUTH;
+        int fx = (entranceSide == Direction.EAST ? 1 : (entranceSide == Direction.WEST ? -1 : 0));
+        int fz = (entranceSide == Direction.SOUTH ? 1 : (entranceSide == Direction.NORTH ? -1 : 0));
+        // 3-wide path on the axis from edge to center
+        for (int t = r; t >= 0; t--) {
+            int x = fx * t;
+            int z = fz * t;
+            for (int w = -1; w <= 1; w++) {
+                int ox = (entranceSide == Direction.NORTH || entranceSide == Direction.SOUTH) ? w : 0;
+                int oz = (entranceSide == Direction.EAST || entranceSide == Direction.WEST) ? w : 0;
+                blocks.add(new PlannedBlock(origin.add(x + ox, y, z + oz), s));
+            }
+        }
     }
 
     private static void buildConicalRoof(List<PlannedBlock> blocks, BlockPos origin, int baseR, int yStart, int h, BlockState roof) {
