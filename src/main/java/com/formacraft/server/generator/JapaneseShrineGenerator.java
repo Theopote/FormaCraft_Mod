@@ -118,7 +118,8 @@ public class JapaneseShrineGenerator implements StructureGenerator {
                                              int w, int d, Direction entranceFacing) {
         BuildingSpec s = new BuildingSpec();
         s.setType(BuildingType.HOUSE);
-        s.setStyle(profile != null ? profile.style() : (parent != null ? parent.getStyle() : BuildingStyle.ASIAN));
+        // StyleProfile is phenotype-only (no BuildingStyle enum attached); keep parent style or default to ASIAN.
+        s.setStyle(parent != null && parent.getStyle() != null ? parent.getStyle() : BuildingStyle.ASIAN);
         s.setFootprint(new Footprint(w, d));
         s.setFloors(1);
         s.setHeight(8);
