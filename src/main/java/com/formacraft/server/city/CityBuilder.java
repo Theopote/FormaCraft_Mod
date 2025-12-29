@@ -995,6 +995,20 @@ public class CityBuilder {
         if (!(s instanceof java.util.List<?> list)) return java.util.List.of();
 
         String mat = (materialId == null || materialId.isBlank()) ? "minecraft:gravel" : materialId.trim();
+        String paletteId = null;
+        String styleProfileId = null;
+        try {
+            Object pid = extra.get("paletteId");
+            if (pid != null) paletteId = String.valueOf(pid).trim();
+            Object sid = extra.get("styleProfileId");
+            if (sid != null) styleProfileId = String.valueOf(sid).trim();
+        } catch (Throwable ignored) {}
+        java.util.Map<String, Object> roadExtra = null;
+        if (paletteId != null || styleProfileId != null) {
+            roadExtra = new java.util.HashMap<>();
+            if (paletteId != null) roadExtra.put("paletteId", paletteId);
+            if (styleProfileId != null) roadExtra.put("styleProfileId", styleProfileId);
+        }
         java.util.List<PathSpec> out = new java.util.ArrayList<>();
         int id = 0;
         for (Object o : list) {
@@ -1024,6 +1038,7 @@ public class CityBuilder {
                 road.setWidth(3);
                 road.setMaterial(mat);
                 road.setStyle("astar");
+                if (roadExtra != null) road.setExtra(roadExtra);
                 out.add(road);
             }
         }

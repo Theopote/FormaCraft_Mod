@@ -271,7 +271,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
 
             BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
             BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
-            PathRoadInterpreter roadInterp = new PathRoadInterpreter(road, border, true, paletteId, lamp, post);
+            PathRoadInterpreter roadInterp = new PathRoadInterpreter(road, border, true, paletteId, lamp, post, ornamentProfile);
 
             // compute grid origin offsets (must match GridSkeleton)
             int x0 = -((cols - 1) * spacing) / 2;

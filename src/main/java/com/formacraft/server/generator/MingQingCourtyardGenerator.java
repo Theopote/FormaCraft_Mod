@@ -269,7 +269,7 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                 boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
                 BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
                 BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
-                return new PathRoadInterpreter(floorBlock, border, true, paletteId, lamp, post).interpret(pp, o, wld);
+                return new PathRoadInterpreter(floorBlock, border, true, paletteId, lamp, post, ornamentProfile).interpret(pp, o, wld);
             }
             return List.of();
         };

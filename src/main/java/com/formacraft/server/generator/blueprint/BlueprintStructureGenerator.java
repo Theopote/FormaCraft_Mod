@@ -135,7 +135,7 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
             boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
             BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
             BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
-            return new PathRoadInterpreter(road, border, true, paletteId, lamp, post).interpret(pp, origin, world);
+            return new PathRoadInterpreter(road, border, true, paletteId, lamp, post, ornamentProfile).interpret(pp, origin, world);
         }
 
         // 4) Nested compounds

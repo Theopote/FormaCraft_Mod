@@ -1,9 +1,14 @@
 package com.formacraft.server.generator.path;
 
+import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.path.PathSpec;
+import com.formacraft.common.skeleton.path.PolylinePathPlan;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.road.RoadPlanner;
+import com.formacraft.server.skeleton.path.PathRoadInterpreter;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -14,6 +19,9 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Random;
 
 /**
  * 路径生成器
@@ -38,9 +46,56 @@ public class PathGenerator {
         PathSpec.Point to = path.getTo();
 
         int width = Math.max(1, path.getWidth());
-        BlockState material = getState(world, path.getMaterial());
+        BlockState explicitMaterial = getState(world, path.getMaterial());
 
-        List<PlannedBlock> blocks = new ArrayList<>();
+        Map<String, Object> extra = path.getExtra();
+        if (extra == null) extra = Map.of();
+
+        // Resolve style profile + palette (best-effort, never overrides explicit block ids)
+        BuildingStyle defaultStyle = BuildingStyle.MODERN;
+        if (extra.get("buildingStyle") != null) {
+            try {
+                defaultStyle = BuildingStyle.valueOf(String.valueOf(extra.get("buildingStyle")).trim().toUpperCase(Locale.ROOT));
+            } catch (Exception ignored) {}
+        }
+        StyleProfile profile = StyleProfileRegistry.resolveByExtra(extra, defaultStyle);
+        String paletteId = null;
+        if (extra.get("paletteId") != null) paletteId = String.valueOf(extra.get("paletteId")).trim();
+
+        var details = profile != null ? profile.details() : null;
+        String eavesProfile = details != null ? details.eavesProfile : null;
+        String ornamentProfile = details != null ? details.ornamentProfile : null;
+        if (extra.get("eavesProfile") != null) eavesProfile = String.valueOf(extra.get("eavesProfile")).trim().toLowerCase(Locale.ROOT);
+        if (extra.get("ornamentProfile") != null) ornamentProfile = String.valueOf(extra.get("ornamentProfile")).trim().toLowerCase(Locale.ROOT);
+
+        boolean neon = eavesProfile != null && eavesProfile.toLowerCase(Locale.ROOT).contains("neon");
+        boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(Locale.ROOT).contains("sign"));
+
+        boolean roadLamps = false;
+        if (extra.get("roadLamps") instanceof Boolean b) roadLamps = b;
+        else if (extra.get("roadLamps") != null) {
+            String s = String.valueOf(extra.get("roadLamps")).trim().toLowerCase(Locale.ROOT);
+            if (!s.isEmpty()) roadLamps = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+        } else if (neon || cyber) {
+            roadLamps = true;
+        }
+        int lampInterval = 10;
+        if (extra.get("lampInterval") != null) {
+            try {
+                lampInterval = Integer.parseInt(String.valueOf(extra.get("lampInterval")).trim());
+            } catch (Exception ignored) {}
+        }
+        lampInterval = Math.max(6, lampInterval);
+
+        boolean useBorder = true;
+        if (extra.get("useBorder") != null) {
+            Object v = extra.get("useBorder");
+            if (v instanceof Boolean b) useBorder = b;
+            else {
+                String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
+                if (!s.isEmpty()) useBorder = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+            }
+        }
 
         // 将 from / to 转换成实际世界坐标
         BlockPos p0 = origin.add(from.x, from.y, from.z);
@@ -51,7 +106,12 @@ public class PathGenerator {
 
         // Smart road mode (A* + slope-aware), reuses RoadPlanner for better terrain hugging / detours.
         if ("astar".equalsIgnoreCase(style) || "road_planner".equalsIgnoreCase(style) || "smart".equalsIgnoreCase(style)) {
-            BlockState road = material != null ? material : Blocks.GRAVEL.getDefaultState();
+            BlockState road = explicitMaterial != null ? explicitMaterial : Blocks.GRAVEL.getDefaultState();
+            BlockState border = Blocks.COBBLESTONE.getDefaultState();
+            if (paletteId != null) {
+                // Pick a representative border for planner (planner doesn't do per-block semantic picks).
+                border = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "ROAD_BORDER", p0, 0xB0D3L, border);
+            }
             RoadPlanner.Config cfg = new RoadPlanner.Config(
                     width,
                     2,
@@ -61,8 +121,8 @@ public class PathGenerator {
                     2,
                     6,
                     road,
-                    Blocks.COBBLESTONE.getDefaultState(),
-                    false,
+                    border,
+                    useBorder,
                     Blocks.OAK_PLANKS.getDefaultState(),
                     Blocks.OAK_FENCE.getDefaultState()
             );
@@ -70,42 +130,34 @@ public class PathGenerator {
             String description = String.format("Path (width=%d, style=%s)", width, style);
             return new GeneratedStructure(null, origin, description, out != null ? out : new ArrayList<>());
         }
-        
-        List<BlockPos> pathPoints = switch (style.toLowerCase()) {
-            case "curved" -> generateCurvedPath(p0, p1);
+
+        // Non-astar: route everything through PolylinePathPlan + PathRoadInterpreter so roads share the same "genes".
+        long seed = seedForPath(path, p0, p1);
+        List<BlockPos> pathPointsWorld = switch (style.toLowerCase(Locale.ROOT)) {
+            case "curved" -> generateCurvedPath(p0, p1, seed);
             case "stepped" -> generateSteppedPath(p0, p1, world);
             default -> rasterizeLine(p0, p1);
         };
-
-        // 生成路径的主逻辑
-        for (BlockPos p : pathPoints) {
-            // 道路宽度（沿 XZ 扩张）
-            for (int dx = -width / 2; dx <= width / 2; dx++) {
-                for (int dz = -width / 2; dz <= width / 2; dz++) {
-                    BlockPos ground = findGround(world, p.add(dx, 0, dz));
-
-                    // 放置道路方块（在地面上方 1 格）
-                    BlockPos place = ground.up();
-                    blocks.add(new PlannedBlock(place, material));
-
-                    // 清空头顶（预留行走空间）
-                    blocks.add(new PlannedBlock(place.up(), Blocks.AIR.getDefaultState()));
-                    blocks.add(new PlannedBlock(place.up(2), Blocks.AIR.getDefaultState()));
-
-                    // 可选：边界装饰（未来扩展）
-                    if (path.getStyle() != null && path.getStyle().contains("decorated")) {
-                        // 在道路边缘放置装饰
-                        if (Math.abs(dx) == width / 2 || Math.abs(dz) == width / 2) {
-                            BlockState decoration = Blocks.COBBLESTONE.getDefaultState();
-                            blocks.add(new PlannedBlock(place, decoration));
-                        }
-                    }
-                }
-            }
+        List<BlockPos> rel = new ArrayList<>(pathPointsWorld.size());
+        for (BlockPos p : pathPointsWorld) {
+            rel.add(new BlockPos(p.getX() - origin.getX(), 0, p.getZ() - origin.getZ()));
         }
 
+        BlockState roadBase = explicitMaterial != null ? explicitMaterial : Blocks.GRAVEL.getDefaultState();
+        BlockState borderBase = Blocks.COBBLESTONE.getDefaultState();
+        BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
+        BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
+
+        // Allow explicit overrides via extra
+        if (extra.get("borderMaterial") != null) borderBase = getState(world, String.valueOf(extra.get("borderMaterial")).trim());
+        if (extra.get("lamp") != null) lamp = getState(world, String.valueOf(extra.get("lamp")).trim());
+        if (extra.get("lampPost") != null) post = getState(world, String.valueOf(extra.get("lampPost")).trim());
+
+        PolylinePathPlan plan = new PolylinePathPlan(rel, width, true, roadLamps, lampInterval);
+        PathRoadInterpreter it = new PathRoadInterpreter(roadBase, borderBase, useBorder, paletteId, lamp, post, ornamentProfile, true, 2);
+        List<PlannedBlock> out = it.interpret(plan, origin, world);
         String description = String.format("Path (width=%d, style=%s)", width, style);
-        return new GeneratedStructure(null, origin, description, blocks);
+        return new GeneratedStructure(null, origin, description, out != null ? out : new ArrayList<>());
     }
 
     /**
@@ -166,8 +218,8 @@ public class PathGenerator {
      * 生成平滑曲线路径（样条曲线，简化版）
      * 未来可以升级为更复杂的样条算法
      */
-    private List<BlockPos> generateCurvedPath(BlockPos start, BlockPos end) {
-        // 简化版：使用二次贝塞尔曲线
+    private List<BlockPos> generateCurvedPath(BlockPos start, BlockPos end, long seed) {
+        // 简化版：使用二次贝塞尔曲线（deterministic）
         List<BlockPos> result = new ArrayList<>();
         
         int x1 = start.getX(), y1 = start.getY(), z1 = start.getZ();
@@ -178,9 +230,10 @@ public class PathGenerator {
         int midY = (y1 + y2) / 2;
         int midZ = (z1 + z2) / 2;
         
-        // 添加一些随机偏移使路径更自然
-        int offsetX = (int) (Math.random() * 5 - 2);
-        int offsetZ = (int) (Math.random() * 5 - 2);
+        // 添加一些确定性偏移使路径更自然（避免每次生成不一致）
+        Random rnd = new Random(seed);
+        int offsetX = rnd.nextInt(5) - 2;
+        int offsetZ = rnd.nextInt(5) - 2;
         
         int cx = midX + offsetX;
         int cz = midZ + offsetZ;
@@ -203,6 +256,15 @@ public class PathGenerator {
         }
         
         return result;
+    }
+
+    private static long seedForPath(PathSpec path, BlockPos p0, BlockPos p1) {
+        long s = 0xC0FFEE42L;
+        if (path != null && path.getId() != null) s ^= (long) path.getId().hashCode() * 31L;
+        s ^= ((long) p0.getX() * 31L) ^ ((long) p0.getZ() * 17L);
+        s ^= ((long) p1.getX() * 131L) ^ ((long) p1.getZ() * 71L);
+        s ^= ((long) p0.getY() * 13L) ^ ((long) p1.getY() * 19L);
+        return s;
     }
 
     /**

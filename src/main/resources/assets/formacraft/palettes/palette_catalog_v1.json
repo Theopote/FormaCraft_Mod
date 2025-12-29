@@ -67,6 +67,11 @@
         "ROAD_LIGHT": [
           { "id": "minecraft:lantern", "weight": 80 },
           { "id": "minecraft:torch", "weight": 20 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:red_wool", "weight": 45 },
+          { "id": "minecraft:black_wool", "weight": 35 },
+          { "id": "minecraft:white_wool", "weight": 20 }
         ]
       }
     },
@@ -100,6 +105,12 @@
         "ROAD_LIGHT": [
           { "id": "minecraft:sea_lantern", "weight": 80 },
           { "id": "minecraft:end_rod", "weight": 20 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:glowstone", "weight": 35 },
+          { "id": "minecraft:sea_lantern", "weight": 35 },
+          { "id": "minecraft:magenta_stained_glass", "weight": 15 },
+          { "id": "minecraft:cyan_stained_glass", "weight": 15 }
         ],
         "INTERNAL_LIGHT": [
           { "id": "minecraft:sea_lantern", "weight": 100 }

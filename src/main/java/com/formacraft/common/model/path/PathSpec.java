@@ -29,6 +29,7 @@ public class PathSpec {
     private int width = 3;  // 默认宽度 3 格
     private String material = "minecraft:gravel";  // 默认材质
     private String style = "default";  // 道路样式
+    private java.util.Map<String, Object> extra;   // 可选：扩展参数（paletteId/styleProfileId/roadLamps 等）
 
     public PathSpec() {}
 
@@ -78,6 +79,14 @@ public class PathSpec {
 
     public void setStyle(String style) {
         this.style = style;
+    }
+
+    public java.util.Map<String, Object> getExtra() {
+        return extra;
+    }
+
+    public void setExtra(java.util.Map<String, Object> extra) {
+        this.extra = extra;
     }
 }
 

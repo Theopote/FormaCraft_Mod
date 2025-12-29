@@ -24,18 +24,40 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
     private final String paletteId;
     private final BlockState lamp;
     private final BlockState lampPost;
+    private final String ornamentProfile;
+    private final boolean clearHeadroom;
+    private final int clearHeight;
 
     public PathRoadInterpreter(BlockState road, BlockState border, boolean useBorder) {
         this(road, border, useBorder, null, null, null);
     }
 
     public PathRoadInterpreter(BlockState road, BlockState border, boolean useBorder, String paletteId, BlockState lamp, BlockState lampPost) {
+        this(road, border, useBorder, paletteId, lamp, lampPost, null);
+    }
+
+    public PathRoadInterpreter(BlockState road, BlockState border, boolean useBorder, String paletteId, BlockState lamp, BlockState lampPost, String ornamentProfile) {
+        this(road, border, useBorder, paletteId, lamp, lampPost, ornamentProfile, false, 2);
+    }
+
+    public PathRoadInterpreter(BlockState road,
+                               BlockState border,
+                               boolean useBorder,
+                               String paletteId,
+                               BlockState lamp,
+                               BlockState lampPost,
+                               String ornamentProfile,
+                               boolean clearHeadroom,
+                               int clearHeight) {
         this.road = road;
         this.border = border;
         this.useBorder = useBorder;
         this.paletteId = (paletteId == null || paletteId.isBlank()) ? null : paletteId.trim();
         this.lamp = lamp;
         this.lampPost = lampPost;
+        this.ornamentProfile = (ornamentProfile == null || ornamentProfile.isBlank()) ? null : ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+        this.clearHeadroom = clearHeadroom;
+        this.clearHeight = Math.max(0, clearHeight);
     }
 
     @Override
@@ -80,6 +102,12 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
                             rs = PaletteResolver.pick(world, paletteId, "ROAD_SURFACE", bp, salt, rs);
                         }
                         out.add(new PlannedBlock(bp, rs));
+                        if (clearHeadroom && clearHeight > 0) {
+                            for (int h = 1; h <= clearHeight; h++) {
+                                BlockPos ap = bp.up(h);
+                                if (BuildConstraintContext.allow(ap)) out.add(new PlannedBlock(ap, Blocks.AIR.getDefaultState()));
+                            }
+                        }
                     }
                 }
                 if (useBorder) {
@@ -123,6 +151,40 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
                         postState = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", post, salt, postState);
                     }
                     if (BuildConstraintContext.allow(post)) out.add(new PlannedBlock(post, postState));
+                }
+
+                // roadside signage / ornaments (best-effort, low intrusion)
+                // Put them on the opposite side of the lamp side to reduce collisions.
+                if (ornamentProfile != null && paletteId != null) {
+                    int interval = Math.max(10, plan.lampInterval * 2);
+                    if (stepCounter % interval == 0) {
+                        int sx = p.getX() - rx * (half + 2);
+                        int sz = p.getZ() - rz * (half + 2);
+                        BlockPos base = new BlockPos(sx, y + 1, sz);
+                        // Support should be solid so the "signage block" above doesn't float too much visually.
+                        BlockState support = border != null ? border : Blocks.STONE_BRICKS.getDefaultState();
+                        long saltS = ((long) sx * 31L) ^ ((long) sz * 17L) ^ (stepCounter * 29L) ^ 0x516E0L;
+                        support = PaletteResolver.pick(world, paletteId, "ROAD_BORDER", base, saltS, support);
+                        if (BuildConstraintContext.allow(base)) out.add(new PlannedBlock(base, support));
+
+                        BlockPos sigPos = base.up();
+                        BlockState fallbackSign = Blocks.RED_WOOL.getDefaultState();
+                        String op = ornamentProfile;
+                        if (op.contains("cyber") || op.contains("sign")) {
+                            fallbackSign = Blocks.GLOWSTONE.getDefaultState();
+                        } else if (op.contains("banner")) {
+                            fallbackSign = Blocks.RED_WOOL.getDefaultState();
+                        } else if (op.contains("organic") || op.contains("lantern")) {
+                            fallbackSign = Blocks.SHROOMLIGHT.getDefaultState();
+                        } else if (op.contains("steam") || op.contains("pipe")) {
+                            fallbackSign = Blocks.COPPER_BLOCK.getDefaultState();
+                        } else if (op.contains("plaque") || op.contains("chinese")) {
+                            fallbackSign = Blocks.DARK_OAK_PLANKS.getDefaultState();
+                        }
+                        long saltG = ((long) sx * 31L) ^ ((long) sz * 17L) ^ (stepCounter * 31L) ^ 0x516F1L;
+                        BlockState signage = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", sigPos, saltG, fallbackSign);
+                        if (BuildConstraintContext.allow(sigPos)) out.add(new PlannedBlock(sigPos, signage));
+                    }
                 }
 
                 stepCounter++;
