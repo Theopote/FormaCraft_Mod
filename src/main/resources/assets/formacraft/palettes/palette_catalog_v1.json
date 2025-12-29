@@ -583,6 +583,94 @@
           { "id": "minecraft:oak_leaves", "weight": 40 }
         ]
       }
+    },
+    "PALETTE_INDUSTRIAL_STEEL_A": {
+      "meta": {
+        "display_name": "Industrial Steel A",
+        "tags": ["industrial", "steel", "bridge", "factory", "grit"],
+        "description": "Industrial palette with steel structure, dark massing, and practical lighting"
+      },
+      "parts": {
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:deepslate_bricks", "weight": 55 },
+          { "id": "minecraft:polished_deepslate", "weight": 30 },
+          { "id": "minecraft:stone_bricks", "weight": 15 }
+        ],
+        "WALL_BASE": [
+          { "id": "minecraft:polished_deepslate", "weight": 45 },
+          { "id": "minecraft:deepslate_tiles", "weight": 25 },
+          { "id": "minecraft:gray_concrete", "weight": 20 },
+          { "id": "minecraft:black_concrete", "weight": 10 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:iron_block", "weight": 55 },
+          { "id": "minecraft:iron_bars", "weight": 25 },
+          { "id": "minecraft:polished_deepslate", "weight": 20 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:iron_block", "weight": 60 },
+          { "id": "minecraft:polished_deepslate", "weight": 40 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:smooth_stone", "weight": 45 },
+          { "id": "minecraft:polished_andesite", "weight": 35 },
+          { "id": "minecraft:gray_concrete", "weight": 20 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:gray_concrete", "weight": 50 },
+          { "id": "minecraft:smooth_stone_slab", "weight": 30 },
+          { "id": "minecraft:polished_deepslate", "weight": 20 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:iron_bars", "weight": 60 },
+          { "id": "minecraft:glass_pane", "weight": 25 },
+          { "id": "minecraft:light_gray_stained_glass_pane", "weight": 15 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:chain", "weight": 40 },
+          { "id": "minecraft:iron_bars", "weight": 40 },
+          { "id": "minecraft:copper_block", "weight": 20 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:lantern", "weight": 55 },
+          { "id": "minecraft:soul_lantern", "weight": 25 },
+          { "id": "minecraft:sea_lantern", "weight": 20 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:black_wall_banner", "weight": 55 },
+          { "id": "minecraft:gray_wall_banner", "weight": 30 },
+          { "id": "minecraft:white_wall_banner", "weight": 15 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:polished_andesite", "weight": 55 },
+          { "id": "minecraft:smooth_stone", "weight": 30 },
+          { "id": "minecraft:gray_concrete", "weight": 15 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:iron_bars", "weight": 45 },
+          { "id": "minecraft:light_gray_concrete", "weight": 40 },
+          { "id": "minecraft:smooth_stone_slab", "weight": 15 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 60 },
+          { "id": "minecraft:end_rod", "weight": 25 },
+          { "id": "minecraft:sea_lantern", "weight": 15 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:iron_block", "weight": 35 },
+          { "id": "minecraft:yellow_concrete", "weight": 35 },
+          { "id": "minecraft:black_concrete", "weight": 30 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:polished_andesite", "weight": 55 },
+          { "id": "minecraft:smooth_stone", "weight": 35 },
+          { "id": "minecraft:iron_block", "weight": 10 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:iron_bars", "weight": 70 },
+          { "id": "minecraft:chain", "weight": 30 }
+        ]
+      }
     }
   }
 }
