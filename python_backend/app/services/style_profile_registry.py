@@ -190,7 +190,22 @@ def catalog_prompt_block(max_items: int = 30, query_text: Optional[str] = None) 
         tags = ",".join(d.meta.tags or [])
         fam = d.meta.family or ""
         dn = d.meta.display_name or ""
-        lines.append(f"- {d.style_id} | {fam} | {dn} | tags=[{tags}]")
+        # Default palette hint (lets the model pick styleProfileId and rely on palette fallback deterministically)
+        palette_hint = ""
+        try:
+            comps = (d.defaults or {}).get("components") or {}
+            pid = comps.get("palette_id") or comps.get("paletteId") or comps.get("palette")
+            if pid is not None:
+                pid_s = str(pid).strip()
+                if pid_s:
+                    palette_hint = pid_s
+        except Exception:
+            palette_hint = ""
+
+        if palette_hint:
+            lines.append(f"- {d.style_id} | {fam} | {dn} | tags=[{tags}] | defaultPalette={palette_hint}")
+        else:
+            lines.append(f"- {d.style_id} | {fam} | {dn} | tags=[{tags}]")
     lines.append("If you choose one, set: extra.styleProfileId = <style_id> (string).")
     return "\n".join(lines)
 

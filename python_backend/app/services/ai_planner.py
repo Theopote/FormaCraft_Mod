@@ -113,6 +113,10 @@ def _build_system_prompt() -> str:
         "\nStyle gene library (optional, strongly recommended when user requests a specific architectural vibe):\n"
         "- You MAY set extra.styleProfileId to pick a fine-grained style profile (data-driven).\n"
         "- If set, it should be a string id from the StyleProfileCatalog provided in the user prompt.\n"
+        "- Prefer extra.styleProfileId over coarse 'style' when the user asks for a specific vibe (e.g. cyber/steampunk/imperial).\n"
+        "- If you set extra.styleProfileId, you MAY omit extra.paletteId (it will fallback to the style profile default palette).\n"
+        "- If you set extra.paletteId, it MUST be one of the palette IDs listed in PaletteCatalog.\n"
+        "- NEVER invent unknown styleProfileId/paletteId. If unsure, omit them.\n"
         "\nBlueprint mode (advanced, optional):\n"
         "- For complex structures like CASTLE compounds, you MAY include extra.blueprint as a semantic component blueprint.\n"
         "- extra.blueprint MUST be valid JSON (no comments).\n"
@@ -2288,6 +2292,54 @@ def _normalize_building_spec_dict(data: Any) -> Any:
     # If still missing type, default to HOUSE so we can proceed.
     if "type" not in data or not data.get("type"):
         data["type"] = "HOUSE"
+
+    # Normalize style gene fields: keep them in extra with stable camelCase keys.
+    # (Java side expects extra.styleProfileId / extra.paletteId; aliases are common in LLM output.)
+    try:
+        extra = data.get("extra")
+        if extra is None:
+            extra = {}
+        if not isinstance(extra, dict):
+            extra = {}
+
+        # Promote top-level keys into extra if the model placed them incorrectly.
+        for k_top, k_canon in (
+            ("styleProfileId", "styleProfileId"),
+            ("style_profile_id", "styleProfileId"),
+            ("paletteId", "paletteId"),
+            ("palette_id", "paletteId"),
+        ):
+            if k_top in data and data.get(k_top) is not None:
+                if k_canon not in extra or extra.get(k_canon) is None:
+                    extra[k_canon] = data.get(k_top)
+
+        remapped: Dict[str, Any] = {}
+        for k, v in extra.items():
+            ks = str(k).strip()
+            kl = ks.lower()
+            if kl in ("palette_id", "paletteid", "palette"):
+                remapped["paletteId"] = v
+            elif kl in ("styleprofileid", "style_profile_id", "style_profile", "styleprofile"):
+                remapped["styleProfileId"] = v
+            else:
+                remapped[ks] = v
+
+        # Clean empty values (blank strings / None)
+        for kk in ("paletteId", "styleProfileId"):
+            if kk in remapped:
+                vv = remapped.get(kk)
+                if vv is None:
+                    remapped.pop(kk, None)
+                else:
+                    ss = str(vv).strip()
+                    if not ss:
+                        remapped.pop(kk, None)
+                    else:
+                        remapped[kk] = ss
+
+        data["extra"] = remapped
+    except Exception:
+        pass
 
     return data
 
