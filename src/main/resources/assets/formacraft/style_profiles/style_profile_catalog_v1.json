@@ -247,7 +247,7 @@
           "portal": "modern_frame",
           "eaves": "parapet",
           "facade_profile": "mullion_grid",
-          "ornament_profile": "cyber_signage",
+          "ornament_profile": "none",
           "palette_id": "PALETTE_MODERN_GLASS_B"
         },
         "algorithm": {

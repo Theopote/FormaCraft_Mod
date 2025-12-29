@@ -77,14 +77,15 @@ public class CastleCompoundGenerator implements StructureGenerator {
         // Prefer per-request styleProfileId when present.
         StyleProfile styleProfile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.MEDIEVAL);
         // paletteId for semantic picks (moat/bridge best-effort)
-        String paletteId = null;
+        String paletteId0 = null;
         if (spec != null && spec.getExtra() != null && spec.getExtra().get("paletteId") != null) {
-            paletteId = String.valueOf(spec.getExtra().get("paletteId")).trim();
+            paletteId0 = String.valueOf(spec.getExtra().get("paletteId")).trim();
         }
-        if ((paletteId == null || paletteId.isBlank()) && styleProfile != null && styleProfile.details() != null
+        if ((paletteId0 == null || paletteId0.isBlank()) && styleProfile != null && styleProfile.details() != null
                 && styleProfile.details().paletteId != null && !styleProfile.details().paletteId.isBlank()) {
-            paletteId = styleProfile.details().paletteId.trim();
+            paletteId0 = styleProfile.details().paletteId.trim();
         }
+        final String paletteId = paletteId0;
 
         BlockState capBlock = getStateOrDefault(world,
                 styleProfile != null && styleProfile.palette() != null ? styleProfile.palette().cap : null,

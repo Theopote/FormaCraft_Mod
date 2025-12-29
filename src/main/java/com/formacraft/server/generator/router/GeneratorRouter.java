@@ -147,6 +147,9 @@ public final class GeneratorRouter {
         if (s.contains("gothic_cathedral") || s.contains("cathedral") || s.contains("notre_dame") || s.contains("cologne") || s.contains("哥特")) {
             return new GothicCathedralGenerator();
         }
+        if (s.contains("modern_skyscraper") || s.contains("highrise") || s.contains("skyscraper") || s.contains("摩天") || s.contains("摩天楼")) {
+            return new ModernSkyscraperGenerator();
+        }
         return null;
     }
 
