@@ -2337,6 +2337,45 @@ def _normalize_building_spec_dict(data: Any) -> Any:
                     else:
                         remapped[kk] = ss
 
+        # Validate ids against catalogs (best-effort) and provide deterministic fallback.
+        # - If invalid, drop the key and add a debug warning.
+        # - If styleProfileId is valid and paletteId is missing, fill paletteId from style default (if it exists & valid).
+        try:
+            from app.services.style_profile_registry import has_style_profile, has_palette, default_palette_for_style
+
+            debug = remapped.get("debugWarnings")
+            if debug is None:
+                debug_list = []
+            elif isinstance(debug, list):
+                debug_list = debug
+            else:
+                debug_list = [str(debug)]
+
+            spid = remapped.get("styleProfileId")
+            if spid is not None and not has_style_profile(spid):
+                debug_list.append(f"Invalid extra.styleProfileId='{spid}', dropped.")
+                remapped.pop("styleProfileId", None)
+                spid = None
+
+            pid = remapped.get("paletteId")
+            if pid is not None and not has_palette(pid):
+                debug_list.append(f"Invalid extra.paletteId='{pid}', dropped.")
+                remapped.pop("paletteId", None)
+                pid = None
+
+            if spid is not None and pid is None:
+                dp = default_palette_for_style(spid)
+                if dp and has_palette(dp):
+                    remapped["paletteId"] = dp
+                    remapped["paletteIdAutoFromStyle"] = True
+                elif dp:
+                    debug_list.append(f"Style defaultPalette='{dp}' not found in PaletteCatalog, ignored.")
+
+            if debug_list:
+                remapped["debugWarnings"] = debug_list[:20]
+        except Exception:
+            pass
+
         data["extra"] = remapped
     except Exception:
         pass

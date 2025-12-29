@@ -5,6 +5,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
+def _normalize_text(s: Optional[str]) -> str:
+    if not s:
+        return ""
+    return str(s).strip().lower()
+
+
 @dataclass
 class StyleProfileMeta:
     display_name: str = ""
@@ -23,6 +29,9 @@ class StyleProfileDef:
 
 _LOADED: bool = False
 _CATALOG: Dict[str, StyleProfileDef] = {}
+
+_PALETTES_LOADED: bool = False
+_PALETTE_IDS: set[str] = set()
 
 
 def _default_json_path() -> Path:
@@ -85,10 +94,87 @@ def get_style_profile(style_id: str) -> Optional[StyleProfileDef]:
     return _CATALOG.get(style_id)
 
 
-def _normalize_text(s: Optional[str]) -> str:
+def has_style_profile(style_id: Optional[str]) -> bool:
+    s = _normalize_text(style_id)
     if not s:
-        return ""
-    return str(s).strip().lower()
+        return False
+    ensure_loaded()
+    # style IDs are case-sensitive in data, but callers may pass exact IDs; keep strict check first.
+    if style_id in _CATALOG:
+        return True
+    # fallback: case-insensitive match (defensive against model output drift)
+    sl = s.lower()
+    return any(k.lower() == sl for k in _CATALOG.keys())
+
+
+def default_palette_for_style(style_id: Optional[str]) -> Optional[str]:
+    """
+    Extract default palette id from style profile defaults.components.
+    Supports aliases: palette_id / paletteId / palette
+    """
+    if not style_id:
+        return None
+    ensure_loaded()
+    d = _CATALOG.get(style_id)
+    if d is None:
+        # case-insensitive fallback
+        sl = _normalize_text(style_id)
+        for k, v in _CATALOG.items():
+            if k.lower() == sl.lower():
+                d = v
+                break
+    if d is None:
+        return None
+
+    try:
+        comps = (d.defaults or {}).get("components") or {}
+        pid = comps.get("palette_id") or comps.get("paletteId") or comps.get("palette")
+        if pid is None:
+            return None
+        s = str(pid).strip()
+        return s if s else None
+    except Exception:
+        return None
+
+
+def _default_palette_json_path() -> Path:
+    repo_root = Path(__file__).resolve().parents[3]
+    return (
+        repo_root
+        / "src"
+        / "main"
+        / "resources"
+        / "assets"
+        / "formacraft"
+        / "palettes"
+        / "palette_catalog_v1.json"
+    )
+
+
+def ensure_palettes_loaded(path: Optional[Path] = None) -> None:
+    global _PALETTES_LOADED, _PALETTE_IDS
+    if _PALETTES_LOADED:
+        return
+    p = path or _default_palette_json_path()
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        palettes = raw.get("palettes") or {}
+        _PALETTE_IDS = {str(k) for k in palettes.keys() if k is not None and str(k).strip()}
+    except Exception:
+        _PALETTE_IDS = set()
+    finally:
+        _PALETTES_LOADED = True
+
+
+def has_palette(palette_id: Optional[str]) -> bool:
+    s = _normalize_text(palette_id)
+    if not s:
+        return False
+    ensure_palettes_loaded()
+    if palette_id in _PALETTE_IDS:
+        return True
+    sl = s.lower()
+    return any(k.lower() == sl for k in _PALETTE_IDS)
 
 
 _ALIAS_GROUPS: list[tuple[list[str], list[str]]] = [
