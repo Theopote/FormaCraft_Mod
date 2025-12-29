@@ -421,24 +421,7 @@ public class FormaCraftNetworking {
             // 明清官式院落（四合院/宅院）已经有确定性生成器（ASIAN 大 footprint 会直接生成主殿+厢房+门楼+院墙）。
             // 这类请求如果走 Composite，LLM 往往会产出“多栋相同默认房子”，不符合用户预期。
             // 因此优先走单体 BuildingSpec 链路，让生成更稳定可控。
-            boolean isMingQingCourtyard =
-                    (requestText.contains("明清") || requestText.contains("官式") || requestText.contains("ming") || requestText.contains("qing")) &&
-                    (requestText.contains("四合院") || requestText.contains("院落") || requestText.contains("宅院") || requestText.contains("大院") ||
-                            requestText.contains("courtyard"));
-            boolean isComposite = !isCity && (
-                    requestText.contains("要塞") || requestText.contains("fort") ||
-                    requestText.contains("复合") || requestText.contains("组合") ||
-                    requestText.contains("village") || requestText.contains("multiple") ||
-                    // 建筑群落/组团（避免被当成单体建筑，结果生成一个塔楼）
-                    requestText.contains("群落") || requestText.contains("建筑群") ||
-                    requestText.contains("建筑群落") || requestText.contains("组团") ||
-                    requestText.contains("组群") || requestText.contains("聚落") ||
-                    requestText.contains("多栋") || requestText.contains("多座") ||
-                    requestText.contains("院落群")
-            );
-            if (isMingQingCourtyard) {
-                isComposite = false;
-            }
+            boolean isComposite = isIsComposite(requestText, isCity);
 
             if (isCity) {
                 AtomicBoolean hbAlive = new AtomicBoolean(true);
@@ -909,6 +892,28 @@ public class FormaCraftNetworking {
             if (filtered.isEmpty()) return;
             com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, filtered);
         }));
+    }
+
+    private static boolean isIsComposite(String requestText, boolean isCity) {
+        boolean isMingQingCourtyard =
+                (requestText.contains("明清") || requestText.contains("官式") || requestText.contains("ming") || requestText.contains("qing")) &&
+                (requestText.contains("四合院") || requestText.contains("院落") || requestText.contains("宅院") || requestText.contains("大院") ||
+                        requestText.contains("courtyard"));
+        boolean isComposite = !isCity && (
+                requestText.contains("要塞") || requestText.contains("fort") ||
+                requestText.contains("复合") || requestText.contains("组合") ||
+                requestText.contains("village") || requestText.contains("multiple") ||
+                // 建筑群落/组团（避免被当成单体建筑，结果生成一个塔楼）
+                requestText.contains("群落") || requestText.contains("建筑群") ||
+                requestText.contains("建筑群落") || requestText.contains("组团") ||
+                requestText.contains("组群") || requestText.contains("聚落") ||
+                requestText.contains("多栋") || requestText.contains("多座") ||
+                requestText.contains("院落群")
+        );
+        if (isMingQingCourtyard) {
+            isComposite = false;
+        }
+        return isComposite;
     }
 
     /**

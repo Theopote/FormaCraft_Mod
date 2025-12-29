@@ -66,10 +66,9 @@ public final class GeneratorRouter {
         BuildingType type = spec.getType();
         return switch (type) {
             case TOWER -> new TowerGenerator();
-            case HOUSE -> new HouseGenerator();
+            case HOUSE, CASTLE -> new HouseGenerator();
             case BRIDGE -> new BridgeGenerator();
             case WALL -> new WallGenerator();
-            case CASTLE -> new HouseGenerator();
             case CUSTOM -> {
                 FormacraftMod.LOGGER.warn("CUSTOM building type not yet implemented, using HouseGenerator");
                 yield new HouseGenerator();

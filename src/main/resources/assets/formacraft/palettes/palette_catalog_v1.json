@@ -131,6 +131,11 @@
           { "id": "minecraft:sea_lantern", "weight": 70 },
           { "id": "minecraft:end_rod", "weight": 30 }
         ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:iron_block", "weight": 55 },
+          { "id": "minecraft:quartz_pillar", "weight": 25 },
+          { "id": "minecraft:light_gray_concrete", "weight": 20 }
+        ],
         "FACADE_CURTAIN": [
           { "id": "minecraft:light_blue_stained_glass", "weight": 80 },
           { "id": "minecraft:white_stained_glass", "weight": 10 },
@@ -221,6 +226,11 @@
           { "id": "minecraft:sea_lantern", "weight": 55 },
           { "id": "minecraft:end_rod", "weight": 25 },
           { "id": "minecraft:iron_bars", "weight": 20 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:iron_block", "weight": 45 },
+          { "id": "minecraft:polished_deepslate", "weight": 35 },
+          { "id": "minecraft:light_gray_concrete", "weight": 20 }
         ],
         "ROAD_SURFACE": [
           { "id": "minecraft:black_concrete", "weight": 60 },
@@ -448,6 +458,11 @@
           { "id": "minecraft:chiseled_quartz_block", "weight": 50 },
           { "id": "minecraft:smooth_quartz_slab", "weight": 30 },
           { "id": "minecraft:polished_diorite", "weight": 20 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:quartz_pillar", "weight": 60 },
+          { "id": "minecraft:smooth_quartz", "weight": 25 },
+          { "id": "minecraft:chiseled_quartz_block", "weight": 15 }
         ],
         "ROOF_TILE": [
           { "id": "minecraft:smooth_stone", "weight": 70 },

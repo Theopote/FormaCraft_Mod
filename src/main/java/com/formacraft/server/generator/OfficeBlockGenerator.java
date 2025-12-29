@@ -94,7 +94,7 @@ public class OfficeBlockGenerator implements StructureGenerator {
 
         // shell
         for (int y = 0; y <= h; y++) {
-            boolean windowBand = (y % 4 == 2) && y >= 2 && y <= h - 2;
+            boolean windowBand = y % 4 == 2 && y <= h - 2;
             // e.g. curtain wall: more bands
             if (windowStyle != null && windowStyle.toLowerCase(java.util.Locale.ROOT).contains("curtain")) {
                 windowBand = (y % 2 == 0) && y >= 2 && y <= h - 2;
