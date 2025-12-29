@@ -144,6 +144,9 @@ public final class GeneratorRouter {
         if (s.contains("parthenon") || s.contains("帕特农") || s.contains("classical_temple") || s.contains("greco_roman_temple")) {
             return new ParthenonTempleGenerator();
         }
+        if (s.contains("gothic_cathedral") || s.contains("cathedral") || s.contains("notre_dame") || s.contains("cologne") || s.contains("哥特")) {
+            return new GothicCathedralGenerator();
+        }
         return null;
     }
 
@@ -157,6 +160,7 @@ public final class GeneratorRouter {
         if (s.isEmpty()) return null;
         // dedicated style -> generator mapping (v1)
         if (s.equals("Chinese_Vernacular_Jiangnan_WaterTown")) return new JiangnanWaterTownGenerator();
+        if (s.equals("Gothic_Cathedral")) return new GothicCathedralGenerator();
         return null;
     }
 

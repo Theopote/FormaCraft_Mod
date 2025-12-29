@@ -157,7 +157,7 @@
           "portal": "gothic_pointed",
           "facade_profile": "vertical_pilasters",
           "ornament_profile": "castle_banners",
-          "palette_id": "PALETTE_STONE_FORTRESS_A",
+          "palette_id": "PALETTE_GOTHIC_CATHEDRAL_A",
           "balcony": "none",
           "buttresses": true,
           "mullions": true,
