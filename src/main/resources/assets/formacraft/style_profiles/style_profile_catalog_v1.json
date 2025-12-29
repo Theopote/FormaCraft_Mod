@@ -354,7 +354,7 @@
         },
         "components": {
           "eaves": "neon_strip",
-          "ornament_profile": "steampunk_pipes",
+          "ornament_profile": "industrial_signage",
           "palette_id": "PALETTE_INDUSTRIAL_STEEL_A"
         },
         "algorithm": {
