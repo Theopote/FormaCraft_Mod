@@ -60,10 +60,13 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
         int taperStep = clamp(getIntExtra(spec, "taperStep", 4), 2, 6); // shrink per tier (both sides total)
         int podiumH = clamp(getIntExtra(spec, "podiumHeight", 2), 1, 4);
         int eavesOverhang = clamp(getIntExtra(spec, "eavesOverhang", 2), 1, 3);
+        boolean addLookout = getBoolExtra(spec, "addLookout", true);
+        boolean addBanners = getBoolExtra(spec, "addBanners", true);
 
         // Materials (palette-driven)
         BlockState foundation = Blocks.STONE_BRICKS.getDefaultState();
         BlockState wall = Blocks.BIRCH_PLANKS.getDefaultState();
+        BlockState wallInfill = wall; // allow “白墙”效果（不破坏 palette 的情况下 best-effort）
         BlockState trim = Blocks.SPRUCE_LOG.getDefaultState();
         BlockState floor = Blocks.BIRCH_PLANKS.getDefaultState();
         BlockState window = Blocks.WHITE_STAINED_GLASS_PANE.getDefaultState();
@@ -71,6 +74,9 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
         BlockState roofStairs = Blocks.DEEPSLATE_TILE_STAIRS.getDefaultState();
         BlockState roofSlab = Blocks.DEEPSLATE_TILE_SLAB.getDefaultState();
         BlockState lantern = Blocks.LANTERN.getDefaultState();
+        BlockState rail = Blocks.DARK_OAK_FENCE.getDefaultState();
+        BlockState banner = Blocks.WHITE_WALL_BANNER.getDefaultState();
+        BlockState plaster = Blocks.WHITE_CONCRETE.getDefaultState();
 
         if (paletteId != null && !paletteId.isBlank()) {
             foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0xC45001L, foundation);
@@ -84,6 +90,18 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
             roofSlab = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xC45009L, roofSlab);
             lantern = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0xC4500AL, lantern);
             lantern = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0xC4500BL, lantern);
+            rail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", origin, 0xC4500CL, rail);
+            rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xC4500DL, rail);
+            banner = PaletteResolver.pick(world, paletteId, "BANNER", origin, 0xC4500EL, banner);
+            plaster = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0xC4500FL, plaster);
+        }
+
+        // 天守阁更像“白墙黑瓦”：当是 Japanese_Traditional 且 palette 没有明确白墙时，用白色灰泥做墙体填充
+        // （保留 trim/框架由 palette 决定，减少串味与破坏性）
+        if (isJapaneseTraditional(spec) && (paletteId == null || paletteId.isBlank() || paletteId.equals("PALETTE_EAST_ASIAN_WOOD_A"))) {
+            wallInfill = plaster != null ? plaster : Blocks.WHITE_CONCRETE.getDefaultState();
+        } else {
+            wallInfill = wall;
         }
 
         // local build: entrance always SOUTH in local space; then rotate to entrance
@@ -101,6 +119,15 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
             blocks.add(new PlannedBlock(p, rotateState(withFacingIfPossible(roofStairs, Direction.NORTH), entrance)));
             blocks.add(new PlannedBlock(p.down(), rotateState(roofSlab, entrance)));
         }
+        // Entrance stone lanterns (best-effort)
+        BlockState stonePost = foundation;
+        if (paletteId != null && !paletteId.isBlank()) {
+            stonePost = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xC45011L, stonePost);
+        }
+        put(blocks, origin, entrance, cx - 5, podiumH + 1, zFront + 2, stonePost, null);
+        put(blocks, origin, entrance, cx + 4, podiumH + 1, zFront + 2, stonePost, null);
+        put(blocks, origin, entrance, cx - 5, podiumH + 3, zFront + 2, lantern, null);
+        put(blocks, origin, entrance, cx + 4, podiumH + 3, zFront + 2, lantern, null);
 
         // Tiers
         int tierW = baseW;
@@ -108,6 +135,9 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
         int offX = 0;
         int offZ = 0;
         int tierBaseY = podiumH + 1;
+
+        int lastX0 = 0, lastZ0 = 0, lastX1 = baseW - 1, lastZ1 = baseD - 1;
+        int lastRoofTopY = tierBaseY;
 
         for (int t = 0; t < tiers; t++) {
             int x0 = offX;
@@ -121,7 +151,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
             // walls + hollow interior
             int wallTop = tierBaseY + tierHeight;
             for (int yy = tierBaseY + 1; yy <= wallTop; yy++) {
-                ringRect(blocks, origin, entrance, x0, yy, z0, x1, yy, z1, wall, null);
+                ringRect(blocks, origin, entrance, x0, yy, z0, x1, yy, z1, wallInfill, null);
             }
             // corners/edge trims (vertical logs)
             for (int yy = tierBaseY + 1; yy <= wallTop; yy++) {
@@ -159,7 +189,20 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
                 // lanterns flanking entrance
                 put(blocks, origin, entrance, mx - 3, tierBaseY + 3, doorZ + 1, lantern, null);
                 put(blocks, origin, entrance, mx + 2, tierBaseY + 3, doorZ + 1, lantern, null);
+                // banners
+                if (addBanners) {
+                    BlockState wb = withFacingIfPossible(banner, rotateDir(Direction.SOUTH, entrance));
+                    blocks.add(new PlannedBlock(local(origin, entrance, mx - 5, tierBaseY + 2, doorZ), wb));
+                    blocks.add(new PlannedBlock(local(origin, entrance, mx + 4, tierBaseY + 2, doorZ), wb));
+                }
             }
+
+            // extra “horizontal line”: fascia slab band under roof (slightly outside footprint)
+            int fasciaY = wallTop;
+            ringRect(blocks, origin, entrance,
+                    x0 - 1, fasciaY, z0 - 1,
+                    x1 + 1, fasciaY, z1 + 1,
+                    roofSlab, null);
 
             // Eaves roof for this tier
             int roofBaseY = wallTop + 1;
@@ -169,6 +212,11 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
                     roofHeight, roofStairs, roofSlab, roofTile);
 
             tierBaseY = roofBaseY + roofHeight + 1;
+            lastX0 = x0;
+            lastZ0 = z0;
+            lastX1 = x1;
+            lastZ1 = z1;
+            lastRoofTopY = roofBaseY + roofHeight + 1;
             // taper next tier
             tierW = Math.max(9, tierW - taperStep);
             tierD = Math.max(9, tierD - taperStep);
@@ -177,7 +225,38 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
             if (tierW < 9 || tierD < 9) break;
         }
 
-        String desc = "Japanese Castle Keep (tenshu) v1";
+        // Top lookout / balcony (best-effort)
+        if (addLookout) {
+            int mx = (lastX0 + lastX1) / 2;
+            int mz = (lastZ0 + lastZ1) / 2;
+            int lookW = Math.min(7, Math.max(5, (lastX1 - lastX0 + 1) - 4));
+            int lookD = Math.min(7, Math.max(5, (lastZ1 - lastZ0 + 1) - 4));
+            int lx0 = mx - lookW / 2;
+            int lz0 = mz - lookD / 2;
+            int lx1 = lx0 + lookW - 1;
+            int lz1 = lz0 + lookD - 1;
+            int y0 = lastRoofTopY + 1;
+
+            // platform
+            fillRect(blocks, origin, entrance, lx0, y0, lz0, lx1, y0, lz1, floor, null);
+            // rail ring
+            int ry = y0 + 1;
+            for (int x = lx0; x <= lx1; x++) {
+                put(blocks, origin, entrance, x, ry, lz0, rail, null);
+                put(blocks, origin, entrance, x, ry, lz1, rail, null);
+            }
+            for (int z = lz0; z <= lz1; z++) {
+                put(blocks, origin, entrance, lx0, ry, z, rail, null);
+                put(blocks, origin, entrance, lx1, ry, z, rail, null);
+            }
+            // tiny roof on lookout
+            addHippedRoof(blocks, origin, entrance,
+                    lx0 - 1, y0 + 2, lz0 - 1,
+                    lx1 + 1, y0 + 2, lz1 + 1,
+                    Math.max(3, roofHeight - 1), roofStairs, roofSlab, roofTile);
+        }
+
+        String desc = "Japanese Castle Keep (tenshu) v1.1";
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 
@@ -395,6 +474,26 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
     private static int clampOdd(int v, int min, int max) {
         int x = clamp(v, min, max);
         return (x % 2 == 0) ? (x + 1 <= max ? x + 1 : x - 1) : x;
+    }
+
+    private static boolean getBoolExtra(BuildingSpec spec, String key, boolean def) {
+        if (spec == null || spec.getExtra() == null) return def;
+        Object v = spec.getExtra().get(key);
+        if (v == null) return def;
+        if (v instanceof Boolean b) return b;
+        String s = String.valueOf(v).trim().toLowerCase(java.util.Locale.ROOT);
+        if (s.isEmpty()) return def;
+        return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+    }
+
+    private static boolean isJapaneseTraditional(BuildingSpec spec) {
+        if (spec == null || spec.getExtra() == null) return false;
+        try {
+            Object spid = spec.getExtra().get("styleProfileId");
+            if (spid == null) return false;
+            return String.valueOf(spid).trim().equals("Japanese_Traditional");
+        } catch (Throwable ignored) {}
+        return false;
     }
 }
 
