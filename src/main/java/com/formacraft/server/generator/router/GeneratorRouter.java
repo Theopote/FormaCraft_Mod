@@ -132,6 +132,9 @@ public final class GeneratorRouter {
         if (s.contains("japanese_shrine") || s.contains("shrine") || s.contains("jinja") || s.contains("torii")) {
             return new JapaneseShrineGenerator();
         }
+        if (s.contains("japanese_castle_keep") || s.contains("castle_keep") || s.contains("tenshu") || s.contains("天守")) {
+            return new JapaneseCastleKeepGenerator();
+        }
         return null;
     }
 
