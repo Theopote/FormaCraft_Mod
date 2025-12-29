@@ -441,8 +441,12 @@ public class HouseGenerator implements StructureGenerator {
         // -------------------------------------
         // 3.5 内部分区（Layout IR: extra.layout.plan）
         // -------------------------------------
-        // NOTE: best-effort zoning. We currently skip when courtyard is enabled to avoid conflicting geometry.
-        if (!courtyard.enabled) {
+        // NOTE: best-effort zoning.
+        // - ring_corridor is designed to work WITH courtyard.
+        // - other plans are skipped when courtyard is enabled to avoid conflicting geometry.
+        if (courtyard.enabled && isLayoutPlanRingCorridor(layoutPlan)) {
+            addRingCorridorPartitions(blocks, origin, width, depth, height, floors, floorHeight, wall, trim, courtyard, doorSide);
+        } else if (!courtyard.enabled) {
             addInteriorPartitions(blocks, origin, width, depth, height, floors, floorHeight, wall, trim, doorSide, layoutPlan);
         }
 
@@ -944,10 +948,18 @@ public class HouseGenerator implements StructureGenerator {
                             || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
                     if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
                             || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
+                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
+                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
                 }
             }
         } catch (Throwable ignored) {}
         return "none";
+    }
+
+    private static boolean isLayoutPlanRingCorridor(String plan) {
+        if (plan == null) return false;
+        String p = plan.trim().toLowerCase(java.util.Locale.ROOT);
+        return p.equals("ring_corridor");
     }
 
     private static void addInteriorPartitions(List<PlannedBlock> blocks, BlockPos origin,
@@ -1023,6 +1035,123 @@ public class HouseGenerator implements StructureGenerator {
                         BlockState w = wall;
                         if (y == yTop - 1) w = trim;
                         blocks.add(new PlannedBlock(origin.add(x, y, z), w));
+                    }
+                }
+            }
+        }
+    }
+
+    private static void addRingCorridorPartitions(List<PlannedBlock> blocks, BlockPos origin,
+                                                  int width, int depth, int height,
+                                                  int floors, int floorHeight,
+                                                  BlockState wall, BlockState trim,
+                                                  LayoutCourtyard courtyard, Direction doorSide) {
+        if (courtyard == null || !courtyard.enabled) return;
+        if (width < 11 || depth < 11) return; // too tight for courtyard + ring corridor + rooms
+
+        // corridor thickness: 1 for small, 2 for larger footprints
+        int t = (width >= 21 && depth >= 21) ? 2 : 1;
+
+        // ring wall rectangle is offset from courtyard by (t+1), leaving a corridor strip between courtyard void and ring wall.
+        int rx0 = courtyard.x0 - (t + 1);
+        int rx1 = courtyard.x1 + (t + 1);
+        int rz0 = courtyard.z0 - (t + 1);
+        int rz1 = courtyard.z1 + (t + 1);
+
+        // clamp inside interior (keep 1-block margin to outer walls)
+        rx0 = Math.max(2, rx0);
+        rz0 = Math.max(2, rz0);
+        rx1 = Math.min(width - 3, rx1);
+        rz1 = Math.min(depth - 3, rz1);
+
+        if (rx1 - rx0 < 3 || rz1 - rz0 < 3) return;
+
+        int yMin = 1;
+        int yMax = Math.max(2, floorHeight - 1);
+        int doorH = Math.min(3, Math.max(2, yMax - yMin));
+
+        // openings on ring wall: 4 midpoints (N/S/E/W)
+        int midX = (rx0 + rx1) / 2;
+        int midZ = (rz0 + rz1) / 2;
+        int openW = (width >= 14 && depth >= 14) ? 2 : 1;
+        int openX0 = midX - (openW / 2);
+        int openX1 = openX0 + openW - 1;
+        int openZ0 = midZ - (openW / 2);
+        int openZ1 = openZ0 + openW - 1;
+
+        for (int f = 0; f < floors; f++) {
+            int y0 = f * floorHeight;
+            if (y0 >= height) break;
+            int yTop = Math.min(height - 1, y0 + yMax);
+
+            for (int y = y0 + yMin; y < yTop; y++) {
+                boolean openingY = y < (y0 + yMin + doorH);
+
+                BlockState w = (y == yTop - 1) ? trim : wall;
+
+                // north (z=rz0): opening at midpoint
+                for (int x = rx0; x <= rx1; x++) {
+                    boolean opening = openingY && x >= openX0 && x <= openX1;
+                    if (opening) continue;
+                    blocks.add(new PlannedBlock(origin.add(x, y, rz0), w));
+                }
+                // south (z=rz1)
+                for (int x = rx0; x <= rx1; x++) {
+                    boolean opening = openingY && x >= openX0 && x <= openX1;
+                    if (opening) continue;
+                    blocks.add(new PlannedBlock(origin.add(x, y, rz1), w));
+                }
+                // west (x=rx0)
+                for (int z = rz0; z <= rz1; z++) {
+                    boolean opening = openingY && z >= openZ0 && z <= openZ1;
+                    if (opening) continue;
+                    blocks.add(new PlannedBlock(origin.add(rx0, y, z), w));
+                }
+                // east (x=rx1)
+                for (int z = rz0; z <= rz1; z++) {
+                    boolean opening = openingY && z >= openZ0 && z <= openZ1;
+                    if (opening) continue;
+                    blocks.add(new PlannedBlock(origin.add(rx1, y, z), w));
+                }
+            }
+        }
+
+        // Optional: two radial walls to split the outer zone into 4 rooms (best-effort)
+        int cx = width / 2;
+        int cz = depth / 2;
+        boolean doorOnNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        int doorTopRel = 3;
+
+        for (int f = 0; f < floors; f++) {
+            int y0 = f * floorHeight;
+            if (y0 >= height) break;
+            int yTop = Math.min(height - 1, y0 + (floorHeight - 1));
+
+            for (int y = y0 + 1; y < yTop; y++) {
+                boolean openingY = y < (y0 + doorTopRel);
+                if (doorOnNS) {
+                    // split left/right: wall at x=cx from ring wall to outer walls, with an opening at the ring boundary
+                    for (int z = rz0; z >= 1; z--) {
+                        boolean opening = openingY && z == rz0;
+                        if (opening) continue;
+                        blocks.add(new PlannedBlock(origin.add(cx, y, z), wall));
+                    }
+                    for (int z = rz1; z <= depth - 2; z++) {
+                        boolean opening = openingY && z == rz1;
+                        if (opening) continue;
+                        blocks.add(new PlannedBlock(origin.add(cx, y, z), wall));
+                    }
+                } else {
+                    // split front/back: wall at z=cz from ring wall to outer walls, with an opening at the ring boundary
+                    for (int x = rx0; x >= 1; x--) {
+                        boolean opening = openingY && x == rx0;
+                        if (opening) continue;
+                        blocks.add(new PlannedBlock(origin.add(x, y, cz), wall));
+                    }
+                    for (int x = rx1; x <= width - 2; x++) {
+                        boolean opening = openingY && x == rx1;
+                        if (opening) continue;
+                        blocks.add(new PlannedBlock(origin.add(x, y, cz), wall));
                     }
                 }
             }

@@ -121,7 +121,7 @@ def _build_system_prompt() -> str:
         "- You MAY set extra.layout as a JSON object with:\n"
         "  - entranceFacing: 'NORTH'|'SOUTH'|'EAST'|'WEST'\n"
         "  - symmetry: 'NONE'|'X'|'Z'|'BOTH' (X=left/right symmetry, Z=front/back symmetry)\n"
-        "  - plan: 'none'|'front_back'|'left_right'\n"
+        "  - plan: 'none'|'front_back'|'left_right'|'ring_corridor' (ring corridor / courtyard gallery)\n"
         "  - courtyard: true|false (open atrium/courtyard in the interior)\n"
         "  - courtyardRatio: float 0.2~0.8 (size of courtyard relative to footprint)\n"
         "\nBlueprint mode (advanced, optional):\n"
@@ -2420,6 +2420,9 @@ def _normalize_building_spec_dict(data: Any) -> Any:
                         out_layout["plan"] = "front_back"
                     elif p in ("left_right", "leftright", "left-right", "left/right", "左右", "左右分区", "左右布局"):
                         out_layout["plan"] = "left_right"
+                    elif p in ("ring_corridor", "ring", "courtyard_corridor", "courtyard-corridor", "gallery", "cloister",
+                               "回廊", "环廊", "环形走廊", "围绕中庭", "回字形", "回字布局", "回字走廊"):
+                        out_layout["plan"] = "ring_corridor"
 
                 ct = layout_in.get("courtyard")
                 if isinstance(ct, bool):

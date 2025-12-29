@@ -128,6 +128,7 @@ def main() -> int:
             "layout": {
                 "entranceFacing": "north",
                 "symmetry": "x",
+                "plan": "回廊",
                 "courtyard": "true",
                 "courtyardRatio": "0.45",
             }
@@ -140,6 +141,7 @@ def main() -> int:
     if isinstance(l4, dict):
         _assert(l4.get("entranceFacing") == "NORTH", "Case4: entranceFacing should normalize to NORTH", errors)
         _assert(l4.get("symmetry") == "X", "Case4: symmetry should normalize to X", errors)
+        _assert(l4.get("plan") == "ring_corridor", "Case4: plan should normalize to ring_corridor", errors)
         _assert(l4.get("courtyard") is True, "Case4: courtyard should normalize to True", errors)
         _assert(abs(float(l4.get("courtyardRatio")) - 0.45) < 1e-6, "Case4: courtyardRatio should normalize to 0.45", errors)
 
