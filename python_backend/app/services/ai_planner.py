@@ -180,10 +180,11 @@ def _build_user_prompt(req: BuildRequest) -> str:
     # Provide data-driven style profile candidates (multiple-choice), so the model can set extra.styleProfileId deterministically.
     try:
         from app.services.style_profile_registry import catalog_prompt_block, palette_prompt_block
-        block = catalog_prompt_block(max_items=30)
+        qtext = (req.requestText or "") + "\n" + (getattr(req, "userMessage", None) or "")
+        block = catalog_prompt_block(max_items=30, query_text=qtext)
         if block:
             parts.append("\n" + block)
-        pblock = palette_prompt_block(max_items=30)
+        pblock = palette_prompt_block(max_items=30, query_text=qtext)
         if pblock:
             parts.append("\n" + pblock)
     except Exception:
