@@ -117,6 +117,12 @@ def _build_system_prompt() -> str:
         "- If you set extra.styleProfileId, you MAY omit extra.paletteId (it will fallback to the style profile default palette).\n"
         "- If you set extra.paletteId, it MUST be one of the palette IDs listed in PaletteCatalog.\n"
         "- NEVER invent unknown styleProfileId/paletteId. If unsure, omit them.\n"
+        "\nLayout IR (optional, strongly recommended when the user asks for symmetry/axis/courtyard/entrance direction):\n"
+        "- You MAY set extra.layout as a JSON object with:\n"
+        "  - entranceFacing: 'NORTH'|'SOUTH'|'EAST'|'WEST'\n"
+        "  - symmetry: 'NONE'|'X'|'Z'|'BOTH' (X=left/right symmetry, Z=front/back symmetry)\n"
+        "  - courtyard: true|false (open atrium/courtyard in the interior)\n"
+        "  - courtyardRatio: float 0.2~0.8 (size of courtyard relative to footprint)\n"
         "\nBlueprint mode (advanced, optional):\n"
         "- For complex structures like CASTLE compounds, you MAY include extra.blueprint as a semantic component blueprint.\n"
         "- extra.blueprint MUST be valid JSON (no comments).\n"
@@ -2373,6 +2379,60 @@ def _normalize_building_spec_dict(data: Any) -> Any:
 
             if debug_list:
                 remapped["debugWarnings"] = debug_list[:20]
+        except Exception:
+            pass
+
+        # Normalize layout IR into extra.layout
+        try:
+            layout_in = remapped.get("layout")
+            # Promote common top-level or extra-level keys into layout if present
+            for k_layout in ("entranceFacing", "symmetry", "courtyard", "courtyardRatio"):
+                if k_layout in remapped and (layout_in is None or not isinstance(layout_in, dict)):
+                    layout_in = {}
+                if isinstance(layout_in, dict) and k_layout in remapped and k_layout not in layout_in:
+                    layout_in[k_layout] = remapped.get(k_layout)
+
+            if layout_in is None and isinstance(data.get("layout"), dict):
+                layout_in = data.get("layout")
+
+            if isinstance(layout_in, dict):
+                out_layout: Dict[str, Any] = {}
+                ef = layout_in.get("entranceFacing") or layout_in.get("entrance_facing") or layout_in.get("entrance")
+                if ef is not None:
+                    s = str(ef).strip().upper()
+                    if s in ("NORTH", "SOUTH", "EAST", "WEST"):
+                        out_layout["entranceFacing"] = s
+
+                sym = layout_in.get("symmetry")
+                if sym is not None:
+                    s = str(sym).strip().upper()
+                    if s in ("NONE", "X", "Z", "BOTH"):
+                        out_layout["symmetry"] = s
+
+                ct = layout_in.get("courtyard")
+                if isinstance(ct, bool):
+                    out_layout["courtyard"] = ct
+                elif ct is not None:
+                    s = str(ct).strip().lower()
+                    if s in ("true", "yes", "1"):
+                        out_layout["courtyard"] = True
+                    elif s in ("false", "no", "0"):
+                        out_layout["courtyard"] = False
+
+                cr = layout_in.get("courtyardRatio") or layout_in.get("courtyard_ratio")
+                if cr is not None:
+                    try:
+                        f = float(cr)
+                        if f < 0.2:
+                            f = 0.2
+                        if f > 0.8:
+                            f = 0.8
+                        out_layout["courtyardRatio"] = f
+                    except Exception:
+                        pass
+
+                if out_layout:
+                    remapped["layout"] = out_layout
         except Exception:
             pass
 

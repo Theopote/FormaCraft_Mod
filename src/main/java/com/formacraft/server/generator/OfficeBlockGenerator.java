@@ -10,11 +10,15 @@ import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * OfficeBlockGenerator (v1):
@@ -98,6 +102,38 @@ public class OfficeBlockGenerator implements StructureGenerator {
         int halfW = w / 2;
         int halfD = d / 2;
 
+        // ------------------------------
+        // Layout IR (extra.layout)
+        // ------------------------------
+        String entranceFacing = null; // NORTH/SOUTH/EAST/WEST (entrance is on that side of the building)
+        String symmetry = null;       // NONE/X/Z/BOTH
+        boolean courtyard = false;
+        double courtyardRatio = 0.0;
+        if (spec != null && spec.getExtra() != null) {
+            Object layoutObj = spec.getExtra().get("layout");
+            if (layoutObj instanceof Map<?, ?> m) {
+                Object ef = m.get("entranceFacing");
+                if (ef != null) entranceFacing = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
+                Object sym = m.get("symmetry");
+                if (sym != null) symmetry = String.valueOf(sym).trim().toUpperCase(java.util.Locale.ROOT);
+                Object ct = m.get("courtyard");
+                if (ct instanceof Boolean b) courtyard = b;
+                else if (ct != null) {
+                    String s = String.valueOf(ct).trim().toLowerCase(java.util.Locale.ROOT);
+                    courtyard = s.equals("true") || s.equals("1") || s.equals("yes");
+                }
+                Object cr = m.get("courtyardRatio");
+                if (cr != null) {
+                    try {
+                        courtyardRatio = Double.parseDouble(String.valueOf(cr).trim());
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        if (symmetry == null || symmetry.isBlank()) symmetry = "NONE";
+        if (courtyardRatio < 0.2) courtyardRatio = 0.2;
+        if (courtyardRatio > 0.8) courtyardRatio = 0.8;
+
         // shell
         for (int y = 0; y <= h; y++) {
             boolean windowBand = y % 4 == 2 && y <= h - 2;
@@ -122,6 +158,13 @@ public class OfficeBlockGenerator implements StructureGenerator {
         for (int y = 0; y <= h; y += 4) {
             for (int x = -halfW + 1; x <= halfW - 1; x++) {
                 for (int z = -halfD + 1; z <= halfD - 1; z++) {
+                    if (courtyard) {
+                        int cx = Math.max(2, (int) Math.floor(halfW * courtyardRatio));
+                        int cz = Math.max(2, (int) Math.floor(halfD * courtyardRatio));
+                        if (Math.abs(x) <= cx && Math.abs(z) <= cz) {
+                            continue;
+                        }
+                    }
                     blocks.add(new PlannedBlock(origin.add(x, y, z), floor));
                 }
             }
@@ -133,13 +176,22 @@ public class OfficeBlockGenerator implements StructureGenerator {
             internal = PaletteResolver.pick(world, paletteId, "INTERNAL_LIGHT", origin, 0x0FF1CE19L, internal);
             internal = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x0FF1CE1AL, internal);
             for (int y = 2; y <= h; y += 4) {
-                blocks.add(new PlannedBlock(origin.add(0, y, 0), internal));
+                // If courtyard is enabled, keep lights off the open shaft.
+                if (courtyard) blocks.add(new PlannedBlock(origin.add(2, y, 2), internal));
+                else blocks.add(new PlannedBlock(origin.add(0, y, 0), internal));
             }
         }
 
         // flat roof
         for (int x = -halfW; x <= halfW; x++) {
             for (int z = -halfD; z <= halfD; z++) {
+                if (courtyard) {
+                    int cx = Math.max(2, (int) Math.floor(halfW * courtyardRatio));
+                    int cz = Math.max(2, (int) Math.floor(halfD * courtyardRatio));
+                    if (Math.abs(x) <= cx && Math.abs(z) <= cz) {
+                        continue; // open roof over courtyard/atrium
+                    }
+                }
                 blocks.add(new PlannedBlock(origin.add(x, h + 1, z), roof));
             }
         }
@@ -171,18 +223,41 @@ public class OfficeBlockGenerator implements StructureGenerator {
             }
         }
 
-        // simple door opening (south side)
-        blocks.add(new PlannedBlock(origin.add(0, 1, halfD), Blocks.AIR.getDefaultState()));
-        blocks.add(new PlannedBlock(origin.add(0, 2, halfD), Blocks.AIR.getDefaultState()));
-        blocks.add(new PlannedBlock(origin.add(0, 1, halfD), Blocks.IRON_DOOR.getDefaultState()));
+        // simple door opening (default: south side). layout.entranceFacing controls which side.
+        Direction out = Direction.SOUTH;
+        if ("NORTH".equals(entranceFacing)) out = Direction.NORTH;
+        else if ("EAST".equals(entranceFacing)) out = Direction.EAST;
+        else if ("WEST".equals(entranceFacing)) out = Direction.WEST;
+        int ex = 0;
+        int ez = halfD;
+        if (out == Direction.NORTH) ez = -halfD;
+        else if (out == Direction.SOUTH) ez = halfD;
+        else if (out == Direction.EAST) ex = halfW;
+        else if (out == Direction.WEST) ex = -halfW;
+
+        BlockPos doorPos = origin.add(ex, 1, ez);
+        blocks.add(new PlannedBlock(doorPos, Blocks.AIR.getDefaultState()));
+        blocks.add(new PlannedBlock(doorPos.up(), Blocks.AIR.getDefaultState()));
+        Direction doorFacing = out.getOpposite(); // door faces into the building
+        BlockState doorLower = Blocks.IRON_DOOR.getDefaultState()
+                .with(Properties.HORIZONTAL_FACING, doorFacing)
+                .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER);
+        BlockState doorUpper = Blocks.IRON_DOOR.getDefaultState()
+                .with(Properties.HORIZONTAL_FACING, doorFacing)
+                .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
+        blocks.add(new PlannedBlock(doorPos, doorLower));
+        blocks.add(new PlannedBlock(doorPos.up(), doorUpper));
 
         // ornamentProfile: signage / banners near entrance
         String ornament = details != null ? details.ornamentProfile : null;
         if (ornament != null && !ornament.isBlank()) {
             String op = ornament.trim().toLowerCase(java.util.Locale.ROOT);
             if (op.contains("cyber") || op.contains("sign")) {
-                BlockPos signPos = origin.add(1, 3, halfD + 1);
-                BlockPos lightPos = origin.add(1, 4, halfD + 1);
+                // place signage just outside the entrance side
+                Direction side = out;
+                BlockPos base = doorPos.up(2).offset(side, 1).offset(side.rotateYClockwise(), 1);
+                BlockPos signPos = base;
+                BlockPos lightPos = base.up();
                 BlockState signBlock = Blocks.CYAN_STAINED_GLASS.getDefaultState();
                 BlockState lightBlock = Blocks.SEA_LANTERN.getDefaultState();
                 if (paletteId != null && !paletteId.isBlank()) {
@@ -193,9 +268,26 @@ public class OfficeBlockGenerator implements StructureGenerator {
                 }
                 blocks.add(new PlannedBlock(signPos, signBlock));
                 blocks.add(new PlannedBlock(lightPos, lightBlock));
+
+                // symmetry X/BOTH: mirror signage to the other side of the entrance
+                if ("X".equals(symmetry) || "BOTH".equals(symmetry)) {
+                    BlockPos signPos2 = doorPos.up(2).offset(side, 1).offset(side.rotateYClockwise(), -1);
+                    BlockPos lightPos2 = signPos2.up();
+                    BlockState sb2 = signBlock;
+                    BlockState lb2 = lightBlock;
+                    if (paletteId != null && !paletteId.isBlank()) {
+                        sb2 = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", signPos2, 0x0FF1CE23L, sb2);
+                        sb2 = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", signPos2, 0x0FF1CE24L, sb2);
+                        lb2 = PaletteResolver.pick(world, paletteId, "LIGHTING", lightPos2, 0x0FF1CE25L, lb2);
+                        lb2 = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", lightPos2, 0x0FF1CE26L, lb2);
+                    }
+                    blocks.add(new PlannedBlock(signPos2, sb2));
+                    blocks.add(new PlannedBlock(lightPos2, lb2));
+                }
             } else if (op.contains("banner")) {
-                BlockPos b1p = origin.add(1, 2, halfD + 1);
-                BlockPos b2p = origin.add(-1, 2, halfD + 1);
+                Direction side = out;
+                BlockPos b1p = doorPos.up(1).offset(side, 1).offset(side.rotateYClockwise(), 1);
+                BlockPos b2p = doorPos.up(1).offset(side, 1).offset(side.rotateYClockwise(), -1);
                 BlockState b1 = Blocks.RED_WALL_BANNER.getDefaultState();
                 BlockState b2 = Blocks.RED_WALL_BANNER.getDefaultState();
                 if (paletteId != null && !paletteId.isBlank()) {

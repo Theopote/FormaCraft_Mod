@@ -116,6 +116,33 @@ def main() -> int:
     dw3 = e3.get("debugWarnings")
     _assert(isinstance(dw3, list) and len(dw3) >= 1, "Case3: debugWarnings should exist", errors)
 
+    # Case 4: layout IR normalization
+    data4 = {
+        "type": "HOUSE",
+        "style": "DEFAULT",
+        "footprint": {"shape": "rectangle", "width": 8, "depth": 6},
+        "height": 10,
+        "materials": {},
+        "features": {},
+        "extra": {
+            "layout": {
+                "entranceFacing": "north",
+                "symmetry": "x",
+                "courtyard": "true",
+                "courtyardRatio": "0.45",
+            }
+        },
+    }
+    n4 = _normalize(data4)
+    e4 = _get_extra(n4)
+    l4 = e4.get("layout")
+    _assert(isinstance(l4, dict), "Case4: extra.layout should be a dict", errors)
+    if isinstance(l4, dict):
+        _assert(l4.get("entranceFacing") == "NORTH", "Case4: entranceFacing should normalize to NORTH", errors)
+        _assert(l4.get("symmetry") == "X", "Case4: symmetry should normalize to X", errors)
+        _assert(l4.get("courtyard") is True, "Case4: courtyard should normalize to True", errors)
+        _assert(abs(float(l4.get("courtyardRatio")) - 0.45) < 1e-6, "Case4: courtyardRatio should normalize to 0.45", errors)
+
     if errors:
         print("FAIL")
         for e in errors:
