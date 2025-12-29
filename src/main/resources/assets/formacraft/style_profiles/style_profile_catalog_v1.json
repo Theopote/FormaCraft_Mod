@@ -28,6 +28,7 @@
           "windows": "small_high",
           "portal": "paifang",
           "eaves": "flying_eaves",
+          "palette_id": "PALETTE_EAST_ASIAN_WOOD_A",
           "facade_profile": "base_plinth",
           "ornament_profile": "chinese_plaque",
           "balcony": "none"
@@ -72,7 +73,8 @@
           "courtyard": true,
           "balcony": "inner_ring",
           "windows": "small_high",
-          "portal": "stone_arch"
+          "portal": "stone_arch",
+          "palette_id": "PALETTE_EAST_ASIAN_WOOD_A"
         },
         "algorithm": {
           "generator": "tulou",
@@ -112,6 +114,7 @@
           "windows": "shoji",
           "portal": "torii",
           "eaves": "flying_eaves",
+          "palette_id": "PALETTE_EAST_ASIAN_WOOD_A",
           "ornament_profile": "chinese_plaque",
           "balcony": "outer"
         },
@@ -154,6 +157,7 @@
           "portal": "gothic_pointed",
           "facade_profile": "vertical_pilasters",
           "ornament_profile": "castle_banners",
+          "palette_id": "PALETTE_STONE_FORTRESS_A",
           "balcony": "none",
           "buttresses": true,
           "mullions": true,
@@ -197,6 +201,7 @@
           "windows": "slit_bars",
           "portal": "stone_arch",
           "eaves": "battlement",
+          "palette_id": "PALETTE_STONE_FORTRESS_A",
           "ornament_profile": "castle_banners",
           "defense": { "battlement": true, "tower_count": 4 }
         },
@@ -242,7 +247,8 @@
           "portal": "modern_frame",
           "eaves": "parapet",
           "facade_profile": "mullion_grid",
-          "ornament_profile": "cyber_signage"
+          "ornament_profile": "cyber_signage",
+          "palette_id": "PALETTE_MODERN_GLASS_B"
         },
         "algorithm": {
           "generator": "block_stack",
@@ -281,7 +287,8 @@
           "windows": "slit",
           "portal": "modern_frame",
           "eaves": "parapet",
-          "facade_profile": "module_grid"
+          "facade_profile": "module_grid",
+          "palette_id": "PALETTE_MODERN_GLASS_B"
         },
         "algorithm": {
           "generator": "modular_stack",
@@ -424,7 +431,8 @@
           "peristyle": true,
           "stylobate": true,
           "pediment": true,
-          "windows": "none"
+          "windows": "none",
+          "palette_id": "PALETTE_CLASSICAL_MARBLE_A"
         },
         "algorithm": {
           "generator": "classical_temple",
@@ -465,6 +473,7 @@
           "windows": "lattice_small_high",
           "portal": "paifang",
           "eaves": "flying_eaves",
+          "palette_id": "PALETTE_EAST_ASIAN_WOOD_A",
           "facade_profile": "base_plinth",
           "balcony": "none"
         },
@@ -507,6 +516,7 @@
           "pipes": true,
           "windows": "small_bars",
           "portal": "steampunk_riveted",
+          "palette_id": "PALETTE_STEAMPUNK_COPPER_A",
           "ornament_profile": "steampunk_pipes"
         },
         "algorithm": {
@@ -549,6 +559,7 @@
           "eaves": "neon_strip",
           "facade_profile": "mullion_grid",
           "ornament_profile": "cyber_signage",
+          "palette_id": "PALETTE_CYBER_NEON_A",
           "neon": true,
           "signage": true
         },

@@ -39,6 +39,9 @@ public final class DetailPreferences {
     /** Optional style defaults for banners/flags (null = unspecified). */
     public Boolean bannerEnabled = null;
     public String bannerColor = null;
+
+        /** Optional paletteId hint for PaletteResolver semantic picks (null = unspecified). */
+        public String paletteId = null;
 }
 
 

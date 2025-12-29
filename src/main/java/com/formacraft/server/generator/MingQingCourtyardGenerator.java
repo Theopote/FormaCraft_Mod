@@ -251,6 +251,10 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                     Object pid = spec.getExtra().get("paletteId");
                     if (pid != null) paletteId = String.valueOf(pid).trim();
                 }
+                if ((paletteId == null || paletteId.isBlank()) && enclosureProfile != null && enclosureProfile.details() != null
+                        && enclosureProfile.details().paletteId != null && !enclosureProfile.details().paletteId.isBlank()) {
+                    paletteId = enclosureProfile.details().paletteId.trim();
+                }
                 return new RectEnclosureInterpreter(wallBlock, cap, cap2, capLayers, capOverhang, pillar, openArcade, paletteId).interpret(rep, o, wld);
             }
             if (plan instanceof PolylinePathPlan pp) {
@@ -261,6 +265,10 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                 if (spec != null && spec.getExtra() != null) {
                     Object pid = spec.getExtra().get("paletteId");
                     if (pid != null) paletteId = String.valueOf(pid).trim();
+                }
+                if ((paletteId == null || paletteId.isBlank()) && roadProfile != null && roadProfile.details() != null
+                        && roadProfile.details().paletteId != null && !roadProfile.details().paletteId.isBlank()) {
+                    paletteId = roadProfile.details().paletteId.trim();
                 }
                 var roadDetails = roadProfile != null ? roadProfile.details() : null;
                 String eavesProfile = roadDetails != null ? roadDetails.eavesProfile : null;

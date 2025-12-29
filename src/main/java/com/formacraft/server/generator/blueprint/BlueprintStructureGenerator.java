@@ -67,8 +67,13 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
         StyleProfile styleProfile = StyleProfileRegistry.resolve(spec);
         Materials mats = spec.getMaterials() != null ? spec.getMaterials() : new Materials();
         String paletteId = getString(extra, "paletteId", null);
+        if ((paletteId == null || paletteId.isBlank()) && styleProfile != null && styleProfile.details() != null
+                && styleProfile.details().paletteId != null && !styleProfile.details().paletteId.isBlank()) {
+            paletteId = styleProfile.details().paletteId.trim();
+        }
+        final String paletteIdFinal = paletteId;
 
-        PlanDispatcher dispatcher = (child, o, w) -> interpretChild(spec, styleProfile, mats, paletteId, child, o, w);
+        PlanDispatcher dispatcher = (child, o, w) -> interpretChild(spec, styleProfile, mats, paletteIdFinal, child, o, w);
 
         List<PlannedBlock> blocks;
         try {

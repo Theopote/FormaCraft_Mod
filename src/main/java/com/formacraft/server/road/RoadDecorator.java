@@ -2,6 +2,7 @@ package com.formacraft.server.road;
 
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.StairsBlock;
@@ -33,10 +34,29 @@ public final class RoadDecorator {
                                               boolean useBorder,
                                               BlockState bridgeDeck,
                                               BlockState bridgeRail) {
+        return decorate(world, path, width, clearHeight, road, border, useBorder, bridgeDeck, bridgeRail, null);
+    }
+
+    /**
+     * Palette-aware decorate: border/rails can be varied by paletteId semantic parts.
+     * - border: ROAD_BORDER
+     * - bridge rail: DECOR_DETAIL
+     */
+    public static List<PlannedBlock> decorate(ServerWorld world,
+                                              List<BlockPos> path,
+                                              int width,
+                                              int clearHeight,
+                                              BlockState road,
+                                              BlockState border,
+                                              boolean useBorder,
+                                              BlockState bridgeDeck,
+                                              BlockState bridgeRail,
+                                              String paletteId) {
         if (path == null || path.isEmpty()) return List.of();
         int w = Math.max(1, width);
         int half = w / 2;
         int ch = Math.max(0, clearHeight);
+        String pid = (paletteId == null || paletteId.isBlank()) ? null : paletteId.trim();
 
         List<PlannedBlock> out = new ArrayList<>(Math.max(200, path.size() * w * 2));
 
@@ -73,7 +93,13 @@ public final class RoadDecorator {
                 BlockPos bp = new BlockPos(x2, p.getY(), z2);
 
                 BlockState base = road;
-                if (bridge) base = bridgeDeck;
+                if (bridge) {
+                    base = bridgeDeck;
+                    if (pid != null) {
+                        long salt = ((long) x2 * 31L) ^ ((long) z2 * 17L) ^ ((long) ww * 13L) ^ (i * 7L) ^ 0xBDEC1L;
+                        base = PaletteResolver.pick(world, pid, "BRIDGE_DECK", bp, salt, base);
+                    }
+                }
                 if (step) base = asStairsIfPossible(base, facing);
 
                 if (BuildConstraintContext.allow(bp)) out.add(new PlannedBlock(bp, base));
@@ -88,8 +114,16 @@ public final class RoadDecorator {
             if (useBorder) {
                 BlockPos b1 = new BlockPos(p.getX() + rx * (half + 1), p.getY(), p.getZ() + rz * (half + 1));
                 BlockPos b2 = new BlockPos(p.getX() - rx * (half + 1), p.getY(), p.getZ() - rz * (half + 1));
-                if (BuildConstraintContext.allow(b1)) out.add(new PlannedBlock(b1, border));
-                if (BuildConstraintContext.allow(b2)) out.add(new PlannedBlock(b2, border));
+                BlockState b1s = border;
+                BlockState b2s = border;
+                if (pid != null) {
+                    long salt1 = ((long) b1.getX() * 31L) ^ ((long) b1.getZ() * 17L) ^ (i * 11L) ^ 0xB01DL;
+                    long salt2 = ((long) b2.getX() * 31L) ^ ((long) b2.getZ() * 17L) ^ (i * 11L) ^ 0xB02DL;
+                    b1s = PaletteResolver.pick(world, pid, "ROAD_BORDER", b1, salt1, b1s);
+                    b2s = PaletteResolver.pick(world, pid, "ROAD_BORDER", b2, salt2, b2s);
+                }
+                if (BuildConstraintContext.allow(b1)) out.add(new PlannedBlock(b1, b1s));
+                if (BuildConstraintContext.allow(b2)) out.add(new PlannedBlock(b2, b2s));
             }
 
             // simple bridge rails: put fences at the edge if we're bridging
@@ -100,8 +134,19 @@ public final class RoadDecorator {
                 int ez2 = p.getZ() - rz * (half + 1);
                 BlockPos r1 = new BlockPos(ex, p.getY() + 1, ez);
                 BlockPos r2 = new BlockPos(ex2, p.getY() + 1, ez2);
-                if (BuildConstraintContext.allow(r1)) out.add(new PlannedBlock(r1, bridgeRail));
-                if (BuildConstraintContext.allow(r2)) out.add(new PlannedBlock(r2, bridgeRail));
+                BlockState r1s = bridgeRail;
+                BlockState r2s = bridgeRail;
+                if (pid != null) {
+                    long salt1 = ((long) r1.getX() * 31L) ^ ((long) r1.getZ() * 17L) ^ (i * 23L) ^ 0x7A11L;
+                    long salt2 = ((long) r2.getX() * 31L) ^ ((long) r2.getZ() * 17L) ^ (i * 23L) ^ 0x7A12L;
+                    r1s = PaletteResolver.pick(world, pid, "BRIDGE_RAIL", r1, salt1, r1s);
+                    r2s = PaletteResolver.pick(world, pid, "BRIDGE_RAIL", r2, salt2, r2s);
+                    // Back-compat: if palette doesn't define BRIDGE_RAIL, fall back to DECOR_DETAIL for variety.
+                    r1s = PaletteResolver.pick(world, pid, "DECOR_DETAIL", r1, salt1 ^ 0xD3C0L, r1s);
+                    r2s = PaletteResolver.pick(world, pid, "DECOR_DETAIL", r2, salt2 ^ 0xD3C0L, r2s);
+                }
+                if (BuildConstraintContext.allow(r1)) out.add(new PlannedBlock(r1, r1s));
+                if (BuildConstraintContext.allow(r2)) out.add(new PlannedBlock(r2, r2s));
             }
         }
 

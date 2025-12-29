@@ -51,6 +51,9 @@ public class WallGenerator implements StructureGenerator {
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
         DetailPreferences details = (profile != null) ? profile.details() : null;
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
         String eavesProfile = (details != null) ? details.eavesProfile : null;
         String ornamentProfile = (details != null) ? details.ornamentProfile : null;
         String bannerColor = (details != null) ? details.bannerColor : null;

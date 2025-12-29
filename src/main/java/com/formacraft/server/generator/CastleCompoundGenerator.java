@@ -293,6 +293,10 @@ public class CastleCompoundGenerator implements StructureGenerator {
                     Object pid = spec.getExtra().get("paletteId");
                     if (pid != null) paletteId = String.valueOf(pid).trim();
                 }
+                if ((paletteId == null || paletteId.isBlank()) && profile != null && profile.details() != null
+                        && profile.details().paletteId != null && !profile.details().paletteId.isBlank()) {
+                    paletteId = profile.details().paletteId.trim();
+                }
                 return new RectEnclosureInterpreter(wallBlock, capBlock, cap2Block, capLayers, capOverhang, pillar, openArcade, paletteId).interpret(rep, o, wld);
             }
             if (plan instanceof PolylinePathPlan pp) {
@@ -303,6 +307,10 @@ public class CastleCompoundGenerator implements StructureGenerator {
                 if (spec != null && spec.getExtra() != null) {
                     Object pid = spec.getExtra().get("paletteId");
                     if (pid != null) paletteId = String.valueOf(pid).trim();
+                }
+                if ((paletteId == null || paletteId.isBlank()) && profile != null && profile.details() != null
+                        && profile.details().paletteId != null && !profile.details().paletteId.isBlank()) {
+                    paletteId = profile.details().paletteId.trim();
                 }
                 var details = profile != null ? profile.details() : null;
                 String eavesProfile = details != null ? details.eavesProfile : null;

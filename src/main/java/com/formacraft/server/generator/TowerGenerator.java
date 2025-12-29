@@ -66,6 +66,9 @@ public class TowerGenerator implements StructureGenerator {
         BuildingStyle style = spec.getStyle() != null ? spec.getStyle() : BuildingStyle.DEFAULT;
         StyleProfile profile = StyleProfileRegistry.resolve(spec);
         DetailPreferences details = (profile != null) ? profile.details() : null;
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
 
         // windowStyle: StyleOptions > styleProfile.details.windowStyle > heuristic
         String effWindowStyle = resolveEffectiveWindowStyle(spec, details, style);

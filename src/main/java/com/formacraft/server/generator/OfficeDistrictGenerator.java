@@ -254,6 +254,9 @@ public class OfficeDistrictGenerator implements StructureGenerator {
             var details = profile != null ? profile.details() : null;
             String eavesProfile = details != null ? details.eavesProfile : null;
             String ornamentProfile = details != null ? details.ornamentProfile : null;
+            if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+                paletteId = details.paletteId.trim();
+            }
 
             boolean roadLamps = false;
             if (extra != null) {

@@ -332,7 +332,12 @@ public class CityBuilder {
             // This makes "semantic circulation" become real roads without requiring the LLM to output roads perfectly.
             if (!hasRoads && extra0 != null) {
                 try {
-                    java.util.List<PathSpec> skRoads = parseSkeletonRoads(extra0, roadId);
+                    String skPaletteId = null;
+                    if (extra0.get("paletteId") != null) skPaletteId = String.valueOf(extra0.get("paletteId")).trim();
+                    if ((skPaletteId == null || skPaletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+                        skPaletteId = details.paletteId.trim();
+                    }
+                    java.util.List<PathSpec> skRoads = parseSkeletonRoads(extra0, roadId, skPaletteId);
                     if (skRoads != null && !skRoads.isEmpty()) {
                         city.setRoads(skRoads);
                         hasRoads = true;
@@ -987,7 +992,7 @@ public class CityBuilder {
      * Expected skeleton node shape:
      * { zoneType:"CIRCULATION", shape:"LINEAR", points:[{x,y,z}, {x,y,z}, ...] }
      */
-    private static java.util.List<PathSpec> parseSkeletonRoads(java.util.Map<String, Object> extra, String materialId) {
+    private static java.util.List<PathSpec> parseSkeletonRoads(java.util.Map<String, Object> extra, String materialId, String paletteIdHint) {
         if (extra == null) return java.util.List.of();
         Object v = extra.get("skeletonLayout");
         if (!(v instanceof java.util.Map<?, ?> m)) return java.util.List.of();
@@ -1003,6 +1008,9 @@ public class CityBuilder {
             Object sid = extra.get("styleProfileId");
             if (sid != null) styleProfileId = String.valueOf(sid).trim();
         } catch (Throwable ignored) {}
+        if ((paletteId == null || paletteId.isBlank()) && paletteIdHint != null && !paletteIdHint.isBlank()) {
+            paletteId = paletteIdHint.trim();
+        }
         java.util.Map<String, Object> roadExtra = null;
         if (paletteId != null || styleProfileId != null) {
             roadExtra = new java.util.HashMap<>();

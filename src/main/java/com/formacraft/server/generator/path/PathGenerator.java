@@ -6,8 +6,13 @@ import com.formacraft.common.skeleton.path.PolylinePathPlan;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
+import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.road.RoadPlanner;
+import com.formacraft.server.road.RoadAStar;
+import com.formacraft.server.road.RoadDecorator;
+import com.formacraft.server.road.RoadSurfaceAnalyzer;
 import com.formacraft.server.skeleton.path.PathRoadInterpreter;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -61,6 +66,10 @@ public class PathGenerator {
         StyleProfile profile = StyleProfileRegistry.resolveByExtra(extra, defaultStyle);
         String paletteId = null;
         if (extra.get("paletteId") != null) paletteId = String.valueOf(extra.get("paletteId")).trim();
+        if ((paletteId == null || paletteId.isBlank()) && profile != null && profile.details() != null
+                && profile.details().paletteId != null && !profile.details().paletteId.isBlank()) {
+            paletteId = profile.details().paletteId.trim();
+        }
 
         var details = profile != null ? profile.details() : null;
         String eavesProfile = details != null ? details.eavesProfile : null;
@@ -110,7 +119,16 @@ public class PathGenerator {
             BlockState border = Blocks.COBBLESTONE.getDefaultState();
             if (paletteId != null) {
                 // Pick a representative border for planner (planner doesn't do per-block semantic picks).
-                border = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "ROAD_BORDER", p0, 0xB0D3L, border);
+                border = PaletteResolver.pick(world, paletteId, "ROAD_BORDER", p0, 0xB0D3L, border);
+            }
+            BlockState bridgeDeck = Blocks.OAK_PLANKS.getDefaultState();
+            BlockState bridgeRail = Blocks.OAK_FENCE.getDefaultState();
+            if (paletteId != null) {
+                bridgeDeck = PaletteResolver.pick(world, paletteId, "BRIDGE_DECK", p0, 0xBDEC11L, bridgeDeck);
+                // keep a back-compat fallback path
+                bridgeDeck = PaletteResolver.pick(world, paletteId, "FLOORING", p0, 0xBDEC12L, bridgeDeck);
+                bridgeRail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", p0, 0xBA111L, bridgeRail);
+                bridgeRail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p0, 0xBA112L, bridgeRail);
             }
             RoadPlanner.Config cfg = new RoadPlanner.Config(
                     width,
@@ -123,10 +141,21 @@ public class PathGenerator {
                     road,
                     border,
                     useBorder,
-                    Blocks.OAK_PLANKS.getDefaultState(),
-                    Blocks.OAK_FENCE.getDefaultState()
+                    bridgeDeck,
+                    bridgeRail
             );
-            List<PlannedBlock> out = RoadPlanner.build(world, p0, p1, cfg);
+
+            // Use the same pipeline as RoadPlanner, but keep the centerline so we can add lamps/signage.
+            RoadSurfaceAnalyzer analyzer = new RoadSurfaceAnalyzer(world, cfg.clearHeight(), cfg.maxStep());
+            List<BlockPos> center = RoadAStar.findPath(p0, p1, analyzer, cfg.maxSearch(), cfg.stepPenalty(), cfg.localSlopePenalty(), cfg.bridgePenalty());
+            List<PlannedBlock> out = center.isEmpty() ? List.of() : RoadDecorator.decorate(world, center, cfg.width(), cfg.clearHeight(), cfg.road(), cfg.border(), cfg.useBorder(), cfg.bridgeDeck(), cfg.bridgeRail(), paletteId);
+
+            if (!center.isEmpty() && (roadLamps || (ornamentProfile != null && !ornamentProfile.isBlank()))) {
+                ArrayList<PlannedBlock> merged = new ArrayList<>(out.size() + center.size() * 3);
+                merged.addAll(out);
+                merged.addAll(decorateSmartRoad(world, center, width, paletteId, roadLamps, lampInterval, ornamentProfile, eavesProfile));
+                out = merged;
+            }
             String description = String.format("Path (width=%d, style=%s)", width, style);
             return new GeneratedStructure(null, origin, description, out != null ? out : new ArrayList<>());
         }
@@ -265,6 +294,115 @@ public class PathGenerator {
         s ^= ((long) p1.getX() * 131L) ^ ((long) p1.getZ() * 71L);
         s ^= ((long) p0.getY() * 13L) ^ ((long) p1.getY() * 19L);
         return s;
+    }
+
+    private static List<PlannedBlock> decorateSmartRoad(ServerWorld world,
+                                                        List<BlockPos> center,
+                                                        int width,
+                                                        String paletteId,
+                                                        boolean roadLamps,
+                                                        int lampInterval,
+                                                        String ornamentProfile,
+                                                        String eavesProfile) {
+        if (world == null || center == null || center.size() < 2) return List.of();
+        int w = Math.max(1, width);
+        int half = w / 2;
+        int interval = Math.max(6, lampInterval);
+        int bridgeInterval = Math.max(4, interval / 2);
+
+        String op = ornamentProfile != null ? ornamentProfile.toLowerCase(Locale.ROOT) : null;
+        String ep = eavesProfile != null ? eavesProfile.toLowerCase(Locale.ROOT) : null;
+        boolean neon = ep != null && ep.contains("neon");
+        boolean cyber = op != null && (op.contains("cyber") || op.contains("sign"));
+
+        boolean signageEnabled = (op != null && !op.isBlank());
+        boolean lampsEnabled = roadLamps;
+
+        BlockState lampFallback = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
+        BlockState postFallback = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
+
+        BlockState signFallback = Blocks.RED_WOOL.getDefaultState();
+        if (op != null) {
+            if (op.contains("cyber") || op.contains("sign")) signFallback = Blocks.GLOWSTONE.getDefaultState();
+            else if (op.contains("organic") || op.contains("lantern")) signFallback = Blocks.SHROOMLIGHT.getDefaultState();
+            else if (op.contains("steam") || op.contains("pipe")) signFallback = Blocks.COPPER_BLOCK.getDefaultState();
+            else if (op.contains("plaque") || op.contains("chinese")) signFallback = Blocks.DARK_OAK_PLANKS.getDefaultState();
+            else if (op.contains("banner")) signFallback = Blocks.RED_WOOL.getDefaultState();
+        }
+
+        ArrayList<PlannedBlock> out = new ArrayList<>(Math.max(200, center.size() / interval * 6));
+        int step = 0;
+
+        for (int i = 0; i < center.size(); i++) {
+            BlockPos p = center.get(i);
+            BlockPos prev = (i > 0) ? center.get(i - 1) : null;
+            BlockPos next = (i + 1 < center.size()) ? center.get(i + 1) : null;
+
+            int dx = 0, dz = 0;
+            if (next != null) {
+                dx = Integer.compare(next.getX() - p.getX(), 0);
+                dz = Integer.compare(next.getZ() - p.getZ(), 0);
+            } else if (prev != null) {
+                dx = Integer.compare(p.getX() - prev.getX(), 0);
+                dz = Integer.compare(p.getZ() - prev.getZ(), 0);
+            }
+            if (dx == 0 && dz == 0) { dx = 1; dz = 0; }
+            int rx = -dz;
+            int rz = dx;
+
+            boolean bridge = isBridgeUnder(world, p);
+            int effInterval = bridge ? bridgeInterval : interval;
+
+            if (step % effInterval == 0) {
+                // lamps on one side
+                if (lampsEnabled) {
+                    int lx = p.getX() + rx * (half + 2);
+                    int lz = p.getZ() + rz * (half + 2);
+                    BlockPos postPos = new BlockPos(lx, p.getY(), lz);
+                    BlockPos lampPos = postPos.up();
+
+                    BlockState post = postFallback;
+                    BlockState lamp = lampFallback;
+                    if (paletteId != null) {
+                        long saltP = ((long) lx * 31L) ^ ((long) lz * 17L) ^ (step * 23L) ^ 0xC0DEL;
+                        post = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", postPos, saltP, post);
+                        long saltL = ((long) lx * 31L) ^ ((long) lz * 17L) ^ (step * 19L) ^ 0x11A17L;
+                        lamp = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", lampPos, saltL, lamp);
+                    }
+                    if (BuildConstraintContext.allow(postPos)) out.add(new PlannedBlock(postPos, post));
+                    if (BuildConstraintContext.allow(lampPos)) out.add(new PlannedBlock(lampPos, lamp));
+                }
+
+                // signage on the opposite side (reduce collisions with lamps)
+                if (signageEnabled && paletteId != null) {
+                    int sx = p.getX() - rx * (half + 2);
+                    int sz = p.getZ() - rz * (half + 2);
+                    BlockPos supportPos = new BlockPos(sx, p.getY() + 1, sz);
+                    BlockPos signPos = supportPos.up();
+
+                    BlockState support = Blocks.STONE_BRICKS.getDefaultState();
+                    long saltS = ((long) sx * 31L) ^ ((long) sz * 17L) ^ (step * 29L) ^ 0x516E0L;
+                    support = PaletteResolver.pick(world, paletteId, "ROAD_BORDER", supportPos, saltS, support);
+
+                    BlockState sign = signFallback;
+                    long saltG = ((long) sx * 31L) ^ ((long) sz * 17L) ^ (step * 31L) ^ 0x516F1L;
+                    sign = PaletteResolver.pick(world, paletteId, "ROAD_SIGNAGE", signPos, saltG, sign);
+
+                    if (BuildConstraintContext.allow(supportPos)) out.add(new PlannedBlock(supportPos, support));
+                    if (BuildConstraintContext.allow(signPos)) out.add(new PlannedBlock(signPos, sign));
+                }
+            }
+
+            step++;
+        }
+
+        return out;
+    }
+
+    private static boolean isBridgeUnder(ServerWorld world, BlockPos p) {
+        if (world == null || p == null) return false;
+        BlockState below = world.getBlockState(p.down());
+        return !below.getFluidState().isEmpty() || below.isAir();
     }
 
     /**

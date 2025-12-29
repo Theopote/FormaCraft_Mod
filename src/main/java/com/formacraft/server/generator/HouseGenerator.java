@@ -199,6 +199,10 @@ public class HouseGenerator implements StructureGenerator {
             Object pid = spec.getExtra().get("paletteId");
             if (pid != null) paletteId = String.valueOf(pid).trim();
         }
+        if ((paletteId == null || paletteId.isBlank()) && profile != null && profile.details() != null
+                && profile.details().paletteId != null && !profile.details().paletteId.isBlank()) {
+            paletteId = profile.details().paletteId.trim();
+        }
 
         // Door side (for compounds like gatehouses): default keeps legacy behavior (NORTH wall, z==0).
         Direction doorSide = resolveDoorSide(spec);

@@ -137,6 +137,14 @@ public final class CatalogStyleProfile implements StyleProfile {
                 details.ornamentProfile = orn;
             }
 
+            // Palette hint for semantic material picks (PaletteResolver).
+            String pid = asString(comps.get("palette_id")).trim();
+            if (pid.isBlank()) pid = asString(comps.get("paletteId")).trim();
+            if (pid.isBlank()) pid = asString(comps.get("palette")).trim();
+            if (!pid.isBlank()) {
+                details.paletteId = pid;
+            }
+
             // Gothic: rose windows + buttresses
             if (win.contains("rose")) {
                 details.roseWindow = true;

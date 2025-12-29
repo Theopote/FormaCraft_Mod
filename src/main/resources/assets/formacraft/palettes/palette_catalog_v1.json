@@ -72,6 +72,14 @@
           { "id": "minecraft:red_wool", "weight": 45 },
           { "id": "minecraft:black_wool", "weight": 35 },
           { "id": "minecraft:white_wool", "weight": 20 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:oak_planks", "weight": 70 },
+          { "id": "minecraft:spruce_planks", "weight": 30 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:oak_fence", "weight": 70 },
+          { "id": "minecraft:spruce_fence", "weight": 30 }
         ]
       }
     },
@@ -112,8 +120,247 @@
           { "id": "minecraft:magenta_stained_glass", "weight": 15 },
           { "id": "minecraft:cyan_stained_glass", "weight": 15 }
         ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:smooth_stone", "weight": 60 },
+          { "id": "minecraft:light_gray_concrete", "weight": 40 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:iron_bars", "weight": 70 },
+          { "id": "minecraft:light_gray_stained_glass_pane", "weight": 30 }
+        ],
         "INTERNAL_LIGHT": [
           { "id": "minecraft:sea_lantern", "weight": 100 }
+        ]
+      }
+    },
+
+    "PALETTE_CYBER_NEON_A": {
+      "meta": {
+        "display_name": "Cyber Neon A",
+        "tags": ["cyberpunk", "neon", "night_city", "glass"],
+        "description": "Cyberpunk palette with dark massing and neon emissive accents"
+      },
+      "parts": {
+        "WALL_BASE": [
+          { "id": "minecraft:black_concrete", "weight": 55 },
+          { "id": "minecraft:gray_concrete", "weight": 35 },
+          { "id": "minecraft:polished_deepslate", "weight": 10 }
+        ],
+        "FACADE_CURTAIN": [
+          { "id": "minecraft:cyan_stained_glass", "weight": 35 },
+          { "id": "minecraft:magenta_stained_glass", "weight": 35 },
+          { "id": "minecraft:purple_stained_glass", "weight": 20 },
+          { "id": "minecraft:light_blue_stained_glass", "weight": 10 }
+        ],
+        "FRAME": [
+          { "id": "minecraft:light_gray_concrete", "weight": 70 },
+          { "id": "minecraft:quartz_block", "weight": 30 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:sea_lantern", "weight": 55 },
+          { "id": "minecraft:end_rod", "weight": 25 },
+          { "id": "minecraft:iron_bars", "weight": 20 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:black_concrete", "weight": 60 },
+          { "id": "minecraft:gray_concrete", "weight": 40 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:sea_lantern", "weight": 60 },
+          { "id": "minecraft:cyan_concrete", "weight": 40 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:sea_lantern", "weight": 80 },
+          { "id": "minecraft:end_rod", "weight": 20 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:glowstone", "weight": 30 },
+          { "id": "minecraft:sea_lantern", "weight": 30 },
+          { "id": "minecraft:magenta_stained_glass", "weight": 20 },
+          { "id": "minecraft:cyan_stained_glass", "weight": 20 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:gray_concrete", "weight": 70 },
+          { "id": "minecraft:black_concrete", "weight": 30 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:iron_bars", "weight": 70 },
+          { "id": "minecraft:light_blue_stained_glass_pane", "weight": 30 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:sea_lantern", "weight": 100 }
+        ]
+      }
+    },
+
+    "PALETTE_STEAMPUNK_COPPER_A": {
+      "meta": {
+        "display_name": "Steampunk Copper A",
+        "tags": ["steampunk", "industrial", "copper", "rivets"],
+        "description": "Steampunk palette with copper/iron details and dark stone massing"
+      },
+      "parts": {
+        "WALL_BASE": [
+          { "id": "minecraft:deepslate_bricks", "weight": 55 },
+          { "id": "minecraft:tuff", "weight": 25 },
+          { "id": "minecraft:copper_block", "weight": 20 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:spruce_log", "weight": 60 },
+          { "id": "minecraft:stripped_spruce_log", "weight": 20 },
+          { "id": "minecraft:dark_oak_log", "weight": 20 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:iron_bars", "weight": 45 },
+          { "id": "minecraft:cut_copper", "weight": 35 },
+          { "id": "minecraft:exposed_cut_copper", "weight": 20 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:polished_deepslate", "weight": 60 },
+          { "id": "minecraft:deepslate_tiles", "weight": 40 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:polished_deepslate", "weight": 60 },
+          { "id": "minecraft:deepslate_tiles", "weight": 40 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:cut_copper", "weight": 60 },
+          { "id": "minecraft:copper_block", "weight": 40 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 70 },
+          { "id": "minecraft:soul_lantern", "weight": 30 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:glowstone", "weight": 50 },
+          { "id": "minecraft:cut_copper", "weight": 30 },
+          { "id": "minecraft:iron_block", "weight": 20 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:cut_copper", "weight": 60 },
+          { "id": "minecraft:exposed_cut_copper", "weight": 40 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:iron_bars", "weight": 70 },
+          { "id": "minecraft:chain", "weight": 30 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:lantern", "weight": 100 }
+        ]
+      }
+    },
+
+    "PALETTE_EAST_ASIAN_WOOD_A": {
+      "meta": {
+        "display_name": "East Asian Wood A",
+        "tags": ["eastern", "asian", "wood", "courtyard"],
+        "description": "East Asian palette with wood frames, light plaster, and subdued stone bases"
+      },
+      "parts": {
+        "WALL_BASE": [
+          { "id": "minecraft:white_terracotta", "weight": 45 },
+          { "id": "minecraft:packed_mud", "weight": 35 },
+          { "id": "minecraft:birch_planks", "weight": 20 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:dark_oak_log", "weight": 70 },
+          { "id": "minecraft:stripped_dark_oak_log", "weight": 30 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:deepslate_tiles", "weight": 70 },
+          { "id": "minecraft:polished_deepslate", "weight": 30 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:dark_oak_log", "weight": 70 },
+          { "id": "minecraft:stripped_dark_oak_log", "weight": 30 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:red_concrete", "weight": 35 },
+          { "id": "minecraft:dark_oak_trapdoor", "weight": 35 },
+          { "id": "minecraft:polished_blackstone", "weight": 30 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:gravel", "weight": 60 },
+          { "id": "minecraft:coarse_dirt", "weight": 40 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:stone_bricks", "weight": 70 },
+          { "id": "minecraft:polished_blackstone", "weight": 30 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 80 },
+          { "id": "minecraft:soul_lantern", "weight": 20 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:dark_oak_planks", "weight": 60 },
+          { "id": "minecraft:red_wool", "weight": 40 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:dark_oak_planks", "weight": 70 },
+          { "id": "minecraft:spruce_planks", "weight": 30 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:dark_oak_fence", "weight": 70 },
+          { "id": "minecraft:spruce_fence", "weight": 30 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:red_wall_banner", "weight": 70 },
+          { "id": "minecraft:white_wall_banner", "weight": 30 }
+        ]
+      }
+    },
+
+    "PALETTE_CLASSICAL_MARBLE_A": {
+      "meta": {
+        "display_name": "Classical Marble A",
+        "tags": ["classical", "greco_roman", "marble", "temple"],
+        "description": "Classical palette with light stone/marble massing and crisp trims"
+      },
+      "parts": {
+        "WALL_BASE": [
+          { "id": "minecraft:quartz_block", "weight": 55 },
+          { "id": "minecraft:smooth_quartz", "weight": 25 },
+          { "id": "minecraft:calcite", "weight": 20 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:quartz_pillar", "weight": 80 },
+          { "id": "minecraft:smooth_quartz", "weight": 20 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:chiseled_quartz_block", "weight": 50 },
+          { "id": "minecraft:smooth_quartz_slab", "weight": 30 },
+          { "id": "minecraft:polished_diorite", "weight": 20 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:smooth_stone", "weight": 70 },
+          { "id": "minecraft:polished_diorite", "weight": 30 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:smooth_stone", "weight": 70 },
+          { "id": "minecraft:polished_diorite", "weight": 30 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:polished_diorite", "weight": 70 },
+          { "id": "minecraft:quartz_block", "weight": 30 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 100 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:quartz_block", "weight": 60 },
+          { "id": "minecraft:white_wool", "weight": 40 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:smooth_stone", "weight": 70 },
+          { "id": "minecraft:polished_diorite", "weight": 30 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:iron_bars", "weight": 60 },
+          { "id": "minecraft:quartz_stairs", "weight": 40 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:white_wall_banner", "weight": 70 },
+          { "id": "minecraft:black_wall_banner", "weight": 30 }
         ]
       }
     }

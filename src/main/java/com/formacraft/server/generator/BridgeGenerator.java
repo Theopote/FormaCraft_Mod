@@ -48,6 +48,9 @@ public class BridgeGenerator implements StructureGenerator {
         String eavesProfile = details != null ? details.eavesProfile : null;
         String ornamentProfile = details != null ? details.ornamentProfile : null;
         String paletteId = (extra != null && extra.get("paletteId") != null) ? String.valueOf(extra.get("paletteId")).trim() : null;
+        if ((paletteId == null || paletteId.isBlank()) && details != null && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
 
         // 获取风格选项（BuildingSpec 2.0）
         String bridgeType = spec.getStyleOptions() != null ? 
