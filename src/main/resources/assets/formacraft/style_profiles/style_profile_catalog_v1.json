@@ -353,7 +353,7 @@
           "accent": ["minecraft:copper_block"]
         },
         "components": {
-          "eaves": "neon_strip",
+          "eaves": "none",
           "ornament_profile": "industrial_signage",
           "palette_id": "PALETTE_INDUSTRIAL_STEEL_A"
         },
@@ -384,7 +384,7 @@
         },
         "materials": {
           "wall": ["minecraft:oak_log", "minecraft:birch_log"],
-          "accent": ["minecraft:oak_leaves", "minecraft:glow_berries"],
+          "accent": ["minecraft:oak_leaves", "minecraft:cave_vines", "minecraft:glow_lichen"],
           "floor": ["minecraft:moss_block"],
           "foundation": ["minecraft:dirt"],
           "trim": ["minecraft:mossy_cobblestone"],

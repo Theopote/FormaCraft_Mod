@@ -71,10 +71,14 @@ public class EiffelTowerGenerator implements StructureGenerator {
         // Palette overrides (optional): keep explicit per-spec block overrides as fallback.
         if (paletteId != null && !paletteId.isBlank()) {
             leg = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", origin, 0xE1FF01L, leg);
-            brace = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xE1FF02L, brace);
+            brace = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", origin, 0xE1FF02L, brace);
+            brace = PaletteResolver.pick(world, paletteId, "FRAME", origin, 0xE1FF06L, brace);
+            brace = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xE1FF07L, brace);
             platform = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0xE1FF03L, platform);
             rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xE1FF04L, rail);
-            spire = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xE1FF05L, spire);
+            spire = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", origin, 0xE1FF05L, spire);
+            spire = PaletteResolver.pick(world, paletteId, "FRAME", origin, 0xE1FF08L, spire);
+            spire = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xE1FF09L, spire);
         }
 
         // -----------------------------

@@ -491,9 +491,12 @@
           { "id": "minecraft:deepslate_bricks", "weight": 30 }
         ],
         "WALL_BASE": [
-          { "id": "minecraft:black_concrete", "weight": 55 },
-          { "id": "minecraft:gray_concrete", "weight": 35 },
-          { "id": "minecraft:polished_deepslate", "weight": 10 }
+          { "id": "minecraft:black_concrete", "weight": 40 },
+          { "id": "minecraft:gray_concrete", "weight": 25 },
+          { "id": "minecraft:polished_deepslate", "weight": 10 },
+          { "id": "minecraft:polished_blackstone", "weight": 15 },
+          { "id": "minecraft:blackstone", "weight": 5 },
+          { "id": "minecraft:purpur_block", "weight": 5 }
         ],
         "FLOORING": [
           { "id": "minecraft:gray_concrete", "weight": 60 },
@@ -525,16 +528,20 @@
           { "id": "minecraft:cyan_stained_glass", "weight": 35 },
           { "id": "minecraft:magenta_stained_glass", "weight": 35 },
           { "id": "minecraft:purple_stained_glass", "weight": 20 },
-          { "id": "minecraft:light_blue_stained_glass", "weight": 10 }
+          { "id": "minecraft:light_blue_stained_glass", "weight": 5 },
+          { "id": "minecraft:tinted_glass", "weight": 5 }
         ],
         "FRAME": [
           { "id": "minecraft:light_gray_concrete", "weight": 70 },
           { "id": "minecraft:quartz_block", "weight": 30 }
         ],
         "DECOR_DETAIL": [
-          { "id": "minecraft:sea_lantern", "weight": 55 },
-          { "id": "minecraft:end_rod", "weight": 25 },
-          { "id": "minecraft:iron_bars", "weight": 20 }
+          { "id": "minecraft:sea_lantern", "weight": 38 },
+          { "id": "minecraft:end_rod", "weight": 18 },
+          { "id": "minecraft:glow_lichen", "weight": 14 },
+          { "id": "minecraft:shroomlight", "weight": 10 },
+          { "id": "minecraft:pearlescent_froglight", "weight": 6 },
+          { "id": "minecraft:iron_bars", "weight": 14 }
         ],
         "STRUCTURAL_BEAM": [
           { "id": "minecraft:iron_block", "weight": 45 },
@@ -550,14 +557,22 @@
           { "id": "minecraft:cyan_concrete", "weight": 40 }
         ],
         "ROAD_LIGHT": [
-          { "id": "minecraft:sea_lantern", "weight": 80 },
-          { "id": "minecraft:end_rod", "weight": 20 }
+          { "id": "minecraft:sea_lantern", "weight": 60 },
+          { "id": "minecraft:end_rod", "weight": 18 },
+          { "id": "minecraft:glow_lichen", "weight": 12 },
+          { "id": "minecraft:shroomlight", "weight": 10 }
         ],
         "ROAD_SIGNAGE": [
           { "id": "minecraft:glowstone", "weight": 30 },
           { "id": "minecraft:sea_lantern", "weight": 30 },
-          { "id": "minecraft:magenta_stained_glass", "weight": 20 },
-          { "id": "minecraft:cyan_stained_glass", "weight": 20 }
+          { "id": "minecraft:magenta_stained_glass", "weight": 10 },
+          { "id": "minecraft:cyan_stained_glass", "weight": 10 },
+          { "id": "minecraft:purple_stained_glass", "weight": 8 },
+          { "id": "minecraft:magenta_stained_glass_pane", "weight": 5 },
+          { "id": "minecraft:cyan_stained_glass_pane", "weight": 5 },
+          { "id": "minecraft:purple_stained_glass_pane", "weight": 4 },
+          { "id": "minecraft:light_blue_stained_glass_pane", "weight": 3 },
+          { "id": "minecraft:tinted_glass", "weight": 5 }
         ],
         "BRIDGE_DECK": [
           { "id": "minecraft:gray_concrete", "weight": 70 },
@@ -573,11 +588,17 @@
           { "id": "minecraft:black_wall_banner", "weight": 15 }
         ],
         "LIGHTING": [
-          { "id": "minecraft:sea_lantern", "weight": 100 }
+          { "id": "minecraft:sea_lantern", "weight": 55 },
+          { "id": "minecraft:end_rod", "weight": 15 },
+          { "id": "minecraft:glow_lichen", "weight": 10 },
+          { "id": "minecraft:shroomlight", "weight": 10 },
+          { "id": "minecraft:pearlescent_froglight", "weight": 10 }
         ],
         "INTERNAL_LIGHT": [
-          { "id": "minecraft:sea_lantern", "weight": 70 },
-          { "id": "minecraft:end_rod", "weight": 30 }
+          { "id": "minecraft:sea_lantern", "weight": 55 },
+          { "id": "minecraft:end_rod", "weight": 20 },
+          { "id": "minecraft:shroomlight", "weight": 15 },
+          { "id": "minecraft:pearlescent_froglight", "weight": 10 }
         ]
       }
     },
@@ -626,14 +647,28 @@
           { "id": "minecraft:cut_copper", "weight": 50 }
         ],
         "STRUCTURAL_BEAM": [
-          { "id": "minecraft:spruce_log", "weight": 60 },
-          { "id": "minecraft:stripped_spruce_log", "weight": 20 },
-          { "id": "minecraft:dark_oak_log", "weight": 20 }
+          { "id": "minecraft:spruce_log", "weight": 45 },
+          { "id": "minecraft:stripped_spruce_log", "weight": 15 },
+          { "id": "minecraft:dark_oak_log", "weight": 15 },
+          { "id": "minecraft:iron_block", "weight": 15 },
+          { "id": "minecraft:iron_bars", "weight": 10 }
         ],
         "DECOR_DETAIL": [
-          { "id": "minecraft:iron_bars", "weight": 45 },
-          { "id": "minecraft:cut_copper", "weight": 35 },
-          { "id": "minecraft:exposed_cut_copper", "weight": 20 }
+          { "id": "minecraft:iron_bars", "weight": 22 },
+          { "id": "minecraft:chain", "weight": 16 },
+          { "id": "minecraft:lightning_rod", "weight": 8 },
+          { "id": "minecraft:grindstone", "weight": 8 },
+          { "id": "minecraft:anvil", "weight": 6 },
+          { "id": "minecraft:blast_furnace", "weight": 4 },
+          { "id": "minecraft:smoker", "weight": 4 },
+          { "id": "minecraft:copper_block", "weight": 8 },
+          { "id": "minecraft:exposed_copper", "weight": 5 },
+          { "id": "minecraft:weathered_copper", "weight": 4 },
+          { "id": "minecraft:oxidized_copper", "weight": 3 },
+          { "id": "minecraft:cut_copper", "weight": 6 },
+          { "id": "minecraft:exposed_cut_copper", "weight": 3 },
+          { "id": "minecraft:weathered_cut_copper", "weight": 2 },
+          { "id": "minecraft:oxidized_cut_copper", "weight": 1 }
         ],
         "ROOF_TILE": [
           { "id": "minecraft:polished_deepslate", "weight": 60 },
@@ -657,8 +692,9 @@
         ],
         "ROAD_SIGNAGE": [
           { "id": "minecraft:glowstone", "weight": 50 },
-          { "id": "minecraft:cut_copper", "weight": 30 },
-          { "id": "minecraft:iron_block", "weight": 20 }
+          { "id": "minecraft:cut_copper", "weight": 25 },
+          { "id": "minecraft:exposed_cut_copper", "weight": 10 },
+          { "id": "minecraft:iron_block", "weight": 15 }
         ],
         "BRIDGE_DECK": [
           { "id": "minecraft:cut_copper", "weight": 60 },
@@ -1202,8 +1238,9 @@
         ],
         "WALL_BASE": [
           { "id": "minecraft:mossy_stone_bricks", "weight": 45 },
-          { "id": "minecraft:oak_log", "weight": 30 },
-          { "id": "minecraft:birch_log", "weight": 25 }
+          { "id": "minecraft:oak_log", "weight": 25 },
+          { "id": "minecraft:birch_log", "weight": 20 },
+          { "id": "minecraft:mushroom_stem", "weight": 10 }
         ],
         "FRAME": [
           { "id": "minecraft:stripped_oak_log", "weight": 60 },
@@ -1228,9 +1265,12 @@
           { "id": "minecraft:spruce_slab", "weight": 20 }
         ],
         "ROOF_TILE": [
-          { "id": "minecraft:mossy_cobblestone_slab", "weight": 40 },
-          { "id": "minecraft:dark_oak_slab", "weight": 35 },
-          { "id": "minecraft:spruce_slab", "weight": 25 }
+          { "id": "minecraft:mossy_cobblestone_slab", "weight": 30 },
+          { "id": "minecraft:dark_oak_slab", "weight": 25 },
+          { "id": "minecraft:spruce_slab", "weight": 20 },
+          { "id": "minecraft:red_mushroom_block", "weight": 15 },
+          { "id": "minecraft:brown_mushroom_block", "weight": 5 },
+          { "id": "minecraft:pink_petals", "weight": 5 }
         ],
         "ROOF_SLOPE": [
           { "id": "minecraft:dark_oak_stairs", "weight": 60 },
@@ -1244,12 +1284,17 @@
         "FACADE_CURTAIN": [
           { "id": "minecraft:lime_stained_glass", "weight": 45 },
           { "id": "minecraft:light_blue_stained_glass", "weight": 35 },
-          { "id": "minecraft:glass", "weight": 20 }
+          { "id": "minecraft:glass", "weight": 15 },
+          { "id": "minecraft:pink_stained_glass", "weight": 5 }
         ],
         "DECOR_DETAIL": [
           { "id": "minecraft:oak_leaves", "weight": 45 },
-          { "id": "minecraft:glow_berries", "weight": 30 },
-          { "id": "minecraft:hanging_roots", "weight": 25 }
+          { "id": "minecraft:cave_vines", "weight": 18 },
+          { "id": "minecraft:glow_lichen", "weight": 12 },
+          { "id": "minecraft:hanging_roots", "weight": 18 },
+          { "id": "minecraft:red_mushroom", "weight": 4 },
+          { "id": "minecraft:brown_mushroom", "weight": 2 },
+          { "id": "minecraft:flowering_azalea_leaves", "weight": 1 }
         ],
         "LIGHTING": [
           { "id": "minecraft:shroomlight", "weight": 45 },
@@ -1281,7 +1326,8 @@
           { "id": "minecraft:lantern", "weight": 40 }
         ],
         "ROAD_SIGNAGE": [
-          { "id": "minecraft:glow_berries", "weight": 50 },
+          { "id": "minecraft:cave_vines", "weight": 35 },
+          { "id": "minecraft:glow_lichen", "weight": 15 },
           { "id": "minecraft:shroomlight", "weight": 30 },
           { "id": "minecraft:oak_planks", "weight": 20 }
         ],
@@ -1321,7 +1367,9 @@
         "STRUCTURAL_BEAM": [
           { "id": "minecraft:iron_block", "weight": 55 },
           { "id": "minecraft:iron_bars", "weight": 25 },
-          { "id": "minecraft:polished_deepslate", "weight": 20 }
+          { "id": "minecraft:polished_deepslate", "weight": 15 },
+          { "id": "minecraft:copper_block", "weight": 3 },
+          { "id": "minecraft:exposed_copper", "weight": 2 }
         ],
         "PILLAR": [
           { "id": "minecraft:iron_block", "weight": 60 },
@@ -1359,7 +1407,10 @@
         "DECOR_DETAIL": [
           { "id": "minecraft:chain", "weight": 40 },
           { "id": "minecraft:iron_bars", "weight": 40 },
-          { "id": "minecraft:copper_block", "weight": 20 }
+          { "id": "minecraft:copper_block", "weight": 8 },
+          { "id": "minecraft:exposed_copper", "weight": 4 },
+          { "id": "minecraft:weathered_copper", "weight": 4 },
+          { "id": "minecraft:oxidized_copper", "weight": 4 }
         ],
         "LIGHTING": [
           { "id": "minecraft:lantern", "weight": 55 },
@@ -1374,7 +1425,8 @@
         "BANNER": [
           { "id": "minecraft:black_wall_banner", "weight": 55 },
           { "id": "minecraft:gray_wall_banner", "weight": 30 },
-          { "id": "minecraft:white_wall_banner", "weight": 15 }
+          { "id": "minecraft:white_wall_banner", "weight": 10 },
+          { "id": "minecraft:red_wall_banner", "weight": 5 }
         ],
         "ROAD_SURFACE": [
           { "id": "minecraft:polished_andesite", "weight": 55 },
@@ -1392,9 +1444,12 @@
           { "id": "minecraft:sea_lantern", "weight": 15 }
         ],
         "ROAD_SIGNAGE": [
-          { "id": "minecraft:iron_block", "weight": 35 },
-          { "id": "minecraft:yellow_concrete", "weight": 35 },
-          { "id": "minecraft:black_concrete", "weight": 30 }
+          { "id": "minecraft:iron_block", "weight": 25 },
+          { "id": "minecraft:yellow_concrete", "weight": 25 },
+          { "id": "minecraft:black_concrete", "weight": 20 },
+          { "id": "minecraft:red_concrete", "weight": 10 },
+          { "id": "minecraft:red_terracotta", "weight": 10 },
+          { "id": "minecraft:bricks", "weight": 10 }
         ],
         "BRIDGE_DECK": [
           { "id": "minecraft:polished_andesite", "weight": 55 },

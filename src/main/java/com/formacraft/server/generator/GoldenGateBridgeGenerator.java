@@ -78,14 +78,28 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
 
         // Palette overrides (optional): keep explicit per-spec block overrides as fallback.
         if (paletteId != null && !paletteId.isBlank()) {
-            tower = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0x6010L, tower);
+            // Prefer structural language for suspension towers
+            tower = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", origin, 0x6010L, tower);
+            tower = PaletteResolver.pick(world, paletteId, "FRAME", origin, 0x601AL, tower);
+            tower = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0x601BL, tower);
             foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0x6011L, foundation);
             deck = PaletteResolver.pick(world, paletteId, "BRIDGE_DECK", origin, 0x6012L, deck);
             deck = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0x6013L, deck);
             rail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", origin, 0x6014L, rail);
             rail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6015L, rail);
-            cable = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6016L, cable);
-            hanger = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6017L, hanger);
+
+            // Prefer chain/steel-ish for cables when not explicitly overridden by spec.extra keys.
+            if (spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("cableBlock")) {
+                BlockState chain = getStateOrDefault(world, "minecraft:chain", Blocks.IRON_BARS.getDefaultState());
+                cable = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6016L, chain);
+            } else {
+                cable = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6016L, cable);
+            }
+            if (spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("hangerBlock")) {
+                hanger = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6017L, Blocks.IRON_BARS.getDefaultState());
+            } else {
+                hanger = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x6017L, hanger);
+            }
         }
 
         // -----------------------------

@@ -126,8 +126,33 @@ public final class GeneratorRouter {
         if (s.contains("office_block")) {
             return new OfficeBlockGenerator();
         }
+        if (s.contains("cyberpunk_megablock") || s.contains("cyber_megablock") || s.contains("cyber_slum_tower")
+                || s.contains("夜城") || s.contains("赛博巨构") || s.contains("贫民窟塔")) {
+            return new CyberpunkMegaBlockGenerator();
+        }
+        if (s.contains("elven_treehouse") || s.contains("treehouse") || s.contains("elf_treehouse")
+                || s.contains("精灵树屋") || s.contains("树屋") || s.contains("树上小屋")) {
+            return new ElvenTreehouseGenerator();
+        }
+        if (s.contains("mushroom_house") || s.contains("mushroom_hut") || s.contains("mushroomhouse")
+                || s.contains("蘑菇屋") || s.contains("蘑菇房") || s.contains("蘑菇小屋")) {
+            return new ElvenMushroomHouseGenerator();
+        }
+        if (s.contains("flower_house") || s.contains("flower_hut") || s.contains("flowerhome")
+                || s.contains("花朵屋") || s.contains("花屋") || s.contains("花房") || s.contains("花朵小屋")) {
+            return new ElvenFlowerHouseGenerator();
+        }
         if (s.contains("jiangnan_water_town") || s.contains("water_town") || s.contains("watertown")) {
             return new JiangnanWaterTownGenerator();
+        }
+        if (s.contains("steampunk_airship") || s.contains("airship") || s.contains("zeppelin") || s.contains("飞艇") || s.contains("飞船")) {
+            return new SteampunkAirshipGenerator();
+        }
+        if (s.contains("steampunk_factory") || s.contains("factory_steampunk") || s.contains("steam_factory") || s.contains("蒸汽工厂") || s.contains("工厂")) {
+            return new SteampunkFactoryGenerator();
+        }
+        if (s.contains("airship_dock") || s.contains("steampunk_dock") || s.contains("airship_port") || s.contains("dock") || s.contains("空港") || s.contains("码头") || s.contains("飞艇码头")) {
+            return new SteampunkAirshipDockGenerator();
         }
         if (s.contains("japanese_shrine") || s.contains("shrine") || s.contains("jinja") || s.contains("torii")) {
             return new JapaneseShrineGenerator();

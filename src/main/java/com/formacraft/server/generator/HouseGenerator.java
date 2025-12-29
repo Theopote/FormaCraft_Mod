@@ -1766,6 +1766,13 @@ public class HouseGenerator implements StructureGenerator {
         if (op.contains("steam") || op.contains("pipe")) {
             BlockState pipe = Blocks.COPPER_BLOCK.getDefaultState();
             BlockState rib = Blocks.IRON_BARS.getDefaultState();
+            BlockState chimney = Blocks.CAMPFIRE.getDefaultState();
+            if (paletteId != null && !paletteId.isBlank() && world != null) {
+                pipe = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xA005E100L, pipe);
+                pipe = PaletteResolver.pick(world, paletteId, "FRAME", origin, 0xA005E101L, pipe);
+                rib = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xA005E102L, rib);
+                chimney = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xA005E103L, chimney);
+            }
             BlockPos base = origin.add(-1, 0, -1);
             for (int y = 1; y <= Math.min(height + 1, 8); y++) {
                 blocks.add(new PlannedBlock(base.up(y), pipe));
@@ -1773,7 +1780,7 @@ public class HouseGenerator implements StructureGenerator {
             }
             // chimney on roof corner
             BlockPos top = origin.add(1, height + 1, 1);
-            blocks.add(new PlannedBlock(top, Blocks.CAMPFIRE.getDefaultState()));
+            blocks.add(new PlannedBlock(top, chimney));
             return;
         }
 
