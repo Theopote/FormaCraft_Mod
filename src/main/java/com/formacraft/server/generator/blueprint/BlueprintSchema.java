@@ -25,7 +25,7 @@ public final class BlueprintSchema {
         }
 
         String type = normalizeType(getStringAny(blueprint, "blueprint_type", "blueprintType", "type"));
-        int version = getIntAny(blueprint, SUPPORTED_VERSION, "blueprint_version", "blueprintVersion", "version");
+        int version = getIntAny(blueprint, "blueprint_version", "blueprintVersion", "version");
 
         if (type.isBlank()) return new Validation(false, "", version, "missing blueprint_type");
         if (version != SUPPORTED_VERSION) {
@@ -72,8 +72,8 @@ public final class BlueprintSchema {
         return "";
     }
 
-    private static int getIntAny(Map<String, Object> m, int def, String... keys) {
-        if (m == null || keys == null) return def;
+    private static int getIntAny(Map<String, Object> m, String... keys) {
+        if (m == null || keys == null) return BlueprintSchema.SUPPORTED_VERSION;
         for (String k : keys) {
             if (k == null) continue;
             Object v = m.get(k);
@@ -84,7 +84,7 @@ public final class BlueprintSchema {
                 if (!s.isBlank()) return Integer.parseInt(s);
             } catch (Exception ignored) {}
         }
-        return def;
+        return BlueprintSchema.SUPPORTED_VERSION;
     }
 }
 

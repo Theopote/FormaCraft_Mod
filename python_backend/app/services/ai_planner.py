@@ -121,6 +121,7 @@ def _build_system_prompt() -> str:
         "- You MAY set extra.layout as a JSON object with:\n"
         "  - entranceFacing: 'NORTH'|'SOUTH'|'EAST'|'WEST'\n"
         "  - symmetry: 'NONE'|'X'|'Z'|'BOTH' (X=left/right symmetry, Z=front/back symmetry)\n"
+        "  - plan: 'none'|'front_back'|'left_right'\n"
         "  - courtyard: true|false (open atrium/courtyard in the interior)\n"
         "  - courtyardRatio: float 0.2~0.8 (size of courtyard relative to footprint)\n"
         "\nBlueprint mode (advanced, optional):\n"
@@ -2386,7 +2387,7 @@ def _normalize_building_spec_dict(data: Any) -> Any:
         try:
             layout_in = remapped.get("layout")
             # Promote common top-level or extra-level keys into layout if present
-            for k_layout in ("entranceFacing", "symmetry", "courtyard", "courtyardRatio"):
+            for k_layout in ("entranceFacing", "symmetry", "plan", "courtyard", "courtyardRatio"):
                 if k_layout in remapped and (layout_in is None or not isinstance(layout_in, dict)):
                     layout_in = {}
                 if isinstance(layout_in, dict) and k_layout in remapped and k_layout not in layout_in:
@@ -2408,6 +2409,17 @@ def _normalize_building_spec_dict(data: Any) -> Any:
                     s = str(sym).strip().upper()
                     if s in ("NONE", "X", "Z", "BOTH"):
                         out_layout["symmetry"] = s
+
+                # plan: a minimal zoning plan that maps to actual generator behavior (best-effort)
+                plan = layout_in.get("plan") or layout_in.get("floorPlan") or layout_in.get("floor_plan") or layout_in.get("zoning") or layout_in.get("zoningPlan")
+                if plan is not None:
+                    p = str(plan).strip().lower()
+                    if p in ("none", "no", "false", "0", "off"):
+                        out_layout["plan"] = "none"
+                    elif p in ("front_back", "frontback", "front-back", "front/back", "前后", "前后分区", "前后布局", "前厅后室"):
+                        out_layout["plan"] = "front_back"
+                    elif p in ("left_right", "leftright", "left-right", "left/right", "左右", "左右分区", "左右布局"):
+                        out_layout["plan"] = "left_right"
 
                 ct = layout_in.get("courtyard")
                 if isinstance(ct, bool):

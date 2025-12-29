@@ -217,6 +217,7 @@ public class HouseGenerator implements StructureGenerator {
         // Layout IR: extra.layout.entranceFacing has higher priority.
         Direction doorSide = resolveDoorSide(spec);
         LayoutCourtyard courtyard = resolveLayoutCourtyard(spec, width, depth);
+        String layoutPlan = resolveLayoutPlan(spec);
 
         // 2.1 地基（y=0 一圈）
         for (int x = 0; x < width; x++) {
@@ -435,6 +436,14 @@ public class HouseGenerator implements StructureGenerator {
                     }
                 }
             }
+        }
+
+        // -------------------------------------
+        // 3.5 内部分区（Layout IR: extra.layout.plan）
+        // -------------------------------------
+        // NOTE: best-effort zoning. We currently skip when courtyard is enabled to avoid conflicting geometry.
+        if (!courtyard.enabled) {
+            addInteriorPartitions(blocks, origin, width, depth, height, floors, floorHeight, wall, trim, doorSide, layoutPlan);
         }
 
         // -------------------------------------
@@ -919,6 +928,105 @@ public class HouseGenerator implements StructureGenerator {
             }
         } catch (Throwable ignored) {}
         return "NONE";
+    }
+
+    private static String resolveLayoutPlan(BuildingSpec spec) {
+        if (spec == null || spec.getExtra() == null) return "none";
+        try {
+            Object layoutObj = spec.getExtra().get("layout");
+            if (layoutObj instanceof java.util.Map<?, ?> m) {
+                Object plan = m.get("plan");
+                if (plan != null) {
+                    String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
+                    if (p.isEmpty()) return "none";
+                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
+                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
+                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
+                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
+                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "none";
+    }
+
+    private static void addInteriorPartitions(List<PlannedBlock> blocks, BlockPos origin,
+                                              int width, int depth, int height,
+                                              int floors, int floorHeight,
+                                              BlockState wall, BlockState trim,
+                                              Direction doorSide, String plan) {
+        if (plan == null) return;
+        String p = plan.trim().toLowerCase(java.util.Locale.ROOT);
+        if (p.isEmpty() || p.equals("none")) return;
+
+        // Need a minimum interior to partition meaningfully.
+        if (width < 8 || depth < 8) return;
+
+        // y range inside each floor cell: leave floor at y0 and ceiling at y0+floorHeight.
+        int yMin = 1;
+        int yMax = Math.max(2, floorHeight - 1); // exclusive upper bound for walls
+        int doorH = Math.min(3, Math.max(2, yMax - yMin)); // 2~3 blocks door opening
+
+        boolean splitZ = p.equals("front_back");   // partition line is Z constant (splits front/back)
+        boolean splitX = p.equals("left_right");   // partition line is X constant (splits left/right)
+        if (!splitZ && !splitX) return;
+
+        boolean doorOnNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
+        int doorAxisCenter = doorOnNS ? (width / 2) : (depth / 2);
+
+        // Partition position: slightly biased so "front" zone (near entrance) is smaller than "back" zone.
+        double frontRatio = 0.42;
+        int interiorW = width - 2;
+        int interiorD = depth - 2;
+        int zSplitInterior = 1 + (int) Math.round((interiorD - 1) * frontRatio);
+        int xSplitInterior = 1 + (int) Math.round((interiorW - 1) * frontRatio);
+
+        if (doorSide == Direction.SOUTH) {
+            // entrance at far Z: mirror split
+            zSplitInterior = (depth - 2) - (zSplitInterior - 1);
+        }
+        if (doorSide == Direction.EAST) {
+            // entrance at far X: mirror split
+            xSplitInterior = (width - 2) - (xSplitInterior - 1);
+        }
+
+        // clamp
+        zSplitInterior = Math.max(2, Math.min(depth - 3, zSplitInterior));
+        xSplitInterior = Math.max(2, Math.min(width - 3, xSplitInterior));
+
+        // opening width: 1 for narrow, 2 for wide.
+        int openW = (doorOnNS ? width : depth) >= 12 ? 2 : 1;
+        int open0 = Math.max(2, doorAxisCenter - (openW / 2));
+        int open1 = Math.min((doorOnNS ? width - 3 : depth - 3), open0 + openW - 1);
+
+        for (int f = 0; f < floors; f++) {
+            int y0 = f * floorHeight;
+            if (y0 >= height) break;
+
+            int yTop = Math.min(height - 1, y0 + yMax);
+            for (int y = y0 + yMin; y < yTop; y++) {
+                if (splitZ) {
+                    int z = zSplitInterior;
+                    for (int x = 1; x < width - 1; x++) {
+                        boolean opening = (doorOnNS && x >= open0 && x <= open1 && y < (y0 + yMin + doorH));
+                        if (opening) continue;
+                        BlockState w = wall;
+                        // add a subtle trim at top of partition wall
+                        if (y == yTop - 1) w = trim;
+                        blocks.add(new PlannedBlock(origin.add(x, y, z), w));
+                    }
+                } else if (splitX) {
+                    int x = xSplitInterior;
+                    for (int z = 1; z < depth - 1; z++) {
+                        boolean opening = (!doorOnNS && z >= open0 && z <= open1 && y < (y0 + yMin + doorH));
+                        if (opening) continue;
+                        BlockState w = wall;
+                        if (y == yTop - 1) w = trim;
+                        blocks.add(new PlannedBlock(origin.add(x, y, z), w));
+                    }
+                }
+            }
+        }
     }
 
     private record LayoutCourtyard(boolean enabled, int x0, int x1, int z0, int z1) {
