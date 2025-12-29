@@ -36,6 +36,14 @@
           { "id": "minecraft:gravel", "weight": 30 },
           { "id": "minecraft:cobblestone", "weight": 30 }
         ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:gravel", "weight": 60 },
+          { "id": "minecraft:cobblestone", "weight": 40 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:stone_bricks", "weight": 70 },
+          { "id": "minecraft:stone_brick_wall", "weight": 30 }
+        ],
         "WINDOW": [
           { "id": "minecraft:glass_pane", "weight": 70 },
           { "id": "minecraft:iron_bars", "weight": 30 }
@@ -55,6 +63,10 @@
         ],
         "LIGHTING": [
           { "id": "minecraft:lantern", "weight": 100 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 80 },
+          { "id": "minecraft:torch", "weight": 20 }
         ]
       }
     },
@@ -71,11 +83,23 @@
           { "id": "minecraft:white_stained_glass", "weight": 10 },
           { "id": "minecraft:cyan_stained_glass", "weight": 10 }
         ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:smooth_stone", "weight": 50 },
+          { "id": "minecraft:gray_concrete", "weight": 50 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:light_gray_concrete", "weight": 80 },
+          { "id": "minecraft:white_concrete", "weight": 20 }
+        ],
         "FRAME": [
           { "id": "minecraft:white_concrete", "weight": 100 }
         ],
         "FLOOR_SLAB": [
           { "id": "minecraft:smooth_stone_slab", "weight": 100 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:sea_lantern", "weight": 80 },
+          { "id": "minecraft:end_rod", "weight": 20 }
         ],
         "INTERNAL_LIGHT": [
           { "id": "minecraft:sea_lantern", "weight": 100 }

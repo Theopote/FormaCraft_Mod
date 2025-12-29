@@ -3,6 +3,7 @@ package com.formacraft.server.skeleton.path;
 import com.formacraft.common.skeleton.path.PolylinePathPlan;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -20,11 +21,21 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
     private final BlockState road;
     private final BlockState border;
     private final boolean useBorder;
+    private final String paletteId;
+    private final BlockState lamp;
+    private final BlockState lampPost;
 
     public PathRoadInterpreter(BlockState road, BlockState border, boolean useBorder) {
+        this(road, border, useBorder, null, null, null);
+    }
+
+    public PathRoadInterpreter(BlockState road, BlockState border, boolean useBorder, String paletteId, BlockState lamp, BlockState lampPost) {
         this.road = road;
         this.border = border;
         this.useBorder = useBorder;
+        this.paletteId = (paletteId == null || paletteId.isBlank()) ? null : paletteId.trim();
+        this.lamp = lamp;
+        this.lampPost = lampPost;
     }
 
     @Override
@@ -62,13 +73,34 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
                     int x2 = p.getX() + rx * w;
                     int z2 = p.getZ() + rz * w;
                     BlockPos bp = new BlockPos(x2, y, z2);
-                    if (BuildConstraintContext.allow(bp)) out.add(new PlannedBlock(bp, road));
+                    if (BuildConstraintContext.allow(bp)) {
+                        BlockState rs = road;
+                        if (paletteId != null) {
+                            long salt = ((long) x2 * 31L) ^ ((long) z2 * 17L) ^ ((long) w * 13L) ^ (stepCounter * 7L);
+                            rs = PaletteResolver.pick(world, paletteId, "ROAD_SURFACE", bp, salt, rs);
+                        }
+                        out.add(new PlannedBlock(bp, rs));
+                    }
                 }
                 if (useBorder) {
                     BlockPos b1 = new BlockPos(p.getX() + rx * (half + 1), y, p.getZ() + rz * (half + 1));
-                    if (BuildConstraintContext.allow(b1)) out.add(new PlannedBlock(b1, border));
+                    if (BuildConstraintContext.allow(b1)) {
+                        BlockState bs = border;
+                        if (paletteId != null) {
+                            long salt = ((long) b1.getX() * 31L) ^ ((long) b1.getZ() * 17L) ^ (stepCounter * 11L) ^ 0xB01DL;
+                            bs = PaletteResolver.pick(world, paletteId, "ROAD_BORDER", b1, salt, bs);
+                        }
+                        out.add(new PlannedBlock(b1, bs));
+                    }
                     BlockPos b2 = new BlockPos(p.getX() - rx * (half + 1), y, p.getZ() - rz * (half + 1));
-                    if (BuildConstraintContext.allow(b2)) out.add(new PlannedBlock(b2, border));
+                    if (BuildConstraintContext.allow(b2)) {
+                        BlockState bs = border;
+                        if (paletteId != null) {
+                            long salt = ((long) b2.getX() * 31L) ^ ((long) b2.getZ() * 17L) ^ (stepCounter * 11L) ^ 0xB02DL;
+                            bs = PaletteResolver.pick(world, paletteId, "ROAD_BORDER", b2, salt, bs);
+                        }
+                        out.add(new PlannedBlock(b2, bs));
+                    }
                 }
 
                 // lamps
@@ -77,9 +109,20 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
                     int lz = p.getZ() + rz * (half + 2);
                     int ly = y + 1;
                     BlockPos lp = new BlockPos(lx, ly, lz);
-                    if (BuildConstraintContext.allow(lp)) out.add(new PlannedBlock(lp, Blocks.LANTERN.getDefaultState()));
+                    BlockState lampState = (lamp != null) ? lamp : Blocks.LANTERN.getDefaultState();
+                    if (paletteId != null) {
+                        long salt = ((long) lx * 31L) ^ ((long) lz * 17L) ^ (stepCounter * 19L) ^ 0x11A17L;
+                        lampState = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", lp, salt, lampState);
+                    }
+                    if (BuildConstraintContext.allow(lp)) out.add(new PlannedBlock(lp, lampState));
                     BlockPos post = new BlockPos(lx, ly - 1, lz);
-                    if (BuildConstraintContext.allow(post)) out.add(new PlannedBlock(post, Blocks.COBBLESTONE_WALL.getDefaultState()));
+                    BlockState postState = (lampPost != null) ? lampPost : Blocks.COBBLESTONE_WALL.getDefaultState();
+                    if (paletteId != null) {
+                        long salt = ((long) lx * 31L) ^ ((long) lz * 17L) ^ (stepCounter * 23L) ^ 0x9057L;
+                        // lamp post is a "detail" element; keep it under DECOR_DETAIL for now.
+                        postState = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", post, salt, postState);
+                    }
+                    if (BuildConstraintContext.allow(post)) out.add(new PlannedBlock(post, postState));
                 }
 
                 stepCounter++;

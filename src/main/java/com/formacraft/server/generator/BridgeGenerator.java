@@ -1,8 +1,13 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.style.profile.DetailPreferences;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -35,22 +40,39 @@ public class BridgeGenerator implements StructureGenerator {
         BlockState support = getState(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null);
         BlockState railing = Blocks.OAK_FENCE.getDefaultState();
 
+        // style + palette (best-effort)
+        Map<String, Object> extra = spec != null ? spec.getExtra() : null;
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
+        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = profile != null ? profile.details() : null;
+        String eavesProfile = details != null ? details.eavesProfile : null;
+        String ornamentProfile = details != null ? details.ornamentProfile : null;
+        String paletteId = (extra != null && extra.get("paletteId") != null) ? String.valueOf(extra.get("paletteId")).trim() : null;
+
         // 获取风格选项（BuildingSpec 2.0）
         String bridgeType = spec.getStyleOptions() != null ? 
             spec.getStyleOptions().getBridgeType() : "flat";
         
         // 向后兼容：如果 styleOptions 中没有，尝试从 extra 获取
         if (bridgeType == null || bridgeType.isEmpty() || "flat".equals(bridgeType)) {
-            Map<String, Object> extra = spec.getExtra();
             if (extra != null && extra.containsKey("bridgeType")) {
                 bridgeType = String.valueOf(extra.get("bridgeType"));
             }
         }
         
         // 桥墩间隔（暂时仍从 extra 获取，未来可移到 styleOptions）
-        Map<String, Object> extra = spec.getExtra();
         int pillarInterval = extra != null ? 
             ((Number) extra.getOrDefault("pillarInterval", 6)).intValue() : 6;
+
+        // Eaves profiles can steer railing material (neon strip etc.) when not explicitly overridden
+        if ((extra == null || !extra.containsKey("railingBlock")) && eavesProfile != null) {
+            String ep = eavesProfile.toLowerCase(java.util.Locale.ROOT);
+            if (ep.contains("neon")) railing = Blocks.SEA_LANTERN.getDefaultState();
+            else if (ep.contains("organic") || ep.contains("vine")) railing = Blocks.OAK_LEAVES.getDefaultState();
+        }
+        if (extra != null && extra.containsKey("railingBlock")) {
+            railing = getState(world, String.valueOf(extra.get("railingBlock")));
+        }
 
         // ---------------------------------------------------------
         // 1. 清空桥上与两侧空间
@@ -81,7 +103,12 @@ public class BridgeGenerator implements StructureGenerator {
             }
             for (int x = -width / 2; x <= width / 2; x++) {
                 BlockPos pos = origin.add(x, yOffset, z);
-                blocks.add(new PlannedBlock(pos, floor));
+                BlockState st = floor;
+                if (paletteId != null && !paletteId.isBlank()) {
+                    long salt = (x * 31L) ^ (z * 17L) ^ (yOffset * 13L);
+                    st = PaletteResolver.pick(world, paletteId, "FLOORING", pos, salt, st);
+                }
+                blocks.add(new PlannedBlock(pos, st));
             }
         }
 
@@ -95,8 +122,36 @@ public class BridgeGenerator implements StructureGenerator {
             }
             BlockPos left = origin.add(-width / 2 - 1, yOffset, z);
             BlockPos right = origin.add(width / 2 + 1, yOffset, z);
-            blocks.add(new PlannedBlock(left, railing));
-            blocks.add(new PlannedBlock(right, railing));
+            BlockState lr = railing;
+            if (paletteId != null && !paletteId.isBlank()) {
+                long saltL = (-31L) ^ (z * 17L) ^ (yOffset * 13L);
+                long saltR = (31L) ^ (z * 17L) ^ (yOffset * 13L);
+                lr = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", left, saltL, lr);
+                BlockState rr = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", right, saltR, railing);
+                blocks.add(new PlannedBlock(left, lr));
+                blocks.add(new PlannedBlock(right, rr));
+            } else {
+                blocks.add(new PlannedBlock(left, lr));
+                blocks.add(new PlannedBlock(right, lr));
+            }
+        }
+
+        // Ornaments (best-effort): signage/banners along the bridge sides
+        if (ornamentProfile != null && !ornamentProfile.isBlank()) {
+            String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+            int step = Math.max(10, length / 4);
+            for (int z = step; z < length; z += step) {
+                int yOffset = (yOffsets != null) ? yOffsets[z] : 0;
+                BlockPos left = origin.add(-width / 2 - 2, yOffset + 2, z);
+                BlockPos right = origin.add(width / 2 + 2, yOffset + 2, z);
+                if (op.contains("cyber") || op.contains("sign")) {
+                    blocks.add(new PlannedBlock(left, Blocks.DARK_OAK_WALL_SIGN.getDefaultState()));
+                    blocks.add(new PlannedBlock(right, Blocks.DARK_OAK_WALL_SIGN.getDefaultState()));
+                } else if (op.contains("banner")) {
+                    blocks.add(new PlannedBlock(left, Blocks.RED_WALL_BANNER.getDefaultState()));
+                    blocks.add(new PlannedBlock(right, Blocks.RED_WALL_BANNER.getDefaultState()));
+                }
+            }
         }
 
         // ---------------------------------------------------------

@@ -1,6 +1,7 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.skeleton.radial.RadialPlan;
 import com.formacraft.common.skeleton.radial.RadialPrimitive;
 import com.formacraft.common.skeleton.radial.RadialPrimitiveKind;
@@ -9,6 +10,9 @@ import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter;
+import com.formacraft.common.style.profile.DetailPreferences;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.enums.BlockHalf;
@@ -86,6 +90,15 @@ public class TulouGenerator implements StructureGenerator {
                 Blocks.DEEPSLATE_TILES.getDefaultState());
         BlockState window = getStateOrDefault(world, spec != null && spec.getMaterials() != null ? spec.getMaterials().getWindow() : null,
                 Blocks.GLASS_PANE.getDefaultState());
+
+        // Style-driven detail hints (cross-style): window/eaves/ornament
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.ASIAN;
+        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = (profile != null) ? profile.details() : null;
+        String effWindowStyle = resolveEffectiveWindowStyle(spec, details, style);
+        window = resolveWindowBlock(effWindowStyle, window);
+        String eavesProfile = (details != null) ? details.eavesProfile : null;
+        String ornamentProfile = (details != null) ? details.ornamentProfile : null;
 
         // palette overrides (fallback to current material choices if palette part missing)
         if (paletteId != null && !paletteId.isBlank()) {
@@ -165,7 +178,12 @@ public class TulouGenerator implements StructureGenerator {
 
                         boolean isWindowBand = (y % floorHeight == 2) && y >= 2 && y <= wallHeight - 2;
                         int windowMask = refined ? 3 : 7; // refined 窗更密
-                        boolean windowSlot = (((x * 31) ^ (z * 17)) & windowMask) == 0;
+                        int effectiveWindowMask = windowMask;
+                        // windowStyle broad density knobs (cross-style)
+                        String ws = (effWindowStyle == null) ? "" : effWindowStyle.trim().toLowerCase(java.util.Locale.ROOT);
+                        if (ws.contains("slit") || ws.contains("bars")) effectiveWindowMask = refined ? 7 : 15;
+                        else if (ws.contains("curtain")) effectiveWindowMask = refined ? 1 : 3;
+                        boolean windowSlot = (((x * 31) ^ (z * 17)) & effectiveWindowMask) == 0;
 
                         BlockState base = wall;
                         if (isRammedLayer) base = wallAccent;
@@ -272,6 +290,11 @@ public class TulouGenerator implements StructureGenerator {
         blocks.add(new PlannedBlock(c.add(doorX + sideX, 1, doorZ + sideZ), wall));
         blocks.add(new PlannedBlock(c.add(doorX - sideX, 1, doorZ - sideZ), wall));
 
+        // Ornament near entrance (cross-style, best-effort)
+        if (ornamentProfile != null && !ornamentProfile.isBlank()) {
+            addEntranceOrnaments(blocks, c, doorFacing, doorX, doorZ, ornamentProfile, details);
+        }
+
         // 门前台阶 + 门楼（更观赏性）
         // 在门外侧方向扩展一个小门厅平台与台阶
         int fx = (doorFacing == Direction.EAST ? 1 : (doorFacing == Direction.WEST ? -1 : 0));
@@ -370,6 +393,10 @@ public class TulouGenerator implements StructureGenerator {
         }
         // 檐口：在屋顶基线外再做一圈（更像土楼厚重屋檐）
         int eaveR = radius + 2;
+        if (eavesProfile != null && !eavesProfile.isBlank()) {
+            String ep = eavesProfile.trim().toLowerCase(java.util.Locale.ROOT);
+            if (ep.contains("flying")) eaveR += 1;
+        }
         for (int x = -eaveR; x <= eaveR; x++) {
             for (int z = -eaveR; z <= eaveR; z++) {
                 int d2 = x * x + z * z;
@@ -381,6 +408,43 @@ public class TulouGenerator implements StructureGenerator {
                         rr = PaletteResolver.pick(world, paletteId, "ROOF_TILE", p, salt, roof);
                     }
                     blocks.add(new PlannedBlock(p, rr));
+                }
+            }
+        }
+
+        // Eaves profiles (cross-style, best-effort)
+        if (eavesProfile != null && !eavesProfile.isBlank()) {
+            String ep = eavesProfile.trim().toLowerCase(java.util.Locale.ROOT);
+            if (ep.contains("neon")) {
+                BlockState light = Blocks.SEA_LANTERN.getDefaultState();
+                for (int x = -eaveR; x <= eaveR; x += 6) {
+                    blocks.add(new PlannedBlock(c.add(x, roofBaseY, eaveR), light));
+                    blocks.add(new PlannedBlock(c.add(x, roofBaseY, -eaveR), light));
+                }
+                for (int z = -eaveR; z <= eaveR; z += 6) {
+                    blocks.add(new PlannedBlock(c.add(eaveR, roofBaseY, z), light));
+                    blocks.add(new PlannedBlock(c.add(-eaveR, roofBaseY, z), light));
+                }
+            } else if (ep.contains("organic") || ep.contains("vine")) {
+                BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
+                for (int x = -eaveR; x <= eaveR; x += 5) {
+                    blocks.add(new PlannedBlock(c.add(x, roofBaseY - 1, eaveR + 1), leaf));
+                    blocks.add(new PlannedBlock(c.add(x, roofBaseY - 1, -eaveR - 1), leaf));
+                }
+            } else if (ep.contains("battlement")) {
+                BlockState crenel = Blocks.STONE_BRICK_WALL.getDefaultState();
+                int by = roofBaseY + 1;
+                for (int x = -eaveR; x <= eaveR; x++) {
+                    if ((x & 1) == 0) {
+                        blocks.add(new PlannedBlock(c.add(x, by, eaveR), crenel));
+                        blocks.add(new PlannedBlock(c.add(x, by, -eaveR), crenel));
+                    }
+                }
+                for (int z = -eaveR; z <= eaveR; z++) {
+                    if ((z & 1) == 0) {
+                        blocks.add(new PlannedBlock(c.add(eaveR, by, z), crenel));
+                        blocks.add(new PlannedBlock(c.add(-eaveR, by, z), crenel));
+                    }
                 }
             }
         }
@@ -480,6 +544,100 @@ public class TulouGenerator implements StructureGenerator {
         if (v < 0.0) return 0.0;
         if (v > 1.0) return 1.0;
         return v;
+    }
+
+    private static String resolveEffectiveWindowStyle(BuildingSpec spec, DetailPreferences details, BuildingStyle style) {
+        String ws = (spec != null && spec.getStyleOptions() != null) ? spec.getStyleOptions().getWindowStyle() : null;
+        if (ws == null || ws.isBlank()) ws = (details != null) ? details.windowStyle : null;
+        if (ws == null || ws.isBlank()) {
+            ws = switch (style) {
+                case ASIAN -> "fence";
+                case MEDIEVAL -> "bars";
+                case MODERN, FUTURISTIC -> "pane";
+                case RUSTIC -> "pane";
+                default -> "pane";
+            };
+        }
+        return ws;
+    }
+
+    private static BlockState resolveWindowBlock(String windowStyle, BlockState fallback) {
+        String ws = (windowStyle == null) ? "" : windowStyle.trim().toLowerCase(java.util.Locale.ROOT);
+        return switch (ws) {
+            case "shoji", "paper" -> Blocks.WHITE_STAINED_GLASS_PANE.getDefaultState();
+            case "fence", "lattice" -> Blocks.OAK_FENCE.getDefaultState();
+            case "bars", "iron_bars", "slit" -> Blocks.IRON_BARS.getDefaultState();
+            case "stained" -> Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.getDefaultState();
+            case "curtain_wall", "curtain" -> Blocks.GLASS_PANE.getDefaultState();
+            default -> (fallback != null ? fallback : Blocks.GLASS_PANE.getDefaultState());
+        };
+    }
+
+    private static void addEntranceOrnaments(List<PlannedBlock> blocks,
+                                             BlockPos c,
+                                             Direction doorFacing,
+                                             int doorX,
+                                             int doorZ,
+                                             String ornamentProfile,
+                                             DetailPreferences details) {
+        if (blocks == null || c == null || ornamentProfile == null || doorFacing == null) return;
+        String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+        int fx = (doorFacing == Direction.EAST ? 1 : (doorFacing == Direction.WEST ? -1 : 0));
+        int fz = (doorFacing == Direction.SOUTH ? 1 : (doorFacing == Direction.NORTH ? -1 : 0));
+        int px = (doorFacing == Direction.NORTH || doorFacing == Direction.SOUTH) ? 1 : 0;
+        int pz = (doorFacing == Direction.EAST || doorFacing == Direction.WEST) ? 1 : 0;
+
+        // Base position slightly outside the door
+        BlockPos base = c.add(doorX + fx * 2, 3, doorZ + fz * 2);
+
+        if (op.contains("chinese") || op.contains("plaque")) {
+            BlockState sign = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+            sign = withIfPresent(sign, Properties.HORIZONTAL_FACING, doorFacing);
+            blocks.add(new PlannedBlock(base, sign));
+            blocks.add(new PlannedBlock(base.add(px, 0, pz), Blocks.DARK_OAK_SLAB.getDefaultState()));
+            blocks.add(new PlannedBlock(base.add(-px, 0, -pz), Blocks.DARK_OAK_SLAB.getDefaultState()));
+            return;
+        }
+
+        if (op.contains("banner")) {
+            BlockState b = resolveWallBannerState(details != null ? details.bannerColor : null);
+            b = withIfPresent(b, Properties.HORIZONTAL_FACING, doorFacing);
+            blocks.add(new PlannedBlock(base.add(px, -1, pz), b));
+            blocks.add(new PlannedBlock(base.add(-px, -1, -pz), b));
+            return;
+        }
+
+        if (op.contains("cyber") || op.contains("sign")) {
+            blocks.add(new PlannedBlock(base, Blocks.CYAN_STAINED_GLASS.getDefaultState()));
+            blocks.add(new PlannedBlock(base.up(), Blocks.SEA_LANTERN.getDefaultState()));
+            return;
+        }
+
+        if (op.contains("steam") || op.contains("pipe")) {
+            BlockState pipe = Blocks.COPPER_BLOCK.getDefaultState();
+            for (int y = 0; y < 5; y++) blocks.add(new PlannedBlock(base.down(2).up(y), pipe));
+            blocks.add(new PlannedBlock(base.up(2), Blocks.CAMPFIRE.getDefaultState()));
+            return;
+        }
+
+        if (op.contains("organic") || op.contains("lantern") || op.contains("vine")) {
+            blocks.add(new PlannedBlock(base, Blocks.OAK_LEAVES.getDefaultState()));
+            blocks.add(new PlannedBlock(base.up(), Blocks.LANTERN.getDefaultState()));
+        }
+    }
+
+    private static BlockState resolveWallBannerState(String color) {
+        String c = (color == null) ? "" : color.trim().toLowerCase(java.util.Locale.ROOT);
+        return switch (c) {
+            case "black" -> Blocks.BLACK_WALL_BANNER.getDefaultState();
+            case "white" -> Blocks.WHITE_WALL_BANNER.getDefaultState();
+            case "blue" -> Blocks.BLUE_WALL_BANNER.getDefaultState();
+            case "green" -> Blocks.GREEN_WALL_BANNER.getDefaultState();
+            case "yellow" -> Blocks.YELLOW_WALL_BANNER.getDefaultState();
+            case "purple" -> Blocks.PURPLE_WALL_BANNER.getDefaultState();
+            case "cyan" -> Blocks.CYAN_WALL_BANNER.getDefaultState();
+            default -> Blocks.RED_WALL_BANNER.getDefaultState();
+        };
     }
 
     private static String getStringExtra(BuildingSpec spec, String key, String def) {

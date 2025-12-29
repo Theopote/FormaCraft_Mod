@@ -7,6 +7,10 @@ import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.skeleton.span.SpanSuspensionInterpreter;
 import com.formacraft.server.skeleton.span.SpanSuspensionSkeleton;
+import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.style.profile.DetailPreferences;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -39,12 +43,23 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
 
         Direction facing = parseFacing(getStringExtra(spec, "facing", "EAST"));
 
+        // Style-driven defaults (best-effort)
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
+        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = profile != null ? profile.details() : null;
+        String eavesProfile = details != null ? details.eavesProfile : null;
+        String ornamentProfile = details != null ? details.ornamentProfile : null;
+
         BlockState tower = getStateOrDefault(world, getStringExtra(spec, "towerBlock", "minecraft:red_terracotta"), Blocks.RED_TERRACOTTA.getDefaultState());
         BlockState deck = getStateOrDefault(world, getStringExtra(spec, "deckBlock", "minecraft:polished_andesite"), Blocks.POLISHED_ANDESITE.getDefaultState());
         BlockState cable = getStateOrDefault(world, getStringExtra(spec, "cableBlock", "minecraft:red_wool"), Blocks.RED_WOOL.getDefaultState());
         BlockState hanger = getStateOrDefault(world, getStringExtra(spec, "hangerBlock", "minecraft:iron_bars"), Blocks.IRON_BARS.getDefaultState());
         BlockState rail = getStateOrDefault(world, getStringExtra(spec, "railBlock", "minecraft:iron_bars"), Blocks.IRON_BARS.getDefaultState());
         BlockState foundation = getStateOrDefault(world, getStringExtra(spec, "foundationBlock", "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
+        if ((spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("railBlock"))
+                && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon")) {
+            rail = Blocks.SEA_LANTERN.getDefaultState();
+        }
 
         // -----------------------------
         // Skeleton-driven generation (v1)
@@ -59,6 +74,26 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
         SpanSuspensionPlan plan = new SpanSuspensionSkeleton(world, origin).generate(params);
         List<PlannedBlock> blocks = new SpanSuspensionInterpreter(facing, tower, deck, cable, hanger, rail, foundation)
                 .interpret(plan, origin, world);
+
+        // Ornaments (best-effort, low intrusion)
+        if (ornamentProfile != null && !ornamentProfile.isBlank()) {
+            String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+            if (op.contains("cyber") || op.contains("sign")) {
+                BlockState sign = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
+                int y = 3;
+                for (int i = 12; i < span; i += 48) {
+                    BlockPos p = origin.offset(facing, i);
+                    blocks.add(new PlannedBlock(p.up(y), sign));
+                }
+            } else if (op.contains("organic") || op.contains("vine")) {
+                BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
+                for (int i = 16; i < span; i += 40) {
+                    BlockPos p = origin.offset(facing, i);
+                    blocks.add(new PlannedBlock(p.up(2).east(), leaf));
+                    blocks.add(new PlannedBlock(p.up(2).west(), leaf));
+                }
+            }
+        }
 
         // scoring
         double shapeScore = 0.9; // 双塔+主缆

@@ -128,7 +128,14 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
         if (plan instanceof PolylinePathPlan pp) {
             BlockState road = Blocks.GRAVEL.getDefaultState();
             BlockState border = Blocks.COBBLESTONE.getDefaultState();
-            return new PathRoadInterpreter(road, border, true).interpret(pp, origin, world);
+            var details = styleProfile != null ? styleProfile.details() : null;
+            String eavesProfile = details != null ? details.eavesProfile : null;
+            String ornamentProfile = details != null ? details.ornamentProfile : null;
+            boolean neon = eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon");
+            boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
+            BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
+            BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
+            return new PathRoadInterpreter(road, border, true, paletteId, lamp, post).interpret(pp, origin, world);
         }
 
         // 4) Nested compounds

@@ -256,7 +256,20 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
             if (plan instanceof PolylinePathPlan pp) {
                 // use floor as paving + stone brick border
                 BlockState border = Blocks.STONE_BRICKS.getDefaultState();
-                return new PathRoadInterpreter(floorBlock, border, true).interpret(pp, o, wld);
+                StyleProfile roadProfile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
+                String paletteId = null;
+                if (spec != null && spec.getExtra() != null) {
+                    Object pid = spec.getExtra().get("paletteId");
+                    if (pid != null) paletteId = String.valueOf(pid).trim();
+                }
+                var roadDetails = roadProfile != null ? roadProfile.details() : null;
+                String eavesProfile = roadDetails != null ? roadDetails.eavesProfile : null;
+                String ornamentProfile = roadDetails != null ? roadDetails.ornamentProfile : null;
+                boolean neon = eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon");
+                boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
+                BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
+                BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
+                return new PathRoadInterpreter(floorBlock, border, true, paletteId, lamp, post).interpret(pp, o, wld);
             }
             return List.of();
         };

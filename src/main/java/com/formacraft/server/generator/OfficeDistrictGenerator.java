@@ -58,7 +58,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
         int blockH = getInt(extra, "blockHeight", 22);
 
         // build module spec that routes to OfficeBlockGenerator via template
-        BuildingSpec module = getBuildingSpec(blockW, blockD, blockH);
+        BuildingSpec module = getBuildingSpec(blockW, blockD, blockH, spec);
 
         TerrainPolicy terrainPolicy = TerrainPolicyResolver.resolve(extra);
         int padDepth = clamp(getInt(extra, "terrainPadDepth", 2), 6);
@@ -242,12 +242,36 @@ public class OfficeDistrictGenerator implements StructureGenerator {
         if (includeRoads) {
             // StyleProfile: let style drive material language (v1). extra can override later.
             BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
-            StyleProfile profile = StyleProfileRegistry.forStyle(style);
+            StyleProfile profile = StyleProfileRegistry.resolveByExtra(extra, style);
             String roadId = profile != null && profile.palette() != null ? profile.palette().floor : null;
             String borderId = profile != null && profile.palette() != null ? profile.palette().trim : null;
             BlockState road = getStateOrDefault(world, roadId, Blocks.GRAY_CONCRETE.getDefaultState());
             BlockState border = getStateOrDefault(world, borderId, Blocks.LIGHT_GRAY_CONCRETE.getDefaultState());
-            PathRoadInterpreter roadInterp = new PathRoadInterpreter(road, border, true);
+
+            // palette + style-driven defaults (explicit extra knobs always win elsewhere)
+            String paletteId = null;
+            if (extra != null && extra.get("paletteId") != null) paletteId = String.valueOf(extra.get("paletteId")).trim();
+            var details = profile != null ? profile.details() : null;
+            String eavesProfile = details != null ? details.eavesProfile : null;
+            String ornamentProfile = details != null ? details.ornamentProfile : null;
+
+            boolean roadLamps = false;
+            if (extra != null) {
+                Object v = extra.get("roadLamps");
+                if (v == null) v = extra.get("road_lamps");
+                if (v instanceof Boolean b) roadLamps = b;
+                else if (v != null) {
+                    String s = String.valueOf(v).trim().toLowerCase(java.util.Locale.ROOT);
+                    if (!s.isEmpty()) roadLamps = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+                }
+            }
+            boolean neon = eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon");
+            boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
+            if (!roadLamps && (neon || cyber)) roadLamps = true;
+
+            BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
+            BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
+            PathRoadInterpreter roadInterp = new PathRoadInterpreter(road, border, true, paletteId, lamp, post);
 
             // compute grid origin offsets (must match GridSkeleton)
             int x0 = -((cols - 1) * spacing) / 2;
@@ -258,24 +282,24 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                 int z = z0 + r * spacing;
                 BlockPos a = new BlockPos(x0, 0, z);
                 BlockPos b = new BlockPos(x0 + (cols - 1) * spacing, 0, z);
-                blocks.addAll(roadInterp.interpret(new PolylinePathPlan(List.of(a, b), roadWidth, true, false, 10), origin, world));
+                blocks.addAll(roadInterp.interpret(new PolylinePathPlan(List.of(a, b), roadWidth, true, roadLamps, 10), origin, world));
             }
             // col roads (north-south)
             for (int c = 0; c < cols; c++) {
                 int x = x0 + c * spacing;
                 BlockPos a = new BlockPos(x, 0, z0);
                 BlockPos b = new BlockPos(x, 0, z0 + (rows - 1) * spacing);
-                blocks.addAll(roadInterp.interpret(new PolylinePathPlan(List.of(a, b), roadWidth, true, false, 10), origin, world));
+                blocks.addAll(roadInterp.interpret(new PolylinePathPlan(List.of(a, b), roadWidth, true, roadLamps, 10), origin, world));
             }
         }
         String desc = String.format("OfficeDistrict (rows=%d, cols=%d, spacing=%d)", rows, cols, spacing);
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 
-    private static @NotNull BuildingSpec getBuildingSpec(int blockW, int blockD, int blockH) {
+    private static @NotNull BuildingSpec getBuildingSpec(int blockW, int blockD, int blockH, BuildingSpec parent) {
         BuildingSpec module = new BuildingSpec();
         module.setType(BuildingType.HOUSE);
-        module.setStyle(BuildingStyle.MODERN);
+        module.setStyle(parent != null && parent.getStyle() != null ? parent.getStyle() : BuildingStyle.MODERN);
         module.setFootprint(new Footprint(blockW, blockD));
         module.setHeight(blockH);
         module.setFloors(Math.max(1, blockH / 6));
@@ -301,7 +325,16 @@ public class OfficeDistrictGenerator implements StructureGenerator {
         so.setWindowRatio(0.6);
         module.setStyleOptions(so);
 
-        module.setExtra(Map.of("template", "office_block"));
+        // Propagate extra knobs from district to blocks (styleProfileId/paletteId/ornament defaults etc.)
+        java.util.Map<String, Object> extra = new java.util.HashMap<>();
+        extra.put("template", "office_block");
+        if (parent != null && parent.getExtra() != null) {
+            Object pid = parent.getExtra().get("paletteId");
+            if (pid != null) extra.put("paletteId", String.valueOf(pid).trim());
+            Object sid = parent.getExtra().get("styleProfileId");
+            if (sid != null) extra.put("styleProfileId", String.valueOf(sid).trim());
+        }
+        module.setExtra(extra);
         return module;
     }
 

@@ -342,6 +342,10 @@
           "frame": ["minecraft:iron_bars", "minecraft:iron_block"],
           "accent": ["minecraft:copper_block"]
         },
+        "components": {
+          "eaves": "neon_strip",
+          "ornament_profile": "steampunk_pipes"
+        },
         "algorithm": {
           "generator": "truss",
           "quality": "normal"

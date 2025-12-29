@@ -8,6 +8,7 @@ import com.formacraft.common.skeleton.linear.LinearPathPlan;
 import com.formacraft.server.skeleton.linear.LinearPathSkeleton;
 import com.formacraft.server.skeleton.linear.LinearWallInterpreter;
 import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
@@ -46,8 +47,11 @@ public class GreatWallGenerator implements StructureGenerator {
 
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MEDIEVAL;
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = profile != null ? profile.details() : null;
         String pWall = profile != null && profile.palette() != null ? profile.palette().wall : null;
         String pTrim = profile != null && profile.palette() != null ? profile.palette().trim : null;
+        String eavesProfile = details != null ? details.eavesProfile : null;
+        String ornamentProfile = details != null ? details.ornamentProfile : null;
 
         // extra 显式优先；否则使用 StyleProfile；最后才是硬编码默认
         BlockState wall = getStateOrDefault(world, getStringExtra(spec, "wallBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
@@ -55,6 +59,10 @@ public class GreatWallGenerator implements StructureGenerator {
         BlockState walkway = getStateOrDefault(world, getStringExtra(spec, "walkwayBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
         BlockState crenel = getStateOrDefault(world, getStringExtra(spec, "crenelBlock", "minecraft:stone_brick_wall"), Blocks.STONE_BRICK_WALL.getDefaultState());
         BlockState towerBlock = getStateOrDefault(world, getStringExtra(spec, "towerBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
+        if ((spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("crenelBlock"))
+                && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon")) {
+            crenel = Blocks.SEA_LANTERN.getDefaultState();
+        }
 
         // -----------------------------
         // Skeleton-driven generation (v1)
@@ -72,6 +80,17 @@ public class GreatWallGenerator implements StructureGenerator {
         LinearPathPlan plan = new LinearPathSkeleton(world, origin).generate(params);
         List<PlannedBlock> blocks = new LinearWallInterpreter(wall, accent, mixBlocks, walkway, crenel, towerBlock, paletteId)
                 .interpret(plan, origin, world);
+
+        if (ornamentProfile != null && !ornamentProfile.isBlank()) {
+            String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+            if (op.contains("banner")) {
+                BlockState b = Blocks.RED_WALL_BANNER.getDefaultState();
+                for (int i = 8; i < length; i += Math.max(24, towerSpacing)) {
+                    BlockPos p = origin.offset(facing, i);
+                    blocks.add(new PlannedBlock(p.up(Math.max(2, height - 2)), b));
+                }
+            }
+        }
 
         // scoring: linear+crenels+towers
         double shapeScore = 0.9;

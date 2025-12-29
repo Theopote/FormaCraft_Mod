@@ -301,6 +301,13 @@ public class CityBuilder {
             String borderId = profile != null && profile.palette() != null ? profile.palette().trim : null;
             String deckId = profile != null && profile.palette() != null ? profile.palette().floor : null;
             String railId = "minecraft:oak_fence";
+
+            // Style-driven "road language" defaults (non-clobbering): neon/cyber can imply lit borders/rails.
+            var details = profile != null ? profile.details() : null;
+            String eavesProfile = details != null ? details.eavesProfile : null;
+            String ornamentProfile = details != null ? details.ornamentProfile : null;
+            boolean neon = eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon");
+            boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
             if (extra0 != null) {
                 Object r0 = extra0.get("autoRoadMaterial");
                 Object b0 = extra0.get("autoRoadBorder");
@@ -310,6 +317,15 @@ public class CityBuilder {
                 if (b0 != null) borderId = String.valueOf(b0).trim();
                 if (d0 != null) deckId = String.valueOf(d0).trim();
                 if (rr0 != null) railId = String.valueOf(rr0).trim();
+            }
+            if ((extra0 == null || extra0.get("autoRoadUseBorder") == null) && (neon || cyber)) {
+                autoRoadUseBorder = true;
+            }
+            if ((extra0 == null || extra0.get("autoRoadBorder") == null) && (neon || cyber)) {
+                borderId = neon ? "minecraft:sea_lantern" : "minecraft:glowstone";
+            }
+            if ((extra0 == null || extra0.get("autoRoadBridgeRail") == null) && (neon || cyber)) {
+                railId = neon ? "minecraft:sea_lantern" : "minecraft:iron_bars";
             }
 
             // If no explicit roads, try to materialize J-layer CIRCULATION skeleton paths into PathSpec roads.

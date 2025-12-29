@@ -1,12 +1,16 @@
 package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
+import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.vertical.VerticalTaperPlan;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.skeleton.vertical.VerticalTaperInterpreter;
 import com.formacraft.server.skeleton.vertical.VerticalTaperSkeleton;
+import com.formacraft.common.style.profile.DetailPreferences;
+import com.formacraft.common.style.profile.StyleProfile;
+import com.formacraft.common.style.profile.StyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -38,11 +42,23 @@ public class EiffelTowerGenerator implements StructureGenerator {
         String detail = getStringExtra(spec, "detailLevel", "aesthetic").toLowerCase();
         boolean refined = detail.contains("refined") || detail.contains("ornate");
 
+        // Style-driven details (best-effort; explicit extra block IDs override via extra keys)
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
+        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = profile != null ? profile.details() : null;
+        String eavesProfile = details != null ? details.eavesProfile : null;
+        String ornamentProfile = details != null ? details.ornamentProfile : null;
+
         BlockState leg = getStateOrDefault(world, getStringExtra(spec, "legBlock", "minecraft:iron_block"), Blocks.IRON_BLOCK.getDefaultState());
         BlockState brace = getStateOrDefault(world, getStringExtra(spec, "braceBlock", "minecraft:iron_bars"), Blocks.IRON_BARS.getDefaultState());
         BlockState platform = getStateOrDefault(world, getStringExtra(spec, "platformBlock", "minecraft:smooth_stone"), Blocks.SMOOTH_STONE.getDefaultState());
         BlockState rail = getStateOrDefault(world, getStringExtra(spec, "railBlock", "minecraft:iron_bars"), Blocks.IRON_BARS.getDefaultState());
         BlockState spire = getStateOrDefault(world, getStringExtra(spec, "spireBlock", "minecraft:iron_block"), Blocks.IRON_BLOCK.getDefaultState());
+        // neon eaves: if railBlock not explicitly set, brighten rails
+        if ((spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("railBlock"))
+                && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("neon")) {
+            rail = Blocks.SEA_LANTERN.getDefaultState();
+        }
 
         // -----------------------------
         // Skeleton-driven generation (v1)
@@ -56,6 +72,33 @@ public class EiffelTowerGenerator implements StructureGenerator {
         VerticalTaperPlan plan = new VerticalTaperSkeleton().generate(params);
         List<PlannedBlock> blocks = new VerticalTaperInterpreter(leg, brace, platform, rail, spire)
                 .interpret(plan, origin, world);
+
+        // Ornaments (best-effort, low intrusion)
+        if (ornamentProfile != null && !ornamentProfile.isBlank()) {
+            String op = ornamentProfile.trim().toLowerCase(java.util.Locale.ROOT);
+            if (op.contains("cyber") || op.contains("sign")) {
+                // a small "signage" ring near the mid platform
+                int y = Math.max(6, height / 2);
+                BlockState plate = Blocks.CYAN_STAINED_GLASS.getDefaultState();
+                int r = Math.max(3, baseWidth / 4);
+                for (int x = -r; x <= r; x += r * 2) {
+                    blocks.add(new PlannedBlock(origin.add(x, y, 0), plate));
+                    blocks.add(new PlannedBlock(origin.add(0, y, x), plate));
+                }
+            } else if (op.contains("steam") || op.contains("pipe")) {
+                // a couple of copper pipe accents near the base
+                BlockState pipe = Blocks.COPPER_BLOCK.getDefaultState();
+                for (int yy = 2; yy <= 6; yy++) {
+                    blocks.add(new PlannedBlock(origin.add(baseWidth / 2, yy, 0), pipe));
+                    blocks.add(new PlannedBlock(origin.add(-baseWidth / 2, yy, 0), pipe));
+                }
+            } else if (op.contains("organic") || op.contains("vine")) {
+                BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
+                int y = Math.max(6, height / 3);
+                blocks.add(new PlannedBlock(origin.add(0, y, baseWidth / 2), leaf));
+                blocks.add(new PlannedBlock(origin.add(0, y, -baseWidth / 2), leaf));
+            }
+        }
 
         // v1 scoring：提供“像不像”的可观测指标
         double shapeScore = 0.9;      // 四腿收分 + 平台存在 -> 高
