@@ -150,6 +150,12 @@ public final class GeneratorRouter {
         if (s.contains("modern_skyscraper") || s.contains("highrise") || s.contains("skyscraper") || s.contains("摩天") || s.contains("摩天楼")) {
             return new ModernSkyscraperGenerator();
         }
+        if (s.contains("modern_office_campus") || s.contains("office_campus") || s.contains("office_park") || s.contains("campus") || s.contains("园区")) {
+            return new ModernOfficeCampusGenerator();
+        }
+        if (s.contains("bauhaus_rowhouse") || s.contains("bauhaus") || s.contains("rowhouse") || s.contains("townhouse") || s.contains("terrace") || s.contains("联排") || s.contains("包豪斯")) {
+            return new ModernBauhausRowhouseGenerator();
+        }
         return null;
     }
 
