@@ -135,6 +135,9 @@ public final class GeneratorRouter {
         if (s.contains("japanese_castle_keep") || s.contains("castle_keep") || s.contains("tenshu") || s.contains("天守")) {
             return new JapaneseCastleKeepGenerator();
         }
+        if (s.contains("japanese_tea_house") || s.contains("tea_house") || s.contains("teahouse") || s.contains("chashitsu") || s.contains("茶室")) {
+            return new JapaneseTeaHouseGenerator();
+        }
         return null;
     }
 
