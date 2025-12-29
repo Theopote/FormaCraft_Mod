@@ -71,19 +71,25 @@ public class OfficeBlockGenerator implements StructureGenerator {
 
         // Apply palette semantics only when the caller did NOT explicitly set that material id.
         if (paletteId != null && !paletteId.isBlank()) {
+            boolean curtain = windowStyle != null && windowStyle.trim().toLowerCase(java.util.Locale.ROOT).contains("curtain");
             if (wallId == null || wallId.isBlank()) {
-                wall = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0x0FF1CEBL, wall);
+                // Curtain wall wants a frame; otherwise use the normal wall base.
+                wall = curtain
+                        ? PaletteResolver.pick(world, paletteId, "FRAME", origin, 0x0FF1CEB2L, wall)
+                        : PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0x0FF1CEBL, wall);
             }
             if (windowId == null || windowId.isBlank()) {
-                // Modern: prefer WINDOW; if the palette uses curtain-wall, it can still map WINDOW to panes.
-                glass = PaletteResolver.pick(world, paletteId, "WINDOW", origin, 0x0FF1CEB1L, glass);
+                // Curtain wall prefers facade curtain blocks; otherwise use WINDOW.
+                glass = curtain
+                        ? PaletteResolver.pick(world, paletteId, "FACADE_CURTAIN", origin, 0x0FF1CEB3L, glass)
+                        : PaletteResolver.pick(world, paletteId, "WINDOW", origin, 0x0FF1CEB1L, glass);
             }
             if (floorId == null || floorId.isBlank()) {
                 floor = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0x0FF1CEF0L, floor);
             }
             if (roofId == null || roofId.isBlank()) {
                 roof = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0x0FF1CE0FL, roof);
-                roof = PaletteResolver.pick(world, paletteId, "FLOORING", origin, 0x0FF1CE10L, roof);
+                roof = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0x0FF1CE10L, roof);
             }
         }
 
@@ -118,6 +124,16 @@ public class OfficeBlockGenerator implements StructureGenerator {
                 for (int z = -halfD + 1; z <= halfD - 1; z++) {
                     blocks.add(new PlannedBlock(origin.add(x, y, z), floor));
                 }
+            }
+        }
+
+        // internal lights (low density): one light per floor, near the core
+        if (paletteId != null && !paletteId.isBlank()) {
+            BlockState internal = Blocks.SEA_LANTERN.getDefaultState();
+            internal = PaletteResolver.pick(world, paletteId, "INTERNAL_LIGHT", origin, 0x0FF1CE19L, internal);
+            internal = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x0FF1CE1AL, internal);
+            for (int y = 2; y <= h; y += 4) {
+                blocks.add(new PlannedBlock(origin.add(0, y, 0), internal));
             }
         }
 

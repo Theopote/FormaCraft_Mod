@@ -204,6 +204,15 @@ public class HouseGenerator implements StructureGenerator {
             paletteId = profile.details().paletteId.trim();
         }
 
+        // Palette-aware finer roof semantics (best-effort, low intrusion):
+        // Only apply when caller did not explicitly set roof material id.
+        if (paletteId != null && !paletteId.isBlank() && (roofId == null || roofId.isBlank())) {
+            roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_SLOPE", origin, 0xA501001L, roofStairs);
+            roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0xA501002L, roofStairs);
+            roofSlab = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xA501003L, roofSlab);
+            roofSlab = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0xA501004L, roofSlab);
+        }
+
         // Door side (for compounds like gatehouses): default keeps legacy behavior (NORTH wall, z==0).
         Direction doorSide = resolveDoorSide(spec);
 
