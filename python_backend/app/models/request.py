@@ -24,6 +24,27 @@ class Selection(BaseModel):
     max: Vec3i
 
 
+class OutlineShape(BaseModel):
+    """
+    客户端 OutlineTool 的轮廓形状（与 Java `com.formacraft.common.buildcontext.OutlineShape` 字段对齐）。
+
+    注意：该对象主要用于“硬约束提示词”和后续服务端裁剪；
+    LLM 侧无需精确几何运算，只需遵守“不要越界”。
+    """
+    shapeType: str  # "polygon" / "circle"
+    vertices: Optional[list[Vec3i]] = None
+    center: Optional[Vec3i] = None
+    radius: Optional[int] = None
+    minY: Optional[int] = None
+    maxY: Optional[int] = None
+
+
+class ProtectedZone(BaseModel):
+    """禁区/保护区（AABB，闭区间），与 Java `ProtectedZone(min,max)` 对齐。"""
+    min: Vec3i
+    max: Vec3i
+
+
 class BuildRequest(BaseModel):
     """
     Minecraft → Python 的请求结构
@@ -34,6 +55,8 @@ class BuildRequest(BaseModel):
     player: PlayerInfo
     world: WorldContext
     selection: Optional[Selection] = None
+    outline: Optional[OutlineShape] = None
+    protectedZones: Optional[list[ProtectedZone]] = None
     requestText: str
     # 可选：模式（BUILD/PATCH/MODIFY_REGION），用于后端决定生成/编辑策略
     promptMode: Optional[str] = None

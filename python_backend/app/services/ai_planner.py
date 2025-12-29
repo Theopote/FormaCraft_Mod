@@ -88,6 +88,8 @@ def _build_system_prompt() -> str:
         "- Only use block IDs that exist in vanilla Minecraft.\n"
         "- Respect constraints: keep buildings reasonably sized unless user requests huge.\n"
         "- Footprint should be within the selection area if provided, otherwise use default sizes.\n"
+        "- If an outline is provided, you MUST build ONLY inside the outline.\n"
+        "- If protected zones are provided, you MUST NOT place blocks inside any protected zone.\n"
         "- Choose reasonable defaults when player does not specify something.\n"
         "- Building types: HOUSE, TOWER, BRIDGE, CASTLE, WALL, CUSTOM\n"
         "- Building styles: MEDIEVAL, MODERN, ASIAN, FUTURISTIC, RUSTIC, DEFAULT\n"
@@ -136,6 +138,39 @@ def _build_user_prompt(req: BuildRequest) -> str:
             f"Selection AABB: min=({req.selection.min.x}, {req.selection.min.y}, {req.selection.min.z}), "
             f"max=({req.selection.max.x}, {req.selection.max.y}, {req.selection.max.z})"
         )
+
+    # Hard build constraints (preferred over model guesses).
+    # NOTE: This is NOT the full geometry engine; it is a compact, deterministic constraint summary for the LLM.
+    if getattr(req, "outline", None):
+        o = req.outline
+        try:
+            if (o.shapeType or "").lower() == "circle" and o.center and o.radius is not None:
+                parts.append(
+                    "Outline (HARD): circle center=("
+                    f"{o.center.x}, {o.center.y}, {o.center.z}"
+                    f"), radius={o.radius}, yRange=[{o.minY},{o.maxY}]"
+                )
+            else:
+                vs = o.vertices or []
+                if vs:
+                    head = "; ".join([f"({p.x},{p.y},{p.z})" for p in vs[:8]])
+                    more = "" if len(vs) <= 8 else f" ... (+{len(vs) - 8} more)"
+                    parts.append(f"Outline (HARD): polygon vertices={len(vs)} {head}{more}, yRange=[{o.minY},{o.maxY}]")
+                else:
+                    parts.append(f"Outline (HARD): shapeType={o.shapeType}, yRange=[{o.minY},{o.maxY}]")
+        except Exception:
+            parts.append("Outline (HARD): provided (failed to summarize)")
+
+    if getattr(req, "protectedZones", None):
+        zs = req.protectedZones or []
+        if zs:
+            parts.append("ProtectedZones (HARD): do NOT place blocks inside these AABBs:")
+            for z in zs[:12]:
+                parts.append(
+                    f"  - min=({z.min.x},{z.min.y},{z.min.z}) max=({z.max.x},{z.max.y},{z.max.z})"
+                )
+            if len(zs) > 12:
+                parts.append(f"  - ... (+{len(zs) - 12} more)")
     
     if req.chatHistory:
         parts.append("\nChat History:")

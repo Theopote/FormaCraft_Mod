@@ -365,6 +365,9 @@ public class PathGenerator {
                     BlockState lamp = lampFallback;
                     if (paletteId != null) {
                         long saltP = ((long) lx * 31L) ^ ((long) lz * 17L) ^ (step * 23L) ^ 0xC0DEL;
+                        // Post is structural first (beam/frame), then detail.
+                        post = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", postPos, saltP ^ 0x51EEL, post);
+                        post = PaletteResolver.pick(world, paletteId, "FRAME", postPos, saltP ^ 0xF8A1L, post);
                         post = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", postPos, saltP, post);
                         long saltL = ((long) lx * 31L) ^ ((long) lz * 17L) ^ (step * 19L) ^ 0x11A17L;
                         lamp = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", lampPos, saltL, lamp);
@@ -382,6 +385,8 @@ public class PathGenerator {
 
                     BlockState support = Blocks.STONE_BRICKS.getDefaultState();
                     long saltS = ((long) sx * 31L) ^ ((long) sz * 17L) ^ (step * 29L) ^ 0x516E0L;
+                    support = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", supportPos, saltS ^ 0x51EEL, support);
+                    support = PaletteResolver.pick(world, paletteId, "FRAME", supportPos, saltS ^ 0xF8A1L, support);
                     support = PaletteResolver.pick(world, paletteId, "ROAD_BORDER", supportPos, saltS, support);
 
                     BlockState sign = signFallback;

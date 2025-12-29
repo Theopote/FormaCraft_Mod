@@ -147,7 +147,9 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
                     BlockState postState = (lampPost != null) ? lampPost : Blocks.COBBLESTONE_WALL.getDefaultState();
                     if (paletteId != null) {
                         long salt = ((long) lx * 31L) ^ ((long) lz * 17L) ^ (stepCounter * 23L) ^ 0x9057L;
-                        // lamp post is a "detail" element; keep it under DECOR_DETAIL for now.
+                        // Lamp post is a structural element first (beam/frame), then a detail.
+                        postState = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", post, salt ^ 0x51EEL, postState);
+                        postState = PaletteResolver.pick(world, paletteId, "FRAME", post, salt ^ 0xF8A1L, postState);
                         postState = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", post, salt, postState);
                     }
                     if (BuildConstraintContext.allow(post)) out.add(new PlannedBlock(post, postState));
@@ -164,6 +166,8 @@ public final class PathRoadInterpreter implements SkeletonInterpreter<PolylinePa
                         // Support should be solid so the "signage block" above doesn't float too much visually.
                         BlockState support = border != null ? border : Blocks.STONE_BRICKS.getDefaultState();
                         long saltS = ((long) sx * 31L) ^ ((long) sz * 17L) ^ (stepCounter * 29L) ^ 0x516E0L;
+                        support = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", base, saltS ^ 0x51EEL, support);
+                        support = PaletteResolver.pick(world, paletteId, "FRAME", base, saltS ^ 0xF8A1L, support);
                         support = PaletteResolver.pick(world, paletteId, "ROAD_BORDER", base, saltS, support);
                         if (BuildConstraintContext.allow(base)) out.add(new PlannedBlock(base, support));
 

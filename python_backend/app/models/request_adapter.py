@@ -5,7 +5,7 @@
 from typing import Optional
 from pydantic import BaseModel
 
-from .request import BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i
+from .request import BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i, OutlineShape, ProtectedZone
 
 
 class FormaRequestAdapter(BaseModel):
@@ -22,6 +22,8 @@ class FormaRequestAdapter(BaseModel):
     biome: Optional[str] = None
     selectionMin: Optional[dict] = None  # BlockPos 序列化
     selectionMax: Optional[dict] = None  # BlockPos 序列化
+    outline: Optional[OutlineShape] = None
+    protectedZones: Optional[list[ProtectedZone]] = None
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
     promptMode: Optional[str] = None
@@ -84,6 +86,8 @@ class FormaRequestAdapter(BaseModel):
                 player=player_info,
                 world=world_context,
                 selection=selection_obj,
+                outline=self.outline,
+                protectedZones=self.protectedZones,
                 requestText=self.requestText or "",
                 promptMode=self.promptMode,
                 userMessage=self.userMessage,
@@ -142,6 +146,8 @@ class FormaRequestAdapter(BaseModel):
                 player=player_info,
                 world=world_context,
                 selection=selection_obj,
+                outline=self.outline,
+                protectedZones=self.protectedZones,
                 requestText=self.request,
                 promptMode=self.promptMode,
                 userMessage=self.userMessage,

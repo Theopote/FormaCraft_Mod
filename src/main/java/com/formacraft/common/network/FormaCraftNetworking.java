@@ -407,6 +407,31 @@ public class FormaCraftNetworking {
             FormacraftMod.LOGGER.info("Received build request from player {}: {}",
                     player.getName().getString(), req.getRequestText());
 
+            // 补齐“世界上下文”字段：让 Python 侧可以稳定获取 biome/facing/origin，而不是只依赖 prompt 文本解析。
+            // 注意：客户端可能已填充这些字段；这里仅在缺失时兜底。
+            try {
+                // origin
+                if (req.getPlayerPos() == null) {
+                    req.setPlayerPos(player.getBlockPos());
+                }
+
+                // facing
+                if (req.getFacing() == null || req.getFacing().isBlank()) {
+                    req.setFacing(player.getHorizontalFacing().name());
+                }
+
+                // biome（服务端权威，避免客户端与服务端不同步）
+                if ((req.getBiome() == null || req.getBiome().isBlank())
+                        && req.getPlayerPos() != null
+                        && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
+                    java.util.Optional<net.minecraft.registry.RegistryKey<net.minecraft.world.biome.Biome>> key =
+                            sw.getBiome(req.getPlayerPos()).getKey();
+                    if (key != null && key.isPresent()) {
+                        req.setBiome(key.get().getValue().toString());
+                    }
+                }
+            } catch (Throwable ignored) {}
+
             // 状态：服务端已收到请求
             context.server().execute(() -> ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("服务端已收到请求，正在请求后端…")));
 
