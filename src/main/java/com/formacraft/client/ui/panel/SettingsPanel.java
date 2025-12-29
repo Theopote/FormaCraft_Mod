@@ -99,6 +99,8 @@ public class SettingsPanel extends BasePanel {
     private String draftLlmProvider = "auto";
     /** OpenAI-compatible base URL（可为空，表示由后端环境变量/默认决定） */
     private String draftLlmBaseUrl = "";
+    /** 调试：是否在聊天面板显示后端 debugWarnings */
+    private boolean draftShowDebugWarnings = false;
     private float draftTemperature = 0.7f;
     private int draftFontSize = 14;
     private int draftInteractionReach = DEFAULT_INTERACTION_REACH;
@@ -125,6 +127,7 @@ public class SettingsPanel extends BasePanel {
     private ButtonWidget autoModelButton;
     private ButtonWidget llmProviderButton;
     private ButtonWidget llmBaseUrlPresetButton;
+    private ButtonWidget debugWarningsButton;
     private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
     private TemperatureSlider temperatureSlider;
     private FontSizeSlider fontSizeSlider;
@@ -218,6 +221,7 @@ public class SettingsPanel extends BasePanel {
         this.draftLlmBaseUrl = sanitizedBaseUrl;
         this.llmBaseUrlInput.setText(this.draftLlmBaseUrl);
         syncBaseUrlPresetFromValue(this.draftLlmBaseUrl);
+        this.draftShowDebugWarnings = cfg.showDebugWarnings;
         this.draftTemperature = clamp01(cfg.temperature);
         this.draftFontSize = clampInt(cfg.fontSize);
         this.draftInteractionReach = clampReach(cfg.interactionReach);
@@ -293,6 +297,9 @@ public class SettingsPanel extends BasePanel {
             drawModelField(ctx, x, y, w);
             // Model：三行（标题 + 输入框 + 按钮行）
             y += FIELD_SPACING + LABEL_OFFSET;
+
+            drawDebugWarningsField(ctx, x, y, w);
+            y += FIELD_SPACING;
 
             drawInteractionReachSlider(ctx, x, y, w);
             y += FIELD_SPACING;
@@ -513,6 +520,22 @@ public class SettingsPanel extends BasePanel {
         } else {
             hideBaseUrlPresetButtons();
         }
+    }
+
+    // =======================
+    //   Debug: show backend warnings
+    // =======================
+    private void drawDebugWarningsField(DrawContext ctx, int x, int y, int w) {
+        ensureWidgets();
+        drawSmallLabel(ctx, Text.literal("Debug Warnings"), x, y);
+        y += LABEL_OFFSET;
+
+        debugWarningsButton.setMessage(getDebugWarningsButtonText());
+        debugWarningsButton.setPosition(x, y);
+        debugWarningsButton.setWidth(w);
+        debugWarningsButton.visible = true;
+        debugWarningsButton.active = true;
+        debugWarningsButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0.0f);
     }
 
     private void renderBaseUrlDropdownOverlay(DrawContext ctx) {
@@ -892,6 +915,23 @@ public class SettingsPanel extends BasePanel {
         // Model 为三行（FIELD_SPACING + LABEL_OFFSET）
         y += FIELD_SPACING + LABEL_OFFSET;
 
+        // =========== Debug Warnings（toggle） ============
+        int dbgBtnY = y + LABEL_OFFSET;
+        debugWarningsButton.setPosition(x, dbgBtnY);
+        debugWarningsButton.setWidth(w);
+        if (debugWarningsButton.mouseClicked(click, false)) {
+            orchestratorInput.setFocused(false);
+            apiKeyInput.setFocused(false);
+            llmBaseUrlInput.setFocused(false);
+            modelInput.setFocused(false);
+            modelDropdownOpen = false;
+            hideModelOptionButtons();
+            return true;
+        }
+
+        // Debug Warnings 是两行（标题+按钮）
+        y += FIELD_SPACING;
+
         int reachSliderY = y + LABEL_OFFSET;
         interactionReachSlider.setPosition(x, reachSliderY);
         interactionReachSlider.setWidth(w);
@@ -1100,6 +1140,19 @@ public class SettingsPanel extends BasePanel {
             );
             return true;
         }
+        if (debugWarningsButton != null && debugWarningsButton.isMouseOver(mouseX, mouseY)) {
+            drawTooltipCompat(
+                    ctx,
+                    java.util.List.of(
+                            Text.literal("Debug Warnings（切换）"),
+                            Text.literal("当前：" + (draftShowDebugWarnings ? "ON" : "OFF")),
+                            Text.literal("用于显示后端 debugWarnings（LLM 纠错/回退信息）")
+                    ),
+                    (int) mouseX,
+                    (int) mouseY
+            );
+            return true;
+        }
         if (saveButton != null && saveButton.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.save")), (int) mouseX, (int) mouseY);
             return true;
@@ -1169,6 +1222,11 @@ public class SettingsPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("选择主流 LLM Base URL 预设（避免输入错误）；选“自定义”可手动输入")))
                 .build();
 
+        debugWarningsButton = ButtonWidget.builder(getDebugWarningsButtonText(), b -> toggleDebugWarnings())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("调试：将后端 debugWarnings 追加显示到聊天面板（便于调 prompt / 纠错链路）")))
+                .build();
+
         // BaseURL 下拉选项（按钮形式，避免自绘命中不准）
         llmBaseUrlPresetOptionButtons = new ArrayList<>();
         for (int i = 0; i < BASE_URL_PRESETS.size(); i++) {
@@ -1234,6 +1292,15 @@ public class SettingsPanel extends BasePanel {
                 .build();
 
         syncWidgetStateFromDraft();
+    }
+
+    private Text getDebugWarningsButtonText() {
+        return Text.literal(draftShowDebugWarnings ? "开启：显示后端 debugWarnings" : "关闭：不显示 debugWarnings");
+    }
+
+    private void toggleDebugWarnings() {
+        draftShowDebugWarnings = !draftShowDebugWarnings;
+        showToast("DebugWarnings=" + (draftShowDebugWarnings ? "ON" : "OFF"), false);
     }
 
     private void hideModelOptionButtons() {
@@ -1786,6 +1853,9 @@ public class SettingsPanel extends BasePanel {
         if (llmProviderButton != null) {
             llmProviderButton.setMessage(getLlmProviderButtonText());
         }
+        if (debugWarningsButton != null) {
+            debugWarningsButton.setMessage(getDebugWarningsButtonText());
+        }
         if (draftLlmBaseUrl != null) {
             // 避免 loadFromConfig 后输入框仍显示旧值
             llmBaseUrlInput.setText(draftLlmBaseUrl);
@@ -1977,6 +2047,7 @@ public class SettingsPanel extends BasePanel {
             SettingsConfig.INSTANCE.model = draftModel != null ? draftModel.trim() : "";
             SettingsConfig.INSTANCE.llmProvider = provider;
             SettingsConfig.INSTANCE.llmBaseUrl = llmBaseUrl;
+            SettingsConfig.INSTANCE.showDebugWarnings = draftShowDebugWarnings;
             SettingsConfig.INSTANCE.temperature = clamp01(draftTemperature);
             SettingsConfig.INSTANCE.fontSize = clampInt(draftFontSize);
             SettingsConfig.INSTANCE.interactionReach = clampReach(draftInteractionReach);

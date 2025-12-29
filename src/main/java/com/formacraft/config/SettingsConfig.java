@@ -40,6 +40,12 @@ public class SettingsConfig {
 
     /** 是否随游戏启动自动拉起本地 Python 后端（仅对 localhost 生效）。 */
     public boolean autoStartBackend = true;
+
+    /**
+     * 调试：在聊天面板中显示后端返回的 debugWarnings（例如 LLM 输出纠错/回退信息）。
+     * 默认关闭，避免打扰普通玩家。
+     */
+    public boolean showDebugWarnings = false;
     /**
      * Python 可执行文件（可为空，表示使用 "python"）。
      * Windows 示例：C:\\Program Files\\Python313\\python.exe
@@ -66,6 +72,7 @@ public class SettingsConfig {
         fontSize = 14;
         interactionReach = 80;
         autoStartBackend = true;
+        showDebugWarnings = false;
         pythonExecutable = "";
         backendWorkDir = "python_backend";
         backendPort = 8000;
@@ -82,6 +89,7 @@ public class SettingsConfig {
         this.orchestratorEndpoint = other.orchestratorEndpoint != null ? other.orchestratorEndpoint : "http://localhost:8000";
         this.interactionReach = other.interactionReach;
         this.autoStartBackend = other.autoStartBackend;
+        this.showDebugWarnings = other.showDebugWarnings;
         this.pythonExecutable = other.pythonExecutable != null ? other.pythonExecutable : "";
         this.backendWorkDir = other.backendWorkDir != null ? other.backendWorkDir : "python_backend";
         this.backendPort = other.backendPort > 0 ? other.backendPort : 8000;

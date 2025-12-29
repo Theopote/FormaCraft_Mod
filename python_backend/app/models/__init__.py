@@ -6,5 +6,5 @@ from .building_genome import BuildingGenome
 from .composite_spec import CompositeSpec
 from .city_spec import CitySpec
 from .path_spec import PathSpec
-from .edit_request import EditRequest
+from .edit_request import CityEditRequest, BuildingEditRequest
 

@@ -142,6 +142,10 @@ response = client.chat.completions.create(
 
 如果 OpenAI API 不可用或调用失败，系统会自动使用规则基础的回退方案（`_generate_fallback_spec()`），确保服务始终可用。
 
+### 能力现状与路线图（推荐先读）
+
+- `CAPABILITIES_AND_GAPS.md`：LLM 建筑泛化能力的现状、缺口与下一步路线图
+
 ## 测试
 
 可以使用 curl 测试 API：
@@ -162,4 +166,17 @@ curl -X POST http://localhost:8000/build \
     "requestText": "建一个简单的房子"
   }'
 ```
+
+### 离线 Smoke（推荐）
+
+当你调整 `ai_planner.py` 的提示词/归一化/回退逻辑（尤其是 `extra.styleProfileId/paletteId`）时，推荐先跑一次离线自检：
+
+```bash
+python python_backend/tools/spec_contract_smoke.py
+```
+
+该脚本不依赖 LLM/网络，主要验证：
+- `styleProfileId` 合法性校验与自动回退（无效则写入 `extra.debugWarnings`）
+- `paletteId` 合法性校验与自动回退
+- `styleProfileId` 存在默认 palette 且 `paletteId` 缺失时，自动补齐 `paletteId`（并置 `paletteIdAutoFromStyle=true`）
 

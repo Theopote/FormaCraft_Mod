@@ -961,6 +961,31 @@ public class FormaCraftNetworking {
             if (spec.getNotes() != null && !spec.getNotes().isEmpty()) {
                 aiResponse += "\n" + spec.getNotes();
             }
+            // Debug: show backend warnings (LLM normalization / fallbacks), gated by settings
+            try {
+                if (com.formacraft.config.SettingsConfig.INSTANCE.showDebugWarnings
+                        && spec.getExtra() != null
+                        && spec.getExtra().get("debugWarnings") != null) {
+                    Object dw = spec.getExtra().get("debugWarnings");
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("\n\n[debugWarnings]\n");
+                    if (dw instanceof java.util.List<?> list) {
+                        int n = 0;
+                        for (Object it : list) {
+                            if (it == null) continue;
+                            String s = String.valueOf(it).trim();
+                            if (s.isEmpty()) continue;
+                            sb.append("- ").append(s).append("\n");
+                            n++;
+                            if (n >= 20) break;
+                        }
+                    } else {
+                        String s = String.valueOf(dw).trim();
+                        if (!s.isEmpty()) sb.append("- ").append(s).append("\n");
+                    }
+                    aiResponse += sb.toString().trim();
+                }
+            } catch (Throwable ignored) {}
             com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIMessage(aiResponse, spec);
 
             // 显示确认面板（替代 BuildPreviewScreen）

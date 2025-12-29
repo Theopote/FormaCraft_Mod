@@ -158,6 +158,23 @@ curl -X POST http://localhost:8000/build \
 - 如果没有 API Key，系统会使用规则基础的回退方案
 - 查看 `ai_planner.py` 中的日志输出
 
+### LLM 风格基因（styleProfileId/paletteId）跑偏 / 不生效
+
+1) **先开 debugWarnings（推荐）**  
+在游戏内打开 FormaCraft Settings，开启 **Debug Warnings**。当后端对 `extra.styleProfileId/paletteId` 做了纠错/回退时，会在聊天 AI 回复末尾追加 `[debugWarnings]` 段落，直接说明发生了什么。
+
+2) **离线 Smoke 自检（无需 LLM）**  
+在仓库根目录执行：
+
+```bash
+python python_backend/tools/spec_contract_smoke.py
+```
+
+它会覆盖：
+- 字段别名归一化（如 `palette_id`/`style_profile_id`）
+- 无效 ID 的删除与 `debugWarnings` 生成
+- style 默认 palette 的自动补齐（`paletteIdAutoFromStyle=true`）
+
 ## 下一步
 
 1. **配置 OpenAI API Key**：在 `.env` 文件中设置 `OPENAI_API_KEY`
