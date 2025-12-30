@@ -2,6 +2,7 @@ package com.formacraft.client.ui.panel;
 
 import com.formacraft.client.tool.FormacraftTool;
 import com.formacraft.client.tool.OutlineTool;
+import com.formacraft.client.tool.PathTool;
 import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.tool.SemanticLabelTool;
 import com.formacraft.client.tool.SelectionTool;
@@ -43,6 +44,7 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget clearProtectedZonesButton;
     private ButtonWidget outlineModeButton;
     private ButtonWidget clearOutlineButton;
+    private ButtonWidget clearPathsButton;
     private ButtonWidget symmetryModeButton;
     private ButtonWidget clearSymmetryButton;
     private ButtonWidget clearLabelsButton;
@@ -107,6 +109,11 @@ public class ToolPanel extends BasePanel {
         clearOutlineButton = ButtonWidget.builder(Text.literal("清空轮廓"), b -> OutlineTool.INSTANCE.clearShape())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清除当前轮廓")))
+                .build();
+
+        clearPathsButton = ButtonWidget.builder(Text.literal("清空路径"), b -> PathTool.INSTANCE.clearAll())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("清除所有已完成路径以及当前草稿")))
                 .build();
 
         symmetryModeButton = ButtonWidget.builder(Text.literal("模式：NONE"), b -> SymmetryTool.INSTANCE.cycleMode())
@@ -261,6 +268,24 @@ public class ToolPanel extends BasePanel {
         clearOutlineButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
 
         // --------------------
+        // 路径工具
+        // --------------------
+        y += FIELD_SPACING;
+        String pathStatus = PathTool.INSTANCE.isDrafting()
+                ? ("路径：绘制中（草稿点=" + PathTool.INSTANCE.getDraftPointCount() + "，右键结束）")
+                : ("路径：已完成 " + PathTool.INSTANCE.getPathCount() + " 条");
+        ctx.drawTextWithShadow(client.textRenderer,
+                Text.literal(pathStatus),
+                x, y, 0xFFAAAAAA);
+        y += LABEL_OFFSET;
+
+        clearPathsButton.setPosition(x, y);
+        clearPathsButton.setWidth(w);
+        clearPathsButton.visible = true;
+        clearPathsButton.active = true;
+        clearPathsButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        // --------------------
         // 对称/镜像
         // --------------------
         y += FIELD_SPACING;
@@ -384,6 +409,12 @@ public class ToolPanel extends BasePanel {
         clearOutlineButton.setPosition(x, y);
         clearOutlineButton.setWidth(w);
         if (clearOutlineButton.mouseClicked(click, false)) return true;
+
+        // 路径
+        y += FIELD_SPACING + LABEL_OFFSET; // 路径状态行 + 间距
+        clearPathsButton.setPosition(x, y);
+        clearPathsButton.setWidth(w);
+        if (clearPathsButton.mouseClicked(click, false)) return true;
 
         // 对称
         y += FIELD_SPACING;
