@@ -7,6 +7,8 @@ import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.interior.BspFloorPlanGenerator;
+import com.formacraft.server.interior.FloorPlanConfig;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -150,6 +152,35 @@ public class ModernSkyscraperGenerator implements StructureGenerator {
                 z1 -= setbackStep;
                 if ((x1 - x0 + 1) < coreMin || (z1 - z0 + 1) < coreMin) break;
             }
+        }
+
+        // ------------------------------------------------------------
+        // Optional functional interior (meta-assembly):
+        // If LLM provides extra.floor_plan_logic, compile it into partitions + core stairs.
+        // Note: this runs in local (unrotated) coords like the rest of this generator; rotation is applied in put().
+        // ------------------------------------------------------------
+        FloorPlanConfig fpc = null;
+        if (spec != null && spec.getExtra() != null) {
+            Object fpl = spec.getExtra().get("floor_plan_logic");
+            if (fpl == null) fpl = spec.getExtra().get("floorPlanLogic");
+            fpc = FloorPlanConfig.fromExtra(fpl);
+        }
+        if (fpc != null) {
+            BlockState coreWall = frame; // modern core uses frame material
+            BlockState roomWall = (fpc.partitionStyle != null && fpc.partitionStyle.contains("OPEN"))
+                    ? Blocks.GLASS_PANE.getDefaultState()
+                    : frame;
+            // Let palette drive room partitions when possible (glass/frames already palette-driven above)
+            BspFloorPlanGenerator.apply(
+                    blocks,
+                    origin,
+                    world,
+                    w,
+                    d,
+                    yMax,
+                    fpc,
+                    BspFloorPlanGenerator.Materials.of(coreWall, roomWall, Blocks.STONE_BRICK_STAIRS.getDefaultState())
+            );
         }
 
         // roof slab (flat roof, minimal parapet)

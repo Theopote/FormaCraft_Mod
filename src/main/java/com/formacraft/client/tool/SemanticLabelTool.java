@@ -27,7 +27,7 @@ public final class SemanticLabelTool implements FormacraftTool {
     private boolean drafting = false;
 
     private String pendingName = "入口";
-    /** 标签作用范围（方块） */
+    /** 标签作用范围（方块），用于“标签影响周边区域”的大致半径 */
     private int pendingRange = 16;
 
     private final List<AreaLabel> labels = new ArrayList<>();
@@ -54,8 +54,9 @@ public final class SemanticLabelTool implements FormacraftTool {
 
     public void setPendingRange(int range) {
         int r = range;
-        if (r < 0) r = 0;
-        if (r > 256) r = 256;
+        // UI 侧使用滑动条（1~40），这里也做同样钳制，避免服务端/后端收到离谱值
+        if (r < 1) r = 1;
+        if (r > 40) r = 40;
         this.pendingRange = r;
     }
 

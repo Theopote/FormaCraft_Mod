@@ -12,9 +12,12 @@ import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.interaction.AnchorState;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
 import java.util.LinkedHashMap;
@@ -55,7 +58,18 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget clearLabelsButton;
 
     private final HudTextInput labelNameInput = new HudTextInput();
-    private final HudTextInput labelRangeInput = new HudTextInput();
+    // 标签“作用范围”滑动条（1~40）——参考 SettingsPanel 的 SliderWidget 实现
+    private static final int LABEL_RANGE_MIN = 1;
+    private static final int LABEL_RANGE_MAX = 40;
+    private LabelRangeSlider labelRangeSlider;
+    private SliderWidget activeSlider = null; // 只允许同时操作一个滑条（与 SettingsPanel 一致）
+
+    // 由于 HudTextInput 不保存自己的 bounds，我们在 drawContents() 里缓存其位置，mouseClicked() 直接复用，避免布局重复计算造成偏移
+    private int labelNameInputX = 0;
+    private int labelNameInputY = 0;
+    private int labelNameInputW = 0;
+    private int labelNameInputH = 0;
+    private boolean labelNameInputBoundsValid = false;
 
     // 滚动
     private int scrollY = 0;
@@ -156,8 +170,15 @@ public class ToolPanel extends BasePanel {
 
         labelNameInput.setMaxLength(64);
         labelNameInput.setText("入口");
-        labelRangeInput.setMaxLength(4);
-        labelRangeInput.setText("16");
+
+        // Slider（用原版 SliderWidget 渲染/拖拽，手感与 SettingsPanel 一致）
+        if (labelRangeSlider == null) {
+            int initRange = SemanticLabelTool.INSTANCE.getPendingRange();
+            if (initRange < LABEL_RANGE_MIN) initRange = LABEL_RANGE_MIN;
+            if (initRange > LABEL_RANGE_MAX) initRange = LABEL_RANGE_MAX;
+            labelRangeSlider = new LabelRangeSlider(0, 0, 0, BUTTON_HEIGHT, Text.empty(), rangeToValue(initRange));
+            labelRangeSlider.setTooltip(Tooltip.of(Text.literal("设置标签作用范围（方块），用于提示 AI 该标签影响的周边区域")));
+        }
     }
 
     @Override
@@ -167,6 +188,9 @@ public class ToolPanel extends BasePanel {
         int x = panelX + CONTENT_PADDING;
         int y = getContentY() + CONTENT_PADDING - scrollY;
         int w = panelWidth - CONTENT_PADDING * 2;
+
+        // 每帧重置 bounds（如果本帧没画到输入框，就不允许点击命中它）
+        labelNameInputBoundsValid = false;
 
         // 半透明底
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
@@ -373,27 +397,30 @@ public class ToolPanel extends BasePanel {
         // --------------------
         y += FIELD_SPACING;
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("标签名："), x, y, 0xFFAAAAAA);
-        y += LABEL_OFFSET - 2;
-        labelNameInput.render(ctx, x, y, w, 14);
+        int nameInputY = y + LABEL_OFFSET - 2;
+        labelNameInput.render(ctx, x, nameInputY, w, 14);
+        labelNameInputX = x;
+        labelNameInputY = nameInputY;
+        labelNameInputW = w;
+        labelNameInputH = 14;
+        labelNameInputBoundsValid = true;
         // 让工具实时拿到最新标签名
         SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
 
-        y += LABEL_OFFSET + 2;
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("作用范围(方块)："), x, y, 0xFFAAAAAA);
-        y += LABEL_OFFSET - 2;
-        labelRangeInput.render(ctx, x, y, w, 14);
-        // 解析范围（非法输入则保持上一次值）
-        try {
-            String t = labelRangeInput.getText() == null ? "" : labelRangeInput.getText().trim();
-            if (!t.isEmpty()) {
-                int v = Integer.parseInt(t.replaceAll("[^0-9-]", ""));
-                if (v < 0) v = 0;
-                if (v > 256) v = 256;
-                SemanticLabelTool.INSTANCE.setPendingRange(v);
-            }
-        } catch (Throwable ignored) {}
+        y += FIELD_SPACING;
+        int rangeLabelY = y;
+        int rangeSliderY = y + LABEL_OFFSET;
+        ctx.drawTextWithShadow(client.textRenderer,
+                Text.literal("作用范围（1~40）："),
+                x, rangeLabelY, 0xFFAAAAAA);
 
-        y += LABEL_OFFSET + 2;
+        labelRangeSlider.setPosition(x, rangeSliderY);
+        labelRangeSlider.setWidth(w);
+        labelRangeSlider.visible = true;
+        labelRangeSlider.active = true;
+        labelRangeSlider.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        y += FIELD_SPACING;
         ctx.drawTextWithShadow(client.textRenderer,
                 Text.literal("已添加标签：" + SemanticLabelTool.INSTANCE.getLabels().size()),
                 x, y, 0xFFAAAAAA);
@@ -447,121 +474,53 @@ public class ToolPanel extends BasePanel {
         if (!isMouseOver(mouseX, mouseY)) return false;
 
         ensureWidgets();
-        int x = panelX + CONTENT_PADDING;
-        int y = getContentY() + CONTENT_PADDING - scrollY + 20;
-        int w = panelWidth - CONTENT_PADDING * 2;
+        // 只允许点击内容区（避免滚动导致“看不见的按钮”仍可点）
+        double contentTop = getContentY() + 1;
+        double contentBottom = panelY + panelHeight - 1;
+        if (mouseY < contentTop || mouseY > contentBottom) return false;
 
-        net.minecraft.client.gui.Click click = new net.minecraft.client.gui.Click(mouseX, mouseY, new net.minecraft.client.input.MouseInput(button, 0));
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
-        // 工具列表
-        noneToolButton.setPosition(x, y);
-        noneToolButton.setWidth(w);
-        if (noneToolButton.mouseClicked(click, false)) return true;
-        y += LABEL_OFFSET;
+        // 关键策略：不在这里重复计算布局；直接复用 drawContents() 已经写入到各 Widget 的 position/width。
+        // 否则极易出现“点击区域与渲染区域偏移”的问题。
 
+        if (noneToolButton != null && noneToolButton.visible && noneToolButton.mouseClicked(click, false)) return true;
         for (ButtonWidget b : toolButtons.values()) {
-            if (b == null) continue;
-            b.setPosition(x, y);
-            b.setWidth(w);
-            if (b.mouseClicked(click, false)) return true;
-            y += LABEL_OFFSET;
+            if (b != null && b.visible && b.mouseClicked(click, false)) return true;
         }
-        y += LABEL_OFFSET;
 
-        clearSelectionButton.setPosition(x, y);
-        clearSelectionButton.setWidth(w);
+        if (clearSelectionButton != null && clearSelectionButton.visible && clearSelectionButton.mouseClicked(click, false)) return true;
+        if (clearProtectedZonesButton != null && clearProtectedZonesButton.visible && clearProtectedZonesButton.mouseClicked(click, false)) return true;
+        if (outlineModeButton != null && outlineModeButton.visible && outlineModeButton.mouseClicked(click, false)) return true;
+        if (clearOutlineButton != null && clearOutlineButton.visible && clearOutlineButton.mouseClicked(click, false)) return true;
+        if (clearPathsButton != null && clearPathsButton.visible && clearPathsButton.mouseClicked(click, false)) return true;
 
-        if (clearSelectionButton.mouseClicked(click, false)) return true;
+        if (brushModeButton != null && brushModeButton.visible && brushModeButton.mouseClicked(click, false)) return true;
+        if (brushRadiusMinusButton != null && brushRadiusMinusButton.visible && brushRadiusMinusButton.mouseClicked(click, false)) return true;
+        if (brushRadiusPlusButton != null && brushRadiusPlusButton.visible && brushRadiusPlusButton.mouseClicked(click, false)) return true;
+        if (clearBrushSelectionButton != null && clearBrushSelectionButton.visible && clearBrushSelectionButton.mouseClicked(click, false)) return true;
 
-        // 禁区
-        y += FIELD_SPACING + LABEL_OFFSET;
-        clearProtectedZonesButton.setPosition(x, y);
-        clearProtectedZonesButton.setWidth(w);
-        if (clearProtectedZonesButton.mouseClicked(click, false)) return true;
+        if (symmetryModeButton != null && symmetryModeButton.visible && symmetryModeButton.mouseClicked(click, false)) return true;
+        if (clearSymmetryButton != null && clearSymmetryButton.visible && clearSymmetryButton.mouseClicked(click, false)) return true;
 
-        // 轮廓
-        y += FIELD_SPACING;
-        outlineModeButton.setPosition(x, y);
-        outlineModeButton.setWidth(w);
-        if (outlineModeButton.mouseClicked(click, false)) return true;
+        // 标签名输入框（使用 drawContents 缓存的 bounds）
+        if (labelNameInputBoundsValid) {
+            if (labelNameInput.mouseClicked(mouseX, mouseY, labelNameInputX, labelNameInputY, labelNameInputW, labelNameInputH)) {
+                return true;
+            }
+        }
 
-        y += LABEL_OFFSET * 2;
-        clearOutlineButton.setPosition(x, y);
-        clearOutlineButton.setWidth(w);
-        if (clearOutlineButton.mouseClicked(click, false)) return true;
+        // 标签范围滑条（按 SettingsPanel 逻辑：mouseClicked 命中后记录 activeSlider）
+        if (labelRangeSlider != null && labelRangeSlider.visible && labelRangeSlider.mouseClicked(click, false)) {
+            labelNameInput.setFocused(false);
+            activeSlider = labelRangeSlider;
+            return true;
+        }
 
-        // 路径
-        y += FIELD_SPACING + LABEL_OFFSET; // 路径状态行 + 间距
-        clearPathsButton.setPosition(x, y);
-        clearPathsButton.setWidth(w);
-        clearPathsButton.visible = true;
-        clearPathsButton.active = true;
-        if (clearPathsButton.mouseClicked(click, false)) return true;
+        if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
+        if (clearAnchorButton != null && clearAnchorButton.visible && clearAnchorButton.mouseClicked(click, false)) return true;
 
-        // 笔刷
-        y += FIELD_SPACING; // 笔刷状态行
-        y += LABEL_OFFSET;  // 模式按钮
-        brushModeButton.setPosition(x, y);
-        brushModeButton.setWidth(w);
-        brushModeButton.visible = true;
-        brushModeButton.active = true;
-        if (brushModeButton.mouseClicked(click, false)) return true;
-
-        y += LABEL_OFFSET;
-        int half = (w - 4) / 2;
-        brushRadiusMinusButton.setPosition(x, y);
-        brushRadiusMinusButton.setWidth(half);
-        brushRadiusMinusButton.visible = true;
-        brushRadiusMinusButton.active = true;
-        if (brushRadiusMinusButton.mouseClicked(click, false)) return true;
-
-        brushRadiusPlusButton.setPosition(x + half + 4, y);
-        brushRadiusPlusButton.setWidth(w - half - 4);
-        brushRadiusPlusButton.visible = true;
-        brushRadiusPlusButton.active = true;
-        if (brushRadiusPlusButton.mouseClicked(click, false)) return true;
-
-        y += LABEL_OFFSET;
-        clearBrushSelectionButton.setPosition(x, y);
-        clearBrushSelectionButton.setWidth(w);
-        clearBrushSelectionButton.visible = true;
-        clearBrushSelectionButton.active = true;
-        if (clearBrushSelectionButton.mouseClicked(click, false)) return true;
-
-        // 对称
-        y += FIELD_SPACING;
-        symmetryModeButton.setPosition(x, y);
-        symmetryModeButton.setWidth(w);
-        if (symmetryModeButton.mouseClicked(click, false)) return true;
-
-        y += LABEL_OFFSET;
-        clearSymmetryButton.setPosition(x, y);
-        clearSymmetryButton.setWidth(w);
-        if (clearSymmetryButton.mouseClicked(click, false)) return true;
-
-        // 语义标注
-        y += FIELD_SPACING;
-        y += LABEL_OFFSET; // “标签名：”
-        y += LABEL_OFFSET - 2; // 输入框 y（与 drawContents 一致）
-        // labelNameInput
-        if (labelNameInput.mouseClicked(mouseX, mouseY, x, y, w, 14)) return true;
-
-        // “作用范围(方块)：” + 输入框
-        y += LABEL_OFFSET + 2;
-        y += LABEL_OFFSET; // “作用范围(方块)：”
-        y += LABEL_OFFSET - 2;
-        if (labelRangeInput.mouseClicked(mouseX, mouseY, x, y, w, 14)) return true;
-
-        y += LABEL_OFFSET + 2;
-        clearLabelsButton.setPosition(x, y);
-        clearLabelsButton.setWidth(w);
-        if (clearLabelsButton.mouseClicked(click, false)) return true;
-
-        // 锚点
-        y += FIELD_SPACING + LABEL_OFFSET;
-        clearAnchorButton.setPosition(x, y);
-        clearAnchorButton.setWidth(w);
-        return clearAnchorButton.mouseClicked(click, false);
+        return false;
     }
 
     @Override
@@ -581,18 +540,6 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.keyPressed(keyCode, modifiers)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
-        if (labelRangeInput.keyPressed(keyCode, modifiers)) {
-            // 尽量实时更新（容错：无法 parse 时不更新）
-            try {
-                String t = labelRangeInput.getText() == null ? "" : labelRangeInput.getText().trim();
-                if (!t.isEmpty()) {
-                    int v = Integer.parseInt(t.replaceAll("[^0-9-]", ""));
-                    if (v < 0) v = 0;
-                    if (v > 256) v = 256;
-                    SemanticLabelTool.INSTANCE.setPendingRange(v);
-                }
-            } catch (Throwable ignored) {}
-        }
     }
 
     @Override
@@ -601,22 +548,66 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.charTyped(chr)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
-        if (labelRangeInput.charTyped(chr)) {
-            try {
-                String t = labelRangeInput.getText() == null ? "" : labelRangeInput.getText().trim();
-                if (!t.isEmpty()) {
-                    int v = Integer.parseInt(t.replaceAll("[^0-9-]", ""));
-                    if (v < 0) v = 0;
-                    if (v > 256) v = 256;
-                    SemanticLabelTool.INSTANCE.setPendingRange(v);
-                }
-            } catch (Throwable ignored) {}
-        }
     }
 
     @Override
     public boolean wantsKeyboardInput() {
-        return labelNameInput.isFocused() || labelRangeInput.isFocused();
+        return labelNameInput.isFocused();
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        ensureWidgets();
+        if (button != 0) return false;
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        if (activeSlider == null) return false;
+        if (!activeSlider.isMouseOver(mouseX, mouseY)) return false;
+        return activeSlider.mouseDragged(click, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        ensureWidgets();
+        if (button != 0) return false;
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        boolean handled = false;
+        if (activeSlider != null) {
+            handled = activeSlider.mouseReleased(click);
+            activeSlider = null;
+        } else {
+            // 兜底：如果未记录 activeSlider，也尝试释放，防止残留拖拽状态
+            if (labelRangeSlider != null) handled |= labelRangeSlider.mouseReleased(click);
+        }
+        return handled;
+    }
+
+    private static double rangeToValue(int range) {
+        int clamped = Math.max(LABEL_RANGE_MIN, Math.min(LABEL_RANGE_MAX, range));
+        return (clamped - LABEL_RANGE_MIN) / (double) (LABEL_RANGE_MAX - LABEL_RANGE_MIN);
+    }
+
+    private static int valueToRange(double value) {
+        double v = Math.max(0.0, Math.min(1.0, value));
+        return LABEL_RANGE_MIN + (int) Math.round(v * (LABEL_RANGE_MAX - LABEL_RANGE_MIN));
+    }
+
+    private class LabelRangeSlider extends SliderWidget {
+        public LabelRangeSlider(int x, int y, int width, int height, Text message, double value) {
+            super(x, y, width, height, message, value);
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Text.literal(String.valueOf(SemanticLabelTool.INSTANCE.getPendingRange())));
+        }
+
+        @Override
+        protected void applyValue() {
+            int r = valueToRange(this.value);
+            SemanticLabelTool.INSTANCE.setPendingRange(r);
+            updateMessage();
+        }
     }
 }
 
