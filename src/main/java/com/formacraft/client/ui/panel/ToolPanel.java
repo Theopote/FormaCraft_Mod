@@ -3,6 +3,7 @@ package com.formacraft.client.ui.panel;
 import com.formacraft.client.tool.FormacraftTool;
 import com.formacraft.client.tool.OutlineTool;
 import com.formacraft.client.tool.PathTool;
+import com.formacraft.client.tool.BrushTool;
 import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.tool.SemanticLabelTool;
 import com.formacraft.client.tool.SelectionTool;
@@ -45,6 +46,10 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget outlineModeButton;
     private ButtonWidget clearOutlineButton;
     private ButtonWidget clearPathsButton;
+    private ButtonWidget brushModeButton;
+    private ButtonWidget brushRadiusMinusButton;
+    private ButtonWidget brushRadiusPlusButton;
+    private ButtonWidget clearBrushSelectionButton;
     private ButtonWidget symmetryModeButton;
     private ButtonWidget clearSymmetryButton;
     private ButtonWidget clearLabelsButton;
@@ -114,6 +119,23 @@ public class ToolPanel extends BasePanel {
         clearPathsButton = ButtonWidget.builder(Text.literal("清空路径"), b -> PathTool.INSTANCE.clearAll())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清除所有已完成路径以及当前草稿")))
+                .build();
+
+        brushModeButton = ButtonWidget.builder(Text.literal("笔刷模式：TOP"), b -> BrushTool.INSTANCE.cycleMode())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("切换笔刷高亮模式（顶面/立方体外框）")))
+                .build();
+        brushRadiusMinusButton = ButtonWidget.builder(Text.literal("半径 -"), b -> BrushTool.INSTANCE.decRadius())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("减小笔刷半径")))
+                .build();
+        brushRadiusPlusButton = ButtonWidget.builder(Text.literal("半径 +"), b -> BrushTool.INSTANCE.incRadius())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("增大笔刷半径")))
+                .build();
+        clearBrushSelectionButton = ButtonWidget.builder(Text.literal("清空笔刷选中"), b -> BrushTool.INSTANCE.clearSelected())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("清空笔刷已选中的地表方块（右键也可清空）")))
                 .build();
 
         symmetryModeButton = ButtonWidget.builder(Text.literal("模式：NONE"), b -> SymmetryTool.INSTANCE.cycleMode())
@@ -286,6 +308,46 @@ public class ToolPanel extends BasePanel {
         clearPathsButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
 
         // --------------------
+        // 笔刷工具
+        // --------------------
+        y += FIELD_SPACING;
+        ctx.drawTextWithShadow(client.textRenderer,
+                Text.literal("笔刷：半径=" + BrushTool.INSTANCE.getRadius()
+                        + "  已选中=" + BrushTool.INSTANCE.getSelectedCount()),
+                x, y, 0xFFAAAAAA);
+        y += LABEL_OFFSET;
+
+        // 模式按钮
+        brushModeButton.setMessage(Text.literal("笔刷模式：" + BrushTool.INSTANCE.getMode().name()));
+        brushModeButton.setPosition(x, y);
+        brushModeButton.setWidth(w);
+        brushModeButton.visible = true;
+        brushModeButton.active = true;
+        brushModeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        // 半径 - / + 两个按钮并排
+        int half = (w - 4) / 2;
+        brushRadiusMinusButton.setPosition(x, y);
+        brushRadiusMinusButton.setWidth(half);
+        brushRadiusMinusButton.visible = true;
+        brushRadiusMinusButton.active = true;
+        brushRadiusMinusButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        brushRadiusPlusButton.setPosition(x + half + 4, y);
+        brushRadiusPlusButton.setWidth(w - half - 4);
+        brushRadiusPlusButton.visible = true;
+        brushRadiusPlusButton.active = true;
+        brushRadiusPlusButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        clearBrushSelectionButton.setPosition(x, y);
+        clearBrushSelectionButton.setWidth(w);
+        clearBrushSelectionButton.visible = true;
+        clearBrushSelectionButton.active = BrushTool.INSTANCE.getSelectedCount() > 0;
+        clearBrushSelectionButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        // --------------------
         // 对称/镜像
         // --------------------
         y += FIELD_SPACING;
@@ -417,6 +479,36 @@ public class ToolPanel extends BasePanel {
         clearPathsButton.visible = true;
         clearPathsButton.active = true;
         if (clearPathsButton.mouseClicked(click, false)) return true;
+
+        // 笔刷
+        y += FIELD_SPACING; // 笔刷状态行
+        y += LABEL_OFFSET;  // 模式按钮
+        brushModeButton.setPosition(x, y);
+        brushModeButton.setWidth(w);
+        brushModeButton.visible = true;
+        brushModeButton.active = true;
+        if (brushModeButton.mouseClicked(click, false)) return true;
+
+        y += LABEL_OFFSET;
+        int half = (w - 4) / 2;
+        brushRadiusMinusButton.setPosition(x, y);
+        brushRadiusMinusButton.setWidth(half);
+        brushRadiusMinusButton.visible = true;
+        brushRadiusMinusButton.active = true;
+        if (brushRadiusMinusButton.mouseClicked(click, false)) return true;
+
+        brushRadiusPlusButton.setPosition(x + half + 4, y);
+        brushRadiusPlusButton.setWidth(w - half - 4);
+        brushRadiusPlusButton.visible = true;
+        brushRadiusPlusButton.active = true;
+        if (brushRadiusPlusButton.mouseClicked(click, false)) return true;
+
+        y += LABEL_OFFSET;
+        clearBrushSelectionButton.setPosition(x, y);
+        clearBrushSelectionButton.setWidth(w);
+        clearBrushSelectionButton.visible = true;
+        clearBrushSelectionButton.active = true;
+        if (clearBrushSelectionButton.mouseClicked(click, false)) return true;
 
         // 对称
         y += FIELD_SPACING;

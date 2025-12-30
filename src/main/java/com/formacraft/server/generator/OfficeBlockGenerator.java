@@ -10,6 +10,7 @@ import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.StairsBlock;
 import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
@@ -579,6 +580,9 @@ public class OfficeBlockGenerator implements StructureGenerator {
             // 1) core perimeter walls (solid)
             placeRectRing(blocks, origin, core, wallY0, wallY1, coreWall);
 
+            // 1.5) core vertical circulation (stairs) - deterministic & vertically aligned
+            placeCoreStairs(blocks, origin, core, y0, h, rng);
+
             // 2) rooms (BSP) in 4 bands around corridor ring
             ArrayList<Rect> rooms = new ArrayList<>();
             if (ring.x0 - 1 >= xMin) splitRooms(new Rect(xMin, zMin, ring.x0 - 1, zMax), minRoom, rng, 0, maxDepth, splitChance, rooms);
@@ -689,6 +693,105 @@ public class OfficeBlockGenerator implements StructureGenerator {
         for (int y = y0; y <= y1; y++) {
             blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
         }
+    }
+
+    /**
+     * Place a simple, vertically aligned staircase inside the core.
+     *
+     * v1 design goals:
+     * - deterministic (no per-floor random core position)
+     * - walkable: 3 steps per 4-high floor band
+     * - reserve headroom by carving a stairwell shaft through floors
+     *
+     * This is intentionally simple; it gives "functional building" a real circulation spine.
+     */
+    private static void placeCoreStairs(List<PlannedBlock> blocks,
+                                        BlockPos origin,
+                                        Rect core,
+                                        int y0,
+                                        int h,
+                                        Random rng) {
+        if (blocks == null || origin == null || core == null) return;
+        if (core.w() < 6 || core.d() < 6) return; // too tight for a safe stairwell
+
+        // Choose a stable corner inside the core for the stairwell.
+        // (x0+1,z0+1) is inside the core ring; we carve a 3x3 shaft there.
+        int sx0 = core.x0 + 1;
+        int sz0 = core.z0 + 1;
+
+        // Stairwell shaft (headroom + floor opening for next level)
+        int shaftW = 3;
+        int shaftD = 3;
+        int clearY0 = y0 + 1;
+        int clearY1 = Math.min(h + 2, y0 + 6); // cover current band + next floor slab
+
+        for (int x = sx0; x < sx0 + shaftW; x++) {
+            for (int z = sz0; z < sz0 + shaftD; z++) {
+                for (int y = clearY0; y <= clearY1; y++) {
+                    blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
+                }
+            }
+        }
+
+        // Place 3 stair blocks to climb from y0+1 -> y0+4 (next floor level).
+        // Alternate pattern each floor band to avoid a weird "always same corner" feel,
+        // while keeping vertical alignment.
+        int band = Math.max(0, y0 / 4);
+        boolean flip = (band % 2) == 1;
+
+        BlockState stairs = Blocks.STONE_BRICK_STAIRS.getDefaultState();
+        if (!(stairs.getBlock() instanceof StairsBlock)) {
+            stairs = Blocks.STONE_BRICK_STAIRS.getDefaultState();
+        }
+
+        // Even band: go EAST then SOUTH then SOUTH (L-shape)
+        // Odd band: go SOUTH then EAST then EAST (mirrored)
+        int x1 = sx0;
+        int z1 = sz0;
+        int x2 = sx0 + 1;
+        int z2 = sz0;
+        int x3 = sx0 + 1;
+        int z3 = sz0 + 1;
+
+        Direction f1 = flip ? Direction.SOUTH : Direction.EAST;
+        Direction f2 = flip ? Direction.EAST : Direction.SOUTH;
+        Direction f3 = flip ? Direction.EAST : Direction.SOUTH;
+
+        // small jitter inside the 3x3 shaft so it doesn't always hug the same cells
+        // (still deterministic for a given floor band)
+        if (rng != null && rng.nextBoolean()) {
+            // shift by +1 in the free axis when possible
+            if (flip) {
+                // shift in X
+                x1 = sx0 + 1;
+                x2 = sx0 + 1;
+                x3 = sx0 + 2;
+            } else {
+                // shift in Z
+                z1 = sz0 + 1;
+                z2 = sz0 + 1;
+                z3 = sz0 + 2;
+            }
+        }
+
+        placeStair(blocks, origin.add(x1, y0 + 1, z1), stairs, f1);
+        placeStair(blocks, origin.add(x2, y0 + 2, z2), stairs, f2);
+        placeStair(blocks, origin.add(x3, y0 + 3, z3), stairs, f3);
+
+        // Ensure the landing cell on the next floor is open (avoid collision with floor slab)
+        if (y0 + 4 <= h) {
+            blocks.add(new PlannedBlock(origin.add(x3, y0 + 4, z3), Blocks.AIR.getDefaultState()));
+        }
+    }
+
+    private static void placeStair(List<PlannedBlock> blocks, BlockPos pos, BlockState stairBase, Direction facing) {
+        if (blocks == null || pos == null) return;
+        BlockState s = stairBase != null ? stairBase : Blocks.STONE_BRICK_STAIRS.getDefaultState();
+        if (s.contains(Properties.HORIZONTAL_FACING)) s = s.with(Properties.HORIZONTAL_FACING, facing);
+        blocks.add(new PlannedBlock(pos, s));
+        // headroom above each stair step (prevents "bonk" in tight cores)
+        blocks.add(new PlannedBlock(pos.up(), Blocks.AIR.getDefaultState()));
+        blocks.add(new PlannedBlock(pos.up(2), Blocks.AIR.getDefaultState()));
     }
 
     private static Rect clampRect(Rect r, int x0, int z0, int x1, int z1) {

@@ -3,6 +3,7 @@ package com.formacraft.mixin;
 import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.tool.ToolWorldRenderContext;
 import com.formacraft.client.tool.PathTool;
+import com.formacraft.client.tool.BrushTool;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.preview.BuildingOutlineRenderer;
 import com.formacraft.client.preview.PatchPreviewRenderer;
@@ -64,6 +65,9 @@ public class SelectionBoxRenderMixin {
 
         // Path：路径参考线（即便切换到其他工具也保持可见）
         PathTool.renderGlobal(ctx);
+
+        // Brush：笔刷选中范围（即便切换到其他工具也保持可见）
+        BrushTool.renderGlobal(ctx);
 
         // Anchor：锚点可视化（不依赖 activeTool）
         AnchorRenderer.render(ctx);

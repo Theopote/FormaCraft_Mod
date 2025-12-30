@@ -11,6 +11,7 @@ public final class BuiltinToolsEntrypoint implements ToolEntrypoint {
         registry.register(ProtectedZoneTool.INSTANCE);
         registry.register(OutlineTool.INSTANCE);
         registry.register(PathTool.INSTANCE);
+        registry.register(BrushTool.INSTANCE);
         registry.register(SymmetryTool.INSTANCE);
         registry.register(SemanticLabelTool.INSTANCE);
     }
