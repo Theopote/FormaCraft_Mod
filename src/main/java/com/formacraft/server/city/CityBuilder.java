@@ -13,6 +13,10 @@ import com.formacraft.server.generator.BridgeGenerator;
 import com.formacraft.server.generator.StructureGenerator;
 import com.formacraft.server.generator.StructureGeneratorFactory;
 import com.formacraft.server.generator.path.PathGenerator;
+import com.formacraft.server.terrain.TerrainAdaptationEngine;
+import com.formacraft.server.terrain.TerrainAdaptationMode;
+import com.formacraft.server.terrain.TerrainAdaptationResolver;
+import com.formacraft.server.terrain.TerrainAdaptationSpec;
 import com.formacraft.server.terrain.TerrainFit;
 import com.formacraft.server.terrain.TerrainPolicy;
 import com.formacraft.server.terrain.TerrainPolicyResolver;
@@ -370,6 +374,119 @@ public class CityBuilder {
                 } else {
                     // auto placement (if available); fallback to origin
                     buildingOrigin = autoOffsets.getOrDefault(sp, origin);
+                }
+
+                // New terrain adaptation: if spec.extra.terrainAdaptation is provided, prefer it over legacy TerrainPolicy.
+                TerrainAdaptationSpec ta = TerrainAdaptationResolver.resolve(sp.getSpec().getExtra());
+                if (TerrainAdaptationResolver.hasExplicit(sp.getSpec().getExtra())) {
+                    TerrainAdaptationMode mode = ta.mode();
+                    if (mode == TerrainAdaptationMode.DEFAULT) mode = TerrainAdaptationMode.ANCHOR;
+
+                    int fpW = (sp.getSpec().getFootprint() != null && sp.getSpec().getFootprint().getWidth() > 0) ? sp.getSpec().getFootprint().getWidth() : 8;
+                    int fpD = (sp.getSpec().getFootprint() != null && sp.getSpec().getFootprint().getDepth() > 0) ? sp.getSpec().getFootprint().getDepth() : 6;
+
+                    // Zone override first (if any), then cluster fallback.
+                    CitySpec.Zone zone;
+                    ZoneTerrainRule zrule = null;
+                    if (sp.getZone() != null) {
+                        zone = zonesByName.get(sp.getZone().trim());
+                        if (zone != null && zone.getType() != null) {
+                            String zt = zone.getType().trim().toUpperCase(java.util.Locale.ROOT);
+                            zrule = zoneRules.getOrDefault(zt, ZoneTerrainRule.defaultsForZoneType(zt));
+                        }
+                    }
+                    boolean clusterAllowWater = (zrule != null && zrule.allowWaterEdit() != null) ? zrule.allowWaterEdit() : clusterTerrain.allowWaterEdit();
+                    boolean clusterAllowLava = (zrule != null && zrule.allowLavaEdit() != null) ? zrule.allowLavaEdit() : clusterTerrain.allowLavaEdit();
+                    boolean allowWater = ta.allowWaterEdit() && clusterAllowWater;
+                    boolean allowLava = ta.allowLavaEdit() && clusterAllowLava;
+
+                    // Fill material for terrain ops
+                    net.minecraft.block.BlockState fillMaterial = net.minecraft.block.Blocks.DIRT.getDefaultState();
+                    if (sp.getSpec().getMaterials() != null && sp.getSpec().getMaterials().getFoundation() != null) {
+                        try {
+                            net.minecraft.util.Identifier id = net.minecraft.util.Identifier.of(sp.getSpec().getMaterials().getFoundation());
+                            net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(id);
+                            fillMaterial = block.getDefaultState();
+                        } catch (Exception ignored) {}
+                    }
+
+                    TerrainAdaptationEngine.Bounds b = TerrainAdaptationEngine.boundsForCenteredFootprint(sp.getSpec(), buildingOrigin);
+                    int baseY = TerrainAdaptationEngine.computeBaseY(world, b, ta, buildingOrigin.getY());
+                    int platformY = baseY + 1;
+
+                    BlockPos buildingOrigin2 = buildingOrigin;
+                    List<PlannedBlock> pad = List.of();
+                    List<PlannedBlock> pre = List.of();
+                    boolean postDrape = false;
+                    int drapeBaseY = platformY;
+
+                    if (mode == TerrainAdaptationMode.FLOAT) {
+                        int y = (ta.fixedY() != null) ? ta.fixedY() : platformY;
+                        buildingOrigin2 = new BlockPos(buildingOrigin.getX(), y, buildingOrigin.getZ());
+                    } else if (mode == TerrainAdaptationMode.EMBED) {
+                        buildingOrigin2 = new BlockPos(buildingOrigin.getX(), platformY - ta.embedDepth(), buildingOrigin.getZ());
+                        pre = TerrainAdaptationEngine.carve(world, b, platformY - ta.embedDepth(), ta.clearHeight());
+                    } else {
+                        buildingOrigin2 = new BlockPos(buildingOrigin.getX(), platformY, buildingOrigin.getZ());
+                        if (mode == TerrainAdaptationMode.ANCHOR) {
+                            pad = TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, platformY, fillMaterial,
+                                    Math.max(0, Math.min(6, ta.padDepth())),
+                                    Math.max(0, Math.min(16, ta.clearHeight())),
+                                    allowWater,
+                                    allowLava);
+                            if (ta.anchorExtendDown()) {
+                                pre = TerrainAdaptationEngine.anchorPillars(world, b, platformY, fillMaterial, ta.anchorMaxDepth(), allowWater, allowLava);
+                            }
+                        } else if (mode == TerrainAdaptationMode.DRAPE) {
+                            pad = TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, platformY, fillMaterial,
+                                    Math.max(0, Math.min(2, ta.padDepth())),
+                                    Math.max(0, Math.min(6, ta.clearHeight())),
+                                    allowWater,
+                                    allowLava);
+                            postDrape = true;
+                            drapeBaseY = platformY;
+                        } else if (mode == TerrainAdaptationMode.FLATTEN) {
+                            // handled after generation
+                        }
+                    }
+
+                    GeneratedStructure building = generator.generate(sp.getSpec(), buildingOrigin2, world);
+
+                    BlockPos buildingMin = new BlockPos(b.min().getX(), buildingOrigin2.getY(), b.min().getZ());
+                    BlockPos buildingMax = new BlockPos(b.max().getX(), buildingOrigin2.getY() + Math.max(4, sp.getSpec().getHeight()), b.max().getZ());
+
+                    if (mode == TerrainAdaptationMode.FLATTEN) {
+                        building = com.formacraft.server.terrain.TerrainShaper.preprocessStructure(world, building, buildingMin, buildingMax, fillMaterial);
+                        merged.addAll(building.getBlocks());
+                    } else {
+                        if (!pad.isEmpty()) merged.addAll(pad);
+                        if (!pre.isEmpty()) merged.addAll(pre);
+                        if (postDrape) merged.addAll(TerrainAdaptationEngine.drape(world, building.getBlocks(), drapeBaseY, ta.drapeMaxStep()));
+                        else merged.addAll(building.getBlocks());
+                    }
+
+                    // collect endpoints for auto roads (use footprint center; keep y from buildingOrigin2)
+                    if (autoRoads && !hasRoads) {
+                        BlockPos c = findDoorEndpoint(building);
+                        if (c == null) c = buildingOrigin2.add(fpW / 2, 0, fpD / 2);
+                        ClusterTerrainPolicy rp = clusterTerrain.policy();
+                        if (sp.getZone() != null) {
+                            CitySpec.Zone zz = zonesByName.get(sp.getZone().trim());
+                            if (zz != null && zz.getType() != null) {
+                                String zt = zz.getType().trim().toUpperCase(java.util.Locale.ROOT);
+                                ZoneTerrainRule zr = zoneRules.getOrDefault(zt, ZoneTerrainRule.defaultsForZoneType(zt));
+                                if (zr != null && zr.policy() != null) rp = zr.policy();
+                            }
+                        }
+                        roadEndpoints.add(new RoadEndpoint(c, rp));
+                        long vol = (long) fpW * (long) fpD * (long) Math.max(4, sp.getSpec().getHeight());
+                        if (vol > mainRoadVol) {
+                            mainRoadVol = vol;
+                            mainRoadIdx = roadEndpoints.size() - 1;
+                        }
+                    }
+
+                    continue;
                 }
 
                 // Terrain policy (default ADAPTIVE): don't flatten the whole region unless explicitly requested.
