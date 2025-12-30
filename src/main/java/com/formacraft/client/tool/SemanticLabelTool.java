@@ -20,12 +20,15 @@ public final class SemanticLabelTool implements FormacraftTool {
 
     private SemanticLabelTool() {}
 
-    public record AreaLabel(String name, List<BlockPos> outline, int minY, int maxY) {}
+    /** range：标签“作用范围”（方块），用于告诉 AI 该标签大致影响的区域范围（即便轮廓较小/较大也可单独约束）。 */
+    public record AreaLabel(String name, int range, List<BlockPos> outline, int minY, int maxY) {}
 
     private final List<BlockPos> draft = new ArrayList<>();
     private boolean drafting = false;
 
     private String pendingName = "入口";
+    /** 标签作用范围（方块） */
+    private int pendingRange = 16;
 
     private final List<AreaLabel> labels = new ArrayList<>();
 
@@ -47,6 +50,17 @@ public final class SemanticLabelTool implements FormacraftTool {
 
     public String getPendingName() {
         return pendingName;
+    }
+
+    public void setPendingRange(int range) {
+        int r = range;
+        if (r < 0) r = 0;
+        if (r > 256) r = 256;
+        this.pendingRange = r;
+    }
+
+    public int getPendingRange() {
+        return pendingRange;
     }
 
     public List<AreaLabel> getLabels() {
@@ -118,7 +132,7 @@ public final class SemanticLabelTool implements FormacraftTool {
             return;
         }
         int[] yr = defaultYRange(baseY);
-        labels.add(new AreaLabel(pendingName, List.copyOf(draft), yr[0], yr[1]));
+        labels.add(new AreaLabel(pendingName, pendingRange, List.copyOf(draft), yr[0], yr[1]));
         cancelDraft();
     }
 
@@ -209,8 +223,9 @@ public final class SemanticLabelTool implements FormacraftTool {
         double cx = sx / l.outline().size();
         double cz = sz / l.outline().size();
         double y = l.minY() + 1.8;
+        String suffix = l.range() > 0 ? ("  r=" + l.range()) : "";
         ToolTextRenderUtil.drawBillboardText(ctx, new net.minecraft.util.math.Vec3d(cx, y, cz),
-                Text.literal(l.name()), 0xFFFFE650, 0.02f);
+                Text.literal(l.name() + suffix), 0xFFFFE650, 0.02f);
     }
 }
 

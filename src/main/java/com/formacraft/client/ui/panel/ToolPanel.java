@@ -55,6 +55,7 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget clearLabelsButton;
 
     private final HudTextInput labelNameInput = new HudTextInput();
+    private final HudTextInput labelRangeInput = new HudTextInput();
 
     // 滚动
     private int scrollY = 0;
@@ -155,6 +156,8 @@ public class ToolPanel extends BasePanel {
 
         labelNameInput.setMaxLength(64);
         labelNameInput.setText("入口");
+        labelRangeInput.setMaxLength(4);
+        labelRangeInput.setText("16");
     }
 
     @Override
@@ -376,6 +379,21 @@ public class ToolPanel extends BasePanel {
         SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
 
         y += LABEL_OFFSET + 2;
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal("作用范围(方块)："), x, y, 0xFFAAAAAA);
+        y += LABEL_OFFSET - 2;
+        labelRangeInput.render(ctx, x, y, w, 14);
+        // 解析范围（非法输入则保持上一次值）
+        try {
+            String t = labelRangeInput.getText() == null ? "" : labelRangeInput.getText().trim();
+            if (!t.isEmpty()) {
+                int v = Integer.parseInt(t.replaceAll("[^0-9-]", ""));
+                if (v < 0) v = 0;
+                if (v > 256) v = 256;
+                SemanticLabelTool.INSTANCE.setPendingRange(v);
+            }
+        } catch (Throwable ignored) {}
+
+        y += LABEL_OFFSET + 2;
         ctx.drawTextWithShadow(client.textRenderer,
                 Text.literal("已添加标签：" + SemanticLabelTool.INSTANCE.getLabels().size()),
                 x, y, 0xFFAAAAAA);
@@ -528,7 +546,13 @@ public class ToolPanel extends BasePanel {
         // labelNameInput
         if (labelNameInput.mouseClicked(mouseX, mouseY, x, y, w, 14)) return true;
 
-        y += LABEL_OFFSET * 2;
+        // “作用范围(方块)：” + 输入框
+        y += LABEL_OFFSET + 2;
+        y += LABEL_OFFSET; // “作用范围(方块)：”
+        y += LABEL_OFFSET - 2;
+        if (labelRangeInput.mouseClicked(mouseX, mouseY, x, y, w, 14)) return true;
+
+        y += LABEL_OFFSET + 2;
         clearLabelsButton.setPosition(x, y);
         clearLabelsButton.setWidth(w);
         if (clearLabelsButton.mouseClicked(click, false)) return true;
@@ -557,6 +581,18 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.keyPressed(keyCode, modifiers)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
+        if (labelRangeInput.keyPressed(keyCode, modifiers)) {
+            // 尽量实时更新（容错：无法 parse 时不更新）
+            try {
+                String t = labelRangeInput.getText() == null ? "" : labelRangeInput.getText().trim();
+                if (!t.isEmpty()) {
+                    int v = Integer.parseInt(t.replaceAll("[^0-9-]", ""));
+                    if (v < 0) v = 0;
+                    if (v > 256) v = 256;
+                    SemanticLabelTool.INSTANCE.setPendingRange(v);
+                }
+            } catch (Throwable ignored) {}
+        }
     }
 
     @Override
@@ -565,11 +601,22 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.charTyped(chr)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
+        if (labelRangeInput.charTyped(chr)) {
+            try {
+                String t = labelRangeInput.getText() == null ? "" : labelRangeInput.getText().trim();
+                if (!t.isEmpty()) {
+                    int v = Integer.parseInt(t.replaceAll("[^0-9-]", ""));
+                    if (v < 0) v = 0;
+                    if (v > 256) v = 256;
+                    SemanticLabelTool.INSTANCE.setPendingRange(v);
+                }
+            } catch (Throwable ignored) {}
+        }
     }
 
     @Override
     public boolean wantsKeyboardInput() {
-        return labelNameInput.isFocused();
+        return labelNameInput.isFocused() || labelRangeInput.isFocused();
     }
 }
 
