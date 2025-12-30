@@ -30,6 +30,10 @@ public final class TerrainAdaptationEngine {
 
     public record Bounds(BlockPos min, BlockPos max, boolean circle) {}
 
+     private static long xzKey(int x, int z) {
+        return (((long) x) << 32) ^ (z & 0xffffffffL);
+    }
+
     public static Bounds boundsFor(BuildingSpec spec, BlockPos origin) {
         if (origin == null) return new Bounds(new BlockPos(0, 0, 0), new BlockPos(0, 0, 0), false);
         int height = (spec != null && spec.getHeight() > 0) ? spec.getHeight() : 8;
@@ -161,30 +165,147 @@ public final class TerrainAdaptationEngine {
 
     /**
      * DRAPE transform: shift blocks vertically per (x,z) column.
-     * v1 uses Heightmap WORLD_SURFACE and clamps per-column delta by maxStepHeight (relative to baseY).
+     * v1.1:
+     * - builds a height field within bounds (or derives from touched columns)
+     * - optionally smooths to respect maxStepHeight between neighbors
+     * - then shifts each block by the (x,z) column delta from baseY
      */
     public static List<PlannedBlock> drape(ServerWorld world,
                                           List<PlannedBlock> blocks,
                                           int baseY,
-                                          int maxStepHeight) {
+                                          int maxStepHeight,
+                                          Bounds bounds) {
         if (world == null || blocks == null || blocks.isEmpty()) return blocks;
         int maxStep = Math.max(0, Math.min(8, maxStepHeight));
-        Long2IntOpenHashMap cache = new Long2IntOpenHashMap();
-        cache.defaultReturnValue(Integer.MIN_VALUE);
+
+        // Precompute dy field (smoothed) if a reasonable bounds is provided.
+        Long2IntOpenHashMap dyByXZ = new Long2IntOpenHashMap();
+        dyByXZ.defaultReturnValue(Integer.MIN_VALUE);
+        if (bounds != null) {
+            int w = Math.max(1, bounds.max.getX() - bounds.min.getX() + 1);
+            int d = Math.max(1, bounds.max.getZ() - bounds.min.getZ() + 1);
+            // keep the cost bounded; if too large, we fall back to per-column sampling.
+            if ((long) w * (long) d <= 128L * 128L) {
+                int[][] top = new int[w][d];
+                for (int ix = 0; ix < w; ix++) {
+                    int x = bounds.min.getX() + ix;
+                    for (int iz = 0; iz < d; iz++) {
+                        int z = bounds.min.getZ() + iz;
+                        if (bounds.circle) {
+                            int cx = (bounds.min.getX() + bounds.max.getX()) / 2;
+                            int cz = (bounds.min.getZ() + bounds.max.getZ()) / 2;
+                            int r = Math.max(1, (bounds.max.getX() - bounds.min.getX()) / 2);
+                            int dx = x - cx;
+                            int dz = z - cz;
+                            if (dx * dx + dz * dz > r * r) {
+                                top[ix][iz] = baseY;
+                                continue;
+                            }
+                        }
+                        top[ix][iz] = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
+                    }
+                }
+
+                // Smooth: iterative relaxation to enforce neighbor step constraints.
+                if (maxStep > 0) {
+                    int iters = 6;
+                    for (int it = 0; it < iters; it++) {
+                        boolean changed = false;
+                        for (int ix = 0; ix < w; ix++) {
+                            for (int iz = 0; iz < d; iz++) {
+                                int v = top[ix][iz];
+                                int best = v;
+                                if (ix > 0) best = clampToNeighbor(best, top[ix - 1][iz], maxStep);
+                                if (ix + 1 < w) best = clampToNeighbor(best, top[ix + 1][iz], maxStep);
+                                if (iz > 0) best = clampToNeighbor(best, top[ix][iz - 1], maxStep);
+                                if (iz + 1 < d) best = clampToNeighbor(best, top[ix][iz + 1], maxStep);
+                                if (best != v) {
+                                    top[ix][iz] = best;
+                                    changed = true;
+                                }
+                            }
+                        }
+                        if (!changed) break;
+                    }
+                }
+
+                for (int ix = 0; ix < w; ix++) {
+                    int x = bounds.min.getX() + ix;
+                    for (int iz = 0; iz < d; iz++) {
+                        int z = bounds.min.getZ() + iz;
+                        int dy = top[ix][iz] - baseY;
+                        dyByXZ.put(xzKey(x, z), dy);
+                    }
+                }
+            }
+        }
 
         List<PlannedBlock> out = new ArrayList<>(blocks.size());
         for (PlannedBlock pb : blocks) {
             if (pb == null || pb.getPos() == null) continue;
             BlockPos p = pb.getPos();
-            long key = (((long) p.getX()) << 32) ^ (p.getZ() & 0xffffffffL);
-            int dy = cache.get(key);
+            long key = xzKey(p.getX(), p.getZ());
+            int dy = dyByXZ.get(key);
             if (dy == Integer.MIN_VALUE) {
                 int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ());
                 dy = top - baseY;
-                if (maxStep > 0) dy = Math.max(-maxStep, Math.min(maxStep, dy));
-                cache.put(key, dy);
+                if (maxStep > 0) dy = Math.max(-maxStep, Math.min(maxStep, dy)); // fallback clamp
+                dyByXZ.put(key, dy);
             }
             out.add(new PlannedBlock(p.add(0, dy, 0), pb.getTargetState()));
+        }
+        return out;
+    }
+
+    private static int clampToNeighbor(int v, int n, int maxStep) {
+        if (v > n + maxStep) return n + maxStep;
+        if (v < n - maxStep) return n - maxStep;
+        return v;
+    }
+
+    /**
+     * DRAPE foundation columns:
+     * For each (x,z) within bounds, fill from (terrainY - foundationDepth) .. terrainY to avoid露底.
+     */
+    public static List<PlannedBlock> drapeFoundationColumns(ServerWorld world,
+                                                            Bounds b,
+                                                            int foundationDepth,
+                                                            BlockState fillMaterial,
+                                                            boolean allowWater,
+                                                            boolean allowLava) {
+        if (world == null || b == null) return List.of();
+        int fd = Math.max(0, Math.min(32, foundationDepth));
+        if (fd <= 0) return List.of();
+        BlockState fill = fillMaterial != null ? fillMaterial : Blocks.COBBLESTONE.getDefaultState();
+
+        int w = Math.max(1, b.max.getX() - b.min.getX() + 1);
+        int d = Math.max(1, b.max.getZ() - b.min.getZ() + 1);
+        int step = (w * d >= 80 * 80) ? 2 : 1;
+
+        List<PlannedBlock> out = new ArrayList<>(Math.max(256, w * d * Math.min(6, fd)));
+        for (int x = b.min.getX(); x <= b.max.getX(); x += step) {
+            for (int z = b.min.getZ(); z <= b.max.getZ(); z += step) {
+                if (b.circle) {
+                    int cx = (b.min.getX() + b.max.getX()) / 2;
+                    int cz = (b.min.getZ() + b.max.getZ()) / 2;
+                    int r = Math.max(1, (b.max.getX() - b.min.getX()) / 2);
+                    int dx = x - cx;
+                    int dz = z - cz;
+                    if (dx * dx + dz * dz > r * r) continue;
+                }
+                int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
+                for (int y = top - fd; y <= top; y++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    if (!BuildConstraintContext.allow(p)) continue;
+                    BlockState cur = world.getBlockState(p);
+                    boolean isAir = cur.isAir();
+                    boolean isWater = cur.getBlock() == Blocks.WATER;
+                    boolean isLava = cur.getBlock() == Blocks.LAVA;
+                    if (isAir || (allowWater && isWater) || (allowLava && isLava)) {
+                        out.add(new PlannedBlock(p, fill));
+                    }
+                }
+            }
         }
         return out;
     }

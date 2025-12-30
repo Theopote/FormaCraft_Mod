@@ -445,6 +445,7 @@ public class CityBuilder {
                                     allowLava);
                             postDrape = true;
                             drapeBaseY = platformY;
+                            pre = TerrainAdaptationEngine.drapeFoundationColumns(world, b, ta.foundationDepth(), fillMaterial, allowWater, allowLava);
                         } else if (mode == TerrainAdaptationMode.FLATTEN) {
                             // handled after generation
                         }
@@ -461,7 +462,7 @@ public class CityBuilder {
                     } else {
                         if (!pad.isEmpty()) merged.addAll(pad);
                         if (!pre.isEmpty()) merged.addAll(pre);
-                        if (postDrape) merged.addAll(TerrainAdaptationEngine.drape(world, building.getBlocks(), drapeBaseY, ta.drapeMaxStep()));
+                        if (postDrape) merged.addAll(TerrainAdaptationEngine.drape(world, building.getBlocks(), drapeBaseY, ta.drapeMaxStep(), b));
                         else merged.addAll(building.getBlocks());
                     }
 
