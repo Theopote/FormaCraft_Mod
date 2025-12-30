@@ -1,0 +1,953 @@
+package com.formacraft.server.assembly;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+/**
+ * MetaAssemblyCompiler (v1):
+ * Compiles a higher-level "topology-ish" graph/components form into executable ops.
+ *
+ * Input: BuildingSpec.extra.assembly
+ * - If ops are present, compiler is unnecessary.
+ * - If graph/components are present, compiler expands them into ops + PUSH_ORIGIN blocks.
+ */
+public final class MetaAssemblyCompiler {
+    private MetaAssemblyCompiler() {}
+
+    /**
+     * Compile an assembly map into an AssemblySpec with an ops list.
+     * Returns null if cannot compile.
+     */
+    @SuppressWarnings("unchecked")
+    public static AssemblySpec compile(Object assemblyObj) {
+        if (!(assemblyObj instanceof Map<?, ?> mm)) return null;
+        Map<String, Object> m;
+        try { m = (Map<String, Object>) mm; } catch (Exception e) { return null; }
+        if (m == null || m.isEmpty()) return null;
+
+        // If already has ops, just use it directly.
+        AssemblySpec existing = AssemblySpec.fromExtra(m);
+        if (existing != null && existing.ops != null && !existing.ops.isEmpty()) return existing;
+
+        String paletteId = str(m.get("paletteId"), null);
+        String entranceFacing = str(m.get("entranceFacing"), null);
+
+        List<Map<String, Object>> ops = new ArrayList<>();
+
+        Object graphObj = m.get("graph");
+        Map<String, Object> graph = null;
+        if (graphObj instanceof Map<?, ?> gm) {
+            try { graph = (Map<String, Object>) gm; } catch (Exception ignored) {}
+        }
+
+        Object compsObj = (graph != null) ? graph.get("components") : m.get("components");
+        if (!(compsObj instanceof List<?> comps)) return null;
+
+                   // Build a lightweight component index for topology connections.
+        // id -> component map (raw) + resolved local origin (x,y,z)
+        Map<String, Map<String, Object>> byId = new HashMap<>();
+        Map<String, int[]> originById = new HashMap<>();
+        Map<String, Map<String, int[]>> portsById = new HashMap<>();
+
+        for (Object c : comps) {
+            if (!(c instanceof Map<?, ?> cm)) continue;
+            Map<String, Object> comp;
+            try { comp = (Map<String, Object>) cm; } catch (Exception e) { continue; }
+            String id = str(comp.get("id"), null);
+            int[] o = componentOrigin(comp);
+            if (id != null && !id.isBlank()) {
+                String cid = id.trim();
+                byId.put(cid, comp);
+                originById.put(cid, o);
+                portsById.put(cid, buildPorts(comp));
+            }
+            emitComponent(ops, comp);
+        }
+
+        // Optional topology connections: connect endpoints by component id.
+        Object connsObj = (graph != null) ? graph.get("connections") : m.get("connections");
+        if (connsObj instanceof List<?> conns) {
+            for (Object cc : conns) {
+                if (!(cc instanceof Map<?, ?> cm)) continue;
+                Map<String, Object> conn;
+                try { conn = (Map<String, Object>) cm; } catch (Exception e) { continue; }
+                emitConnection(ops, conn, byId, originById, portsById);
+            }
+        }
+
+        if (ops.isEmpty()) return null;
+        return AssemblySpec.of(paletteId, entranceFacing, ops);
+    }
+
+    private static void emitComponent(List<Map<String, Object>> ops, Map<String, Object> comp) {
+        String type = str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.isBlank()) type = str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT); // allow op-like components
+        if (type.isBlank()) return;
+
+        // placement (local offsets)
+        int dx = 0, dy = 0, dz = 0;
+        Object at = comp.get("at");
+        if (at instanceof Map<?, ?> am) {
+            dx = i(am.get("x"), 0);
+            dy = i(am.get("y"), 0);
+            dz = i(am.get("z"), 0);
+        } else {
+            dx = i(comp.get("x"), 0);
+            dy = i(comp.get("y"), 0);
+            dz = i(comp.get("z"), 0);
+        }
+
+        ops.add(op("PUSH_ORIGIN", "dx", dx, "dy", dy, "dz", dz));
+
+        // v1 component macros
+        switch (type) {
+            case "CYLINDER" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "CYLINDER");
+                // allow r/radius, h/height
+                copyInt(comp, o, "r", i(comp.get("r"), i(comp.get("radius"), 6)));
+                copyInt(comp, o, "h", i(comp.get("h"), i(comp.get("height"), 18)));
+                copy(comp, o, "hollow");
+                copyInt(comp, o, "thickness", 1);
+                copy(comp, o, "material");
+                copy(comp, o, "wall");
+                ops.add(o);
+            }
+            case "EXTRUDE_POLYGON", "EXTRUDE" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "EXTRUDE_POLYGON");
+                copy(comp, o, "shape");
+                copyInt(comp, o, "w", 11);
+                copyInt(comp, o, "d", 11);
+                copyInt(comp, o, "h", i(comp.get("h"), i(comp.get("height"), 12)));
+                copy(comp, o, "points");
+                copy(comp, o, "hollow");
+                copyInt(comp, o, "thickness", 1);
+                copy(comp, o, "material");
+                copy(comp, o, "wall");
+                ops.add(o);
+            }
+            case "ROOF_COVER", "ROOF" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "ROOF_COVER");
+                // Roof shape kind (FLAT/GABLE). Component "type" is reserved for component kind.
+                String roofType = str(
+                        comp.get("roofType"),
+                        str(comp.get("coverType"),
+                                str(comp.get("cover"),
+                                        str(comp.get("roof_cover_type"),
+                                                str(comp.get("kind"), "GABLE")
+                                        )
+                                )
+                        )
+                );
+                if (roofType != null) o.put("type", roofType);
+                copyInt(comp, o, "w", 11);
+                copyInt(comp, o, "d", 11);
+                copyInt(comp, o, "y", 0);
+                copyInt(comp, o, "overhang", 0);
+                copyInt(comp, o, "rise", i(comp.get("rise"), i(comp.get("height"), 4)));
+                copy(comp, o, "roof");
+                copy(comp, o, "slab");
+                ops.add(o);
+            }
+            case "CONNECTOR_LINE", "CONNECTOR" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "CONNECTOR_LINE");
+                // from/to can be map or x0..x1 etc
+                copy(comp, o, "from");
+                copy(comp, o, "to");
+                copyInt(comp, o, "x0", 0);
+                copyInt(comp, o, "y0", 0);
+                copyInt(comp, o, "z0", 0);
+                copyInt(comp, o, "x1", 0);
+                copyInt(comp, o, "y1", 0);
+                copyInt(comp, o, "z1", 0);
+                copyInt(comp, o, "thickness", 1);
+                copyInt(comp, o, "h", i(comp.get("h"), i(comp.get("height"), 1)));
+                copy(comp, o, "material");
+                ops.add(o);
+            }
+            case "BOX_SHELL", "SHELL_BOX" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "SHELL_BOX");
+                copyInt(comp, o, "w", 15);
+                copyInt(comp, o, "d", 15);
+                copyInt(comp, o, "h", 18);
+                copyInt(comp, o, "floorStep", 4);
+                // optional block overrides
+                copy(comp, o, "wall");
+                copy(comp, o, "window");
+                copy(comp, o, "floor");
+                copy(comp, o, "roof");
+                ops.add(o);
+            }
+            case "BSP_INTERIOR", "BSP_FLOOR_PLAN" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "BSP_FLOOR_PLAN");
+                copyInt(comp, o, "w", 19);
+                copyInt(comp, o, "d", 19);
+                copyInt(comp, o, "h", 30);
+                Object cfg = comp.get("config");
+                if (cfg == null) cfg = comp.get("floor_plan_logic");
+                if (cfg == null) cfg = comp.get("floorPlanLogic");
+                if (cfg != null) o.put("config", cfg);
+                // optional semantic overrides
+                copy(comp, o, "coreWall");
+                copy(comp, o, "roomWall");
+                copy(comp, o, "roomWallOpen");
+                copy(comp, o, "stairs");
+                ops.add(o);
+            }
+            case "CLEAR_BOX" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "CLEAR_BOX");
+                copyInt(comp, o, "x0", 0);
+                copyInt(comp, o, "y0", 0);
+                copyInt(comp, o, "z0", 0);
+                copyInt(comp, o, "x1", 0);
+                copyInt(comp, o, "y1", 0);
+                copyInt(comp, o, "z1", 0);
+                ops.add(o);
+            }
+            default -> {
+                // unknown component: ignore for forward compatibility
+            }
+        }
+
+        ops.add(op("POP_ORIGIN"));
+    }
+
+    private static void emitConnection(List<Map<String, Object>> ops,
+                                       Map<String, Object> conn,
+                                       Map<String, Map<String, Object>> byId,
+                                       Map<String, int[]> originById,
+                                       Map<String, Map<String, int[]>> portsById) {
+        if (conn == null || conn.isEmpty()) return;
+        String type = str(conn.get("type"), "CONNECTOR_LINE").trim().toUpperCase(Locale.ROOT);
+        if (type.isBlank()) type = "CONNECTOR_LINE";
+
+        Endpoint a = parseEndpoint(conn.get("from"));
+        Endpoint b = parseEndpoint(conn.get("to"));
+        if (a == null || b == null) return;
+
+        int[] p0 = resolveEndpoint(a, byId, originById, portsById);
+        int[] p1 = resolveEndpoint(b, byId, originById, portsById);
+        if (p0 == null || p1 == null) return;
+
+        // Expand connection type to corresponding execution op.
+        // v1 supports:
+        // - CONNECTOR_LINE (beam)
+        // - PATH (road)
+        // - WALL (wall section)
+        // - BRIDGE (bridge span)
+        String opName = switch (type) {
+            case "PATH", "ROAD" -> "PATH_ROUTE";
+            case "WALL" -> "WALL_ROUTE";
+            case "BRIDGE" -> "BRIDGE_ROUTE";
+            default -> "CONNECTOR_LINE";
+        };
+
+        // via[] routing: expand one logical connection into multiple segments.
+        // via items support:
+        // - "A.port" / {component,port,...}
+        // - {x,y,z} (local coords)
+        List<int[]> chain = new ArrayList<>();
+        chain.add(p0);
+        Object viaObj = conn.get("via");
+        if (viaObj instanceof List<?> via) {
+            for (Object v : via) {
+                int[] wp = resolveWaypoint(v, byId, originById, portsById);
+                if (wp != null) chain.add(wp);
+            }
+        }
+        chain.add(p1);
+
+        // avoid[] routing: if any segment crosses an avoid rect, auto-insert detours.
+        // avoid items: {x0,z0,x1,z1, margin?}
+        List<Rect2> avoids = parseAvoids(conn.get("avoid"));
+        // avoidComponents: derive avoid rects from component bounds (Topology-friendly)
+        avoids.addAll(parseAvoidComponents(conn, byId, originById));
+        if (!avoids.isEmpty()) {
+            List<int[]> expanded = new ArrayList<>();
+            expanded.add(chain.get(0));
+            for (int i = 0; i + 1 < chain.size(); i++) {
+                int[] pA = expanded.get(expanded.size() - 1);
+                int[] pB = chain.get(i + 1);
+                List<int[]> detour = computeDetour(pA, pB, avoids);
+                expanded.addAll(detour);
+            }
+            chain = expanded;
+        }
+
+        for (int i = 0; i + 1 < chain.size(); i++) {
+            int[] a0 = chain.get(i);
+            int[] a1 = chain.get(i + 1);
+            Map<String, Object> o = new HashMap<>();
+            o.put("op", opName);
+            o.put("from", Map.of("x", a0[0], "y", a0[1], "z", a0[2]));
+            o.put("to", Map.of("x", a1[0], "y", a1[1], "z", a1[2]));
+            copyInt(conn, o, "thickness", 1);
+            copyInt(conn, o, "h", i(conn.get("h"), i(conn.get("height"), 1)));
+            copy(conn, o, "material");
+
+            // optional route params
+            copyInt(conn, o, "width", i(conn.get("width"), 3));          // PATH/BRIDGE
+            copyInt(conn, o, "wallHeight", i(conn.get("wallHeight"), 10)); // WALL
+            copyInt(conn, o, "wallThickness", i(conn.get("wallThickness"), i(conn.get("thickness"), 5))); // WALL
+            copyInt(conn, o, "foundationDepth", i(conn.get("foundationDepth"), 3)); // WALL
+            copyInt(conn, o, "maxStep", i(conn.get("maxStep"), 1));       // PATH/WALL smoothing
+            copy(conn, o, "terrainAdaptation");                            // passthrough hints
+
+            // Provide sane defaults so LLM can omit terrain genes.
+            if (!o.containsKey("terrainAdaptation") || o.get("terrainAdaptation") == null) {
+                if ("PATH_ROUTE".equals(opName)) {
+                    o.put("terrainAdaptation", Map.of(
+                            "mode", "DRAPE",
+                            "max_step_height", 1,
+                            "foundation_depth", 2,
+                            "clearHeight", 2
+                    ));
+                } else if ("WALL_ROUTE".equals(opName)) {
+                    o.put("terrainAdaptation", Map.of(
+                            "mode", "DRAPE",
+                            "max_step_height", 1,
+                            "foundation_depth", 3
+                    ));
+                } else if ("BRIDGE_ROUTE".equals(opName)) {
+                    o.put("terrainAdaptation", Map.of(
+                            "mode", "ANCHOR",
+                            "anchorMaxDepth", 64
+                    ));
+                }
+            }
+            ops.add(o);
+        }
+    }
+
+    private record Endpoint(String componentId, String port, String anchor, int dx, int dy, int dz) {}
+
+    private static Endpoint parseEndpoint(Object v) {
+        if (v == null) return null;
+        if (v instanceof String s) {
+            String id = s.trim();
+            if (id.isEmpty()) return null;
+            // allow "A.south"
+            int dot = id.indexOf('.');
+            if (dot > 0 && dot < id.length() - 1) {
+                String cid = id.substring(0, dot).trim();
+                String port = id.substring(dot + 1).trim();
+                if (!cid.isEmpty() && !port.isEmpty()) return new Endpoint(cid, port, "CENTER", 0, 0, 0);
+            }
+            return new Endpoint(id, null, "CENTER", 0, 0, 0);
+        }
+        if (v instanceof Map<?, ?> mm) {
+            String id = str(mm.get("component"), null);
+            if (id == null) id = str(mm.get("id"), null);
+            if (id == null || id.isBlank()) return null;
+            String port = str(mm.get("port"), null);
+            String anchor = str(mm.get("anchor"), "CENTER").trim().toUpperCase(Locale.ROOT);
+            int dx = i(mm.get("x"), 0);
+            int dy = i(mm.get("y"), 0);
+            int dz = i(mm.get("z"), 0);
+            return new Endpoint(id.trim(), port != null && !port.isBlank() ? port.trim() : null, anchor, dx, dy, dz);
+        }
+        return null;
+    }
+
+    // =============================================================================================
+    // Avoid routing helpers (2D, XZ)
+    // =============================================================================================
+
+    private record Rect2(int xMin, int zMin, int xMax, int zMax) {}
+
+    private static List<Rect2> parseAvoids(Object v) {
+        List<Rect2> out = new ArrayList<>();
+        if (!(v instanceof List<?> list)) return out;
+        for (Object it : list) {
+            if (!(it instanceof Map<?, ?> m)) continue;
+            int x0 = i(m.get("x0"), 0);
+            int z0 = i(m.get("z0"), 0);
+            int x1 = i(m.get("x1"), 0);
+            int z1 = i(m.get("z1"), 0);
+            int margin = Math.max(0, i(m.get("margin"), 2));
+            int minX = Math.min(x0, x1) - margin;
+            int maxX = Math.max(x0, x1) + margin;
+            int minZ = Math.min(z0, z1) - margin;
+            int maxZ = Math.max(z0, z1) + margin;
+            out.add(new Rect2(minX, minZ, maxX, maxZ));
+        }
+        return out;
+    }
+
+    private static List<Rect2> parseAvoidComponents(Map<String, Object> conn,
+                                                    Map<String, Map<String, Object>> byId,
+                                                    Map<String, int[]> originById) {
+        List<Rect2> out = new ArrayList<>();
+        if (conn == null) return out;
+        Object v = conn.get("avoidComponents");
+        if (!(v instanceof List<?> list)) return out;
+        int margin = Math.max(0, i(conn.get("avoidMargin"), 3));
+        for (Object it : list) {
+            if (it == null) continue;
+            String id = String.valueOf(it).trim();
+            if (id.isEmpty()) continue;
+            Map<String, Object> comp = byId != null ? byId.get(id) : null;
+            int[] o = originById != null ? originById.get(id) : null;
+            if (comp == null || o == null) continue;
+            Rect2 r = inferComponentRect2(comp, o[0], o[2], margin);
+            if (r != null) out.add(r);
+        }
+        return out;
+    }
+
+    private static Rect2 inferComponentRect2(Map<String, Object> comp, int ox, int oz, int margin) {
+        if (comp == null) return null;
+        // Optional explicit bbox override
+        Object bbObj = comp.get("bbox");
+        if (bbObj instanceof Map<?, ?> m) {
+            int x0 = i(m.get("x0"), 0);
+            int z0 = i(m.get("z0"), 0);
+            int x1 = i(m.get("x1"), 0);
+            int z1 = i(m.get("z1"), 0);
+            int mgn = Math.max(margin, i(m.get("margin"), 0));
+            int minX = Math.min(x0, x1) + ox - mgn;
+            int maxX = Math.max(x0, x1) + ox + mgn;
+            int minZ = Math.min(z0, z1) + oz - mgn;
+            int maxZ = Math.max(z0, z1) + oz + mgn;
+            return new Rect2(minX, minZ, maxX, maxZ);
+        }
+
+        String type = str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.isBlank()) type = str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT);
+
+        // Cylinder: radius-based
+        if (type.contains("CYLINDER")) {
+            int r = componentRadius(comp);
+            if (r <= 0) r = i(comp.get("radius"), 6);
+            int minX = ox - r - margin;
+            int maxX = ox + r + margin;
+            int minZ = oz - r - margin;
+            int maxZ = oz + r + margin;
+            return new Rect2(minX, minZ, maxX, maxZ);
+        }
+
+        // Extruded polygon: points bbox if present
+        if (type.contains("EXTRUDE")) {
+            int[] bb = polygonBounds(comp);
+            if (bb != null) {
+                return new Rect2(ox + bb[0] - margin, oz + bb[2] - margin, ox + bb[1] + margin, oz + bb[3] + margin);
+            }
+        }
+
+        // Roof: include overhang if present
+        if (type.contains("ROOF")) {
+            int w = componentWidth(comp);
+            int d = componentDepth(comp);
+            int overhang = i(comp.get("overhang"), 0);
+            if (w > 0 && d > 0) {
+                int hx = w / 2 + overhang;
+                int hz = d / 2 + overhang;
+                return new Rect2(ox - hx - margin, oz - hz - margin, ox + hx + margin, oz + hz + margin);
+            }
+        }
+
+        // Box-like: w/d centered
+        int w = componentWidth(comp);
+        int d = componentDepth(comp);
+        if (w > 0 && d > 0) {
+            int hx = w / 2;
+            int hz = d / 2;
+            return new Rect2(ox - hx - margin, oz - hz - margin, ox + hx + margin, oz + hz + margin);
+        }
+        return null;
+    }
+
+    /**
+     * Returns a list of points to append AFTER start (a), ending with b.
+     * If no detour needed, returns [b].
+     */
+    private static List<int[]> computeDetour(int[] a, int[] b, List<Rect2> avoids) {
+        // If segment doesn't intersect any avoid, keep it.
+        boolean hit = false;
+        for (Rect2 r : avoids) {
+            if (segmentIntersectsRect(a[0], a[2], b[0], b[2], r)) { hit = true; break; }
+        }
+        if (!hit) return List.of(b);
+
+        // Try detouring around each rect; pick best candidate that avoids all rects.
+        List<int[]> best = null;
+        long bestCost = Long.MAX_VALUE;
+
+        for (Rect2 r : avoids) {
+            List<List<int[]>> candidates = detourCandidates(a, b, r);
+            for (List<int[]> cand : candidates) {
+                // validate each segment in candidate chain against all avoids
+                int[] prev = a;
+                boolean ok = true;
+                for (int[] p : cand) {
+                    for (Rect2 rr : avoids) {
+                        if (segmentIntersectsRect(prev[0], prev[2], p[0], p[2], rr)) { ok = false; break; }
+                    }
+                    if (!ok) break;
+                    prev = p;
+                }
+                if (!ok) continue;
+
+                long cost = 0;
+                prev = a;
+                for (int[] p : cand) {
+                    cost += manhattan2(prev, p);
+                    prev = p;
+                }
+                if (cost < bestCost) {
+                    bestCost = cost;
+                    best = cand;
+                }
+            }
+        }
+
+        return best != null ? best : List.of(b);
+    }
+
+    private static List<List<int[]>> detourCandidates(int[] a, int[] b, Rect2 r) {
+        int yA = a[1];
+        int yB = b[1];
+        int y = (yA != 0) ? yA : yB;
+
+        // Corners around expanded rect (one block outside)
+        int lx = r.xMin - 1, rx = r.xMax + 1;
+        int nz = r.zMin - 1, sz = r.zMax + 1;
+
+        // Candidate 1: go around left side (x=lx), then to b
+        List<int[]> c1 = List.of(new int[]{lx, y, a[2]}, new int[]{lx, y, b[2]}, b);
+        // Candidate 2: right side
+        List<int[]> c2 = List.of(new int[]{rx, y, a[2]}, new int[]{rx, y, b[2]}, b);
+        // Candidate 3: north side
+        List<int[]> c3 = List.of(new int[]{a[0], y, nz}, new int[]{b[0], y, nz}, b);
+        // Candidate 4: south side
+        List<int[]> c4 = List.of(new int[]{a[0], y, sz}, new int[]{b[0], y, sz}, b);
+        // Candidate 5-8: corner pivots (diagonal-ish L turns)
+        List<int[]> c5 = List.of(new int[]{lx, y, nz}, b);
+        List<int[]> c6 = List.of(new int[]{lx, y, sz}, b);
+        List<int[]> c7 = List.of(new int[]{rx, y, nz}, b);
+        List<int[]> c8 = List.of(new int[]{rx, y, sz}, b);
+
+        return List.of(c1, c2, c3, c4, c5, c6, c7, c8);
+    }
+
+    private static long manhattan2(int[] a, int[] b) {
+        return (long) Math.abs(a[0] - b[0]) + (long) Math.abs(a[2] - b[2]);
+    }
+
+    // Segment-rect intersection in XZ (axis-aligned rect)
+    private static boolean segmentIntersectsRect(int x0, int z0, int x1, int z1, Rect2 r) {
+        // Quick reject: both endpoints on one side
+        if (x0 < r.xMin && x1 < r.xMin) return false;
+        if (x0 > r.xMax && x1 > r.xMax) return false;
+        if (z0 < r.zMin && z1 < r.zMin) return false;
+        if (z0 > r.zMax && z1 > r.zMax) return false;
+
+        // If either endpoint inside rect -> intersects
+        if (x0 >= r.xMin && x0 <= r.xMax && z0 >= r.zMin && z0 <= r.zMax) return true;
+        if (x1 >= r.xMin && x1 <= r.xMax && z1 >= r.zMin && z1 <= r.zMax) return true;
+
+        // Check intersection with rectangle edges.
+        int rx0 = r.xMin, rz0 = r.zMin, rx1 = r.xMax, rz1 = r.zMax;
+        return segmentsIntersect(x0, z0, x1, z1, rx0, rz0, rx1, rz0) // north edge
+                || segmentsIntersect(x0, z0, x1, z1, rx1, rz0, rx1, rz1) // east edge
+                || segmentsIntersect(x0, z0, x1, z1, rx1, rz1, rx0, rz1) // south edge
+                || segmentsIntersect(x0, z0, x1, z1, rx0, rz1, rx0, rz0); // west edge
+    }
+
+    private static boolean segmentsIntersect(int ax, int az, int bx, int bz, int cx, int cz, int dx, int dz) {
+        int o1 = orient(ax, az, bx, bz, cx, cz);
+        int o2 = orient(ax, az, bx, bz, dx, dz);
+        int o3 = orient(cx, cz, dx, dz, ax, az);
+        int o4 = orient(cx, cz, dx, dz, bx, bz);
+
+        if (o1 != o2 && o3 != o4) return true;
+        // colinear cases
+        if (o1 == 0 && onSeg(ax, az, bx, bz, cx, cz)) return true;
+        if (o2 == 0 && onSeg(ax, az, bx, bz, dx, dz)) return true;
+        if (o3 == 0 && onSeg(cx, cz, dx, dz, ax, az)) return true;
+        if (o4 == 0 && onSeg(cx, cz, dx, dz, bx, bz)) return true;
+        return false;
+    }
+
+    // orientation of (a->b) x (a->c); returns -1,0,1
+    private static int orient(int ax, int az, int bx, int bz, int cx, int cz) {
+        long v = (long) (bx - ax) * (cz - az) - (long) (bz - az) * (cx - ax);
+        if (v == 0) return 0;
+        return v > 0 ? 1 : -1;
+    }
+
+    private static boolean onSeg(int ax, int az, int bx, int bz, int px, int pz) {
+        return px >= Math.min(ax, bx) && px <= Math.max(ax, bx) && pz >= Math.min(az, bz) && pz <= Math.max(az, bz);
+    }
+
+    private static int[] resolveWaypoint(Object v,
+                                         Map<String, Map<String, Object>> byId,
+                                         Map<String, int[]> originById,
+                                         Map<String, Map<String, int[]>> portsById) {
+        if (v == null) return null;
+        // direct endpoint reference
+        Endpoint e = parseEndpoint(v);
+        if (e != null) return resolveEndpoint(e, byId, originById, portsById);
+
+        // raw coordinate map: {x,y,z}
+        if (v instanceof Map<?, ?> m) {
+            // if it has no component/id field, treat as local absolute point
+            Object cid = m.get("component");
+            if (cid == null) cid = m.get("id");
+            if (cid == null) {
+                int x = i(m.get("x"), 0);
+                int y = i(m.get("y"), 0);
+                int z = i(m.get("z"), 0);
+                return new int[]{x, y, z};
+            }
+        }
+        return null;
+    }
+
+    private static int[] resolveEndpoint(Endpoint e,
+                                         Map<String, Map<String, Object>> byId,
+                                         Map<String, int[]> originById,
+                                         Map<String, Map<String, int[]>> portsById) {
+        if (e == null) return null;
+        int[] base = originById.get(e.componentId);
+        Map<String, Object> comp = byId.get(e.componentId);
+        if (base == null || comp == null) return null;
+
+        int ox = base[0], oy = base[1], oz = base[2];
+        int ax = 0, ay = 0, az = 0;
+
+        // Port offset wins (Topology-friendly)
+        if (e.port != null && portsById != null) {
+            Map<String, int[]> ports = portsById.get(e.componentId);
+            if (ports != null) {
+                String key = normalizePortKey(e.port);
+                int[] p = ports.get(key);
+                if (p != null) {
+                    ax += p[0];
+                    ay += p[1];
+                    az += p[2];
+                }
+            }
+        }
+
+        // anchor offsets (relative to component origin)
+        String a = (e.anchor == null ? "CENTER" : e.anchor);
+        if (a.equals("TOP_CENTER")) {
+            ay = componentHeight(comp);
+        } else if (a.equals("BOTTOM_CENTER") || a.equals("CENTER")) {
+            // no-op
+        }
+
+        return new int[]{ox + ax + e.dx, oy + ay + e.dy, oz + az + e.dz};
+    }
+
+    private static int componentHeight(Map<String, Object> comp) {
+        if (comp == null) return 0;
+        String type = str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.isBlank()) type = str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.contains("ROOF")) {
+            // ROOF_COVER: treat rise as its vertical extent for port inference
+            int rise = i(comp.get("rise"), i(comp.get("height"), 0));
+            int baseY = i(comp.get("y"), 0);
+            if (rise > 0) return baseY + rise;
+            return baseY;
+        }
+        // common fields
+        int h = i(comp.get("h"), i(comp.get("height"), 0));
+        if (h > 0) return h;
+        // cylinder uses height too
+        return 0;
+    }
+
+    private static int componentWidth(Map<String, Object> comp) {
+        if (comp == null) return 0;
+        return i(comp.get("w"), i(comp.get("width"), 0));
+    }
+
+    private static int componentDepth(Map<String, Object> comp) {
+        if (comp == null) return 0;
+        return i(comp.get("d"), i(comp.get("depth"), 0));
+    }
+
+    private static int componentRadius(Map<String, Object> comp) {
+        if (comp == null) return 0;
+        return i(comp.get("r"), i(comp.get("radius"), 0));
+    }
+
+    private static int[] componentOrigin(Map<String, Object> comp) {
+        int dx = 0, dy = 0, dz = 0;
+        Object at = comp != null ? comp.get("at") : null;
+        if (at instanceof Map<?, ?> am) {
+            dx = i(am.get("x"), 0);
+            dy = i(am.get("y"), 0);
+            dz = i(am.get("z"), 0);
+        } else if (comp != null) {
+            dx = i(comp.get("x"), 0);
+            dy = i(comp.get("y"), 0);
+            dz = i(comp.get("z"), 0);
+        }
+        return new int[]{dx, dy, dz};
+    }
+
+    private static Map<String, int[]> buildPorts(Map<String, Object> comp) {
+        Map<String, int[]> ports = new HashMap<>();
+        // built-ins
+        ports.put("center", new int[]{0, 0, 0});
+        ports.put("bottom_center", new int[]{0, 0, 0});
+        ports.put("top_center", new int[]{0, componentHeight(comp), 0});
+        // common aliases
+        ports.put("bottom", ports.get("bottom_center"));
+        ports.put("top", ports.get("top_center"));
+        ports.put("mid", ports.get("center"));
+
+        String type = str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.isBlank()) type = str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT);
+
+        if (type.contains("CYLINDER")) {
+            int r = componentRadius(comp);
+            ports.put("north", new int[]{0, 0, -r});
+            ports.put("south", new int[]{0, 0, r});
+            ports.put("east", new int[]{r, 0, 0});
+            ports.put("west", new int[]{-r, 0, 0});
+
+            // 8-way (approx): diagonal ports on the circle
+            int r45 = (int) Math.round(r / Math.sqrt(2.0));
+            ports.put("ne", new int[]{r45, 0, -r45});
+            ports.put("nw", new int[]{-r45, 0, -r45});
+            ports.put("se", new int[]{r45, 0, r45});
+            ports.put("sw", new int[]{-r45, 0, r45});
+
+            // semantic corners for consistency
+            ports.put("front_left", ports.get("sw"));
+            ports.put("front_right", ports.get("se"));
+            ports.put("back_left", ports.get("nw"));
+            ports.put("back_right", ports.get("ne"));
+            ports.put("corner_front_left", ports.get("front_left"));
+            ports.put("corner_front_right", ports.get("front_right"));
+            ports.put("corner_back_left", ports.get("back_left"));
+            ports.put("corner_back_right", ports.get("back_right"));
+        } else {
+            int w = componentWidth(comp);
+            int d = componentDepth(comp);
+            if (w > 0 || d > 0) {
+                int hx = w / 2;
+                int hz = d / 2;
+                ports.put("north", new int[]{0, 0, -hz});
+                ports.put("south", new int[]{0, 0, hz});
+                ports.put("east", new int[]{hx, 0, 0});
+                ports.put("west", new int[]{-hx, 0, 0});
+
+                // corners / edge midpoints (useful for multiple corridors/roads)
+                ports.put("nw", new int[]{-hx, 0, -hz});
+                ports.put("ne", new int[]{hx, 0, -hz});
+                ports.put("sw", new int[]{-hx, 0, hz});
+                ports.put("se", new int[]{hx, 0, hz});
+
+                ports.put("front_left", new int[]{-hx, 0, hz});
+                ports.put("front_right", new int[]{hx, 0, hz});
+                ports.put("back_left", new int[]{-hx, 0, -hz});
+                ports.put("back_right", new int[]{hx, 0, -hz});
+
+                ports.put("corner_front_left", ports.get("front_left"));
+                ports.put("corner_front_right", ports.get("front_right"));
+                ports.put("corner_back_left", ports.get("back_left"));
+                ports.put("corner_back_right", ports.get("back_right"));
+            }
+        }
+
+        // EXTRUDE_POLYGON(points): if points provided, infer bbox-based ports (overrides rect defaults).
+        if (type.contains("EXTRUDE")) {
+            int[] bb = polygonBounds(comp);
+            if (bb != null) {
+                int xMin = bb[0], xMax = bb[1], zMin = bb[2], zMax = bb[3];
+                int midX = (xMin + xMax) / 2;
+                int midZ = (zMin + zMax) / 2;
+                ports.put("north", new int[]{midX, 0, zMin});
+                ports.put("south", new int[]{midX, 0, zMax});
+                ports.put("east", new int[]{xMax, 0, midZ});
+                ports.put("west", new int[]{xMin, 0, midZ});
+                ports.put("nw", new int[]{xMin, 0, zMin});
+                ports.put("ne", new int[]{xMax, 0, zMin});
+                ports.put("sw", new int[]{xMin, 0, zMax});
+                ports.put("se", new int[]{xMax, 0, zMax});
+                ports.put("front_left", ports.get("sw"));
+                ports.put("front_right", ports.get("se"));
+                ports.put("back_left", ports.get("nw"));
+                ports.put("back_right", ports.get("ne"));
+                ports.put("corner_front_left", ports.get("front_left"));
+                ports.put("corner_front_right", ports.get("front_right"));
+                ports.put("corner_back_left", ports.get("back_left"));
+                ports.put("corner_back_right", ports.get("back_right"));
+            }
+        }
+
+        // ROOF_COVER(GABLE): add ridge ports so topology can connect to the roof spine.
+        // Note: component "type" is reserved for the component kind (ROOF_COVER / ROOF). Roof shape kind is read
+        // from roofType/coverType/cover/roof_cover_type.
+        if (type.contains("ROOF")) {
+            String roofCoverType = str(
+                    comp.get("roofType"),
+                    str(comp.get("coverType"),
+                            str(comp.get("cover"),
+                                    str(comp.get("roof_cover_type"),
+                                            str(comp.get("kind"), "GABLE")
+                                    )
+                            )
+                    )
+            ).trim().toUpperCase(Locale.ROOT);
+
+            if (roofCoverType.contains("GABLE")) {
+                int w = componentWidth(comp);
+                int d = componentDepth(comp);
+                int overhang = i(comp.get("overhang"), 0);
+                int baseY = i(comp.get("y"), 0);
+                int topY = componentHeight(comp);
+
+                if (w > 0 && d > 0) {
+                    int hx = w / 2 + overhang;
+                    int hz = d / 2 + overhang;
+                    boolean ridgeAlongX = w >= d;
+                    ports.put("ridge_center", new int[]{0, topY, 0});
+                    if (ridgeAlongX) {
+                        // ridge from west to east at z=0
+                        ports.put("ridge_west", new int[]{-hx, topY, 0});
+                        ports.put("ridge_east", new int[]{hx, topY, 0});
+                        alias(ports, "ridge_left", "ridge_west");
+                        alias(ports, "ridge_right", "ridge_east");
+                    } else {
+                        // ridge from north to south at x=0
+                        ports.put("ridge_north", new int[]{0, topY, -hz});
+                        ports.put("ridge_south", new int[]{0, topY, hz});
+                        alias(ports, "ridge_back", "ridge_north");
+                        alias(ports, "ridge_front", "ridge_south");
+                    }
+                    // base plane reference (useful for attaching stairs/entrance canopies)
+                    ports.put("roof_base_center", new int[]{0, baseY, 0});
+                }
+            }
+        }
+
+        // semantic direction aliases in our local coordinate convention:
+        // local +Z is FRONT (default entrance), local -Z is BACK.
+        // local +X is RIGHT, local -X is LEFT.
+        alias(ports, "front", "south");
+        alias(ports, "back", "north");
+        alias(ports, "right", "east");
+        alias(ports, "left", "west");
+        alias(ports, "entrance", "front");
+        alias(ports, "exit", "back");
+        alias(ports, "in", "entrance");
+        alias(ports, "out", "exit");
+        alias(ports, "gate", "entrance");
+        alias(ports, "corner_nw", "nw");
+        alias(ports, "corner_ne", "ne");
+        alias(ports, "corner_sw", "sw");
+        alias(ports, "corner_se", "se");
+
+        // user-defined ports override built-ins
+        Object pObj = comp.get("ports");
+        if (pObj instanceof Map<?, ?> pm) {
+            for (Map.Entry<?, ?> e : pm.entrySet()) {
+                if (e.getKey() == null) continue;
+                String name = String.valueOf(e.getKey()).trim().toLowerCase(Locale.ROOT);
+                Object pv = e.getValue();
+                if (pv instanceof Map<?, ?> m) {
+                    int x = i(m.get("x"), 0);
+                    int y = i(m.get("y"), 0);
+                    int z = i(m.get("z"), 0);
+                    ports.put(normalizePortKey(name), new int[]{x, y, z});
+                }
+            }
+        }
+        return ports;
+    }
+
+    private static int[] polygonBounds(Map<String, Object> comp) {
+        if (comp == null) return null;
+        Object ptsObj = comp.get("points");
+        if (!(ptsObj instanceof List<?> pts)) return null;
+        int xMin = Integer.MAX_VALUE, xMax = Integer.MIN_VALUE, zMin = Integer.MAX_VALUE, zMax = Integer.MIN_VALUE;
+        boolean any = false;
+        for (Object p : pts) {
+            if (p instanceof Map<?, ?> pm) {
+                int x = i(pm.get("x"), 0);
+                int z = i(pm.get("z"), 0);
+                xMin = Math.min(xMin, x);
+                xMax = Math.max(xMax, x);
+                zMin = Math.min(zMin, z);
+                zMax = Math.max(zMax, z);
+                any = true;
+            }
+        }
+        if (!any) return null;
+        return new int[]{xMin, xMax, zMin, zMax};
+    }
+
+    private static void alias(Map<String, int[]> ports, String alias, String target) {
+        if (ports == null) return;
+        int[] t = ports.get(normalizePortKey(target));
+        if (t != null) ports.put(normalizePortKey(alias), t);
+    }
+
+    private static String normalizePortKey(String s) {
+        if (s == null) return "center";
+        String k = s.trim().toLowerCase(Locale.ROOT);
+        if (k.isEmpty()) return "center";
+        // accept dash/space forms
+        k = k.replace('-', '_').replace(' ', '_');
+        // a few extra synonyms
+        if (k.equals("n")) k = "north";
+        if (k.equals("s")) k = "south";
+        if (k.equals("e")) k = "east";
+        if (k.equals("w")) k = "west";
+        if (k.equals("topcenter")) k = "top_center";
+        if (k.equals("bottomcenter")) k = "bottom_center";
+        if (k.equals("frontleft")) k = "front_left";
+        if (k.equals("frontright")) k = "front_right";
+        if (k.equals("backleft")) k = "back_left";
+        if (k.equals("backright")) k = "back_right";
+        return k;
+    }
+
+    private static Map<String, Object> op(String name, Object... kv) {
+        Map<String, Object> o = new HashMap<>();
+        o.put("op", name);
+        for (int i = 0; i + 1 < kv.length; i += 2) {
+            o.put(String.valueOf(kv[i]), kv[i + 1]);
+        }
+        return o;
+    }
+
+    private static void copy(Map<String, Object> src, Map<String, Object> dst, String key) {
+        if (src.containsKey(key) && src.get(key) != null) dst.put(key, src.get(key));
+    }
+
+    private static void copyInt(Map<String, Object> src, Map<String, Object> dst, String key, int def) {
+        dst.put(key, i(src.get(key), def));
+    }
+
+    private static int i(Object v, int def) {
+        try {
+            if (v instanceof Number n) return n.intValue();
+            if (v != null) return Integer.parseInt(String.valueOf(v).trim());
+        } catch (Exception ignored) {}
+        return def;
+    }
+
+    private static String str(Object v, String def) {
+        if (v == null) return def;
+        String s = String.valueOf(v).trim();
+        return s.isEmpty() ? def : s;
+    }
+}
+
+

@@ -29,6 +29,10 @@ public final class AssemblySpec {
         this.ops = ops != null ? ops : Collections.emptyList();
     }
 
+    public static AssemblySpec of(String paletteId, String entranceFacing, List<Map<String, Object>> ops) {
+        return new AssemblySpec(paletteId, entranceFacing, ops);
+    }
+
     @SuppressWarnings("unchecked")
     public static AssemblySpec fromExtra(Object assemblyObj) {
         if (!(assemblyObj instanceof Map<?, ?> mm)) return null;

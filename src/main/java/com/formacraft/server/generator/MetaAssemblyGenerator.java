@@ -2,6 +2,7 @@ package com.formacraft.server.generator;
 
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.assembly.AssemblySpec;
+import com.formacraft.server.assembly.MetaAssemblyCompiler;
 import com.formacraft.server.assembly.MetaAssemblyEngine;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
@@ -28,6 +29,11 @@ public class MetaAssemblyGenerator implements StructureGenerator {
         Map<String, Object> extra = spec.getExtra();
         Object assemblyObj = extra != null ? extra.get("assembly") : null;
         AssemblySpec as = AssemblySpec.fromExtra(assemblyObj);
+        if (as == null || as.ops == null || as.ops.isEmpty()) {
+            // allow higher-level graph/components form
+            AssemblySpec compiled = MetaAssemblyCompiler.compile(assemblyObj);
+            if (compiled != null) as = compiled;
+        }
         if (as == null) {
             return new GeneratedStructure(null, origin, "MetaAssembly (missing extra.assembly)", List.of());
         }
