@@ -11,6 +11,9 @@ import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.server.terrain.TerrainAdaptationMode;
+import com.formacraft.server.terrain.TerrainAdaptationResolver;
+import com.formacraft.server.terrain.TerrainAdaptationSpec;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -44,6 +47,16 @@ public class GreatWallGenerator implements StructureGenerator {
         String paletteId = getStringExtra(spec, "paletteId", null);
 
         Direction facing = parseFacing(getStringExtra(spec, "facing", "EAST"));
+
+        // Terrain adaptation (GreatWall): if explicitly requested, treat as DRAPE wall with smoothing + foundation.
+        Map<String, Object> extra = spec != null ? spec.getExtra() : null;
+        TerrainAdaptationSpec ta = TerrainAdaptationResolver.resolve(extra);
+        boolean drapeExplicit = TerrainAdaptationResolver.hasExplicit(extra) && ta.mode() == TerrainAdaptationMode.DRAPE;
+        int maxStep = drapeExplicit ? Math.max(1, Math.min(8, ta.drapeMaxStep())) : 0;
+        int foundationDepth = drapeExplicit ? Math.max(0, Math.min(16, ta.foundationDepth())) : 0;
+        boolean allowWater = ta.allowWaterEdit();
+        boolean allowLava = ta.allowLavaEdit();
+        if (drapeExplicit) followTerrain = true;
 
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MEDIEVAL;
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
@@ -83,11 +96,19 @@ public class GreatWallGenerator implements StructureGenerator {
                 .put("thickness", thickness)
                 .put("towerSpacing", towerSpacing)
                 .put("followTerrain", followTerrain)
+                .put("maxStep", maxStep)
                 .put("facing", facing.asString())
                 .put("crenels", true);
 
         LinearPathPlan plan = new LinearPathSkeleton(world, origin).generate(params);
-        List<PlannedBlock> blocks = new LinearWallInterpreter(wall, accent, mixBlocks, walkway, crenel, towerBlock, paletteId)
+        BlockState foundationBlock = wall;
+        if (paletteId != null && !paletteId.isBlank()) {
+            // let palette choose a foundation-ish material if available
+            foundationBlock = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0xF0A11L, foundationBlock);
+            foundationBlock = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0xF0A12L, foundationBlock);
+        }
+        List<PlannedBlock> blocks = new LinearWallInterpreter(wall, accent, mixBlocks, walkway, crenel, towerBlock, paletteId,
+                foundationDepth, foundationBlock, allowWater, allowLava)
                 .interpret(plan, origin, world);
 
         if (ornamentProfile != null && !ornamentProfile.isBlank()) {

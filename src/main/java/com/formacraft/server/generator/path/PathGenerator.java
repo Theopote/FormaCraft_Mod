@@ -2,7 +2,6 @@ package com.formacraft.server.generator.path;
 
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.path.PathSpec;
-import com.formacraft.common.skeleton.path.PolylinePathPlan;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
@@ -13,7 +12,9 @@ import com.formacraft.server.road.RoadPlanner;
 import com.formacraft.server.road.RoadAStar;
 import com.formacraft.server.road.RoadDecorator;
 import com.formacraft.server.road.RoadSurfaceAnalyzer;
-import com.formacraft.server.skeleton.path.PathRoadInterpreter;
+import com.formacraft.server.terrain.TerrainAdaptationMode;
+import com.formacraft.server.terrain.TerrainAdaptationResolver;
+import com.formacraft.server.terrain.TerrainAdaptationSpec;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -21,6 +22,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.Heightmap;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +57,19 @@ public class PathGenerator {
 
         Map<String, Object> extra = path.getExtra();
         if (extra == null) extra = Map.of();
+
+        // Terrain adaptation (PATH): default behavior already follows terrain;
+        // when LLM provides terrainAdaptation.mode=DRAPE, we "run it real":
+        // - use max_step_height for smoothing
+        // - use clearHeight for headroom clearing
+        // - use foundationDepth to prevent gaps (columns down)
+        TerrainAdaptationSpec ta = TerrainAdaptationResolver.resolve(extra);
+        boolean drapeExplicit = TerrainAdaptationResolver.hasExplicit(extra) && ta.mode() == TerrainAdaptationMode.DRAPE;
+        int taClear = Math.max(0, Math.min(16, ta.clearHeight()));
+        int taMaxStep = Math.max(1, Math.min(8, ta.drapeMaxStep()));
+        int taFoundationDepth = Math.max(0, Math.min(16, ta.foundationDepth()));
+        boolean allowWater = ta.allowWaterEdit();
+        boolean allowLava = ta.allowLavaEdit();
 
         // Resolve style profile + palette (best-effort, never overrides explicit block ids)
         BuildingStyle defaultStyle = BuildingStyle.MODERN;
@@ -96,6 +111,12 @@ public class PathGenerator {
         }
         lampInterval = Math.max(6, lampInterval);
 
+        // Optional explicit lamp overrides (applies to both astar and non-astar decoration)
+        BlockState lampOverride = null;
+        BlockState postOverride = null;
+        if (extra.get("lamp") != null) lampOverride = getState(world, String.valueOf(extra.get("lamp")).trim());
+        if (extra.get("lampPost") != null) postOverride = getState(world, String.valueOf(extra.get("lampPost")).trim());
+
         boolean useBorder = true;
         if (extra.get("useBorder") != null) {
             Object v = extra.get("useBorder");
@@ -132,12 +153,12 @@ public class PathGenerator {
             }
             RoadPlanner.Config cfg = new RoadPlanner.Config(
                     width,
-                    2,
+                    drapeExplicit ? taClear : 2,
                     1,
                     12000,
                     12,
                     2,
-                    6,
+                    drapeExplicit ? taMaxStep : 6,
                     road,
                     border,
                     useBorder,
@@ -149,44 +170,111 @@ public class PathGenerator {
             RoadSurfaceAnalyzer analyzer = new RoadSurfaceAnalyzer(world, cfg.clearHeight(), cfg.maxStep());
             List<BlockPos> center = RoadAStar.findPath(p0, p1, analyzer, cfg.maxSearch(), cfg.stepPenalty(), cfg.localSlopePenalty(), cfg.bridgePenalty());
             List<PlannedBlock> out = center.isEmpty() ? List.of() : RoadDecorator.decorate(world, center, cfg.width(), cfg.clearHeight(), cfg.road(), cfg.border(), cfg.useBorder(), cfg.bridgeDeck(), cfg.bridgeRail(), paletteId);
+            if (!center.isEmpty() && drapeExplicit && taFoundationDepth > 0) {
+                BlockState foundation = cfg.border(); // use border as a stable "road foundation" material
+                ArrayList<PlannedBlock> merged2 = new ArrayList<>(out.size() + center.size() * width * 2);
+                merged2.addAll(out);
+                merged2.addAll(RoadDecorator.foundationColumns(world, center, width, taFoundationDepth, foundation, allowWater, allowLava));
+                out = merged2;
+            }
 
             if (!center.isEmpty() && (roadLamps || (ornamentProfile != null && !ornamentProfile.isBlank()))) {
                 ArrayList<PlannedBlock> merged = new ArrayList<>(out.size() + center.size() * 3);
                 merged.addAll(out);
-                merged.addAll(decorateSmartRoad(world, center, width, paletteId, roadLamps, lampInterval, ornamentProfile, eavesProfile));
+                merged.addAll(decorateSmartRoad(world, center, width, paletteId, roadLamps, lampInterval, ornamentProfile, eavesProfile, lampOverride, postOverride));
                 out = merged;
             }
             String description = String.format("Path (width=%d, style=%s)", width, style);
             return new GeneratedStructure(null, origin, description, out);
         }
 
-        // Non-astar: route everything through PolylinePathPlan + PathRoadInterpreter so roads share the same "genes".
+        // Non-astar: keep the same entrypoints, but route to the same concrete decorator so the "terrain genes" are consistent.
         long seed = seedForPath(path, p0, p1);
         List<BlockPos> pathPointsWorld = switch (style.toLowerCase(Locale.ROOT)) {
             case "curved" -> generateCurvedPath(p0, p1, seed);
             case "stepped" -> generateSteppedPath(p0, p1, world);
             default -> rasterizeLine(p0, p1);
         };
-        List<BlockPos> rel = new ArrayList<>(pathPointsWorld.size());
-        for (BlockPos p : pathPointsWorld) {
-            rel.add(new BlockPos(p.getX() - origin.getX(), 0, p.getZ() - origin.getZ()));
-        }
 
         BlockState roadBase = explicitMaterial != null ? explicitMaterial : Blocks.GRAVEL.getDefaultState();
         BlockState borderBase = Blocks.COBBLESTONE.getDefaultState();
-        BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
-        BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
 
         // Allow explicit overrides via extra
         if (extra.get("borderMaterial") != null) borderBase = getState(world, String.valueOf(extra.get("borderMaterial")).trim());
-        if (extra.get("lamp") != null) lamp = getState(world, String.valueOf(extra.get("lamp")).trim());
-        if (extra.get("lampPost") != null) post = getState(world, String.valueOf(extra.get("lampPost")).trim());
 
-        PolylinePathPlan plan = new PolylinePathPlan(rel, width, true, roadLamps, lampInterval);
-        PathRoadInterpreter it = new PathRoadInterpreter(roadBase, borderBase, useBorder, paletteId, lamp, post, ornamentProfile, true, 2);
-        List<PlannedBlock> out = it.interpret(plan, origin, world);
+        // "Run it real" for PATH: generate a terrain-snapped centerline, then decorate consistently.
+        List<BlockPos> center = snapAndSmooth(world, pathPointsWorld, drapeExplicit ? taMaxStep : 0);
+
+        int clearHeight = drapeExplicit ? taClear : 2;
+        BlockState bridgeDeck = Blocks.OAK_PLANKS.getDefaultState();
+        BlockState bridgeRail = Blocks.OAK_FENCE.getDefaultState();
+        if (paletteId != null) {
+            bridgeDeck = PaletteResolver.pick(world, paletteId, "BRIDGE_DECK", p0, 0xBDEC21L, bridgeDeck);
+            bridgeDeck = PaletteResolver.pick(world, paletteId, "FLOORING", p0, 0xBDEC22L, bridgeDeck);
+            bridgeRail = PaletteResolver.pick(world, paletteId, "BRIDGE_RAIL", p0, 0xBA121L, bridgeRail);
+            bridgeRail = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", p0, 0xBA122L, bridgeRail);
+        }
+
+        List<PlannedBlock> out = center.isEmpty()
+                ? List.of()
+                : RoadDecorator.decorate(world, center, width, clearHeight, roadBase, borderBase, useBorder, bridgeDeck, bridgeRail, paletteId);
+
+        if (!center.isEmpty() && drapeExplicit && taFoundationDepth > 0) {
+            BlockState foundation = borderBase;
+            if (paletteId != null) {
+                foundation = PaletteResolver.pick(world, paletteId, "ROAD_BORDER", p0, 0xF01DL, foundation);
+                foundation = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", p0, 0xF02DL, foundation);
+            }
+            ArrayList<PlannedBlock> merged2 = new ArrayList<>(out.size() + center.size() * width * 2);
+            merged2.addAll(out);
+            merged2.addAll(RoadDecorator.foundationColumns(world, center, width, taFoundationDepth, foundation, allowWater, allowLava));
+            out = merged2;
+        }
+
+        if (!center.isEmpty() && (roadLamps || (ornamentProfile != null && !ornamentProfile.isBlank()))) {
+            ArrayList<PlannedBlock> merged3 = new ArrayList<>(out.size() + center.size() * 3);
+            merged3.addAll(out);
+            merged3.addAll(decorateSmartRoad(world, center, width, paletteId, roadLamps, lampInterval, ornamentProfile, eavesProfile, lampOverride, postOverride));
+            out = merged3;
+        }
+
         String description = String.format("Path (width=%d, style=%s)", width, style);
         return new GeneratedStructure(null, origin, description, out);
+    }
+
+    /**
+     * Snap a polyline path to terrain surface (MOTION_BLOCKING_NO_LEAVES) and optionally smooth by maxStep.
+     * If maxStep<=0, only snaps without smoothing.
+     */
+    private static List<BlockPos> snapAndSmooth(ServerWorld world, List<BlockPos> pts, int maxStep) {
+        if (world == null || pts == null || pts.isEmpty()) return List.of();
+        int ms = Math.max(0, Math.min(8, maxStep));
+        ArrayList<BlockPos> out = new ArrayList<>(pts.size());
+        // 1) snap
+        for (BlockPos p : pts) {
+            int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, p.getX(), p.getZ());
+            out.add(new BlockPos(p.getX(), y, p.getZ()));
+        }
+        if (ms <= 0 || out.size() <= 2) return out;
+        // 2) forward clamp
+        for (int i = 1; i < out.size(); i++) {
+            BlockPos prev = out.get(i - 1);
+            BlockPos cur = out.get(i);
+            int dy = cur.getY() - prev.getY();
+            if (dy > ms) cur = new BlockPos(cur.getX(), prev.getY() + ms, cur.getZ());
+            else if (dy < -ms) cur = new BlockPos(cur.getX(), prev.getY() - ms, cur.getZ());
+            out.set(i, cur);
+        }
+        // 3) backward clamp (reduces bias)
+        for (int i = out.size() - 2; i >= 0; i--) {
+            BlockPos next = out.get(i + 1);
+            BlockPos cur = out.get(i);
+            int dy = cur.getY() - next.getY();
+            if (dy > ms) cur = new BlockPos(cur.getX(), next.getY() + ms, cur.getZ());
+            else if (dy < -ms) cur = new BlockPos(cur.getX(), next.getY() - ms, cur.getZ());
+            out.set(i, cur);
+        }
+        return out;
     }
 
     /**
@@ -303,7 +391,9 @@ public class PathGenerator {
                                                         boolean roadLamps,
                                                         int lampInterval,
                                                         String ornamentProfile,
-                                                        String eavesProfile) {
+                                                        String eavesProfile,
+                                                        BlockState lampOverride,
+                                                        BlockState postOverride) {
         if (world == null || center == null || center.size() < 2) return List.of();
         int w = Math.max(1, width);
         int half = w / 2;
@@ -317,8 +407,8 @@ public class PathGenerator {
 
         boolean signageEnabled = (op != null && !op.isBlank());
 
-        BlockState lampFallback = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
-        BlockState postFallback = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
+        BlockState lampFallback = (lampOverride != null) ? lampOverride : (neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState());
+        BlockState postFallback = (postOverride != null) ? postOverride : (cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState());
 
         BlockState signFallback = getBlockState(op);
 

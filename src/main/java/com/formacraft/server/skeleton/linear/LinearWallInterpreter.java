@@ -32,9 +32,13 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
     private final BlockState crenel;
     private final BlockState tower;
     private final String paletteId;
+    private final int foundationDepth;
+    private final BlockState foundationBlock;
+    private final boolean allowWaterEdit;
+    private final boolean allowLavaEdit;
 
     public LinearWallInterpreter(BlockState wall, BlockState accent, boolean mixWallBlocks, BlockState walkway, BlockState crenel, BlockState tower) {
-        this(wall, accent, mixWallBlocks, walkway, crenel, tower, null);
+        this(wall, accent, mixWallBlocks, walkway, crenel, tower, null, 0, null, true, true);
     }
 
     public LinearWallInterpreter(BlockState wall, BlockState accent, boolean mixWallBlocks, BlockState walkway, BlockState crenel, BlockState tower, String paletteId) {
@@ -45,6 +49,34 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
         this.crenel = crenel;
         this.tower = tower;
         this.paletteId = paletteId;
+        this.foundationDepth = 0;
+        this.foundationBlock = null;
+        this.allowWaterEdit = true;
+        this.allowLavaEdit = true;
+    }
+
+    public LinearWallInterpreter(BlockState wall,
+                                 BlockState accent,
+                                 boolean mixWallBlocks,
+                                 BlockState walkway,
+                                 BlockState crenel,
+                                 BlockState tower,
+                                 String paletteId,
+                                 int foundationDepth,
+                                 BlockState foundationBlock,
+                                 boolean allowWaterEdit,
+                                 boolean allowLavaEdit) {
+        this.wall = wall;
+        this.accent = accent;
+        this.mixWallBlocks = mixWallBlocks;
+        this.walkway = walkway;
+        this.crenel = crenel;
+        this.tower = tower;
+        this.paletteId = paletteId;
+        this.foundationDepth = Math.max(0, Math.min(32, foundationDepth));
+        this.foundationBlock = foundationBlock;
+        this.allowWaterEdit = allowWaterEdit;
+        this.allowLavaEdit = allowLavaEdit;
     }
 
     @Override
@@ -81,6 +113,25 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
             for (int t = -halfT; t <= halfT; t++) {
                 int tx = rx * t;
                 int tz = rz * t;
+
+                // foundation: prevent gaps when the path has been smoothed above ground
+                if (foundationDepth > 0) {
+                    for (int k = 1; k <= foundationDepth; k++) {
+                        BlockPos fp = new BlockPos(p.getX() + tx, baseY - k, p.getZ() + tz);
+                        if (!BuildConstraintContext.allow(fp)) continue;
+                        BlockState cur = world.getBlockState(fp);
+                        boolean isAir = cur.isAir();
+                        boolean isWater = cur.getBlock() == Blocks.WATER;
+                        boolean isLava = cur.getBlock() == Blocks.LAVA;
+                        if (isAir || (allowWaterEdit && isWater) || (allowLavaEdit && isLava)) {
+                            blocks.add(new PlannedBlock(fp, foundationBlock != null ? foundationBlock : wall));
+                        } else {
+                            // stop when hitting solid, to avoid drilling into mountains
+                            break;
+                        }
+                    }
+                }
+
                 for (int y = 0; y < segHeight; y++) {
                     BlockPos bp = new BlockPos(p.getX() + tx, baseY + y, p.getZ() + tz);
                     if (BuildConstraintContext.allow(bp)) blocks.add(new PlannedBlock(bp, pickWallBlock(world, i, y, t, bp)));

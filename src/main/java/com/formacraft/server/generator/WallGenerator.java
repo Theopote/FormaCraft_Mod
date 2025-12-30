@@ -7,6 +7,9 @@ import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
+import com.formacraft.server.terrain.TerrainAdaptationMode;
+import com.formacraft.server.terrain.TerrainAdaptationResolver;
+import com.formacraft.server.terrain.TerrainAdaptationSpec;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -16,6 +19,7 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.world.Heightmap;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,20 +60,86 @@ public class WallGenerator implements StructureGenerator {
         String ornamentProfile = (details != null) ? details.ornamentProfile : null;
         String bannerColor = (details != null) ? details.bannerColor : null;
 
+        // Terrain adaptation (WALL): only DRAPE is applied here (short wall / fence-like).
+        TerrainAdaptationSpec ta = TerrainAdaptationResolver.resolve(extra);
+        boolean drape = TerrainAdaptationResolver.hasExplicit(extra) && ta.mode() == TerrainAdaptationMode.DRAPE;
+        int maxStep = drape ? Math.max(1, Math.min(8, ta.drapeMaxStep())) : 0;
+        int foundationDepth = drape ? Math.max(0, Math.min(16, ta.foundationDepth())) : 0;
+        boolean allowWater = ta.allowWaterEdit();
+        boolean allowLava = ta.allowLavaEdit();
+
+        // Allow orientation: forward direction (defaults to SOUTH = +Z)
+        Direction forward = parseFacing(extra != null ? extra.get("facing") : null);
+        Direction right = forward.rotateYClockwise();
+
         boolean battlements = getBool(extra);
         boolean battlementsExplicit = (extra != null && extra.containsKey("battlements"));
         if (!battlementsExplicit && eavesProfile != null && eavesProfile.toLowerCase(java.util.Locale.ROOT).contains("battlement")) {
             battlements = true;
         }
 
-        // 生成城墙（沿 Z 轴延伸）
-        for (int z = 0; z < length; z++) {
+        // DRAPE height field along the wall (length axis)
+        int[] ground = new int[length];
+        int[] baseY = new int[length];
+        if (drape) {
+            for (int i = 0; i < length; i++) {
+                BlockPos p = origin.offset(forward, i);
+                int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ());
+                int gy = top - 1;
+                ground[i] = gy;
+                baseY[i] = Math.max(origin.getY(), gy);
+            }
+            // smooth while never below ground
+            for (int it = 0; it < 3; it++) {
+                for (int i = 1; i < length; i++) {
+                    int prev = baseY[i - 1];
+                    int cur = baseY[i];
+                    if (cur > prev + maxStep) cur = prev + maxStep;
+                    if (cur < prev - maxStep) cur = prev - maxStep;
+                    if (cur < ground[i]) cur = ground[i];
+                    baseY[i] = cur;
+                }
+                for (int i = length - 2; i >= 0; i--) {
+                    int next = baseY[i + 1];
+                    int cur = baseY[i];
+                    if (cur > next + maxStep) cur = next + maxStep;
+                    if (cur < next - maxStep) cur = next - maxStep;
+                    if (cur < ground[i]) cur = ground[i];
+                    baseY[i] = cur;
+                }
+            }
+        }
+
+        // 生成城墙（默认沿 forward 方向延伸；厚度沿 right）
+        for (int i = 0; i < length; i++) {
+            int by = drape ? baseY[i] : origin.getY();
             for (int t = 0; t < thickness; t++) {
+                BlockPos col = origin.offset(forward, i).offset(right, t);
+
+                // foundation columns (anti-gap)
+                if (drape && foundationDepth > 0) {
+                    for (int k = 1; k <= foundationDepth; k++) {
+                        BlockPos fp = new BlockPos(col.getX(), by - k, col.getZ());
+                        BlockState cur = world.getBlockState(fp);
+                        boolean isAir = cur.isAir();
+                        boolean isWater = cur.getBlock() == Blocks.WATER;
+                        boolean isLava = cur.getBlock() == Blocks.LAVA;
+                        if (!(isAir || (allowWater && isWater) || (allowLava && isLava))) break;
+                        BlockState fb = wallBlock;
+                        if (paletteId != null && !paletteId.isBlank()) {
+                            long salt = (i * 1315423911L) ^ (t * 97531L) ^ (k * 2654435761L) ^ 0xF01DL;
+                            fb = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", fp, salt, fb);
+                            fb = PaletteResolver.pick(world, paletteId, "WALL_BASE", fp, salt ^ 0xBACE01L, fb);
+                        }
+                        blocks.add(new PlannedBlock(fp, fb));
+                    }
+                }
+
                 for (int y = 0; y < height; y++) {
-                    BlockPos pos = origin.add(t, y, z);
+                    BlockPos pos = new BlockPos(col.getX(), by + y, col.getZ());
                     BlockState st = wallBlock;
                     if (paletteId != null && !paletteId.isBlank()) {
-                        long salt = (t * 31L) ^ (y * 17L) ^ (z * 13L);
+                        long salt = (t * 31L) ^ (y * 17L) ^ (i * 13L);
                         st = PaletteResolver.pick(world, paletteId, "WALL_BASE", pos, salt, wallBlock);
                     }
                     blocks.add(new PlannedBlock(pos, st));
@@ -87,17 +157,23 @@ public class WallGenerator implements StructureGenerator {
                     light = PaletteResolver.pick(world, paletteId, "ROAD_LIGHT", origin, 0x7A1101L, light);
                     light = PaletteResolver.pick(world, paletteId, "LIGHTING", origin, 0x7A1102L, light);
                 }
-                int y = height - 1;
-                for (int z = 0; z < length; z += 5) {
-                    blocks.add(new PlannedBlock(origin.add(0, y, z), light));
-                    blocks.add(new PlannedBlock(origin.add(thickness - 1, y, z), light));
+                for (int i = 0; i < length; i += 5) {
+                    int by = drape ? baseY[i] : origin.getY();
+                    int y = by + (height - 1);
+                    BlockPos a = origin.offset(forward, i).offset(right, 0).withY(y);
+                    BlockPos b = origin.offset(forward, i).offset(right, thickness - 1).withY(y);
+                    blocks.add(new PlannedBlock(a, light));
+                    blocks.add(new PlannedBlock(b, light));
                 }
             } else if (ep.contains("organic") || ep.contains("vine")) {
                 BlockState leaf = Blocks.OAK_LEAVES.getDefaultState();
-                int y = height - 1;
-                for (int z = 1; z < length; z += 4) {
-                    blocks.add(new PlannedBlock(origin.add(-1, y, z), leaf));
-                    blocks.add(new PlannedBlock(origin.add(thickness, y, z), leaf));
+                for (int i = 1; i < length; i += 4) {
+                    int by = drape ? baseY[i] : origin.getY();
+                    int y = by + (height - 1);
+                    BlockPos left = origin.offset(forward, i).offset(right, -1).withY(y);
+                    BlockPos rightPos = origin.offset(forward, i).offset(right, thickness).withY(y);
+                    blocks.add(new PlannedBlock(left, leaf));
+                    blocks.add(new PlannedBlock(rightPos, leaf));
                 }
             }
         }
@@ -105,10 +181,14 @@ public class WallGenerator implements StructureGenerator {
         // Battlements on top (optional)
         if (battlements) {
             BlockState crenel = Blocks.STONE_BRICK_WALL.getDefaultState();
-            for (int z = 0; z < length; z++) {
-                if ((z & 1) == 0) {
-                    blocks.add(new PlannedBlock(origin.add(0, height, z), crenel));
-                    blocks.add(new PlannedBlock(origin.add(thickness - 1, height, z), crenel));
+            for (int i = 0; i < length; i++) {
+                if ((i & 1) == 0) {
+                    int by = drape ? baseY[i] : origin.getY();
+                    int y = by + height;
+                    BlockPos a = origin.offset(forward, i).offset(right, 0).withY(y);
+                    BlockPos b = origin.offset(forward, i).offset(right, thickness - 1).withY(y);
+                    blocks.add(new PlannedBlock(a, crenel));
+                    blocks.add(new PlannedBlock(b, crenel));
                 }
             }
         }
@@ -119,10 +199,11 @@ public class WallGenerator implements StructureGenerator {
             if (op.contains("banner")) {
                 BlockState bWest = resolveWallBannerState(bannerColor, Direction.WEST);
                 BlockState bEast = resolveWallBannerState(bannerColor, Direction.EAST);
-                int y = Math.max(2, height - 2);
-                for (int z = 2; z < length - 2; z += 9) {
-                    blocks.add(new PlannedBlock(origin.add(-1, y, z), bWest));
-                    blocks.add(new PlannedBlock(origin.add(thickness, y, z), bEast));
+                for (int i = 2; i < length - 2; i += 9) {
+                    int by = drape ? baseY[i] : origin.getY();
+                    int y = Math.max(by + 2, by + height - 2);
+                    blocks.add(new PlannedBlock(origin.offset(forward, i).offset(right, -1).withY(y), bWest));
+                    blocks.add(new PlannedBlock(origin.offset(forward, i).offset(right, thickness).withY(y), bEast));
                 }
             } else if (op.contains("cyber") || op.contains("sign")) {
                 BlockState signW = facing(Blocks.DARK_OAK_WALL_SIGN.getDefaultState(), Direction.WEST);
@@ -136,16 +217,17 @@ public class WallGenerator implements StructureGenerator {
                     signE = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0x7A1106L, signE);
                     signE = facing(signE, Direction.EAST);
                 }
-                int y = Math.max(2, height - 2);
-                for (int z = 3; z < length - 3; z += 11) {
-                    blocks.add(new PlannedBlock(origin.add(-1, y, z), signW));
-                    blocks.add(new PlannedBlock(origin.add(thickness, y, z), signE));
+                for (int i = 3; i < length - 3; i += 11) {
+                    int by = drape ? baseY[i] : origin.getY();
+                    int y = Math.max(by + 2, by + height - 2);
+                    blocks.add(new PlannedBlock(origin.offset(forward, i).offset(right, -1).withY(y), signW));
+                    blocks.add(new PlannedBlock(origin.offset(forward, i).offset(right, thickness).withY(y), signE));
                 }
             }
         }
 
-        String description = String.format("Wall (height=%d, length=%d, thickness=%d)", 
-                height, length, thickness);
+        String description = String.format("Wall (height=%d, length=%d, thickness=%d%s)",
+                height, length, thickness, drape ? ", DRAPE" : "");
 
         return new GeneratedStructure(
                 null, // owner 将在 BuildExecutionService 中设置
@@ -163,6 +245,18 @@ public class WallGenerator implements StructureGenerator {
         String s = String.valueOf(v).trim().toLowerCase(java.util.Locale.ROOT);
         if (s.isEmpty()) return false;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+    }
+
+    private static Direction parseFacing(Object v) {
+        String s = v == null ? "" : String.valueOf(v).trim().toUpperCase(java.util.Locale.ROOT);
+        if (s.isEmpty()) return Direction.SOUTH;
+        return switch (s) {
+            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
+            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
+            case "E", "EAST", "东", "朝东" -> Direction.EAST;
+            case "W", "WEST", "西", "朝西" -> Direction.WEST;
+            default -> Direction.SOUTH;
+        };
     }
 
     private static BlockState resolveWallBannerState(String color, Direction facing) {

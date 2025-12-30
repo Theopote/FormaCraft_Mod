@@ -99,6 +99,10 @@ public final class RoadDecorator {
                         long salt = ((long) x2 * 31L) ^ ((long) z2 * 17L) ^ ((long) ww * 13L) ^ (i * 7L) ^ 0xBDEC1L;
                         base = PaletteResolver.pick(world, pid, "BRIDGE_DECK", bp, salt, base);
                     }
+                } else if (pid != null) {
+                    // ROAD_SURFACE semantic for non-bridge segments
+                    long salt = ((long) x2 * 31L) ^ ((long) z2 * 17L) ^ ((long) ww * 13L) ^ (i * 7L) ^ 0xB04DL;
+                    base = PaletteResolver.pick(world, pid, "ROAD_SURFACE", bp, salt, base);
                 }
                 if (step) base = asStairsIfPossible(base, facing);
 
@@ -150,6 +154,67 @@ public final class RoadDecorator {
             }
         }
 
+        return out;
+    }
+
+    /**
+     * Foundation columns under road surface to prevent "露底" on steep slopes.
+     *
+     * Fills from (surfaceY-1) downward for each road cell within width, up to foundationDepth.
+     * Only fills Air/Water/Lava (water/lava are optional).
+     */
+    public static List<PlannedBlock> foundationColumns(ServerWorld world,
+                                                       List<BlockPos> center,
+                                                       int width,
+                                                       int foundationDepth,
+                                                       BlockState fillMaterial,
+                                                       boolean allowWater,
+                                                       boolean allowLava) {
+        if (world == null || center == null || center.isEmpty()) return List.of();
+        int w = Math.max(1, width);
+        int half = w / 2;
+        int fd = Math.max(0, Math.min(32, foundationDepth));
+        if (fd <= 0) return List.of();
+        BlockState fill = fillMaterial != null ? fillMaterial : Blocks.COBBLESTONE.getDefaultState();
+
+        List<PlannedBlock> out = new ArrayList<>(Math.max(256, center.size() * w * Math.min(4, fd)));
+
+        for (int i = 0; i < center.size(); i++) {
+            BlockPos p = center.get(i);
+            BlockPos prev = (i > 0) ? center.get(i - 1) : null;
+            BlockPos next = (i + 1 < center.size()) ? center.get(i + 1) : null;
+
+            int dx = 0, dz = 0;
+            if (next != null) {
+                dx = Integer.compare(next.getX() - p.getX(), 0);
+                dz = Integer.compare(next.getZ() - p.getZ(), 0);
+            } else if (prev != null) {
+                dx = Integer.compare(p.getX() - prev.getX(), 0);
+                dz = Integer.compare(p.getZ() - prev.getZ(), 0);
+            }
+            if (dx == 0 && dz == 0) { dx = 1; dz = 0; }
+            int rx = -dz;
+            int rz = dx;
+
+            for (int ww = -half; ww <= half; ww++) {
+                int x2 = p.getX() + rx * ww;
+                int z2 = p.getZ() + rz * ww;
+                int y0 = p.getY() - 1;
+                for (int k = 0; k < fd; k++) {
+                    int y = y0 - k;
+                    if (y <= world.getBottomY()) break;
+                    BlockPos fp = new BlockPos(x2, y, z2);
+                    if (!BuildConstraintContext.allow(fp)) continue;
+                    BlockState cur = world.getBlockState(fp);
+                    boolean isAir = cur.isAir();
+                    boolean isWater = cur.getBlock() == Blocks.WATER;
+                    boolean isLava = cur.getBlock() == Blocks.LAVA;
+                    if (isAir || (allowWater && isWater) || (allowLava && isLava)) {
+                        out.add(new PlannedBlock(fp, fill));
+                    }
+                }
+            }
+        }
         return out;
     }
 

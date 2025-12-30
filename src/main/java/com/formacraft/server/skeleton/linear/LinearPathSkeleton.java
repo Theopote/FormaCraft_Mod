@@ -37,10 +37,12 @@ public final class LinearPathSkeleton implements Skeleton<LinearPathPlan> {
         int towerSpacing = getInt(params, "towerSpacing", 48, 8, 512);
         boolean crenels = getBool(params, "crenels", true);
         boolean followTerrain = getBool(params, "followTerrain", true);
+        int maxStep = getInt(params, "maxStep", 0, 0, 8);
 
         Direction facing = parseFacing(String.valueOf(params.get("facing") == null ? "EAST" : params.get("facing")));
 
-        List<BlockPos> pts = new ArrayList<>(length + 1);
+        int[] ground = new int[length + 1];
+        int[] ys = new int[length + 1];
         for (int i = 0; i <= length; i++) {
             int dx = facing.getOffsetX() * i;
             int dz = facing.getOffsetZ() * i;
@@ -48,9 +50,45 @@ public final class LinearPathSkeleton implements Skeleton<LinearPathPlan> {
             if (followTerrain) {
                 BlockPos sample = origin.add(dx, 0, dz);
                 int top = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, sample.getX(), sample.getZ());
-                y = Math.max(y, top - 1);
+                int gy = top - 1;
+                ground[i] = gy;
+                y = Math.max(y, gy);
+            } else {
+                ground[i] = y;
             }
-            pts.add(new BlockPos(origin.getX() + dx, y, origin.getZ() + dz));
+            ys[i] = y;
+        }
+
+        if (followTerrain && maxStep > 0) {
+            // Smooth the path to respect maxStep while never going below ground[i].
+            // Iterate a few times to reduce bias.
+            for (int it = 0; it < 3; it++) {
+                // forward clamp
+                for (int i = 1; i <= length; i++) {
+                    int prev = ys[i - 1];
+                    int cur = ys[i];
+                    if (cur > prev + maxStep) cur = prev + maxStep;
+                    if (cur < prev - maxStep) cur = prev - maxStep;
+                    if (cur < ground[i]) cur = ground[i];
+                    ys[i] = cur;
+                }
+                // backward clamp
+                for (int i = length - 1; i >= 0; i--) {
+                    int next = ys[i + 1];
+                    int cur = ys[i];
+                    if (cur > next + maxStep) cur = next + maxStep;
+                    if (cur < next - maxStep) cur = next - maxStep;
+                    if (cur < ground[i]) cur = ground[i];
+                    ys[i] = cur;
+                }
+            }
+        }
+
+        List<BlockPos> pts = new ArrayList<>(length + 1);
+        for (int i = 0; i <= length; i++) {
+            int dx = facing.getOffsetX() * i;
+            int dz = facing.getOffsetZ() * i;
+            pts.add(new BlockPos(origin.getX() + dx, ys[i], origin.getZ() + dz));
         }
 
         return new LinearPathPlan(pts, thickness, height, towerSpacing, crenels);
