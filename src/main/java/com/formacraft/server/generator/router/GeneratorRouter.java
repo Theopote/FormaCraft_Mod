@@ -35,6 +35,10 @@ public final class GeneratorRouter {
             return new TowerGenerator();
         }
 
+        // 0) meta-assembly routing (first-principles parametric engine, opt-in via extra.assembly)
+        StructureGenerator byAssembly = routeByAssembly(spec);
+        if (byAssembly != null) return byAssembly;
+
         // 0) blueprint-based routing (semantic components -> plan -> blocks)
         // This is the primary path when LLM provides a blueprint.
         StructureGenerator byBlueprint = routeByBlueprint(spec);
@@ -78,6 +82,25 @@ public final class GeneratorRouter {
                 yield new HouseGenerator();
             }
         };
+    }
+
+    private static StructureGenerator routeByAssembly(BuildingSpec spec) {
+        if (spec == null) return null;
+        Map<String, Object> extra = spec.getExtra();
+        if (extra == null) return null;
+        Object a = extra.get("assembly");
+        if (a == null) return null;
+        // Minimal check: should be a map or a json string that parses into a map (engine will validate deeper).
+        if (a instanceof Map<?, ?>) return new MetaAssemblyGenerator();
+        try {
+            String json = (a instanceof String s) ? s : JsonUtil.toJson(a);
+            if (json != null && !json.isBlank()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> parsed = JsonUtil.fromJson(json, Map.class);
+                if (parsed != null && !parsed.isEmpty()) return new MetaAssemblyGenerator();
+            }
+        } catch (Throwable ignored) {}
+        return null;
     }
 
     private static StructureGenerator routeByBlueprint(BuildingSpec spec) {
