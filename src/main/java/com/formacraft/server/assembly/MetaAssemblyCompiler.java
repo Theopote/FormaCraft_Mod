@@ -251,6 +251,24 @@ public final class MetaAssemblyCompiler {
             default -> "CONNECTOR_LINE";
         };
 
+        // Routing mode for avoid:
+        // - routing: "ASTAR" enables a small 2D grid A* router to avoid boxes
+        // - avoidAStar: boolean shorthand
+        boolean useAStar = false;
+        Object routing = conn.get("routing");
+        if (routing != null) {
+            String rs = String.valueOf(routing).trim().toUpperCase(Locale.ROOT);
+            useAStar = rs.contains("ASTAR") || rs.contains("A*") || rs.contains("A_STAR");
+        }
+        if (!useAStar) {
+            Object aa = conn.get("avoidAStar");
+            if (aa instanceof Boolean b2) useAStar = b2;
+            else if (aa != null) {
+                String s = String.valueOf(aa).trim().toLowerCase(Locale.ROOT);
+                useAStar = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+            }
+        }
+
         // via[] routing: expand one logical connection into multiple segments.
         // via items support:
         // - "A.port" / {component,port,...}
@@ -258,26 +276,92 @@ public final class MetaAssemblyCompiler {
         List<int[]> chain = new ArrayList<>();
         chain.add(p0);
         Object viaObj = conn.get("via");
+        List<int[]> userVia = new ArrayList<>();
         if (viaObj instanceof List<?> via) {
             for (Object v : via) {
                 int[] wp = resolveWaypoint(v, byId, originById, portsById);
-                if (wp != null) chain.add(wp);
+                if (wp != null) userVia.add(wp);
             }
+        }
+
+        // avoid[] / avoidComponents / avoidAllComponents: derive avoid rects for routing utilities
+        List<Rect2> avoids = parseAvoids(conn.get("avoid"));
+        avoids.addAll(parseAvoidComponents(conn, a.componentId, b.componentId, byId, originById));
+
+        // Lead-out / lead-in: encourage routes to leave/arrive along the port direction.
+        // - routingAutoLead=true sets defaults (leadOut=3, leadIn=2) unless explicitly provided.
+        int leadOut = i(conn.get("routingLeadOut"), 0);
+        int leadIn = i(conn.get("routingLeadIn"), 0);
+        boolean autoLead = false;
+        Object al = conn.get("routingAutoLead");
+        if (al instanceof Boolean bb) autoLead = bb;
+        else if (al != null) {
+            String s = String.valueOf(al).trim().toLowerCase(Locale.ROOT);
+            autoLead = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+        }
+        if (autoLead) {
+            if (conn.get("routingLeadOut") == null) leadOut = 3;
+            if (conn.get("routingLeadIn") == null) leadIn = 2;
+        }
+        leadOut = Math.max(0, Math.min(32, leadOut));
+        leadIn = Math.max(0, Math.min(32, leadIn));
+
+        boolean leadSoft = useAStar;
+        Object ls = conn.get("routingLeadSoft");
+        if (ls instanceof Boolean bb2) leadSoft = bb2;
+        else if (ls != null) {
+            String s = String.valueOf(ls).trim().toLowerCase(Locale.ROOT);
+            leadSoft = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+        }
+
+        // If not using A* soft lead, keep the old behavior: insert lead points as explicit via.
+        if (!(useAStar && leadSoft)) {
+            int[] lead0 = (leadOut > 0) ? computeLeadPoint(p0, a.port, leadOut, avoids) : null;
+            int[] lead1 = (leadIn > 0) ? computeLeadPoint(p1, b.port, leadIn, avoids) : null;
+            if (lead0 != null) chain.add(lead0);
+            chain.addAll(userVia);
+            if (lead1 != null) chain.add(lead1);
+        } else {
+            chain.addAll(userVia);
         }
         chain.add(p1);
 
-        // avoid[] routing: if any segment crosses an avoid rect, auto-insert detours.
-        // avoid items: {x0,z0,x1,z1, margin?}
-        List<Rect2> avoids = parseAvoids(conn.get("avoid"));
-        // avoidComponents: derive avoid rects from component bounds (Topology-friendly)
-        avoids.addAll(parseAvoidComponents(conn, byId, originById));
+        // A* routing knobs (safe defaults)
+        int routingPad = Math.max(0, i(conn.get("routingPad"), 6));
+        long routingMaxArea = Math.max(2000L, (long) i(conn.get("routingMaxArea"), 80000));
+        int routingMaxNodes = Math.max(2000, i(conn.get("routingMaxNodes"), 0)); // 0 means auto
+        int preferStraight = Math.max(0, i(conn.get("routingPreferStraight"), 1)); // turn penalty weight
+
+        // Soft-lead weight: higher => stronger tendency to leave/arrive along port axis.
+        // Default ties to preferStraight so "more planned" routes also respect door axes.
+        int leadWeight = i(conn.get("routingLeadWeight"), Math.max(1, 2 + preferStraight));
+
+        // Prefer axis (X/Z/AUTO/NONE) + weight.
+        String preferAxis = str(conn.get("routingPreferAxis"), "AUTO").trim().toUpperCase(Locale.ROOT);
+        int preferAxisWeight = Math.max(0, i(conn.get("routingPreferAxisWeight"), 1));
+        boolean preferDoorAxis = false;
+        Object pda = conn.get("routingPreferDoorAxis");
+        if (pda instanceof Boolean b3) preferDoorAxis = b3;
+        else if (pda != null) {
+            String s = String.valueOf(pda).trim().toLowerCase(Locale.ROOT);
+            preferDoorAxis = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+        }
+        if (preferDoorAxis) {
+            String ax = axisFromPort(a.port);
+            if (ax != null) preferAxis = ax;
+        }
+
+        // avoid routing: if any segment crosses an avoid rect, auto-insert detours.
         if (!avoids.isEmpty()) {
             List<int[]> expanded = new ArrayList<>();
             expanded.add(chain.get(0));
             for (int i = 0; i + 1 < chain.size(); i++) {
                 int[] pA = expanded.get(expanded.size() - 1);
                 int[] pB = chain.get(i + 1);
-                List<int[]> detour = computeDetour(pA, pB, avoids);
+                int leadOutSeg = (useAStar && leadSoft && i == 0) ? leadOut : 0;
+                int leadInSeg = (useAStar && leadSoft && i + 2 == chain.size()) ? leadIn : 0;
+                List<int[]> detour = computeDetour(pA, pB, avoids, useAStar, routingPad, routingMaxArea, routingMaxNodes, preferStraight, preferAxis, preferAxisWeight,
+                        leadOutSeg, leadInSeg, a.port, b.port, leadWeight);
                 expanded.addAll(detour);
             }
             chain = expanded;
@@ -384,23 +468,79 @@ public final class MetaAssemblyCompiler {
     }
 
     private static List<Rect2> parseAvoidComponents(Map<String, Object> conn,
+                                                    String fromComponentId,
+                                                    String toComponentId,
                                                     Map<String, Map<String, Object>> byId,
                                                     Map<String, int[]> originById) {
         List<Rect2> out = new ArrayList<>();
         if (conn == null) return out;
-        Object v = conn.get("avoidComponents");
-        if (!(v instanceof List<?> list)) return out;
+
         int margin = Math.max(0, i(conn.get("avoidMargin"), 3));
-        for (Object it : list) {
-            if (it == null) continue;
-            String id = String.valueOf(it).trim();
-            if (id.isEmpty()) continue;
-            Map<String, Object> comp = byId != null ? byId.get(id) : null;
-            int[] o = originById != null ? originById.get(id) : null;
+        String fromId = fromComponentId != null ? fromComponentId.trim() : "";
+        String toId = toComponentId != null ? toComponentId.trim() : "";
+
+        // Include explicit lists
+        java.util.Set<String> include = new java.util.HashSet<>();
+        Object v = conn.get("avoidComponents");
+        if (v instanceof List<?> list) {
+            for (Object it : list) {
+                if (it == null) continue;
+                String id = String.valueOf(it).trim();
+                if (!id.isEmpty()) include.add(id);
+            }
+        }
+        Object v2 = conn.get("avoidIncludeComponents");
+        if (v2 instanceof List<?> list) {
+            for (Object it : list) {
+                if (it == null) continue;
+                String id = String.valueOf(it).trim();
+                if (!id.isEmpty()) include.add(id);
+            }
+        }
+
+        // Exclude list
+        java.util.Set<String> exclude = new java.util.HashSet<>();
+        Object ex = conn.get("avoidExcludeComponents");
+        if (ex instanceof List<?> list) {
+            for (Object it : list) {
+                if (it == null) continue;
+                String id = String.valueOf(it).trim();
+                if (!id.isEmpty()) exclude.add(id);
+            }
+        }
+        if (!fromId.isEmpty()) exclude.add(fromId);
+        if (!toId.isEmpty()) exclude.add(toId);
+
+        boolean avoidAll = false;
+        Object aa = conn.get("avoidAllComponents");
+        if (aa instanceof Boolean b) avoidAll = b;
+        else if (aa != null) {
+            String s = String.valueOf(aa).trim().toLowerCase(Locale.ROOT);
+            avoidAll = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+        }
+
+        // If avoidAllComponents, include every known component id (except excluded)
+        if (avoidAll && byId != null) {
+            for (String id : byId.keySet()) {
+                if (id == null) continue;
+                String cid = id.trim();
+                if (cid.isEmpty()) continue;
+                include.add(cid);
+            }
+        }
+
+        // Build rects for included ids minus excluded
+        for (String id : include) {
+            if (id == null) continue;
+            String cid = id.trim();
+            if (cid.isEmpty() || exclude.contains(cid)) continue;
+            Map<String, Object> comp = byId != null ? byId.get(cid) : null;
+            int[] o = originById != null ? originById.get(cid) : null;
             if (comp == null || o == null) continue;
             Rect2 r = inferComponentRect2(comp, o[0], o[2], margin);
             if (r != null) out.add(r);
         }
+
         return out;
     }
 
@@ -470,13 +610,33 @@ public final class MetaAssemblyCompiler {
      * Returns a list of points to append AFTER start (a), ending with b.
      * If no detour needed, returns [b].
      */
-    private static List<int[]> computeDetour(int[] a, int[] b, List<Rect2> avoids) {
+    private static List<int[]> computeDetour(int[] a,
+                                             int[] b,
+                                             List<Rect2> avoids,
+                                             boolean useAStar,
+                                             int routingPad,
+                                             long routingMaxArea,
+                                             int routingMaxNodes,
+                                             int preferStraight,
+                                             String preferAxis,
+                                             int preferAxisWeight,
+                                             int leadOut,
+                                             int leadIn,
+                                             String fromPort,
+                                             String toPort,
+                                             int leadWeight) {
         // If segment doesn't intersect any avoid, keep it.
         boolean hit = false;
         for (Rect2 r : avoids) {
             if (segmentIntersectsRect(a[0], a[2], b[0], b[2], r)) { hit = true; break; }
         }
         if (!hit) return List.of(b);
+
+        if (useAStar) {
+            List<int[]> path = routeAStar2D(a, b, avoids, routingPad, routingMaxArea, routingMaxNodes, preferStraight, preferAxis, preferAxisWeight,
+                    leadOut, leadIn, fromPort, toPort, leadWeight);
+            if (path != null && !path.isEmpty()) return path;
+        }
 
         // Try detouring around each rect; pick best candidate that avoids all rects.
         List<int[]> best = null;
@@ -512,6 +672,211 @@ public final class MetaAssemblyCompiler {
 
         return best != null ? best : List.of(b);
     }
+
+    /**
+     * 2D grid A* routing in XZ, returns a compressed waypoint list (excluding start, including end).
+     * Safety caps:
+     * - if bounding box too large, return null to fall back to heuristic detours.
+     */
+    private static List<int[]> routeAStar2D(int[] a,
+                                            int[] b,
+                                            List<Rect2> avoids,
+                                            int pad,
+                                            long maxArea,
+                                            int maxNodesOverride,
+                                            int turnPenalty,
+                                            String preferAxis,
+                                            int preferAxisWeight,
+                                            int leadOut,
+                                            int leadIn,
+                                            String fromPort,
+                                            String toPort,
+                                            int leadWeight) {
+        // Bounds: endpoints + avoid rects + padding
+        int minX = Math.min(a[0], b[0]);
+        int maxX = Math.max(a[0], b[0]);
+        int minZ = Math.min(a[2], b[2]);
+        int maxZ = Math.max(a[2], b[2]);
+        for (Rect2 r : avoids) {
+            minX = Math.min(minX, r.xMin);
+            maxX = Math.max(maxX, r.xMax);
+            minZ = Math.min(minZ, r.zMin);
+            maxZ = Math.max(maxZ, r.zMax);
+        }
+        minX -= pad; maxX += pad; minZ -= pad; maxZ += pad;
+
+        int w = maxX - minX + 1;
+        int h = maxZ - minZ + 1;
+        long area = (long) w * (long) h;
+        // hard cap to avoid runaway compile time
+        if (area > maxArea) return null;
+
+        int y = (a[1] != 0) ? a[1] : b[1];
+        int[] outDir = (leadOut > 0) ? dirFromPort(fromPort) : null; // [dx,dz] outward
+        int[] inDir = (leadIn > 0) ? dirFromPort(toPort) : null;     // outward; approach wants opposite
+        if (leadWeight < 0) leadWeight = 0;
+
+        long start = pack(a[0], a[2]);
+        long goal = pack(b[0], b[2]);
+        if (isBlocked(a[0], a[2], avoids) || isBlocked(b[0], b[2], avoids)) return null;
+
+        java.util.HashMap<Long, Long> came = new java.util.HashMap<>();
+        java.util.HashMap<Long, Integer> gScore = new java.util.HashMap<>();
+        java.util.PriorityQueue<Node> open = new java.util.PriorityQueue<>();
+
+        gScore.put(start, 0);
+        open.add(new Node(start, 0, heuristic(a[0], a[2], b[0], b[2])));
+
+        int maxNodes = maxNodesOverride > 0
+                ? maxNodesOverride
+                : (int) Math.min(80000L, Math.max(12000L, area)); // scale with area but capped
+        int visited = 0;
+
+        while (!open.isEmpty() && visited < maxNodes) {
+            Node cur = open.poll();
+            long key = cur.key;
+            if (key == goal) {
+                return reconstructCompressed(came, start, goal, y);
+            }
+            visited++;
+
+            int cx = unpackX(key);
+            int cz = unpackZ(key);
+            int baseG = gScore.getOrDefault(key, Integer.MAX_VALUE / 4);
+
+            // 4-neighbors
+            int[][] nb = new int[][]{{1,0},{-1,0},{0,1},{0,-1}};
+            for (int[] d : nb) {
+                int nx = cx + d[0];
+                int nz = cz + d[1];
+                if (nx < minX || nx > maxX || nz < minZ || nz > maxZ) continue;
+                if (isBlocked(nx, nz, avoids)) continue;
+                long nk = pack(nx, nz);
+                int penalty = 0;
+                if (turnPenalty > 0) {
+                    Long parentKey = came.get(key);
+                    if (parentKey != null) {
+                        int px = unpackX(parentKey);
+                        int pz = unpackZ(parentKey);
+                        int dx0 = Integer.compare(cx - px, 0);
+                        int dz0 = Integer.compare(cz - pz, 0);
+                        int dx1 = Integer.compare(nx - cx, 0);
+                        int dz1 = Integer.compare(nz - cz, 0);
+                        boolean isTurn = (dx0 != dx1) || (dz0 != dz1);
+                        if (isTurn) penalty = turnPenalty;
+                    }
+                }
+
+                // Prefer axis: add a small penalty when moving against preferred axis.
+                int axisPenalty = 0;
+                String ax = (d[0] != 0) ? "X" : "Z";
+                String pref = (preferAxis == null || preferAxis.isBlank()) ? "AUTO" : preferAxis;
+                if (preferAxisWeight > 0) {
+                    if (pref.equals("AUTO")) {
+                        int adx = Math.abs(b[0] - a[0]);
+                        int adz = Math.abs(b[2] - a[2]);
+                        pref = (adx >= adz) ? "X" : "Z";
+                    }
+                    if (pref.equals("X") || pref.equals("Z")) {
+                        if (!ax.equals(pref)) axisPenalty = preferAxisWeight;
+                    }
+                }
+                int tentative = baseG + 1 + penalty;
+                tentative += axisPenalty;
+
+                // Soft lead-out: near start, penalize moves not matching outward port direction
+                if (leadOut > 0 && outDir != null) {
+                    int distFromStart = Math.abs(cx - a[0]) + Math.abs(cz - a[2]);
+                    if (distFromStart < leadOut) {
+                        if (d[0] != outDir[0] || d[1] != outDir[1]) tentative += leadWeight;
+                    }
+                }
+                // Soft lead-in: near goal, penalize moves that don't approach along the opposite of the port outward dir
+                if (leadIn > 0 && inDir != null) {
+                    int distToGoal = Math.abs(cx - b[0]) + Math.abs(cz - b[2]);
+                    if (distToGoal < leadIn) {
+                        int adx = -inDir[0];
+                        int adz = -inDir[1];
+                        if (d[0] != adx || d[1] != adz) tentative += leadWeight;
+                    }
+                }
+                int best = gScore.getOrDefault(nk, Integer.MAX_VALUE / 4);
+                if (tentative < best) {
+                    came.put(nk, key);
+                    gScore.put(nk, tentative);
+                    int f = tentative + heuristic(nx, nz, b[0], b[2]);
+                    open.add(new Node(nk, tentative, f));
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String axisFromPort(String port) {
+        if (port == null) return null;
+        String p = normalizePortKey(port);
+        // directional ports imply axis
+        if (p.equals("east") || p.equals("west") || p.equals("left") || p.equals("right")) return "X";
+        if (p.equals("north") || p.equals("south") || p.equals("front") || p.equals("back") || p.equals("entrance") || p.equals("exit")) return "Z";
+        // corners imply both; keep AUTO
+        if (p.equals("ne") || p.equals("nw") || p.equals("se") || p.equals("sw")
+                || p.contains("front_left") || p.contains("front_right") || p.contains("back_left") || p.contains("back_right")) return null;
+        return null;
+    }
+
+    private record Node(long key, int g, int f) implements Comparable<Node> {
+        @Override public int compareTo(Node o) { return Integer.compare(this.f, o.f); }
+    }
+
+    private static int heuristic(int x0, int z0, int x1, int z1) {
+        return Math.abs(x0 - x1) + Math.abs(z0 - z1);
+    }
+
+    private static boolean isBlocked(int x, int z, List<Rect2> avoids) {
+        for (Rect2 r : avoids) {
+            if (x >= r.xMin && x <= r.xMax && z >= r.zMin && z <= r.zMax) return true;
+        }
+        return false;
+    }
+
+    private static List<int[]> reconstructCompressed(java.util.HashMap<Long, Long> came, long start, long goal, int y) {
+        java.util.ArrayList<long[]> rev = new java.util.ArrayList<>();
+        long cur = goal;
+        rev.add(new long[]{unpackX(cur), unpackZ(cur)});
+        while (cur != start) {
+            Long p = came.get(cur);
+            if (p == null) return null;
+            cur = p;
+            rev.add(new long[]{unpackX(cur), unpackZ(cur)});
+        }
+        // reverse
+        java.util.Collections.reverse(rev);
+        // compress into turn points; skip the first point (start), include end
+        java.util.ArrayList<int[]> out = new java.util.ArrayList<>();
+        int lastDx = 0, lastDz = 0;
+        for (int i = 1; i < rev.size(); i++) {
+            int x0 = (int) rev.get(i - 1)[0], z0 = (int) rev.get(i - 1)[1];
+            int x1 = (int) rev.get(i)[0], z1 = (int) rev.get(i)[1];
+            int dx = Integer.compare(x1 - x0, 0);
+            int dz = Integer.compare(z1 - z0, 0);
+            boolean turn = (i == 1) || (dx != lastDx) || (dz != lastDz);
+            if (turn && i - 1 > 0) {
+                // add the previous point as a waypoint
+                out.add(new int[]{x0, y, z0});
+            }
+            lastDx = dx; lastDz = dz;
+        }
+        long[] end = rev.get(rev.size() - 1);
+        out.add(new int[]{(int) end[0], y, (int) end[1]});
+        return out;
+    }
+
+    private static long pack(int x, int z) {
+        return ((long) x << 32) ^ (z & 0xffffffffL);
+    }
+
+    private static int unpackX(long k) { return (int) (k >> 32); }
+    private static int unpackZ(long k) { return (int) k; }
 
     private static List<List<int[]>> detourCandidates(int[] a, int[] b, Rect2 r) {
         int yA = a[1];
@@ -611,6 +976,35 @@ public final class MetaAssemblyCompiler {
             }
         }
         return null;
+    }
+
+    private static int[] computeLeadPoint(int[] p, String port, int dist, List<Rect2> avoids) {
+        if (p == null || dist <= 0) return null;
+        int[] d = dirFromPort(port);
+        if (d == null) return null;
+        int y = p[1];
+        // shrink if target falls inside avoid
+        for (int k = dist; k >= 1; k--) {
+            int x = p[0] + d[0] * k;
+            int z = p[2] + d[1] * k;
+            if (!isBlocked(x, z, avoids)) {
+                return new int[]{x, y, z};
+            }
+        }
+        return null;
+    }
+
+    // Returns [dx, dz] in local XZ for a port name. Diagonals return null (no lead).
+    private static int[] dirFromPort(String port) {
+        if (port == null) return null;
+        String p = normalizePortKey(port);
+        return switch (p) {
+            case "north", "back", "exit" -> new int[]{0, -1};
+            case "south", "front", "entrance", "gate", "in" -> new int[]{0, 1};
+            case "east", "right" -> new int[]{1, 0};
+            case "west", "left" -> new int[]{-1, 0};
+            default -> null;
+        };
     }
 
     private static int[] resolveEndpoint(Endpoint e,
