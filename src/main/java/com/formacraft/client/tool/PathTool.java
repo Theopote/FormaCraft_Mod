@@ -156,7 +156,7 @@ public final class PathTool implements FormacraftTool {
 
     private static void renderPolyline(ToolWorldRenderContext ctx, List<Vec3d> poly, int r, int g, int b, int a) {
         if (poly == null || poly.size() < 2) return;
-        Vec3d last = poly.get(0);
+        Vec3d last = poly.getFirst();
         for (int i = 1; i < poly.size(); i++) {
             Vec3d cur = poly.get(i);
             if (last != null && cur != null) {
@@ -177,7 +177,7 @@ public final class PathTool implements FormacraftTool {
         List<Vec3d> out = new ArrayList<>();
 
         for (int i = 0; i < n - 1; i++) {
-            Vec3d p0 = (i == 0) ? waypoints.get(0) : waypoints.get(i - 1);
+            Vec3d p0 = (i == 0) ? waypoints.getFirst() : waypoints.get(i - 1);
             Vec3d p1 = waypoints.get(i);
             Vec3d p2 = waypoints.get(i + 1);
             Vec3d p3 = (i + 2 < n) ? waypoints.get(i + 2) : waypoints.get(n - 1);

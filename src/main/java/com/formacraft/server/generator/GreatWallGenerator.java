@@ -73,6 +73,8 @@ public class GreatWallGenerator implements StructureGenerator {
         BlockState wall = getStateOrDefault(world, getStringExtra(spec, "wallBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
         BlockState accent = getStateOrDefault(world, getStringExtra(spec, "accentBlock", pTrim != null ? pTrim : "minecraft:mossy_stone_bricks"), Blocks.MOSSY_STONE_BRICKS.getDefaultState());
         BlockState walkway = getStateOrDefault(world, getStringExtra(spec, "walkwayBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
+        BlockState walkwayStairs = getStateOrDefault(world, getStringExtra(spec, "walkwayStairsBlock", null), null);
+        if (walkwayStairs == null) walkwayStairs = Blocks.STONE_BRICK_STAIRS.getDefaultState();
         BlockState crenel = getStateOrDefault(world, getStringExtra(spec, "crenelBlock", "minecraft:stone_brick_wall"), Blocks.STONE_BRICK_WALL.getDefaultState());
         BlockState towerBlock = getStateOrDefault(world, getStringExtra(spec, "towerBlock", pWall != null ? pWall : "minecraft:stone_bricks"), Blocks.STONE_BRICKS.getDefaultState());
         if ((spec == null || spec.getExtra() == null || !spec.getExtra().containsKey("crenelBlock"))
@@ -107,7 +109,7 @@ public class GreatWallGenerator implements StructureGenerator {
             foundationBlock = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0xF0A11L, foundationBlock);
             foundationBlock = com.formacraft.server.material.PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0xF0A12L, foundationBlock);
         }
-        List<PlannedBlock> blocks = new LinearWallInterpreter(wall, accent, mixBlocks, walkway, crenel, towerBlock, paletteId,
+        List<PlannedBlock> blocks = new LinearWallInterpreter(wall, accent, mixBlocks, walkway, walkwayStairs, crenel, towerBlock, paletteId,
                 foundationDepth, foundationBlock, allowWater, allowLava)
                 .interpret(plan, origin, world);
 

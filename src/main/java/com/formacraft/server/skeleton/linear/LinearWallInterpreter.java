@@ -32,6 +32,7 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
     private final BlockState accent;
     private final boolean mixWallBlocks;
     private final BlockState walkway;
+    private final BlockState walkwayStairs;
     private final BlockState crenel;
     private final BlockState tower;
     private final String paletteId;
@@ -41,7 +42,7 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
     private final boolean allowLavaEdit;
 
     public LinearWallInterpreter(BlockState wall, BlockState accent, boolean mixWallBlocks, BlockState walkway, BlockState crenel, BlockState tower) {
-        this(wall, accent, mixWallBlocks, walkway, crenel, tower, null, 0, null, true, true);
+        this(wall, accent, mixWallBlocks, walkway, null, crenel, tower, null, 0, null, true, true);
     }
 
     public LinearWallInterpreter(BlockState wall, BlockState accent, boolean mixWallBlocks, BlockState walkway, BlockState crenel, BlockState tower, String paletteId) {
@@ -49,6 +50,7 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
         this.accent = accent;
         this.mixWallBlocks = mixWallBlocks;
         this.walkway = walkway;
+        this.walkwayStairs = null;
         this.crenel = crenel;
         this.tower = tower;
         this.paletteId = paletteId;
@@ -62,6 +64,7 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
                                  BlockState accent,
                                  boolean mixWallBlocks,
                                  BlockState walkway,
+                                 BlockState walkwayStairs,
                                  BlockState crenel,
                                  BlockState tower,
                                  String paletteId,
@@ -73,6 +76,7 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
         this.accent = accent;
         this.mixWallBlocks = mixWallBlocks;
         this.walkway = walkway;
+        this.walkwayStairs = walkwayStairs;
         this.crenel = crenel;
         this.tower = tower;
         this.paletteId = paletteId;
@@ -166,7 +170,7 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
                 BlockPos wp = new BlockPos(p.getX() + rx * t, walkwayY, p.getZ() + rz * t);
                 if (BuildConstraintContext.allow(wp)) {
                     BlockState ws = walkway;
-                    if (useStairs) ws = asStairsIfPossible(walkway, stairFacing);
+                    if (useStairs) ws = asStairsIfPossible(walkwayStairs != null ? walkwayStairs : walkway, stairFacing);
                     blocks.add(new PlannedBlock(wp, ws));
                 }
             }
