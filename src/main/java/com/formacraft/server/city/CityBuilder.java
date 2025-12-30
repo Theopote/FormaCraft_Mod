@@ -414,7 +414,7 @@ public class CityBuilder {
                     int baseY = TerrainAdaptationEngine.computeBaseY(world, b, ta, buildingOrigin.getY());
                     int platformY = baseY + 1;
 
-                    BlockPos buildingOrigin2 = buildingOrigin;
+                    BlockPos buildingOrigin2;
                     List<PlannedBlock> pad = List.of();
                     List<PlannedBlock> pre = List.of();
                     boolean postDrape = false;

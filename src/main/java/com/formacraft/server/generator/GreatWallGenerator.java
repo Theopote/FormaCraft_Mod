@@ -158,8 +158,7 @@ public class GreatWallGenerator implements StructureGenerator {
         String s = String.valueOf(v).trim().toLowerCase();
         if (s.isEmpty()) return true;
         if ("true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s)) return true;
-        if ("false".equals(s) || "0".equals(s) || "no".equals(s) || "n".equals(s)) return false;
-        return true;
+        return !"false".equals(s) && !"0".equals(s) && !"no".equals(s) && !"n".equals(s);
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {

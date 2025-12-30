@@ -35,8 +35,8 @@ public final class LinearPathSkeleton implements Skeleton<LinearPathPlan> {
         int thickness = getInt(params, "thickness", 5, 3, 63);
         int height = getInt(params, "height", 10, 5, 120);
         int towerSpacing = getInt(params, "towerSpacing", 48, 8, 512);
-        boolean crenels = getBool(params, "crenels", true);
-        boolean followTerrain = getBool(params, "followTerrain", true);
+        boolean crenels = getBool(params, "crenels");
+        boolean followTerrain = getBool(params, "followTerrain");
         int maxStep = getInt(params, "maxStep", 0, 0, 8);
 
         Direction facing = parseFacing(String.valueOf(params.get("facing") == null ? "EAST" : params.get("facing")));
@@ -106,12 +106,12 @@ public final class LinearPathSkeleton implements Skeleton<LinearPathPlan> {
         return n;
     }
 
-    private static boolean getBool(SkeletonParams p, String key, boolean def) {
+    private static boolean getBool(SkeletonParams p, String key) {
         Object v = p.get(key);
         if (v instanceof Boolean b) return b;
-        if (v == null) return def;
+        if (v == null) return true;
         String s = String.valueOf(v).trim().toLowerCase();
-        if (s.isEmpty()) return def;
+        if (s.isEmpty()) return true;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 
@@ -120,7 +120,6 @@ public final class LinearPathSkeleton implements Skeleton<LinearPathPlan> {
         return switch (v) {
             case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
             case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
             case "W", "WEST", "西", "朝西" -> Direction.WEST;
             default -> Direction.EAST;
         };

@@ -7,6 +7,10 @@ import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
+import com.formacraft.server.terrain.TerrainAdaptationEngine;
+import com.formacraft.server.terrain.TerrainAdaptationMode;
+import com.formacraft.server.terrain.TerrainAdaptationResolver;
+import com.formacraft.server.terrain.TerrainAdaptationSpec;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -56,6 +60,13 @@ public class BridgeGenerator implements StructureGenerator {
         Direction forward = resolveEntranceFacing(spec);
         String layoutPlan = resolveLayoutPlan(spec);
 
+        // Terrain adaptation (BRIDGE): implement ANCHOR ("level deck + deep piers") as an explicit mode.
+        TerrainAdaptationSpec ta = TerrainAdaptationResolver.resolve(extra);
+        boolean anchor = TerrainAdaptationResolver.hasExplicit(extra) && ta.mode() == TerrainAdaptationMode.ANCHOR;
+        int anchorMaxDepth = Math.max(1, Math.min(256, ta.anchorMaxDepth()));
+        boolean allowWater = ta.allowWaterEdit();
+        boolean allowLava = ta.allowLavaEdit();
+
         // 获取风格选项（BuildingSpec 2.0）
         String bridgeType = spec.getStyleOptions() != null ? 
             spec.getStyleOptions().getBridgeType() : "flat";
@@ -70,6 +81,18 @@ public class BridgeGenerator implements StructureGenerator {
         // 桥墩间隔（暂时仍从 extra 获取，未来可移到 styleOptions）
         int pillarInterval = extra != null ? 
             ((Number) extra.getOrDefault("pillarInterval", 6)).intValue() : 6;
+        pillarInterval = Math.max(3, Math.min(32, pillarInterval));
+
+        // Optional: explicit anchor material override
+        if (anchor && extra != null && extra.get("anchorMaterial") != null) {
+            support = getState(world, String.valueOf(extra.get("anchorMaterial")).trim());
+        }
+        if (paletteId != null && !paletteId.isBlank()) {
+            // Prefer structural semantics for supports when palette is present.
+            support = PaletteResolver.pick(world, paletteId, "STRUCTURAL_BEAM", origin, 0xA11C401L, support);
+            support = PaletteResolver.pick(world, paletteId, "FRAME", origin, 0xA11C402L, support);
+            support = PaletteResolver.pick(world, paletteId, "WALL_FOUNDATION", origin, 0xA11C403L, support);
+        }
 
         // Eaves profiles can steer railing material (neon strip etc.) when not explicitly overridden
         if ((extra == null || !extra.containsKey("railingBlock")) && eavesProfile != null) {
@@ -82,34 +105,55 @@ public class BridgeGenerator implements StructureGenerator {
         }
 
         // ---------------------------------------------------------
-        // 1. 清空桥上与两侧空间
+        // 1) 桥面 Y 偏移曲线（flat / arched / suspension）
         // ---------------------------------------------------------
-        for (int z = 0; z <= length; z++) {
-            for (int x = -width; x <= width; x++) {
-                for (int y = -2; y <= 10; y++) {
-                    blocks.add(new PlannedBlock(p(origin, forward, x, y, z), Blocks.AIR.getDefaultState()));
-                }
-            }
+        int[] yOffsets = computeYOffsetArray(bridgeType != null ? bridgeType : "flat", length);
+
+        // ---------------------------------------------------------
+        // 2) (ANCHOR) choose a level deck base Y from terrain when explicitly requested.
+        // ---------------------------------------------------------
+        BlockPos origin2 = origin;
+        if (anchor) {
+            // Build an approximate bounds of the bridge footprint for baseY sampling.
+            // We use four corners of the oriented rectangle.
+            Direction right = forward.rotateYClockwise();
+            BlockPos c0 = origin.offset(right, -width).offset(forward, 0);
+            BlockPos c1 = origin.offset(right, width).offset(forward, 0);
+            BlockPos c2 = origin.offset(right, -width).offset(forward, length);
+            BlockPos c3 = origin.offset(right, width).offset(forward, length);
+            int minX = Math.min(Math.min(c0.getX(), c1.getX()), Math.min(c2.getX(), c3.getX()));
+            int maxX = Math.max(Math.max(c0.getX(), c1.getX()), Math.max(c2.getX(), c3.getX()));
+            int minZ = Math.min(Math.min(c0.getZ(), c1.getZ()), Math.min(c2.getZ(), c3.getZ()));
+            int maxZ = Math.max(Math.max(c0.getZ(), c1.getZ()), Math.max(c2.getZ(), c3.getZ()));
+            TerrainAdaptationEngine.Bounds b = new TerrainAdaptationEngine.Bounds(
+                    new BlockPos(minX, 0, minZ),
+                    new BlockPos(maxX, Math.max(8, spec.getHeight()), maxZ),
+                    false
+            );
+            int base = TerrainAdaptationEngine.computeBaseY(world, b, ta, origin.getY());
+            int deckY = (ta.fixedY() != null) ? ta.fixedY() : (base + 1);
+            origin2 = new BlockPos(origin.getX(), deckY, origin.getZ());
         }
 
         // ---------------------------------------------------------
-        // 2. 桥面 Y 偏移曲线（flat / arched / suspension）
+        // 3. 清空桥上与两侧空间（based on origin2 so anchored deck is clean）
         // ---------------------------------------------------------
-        int[] yOffsets = null;
-        if (bridgeType != null) {
-            yOffsets = computeYOffsetArray(bridgeType, length);
+        for (int z = 0; z <= length; z++) {
+            int yOffset = yOffsets[z];
+            for (int x = -width; x <= width; x++) {
+                for (int y = -3; y <= 12; y++) {
+                    blocks.add(new PlannedBlock(p(origin2, forward, x, y + yOffset, z), Blocks.AIR.getDefaultState()));
+                }
+            }
         }
 
         // ---------------------------------------------------------
         // 3. 主桥面（floor）
         // ---------------------------------------------------------
         for (int z = 0; z <= length; z++) {
-            int yOffset = 0;
-            if (yOffsets != null) {
-                yOffset = yOffsets[z];
-            }
+            int yOffset = yOffsets[z];
             for (int x = -width / 2; x <= width / 2; x++) {
-                BlockPos pos = p(origin, forward, x, yOffset, z);
+                BlockPos pos = p(origin2, forward, x, yOffset, z);
                 BlockState st = floor;
                 if (paletteId != null && !paletteId.isBlank()) {
                     long salt = (x * 31L) ^ (z * 17L) ^ (yOffset * 13L);
@@ -123,12 +167,9 @@ public class BridgeGenerator implements StructureGenerator {
         // 4. 护栏（两侧 fence）
         // ---------------------------------------------------------
         for (int z = 0; z <= length; z++) {
-            int yOffset = 0;
-            if (yOffsets != null) {
-                yOffset = yOffsets[z];
-            }
-            BlockPos left = p(origin, forward, -width / 2 - 1, yOffset, z);
-            BlockPos right = p(origin, forward, width / 2 + 1, yOffset, z);
+            int yOffset = yOffsets[z];
+            BlockPos left = p(origin2, forward, -width / 2 - 1, yOffset, z);
+            BlockPos right = p(origin2, forward, width / 2 + 1, yOffset, z);
             BlockState lr = railing;
             if (paletteId != null && !paletteId.isBlank()) {
                 long saltL = (-31L) ^ (z * 17L) ^ (yOffset * 13L);
@@ -152,9 +193,9 @@ public class BridgeGenerator implements StructureGenerator {
                 step = Math.max(6, length / 6);
             }
             for (int z = step; z < length; z += step) {
-                int yOffset = (yOffsets != null) ? yOffsets[z] : 0;
-                BlockPos left = p(origin, forward, -width / 2 - 2, yOffset + 2, z);
-                BlockPos right = p(origin, forward, width / 2 + 2, yOffset + 2, z);
+                int yOffset = yOffsets[z];
+                BlockPos left = p(origin2, forward, -width / 2 - 2, yOffset + 2, z);
+                BlockPos right = p(origin2, forward, width / 2 + 2, yOffset + 2, z);
                 if (op.contains("cyber") || op.contains("sign")) {
                     BlockState sL = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
                     BlockState sR = Blocks.DARK_OAK_WALL_SIGN.getDefaultState();
@@ -182,25 +223,33 @@ public class BridgeGenerator implements StructureGenerator {
         // 5. 桥墩（根据地形生成支撑）
         // ---------------------------------------------------------
         for (int z = 0; z <= length; z += pillarInterval) {
-            int yOffset = 0;
-            if (yOffsets != null) {
-                yOffset = yOffsets[z];
-            }
-            BlockPos mid = p(origin, forward, 0, yOffset, z);
+            int yOffset = yOffsets[z];
+
+            // Place 1-3 supports depending on width (center + optional edges)
+            int[] xs = (width >= 7)
+                    ? new int[]{ -width / 2, 0, width / 2 }
+                    : (width >= 5 ? new int[]{ 0, width / 2 } : new int[]{ 0 });
+
+            for (int xi : xs) {
+                BlockPos mid = p(origin2, forward, xi, yOffset, z);
             
-            // 向下延伸支撑直到遇到实心方块
-            BlockPos p = mid.down();
-            int maxDepth = 20; // 限制最大深度，避免无限循环
-            int depth = 0;
-            
-            while (p.getY() > world.getBottomY() && depth < maxDepth) {
-                BlockState state = world.getBlockState(p);
-                if (!state.isAir() && !state.isOf(Blocks.WATER)) {
-                    break;
+                // 向下延伸支撑直到遇到实心方块
+                BlockPos pp = mid.down();
+                int maxDepth = anchor ? anchorMaxDepth : 20; // legacy fallback for non-anchor
+                int depth = 0;
+
+                while (pp.getY() > world.getBottomY() && depth < maxDepth) {
+                    BlockState state = world.getBlockState(pp);
+                    boolean isAir = state.isAir();
+                    boolean isWater = state.isOf(Blocks.WATER);
+                    boolean isLava = state.isOf(Blocks.LAVA);
+                    if (!isAir && !(allowWater && isWater) && !(allowLava && isLava)) {
+                        break;
+                    }
+                    blocks.add(new PlannedBlock(pp, support));
+                    pp = pp.down();
+                    depth++;
                 }
-                blocks.add(new PlannedBlock(p, support));
-                p = p.down();
-                depth++;
             }
         }
 
@@ -214,27 +263,21 @@ public class BridgeGenerator implements StructureGenerator {
         // ---------------------------------------------------------
         // 7. 桥头接地处理（在桥两端创建平台）
         // ---------------------------------------------------------
-        BlockPos leftEnd = null;
-        if (yOffsets != null) {
-            leftEnd = p(origin, forward, 0, yOffsets[0], 0);
-        }
-        BlockPos rightEnd = null;
-        if (yOffsets != null) {
-            rightEnd = p(origin, forward, 0, yOffsets[length], length);
-        }
+        BlockPos leftEnd = p(origin2, forward, 0, yOffsets[0], 0);
+        BlockPos rightEnd = p(origin2, forward, 0, yOffsets[length], length);
 
         // 为桥头创建接地平台
         com.formacraft.server.terrain.TerrainOperation leftLanding =
                 null;
         if (leftEnd != null) {
             leftLanding = com.formacraft.server.terrain.TerrainShaper.createBridgeLanding(
-                world, leftEnd, 3, support);
+                world, leftEnd, Math.max(3, width / 2 + 1), support);
         }
         com.formacraft.server.terrain.TerrainOperation rightLanding =
                 null;
         if (rightEnd != null) {
             rightLanding = com.formacraft.server.terrain.TerrainShaper.createBridgeLanding(
-                world, rightEnd, 3, support);
+                world, rightEnd, Math.max(3, width / 2 + 1), support);
         }
 
         if (leftLanding != null) {
@@ -247,8 +290,8 @@ public class BridgeGenerator implements StructureGenerator {
         // ---------------------------------------------------------
         // 返回结构
         // ---------------------------------------------------------
-        String description = String.format("Bridge (%s, %dx%d, type=%s)", 
-                spec.getType(), width, length, bridgeType);
+        String description = String.format("Bridge (%s, %dx%d, type=%s%s)",
+                spec.getType(), width, length, bridgeType, anchor ? ", ANCHOR" : "");
 
         return new GeneratedStructure(
                 null, // owner 将在 BuildExecutionService 中设置

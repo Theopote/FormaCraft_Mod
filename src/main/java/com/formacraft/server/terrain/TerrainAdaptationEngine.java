@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * TerrainAdaptationEngine (v1):
  * Converts TerrainAdaptationSpec into concrete terrain operations + optional block position transforms.
- *
+ * <p>
  * Scope (v1):
  * - FLATTEN: delegates to TerrainShaper.preprocessStructure (cut&fill + clear obstacles)
  * - ANCHOR: local pad/clear + optional deep pillars down to ground
@@ -53,9 +53,8 @@ public final class TerrainAdaptationEngine {
             if (fp.getDepth() > 0) d = fp.getDepth();
         }
         // legacy single-build convention: rectangle origin is min corner; city generators often treat origin as center.
-        BlockPos min = origin;
         BlockPos max = origin.add(Math.max(1, w), height, Math.max(1, d));
-        return new Bounds(min, max, false);
+        return new Bounds(origin, max, false);
     }
 
     /** For city/district placement: interpret origin as footprint center. */
@@ -87,7 +86,7 @@ public final class TerrainAdaptationEngine {
     public static int computeBaseY(ServerWorld world, Bounds b, TerrainAdaptationSpec spec, int fallbackY) {
         if (world == null || b == null) return fallbackY;
         TerrainBaseLevel bl = spec != null ? spec.baseLevel() : TerrainBaseLevel.MEDIAN;
-        if (bl == TerrainBaseLevel.FIXED && spec != null && spec.fixedY() != null) return spec.fixedY();
+        if (bl == TerrainBaseLevel.FIXED && spec.fixedY() != null) return spec.fixedY();
 
         List<Integer> heights = TerrainSampling.sampleHeights(world, new BlockPos(b.min.getX(), 0, b.min.getZ()), new BlockPos(b.max.getX(), 0, b.max.getZ()));
         if (heights.isEmpty()) return fallbackY;
@@ -259,8 +258,7 @@ public final class TerrainAdaptationEngine {
 
     private static int clampToNeighbor(int v, int n, int maxStep) {
         if (v > n + maxStep) return n + maxStep;
-        if (v < n - maxStep) return n - maxStep;
-        return v;
+        return Math.max(v, n - maxStep);
     }
 
     /**
@@ -275,7 +273,7 @@ public final class TerrainAdaptationEngine {
                                                             boolean allowLava) {
         if (world == null || b == null) return List.of();
         int fd = Math.max(0, Math.min(32, foundationDepth));
-        if (fd <= 0) return List.of();
+        if (fd == 0) return List.of();
         BlockState fill = fillMaterial != null ? fillMaterial : Blocks.COBBLESTONE.getDefaultState();
 
         int w = Math.max(1, b.max.getX() - b.min.getX() + 1);
@@ -317,7 +315,6 @@ public final class TerrainAdaptationEngine {
     public static List<PlannedBlock> carve(ServerWorld world, Bounds b, int baseY, int clearHeight) {
         if (world == null || b == null) return List.of();
         int clear = Math.max(0, Math.min(32, clearHeight));
-        int y0 = baseY;
         // Use a conservative world max bound (1.21 default top is 383), avoid relying on unavailable APIs.
         int worldMaxY = 383;
         int y1 = Math.min(worldMaxY, baseY + Math.max(4, (b.max.getY() - b.min.getY())) + clear);
@@ -333,7 +330,7 @@ public final class TerrainAdaptationEngine {
                     int dz = z - cz;
                     if (dx * dx + dz * dz > r * r) continue;
                 }
-                for (int y = y0; y <= y1; y++) {
+                for (int y = baseY; y <= y1; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
