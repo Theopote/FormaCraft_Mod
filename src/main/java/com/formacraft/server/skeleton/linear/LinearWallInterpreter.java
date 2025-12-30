@@ -7,8 +7,11 @@ import com.formacraft.server.material.PaletteResolver;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.StairsBlock;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -140,9 +143,32 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
 
             // walkway (top)
             int walkwayY = baseY + (height - 1) + towerExtraH;
+
+            // stair-casing on slopes:
+            // - If next point is +1 higher, place stairs at current segment facing forward (uphill ramp).
+            // - If current point is -1 lower than prev, place stairs at current segment facing backward (downhill ramp).
+            Direction forwardDir = dirFromDelta(Integer.compare(dx, 0), Integer.compare(dz, 0));
+            int dyToNext = next.getY() - p.getY();
+            int dyFromPrev = p.getY() - prev.getY();
+            boolean useStairs = false;
+            Direction stairFacing = forwardDir;
+            if (!isTower) {
+                if (dyToNext == 1) {
+                    useStairs = true;
+                    stairFacing = forwardDir;
+                } else if (dyFromPrev == -1) {
+                    useStairs = true;
+                    stairFacing = forwardDir.getOpposite();
+                }
+            }
+
             for (int t = -halfT; t <= halfT; t++) {
                 BlockPos wp = new BlockPos(p.getX() + rx * t, walkwayY, p.getZ() + rz * t);
-                if (BuildConstraintContext.allow(wp)) blocks.add(new PlannedBlock(wp, walkway));
+                if (BuildConstraintContext.allow(wp)) {
+                    BlockState ws = walkway;
+                    if (useStairs) ws = asStairsIfPossible(walkway, stairFacing);
+                    blocks.add(new PlannedBlock(wp, ws));
+                }
             }
 
             // crenels on edges (alternating)
@@ -208,6 +234,23 @@ public final class LinearWallInterpreter implements SkeletonInterpreter<LinearPa
                 if (BuildConstraintContext.allow(p2)) blocks.add(new PlannedBlock(p2, Blocks.STONE_BRICK_WALL.getDefaultState()));
             }
         }
+    }
+
+    private static BlockState asStairsIfPossible(BlockState base, Direction facing) {
+        if (base == null) return Blocks.STONE_BRICK_STAIRS.getDefaultState().with(Properties.HORIZONTAL_FACING, facing);
+        if (base.getBlock() instanceof StairsBlock) {
+            if (base.contains(Properties.HORIZONTAL_FACING)) return base.with(Properties.HORIZONTAL_FACING, facing);
+            return base;
+        }
+        // If walkway isn't stairs, use a safe default stairs material.
+        return Blocks.STONE_BRICK_STAIRS.getDefaultState().with(Properties.HORIZONTAL_FACING, facing);
+    }
+
+    private static Direction dirFromDelta(int dx, int dz) {
+        if (Math.abs(dx) >= Math.abs(dz)) {
+            return dx >= 0 ? Direction.EAST : Direction.WEST;
+        }
+        return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
     }
 }
 

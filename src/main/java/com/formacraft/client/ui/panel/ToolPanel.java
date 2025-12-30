@@ -282,7 +282,7 @@ public class ToolPanel extends BasePanel {
         clearPathsButton.setPosition(x, y);
         clearPathsButton.setWidth(w);
         clearPathsButton.visible = true;
-        clearPathsButton.active = true;
+        clearPathsButton.active = PathTool.INSTANCE.getPathCount() > 0 || PathTool.INSTANCE.getDraftPointCount() > 0;
         clearPathsButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
 
         // --------------------
@@ -414,6 +414,8 @@ public class ToolPanel extends BasePanel {
         y += FIELD_SPACING + LABEL_OFFSET; // 路径状态行 + 间距
         clearPathsButton.setPosition(x, y);
         clearPathsButton.setWidth(w);
+        clearPathsButton.visible = true;
+        clearPathsButton.active = true;
         if (clearPathsButton.mouseClicked(click, false)) return true;
 
         // 对称
