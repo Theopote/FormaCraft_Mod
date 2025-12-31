@@ -483,6 +483,16 @@ public final class AssemblySpecNormalizer {
             "uSamples", "vSamples", "u", "v",
             // loft / revolve
             "sections", "segments", "angleDeg", "angle",
+            // bezier surface set
+            "patches", "grid", "topology", "stitch",
+            "stitchEpsilon", "stitch_eps",
+            "stitchSamples", "stitch_samples",
+            "stitchResampleMode", "stitch_resample_mode",
+            "links",
+            "aRange", "a_range", "fromRange",
+            "bRange", "b_range", "toRange",
+            "capWidth", "cap_width",
+            "capMaterial", "cap_material",
             "hollow", "thickness",
             "material", "wall", "window", "floor", "roof", "slab",
             "ports",
@@ -519,6 +529,16 @@ public final class AssemblySpecNormalizer {
             "uSamples", "vSamples", "u", "v",
             // loft / revolve
             "sections", "segments", "angleDeg", "angle",
+            // bezier surface set
+            "patches", "grid", "topology", "stitch",
+            "stitchEpsilon", "stitch_eps",
+            "stitchSamples", "stitch_samples",
+            "stitchResampleMode", "stitch_resample_mode",
+            "links",
+            "aRange", "a_range", "fromRange",
+            "bRange", "b_range", "toRange",
+            "capWidth", "cap_width",
+            "capMaterial", "cap_material",
             "r", "radius", "r0", "r1", "radius0", "radius1",
             "hollow", "thickness", "samplesPerBlock",
             // anchoring / anchorage

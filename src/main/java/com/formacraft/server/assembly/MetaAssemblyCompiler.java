@@ -224,6 +224,24 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "material");
                 ops.add(o);
             }
+            case "BEZIER_SURFACE_SET", "BEZIER_PATCH_SET", "BEZIER_SET" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "BEZIER_SURFACE_SET");
+                copy(comp, o, "patches");
+                copy(comp, o, "topology");
+                copy(comp, o, "grid"); // legacy
+                copyInt(comp, o, "uSamples", i(comp.get("uSamples"), i(comp.get("u"), 24)));
+                copyInt(comp, o, "vSamples", i(comp.get("vSamples"), i(comp.get("v"), 24)));
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copy(comp, o, "connectSamples");
+                copy(comp, o, "stitch");
+                copyInt(comp, o, "stitchEpsilon", i(comp.get("stitchEpsilon"), i(comp.get("stitch_eps"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "stitchSamples", i(comp.get("stitchSamples"), i(comp.get("stitch_samples"), Integer.MIN_VALUE)));
+                copy(comp, o, "stitchResampleMode");
+                copy(comp, o, "stitch_resample_mode");
+                copy(comp, o, "material");
+                ops.add(o);
+            }
             case "REVOLVE_SURFACE", "REVOLVE", "SURFACE_OF_REVOLUTION" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "REVOLVE_SURFACE");

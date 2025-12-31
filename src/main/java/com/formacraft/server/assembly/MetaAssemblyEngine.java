@@ -948,6 +948,231 @@ public final class MetaAssemblyEngine {
                     }
                 }
             }
+            case "BEZIER_SURFACE_SET" -> {
+                // Bezier surface set (P0): multiple patches with grid topology and auto-stitching on shared edges.
+                //
+                // Required:
+                // - patches: [{ id?, at?, points: (16 control points), uSamples?, vSamples?, thickness?, material?, connectSamples? }, ...]
+                // Optional:
+                // - topology.grid: 2D array of patch ids/indices (preferred) or grid (legacy)
+                // - uSamples/vSamples, thickness, connectSamples (intra-patch), stitch (inter-patch), material
+                Object patchesObj = op.get("patches");
+                if (!(patchesObj instanceof List<?> patchesList) || patchesList.isEmpty()) break;
+
+                int uDef = clamp(i(op.get("uSamples"), i(op.get("u"), 24)), 2, 512);
+                int vDef = clamp(i(op.get("vSamples"), i(op.get("v"), 24)), 2, 512);
+                int thickDef = clamp(i(op.get("thickness"), 1), 1, 9);
+                boolean connectDef = bool(op.get("connectSamples"), true);
+                boolean stitch = bool(op.get("stitch"), true);
+                int stitchEps = clamp(i(op.get("stitchEpsilon"), i(op.get("stitch_eps"), 0)), 0, 32);
+                int stitchSamples = clamp(i(op.get("stitchSamples"), i(op.get("stitch_samples"), -1)), -1, 512);
+                String stitchResampleMode = str(op.get("stitchResampleMode"), str(op.get("stitch_resample_mode"), "RESAMPLE")).trim().toUpperCase(Locale.ROOT);
+                boolean stitchResample = stitchResampleMode.isBlank() || stitchResampleMode.equals("RESAMPLE") || stitchResampleMode.equals("AUTO");
+                BlockState matDef = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0xBEEF1101L, Blocks.QUARTZ_BLOCK.getDefaultState());
+                int capWidthDef = clamp(i(op.get("capWidth"), i(op.get("cap_width"), 0)), 0, 9);
+                BlockState capMatDef = pick(ctx, op, "capMaterial", "FACADE_TRIM", 0xBEEF1102L, matDef);
+
+                // Build patch table
+                java.util.HashMap<String, PatchData> byId = new java.util.HashMap<>();
+                java.util.ArrayList<PatchData> patches = new java.util.ArrayList<>();
+                java.util.HashMap<String, SeamRef> seamMap = new java.util.HashMap<>();
+                java.util.ArrayList<SeamRef> seamList = new java.util.ArrayList<>();
+                for (int pi = 0; pi < patchesList.size(); pi++) {
+                    Object po = patchesList.get(pi);
+                    if (!(po instanceof Map<?, ?> pm)) continue;
+                    String id = str(pm.get("id"), "P" + pi).trim();
+
+                    // Per-patch offset
+                    int ox = 0, oy = 0, oz = 0;
+                    Object at = pm.get("at");
+                    if (at instanceof Map<?, ?> am) {
+                        ox = i(am.get("x"), 0);
+                        oy = i(am.get("y"), 0);
+                        oz = i(am.get("z"), 0);
+                    } else {
+                        ox = i(pm.get("x"), 0);
+                        oy = i(pm.get("y"), 0);
+                        oz = i(pm.get("z"), 0);
+                    }
+
+                    List<int[]> ctrl0 = readBezierControlPoints(pm.get("points"));
+                    if (ctrl0 == null || ctrl0.size() != 16) continue;
+                    java.util.ArrayList<int[]> ctrl = new java.util.ArrayList<>(16);
+                    for (int[] p : ctrl0) ctrl.add(new int[]{p[0] + ox, p[1] + oy, p[2] + oz});
+
+                    int uN = clamp(i(pm.get("uSamples"), i(pm.get("u"), uDef)), 2, 512);
+                    int vN = clamp(i(pm.get("vSamples"), i(pm.get("v"), vDef)), 2, 512);
+                    int thick = clamp(i(pm.get("thickness"), thickDef), 1, 9);
+                    boolean connect = bool(pm.get("connectSamples"), connectDef);
+                    BlockState mat = (pm.get("material") != null)
+                            ? pick(ctx, pm, "material", "PRIMARY_STRUCTURE", 0xBEEF1101L ^ id.hashCode(), matDef)
+                            : matDef;
+
+                    int[][][] grid = sampleBezierSurface(ctrl, uN, vN);
+                    PatchData pd = new PatchData(id, uN, vN, thick, mat, grid);
+                    patches.add(pd);
+                    byId.put(id, pd);
+                    // place voxels
+                    for (int iu = 0; iu <= uN; iu++) for (int iv = 0; iv <= vN; iv++) {
+                        int x = grid[iu][iv][0], y = grid[iu][iv][1], z = grid[iu][iv][2];
+                        placePrism(out, ctx, curOrigin, x, y, z, thick, 1, mat);
+                    }
+                    if (connect) {
+                        connectSurfaceGrid(out, ctx, curOrigin, grid, uN, vN, thick, mat);
+                    }
+
+                    // Auto-stitch shared edges by matching sampled boundary signatures.
+                    if (stitch) {
+                        for (Edge e : Edge.values()) {
+                            String sig = edgeSignature(pd, e, false);
+                            String sigR = edgeSignature(pd, e, true);
+                            SeamRef other = seamMap.remove(sigR);
+                            if (other == null) {
+                                seamMap.put(sig, new SeamRef(pd, e));
+                            } else {
+                                int seamThick = Math.min(other.patch.thick, pd.thick);
+                                stitchEdge(out, ctx, curOrigin, other.patch, other.edge, pd, e, seamThick, matDef, capWidthDef, capMatDef);
+                            }
+                            // epsilon path keeps an explicit list too (for near-matches)
+                            seamList.add(new SeamRef(pd, e));
+                        }
+                    }
+                }
+
+                if (!stitch) break;
+
+                // Epsilon stitching: allow near-matches by sampling + thresholding.
+                if (stitchEps > 0 && seamList.size() >= 2) {
+                    // Greedy pairing: try to stitch each edge with the best unmatched partner.
+                    java.util.HashSet<Long> used = new java.util.HashSet<>();
+                    for (int i = 0; i < seamList.size(); i++) {
+                        SeamRef a = seamList.get(i);
+                        long ka = (((long) a.patch.hashCode()) << 8) ^ a.edge.ordinal();
+                        if (used.contains(ka)) continue;
+                        int[] a0 = edgePoint(a.patch, a.edge, 0);
+                        int[] a1 = edgePoint(a.patch, a.edge, edgeCount(a.patch, a.edge) - 1);
+                        double best = Double.POSITIVE_INFINITY;
+                        int bestJ = -1;
+                        boolean bestReverse = false;
+                        for (int j = i + 1; j < seamList.size(); j++) {
+                            SeamRef b = seamList.get(j);
+                            long kb = (((long) b.patch.hashCode()) << 8) ^ b.edge.ordinal();
+                            if (used.contains(kb)) continue;
+                            // quick endpoint gate
+                            int[] b0 = edgePoint(b.patch, b.edge, 0);
+                            int[] b1 = edgePoint(b.patch, b.edge, edgeCount(b.patch, b.edge) - 1);
+                            long eps2 = (long) stitchEps * stitchEps;
+                            long d00 = dist2(a0, b0) + dist2(a1, b1);
+                            long d01 = dist2(a0, b1) + dist2(a1, b0);
+                            boolean rev = d01 < d00;
+                            long dGate = Math.min(d00, d01);
+                            if (dGate > eps2 * 4L) continue;
+
+                            int nA = edgeCount(a.patch, a.edge);
+                            int nB = edgeCount(b.patch, b.edge);
+                            int n = (stitchSamples > 0) ? stitchSamples : Math.max(8, Math.min(128, Math.max(nA, nB)));
+                            double mse = edgeMse(a.patch, a.edge, b.patch, b.edge, rev, n, stitchResample);
+                            if (mse < best) { best = mse; bestJ = j; bestReverse = rev; }
+                        }
+                        if (bestJ >= 0) {
+                            SeamRef b = seamList.get(bestJ);
+                            // accept if within epsilon (mean squared distance <= eps^2)
+                            if (best <= (double) stitchEps * stitchEps) {
+                                int seamThick = Math.min(a.patch.thick, b.patch.thick);
+                                stitchEdgeResampled(out, ctx, curOrigin, a.patch, a.edge, b.patch, b.edge, bestReverse,
+                                        seamThick, matDef, (stitchSamples > 0) ? stitchSamples : -1, stitchResample, capWidthDef, capMatDef);
+                                used.add(ka);
+                                long kb = (((long) b.patch.hashCode()) << 8) ^ b.edge.ordinal();
+                                used.add(kb);
+                            }
+                        }
+                    }
+                }
+
+                // Derive adjacency from grid topology if provided.
+                Object gridObj = null;
+                Object topo = op.get("topology");
+                if (topo instanceof Map<?, ?> tm) gridObj = tm.get("grid");
+                if (gridObj == null) gridObj = op.get("grid"); // legacy
+
+                // Explicit links topology (non-grid): stitch declared edges.
+                if (topo instanceof Map<?, ?> tm2 && tm2.get("links") instanceof List<?> links) {
+                    for (int li = 0; li < links.size(); li++) {
+                        Object lo = links.get(li);
+                        if (!(lo instanceof Map<?, ?> lm)) continue;
+                        String aId = str(lm.get("a"), str(lm.get("from"), "")).trim();
+                        String bId = str(lm.get("b"), str(lm.get("to"), "")).trim();
+                        String eaS = str(lm.get("ea"), str(lm.get("edgeA"), str(lm.get("fromEdge"), ""))).trim().toUpperCase(Locale.ROOT);
+                        String ebS = str(lm.get("eb"), str(lm.get("edgeB"), str(lm.get("toEdge"), ""))).trim().toUpperCase(Locale.ROOT);
+                        PatchData a = resolvePatch(byId, patches, aId);
+                        PatchData b = resolvePatch(byId, patches, bId);
+                        if (a == null || b == null) continue;
+                        Edge ea = parseEdge(eaS);
+                        Edge eb = parseEdge(ebS);
+                        if (ea == null || eb == null) continue;
+
+                        int linkEps = clamp(i(lm.get("epsilon"), i(lm.get("stitchEpsilon"), stitchEps)), 0, 64);
+                        int linkSamples = clamp(i(lm.get("samples"), i(lm.get("stitchSamples"), stitchSamples)), -1, 512);
+                        String linkMode = str(lm.get("resampleMode"), str(lm.get("stitchResampleMode"), stitchResampleMode)).trim().toUpperCase(Locale.ROOT);
+                        boolean linkResample = linkMode.isBlank() || linkMode.equals("RESAMPLE") || linkMode.equals("AUTO");
+                        int linkThick = clamp(i(lm.get("thickness"), Math.min(a.thick, b.thick)), 1, 9);
+
+                        // T-junction / partial edge stitching: optional sub-range mapping on edges (0..1).
+                        double[] ar = parseRange01(lm.get("aRange"), lm.get("a_range"), lm.get("fromRange"));
+                        double[] br = parseRange01(lm.get("bRange"), lm.get("b_range"), lm.get("toRange"));
+                        double a0t = (ar != null) ? ar[0] : 0.0;
+                        double a1t = (ar != null) ? ar[1] : 1.0;
+                        double b0t = (br != null) ? br[0] : 0.0;
+                        double b1t = (br != null) ? br[1] : 1.0;
+
+                        // Determine orientation via endpoint distance (same as stitchEdge) + optional epsilon gate.
+                        int[] a0 = edgePointAtRange(a, ea, 0.0, a0t, a1t);
+                        int[] a1 = edgePointAtRange(a, ea, 1.0, a0t, a1t);
+                        int[] b0 = edgePointAtRange(b, eb, 0.0, b0t, b1t);
+                        int[] b1 = edgePointAtRange(b, eb, 1.0, b0t, b1t);
+                        boolean reverse = (dist2(a0, b1) + dist2(a1, b0)) < (dist2(a0, b0) + dist2(a1, b1));
+                        if (linkEps > 0) {
+                            double n = (linkSamples > 0) ? linkSamples : 64;
+                            double mse = edgeMseRange(a, ea, a0t, a1t, b, eb, b0t, b1t, reverse, (int) n, linkResample);
+                            if (mse > (double) linkEps * linkEps) continue;
+                        }
+                        int linkCapW = clamp(i(lm.get("capWidth"), i(lm.get("cap_width"), capWidthDef)), 0, 9);
+                        BlockState linkCapMat = (lm.get("capMaterial") != null)
+                                ? pick(ctx, lm, "capMaterial", "FACADE_TRIM", 0xBEEF1202L ^ (li * 1315423911), capMatDef)
+                                : capMatDef;
+                        stitchEdgeResampledRange(out, ctx, curOrigin, a, ea, a0t, a1t, b, eb, b0t, b1t, reverse, linkThick, matDef,
+                                (linkSamples > 0) ? linkSamples : -1, linkResample, linkCapW, linkCapMat);
+                    }
+                }
+
+                if (gridObj instanceof List<?> rows && !rows.isEmpty()) {
+                    java.util.ArrayList<java.util.ArrayList<String>> ids = new java.util.ArrayList<>();
+                    for (Object ro : rows) {
+                        if (!(ro instanceof List<?> row)) continue;
+                        java.util.ArrayList<String> rr = new java.util.ArrayList<>();
+                        for (Object cell : row) rr.add(String.valueOf(cell).trim());
+                        ids.add(rr);
+                    }
+                    // grid[row][col] neighbors:
+                    // - right: A.U1 <-> B.U0
+                    // - down:  A.V1 <-> B.V0
+                    for (int r = 0; r < ids.size(); r++) {
+                        for (int c = 0; c < ids.get(r).size(); c++) {
+                            String aId = ids.get(r).get(c);
+                            PatchData a = resolvePatch(byId, patches, aId);
+                            if (a == null) continue;
+                            if (c + 1 < ids.get(r).size()) {
+                                PatchData b = resolvePatch(byId, patches, ids.get(r).get(c + 1));
+                                if (b != null) stitchEdge(out, ctx, curOrigin, a, Edge.U1, b, Edge.U0, Math.min(a.thick, b.thick), matDef, capWidthDef, capMatDef);
+                            }
+                            if (r + 1 < ids.size() && c < ids.get(r + 1).size()) {
+                                PatchData b = resolvePatch(byId, patches, ids.get(r + 1).get(c));
+                                if (b != null) stitchEdge(out, ctx, curOrigin, a, Edge.V1, b, Edge.V0, Math.min(a.thick, b.thick), matDef, capWidthDef, capMatDef);
+                            }
+                        }
+                    }
+                }
+            }
             case "REVOLVE_SURFACE" -> {
                 // Surface of revolution (P0): revolve a 2D profile around the Y axis.
                 //
@@ -2864,6 +3089,49 @@ public final class MetaAssemblyEngine {
         return new double[]{b0, b1, b2, b3};
     }
 
+    private static int[][][] sampleBezierSurface(List<int[]> ctrl, int uN, int vN) {
+        int[][][] grid = new int[uN + 1][vN + 1][3];
+        for (int iu = 0; iu <= uN; iu++) {
+            double u = iu / (double) uN;
+            double[] Bu = bezierBasis3(u);
+            for (int iv = 0; iv <= vN; iv++) {
+                double v = iv / (double) vN;
+                double[] Bv = bezierBasis3(v);
+                double x = 0, y = 0, z = 0;
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        double w = Bu[i] * Bv[j];
+                        int[] p = ctrl.get(i * 4 + j);
+                        x += p[0] * w;
+                        y += p[1] * w;
+                        z += p[2] * w;
+                    }
+                }
+                grid[iu][iv][0] = (int) Math.round(x);
+                grid[iu][iv][1] = (int) Math.round(y);
+                grid[iu][iv][2] = (int) Math.round(z);
+            }
+        }
+        return grid;
+    }
+
+    private static void connectSurfaceGrid(List<PlannedBlock> out, Context ctx, BlockPos origin,
+                                           int[][][] grid, int uN, int vN, int thick, BlockState mat) {
+        for (int iu = 0; iu <= uN; iu++) {
+            for (int iv = 0; iv <= vN; iv++) {
+                int x = grid[iu][iv][0], y = grid[iu][iv][1], z = grid[iu][iv][2];
+                if (iu + 1 <= uN) {
+                    int[] b = grid[iu + 1][iv];
+                    placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                }
+                if (iv + 1 <= vN) {
+                    int[] b = grid[iu][iv + 1];
+                    placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                }
+            }
+        }
+    }
+
     private static List<int[]> readBezierControlPoints(Object ptsObj) {
         // Accept:
         // - flat list of 16 point maps: [{x,y,z}...]
@@ -2888,6 +3156,246 @@ public final class MetaAssemblyEngine {
         }
         if (out.size() != 16) return null;
         return out;
+    }
+
+    private enum Edge { U0, U1, V0, V1 }
+
+    private static final class PatchData {
+        @SuppressWarnings("unused")
+        final String id;
+        final int uN, vN;
+        final int thick;
+        @SuppressWarnings("unused")
+        final BlockState mat;
+        final int[][][] grid; // [u][v][xyz]
+        PatchData(String id, int uN, int vN, int thick, BlockState mat, int[][][] grid) {
+            this.id = id;
+            this.uN = uN;
+            this.vN = vN;
+            this.thick = thick;
+            this.mat = mat;
+            this.grid = grid;
+        }
+    }
+
+    private static final class SeamRef {
+        final PatchData patch;
+        final Edge edge;
+        SeamRef(PatchData patch, Edge edge) { this.patch = patch; this.edge = edge; }
+    }
+
+    private static PatchData resolvePatch(java.util.HashMap<String, PatchData> byId, java.util.ArrayList<PatchData> patches, String key) {
+        if (key == null) return null;
+        String k = key.trim();
+        if (k.isEmpty()) return null;
+        PatchData by = byId.get(k);
+        if (by != null) return by;
+        // allow numeric index
+        try {
+            int idx = Integer.parseInt(k);
+            if (idx >= 0 && idx < patches.size()) return patches.get(idx);
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private static int[] edgePoint(PatchData p, Edge e, int i) {
+        return switch (e) {
+            case U0 -> p.grid[0][i];
+            case U1 -> p.grid[p.uN][i];
+            case V0 -> p.grid[i][0];
+            case V1 -> p.grid[i][p.vN];
+        };
+    }
+
+    private static int edgeCount(PatchData p, Edge e) {
+        return (e == Edge.U0 || e == Edge.U1) ? (p.vN + 1) : (p.uN + 1);
+    }
+
+    private static long dist2(int[] a, int[] b) {
+        long dx = (long) a[0] - b[0];
+        long dy = (long) a[1] - b[1];
+        long dz = (long) a[2] - b[2];
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static String edgeSignature(PatchData p, Edge e, boolean reverse) {
+        int n = edgeCount(p, e);
+        StringBuilder sb = new StringBuilder(n * 12);
+        if (!reverse) {
+            for (int i = 0; i < n; i++) sb.append(packXYZ(edgePoint(p, e, i)[0], edgePoint(p, e, i)[1], edgePoint(p, e, i)[2])).append(';');
+        } else {
+            for (int i = n - 1; i >= 0; i--) sb.append(packXYZ(edgePoint(p, e, i)[0], edgePoint(p, e, i)[1], edgePoint(p, e, i)[2])).append(';');
+        }
+        return sb.toString();
+    }
+
+    private static void stitchEdge(List<PlannedBlock> out, Context ctx, BlockPos origin,
+                                   PatchData a, Edge ea, PatchData b, Edge eb,
+                                   int thick, BlockState mat,
+                                   int capWidth, BlockState capMat) {
+        int nA = edgeCount(a, ea);
+        int nB = edgeCount(b, eb);
+        int n = Math.min(nA, nB);
+        if (n < 2) return;
+        int[] a0 = edgePoint(a, ea, 0);
+        int[] a1 = edgePoint(a, ea, n - 1);
+        int[] b0 = edgePoint(b, eb, 0);
+        int[] b1 = edgePoint(b, eb, n - 1);
+        boolean reverse = (dist2(a0, b1) + dist2(a1, b0)) < (dist2(a0, b0) + dist2(a1, b1));
+        for (int i = 0; i < n; i++) {
+            int j = reverse ? (n - 1 - i) : i;
+            int[] pa = edgePoint(a, ea, i);
+            int[] pb = edgePoint(b, eb, j);
+            placeBeamLine(out, ctx, origin, pa[0], pa[1], pa[2], pb[0], pb[1], pb[2], thick, 1, mat);
+            if (capWidth > 0 && capMat != null) {
+                int mx = (int) Math.round((pa[0] + pb[0]) / 2.0);
+                int my = (int) Math.round((pa[1] + pb[1]) / 2.0);
+                int mz = (int) Math.round((pa[2] + pb[2]) / 2.0);
+                placePrism(out, ctx, origin, mx, my, mz, capWidth, 1, capMat);
+            }
+        }
+    }
+
+    private static double edgeMse(PatchData a, Edge ea, PatchData b, Edge eb, boolean reverse, int n, boolean resample) {
+        if (n < 2) n = 2;
+        double sum = 0.0;
+        for (int i = 0; i < n; i++) {
+            double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
+            int[] pa = resample ? edgePointAt(a, ea, t) : edgePoint(a, ea, clamp((int) Math.round(t * (edgeCount(a, ea) - 1)), 0, edgeCount(a, ea) - 1));
+            double tt = reverse ? (1.0 - t) : t;
+            int[] pb = resample ? edgePointAt(b, eb, tt) : edgePoint(b, eb, clamp((int) Math.round(tt * (edgeCount(b, eb) - 1)), 0, edgeCount(b, eb) - 1));
+            sum += dist2(pa, pb);
+        }
+        return sum / n;
+    }
+
+    private static double edgeMseRange(PatchData a, Edge ea, double a0, double a1,
+                                       PatchData b, Edge eb, double b0, double b1,
+                                       boolean reverse, int n, boolean resample) {
+        if (n < 2) n = 2;
+        double sum = 0.0;
+        for (int i = 0; i < n; i++) {
+            double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
+            int[] pa = edgePointAtRange(a, ea, t, a0, a1);
+            double tt = reverse ? (1.0 - t) : t;
+            int[] pb = edgePointAtRange(b, eb, tt, b0, b1);
+            if (!resample) {
+                // if not resampling, snap to nearest discrete sample on each edge
+                pa = edgePoint(a, ea, clamp((int) Math.round(t * (edgeCount(a, ea) - 1)), 0, edgeCount(a, ea) - 1));
+                pb = edgePoint(b, eb, clamp((int) Math.round(tt * (edgeCount(b, eb) - 1)), 0, edgeCount(b, eb) - 1));
+            }
+            sum += dist2(pa, pb);
+        }
+        return sum / n;
+    }
+
+    private static int[] edgePointAt(PatchData p, Edge e, double t) {
+        int n = edgeCount(p, e);
+        if (n <= 1) return edgePoint(p, e, 0);
+        double idx = t * (n - 1);
+        int i0 = clamp((int) Math.floor(idx), 0, n - 1);
+        int i1 = clamp(i0 + 1, 0, n - 1);
+        double a = idx - i0;
+        int[] p0 = edgePoint(p, e, i0);
+        int[] p1 = edgePoint(p, e, i1);
+        int x = (int) Math.round(lerp(p0[0], p1[0], a));
+        int y = (int) Math.round(lerp(p0[1], p1[1], a));
+        int z = (int) Math.round(lerp(p0[2], p1[2], a));
+        return new int[]{x, y, z};
+    }
+
+    private static int[] edgePointAtRange(PatchData p, Edge e, double t, double t0, double t1) {
+        double a = Math.min(t0, t1);
+        double b = Math.max(t0, t1);
+        a = Math.max(0.0, Math.min(1.0, a));
+        b = Math.max(0.0, Math.min(1.0, b));
+        double tt = a + (b - a) * t;
+        return edgePointAt(p, e, tt);
+    }
+
+    private static void stitchEdgeResampled(List<PlannedBlock> out, Context ctx, BlockPos origin,
+                                           PatchData a, Edge ea, PatchData b, Edge eb, boolean reverse,
+                                           int thick, BlockState mat, int stitchSamples, boolean resample,
+                                           int capWidth, BlockState capMat) {
+        int nA = edgeCount(a, ea);
+        int nB = edgeCount(b, eb);
+        int n = (stitchSamples > 0) ? stitchSamples : Math.max(8, Math.min(128, Math.max(nA, nB)));
+        if (!resample) n = Math.min(n, Math.min(nA, nB));
+        if (n < 2) return;
+        for (int i = 0; i < n; i++) {
+            double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
+            int[] pa = resample ? edgePointAt(a, ea, t) : edgePoint(a, ea, i);
+            double tt = reverse ? (1.0 - t) : t;
+            int[] pb = resample ? edgePointAt(b, eb, tt) : edgePoint(b, eb, i);
+            placeBeamLine(out, ctx, origin, pa[0], pa[1], pa[2], pb[0], pb[1], pb[2], thick, 1, mat);
+            if (capWidth > 0 && capMat != null) {
+                int mx = (int) Math.round((pa[0] + pb[0]) / 2.0);
+                int my = (int) Math.round((pa[1] + pb[1]) / 2.0);
+                int mz = (int) Math.round((pa[2] + pb[2]) / 2.0);
+                placePrism(out, ctx, origin, mx, my, mz, capWidth, 1, capMat);
+            }
+        }
+    }
+
+    private static void stitchEdgeResampledRange(List<PlannedBlock> out, Context ctx, BlockPos origin,
+                                                 PatchData a, Edge ea, double a0, double a1,
+                                                 PatchData b, Edge eb, double b0, double b1,
+                                                 boolean reverse,
+                                                 int thick, BlockState mat, int stitchSamples, boolean resample,
+                                                 int capWidth, BlockState capMat) {
+        int nA = edgeCount(a, ea);
+        int nB = edgeCount(b, eb);
+        int n = (stitchSamples > 0) ? stitchSamples : Math.max(8, Math.min(128, Math.max(nA, nB)));
+        if (n < 2) return;
+        for (int i = 0; i < n; i++) {
+            double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
+            int[] pa = edgePointAtRange(a, ea, t, a0, a1);
+            double tt = reverse ? (1.0 - t) : t;
+            int[] pb = edgePointAtRange(b, eb, tt, b0, b1);
+            if (!resample) {
+                pa = edgePoint(a, ea, clamp((int) Math.round(t * (edgeCount(a, ea) - 1)), 0, edgeCount(a, ea) - 1));
+                pb = edgePoint(b, eb, clamp((int) Math.round(tt * (edgeCount(b, eb) - 1)), 0, edgeCount(b, eb) - 1));
+            }
+            placeBeamLine(out, ctx, origin, pa[0], pa[1], pa[2], pb[0], pb[1], pb[2], thick, 1, mat);
+            if (capWidth > 0 && capMat != null) {
+                int mx = (int) Math.round((pa[0] + pb[0]) / 2.0);
+                int my = (int) Math.round((pa[1] + pb[1]) / 2.0);
+                int mz = (int) Math.round((pa[2] + pb[2]) / 2.0);
+                placePrism(out, ctx, origin, mx, my, mz, capWidth, 1, capMat);
+            }
+        }
+    }
+
+    private static Edge parseEdge(String s) {
+        if (s == null) return null;
+        String t = s.trim().toUpperCase(Locale.ROOT);
+        if (t.isEmpty()) return null;
+        // allow synonyms: LEFT/RIGHT/TOP/BOTTOM
+        return switch (t) {
+            case "U0", "LEFT", "WEST" -> Edge.U0;
+            case "U1", "RIGHT", "EAST" -> Edge.U1;
+            case "V0", "TOP", "NORTH" -> Edge.V0;
+            case "V1", "BOTTOM", "SOUTH" -> Edge.V1;
+            default -> null;
+        };
+    }
+
+    private static double[] parseRange01(Object v0, Object v1, Object v2) {
+        Object v = (v0 != null) ? v0 : (v1 != null ? v1 : v2);
+        if (v == null) return null;
+        if (!(v instanceof List<?> list) || list.size() < 2) return null;
+        Double a = doubleOrNull(list.get(0));
+        Double b = doubleOrNull(list.get(1));
+        if (a == null || b == null) return null;
+        return new double[]{a, b};
+    }
+
+    private static Double doubleOrNull(Object v) {
+        try {
+            if (v instanceof Number n) return n.doubleValue();
+            if (v != null) return Double.parseDouble(String.valueOf(v).trim());
+        } catch (Exception ignored) {}
+        return null;
     }
 
     private static final class LoftSection {

@@ -145,6 +145,13 @@ public final class AssemblySpecValidator {
                     "uSamples", "vSamples", "u", "v",
                     // loft / revolve
                     "sections", "segments", "angleDeg", "angle",
+                    // bezier surface set
+                    "patches", "grid", "topology", "stitch",
+                    "stitchEpsilon", "stitch_eps",
+                    "stitchSamples", "stitch_samples",
+                    "stitchResampleMode", "stitch_resample_mode",
+                    "capWidth", "cap_width",
+                    "capMaterial", "cap_material",
                     "r", "radius", "r0", "r1", "radius0", "radius1",
                     "hollow", "thickness", "samplesPerBlock",
                     // openings
@@ -314,6 +321,111 @@ public final class AssemblySpecValidator {
                     out.add(err(p + ".connectSamples", "E_BOOL_TYPE", "connectSamples 必须是布尔"));
                 }
                 if (m.get("connectMaxStep") != null) requireIntMin(out, p, m, "connectMaxStep", 1);
+            }
+            if (op.equals("BEZIER_SURFACE_SET")) {
+                Object patches = m.get("patches");
+                if (!(patches instanceof List<?> pl) || pl.isEmpty()) {
+                    out.add(err(p + ".patches", "E_BEZIER_SET_PATCHES", "BEZIER_SURFACE_SET.patches 必须是数组且非空"));
+                } else {
+                    for (int pi = 0; pi < pl.size(); pi++) {
+                        Object it2 = pl.get(pi);
+                        String pp = p + ".patches[" + pi + "]";
+                        if (!(it2 instanceof Map<?, ?> pm)) {
+                            out.add(err(pp, "E_BEZIER_SET_PATCH_NOT_OBJECT", "patch 条目必须是对象（map）"));
+                            continue;
+                        }
+                        warnUnknownKeys(out, pp, pm, java.util.Set.of(
+                                "id",
+                                "at", "x", "y", "z",
+                                "points",
+                                "uSamples", "vSamples", "u", "v",
+                                "thickness",
+                                "material",
+                                "connectSamples"
+                        ));
+                        // points must be 16 points or 4x4 grid
+                        Object pts = pm.get("points");
+                        if (!(pts instanceof List<?>)) out.add(err(pp + ".points", "E_BEZIER_POINTS_MISSING", "patch.points 必须是数组（16 点或 4x4 网格）"));
+                        // at
+                        Object at = pm.get("at");
+                        if (at != null && !(at instanceof Map<?, ?>)) out.add(err(pp + ".at", "E_BEZIER_SET_AT_TYPE", "at 必须是对象（map）"));
+                        // optional ints
+                        if (pm.get("uSamples") != null || pm.get("u") != null) requireIntMin(out, pp, pm, "uSamples", 2);
+                        if (pm.get("vSamples") != null || pm.get("v") != null) requireIntMin(out, pp, pm, "vSamples", 2);
+                        if (pm.get("thickness") != null) requireIntMin(out, pp, pm, "thickness", 1);
+                        if (pm.get("connectSamples") != null && !(pm.get("connectSamples") instanceof Boolean)) {
+                            out.add(err(pp + ".connectSamples", "E_BOOL_TYPE", "connectSamples 必须是布尔"));
+                        }
+                    }
+                }
+                if (m.get("uSamples") != null || m.get("u") != null) requireIntMin(out, p, m, "uSamples", 2);
+                if (m.get("vSamples") != null || m.get("v") != null) requireIntMin(out, p, m, "vSamples", 2);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("connectSamples") != null && !(m.get("connectSamples") instanceof Boolean)) {
+                    out.add(err(p + ".connectSamples", "E_BOOL_TYPE", "connectSamples 必须是布尔"));
+                }
+                if (m.get("stitch") != null && !(m.get("stitch") instanceof Boolean)) {
+                    out.add(err(p + ".stitch", "E_BOOL_TYPE", "stitch 必须是布尔"));
+                }
+                if (m.get("stitchEpsilon") != null || m.get("stitch_eps") != null) requireIntMin(out, p, m, "stitchEpsilon", 0);
+                if (m.get("stitchSamples") != null || m.get("stitch_samples") != null) requireIntMin(out, p, m, "stitchSamples", 2);
+                if (m.get("stitchResampleMode") != null || m.get("stitch_resample_mode") != null) {
+                    String mode = str(m.get("stitchResampleMode"), str(m.get("stitch_resample_mode"), "")).trim().toUpperCase(Locale.ROOT);
+                    if (!mode.isEmpty() && !(mode.equals("RESAMPLE") || mode.equals("NONE") || mode.equals("AUTO"))) {
+                        out.add(warn(p + ".stitchResampleMode", "W_BEZIER_SET_RESAMPLE_MODE", "stitchResampleMode 建议 RESAMPLE/NONE/AUTO（当前=" + mode + "）"));
+                    }
+                }
+                if (m.get("capWidth") != null || m.get("cap_width") != null) requireIntMin(out, p, m, "capWidth", 0);
+                // topology.grid or legacy grid
+                Object grid = m.get("grid");
+                Object topo = m.get("topology");
+                if (topo instanceof Map<?, ?> tm && tm.get("grid") != null) grid = tm.get("grid");
+                if (grid != null && !(grid instanceof List<?>)) {
+                    out.add(err(p + ".topology.grid", "E_BEZIER_SET_GRID_TYPE", "grid 必须是二维数组"));
+                }
+                if (topo instanceof Map<?, ?> tm2 && tm2.get("links") != null && !(tm2.get("links") instanceof List<?>)) {
+                    out.add(err(p + ".topology.links", "E_BEZIER_SET_LINKS_TYPE", "topology.links 必须是数组"));
+                }
+                if (topo instanceof Map<?, ?> tm3 && tm3.get("links") instanceof List<?> links) {
+                    for (int li = 0; li < links.size(); li++) {
+                        Object lo = links.get(li);
+                        String lp = p + ".topology.links[" + li + "]";
+                        if (!(lo instanceof Map<?, ?> lm)) {
+                            out.add(err(lp, "E_BEZIER_SET_LINK_NOT_OBJECT", "links[] 条目必须是对象（map）"));
+                            continue;
+                        }
+                        warnUnknownKeys(out, lp, lm, java.util.Set.of(
+                                "a", "b", "ea", "eb",
+                                "from", "to", "fromEdge", "toEdge",
+                                "edgeA", "edgeB",
+                                "aRange", "a_range", "fromRange",
+                                "bRange", "b_range", "toRange",
+                                "epsilon", "stitchEpsilon",
+                                "samples", "stitchSamples",
+                                "resampleMode", "stitchResampleMode",
+                                "thickness",
+                                "capWidth", "cap_width",
+                                "capMaterial", "cap_material"
+                        ));
+                        if (lm.get("a") == null && lm.get("from") == null) out.add(err(lp + ".a", "E_BEZIER_SET_LINK_A", "link.a/from 缺失"));
+                        if (lm.get("b") == null && lm.get("to") == null) out.add(err(lp + ".b", "E_BEZIER_SET_LINK_B", "link.b/to 缺失"));
+                        Object ea = lm.get("ea");
+                        if (ea == null) ea = lm.get("edgeA");
+                        if (ea == null) ea = lm.get("fromEdge");
+                        Object eb = lm.get("eb");
+                        if (eb == null) eb = lm.get("edgeB");
+                        if (eb == null) eb = lm.get("toEdge");
+                        if (ea == null) out.add(err(lp + ".ea", "E_BEZIER_SET_LINK_EA", "link.ea 缺失"));
+                        if (eb == null) out.add(err(lp + ".eb", "E_BEZIER_SET_LINK_EB", "link.eb 缺失"));
+                        if (lm.get("epsilon") != null || lm.get("stitchEpsilon") != null) requireIntMin(out, lp, lm, "epsilon", 0);
+                        if (lm.get("samples") != null || lm.get("stitchSamples") != null) requireIntMin(out, lp, lm, "samples", 2);
+                        if (lm.get("thickness") != null) requireIntMin(out, lp, lm, "thickness", 1);
+                        if (lm.get("capWidth") != null || lm.get("cap_width") != null) requireIntMin(out, lp, lm, "capWidth", 0);
+
+                        validateRange01(out, lp + ".aRange", lm.get("aRange"), lm.get("a_range"), lm.get("fromRange"));
+                        validateRange01(out, lp + ".bRange", lm.get("bRange"), lm.get("b_range"), lm.get("toRange"));
+                    }
+                }
             }
             if (op.equals("REVOLVE_SURFACE")) {
                 Object profObj = m.get("profileRings");
@@ -1085,6 +1197,27 @@ public final class AssemblySpecValidator {
                 String type = str(c.get("type"), "CONNECTOR_LINE").trim().toUpperCase(Locale.ROOT);
                 validateTerrainAdaptation(out, p + ".terrainAdaptation", c.get("terrainAdaptation"), "CONNECTION:" + type);
             }
+        }
+    }
+
+    private static void validateRange01(List<AssemblyValidationIssue> out, String path, Object v0, Object v1, Object v2) {
+        Object v = (v0 != null) ? v0 : (v1 != null ? v1 : v2);
+        if (v == null) return;
+        if (!(v instanceof List<?> list) || list.size() < 2) {
+            out.add(err(path, "E_RANGE_TYPE", "range 必须是数组 [t0,t1]"));
+            return;
+        }
+        Double a = doubleOrNull(list.get(0));
+        Double b = doubleOrNull(list.get(1));
+        if (a == null || b == null) {
+            out.add(err(path, "E_RANGE_NUM", "range 必须是数字 [t0,t1]"));
+            return;
+        }
+        if (a < 0.0 || a > 1.0 || b < 0.0 || b > 1.0) {
+            out.add(warn(path, "W_RANGE_01", "range 建议在 0..1（当前=" + a + "," + b + "）"));
+        }
+        if (Math.abs(a - b) < 1e-9) {
+            out.add(warn(path, "W_RANGE_ZERO", "range 长度为 0，可能无法形成有效拼缝"));
         }
     }
 

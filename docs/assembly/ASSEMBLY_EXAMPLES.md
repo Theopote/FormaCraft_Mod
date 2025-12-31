@@ -170,6 +170,60 @@
 - `BEZIER_SURFACE.points`：**16 个控制点**（支持 4x4 网格写法）
 - `uSamples/vSamples`：曲面采样密度（越大越平滑，但方块量更高）
 - `connectSamples=true`：自动把相邻采样点用短梁连接，减少曲面“断点/漏风”
+
+## 示例二十六：连续面系统（REVOLVE_SURFACE：旋转面）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/revolve_surface_vase.json`
+
+- 2D 轮廓线 `profilePoints` 写在 (r,y) 平面（`x=r`，`y=y`），绕 Y 轴旋转生成壳体
+- `segments` 控制圆周采样密度；`angleDeg` 可做非 360° 的开口旋转
+
+## 示例二十七：连续面系统（LOFT_SURFACE：多截面放样）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/loft_surface_ribbon.json`
+
+- `sections[]`：每段提供 `at`（空间位置）+ `profilePoints`（2D 截面）
+- P0 约束：各段 `profilePoints` 点数需要一致（便于稳定训练/生成）
+
+## 示例二十八：多 patch 拼接（BEZIER_SURFACE_SET：共享边自动补缝 + 网格拓扑）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/bezier_surface_set_grid.json`
+
+- `patches[]`：每个 patch 一张 4x4 贝塞尔曲面片（`points`=16 控制点）
+- **共享边自动补缝**：当两张 patch 的边界采样点完全一致时，会自动 `stitch`（跨 patch 连边补缝）
+- `topology.grid`：可显式声明网格邻接（`["A","B"]` 相邻会按右/下方向强制补缝），同时兼容旧字段 `grid`
+
+## 示例二十九：多 patch 拼接（容差拼缝：stitchEpsilon + RESAMPLE）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/bezier_surface_set_epsilon.json`
+
+- 当两张 patch 的共享边**不完全一致**时，可用：
+  - `stitchEpsilon`：允许的误差半径（单位：方块）
+  - `stitchSamples`：拼缝采样点数（越高越稳但更慢）
+  - `stitchResampleMode=RESAMPLE`：对两条边做重采样对齐后再补缝
+
+## 示例三十：多 patch 拼接（显式拓扑：topology.links）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/bezier_surface_set_links.json`
+
+- `topology.links[]`：用 “边-边连接” 明确指定拼缝关系（适合非规则拓扑）
+  - `a/b`：patch id（也兼容 `from/to`）
+  - `ea/eb`：边名（支持 `U0/U1/V0/V1`，也支持 `LEFT/RIGHT/TOP/BOTTOM`）
+  - `epsilon/samples/resampleMode/thickness`：每条 link 的独立拼缝参数（覆盖 set-level 默认）
+
+## 示例三十一：多 patch 拼接（T-junction：子边段 aRange/bRange）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/bezier_surface_set_tjunction.json`
+
+- `aRange/bRange`：在 0..1 参数域里指定“只拼接边的一段”（用于 T-junction/分叉）
+  - 例：`aRange:[0.35,0.65]` 表示只取主边中间 30% 的子段与另一条边拼接
+
+## 示例三十二：多 patch 拼接（拼缝带/盖板：capWidth + capMaterial）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/bezier_surface_set_seam_cap.json`
+
+- `capWidth/capMaterial`：沿拼缝额外生成一条“遮缝带”（优先用于消除体素化的小漏缝）
+  - 可在 **op 级**设置默认值，也可在 `topology.links[]` **link 级覆盖**
 - `support`：简单支撑（P0：每步下方补一层承重块）
 
 ## 示例十二：古典（檐口/腰线/柱网：SURFACE_BANDS）
