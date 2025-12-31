@@ -8,6 +8,8 @@ import com.formacraft.server.assembly.validation.AssemblySpecValidator;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
 import com.formacraft.server.assembly.validation.AssemblySpecNormalizer;
 import com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult;
+import com.formacraft.server.assembly.macro.AssemblyMacroApplier;
+import com.formacraft.server.assembly.macro.AssemblyMacroApplyResult;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.server.world.ServerWorld;
@@ -37,8 +39,12 @@ public class MetaAssemblyGenerator implements StructureGenerator {
         AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assemblyObj);
         Object normalized = norm != null ? norm.normalized() : assemblyObj;
 
+        // Macro layer (high-level gene sliders -> low-level knobs). Explicit low-level params always win.
+        AssemblyMacroApplyResult macro = AssemblyMacroApplier.apply(normalized);
+        Object applied = macro != null ? macro.applied() : normalized;
+
         // Validate early for stable LLM output & better error messages.
-        List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(normalized);
+        List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
         long errCount = issues.stream().filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR).count();
         if (errCount > 0) {
             StringBuilder sb = new StringBuilder("MetaAssembly (validation failed): ");
@@ -53,10 +59,10 @@ public class MetaAssemblyGenerator implements StructureGenerator {
             return new GeneratedStructure(null, origin, sb.toString(), List.of());
         }
 
-        AssemblySpec as = AssemblySpec.fromExtra(normalized);
+        AssemblySpec as = AssemblySpec.fromExtra(applied);
         if (as == null || as.ops.isEmpty()) {
             // allow higher-level graph/components form
-            AssemblySpec compiled = MetaAssemblyCompiler.compile(normalized);
+            AssemblySpec compiled = MetaAssemblyCompiler.compile(applied);
             if (compiled != null) as = compiled;
         }
         if (as == null) {

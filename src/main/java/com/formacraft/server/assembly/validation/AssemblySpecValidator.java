@@ -1,5 +1,7 @@
 package com.formacraft.server.assembly.validation;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -31,9 +33,17 @@ public final class AssemblySpecValidator {
         // Root unknown-key warnings (training-friendly)
         warnUnknownKeys(out, "$", root, Set.of(
                 "paletteId", "entranceFacing",
+                "macro",
                 "ops",
                 "graph", "components", "connections"
         ));
+        // macro validation (P0)
+        Object macroObj = root.get("macro");
+        if (macroObj instanceof Map<?, ?> mm) {
+            validateMacro(out, "$.macro", mm);
+        } else if (macroObj != null) {
+            out.add(err("$.macro", "E_MACRO_TYPE", "macro 必须是对象（map）"));
+        }
 
         // ops form
         Object opsObj = root.get("ops");
@@ -82,6 +92,34 @@ public final class AssemblySpecValidator {
                     "x0", "x1", "y0", "y1", "z0", "z1",
                     // materials
                     "material", "wall", "roof", "slab", "floor", "window", "fill", "frame", "accent", "air",
+                    // truss
+                    "chord", "web", "joint", "pattern", "module", "step",
+                    // arch rib
+                    "from", "to", "rise", "sagitta", "samples", "steps",
+                    // buttress
+                    "rib", "pier", "pierDown", "pier_down",
+                    // cable
+                    "sag", "droop",
+                    "hangersEvery", "hangerEvery",
+                    "hangersToY", "hangerToY",
+                    "hangersMaterial",
+                    "cableCount", "count",
+                    "cableSpacing", "spacing",
+                    "cableAxis",
+                    // anchoring / anchorage
+                    "yBase",
+                    "maxDepth", "anchorDepth",
+                    "stopOnSolid",
+                    "allowWaterEdit", "allowLavaEdit",
+                    "solid",
+                    "carve",
+                    // anchorage detailing
+                    "topBevel", "top_bevel", "bevel",
+                    "guardWallHeight", "guard_wall_height", "parapetHeight",
+                    "guardWallInset", "guard_wall_inset",
+                    "guardWallCrenels", "guard_wall_crenels", "crenels",
+                    "guardWallMaterial", "guardWall",
+                    "holes", "cableHoles",
                     // generic knobs
                     "type", "kind", "face", "faces",
                     "w", "d", "h", "width", "depth", "height",
@@ -175,6 +213,105 @@ public final class AssemblySpecValidator {
                 }
                 if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
                 if (m.get("h") != null || m.get("height") != null) requireIntMin(out, p, m, "h", 1);
+            }
+            if (op.equals("TRUSS_2D")) {
+                validatePointRefXYZ(out, p + ".from", m.get("from"), "E_TRUSS_FROM_MISSING");
+                validatePointRefXYZ(out, p + ".to", m.get("to"), "E_TRUSS_TO_MISSING");
+                if (m.get("height") != null || m.get("h") != null) requireIntMin(out, p, m, "height", 1);
+                if (m.get("module") != null || m.get("step") != null) requireIntMin(out, p, m, "module", 1);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("pattern") != null) {
+                    String pat = String.valueOf(m.get("pattern")).trim().toUpperCase(Locale.ROOT);
+                    if (!pat.isEmpty() && !(pat.contains("WARREN") || pat.contains("PRATT") || pat.contains("HOWE"))) {
+                        out.add(warn(p + ".pattern", "W_TRUSS_PATTERN_VALUE", "TRUSS_2D.pattern 建议使用 WARREN/PRATT/HOWE（当前=" + pat + "）"));
+                    }
+                }
+            }
+            if (op.equals("ARCH_RIB")) {
+                validatePointRefXYZ(out, p + ".from", m.get("from"), "E_ARCH_FROM_MISSING");
+                validatePointRefXYZ(out, p + ".to", m.get("to"), "E_ARCH_TO_MISSING");
+                if (m.get("rise") != null || m.get("sagitta") != null) requireIntMin(out, p, m, "rise", 1);
+                if (m.get("samples") != null || m.get("steps") != null) requireIntMin(out, p, m, "samples", 2);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+            }
+            if (op.equals("BUTTRESS")) {
+                validatePointRefXYZ(out, p + ".from", m.get("from"), "E_BUTTRESS_FROM_MISSING");
+                validatePointRefXYZ(out, p + ".to", m.get("to"), "E_BUTTRESS_TO_MISSING");
+                if (m.get("rise") != null || m.get("sagitta") != null) requireIntMin(out, p, m, "rise", 1);
+                if (m.get("samples") != null || m.get("steps") != null) requireIntMin(out, p, m, "samples", 2);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("pierDown") != null || m.get("pier_down") != null) requireIntMin(out, p, m, "pierDown", 0);
+            }
+            if (op.equals("TENSION_CABLE")) {
+                validatePointRefXYZ(out, p + ".from", m.get("from"), "E_CABLE_FROM_MISSING");
+                validatePointRefXYZ(out, p + ".to", m.get("to"), "E_CABLE_TO_MISSING");
+                if (m.get("sag") != null || m.get("droop") != null) requireIntMin(out, p, m, "sag", 1);
+                if (m.get("samples") != null || m.get("steps") != null) requireIntMin(out, p, m, "samples", 2);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("hangersEvery") != null || m.get("hangerEvery") != null) requireIntMin(out, p, m, "hangersEvery", 1);
+                if (m.get("hangersToY") != null || m.get("hangerToY") != null) {
+                    if (intOrNull(m.get("hangersToY")) == null && intOrNull(m.get("hangerToY")) == null) {
+                        out.add(err(p + ".hangersToY", "E_INT_TYPE", "hangersToY 必须是整数"));
+                    }
+                }
+                if (m.get("cableCount") != null || m.get("count") != null) requireIntMin(out, p, m, "cableCount", 1);
+                if (m.get("cableSpacing") != null || m.get("spacing") != null) requireIntMin(out, p, m, "cableSpacing", 1);
+                if (m.get("cableAxis") != null) {
+                    String ax = String.valueOf(m.get("cableAxis")).trim().toUpperCase(Locale.ROOT);
+                    if (!ax.isEmpty() && !(ax.equals("AUTO") || ax.equals("X") || ax.equals("Z"))) {
+                        out.add(warn(p + ".cableAxis", "W_CABLE_AXIS_VALUE", "cableAxis 建议使用 AUTO/X/Z（当前=" + m.get("cableAxis") + "）"));
+                    }
+                }
+            }
+            if (op.equals("ANCHOR_FOOTPRINT")) {
+                if (m.get("x0") == null || m.get("x1") == null || m.get("z0") == null || m.get("z1") == null) {
+                    out.add(err(p, "E_ANCHOR_FOOTPRINT_BOUNDS", "ANCHOR_FOOTPRINT 需要 x0/x1/z0/z1"));
+                }
+                if (m.get("yBase") != null && intOrNull(m.get("yBase")) == null) {
+                    out.add(err(p + ".yBase", "E_INT_TYPE", "yBase 必须是整数"));
+                }
+                if (m.get("maxDepth") != null || m.get("anchorDepth") != null) requireIntMin(out, p, m, "maxDepth", 0);
+            }
+            if (op.equals("ANCHORAGE")) {
+                if (m.get("w") != null || m.get("width") != null) requireIntMin(out, p, m, "w", 1);
+                if (m.get("d") != null || m.get("depth") != null) requireIntMin(out, p, m, "d", 1);
+                if (m.get("h") != null || m.get("height") != null) requireIntMin(out, p, m, "h", 1);
+                if (m.get("yBase") != null && intOrNull(m.get("yBase")) == null) {
+                    out.add(err(p + ".yBase", "E_INT_TYPE", "yBase 必须是整数"));
+                }
+                if (m.get("maxDepth") != null || m.get("anchorDepth") != null) requireIntMin(out, p, m, "maxDepth", 0);
+                if (m.get("topBevel") != null || m.get("top_bevel") != null || m.get("bevel") != null) requireIntMin(out, p, m, "topBevel", 0);
+                if (m.get("guardWallHeight") != null || m.get("guard_wall_height") != null || m.get("parapetHeight") != null) requireIntMin(out, p, m, "guardWallHeight", 0);
+                if (m.get("guardWallInset") != null || m.get("guard_wall_inset") != null) requireIntMin(out, p, m, "guardWallInset", 0);
+                Object holes = m.get("holes");
+                if (holes == null) holes = m.get("cableHoles");
+                if (holes != null && !(holes instanceof List<?>)) {
+                    out.add(err(p + ".holes", "E_HOLES_TYPE", "holes/cableHoles 必须是数组"));
+                }
+                if (holes instanceof List<?> list) {
+                    for (int hi = 0; hi < list.size(); hi++) {
+                        Object holeIt = list.get(hi);
+                        String hp = p + ".holes[" + hi + "]";
+                        if (!(holeIt instanceof Map<?, ?> hm)) {
+                            out.add(err(hp, "E_HOLE_NOT_OBJECT", "hole 必须是对象"));
+                            continue;
+                        }
+                        Object face = hm.get("face");
+                        if (face != null) {
+                            String s = String.valueOf(face).trim().toUpperCase(Locale.ROOT);
+                            if (!(s.equals("NORTH") || s.equals("SOUTH") || s.equals("EAST") || s.equals("WEST"))) {
+                                out.add(warn(hp + ".face", "W_HOLE_FACE_VALUE", "hole.face 建议使用 NORTH/SOUTH/EAST/WEST（当前=" + face + "）"));
+                            }
+                        } else {
+                            out.add(warn(hp + ".face", "W_HOLE_FACE_MISSING", "hole 建议提供 face（NORTH/SOUTH/EAST/WEST）"));
+                        }
+                        if (hm.get("r") != null || hm.get("radius") != null) requireIntMin(out, hp, hm, "r", 1);
+                        if (hm.get("len") != null || hm.get("length") != null) requireIntMin(out, hp, hm, "len", 1);
+                        if (hm.get("y") != null && intOrNull(hm.get("y")) == null) out.add(err(hp + ".y", "E_INT_TYPE", "hole.y 必须是整数"));
+                        if (hm.get("x") != null && intOrNull(hm.get("x")) == null) out.add(err(hp + ".x", "E_INT_TYPE", "hole.x 必须是整数"));
+                        if (hm.get("z") != null && intOrNull(hm.get("z")) == null) out.add(err(hp + ".z", "E_INT_TYPE", "hole.z 必须是整数"));
+                    }
+                }
             }
             if (op.equals("PATH_ROUTE") || op.equals("WALL_ROUTE") || op.equals("BRIDGE_ROUTE")) {
                 validatePointRefXYZ(out, p + ".from", m.get("from"), "E_ROUTE_FROM_MISSING");
@@ -308,6 +445,70 @@ public final class AssemblySpecValidator {
         }
     }
 
+    private static void validateMacro(List<AssemblyValidationIssue> out, String path, Map<?, ?> macro) {
+        warnUnknownKeys(out, path, macro, Set.of(
+                "primaryComponent", "primaryComponentId",
+                "shapeType", "shape",
+                "heightScale", "height_scale",
+                "roofType", "roof_type",
+                "roofCurvature", "roof_curvature",
+                "overhang",
+                "openness",
+                "symmetry",
+                "bridgeTower", "bridge_tower"
+        ));
+
+        Object st = macro.get("shapeType");
+        if (st == null) st = macro.get("shape");
+        if (st != null) {
+            String s = String.valueOf(st).trim().toUpperCase(Locale.ROOT);
+            if (!s.isEmpty()) {
+                boolean ok = s.contains("RECT") || s.contains("BOX") || s.contains("CIRC") || s.contains("CYL") || s.contains("HEX");
+                if (!ok) out.add(warn(path + ".shapeType", "W_MACRO_SHAPE_VALUE", "shapeType 可能不可识别: " + st));
+            }
+        }
+
+        Object hs = macro.get("heightScale");
+        if (hs == null) hs = macro.get("height_scale");
+        if (hs != null) {
+            if (!(hs instanceof Number) && !(hs instanceof String)) {
+                out.add(err(path + ".heightScale", "E_MACRO_HEIGHTSCALE_TYPE", "heightScale 必须是数字或枚举字符串"));
+            }
+        }
+
+        Object op = macro.get("openness");
+        if (op != null) {
+            Double d = doubleOrNull(op);
+            if (d == null) out.add(err(path + ".openness", "E_MACRO_OPENNESS_TYPE", "openness 必须是 0..1 的数字"));
+            else if (d < 0.0 || d > 1.0) out.add(warn(path + ".openness", "W_MACRO_OPENNESS_RANGE", "openness 建议范围 0..1（当前=" + d + "）"));
+        }
+
+        Object rt = macro.get("roofType");
+        if (rt == null) rt = macro.get("roof_type");
+        if (rt != null) {
+            String s = String.valueOf(rt).trim().toUpperCase(Locale.ROOT);
+            if (!s.isEmpty() && !(s.equals("FLAT") || s.equals("GABLE"))) {
+                out.add(warn(path + ".roofType", "W_MACRO_ROOFTYPE_VALUE", "roofType 当前仅支持 FLAT/GABLE（当前=" + rt + "）"));
+            }
+        }
+
+        Object bt = macro.get("bridgeTower");
+        if (bt == null) bt = macro.get("bridge_tower");
+        if (bt != null) {
+            if (!(bt instanceof Map<?, ?>) && !(bt instanceof Boolean)) {
+                out.add(warn(path + ".bridgeTower", "W_MACRO_BRIDGETOWER_TYPE", "bridgeTower 建议是对象（map）或 true（启用默认注入）"));
+            }
+        }
+    }
+
+    private static Double doubleOrNull(Object v) {
+        try {
+            if (v instanceof Number n) return n.doubleValue();
+            if (v != null) return Double.parseDouble(String.valueOf(v).trim());
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     // ---------------- components ----------------
 
     private static void validateComponents(List<AssemblyValidationIssue> out, String path, List<?> comps, Set<String> idsOut) {
@@ -324,6 +525,37 @@ public final class AssemblySpecValidator {
                     "w", "d", "h", "width", "depth", "height",
                     "r", "radius",
                     "points",
+                    // truss
+                    "from", "to",
+                    "pattern", "module", "step",
+                    "chord", "web", "joint",
+                    // arch
+                    "rise", "sagitta", "samples", "steps",
+                    // buttress
+                    "rib", "pier", "pierDown", "pier_down",
+                    // cable
+                    "sag", "droop",
+                    "hangersEvery", "hangerEvery",
+                    "hangersToY", "hangerToY",
+                    "hangersMaterial",
+                    "cableCount", "count",
+                    "cableSpacing", "spacing",
+                    "cableAxis",
+                    // anchoring / anchorage
+                    "x0", "x1", "z0", "z1",
+                    "yBase",
+                    "maxDepth", "anchorDepth",
+                    "stopOnSolid",
+                    "allowWaterEdit", "allowLavaEdit",
+                    "solid",
+                    "carve",
+                    // anchorage detailing
+                    "topBevel", "top_bevel", "bevel",
+                    "guardWallHeight", "guard_wall_height", "parapetHeight",
+                    "guardWallInset", "guard_wall_inset",
+                    "guardWallCrenels", "guard_wall_crenels", "crenels",
+                    "guardWallMaterial", "guardWall",
+                    "holes", "cableHoles",
                     "profile", "profileFrame", "profileSnap", "frame", "snap",
                     "profileW", "profileH",
                     "profilePoints", "profileRings", "rings",
@@ -693,34 +925,41 @@ public final class AssemblySpecValidator {
     }
 
     private static void validateEndpointRef(List<AssemblyValidationIssue> out, String path, Object v, Set<String> ids) {
-        if (v == null) {
-            out.add(err(path, "E_ENDPOINT_MISSING", "缺少端点"));
-            return;
-        }
-        if (v instanceof String s) {
-            String t = s.trim();
-            if (t.isEmpty()) { out.add(err(path, "E_ENDPOINT_EMPTY", "端点字符串不能为空")); return; }
-            int dot = t.indexOf('.');
-            if (dot > 0) {
-                String id = t.substring(0, dot).trim();
+        switch (v) {
+            case null -> {
+                out.add(err(path, "E_ENDPOINT_MISSING", "缺少端点"));
+                return;
+            }
+            case String s -> {
+                String t = s.trim();
+                if (t.isEmpty()) {
+                    out.add(err(path, "E_ENDPOINT_EMPTY", "端点字符串不能为空"));
+                    return;
+                }
+                int dot = t.indexOf('.');
+                if (dot > 0) {
+                    String id = t.substring(0, dot).trim();
+                    if (!id.isEmpty() && !ids.isEmpty() && !ids.contains(id)) {
+                        out.add(warn(path, "W_ENDPOINT_UNKNOWN_COMPONENT", "引用了不存在的组件 id: " + id + "（示例/训练建议修正）"));
+                    }
+                }
+                return;
+            }
+            case Map<?, ?> m -> {
+                Object cid = m.get("component");
+                if (cid == null) cid = m.get("id");
+                if (cid == null) {
+                    // could be raw {x,y,z}; accept
+                    return;
+                }
+                String id = str(cid, "").trim();
                 if (!id.isEmpty() && !ids.isEmpty() && !ids.contains(id)) {
                     out.add(warn(path, "W_ENDPOINT_UNKNOWN_COMPONENT", "引用了不存在的组件 id: " + id + "（示例/训练建议修正）"));
                 }
-            }
-            return;
-        }
-        if (v instanceof Map<?, ?> m) {
-            Object cid = m.get("component");
-            if (cid == null) cid = m.get("id");
-            if (cid == null) {
-                // could be raw {x,y,z}; accept
                 return;
             }
-            String id = str(cid, "").trim();
-            if (!id.isEmpty() && !ids.isEmpty() && !ids.contains(id)) {
-                out.add(warn(path, "W_ENDPOINT_UNKNOWN_COMPONENT", "引用了不存在的组件 id: " + id + "（示例/训练建议修正）"));
+            default -> {
             }
-            return;
         }
         out.add(err(path, "E_ENDPOINT_BAD_TYPE", "端点必须是字符串 \"A.port\" 或对象 {component/id,port,...} 或坐标 {x,y,z}"));
     }
@@ -821,14 +1060,7 @@ public final class AssemblySpecValidator {
                 if (s.isEmpty()) {
                     out.add(err(path + ".baseLevel", "E_TA_BASELEVEL_EMPTY", "baseLevel/base_level 不能为空"));
                 } else {
-                    String u = s.toUpperCase(Locale.ROOT);
-                    // Chinese & common aliases
-                    if (u.contains("平均") || u.contains("AVG") || u.contains("AVER")) u = "AVERAGE";
-                    if (u.contains("中位") || u.contains("MED")) u = "MEDIAN";
-                    if (u.contains("众数") || u.contains("MODE")) u = "MODE";
-                    if (u.contains("最低") || u.contains("LOW")) u = "LOWEST";
-                    if (u.contains("最高") || u.contains("HIGH")) u = "HIGHEST";
-                    if (u.contains("固定") || u.contains("FIX")) u = "FIXED";
+                    String u = getString(s);
                     boolean bok = u.equals("AVERAGE") || u.equals("MEDIAN") || u.equals("MODE") || u.equals("LOWEST") || u.equals("HIGHEST") || u.equals("FIXED");
                     if (!bok) {
                         out.add(err(path + ".baseLevel", "E_TA_BASELEVEL_VALUE",
@@ -915,6 +1147,18 @@ public final class AssemblySpecValidator {
         }
     }
 
+    private static @NotNull String getString(String s) {
+        String u = s.toUpperCase(Locale.ROOT);
+        // Chinese & common aliases
+        if (u.contains("平均") || u.contains("AVG") || u.contains("AVER")) u = "AVERAGE";
+        if (u.contains("中位") || u.contains("MED")) u = "MEDIAN";
+        if (u.contains("众数") || u.contains("MODE")) u = "MODE";
+        if (u.contains("最低") || u.contains("LOW")) u = "LOWEST";
+        if (u.contains("最高") || u.contains("HIGH")) u = "HIGHEST";
+        if (u.contains("固定") || u.contains("FIX")) u = "FIXED";
+        return u;
+    }
+
     private static void requireFace(List<AssemblyValidationIssue> out, String base, Map<?, ?> m) {
         if (m.get("face") == null && m.get("faces") == null) {
             out.add(err(base + ".face", "E_FACE_MISSING", "缺少 face/faces"));
@@ -969,7 +1213,88 @@ public final class AssemblySpecValidator {
             String norm = key.replace("-", "_");
             if (allowed.contains(norm)) continue;
             out.add(warn(base + "." + key, "W_UNKNOWN_KEY", "未知字段（可能是拼写错误/幻觉字段）: " + key));
+
+            // Suggest a likely intended key (no auto-fix here; suggestion only).
+            String sug = suggestKey(key, allowed);
+            if (sug != null && !sug.equals(key)) {
+                out.add(warn(base + "." + key, "W_SUGGEST_KEY", "你是不是想写: " + sug));
+            }
         }
+    }
+
+    private static String suggestKey(String key, Set<String> allowed) {
+        if (key == null || allowed == null || allowed.isEmpty()) return null;
+        String k = key.trim();
+        if (k.isEmpty()) return null;
+        // Avoid suggesting for block ids or very long keys.
+        if (k.length() > 32) return null;
+        if (k.contains(":")) return null;
+
+        String nk = normKey(k);
+        if (nk.isEmpty()) return null;
+
+        String best = null;
+        int bestD = Integer.MAX_VALUE;
+        int bestCount = 0;
+        for (String cand : allowed) {
+            if (cand == null) continue;
+            int d = editDistance(nk, normKey(cand), 2);
+            if (d < 0) continue;
+            if (d < bestD) {
+                bestD = d;
+                best = cand;
+                bestCount = 1;
+            } else if (d == bestD) {
+                bestCount++;
+            }
+        }
+        if (best == null) return null;
+        if (bestCount != 1) return null;
+        if (bestD > 2) return null;
+        // Keep conservative: distance-2 only for longer keys.
+        if (bestD == 2 && nk.length() < 7) return null;
+        if (nk.length() < 4 && bestD > 1) return null;
+        return best;
+    }
+
+    private static String normKey(String s) {
+        if (s == null) return "";
+        String t = s.trim().toLowerCase(Locale.ROOT);
+        if (t.isEmpty()) return "";
+        return t.replace("_", "").replace("-", "").replace(" ", "");
+    }
+
+    /**
+     * Levenshtein edit distance with an early-exit cap.
+     * Returns -1 if distance exceeds cap.
+     */
+    private static int editDistance(String a, String b, int cap) {
+        if (a == null || b == null) return -1;
+        if (a.equals(b)) return 0;
+        int la = a.length(), lb = b.length();
+        if (Math.abs(la - lb) > cap) return -1;
+        if (la == 0) return lb <= cap ? lb : -1;
+        if (lb == 0) return la <= cap ? la : -1;
+
+        int[] prev = new int[lb + 1];
+        int[] cur = new int[lb + 1];
+        for (int j = 0; j <= lb; j++) prev[j] = j;
+
+        for (int i = 1; i <= la; i++) {
+            cur[0] = i;
+            int minRow = cur[0];
+            char ca = a.charAt(i - 1);
+            for (int j = 1; j <= lb; j++) {
+                int cost = (ca == b.charAt(j - 1)) ? 0 : 1;
+                int v = Math.min(Math.min(prev[j] + 1, cur[j - 1] + 1), prev[j - 1] + cost);
+                cur[j] = v;
+                if (v < minRow) minRow = v;
+            }
+            if (minRow > cap) return -1;
+            int[] tmp = prev; prev = cur; cur = tmp;
+        }
+        int d = prev[lb];
+        return d <= cap ? d : -1;
     }
 
     private static Integer intOrNull(Object v) {

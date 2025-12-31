@@ -1,0 +1,39 @@
+{
+  "paletteId": "PALETTE_GOTHIC_CATHEDRAL_A",
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [
+      {
+        "id": "PierA",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": -2 },
+        "w": 4, "d": 4, "h": 10,
+        "wall": "deepslate_bricks",
+        "floor": "stone_bricks",
+        "roof": "polished_deepslate_slab"
+      },
+      {
+        "id": "PierB",
+        "type": "SHELL_BOX",
+        "at": { "x": 28, "y": 0, "z": -2 },
+        "w": 4, "d": 4, "h": 10,
+        "wall": "deepslate_bricks",
+        "floor": "stone_bricks",
+        "roof": "polished_deepslate_slab"
+      },
+      {
+        "id": "Arch",
+        "type": "ARCH_RIB",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "from": { "x": 2, "y": 9, "z": 0 },
+        "to": { "x": 30, "y": 9, "z": 0 },
+        "rise": 10,
+        "thickness": 1,
+        "material": "STRUCTURAL_BEAM"
+      }
+    ],
+    "connections": []
+  }
+}
+
+

@@ -105,6 +105,102 @@ public final class MetaAssemblyCompiler {
 
         // v1 component macros
         switch (type) {
+            case "ANCHOR_FOOTPRINT", "FOOTPRINT_ANCHOR" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "ANCHOR_FOOTPRINT");
+                copyInt(comp, o, "x0", i(comp.get("x0"), 0));
+                copyInt(comp, o, "x1", i(comp.get("x1"), 0));
+                copyInt(comp, o, "z0", i(comp.get("z0"), 0));
+                copyInt(comp, o, "z1", i(comp.get("z1"), 0));
+                copyInt(comp, o, "yBase", i(comp.get("yBase"), i(comp.get("y"), 0)));
+                copyInt(comp, o, "maxDepth", i(comp.get("maxDepth"), i(comp.get("anchorDepth"), 32)));
+                copy(comp, o, "material");
+                copy(comp, o, "stopOnSolid");
+                copy(comp, o, "allowWaterEdit");
+                copy(comp, o, "allowLavaEdit");
+                ops.add(o);
+            }
+            case "ANCHORAGE", "ANCHORAGE_BLOCK" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "ANCHORAGE");
+                copyInt(comp, o, "w", i(comp.get("w"), i(comp.get("width"), 12)));
+                copyInt(comp, o, "d", i(comp.get("d"), i(comp.get("depth"), 10)));
+                copyInt(comp, o, "h", i(comp.get("h"), i(comp.get("height"), 8)));
+                copyInt(comp, o, "yBase", i(comp.get("yBase"), i(comp.get("y"), 0)));
+                copyInt(comp, o, "maxDepth", i(comp.get("maxDepth"), i(comp.get("anchorDepth"), 24)));
+                copy(comp, o, "solid");
+                copy(comp, o, "material");
+                copy(comp, o, "carve");
+                copy(comp, o, "allowWaterEdit");
+                copy(comp, o, "allowLavaEdit");
+                // detailing
+                copyInt(comp, o, "topBevel", i(comp.get("topBevel"), i(comp.get("bevel"), 0)));
+                copy(comp, o, "holes");
+                copy(comp, o, "cableHoles");
+                copyInt(comp, o, "guardWallHeight", i(comp.get("guardWallHeight"), i(comp.get("parapetHeight"), 0)));
+                copyInt(comp, o, "guardWallInset", i(comp.get("guardWallInset"), 0));
+                copy(comp, o, "guardWallCrenels");
+                copy(comp, o, "crenels");
+                copy(comp, o, "guardWallMaterial");
+                copy(comp, o, "guardWall");
+                ops.add(o);
+            }
+            case "TENSION_CABLE", "CABLE", "SAG_CABLE" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "TENSION_CABLE");
+                copy(comp, o, "from");
+                copy(comp, o, "to");
+                copyInt(comp, o, "sag", i(comp.get("sag"), i(comp.get("droop"), -1)));
+                copyInt(comp, o, "samples", i(comp.get("samples"), i(comp.get("steps"), -1)));
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copy(comp, o, "material");
+                copyInt(comp, o, "hangersEvery", i(comp.get("hangersEvery"), i(comp.get("hangerEvery"), 0)));
+                copyInt(comp, o, "hangersToY", i(comp.get("hangersToY"), i(comp.get("hangerToY"), Integer.MIN_VALUE)));
+                copy(comp, o, "hangersMaterial");
+                copyInt(comp, o, "cableCount", i(comp.get("cableCount"), i(comp.get("count"), 1)));
+                copyInt(comp, o, "cableSpacing", i(comp.get("cableSpacing"), i(comp.get("spacing"), 3)));
+                copy(comp, o, "cableAxis");
+                ops.add(o);
+            }
+            case "BUTTRESS", "FLYING_BUTTRESS" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "BUTTRESS");
+                copy(comp, o, "from");
+                copy(comp, o, "to");
+                copyInt(comp, o, "rise", i(comp.get("rise"), i(comp.get("sagitta"), -1)));
+                copyInt(comp, o, "samples", i(comp.get("samples"), i(comp.get("steps"), -1)));
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copyInt(comp, o, "pierDown", i(comp.get("pierDown"), i(comp.get("pier_down"), 6)));
+                copy(comp, o, "rib");
+                copy(comp, o, "pier");
+                copy(comp, o, "joint");
+                ops.add(o);
+            }
+            case "ARCH_RIB", "ARCH", "RIB_ARCH" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "ARCH_RIB");
+                copy(comp, o, "from");
+                copy(comp, o, "to");
+                copyInt(comp, o, "rise", i(comp.get("rise"), i(comp.get("sagitta"), -1)));
+                copyInt(comp, o, "samples", i(comp.get("samples"), i(comp.get("steps"), -1)));
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copy(comp, o, "material");
+                ops.add(o);
+            }
+            case "TRUSS_2D", "TRUSS", "TRUSS2D" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "TRUSS_2D");
+                copy(comp, o, "from");
+                copy(comp, o, "to");
+                copyInt(comp, o, "height", i(comp.get("height"), i(comp.get("h"), 6)));
+                copyInt(comp, o, "module", i(comp.get("module"), i(comp.get("step"), 4)));
+                copy(comp, o, "pattern");
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copy(comp, o, "chord");
+                copy(comp, o, "web");
+                copy(comp, o, "joint");
+                ops.add(o);
+            }
             case "SPLINE_SWEEP", "SWEEP_SPLINE", "SPLINE_TUBE", "SPLINE" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "SPLINE_SWEEP");

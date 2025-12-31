@@ -48,6 +48,97 @@
 - `spandrelEvery/spandrelHeight/spandrelOffset`：定义“每层”的窗间墙带位置与厚度
 - `spandrelFill`：楼层带填充材质（例如浅灰混凝土）
 
+## 宏参数表（P0）：`assembly.macro`（高层滑块 -> 低层原子语法）
+
+当你希望 LLM 用更接近“基因表”的方式输出，而不是直接写大量细节字段，可以使用 `macro`。
+执行管线是：**normalize → apply macro → validate → compile/execute**，并且遵循 **显式参数优先**（macro 只在缺省时注入/改写）。
+
+当前支持的宏字段（P0）：
+- `primaryComponent`：宏作用的主组件 id（默认取第一个组件）
+- `shapeType`：`RECTANGLE` / `CIRCLE`（其余会给 warning）
+- `heightScale`：数值缩放（或 `LOW/MEDIUM/HIGH`）
+- `openness`：0..1（会调整 `facade.openings` 的 rows/cols 密度）
+- `symmetry`：会映射到连接的 `routingStyle`（AXIAL/RADIAL/SYMM -> PLANNED；ASYMM -> ORGANIC）
+- `roofType`：`FLAT/GABLE`（若当前没有屋顶组件，会自动添加一个 `ROOF_COVER`）
+- `overhang`：`NONE/SMALL/MEDIUM/LARGE`（影响自动添加屋顶的 overhang）
+- `roofCurvature`：0..1 或 `LOW/MEDIUM/HIGH`（驱动 `ROOF_COVER.rise`；不覆盖显式 rise）
+- `bridgeTower`：桥塔一键注入（会向 `graph.components` 添加：`SHELL_BOX` 塔体 + `ANCHOR_FOOTPRINT` 深基础 + 顶部 `CYLINDER` 索鞍滚轮）
+
+## 示例十四：宏参数（现代塔楼）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/macro_modern_tower.json`
+
+- 只给出一个基础 `SHELL_BOX`，其余由 `macro` 注入：`heightScale`、`roofType/overhang`、`openness`、`symmetry`
+
+## 示例十五：宏参数（六边亭：HEXAGON + roofCurvature）
+- 另见：`src/main/resources/assets/formacraft/assembly_examples/macro_bridge_tower.json`（bridgeTower 一键注入桥塔）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/macro_hex_pavilion.json`
+
+- `shapeType=HEXAGON`：把主组件转换为 `EXTRUDE_POLYGON` 六边形
+- `roofCurvature`：会设置 `ROOF_COVER.rise`（更“陡”的屋顶）
+
+## 示例十六：结构骨架（TRUSS_2D 桁架）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/truss_simple_bridge.json`
+
+- 组件：`type=TRUSS_2D`
+- 走向：由 `from/to` 定义（XZ 平面），高度：`height`
+- 模块节奏：`module`（每隔 N 步放一个节点）
+- 模式：推荐 `pattern=WARREN`（P0 其余模式会按 WARREN 近似）
+
+## 示例十七：结构骨架（ARCH_RIB 拱肋）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/arch_rib_bridge.json`
+
+- 组件：`type=ARCH_RIB`
+- 端点：`from/to`（包含 y 高度）
+- 矢高：`rise`（在端点连线的基础上向上抬拱）
+- `samples` 可选：采样点数（不填会按跨度自动估算）
+
+## 示例十八：哥特（飞扶壁：BUTTRESS）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/gothic_flying_buttress.json`
+
+- 组件：`type=BUTTRESS`
+- `from`：主墙上部连接点；`to`：外侧扶壁墩连接点
+- `rise`：飞拱弧度（矢高）；`pierDown`：扶壁墩向下“插入”高度（纯几何，不做地形探测）
+
+## 示例十九：工业（斜拉桥简化：TENSION_CABLE）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/cable_stayed_bridge_simplified.json`
+
+- 组件：`type=TENSION_CABLE`
+- `sag`：下垂量（P0 用抛物线近似悬链线；`sag` 越大越下垂）
+- `material`：建议用语义 `STRUCTURAL_CABLE`（默认会回退到 `STRUCTURAL_BEAM/chain`）
+
+## 示例二十：工业（悬索桥简化：主缆 + 吊索：TENSION_CABLE + hangers*）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/suspension_bridge_hangers_simplified.json`
+
+- `hangersEvery`：每隔 N 个采样点放一根垂直吊索（越小越密）
+- `hangersToY`：吊索下端目标高度（P0 固定 Y，不做地形探测）
+- `hangersMaterial`：吊索材质（默认继承主缆）
+
+## 示例二十一：工业（悬索桥索面：多主缆 + 吊索：TENSION_CABLE + cable*）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/suspension_bridge_cable_plane.json`
+
+- `cableCount`：主缆根数（并行复制）
+- `cableSpacing`：并行主缆间距
+- `cableAxis`：并行偏移方向 `AUTO/X/Z`
+
+## 示例二十二：工业桥梁终局（桥塔锚固 + 主缆锚碇块：ANCHOR_FOOTPRINT + ANCHORAGE）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/industrial_bridge_anchorage_endgame.json`
+
+- `ANCHOR_FOOTPRINT`：桥塔深基础（会用 world 探测向下填充到实心地面或到 `maxDepth`）
+- `ANCHORAGE`：主缆锚碇块（大体量实体块 + 深基础 + 细节化）
+  - `topBevel`：顶面台阶式倒角/坡面
+  - `holes[]`：从某个面向内挖“拉索孔道”（air tunnel）
+  - `guardWallHeight/guardWall*`：顶部护墙/女儿墙（可选 `guardWallCrenels` 做齿口节奏）
+- `Backstay*`：从塔顶回拉到锚碇块（工业桥常见“回拉索”视觉）
+
 ## 示例十二：古典（檐口/腰线/柱网：SURFACE_BANDS）
 
 文件：`src/main/resources/assets/formacraft/assembly_examples/box_classical_bands_columns.json`

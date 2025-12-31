@@ -1,0 +1,47 @@
+{
+  "paletteId": "PALETTE_INDUSTRIAL_STEEL_A",
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [
+      {
+        "id": "Tower",
+        "type": "SHELL_BOX",
+        "at": { "x": 12, "y": 0, "z": -2 },
+        "w": 4, "d": 4, "h": 28,
+        "wall": "iron_block",
+        "floor": "smooth_stone",
+        "roof": "iron_block"
+      },
+      {
+        "id": "Deck",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 10, "z": -1 },
+        "w": 30, "d": 2, "h": 2,
+        "wall": "smooth_stone",
+        "floor": "smooth_stone",
+        "roof": "smooth_stone_slab"
+      },
+      {
+        "id": "CableL",
+        "type": "TENSION_CABLE",
+        "from": { "x": 14, "y": 26, "z": 0 },
+        "to": { "x": 4, "y": 12, "z": 0 },
+        "sag": 1,
+        "thickness": 1,
+        "material": "STRUCTURAL_CABLE"
+      },
+      {
+        "id": "CableR",
+        "type": "TENSION_CABLE",
+        "from": { "x": 14, "y": 26, "z": 0 },
+        "to": { "x": 26, "y": 12, "z": 0 },
+        "sag": 1,
+        "thickness": 1,
+        "material": "STRUCTURAL_CABLE"
+      }
+    ],
+    "connections": []
+  }
+}
+
+

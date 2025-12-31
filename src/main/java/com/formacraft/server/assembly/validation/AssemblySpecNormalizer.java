@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * P0 "auto-fix / normalizer" for extra.assembly.
@@ -40,8 +41,25 @@ public final class AssemblySpecNormalizer {
     private static void normalizeMap(Map<String, Object> m, String path, List<AssemblyValidationIssue> issues) {
         if (m == null || m.isEmpty()) return;
 
+        // High-confidence spell-fix for common LLM typos (only within known schemas, and only when unambiguous).
+        // Root-level: keys are fairly stable.
+        if ("$".equals(path)) {
+            maybeSpellFixKeys(m, path, issues, Set.of(
+                    "paletteId", "entranceFacing",
+                    "ops",
+                    "graph", "components", "connections"
+            ));
+        }
+
         // Root-level: normalize known keys / casing
         normalizeKeyAlias(m, path, issues, "base_level", "baseLevel");
+        // Common snake_case aliases for anchorage detailing (safe to apply globally)
+        normalizeKeyAlias(m, path, issues, "top_bevel", "topBevel");
+        normalizeKeyAlias(m, path, issues, "guard_wall_height", "guardWallHeight");
+        normalizeKeyAlias(m, path, issues, "guard_wall_inset", "guardWallInset");
+        normalizeKeyAlias(m, path, issues, "guard_wall_crenels", "guardWallCrenels");
+        normalizeKeyAlias(m, path, issues, "cable_holes", "cableHoles");
+        normalizeKeyAlias(m, path, issues, "bridge_tower", "bridgeTower");
 
         // Facade migrations (component-side)
         Object facadeObj = m.get("facade");
@@ -75,6 +93,18 @@ public final class AssemblySpecNormalizer {
             }
         }
 
+        // If this map looks like a connection/op/component, spell-fix some hot keys.
+        // This is intentionally conservative: only do this when the map already contains typical anchor keys.
+        if (m.containsKey("op")) {
+            maybeSpellFixKeys(m, path, issues, KNOWN_OP_KEYS);
+        }
+        if (m.containsKey("type") && (m.containsKey("from") || m.containsKey("to"))) {
+            maybeSpellFixKeys(m, path, issues, KNOWN_CONNECTION_KEYS);
+        }
+        if (m.containsKey("id") || m.containsKey("ports") || m.containsKey("facade")) {
+            maybeSpellFixKeys(m, path, issues, KNOWN_COMPONENT_KEYS);
+        }
+
         // Normalize endpoint strings "A.port"
         if (m.get("from") instanceof String s) {
             String norm = normalizeEndpointString(s);
@@ -95,6 +125,12 @@ public final class AssemblySpecNormalizer {
         normalizeValueUpper(m, path, issues, "type", "W_NORM_VALUE_CANON");
         normalizeValueUpper(m, path, issues, "op", "W_NORM_VALUE_CANON");
         normalizeValueUpper(m, path, issues, "kind", "W_NORM_VALUE_CANON");
+        // Move cableHoles -> holes (canonical) if holes absent
+        if (m.get("cableHoles") instanceof List<?> l && m.get("holes") == null) {
+            m.put("holes", l);
+            m.remove("cableHoles");
+            issues.add(warn(path + ".holes", "W_NORM_KEY_MOVE", "字段迁移: cableHoles -> holes"));
+        }
         if (m.get("mode") instanceof String s) {
             String norm = normalizeTerrainMode(s);
             if (!norm.equals(s)) {
@@ -145,6 +181,13 @@ public final class AssemblySpecNormalizer {
     private static void normalizeFacade(Map<String, Object> facade, String path, List<AssemblyValidationIssue> issues) {
         if (facade == null) return;
 
+        maybeSpellFixKeys(facade, path, issues, Set.of(
+                "surfacePattern", "pattern",
+                "openings", "opening",
+                "facadeGrid", "FACADE_GRID", "curtainWall",
+                "surfaceBands", "SURFACE_BANDS", "bands"
+        ));
+
         // facade.pattern -> facade.surfacePattern (if surfacePattern absent)
         Object pat = facade.get("pattern");
         if (pat instanceof Map<?, ?> && facade.get("surfacePattern") == null) {
@@ -182,9 +225,32 @@ public final class AssemblySpecNormalizer {
         if (fgo instanceof Map<?, ?> gm) {
             @SuppressWarnings("unchecked")
             Map<String, Object> g = (Map<String, Object>) gm;
+            maybeSpellFixKeys(g, path + ".facadeGrid", issues, Set.of(
+                    "face", "faces",
+                    "bayW", "bayH", "moduleW", "moduleH", "gridW", "gridH",
+                    "mullionThickness", "mullionT",
+                    "transomThickness", "transomT",
+                    "borderThickness", "borderT",
+                    "marginU", "marginX", "marginY",
+                    "inset", "depth",
+                    "frame", "fill", "material",
+                    "spandrelEvery", "spandrelHeight", "spandrelOffset", "spandrelFill",
+                    "spEvery", "spH", "spOffset"
+            ));
             moveIfAbsent(g, path + ".facadeGrid", issues, "spEvery", "spandrelEvery");
             moveIfAbsent(g, path + ".facadeGrid", issues, "spH", "spandrelHeight");
             moveIfAbsent(g, path + ".facadeGrid", issues, "spOffset", "spandrelOffset");
+        }
+
+        Object sbo = facade.get("surfaceBands");
+        if (sbo instanceof Map<?, ?> sm) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> bandsMap = (Map<String, Object>) sm;
+            maybeSpellFixKeys(bandsMap, path + ".surfaceBands", issues, Set.of(
+                    "face", "faces",
+                    "horizontalBands", "hBands", "bandsH",
+                    "verticalBands", "vBands", "bandsV"
+            ));
         }
     }
 
@@ -192,6 +258,18 @@ public final class AssemblySpecNormalizer {
 
     private static void normalizeTerrainAdaptation(Map<String, Object> ta, String path, List<AssemblyValidationIssue> issues) {
         if (ta == null) return;
+        maybeSpellFixKeys(ta, path, issues, Set.of(
+                "mode",
+                "base_level", "baseLevel", "fixedY", "fixed_y",
+                "max_step_height", "maxStepHeight", "max_step", "maxStep",
+                "foundation_depth", "foundationDepth",
+                "anchor_max_depth", "anchorMaxDepth",
+                "allow_water_edit", "allowWaterEdit",
+                "allow_lava_edit", "allowLavaEdit",
+                "clearHeight",
+                "embedDepth",
+                "floatHeight"
+        ));
         // snake_case -> camelCase (canonical)
         normalizeKeyAlias(ta, path, issues, "base_level", "baseLevel");
         normalizeKeyAlias(ta, path, issues, "fixed_y", "fixedY");
@@ -332,6 +410,225 @@ public final class AssemblySpecNormalizer {
 
     private static AssemblyValidationIssue warn(String path, String code, String msg) {
         return new AssemblyValidationIssue(path, AssemblyValidationIssue.Severity.WARNING, code, msg);
+    }
+
+    // ---------------- spell-fix ----------------
+
+    private static final Set<String> KNOWN_CONNECTION_KEYS = mkSet(
+            "type", "from", "to", "via",
+            "avoid", "avoidComponents", "avoidAllComponents", "avoidMargin", "avoidExcludeComponents", "avoidIncludeComponents",
+            "routing", "avoidAStar",
+            "routingPad", "routingMaxArea", "routingMaxNodes",
+            "routingPreferStraight", "routingPreferAxis", "routingPreferAxisWeight", "routingPreferDoorAxis",
+            "routingLeadOut", "routingLeadIn", "routingAutoLead", "routingLeadSoft", "routingLeadHard",
+            "routingLeadWeight", "routingLeadOutWeight", "routingLeadInWeight", "routingLeadRing", "routingLeadInStepsMaxNodes",
+            "routingStyle", "routingStyleStrength", "routingQoS",
+            "width", "wallHeight", "wallThickness", "foundationDepth", "maxStep",
+            "material",
+            "terrainAdaptation"
+    );
+
+    private static final Set<String> KNOWN_COMPONENT_KEYS = mkSet(
+            "id", "type", "op",
+            "at", "x", "y", "z",
+            "w", "d", "h", "width", "depth", "height",
+            "r", "radius",
+            "r0", "r1", "radius0", "radius1",
+            "points",
+            // anchoring / anchorage
+            "x0", "x1", "z0", "z1",
+            "yBase",
+            "maxDepth", "anchorDepth",
+            "stopOnSolid",
+            "allowWaterEdit", "allowLavaEdit",
+            "solid",
+            "carve",
+            // anchorage detailing
+            "topBevel", "bevel",
+            "guardWallHeight", "parapetHeight",
+            "guardWallInset",
+            "guardWallCrenels", "crenels",
+            "guardWallMaterial", "guardWall",
+            "holes", "cableHoles",
+            "profile", "profileFrame", "profileSnap", "frame", "snap",
+            "profileW", "profileH",
+            "profilePoints", "profileRings", "rings",
+            "profileScale0", "profileScale1", "scale0", "scale1",
+            "profileW0", "profileW1", "profileH0", "profileH1",
+            "twistTurns", "twistPhase",
+            "capEnds", "capThickness", "carveInterior",
+            "connectSamples", "connectMaxStep",
+            "hollow", "thickness",
+            "material", "wall", "window", "floor", "roof", "slab",
+            "ports",
+            "facade", "facade_logic", "facadeLogic"
+    );
+
+    private static final Set<String> KNOWN_OP_KEYS = mkSet(
+            "op",
+            "at", "x", "y", "z", "dx", "dy", "dz",
+            "x0", "x1", "y0", "y1", "z0", "z1",
+            "from", "to",
+            "material", "wall", "roof", "slab", "floor", "window", "fill", "frame", "accent", "air",
+            "type", "kind", "face", "faces",
+            "w", "d", "h", "width", "depth", "height",
+            "points", "profile", "profileFrame", "profileSnap", "frame", "snap",
+            "profileW", "profileH", "profilePoints", "profileRings", "rings",
+            "profileScale0", "profileScale1", "scale0", "scale1",
+            "profileW0", "profileW1", "profileH0", "profileH1",
+            "twistTurns", "twistPhase",
+            "capEnds", "capThickness", "carveInterior",
+            "connectSamples", "connectMaxStep",
+            "r", "radius", "r0", "r1", "radius0", "radius1",
+            "hollow", "thickness", "samplesPerBlock",
+            // anchoring / anchorage
+            "yBase",
+            "maxDepth", "anchorDepth",
+            "stopOnSolid",
+            "allowWaterEdit", "allowLavaEdit",
+            "solid",
+            "carve",
+            // anchorage detailing
+            "topBevel", "bevel",
+            "guardWallHeight", "parapetHeight",
+            "guardWallInset",
+            "guardWallCrenels", "crenels",
+            "guardWallMaterial", "guardWall",
+            "holes", "cableHoles",
+            // cable
+            "sag", "droop",
+            "hangersEvery", "hangerEvery",
+            "hangersToY", "hangerToY",
+            "hangersMaterial",
+            "cableCount", "count",
+            "cableSpacing", "spacing",
+            "cableAxis",
+            "rows", "cols", "winW", "winH", "sillY", "marginX", "marginY", "gapX", "gapY", "frameThickness", "mullionStep",
+            "doorW", "doorH",
+            "archType", "arch", "archThickness", "archT",
+            "keystone", "keystoneOn",
+            "tracery", "traceryType", "traceryMaterial", "traceryThickness", "traceryT", "traceryY", "traceryInset",
+            "foilRadius", "foilCenterY", "foilCount", "foilStepY", "foilGapY",
+            "traceryFoilRadius", "traceryFoilCenterY", "traceryFoilCount", "traceryFoilStepY",
+            "centerY", "petals", "spokes", "ring", "phase", "phi", "spokeWidth", "spokeW", "spokeThreshold", "spokeThresh",
+            "innerFill", "spokeMaterial",
+            "bayW", "bayH", "moduleW", "moduleH", "gridW", "gridH",
+            "mullionThickness", "mullionT", "transomThickness", "transomT", "borderThickness", "borderT",
+            "marginU", "inset",
+            "spandrelEvery", "spEvery", "spandrelHeight", "spH", "spandrelOffset", "spOffset", "spandrelFill",
+            "horizontalBands", "hBands", "bandsH",
+            "verticalBands", "vBands", "bandsV",
+            "terrainAdaptation"
+    );
+
+    private static Set<String> mkSet(String... keys) {
+        java.util.LinkedHashSet<String> s = new java.util.LinkedHashSet<>();
+        if (keys != null) {
+            for (String k : keys) {
+                if (k == null || k.isBlank()) continue;
+                s.add(k);
+            }
+        }
+        return java.util.Collections.unmodifiableSet(s);
+    }
+
+    private static void maybeSpellFixKeys(Map<String, Object> m, String path, List<AssemblyValidationIssue> issues, Set<String> allowed) {
+        if (m == null || m.isEmpty() || allowed == null || allowed.isEmpty()) return;
+
+        // Work on a snapshot of keys to avoid concurrent modification issues.
+        List<String> keys = new ArrayList<>();
+        for (String k : m.keySet()) keys.add(k);
+
+        for (String key : keys) {
+            if (key == null) continue;
+            if (allowed.contains(key)) continue;
+            if (!m.containsKey(key)) continue; // may have been renamed already
+
+            // Skip very long or weird keys (likely user-defined IDs or block IDs)
+            if (key.length() > 32) continue;
+            if (key.contains(":")) continue; // minecraft:block_id style
+
+            String best = bestKeyMatch(key, allowed);
+            if (best == null) continue;
+            if (m.containsKey(best)) continue; // don't overwrite
+
+            Object v = m.get(key);
+            m.put(best, v);
+            m.remove(key);
+            issues.add(warn(path + "." + best, "W_NORM_SPELLFIX", "spellfix: " + key + " -> " + best));
+        }
+    }
+
+    private static String bestKeyMatch(String key, Set<String> allowed) {
+        String nk = normKey(key);
+        if (nk.isEmpty()) return null;
+
+        String best = null;
+        int bestD = Integer.MAX_VALUE;
+        int bestCount = 0;
+        for (String cand : allowed) {
+            String nc = normKey(cand);
+            if (nc.isEmpty()) continue;
+            int d = editDistance(nk, nc, 2); // cap at 2 for performance
+            if (d < 0) continue;
+            if (d < bestD) {
+                bestD = d;
+                best = cand;
+                bestCount = 1;
+            } else if (d == bestD) {
+                bestCount++;
+            }
+        }
+
+        // Only fix when unambiguous and very close.
+        if (best == null) return null;
+        if (bestCount != 1) return null;
+        // Keep this extremely conservative to avoid bad "repairs".
+        if (bestD > 2) return null;
+        // Distance-2 repairs are only allowed for long keys (reduces false positives like rows->ops).
+        if (bestD == 2 && nk.length() < 7) return null;
+        // Additional guard: short keys must be distance-1 only.
+        if (nk.length() < 4 && bestD > 1) return null;
+        return best;
+    }
+
+    private static String normKey(String s) {
+        if (s == null) return "";
+        String t = s.trim().toLowerCase(Locale.ROOT);
+        if (t.isEmpty()) return "";
+        return t.replace("_", "").replace("-", "").replace(" ", "");
+    }
+
+    /**
+     * Levenshtein edit distance with an early-exit cap.
+     * Returns -1 if distance exceeds cap.
+     */
+    private static int editDistance(String a, String b, int cap) {
+        if (a.equals(b)) return 0;
+        int la = a.length(), lb = b.length();
+        if (Math.abs(la - lb) > cap) return -1;
+        if (la == 0) return lb <= cap ? lb : -1;
+        if (lb == 0) return la <= cap ? la : -1;
+
+        int[] prev = new int[lb + 1];
+        int[] cur = new int[lb + 1];
+        for (int j = 0; j <= lb; j++) prev[j] = j;
+
+        for (int i = 1; i <= la; i++) {
+            cur[0] = i;
+            int minRow = cur[0];
+            char ca = a.charAt(i - 1);
+            for (int j = 1; j <= lb; j++) {
+                int cost = (ca == b.charAt(j - 1)) ? 0 : 1;
+                int v = Math.min(Math.min(prev[j] + 1, cur[j - 1] + 1), prev[j - 1] + cost);
+                cur[j] = v;
+                if (v < minRow) minRow = v;
+            }
+            if (minRow > cap) return -1;
+            int[] tmp = prev; prev = cur; cur = tmp;
+        }
+        int d = prev[lb];
+        return d <= cap ? d : -1;
     }
 
     private static Object deepCopy(Object v) {

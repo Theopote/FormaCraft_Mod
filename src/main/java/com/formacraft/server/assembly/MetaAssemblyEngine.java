@@ -73,6 +73,189 @@ public final class MetaAssemblyEngine {
                 int x1 = i(op.get("x1"), 0), y1 = i(op.get("y1"), 0), z1 = i(op.get("z1"), 0);
                 fillBox(out, ctx, curOrigin, x0, y0, z0, x1, y1, z1, Blocks.AIR.getDefaultState());
             }
+            case "ANCHOR_FOOTPRINT" -> {
+                // Deep foundation / tower anchoring (P0):
+                // For each (x,z) in a footprint rectangle, fill downward from yBase-1 until we hit solid ground,
+                // or maxDepth is exhausted. Uses world query; does NOT overwrite solid ground by default.
+                //
+                // Required:
+                // - x0,x1,z0,z1: local footprint bounds (inclusive)
+                // Optional:
+                // - yBase: base Y of structure (default 0)
+                // - maxDepth: max downward fill depth (default 32)
+                // - material: semantic FOUNDATION (default)
+                // - stopOnSolid: stop when encountering a solid block (default true)
+                // - allowWaterEdit/allowLavaEdit: whether to replace fluids while filling (default false)
+                int x0 = i(op.get("x0"), 0), x1 = i(op.get("x1"), 0);
+                int z0 = i(op.get("z0"), 0), z1 = i(op.get("z1"), 0);
+                if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
+                if (z0 > z1) { int t = z0; z0 = z1; z1 = t; }
+
+                int yBase = i(op.get("yBase"), i(op.get("y"), 0));
+                int maxDepth = clamp(i(op.get("maxDepth"), i(op.get("anchorDepth"), 32)), 0, 512);
+                boolean stopOnSolid = bool(op.get("stopOnSolid"), true);
+                boolean allowWaterEdit = bool(op.get("allowWaterEdit"), false);
+                boolean allowLavaEdit = bool(op.get("allowLavaEdit"), false);
+
+                BlockState mat = pick(ctx, op, "material", "FOUNDATION", 0xA57440L, Blocks.STONE_BRICKS.getDefaultState());
+
+                int minY = Math.max(ctx.world.getBottomY(), yBase - maxDepth);
+                for (int x = x0; x <= x1; x++) {
+                    for (int z = z0; z <= z1; z++) {
+                        for (int y = yBase - 1; y >= minY; y--) {
+                            BlockPos wp = PlacementUtil.local(curOrigin, ctx.entranceFacing, x, y, z);
+                            BlockState cur = ctx.world.getBlockState(wp);
+                            boolean hasFluid = !cur.getFluidState().isEmpty();
+                            boolean solid = cur.isSolidBlock(ctx.world, wp) && !hasFluid;
+                            if (solid && stopOnSolid) break;
+                            if (hasFluid && !(allowWaterEdit || allowLavaEdit)) break;
+                            // fill through air / allowed fluids
+                            put(out, ctx, curOrigin, x, y, z, mat);
+                        }
+                    }
+                }
+            }
+            case "ANCHORAGE" -> {
+                // Main cable anchorage block (P0):
+                // A heavy solid block plus optional deep foundation under its footprint.
+                //
+                // Optional:
+                // - w,d,h: dimensions (defaults 12/10/8)
+                // - yBase: bottom Y (default 0)
+                // - solid/material: semantic FOUNDATION
+                // - carve: if true, clears the block volume first (default false)
+                // - maxDepth: deep foundation depth (default 24)
+                // - allowWaterEdit/allowLavaEdit: allow filling fluids (default false)
+                // - topBevel: stepped chamfer on top (default 0)
+                // - guardWallHeight: add parapet on top perimeter (default 0)
+                // - guardWallInset: inset of parapet from outer edge (default 0)
+                // - guardWallCrenels: alternating crenels on top row (default false)
+                // - guardWallMaterial/guardWall: parapet block (default stone_brick_wall)
+                // - holes/cableHoles: list of cable holes [{face,y,x|z,r,len}] carved as square tunnels (air)
+                int w = clamp(i(op.get("w"), i(op.get("width"), 12)), 3, 129);
+                int d = clamp(i(op.get("d"), i(op.get("depth"), 10)), 3, 129);
+                int h = clamp(i(op.get("h"), i(op.get("height"), 8)), 2, 255);
+                int yBase = i(op.get("yBase"), i(op.get("y"), 0));
+                int maxDepth = clamp(i(op.get("maxDepth"), i(op.get("anchorDepth"), 24)), 0, 512);
+                boolean carve = bool(op.get("carve"), false);
+                boolean allowWaterEdit = bool(op.get("allowWaterEdit"), false);
+                boolean allowLavaEdit = bool(op.get("allowLavaEdit"), false);
+
+                BlockState solid = pick(ctx, op, "solid", "FOUNDATION", 0xA57441L,
+                        pick(ctx, op, "material", "FOUNDATION", 0xA57442L, Blocks.STONE_BRICKS.getDefaultState()));
+
+                int halfW = w / 2;
+                int halfD = d / 2;
+                int x0 = -halfW, x1 = halfW;
+                int z0 = -halfD, z1 = halfD;
+                int y0 = yBase, y1 = yBase + h;
+
+                if (carve) {
+                    fillBox(out, ctx, curOrigin, x0, y0, z0, x1, y1, z1, Blocks.AIR.getDefaultState());
+                }
+                fillBox(out, ctx, curOrigin, x0, y0, z0, x1, y1, z1, solid);
+
+                // Top bevel (stepped chamfer)
+                int topBevel = clamp(i(op.get("topBevel"), i(op.get("top_bevel"), i(op.get("bevel"), 0))), 0, 32);
+                for (int k = 0; k < topBevel; k++) {
+                    int yy = y1 - k;
+                    int inset = k + 1;
+                    for (int x = x0; x <= x1; x++) {
+                        for (int z = z0; z <= z1; z++) {
+                            boolean keep = (x >= x0 + inset && x <= x1 - inset && z >= z0 + inset && z <= z1 - inset);
+                            if (!keep) put(out, ctx, curOrigin, x, yy, z, Blocks.AIR.getDefaultState());
+                        }
+                    }
+                }
+
+                // Cable holes (air tunnels)
+                Object holesObj = op.get("holes");
+                if (holesObj == null) holesObj = op.get("cableHoles");
+                if (holesObj instanceof List<?> holes) {
+                    for (Object ho : holes) {
+                        if (!(ho instanceof Map<?, ?> hm)) continue;
+                        String face = str(hm.get("face"), "").trim().toUpperCase(Locale.ROOT);
+                        if (face.isBlank()) continue;
+                        int hy = i(hm.get("y"), yBase + (h / 2));
+                        int hx = i(hm.get("x"), 0);
+                        int hz = i(hm.get("z"), 0);
+                        int r = clamp(i(hm.get("r"), i(hm.get("radius"), 1)), 1, 8);
+                        int len = clamp(i(hm.get("len"), i(hm.get("length"), Math.max(4, Math.min(w, d) / 2))), 1, 128);
+
+                        if (face.equals("WEST") || face.equals("EAST")) {
+                            int sx = face.equals("WEST") ? x0 : x1;
+                            int step = face.equals("WEST") ? 1 : -1;
+                            for (int t = 0; t <= len; t++) {
+                                int x = sx + step * t;
+                                if (x < x0 || x > x1) break;
+                                for (int yy = hy - r; yy <= hy + r; yy++) {
+                                    if (yy < y0 || yy > y1) continue;
+                                    for (int zz = hz - r; zz <= hz + r; zz++) {
+                                        if (zz < z0 || zz > z1) continue;
+                                        put(out, ctx, curOrigin, x, yy, zz, Blocks.AIR.getDefaultState());
+                                    }
+                                }
+                            }
+                        } else if (face.equals("NORTH") || face.equals("SOUTH")) {
+                            int sz = face.equals("NORTH") ? z0 : z1;
+                            int step = face.equals("NORTH") ? 1 : -1;
+                            for (int t = 0; t <= len; t++) {
+                                int z = sz + step * t;
+                                if (z < z0 || z > z1) break;
+                                for (int yy = hy - r; yy <= hy + r; yy++) {
+                                    if (yy < y0 || yy > y1) continue;
+                                    for (int xx = hx - r; xx <= hx + r; xx++) {
+                                        if (xx < x0 || xx > x1) continue;
+                                        put(out, ctx, curOrigin, xx, yy, z, Blocks.AIR.getDefaultState());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Guard wall / parapet
+                int guardH = clamp(i(op.get("guardWallHeight"), i(op.get("guard_wall_height"), i(op.get("parapetHeight"), 0))), 0, 16);
+                int guardInset = clamp(i(op.get("guardWallInset"), i(op.get("guard_wall_inset"), 0)), 0, 32);
+                boolean guardCrenels = bool(op.get("guardWallCrenels"), bool(op.get("crenels"), false));
+                BlockState guardWall = pick(ctx, op, "guardWallMaterial", "WALL_DETAIL", 0xA57443L,
+                        pick(ctx, op, "guardWall", "WALL_DETAIL", 0xA57444L, Blocks.STONE_BRICK_WALL.getDefaultState()));
+                if (guardH > 0) {
+                    int gx0 = x0 + guardInset, gx1 = x1 - guardInset;
+                    int gz0 = z0 + guardInset, gz1 = z1 - guardInset;
+                    if (gx0 <= gx1 && gz0 <= gz1) {
+                        for (int yy = 1; yy <= guardH; yy++) {
+                            int y = y1 + yy;
+                            boolean topRow = (yy == guardH);
+                            for (int x = gx0; x <= gx1; x++) {
+                                if (!(guardCrenels && topRow && ((x + gz0) & 1) == 1)) put(out, ctx, curOrigin, x, y, gz0, guardWall);
+                                if (!(guardCrenels && topRow && ((x + gz1) & 1) == 1)) put(out, ctx, curOrigin, x, y, gz1, guardWall);
+                            }
+                            for (int z = gz0; z <= gz1; z++) {
+                                if (!(guardCrenels && topRow && ((gx0 + z) & 1) == 1)) put(out, ctx, curOrigin, gx0, y, z, guardWall);
+                                if (!(guardCrenels && topRow && ((gx1 + z) & 1) == 1)) put(out, ctx, curOrigin, gx1, y, z, guardWall);
+                            }
+                        }
+                    }
+                }
+
+                if (maxDepth > 0) {
+                    int minY = Math.max(ctx.world.getBottomY(), yBase - maxDepth);
+                    for (int x = x0; x <= x1; x++) {
+                        for (int z = z0; z <= z1; z++) {
+                            for (int y = yBase - 1; y >= minY; y--) {
+                                BlockPos wp = PlacementUtil.local(curOrigin, ctx.entranceFacing, x, y, z);
+                                BlockState cur = ctx.world.getBlockState(wp);
+                                boolean hasFluid = !cur.getFluidState().isEmpty();
+                                boolean solidGround = cur.isSolidBlock(ctx.world, wp) && !hasFluid;
+                                if (solidGround) break;
+                                if (hasFluid && !(allowWaterEdit || allowLavaEdit)) break;
+                                put(out, ctx, curOrigin, x, y, z, solid);
+                            }
+                        }
+                    }
+                }
+            }
             case "SHELL_BOX" -> {
                 // box shell with semantic materials
                 int w = clamp(i(op.get("w"), 15), 5, 129);
@@ -186,6 +369,280 @@ public final class MetaAssemblyEngine {
                     int y = (int) Math.round(y0 + dy * t);
                     int z = (int) Math.round(z0 + dz * t);
                     placePrism(out, ctx, curOrigin, x, y, z, thickness, beamH, mat);
+                }
+            }
+            case "TRUSS_2D" -> {
+                // 2D truss skeleton (in XZ with height in Y).
+                //
+                // Required:
+                // - from/to: {x,y,z} local points
+                // Optional:
+                // - height: truss height (default 6)
+                // - module: spacing in steps along the centerline (default 4)
+                // - pattern: WARREN (default) / PRATT / HOWE (P0: WARREN best-effort)
+                // - thickness: beam thickness (default 1)
+                // - chord: material for top/bottom chords (semantic STRUCTURAL_BEAM)
+                // - web: material for diagonals/verticals (semantic STRUCTURAL_BEAM)
+                // - joint: joint material (semantic STRUCTURAL_BEAM)
+                int[] p0 = parsePoint(op.get("from"));
+                int[] p1 = parsePoint(op.get("to"));
+                int baseY = Math.min(p0[1], p1[1]);
+                int height = clamp(i(op.get("height"), i(op.get("h"), 6)), 1, 64);
+                int topY = baseY + height;
+                int module = clamp(i(op.get("module"), i(op.get("step"), 4)), 1, 64);
+                String pattern = str(op.get("pattern"), "WARREN").trim().toUpperCase(Locale.ROOT);
+                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
+
+                BlockState chord = pick(ctx, op, "chord", "STRUCTURAL_BEAM", 0xA57401L, Blocks.IRON_BARS.getDefaultState());
+                BlockState web = pick(ctx, op, "web", "STRUCTURAL_BEAM", 0xA57402L, chord);
+                BlockState joint = pick(ctx, op, "joint", "STRUCTURAL_BEAM", 0xA57403L, chord);
+
+                // Work in local coordinates; rasterize XZ line at baseY
+                BlockPos a = new BlockPos(p0[0], baseY, p0[2]);
+                BlockPos b = new BlockPos(p1[0], baseY, p1[2]);
+                List<BlockPos> line = rasterizeLine2D(a, b, null, false, 0);
+                if (line.size() < 2) break;
+
+                // Place chords (bottom + top)
+                for (BlockPos lp : line) {
+                    placePrism(out, ctx, curOrigin, lp.getX(), baseY, lp.getZ(), thick, 1, chord);
+                    placePrism(out, ctx, curOrigin, lp.getX(), topY, lp.getZ(), thick, 1, chord);
+                }
+
+                // Place joints + webs on module nodes
+                int n = line.size();
+                int lastNode = 0;
+                boolean flip = false;
+                for (int i = 0; i < n; i += module) {
+                    int idx = Math.min(i, n - 1);
+                    BlockPos p = line.get(idx);
+                    // joints
+                    placePrism(out, ctx, curOrigin, p.getX(), baseY, p.getZ(), thick, 1, joint);
+                    placePrism(out, ctx, curOrigin, p.getX(), topY, p.getZ(), thick, 1, joint);
+
+                    // vertical at node
+                    placeBeamLine(out, ctx, curOrigin, p.getX(), baseY, p.getZ(), p.getX(), topY, p.getZ(), thick, 1, web);
+
+                    // diagonal from previous node to current node (Warren-ish)
+                    if (idx > 0) {
+                        BlockPos prev = line.get(lastNode);
+                        if (pattern.contains("PRATT") || pattern.contains("HOWE")) {
+                            // P0: treat as WARREN (diagonals alternate)
+                        }
+                        if (!flip) {
+                            // bottom(prev) -> top(cur)
+                            placeBeamLine(out, ctx, curOrigin, prev.getX(), baseY, prev.getZ(), p.getX(), topY, p.getZ(), thick, 1, web);
+                        } else {
+                            // top(prev) -> bottom(cur)
+                            placeBeamLine(out, ctx, curOrigin, prev.getX(), topY, prev.getZ(), p.getX(), baseY, p.getZ(), thick, 1, web);
+                        }
+                        flip = !flip;
+                        lastNode = idx;
+                    }
+                }
+            }
+            case "ARCH_RIB" -> {
+                // Curved arch rib in a vertical plane that contains the (from->to) direction and Y axis.
+                //
+                // Required:
+                // - from/to: {x,y,z} local points
+                // Optional:
+                // - rise: arch rise (sagitta) above the straight chord (default auto)
+                // - thickness: beam thickness (default 1)
+                // - samples: number of samples along arch (default auto by distance)
+                // - material: block/material semantic (default STRUCTURAL_BEAM)
+                int[] p0 = parsePoint(op.get("from"));
+                int[] p1 = parsePoint(op.get("to"));
+                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
+
+                int dx = p1[0] - p0[0];
+                int dz = p1[2] - p0[2];
+                int dist2d = Math.max(Math.abs(dx), Math.abs(dz));
+                int rise = i(op.get("rise"), i(op.get("sagitta"), -1));
+                if (rise <= 0) rise = clamp(Math.max(2, dist2d / 6), 2, 48);
+
+                int samples = i(op.get("samples"), i(op.get("steps"), -1));
+                if (samples <= 0) samples = clamp(dist2d * 3, 12, 4096);
+
+                BlockState mat = pick(ctx, op, "material", "STRUCTURAL_BEAM", 0xA57410L, Blocks.IRON_BARS.getDefaultState());
+
+                int lastX = p0[0], lastY = p0[1], lastZ = p0[2];
+                boolean first = true;
+                for (int si = 0; si <= samples; si++) {
+                    double t = si / (double) samples;
+                    double x = p0[0] + (p1[0] - p0[0]) * t;
+                    double yLine = p0[1] + (p1[1] - p0[1]) * t;
+                    double z = p0[2] + (p1[2] - p0[2]) * t;
+                    // Parabolic arch offset: 0 at ends, rise at mid
+                    double y = yLine + (4.0 * rise * t * (1.0 - t));
+
+                    int xi = (int) Math.round(x);
+                    int yi = (int) Math.round(y);
+                    int zi = (int) Math.round(z);
+
+                    if (first) {
+                        placePrism(out, ctx, curOrigin, xi, yi, zi, thick, 1, mat);
+                        first = false;
+                    } else {
+                        placeBeamLine(out, ctx, curOrigin, lastX, lastY, lastZ, xi, yi, zi, thick, 1, mat);
+                    }
+                    lastX = xi; lastY = yi; lastZ = zi;
+                }
+            }
+            case "BUTTRESS" -> {
+                // Flying buttress (P0): an arch rib from wall attachment to an outer pier point,
+                // plus an optional vertical pier-down support.
+                //
+                // Required:
+                // - from/to: {x,y,z} local points
+                // Optional:
+                // - rise: arch rise above chord (default auto)
+                // - thickness: beam thickness (default 1)
+                // - samples: arch samples (default auto)
+                // - pierDown: extend a vertical pier down from 'to' by N blocks (default 6)
+                // - rib/pier/joint: materials (semantic STRUCTURAL_BEAM)
+                int[] p0 = parsePoint(op.get("from"));
+                int[] p1 = parsePoint(op.get("to"));
+
+                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
+                int dx = p1[0] - p0[0];
+                int dz = p1[2] - p0[2];
+                int dist2d = Math.max(Math.abs(dx), Math.abs(dz));
+                int rise = i(op.get("rise"), i(op.get("sagitta"), -1));
+                if (rise <= 0) rise = clamp(Math.max(2, dist2d / 6), 2, 48);
+                int samples = i(op.get("samples"), i(op.get("steps"), -1));
+                if (samples <= 0) samples = clamp(dist2d * 3, 12, 4096);
+                int pierDown = i(op.get("pierDown"), i(op.get("pier_down"), 6));
+                pierDown = clamp(pierDown, 0, 256);
+
+                BlockState rib = pick(ctx, op, "rib", "STRUCTURAL_BEAM", 0xA57420L, Blocks.IRON_BARS.getDefaultState());
+                BlockState pier = pick(ctx, op, "pier", "STRUCTURAL_BEAM", 0xA57421L, rib);
+                BlockState joint = pick(ctx, op, "joint", "STRUCTURAL_BEAM", 0xA57422L, rib);
+
+                // joints at endpoints
+                placePrism(out, ctx, curOrigin, p0[0], p0[1], p0[2], thick, 1, joint);
+                placePrism(out, ctx, curOrigin, p1[0], p1[1], p1[2], thick, 1, joint);
+
+                // main flying arch rib
+                int lastX = p0[0], lastY = p0[1], lastZ = p0[2];
+                boolean first = true;
+                for (int si = 0; si <= samples; si++) {
+                    double t = si / (double) samples;
+                    double x = p0[0] + (p1[0] - p0[0]) * t;
+                    double yLine = p0[1] + (p1[1] - p0[1]) * t;
+                    double z = p0[2] + (p1[2] - p0[2]) * t;
+                    double y = yLine + (4.0 * rise * t * (1.0 - t));
+
+                    int xi = (int) Math.round(x);
+                    int yi = (int) Math.round(y);
+                    int zi = (int) Math.round(z);
+
+                    if (first) {
+                        placePrism(out, ctx, curOrigin, xi, yi, zi, thick, 1, rib);
+                        first = false;
+                    } else {
+                        placeBeamLine(out, ctx, curOrigin, lastX, lastY, lastZ, xi, yi, zi, thick, 1, rib);
+                    }
+                    lastX = xi; lastY = yi; lastZ = zi;
+                }
+
+                // outer pier support (simple vertical)
+                if (pierDown > 0) {
+                    placeBeamLine(out, ctx, curOrigin, p1[0], p1[1], p1[2], p1[0], p1[1] - pierDown, p1[2], thick, 1, pier);
+                }
+            }
+            case "TENSION_CABLE" -> {
+                // Tension cable / hanger cable (P0): a sagging curve between endpoints.
+                // We approximate a catenary with a parabola in world-space: y = yLine - sag * 4 t(1-t).
+                //
+                // Required:
+                // - from/to: {x,y,z} local points
+                // Optional:
+                // - sag: positive number; larger means more droop (default auto)
+                // - samples: points along curve (default auto)
+                // - thickness: beam thickness (default 1)
+                // - material: semantic STRUCTURAL_CABLE (fallback STRUCTURAL_BEAM)
+                // - hangersEvery: place vertical hangers every N samples (default 0 = off)
+                // - hangersToY: bottom Y of hangers (required if hangersEvery>0)
+                // - hangersMaterial: semantic STRUCTURAL_CABLE (fallback to material)
+                // - cableCount: number of parallel main cables (default 1)
+                // - cableSpacing: spacing between parallel cables (default 3)
+                // - cableAxis: AUTO/X/Z (offset direction in XZ; AUTO picks perpendicular-ish axis)
+                int[] p0 = parsePoint(op.get("from"));
+                int[] p1 = parsePoint(op.get("to"));
+
+                int thick = clamp(i(op.get("thickness"), 1), 1, 5);
+                int dx = p1[0] - p0[0];
+                int dy = p1[1] - p0[1];
+                int dz = p1[2] - p0[2];
+                int dist = Math.max(Math.max(Math.abs(dx), Math.abs(dy)), Math.abs(dz));
+
+                int sag = i(op.get("sag"), i(op.get("droop"), -1));
+                if (sag <= 0) sag = clamp(Math.max(1, dist / 12), 1, 48);
+
+                int samples = i(op.get("samples"), i(op.get("steps"), -1));
+                if (samples <= 0) samples = clamp(dist * 4, 12, 8192);
+
+                BlockState mat = pick(ctx, op, "material", "STRUCTURAL_CABLE", 0xA57430L,
+                        pick(ctx, op, "material", "STRUCTURAL_BEAM", 0xA57431L, Blocks.IRON_BARS.getDefaultState()));
+
+                int hangersEvery = i(op.get("hangersEvery"), i(op.get("hangerEvery"), 0));
+                int hangersToY = i(op.get("hangersToY"), i(op.get("hangerToY"), Integer.MIN_VALUE));
+                BlockState hangMat = pick(ctx, op, "hangersMaterial", "STRUCTURAL_CABLE", 0xA57432L, mat);
+                boolean doHangers = hangersEvery > 0 && hangersToY != Integer.MIN_VALUE;
+
+                int cableCount = clamp(i(op.get("cableCount"), i(op.get("count"), 1)), 1, 32);
+                int cableSpacing = clamp(i(op.get("cableSpacing"), i(op.get("spacing"), 3)), 1, 64);
+                String cableAxis = str(op.get("cableAxis"), "AUTO").trim().toUpperCase(Locale.ROOT);
+
+                // Offset direction in XZ: choose axis perpendicular-ish to cable direction.
+                // If cable is mostly along X, offset in Z; if mostly along Z, offset in X.
+                boolean offsetX;
+                if ("X".equals(cableAxis)) offsetX = true;
+                else if ("Z".equals(cableAxis)) offsetX = false;
+                else offsetX = Math.abs(dz) >= Math.abs(dx); // along Z => offset X, else offset Z
+
+                for (int ci = 0; ci < cableCount; ci++) {
+                    int center = (cableCount - 1);
+                    // symmetric offsets: -k..+k
+                    int off = (ci * 2 - center);
+                    // keep even spacing when count is even by allowing half-step; here we scale then /2.
+                    // ex: count=2 => off=-1,+1 => +/-spacing/2 in effect
+                    double offAmt = off * (cableSpacing / 2.0);
+                    int ox = offsetX ? (int) Math.round(offAmt) : 0;
+                    int oz = offsetX ? 0 : (int) Math.round(offAmt);
+
+                    int ax = p0[0] + ox, ay = p0[1], az = p0[2] + oz;
+                    int bx = p1[0] + ox, by = p1[1], bz = p1[2] + oz;
+
+                    int lastX = ax, lastY = ay, lastZ = az;
+                    boolean first = true;
+                    for (int si = 0; si <= samples; si++) {
+                        double t = si / (double) samples;
+                        double x = ax + (bx - ax) * t;
+                        double yLine = ay + (by - ay) * t;
+                        double z = az + (bz - az) * t;
+                        double y = yLine - (4.0 * sag * t * (1.0 - t));
+
+                        int xi = (int) Math.round(x);
+                        int yi = (int) Math.round(y);
+                        int zi = (int) Math.round(z);
+
+                        if (first) {
+                            placePrism(out, ctx, curOrigin, xi, yi, zi, thick, 1, mat);
+                            first = false;
+                        } else {
+                            placeBeamLine(out, ctx, curOrigin, lastX, lastY, lastZ, xi, yi, zi, thick, 1, mat);
+                        }
+
+                        // vertical hangers (down to fixed Y)
+                        if (doHangers && si % hangersEvery == 0) {
+                            if (yi > hangersToY) {
+                                placeBeamLine(out, ctx, curOrigin, xi, yi, zi, xi, hangersToY, zi, 1, 1, hangMat);
+                            }
+                        }
+                        lastX = xi; lastY = yi; lastZ = zi;
+                    }
                 }
             }
             case "PATH_ROUTE" -> {
@@ -1915,6 +2372,29 @@ public final class MetaAssemblyEngine {
                     put(out, ctx, origin, cx + x, cy + y, cz + z, s);
                 }
             }
+        }
+    }
+
+    private static void placeBeamLine(List<PlannedBlock> out,
+                                      Context ctx,
+                                      BlockPos origin,
+                                      int x0, int y0, int z0,
+                                      int x1, int y1, int z1,
+                                      int thickness,
+                                      int beamH,
+                                      BlockState s) {
+        int dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+        int steps = Math.max(Math.max(Math.abs(dx), Math.abs(dy)), Math.abs(dz));
+        if (steps <= 0) {
+            placePrism(out, ctx, origin, x0, y0, z0, thickness, beamH, s);
+            return;
+        }
+        for (int i = 0; i <= steps; i++) {
+            double t = i / (double) steps;
+            int x = (int) Math.round(x0 + dx * t);
+            int y = (int) Math.round(y0 + dy * t);
+            int z = (int) Math.round(z0 + dz * t);
+            placePrism(out, ctx, origin, x, y, z, thickness, beamH, s);
         }
     }
 

@@ -1,0 +1,28 @@
+{
+  "paletteId": "PALETTE_INDUSTRIAL_STEEL_A",
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [],
+    "connections": []
+  },
+  "macro": {
+    "bridgeTower": {
+      "id": "Tower",
+      "at": { "x": 0, "y": 0, "z": 0 },
+      "towerW": 4,
+      "towerD": 6,
+      "towerH": 30,
+      "towerMaterial": "iron_block",
+      "towerFloor": "smooth_stone",
+      "foundationDepth": 24,
+      "foundationMaterial": "stone_bricks",
+      "foundationMargin": 1,
+      "rollerR": 2,
+      "rollerH": 2,
+      "rollerSpacing": 4,
+      "saddleAxis": "Z"
+    }
+  }
+}
+
+

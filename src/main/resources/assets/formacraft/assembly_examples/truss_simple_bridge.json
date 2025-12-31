@@ -1,0 +1,59 @@
+{
+  "paletteId": "PALETTE_INDUSTRIAL_STEEL_A",
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [
+      {
+        "id": "PierA",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": -2 },
+        "w": 4, "d": 4, "h": 9,
+        "wall": "stone_bricks",
+        "floor": "smooth_stone",
+        "roof": "stone_brick_slab",
+        "facade": {
+          "surfaceBands": {
+            "horizontalBands": [
+              { "y": 0, "thickness": 1, "outset": 0, "material": "stone_brick_slab" },
+              { "y": 8, "thickness": 1, "outset": 0, "material": "stone_brick_slab" }
+            ]
+          }
+        }
+      },
+      {
+        "id": "PierB",
+        "type": "SHELL_BOX",
+        "at": { "x": 30, "y": 0, "z": -2 },
+        "w": 4, "d": 4, "h": 9,
+        "wall": "stone_bricks",
+        "floor": "smooth_stone",
+        "roof": "stone_brick_slab",
+        "facade": {
+          "surfaceBands": {
+            "horizontalBands": [
+              { "y": 0, "thickness": 1, "outset": 0, "material": "stone_brick_slab" },
+              { "y": 8, "thickness": 1, "outset": 0, "material": "stone_brick_slab" }
+            ]
+          }
+        }
+      },
+      {
+        "id": "Truss",
+        "type": "TRUSS_2D",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "from": { "x": 2, "y": 8, "z": 0 },
+        "to": { "x": 32, "y": 8, "z": 0 },
+        "height": 8,
+        "module": 5,
+        "pattern": "WARREN",
+        "thickness": 1,
+        "chord": "STRUCTURAL_BEAM",
+        "web": "STRUCTURAL_BEAM",
+        "joint": "STRUCTURAL_BEAM"
+      }
+    ],
+    "connections": []
+  }
+}
+
+

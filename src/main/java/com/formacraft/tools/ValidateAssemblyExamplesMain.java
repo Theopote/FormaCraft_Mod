@@ -4,6 +4,8 @@ import com.formacraft.server.assembly.validation.AssemblySpecValidator;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
 import com.formacraft.server.assembly.validation.AssemblySpecNormalizer;
 import com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult;
+import com.formacraft.server.assembly.macro.AssemblyMacroApplier;
+import com.formacraft.server.assembly.macro.AssemblyMacroApplyResult;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -60,6 +62,8 @@ public final class ValidateAssemblyExamplesMain {
 
             AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(json);
             Object normalized = norm != null ? norm.normalized() : json;
+            AssemblyMacroApplyResult macro = AssemblyMacroApplier.apply(normalized);
+            Object applied = macro != null ? macro.applied() : normalized;
             if (norm != null && norm.issues() != null && !norm.issues().isEmpty()) {
                 // Print normalization warnings (does not fail).
                 int shown = 0;
@@ -72,8 +76,19 @@ public final class ValidateAssemblyExamplesMain {
                     System.out.println("[validateAssemblyExamples] WARN " + p.getFileName() + " : ... (" + norm.issues().size() + " warnings)");
                 }
             }
+            if (macro != null && macro.issues() != null && !macro.issues().isEmpty()) {
+                int shown = 0;
+                for (AssemblyValidationIssue is : macro.issues()) {
+                    if (is.severity() != AssemblyValidationIssue.Severity.WARNING) continue;
+                    if (shown++ >= 5) break;
+                    System.out.println("[validateAssemblyExamples] WARN " + p.getFileName() + " : " + is.path() + " [" + is.code() + "] : " + is.message());
+                }
+                if (macro.issues().size() > 5) {
+                    System.out.println("[validateAssemblyExamples] WARN " + p.getFileName() + " : ... (" + macro.issues().size() + " warnings)");
+                }
+            }
 
-            List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(normalized);
+            List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
             long err = issues.stream().filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR).count();
             if (err > 0) {
                 bad++;
