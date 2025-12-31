@@ -481,6 +481,8 @@ public final class AssemblySpecNormalizer {
             "connectSamples", "connectMaxStep",
             // bezier surface
             "uSamples", "vSamples", "u", "v",
+            // loft / revolve
+            "sections", "segments", "angleDeg", "angle",
             "hollow", "thickness",
             "material", "wall", "window", "floor", "roof", "slab",
             "ports",
@@ -515,6 +517,8 @@ public final class AssemblySpecNormalizer {
             "connectSamples", "connectMaxStep",
             // bezier surface
             "uSamples", "vSamples", "u", "v",
+            // loft / revolve
+            "sections", "segments", "angleDeg", "angle",
             "r", "radius", "r0", "r1", "radius0", "radius1",
             "hollow", "thickness", "samplesPerBlock",
             // anchoring / anchorage

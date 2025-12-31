@@ -224,6 +224,31 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "material");
                 ops.add(o);
             }
+            case "REVOLVE_SURFACE", "REVOLVE", "SURFACE_OF_REVOLUTION" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "REVOLVE_SURFACE");
+                copy(comp, o, "profilePoints");
+                copy(comp, o, "profileRings");
+                copy(comp, o, "rings");
+                copy(comp, o, "points");
+                copyInt(comp, o, "segments", i(comp.get("segments"), 48));
+                copy(comp, o, "angleDeg");
+                copy(comp, o, "angle");
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copy(comp, o, "connectSamples");
+                copy(comp, o, "material");
+                ops.add(o);
+            }
+            case "LOFT_SURFACE", "LOFT", "SKIN_SURFACE" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "LOFT_SURFACE");
+                copy(comp, o, "sections");
+                copyInt(comp, o, "uSamples", i(comp.get("uSamples"), i(comp.get("u"), 24)));
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copy(comp, o, "connectSamples");
+                copy(comp, o, "material");
+                ops.add(o);
+            }
             case "BUTTRESS", "FLYING_BUTTRESS" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "BUTTRESS");

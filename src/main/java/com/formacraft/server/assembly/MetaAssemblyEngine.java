@@ -948,6 +948,160 @@ public final class MetaAssemblyEngine {
                     }
                 }
             }
+            case "REVOLVE_SURFACE" -> {
+                // Surface of revolution (P0): revolve a 2D profile around the Y axis.
+                //
+                // Required:
+                // - profilePoints or profileRings: 2D points in (r,y) plane (x->r, y->y)
+                // Optional:
+                // - segments: angular segments (default 48)
+                // - angleDeg: total revolution angle (default 360)
+                // - thickness: voxel thickness (default 1)
+                // - connectSamples: connect rings and vertical profile steps (default true)
+                // - material: semantic PRIMARY_STRUCTURE (fallback quartz)
+                Object profObj = op.get("profileRings");
+                if (profObj == null) profObj = op.get("rings");
+                if (profObj == null) profObj = op.get("profilePoints");
+                if (profObj == null) profObj = op.get("points");
+                List<int[]> profile = read2DProfilePoints(profObj);
+                if (profile == null || profile.size() < 2) break;
+
+                int seg = clamp(i(op.get("segments"), 48), 8, 512);
+                double angleDeg = d(op.get("angleDeg"), d(op.get("angle"), 360.0));
+                if (Double.isNaN(angleDeg) || angleDeg <= 0.0) angleDeg = 360.0;
+                if (angleDeg > 360.0) angleDeg = 360.0;
+                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
+                boolean connect = bool(op.get("connectSamples"), true);
+                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x93F3B1L, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+                int nTheta = (int) Math.round(seg * (angleDeg / 360.0));
+                nTheta = clamp(nTheta, 3, 512);
+                int nP = profile.size();
+                int[][][] grid = new int[nTheta + 1][nP][3];
+
+                for (int it = 0; it <= nTheta; it++) {
+                    double t = it / (double) nTheta;
+                    double theta = Math.toRadians(angleDeg * t);
+                    double cs = Math.cos(theta);
+                    double sn = Math.sin(theta);
+                    for (int ip = 0; ip < nP; ip++) {
+                        int[] pr = profile.get(ip);
+                        double r = pr[0];
+                        double y = pr[1];
+                        int x = (int) Math.round(r * cs);
+                        int z = (int) Math.round(r * sn);
+                        int yy = (int) Math.round(y);
+                        grid[it][ip][0] = x;
+                        grid[it][ip][1] = yy;
+                        grid[it][ip][2] = z;
+                        placePrism(out, ctx, curOrigin, x, yy, z, thick, 1, mat);
+                    }
+                }
+                if (connect) {
+                    for (int it = 0; it <= nTheta; it++) {
+                        for (int ip = 0; ip < nP; ip++) {
+                            int x = grid[it][ip][0], y = grid[it][ip][1], z = grid[it][ip][2];
+                            if (it + 1 <= nTheta) {
+                                int[] b = grid[it + 1][ip];
+                                placeBeamLine(out, ctx, curOrigin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                            }
+                            if (ip + 1 < nP) {
+                                int[] b = grid[it][ip + 1];
+                                placeBeamLine(out, ctx, curOrigin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                            }
+                        }
+                    }
+                }
+            }
+            case "LOFT_SURFACE" -> {
+                // Loft surface (P0): connect multiple profile sections along a path (linear interpolation).
+                //
+                // Required:
+                // - sections: [{ at:{x,y,z}, profilePoints:[{x,y}..] | profileRings:[...] }, ...] (>=2)
+                // Optional:
+                // - uSamples: interpolation steps between sections (default 24)
+                // - thickness: voxel thickness (default 1)
+                // - connectSamples: connect adjacent samples to reduce gaps (default true)
+                // - material: semantic PRIMARY_STRUCTURE (fallback quartz)
+                Object secObj = op.get("sections");
+                if (!(secObj instanceof List<?> secs) || secs.size() < 2) break;
+
+                List<LoftSection> sections = new ArrayList<>();
+                for (Object sObj : secs) {
+                    if (!(sObj instanceof Map<?, ?> sm)) continue;
+                    Map<?, ?> s = sm;
+                    Object atObj = s.get("at");
+                    int ax = 0, ay = 0, az = 0;
+                    if (atObj instanceof Map<?, ?> am) {
+                        ax = i(am.get("x"), 0);
+                        ay = i(am.get("y"), 0);
+                        az = i(am.get("z"), 0);
+                    } else {
+                        ax = i(s.get("x"), 0);
+                        ay = i(s.get("y"), 0);
+                        az = i(s.get("z"), 0);
+                    }
+                    Object profObj = s.get("profileRings");
+                    if (profObj == null) profObj = s.get("rings");
+                    if (profObj == null) profObj = s.get("profilePoints");
+                    List<int[]> prof = read2DProfilePoints(profObj);
+                    if (prof == null || prof.size() < 2) continue;
+                    sections.add(new LoftSection(ax, ay, az, prof));
+                }
+                if (sections.size() < 2) break;
+
+                // P0 constraint: require consistent point counts (training stability)
+                int nP = sections.getFirst().profile.size();
+                boolean ok = true;
+                for (LoftSection s : sections) if (s.profile.size() != nP) { ok = false; break; }
+                if (!ok) break;
+
+                int uN = clamp(i(op.get("uSamples"), i(op.get("u"), 24)), 2, 512);
+                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
+                boolean connect = bool(op.get("connectSamples"), true);
+                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x0E11F3L, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+                // For each adjacent pair of sections, interpolate and draw strips.
+                for (int si = 0; si < sections.size() - 1; si++) {
+                    LoftSection a = sections.get(si);
+                    LoftSection b = sections.get(si + 1);
+                    int[][][] grid = new int[uN + 1][nP][3];
+                    for (int iu = 0; iu <= uN; iu++) {
+                        double t = iu / (double) uN;
+                        double ox = lerp(a.x, b.x, t);
+                        double oy = lerp(a.y, b.y, t);
+                        double oz = lerp(a.z, b.z, t);
+                        for (int ip = 0; ip < nP; ip++) {
+                            int[] pa = a.profile.get(ip);
+                            int[] pb = b.profile.get(ip);
+                            double px = lerp(pa[0], pb[0], t);
+                            double py = lerp(pa[1], pb[1], t);
+                            int x = (int) Math.round(ox + px);
+                            int y = (int) Math.round(oy + py);
+                            int z = (int) Math.round(oz);
+                            grid[iu][ip][0] = x;
+                            grid[iu][ip][1] = y;
+                            grid[iu][ip][2] = z;
+                            placePrism(out, ctx, curOrigin, x, y, z, thick, 1, mat);
+                        }
+                    }
+                    if (connect) {
+                        for (int iu = 0; iu <= uN; iu++) {
+                            for (int ip = 0; ip < nP; ip++) {
+                                int x = grid[iu][ip][0], y = grid[iu][ip][1], z = grid[iu][ip][2];
+                                if (iu + 1 <= uN) {
+                                    int[] bb = grid[iu + 1][ip];
+                                    placeBeamLine(out, ctx, curOrigin, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
+                                }
+                                if (ip + 1 < nP) {
+                                    int[] bb = grid[iu][ip + 1];
+                                    placeBeamLine(out, ctx, curOrigin, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             case "PATH_ROUTE" -> {
                 // Reuse PathGenerator (supports DRAPE etc via terrainAdaptation in extra).
                 int width = clamp(i(op.get("width"), i(op.get("thickness"), 3)), 1, 15);
@@ -2734,6 +2888,42 @@ public final class MetaAssemblyEngine {
         }
         if (out.size() != 16) return null;
         return out;
+    }
+
+    private static final class LoftSection {
+        final int x, y, z;
+        final List<int[]> profile; // 2D points (x,y) relative to section origin; z assumed 0 in P0
+        LoftSection(int x, int y, int z, List<int[]> profile) {
+            this.x = x; this.y = y; this.z = z; this.profile = profile;
+        }
+    }
+
+    private static List<int[]> read2DProfilePoints(Object profObj) {
+        // Accept:
+        // - profilePoints: [{x,y}...]
+        // - profileRings/rings: [ [{x,y}..] , ... ] => use first ring
+        if (profObj == null) return null;
+        if (!(profObj instanceof List<?> list)) return null;
+        if (!list.isEmpty() && list.getFirst() instanceof List<?>) {
+            // rings form
+            Object ring0 = list.getFirst();
+            if (!(ring0 instanceof List<?> ring)) return null;
+            List<int[]> out = new ArrayList<>();
+            for (Object p : ring) {
+                if (p instanceof Map<?, ?> pm) {
+                    out.add(new int[]{i(pm.get("x"), 0), i(pm.get("y"), 0)});
+                }
+            }
+            return out.isEmpty() ? null : out;
+        } else {
+            List<int[]> out = new ArrayList<>();
+            for (Object p : list) {
+                if (p instanceof Map<?, ?> pm) {
+                    out.add(new int[]{i(pm.get("x"), 0), i(pm.get("y"), 0)});
+                }
+            }
+            return out.isEmpty() ? null : out;
+        }
     }
 
     private static int[] bounds(List<int[]> pts) {

@@ -143,6 +143,8 @@ public final class AssemblySpecValidator {
                     "connectSamples", "connectMaxStep",
                     // bezier surface
                     "uSamples", "vSamples", "u", "v",
+                    // loft / revolve
+                    "sections", "segments", "angleDeg", "angle",
                     "r", "radius", "r0", "r1", "radius0", "radius1",
                     "hollow", "thickness", "samplesPerBlock",
                     // openings
@@ -312,6 +314,55 @@ public final class AssemblySpecValidator {
                     out.add(err(p + ".connectSamples", "E_BOOL_TYPE", "connectSamples 必须是布尔"));
                 }
                 if (m.get("connectMaxStep") != null) requireIntMin(out, p, m, "connectMaxStep", 1);
+            }
+            if (op.equals("REVOLVE_SURFACE")) {
+                Object profObj = m.get("profileRings");
+                if (profObj == null) profObj = m.get("rings");
+                if (profObj == null) profObj = m.get("profilePoints");
+                if (profObj == null) profObj = m.get("points");
+                if (!(profObj instanceof List<?>)) {
+                    out.add(err(p, "E_REVOLVE_PROFILE_MISSING", "REVOLVE_SURFACE 需要 profilePoints/profileRings（数组）"));
+                }
+                if (m.get("segments") != null) requireIntMin(out, p, m, "segments", 8);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("connectSamples") != null && !(m.get("connectSamples") instanceof Boolean)) {
+                    out.add(err(p + ".connectSamples", "E_BOOL_TYPE", "connectSamples 必须是布尔"));
+                }
+                if (m.get("angleDeg") != null || m.get("angle") != null) {
+                    Double av = doubleOrNull(m.get("angleDeg"));
+                    if (av == null) av = doubleOrNull(m.get("angle"));
+                    if (av == null) out.add(err(p + ".angleDeg", "E_DOUBLE_TYPE", "angleDeg/angle 必须是数字"));
+                }
+            }
+            if (op.equals("LOFT_SURFACE")) {
+                Object sec = m.get("sections");
+                if (!(sec instanceof List<?> sl) || sl.size() < 2) {
+                    out.add(err(p + ".sections", "E_LOFT_SECTIONS", "LOFT_SURFACE.sections 必须是数组且至少 2 段"));
+                } else {
+                    for (int si = 0; si < sl.size(); si++) {
+                        Object it2 = sl.get(si);
+                        String sp = p + ".sections[" + si + "]";
+                        if (!(it2 instanceof Map<?, ?> sm)) {
+                            out.add(err(sp, "E_LOFT_SECTION_NOT_OBJECT", "sections[] 条目必须是对象（map）"));
+                            continue;
+                        }
+                        warnUnknownKeys(out, sp, sm, java.util.Set.of(
+                                "at", "x", "y", "z",
+                                "profilePoints", "profileRings", "rings"
+                        ));
+                        Object at = sm.get("at");
+                        if (at != null && !(at instanceof Map<?, ?>)) out.add(err(sp + ".at", "E_LOFT_AT_TYPE", "at 必须是对象（map）"));
+                        Object prof = sm.get("profileRings");
+                        if (prof == null) prof = sm.get("rings");
+                        if (prof == null) prof = sm.get("profilePoints");
+                        if (!(prof instanceof List<?>)) out.add(err(sp, "E_LOFT_PROFILE_MISSING", "每段需要 profilePoints/profileRings（数组）"));
+                    }
+                }
+                if (m.get("uSamples") != null || m.get("u") != null) requireIntMin(out, p, m, "uSamples", 2);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("connectSamples") != null && !(m.get("connectSamples") instanceof Boolean)) {
+                    out.add(err(p + ".connectSamples", "E_BOOL_TYPE", "connectSamples 必须是布尔"));
+                }
             }
             if (op.equals("ANCHOR_FOOTPRINT")) {
                 if (m.get("x0") == null || m.get("x1") == null || m.get("z0") == null || m.get("z1") == null) {
