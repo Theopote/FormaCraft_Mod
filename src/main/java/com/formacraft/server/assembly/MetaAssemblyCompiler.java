@@ -105,6 +105,33 @@ public final class MetaAssemblyCompiler {
 
         // v1 component macros
         switch (type) {
+            case "SPLINE_SWEEP", "SWEEP_SPLINE", "SPLINE_TUBE", "SPLINE" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "SPLINE_SWEEP");
+                // points required
+                copy(comp, o, "points");
+                copy(comp, o, "profile");
+                copyInt(comp, o, "profileW", i(comp.get("profileW"), i(comp.get("w"), 5)));
+                copyInt(comp, o, "profileH", i(comp.get("profileH"), i(comp.get("h"), 3)));
+                // RECT taper (optional)
+                copyInt(comp, o, "profileW0", i(comp.get("profileW0"), i(comp.get("w0"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "profileW1", i(comp.get("profileW1"), i(comp.get("w1"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "profileH0", i(comp.get("profileH0"), i(comp.get("h0"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "profileH1", i(comp.get("profileH1"), i(comp.get("h1"), Integer.MIN_VALUE)));
+                copy(comp, o, "twistTurns");
+                copy(comp, o, "twistPhase");
+                copy(comp, o, "capEnds");
+                // radius/taper
+                copyInt(comp, o, "r", i(comp.get("r"), i(comp.get("radius"), 3)));
+                copyInt(comp, o, "r0", i(comp.get("r0"), i(comp.get("radius0"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "r1", i(comp.get("r1"), i(comp.get("radius1"), Integer.MIN_VALUE)));
+                copy(comp, o, "hollow");
+                copyInt(comp, o, "thickness", 1);
+                copyInt(comp, o, "samplesPerBlock", 10);
+                copy(comp, o, "material");
+                copy(comp, o, "wall");
+                ops.add(o);
+            }
             case "CYLINDER" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "CYLINDER");
@@ -326,6 +353,16 @@ public final class MetaAssemblyCompiler {
                     copyInt(oo, o, "traceryInset", i(oo.get("traceryInset"), 0));
                     copyInt(oo, o, "traceryFoilRadius", i(oo.get("traceryFoilRadius"), i(oo.get("foilRadius"), 0)));
                     copyInt(oo, o, "traceryFoilCenterY", i(oo.get("traceryFoilCenterY"), i(oo.get("foilCenterY"), Integer.MIN_VALUE)));
+                    copyInt(oo, o, "traceryFoilCount", i(oo.get("traceryFoilCount"), i(oo.get("foilCount"), 1)));
+                    copyInt(oo, o, "traceryFoilStepY", i(oo.get("traceryFoilStepY"), i(oo.get("foilStepY"), i(oo.get("foilGapY"), 0))));
+                    // Also copy raw (string-friendly) knobs so LLM can use e.g. foilCount="AUTO"
+                    copy(oo, o, "foilCount");
+                    copy(oo, o, "traceryFoilCount");
+                    copy(oo, o, "foilStepY");
+                    copy(oo, o, "foilGapY");
+                    copy(oo, o, "traceryFoilStepY");
+                    copy(oo, o, "foilCenterY");
+                    copy(oo, o, "traceryFoilCenterY");
                     copyInt(oo, o, "r", i(oo.get("r"), i(oo.get("radius"), 0)));
                     copyInt(oo, o, "centerY", i(oo.get("centerY"), -999999));
                     copyInt(oo, o, "petals", i(oo.get("petals"), i(oo.get("spokes"), 0)));
@@ -1424,6 +1461,28 @@ public final class MetaAssemblyCompiler {
         String type = str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
         if (type.isBlank()) type = str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT);
 
+        // SPLINE components: derive start/end ports from points
+        if (type.contains("SPLINE")) {
+            Object ptsObj = comp.get("points");
+            if (ptsObj instanceof List<?> list && list.size() >= 2) {
+                int[] a = readPoint(list.get(0));
+                int[] b = readPoint(list.get(list.size() - 1));
+                if (a != null) {
+                    ports.put("start", a);
+                    ports.put("entrance", a);
+                    ports.put("in", a);
+                }
+                if (b != null) {
+                    ports.put("end", b);
+                    ports.put("exit", b);
+                    ports.put("out", b);
+                }
+                if (a != null && b != null) {
+                    ports.put("center", new int[]{(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2});
+                }
+            }
+        }
+
         if (type.contains("CYLINDER")) {
             int r = componentRadius(comp);
             ports.put("north", new int[]{0, 0, -r});
@@ -1581,6 +1640,14 @@ public final class MetaAssemblyCompiler {
             }
         }
         return ports;
+    }
+
+    private static int[] readPoint(Object v) {
+        if (!(v instanceof Map<?, ?> pm)) return null;
+        int x = i(pm.get("x"), 0);
+        int y = i(pm.get("y"), 0);
+        int z = i(pm.get("z"), 0);
+        return new int[]{x, y, z};
     }
 
     private static int[] polygonBounds(Map<String, Object> comp) {

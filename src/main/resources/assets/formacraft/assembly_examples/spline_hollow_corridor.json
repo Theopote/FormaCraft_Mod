@@ -1,0 +1,30 @@
+{
+  "paletteId": "PALETTE_PARAMETRIC_WHITE_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "corridor",
+        "type": "SPLINE_SWEEP",
+        "profile": "RECT",
+        "profileW": 9,
+        "profileH": 5,
+        "hollow": true,
+        "thickness": 1,
+        "capEnds": true,
+        "material": "minecraft:white_concrete",
+        "wall": "minecraft:smooth_quartz",
+        "samplesPerBlock": 10,
+        "points": [
+          { "x": -20, "y": 4, "z": -10 },
+          { "x": -8,  "y": 6, "z": -2 },
+          { "x":  2,  "y": 5, "z":  10 },
+          { "x":  16, "y": 7, "z":  6 },
+          { "x":  22, "y": 6, "z":  16 }
+        ]
+      }
+    ]
+  }
+}
+
+

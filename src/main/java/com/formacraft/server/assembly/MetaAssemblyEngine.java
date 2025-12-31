@@ -19,6 +19,7 @@ import net.minecraft.block.StairsBlock;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -493,6 +494,148 @@ public final class MetaAssemblyEngine {
                         BspFloorPlanGenerator.Materials.of(coreWall, roomWall, stairs)
                 );
             }
+            case "SPLINE_SWEEP", "SPLINE_TUBE" -> {
+                // Sweep a tube-like volume along a spline defined by control points (local coords).
+                // Keys:
+                // - points: [{x,y,z}, ...] (>=2)
+                // - profile: "SPHERE"(default) / "RECT"
+                // - profileW/profileH for RECT
+                // - twistTurns: number of full turns along the sweep (RECT only; best-effort)
+                // - r or radius (default 3)
+                // - r0/r1 (taper endpoints, overrides r)
+                // - hollow: bool
+                // - thickness: shell thickness if hollow
+                // - samplesPerBlock: density factor (default 10)
+                List<Vec3d> pts = parseVecPoints(op.get("points"));
+                if (pts.size() < 2) break;
+
+                int samplesPerBlock = clamp(i(op.get("samplesPerBlock"), 10), 2, 40);
+                List<Vec3d> poly = sampleBezierSpline(pts, samplesPerBlock);
+                if (poly.size() < 2) break;
+
+                String profile = str(op.get("profile"), "SPHERE").trim().toUpperCase(Locale.ROOT);
+                int r = clamp(i(op.get("r"), i(op.get("radius"), 3)), 1, 24);
+                int r0 = i(op.get("r0"), i(op.get("radius0"), Integer.MIN_VALUE));
+                int r1 = i(op.get("r1"), i(op.get("radius1"), Integer.MIN_VALUE));
+                boolean taper = (r0 != Integer.MIN_VALUE && r1 != Integer.MIN_VALUE);
+                if (!taper) { r0 = r; r1 = r; }
+
+                boolean hollow = bool(op.get("hollow"), false);
+                int thickness = clamp(i(op.get("thickness"), 1), 1, 8);
+                double twistTurns = d(op.get("twistTurns"), 0.0);
+                double twistPhase = d(op.get("twistPhase"), 0.0);
+
+                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0xA58001L, Blocks.WHITE_CONCRETE.getDefaultState());
+                BlockState shell = pick(ctx, op, "wall", "WALL_BASE", 0xA58002L, mat);
+
+                java.util.HashSet<Long> seen = new java.util.HashSet<>();
+                int n = poly.size();
+                for (int i = 0; i < n; i++) {
+                    double tt = (n <= 1) ? 0.0 : (i / (double) (n - 1));
+                    double rad = lerp(r0, r1, tt);
+                    Vec3d p = poly.get(i);
+                    int cx = (int) Math.round(p.x);
+                    int cy = (int) Math.round(p.y);
+                    int cz = (int) Math.round(p.z);
+
+                    if (!profile.contains("RECT")) {
+                        int rr = Math.max(1, (int) Math.round(rad));
+                        int rr2 = rr * rr;
+                        int inner = Math.max(0, rr - thickness);
+                        int inner2 = inner * inner;
+                        for (int ox = -rr; ox <= rr; ox++) {
+                            for (int oy = -rr; oy <= rr; oy++) {
+                                for (int oz = -rr; oz <= rr; oz++) {
+                                    int d2 = ox * ox + oy * oy + oz * oz;
+                                    if (d2 > rr2) continue;
+                                    if (hollow && d2 < inner2) continue;
+                                    int x = cx + ox;
+                                    int y = cy + oy;
+                                    int z = cz + oz;
+                                    long key = packXYZ(x, y, z);
+                                    if (!seen.add(key)) continue;
+                                    put(out, ctx, curOrigin, x, y, z, hollow ? shell : mat);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+
+                    // RECT profile: build a local frame from tangent + an "up" vector, then sweep a rectangle.
+                    int pwConst = clamp(i(op.get("profileW"), i(op.get("w"), 5)), 1, 64);
+                    int phConst = clamp(i(op.get("profileH"), i(op.get("h"), 3)), 1, 64);
+                    int pw0 = i(op.get("profileW0"), i(op.get("w0"), Integer.MIN_VALUE));
+                    int pw1 = i(op.get("profileW1"), i(op.get("w1"), Integer.MIN_VALUE));
+                    int ph0 = i(op.get("profileH0"), i(op.get("h0"), Integer.MIN_VALUE));
+                    int ph1 = i(op.get("profileH1"), i(op.get("h1"), Integer.MIN_VALUE));
+                    boolean rectTaper = (pw0 != Integer.MIN_VALUE && pw1 != Integer.MIN_VALUE) || (ph0 != Integer.MIN_VALUE && ph1 != Integer.MIN_VALUE);
+                    if (!rectTaper) {
+                        pw0 = pwConst; pw1 = pwConst;
+                        ph0 = phConst; ph1 = phConst;
+                    } else {
+                        if (pw0 == Integer.MIN_VALUE) pw0 = pwConst;
+                        if (pw1 == Integer.MIN_VALUE) pw1 = pwConst;
+                        if (ph0 == Integer.MIN_VALUE) ph0 = phConst;
+                        if (ph1 == Integer.MIN_VALUE) ph1 = phConst;
+                    }
+                    int pw = clamp((int) Math.round(lerp(pw0, pw1, tt)), 1, 64);
+                    int ph = clamp((int) Math.round(lerp(ph0, ph1, tt)), 1, 64);
+                    int halfW = Math.max(0, pw / 2);
+                    int halfH = Math.max(0, ph / 2);
+                    // For hollow rect, thickness means border thickness in grid cells.
+                    int t = Math.max(1, thickness);
+                    boolean capEnds = bool(op.get("capEnds"), true);
+
+                    Vec3d prev = (i > 0) ? poly.get(i - 1) : poly.get(i);
+                    Vec3d next = (i + 1 < n) ? poly.get(i + 1) : poly.get(i);
+                    Vec3d tan = next.subtract(prev);
+                    if (tan.lengthSquared() < 1e-6) tan = new Vec3d(0, 0, 1);
+                    tan = tan.normalize();
+
+                    // Choose an up vector not parallel to tan.
+                    Vec3d up = new Vec3d(0, 1, 0);
+                    if (Math.abs(tan.dotProduct(up)) > 0.95) up = new Vec3d(1, 0, 0);
+                    Vec3d nrm = up.crossProduct(tan).normalize();
+                    Vec3d bin = tan.crossProduct(nrm).normalize();
+
+                    double ang = (twistTurns * Math.PI * 2.0) * tt + (twistPhase * Math.PI * 2.0);
+                    double ca = Math.cos(ang);
+                    double sa = Math.sin(ang);
+                    Vec3d nrm2 = nrm.multiply(ca).add(bin.multiply(sa));
+                    Vec3d bin2 = bin.multiply(ca).subtract(nrm.multiply(sa));
+
+                    for (int uu = -halfW; uu <= halfW; uu++) {
+                        for (int vv = -halfH; vv <= halfH; vv++) {
+                            if (hollow) {
+                                boolean border = (uu - (-halfW) < t) || (halfW - uu < t) || (vv - (-halfH) < t) || (halfH - vv < t);
+                                if (!border) continue;
+                            }
+                            Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
+                            int x = cx + (int) Math.round(off.x);
+                            int y = cy + (int) Math.round(off.y);
+                            int z = cz + (int) Math.round(off.z);
+                            long key = packXYZ(x, y, z);
+                            if (!seen.add(key)) continue;
+                            put(out, ctx, curOrigin, x, y, z, hollow ? shell : mat);
+                        }
+                    }
+
+                    // End caps: close the corridor opening at endpoints for hollow RECT sweeps.
+                    if (hollow && capEnds && (i == 0 || i == n - 1)) {
+                        for (int uu = -halfW; uu <= halfW; uu++) {
+                            for (int vv = -halfH; vv <= halfH; vv++) {
+                                Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
+                                int x = cx + (int) Math.round(off.x);
+                                int y = cy + (int) Math.round(off.y);
+                                int z = cz + (int) Math.round(off.z);
+                                long key = packXYZ(x, y, z);
+                                if (!seen.add(key)) continue;
+                                put(out, ctx, curOrigin, x, y, z, shell);
+                            }
+                        }
+                    }
+                }
+            }
             case "SURFACE_PATTERN" -> {
                 // Apply an unstyled pattern on a box face.
                 // Required:
@@ -629,11 +772,14 @@ public final class MetaAssemblyEngine {
                             int traceryY = i(op.get("traceryY"), Integer.MIN_VALUE); // optional absolute local Y
                             int traceryInset = clamp(i(op.get("traceryInset"), 0), 0, 2);
                             int foilRadius = i(op.get("traceryFoilRadius"), i(op.get("foilRadius"), 0));
-                            int foilCenterY = i(op.get("traceryFoilCenterY"), i(op.get("foilCenterY"), Integer.MIN_VALUE));
+                            int foilCount = resolveFoilCount(op, winH);
+                            int foilStepY = i(op.get("traceryFoilStepY"), i(op.get("foilStepY"), i(op.get("foilGapY"), 0)));
+                            boolean foilStepAuto = isAuto(op.get("foilStepY")) || isAuto(op.get("foilGapY")) || isAuto(op.get("traceryFoilStepY"));
                             BlockState traceryMat = pick(ctx, op, "traceryMaterial", "FACADE_TRIM", 0xA57122L, frame);
+                            int foilCenterY = resolveFoilCenterY(op, yBase, winH);
                             carveArchOnFace(out, ctx, curOrigin, face, centerX, centerZ, yBase, winW, winH, archType, fill, frame, frameT, mullionStep,
                                     archThickness, keystoneOn ? keystone : null,
-                                    tracery, traceryMat, traceryThickness, traceryY, traceryInset, foilRadius, foilCenterY);
+                                    tracery, traceryMat, traceryThickness, traceryY, traceryInset, foilRadius, foilCenterY, foilCount, foilStepY, foilStepAuto);
                         } else {
                             carveRectOnFace(out, ctx, curOrigin, face, centerX, centerZ, yBase, winW, winH, fill, frame, frameT, mullionStep);
                         }
@@ -737,7 +883,10 @@ public final class MetaAssemblyEngine {
                                         int traceryYAbs,
                                         int traceryInset,
                                         int foilRadius,
-                                        int foilCenterYAbs) {
+                                        int foilCenterYAbs,
+                                        int foilCount,
+                                        int foilStepY,
+                                        boolean foilStepAuto) {
         int hw = Math.max(1, rectW / 2);
         // split into base + arch cap; default rise tries to feel like an arch
         int archRise = Math.max(2, Math.min(rectH - 1, hw));
@@ -823,28 +972,42 @@ public final class MetaAssemblyEngine {
                             if (Math.abs(du) < t) on = true;
                             if (Math.abs(y - ty) < t) on = true;
                         } else if (part.contains("QUATRE")) {
-                            int cy = (foilCenterYAbs != Integer.MIN_VALUE) ? foilCenterYAbs
+                            int baseCy = (foilCenterYAbs != Integer.MIN_VALUE) ? foilCenterYAbs
                                     : ((traceryYAbs != Integer.MIN_VALUE) ? traceryYAbs : (y1 - Math.max(2, archRise / 2)));
                             int cx0 = 0;
                             int rr = (foilRadius > 0) ? foilRadius : Math.max(2, hw / 3);
                             int rr2 = rr * rr;
-                            int[][] centers = new int[][]{{cx0 - rr, cy},{cx0 + rr, cy},{cx0, cy - rr},{cx0, cy + rr}};
-                            for (int[] c : centers) {
-                                int dx = du - c[0];
-                                int dy = y - c[1];
-                                if (dx * dx + dy * dy <= rr2) { on = true; break; }
+                            int stepY = (foilStepY > 0) ? foilStepY : (rr * 2 + 1);
+                            if (foilStepAuto) stepY = Math.max(stepY, Math.max(3, traceryThickness * 2 + 2));
+                            int n = Math.max(1, foilCount);
+                            int cy0 = baseCy - (n - 1) * stepY / 2;
+                            for (int ii = 0; ii < n && !on; ii++) {
+                                int cy = cy0 + ii * stepY;
+                                int[][] centers = new int[][]{{cx0 - rr, cy},{cx0 + rr, cy},{cx0, cy - rr},{cx0, cy + rr}};
+                                for (int[] c : centers) {
+                                    int dx = du - c[0];
+                                    int dy = y - c[1];
+                                    if (dx * dx + dy * dy <= rr2) { on = true; break; }
+                                }
                             }
                         } else if (part.contains("TRE")) {
-                            int cy = (foilCenterYAbs != Integer.MIN_VALUE) ? foilCenterYAbs
+                            int baseCy = (foilCenterYAbs != Integer.MIN_VALUE) ? foilCenterYAbs
                                     : ((traceryYAbs != Integer.MIN_VALUE) ? traceryYAbs : (y1 - Math.max(2, archRise / 2)));
                             int cx0 = 0;
                             int rr = (foilRadius > 0) ? foilRadius : Math.max(2, hw / 3);
                             int rr2 = rr * rr;
-                            int[][] centers = new int[][]{{cx0 - rr, cy},{cx0 + rr, cy},{cx0, cy + rr}};
-                            for (int[] c : centers) {
-                                int dx = du - c[0];
-                                int dy = y - c[1];
-                                if (dx * dx + dy * dy <= rr2) { on = true; break; }
+                            int stepY = (foilStepY > 0) ? foilStepY : (rr * 2 + 1);
+                            if (foilStepAuto) stepY = Math.max(stepY, Math.max(3, traceryThickness * 2 + 2));
+                            int n = Math.max(1, foilCount);
+                            int cy0 = baseCy - (n - 1) * stepY / 2;
+                            for (int ii = 0; ii < n && !on; ii++) {
+                                int cy = cy0 + ii * stepY;
+                                int[][] centers = new int[][]{{cx0 - rr, cy},{cx0 + rr, cy},{cx0, cy + rr}};
+                                for (int[] c : centers) {
+                                    int dx = du - c[0];
+                                    int dy = y - c[1];
+                                    if (dx * dx + dy * dy <= rr2) { on = true; break; }
+                                }
                             }
                         }
                         if (on) break;
@@ -892,6 +1055,132 @@ public final class MetaAssemblyEngine {
             case "EAST" -> new int[]{x - inset, z};
             default -> new int[]{x, z};
         };
+    }
+
+    private static int resolveFoilCount(Map<String, Object> op, int winH) {
+        // Support:
+        // - foilCount / traceryFoilCount as Number
+        // - foilCount / traceryFoilCount as "AUTO"
+        Object rawA = op == null ? null : op.get("foilCount");
+        Object rawB = op == null ? null : op.get("traceryFoilCount");
+
+        if (isAuto(rawA) || isAuto(rawB)) {
+            // Heuristic by window height: taller windows get more layers.
+            int h = Math.max(0, winH);
+            int n = (h >= 11) ? 3 : (h >= 8) ? 2 : 1;
+            return clamp(n, 1, 8);
+        }
+
+        Integer v = asInt(rawA);
+        if (v == null) v = asInt(rawB);
+        if (v == null) v = i(op == null ? null : op.get("traceryFoilCount"), i(op == null ? null : op.get("foilCount"), 1));
+        return clamp(v, 1, 8);
+    }
+
+    private static int resolveFoilCenterY(Map<String, Object> op, int yBase, int winH) {
+        // Support:
+        // - foilCenterY / traceryFoilCenterY as Number
+        // - foilCenterY / traceryFoilCenterY as "AUTO" (per-window)
+        Object rawA = op == null ? null : op.get("foilCenterY");
+        Object rawB = op == null ? null : op.get("traceryFoilCenterY");
+
+        if (isAuto(rawA) || isAuto(rawB)) {
+            // Place the foil cluster in the upper half of the window by default.
+            int h = Math.max(0, winH);
+            int y = yBase + Math.max(2, (h * 2) / 3);
+            return y;
+        }
+
+        Integer v = asInt(rawA);
+        if (v == null) v = asInt(rawB);
+        if (v != null) return v;
+
+        return i(op == null ? null : op.get("traceryFoilCenterY"), i(op == null ? null : op.get("foilCenterY"), Integer.MIN_VALUE));
+    }
+
+    private static List<Vec3d> parseVecPoints(Object v) {
+        java.util.ArrayList<Vec3d> out = new java.util.ArrayList<>();
+        if (!(v instanceof List<?> list)) return out;
+        for (Object p : list) {
+            if (!(p instanceof Map<?, ?> pm)) continue;
+            double x = d(pm.get("x"), 0.0);
+            double y = d(pm.get("y"), 0.0);
+            double z = d(pm.get("z"), 0.0);
+            out.add(new Vec3d(x, y, z));
+        }
+        return out;
+    }
+
+    /**
+     * Catmull-Rom -> cubic Bezier conversion and sampling (server-side copy of PathTool logic).
+     */
+    private static List<Vec3d> sampleBezierSpline(List<Vec3d> waypoints, int samplesPerBlock) {
+        if (waypoints == null || waypoints.size() < 2) return java.util.Collections.emptyList();
+        int n = waypoints.size();
+        java.util.ArrayList<Vec3d> out = new java.util.ArrayList<>();
+        for (int i = 0; i < n - 1; i++) {
+            Vec3d p0 = (i == 0) ? waypoints.get(0) : waypoints.get(i - 1);
+            Vec3d p1 = waypoints.get(i);
+            Vec3d p2 = waypoints.get(i + 1);
+            Vec3d p3 = (i + 2 < n) ? waypoints.get(i + 2) : waypoints.get(n - 1);
+            if (p0 == null || p1 == null || p2 == null || p3 == null) continue;
+
+            Vec3d c1 = p1.add(p2.subtract(p0).multiply(1.0 / 6.0));
+            Vec3d c2 = p2.subtract(p3.subtract(p1).multiply(1.0 / 6.0));
+
+            double segLen = p1.distanceTo(p2);
+            int steps = (int) Math.max(6, Math.ceil(segLen * Math.max(2.0, samplesPerBlock)));
+            int start = (i == 0) ? 0 : 1; // avoid duplicates
+            for (int s = start; s <= steps; s++) {
+                double t = s / (double) steps;
+                out.add(bezier(p1, c1, c2, p2, t));
+            }
+        }
+        return out;
+    }
+
+    private static Vec3d bezier(Vec3d p0, Vec3d c1, Vec3d c2, Vec3d p3, double t) {
+        double u = 1.0 - t;
+        double tt = t * t;
+        double uu = u * u;
+        double uuu = uu * u;
+        double ttt = tt * t;
+        double x = uuu * p0.x + 3.0 * uu * t * c1.x + 3.0 * u * tt * c2.x + ttt * p3.x;
+        double y = uuu * p0.y + 3.0 * uu * t * c1.y + 3.0 * u * tt * c2.y + ttt * p3.y;
+        double z = uuu * p0.z + 3.0 * uu * t * c1.z + 3.0 * u * tt * c2.z + ttt * p3.z;
+        return new Vec3d(x, y, z);
+    }
+
+    private static double lerp(double a, double b, double t) {
+        return a + (b - a) * t;
+    }
+
+    private static long packXYZ(int x, int y, int z) {
+        // pack 3 signed ints into one long (range-limited; good enough for local coords)
+        long xx = (x & 0x1FFFFF); // 21 bits
+        long yy = (y & 0x3FFFF);  // 18 bits
+        long zz = (z & 0x1FFFFF); // 21 bits
+        return (xx << 42) | (yy << 24) | zz;
+    }
+
+    private static boolean isAuto(Object v) {
+        if (v == null) return false;
+        String s = String.valueOf(v).trim().toUpperCase(Locale.ROOT);
+        return s.equals("AUTO") || s.equals("A") || s.equals("AUTOMATIC");
+    }
+
+    private static Integer asInt(Object v) {
+        try {
+            if (v instanceof Number n) return n.intValue();
+            if (v == null) return null;
+            String s = String.valueOf(v).trim();
+            if (s.isEmpty()) return null;
+            // Don't parse non-numeric like "AUTO"
+            if (!s.matches("[-+]?\\d+")) return null;
+            return Integer.parseInt(s);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static void carveRoseOnFace(List<PlannedBlock> out,

@@ -30,6 +30,37 @@
 - 竖向条纹：`pattern=STRIPES_V`
 - 窗：尖拱高窗（`kind=ARCH_WINDOW`, `archType=POINTED`）+ 玫瑰窗近似（`kind=ROSE_WINDOW`）
 
+## 示例四：参数化/解构（曲线骨架 + 扫掠管）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/spline_parametric_tube.json`
+
+- 组件：`type=SPLINE_SWEEP`
+- 曲线：`points[]`（控制点）
+- 扫掠：沿样条采样后用“体素管”铺设
+- taper：用 `r0/r1` 做半径渐变（收分）
+
+## 示例五：参数化/解构（曲线骨架 + 扭转带）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/spline_twisted_ribbon.json`
+
+- 组件：`type=SPLINE_SWEEP`
+- 截面：`profile=RECT`（`profileW/profileH`）
+- 扭转：`twistTurns`（沿整条曲线旋转的圈数）
+
+## 示例六：参数化/解构（曲线骨架 + 扭转 + 收分）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/spline_twisted_tapered_ribbon.json`
+
+- taper：`profileW0/profileW1/profileH0/profileH1`（RECT 截面沿路径插值）
+
+## 示例七：参数化/解构（曲线骨架 + 空心走廊壳）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/spline_hollow_corridor.json`
+
+- 截面：`profile=RECT`
+- 空心壳：`hollow=true` + `thickness`
+- 端面封口：`capEnds=true`（默认也是 true）
+
 ## `facade.surfacePattern` 字段（组件侧）
 
 ```json
@@ -111,7 +142,9 @@
       "traceryMaterial": "minecraft:iron_bars",
       "traceryInset": 1,
       "foilRadius": 3,
-      "foilCenterY": 20,
+      "foilCenterY": "AUTO",
+      "foilCount": "AUTO",
+      "foilStepY": "AUTO",
       "rows": 2,
       "cols": 4,
       "winW": 2,
