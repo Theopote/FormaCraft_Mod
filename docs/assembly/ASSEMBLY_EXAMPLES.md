@@ -93,6 +93,34 @@
 - 可用 `profileFrame` 控制截面坐标系（`PATH` 随曲线旋转；`WORLD_XY/WORLD_XZ/WORLD_YZ` 世界对齐）
 - 可用 `profileSnap` 控制体素化取整（`ROUND/FLOOR/CEIL`）
 
+## SPLINE_SWEEP 端口（Ports）与“切线方向自动对接”
+
+编译器会为 `SPLINE_SWEEP` 组件自动生成端口：
+
+- **位置端口（已有）**：
+  - `start` / `end`
+  - 同义词：`entrance/in`（= start）、`exit/out`（= end）
+- **切线方向端口（可连接，用于自动对接道路/桥/廊道）**：
+  - `start_north|start_south|start_east|start_west`
+  - `end_north|end_south|end_east|end_west`
+
+方向由样条的 **首段/末段切线** 估算：`start_*` 使用 `points[1]-points[0]`，`end_*` 使用 `points[last]-points[last-1]`（取 XZ 主导轴）。
+
+并且有一个 **自动重写** 规则：
+
+- 当连接端点引用的是 `start/end/entrance/exit/in/out`（无方向），且该组件是 `SPLINE_SWEEP`，编译器会自动重写成对应的 `start_*` / `end_*`，
+  以便 A* 的 `routingLeadOut/routingLeadIn`、`routingPreferDoorAxis` 等逻辑能推断更合理的轴向/朝向。
+
+最常用写法示意（你可以只写 `start/end`，不用手动写方向端口）：
+
+```json
+{
+  "connections": [
+    { "type": "PATH", "from": "Tube.start", "to": "Hall.entrance", "routing": "ASTAR", "routingAutoLead": true }
+  ]
+}
+```
+
 ## 示例七：参数化/解构（曲线骨架 + 空心走廊壳）
 
 文件：`src/main/resources/assets/formacraft/assembly_examples/spline_hollow_corridor.json`

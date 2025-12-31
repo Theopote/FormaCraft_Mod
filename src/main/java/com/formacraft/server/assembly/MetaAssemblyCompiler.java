@@ -428,6 +428,11 @@ public final class MetaAssemblyCompiler {
         Endpoint b = parseEndpoint(conn.get("to"));
         if (a == null || b == null) return;
 
+        // Auto-rewrite spline endpoints: if user references start/end/entrance/exit/in/out without direction,
+        // and the component is a SPLINE, rewrite to start_{n/e/s/w} / end_{n/e/s/w} (tangent-direction port).
+        a = rewriteSplineTangentPort(a, byId, portsById);
+        b = rewriteSplineTangentPort(b, byId, portsById);
+
         int[] p0 = resolveEndpoint(a, byId, originById, portsById);
         int[] p1 = resolveEndpoint(b, byId, originById, portsById);
         if (p0 == null || p1 == null) return;
@@ -725,6 +730,42 @@ public final class MetaAssemblyCompiler {
     }
 
     private record Endpoint(String componentId, String port, String anchor, int dx, int dy, int dz) {}
+
+    private static Endpoint rewriteSplineTangentPort(Endpoint e,
+                                                     Map<String, Map<String, Object>> byId,
+                                                     Map<String, Map<String, int[]>> portsById) {
+        if (e == null || e.componentId == null || e.componentId.isBlank()) return e;
+        if (e.port == null || e.port.isBlank()) return e;
+        if (byId == null || portsById == null) return e;
+
+        Map<String, Object> comp = byId.get(e.componentId);
+        if (comp == null) return e;
+        String type = str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.isBlank()) type = str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT);
+        if (!type.contains("SPLINE")) return e;
+
+        String p = normalizePortKey(e.port);
+        // If already directional (e.g., start_east) don't touch it.
+        if (p.startsWith("start_") || p.startsWith("end_")) return e;
+
+        String kind = null; // "start" or "end"
+        if (p.equals("start") || p.equals("entrance") || p.equals("in")) kind = "start";
+        if (p.equals("end") || p.equals("exit") || p.equals("out")) kind = "end";
+        if (kind == null) return e;
+
+        Map<String, int[]> ports = portsById.get(e.componentId);
+        if (ports == null || ports.isEmpty()) return e;
+
+        // We generate at most one of these, but check all 4 for robustness/user overrides.
+        String[] dirs = new String[]{"north", "south", "east", "west"};
+        for (String d : dirs) {
+            String k = kind + "_" + d;
+            if (ports.containsKey(k)) {
+                return new Endpoint(e.componentId, k, e.anchor, e.dx, e.dy, e.dz);
+            }
+        }
+        return e;
+    }
 
     private static Endpoint parseEndpoint(Object v) {
         switch (v) {
