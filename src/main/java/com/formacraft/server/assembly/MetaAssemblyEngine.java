@@ -155,7 +155,7 @@ public final class MetaAssemblyEngine {
                 // Simple 3D connector between two points: places a beam prism along the sampled line.
                 // Expected keys:
                 // - from/to maps {x,y,z} or x0,y0,z0,x1,y1,z1
-                int x0 = 0, y0 = 0, z0 = 0, x1 = 0, y1 = 0, z1 = 0;
+                int x0, y0, z0, x1, y1, z1;
                 Object from = op.get("from");
                 Object to = op.get("to");
                 if (from instanceof Map<?, ?> fm) {
@@ -193,8 +193,8 @@ public final class MetaAssemblyEngine {
                 int width = clamp(i(op.get("width"), i(op.get("thickness"), 3)), 1, 15);
                 String style = str(op.get("style"), "default");
 
-                int[] p0 = parsePoint(op.get("from"), 0, 0, 0);
-                int[] p1 = parsePoint(op.get("to"), 0, 0, 0);
+                int[] p0 = parsePoint(op.get("from"));
+                int[] p1 = parsePoint(op.get("to"));
                 PathSpec ps = new PathSpec();
                 ps.setFrom(new PathSpec.Point(p0[0], p0[1], p0[2]));
                 ps.setTo(new PathSpec.Point(p1[0], p1[1], p1[2]));
@@ -212,8 +212,8 @@ public final class MetaAssemblyEngine {
             }
             case "WALL_ROUTE" -> {
                 // Build a wall along a line between two points using LinearWallInterpreter.
-                int[] p0 = parsePoint(op.get("from"), 0, 0, 0);
-                int[] p1 = parsePoint(op.get("to"), 0, 0, 0);
+                int[] p0 = parsePoint(op.get("from"));
+                int[] p1 = parsePoint(op.get("to"));
                 int height = clamp(i(op.get("wallHeight"), i(op.get("height"), 10)), 4, 120);
                 int thickness = clamp(i(op.get("wallThickness"), i(op.get("thickness"), 5)), 3, 31);
                 int towerSpacing = clamp(i(op.get("towerSpacing"), 48), 8, 512);
@@ -258,8 +258,8 @@ public final class MetaAssemblyEngine {
             }
             case "BRIDGE_ROUTE" -> {
                 // Axis-aligned: reuse BridgeGenerator (better aesthetics + anchor mode support).
-                int[] p0 = parsePoint(op.get("from"), 0, 0, 0);
-                int[] p1 = parsePoint(op.get("to"), 0, 0, 0);
+                int[] p0 = parsePoint(op.get("from"));
+                int[] p1 = parsePoint(op.get("to"));
                 int width = clamp(i(op.get("width"), 5), 3, 25);
 
                 int dx = p1[0] - p0[0];
@@ -475,7 +475,7 @@ public final class MetaAssemblyEngine {
                 if (fpc == null) return curOrigin;
 
                 BlockState coreWall = pick(ctx, op, "coreWall", "FRAME", 0xA55101L, Blocks.STONE_BRICKS.getDefaultState());
-                BlockState roomWall = coreWall;
+                BlockState roomWall;
                 if (fpc.partitionStyle != null && fpc.partitionStyle.contains("OPEN")) {
                     roomWall = pick(ctx, op, "roomWallOpen", "PARTITION_WALL", 0xA55102L, Blocks.GLASS_PANE.getDefaultState());
                 } else {
@@ -603,21 +603,26 @@ public final class MetaAssemblyEngine {
                     // Choose a frame for the profile plane.
                     Vec3d nrm;
                     Vec3d bin;
-                    if ("WORLD_XY".equals(profileFrame)) {
-                        nrm = new Vec3d(1, 0, 0);
-                        bin = new Vec3d(0, 1, 0);
-                    } else if ("WORLD_XZ".equals(profileFrame)) {
-                        nrm = new Vec3d(1, 0, 0);
-                        bin = new Vec3d(0, 0, 1);
-                    } else if ("WORLD_YZ".equals(profileFrame)) {
-                        nrm = new Vec3d(0, 1, 0);
-                        bin = new Vec3d(0, 0, 1);
-                    } else {
-                        // PATH: build an orthonormal frame around tangent.
-                        Vec3d up = new Vec3d(0, 1, 0);
-                        if (Math.abs(tan.dotProduct(up)) > 0.95) up = new Vec3d(1, 0, 0);
-                        nrm = up.crossProduct(tan).normalize();
-                        bin = tan.crossProduct(nrm).normalize();
+                    switch (profileFrame) {
+                        case "WORLD_XY" -> {
+                            nrm = new Vec3d(1, 0, 0);
+                            bin = new Vec3d(0, 1, 0);
+                        }
+                        case "WORLD_XZ" -> {
+                            nrm = new Vec3d(1, 0, 0);
+                            bin = new Vec3d(0, 0, 1);
+                        }
+                        case "WORLD_YZ" -> {
+                            nrm = new Vec3d(0, 1, 0);
+                            bin = new Vec3d(0, 0, 1);
+                        }
+                        case null, default -> {
+                            // PATH: build an orthonormal frame around tangent.
+                            Vec3d up = new Vec3d(0, 1, 0);
+                            if (Math.abs(tan.dotProduct(up)) > 0.95) up = new Vec3d(1, 0, 0);
+                            nrm = up.crossProduct(tan).normalize();
+                            bin = tan.crossProduct(nrm).normalize();
+                        }
                     }
 
                     double ang = (twistTurns * Math.PI * 2.0) * tt + (twistPhase * Math.PI * 2.0);
@@ -801,8 +806,7 @@ public final class MetaAssemblyEngine {
                     int doorH = clamp(i(op.get("doorH"), i(op.get("winH"), 3)), 2, 10);
                     int sx = (ax0 + ax1) / 2;
                     int sz = (az0 + az1) / 2;
-                    int yBase = ay0;
-                    carveRectOnFace(out, ctx, curOrigin, face, sx, sz, yBase, doorW, doorH, air, frame, frameT, mullionStep);
+                    carveRectOnFace(out, ctx, curOrigin, face, sx, sz, ay0, doorW, doorH, air, frame, frameT, mullionStep);
                     break;
                 }
 
@@ -919,7 +923,6 @@ public final class MetaAssemblyEngine {
                     case "STRIPES_H", "STRIPES_HORIZONTAL" -> place = (Math.floorMod(y, step) == 0);
                     case "RIBS_V", "RIBS_VERTICAL" -> place = (Math.floorMod(u, step) < thick);
                     case "RIBS_H", "RIBS_HORIZONTAL" -> place = (Math.floorMod(y, step) < thick);
-                    case "GRID" -> place = (Math.floorMod(u, step) == 0) || (Math.floorMod(y, step) == 0);
                     default -> place = (Math.floorMod(u, step) == 0) || (Math.floorMod(y, step) == 0);
                 }
                 if (!place) continue;
@@ -944,17 +947,16 @@ public final class MetaAssemblyEngine {
                                         int frameT,
                                         int mullionStep) {
         int hw = Math.max(0, rectW / 2);
-        int y0 = yBase;
         int y1 = yBase + rectH - 1;
 
         boolean alongX = "NORTH".equals(face) || "SOUTH".equals(face);
-        for (int y = y0; y <= y1; y++) {
+        for (int y = yBase; y <= y1; y++) {
             for (int du = -hw; du <= hw; du++) {
                 int x = alongX ? (centerX + du) : centerX;
                 int z = alongX ? centerZ : (centerZ + du);
                 boolean isFrame = false;
                 if (frameT > 0) {
-                    if (y - y0 < frameT || y1 - y < frameT) isFrame = true;
+                    if (y - yBase < frameT || y1 - y < frameT) isFrame = true;
                     if (du + hw < frameT || hw - du < frameT) isFrame = true;
                 }
                 boolean isMullion = (mullionStep > 0) && (Math.floorMod(du + hw, mullionStep) == 0);
@@ -994,7 +996,6 @@ public final class MetaAssemblyEngine {
         // split into base + arch cap; default rise tries to feel like an arch
         int archRise = Math.max(2, Math.min(rectH - 1, hw));
         int baseH = Math.max(1, rectH - archRise);
-        int y0 = yBase;
         int y1 = yBase + rectH - 1;
 
         boolean alongX = "NORTH".equals(face) || "SOUTH".equals(face);
@@ -1003,8 +1004,8 @@ public final class MetaAssemblyEngine {
         double pr = Math.max(hw + 1, Math.round(hw * 1.6));
         double pr2 = pr * pr;
 
-        for (int y = y0; y <= y1; y++) {
-            int localY = y - y0;
+        for (int y = yBase; y <= y1; y++) {
+            int localY = y - yBase;
             for (int du = -hw; du <= hw; du++) {
                 boolean inside;
                 if (localY < baseH) {
@@ -1031,10 +1032,10 @@ public final class MetaAssemblyEngine {
                         int[] nu = new int[]{du + k, du - k, du, du};
                         int[] ny = new int[]{y + k, y - k, y, y};
                         // quick boundary: any of the 4-neighbors at distance k outside
-                        for (int j = 0; j < 4 && !isFrame; j++) {
+                        for (int j = 0; j < 4; j++) {
                             int ndu = nu[j];
                             int nyy = ny[j];
-                            int lyy = nyy - y0;
+                            int lyy = nyy - yBase;
                             boolean nInside;
                             if (lyy < 0 || lyy >= rectH) nInside = false;
                             else if (lyy < baseH) nInside = true;
@@ -1048,7 +1049,10 @@ public final class MetaAssemblyEngine {
                                     nInside = (ndu * ndu + nay * nay) <= (hw * hw);
                                 }
                             }
-                            if (!nInside) isFrame = true;
+                            if (!nInside) {
+                                isFrame = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -1058,22 +1062,21 @@ public final class MetaAssemblyEngine {
                     // Simple approximation: treat a slightly expanded border as frame.
                     int duAbs = Math.abs(du);
                     if (duAbs >= hw - (archThickness - 1)) isFrame = true;
-                    if ((y - y0) < archThickness || (y1 - y) < archThickness) isFrame = true;
+                    if ((y - yBase) < archThickness || (y1 - y) < archThickness) isFrame = true;
                 }
 
                 BlockState s = (isFrame || isMullion) ? frame : fill;
 
                 // Tracery (inside only): draw decorative bars/shapes using traceryMat.
                 if (!isFrame && traceryMat != null && traceryThickness > 0 && tracery != null && !tracery.isBlank()) {
-                    int t = traceryThickness;
-                    int ty = (traceryYAbs != Integer.MIN_VALUE) ? traceryYAbs : (y0 + baseH + (rectH - baseH) / 2);
+                    int ty = (traceryYAbs != Integer.MIN_VALUE) ? traceryYAbs : (yBase + baseH + (rectH - baseH) / 2);
                     boolean on = false;
                     java.util.List<String> parts = splitTracery(tracery);
                     for (String part : parts) {
                         if (part.isBlank()) continue;
                         if (part.contains("CROSS")) {
-                            if (Math.abs(du) < t) on = true;
-                            if (Math.abs(y - ty) < t) on = true;
+                            if (Math.abs(du) < traceryThickness) on = true;
+                            if (Math.abs(y - ty) < traceryThickness) on = true;
                         } else if (part.contains("QUATRE")) {
                             int baseCy = (foilCenterYAbs != Integer.MIN_VALUE) ? foilCenterYAbs
                                     : ((traceryYAbs != Integer.MIN_VALUE) ? traceryYAbs : (y1 - Math.max(2, archRise / 2)));
@@ -1190,8 +1193,7 @@ public final class MetaAssemblyEngine {
         if (isAuto(rawA) || isAuto(rawB)) {
             // Place the foil cluster in the upper half of the window by default.
             int h = Math.max(0, winH);
-            int y = yBase + Math.max(2, (h * 2) / 3);
-            return y;
+            return yBase + Math.max(2, (h * 2) / 3);
         }
 
         Integer v = asInt(rawA);
@@ -1222,7 +1224,7 @@ public final class MetaAssemblyEngine {
         int n = waypoints.size();
         java.util.ArrayList<Vec3d> out = new java.util.ArrayList<>();
         for (int i = 0; i < n - 1; i++) {
-            Vec3d p0 = (i == 0) ? waypoints.get(0) : waypoints.get(i - 1);
+            Vec3d p0 = (i == 0) ? waypoints.getFirst() : waypoints.get(i - 1);
             Vec3d p1 = waypoints.get(i);
             Vec3d p2 = waypoints.get(i + 1);
             Vec3d p3 = (i + 2 < n) ? waypoints.get(i + 2) : waypoints.get(n - 1);
@@ -1357,7 +1359,7 @@ public final class MetaAssemblyEngine {
             int[] pj = poly.get(j);
             int xi = pi[0], yi = pi[1];
             int xj = pj[0], yj = pj[1];
-            boolean intersect = ((yi > v) != (yj > v)) && (u < (double) (xj - xi) * (v - yi) / (double) (yj - yi + 0.000001) + xi);
+            boolean intersect = ((yi > v) != (yj > v)) && (u < (double) (xj - xi) * (v - yi) / (yj - yi + 0.000001) + xi);
             if (intersect) inside = !inside;
         }
         return inside;
@@ -1486,11 +1488,11 @@ public final class MetaAssemblyEngine {
         }
     }
 
-    private static int[] parsePoint(Object v, int dx, int dy, int dz) {
+    private static int[] parsePoint(Object v) {
         if (v instanceof Map<?, ?> m) {
-            return new int[]{i(m.get("x"), dx), i(m.get("y"), dy), i(m.get("z"), dz)};
+            return new int[]{i(m.get("x"), 0), i(m.get("y"), 0), i(m.get("z"), 0)};
         }
-        return new int[]{dx, dy, dz};
+        return new int[]{0, 0, 0};
     }
 
     private static List<BlockPos> rasterizeLine2D(BlockPos a, BlockPos b, ServerWorld world, boolean followTerrain, int maxStep) {

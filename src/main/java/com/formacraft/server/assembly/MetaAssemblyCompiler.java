@@ -27,7 +27,7 @@ public final class MetaAssemblyCompiler {
         if (!(assemblyObj instanceof Map<?, ?> mm)) return null;
         Map<String, Object> m;
         try { m = (Map<String, Object>) mm; } catch (Exception e) { return null; }
-        if (m == null || m.isEmpty()) return null;
+        if (m.isEmpty()) return null;
 
         // If already has ops, just use it directly.
         AssemblySpec existing = AssemblySpec.fromExtra(m);
@@ -89,7 +89,7 @@ public final class MetaAssemblyCompiler {
         if (type.isBlank()) return;
 
         // placement (local offsets)
-        int dx = 0, dy = 0, dz = 0;
+        int dx, dy, dz;
         Object at = comp.get("at");
         if (at instanceof Map<?, ?> am) {
             dx = i(am.get("x"), 0);
@@ -293,29 +293,27 @@ public final class MetaAssemblyCompiler {
         if (sp instanceof Map<?, ?> spm) {
             Map<String, Object> spx;
             try { spx = (Map<String, Object>) spm; } catch (Exception e) { spx = null; }
-            if (spx != null) {
-                String faces = str(spx.get("face"), str(spx.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
-                String pattern = str(spx.get("type"), str(spx.get("pattern"), "GRID")).trim().toUpperCase(Locale.ROOT);
-                int step = Math.max(1, i(spx.get("step"), i(spx.get("spacing"), 3)));
-                int thickness = Math.max(1, i(spx.get("thickness"), 1));
+            String faces = str(spx.get("face"), str(spx.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
+            String pattern = str(spx.get("type"), str(spx.get("pattern"), "GRID")).trim().toUpperCase(Locale.ROOT);
+            int step = Math.max(1, i(spx.get("step"), i(spx.get("spacing"), 3)));
+            int thickness = Math.max(1, i(spx.get("thickness"), 1));
 
-                for (String face : expandFaces(faces)) {
-                    Map<String, Object> o = new HashMap<>();
-                    o.put("op", "SURFACE_PATTERN");
-                    o.put("face", face);
-                    o.put("pattern", pattern);
-                    o.put("step", step);
-                    o.put("thickness", thickness);
-                    // bounds
-                    o.put("x0", -hx); o.put("x1", hx);
-                    o.put("y0", y0);  o.put("y1", y1);
-                    o.put("z0", -hz); o.put("z1", hz);
-                    // material overrides: material/frame/accent accepted by engine pick()
-                    copy(spx, o, "material");
-                    copy(spx, o, "accent");
-                    copy(spx, o, "frame");
-                    ops.add(o);
-                }
+            for (String face : expandFaces(faces)) {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "SURFACE_PATTERN");
+                o.put("face", face);
+                o.put("pattern", pattern);
+                o.put("step", step);
+                o.put("thickness", thickness);
+                // bounds
+                o.put("x0", -hx); o.put("x1", hx);
+                o.put("y0", y0);  o.put("y1", y1);
+                o.put("z0", -hz); o.put("z1", hz);
+                // material overrides: material/frame/accent accepted by engine pick()
+                copy(spx, o, "material");
+                copy(spx, o, "accent");
+                copy(spx, o, "frame");
+                ops.add(o);
             }
         }
 
@@ -527,7 +525,7 @@ public final class MetaAssemblyCompiler {
         // routingStyle macro: PLANNED / ORGANIC, plus routingStyleStrength (0..1) to interpolate ORGANIC->PLANNED.
         // This only changes defaults; explicit params always win.
         String routingStyle = str(conn.get("routingStyle"), "").trim().toUpperCase(Locale.ROOT);
-        double routingStyleStrength = d(conn.get("routingStyleStrength"), Double.NaN);
+        double routingStyleStrength = d(conn.get("routingStyleStrength"));
         if (!Double.isNaN(routingStyleStrength)) {
             if (routingStyleStrength < 0.0) routingStyleStrength = 0.0;
             if (routingStyleStrength > 1.0) routingStyleStrength = 1.0;
@@ -578,21 +576,20 @@ public final class MetaAssemblyCompiler {
 
         // If strength is provided, it overrides routingStyle defaults (still does not override explicit params).
         if (!Double.isNaN(routingStyleStrength)) {
-            double s = routingStyleStrength;
-            preferStraightDefault = (int) Math.round(organicPreferStraight + (plannedPreferStraight - organicPreferStraight) * s);
-            preferAxisWeightDefault = (int) Math.round(organicPreferAxisWeight + (plannedPreferAxisWeight - organicPreferAxisWeight) * s);
+            preferStraightDefault = (int) Math.round(organicPreferStraight + (plannedPreferStraight - organicPreferStraight) * routingStyleStrength);
+            preferAxisWeightDefault = (int) Math.round(organicPreferAxisWeight + (plannedPreferAxisWeight - organicPreferAxisWeight) * routingStyleStrength);
             // Axis preference is categorical; use a small threshold to keep true ORGANIC behaving axis-free.
-            preferAxisDefault = (s <= 0.10) ? "NONE" : "AUTO";
+            preferAxisDefault = (routingStyleStrength <= 0.10) ? "NONE" : "AUTO";
             // Door-axis preference is boolean; threshold at 0.5.
-            preferDoorAxisDefault = (s >= 0.50);
-            leadWeightDefaultOverride = (int) Math.round(organicLeadWeight + (plannedLeadWeight - organicLeadWeight) * s);
-            leadOutWeightDefaultOverride = (int) Math.round(organicLeadOutWeight + (plannedLeadOutWeight - organicLeadOutWeight) * s);
-            leadInWeightDefaultOverride = (int) Math.round(organicLeadInWeight + (plannedLeadInWeight - organicLeadInWeight) * s);
+            preferDoorAxisDefault = (routingStyleStrength >= 0.50);
+            leadWeightDefaultOverride = (int) Math.round(organicLeadWeight + (plannedLeadWeight - organicLeadWeight) * routingStyleStrength);
+            leadOutWeightDefaultOverride = (int) Math.round(organicLeadOutWeight + (plannedLeadOutWeight - organicLeadOutWeight) * routingStyleStrength);
+            leadInWeightDefaultOverride = (int) Math.round(organicLeadInWeight + (plannedLeadInWeight - organicLeadInWeight) * routingStyleStrength);
 
-            routingPadDefault = (int) Math.round(4 + (8 - 4) * s);
-            routingMaxAreaDefault = (long) Math.round(60000L + (140000L - 60000L) * s);
+            routingPadDefault = (int) Math.round(4 + (8 - 4) * routingStyleStrength);
+            routingMaxAreaDefault = Math.round(60000L + (140000L - 60000L) * routingStyleStrength);
             // Let very PLANNED routes use auto-scaling nodes (0), otherwise cap for speed.
-            routingMaxNodesDefault = (s >= 0.85) ? 0 : (int) Math.round(20000 + (0 - 20000) * s);
+            routingMaxNodesDefault = (routingStyleStrength >= 0.85) ? 0 : (int) Math.round(20000 + (-20000) * routingStyleStrength);
         }
 
         // routingQoS macro: FAST / BALANCED / ROBUST. Only affects defaults; explicit params always win.
@@ -600,9 +597,8 @@ public final class MetaAssemblyCompiler {
         if (routingQoS.isEmpty()) {
             // Auto QoS based on style strength: organic can be fast, planned can spend more time to be robust.
             if (!Double.isNaN(routingStyleStrength)) {
-                double s = routingStyleStrength;
-                if (s < 0.35) routingQoS = "FAST";
-                else if (s < 0.75) routingQoS = "BALANCED";
+                if (routingStyleStrength < 0.35) routingQoS = "FAST";
+                else if (routingStyleStrength < 0.75) routingQoS = "BALANCED";
                 else routingQoS = "ROBUST";
             } else if ("PLANNED".equals(routingStyle)) {
                 routingQoS = "ROBUST";
@@ -610,22 +606,26 @@ public final class MetaAssemblyCompiler {
                 routingQoS = "FAST";
             }
         }
-        if ("FAST".equals(routingQoS)) {
-            routingPadDefault = 4;
-            routingMaxAreaDefault = Math.min(routingMaxAreaDefault, 60000L);
-            routingMaxNodesDefault = 16000;
-        } else if ("BALANCED".equals(routingQoS)) {
-            routingPadDefault = 6;
-            routingMaxAreaDefault = Math.min(routingMaxAreaDefault, 90000L);
-            routingMaxNodesDefault = 0; // allow auto
-        } else if ("ROBUST".equals(routingQoS)) {
-            routingPadDefault = 10;
-            routingMaxAreaDefault = Math.max(routingMaxAreaDefault, 160000L);
-            routingMaxNodesDefault = 0; // allow auto
+        switch (routingQoS) {
+            case "FAST" -> {
+                routingPadDefault = 4;
+                routingMaxAreaDefault = Math.min(routingMaxAreaDefault, 60000L);
+                routingMaxNodesDefault = 16000;
+            }
+            case "BALANCED" -> {
+                routingPadDefault = 6;
+                routingMaxAreaDefault = Math.min(routingMaxAreaDefault, 90000L);
+                routingMaxNodesDefault = 0; // allow auto
+            }
+            case "ROBUST" -> {
+                routingPadDefault = 10;
+                routingMaxAreaDefault = Math.max(routingMaxAreaDefault, 160000L);
+                routingMaxNodesDefault = 0; // allow auto
+            }
         }
 
         int routingPad = Math.max(0, i(conn.get("routingPad"), routingPadDefault));
-        long routingMaxArea = Math.max(2000L, (long) i(conn.get("routingMaxArea"), (int) routingMaxAreaDefault));
+        long routingMaxArea = Math.max(2000L, i(conn.get("routingMaxArea"), (int) routingMaxAreaDefault));
         int routingMaxNodesRaw = i(conn.get("routingMaxNodes"), routingMaxNodesDefault);
         int routingMaxNodes = (routingMaxNodesRaw == 0) ? 0 : Math.max(2000, routingMaxNodesRaw); // preserve 0=auto
 
@@ -666,9 +666,9 @@ public final class MetaAssemblyCompiler {
         // avoid routing: if any segment crosses an avoid rect, auto-insert detours.
         if (!avoids.isEmpty()) {
             List<int[]> expanded = new ArrayList<>();
-            expanded.add(chain.get(0));
+            expanded.add(chain.getFirst());
             for (int i = 0; i + 1 < chain.size(); i++) {
-                int[] pA = expanded.get(expanded.size() - 1);
+                int[] pA = expanded.getLast();
                 int[] pB = chain.get(i + 1);
                 int leadOutSeg = (useAStar && leadSoft && i == 0) ? leadOut : 0;
                 int leadInSeg = (useAStar && leadSoft && i + 2 == chain.size()) ? leadIn : 0;
@@ -700,21 +700,19 @@ public final class MetaAssemblyCompiler {
 
             // Provide sane defaults so LLM can omit terrain genes.
             if (!o.containsKey("terrainAdaptation") || o.get("terrainAdaptation") == null) {
-                if ("PATH_ROUTE".equals(opName)) {
-                    o.put("terrainAdaptation", Map.of(
+                switch (opName) {
+                    case "PATH_ROUTE" -> o.put("terrainAdaptation", Map.of(
                             "mode", "DRAPE",
                             "max_step_height", 1,
                             "foundation_depth", 2,
                             "clearHeight", 2
                     ));
-                } else if ("WALL_ROUTE".equals(opName)) {
-                    o.put("terrainAdaptation", Map.of(
+                    case "WALL_ROUTE" -> o.put("terrainAdaptation", Map.of(
                             "mode", "DRAPE",
                             "max_step_height", 1,
                             "foundation_depth", 3
                     ));
-                } else if ("BRIDGE_ROUTE".equals(opName)) {
-                    o.put("terrainAdaptation", Map.of(
+                    case "BRIDGE_ROUTE" -> o.put("terrainAdaptation", Map.of(
                             "mode", "ANCHOR",
                             "anchorMaxDepth", 64
                     ));
@@ -727,29 +725,35 @@ public final class MetaAssemblyCompiler {
     private record Endpoint(String componentId, String port, String anchor, int dx, int dy, int dz) {}
 
     private static Endpoint parseEndpoint(Object v) {
-        if (v == null) return null;
-        if (v instanceof String s) {
-            String id = s.trim();
-            if (id.isEmpty()) return null;
-            // allow "A.south"
-            int dot = id.indexOf('.');
-            if (dot > 0 && dot < id.length() - 1) {
-                String cid = id.substring(0, dot).trim();
-                String port = id.substring(dot + 1).trim();
-                if (!cid.isEmpty() && !port.isEmpty()) return new Endpoint(cid, port, "CENTER", 0, 0, 0);
+        switch (v) {
+            case null -> {
+                return null;
             }
-            return new Endpoint(id, null, "CENTER", 0, 0, 0);
-        }
-        if (v instanceof Map<?, ?> mm) {
-            String id = str(mm.get("component"), null);
-            if (id == null) id = str(mm.get("id"), null);
-            if (id == null || id.isBlank()) return null;
-            String port = str(mm.get("port"), null);
-            String anchor = str(mm.get("anchor"), "CENTER").trim().toUpperCase(Locale.ROOT);
-            int dx = i(mm.get("x"), 0);
-            int dy = i(mm.get("y"), 0);
-            int dz = i(mm.get("z"), 0);
-            return new Endpoint(id.trim(), port != null && !port.isBlank() ? port.trim() : null, anchor, dx, dy, dz);
+            case String s -> {
+                String id = s.trim();
+                if (id.isEmpty()) return null;
+                // allow "A.south"
+                int dot = id.indexOf('.');
+                if (dot > 0 && dot < id.length() - 1) {
+                    String cid = id.substring(0, dot).trim();
+                    String port = id.substring(dot + 1).trim();
+                    if (!cid.isEmpty() && !port.isEmpty()) return new Endpoint(cid, port, "CENTER", 0, 0, 0);
+                }
+                return new Endpoint(id, null, "CENTER", 0, 0, 0);
+            }
+            case Map<?, ?> mm -> {
+                String id = str(mm.get("component"), null);
+                if (id == null) id = str(mm.get("id"), null);
+                if (id == null || id.isBlank()) return null;
+                String port = str(mm.get("port"), null);
+                String anchor = str(mm.get("anchor"), "CENTER").trim().toUpperCase(Locale.ROOT);
+                int dx = i(mm.get("x"), 0);
+                int dy = i(mm.get("y"), 0);
+                int dz = i(mm.get("z"), 0);
+                return new Endpoint(id.trim(), port != null && !port.isBlank() ? port.trim() : null, anchor, dx, dy, dz);
+            }
+            default -> {
+            }
         }
         return null;
     }
@@ -1051,7 +1055,7 @@ public final class MetaAssemblyCompiler {
                 : (int) Math.min(80000L, Math.max(12000L, area)); // scale with area but capped
         int visited = 0;
 
-        boolean useStepRing = (leadRing == null) || !"MANHATTAN".equalsIgnoreCase(leadRing);
+        boolean useStepRing = !"MANHATTAN".equalsIgnoreCase(leadRing);
         int[] distToGoalSteps = null;
         if (useStepRing && leadIn > 0 && inDir != null) {
             // Reverse BFS from goal to get true remaining steps to goal within this bounded grid.
@@ -1150,12 +1154,10 @@ public final class MetaAssemblyCompiler {
     private static int[] computeDistToGoalSteps(int minX, int minZ, int w, int h, int goalX, int goalZ, List<Rect2> avoids, int maxNodes) {
         int[] dist = new int[w * h];
         java.util.Arrays.fill(dist, -1);
-        int gx = goalX;
-        int gz = goalZ;
-        if (gx < minX || gx > (minX + w - 1) || gz < minZ || gz > (minZ + h - 1)) return dist;
-        if (isBlocked(gx, gz, avoids)) return dist;
+        if (goalX < minX || goalX > (minX + w - 1) || goalZ < minZ || goalZ > (minZ + h - 1)) return dist;
+        if (isBlocked(goalX, goalZ, avoids)) return dist;
 
-        int gIdx = (gx - minX) + (gz - minZ) * w;
+        int gIdx = (goalX - minX) + (goalZ - minZ) * w;
         java.util.ArrayDeque<Integer> q = new java.util.ArrayDeque<>();
         dist[gIdx] = 0;
         q.add(gIdx);
@@ -1187,8 +1189,6 @@ public final class MetaAssemblyCompiler {
         if (p.equals("east") || p.equals("west") || p.equals("left") || p.equals("right")) return "X";
         if (p.equals("north") || p.equals("south") || p.equals("front") || p.equals("back") || p.equals("entrance") || p.equals("exit")) return "Z";
         // corners imply both; keep AUTO
-        if (p.equals("ne") || p.equals("nw") || p.equals("se") || p.equals("sw")
-                || p.contains("front_left") || p.contains("front_right") || p.contains("back_left") || p.contains("back_right")) return null;
         return null;
     }
 
@@ -1234,7 +1234,7 @@ public final class MetaAssemblyCompiler {
             }
             lastDx = dx; lastDz = dz;
         }
-        long[] end = rev.get(rev.size() - 1);
+        long[] end = rev.getLast();
         out.add(new int[]{(int) end[0], y, (int) end[1]});
         return out;
     }
@@ -1307,8 +1307,7 @@ public final class MetaAssemblyCompiler {
         if (o1 == 0 && onSeg(ax, az, bx, bz, cx, cz)) return true;
         if (o2 == 0 && onSeg(ax, az, bx, bz, dx, dz)) return true;
         if (o3 == 0 && onSeg(cx, cz, dx, dz, ax, az)) return true;
-        if (o4 == 0 && onSeg(cx, cz, dx, dz, bx, bz)) return true;
-        return false;
+        return o4 == 0 && onSeg(cx, cz, dx, dz, bx, bz);
     }
 
     // orientation of (a->b) x (a->c); returns -1,0,1
@@ -1405,9 +1404,8 @@ public final class MetaAssemblyCompiler {
         String a = (e.anchor == null ? "CENTER" : e.anchor);
         if (a.equals("TOP_CENTER")) {
             ay = componentHeight(comp);
-        } else if (a.equals("BOTTOM_CENTER") || a.equals("CENTER")) {
-            // no-op
-        }
+        }  // no-op
+
 
         return new int[]{ox + ax + e.dx, oy + ay + e.dy, oz + az + e.dz};
     }
@@ -1425,9 +1423,8 @@ public final class MetaAssemblyCompiler {
         }
         // common fields
         int h = i(comp.get("h"), i(comp.get("height"), 0));
-        if (h > 0) return h;
+        return Math.max(h, 0);
         // cylinder uses height too
-        return 0;
     }
 
     private static int componentWidth(Map<String, Object> comp) {
@@ -1478,8 +1475,8 @@ public final class MetaAssemblyCompiler {
         if (type.contains("SPLINE")) {
             Object ptsObj = comp.get("points");
             if (ptsObj instanceof List<?> list && list.size() >= 2) {
-                int[] a = readPoint(list.get(0));
-                int[] b = readPoint(list.get(list.size() - 1));
+                int[] a = readPoint(list.getFirst());
+                int[] b = readPoint(list.getLast());
                 if (a != null) {
                     ports.put("start", a);
                     ports.put("entrance", a);
@@ -1735,12 +1732,12 @@ public final class MetaAssemblyCompiler {
         return def;
     }
 
-    private static double d(Object v, double def) {
+    private static double d(Object v) {
         try {
             if (v instanceof Number n) return n.doubleValue();
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
         } catch (Exception ignored) {}
-        return def;
+        return Double.NaN;
     }
 
     private static String str(Object v, String def) {
