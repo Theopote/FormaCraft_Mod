@@ -60,6 +60,14 @@ public final class AssemblySpecNormalizer {
         normalizeKeyAlias(m, path, issues, "guard_wall_crenels", "guardWallCrenels");
         normalizeKeyAlias(m, path, issues, "cable_holes", "cableHoles");
         normalizeKeyAlias(m, path, issues, "bridge_tower", "bridgeTower");
+        normalizeKeyAlias(m, path, issues, "style_id", "styleId");
+        normalizeKeyAlias(m, path, issues, "structure_exposure", "structureExposure");
+        // Allow macro.culture as an alias of macro.style (canonical key is style)
+        if (m.get("culture") instanceof Map<?, ?> cm && m.get("style") == null) {
+            m.put("style", cm);
+            m.remove("culture");
+            issues.add(warn(path + ".style", "W_NORM_KEY_MOVE", "字段迁移: culture -> style"));
+        }
 
         // Facade migrations (component-side)
         Object facadeObj = m.get("facade");

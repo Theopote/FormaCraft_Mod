@@ -65,6 +65,9 @@
 - `bridgeTower`：桥塔一键注入（会向 `graph.components` 添加：`SHELL_BOX` 塔体 + `ANCHOR_FOOTPRINT` 深基础 + 顶部 `CYLINDER` 索鞍滚轮）
   - 并会在桥塔组件上补一组 `ports` 语义端口别名，便于连接缆索/道路：`Tower.saddle_left/right/saddle_center`、`Tower.cable_top` 等
   - 可选：`notch` / `notch*` + `holes`：在塔顶 **carve 索鞍槽 + 穿索孔**（宏会注入 `CLEAR_BOX` 雕刻组件）
+- `style` / `culture`：文化/风格宏（**上层滑块 → 原子组合注入**）
+  - 输入：`styleId + intent + density/symmetry/verticality/transparency/structureExposure`
+  - 输出（P0 覆盖）：会自动注入 `paletteId`、`facade.openings/surfaceBands`、以及结构原子（例如 `BUTTRESS` 或 `FRAME_GRID_3D`）
 
 ## 示例十四：宏参数（现代塔楼）
 
@@ -74,6 +77,8 @@
 
 ## 示例十五：宏参数（六边亭：HEXAGON + roofCurvature）
 - 另见：`src/main/resources/assets/formacraft/assembly_examples/macro_bridge_tower.json`（bridgeTower 一键注入桥塔）
+- 另见：`src/main/resources/assets/formacraft/assembly_examples/macro_style_gothic_box.json`（macro.style：哥特）
+- 另见：`src/main/resources/assets/formacraft/assembly_examples/macro_style_industrial_exoskeleton.json`（macro.culture：工业外骨骼）
 
 文件：`src/main/resources/assets/formacraft/assembly_examples/macro_hex_pavilion.json`
 

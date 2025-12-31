@@ -1,0 +1,29 @@
+{
+  "entranceFacing": "EAST",
+  "graph": {
+    "components": [
+      {
+        "id": "Nave",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 22,
+        "d": 12,
+        "h": 24
+      }
+    ],
+    "connections": []
+  },
+  "macro": {
+    "style": {
+      "styleId": "Gothic_Cathedral",
+      "intent": "神圣",
+      "density": 0.7,
+      "symmetry": 0.8,
+      "verticality": 0.95,
+      "transparency": 0.4,
+      "structureExposure": 0.75
+    }
+  }
+}
+
+

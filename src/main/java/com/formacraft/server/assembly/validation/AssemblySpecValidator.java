@@ -495,7 +495,8 @@ public final class AssemblySpecValidator {
                 "overhang",
                 "openness",
                 "symmetry",
-                "bridgeTower", "bridge_tower"
+                "bridgeTower", "bridge_tower",
+                "style", "culture"
         ));
 
         Object st = macro.get("shapeType");
@@ -537,6 +538,30 @@ public final class AssemblySpecValidator {
         if (bt != null) {
             if (!(bt instanceof Map<?, ?>) && !(bt instanceof Boolean)) {
                 out.add(warn(path + ".bridgeTower", "W_MACRO_BRIDGETOWER_TYPE", "bridgeTower 建议是对象（map）或 true（启用默认注入）"));
+            }
+        }
+
+        Object styleObj = macro.get("style");
+        if (styleObj == null) styleObj = macro.get("culture");
+        if (styleObj != null) {
+            if (!(styleObj instanceof Map<?, ?>)) {
+                out.add(warn(path + ".style", "W_MACRO_STYLE_TYPE", "style/culture 建议是对象（map）"));
+            } else {
+                Map<?, ?> m = (Map<?, ?>) styleObj;
+                warnUnknownKeys(out, path + ".style", m, Set.of(
+                        "styleId", "style_id", "id",
+                        "intent", "mood",
+                        "density", "symmetry", "verticality", "transparency",
+                        "structureExposure", "structure_exposure"
+                ));
+                // numeric sliders: 0..1 recommended
+                for (String k : new String[]{"density","symmetry","verticality","transparency","structureExposure","structure_exposure"}) {
+                    Object v = m.get(k);
+                    if (v == null) continue;
+                    Double d = doubleOrNull(v);
+                    if (d == null) out.add(err(path + ".style." + k, "E_MACRO_STYLE_SLIDER_TYPE", k + " 必须是数字"));
+                    else if (d < 0.0 || d > 1.0) out.add(warn(path + ".style." + k, "W_MACRO_STYLE_SLIDER_RANGE", k + " 建议范围 0..1（当前=" + d + "）"));
+                }
             }
         }
     }
