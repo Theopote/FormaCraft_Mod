@@ -61,6 +61,31 @@
 - `capEnds=true` + `capThickness`：端部封口（更像“壳体”而不是“框线”）
 - 可选 `carveInterior=true`：沿扫掠路径把截面内部挖空（谨慎使用，会破坏已有方块）
 
+## 示例八：参数化/解构（自由截面扫掠：profile=POLYGON）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/spline_polygon_profile.json`
+
+- `profile=POLYGON` + `profilePoints`（截面 2D 点）
+- 可用 `profileScale0/profileScale1` 做截面缩放渐变
+
+## 曲线扫掠通用参数补充（推荐）
+
+- **`profileFrame` / `frame`**：截面所在的参考平面
+  - `PATH`（默认）：截面随路径切线自适应（更“流体/解构”）
+  - `WORLD_XY` / `WORLD_XZ` / `WORLD_YZ`：锁定到世界平面（更“工程/规整”）
+- **`profileSnap` / `snap`**：截面偏移坐标取整方式（影响体素锯齿与偏移）
+  - `ROUND`（默认）
+  - `FLOOR`
+  - `CEIL`
+
+- **`connectSamples`**：是否在相邻采样截面之间做轻量级“连通补洞”（减少曲线壳体偶发断点）
+  - `false`（默认）
+  - `true`：对同一个截面网格点（RECT 的 uu/vv；POLYGON 的 u/v）在相邻采样截面之间做短距离插值连接
+- **`connectMaxStep`**：连通的最大允许间距（越大越容易连上，但也更可能产生“拉丝”）
+  - 推荐：`2`
+- 可用 `profileFrame` 控制截面坐标系（`PATH` 随曲线旋转；`WORLD_XY/WORLD_XZ/WORLD_YZ` 世界对齐）
+- 可用 `profileSnap` 控制体素化取整（`ROUND/FLOOR/CEIL`）
+
 ## 示例七：参数化/解构（曲线骨架 + 空心走廊壳）
 
 文件：`src/main/resources/assets/formacraft/assembly_examples/spline_hollow_corridor.json`

@@ -514,6 +514,8 @@ public final class MetaAssemblyEngine {
                 if (poly.size() < 2) break;
 
                 String profile = str(op.get("profile"), "SPHERE").trim().toUpperCase(Locale.ROOT);
+                String profileFrame = str(op.get("profileFrame"), str(op.get("frame"), "PATH")).trim().toUpperCase(Locale.ROOT);
+                String snapMode = str(op.get("profileSnap"), str(op.get("snap"), "ROUND")).trim().toUpperCase(Locale.ROOT);
                 int r = clamp(i(op.get("r"), i(op.get("radius"), 3)), 1, 24);
                 int r0 = i(op.get("r0"), i(op.get("radius0"), Integer.MIN_VALUE));
                 int r1 = i(op.get("r1"), i(op.get("radius1"), Integer.MIN_VALUE));
@@ -529,6 +531,9 @@ public final class MetaAssemblyEngine {
                 BlockState shell = pick(ctx, op, "wall", "WALL_BASE", 0xA58002L, mat);
 
                 java.util.HashSet<Long> seen = new java.util.HashSet<>();
+                boolean connectSamples = bool(op.get("connectSamples"), false);
+                int connectMaxStep = clamp(i(op.get("connectMaxStep"), 2), 1, 8);
+                java.util.HashMap<Long, long[]> lastSection = connectSamples ? new java.util.HashMap<>() : null; // keyUV -> [x,y,z]
                 int n = poly.size();
                 for (int i = 0; i < n; i++) {
                     double tt = (n <= 1) ? 0.0 : (i / (double) (n - 1));
@@ -595,11 +600,25 @@ public final class MetaAssemblyEngine {
                     if (tan.lengthSquared() < 1e-6) tan = new Vec3d(0, 0, 1);
                     tan = tan.normalize();
 
-                    // Choose an up vector not parallel to tan.
-                    Vec3d up = new Vec3d(0, 1, 0);
-                    if (Math.abs(tan.dotProduct(up)) > 0.95) up = new Vec3d(1, 0, 0);
-                    Vec3d nrm = up.crossProduct(tan).normalize();
-                    Vec3d bin = tan.crossProduct(nrm).normalize();
+                    // Choose a frame for the profile plane.
+                    Vec3d nrm;
+                    Vec3d bin;
+                    if ("WORLD_XY".equals(profileFrame)) {
+                        nrm = new Vec3d(1, 0, 0);
+                        bin = new Vec3d(0, 1, 0);
+                    } else if ("WORLD_XZ".equals(profileFrame)) {
+                        nrm = new Vec3d(1, 0, 0);
+                        bin = new Vec3d(0, 0, 1);
+                    } else if ("WORLD_YZ".equals(profileFrame)) {
+                        nrm = new Vec3d(0, 1, 0);
+                        bin = new Vec3d(0, 0, 1);
+                    } else {
+                        // PATH: build an orthonormal frame around tangent.
+                        Vec3d up = new Vec3d(0, 1, 0);
+                        if (Math.abs(tan.dotProduct(up)) > 0.95) up = new Vec3d(1, 0, 0);
+                        nrm = up.crossProduct(tan).normalize();
+                        bin = tan.crossProduct(nrm).normalize();
+                    }
 
                     double ang = (twistTurns * Math.PI * 2.0) * tt + (twistPhase * Math.PI * 2.0);
                     double ca = Math.cos(ang);
@@ -627,10 +646,6 @@ public final class MetaAssemblyEngine {
                         // scaled polygon for point tests
                         List<int[]> sp = scalePoly(poly2, sc);
 
-                        boolean capEnds = bool(op.get("capEnds"), hollow);
-                        boolean carveInterior = bool(op.get("carveInterior"), false);
-                        int capThickness = clamp(i(op.get("capThickness"), t), 1, 8);
-
                         for (int uu = uMin; uu <= uMax; uu++) {
                             for (int vv = vMin; vv <= vMax; vv++) {
                                 boolean inside = pointInPoly2D(uu, vv, sp);
@@ -641,9 +656,13 @@ public final class MetaAssemblyEngine {
                                     if (!border && !carveInterior) continue;
                                 }
                                 Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
-                                int x = cx + (int) Math.round(off.x);
-                                int y = cy + (int) Math.round(off.y);
-                                int z = cz + (int) Math.round(off.z);
+                                int x = cx + snap(off.x, snapMode);
+                                int y = cy + snap(off.y, snapMode);
+                                int z = cz + snap(off.z, snapMode);
+                                if (connectSamples && lastSection != null) {
+                                    BlockState s = (!hollow) ? mat : (border ? shell : Blocks.AIR.getDefaultState());
+                                    connectToLast(out, ctx, curOrigin, lastSection, packUV(uu, vv), x, y, z, s, seen, connectMaxStep);
+                                }
                                 long key = packXYZ(x, y, z);
                                 if (!seen.add(key)) continue;
                                 if (!hollow) put(out, ctx, curOrigin, x, y, z, mat);
@@ -659,9 +678,12 @@ public final class MetaAssemblyEngine {
                                     boolean border = isPolyBorder(uu, vv, sp, capThickness);
                                     if (!border) continue;
                                     Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
-                                    int x = cx + (int) Math.round(off.x);
-                                    int y = cy + (int) Math.round(off.y);
-                                    int z = cz + (int) Math.round(off.z);
+                                    int x = cx + snap(off.x, snapMode);
+                                    int y = cy + snap(off.y, snapMode);
+                                    int z = cz + snap(off.z, snapMode);
+                                    if (connectSamples && lastSection != null) {
+                                        connectToLast(out, ctx, curOrigin, lastSection, packUV(uu, vv), x, y, z, shell, seen, connectMaxStep);
+                                    }
                                     long key = packXYZ(x, y, z);
                                     if (!seen.add(key)) continue;
                                     put(out, ctx, curOrigin, x, y, z, shell);
@@ -679,9 +701,13 @@ public final class MetaAssemblyEngine {
                                 if (!border && !carveInterior) continue;
                             }
                             Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
-                            int x = cx + (int) Math.round(off.x);
-                            int y = cy + (int) Math.round(off.y);
-                            int z = cz + (int) Math.round(off.z);
+                            int x = cx + snap(off.x, snapMode);
+                            int y = cy + snap(off.y, snapMode);
+                            int z = cz + snap(off.z, snapMode);
+                            if (connectSamples && lastSection != null) {
+                                BlockState s = (!hollow) ? mat : (border ? shell : Blocks.AIR.getDefaultState());
+                                connectToLast(out, ctx, curOrigin, lastSection, packUV(uu, vv), x, y, z, s, seen, connectMaxStep);
+                            }
                             long key = packXYZ(x, y, z);
                             if (!seen.add(key)) continue;
                             if (!hollow) {
@@ -699,9 +725,12 @@ public final class MetaAssemblyEngine {
                                 boolean border = (uu - (-halfW) < capThickness) || (halfW - uu < capThickness) || (vv - (-halfH) < capThickness) || (halfH - vv < capThickness);
                                 if (!border) continue;
                                 Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
-                                int x = cx + (int) Math.round(off.x);
-                                int y = cy + (int) Math.round(off.y);
-                                int z = cz + (int) Math.round(off.z);
+                                int x = cx + snap(off.x, snapMode);
+                                int y = cy + snap(off.y, snapMode);
+                                int z = cz + snap(off.z, snapMode);
+                                if (connectSamples && lastSection != null) {
+                                    connectToLast(out, ctx, curOrigin, lastSection, packUV(uu, vv), x, y, z, shell, seen, connectMaxStep);
+                                }
                                 long key = packXYZ(x, y, z);
                                 if (!seen.add(key)) continue;
                                 put(out, ctx, curOrigin, x, y, z, shell);
@@ -1235,6 +1264,56 @@ public final class MetaAssemblyEngine {
         long yy = (y & 0x3FFFF);  // 18 bits
         long zz = (z & 0x1FFFFF); // 21 bits
         return (xx << 42) | (yy << 24) | zz;
+    }
+
+    private static long packUV(int u, int v) {
+        return (((long) u) << 32) ^ (v & 0xffffffffL);
+    }
+
+    private static void connectToLast(List<PlannedBlock> out,
+                                      Context ctx,
+                                      BlockPos origin,
+                                      java.util.HashMap<Long, long[]> lastSection,
+                                      long uvKey,
+                                      int x,
+                                      int y,
+                                      int z,
+                                      BlockState s,
+                                      java.util.HashSet<Long> seen,
+                                      int connectMaxStep) {
+        if (lastSection == null) return;
+        if (s == null || s.isAir()) return;
+
+        long[] prev = lastSection.get(uvKey);
+        if (prev != null && prev.length >= 3) {
+            int x0 = (int) prev[0], y0 = (int) prev[1], z0 = (int) prev[2];
+            int dx = x - x0;
+            int dy = y - y0;
+            int dz = z - z0;
+            int dist = Math.max(Math.max(Math.abs(dx), Math.abs(dy)), Math.abs(dz));
+            if (dist > 1 && dist <= connectMaxStep) {
+                for (int i = 1; i < dist; i++) {
+                    double t = i / (double) dist;
+                    int xi = (int) Math.round(x0 + dx * t);
+                    int yi = (int) Math.round(y0 + dy * t);
+                    int zi = (int) Math.round(z0 + dz * t);
+                    long key = packXYZ(xi, yi, zi);
+                    if (seen != null && !seen.add(key)) continue;
+                    put(out, ctx, origin, xi, yi, zi, s);
+                }
+            }
+        }
+
+        lastSection.put(uvKey, new long[]{x, y, z});
+    }
+
+    private static int snap(double v, String mode) {
+        String m = (mode == null) ? "ROUND" : mode.trim().toUpperCase(Locale.ROOT);
+        return switch (m) {
+            case "FLOOR" -> (int) Math.floor(v);
+            case "CEIL" -> (int) Math.ceil(v);
+            default -> (int) Math.round(v);
+        };
     }
 
     // ----- 2D polygon helpers for profile=POLYGON -----

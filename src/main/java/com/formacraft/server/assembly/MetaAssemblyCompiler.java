@@ -111,8 +111,17 @@ public final class MetaAssemblyCompiler {
                 // points required
                 copy(comp, o, "points");
                 copy(comp, o, "profile");
+                copy(comp, o, "profileFrame");
+                copy(comp, o, "profileSnap");
+                copy(comp, o, "frame");
+                copy(comp, o, "snap");
                 copyInt(comp, o, "profileW", i(comp.get("profileW"), i(comp.get("w"), 5)));
                 copyInt(comp, o, "profileH", i(comp.get("profileH"), i(comp.get("h"), 3)));
+                copy(comp, o, "profilePoints");
+                copy(comp, o, "profileScale0");
+                copy(comp, o, "profileScale1");
+                copy(comp, o, "scale0");
+                copy(comp, o, "scale1");
                 // RECT taper (optional)
                 copyInt(comp, o, "profileW0", i(comp.get("profileW0"), i(comp.get("w0"), Integer.MIN_VALUE)));
                 copyInt(comp, o, "profileW1", i(comp.get("profileW1"), i(comp.get("w1"), Integer.MIN_VALUE)));
@@ -123,6 +132,8 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "capEnds");
                 copy(comp, o, "carveInterior");
                 copyInt(comp, o, "capThickness", i(comp.get("capThickness"), 1));
+                copy(comp, o, "connectSamples");
+                copyInt(comp, o, "connectMaxStep", i(comp.get("connectMaxStep"), 2));
                 // radius/taper
                 copyInt(comp, o, "r", i(comp.get("r"), i(comp.get("radius"), 3)));
                 copyInt(comp, o, "r0", i(comp.get("r0"), i(comp.get("radius0"), Integer.MIN_VALUE)));
