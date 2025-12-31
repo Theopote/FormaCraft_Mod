@@ -335,6 +335,10 @@ public final class MetaAssemblyCompiler {
         // Soft-lead weight: higher => stronger tendency to leave/arrive along port axis.
         // Default ties to preferStraight so "more planned" routes also respect door axes.
         int leadWeight = i(conn.get("routingLeadWeight"), Math.max(1, 2 + preferStraight));
+        int leadOutWeight = i(conn.get("routingLeadOutWeight"), leadWeight);
+        int leadInWeight = i(conn.get("routingLeadInWeight"), leadWeight);
+        if (leadOutWeight < 0) leadOutWeight = 0;
+        if (leadInWeight < 0) leadInWeight = 0;
 
         // Prefer axis (X/Z/AUTO/NONE) + weight.
         String preferAxis = str(conn.get("routingPreferAxis"), "AUTO").trim().toUpperCase(Locale.ROOT);
@@ -361,7 +365,7 @@ public final class MetaAssemblyCompiler {
                 int leadOutSeg = (useAStar && leadSoft && i == 0) ? leadOut : 0;
                 int leadInSeg = (useAStar && leadSoft && i + 2 == chain.size()) ? leadIn : 0;
                 List<int[]> detour = computeDetour(pA, pB, avoids, useAStar, routingPad, routingMaxArea, routingMaxNodes, preferStraight, preferAxis, preferAxisWeight,
-                        leadOutSeg, leadInSeg, a.port, b.port, leadWeight);
+                        leadOutSeg, leadInSeg, a.port, b.port, leadOutWeight, leadInWeight);
                 expanded.addAll(detour);
             }
             chain = expanded;
@@ -624,7 +628,8 @@ public final class MetaAssemblyCompiler {
                                              int leadIn,
                                              String fromPort,
                                              String toPort,
-                                             int leadWeight) {
+                                             int leadOutWeight,
+                                             int leadInWeight) {
         // If segment doesn't intersect any avoid, keep it.
         boolean hit = false;
         for (Rect2 r : avoids) {
@@ -634,7 +639,7 @@ public final class MetaAssemblyCompiler {
 
         if (useAStar) {
             List<int[]> path = routeAStar2D(a, b, avoids, routingPad, routingMaxArea, routingMaxNodes, preferStraight, preferAxis, preferAxisWeight,
-                    leadOut, leadIn, fromPort, toPort, leadWeight);
+                    leadOut, leadIn, fromPort, toPort, leadOutWeight, leadInWeight);
             if (path != null && !path.isEmpty()) return path;
         }
 
@@ -691,7 +696,8 @@ public final class MetaAssemblyCompiler {
                                             int leadIn,
                                             String fromPort,
                                             String toPort,
-                                            int leadWeight) {
+                                            int leadOutWeight,
+                                            int leadInWeight) {
         // Bounds: endpoints + avoid rects + padding
         int minX = Math.min(a[0], b[0]);
         int maxX = Math.max(a[0], b[0]);
@@ -714,7 +720,8 @@ public final class MetaAssemblyCompiler {
         int y = (a[1] != 0) ? a[1] : b[1];
         int[] outDir = (leadOut > 0) ? dirFromPort(fromPort) : null; // [dx,dz] outward
         int[] inDir = (leadIn > 0) ? dirFromPort(toPort) : null;     // outward; approach wants opposite
-        if (leadWeight < 0) leadWeight = 0;
+        if (leadOutWeight < 0) leadOutWeight = 0;
+        if (leadInWeight < 0) leadInWeight = 0;
 
         long start = pack(a[0], a[2]);
         long goal = pack(b[0], b[2]);
@@ -788,7 +795,7 @@ public final class MetaAssemblyCompiler {
                 if (leadOut > 0 && outDir != null) {
                     int distFromStart = Math.abs(cx - a[0]) + Math.abs(cz - a[2]);
                     if (distFromStart < leadOut) {
-                        if (d[0] != outDir[0] || d[1] != outDir[1]) tentative += leadWeight;
+                        if (d[0] != outDir[0] || d[1] != outDir[1]) tentative += leadOutWeight;
                     }
                 }
                 // Soft lead-in: near goal, penalize moves that don't approach along the opposite of the port outward dir
@@ -797,7 +804,7 @@ public final class MetaAssemblyCompiler {
                     if (distToGoal < leadIn) {
                         int adx = -inDir[0];
                         int adz = -inDir[1];
-                        if (d[0] != adx || d[1] != adz) tentative += leadWeight;
+                        if (d[0] != adx || d[1] != adz) tentative += leadInWeight;
                     }
                 }
                 int best = gScore.getOrDefault(nk, Integer.MAX_VALUE / 4);
