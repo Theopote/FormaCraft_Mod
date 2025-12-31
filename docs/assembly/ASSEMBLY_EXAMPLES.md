@@ -224,6 +224,29 @@
 
 - `capWidth/capMaterial`：沿拼缝额外生成一条“遮缝带”（优先用于消除体素化的小漏缝）
   - 可在 **op 级**设置默认值，也可在 `topology.links[]` **link 级覆盖**
+
+## 示例三十三：厚壳偏移（SURFACE_OFFSET）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/surface_offset_bezier_shell.json`
+
+- `source.kind=BEZIER_SURFACE`：从贝塞尔曲面采样网格估计法线
+- `offset`：沿法线偏移距离（格）
+- `shellThickness`：沿法线方向生成厚度
+- `mode=BOTH/OUT/IN`：双向/外向/内向
+
+## 示例三十四：隐式曲面（IMPLICIT_FIELD：体素等值面）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/implicit_field_sphere.json`
+
+- `kind=SPHERE/TORUS/METABALLS`
+- `iso + band`：以 `iso` 为等值面阈值，在 `band` 带宽内并且发生邻域符号变化的体素会被保留为“壳层”
+
+## 示例三十五：隐式曲面（MARCHING_CUBES：marching tetrahedra + 三角片体素化）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/marching_cubes_torus.json`
+
+- P0 实现使用 marching tetrahedra（避免大表），再对三角片做重心采样体素化
+- `fill`：三角片填充密度（越大越平滑但更慢）
 - `support`：简单支撑（P0：每步下方补一层承重块）
 
 ## 示例十二：古典（檐口/腰线/柱网：SURFACE_BANDS）
