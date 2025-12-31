@@ -513,8 +513,26 @@ public final class MetaAssemblyCompiler {
             leadSoft = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
         }
 
-        // If not using A* soft lead, keep the old behavior: insert lead points as explicit via.
-        if (!(useAStar && leadSoft)) {
+        // routingLeadHard: force explicit lead-out/lead-in waypoints (a short straight "landing") even when using A*.
+        // This is helpful for connecting to spline endpoints where we inferred a tangent-direction port.
+        // Default: true when routingAutoLead is enabled AND either endpoint uses a directional prefixed port (start_* / end_*).
+        Boolean leadHard = null;
+        Object lh = conn.get("routingLeadHard");
+        if (lh instanceof Boolean bb3) leadHard = bb3;
+        else if (lh != null) {
+            String s = String.valueOf(lh).trim().toLowerCase(Locale.ROOT);
+            leadHard = s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
+        }
+        if (leadHard == null) {
+            String ap = normalizePortKey(a.port);
+            String bp = normalizePortKey(b.port);
+            boolean directionalPrefixed = (ap.startsWith("start_") || ap.startsWith("end_") || bp.startsWith("start_") || bp.startsWith("end_"));
+            leadHard = autoLead && directionalPrefixed;
+        }
+        boolean effectiveLeadSoft = leadSoft && !leadHard;
+
+        // If not using A* soft lead (or leadHard=true), insert lead points as explicit via.
+        if (!(useAStar && effectiveLeadSoft)) {
             int[] lead0 = (leadOut > 0) ? computeLeadPoint(p0, a.port, leadOut, avoids) : null;
             int[] lead1 = (leadIn > 0) ? computeLeadPoint(p1, b.port, leadIn, avoids) : null;
             if (lead0 != null) chain.add(lead0);
@@ -677,8 +695,8 @@ public final class MetaAssemblyCompiler {
             for (int i = 0; i + 1 < chain.size(); i++) {
                 int[] pA = expanded.getLast();
                 int[] pB = chain.get(i + 1);
-                int leadOutSeg = (useAStar && leadSoft && i == 0) ? leadOut : 0;
-                int leadInSeg = (useAStar && leadSoft && i + 2 == chain.size()) ? leadIn : 0;
+                int leadOutSeg = (useAStar && effectiveLeadSoft && i == 0) ? leadOut : 0;
+                int leadInSeg = (useAStar && effectiveLeadSoft && i + 2 == chain.size()) ? leadIn : 0;
                 List<int[]> detour = computeDetour(pA, pB, avoids, useAStar, routingPad, routingMaxArea, routingMaxNodes, preferStraight, preferAxis, preferAxisWeight,
                         leadOutSeg, leadInSeg, a.port, b.port, leadOutWeight, leadInWeight, leadRing, leadInStepsMaxNodes);
                 expanded.addAll(detour);

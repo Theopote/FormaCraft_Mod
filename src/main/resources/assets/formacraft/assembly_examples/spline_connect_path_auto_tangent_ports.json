@@ -1,0 +1,54 @@
+{
+  "paletteId": "PALETTE_PARAMETRIC_WHITE_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "Tube",
+        "type": "SPLINE_SWEEP",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "profile": "RECT",
+        "profileW": 7,
+        "profileH": 5,
+        "hollow": true,
+        "thickness": 1,
+        "capEnds": true,
+        "connectSamples": true,
+        "connectMaxStep": 2,
+        "points": [
+          { "x": -18, "y": 8, "z": -6 },
+          { "x": -6, "y": 8, "z": -6 },
+          { "x": 6, "y": 9, "z": 2 },
+          { "x": 18, "y": 9, "z": 10 }
+        ],
+        "material": "minecraft:quartz_block",
+        "wall": "minecraft:quartz_block"
+      },
+      {
+        "id": "Hall",
+        "type": "SHELL_BOX",
+        "at": { "x": 22, "y": 6, "z": 12 },
+        "w": 17,
+        "d": 13,
+        "h": 10,
+        "wall": "minecraft:smooth_quartz",
+        "window": "minecraft:light_blue_stained_glass_pane",
+        "floor": "minecraft:smooth_stone"
+      }
+    ],
+    "connections": [
+      {
+        "type": "PATH",
+        "from": "Tube.end",
+        "to": "Hall.entrance",
+        "routing": "ASTAR",
+        "routingAutoLead": true,
+        "routingStyle": "PLANNED",
+        "width": 3,
+        "material": "minecraft:smooth_stone_slab"
+      }
+    ]
+  }
+}
+
+

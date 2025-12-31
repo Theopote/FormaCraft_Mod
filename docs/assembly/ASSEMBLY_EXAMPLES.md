@@ -121,6 +121,12 @@
 }
 ```
 
+#### `routingLeadHard`（推荐用于 spline 对接）
+
+- **含义**：强制把 lead-out/lead-in 变成“硬对接”——在端口方向上插入显式的 via（相当于出入口的一小段直线 landing），而不是只依赖 A* 的软约束代价。
+- **默认值**：当 `routingAutoLead=true` 且端口是 `start_* / end_*` 这类方向端口时，默认视为 `true`（更稳定的对接效果）。
+- **手动覆盖**：你可以显式设置 `routingLeadHard: false` 来恢复纯软约束。
+
 ## 示例七：参数化/解构（曲线骨架 + 空心走廊壳）
 
 文件：`src/main/resources/assets/formacraft/assembly_examples/spline_hollow_corridor.json`
@@ -128,6 +134,13 @@
 - 截面：`profile=RECT`
 - 空心壳：`hollow=true` + `thickness`
 - 端面封口：`capEnds=true`（默认也是 true）
+
+## 示例十：Spline 连接（只写 start/end，自动使用切线方向端口对接 PATH）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/spline_connect_path_auto_tangent_ports.json`
+
+- `from: "Tube.end"`：这里没有写 `end_east/end_north`，编译器会自动重写到 `end_*`（基于末段切线）
+- `routingAutoLead=true`：A* 会利用该方向信息，更自然地“引出/引入”道路
 
 ## `facade.surfacePattern` 字段（组件侧）
 
