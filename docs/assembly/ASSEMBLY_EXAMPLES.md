@@ -63,6 +63,8 @@
 - `overhang`：`NONE/SMALL/MEDIUM/LARGE`（影响自动添加屋顶的 overhang）
 - `roofCurvature`：0..1 或 `LOW/MEDIUM/HIGH`（驱动 `ROOF_COVER.rise`；不覆盖显式 rise）
 - `bridgeTower`：桥塔一键注入（会向 `graph.components` 添加：`SHELL_BOX` 塔体 + `ANCHOR_FOOTPRINT` 深基础 + 顶部 `CYLINDER` 索鞍滚轮）
+  - 并会在桥塔组件上补一组 `ports` 语义端口别名，便于连接缆索/道路：`Tower.saddle_left/right/saddle_center`、`Tower.cable_top` 等
+  - 可选：`notch` / `notch*` + `holes`：在塔顶 **carve 索鞍槽 + 穿索孔**（宏会注入 `CLEAR_BOX` 雕刻组件）
 
 ## 示例十四：宏参数（现代塔楼）
 

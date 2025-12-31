@@ -438,7 +438,7 @@ public final class AssemblySpecNormalizer {
             "r0", "r1", "radius0", "radius1",
             "points",
             // anchoring / anchorage
-            "x0", "x1", "z0", "z1",
+            "x0", "x1", "y0", "y1", "z0", "z1",
             "yBase",
             "maxDepth", "anchorDepth",
             "stopOnSolid",

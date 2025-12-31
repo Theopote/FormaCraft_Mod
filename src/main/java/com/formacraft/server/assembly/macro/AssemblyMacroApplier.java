@@ -151,6 +151,21 @@ public final class AssemblyMacroApplier {
         Object towerFloor = bt.get("towerFloor");
         if (towerFloor == null) towerFloor = "smooth_stone";
 
+        // Saddle rollers config (computed early so we can also expose semantic ports on the tower)
+        Object saddleObj = bt.get("saddle");
+        Map<String, Object> saddle = (saddleObj instanceof Map<?, ?> sm) ? safeMap(sm) : null;
+        // NOTE: CYLINDER validator requires r>=2
+        int rollerR = clamp(i(saddle != null ? saddle.get("r") : null, i(bt.get("rollerR"), 2)), 2, 8);
+        int rollerH = clamp(i(saddle != null ? saddle.get("h") : null, i(bt.get("rollerH"), 2)), 1, 8);
+        int rollerSpacing = clamp(i(saddle != null ? saddle.get("spacing") : null, i(bt.get("rollerSpacing"), 4)), 1, 32);
+        String saddleAxis = str(saddle != null ? saddle.get("axis") : null, str(bt.get("saddleAxis"), "Z")).trim().toUpperCase(Locale.ROOT);
+        Object rollerMat = (saddle != null && saddle.get("material") != null) ? saddle.get("material") : bt.get("rollerMaterial");
+        if (rollerMat == null) rollerMat = (towerWall != null ? towerWall : "iron_block");
+
+        int saddleY = i(bt.get("saddleY"), ay + towerH + 2);
+        int o0 = -(rollerSpacing / 2);
+        int o1 = (rollerSpacing / 2);
+
         // 1) Tower body
         Map<String, Object> tower = new java.util.LinkedHashMap<>();
         tower.put("id", baseId);
@@ -216,25 +231,103 @@ public final class AssemblyMacroApplier {
         comps.add(foundation);
 
         // 3) Saddle rollers (decorative cylinders)
-        Object saddleObj = bt.get("saddle");
-        Map<String, Object> saddle = (saddleObj instanceof Map<?, ?> sm) ? safeMap(sm) : null;
-        // NOTE: CYLINDER validator requires r>=2
-        int rollerR = clamp(i(saddle != null ? saddle.get("r") : null, i(bt.get("rollerR"), 2)), 2, 8);
-        int rollerH = clamp(i(saddle != null ? saddle.get("h") : null, i(bt.get("rollerH"), 2)), 1, 8);
-        int rollerSpacing = clamp(i(saddle != null ? saddle.get("spacing") : null, i(bt.get("rollerSpacing"), 4)), 1, 32);
-        String saddleAxis = str(saddle != null ? saddle.get("axis") : null, str(bt.get("saddleAxis"), "Z")).trim().toUpperCase(Locale.ROOT);
-        Object rollerMat = (saddle != null && saddle.get("material") != null) ? saddle.get("material") : bt.get("rollerMaterial");
-        if (rollerMat == null) rollerMat = (towerWall != null ? towerWall : "iron_block");
-
-        int saddleY = i(bt.get("saddleY"), ay + towerH + 2);
-        int o0 = -(rollerSpacing / 2);
-        int o1 = (rollerSpacing / 2);
-
         String s0 = uniqueId(baseId + "_SaddleA", used); used.add(s0);
         String s1 = uniqueId(baseId + "_SaddleB", used); used.add(s1);
 
         comps.add(makeRoller(s0, ax, saddleY, az, saddleAxis, o0, rollerR, rollerH, rollerMat));
         comps.add(makeRoller(s1, ax, saddleY, az, saddleAxis, o1, rollerR, rollerH, rollerMat));
+
+        // 4) Carve notch + cable holes on tower top (macro-friendly: inject CLEAR_BOX components)
+        Object notchObj = bt.get("notch");
+        Map<String, Object> notch = (notchObj instanceof Map<?, ?> nm) ? safeMap(nm) : null;
+        boolean notchOn = (notch != null) ? bool(notch.get("enabled"), true) : bool(bt.get("notchEnabled"), false);
+        if (notchOn) {
+            int notchDepth = clamp(i(notch != null ? notch.get("depth") : null, i(bt.get("notchDepth"), 2)), 1, 12);
+            int notchWidth = clamp(i(notch != null ? notch.get("width") : null, i(bt.get("notchWidth"), 2)), 1, 64);
+            int notchLen = clamp(i(notch != null ? notch.get("length") : null, i(bt.get("notchLength"), rollerSpacing + 4)), 2, 128);
+            int notchTopY = i(notch != null ? notch.get("topY") : null, i(bt.get("notchTopY"), towerH + 1));
+            // local bounds (tower-centered, like SHELL_BOX)
+            int nx0, nx1, nz0, nz1;
+            if ("X".equals(saddleAxis)) {
+                nx0 = -(notchLen / 2);
+                nx1 = (notchLen / 2);
+                nz0 = -(notchWidth / 2);
+                nz1 = (notchWidth / 2);
+            } else {
+                nz0 = -(notchLen / 2);
+                nz1 = (notchLen / 2);
+                nx0 = -(notchWidth / 2);
+                nx1 = (notchWidth / 2);
+            }
+            // clamp inside tower footprint
+            nx0 = Math.max(nx0, -halfW);
+            nx1 = Math.min(nx1, halfW);
+            nz0 = Math.max(nz0, -halfD);
+            nz1 = Math.min(nz1, halfD);
+            int ny1 = notchTopY;
+            int ny0 = notchTopY - notchDepth + 1;
+            ny0 = Math.max(0, ny0);
+            ny1 = Math.min(towerH + 1, ny1);
+            if (nx0 <= nx1 && nz0 <= nz1 && ny0 <= ny1) {
+                String nid = uniqueId(baseId + "_SaddleNotch", used); used.add(nid);
+                Map<String, Object> carve = new java.util.LinkedHashMap<>();
+                carve.put("id", nid);
+                carve.put("type", "CLEAR_BOX");
+                carve.put("at", atMap);
+                carve.put("x0", nx0); carve.put("y0", ny0); carve.put("z0", nz0);
+                carve.put("x1", nx1); carve.put("y1", ny1); carve.put("z1", nz1);
+                comps.add(carve);
+            }
+        }
+
+        Object holesObj = bt.get("holes");
+        if (holesObj == null) holesObj = bt.get("cableHoles");
+        if (holesObj instanceof List<?> holes) {
+            for (int hi = 0; hi < holes.size(); hi++) {
+                Object hv = holes.get(hi);
+                if (!(hv instanceof Map<?, ?> hm)) continue;
+                Map<String, Object> hole = safeMap(hm);
+                if (hole == null) continue;
+                String face = str(hole.get("face"), "").trim().toUpperCase(Locale.ROOT);
+                if (face.isBlank()) continue;
+                int hy = i(hole.get("y"), towerH);
+                int r = clamp(i(hole.get("r"), i(hole.get("radius"), 1)), 1, 8);
+                int len = clamp(i(hole.get("len"), i(hole.get("length"), 6)), 1, 128);
+                int hx = i(hole.get("x"), 0);
+                int hz = i(hole.get("z"), 0);
+
+                // convert hole spec to a clear box
+                int cx0 = 0, cx1 = 0, cz0 = 0, cz1 = 0;
+                int cy0 = Math.max(0, hy - r), cy1 = Math.min(towerH + 1, hy + r);
+
+                if (face.equals("EAST") || face.equals("WEST")) {
+                    int sx = face.equals("WEST") ? -halfW : halfW;
+                    int ex = sx + (face.equals("WEST") ? len : -len);
+                    cx0 = Math.min(sx, ex); cx1 = Math.max(sx, ex);
+                    cz0 = Math.max(-halfD, hz - r); cz1 = Math.min(halfD, hz + r);
+                } else if (face.equals("NORTH") || face.equals("SOUTH")) {
+                    int sz = face.equals("NORTH") ? -halfD : halfD;
+                    int ez = sz + (face.equals("NORTH") ? len : -len);
+                    cz0 = Math.min(sz, ez); cz1 = Math.max(sz, ez);
+                    cx0 = Math.max(-halfW, hx - r); cx1 = Math.min(halfW, hx + r);
+                } else {
+                    continue;
+                }
+                // clamp inside
+                cx0 = Math.max(cx0, -halfW); cx1 = Math.min(cx1, halfW);
+                cz0 = Math.max(cz0, -halfD); cz1 = Math.min(cz1, halfD);
+                if (cx0 <= cx1 && cz0 <= cz1 && cy0 <= cy1) {
+                    String hid = uniqueId(baseId + "_CableHole_" + (hi + 1), used); used.add(hid);
+                    Map<String, Object> carve = new java.util.LinkedHashMap<>();
+                    carve.put("id", hid);
+                    carve.put("type", "CLEAR_BOX");
+                    carve.put("at", atMap);
+                    carve.put("x0", cx0); carve.put("y0", cy0); carve.put("z0", cz0);
+                    carve.put("x1", cx1); carve.put("y1", cy1); carve.put("z1", cz1);
+                    comps.add(carve);
+                }
+            }
+        }
 
         issues.add(warn("$.macro.bridgeTower", "W_MACRO_BRIDGE_TOWER",
                 "bridgeTower injected: " + baseId + " (SHELL_BOX) + " + fId + " (ANCHOR_FOOTPRINT) + saddle rollers"));
@@ -266,6 +359,14 @@ public final class AssemblyMacroApplier {
         if (ports == null || name == null || name.isBlank()) return;
         if (ports.containsKey(name)) return;
         ports.put(name, java.util.Map.of("x", x, "y", y, "z", z));
+    }
+
+    private static boolean bool(Object v, boolean def) {
+        if (v == null) return def;
+        if (v instanceof Boolean b) return b;
+        String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
+        if (s.isEmpty()) return def;
+        return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y");
     }
 
     private static String uniqueId(String base, java.util.Set<String> used) {

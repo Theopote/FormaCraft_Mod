@@ -542,7 +542,7 @@ public final class AssemblySpecValidator {
                     "cableSpacing", "spacing",
                     "cableAxis",
                     // anchoring / anchorage
-                    "x0", "x1", "z0", "z1",
+                    "x0", "x1", "y0", "y1", "z0", "z1",
                     "yBase",
                     "maxDepth", "anchorDepth",
                     "stopOnSolid",

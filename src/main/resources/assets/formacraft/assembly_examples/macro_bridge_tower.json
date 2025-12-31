@@ -3,7 +3,15 @@
   "entranceFacing": "EAST",
   "graph": {
     "components": [],
-    "connections": []
+    "connections": [
+      {
+        "type": "PATH",
+        "from": "Tower.saddle_left",
+        "to": { "x": 20, "y": 0, "z": -10 },
+        "routing": "ASTAR",
+        "routingAutoLead": true
+      }
+    ]
   },
   "macro": {
     "bridgeTower": {
@@ -20,7 +28,16 @@
       "rollerR": 2,
       "rollerH": 2,
       "rollerSpacing": 4,
-      "saddleAxis": "Z"
+      "saddleAxis": "Z",
+      "notch": {
+        "enabled": true,
+        "depth": 2,
+        "width": 2,
+        "length": 8
+      },
+      "holes": [
+        { "face": "EAST", "y": 28, "z": 0, "r": 1, "len": 6 }
+      ]
     }
   }
 }

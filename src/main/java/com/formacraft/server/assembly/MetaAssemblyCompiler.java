@@ -349,7 +349,7 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "stairs");
                 ops.add(o);
             }
-            case "CLEAR_BOX" -> {
+            case "CLEAR_BOX", "CARVE_BOX" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "CLEAR_BOX");
                 copyInt(comp, o, "x0", 0);
