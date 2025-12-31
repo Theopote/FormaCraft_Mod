@@ -245,6 +245,13 @@ public final class AssemblySpecValidator {
         if (facadeObj == null) facadeObj = comp.get("facade_logic");
         if (facadeObj == null) facadeObj = comp.get("facadeLogic");
         if (!(facadeObj instanceof Map<?, ?> facade)) return;
+        warnUnknownKeys(out, compPath + ".facade", facade, java.util.Set.of(
+                "surfacePattern", "pattern",
+                "openings", "opening",
+                "facadeGrid", "FACADE_GRID", "curtainWall",
+                "surfaceBands", "SURFACE_BANDS", "bands",
+                "face", "faces" // allow user to mistakenly place here; we'll still warn unknown others
+        ));
 
         // facadeGrid
         Object fg = facade.get("facadeGrid");
@@ -252,6 +259,20 @@ public final class AssemblySpecValidator {
         if (fg == null) fg = facade.get("curtainWall");
         if (fg instanceof Map<?, ?> m) {
             String p = compPath + ".facade.facadeGrid";
+            warnUnknownKeys(out, p, m, java.util.Set.of(
+                    "face", "faces",
+                    "bayW", "bayH", "moduleW", "moduleH", "gridW", "gridH",
+                    "mullionThickness", "mullionT",
+                    "transomThickness", "transomT",
+                    "borderThickness", "borderT",
+                    "marginU", "marginX", "marginY",
+                    "inset", "depth",
+                    "frame", "fill", "material",
+                    "spandrelEvery", "spEvery",
+                    "spandrelHeight", "spH",
+                    "spandrelOffset", "spOffset",
+                    "spandrelFill"
+            ));
             // faces optional; default ALL, but validate if present
             if (m.get("face") != null || m.get("faces") != null) requireFacesString(out, p, m);
             requireIntMin(out, p, m, "bayW", 1);
@@ -261,12 +282,39 @@ public final class AssemblySpecValidator {
             if (m.get("spandrelHeight") != null || m.get("spH") != null) requireIntMin(out, p, m, "spandrelHeight", 0);
         }
 
+        // surfacePattern
+        Object sp = facade.get("surfacePattern");
+        if (sp == null) sp = facade.get("pattern");
+        if (sp instanceof Map<?, ?> m) {
+            String p = compPath + ".facade.surfacePattern";
+            warnUnknownKeys(out, p, m, java.util.Set.of(
+                    "face", "faces",
+                    "type", "pattern",
+                    "step", "spacing", "thickness",
+                    "material", "accent", "frame"
+            ));
+            if (m.get("face") != null || m.get("faces") != null) requireFacesString(out, p, m);
+            String pattern = str(m.get("pattern"), str(m.get("type"), "GRID")).trim().toUpperCase(Locale.ROOT);
+            if (!(pattern.equals("GRID") || pattern.equals("STRIPES_V") || pattern.equals("STRIPES_H") || pattern.equals("RIBS_V") || pattern.equals("RIBS_H")
+                    || pattern.equals("STRIPES_VERTICAL") || pattern.equals("STRIPES_HORIZONTAL") || pattern.equals("RIBS_VERTICAL") || pattern.equals("RIBS_HORIZONTAL"))) {
+                out.add(err(p + ".pattern", "E_PATTERN_VALUE", "surfacePattern.pattern 取值非法: " + pattern));
+            }
+            // step/thickness can be omitted; only validate if present
+            if (m.get("step") != null || m.get("spacing") != null) requireIntMin(out, p, m, "step", 1);
+            if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+        }
+
         // surfaceBands
         Object sb = facade.get("surfaceBands");
         if (sb == null) sb = facade.get("SURFACE_BANDS");
         if (sb == null) sb = facade.get("bands");
         if (sb instanceof Map<?, ?> m) {
             String p = compPath + ".facade.surfaceBands";
+            warnUnknownKeys(out, p, m, java.util.Set.of(
+                    "face", "faces",
+                    "horizontalBands", "hBands", "bandsH",
+                    "verticalBands", "vBands", "bandsV"
+            ));
             if (m.get("face") != null || m.get("faces") != null) requireFacesString(out, p, m);
             Object hb = m.get("horizontalBands");
             if (hb == null) hb = m.get("hBands");
@@ -277,6 +325,161 @@ public final class AssemblySpecValidator {
             if (vb == null) vb = m.get("vBands");
             if (vb == null) vb = m.get("bandsV");
             if (vb != null && !(vb instanceof List<?>)) out.add(err(p + ".verticalBands", "E_BANDS_V_NOT_LIST", "verticalBands 必须是数组"));
+
+            // Validate band entries (training stability)
+            if (hb instanceof List<?> hList) {
+                for (int i = 0; i < hList.size(); i++) {
+                    Object it = hList.get(i);
+                    String bp = p + ".horizontalBands[" + i + "]";
+                    if (!(it instanceof Map<?, ?> bm)) {
+                        out.add(err(bp, "E_BAND_H_NOT_OBJECT", "horizontalBands 条目必须是对象（map）"));
+                        continue;
+                    }
+                    warnUnknownKeys(out, bp, bm, java.util.Set.of(
+                            "y", "atY",
+                            "height", "h",
+                            "material",
+                            "inset",
+                            "outset", "out",
+                            "depth"
+                    ));
+                    // required y
+                    Object yv = bm.get("y");
+                    if (yv == null) yv = bm.get("atY");
+                    if (yv == null) out.add(err(bp + ".y", "E_BAND_H_Y_MISSING", "horizontalBands[].y 缺失"));
+                    else if (intOrNull(yv) == null) out.add(err(bp + ".y", "E_INT_TYPE", "y 必须是整数"));
+
+                    // optional ints with ranges
+                    if (bm.get("height") != null || bm.get("h") != null) requireIntMin(out, bp, bm, "height", 1);
+                    if (bm.get("inset") != null) requireIntMin(out, bp, bm, "inset", 0);
+                    if (bm.get("outset") != null || bm.get("out") != null) {
+                        Object ov = bm.get("outset");
+                        if (ov == null) ov = bm.get("out");
+                        if (intOrNull(ov) == null) out.add(err(bp + ".outset", "E_INT_TYPE", "outset 必须是整数"));
+                        else if (intOrNull(ov) < 0) out.add(err(bp + ".outset", "E_INT_RANGE", "outset 必须 >= 0"));
+                    }
+                    if (bm.get("depth") != null) requireIntMin(out, bp, bm, "depth", 1);
+                }
+            }
+
+            if (vb instanceof List<?> vList) {
+                for (int i = 0; i < vList.size(); i++) {
+                    Object it = vList.get(i);
+                    String bp = p + ".verticalBands[" + i + "]";
+                    if (!(it instanceof Map<?, ?> bm)) {
+                        out.add(err(bp, "E_BAND_V_NOT_OBJECT", "verticalBands 条目必须是对象（map）"));
+                        continue;
+                    }
+                    warnUnknownKeys(out, bp, bm, java.util.Set.of(
+                            "step", "spacing",
+                            "width", "thickness",
+                            "offset",
+                            "y0", "y1",
+                            "material",
+                            "inset",
+                            "outset", "out",
+                            "depth"
+                    ));
+                    // required step/width
+                    Object sv = bm.get("step");
+                    if (sv == null) sv = bm.get("spacing");
+                    if (sv == null) out.add(err(bp + ".step", "E_BAND_V_STEP_MISSING", "verticalBands[].step 缺失"));
+                    else if (intOrNull(sv) == null) out.add(err(bp + ".step", "E_INT_TYPE", "step 必须是整数"));
+                    else if (intOrNull(sv) < 1) out.add(err(bp + ".step", "E_INT_RANGE", "step 必须 >= 1"));
+
+                    Object wv = bm.get("width");
+                    if (wv == null) wv = bm.get("thickness");
+                    if (wv == null) out.add(err(bp + ".width", "E_BAND_V_WIDTH_MISSING", "verticalBands[].width 缺失"));
+                    else if (intOrNull(wv) == null) out.add(err(bp + ".width", "E_INT_TYPE", "width 必须是整数"));
+                    else if (intOrNull(wv) < 1) out.add(err(bp + ".width", "E_INT_RANGE", "width 必须 >= 1"));
+
+                    if (bm.get("offset") != null && intOrNull(bm.get("offset")) == null) {
+                        out.add(err(bp + ".offset", "E_INT_TYPE", "offset 必须是整数"));
+                    }
+                    if (bm.get("y0") != null && intOrNull(bm.get("y0")) == null) out.add(err(bp + ".y0", "E_INT_TYPE", "y0 必须是整数"));
+                    if (bm.get("y1") != null && intOrNull(bm.get("y1")) == null) out.add(err(bp + ".y1", "E_INT_TYPE", "y1 必须是整数"));
+                    if (bm.get("inset") != null) requireIntMin(out, bp, bm, "inset", 0);
+                    if (bm.get("outset") != null || bm.get("out") != null) {
+                        Object ov = bm.get("outset");
+                        if (ov == null) ov = bm.get("out");
+                        if (intOrNull(ov) == null) out.add(err(bp + ".outset", "E_INT_TYPE", "outset 必须是整数"));
+                        else if (intOrNull(ov) < 0) out.add(err(bp + ".outset", "E_INT_RANGE", "outset 必须 >= 0"));
+                    }
+                    if (bm.get("depth") != null) requireIntMin(out, bp, bm, "depth", 1);
+                }
+            }
+        }
+
+        // openings[] (facade-side macro form)
+        Object openingsObj = facade.get("openings");
+        if (openingsObj == null) openingsObj = facade.get("opening");
+        if (openingsObj instanceof List<?> list) {
+            String base = compPath + ".facade.openings";
+            for (int i = 0; i < list.size(); i++) {
+                Object it = list.get(i);
+                String p = base + "[" + i + "]";
+                if (!(it instanceof Map<?, ?> m)) {
+                    out.add(err(p, "E_OPENING_NOT_OBJECT", "opening 条目必须是对象（map）"));
+                    continue;
+                }
+                warnUnknownKeys(out, p, m, java.util.Set.of(
+                        "face", "faces",
+                        "kind", "type",
+                        "rows", "cols",
+                        "winW", "w", "winH", "h",
+                        "sillY", "marginX", "marginY", "gapX", "gapY",
+                        "frameThickness", "mullionStep",
+                        "doorW", "doorH",
+                        "archType", "arch", "archThickness", "archT",
+                        "keystone", "keystoneOn",
+                        "tracery", "traceryType", "traceryMaterial",
+                        "traceryThickness", "traceryT",
+                        "traceryY", "traceryInset",
+                        "foilRadius", "foilCenterY", "foilCount", "foilStepY", "foilGapY",
+                        "traceryFoilRadius", "traceryFoilCenterY", "traceryFoilCount", "traceryFoilStepY",
+                        "r", "radius", "centerY",
+                        "petals", "spokes", "ring", "phase", "phi",
+                        "spokeWidth", "spokeW", "spokeThreshold", "spokeThresh",
+                        "innerFill", "spokeMaterial",
+                        "fill", "frame", "air"
+                ));
+                if (m.get("face") != null || m.get("faces") != null) requireFacesString(out, p, m);
+
+                String kind = str(m.get("kind"), str(m.get("type"), "")).trim().toUpperCase(Locale.ROOT);
+                if (kind.isBlank()) {
+                    out.add(err(p + ".kind", "E_OPENINGS_KIND_MISSING", "openings[].kind 缺失"));
+                } else {
+                    boolean ok = kind.equals("WINDOW_GRID") || kind.equals("DOOR") || kind.equals("ARCH_WINDOW") || kind.equals("ROSE_WINDOW");
+                    if (!ok) out.add(err(p + ".kind", "E_OPENINGS_KIND_VALUE", "openings[].kind 取值非法: " + kind));
+                }
+
+                // If provided, validate sizing knobs. (Engine has defaults; do not require them.)
+                if (m.get("rows") != null) requireIntMin(out, p, m, "rows", 1);
+                if (m.get("cols") != null) requireIntMin(out, p, m, "cols", 1);
+                if (m.get("winW") != null || m.get("w") != null) requireIntMin(out, p, m, "winW", 1);
+                if (m.get("winH") != null || m.get("h") != null) requireIntMin(out, p, m, "winH", 1);
+                if (m.get("doorW") != null) requireIntMin(out, p, m, "doorW", 1);
+                if (m.get("doorH") != null) requireIntMin(out, p, m, "doorH", 2);
+
+                // Rose window sanity
+                if (m.get("r") != null || m.get("radius") != null) {
+                    Integer rv = intOrNull(m.get("r"));
+                    if (rv == null) rv = intOrNull(m.get("radius"));
+                    if (rv != null && rv < 2) out.add(err(p + ".r", "E_ROSE_R_RANGE", "ROSE_WINDOW.r 必须 >= 2"));
+                }
+                if (m.get("petals") != null || m.get("spokes") != null) {
+                    Integer pv = intOrNull(m.get("petals"));
+                    if (pv == null) pv = intOrNull(m.get("spokes"));
+                    if (pv != null && pv < 3) out.add(err(p + ".petals", "E_ROSE_PETALS_RANGE", "ROSE_WINDOW.petals 必须 >= 3"));
+                }
+                // Arch type sanity
+                if (m.get("archType") != null || m.get("arch") != null) {
+                    String at = str(m.get("archType"), str(m.get("arch"), "")).trim().toUpperCase(Locale.ROOT);
+                    if (!at.isEmpty() && !(at.equals("ROUND") || at.equals("POINTED"))) {
+                        out.add(err(p + ".archType", "E_ARCH_TYPE_VALUE", "ARCH_WINDOW.archType 取值非法: " + at + "（允许 ROUND/POINTED）"));
+                    }
+                }
+            }
         }
     }
 
