@@ -23,6 +23,38 @@
 - 网格：`pattern=GRID`
 - 窗：大、密（`cols` 高，`winW/winH` 大）
 
+### 更强的表面语法（P0）：`FACADE_GRID` 与 `SURFACE_BANDS`
+
+在 `SHELL_BOX` 组件上，你可以用更高阶的 `facade.*` 字段表达“幕墙模数 / 檐口腰线 / 柱网”，编译器会自动展开成对应 op：
+
+- **`facade.facadeGrid`** -> `FACADE_GRID`：模数化幕墙（竖向 mullion + 横向 transom + 面板填充）
+- **`facade.surfaceBands`** -> `SURFACE_BANDS`：檐口/腰线（水平带）+ 柱网/肋（竖向带）
+
+补充（P1）：
+
+- **`FACADE_GRID.spandrel*`**：楼层带/窗间墙（把每层某一条横向带改成实墙/板材）
+- **`SURFACE_BANDS.*.outset`**：外挑压线/檐口（让带状构件更“立体”）
+
+## 示例十一：现代主义（更强幕墙：FACADE_GRID）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/box_modern_facade_grid.json`
+
+- `facade.facadeGrid`：直接生成“框 + 玻璃面板”的幕墙模数，而不是只画线
+
+## 示例十三：现代主义（幕墙楼层带：FACADE_GRID + spandrel）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/box_modern_facade_grid_spandrel.json`
+
+- `spandrelEvery/spandrelHeight/spandrelOffset`：定义“每层”的窗间墙带位置与厚度
+- `spandrelFill`：楼层带填充材质（例如浅灰混凝土）
+
+## 示例十二：古典（檐口/腰线/柱网：SURFACE_BANDS）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/box_classical_bands_columns.json`
+
+- `horizontalBands[]`：底部线脚 + 腰线 + 顶部檐口/压顶
+- `verticalBands[]`：按步距生成柱网（立面节奏更“古典”）
+
 ## 示例三：哥特（竖向条纹 + 高窗）
 
 文件：`src/main/resources/assets/formacraft/assembly_examples/box_gothic_vertical.json`

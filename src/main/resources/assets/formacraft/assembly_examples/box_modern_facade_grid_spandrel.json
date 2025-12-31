@@ -1,0 +1,39 @@
+{
+  "paletteId": "PALETTE_PARAMETRIC_WHITE_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "Tower",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 21,
+        "d": 15,
+        "h": 32,
+        "wall": "minecraft:white_concrete",
+        "floor": "minecraft:smooth_stone",
+        "facade": {
+          "facadeGrid": {
+            "faces": "ALL",
+            "bayW": 3,
+            "bayH": 4,
+            "mullionThickness": 1,
+            "transomThickness": 1,
+            "borderThickness": 1,
+            "marginU": 1,
+            "marginY": 1,
+            "depth": 1,
+            "frame": "minecraft:iron_bars",
+            "fill": "minecraft:light_blue_stained_glass_pane",
+            "spandrelEvery": 4,
+            "spandrelHeight": 1,
+            "spandrelOffset": 0,
+            "spandrelFill": "minecraft:light_gray_concrete"
+          }
+        }
+      }
+    ]
+  }
+}
+
+

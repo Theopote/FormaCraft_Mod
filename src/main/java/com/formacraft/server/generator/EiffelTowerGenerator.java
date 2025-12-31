@@ -16,6 +16,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
@@ -122,16 +123,20 @@ public class EiffelTowerGenerator implements StructureGenerator {
         }
 
         // v1 scoring：提供“像不像”的可观测指标
+        String desc = getString(height, baseWidth, platformCount);
+        return new GeneratedStructure(null, origin, desc, blocks);
+    }
+
+    private static @NotNull String getString(int height, int baseWidth, int platformCount) {
         double shapeScore = 0.9;      // 四腿收分 + 平台存在 -> 高
         double ratioScore = clamp01(1.0 - Math.abs((height / (double) baseWidth) - 2.6) * 0.18); // 约 2.6 更像（MC 尺度经验值）
         double signatureScore = (platformCount >= 2 ? 0.92 : 0.78);
         double overall = clamp01(shapeScore * 0.4 + ratioScore * 0.3 + signatureScore * 0.3);
 
-        String desc = String.format(
+        return String.format(
                 "EiffelTower (MODERN, h=%d, base=%d, platforms=%d, score=%.2f[shape=%.2f,ratio=%.2f,sig=%.2f])",
                 height, baseWidth, platformCount, overall, shapeScore, ratioScore, signatureScore
         );
-        return new GeneratedStructure(null, origin, desc, blocks);
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {

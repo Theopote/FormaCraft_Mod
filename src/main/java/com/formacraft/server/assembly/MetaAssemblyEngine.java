@@ -781,6 +781,151 @@ public final class MetaAssemblyEngine {
                     applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, az0, az1, ay0, ay1, ax1, false);
                 }
             }
+            case "FACADE_GRID" -> {
+                // Modular curtain wall facade grid (stronger than SURFACE_PATTERN.GRID):
+                // Places mullions/transoms + optional panel fill material on a box face.
+                //
+                // Required:
+                // - face: NORTH/SOUTH/EAST/WEST (local)
+                // - x0..x1,y0..y1,z0..z1 bounds (local)
+                // Optional:
+                // - bayW/bayH: module size in U/Y (default 3/4)
+                // - mullionThickness/transomThickness (default 1)
+                // - borderThickness (default mullionThickness)
+                // - marginU/marginY (default 1/1)
+                // - inset (shift plane inward from the face; default 0)
+                // - depth (extrude inward by N blocks; default 1)
+                // - frame: mullion material (semantic FACADE_TRIM)
+                // - fill: panel material (semantic WINDOW)
+                // Spandrel (optional):
+                // - spandrelEvery: repeat period in Y blocks (e.g., 4 for each floor module)
+                // - spandrelHeight: band height in blocks within each period
+                // - spandrelOffset: offset in blocks within the period
+                // - spandrelFill: fill material for spandrel zones (semantic WALL_BASE)
+                String face = str(op.get("face"), str(op.get("faces"), "NORTH")).trim().toUpperCase(Locale.ROOT);
+                int bayW = clamp(i(op.get("bayW"), i(op.get("moduleW"), i(op.get("gridW"), 3))), 1, 32);
+                int bayH = clamp(i(op.get("bayH"), i(op.get("moduleH"), i(op.get("gridH"), 4))), 1, 32);
+                int mullionT = clamp(i(op.get("mullionThickness"), i(op.get("mullionT"), 1)), 0, 8);
+                int transomT = clamp(i(op.get("transomThickness"), i(op.get("transomT"), 1)), 0, 8);
+                int borderT = clamp(i(op.get("borderThickness"), i(op.get("borderT"), mullionT)), 0, 8);
+                int marginU = clamp(i(op.get("marginU"), i(op.get("marginX"), 1)), 0, 64);
+                int marginY = clamp(i(op.get("marginY"), 1), 0, 64);
+                int inset = clamp(i(op.get("inset"), 0), 0, 16);
+                int depth = clamp(i(op.get("depth"), 1), 1, 8);
+
+                int spEvery = clamp(i(op.get("spandrelEvery"), i(op.get("spEvery"), 0)), 0, 128);
+                int spH = clamp(i(op.get("spandrelHeight"), i(op.get("spH"), 0)), 0, 64);
+                int spOff = clamp(i(op.get("spandrelOffset"), i(op.get("spOffset"), 0)), 0, 128);
+
+                int x0 = i(op.get("x0"), 0), x1 = i(op.get("x1"), 0);
+                int y0 = i(op.get("y0"), 1), y1 = i(op.get("y1"), 10);
+                int z0 = i(op.get("z0"), 0), z1 = i(op.get("z1"), 0);
+                int ax0 = Math.min(x0, x1), ax1 = Math.max(x0, x1);
+                int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+                int az0 = Math.min(z0, z1), az1 = Math.max(z0, z1);
+
+                BlockState frame = pick(ctx, op, "frame", "FACADE_TRIM", 0xA57201L, Blocks.SMOOTH_STONE.getDefaultState());
+                BlockState fill = pick(ctx, op, "fill", "WINDOW", 0xA57202L, Blocks.GLASS_PANE.getDefaultState());
+                BlockState spFill = pick(ctx, op, "spandrelFill", "WALL_BASE", 0xA57203L, fill);
+
+                // If caller passes "ALL" / comma faces, expand here for direct ops usage.
+                for (String f : expandFacesLocal(face)) {
+                    if ("NORTH".equals(f)) {
+                        applyFacadeGridPlane(out, ctx, curOrigin, bayW, bayH, mullionT, transomT, borderT, marginU, marginY, frame, fill, spFill,
+                                spEvery, spH, spOff,
+                                ax0, ax1, ay0, ay1, az0 + inset, true, depth, +1);
+                    } else if ("SOUTH".equals(f)) {
+                        applyFacadeGridPlane(out, ctx, curOrigin, bayW, bayH, mullionT, transomT, borderT, marginU, marginY, frame, fill, spFill,
+                                spEvery, spH, spOff,
+                                ax0, ax1, ay0, ay1, az1 - inset, true, depth, -1);
+                    } else if ("WEST".equals(f)) {
+                        applyFacadeGridPlane(out, ctx, curOrigin, bayW, bayH, mullionT, transomT, borderT, marginU, marginY, frame, fill, spFill,
+                                spEvery, spH, spOff,
+                                az0, az1, ay0, ay1, ax0 + inset, false, depth, +1);
+                    } else if ("EAST".equals(f)) {
+                        applyFacadeGridPlane(out, ctx, curOrigin, bayW, bayH, mullionT, transomT, borderT, marginU, marginY, frame, fill, spFill,
+                                spEvery, spH, spOff,
+                                az0, az1, ay0, ay1, ax1 - inset, false, depth, -1);
+                    }
+                }
+            }
+            case "SURFACE_BANDS" -> {
+                // Surface bands macro: horizontal cornices/belt-lines + vertical columns/ribs on a face.
+                //
+                // Required:
+                // - face: NORTH/SOUTH/EAST/WEST (local) (can also be ALL / "NORTH,EAST" when used as direct ops)
+                // - x0..x1,y0..y1,z0..z1 bounds (local)
+                // Optional:
+                // - horizontalBands: [{ y, height, material, inset?, outset?, depth? }, ...]
+                // - verticalBands:   [{ step, width, offset?, y0?, y1?, material, inset?, outset?, depth? }, ...]
+                String face = str(op.get("face"), str(op.get("faces"), "NORTH")).trim().toUpperCase(Locale.ROOT);
+                int x0 = i(op.get("x0"), 0), x1 = i(op.get("x1"), 0);
+                int y0 = i(op.get("y0"), 1), y1 = i(op.get("y1"), 10);
+                int z0 = i(op.get("z0"), 0), z1 = i(op.get("z1"), 0);
+                int ax0 = Math.min(x0, x1), ax1 = Math.max(x0, x1);
+                int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+                int az0 = Math.min(z0, z1), az1 = Math.max(z0, z1);
+
+                Object hbObj = op.get("horizontalBands");
+                if (hbObj == null) hbObj = op.get("hBands");
+                if (hbObj == null) hbObj = op.get("bandsH");
+                Object vbObj = op.get("verticalBands");
+                if (vbObj == null) vbObj = op.get("vBands");
+                if (vbObj == null) vbObj = op.get("bandsV");
+
+                for (String f : expandFacesLocal(face)) {
+                    boolean uIsX = "NORTH".equals(f) || "SOUTH".equals(f);
+                    int u0 = uIsX ? ax0 : az0;
+                    int u1 = uIsX ? ax1 : az1;
+                    int fixed;
+                    int inwardSign;
+                    if ("NORTH".equals(f)) { fixed = az0; inwardSign = +1; }
+                    else if ("SOUTH".equals(f)) { fixed = az1; inwardSign = -1; }
+                    else if ("WEST".equals(f)) { fixed = ax0; inwardSign = +1; }
+                    else { fixed = ax1; inwardSign = -1; } // EAST
+
+                    // Horizontal bands
+                    if (hbObj instanceof List<?> hbList) {
+                        for (Object it : hbList) {
+                            if (!(it instanceof Map<?, ?> bm)) continue;
+                            int by = i(bm.get("y"), Integer.MIN_VALUE);
+                            if (by == Integer.MIN_VALUE) by = i(bm.get("atY"), Integer.MIN_VALUE);
+                            if (by == Integer.MIN_VALUE) continue;
+                            int bh = clamp(i(bm.get("height"), i(bm.get("h"), 1)), 1, 32);
+                            int inset = clamp(i(bm.get("inset"), 0), 0, 16);
+                            int outset = clamp(i(bm.get("outset"), i(bm.get("out"), 0)), 0, 16);
+                            int depth = clamp(i(bm.get("depth"), 1), 1, 8);
+                            BlockState mat = pick(ctx, bm, "material", "FACADE_ACCENT", 0xA57301L, Blocks.STONE_BRICK_SLAB.getDefaultState());
+
+                            int yy0 = Math.max(ay0, by);
+                            int yy1 = Math.min(ay1, by + bh - 1);
+                            if (yy0 > yy1) continue;
+                            applyBandPlane(out, ctx, curOrigin, u0, u1, yy0, yy1, fixed + inwardSign * inset - inwardSign * outset, uIsX, depth, inwardSign, mat);
+                        }
+                    }
+
+                    // Vertical bands (columns/ribs)
+                    if (vbObj instanceof List<?> vbList) {
+                        for (Object it : vbList) {
+                            if (!(it instanceof Map<?, ?> bm)) continue;
+                            int step = clamp(i(bm.get("step"), i(bm.get("spacing"), 4)), 1, 64);
+                            int width = clamp(i(bm.get("width"), i(bm.get("thickness"), 1)), 1, 16);
+                            int offset = i(bm.get("offset"), 0);
+                            int yy0 = i(bm.get("y0"), ay0);
+                            int yy1 = i(bm.get("y1"), ay1);
+                            yy0 = Math.max(ay0, Math.min(ay1, yy0));
+                            yy1 = Math.max(ay0, Math.min(ay1, yy1));
+                            if (yy0 > yy1) { int t = yy0; yy0 = yy1; yy1 = t; }
+                            int inset = clamp(i(bm.get("inset"), 0), 0, 16);
+                            int outset = clamp(i(bm.get("outset"), i(bm.get("out"), 0)), 0, 16);
+                            int depth = clamp(i(bm.get("depth"), 1), 1, 8);
+                            BlockState mat = pick(ctx, bm, "material", "FACADE_TRIM", 0xA57302L, Blocks.SMOOTH_STONE.getDefaultState());
+
+                            applyVerticalBandsPlane(out, ctx, curOrigin, u0, u1, yy0, yy1, fixed + inwardSign * inset - inwardSign * outset, uIsX, depth, inwardSign, step, width, offset, mat);
+                        }
+                    }
+                }
+            }
             case "OPENINGS" -> {
                 // Carve/open a set of windows/doors on a face of a box.
                 // Required:
@@ -934,6 +1079,141 @@ public final class MetaAssemblyEngine {
                 put(out, ctx, origin, x, y, z, accent);
             }
         }
+    }
+
+    private static void applyFacadeGridPlane(List<PlannedBlock> out,
+                                             Context ctx,
+                                             BlockPos origin,
+                                             int bayW,
+                                             int bayH,
+                                             int mullionT,
+                                             int transomT,
+                                             int borderT,
+                                             int marginU,
+                                             int marginY,
+                                             BlockState frame,
+                                             BlockState fill,
+                                             BlockState spandrelFill,
+                                             int spandrelEvery,
+                                             int spandrelHeight,
+                                             int spandrelOffset,
+                                             int u0,
+                                             int u1,
+                                             int y0,
+                                             int y1,
+                                             int fixed,
+                                             boolean uIsX,
+                                             int depth,
+                                             int inwardSign) {
+        int au0 = Math.min(u0, u1), au1 = Math.max(u0, u1);
+        int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+        int innerU0 = au0 + marginU;
+        int innerU1 = au1 - marginU;
+        int innerY0 = ay0 + marginY;
+        int innerY1 = ay1 - marginY;
+        if (innerU0 > innerU1 || innerY0 > innerY1) return;
+
+        for (int y = innerY0; y <= innerY1; y++) {
+            int ly = y - innerY0;
+            for (int u = innerU0; u <= innerU1; u++) {
+                int lu = u - innerU0;
+
+                boolean isBorder = false;
+                if (borderT > 0) {
+                    if (u - innerU0 < borderT || innerU1 - u < borderT) isBorder = true;
+                    if (y - innerY0 < borderT || innerY1 - y < borderT) isBorder = true;
+                }
+
+                boolean isMullion = (mullionT > 0) && (Math.floorMod(lu, bayW) < mullionT);
+                boolean isTransom = (transomT > 0) && (Math.floorMod(ly, bayH) < transomT);
+
+                boolean isSpandrel = false;
+                if (spandrelEvery > 0 && spandrelHeight > 0) {
+                    int m = Math.floorMod((y - innerY0) - spandrelOffset, spandrelEvery);
+                    isSpandrel = m < spandrelHeight;
+                }
+                BlockState panel = isSpandrel ? spandrelFill : fill;
+                BlockState s = (isBorder || isMullion || isTransom) ? frame : panel;
+
+                for (int k = 0; k < depth; k++) {
+                    int x = uIsX ? u : (fixed + inwardSign * k);
+                    int z = uIsX ? (fixed + inwardSign * k) : u;
+                    put(out, ctx, origin, x, y, z, s);
+                }
+            }
+        }
+    }
+
+    private static void applyBandPlane(List<PlannedBlock> out,
+                                       Context ctx,
+                                       BlockPos origin,
+                                       int u0,
+                                       int u1,
+                                       int y0,
+                                       int y1,
+                                       int fixed,
+                                       boolean uIsX,
+                                       int depth,
+                                       int inwardSign,
+                                       BlockState mat) {
+        int au0 = Math.min(u0, u1), au1 = Math.max(u0, u1);
+        int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+        for (int y = ay0; y <= ay1; y++) {
+            for (int u = au0; u <= au1; u++) {
+                for (int k = 0; k < depth; k++) {
+                    int x = uIsX ? u : (fixed + inwardSign * k);
+                    int z = uIsX ? (fixed + inwardSign * k) : u;
+                    put(out, ctx, origin, x, y, z, mat);
+                }
+            }
+        }
+    }
+
+    private static void applyVerticalBandsPlane(List<PlannedBlock> out,
+                                                Context ctx,
+                                                BlockPos origin,
+                                                int u0,
+                                                int u1,
+                                                int y0,
+                                                int y1,
+                                                int fixed,
+                                                boolean uIsX,
+                                                int depth,
+                                                int inwardSign,
+                                                int step,
+                                                int width,
+                                                int offset,
+                                                BlockState mat) {
+        int au0 = Math.min(u0, u1), au1 = Math.max(u0, u1);
+        int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+        for (int y = ay0; y <= ay1; y++) {
+            for (int u = au0; u <= au1; u++) {
+                int lu = u - au0 - offset;
+                if (Math.floorMod(lu, step) >= width) continue;
+                for (int k = 0; k < depth; k++) {
+                    int x = uIsX ? u : (fixed + inwardSign * k);
+                    int z = uIsX ? (fixed + inwardSign * k) : u;
+                    put(out, ctx, origin, x, y, z, mat);
+                }
+            }
+        }
+    }
+
+    private static List<String> expandFacesLocal(String faces) {
+        if (faces == null) return List.of("NORTH", "SOUTH", "EAST", "WEST");
+        String f = faces.trim().toUpperCase(Locale.ROOT);
+        if (f.isBlank() || f.equals("ALL") || f.equals("*")) return List.of("NORTH", "SOUTH", "EAST", "WEST");
+        if (f.contains(",")) {
+            ArrayList<String> out = new ArrayList<>();
+            for (String s : f.split(",")) {
+                String x = s.trim().toUpperCase(Locale.ROOT);
+                if (x.isBlank()) continue;
+                if (x.equals("ALL") || x.equals("*")) return List.of("NORTH", "SOUTH", "EAST", "WEST");
+                out.add(x);
+            }
+            return out.isEmpty() ? List.of("NORTH", "SOUTH", "EAST", "WEST") : out;
+        }
+        return List.of(f);
     }
 
     private static void carveRectOnFace(List<PlannedBlock> out,
@@ -1522,7 +1802,7 @@ public final class MetaAssemblyEngine {
         for (int x = ax0; x <= ax1; x++) for (int y = ay0; y <= ay1; y++) for (int z = az0; z <= az1; z++) put(out, ctx, origin, x, y, z, s);
     }
 
-    private static BlockState pick(Context ctx, Map<String, Object> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
+    private static BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
         // allow explicit override: e.g. { "wall": "minecraft:stone_bricks" }
         Object ov = op.get(overrideKey);
         if (ov != null) {

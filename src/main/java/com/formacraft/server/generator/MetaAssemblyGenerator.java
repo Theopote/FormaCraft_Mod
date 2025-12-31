@@ -4,6 +4,8 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.assembly.AssemblySpec;
 import com.formacraft.server.assembly.MetaAssemblyCompiler;
 import com.formacraft.server.assembly.MetaAssemblyEngine;
+import com.formacraft.server.assembly.validation.AssemblySpecValidator;
+import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.server.world.ServerWorld;
@@ -28,6 +30,23 @@ public class MetaAssemblyGenerator implements StructureGenerator {
 
         Map<String, Object> extra = spec.getExtra();
         Object assemblyObj = extra != null ? extra.get("assembly") : null;
+
+        // Validate early for stable LLM output & better error messages.
+        List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(assemblyObj);
+        long errCount = issues.stream().filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR).count();
+        if (errCount > 0) {
+            StringBuilder sb = new StringBuilder("MetaAssembly (validation failed): ");
+            int shown = 0;
+            for (AssemblyValidationIssue is : issues) {
+                if (is.severity() != AssemblyValidationIssue.Severity.ERROR) continue;
+                if (shown++ >= 6) break;
+                if (shown > 1) sb.append(" | ");
+                sb.append(is.path()).append(": ").append(is.message());
+            }
+            if (errCount > 6) sb.append(" | ... (").append(errCount).append(" errors)");
+            return new GeneratedStructure(null, origin, sb.toString(), List.of());
+        }
+
         AssemblySpec as = AssemblySpec.fromExtra(assemblyObj);
         if (as == null || as.ops == null || as.ops.isEmpty()) {
             // allow higher-level graph/components form

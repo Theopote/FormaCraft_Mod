@@ -58,6 +58,15 @@ tasks.withType(JavaCompile).configureEach {
 	it.options.release = 21
 }
 
+tasks.register('validateAssemblyExamples', JavaExec) {
+	group = 'verification'
+	description = 'Validate assets/formacraft/assembly_examples/*.json against AssemblySpecValidator.'
+	dependsOn tasks.named('classes')
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.formacraft.tools.ValidateAssemblyExamplesMain'
+	args 'src/main/resources/assets/formacraft/assembly_examples'
+}
+
 java {
 	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
 	// if it is present.
