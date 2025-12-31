@@ -141,6 +141,24 @@
   - `guardWallHeight/guardWall*`：顶部护墙/女儿墙（可选 `guardWallCrenels` 做齿口节奏）
 - `Backstay*`：从塔顶回拉到锚碇块（工业桥常见“回拉索”视觉）
 
+## 示例二十三：结构骨架（空间外骨骼：FRAME_GRID_3D）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/frame_grid_3d_exoskeleton.json`
+
+- `mode=SURFACE`：只生成外骨骼（边界面网格）
+- `mode=ALL`：生成完整 3D 空间格架（体内也有网格）
+- `diagonal=FACE`：在外表面网格单元上自动加斜撑（交错方向）
+- `diagonal=SPACE`：在 `mode=ALL` 时可加“体对角撑”（空间桁架风格）
+
+## 示例二十四：楼梯系统（STAIR_SYSTEM）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/stair_system_basic.json`
+
+- `from/to`：楼梯起止点
+- `width`：楼梯宽度
+- `clearHeight + carve`：自动挖出净空（避免撞头）
+- `support`：简单支撑（P0：每步下方补一层承重块）
+
 ## 示例十二：古典（檐口/腰线/柱网：SURFACE_BANDS）
 
 文件：`src/main/resources/assets/formacraft/assembly_examples/box_classical_bands_columns.json`

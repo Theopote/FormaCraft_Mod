@@ -162,6 +162,56 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "cableAxis");
                 ops.add(o);
             }
+            case "FRAME_GRID_3D", "FRAMEGRID_3D", "SPACE_FRAME", "EXOSKELETON" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "FRAME_GRID_3D");
+                // Prefer explicit bounds; otherwise derive from w/d/h as centered box.
+                int x0 = i(comp.get("x0"), Integer.MIN_VALUE);
+                int x1 = i(comp.get("x1"), Integer.MIN_VALUE);
+                int y0 = i(comp.get("y0"), Integer.MIN_VALUE);
+                int y1 = i(comp.get("y1"), Integer.MIN_VALUE);
+                int z0 = i(comp.get("z0"), Integer.MIN_VALUE);
+                int z1 = i(comp.get("z1"), Integer.MIN_VALUE);
+                if (x0 != Integer.MIN_VALUE && x1 != Integer.MIN_VALUE
+                        && y0 != Integer.MIN_VALUE && y1 != Integer.MIN_VALUE
+                        && z0 != Integer.MIN_VALUE && z1 != Integer.MIN_VALUE) {
+                    o.put("x0", x0); o.put("x1", x1);
+                    o.put("y0", y0); o.put("y1", y1);
+                    o.put("z0", z0); o.put("z1", z1);
+                } else {
+                    int w = i(comp.get("w"), i(comp.get("width"), 16));
+                    int d = i(comp.get("d"), i(comp.get("depth"), 16));
+                    int h = i(comp.get("h"), i(comp.get("height"), 24));
+                    int hx = Math.max(1, w / 2);
+                    int hz = Math.max(1, d / 2);
+                    o.put("x0", -hx); o.put("x1", hx);
+                    o.put("y0", 0); o.put("y1", Math.max(1, h));
+                    o.put("z0", -hz); o.put("z1", hz);
+                }
+                copyInt(comp, o, "stepX", i(comp.get("stepX"), i(comp.get("sx"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "stepY", i(comp.get("stepY"), i(comp.get("sy"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "stepZ", i(comp.get("stepZ"), i(comp.get("sz"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "step", i(comp.get("step"), Integer.MIN_VALUE));
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copy(comp, o, "mode");
+                copy(comp, o, "diagonal");
+                copy(comp, o, "material");
+                ops.add(o);
+            }
+            case "STAIR_SYSTEM", "STAIRS_SYSTEM", "STAIRCASE" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "STAIR_SYSTEM");
+                copy(comp, o, "from");
+                copy(comp, o, "to");
+                copyInt(comp, o, "width", i(comp.get("width"), 2));
+                copyInt(comp, o, "clearHeight", i(comp.get("clearHeight"), i(comp.get("clear_h"), 3)));
+                copy(comp, o, "carve");
+                copy(comp, o, "support");
+                copy(comp, o, "stairs");
+                copy(comp, o, "floor");
+                copy(comp, o, "supportMaterial");
+                ops.add(o);
+            }
             case "BUTTRESS", "FLYING_BUTTRESS" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "BUTTRESS");
@@ -763,12 +813,10 @@ public final class MetaAssemblyCompiler {
             leadInWeightDefaultOverride = 5;
             routingPadDefault = 8;
             routingMaxAreaDefault = 140000L;
-            routingMaxNodesDefault = 0;
         } else if ("ORGANIC".equals(routingStyle)) {
             preferStraightDefault = 0;
             preferAxisWeightDefault = 0;
             preferAxisDefault = "NONE";
-            preferDoorAxisDefault = false;
             leadWeightDefaultOverride = 1;
             leadOutWeightDefaultOverride = 1;
             leadInWeightDefaultOverride = 1;

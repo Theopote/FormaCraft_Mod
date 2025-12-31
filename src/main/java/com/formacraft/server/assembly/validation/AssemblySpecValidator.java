@@ -106,6 +106,17 @@ public final class AssemblySpecValidator {
                     "cableCount", "count",
                     "cableSpacing", "spacing",
                     "cableAxis",
+                    // frame grid 3d
+                    "stepX", "stepY", "stepZ",
+                    "sx", "sy", "sz",
+                    "mode",
+                    "diagonal",
+                    // stair system
+                    "clearHeight", "clear_h",
+                    "carve",
+                    "support",
+                    "stairs",
+                    "supportMaterial",
                     // anchoring / anchorage
                     "yBase",
                     "maxDepth", "anchorDepth",
@@ -312,6 +323,35 @@ public final class AssemblySpecValidator {
                         if (hm.get("z") != null && intOrNull(hm.get("z")) == null) out.add(err(hp + ".z", "E_INT_TYPE", "hole.z 必须是整数"));
                     }
                 }
+            }
+            if (op.equals("FRAME_GRID_3D")) {
+                // bounds required
+                if (m.get("x0") == null || m.get("x1") == null || m.get("y0") == null || m.get("y1") == null || m.get("z0") == null || m.get("z1") == null) {
+                    out.add(err(p, "E_FRAMEGRID_BOUNDS", "FRAME_GRID_3D 需要 x0/x1/y0/y1/z0/z1"));
+                }
+                if (m.get("stepX") != null) requireIntMin(out, p, m, "stepX", 1);
+                if (m.get("stepY") != null) requireIntMin(out, p, m, "stepY", 1);
+                if (m.get("stepZ") != null) requireIntMin(out, p, m, "stepZ", 1);
+                if (m.get("step") != null) requireIntMin(out, p, m, "step", 1);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("mode") != null) {
+                    String s = String.valueOf(m.get("mode")).trim().toUpperCase(Locale.ROOT);
+                    if (!s.isEmpty() && !(s.equals("SURFACE") || s.equals("ALL"))) {
+                        out.add(warn(p + ".mode", "W_FRAMEGRID_MODE_VALUE", "mode 建议使用 SURFACE/ALL（当前=" + m.get("mode") + "）"));
+                    }
+                }
+                if (m.get("diagonal") != null) {
+                    String s = String.valueOf(m.get("diagonal")).trim().toUpperCase(Locale.ROOT);
+                    if (!s.isEmpty() && !(s.equals("NONE") || s.equals("FACE") || s.equals("SPACE"))) {
+                        out.add(warn(p + ".diagonal", "W_FRAMEGRID_DIAGONAL_VALUE", "diagonal 建议使用 NONE/FACE/SPACE（当前=" + m.get("diagonal") + "）"));
+                    }
+                }
+            }
+            if (op.equals("STAIR_SYSTEM")) {
+                validatePointRefXYZ(out, p + ".from", m.get("from"), "E_STAIR_FROM_MISSING");
+                validatePointRefXYZ(out, p + ".to", m.get("to"), "E_STAIR_TO_MISSING");
+                if (m.get("width") != null) requireIntMin(out, p, m, "width", 1);
+                if (m.get("clearHeight") != null || m.get("clear_h") != null) requireIntMin(out, p, m, "clearHeight", 0);
             }
             if (op.equals("PATH_ROUTE") || op.equals("WALL_ROUTE") || op.equals("BRIDGE_ROUTE")) {
                 validatePointRefXYZ(out, p + ".from", m.get("from"), "E_ROUTE_FROM_MISSING");
@@ -541,6 +581,16 @@ public final class AssemblySpecValidator {
                     "cableCount", "count",
                     "cableSpacing", "spacing",
                     "cableAxis",
+                    // frame grid 3d
+                    "stepX", "stepY", "stepZ",
+                    "sx", "sy", "sz",
+                    "mode",
+                    "diagonal",
+                    // stair system
+                    "clearHeight", "clear_h",
+                    "support",
+                    "stairs",
+                    "supportMaterial",
                     // anchoring / anchorage
                     "x0", "x1", "y0", "y1", "z0", "z1",
                     "yBase",

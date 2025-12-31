@@ -645,6 +645,244 @@ public final class MetaAssemblyEngine {
                     }
                 }
             }
+            case "FRAME_GRID_3D" -> {
+                // 3D frame/grid skeleton (space frame / exoskeleton).
+                //
+                // Required:
+                // - x0,x1,y0,y1,z0,z1: local bounds (inclusive)
+                // Optional:
+                // - stepX/stepY/stepZ: grid spacing (default 4)
+                // - thickness: beam thickness (default 1)
+                // - mode: SURFACE (default) / ALL
+                // - diagonal: NONE (default) / FACE / SPACE
+                // - material: semantic STRUCTURAL_BEAM
+                int x0 = i(op.get("x0"), 0), x1 = i(op.get("x1"), 0);
+                int y0 = i(op.get("y0"), 0), y1 = i(op.get("y1"), 0);
+                int z0 = i(op.get("z0"), 0), z1 = i(op.get("z1"), 0);
+                if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
+                if (y0 > y1) { int t = y0; y0 = y1; y1 = t; }
+                if (z0 > z1) { int t = z0; z0 = z1; z1 = t; }
+
+                int stepX = clamp(i(op.get("stepX"), i(op.get("sx"), i(op.get("step"), 4))), 1, 64);
+                int stepY = clamp(i(op.get("stepY"), i(op.get("sy"), i(op.get("step"), 4))), 1, 64);
+                int stepZ = clamp(i(op.get("stepZ"), i(op.get("sz"), i(op.get("step"), 4))), 1, 64);
+                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
+                String mode = str(op.get("mode"), "SURFACE").trim().toUpperCase(Locale.ROOT);
+                String diagonal = str(op.get("diagonal"), "NONE").trim().toUpperCase(Locale.ROOT);
+
+                BlockState mat = pick(ctx, op, "material", "STRUCTURAL_BEAM", 0xA57460L, Blocks.IRON_BARS.getDefaultState());
+
+                // Build snap lists for grid coordinates (always include bounds)
+                List<Integer> xs = new ArrayList<>();
+                List<Integer> ys = new ArrayList<>();
+                List<Integer> zs = new ArrayList<>();
+                for (int x = x0; x <= x1; x += stepX) xs.add(x);
+                if (xs.isEmpty() || xs.getLast() != x1) xs.add(x1);
+                for (int y = y0; y <= y1; y += stepY) ys.add(y);
+                if (ys.isEmpty() || ys.getLast() != y1) ys.add(y1);
+                for (int z = z0; z <= z1; z += stepZ) zs.add(z);
+                if (zs.isEmpty() || zs.getLast() != z1) zs.add(z1);
+
+                boolean all = mode.contains("ALL");
+
+                // Draw axis-aligned beams along grid lines
+                for (int yi : ys) {
+                    for (int zi : zs) {
+                        for (int xiIdx = 0; xiIdx + 1 < xs.size(); xiIdx++) {
+                            int xa = xs.get(xiIdx), xb = xs.get(xiIdx + 1);
+                            if (!all) {
+                                boolean onSurface = (yi == y0 || yi == y1) || (zi == z0 || zi == z1);
+                                if (!onSurface) continue;
+                            }
+                            placeBeamLine(out, ctx, curOrigin, xa, yi, zi, xb, yi, zi, thick, 1, mat);
+                        }
+                    }
+                }
+                for (int yi : ys) {
+                    for (int xi : xs) {
+                        for (int ziIdx = 0; ziIdx + 1 < zs.size(); ziIdx++) {
+                            int za = zs.get(ziIdx), zb = zs.get(ziIdx + 1);
+                            if (!all) {
+                                boolean onSurface = (yi == y0 || yi == y1) || (xi == x0 || xi == x1);
+                                if (!onSurface) continue;
+                            }
+                            placeBeamLine(out, ctx, curOrigin, xi, yi, za, xi, yi, zb, thick, 1, mat);
+                        }
+                    }
+                }
+                for (int zi : zs) {
+                    for (int xi : xs) {
+                        for (int yiIdx = 0; yiIdx + 1 < ys.size(); yiIdx++) {
+                            int ya = ys.get(yiIdx), yb = ys.get(yiIdx + 1);
+                            if (!all) {
+                                boolean onSurface = (xi == x0 || xi == x1) || (zi == z0 || zi == z1);
+                                if (!onSurface) continue;
+                            }
+                            placeBeamLine(out, ctx, curOrigin, xi, ya, zi, xi, yb, zi, thick, 1, mat);
+                        }
+                    }
+                }
+
+                // Diagonals
+                if (!diagonal.contains("NONE")) {
+                    boolean faceOnly = diagonal.contains("FACE");
+                    boolean space = diagonal.contains("SPACE") || diagonal.contains("ALL");
+
+                    // FACE diagonals: on each boundary face cell, add an alternating diagonal.
+                    if (faceOnly || (!space && !diagonal.contains("SPACE"))) {
+                        // XY faces (z = z0 / z1)
+                        for (int zFace : new int[]{z0, z1}) {
+                            for (int yiIdx = 0; yiIdx + 1 < ys.size(); yiIdx++) {
+                                int ya = ys.get(yiIdx), yb = ys.get(yiIdx + 1);
+                                for (int xiIdx = 0; xiIdx + 1 < xs.size(); xiIdx++) {
+                                    int xa = xs.get(xiIdx), xb = xs.get(xiIdx + 1);
+                                    if (((xiIdx + yiIdx) & 1) == 0) placeBeamLine(out, ctx, curOrigin, xa, ya, zFace, xb, yb, zFace, thick, 1, mat);
+                                    else placeBeamLine(out, ctx, curOrigin, xb, ya, zFace, xa, yb, zFace, thick, 1, mat);
+                                }
+                            }
+                        }
+                        // YZ faces (x = x0 / x1)
+                        for (int xFace : new int[]{x0, x1}) {
+                            for (int yiIdx = 0; yiIdx + 1 < ys.size(); yiIdx++) {
+                                int ya = ys.get(yiIdx), yb = ys.get(yiIdx + 1);
+                                for (int ziIdx = 0; ziIdx + 1 < zs.size(); ziIdx++) {
+                                    int za = zs.get(ziIdx), zb = zs.get(ziIdx + 1);
+                                    if (((ziIdx + yiIdx) & 1) == 0) placeBeamLine(out, ctx, curOrigin, xFace, ya, za, xFace, yb, zb, thick, 1, mat);
+                                    else placeBeamLine(out, ctx, curOrigin, xFace, ya, zb, xFace, yb, za, thick, 1, mat);
+                                }
+                            }
+                        }
+                        // XZ faces (y = y0 / y1)
+                        for (int yFace : new int[]{y0, y1}) {
+                            for (int ziIdx = 0; ziIdx + 1 < zs.size(); ziIdx++) {
+                                int za = zs.get(ziIdx), zb = zs.get(ziIdx + 1);
+                                for (int xiIdx = 0; xiIdx + 1 < xs.size(); xiIdx++) {
+                                    int xa = xs.get(xiIdx), xb = xs.get(xiIdx + 1);
+                                    if (((xiIdx + ziIdx) & 1) == 0) placeBeamLine(out, ctx, curOrigin, xa, yFace, za, xb, yFace, zb, thick, 1, mat);
+                                    else placeBeamLine(out, ctx, curOrigin, xb, yFace, za, xa, yFace, zb, thick, 1, mat);
+                                }
+                            }
+                        }
+                    }
+
+                    // SPACE diagonals: add a body diagonal within each grid cell (alternating).
+                    if (space) {
+                        for (int xiIdx = 0; xiIdx + 1 < xs.size(); xiIdx++) {
+                            int xa = xs.get(xiIdx), xb = xs.get(xiIdx + 1);
+                            for (int yiIdx = 0; yiIdx + 1 < ys.size(); yiIdx++) {
+                                int ya = ys.get(yiIdx), yb = ys.get(yiIdx + 1);
+                                for (int ziIdx = 0; ziIdx + 1 < zs.size(); ziIdx++) {
+                                    int za = zs.get(ziIdx), zb = zs.get(ziIdx + 1);
+                                    if (!all) {
+                                        // For SURFACE mode, only interior body diagonals don't help; skip.
+                                        continue;
+                                    }
+                                    if (((xiIdx + yiIdx + ziIdx) & 1) == 0) {
+                                        placeBeamLine(out, ctx, curOrigin, xa, ya, za, xb, yb, zb, thick, 1, mat);
+                                    } else {
+                                        placeBeamLine(out, ctx, curOrigin, xb, ya, za, xa, yb, zb, thick, 1, mat);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            case "STAIR_SYSTEM" -> {
+                // Stair system (P0): straight run staircase between from/to with optional carving for headroom.
+                //
+                // Required:
+                // - from/to: {x,y,z} local points
+                // Optional:
+                // - width: stair width (default 2)
+                // - clearHeight: carve clearance above each step (default 3)
+                // - carve: whether to clear headroom (default true)
+                // - support: place solid support blocks under each step (default true)
+                // - stairs: block override for stairs (semantic STAIR)
+                // - floor: landing/fill material for flat segments (semantic FLOORING)
+                // - supportMaterial: semantic FOUNDATION (fallback floor)
+                int[] a = parsePoint(op.get("from"));
+                int[] b = parsePoint(op.get("to"));
+
+                int width = clamp(i(op.get("width"), 2), 1, 15);
+                boolean carve = bool(op.get("carve"), true);
+                int clearH = clamp(i(op.get("clearHeight"), i(op.get("clear_h"), 3)), 0, 16);
+                boolean support = bool(op.get("support"), true);
+
+                BlockState stairMat = pick(ctx, op, "stairs", "STAIR", 0xA57470L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
+                BlockState floorMat = pick(ctx, op, "floor", "FLOORING", 0xA57471L, Blocks.SMOOTH_STONE.getDefaultState());
+                BlockState supportMat = pick(ctx, op, "supportMaterial", "FOUNDATION", 0xA57472L, floorMat);
+
+                int dx = b[0] - a[0];
+                int dy = b[1] - a[1];
+                int dz = b[2] - a[2];
+                int run = Math.max(Math.max(Math.abs(dx), Math.abs(dz)), Math.abs(dy));
+                run = Math.max(run, 1);
+
+                // Determine main horizontal direction for stair facing (dominant axis)
+                Direction horizDir;
+                if (Math.abs(dx) >= Math.abs(dz)) horizDir = (dx >= 0) ? Direction.EAST : Direction.WEST;
+                else horizDir = (dz >= 0) ? Direction.SOUTH : Direction.NORTH;
+
+                int prevX = a[0], prevY = a[1], prevZ = a[2];
+                for (int i = 0; i <= run; i++) {
+                    double t = i / (double) run;
+                    int x = (int) Math.round(a[0] + dx * t);
+                    int z = (int) Math.round(a[2] + dz * t);
+                    int y = (int) Math.round(a[1] + dy * t);
+
+                    // clamp to avoid >1 jumps (best-effort)
+                    int deltaY = y - prevY;
+                    if (deltaY > 1) y = prevY + 1;
+                    if (deltaY < -1) y = prevY - 1;
+
+                    // compute lateral axis for width
+                    Direction lateral = (horizDir == Direction.EAST || horizDir == Direction.WEST) ? Direction.SOUTH : Direction.EAST;
+                    int half = width / 2;
+
+                    // place step/landing across width
+                    for (int wOff = -half; wOff <= half; wOff++) {
+                        int wx = x + lateral.getOffsetX() * wOff;
+                        int wz = z + lateral.getOffsetZ() * wOff;
+
+                        if (y > prevY) {
+                            // ascending: stair placed at lower position (prev), facing toward direction
+                            int sx = prevX + lateral.getOffsetX() * wOff;
+                            int sz = prevZ + lateral.getOffsetZ() * wOff;
+                            BlockState s = stairMat;
+                            if (s.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
+                                s = s.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, horizDir);
+                            }
+                            put(out, ctx, curOrigin, sx, prevY, sz, s);
+                        } else if (y < prevY) {
+                            // descending: stair at current position, facing opposite
+                            BlockState s = stairMat;
+                            Direction f = horizDir.getOpposite();
+                            if (s.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
+                                s = s.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, f);
+                            }
+                            put(out, ctx, curOrigin, wx, y, wz, s);
+                        } else {
+                            // flat: floor
+                            put(out, ctx, curOrigin, wx, y, wz, floorMat);
+                        }
+
+                        // support column (simple fill down one block; P0)
+                        if (support) {
+                            put(out, ctx, curOrigin, wx, y - 1, wz, supportMat);
+                        }
+
+                        // carve headroom
+                        if (carve && clearH > 0) {
+                            for (int yy = 1; yy <= clearH; yy++) {
+                                put(out, ctx, curOrigin, wx, y + yy, wz, Blocks.AIR.getDefaultState());
+                            }
+                        }
+                    }
+
+                    prevX = x; prevY = y; prevZ = z;
+                }
+            }
             case "PATH_ROUTE" -> {
                 // Reuse PathGenerator (supports DRAPE etc via terrainAdaptation in extra).
                 int width = clamp(i(op.get("width"), i(op.get("thickness"), 3)), 1, 15);

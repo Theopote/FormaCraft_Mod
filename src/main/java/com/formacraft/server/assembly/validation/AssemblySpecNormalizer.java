@@ -445,6 +445,17 @@ public final class AssemblySpecNormalizer {
             "allowWaterEdit", "allowLavaEdit",
             "solid",
             "carve",
+            // frame grid 3d
+            "stepX", "stepY", "stepZ",
+            "sx", "sy", "sz",
+            "mode",
+            "diagonal",
+            // stair system
+            "clearHeight", "clear_h",
+            "carve",
+            "support",
+            "stairs",
+            "supportMaterial",
             // anchorage detailing
             "topBevel", "bevel",
             "guardWallHeight", "parapetHeight",
@@ -474,6 +485,17 @@ public final class AssemblySpecNormalizer {
             "material", "wall", "roof", "slab", "floor", "window", "fill", "frame", "accent", "air",
             "type", "kind", "face", "faces",
             "w", "d", "h", "width", "depth", "height",
+            // frame grid 3d
+            "stepX", "stepY", "stepZ",
+            "sx", "sy", "sz",
+            "mode",
+            "diagonal",
+            // stair system
+            "clearHeight", "clear_h",
+            "carve",
+            "support",
+            "stairs",
+            "supportMaterial",
             "points", "profile", "profileFrame", "profileSnap", "frame", "snap",
             "profileW", "profileH", "profilePoints", "profileRings", "rings",
             "profileScale0", "profileScale1", "scale0", "scale1",
