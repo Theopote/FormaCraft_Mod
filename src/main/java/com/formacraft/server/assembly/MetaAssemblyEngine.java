@@ -493,11 +493,460 @@ public final class MetaAssemblyEngine {
                         BspFloorPlanGenerator.Materials.of(coreWall, roomWall, stairs)
                 );
             }
+            case "SURFACE_PATTERN" -> {
+                // Apply an unstyled pattern on a box face.
+                // Required:
+                // - face: NORTH/SOUTH/EAST/WEST (local)
+                // - x0..x1,y0..y1,z0..z1 bounds (local)
+                // Optional:
+                // - pattern: GRID / STRIPES_V / STRIPES_H / RIBS_V / RIBS_H
+                // - step: spacing
+                // - thickness: rib thickness
+                String face = str(op.get("face"), "NORTH").trim().toUpperCase(Locale.ROOT);
+                String pattern = str(op.get("pattern"), "GRID").trim().toUpperCase(Locale.ROOT);
+                int step = clamp(i(op.get("step"), i(op.get("spacing"), 3)), 1, 16);
+                int thick = clamp(i(op.get("thickness"), 1), 1, 8);
+
+                int x0 = i(op.get("x0"), 0), x1 = i(op.get("x1"), 0);
+                int y0 = i(op.get("y0"), 1), y1 = i(op.get("y1"), 10);
+                int z0 = i(op.get("z0"), 0), z1 = i(op.get("z1"), 0);
+                int ax0 = Math.min(x0, x1), ax1 = Math.max(x0, x1);
+                int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+                int az0 = Math.min(z0, z1), az1 = Math.max(z0, z1);
+
+                BlockState accent = pick(ctx, op, "material", "FACADE_ACCENT", 0xA57001L,
+                        pick(ctx, op, "accent", "DECOR_DETAIL", 0xA57002L, Blocks.STONE_BRICK_WALL.getDefaultState()));
+
+                if ("NORTH".equals(face)) {
+                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, ax0, ax1, ay0, ay1, az0, true);
+                } else if ("SOUTH".equals(face)) {
+                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, ax0, ax1, ay0, ay1, az1, true);
+                } else if ("WEST".equals(face)) {
+                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, az0, az1, ay0, ay1, ax0, false);
+                } else if ("EAST".equals(face)) {
+                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, az0, az1, ay0, ay1, ax1, false);
+                }
+            }
+            case "OPENINGS" -> {
+                // Carve/open a set of windows/doors on a face of a box.
+                // Required:
+                // - face: NORTH/SOUTH/EAST/WEST (local)
+                // - kind: WINDOW_GRID / DOOR / ARCH_WINDOW / ROSE_WINDOW
+                // - x0..x1,y0..y1,z0..z1 bounds
+                String face = str(op.get("face"), "NORTH").trim().toUpperCase(Locale.ROOT);
+                String kind = str(op.get("kind"), "WINDOW_GRID").trim().toUpperCase(Locale.ROOT);
+
+                int x0 = i(op.get("x0"), 0), x1 = i(op.get("x1"), 0);
+                int y0 = i(op.get("y0"), 0), y1 = i(op.get("y1"), 18);
+                int z0 = i(op.get("z0"), 0), z1 = i(op.get("z1"), 0);
+                int ax0 = Math.min(x0, x1), ax1 = Math.max(x0, x1);
+                int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+                int az0 = Math.min(z0, z1), az1 = Math.max(z0, z1);
+
+                BlockState fill = pick(ctx, op, "fill", "WINDOW", 0xA57101L, Blocks.GLASS_PANE.getDefaultState());
+                BlockState frame = pick(ctx, op, "frame", "FACADE_TRIM", 0xA57102L, Blocks.SMOOTH_STONE.getDefaultState());
+                BlockState air = Blocks.AIR.getDefaultState();
+
+                int frameT = clamp(i(op.get("frameThickness"), 1), 0, 4);
+                int mullionStep = clamp(i(op.get("mullionStep"), 0), 0, 16);
+
+                if (kind.contains("DOOR")) {
+                    int doorW = clamp(i(op.get("doorW"), i(op.get("winW"), 2)), 1, 7);
+                    int doorH = clamp(i(op.get("doorH"), i(op.get("winH"), 3)), 2, 10);
+                    int sx = (ax0 + ax1) / 2;
+                    int sz = (az0 + az1) / 2;
+                    int yBase = ay0;
+                    carveRectOnFace(out, ctx, curOrigin, face, sx, sz, yBase, doorW, doorH, air, frame, frameT, mullionStep);
+                    break;
+                }
+
+                if (kind.contains("ROSE")) {
+                    // Rose window approximation: ring + spokes + fill.
+                    int r = clamp(i(op.get("r"), i(op.get("radius"), 5)), 2, 24);
+                    int ring = clamp(i(op.get("ring"), i(op.get("frameThickness"), 1)), 1, 6);
+                    int petals = clamp(i(op.get("petals"), i(op.get("spokes"), 8)), 3, 32);
+                    int spokeWidth = clamp(i(op.get("spokeWidth"), i(op.get("spokeW"), 1)), 1, 6);
+                    double phase = d(op.get("phase"), d(op.get("phi"), 0.0));
+                    double spokeThreshold = d(op.get("spokeThreshold"), d(op.get("spokeThresh"), 0.06));
+                    int cy = i(op.get("centerY"), -999999);
+                    if (cy <= -999000) cy = ay0 + (ay1 - ay0) * 2 / 3;
+                    int cx = (ax0 + ax1) / 2;
+                    int cz = (az0 + az1) / 2;
+                    // If phase looks like 0..1, treat it as turns.
+                    if (phase >= 0.0 && phase <= 1.0) phase = phase * (Math.PI * 2.0);
+                    if (spokeThreshold < 0.0) spokeThreshold = 0.0;
+                    if (spokeThreshold > 0.25) spokeThreshold = 0.25;
+                    BlockState innerFill = pick(ctx, op, "innerFill", "WINDOW", 0xA57111L, fill);
+                    BlockState spokeMat = pick(ctx, op, "spokeMaterial", "FACADE_TRIM", 0xA57112L, frame);
+                    carveRoseOnFace(out, ctx, curOrigin, face, cx, cz, cy, r, ring, petals, phase, spokeWidth, spokeThreshold, fill, innerFill, frame, spokeMat);
+                    break;
+                }
+
+                int rows = clamp(i(op.get("rows"), 2), 1, 12);
+                int cols = clamp(i(op.get("cols"), 3), 1, 24);
+                int winW = clamp(i(op.get("winW"), 2), 1, 9);
+                int winH = clamp(i(op.get("winH"), 3), 1, 12);
+                int sillY = clamp(i(op.get("sillY"), 2), ay0, ay1);
+                int marginX = clamp(i(op.get("marginX"), 2), 0, 64);
+                int marginY = clamp(i(op.get("marginY"), 2), 0, 64);
+                int gapX = clamp(i(op.get("gapX"), 2), 0, 32);
+                int gapY = clamp(i(op.get("gapY"), 2), 0, 32);
+
+                boolean spanAlongX = "NORTH".equals(face) || "SOUTH".equals(face);
+                int spanMin = spanAlongX ? ax0 : az0;
+                int spanMax = spanAlongX ? ax1 : az1;
+                int span = spanMax - spanMin + 1;
+                int usable = Math.max(0, span - marginX * 2);
+                int totalW = cols * winW + Math.max(0, cols - 1) * gapX;
+                if (totalW <= 0) break;
+                if (totalW > usable) {
+                    cols = Math.max(1, (usable + gapX) / (winW + gapX));
+                    totalW = cols * winW + Math.max(0, cols - 1) * gapX;
+                }
+                int start = spanMin + marginX + Math.max(0, (usable - totalW) / 2);
+
+                int usableY = Math.max(0, (ay1 - ay0 + 1) - marginY * 2);
+                int totalH = rows * winH + Math.max(0, rows - 1) * gapY;
+                if (totalH > usableY) {
+                    rows = Math.max(1, (usableY + gapY) / (winH + gapY));
+                    totalH = rows * winH + Math.max(0, rows - 1) * gapY;
+                }
+                int startY = Math.min(ay1 - totalH, Math.max(ay0 + marginY, sillY));
+
+                for (int ry = 0; ry < rows; ry++) {
+                    int yBase = startY + ry * (winH + gapY);
+                    for (int cx = 0; cx < cols; cx++) {
+                        int off = start + cx * (winW + gapX);
+                        int centerX = spanAlongX ? (off + winW / 2) : ((ax0 + ax1) / 2);
+                        int centerZ = spanAlongX ? ((az0 + az1) / 2) : (off + winW / 2);
+                        if (kind.contains("ARCH")) {
+                            String archType = str(op.get("archType"), str(op.get("arch"), "ROUND")).trim().toUpperCase(Locale.ROOT);
+                            int archThickness = clamp(i(op.get("archThickness"), i(op.get("archT"), frameT)), 0, 6);
+                            BlockState keystone = pick(ctx, op, "keystone", "FACADE_TRIM", 0xA57121L, frame);
+                            boolean keystoneOn = bool(op.get("keystoneOn"), true);
+                            String tracery = str(op.get("tracery"), str(op.get("traceryType"), "")).trim().toUpperCase(Locale.ROOT);
+                            int traceryThickness = clamp(i(op.get("traceryThickness"), i(op.get("traceryT"), 1)), 0, 6);
+                            int traceryY = i(op.get("traceryY"), Integer.MIN_VALUE); // optional absolute local Y
+                            int traceryInset = clamp(i(op.get("traceryInset"), 0), 0, 2);
+                            int foilRadius = i(op.get("traceryFoilRadius"), i(op.get("foilRadius"), 0));
+                            int foilCenterY = i(op.get("traceryFoilCenterY"), i(op.get("foilCenterY"), Integer.MIN_VALUE));
+                            BlockState traceryMat = pick(ctx, op, "traceryMaterial", "FACADE_TRIM", 0xA57122L, frame);
+                            carveArchOnFace(out, ctx, curOrigin, face, centerX, centerZ, yBase, winW, winH, archType, fill, frame, frameT, mullionStep,
+                                    archThickness, keystoneOn ? keystone : null,
+                                    tracery, traceryMat, traceryThickness, traceryY, traceryInset, foilRadius, foilCenterY);
+                        } else {
+                            carveRectOnFace(out, ctx, curOrigin, face, centerX, centerZ, yBase, winW, winH, fill, frame, frameT, mullionStep);
+                        }
+                    }
+                }
+            }
             default -> {
                 // ignore unknown ops for forward compatibility
             }
         }
         return curOrigin;
+    }
+
+    private static void applyPatternPlane(List<PlannedBlock> out,
+                                          Context ctx,
+                                          BlockPos origin,
+                                          String pattern,
+                                          int step,
+                                          int thick,
+                                          BlockState accent,
+                                          int u0,
+                                          int u1,
+                                          int y0,
+                                          int y1,
+                                          int fixed,
+                                          boolean uIsX) {
+        int au0 = Math.min(u0, u1), au1 = Math.max(u0, u1);
+        int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+        for (int y = ay0; y <= ay1; y++) {
+            for (int u = au0; u <= au1; u++) {
+                boolean place;
+                switch (pattern) {
+                    case "STRIPES_V", "STRIPES_VERTICAL" -> place = (Math.floorMod(u, step) == 0);
+                    case "STRIPES_H", "STRIPES_HORIZONTAL" -> place = (Math.floorMod(y, step) == 0);
+                    case "RIBS_V", "RIBS_VERTICAL" -> place = (Math.floorMod(u, step) < thick);
+                    case "RIBS_H", "RIBS_HORIZONTAL" -> place = (Math.floorMod(y, step) < thick);
+                    case "GRID" -> place = (Math.floorMod(u, step) == 0) || (Math.floorMod(y, step) == 0);
+                    default -> place = (Math.floorMod(u, step) == 0) || (Math.floorMod(y, step) == 0);
+                }
+                if (!place) continue;
+                int x = uIsX ? u : fixed;
+                int z = uIsX ? fixed : u;
+                put(out, ctx, origin, x, y, z, accent);
+            }
+        }
+    }
+
+    private static void carveRectOnFace(List<PlannedBlock> out,
+                                        Context ctx,
+                                        BlockPos origin,
+                                        String face,
+                                        int centerX,
+                                        int centerZ,
+                                        int yBase,
+                                        int rectW,
+                                        int rectH,
+                                        BlockState fill,
+                                        BlockState frame,
+                                        int frameT,
+                                        int mullionStep) {
+        int hw = Math.max(0, rectW / 2);
+        int y0 = yBase;
+        int y1 = yBase + rectH - 1;
+
+        boolean alongX = "NORTH".equals(face) || "SOUTH".equals(face);
+        for (int y = y0; y <= y1; y++) {
+            for (int du = -hw; du <= hw; du++) {
+                int x = alongX ? (centerX + du) : centerX;
+                int z = alongX ? centerZ : (centerZ + du);
+                boolean isFrame = false;
+                if (frameT > 0) {
+                    if (y - y0 < frameT || y1 - y < frameT) isFrame = true;
+                    if (du + hw < frameT || hw - du < frameT) isFrame = true;
+                }
+                boolean isMullion = (mullionStep > 0) && (Math.floorMod(du + hw, mullionStep) == 0);
+                BlockState s = (isFrame || isMullion) ? frame : fill;
+                put(out, ctx, origin, x, y, z, s);
+            }
+        }
+    }
+
+    private static void carveArchOnFace(List<PlannedBlock> out,
+                                        Context ctx,
+                                        BlockPos origin,
+                                        String face,
+                                        int centerX,
+                                        int centerZ,
+                                        int yBase,
+                                        int rectW,
+                                        int rectH,
+                                        String archType,
+                                        BlockState fill,
+                                        BlockState frame,
+                                        int frameT,
+                                        int mullionStep,
+                                        int archThickness,
+                                        BlockState keystone,
+                                        String tracery,
+                                        BlockState traceryMat,
+                                        int traceryThickness,
+                                        int traceryYAbs,
+                                        int traceryInset,
+                                        int foilRadius,
+                                        int foilCenterYAbs) {
+        int hw = Math.max(1, rectW / 2);
+        // split into base + arch cap; default rise tries to feel like an arch
+        int archRise = Math.max(2, Math.min(rectH - 1, hw));
+        int baseH = Math.max(1, rectH - archRise);
+        int y0 = yBase;
+        int y1 = yBase + rectH - 1;
+
+        boolean alongX = "NORTH".equals(face) || "SOUTH".equals(face);
+
+        // Precompute pointed arch radius
+        double pr = Math.max(hw + 1, Math.round(hw * 1.6));
+        double pr2 = pr * pr;
+
+        for (int y = y0; y <= y1; y++) {
+            int localY = y - y0;
+            for (int du = -hw; du <= hw; du++) {
+                boolean inside;
+                if (localY < baseH) {
+                    inside = true;
+                } else {
+                    int ay = localY - baseH;
+                    if (archType != null && archType.contains("POINT")) {
+                        // Intersection of two circles centered at spring points (-hw,0) and (hw,0)
+                        double d1 = (du + hw) * (du + hw) + (double) ay * ay;
+                        double d2 = (du - hw) * (du - hw) + (double) ay * ay;
+                        inside = (d1 <= pr2) && (d2 <= pr2);
+                    } else {
+                        // Round arch: half circle centered at (0,0) with radius hw, in the cap region
+                        inside = (du * du + ay * ay) <= (hw * hw);
+                    }
+                }
+                if (!inside) continue;
+
+                // Decide frame vs fill (with optional mullions)
+                boolean isFrame = false;
+                if (frameT > 0) {
+                    // distance-to-outside <= frameT-1 approximation via neighborhood scan
+                    for (int k = 0; k < frameT && !isFrame; k++) {
+                        int[] nu = new int[]{du + k, du - k, du, du};
+                        int[] ny = new int[]{y + k, y - k, y, y};
+                        // quick boundary: any of the 4-neighbors at distance k outside
+                        for (int j = 0; j < 4 && !isFrame; j++) {
+                            int ndu = nu[j];
+                            int nyy = ny[j];
+                            int lyy = nyy - y0;
+                            boolean nInside;
+                            if (lyy < 0 || lyy >= rectH) nInside = false;
+                            else if (lyy < baseH) nInside = true;
+                            else {
+                                int nay = lyy - baseH;
+                                if (archType != null && archType.contains("POINT")) {
+                                    double d1 = (ndu + hw) * (ndu + hw) + (double) nay * nay;
+                                    double d2 = (ndu - hw) * (ndu - hw) + (double) nay * nay;
+                                    nInside = (d1 <= pr2) && (d2 <= pr2);
+                                } else {
+                                    nInside = (ndu * ndu + nay * nay) <= (hw * hw);
+                                }
+                            }
+                            if (!nInside) isFrame = true;
+                        }
+                    }
+                }
+                boolean isMullion = (mullionStep > 0) && (Math.floorMod(du + hw, mullionStep) == 0);
+                // Extra arch thickness: enforce border region as frame.
+                if (!isFrame && archThickness > 0) {
+                    // Simple approximation: treat a slightly expanded border as frame.
+                    int duAbs = Math.abs(du);
+                    if (duAbs >= hw - (archThickness - 1)) isFrame = true;
+                    if ((y - y0) < archThickness || (y1 - y) < archThickness) isFrame = true;
+                }
+
+                BlockState s = (isFrame || isMullion) ? frame : fill;
+
+                // Tracery (inside only): draw decorative bars/shapes using traceryMat.
+                if (!isFrame && traceryMat != null && traceryThickness > 0 && tracery != null && !tracery.isBlank()) {
+                    int t = traceryThickness;
+                    int ty = (traceryYAbs != Integer.MIN_VALUE) ? traceryYAbs : (y0 + baseH + (rectH - baseH) / 2);
+                    boolean on = false;
+                    java.util.List<String> parts = splitTracery(tracery);
+                    for (String part : parts) {
+                        if (part.isBlank()) continue;
+                        if (part.contains("CROSS")) {
+                            if (Math.abs(du) < t) on = true;
+                            if (Math.abs(y - ty) < t) on = true;
+                        } else if (part.contains("QUATRE")) {
+                            int cy = (foilCenterYAbs != Integer.MIN_VALUE) ? foilCenterYAbs
+                                    : ((traceryYAbs != Integer.MIN_VALUE) ? traceryYAbs : (y1 - Math.max(2, archRise / 2)));
+                            int cx0 = 0;
+                            int rr = (foilRadius > 0) ? foilRadius : Math.max(2, hw / 3);
+                            int rr2 = rr * rr;
+                            int[][] centers = new int[][]{{cx0 - rr, cy},{cx0 + rr, cy},{cx0, cy - rr},{cx0, cy + rr}};
+                            for (int[] c : centers) {
+                                int dx = du - c[0];
+                                int dy = y - c[1];
+                                if (dx * dx + dy * dy <= rr2) { on = true; break; }
+                            }
+                        } else if (part.contains("TRE")) {
+                            int cy = (foilCenterYAbs != Integer.MIN_VALUE) ? foilCenterYAbs
+                                    : ((traceryYAbs != Integer.MIN_VALUE) ? traceryYAbs : (y1 - Math.max(2, archRise / 2)));
+                            int cx0 = 0;
+                            int rr = (foilRadius > 0) ? foilRadius : Math.max(2, hw / 3);
+                            int rr2 = rr * rr;
+                            int[][] centers = new int[][]{{cx0 - rr, cy},{cx0 + rr, cy},{cx0, cy + rr}};
+                            for (int[] c : centers) {
+                                int dx = du - c[0];
+                                int dy = y - c[1];
+                                if (dx * dx + dy * dy <= rr2) { on = true; break; }
+                            }
+                        }
+                        if (on) break;
+                    }
+                    if (on) s = traceryMat;
+                }
+                // Keystone at apex
+                if (keystone != null && du == 0 && y == y1) s = keystone;
+
+                int x = alongX ? (centerX + du) : centerX;
+                int z = alongX ? centerZ : (centerZ + du);
+                // Optional tracery inset: push decorative tracery blocks one block inward for depth.
+                if (traceryInset > 0 && s == traceryMat) {
+                    int[] p = insetOnFace(face, x, z, traceryInset);
+                    x = p[0]; z = p[1];
+                }
+                put(out, ctx, origin, x, y, z, s);
+            }
+        }
+    }
+
+    private static java.util.List<String> splitTracery(String tracery) {
+        if (tracery == null) return java.util.List.of();
+        String t = tracery.trim().toUpperCase(Locale.ROOT);
+        if (t.isBlank()) return java.util.List.of();
+        // allow CROSS+QUATREFOIL or CROSS,QUATREFOIL or CROSS|QUATREFOIL
+        t = t.replace('|', '+').replace(',', '+').replace(' ', '+');
+        String[] parts = t.split("\\+");
+        java.util.ArrayList<String> out = new java.util.ArrayList<>();
+        for (String p : parts) {
+            if (p == null) continue;
+            String s = p.trim().toUpperCase(Locale.ROOT);
+            if (!s.isBlank()) out.add(s);
+        }
+        return out;
+    }
+
+    private static int[] insetOnFace(String face, int x, int z, int inset) {
+        if (inset <= 0) return new int[]{x, z};
+        String f = (face == null) ? "" : face.trim().toUpperCase(Locale.ROOT);
+        return switch (f) {
+            case "NORTH" -> new int[]{x, z + inset};
+            case "SOUTH" -> new int[]{x, z - inset};
+            case "WEST" -> new int[]{x + inset, z};
+            case "EAST" -> new int[]{x - inset, z};
+            default -> new int[]{x, z};
+        };
+    }
+
+    private static void carveRoseOnFace(List<PlannedBlock> out,
+                                        Context ctx,
+                                        BlockPos origin,
+                                        String face,
+                                        int centerX,
+                                        int centerZ,
+                                        int centerY,
+                                        int r,
+                                        int ring,
+                                        int petals,
+                                        double phase,
+                                        int spokeWidth,
+                                        double spokeThreshold,
+                                        BlockState fill,
+                                        BlockState innerFill,
+                                        BlockState frame,
+                                        BlockState spokeMat) {
+        boolean alongX = "NORTH".equals(face) || "SOUTH".equals(face);
+        int r2 = r * r;
+        int inner = Math.max(0, r - ring);
+        int inner2 = inner * inner;
+
+        for (int dy = -r; dy <= r; dy++) {
+            for (int du = -r; du <= r; du++) {
+                int d2 = du * du + dy * dy;
+                if (d2 > r2) continue;
+
+                boolean isRing = d2 >= inner2;
+                boolean isCore = (Math.abs(du) <= spokeWidth && Math.abs(dy) <= spokeWidth);
+
+                // Spokes/petals: approximate by angle bins; draw a thin line at each bin boundary.
+                boolean isSpoke = false;
+                if (petals > 0 && d2 > 1) {
+                    double ang = Math.atan2(dy, du) + phase; // -pi..pi + phase
+                    if (ang < 0) ang += Math.PI * 2.0;
+                    if (ang >= Math.PI * 2.0) ang -= Math.PI * 2.0;
+                    double bin = (ang / (Math.PI * 2.0)) * petals;
+                    double frac = bin - Math.floor(bin);
+                    if (frac < spokeThreshold || frac > (1.0 - spokeThreshold)) isSpoke = true;
+                    // thicken radial boundaries
+                    if (spokeWidth > 1) {
+                        double t = Math.min(frac, 1.0 - frac);
+                        if (t < (spokeThreshold * spokeWidth)) isSpoke = true;
+                    }
+                }
+
+                BlockState s = isRing ? frame : (isSpoke ? spokeMat : (isCore ? innerFill : fill));
+                int x = alongX ? (centerX + du) : centerX;
+                int z = alongX ? centerZ : (centerZ + du);
+                int y = centerY + dy;
+                put(out, ctx, origin, x, y, z, s);
+            }
+        }
     }
 
     private static void put(List<PlannedBlock> out, Context ctx, BlockPos origin, int x, int y, int z, BlockState s) {
@@ -642,6 +1091,14 @@ public final class MetaAssemblyEngine {
         try {
             if (v instanceof Number n) return n.intValue();
             if (v != null) return Integer.parseInt(String.valueOf(v).trim());
+        } catch (Exception ignored) {}
+        return def;
+    }
+
+    private static double d(Object v, double def) {
+        try {
+            if (v instanceof Number n) return n.doubleValue();
+            if (v != null) return Double.parseDouble(String.valueOf(v).trim());
         } catch (Exception ignored) {}
         return def;
     }

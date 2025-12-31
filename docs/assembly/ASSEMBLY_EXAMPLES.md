@@ -1,0 +1,152 @@
+# Meta-Assembly 示例（v1）
+
+本目录提供可以直接复制到 `BuildingSpec.extra.assembly` 的示例，帮助你用“去风格化原子语法”组合出不同文化气质的建筑立面。
+
+## 关键点
+
+- **立面肌理（Surface Pattern）**：由 `SURFACE_PATTERN` op 执行；你通常只需要在组件上写 `facade.surfacePattern`，编译器会自动生成 op。
+- **开洞（Openings）**：由 `OPENINGS` op 执行；你通常只需要在组件上写 `facade.openings[]`，编译器会自动生成 op。
+
+两者都支持 `face: "ALL"`（展开为 NORTH/SOUTH/EAST/WEST），或 `"NORTH,EAST"` 这种逗号分隔。
+
+## 示例一：日式（细竖向肋 + 少窗）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/box_japanese_facade.json`
+
+- 竖向肋条：`pattern=RIBS_V`
+- 窗：小、稀疏（`cols` 低，`winW/winH` 小）
+
+## 示例二：现代主义（幕墙网格 + 大窗）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/box_modern_curtainwall.json`
+
+- 网格：`pattern=GRID`
+- 窗：大、密（`cols` 高，`winW/winH` 大）
+
+## 示例三：哥特（竖向条纹 + 高窗）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/box_gothic_vertical.json`
+
+- 竖向条纹：`pattern=STRIPES_V`
+- 窗：尖拱高窗（`kind=ARCH_WINDOW`, `archType=POINTED`）+ 玫瑰窗近似（`kind=ROSE_WINDOW`）
+
+## `facade.surfacePattern` 字段（组件侧）
+
+```json
+{
+  "surfacePattern": {
+    "face": "ALL",
+    "pattern": "GRID",
+    "step": 3,
+    "thickness": 1,
+    "material": "minecraft:stone_brick_wall"
+  }
+}
+```
+
+支持的 `pattern`（当前实现）：
+- `GRID`
+- `STRIPES_V` / `STRIPES_H`
+- `RIBS_V` / `RIBS_H`
+
+## `facade.openings[]` 字段（组件侧）
+
+窗口网格：
+
+```json
+{
+  "openings": [
+    {
+      "face": "ALL",
+      "kind": "WINDOW_GRID",
+      "rows": 2,
+      "cols": 4,
+      "winW": 2,
+      "winH": 3,
+      "sillY": 3,
+      "marginX": 2,
+      "marginY": 2,
+      "gapX": 2,
+      "gapY": 2,
+      "frameThickness": 1,
+      "mullionStep": 0,
+      "fill": "minecraft:glass_pane",
+      "frame": "minecraft:smooth_stone"
+    }
+  ]
+}
+```
+
+门（最小实现）：
+
+```json
+{
+  "openings": [
+    {
+      "face": "SOUTH",
+      "kind": "DOOR",
+      "doorW": 2,
+      "doorH": 3,
+      "frameThickness": 1,
+      "frame": "minecraft:smooth_stone"
+    }
+  ]
+}
+```
+
+尖拱/圆拱窗（最小实现，按网格批量布置）：
+
+```json
+{
+  "openings": [
+    {
+      "face": "NORTH",
+      "kind": "ARCH_WINDOW",
+      "archType": "POINTED",
+      "archThickness": 2,
+      "keystone": "minecraft:polished_blackstone",
+      "keystoneOn": true,
+      "tracery": "CROSS",
+      "traceryThickness": 1,
+      "traceryMaterial": "minecraft:iron_bars",
+      "traceryInset": 1,
+      "foilRadius": 3,
+      "foilCenterY": 20,
+      "rows": 2,
+      "cols": 4,
+      "winW": 2,
+      "winH": 6,
+      "sillY": 6,
+      "frameThickness": 1,
+      "fill": "minecraft:purple_stained_glass_pane",
+      "frame": "minecraft:deepslate_bricks"
+    }
+  ]
+}
+```
+
+玫瑰窗近似（单个居中放置）：
+
+```json
+{
+  "openings": [
+    {
+      "face": "SOUTH",
+      "kind": "ROSE_WINDOW",
+      "r": 5,
+      "ring": 1,
+      "petals": 12,
+      "phase": 0.08,
+      "spokeWidth": 2,
+      "spokeThreshold": 0.05,
+      "innerFill": "minecraft:black_stained_glass_pane",
+      "spokeMaterial": "minecraft:iron_bars",
+      "centerY": 18,
+      "fill": "minecraft:purple_stained_glass_pane",
+      "frame": "minecraft:deepslate_bricks"
+    }
+  ]
+}
+```
+
+

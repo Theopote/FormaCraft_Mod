@@ -1,0 +1,57 @@
+{
+  "paletteId": "PALETTE_PARAMETRIC_WHITE_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "main",
+        "type": "SHELL_BOX",
+        "w": 23,
+        "d": 17,
+        "h": 24,
+        "wall": "minecraft:white_concrete",
+        "window": "minecraft:light_blue_stained_glass_pane",
+        "floor": "minecraft:smooth_stone",
+        "roof": "minecraft:smooth_quartz_slab",
+        "facade": {
+          "surfacePattern": {
+            "face": "ALL",
+            "pattern": "GRID",
+            "step": 3,
+            "thickness": 1,
+            "material": "minecraft:iron_bars"
+          },
+          "openings": [
+            {
+              "face": "ALL",
+              "kind": "WINDOW_GRID",
+              "rows": 4,
+              "cols": 6,
+              "winW": 3,
+              "winH": 3,
+              "sillY": 2,
+              "marginX": 2,
+              "marginY": 2,
+              "gapX": 1,
+              "gapY": 2,
+              "frameThickness": 1,
+              "mullionStep": 3,
+              "fill": "minecraft:light_blue_stained_glass_pane",
+              "frame": "minecraft:smooth_quartz"
+            },
+            {
+              "face": "SOUTH",
+              "kind": "DOOR",
+              "doorW": 2,
+              "doorH": 3,
+              "frameThickness": 1,
+              "frame": "minecraft:smooth_quartz"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+

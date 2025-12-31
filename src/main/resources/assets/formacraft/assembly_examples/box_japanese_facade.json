@@ -1,0 +1,56 @@
+{
+  "paletteId": "PALETTE_ELVEN_ORGANIC_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "main",
+        "type": "SHELL_BOX",
+        "w": 19,
+        "d": 15,
+        "h": 16,
+        "wall": "minecraft:birch_planks",
+        "window": "minecraft:white_stained_glass_pane",
+        "floor": "minecraft:smooth_stone",
+        "roof": "minecraft:dark_oak_slab",
+        "facade": {
+          "surfacePattern": {
+            "face": "ALL",
+            "pattern": "RIBS_V",
+            "step": 4,
+            "thickness": 1,
+            "material": "minecraft:birch_log"
+          },
+          "openings": [
+            {
+              "face": "ALL",
+              "kind": "WINDOW_GRID",
+              "rows": 2,
+              "cols": 3,
+              "winW": 2,
+              "winH": 2,
+              "sillY": 4,
+              "marginX": 3,
+              "marginY": 3,
+              "gapX": 4,
+              "gapY": 3,
+              "frameThickness": 1,
+              "fill": "minecraft:white_stained_glass_pane",
+              "frame": "minecraft:birch_planks"
+            },
+            {
+              "face": "SOUTH",
+              "kind": "DOOR",
+              "doorW": 2,
+              "doorH": 3,
+              "frameThickness": 1,
+              "frame": "minecraft:birch_planks"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+

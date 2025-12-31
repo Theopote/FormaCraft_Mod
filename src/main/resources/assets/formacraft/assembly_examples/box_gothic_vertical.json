@@ -1,0 +1,82 @@
+{
+  "paletteId": "PALETTE_GOTHIC_CATHEDRAL_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "main",
+        "type": "SHELL_BOX",
+        "w": 21,
+        "d": 15,
+        "h": 28,
+        "wall": "minecraft:deepslate_bricks",
+        "window": "minecraft:purple_stained_glass_pane",
+        "floor": "minecraft:polished_blackstone",
+        "roof": "minecraft:deepslate_tile_slab",
+        "facade": {
+          "surfacePattern": {
+            "face": "ALL",
+            "pattern": "STRIPES_V",
+            "step": 2,
+            "thickness": 1,
+            "material": "minecraft:deepslate_brick_wall"
+          },
+          "openings": [
+            {
+              "face": "ALL",
+              "kind": "ARCH_WINDOW",
+              "archType": "POINTED",
+              "archThickness": 2,
+              "keystone": "minecraft:polished_blackstone",
+              "keystoneOn": true,
+              "tracery": "CROSS+QUATREFOIL",
+              "traceryThickness": 1,
+              "traceryMaterial": "minecraft:iron_bars",
+              "traceryInset": 1,
+              "foilRadius": 3,
+              "foilCenterY": 20,
+              "rows": 3,
+              "cols": 4,
+              "winW": 2,
+              "winH": 6,
+              "sillY": 8,
+              "marginX": 3,
+              "marginY": 3,
+              "gapX": 3,
+              "gapY": 3,
+              "frameThickness": 1,
+              "mullionStep": 2,
+              "fill": "minecraft:purple_stained_glass_pane",
+              "frame": "minecraft:deepslate_bricks"
+            },
+            {
+              "face": "SOUTH",
+              "kind": "ROSE_WINDOW",
+              "r": 5,
+              "ring": 1,
+              "petals": 12,
+              "phase": 0.08,
+              "spokeWidth": 2,
+              "spokeThreshold": 0.05,
+              "innerFill": "minecraft:black_stained_glass_pane",
+              "spokeMaterial": "minecraft:iron_bars",
+              "centerY": 18,
+              "fill": "minecraft:purple_stained_glass_pane",
+              "frame": "minecraft:deepslate_bricks"
+            },
+            {
+              "face": "SOUTH",
+              "kind": "DOOR",
+              "doorW": 3,
+              "doorH": 5,
+              "frameThickness": 1,
+              "frame": "minecraft:deepslate_bricks"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+

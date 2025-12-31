@@ -15,6 +15,7 @@ import java.util.Map;
  * - If graph/components are present, compiler expands them into ops + PUSH_ORIGIN blocks.
  */
 public final class MetaAssemblyCompiler {
+    private static final int[][] DIR4 = new int[][]{{1,0},{-1,0},{0,1},{0,-1}};
     private MetaAssemblyCompiler() {}
 
     /**
@@ -174,9 +175,12 @@ public final class MetaAssemblyCompiler {
             case "BOX_SHELL", "SHELL_BOX" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "SHELL_BOX");
-                copyInt(comp, o, "w", 15);
-                copyInt(comp, o, "d", 15);
-                copyInt(comp, o, "h", 18);
+                int w = i(comp.get("w"), 15);
+                int d = i(comp.get("d"), 15);
+                int h = i(comp.get("h"), 18);
+                o.put("w", w);
+                o.put("d", d);
+                o.put("h", h);
                 copyInt(comp, o, "floorStep", 4);
                 // optional block overrides
                 copy(comp, o, "wall");
@@ -184,6 +188,11 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "floor");
                 copy(comp, o, "roof");
                 ops.add(o);
+
+                // Optional facade attachments (unstyled):
+                // - surface patterns (ribs/stripes/grid)
+                // - openings (window grids / doors)
+                emitFacadeOpsForBox(ops, comp, w, d, h);
             }
             case "BSP_INTERIOR", "BSP_FLOOR_PLAN" -> {
                 Map<String, Object> o = new HashMap<>();
@@ -219,6 +228,141 @@ public final class MetaAssemblyCompiler {
         }
 
         ops.add(op("POP_ORIGIN"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void emitFacadeOpsForBox(List<Map<String, Object>> ops, Map<String, Object> comp, int w, int d, int h) {
+        if (ops == null || comp == null) return;
+        Object facadeObj = comp.get("facade");
+        if (facadeObj == null) facadeObj = comp.get("facade_logic");
+        if (facadeObj == null) facadeObj = comp.get("facadeLogic");
+        if (facadeObj == null) facadeObj = comp; // allow top-level surfacePattern/openings
+
+        if (!(facadeObj instanceof Map<?, ?> fm)) return;
+        Map<String, Object> facade;
+        try { facade = (Map<String, Object>) fm; } catch (Exception e) { return; }
+
+        int hx = w / 2;
+        int hz = d / 2;
+        int y0 = 1;
+        int y1 = Math.max(1, h - 1);
+
+        // -------- surface pattern --------
+        Object sp = facade.get("surfacePattern");
+        if (sp == null) sp = facade.get("pattern");
+        if (sp instanceof Map<?, ?> spm) {
+            Map<String, Object> spx;
+            try { spx = (Map<String, Object>) spm; } catch (Exception e) { spx = null; }
+            if (spx != null) {
+                String faces = str(spx.get("face"), str(spx.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
+                String pattern = str(spx.get("type"), str(spx.get("pattern"), "GRID")).trim().toUpperCase(Locale.ROOT);
+                int step = Math.max(1, i(spx.get("step"), i(spx.get("spacing"), 3)));
+                int thickness = Math.max(1, i(spx.get("thickness"), 1));
+
+                for (String face : expandFaces(faces)) {
+                    Map<String, Object> o = new HashMap<>();
+                    o.put("op", "SURFACE_PATTERN");
+                    o.put("face", face);
+                    o.put("pattern", pattern);
+                    o.put("step", step);
+                    o.put("thickness", thickness);
+                    // bounds
+                    o.put("x0", -hx); o.put("x1", hx);
+                    o.put("y0", y0);  o.put("y1", y1);
+                    o.put("z0", -hz); o.put("z1", hz);
+                    // material overrides: material/frame/accent accepted by engine pick()
+                    copy(spx, o, "material");
+                    copy(spx, o, "accent");
+                    copy(spx, o, "frame");
+                    ops.add(o);
+                }
+            }
+        }
+
+        // -------- openings --------
+        Object openingsObj = facade.get("openings");
+        if (openingsObj == null) openingsObj = facade.get("opening");
+        if (openingsObj instanceof List<?> list) {
+            for (Object item : list) {
+                if (!(item instanceof Map<?, ?> im)) continue;
+                Map<String, Object> oo;
+                try { oo = (Map<String, Object>) im; } catch (Exception e) { continue; }
+
+                String faces = str(oo.get("face"), str(oo.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
+                String kind = str(oo.get("kind"), str(oo.get("type"), "WINDOW_GRID")).trim().toUpperCase(Locale.ROOT);
+
+                for (String face : expandFaces(faces)) {
+                    Map<String, Object> o = new HashMap<>();
+                    o.put("op", "OPENINGS");
+                    o.put("face", face);
+                    o.put("kind", kind);
+                    // bounds
+                    o.put("x0", -hx); o.put("x1", hx);
+                    o.put("y0", 0);   o.put("y1", h);
+                    o.put("z0", -hz); o.put("z1", hz);
+                    // sizing knobs
+                    copyInt(oo, o, "rows", i(oo.get("rows"), 2));
+                    copyInt(oo, o, "cols", i(oo.get("cols"), 3));
+                    copyInt(oo, o, "winW", i(oo.get("winW"), i(oo.get("w"), 2)));
+                    copyInt(oo, o, "winH", i(oo.get("winH"), i(oo.get("h"), 3)));
+                    copyInt(oo, o, "sillY", i(oo.get("sillY"), 2));
+                    copyInt(oo, o, "marginX", i(oo.get("marginX"), 2));
+                    copyInt(oo, o, "marginY", i(oo.get("marginY"), 2));
+                    copyInt(oo, o, "gapX", i(oo.get("gapX"), 2));
+                    copyInt(oo, o, "gapY", i(oo.get("gapY"), 2));
+                    copyInt(oo, o, "frameThickness", i(oo.get("frameThickness"), 1));
+                    copyInt(oo, o, "mullionStep", i(oo.get("mullionStep"), 0));
+                    // arch/rose parameters (optional)
+                    copy(oo, o, "archType");
+                    copy(oo, o, "arch");
+                    copyInt(oo, o, "archThickness", i(oo.get("archThickness"), i(oo.get("archT"), 0)));
+                    copy(oo, o, "keystone");
+                    copy(oo, o, "keystoneOn");
+                    copy(oo, o, "tracery");
+                    copy(oo, o, "traceryType");
+                    copy(oo, o, "traceryMaterial");
+                    copyInt(oo, o, "traceryThickness", i(oo.get("traceryThickness"), i(oo.get("traceryT"), 0)));
+                    copyInt(oo, o, "traceryY", i(oo.get("traceryY"), Integer.MIN_VALUE));
+                    copyInt(oo, o, "traceryInset", i(oo.get("traceryInset"), 0));
+                    copyInt(oo, o, "traceryFoilRadius", i(oo.get("traceryFoilRadius"), i(oo.get("foilRadius"), 0)));
+                    copyInt(oo, o, "traceryFoilCenterY", i(oo.get("traceryFoilCenterY"), i(oo.get("foilCenterY"), Integer.MIN_VALUE)));
+                    copyInt(oo, o, "r", i(oo.get("r"), i(oo.get("radius"), 0)));
+                    copyInt(oo, o, "centerY", i(oo.get("centerY"), -999999));
+                    copyInt(oo, o, "petals", i(oo.get("petals"), i(oo.get("spokes"), 0)));
+                    copyInt(oo, o, "ring", i(oo.get("ring"), 0));
+                    copy(oo, o, "phase");
+                    copy(oo, o, "phi");
+                    copyInt(oo, o, "spokeWidth", i(oo.get("spokeWidth"), i(oo.get("spokeW"), 0)));
+                    copy(oo, o, "spokeThreshold");
+                    copy(oo, o, "spokeThresh");
+                    copy(oo, o, "innerFill");
+                    copy(oo, o, "spokeMaterial");
+                    // materials
+                    copy(oo, o, "fill");
+                    copy(oo, o, "frame");
+                    copy(oo, o, "air"); // allow override of "air" behavior (e.g., open hole)
+                    ops.add(o);
+                }
+            }
+        }
+    }
+
+    private static List<String> expandFaces(String faces) {
+        if (faces == null) return List.of("NORTH", "SOUTH", "EAST", "WEST");
+        String f = faces.trim().toUpperCase(Locale.ROOT);
+        if (f.isBlank() || f.equals("ALL") || f.equals("*")) return List.of("NORTH", "SOUTH", "EAST", "WEST");
+        // allow comma-separated
+        if (f.contains(",")) {
+            java.util.ArrayList<String> out = new java.util.ArrayList<>();
+            for (String s : f.split(",")) {
+                String x = s.trim().toUpperCase(Locale.ROOT);
+                if (x.isBlank()) continue;
+                if (x.equals("ALL") || x.equals("*")) return List.of("NORTH", "SOUTH", "EAST", "WEST");
+                out.add(x);
+            }
+            return out.isEmpty() ? List.of("NORTH", "SOUTH", "EAST", "WEST") : out;
+        }
+        return List.of(f);
     }
 
     private static void emitConnection(List<Map<String, Object>> ops,
@@ -327,23 +471,129 @@ public final class MetaAssemblyCompiler {
         chain.add(p1);
 
         // A* routing knobs (safe defaults)
-        int routingPad = Math.max(0, i(conn.get("routingPad"), 6));
-        long routingMaxArea = Math.max(2000L, (long) i(conn.get("routingMaxArea"), 80000));
-        int routingMaxNodes = Math.max(2000, i(conn.get("routingMaxNodes"), 0)); // 0 means auto
-        int preferStraight = Math.max(0, i(conn.get("routingPreferStraight"), 1)); // turn penalty weight
+        int routingPadDefault = 6;
+        long routingMaxAreaDefault = 80000L;
+        int routingMaxNodesDefault = 0; // 0 means auto (scaled with area)
+        // routingStyle macro: PLANNED / ORGANIC, plus routingStyleStrength (0..1) to interpolate ORGANIC->PLANNED.
+        // This only changes defaults; explicit params always win.
+        String routingStyle = str(conn.get("routingStyle"), "").trim().toUpperCase(Locale.ROOT);
+        double routingStyleStrength = d(conn.get("routingStyleStrength"), Double.NaN);
+        if (!Double.isNaN(routingStyleStrength)) {
+            if (routingStyleStrength < 0.0) routingStyleStrength = 0.0;
+            if (routingStyleStrength > 1.0) routingStyleStrength = 1.0;
+        }
+        int preferStraightDefault = 1;
+        int preferAxisWeightDefault = 1;
+        String preferAxisDefault = "AUTO";
+        boolean preferDoorAxisDefault = false;
+        Integer leadWeightDefaultOverride = null;
+        Integer leadOutWeightDefaultOverride = null;
+        Integer leadInWeightDefaultOverride = null;
+
+        // Endpoints for continuous style:
+        // ORGANIC (0) -> PLANNED (1)
+        final int organicPreferStraight = 0;
+        final int plannedPreferStraight = 3;
+        final int organicPreferAxisWeight = 0;
+        final int plannedPreferAxisWeight = 3;
+        final int organicLeadWeight = 1;
+        final int plannedLeadWeight = 6;
+        final int organicLeadOutWeight = 1;
+        final int plannedLeadOutWeight = 7;
+        final int organicLeadInWeight = 1;
+        final int plannedLeadInWeight = 5;
+        if ("PLANNED".equals(routingStyle)) {
+            preferStraightDefault = 3;
+            preferAxisWeightDefault = 3;
+            preferAxisDefault = "AUTO";
+            preferDoorAxisDefault = true;
+            leadWeightDefaultOverride = 6;
+            leadOutWeightDefaultOverride = 7;
+            leadInWeightDefaultOverride = 5;
+            routingPadDefault = 8;
+            routingMaxAreaDefault = 140000L;
+            routingMaxNodesDefault = 0;
+        } else if ("ORGANIC".equals(routingStyle)) {
+            preferStraightDefault = 0;
+            preferAxisWeightDefault = 0;
+            preferAxisDefault = "NONE";
+            preferDoorAxisDefault = false;
+            leadWeightDefaultOverride = 1;
+            leadOutWeightDefaultOverride = 1;
+            leadInWeightDefaultOverride = 1;
+            routingPadDefault = 4;
+            routingMaxAreaDefault = 60000L;
+            routingMaxNodesDefault = 20000; // cap for speed; 0=auto can be expensive on big areas
+        }
+
+        // If strength is provided, it overrides routingStyle defaults (still does not override explicit params).
+        if (!Double.isNaN(routingStyleStrength)) {
+            double s = routingStyleStrength;
+            preferStraightDefault = (int) Math.round(organicPreferStraight + (plannedPreferStraight - organicPreferStraight) * s);
+            preferAxisWeightDefault = (int) Math.round(organicPreferAxisWeight + (plannedPreferAxisWeight - organicPreferAxisWeight) * s);
+            // Axis preference is categorical; use a small threshold to keep true ORGANIC behaving axis-free.
+            preferAxisDefault = (s <= 0.10) ? "NONE" : "AUTO";
+            // Door-axis preference is boolean; threshold at 0.5.
+            preferDoorAxisDefault = (s >= 0.50);
+            leadWeightDefaultOverride = (int) Math.round(organicLeadWeight + (plannedLeadWeight - organicLeadWeight) * s);
+            leadOutWeightDefaultOverride = (int) Math.round(organicLeadOutWeight + (plannedLeadOutWeight - organicLeadOutWeight) * s);
+            leadInWeightDefaultOverride = (int) Math.round(organicLeadInWeight + (plannedLeadInWeight - organicLeadInWeight) * s);
+
+            routingPadDefault = (int) Math.round(4 + (8 - 4) * s);
+            routingMaxAreaDefault = (long) Math.round(60000L + (140000L - 60000L) * s);
+            // Let very PLANNED routes use auto-scaling nodes (0), otherwise cap for speed.
+            routingMaxNodesDefault = (s >= 0.85) ? 0 : (int) Math.round(20000 + (0 - 20000) * s);
+        }
+
+        // routingQoS macro: FAST / BALANCED / ROBUST. Only affects defaults; explicit params always win.
+        String routingQoS = str(conn.get("routingQoS"), "").trim().toUpperCase(Locale.ROOT);
+        if (routingQoS.isEmpty()) {
+            // Auto QoS based on style strength: organic can be fast, planned can spend more time to be robust.
+            if (!Double.isNaN(routingStyleStrength)) {
+                double s = routingStyleStrength;
+                if (s < 0.35) routingQoS = "FAST";
+                else if (s < 0.75) routingQoS = "BALANCED";
+                else routingQoS = "ROBUST";
+            } else if ("PLANNED".equals(routingStyle)) {
+                routingQoS = "ROBUST";
+            } else if ("ORGANIC".equals(routingStyle)) {
+                routingQoS = "FAST";
+            }
+        }
+        if ("FAST".equals(routingQoS)) {
+            routingPadDefault = 4;
+            routingMaxAreaDefault = Math.min(routingMaxAreaDefault, 60000L);
+            routingMaxNodesDefault = 16000;
+        } else if ("BALANCED".equals(routingQoS)) {
+            routingPadDefault = 6;
+            routingMaxAreaDefault = Math.min(routingMaxAreaDefault, 90000L);
+            routingMaxNodesDefault = 0; // allow auto
+        } else if ("ROBUST".equals(routingQoS)) {
+            routingPadDefault = 10;
+            routingMaxAreaDefault = Math.max(routingMaxAreaDefault, 160000L);
+            routingMaxNodesDefault = 0; // allow auto
+        }
+
+        int routingPad = Math.max(0, i(conn.get("routingPad"), routingPadDefault));
+        long routingMaxArea = Math.max(2000L, (long) i(conn.get("routingMaxArea"), (int) routingMaxAreaDefault));
+        int routingMaxNodesRaw = i(conn.get("routingMaxNodes"), routingMaxNodesDefault);
+        int routingMaxNodes = (routingMaxNodesRaw == 0) ? 0 : Math.max(2000, routingMaxNodesRaw); // preserve 0=auto
+
+        int preferStraight = Math.max(0, i(conn.get("routingPreferStraight"), preferStraightDefault)); // turn penalty weight
 
         // Soft-lead weight: higher => stronger tendency to leave/arrive along port axis.
-        // Default ties to preferStraight so "more planned" routes also respect door axes.
-        int leadWeight = i(conn.get("routingLeadWeight"), Math.max(1, 2 + preferStraight));
-        int leadOutWeight = i(conn.get("routingLeadOutWeight"), leadWeight);
-        int leadInWeight = i(conn.get("routingLeadInWeight"), leadWeight);
+        // Default ties to preferStraight (unless routingStyle overrides it) so "more planned" routes also respect door axes.
+        int leadWeightDefault = (leadWeightDefaultOverride != null) ? leadWeightDefaultOverride : Math.max(1, 2 + preferStraight);
+        int leadWeight = i(conn.get("routingLeadWeight"), leadWeightDefault);
+        int leadOutWeight = i(conn.get("routingLeadOutWeight"), (leadOutWeightDefaultOverride != null) ? leadOutWeightDefaultOverride : leadWeight);
+        int leadInWeight = i(conn.get("routingLeadInWeight"), (leadInWeightDefaultOverride != null) ? leadInWeightDefaultOverride : leadWeight);
         if (leadOutWeight < 0) leadOutWeight = 0;
         if (leadInWeight < 0) leadInWeight = 0;
 
         // Prefer axis (X/Z/AUTO/NONE) + weight.
-        String preferAxis = str(conn.get("routingPreferAxis"), "AUTO").trim().toUpperCase(Locale.ROOT);
-        int preferAxisWeight = Math.max(0, i(conn.get("routingPreferAxisWeight"), 1));
-        boolean preferDoorAxis = false;
+        String preferAxis = str(conn.get("routingPreferAxis"), preferAxisDefault).trim().toUpperCase(Locale.ROOT);
+        int preferAxisWeight = Math.max(0, i(conn.get("routingPreferAxisWeight"), preferAxisWeightDefault));
+        boolean preferDoorAxis = preferDoorAxisDefault;
         Object pda = conn.get("routingPreferDoorAxis");
         if (pda instanceof Boolean b3) preferDoorAxis = b3;
         else if (pda != null) {
@@ -355,6 +605,14 @@ public final class MetaAssemblyCompiler {
             if (ax != null) preferAxis = ax;
         }
 
+        // Soft-lead ring metric:
+        // - STEPS: use A* gScore (true path step depth; better under detours)
+        // - MANHATTAN: use |dx|+|dz| (legacy-ish)
+        String leadRing = str(conn.get("routingLeadRing"), "STEPS").trim().toUpperCase(Locale.ROOT);
+        if (!"MANHATTAN".equals(leadRing)) leadRing = "STEPS";
+        int leadInStepsMaxNodes = i(conn.get("routingLeadInStepsMaxNodes"), 0);
+        if (leadInStepsMaxNodes < 0) leadInStepsMaxNodes = 0;
+
         // avoid routing: if any segment crosses an avoid rect, auto-insert detours.
         if (!avoids.isEmpty()) {
             List<int[]> expanded = new ArrayList<>();
@@ -365,7 +623,7 @@ public final class MetaAssemblyCompiler {
                 int leadOutSeg = (useAStar && leadSoft && i == 0) ? leadOut : 0;
                 int leadInSeg = (useAStar && leadSoft && i + 2 == chain.size()) ? leadIn : 0;
                 List<int[]> detour = computeDetour(pA, pB, avoids, useAStar, routingPad, routingMaxArea, routingMaxNodes, preferStraight, preferAxis, preferAxisWeight,
-                        leadOutSeg, leadInSeg, a.port, b.port, leadOutWeight, leadInWeight);
+                        leadOutSeg, leadInSeg, a.port, b.port, leadOutWeight, leadInWeight, leadRing, leadInStepsMaxNodes);
                 expanded.addAll(detour);
             }
             chain = expanded;
@@ -629,7 +887,9 @@ public final class MetaAssemblyCompiler {
                                              String fromPort,
                                              String toPort,
                                              int leadOutWeight,
-                                             int leadInWeight) {
+                                             int leadInWeight,
+                                             String leadRing,
+                                             int leadInStepsMaxNodes) {
         // If segment doesn't intersect any avoid, keep it.
         boolean hit = false;
         for (Rect2 r : avoids) {
@@ -639,7 +899,7 @@ public final class MetaAssemblyCompiler {
 
         if (useAStar) {
             List<int[]> path = routeAStar2D(a, b, avoids, routingPad, routingMaxArea, routingMaxNodes, preferStraight, preferAxis, preferAxisWeight,
-                    leadOut, leadIn, fromPort, toPort, leadOutWeight, leadInWeight);
+                    leadOut, leadIn, fromPort, toPort, leadOutWeight, leadInWeight, leadRing, leadInStepsMaxNodes);
             if (path != null && !path.isEmpty()) return path;
         }
 
@@ -697,7 +957,9 @@ public final class MetaAssemblyCompiler {
                                             String fromPort,
                                             String toPort,
                                             int leadOutWeight,
-                                            int leadInWeight) {
+                                            int leadInWeight,
+                                            String leadRing,
+                                            int leadInStepsMaxNodes) {
         // Bounds: endpoints + avoid rects + padding
         int minX = Math.min(a[0], b[0]);
         int maxX = Math.max(a[0], b[0]);
@@ -739,6 +1001,16 @@ public final class MetaAssemblyCompiler {
                 : (int) Math.min(80000L, Math.max(12000L, area)); // scale with area but capped
         int visited = 0;
 
+        boolean useStepRing = (leadRing == null) || !"MANHATTAN".equalsIgnoreCase(leadRing);
+        int[] distToGoalSteps = null;
+        if (useStepRing && leadIn > 0 && inDir != null) {
+            // Reverse BFS from goal to get true remaining steps to goal within this bounded grid.
+            // This avoids Manhattan under-estimating distances when detours are required.
+            if (leadInStepsMaxNodes < 0) leadInStepsMaxNodes = 0;
+            int bfsMaxNodes = (leadInStepsMaxNodes > 0) ? Math.min(maxNodes, Math.max(2000, leadInStepsMaxNodes)) : maxNodes;
+            distToGoalSteps = computeDistToGoalSteps(minX, minZ, w, h, b[0], b[2], avoids, bfsMaxNodes);
+        }
+
         while (!open.isEmpty() && visited < maxNodes) {
             Node cur = open.poll();
             long key = cur.key;
@@ -752,8 +1024,7 @@ public final class MetaAssemblyCompiler {
             int baseG = gScore.getOrDefault(key, Integer.MAX_VALUE / 4);
 
             // 4-neighbors
-            int[][] nb = new int[][]{{1,0},{-1,0},{0,1},{0,-1}};
-            for (int[] d : nb) {
+            for (int[] d : DIR4) {
                 int nx = cx + d[0];
                 int nz = cz + d[1];
                 if (nx < minX || nx > maxX || nz < minZ || nz > maxZ) continue;
@@ -793,14 +1064,21 @@ public final class MetaAssemblyCompiler {
 
                 // Soft lead-out: near start, penalize moves not matching outward port direction
                 if (leadOut > 0 && outDir != null) {
-                    int distFromStart = Math.abs(cx - a[0]) + Math.abs(cz - a[2]);
+                    int distFromStart = useStepRing ? baseG : (Math.abs(cx - a[0]) + Math.abs(cz - a[2]));
                     if (distFromStart < leadOut) {
                         if (d[0] != outDir[0] || d[1] != outDir[1]) tentative += leadOutWeight;
                     }
                 }
                 // Soft lead-in: near goal, penalize moves that don't approach along the opposite of the port outward dir
                 if (leadIn > 0 && inDir != null) {
-                    int distToGoal = Math.abs(cx - b[0]) + Math.abs(cz - b[2]);
+                    int distToGoal;
+                    if (useStepRing && distToGoalSteps != null) {
+                        int idx = (cx - minX) + (cz - minZ) * w;
+                        if (idx >= 0 && idx < distToGoalSteps.length && distToGoalSteps[idx] >= 0) distToGoal = distToGoalSteps[idx];
+                        else distToGoal = Math.abs(cx - b[0]) + Math.abs(cz - b[2]);
+                    } else {
+                        distToGoal = Math.abs(cx - b[0]) + Math.abs(cz - b[2]);
+                    }
                     if (distToGoal < leadIn) {
                         int adx = -inDir[0];
                         int adz = -inDir[1];
@@ -817,6 +1095,39 @@ public final class MetaAssemblyCompiler {
             }
         }
         return null;
+    }
+
+    private static int[] computeDistToGoalSteps(int minX, int minZ, int w, int h, int goalX, int goalZ, List<Rect2> avoids, int maxNodes) {
+        int[] dist = new int[w * h];
+        java.util.Arrays.fill(dist, -1);
+        int gx = goalX;
+        int gz = goalZ;
+        if (gx < minX || gx > (minX + w - 1) || gz < minZ || gz > (minZ + h - 1)) return dist;
+        if (isBlocked(gx, gz, avoids)) return dist;
+
+        int gIdx = (gx - minX) + (gz - minZ) * w;
+        java.util.ArrayDeque<Integer> q = new java.util.ArrayDeque<>();
+        dist[gIdx] = 0;
+        q.add(gIdx);
+        int visited = 0;
+        while (!q.isEmpty() && visited < maxNodes) {
+            int idx = q.poll();
+            int cx = (idx % w) + minX;
+            int cz = (idx / w) + minZ;
+            int cd = dist[idx];
+            visited++;
+            for (int[] d : DIR4) {
+                int nx = cx + d[0];
+                int nz = cz + d[1];
+                if (nx < minX || nx > (minX + w - 1) || nz < minZ || nz > (minZ + h - 1)) continue;
+                if (isBlocked(nx, nz, avoids)) continue;
+                int nIdx = (nx - minX) + (nz - minZ) * w;
+                if (dist[nIdx] != -1) continue;
+                dist[nIdx] = cd + 1;
+                q.add(nIdx);
+            }
+        }
+        return dist;
     }
 
     private static String axisFromPort(String port) {
@@ -1340,6 +1651,14 @@ public final class MetaAssemblyCompiler {
         try {
             if (v instanceof Number n) return n.intValue();
             if (v != null) return Integer.parseInt(String.valueOf(v).trim());
+        } catch (Exception ignored) {}
+        return def;
+    }
+
+    private static double d(Object v, double def) {
+        try {
+            if (v instanceof Number n) return n.doubleValue();
+            if (v != null) return Double.parseDouble(String.valueOf(v).trim());
         } catch (Exception ignored) {}
         return def;
     }
