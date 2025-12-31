@@ -53,6 +53,14 @@
 
 - taper：`profileW0/profileW1/profileH0/profileH1`（RECT 截面沿路径插值）
 
+## 示例七：参数化/解构（曲线壳体：hollow + 端盖）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/spline_hollow_shell_ribbon.json`
+
+- `hollow=true` + `thickness`
+- `capEnds=true` + `capThickness`：端部封口（更像“壳体”而不是“框线”）
+- 可选 `carveInterior=true`：沿扫掠路径把截面内部挖空（谨慎使用，会破坏已有方块）
+
 ## 示例七：参数化/解构（曲线骨架 + 空心走廊壳）
 
 文件：`src/main/resources/assets/formacraft/assembly_examples/spline_hollow_corridor.json`

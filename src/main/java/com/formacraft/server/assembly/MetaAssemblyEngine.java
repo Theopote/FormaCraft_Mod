@@ -538,7 +538,7 @@ public final class MetaAssemblyEngine {
                     int cy = (int) Math.round(p.y);
                     int cz = (int) Math.round(p.z);
 
-                    if (!profile.contains("RECT")) {
+                    if (!profile.contains("RECT") && !profile.contains("POLY")) {
                         int rr = Math.max(1, (int) Math.round(rad));
                         int rr2 = rr * rr;
                         int inner = Math.max(0, rr - thickness);
@@ -562,6 +562,7 @@ public final class MetaAssemblyEngine {
                     }
 
                     // RECT profile: build a local frame from tangent + an "up" vector, then sweep a rectangle.
+                    // POLYGON profile uses the same frame but fills a 2D polygon in the (nrm2,bin2) plane.
                     int pwConst = clamp(i(op.get("profileW"), i(op.get("w"), 5)), 1, 64);
                     int phConst = clamp(i(op.get("profileH"), i(op.get("h"), 3)), 1, 64);
                     int pw0 = i(op.get("profileW0"), i(op.get("w0"), Integer.MIN_VALUE));
@@ -584,7 +585,9 @@ public final class MetaAssemblyEngine {
                     int halfH = Math.max(0, ph / 2);
                     // For hollow rect, thickness means border thickness in grid cells.
                     int t = Math.max(1, thickness);
-                    boolean capEnds = bool(op.get("capEnds"), true);
+                    boolean capEnds = bool(op.get("capEnds"), hollow);
+                    boolean carveInterior = bool(op.get("carveInterior"), false);
+                    int capThickness = clamp(i(op.get("capThickness"), t), 1, 8);
 
                     Vec3d prev = (i > 0) ? poly.get(i - 1) : poly.get(i);
                     Vec3d next = (i + 1 < n) ? poly.get(i + 1) : poly.get(i);
@@ -604,11 +607,76 @@ public final class MetaAssemblyEngine {
                     Vec3d nrm2 = nrm.multiply(ca).add(bin.multiply(sa));
                     Vec3d bin2 = bin.multiply(ca).subtract(nrm.multiply(sa));
 
+                    if (profile.contains("POLY")) {
+                        List<int[]> poly2 = parseProfile2D(op.get("profilePoints"));
+                        if (poly2.size() < 3) break;
+                        double s0 = d(op.get("profileScale0"), d(op.get("scale0"), 1.0));
+                        double s1 = d(op.get("profileScale1"), d(op.get("scale1"), 1.0));
+                        double sc = lerp(s0, s1, tt);
+                        if (sc <= 0.05) sc = 0.05;
+                        // bounds in profile space
+                        int[] bb = bounds2D(poly2);
+                        int uMin = (int) Math.floor(bb[0] * sc);
+                        int uMax = (int) Math.ceil(bb[1] * sc);
+                        int vMin = (int) Math.floor(bb[2] * sc);
+                        int vMax = (int) Math.ceil(bb[3] * sc);
+                        // safety cap
+                        int area2d = (uMax - uMin + 1) * (vMax - vMin + 1);
+                        if (area2d > 20000) break;
+
+                        // scaled polygon for point tests
+                        List<int[]> sp = scalePoly(poly2, sc);
+
+                        boolean capEnds = bool(op.get("capEnds"), hollow);
+                        boolean carveInterior = bool(op.get("carveInterior"), false);
+                        int capThickness = clamp(i(op.get("capThickness"), t), 1, 8);
+
+                        for (int uu = uMin; uu <= uMax; uu++) {
+                            for (int vv = vMin; vv <= vMax; vv++) {
+                                boolean inside = pointInPoly2D(uu, vv, sp);
+                                if (!inside) continue;
+                                boolean border = true;
+                                if (hollow) {
+                                    border = isPolyBorder(uu, vv, sp, t);
+                                    if (!border && !carveInterior) continue;
+                                }
+                                Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
+                                int x = cx + (int) Math.round(off.x);
+                                int y = cy + (int) Math.round(off.y);
+                                int z = cz + (int) Math.round(off.z);
+                                long key = packXYZ(x, y, z);
+                                if (!seen.add(key)) continue;
+                                if (!hollow) put(out, ctx, curOrigin, x, y, z, mat);
+                                else put(out, ctx, curOrigin, x, y, z, border ? shell : Blocks.AIR.getDefaultState());
+                            }
+                        }
+
+                        if (hollow && capEnds && (i == 0 || i == n - 1)) {
+                            for (int uu = uMin; uu <= uMax; uu++) {
+                                for (int vv = vMin; vv <= vMax; vv++) {
+                                    boolean inside = pointInPoly2D(uu, vv, sp);
+                                    if (!inside) continue;
+                                    boolean border = isPolyBorder(uu, vv, sp, capThickness);
+                                    if (!border) continue;
+                                    Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
+                                    int x = cx + (int) Math.round(off.x);
+                                    int y = cy + (int) Math.round(off.y);
+                                    int z = cz + (int) Math.round(off.z);
+                                    long key = packXYZ(x, y, z);
+                                    if (!seen.add(key)) continue;
+                                    put(out, ctx, curOrigin, x, y, z, shell);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+
                     for (int uu = -halfW; uu <= halfW; uu++) {
                         for (int vv = -halfH; vv <= halfH; vv++) {
+                            boolean border = true;
                             if (hollow) {
-                                boolean border = (uu - (-halfW) < t) || (halfW - uu < t) || (vv - (-halfH) < t) || (halfH - vv < t);
-                                if (!border) continue;
+                                border = (uu - (-halfW) < t) || (halfW - uu < t) || (vv - (-halfH) < t) || (halfH - vv < t);
+                                if (!border && !carveInterior) continue;
                             }
                             Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
                             int x = cx + (int) Math.round(off.x);
@@ -616,7 +684,11 @@ public final class MetaAssemblyEngine {
                             int z = cz + (int) Math.round(off.z);
                             long key = packXYZ(x, y, z);
                             if (!seen.add(key)) continue;
-                            put(out, ctx, curOrigin, x, y, z, hollow ? shell : mat);
+                            if (!hollow) {
+                                put(out, ctx, curOrigin, x, y, z, mat);
+                            } else {
+                                put(out, ctx, curOrigin, x, y, z, border ? shell : Blocks.AIR.getDefaultState());
+                            }
                         }
                     }
 
@@ -624,6 +696,8 @@ public final class MetaAssemblyEngine {
                     if (hollow && capEnds && (i == 0 || i == n - 1)) {
                         for (int uu = -halfW; uu <= halfW; uu++) {
                             for (int vv = -halfH; vv <= halfH; vv++) {
+                                boolean border = (uu - (-halfW) < capThickness) || (halfW - uu < capThickness) || (vv - (-halfH) < capThickness) || (halfH - vv < capThickness);
+                                if (!border) continue;
                                 Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
                                 int x = cx + (int) Math.round(off.x);
                                 int y = cy + (int) Math.round(off.y);
@@ -1161,6 +1235,64 @@ public final class MetaAssemblyEngine {
         long yy = (y & 0x3FFFF);  // 18 bits
         long zz = (z & 0x1FFFFF); // 21 bits
         return (xx << 42) | (yy << 24) | zz;
+    }
+
+    // ----- 2D polygon helpers for profile=POLYGON -----
+    private static List<int[]> parseProfile2D(Object v) {
+        java.util.ArrayList<int[]> out = new java.util.ArrayList<>();
+        if (!(v instanceof List<?> list)) return out;
+        for (Object p : list) {
+            if (!(p instanceof Map<?, ?> pm)) continue;
+            int u = i(pm.get("u"), i(pm.get("x"), 0));
+            int vv = i(pm.get("v"), i(pm.get("y"), 0));
+            out.add(new int[]{u, vv});
+        }
+        return out;
+    }
+
+    private static int[] bounds2D(List<int[]> pts) {
+        int uMin = Integer.MAX_VALUE, uMax = Integer.MIN_VALUE;
+        int vMin = Integer.MAX_VALUE, vMax = Integer.MIN_VALUE;
+        for (int[] p : pts) {
+            if (p == null || p.length < 2) continue;
+            uMin = Math.min(uMin, p[0]); uMax = Math.max(uMax, p[0]);
+            vMin = Math.min(vMin, p[1]); vMax = Math.max(vMax, p[1]);
+        }
+        if (uMin == Integer.MAX_VALUE) return new int[]{0,0,0,0};
+        return new int[]{uMin, uMax, vMin, vMax};
+    }
+
+    private static List<int[]> scalePoly(List<int[]> pts, double s) {
+        java.util.ArrayList<int[]> out = new java.util.ArrayList<>();
+        for (int[] p : pts) {
+            out.add(new int[]{(int) Math.round(p[0] * s), (int) Math.round(p[1] * s)});
+        }
+        return out;
+    }
+
+    private static boolean pointInPoly2D(int u, int v, List<int[]> poly) {
+        // even-odd rule
+        boolean inside = false;
+        for (int i = 0, j = poly.size() - 1; i < poly.size(); j = i++) {
+            int[] pi = poly.get(i);
+            int[] pj = poly.get(j);
+            int xi = pi[0], yi = pi[1];
+            int xj = pj[0], yj = pj[1];
+            boolean intersect = ((yi > v) != (yj > v)) && (u < (double) (xj - xi) * (v - yi) / (double) (yj - yi + 0.000001) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
+    private static boolean isPolyBorder(int u, int v, List<int[]> poly, int t) {
+        // A simple border test: if any neighbor within manhattan distance t is outside the polygon -> border.
+        for (int k = 1; k <= t; k++) {
+            if (!pointInPoly2D(u + k, v, poly)) return true;
+            if (!pointInPoly2D(u - k, v, poly)) return true;
+            if (!pointInPoly2D(u, v + k, poly)) return true;
+            if (!pointInPoly2D(u, v - k, poly)) return true;
+        }
+        return false;
     }
 
     private static boolean isAuto(Object v) {

@@ -1008,7 +1008,7 @@ public class CityBuilder {
     /**
      * Parse J-layer skeletonLayout anchors from spec.extra, returning a map keyed by zoneType (CORE/PUBLIC/...)
      * to a rel anchor BlockPos (dx,0,dz) relative to city origin.
-     *
+     * <p>
      * Expected schema (Python emits):
      * skeletonLayout: { skeletons: [ { zoneType: "CORE", anchor: {x:0,y:0,z:0}, ... }, ... ] }
      */
@@ -1035,19 +1035,10 @@ public class CityBuilder {
         return out.isEmpty() ? null : java.util.Collections.unmodifiableMap(out);
     }
 
-    /** Minimal parsed skeleton node info keyed by zoneType. */
-    private static final class SkeletonNodeInfo {
-        final String shapeUpper;
-        final int width;
-        final int depth;
-        final int radius;
-
-        SkeletonNodeInfo(String shapeUpper, int width, int depth, int radius) {
-            this.shapeUpper = shapeUpper;
-            this.width = width;
-            this.depth = depth;
-            this.radius = radius;
-        }
+    /**
+     * Minimal parsed skeleton node info keyed by zoneType.
+     */
+        private record SkeletonNodeInfo(String shapeUpper, int width, int depth, int radius) {
     }
 
     /**

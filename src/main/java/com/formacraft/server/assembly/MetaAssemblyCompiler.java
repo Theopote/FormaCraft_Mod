@@ -121,6 +121,8 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "twistTurns");
                 copy(comp, o, "twistPhase");
                 copy(comp, o, "capEnds");
+                copy(comp, o, "carveInterior");
+                copyInt(comp, o, "capThickness", i(comp.get("capThickness"), 1));
                 // radius/taper
                 copyInt(comp, o, "r", i(comp.get("r"), i(comp.get("radius"), 3)));
                 copyInt(comp, o, "r0", i(comp.get("r0"), i(comp.get("radius0"), Integer.MIN_VALUE)));

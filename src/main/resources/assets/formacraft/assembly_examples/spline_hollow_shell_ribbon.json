@@ -1,0 +1,34 @@
+{
+  "paletteId": "PALETTE_PARAMETRIC_WHITE_A",
+  "entranceFacing": "SOUTH",
+  "graph": {
+    "components": [
+      {
+        "id": "shell",
+        "type": "SPLINE_SWEEP",
+        "profile": "RECT",
+        "profileW0": 11,
+        "profileW1": 7,
+        "profileH0": 5,
+        "profileH1": 3,
+        "twistTurns": 0.6,
+        "material": "minecraft:white_concrete",
+        "wall": "minecraft:smooth_quartz",
+        "hollow": true,
+        "thickness": 1,
+        "capEnds": true,
+        "capThickness": 1,
+        "carveInterior": false,
+        "samplesPerBlock": 10,
+        "points": [
+          { "x": -18, "y": 3, "z": -10 },
+          { "x": -6,  "y": 8, "z": -2 },
+          { "x":  6,  "y": 6, "z":  10 },
+          { "x":  18, "y": 10, "z":  6 }
+        ]
+      }
+    ]
+  }
+}
+
+
