@@ -118,6 +118,8 @@ public final class MetaAssemblyCompiler {
                 copyInt(comp, o, "profileW", i(comp.get("profileW"), i(comp.get("w"), 5)));
                 copyInt(comp, o, "profileH", i(comp.get("profileH"), i(comp.get("h"), 3)));
                 copy(comp, o, "profilePoints");
+                copy(comp, o, "profileRings");
+                copy(comp, o, "rings");
                 copy(comp, o, "profileScale0");
                 copy(comp, o, "profileScale1");
                 copy(comp, o, "scale0");
@@ -1185,9 +1187,13 @@ public final class MetaAssemblyCompiler {
     private static String axisFromPort(String port) {
         if (port == null) return null;
         String p = normalizePortKey(port);
+        // allow prefixed directional ports like start_east / end_north / entrance_south
+        String base = p;
+        int idx = p.lastIndexOf('_');
+        if (idx >= 0 && idx + 1 < p.length()) base = p.substring(idx + 1);
         // directional ports imply axis
-        if (p.equals("east") || p.equals("west") || p.equals("left") || p.equals("right")) return "X";
-        if (p.equals("north") || p.equals("south") || p.equals("front") || p.equals("back") || p.equals("entrance") || p.equals("exit")) return "Z";
+        if (base.equals("east") || base.equals("west") || base.equals("left") || base.equals("right")) return "X";
+        if (base.equals("north") || base.equals("south") || base.equals("front") || base.equals("back") || base.equals("entrance") || base.equals("exit")) return "Z";
         // corners imply both; keep AUTO
         return null;
     }
@@ -1365,7 +1371,11 @@ public final class MetaAssemblyCompiler {
     private static int[] dirFromPort(String port) {
         if (port == null) return null;
         String p = normalizePortKey(port);
-        return switch (p) {
+        // allow prefixed directional ports like start_east / end_north / entrance_south
+        String base = p;
+        int idx = p.lastIndexOf('_');
+        if (idx >= 0 && idx + 1 < p.length()) base = p.substring(idx + 1);
+        return switch (base) {
             case "north", "back", "exit" -> new int[]{0, -1};
             case "south", "front", "entrance", "gate", "in" -> new int[]{0, 1};
             case "east", "right" -> new int[]{1, 0};
@@ -1487,6 +1497,37 @@ public final class MetaAssemblyCompiler {
                     ports.put("exit", b);
                     ports.put("out", b);
                 }
+
+                // Tangent-direction ports (connectable): start_{n/e/s/w}, end_{n/e/s/w}
+                // These keep the same endpoint position, but encode "outward" XZ direction in the port name,
+                // so routing (lead-out/lead-in / preferDoorAxis) can infer a sensible axis/orientation.
+                int[] a1 = readPoint(list.get(1));
+                if (a != null && a1 != null) {
+                    int dx = a1[0] - a[0];
+                    int dz = a1[2] - a[2];
+                    String dir = null;
+                    if (dx != 0 || dz != 0) {
+                        if (Math.abs(dx) >= Math.abs(dz)) dir = (dx >= 0) ? "east" : "west";
+                        else dir = (dz >= 0) ? "south" : "north";
+                    }
+                    if (dir != null) {
+                        ports.put("start_" + dir, a);
+                    }
+                }
+                int[] b0 = readPoint(list.get(list.size() - 2));
+                if (b != null && b0 != null) {
+                    int dx = b[0] - b0[0];
+                    int dz = b[2] - b0[2];
+                    String dir = null;
+                    if (dx != 0 || dz != 0) {
+                        if (Math.abs(dx) >= Math.abs(dz)) dir = (dx >= 0) ? "east" : "west";
+                        else dir = (dz >= 0) ? "south" : "north";
+                    }
+                    if (dir != null) {
+                        ports.put("end_" + dir, b);
+                    }
+                }
+
                 if (a != null && b != null) {
                     ports.put("center", new int[]{(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2});
                 }

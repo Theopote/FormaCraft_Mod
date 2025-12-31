@@ -68,6 +68,13 @@
 - `profile=POLYGON` + `profilePoints`（截面 2D 点）
 - 可用 `profileScale0/profileScale1` 做截面缩放渐变
 
+## 示例九：参数化/解构（多环/带洞截面：profileRings）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/spline_polygon_hole_profile.json`
+
+- `profileRings[0]`：外环
+- `profileRings[1..]`：洞（会从外环里扣掉）
+
 ## 曲线扫掠通用参数补充（推荐）
 
 - **`profileFrame` / `frame`**：截面所在的参考平面

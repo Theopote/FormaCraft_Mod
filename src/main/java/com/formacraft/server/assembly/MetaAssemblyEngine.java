@@ -632,14 +632,17 @@ public final class MetaAssemblyEngine {
                     Vec3d bin2 = bin.multiply(ca).subtract(nrm.multiply(sa));
 
                     if (profile.contains("POLY")) {
-                        List<int[]> poly2 = parseProfile2D(op.get("profilePoints"));
-                        if (poly2.size() < 3) break;
+                        // profile can be:
+                        // - profilePoints: single ring
+                        // - profileRings: [ring0, ring1, ...] where ring0 is outer, others are holes
+                        List<List<int[]>> rings2 = parseProfileRings(op);
+                        if (rings2.isEmpty() || rings2.get(0).size() < 3) break;
                         double s0 = d(op.get("profileScale0"), d(op.get("scale0"), 1.0));
                         double s1 = d(op.get("profileScale1"), d(op.get("scale1"), 1.0));
                         double sc = lerp(s0, s1, tt);
                         if (sc <= 0.05) sc = 0.05;
                         // bounds in profile space
-                        int[] bb = bounds2D(poly2);
+                        int[] bb = boundsRings2D(rings2);
                         int uMin = (int) Math.floor(bb[0] * sc);
                         int uMax = (int) Math.ceil(bb[1] * sc);
                         int vMin = (int) Math.floor(bb[2] * sc);
@@ -648,16 +651,16 @@ public final class MetaAssemblyEngine {
                         int area2d = (uMax - uMin + 1) * (vMax - vMin + 1);
                         if (area2d > 20000) break;
 
-                        // scaled polygon for point tests
-                        List<int[]> sp = scalePoly(poly2, sc);
+                        // scaled rings for point tests
+                        List<List<int[]>> sr = scaleRings(rings2, sc);
 
                         for (int uu = uMin; uu <= uMax; uu++) {
                             for (int vv = vMin; vv <= vMax; vv++) {
-                                boolean inside = pointInPoly2D(uu, vv, sp);
+                                boolean inside = pointInRings2D(uu, vv, sr);
                                 if (!inside) continue;
                                 boolean border = true;
                                 if (hollow) {
-                                    border = isPolyBorder(uu, vv, sp, t);
+                                    border = isRingsBorder(uu, vv, sr, t);
                                     if (!border && !carveInterior) continue;
                                 }
                                 Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
@@ -678,9 +681,9 @@ public final class MetaAssemblyEngine {
                         if (hollow && capEnds && (i == 0 || i == n - 1)) {
                             for (int uu = uMin; uu <= uMax; uu++) {
                                 for (int vv = vMin; vv <= vMax; vv++) {
-                                    boolean inside = pointInPoly2D(uu, vv, sp);
+                                    boolean inside = pointInRings2D(uu, vv, sr);
                                     if (!inside) continue;
-                                    boolean border = isPolyBorder(uu, vv, sp, capThickness);
+                                    boolean border = isRingsBorder(uu, vv, sr, capThickness);
                                     if (!border) continue;
                                     Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
                                     int x = cx + snap(off.x, snapMode);
@@ -1319,6 +1322,32 @@ public final class MetaAssemblyEngine {
     }
 
     // ----- 2D polygon helpers for profile=POLYGON -----
+    private static List<List<int[]>> parseProfileRings(Map<String, Object> op) {
+        java.util.ArrayList<List<int[]>> out = new java.util.ArrayList<>();
+        if (op == null) return out;
+        Object ringsObj = op.get("profileRings");
+        if (ringsObj == null) ringsObj = op.get("rings");
+        if (ringsObj instanceof List<?> rings) {
+            for (Object r : rings) {
+                if (!(r instanceof List<?> ringPts)) continue;
+                java.util.ArrayList<int[]> ring = new java.util.ArrayList<>();
+                for (Object p : ringPts) {
+                    if (!(p instanceof Map<?, ?> pm)) continue;
+                    int u = i(pm.get("u"), i(pm.get("x"), 0));
+                    int v = i(pm.get("v"), i(pm.get("y"), 0));
+                    ring.add(new int[]{u, v});
+                }
+                if (ring.size() >= 3) out.add(ring);
+            }
+        }
+        if (!out.isEmpty()) return out;
+
+        // fallback: single ring from profilePoints
+        List<int[]> single = parseProfile2D(op.get("profilePoints"));
+        if (single.size() >= 3) out.add(single);
+        return out;
+    }
+
     private static List<int[]> parseProfile2D(Object v) {
         java.util.ArrayList<int[]> out = new java.util.ArrayList<>();
         if (!(v instanceof List<?> list)) return out;
@@ -1343,11 +1372,30 @@ public final class MetaAssemblyEngine {
         return new int[]{uMin, uMax, vMin, vMax};
     }
 
+    private static int[] boundsRings2D(List<List<int[]>> rings) {
+        int uMin = Integer.MAX_VALUE, uMax = Integer.MIN_VALUE;
+        int vMin = Integer.MAX_VALUE, vMax = Integer.MIN_VALUE;
+        for (List<int[]> ring : rings) {
+            if (ring == null) continue;
+            int[] bb = bounds2D(ring);
+            uMin = Math.min(uMin, bb[0]); uMax = Math.max(uMax, bb[1]);
+            vMin = Math.min(vMin, bb[2]); vMax = Math.max(vMax, bb[3]);
+        }
+        if (uMin == Integer.MAX_VALUE) return new int[]{0,0,0,0};
+        return new int[]{uMin, uMax, vMin, vMax};
+    }
+
     private static List<int[]> scalePoly(List<int[]> pts, double s) {
         java.util.ArrayList<int[]> out = new java.util.ArrayList<>();
         for (int[] p : pts) {
             out.add(new int[]{(int) Math.round(p[0] * s), (int) Math.round(p[1] * s)});
         }
+        return out;
+    }
+
+    private static List<List<int[]>> scaleRings(List<List<int[]>> rings, double s) {
+        java.util.ArrayList<List<int[]>> out = new java.util.ArrayList<>();
+        for (List<int[]> ring : rings) out.add(scalePoly(ring, s));
         return out;
     }
 
@@ -1365,13 +1413,23 @@ public final class MetaAssemblyEngine {
         return inside;
     }
 
-    private static boolean isPolyBorder(int u, int v, List<int[]> poly, int t) {
-        // A simple border test: if any neighbor within manhattan distance t is outside the polygon -> border.
+    private static boolean pointInRings2D(int u, int v, List<List<int[]>> rings) {
+        if (rings == null || rings.isEmpty()) return false;
+        // inside outer AND not inside any hole rings
+        if (!pointInPoly2D(u, v, rings.get(0))) return false;
+        for (int i = 1; i < rings.size(); i++) {
+            if (pointInPoly2D(u, v, rings.get(i))) return false;
+        }
+        return true;
+    }
+
+    private static boolean isRingsBorder(int u, int v, List<List<int[]>> rings, int t) {
+        // Border test against composite inside/outside
         for (int k = 1; k <= t; k++) {
-            if (!pointInPoly2D(u + k, v, poly)) return true;
-            if (!pointInPoly2D(u - k, v, poly)) return true;
-            if (!pointInPoly2D(u, v + k, poly)) return true;
-            if (!pointInPoly2D(u, v - k, poly)) return true;
+            if (!pointInRings2D(u + k, v, rings)) return true;
+            if (!pointInRings2D(u - k, v, rings)) return true;
+            if (!pointInRings2D(u, v + k, rings)) return true;
+            if (!pointInRings2D(u, v - k, rings)) return true;
         }
         return false;
     }
