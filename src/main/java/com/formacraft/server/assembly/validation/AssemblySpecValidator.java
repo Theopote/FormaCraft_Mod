@@ -117,6 +117,129 @@ public final class AssemblySpecValidator {
             String op = str(m.get("op"), "").trim().toUpperCase(Locale.ROOT);
             if (op.isBlank()) out.add(err(p + ".op", "E_OP_MISSING", "缺少 op 字段"));
 
+            // Common structural ops
+            if (op.equals("PUSH_ORIGIN")) {
+                // dx/dy/dz optional (default 0) but should be ints if present
+                if (m.get("dx") != null && intOrNull(m.get("dx")) == null) out.add(err(p + ".dx", "E_INT_TYPE", "dx 必须是整数"));
+                if (m.get("dy") != null && intOrNull(m.get("dy")) == null) out.add(err(p + ".dy", "E_INT_TYPE", "dy 必须是整数"));
+                if (m.get("dz") != null && intOrNull(m.get("dz")) == null) out.add(err(p + ".dz", "E_INT_TYPE", "dz 必须是整数"));
+            }
+            if (op.equals("POP_ORIGIN")) {
+                // no required fields
+            }
+            if (op.equals("CLEAR_BOX")) {
+                // require x0..z1 if present; allow defaults but enforce type
+                requireIntIfPresent(out, p, m, "x0");
+                requireIntIfPresent(out, p, m, "y0");
+                requireIntIfPresent(out, p, m, "z0");
+                requireIntIfPresent(out, p, m, "x1");
+                requireIntIfPresent(out, p, m, "y1");
+                requireIntIfPresent(out, p, m, "z1");
+            }
+            if (op.equals("SHELL_BOX")) {
+                // Engine clamps but validator makes training stable
+                requireIntMin(out, p, m, "w", 1);
+                requireIntMin(out, p, m, "d", 1);
+                requireIntMin(out, p, m, "h", 2);
+                if (m.get("floorStep") != null) requireIntMin(out, p, m, "floorStep", 1);
+            }
+            if (op.equals("CYLINDER")) {
+                if (m.get("r") != null || m.get("radius") != null) {
+                    Integer rv = intOrNull(m.get("r"));
+                    if (rv == null) rv = intOrNull(m.get("radius"));
+                    if (rv == null) out.add(err(p + ".r", "E_INT_TYPE", "r/radius 必须是整数"));
+                    else if (rv < 2) out.add(err(p + ".r", "E_INT_RANGE", "r/radius 必须 >= 2"));
+                }
+                if (m.get("h") != null || m.get("height") != null) {
+                    Integer hv = intOrNull(m.get("h"));
+                    if (hv == null) hv = intOrNull(m.get("height"));
+                    if (hv == null) out.add(err(p + ".h", "E_INT_TYPE", "h/height 必须是整数"));
+                    else if (hv < 1) out.add(err(p + ".h", "E_INT_RANGE", "h/height 必须 >= 1"));
+                }
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+            }
+            if (op.equals("CONNECTOR_LINE")) {
+                // require endpoints
+                validatePointRefXYZ(out, p + ".from", m.get("from"), "E_CONN_FROM_MISSING");
+                validatePointRefXYZ(out, p + ".to", m.get("to"), "E_CONN_TO_MISSING");
+                // or allow x0..z1 form (if from/to omitted)
+                if (m.get("from") == null) {
+                    requireIntIfPresent(out, p, m, "x0");
+                    requireIntIfPresent(out, p, m, "y0");
+                    requireIntIfPresent(out, p, m, "z0");
+                }
+                if (m.get("to") == null) {
+                    requireIntIfPresent(out, p, m, "x1");
+                    requireIntIfPresent(out, p, m, "y1");
+                    requireIntIfPresent(out, p, m, "z1");
+                }
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("h") != null || m.get("height") != null) requireIntMin(out, p, m, "h", 1);
+            }
+            if (op.equals("PATH_ROUTE") || op.equals("WALL_ROUTE") || op.equals("BRIDGE_ROUTE")) {
+                validatePointRefXYZ(out, p + ".from", m.get("from"), "E_ROUTE_FROM_MISSING");
+                validatePointRefXYZ(out, p + ".to", m.get("to"), "E_ROUTE_TO_MISSING");
+                if (m.get("terrainAdaptation") != null) {
+                    validateTerrainAdaptation(out, p + ".terrainAdaptation", m.get("terrainAdaptation"), op);
+                }
+                if (op.equals("PATH_ROUTE")) {
+                    if (m.get("width") != null || m.get("thickness") != null) requireIntMin(out, p, m, "width", 1);
+                }
+                if (op.equals("WALL_ROUTE")) {
+                    if (m.get("wallHeight") != null || m.get("height") != null) requireIntMin(out, p, m, "wallHeight", 1);
+                    if (m.get("wallThickness") != null || m.get("thickness") != null) requireIntMin(out, p, m, "wallThickness", 1);
+                    if (m.get("foundationDepth") != null) requireIntMin(out, p, m, "foundationDepth", 0);
+                    if (m.get("maxStep") != null) requireIntMin(out, p, m, "maxStep", 0);
+                }
+                if (op.equals("BRIDGE_ROUTE")) {
+                    if (m.get("width") != null) requireIntMin(out, p, m, "width", 1);
+                }
+            }
+            if (op.equals("EXTRUDE_POLYGON")) {
+                if (m.get("h") != null || m.get("height") != null) requireIntMin(out, p, m, "h", 1);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                String shape = str(m.get("shape"), "RECT").trim().toUpperCase(Locale.ROOT);
+                if (!(shape.equals("RECT") || shape.equals("POINTS") || shape.equals("POLYGON"))) {
+                    // Engine treats non-RECT as points; still warn loudly for training
+                    out.add(warn(p + ".shape", "W_SHAPE_VALUE", "EXTRUDE_POLYGON.shape 建议使用 RECT 或 points[]"));
+                }
+                if (shape.equals("RECT")) {
+                    requireIntMin(out, p, m, "w", 1);
+                    requireIntMin(out, p, m, "d", 1);
+                } else {
+                    Object pts = m.get("points");
+                    if (!(pts instanceof List<?> l) || l.size() < 3) {
+                        out.add(err(p + ".points", "E_EXTRUDE_POINTS_MIN3", "EXTRUDE_POLYGON.points 至少需要 3 个点（每个点需含 x/z）"));
+                    } else {
+                        validatePointsXZ(out, p + ".points", l);
+                    }
+                }
+            }
+            if (op.equals("ROOF_COVER")) {
+                String type = str(m.get("type"), "FLAT").trim().toUpperCase(Locale.ROOT);
+                if (!(type.equals("FLAT") || type.equals("GABLE"))) {
+                    out.add(err(p + ".type", "E_ROOF_TYPE_VALUE", "ROOF_COVER.type 取值非法（允许 FLAT/GABLE）: " + type));
+                }
+                if (m.get("w") != null) requireIntMin(out, p, m, "w", 1);
+                if (m.get("d") != null) requireIntMin(out, p, m, "d", 1);
+                if (m.get("y") != null && intOrNull(m.get("y")) == null) out.add(err(p + ".y", "E_INT_TYPE", "y 必须是整数"));
+                if (m.get("overhang") != null) requireIntMin(out, p, m, "overhang", 0);
+                if (m.get("rise") != null) requireIntMin(out, p, m, "rise", 1);
+            }
+            if (op.equals("BSP_FLOOR_PLAN")) {
+                requireIntMin(out, p, m, "w", 1);
+                requireIntMin(out, p, m, "d", 1);
+                requireIntMin(out, p, m, "h", 1);
+                Object cfg = m.get("floor_plan_logic");
+                if (cfg == null) cfg = m.get("config");
+                if (cfg == null) cfg = m.get("floorPlanLogic");
+                if (cfg == null) {
+                    out.add(err(p + ".config", "E_BSP_CONFIG_MISSING", "BSP_FLOOR_PLAN 需要 config/floor_plan_logic"));
+                } else if (!(cfg instanceof Map<?, ?>)) {
+                    out.add(err(p + ".config", "E_BSP_CONFIG_TYPE", "BSP_FLOOR_PLAN.config 必须是对象（map）"));
+                }
+            }
+
             // P0 per-op required fields
             if (op.contains("SPLINE")) {
                 Object pts = m.get("points");
@@ -125,6 +248,10 @@ public final class AssemblySpecValidator {
                 } else {
                     validatePoints(out, p + ".points", l);
                 }
+                // profile enum sanity (optional but training helpful)
+                String profile = str(m.get("profile"), "SPHERE").trim().toUpperCase(Locale.ROOT);
+                boolean ok = profile.equals("SPHERE") || profile.equals("RECT") || profile.equals("POLYGON");
+                if (!ok) out.add(err(p + ".profile", "E_SPLINE_PROFILE_VALUE", "SPLINE_SWEEP.profile 取值非法（SPHERE/RECT/POLYGON）: " + profile));
             }
             if (op.equals("SURFACE_PATTERN")) {
                 requireFace(out, p, m);
@@ -236,6 +363,54 @@ public final class AssemblySpecValidator {
                 requireIntMin(out, p, c, "d", 1);
                 requireIntMin(out, p, c, "h", 2);
                 validateFacadeMacros(out, p, c);
+            }
+            if (type.contains("CYLINDER")) {
+                // allow defaults but validate if provided
+                if (c.get("r") != null || c.get("radius") != null) {
+                    Integer rv = intOrNull(c.get("r"));
+                    if (rv == null) rv = intOrNull(c.get("radius"));
+                    if (rv == null) out.add(err(p + ".r", "E_INT_TYPE", "r/radius 必须是整数"));
+                    else if (rv < 2) out.add(err(p + ".r", "E_INT_RANGE", "r/radius 必须 >= 2"));
+                }
+                if (c.get("h") != null || c.get("height") != null) {
+                    Integer hv = intOrNull(c.get("h"));
+                    if (hv == null) hv = intOrNull(c.get("height"));
+                    if (hv == null) out.add(err(p + ".h", "E_INT_TYPE", "h/height 必须是整数"));
+                    else if (hv < 1) out.add(err(p + ".h", "E_INT_RANGE", "h/height 必须 >= 1"));
+                }
+                if (c.get("thickness") != null) requireIntMin(out, p, c, "thickness", 1);
+            }
+            if (type.contains("EXTRUDE")) {
+                if (c.get("h") != null || c.get("height") != null) requireIntMin(out, p, c, "h", 1);
+                if (c.get("thickness") != null) requireIntMin(out, p, c, "thickness", 1);
+                String shape = str(c.get("shape"), "RECT").trim().toUpperCase(Locale.ROOT);
+                if ("RECT".equals(shape)) {
+                    if (c.get("w") != null) requireIntMin(out, p, c, "w", 1);
+                    if (c.get("d") != null) requireIntMin(out, p, c, "d", 1);
+                } else {
+                    Object pts = c.get("points");
+                    if (pts != null && (!(pts instanceof List<?> l) || l.size() < 3)) {
+                        out.add(err(p + ".points", "E_EXTRUDE_POINTS_MIN3", "EXTRUDE_POLYGON.points 至少需要 3 个点（每个点需含 x/z）"));
+                    }
+                }
+            }
+            if (type.contains("ROOF")) {
+                Object rt = c.get("roofType");
+                if (rt == null) rt = c.get("kind");
+                if (rt != null) {
+                    String t = String.valueOf(rt).trim().toUpperCase(Locale.ROOT);
+                    if (!(t.equals("FLAT") || t.equals("GABLE"))) {
+                        out.add(err(p + ".roofType", "E_ROOF_TYPE_VALUE", "ROOF_COVER.type 取值非法（允许 FLAT/GABLE）: " + t));
+                    }
+                }
+            }
+            if (type.contains("BSP")) {
+                Object cfg = c.get("config");
+                if (cfg == null) cfg = c.get("floor_plan_logic");
+                if (cfg == null) cfg = c.get("floorPlanLogic");
+                if (cfg == null) {
+                    out.add(err(p + ".config", "E_BSP_CONFIG_MISSING", "BSP_FLOOR_PLAN 需要 config/floor_plan_logic"));
+                }
             }
         }
     }
@@ -510,6 +685,10 @@ public final class AssemblySpecValidator {
             ));
             validateEndpointRef(out, p + ".from", c.get("from"), componentIds);
             validateEndpointRef(out, p + ".to", c.get("to"), componentIds);
+            if (c.get("terrainAdaptation") != null) {
+                String type = str(c.get("type"), "CONNECTOR_LINE").trim().toUpperCase(Locale.ROOT);
+                validateTerrainAdaptation(out, p + ".terrainAdaptation", c.get("terrainAdaptation"), "CONNECTION:" + type);
+            }
         }
     }
 
@@ -558,6 +737,180 @@ public final class AssemblySpecValidator {
             }
             if (m.get("x") == null || m.get("y") == null || m.get("z") == null) {
                 out.add(err(p, "E_POINT_MISSING_XYZ", "point 必须包含 x/y/z"));
+            }
+        }
+    }
+
+    private static void validatePointsXZ(List<AssemblyValidationIssue> out, String path, List<?> pts) {
+        for (int i = 0; i < pts.size(); i++) {
+            Object it = pts.get(i);
+            String p = path + "[" + i + "]";
+            if (!(it instanceof Map<?, ?> m)) {
+                out.add(err(p, "E_POINT_NOT_OBJECT", "point 必须是 {x,z} 对象"));
+                continue;
+            }
+            if (m.get("x") == null || m.get("z") == null) {
+                out.add(err(p, "E_POINT_MISSING_XZ", "point 必须包含 x/z"));
+            }
+        }
+    }
+
+    private static void validatePointRefXYZ(List<AssemblyValidationIssue> out, String path, Object v, String missingCode) {
+        if (v == null) {
+            out.add(err(path, missingCode, "缺少坐标点 {x,y,z}"));
+            return;
+        }
+        if (!(v instanceof Map<?, ?> m)) {
+            out.add(err(path, "E_POINT_REF_TYPE", "必须是 {x,y,z} 对象"));
+            return;
+        }
+        if (m.get("x") == null || m.get("y") == null || m.get("z") == null) {
+            out.add(err(path, "E_POINT_MISSING_XYZ", "必须包含 x/y/z"));
+        }
+    }
+
+    private static void requireIntIfPresent(List<AssemblyValidationIssue> out, String base, Map<?, ?> m, String key) {
+        if (m.get(key) == null) return;
+        if (intOrNull(m.get(key)) == null) out.add(err(base + "." + key, "E_INT_TYPE", key + " 必须是整数"));
+    }
+
+    private static void validateTerrainAdaptation(List<AssemblyValidationIssue> out, String path, Object v, String context) {
+        if (!(v instanceof Map<?, ?> ta)) {
+            out.add(err(path, "E_TA_TYPE", "terrainAdaptation 必须是对象（map）"));
+            return;
+        }
+
+        warnUnknownKeys(out, path, ta, java.util.Set.of(
+                "mode",
+                "base_level", "baseLevel", "fixedY",
+                "max_step_height", "maxStepHeight", "max_step", "maxStep",
+                "foundation_depth", "foundationDepth",
+                "anchorMaxDepth",
+                "clearHeight",
+                "allowWaterEdit", "allowLavaEdit",
+                "foundationMaterial", "anchorMaterial",
+                "embedDepth",
+                "floatHeight"
+        ));
+
+        Object mv = ta.get("mode");
+        String mode = (mv == null) ? "" : String.valueOf(mv).trim().toUpperCase(Locale.ROOT);
+        if (mode.isEmpty()) {
+            out.add(err(path + ".mode", "E_TA_MODE_MISSING", "terrainAdaptation.mode 缺失"));
+            return;
+        }
+        // Normalize common synonyms
+        if (mode.equals("CUT_AND_FILL")) mode = "FLATTEN";
+        if (mode.equals("HANG") || mode.equals("HANGING")) mode = "ANCHOR";
+
+        boolean ok = mode.equals("FLATTEN") || mode.equals("DRAPE") || mode.equals("ANCHOR") || mode.equals("EMBED") || mode.equals("FLOAT");
+        if (!ok) {
+            out.add(err(path + ".mode", "E_TA_MODE_VALUE", "terrainAdaptation.mode 取值非法: " + mode + "（允许 FLATTEN/DRAPE/ANCHOR/EMBED/FLOAT）"));
+            return;
+        }
+
+        // base level strategy (optional): AVERAGE / MEDIAN / MODE / LOWEST / HIGHEST / FIXED
+        Object bl = ta.get("baseLevel");
+        if (bl == null) bl = ta.get("base_level");
+        if (bl != null) {
+            if (bl instanceof Number) {
+                // LLM sometimes puts a number here; suggest fixedY instead.
+                out.add(warn(path + ".baseLevel", "W_TA_BASELEVEL_NUM", "baseLevel/base_level 不应为数字；请使用 baseLevel=FIXED + fixedY"));
+            } else {
+                String s = String.valueOf(bl).trim();
+                if (s.isEmpty()) {
+                    out.add(err(path + ".baseLevel", "E_TA_BASELEVEL_EMPTY", "baseLevel/base_level 不能为空"));
+                } else {
+                    String u = s.toUpperCase(Locale.ROOT);
+                    // Chinese & common aliases
+                    if (u.contains("平均") || u.contains("AVG") || u.contains("AVER")) u = "AVERAGE";
+                    if (u.contains("中位") || u.contains("MED")) u = "MEDIAN";
+                    if (u.contains("众数") || u.contains("MODE")) u = "MODE";
+                    if (u.contains("最低") || u.contains("LOW")) u = "LOWEST";
+                    if (u.contains("最高") || u.contains("HIGH")) u = "HIGHEST";
+                    if (u.contains("固定") || u.contains("FIX")) u = "FIXED";
+                    boolean bok = u.equals("AVERAGE") || u.equals("MEDIAN") || u.equals("MODE") || u.equals("LOWEST") || u.equals("HIGHEST") || u.equals("FIXED");
+                    if (!bok) {
+                        out.add(err(path + ".baseLevel", "E_TA_BASELEVEL_VALUE",
+                                "baseLevel/base_level 取值非法: " + s + "（允许 AVERAGE/MEDIAN/MODE/LOWEST/HIGHEST/FIXED）"));
+                    }
+                    if (u.equals("FIXED")) {
+                        Object fy = ta.get("fixedY");
+                        if (fy == null || intOrNull(fy) == null) {
+                            out.add(err(path + ".fixedY", "E_TA_FIXEDY_REQUIRED", "baseLevel=FIXED 时必须提供 fixedY（整数）"));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Shared numeric sanity (only validate if provided)
+        // DRAPE
+        if (mode.equals("DRAPE")) {
+            Object ms = ta.get("max_step_height");
+            if (ms == null) ms = ta.get("maxStepHeight");
+            if (ms == null) ms = ta.get("max_step");
+            if (ms == null) ms = ta.get("maxStep");
+            if (ms != null) {
+                Integer x = intOrNull(ms);
+                if (x == null) out.add(err(path + ".max_step_height", "E_INT_TYPE", "max_step_height 必须是整数"));
+                else if (x < 0 || x > 8) out.add(err(path + ".max_step_height", "E_INT_RANGE", "max_step_height 建议范围 0..8"));
+            }
+            Object fd = ta.get("foundation_depth");
+            if (fd == null) fd = ta.get("foundationDepth");
+            if (fd != null) {
+                Integer x = intOrNull(fd);
+                if (x == null) out.add(err(path + ".foundation_depth", "E_INT_TYPE", "foundation_depth 必须是整数"));
+                else if (x < 0 || x > 32) out.add(err(path + ".foundation_depth", "E_INT_RANGE", "foundation_depth 建议范围 0..32"));
+            }
+            Object ch = ta.get("clearHeight");
+            if (ch != null) {
+                Integer x = intOrNull(ch);
+                if (x == null) out.add(err(path + ".clearHeight", "E_INT_TYPE", "clearHeight 必须是整数"));
+                else if (x < 0 || x > 16) out.add(err(path + ".clearHeight", "E_INT_RANGE", "clearHeight 建议范围 0..16"));
+            }
+        }
+
+        // ANCHOR
+        if (mode.equals("ANCHOR")) {
+            Object ad = ta.get("anchorMaxDepth");
+            if (ad != null) {
+                Integer x = intOrNull(ad);
+                if (x == null) out.add(err(path + ".anchorMaxDepth", "E_INT_TYPE", "anchorMaxDepth 必须是整数"));
+                else if (x < 1 || x > 256) out.add(err(path + ".anchorMaxDepth", "E_INT_RANGE", "anchorMaxDepth 建议范围 1..256"));
+            }
+            Object fy = ta.get("fixedY");
+            if (fy != null) {
+                Integer x = intOrNull(fy);
+                if (x == null) out.add(err(path + ".fixedY", "E_INT_TYPE", "fixedY 必须是整数"));
+            }
+        }
+
+        // EMBED / FLOAT (very light checks)
+        if (mode.equals("EMBED")) {
+            Object ed = ta.get("embedDepth");
+            if (ed != null) {
+                Integer x = intOrNull(ed);
+                if (x == null) out.add(err(path + ".embedDepth", "E_INT_TYPE", "embedDepth 必须是整数"));
+                else if (x < 0 || x > 128) out.add(err(path + ".embedDepth", "E_INT_RANGE", "embedDepth 建议范围 0..128"));
+            }
+        }
+        if (mode.equals("FLOAT")) {
+            Object fh = ta.get("floatHeight");
+            if (fh != null) {
+                Integer x = intOrNull(fh);
+                if (x == null) out.add(err(path + ".floatHeight", "E_INT_TYPE", "floatHeight 必须是整数"));
+            }
+        }
+
+        // Extra context hint (warning only): usage mismatch
+        if (context != null) {
+            String c = context.toUpperCase(Locale.ROOT);
+            if (c.contains("CONNECTION:BRIDGE") && mode.equals("DRAPE")) {
+                out.add(warn(path + ".mode", "W_TA_MODE_MISMATCH", "BRIDGE 连接通常建议使用 ANCHOR（当前为 DRAPE）"));
+            }
+            if ((c.contains("CONNECTION:PATH") || c.contains("CONNECTION:WALL")) && mode.equals("ANCHOR")) {
+                out.add(warn(path + ".mode", "W_TA_MODE_MISMATCH", "PATH/WALL 连接通常建议使用 DRAPE（当前为 ANCHOR）"));
             }
         }
     }

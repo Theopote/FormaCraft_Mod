@@ -2,6 +2,8 @@ package com.formacraft.tools;
 
 import com.formacraft.server.assembly.validation.AssemblySpecValidator;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
+import com.formacraft.server.assembly.validation.AssemblySpecNormalizer;
+import com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -56,7 +58,22 @@ public final class ValidateAssemblyExamplesMain {
                 continue;
             }
 
-            List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(json);
+            AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(json);
+            Object normalized = norm != null ? norm.normalized() : json;
+            if (norm != null && norm.issues() != null && !norm.issues().isEmpty()) {
+                // Print normalization warnings (does not fail).
+                int shown = 0;
+                for (AssemblyValidationIssue is : norm.issues()) {
+                    if (is.severity() != AssemblyValidationIssue.Severity.WARNING) continue;
+                    if (shown++ >= 5) break;
+                    System.out.println("[validateAssemblyExamples] WARN " + p.getFileName() + " : " + is.path() + " [" + is.code() + "] : " + is.message());
+                }
+                if (norm.issues().size() > 5) {
+                    System.out.println("[validateAssemblyExamples] WARN " + p.getFileName() + " : ... (" + norm.issues().size() + " warnings)");
+                }
+            }
+
+            List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(normalized);
             long err = issues.stream().filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR).count();
             if (err > 0) {
                 bad++;
