@@ -40,6 +40,12 @@ public final class MetaAssemblyEngine {
                           Direction entranceFacing,
                           String paletteId) {}
 
+    private static final int[][] DIR6 = new int[][]{
+            {1, 0, 0}, {-1, 0, 0},
+            {0, 1, 0}, {0, -1, 0},
+            {0, 0, 1}, {0, 0, -1}
+    };
+
     public List<PlannedBlock> execute(AssemblySpec spec, Context ctx) {
         List<PlannedBlock> out = new ArrayList<>();
         if (spec == null || ctx == null || ctx.world == null || ctx.origin == null) return out;
@@ -1169,6 +1175,186 @@ public final class MetaAssemblyEngine {
                                 PatchData b = resolvePatch(byId, patches, ids.get(r + 1).get(c));
                                 if (b != null) stitchEdge(out, ctx, curOrigin, a, Edge.V1, b, Edge.V0, Math.min(a.thick, b.thick), matDef, capWidthDef, capMatDef);
                             }
+                        }
+                    }
+                }
+            }
+            case "SURFACE_OFFSET" -> {
+                // Surface offset thick shell (P0): approximate normals from a sampled surface grid and offset voxels along normal.
+                //
+                // Required:
+                // - source: { kind:"BEZIER_SURFACE", points:[...] } or { kind:"BEZIER_SURFACE_SET", patches:[...] }
+                // Optional:
+                // - uSamples/vSamples: sampling density for source (default 24/24)
+                // - offset: steps along normal (default 0)
+                // - shellThickness: thickness along normal (default 2)
+                // - mode: OUT/IN/BOTH (default BOTH)
+                // - material: semantic PRIMARY_STRUCTURE (fallback quartz)
+                Object srcObj = op.get("source");
+                if (!(srcObj instanceof Map<?, ?> sm)) break;
+                String kind = String.valueOf(sm.get("kind") == null ? "" : sm.get("kind")).trim().toUpperCase(Locale.ROOT);
+                int uN = clamp(i(op.get("uSamples"), i(op.get("u"), i(sm.get("uSamples"), i(sm.get("u"), 24)))), 2, 512);
+                int vN = clamp(i(op.get("vSamples"), i(op.get("v"), i(sm.get("vSamples"), i(sm.get("v"), 24)))), 2, 512);
+                int offset = clamp(i(op.get("offset"), i(op.get("distance"), 0)), -32, 32);
+                int shellT = clamp(i(op.get("shellThickness"), i(op.get("thickness"), 2)), 1, 16);
+                String mode = str(op.get("mode"), "BOTH").trim().toUpperCase(Locale.ROOT);
+                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x51AFC0L, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+                if (kind.equals("BEZIER_SURFACE")) {
+                    List<int[]> ctrl = readBezierControlPoints(sm.get("points"));
+                    if (ctrl == null || ctrl.size() != 16) break;
+                    int[][][] grid = sampleBezierSurface(ctrl, uN, vN);
+                    surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, mat);
+                } else if (kind.equals("BEZIER_SURFACE_SET")) {
+                    Object patchesObj = sm.get("patches");
+                    if (!(patchesObj instanceof List<?> pl) || pl.isEmpty()) break;
+                    for (Object po : pl) {
+                        if (!(po instanceof Map<?, ?> pm)) continue;
+                        // apply patch at offset if present
+                        int ox = 0, oy = 0, oz = 0;
+                        Object at = pm.get("at");
+                        if (at instanceof Map<?, ?> am) {
+                            ox = i(am.get("x"), 0);
+                            oy = i(am.get("y"), 0);
+                            oz = i(am.get("z"), 0);
+                        } else {
+                            ox = i(pm.get("x"), 0);
+                            oy = i(pm.get("y"), 0);
+                            oz = i(pm.get("z"), 0);
+                        }
+                        List<int[]> ctrl0 = readBezierControlPoints(pm.get("points"));
+                        if (ctrl0 == null || ctrl0.size() != 16) continue;
+                        java.util.ArrayList<int[]> ctrl = new java.util.ArrayList<>(16);
+                        for (int[] p : ctrl0) ctrl.add(new int[]{p[0] + ox, p[1] + oy, p[2] + oz});
+                        int[][][] grid = sampleBezierSurface(ctrl, uN, vN);
+                        surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, mat);
+                    }
+                }
+            }
+            case "IMPLICIT_FIELD" -> {
+                // Implicit field isosurface (P0): voxel isosurface extraction by sign change across 6-neighbors.
+                //
+                // Required:
+                // - kind: SPHERE / TORUS / METABALLS
+                // - bounds: x0..x1,y0..y1,z0..z1 (or w/d/h centered)
+                // Optional:
+                // - iso: threshold (default 0)
+                // - band: thickness around iso (default 0.75)
+                // - material: semantic PRIMARY_STRUCTURE (fallback quartz)
+                String kind = str(op.get("kind"), str(op.get("field"), "SPHERE")).trim().toUpperCase(Locale.ROOT);
+                double iso = d(op.get("iso"), 0.0);
+                double band = d(op.get("band"), d(op.get("thickness"), 0.75));
+                if (band <= 0) band = 0.75;
+
+                int x0 = i(op.get("x0"), Integer.MIN_VALUE);
+                int x1 = i(op.get("x1"), Integer.MIN_VALUE);
+                int y0 = i(op.get("y0"), Integer.MIN_VALUE);
+                int y1 = i(op.get("y1"), Integer.MIN_VALUE);
+                int z0 = i(op.get("z0"), Integer.MIN_VALUE);
+                int z1 = i(op.get("z1"), Integer.MIN_VALUE);
+                if (x0 == Integer.MIN_VALUE || x1 == Integer.MIN_VALUE || y0 == Integer.MIN_VALUE || y1 == Integer.MIN_VALUE || z0 == Integer.MIN_VALUE || z1 == Integer.MIN_VALUE) {
+                    int w = i(op.get("w"), i(op.get("width"), 32));
+                    int d0 = i(op.get("d"), i(op.get("depth"), 32));
+                    int h = i(op.get("h"), i(op.get("height"), 32));
+                    int hx = Math.max(1, w / 2);
+                    int hz = Math.max(1, d0 / 2);
+                    x0 = -hx; x1 = hx;
+                    y0 = 0; y1 = Math.max(1, h);
+                    z0 = -hz; z1 = hz;
+                }
+                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x1A2B3C4DL, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+                // Precompute metaballs if any
+                java.util.ArrayList<double[]> balls = readMetaballs(op.get("metaballs"));
+                double cx = d(op.get("cx"), d(op.get("x"), 0.0));
+                double cy = d(op.get("cy"), d(op.get("y"), 0.0));
+                double cz = d(op.get("cz"), d(op.get("z"), 0.0));
+                if (op.get("center") instanceof Map<?, ?> cm) {
+                    cx = d(cm.get("x"), cx);
+                    cy = d(cm.get("y"), cy);
+                    cz = d(cm.get("z"), cz);
+                }
+                double r = d(op.get("r"), d(op.get("radius"), 10.0));
+                double R = d(op.get("R"), d(op.get("majorR"), 12.0));
+                double rr = d(op.get("r2"), d(op.get("minorR"), 4.0));
+
+                // Evaluate at voxel centers (x+0.5,y+0.5,z+0.5)
+                for (int x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
+                    for (int y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) {
+                        for (int z = Math.min(z0, z1); z <= Math.max(z0, z1); z++) {
+                            double fx = x + 0.5;
+                            double fy = y + 0.5;
+                            double fz = z + 0.5;
+                            double f = evalField(kind, fx, fy, fz, cx, cy, cz, r, R, rr, balls) - iso;
+                            if (Math.abs(f) > band) continue;
+                            // surface test: sign change with any neighbor (6-neighborhood)
+                            boolean surface = false;
+                            for (int[] d6 : DIR6) {
+                                double f2 = evalField(kind, fx + d6[0], fy + d6[1], fz + d6[2], cx, cy, cz, r, R, rr, balls) - iso;
+                                if ((f <= 0 && f2 > 0) || (f > 0 && f2 <= 0)) { surface = true; break; }
+                            }
+                            if (surface) put(out, ctx, curOrigin, x, y, z, mat);
+                        }
+                    }
+                }
+            }
+            case "MARCHING_CUBES" -> {
+                // Marching Cubes (P0): implemented as Marching Tetrahedra (small table) + triangle barycentric voxelization.
+                //
+                // Required:
+                // - kind/field + bounds
+                // Optional:
+                // - iso (default 0), samples (triangle fill density; default 2), material
+                String kind = str(op.get("kind"), str(op.get("field"), "SPHERE")).trim().toUpperCase(Locale.ROOT);
+                double iso = d(op.get("iso"), 0.0);
+                int fill = clamp(i(op.get("fill"), i(op.get("samples"), 2)), 1, 8);
+
+                int x0 = i(op.get("x0"), Integer.MIN_VALUE);
+                int x1 = i(op.get("x1"), Integer.MIN_VALUE);
+                int y0 = i(op.get("y0"), Integer.MIN_VALUE);
+                int y1 = i(op.get("y1"), Integer.MIN_VALUE);
+                int z0 = i(op.get("z0"), Integer.MIN_VALUE);
+                int z1 = i(op.get("z1"), Integer.MIN_VALUE);
+                if (x0 == Integer.MIN_VALUE || x1 == Integer.MIN_VALUE || y0 == Integer.MIN_VALUE || y1 == Integer.MIN_VALUE || z0 == Integer.MIN_VALUE || z1 == Integer.MIN_VALUE) {
+                    int w = i(op.get("w"), i(op.get("width"), 32));
+                    int d0 = i(op.get("d"), i(op.get("depth"), 32));
+                    int h = i(op.get("h"), i(op.get("height"), 32));
+                    int hx = Math.max(1, w / 2);
+                    int hz = Math.max(1, d0 / 2);
+                    x0 = -hx; x1 = hx;
+                    y0 = 0; y1 = Math.max(1, h);
+                    z0 = -hz; z1 = hz;
+                }
+                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x4D0C73A7L, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+                java.util.ArrayList<double[]> balls = readMetaballs(op.get("metaballs"));
+                double cx = d(op.get("cx"), d(op.get("x"), 0.0));
+                double cy = d(op.get("cy"), d(op.get("y"), 0.0));
+                double cz = d(op.get("cz"), d(op.get("z"), 0.0));
+                if (op.get("center") instanceof Map<?, ?> cm) {
+                    cx = d(cm.get("x"), cx);
+                    cy = d(cm.get("y"), cy);
+                    cz = d(cm.get("z"), cz);
+                }
+                double r = d(op.get("r"), d(op.get("radius"), 10.0));
+                double R = d(op.get("R"), d(op.get("majorR"), 12.0));
+                double rr = d(op.get("r2"), d(op.get("minorR"), 4.0));
+
+                int ax0 = Math.min(x0, x1), ax1 = Math.max(x0, x1);
+                int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
+                int az0 = Math.min(z0, z1), az1 = Math.max(z0, z1);
+
+                // For each cell (cube), build 8 corner values and run marching tetrahedra.
+                for (int x = ax0; x < ax1; x++) {
+                    for (int y = ay0; y < ay1; y++) {
+                        for (int z = az0; z < az1; z++) {
+                            double[][] p8 = cubeCorners(x, y, z);
+                            double[] v8 = new double[8];
+                            for (int i = 0; i < 8; i++) {
+                                double[] p = p8[i];
+                                v8[i] = evalField(kind, p[0], p[1], p[2], cx, cy, cz, r, R, rr, balls) - iso;
+                            }
+                            marchTetrahedra(out, ctx, curOrigin, p8, v8, mat, fill);
                         }
                     }
                 }
@@ -3396,6 +3582,246 @@ public final class MetaAssemblyEngine {
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
         } catch (Exception ignored) {}
         return null;
+    }
+
+    private static void surfaceOffsetFromGrid(List<PlannedBlock> out,
+                                              Context ctx,
+                                              BlockPos origin,
+                                              int[][][] grid,
+                                              int uN,
+                                              int vN,
+                                              int offset,
+                                              int shellT,
+                                              String mode,
+                                              BlockState mat) {
+        if (grid == null) return;
+        boolean outSide = mode.isBlank() || mode.equals("BOTH") || mode.equals("OUT") || mode.equals("OUTWARD");
+        boolean inSide = mode.equals("BOTH") || mode.equals("IN") || mode.equals("INWARD");
+
+        for (int iu = 0; iu <= uN; iu++) {
+            for (int iv = 0; iv <= vN; iv++) {
+                int[] p = grid[iu][iv];
+                if (p == null) continue;
+                // Difference tangents (clamped)
+                int[] pu0 = grid[Math.max(0, iu - 1)][iv];
+                int[] pu1 = grid[Math.min(uN, iu + 1)][iv];
+                int[] pv0 = grid[iu][Math.max(0, iv - 1)];
+                int[] pv1 = grid[iu][Math.min(vN, iv + 1)];
+                int dux = (pu1[0] - pu0[0]);
+                int duy = (pu1[1] - pu0[1]);
+                int duz = (pu1[2] - pu0[2]);
+                int dvx = (pv1[0] - pv0[0]);
+                int dvy = (pv1[1] - pv0[1]);
+                int dvz = (pv1[2] - pv0[2]);
+
+                // normal = du x dv
+                long nx = (long) duy * dvz - (long) duz * dvy;
+                long ny = (long) duz * dvx - (long) dux * dvz;
+                long nz = (long) dux * dvy - (long) duy * dvx;
+                if (nx == 0 && ny == 0 && nz == 0) continue;
+
+                // P0: choose dominant axis as voxel normal direction
+                int ax = (int) Math.signum(nx);
+                int ay = (int) Math.signum(ny);
+                int az = (int) Math.signum(nz);
+                long anx = Math.abs(nx), any = Math.abs(ny), anz = Math.abs(nz);
+                int dx = 0, dy = 0, dz = 0;
+                if (anx >= any && anx >= anz) { dx = ax; dy = 0; dz = 0; }
+                else if (any >= anz) { dx = 0; dy = ay; dz = 0; }
+                else { dx = 0; dy = 0; dz = az; }
+                if (dx == 0 && dy == 0 && dz == 0) continue;
+
+                // outward side along (dx,dy,dz); inward is opposite
+                if (outSide) {
+                    int base = offset;
+                    for (int t = 0; t < shellT; t++) {
+                        int k = base + t;
+                        put(out, ctx, origin, p[0] + dx * k, p[1] + dy * k, p[2] + dz * k, mat);
+                    }
+                }
+                if (inSide) {
+                    int base = -offset;
+                    for (int t = 0; t < shellT; t++) {
+                        int k = base + t;
+                        put(out, ctx, origin, p[0] - dx * k, p[1] - dy * k, p[2] - dz * k, mat);
+                    }
+                }
+            }
+        }
+    }
+
+    private static java.util.ArrayList<double[]> readMetaballs(Object obj) {
+        java.util.ArrayList<double[]> out = new java.util.ArrayList<>();
+        if (!(obj instanceof List<?> list)) return out;
+        for (Object it : list) {
+            if (!(it instanceof Map<?, ?> m)) continue;
+            double x = d(m.get("x"), 0.0);
+            double y = d(m.get("y"), 0.0);
+            double z = d(m.get("z"), 0.0);
+            double r = d(m.get("r"), d(m.get("radius"), 6.0));
+            out.add(new double[]{x, y, z, r});
+        }
+        return out;
+    }
+
+    private static double evalField(String kind,
+                                    double x, double y, double z,
+                                    double cx, double cy, double cz,
+                                    double r,
+                                    double R,
+                                    double rr,
+                                    java.util.ArrayList<double[]> metaballs) {
+        String k = (kind == null) ? "SPHERE" : kind.trim().toUpperCase(Locale.ROOT);
+        return switch (k) {
+            case "SPHERE" -> {
+                double dx = x - cx, dy = y - cy, dz = z - cz;
+                yield Math.sqrt(dx * dx + dy * dy + dz * dz) - r;
+            }
+            case "TORUS" -> {
+                // Torus around Y axis. R=major radius, rr=minor radius.
+                double dx = x - cx, dy = y - cy, dz = z - cz;
+                double qx = Math.sqrt(dx * dx + dz * dz) - R;
+                yield Math.sqrt(qx * qx + dy * dy) - rr;
+            }
+            case "METABALLS", "METABALL" -> {
+                // Simple metaballs: sum of (ri^2 / di^2) - 1; iso at 0.
+                if (metaballs == null || metaballs.isEmpty()) {
+                    double dx = x - cx, dy = y - cy, dz = z - cz;
+                    yield Math.sqrt(dx * dx + dy * dy + dz * dz) - r;
+                }
+                double s = 0.0;
+                for (double[] b : metaballs) {
+                    double bx = b[0], by = b[1], bz = b[2], br = Math.max(0.5, b[3]);
+                    double dx = x - bx, dy = y - by, dz = z - bz;
+                    double d2 = dx * dx + dy * dy + dz * dz + 1e-6;
+                    s += (br * br) / d2;
+                }
+                yield (1.0 - s); // <=0 inside blobs
+            }
+            default -> {
+                double dx = x - cx, dy = y - cy, dz = z - cz;
+                yield Math.sqrt(dx * dx + dy * dy + dz * dz) - r;
+            }
+        };
+    }
+
+    private static double[][] cubeCorners(int x, int y, int z) {
+        // standard cube corner ordering (0..7)
+        return new double[][]{
+                {x, y, z},
+                {x + 1, y, z},
+                {x + 1, y, z + 1},
+                {x, y, z + 1},
+                {x, y + 1, z},
+                {x + 1, y + 1, z},
+                {x + 1, y + 1, z + 1},
+                {x, y + 1, z + 1}
+        };
+    }
+
+    private static final int[][] TETS = new int[][]{
+            // 6-tet decomposition of a cube
+            {0, 5, 1, 6},
+            {0, 1, 2, 6},
+            {0, 2, 3, 6},
+            {0, 3, 7, 6},
+            {0, 7, 4, 6},
+            {0, 4, 5, 6}
+    };
+
+    private static void marchTetrahedra(List<PlannedBlock> out,
+                                        Context ctx,
+                                        BlockPos origin,
+                                        double[][] p8,
+                                        double[] v8,
+                                        BlockState mat,
+                                        int fill) {
+        for (int[] tet : TETS) {
+            int a = tet[0], b = tet[1], c = tet[2], d = tet[3];
+            double va = v8[a], vb = v8[b], vc = v8[c], vd = v8[d];
+            boolean ia = va <= 0, ib = vb <= 0, ic = vc <= 0, id = vd <= 0;
+            int inside = (ia ? 1 : 0) + (ib ? 1 : 0) + (ic ? 1 : 0) + (id ? 1 : 0);
+            if (inside == 0 || inside == 4) continue;
+
+            int[] ids = new int[]{a, b, c, d};
+            boolean[] ins = new boolean[]{ia, ib, ic, id};
+            // collect inside/outside indices within tet-local 0..3
+            int[] inIdx = new int[4];
+            int[] outIdx = new int[4];
+            int ni = 0, no = 0;
+            for (int i = 0; i < 4; i++) {
+                if (ins[i]) inIdx[ni++] = i;
+                else outIdx[no++] = i;
+            }
+
+            if (inside == 1 || inside == 3) {
+                // 1 triangle
+                int vi = (inside == 1) ? inIdx[0] : outIdx[0];
+                int vj = (inside == 1) ? outIdx[0] : inIdx[0];
+                int vk = (inside == 1) ? outIdx[1] : inIdx[1];
+                int vl = (inside == 1) ? outIdx[2] : inIdx[2];
+
+                double[] p0 = interpIso(p8[ids[vi]], p8[ids[vj]], v8[ids[vi]], v8[ids[vj]]);
+                double[] p1 = interpIso(p8[ids[vi]], p8[ids[vk]], v8[ids[vi]], v8[ids[vk]]);
+                double[] p2 = interpIso(p8[ids[vi]], p8[ids[vl]], v8[ids[vi]], v8[ids[vl]]);
+                voxelizeTriangle(out, ctx, origin, p0, p1, p2, mat, fill);
+            } else if (inside == 2) {
+                // 2 triangles (quad split)
+                int v0 = inIdx[0], v1 = inIdx[1];
+                int v2 = outIdx[0], v3 = outIdx[1];
+                double[] p02 = interpIso(p8[ids[v0]], p8[ids[v2]], v8[ids[v0]], v8[ids[v2]]);
+                double[] p03 = interpIso(p8[ids[v0]], p8[ids[v3]], v8[ids[v0]], v8[ids[v3]]);
+                double[] p12 = interpIso(p8[ids[v1]], p8[ids[v2]], v8[ids[v1]], v8[ids[v2]]);
+                double[] p13 = interpIso(p8[ids[v1]], p8[ids[v3]], v8[ids[v1]], v8[ids[v3]]);
+                voxelizeTriangle(out, ctx, origin, p02, p12, p03, mat, fill);
+                voxelizeTriangle(out, ctx, origin, p12, p13, p03, mat, fill);
+            }
+        }
+    }
+
+    private static double[] interpIso(double[] p0, double[] p1, double v0, double v1) {
+        double t;
+        double dv = v1 - v0;
+        if (Math.abs(dv) < 1e-9) t = 0.5;
+        else t = (0.0 - v0) / dv;
+        t = Math.max(0.0, Math.min(1.0, t));
+        return new double[]{
+                lerp(p0[0], p1[0], t),
+                lerp(p0[1], p1[1], t),
+                lerp(p0[2], p1[2], t)
+        };
+    }
+
+    private static void voxelizeTriangle(List<PlannedBlock> out,
+                                         Context ctx,
+                                         BlockPos origin,
+                                         double[] a,
+                                         double[] b,
+                                         double[] c,
+                                         BlockState mat,
+                                         int fill) {
+        if (a == null || b == null || c == null) return;
+        // barycentric grid sampling (P0): fill controls density; higher => smoother but heavier.
+        double ab = dist(a, b);
+        double bc = dist(b, c);
+        double ca = dist(c, a);
+        int n = Math.max(2, (int) Math.ceil(Math.max(ab, Math.max(bc, ca)) * Math.max(1, fill)));
+        for (int i = 0; i <= n; i++) {
+            for (int j = 0; j <= n - i; j++) {
+                double u = i / (double) n;
+                double v = j / (double) n;
+                double w = 1.0 - u - v;
+                double x = a[0] * w + b[0] * u + c[0] * v;
+                double y = a[1] * w + b[1] * u + c[1] * v;
+                double z = a[2] * w + b[2] * u + c[2] * v;
+                put(out, ctx, origin, (int) Math.round(x), (int) Math.round(y), (int) Math.round(z), mat);
+            }
+        }
+    }
+
+    private static double dist(double[] a, double[] b) {
+        double dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     private static final class LoftSection {

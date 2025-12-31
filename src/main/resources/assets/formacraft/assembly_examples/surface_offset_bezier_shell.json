@@ -1,0 +1,25 @@
+{
+  "entranceFacing": "EAST",
+  "ops": [
+    {
+      "op": "SURFACE_OFFSET",
+      "uSamples": 24,
+      "vSamples": 16,
+      "offset": 1,
+      "shellThickness": 3,
+      "mode": "BOTH",
+      "material": "minecraft:white_concrete",
+      "source": {
+        "kind": "BEZIER_SURFACE",
+        "points": [
+          [{"x": -18, "y": 2, "z": -10}, {"x": -6, "y": 10, "z": -10}, {"x": 6, "y": 10, "z": -10}, {"x": 18, "y": 2, "z": -10}],
+          [{"x": -18, "y": 4, "z": -3}, {"x": -6, "y": 18, "z": -3}, {"x": 6, "y": 18, "z": -3}, {"x": 18, "y": 4, "z": -3}],
+          [{"x": -18, "y": 4, "z": 3}, {"x": -6, "y": 18, "z": 3}, {"x": 6, "y": 18, "z": 3}, {"x": 18, "y": 4, "z": 3}],
+          [{"x": -18, "y": 2, "z": 10}, {"x": -6, "y": 10, "z": 10}, {"x": 6, "y": 10, "z": 10}, {"x": 18, "y": 2, "z": 10}]
+        ]
+      }
+    }
+  ]
+}
+
+

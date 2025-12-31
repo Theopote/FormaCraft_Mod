@@ -152,7 +152,11 @@ public final class AssemblySpecValidator {
                     "stitchResampleMode", "stitch_resample_mode",
                     "capWidth", "cap_width",
                     "capMaterial", "cap_material",
-                    "r", "radius", "r0", "r1", "radius0", "radius1",
+                    // surface offset / implicit / marching
+                    "source", "offset", "distance", "shellThickness", "shell_thickness",
+                    "field", "center", "cx", "cy", "cz", "r", "radius", "R", "majorR", "r2", "minorR",
+                    "metaballs", "iso", "band",
+                    "r0", "r1", "radius0", "radius1",
                     "hollow", "thickness", "samplesPerBlock",
                     // openings
                     "rows", "cols", "winW", "winH", "sillY", "marginX", "marginY", "gapX", "gapY", "frameThickness", "mullionStep",
@@ -426,6 +430,25 @@ public final class AssemblySpecValidator {
                         validateRange01(out, lp + ".bRange", lm.get("bRange"), lm.get("b_range"), lm.get("toRange"));
                     }
                 }
+            }
+            if (op.equals("SURFACE_OFFSET")) {
+                if (!(m.get("source") instanceof Map<?, ?>)) {
+                    out.add(err(p + ".source", "E_SURF_OFFSET_SOURCE", "SURFACE_OFFSET.source 必须是对象（map）"));
+                }
+                if (m.get("uSamples") != null || m.get("u") != null) requireIntMin(out, p, m, "uSamples", 2);
+                if (m.get("vSamples") != null || m.get("v") != null) requireIntMin(out, p, m, "vSamples", 2);
+                if (m.get("offset") != null || m.get("distance") != null) requireIntIfPresent(out, p, m, "offset");
+                if (m.get("shellThickness") != null || m.get("shell_thickness") != null) requireIntMin(out, p, m, "shellThickness", 1);
+            }
+            if (op.equals("IMPLICIT_FIELD")) {
+                // bounds or w/d/h
+                // (engine is permissive; validator keeps training stable)
+                if (m.get("iso") != null && doubleOrNull(m.get("iso")) == null) out.add(err(p + ".iso", "E_DOUBLE_TYPE", "iso 必须是数字"));
+                if (m.get("band") != null && doubleOrNull(m.get("band")) == null) out.add(err(p + ".band", "E_DOUBLE_TYPE", "band 必须是数字"));
+            }
+            if (op.equals("MARCHING_CUBES")) {
+                if (m.get("iso") != null && doubleOrNull(m.get("iso")) == null) out.add(err(p + ".iso", "E_DOUBLE_TYPE", "iso 必须是数字"));
+                if (m.get("fill") != null || m.get("samples") != null) requireIntMin(out, p, m, "fill", 1);
             }
             if (op.equals("REVOLVE_SURFACE")) {
                 Object profObj = m.get("profileRings");

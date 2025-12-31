@@ -267,6 +267,69 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "material");
                 ops.add(o);
             }
+            case "SURFACE_OFFSET", "OFFSET_SURFACE" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "SURFACE_OFFSET");
+                copy(comp, o, "source");
+                copyInt(comp, o, "uSamples", i(comp.get("uSamples"), i(comp.get("u"), 24)));
+                copyInt(comp, o, "vSamples", i(comp.get("vSamples"), i(comp.get("v"), 24)));
+                copyInt(comp, o, "offset", i(comp.get("offset"), i(comp.get("distance"), 0)));
+                copyInt(comp, o, "shellThickness", i(comp.get("shellThickness"), i(comp.get("shell_thickness"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "thickness", Integer.MIN_VALUE);
+                copy(comp, o, "mode");
+                copy(comp, o, "material");
+                ops.add(o);
+            }
+            case "IMPLICIT_FIELD", "IMPLICIT" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "IMPLICIT_FIELD");
+                copy(comp, o, "kind");
+                copy(comp, o, "field");
+                copy(comp, o, "center");
+                copy(comp, o, "metaballs");
+                copyInt(comp, o, "x0", Integer.MIN_VALUE);
+                copyInt(comp, o, "x1", Integer.MIN_VALUE);
+                copyInt(comp, o, "y0", Integer.MIN_VALUE);
+                copyInt(comp, o, "y1", Integer.MIN_VALUE);
+                copyInt(comp, o, "z0", Integer.MIN_VALUE);
+                copyInt(comp, o, "z1", Integer.MIN_VALUE);
+                copyInt(comp, o, "w", i(comp.get("w"), i(comp.get("width"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "d", i(comp.get("d"), i(comp.get("depth"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "h", i(comp.get("h"), i(comp.get("height"), Integer.MIN_VALUE)));
+                copy(comp, o, "cx"); copy(comp, o, "cy"); copy(comp, o, "cz");
+                copy(comp, o, "r"); copy(comp, o, "radius");
+                copy(comp, o, "R"); copy(comp, o, "majorR");
+                copy(comp, o, "r2"); copy(comp, o, "minorR");
+                copy(comp, o, "iso");
+                copy(comp, o, "band"); copy(comp, o, "thickness");
+                copy(comp, o, "material");
+                ops.add(o);
+            }
+            case "MARCHING_CUBES", "MARCHING" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "MARCHING_CUBES");
+                copy(comp, o, "kind");
+                copy(comp, o, "field");
+                copy(comp, o, "center");
+                copy(comp, o, "metaballs");
+                copyInt(comp, o, "x0", Integer.MIN_VALUE);
+                copyInt(comp, o, "x1", Integer.MIN_VALUE);
+                copyInt(comp, o, "y0", Integer.MIN_VALUE);
+                copyInt(comp, o, "y1", Integer.MIN_VALUE);
+                copyInt(comp, o, "z0", Integer.MIN_VALUE);
+                copyInt(comp, o, "z1", Integer.MIN_VALUE);
+                copyInt(comp, o, "w", i(comp.get("w"), i(comp.get("width"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "d", i(comp.get("d"), i(comp.get("depth"), Integer.MIN_VALUE)));
+                copyInt(comp, o, "h", i(comp.get("h"), i(comp.get("height"), Integer.MIN_VALUE)));
+                copy(comp, o, "cx"); copy(comp, o, "cy"); copy(comp, o, "cz");
+                copy(comp, o, "r"); copy(comp, o, "radius");
+                copy(comp, o, "R"); copy(comp, o, "majorR");
+                copy(comp, o, "r2"); copy(comp, o, "minorR");
+                copy(comp, o, "iso");
+                copyInt(comp, o, "fill", i(comp.get("fill"), i(comp.get("samples"), 2)));
+                copy(comp, o, "material");
+                ops.add(o);
+            }
             case "BUTTRESS", "FLYING_BUTTRESS" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "BUTTRESS");
