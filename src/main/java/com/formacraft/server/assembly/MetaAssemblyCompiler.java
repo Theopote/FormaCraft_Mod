@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * MetaAssemblyCompiler (v1):
  * Compiles a higher-level "topology-ish" graph/components form into executable ops.
- *
+ * <p>
  * Input: BuildingSpec.extra.assembly
  * - If ops are present, compiler is unnecessary.
  * - If graph/components are present, compiler expands them into ops + PUSH_ORIGIN blocks.
@@ -403,50 +403,48 @@ public final class MetaAssemblyCompiler {
         if (fg instanceof Map<?, ?> fgm) {
             Map<String, Object> fgx;
             try { fgx = (Map<String, Object>) fgm; } catch (Exception e) { fgx = null; }
-            if (fgx != null) {
-                String faces = str(fgx.get("face"), str(fgx.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
-                int bayW = Math.max(1, i(fgx.get("bayW"), i(fgx.get("moduleW"), i(fgx.get("gridW"), 3))));
-                int bayH = Math.max(1, i(fgx.get("bayH"), i(fgx.get("moduleH"), i(fgx.get("gridH"), 4))));
-                int mullionT = Math.max(0, i(fgx.get("mullionThickness"), i(fgx.get("mullionT"), 1)));
-                int transomT = Math.max(0, i(fgx.get("transomThickness"), i(fgx.get("transomT"), 1)));
-                int borderT = Math.max(0, i(fgx.get("borderThickness"), i(fgx.get("borderT"), mullionT)));
-                int marginU = Math.max(0, i(fgx.get("marginU"), i(fgx.get("marginX"), 1)));
-                int marginY = Math.max(0, i(fgx.get("marginY"), 1));
-                int inset = Math.max(0, i(fgx.get("inset"), 0));
-                int depth = Math.max(1, i(fgx.get("depth"), 1));
-                // spandrel zones (optional)
-                int spEvery = Math.max(0, i(fgx.get("spandrelEvery"), i(fgx.get("spEvery"), 0)));
-                int spH = Math.max(0, i(fgx.get("spandrelHeight"), i(fgx.get("spH"), 0)));
-                int spOff = Math.max(0, i(fgx.get("spandrelOffset"), i(fgx.get("spOffset"), 0)));
+            String faces = str(fgx.get("face"), str(fgx.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
+            int bayW = Math.max(1, i(fgx.get("bayW"), i(fgx.get("moduleW"), i(fgx.get("gridW"), 3))));
+            int bayH = Math.max(1, i(fgx.get("bayH"), i(fgx.get("moduleH"), i(fgx.get("gridH"), 4))));
+            int mullionT = Math.max(0, i(fgx.get("mullionThickness"), i(fgx.get("mullionT"), 1)));
+            int transomT = Math.max(0, i(fgx.get("transomThickness"), i(fgx.get("transomT"), 1)));
+            int borderT = Math.max(0, i(fgx.get("borderThickness"), i(fgx.get("borderT"), mullionT)));
+            int marginU = Math.max(0, i(fgx.get("marginU"), i(fgx.get("marginX"), 1)));
+            int marginY = Math.max(0, i(fgx.get("marginY"), 1));
+            int inset = Math.max(0, i(fgx.get("inset"), 0));
+            int depth = Math.max(1, i(fgx.get("depth"), 1));
+            // spandrel zones (optional)
+            int spEvery = Math.max(0, i(fgx.get("spandrelEvery"), i(fgx.get("spEvery"), 0)));
+            int spH = Math.max(0, i(fgx.get("spandrelHeight"), i(fgx.get("spH"), 0)));
+            int spOff = Math.max(0, i(fgx.get("spandrelOffset"), i(fgx.get("spOffset"), 0)));
 
-                for (String face : expandFaces(faces)) {
-                    Map<String, Object> o = new HashMap<>();
-                    o.put("op", "FACADE_GRID");
-                    o.put("face", face);
-                    // bounds
-                    o.put("x0", -hx); o.put("x1", hx);
-                    o.put("y0", y0);  o.put("y1", y1);
-                    o.put("z0", -hz); o.put("z1", hz);
-                    // knobs
-                    o.put("bayW", bayW);
-                    o.put("bayH", bayH);
-                    o.put("mullionThickness", mullionT);
-                    o.put("transomThickness", transomT);
-                    o.put("borderThickness", borderT);
-                    o.put("marginU", marginU);
-                    o.put("marginY", marginY);
-                    o.put("inset", inset);
-                    o.put("depth", depth);
-                    o.put("spandrelEvery", spEvery);
-                    o.put("spandrelHeight", spH);
-                    o.put("spandrelOffset", spOff);
-                    // materials
-                    copy(fgx, o, "frame");
-                    copy(fgx, o, "fill");
-                    copy(fgx, o, "spandrelFill");
-                    copy(fgx, o, "material"); // allow "material" alias for frame in engine pick()
-                    ops.add(o);
-                }
+            for (String face : expandFaces(faces)) {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "FACADE_GRID");
+                o.put("face", face);
+                // bounds
+                o.put("x0", -hx); o.put("x1", hx);
+                o.put("y0", y0);  o.put("y1", y1);
+                o.put("z0", -hz); o.put("z1", hz);
+                // knobs
+                o.put("bayW", bayW);
+                o.put("bayH", bayH);
+                o.put("mullionThickness", mullionT);
+                o.put("transomThickness", transomT);
+                o.put("borderThickness", borderT);
+                o.put("marginU", marginU);
+                o.put("marginY", marginY);
+                o.put("inset", inset);
+                o.put("depth", depth);
+                o.put("spandrelEvery", spEvery);
+                o.put("spandrelHeight", spH);
+                o.put("spandrelOffset", spOff);
+                // materials
+                copy(fgx, o, "frame");
+                copy(fgx, o, "fill");
+                copy(fgx, o, "spandrelFill");
+                copy(fgx, o, "material"); // allow "material" alias for frame in engine pick()
+                ops.add(o);
             }
         }
 
@@ -457,28 +455,26 @@ public final class MetaAssemblyCompiler {
         if (sb instanceof Map<?, ?> sbm) {
             Map<String, Object> sbx;
             try { sbx = (Map<String, Object>) sbm; } catch (Exception e) { sbx = null; }
-            if (sbx != null) {
-                String faces = str(sbx.get("face"), str(sbx.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
-                Object hb = sbx.get("horizontalBands");
-                if (hb == null) hb = sbx.get("hBands");
-                if (hb == null) hb = sbx.get("bandsH");
-                Object vb = sbx.get("verticalBands");
-                if (vb == null) vb = sbx.get("vBands");
-                if (vb == null) vb = sbx.get("bandsV");
+            String faces = str(sbx.get("face"), str(sbx.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
+            Object hb = sbx.get("horizontalBands");
+            if (hb == null) hb = sbx.get("hBands");
+            if (hb == null) hb = sbx.get("bandsH");
+            Object vb = sbx.get("verticalBands");
+            if (vb == null) vb = sbx.get("vBands");
+            if (vb == null) vb = sbx.get("bandsV");
 
-                for (String face : expandFaces(faces)) {
-                    Map<String, Object> o = new HashMap<>();
-                    o.put("op", "SURFACE_BANDS");
-                    o.put("face", face);
-                    // bounds
-                    o.put("x0", -hx); o.put("x1", hx);
-                    o.put("y0", y0);  o.put("y1", y1);
-                    o.put("z0", -hz); o.put("z1", hz);
-                    // transmit band lists verbatim (engine will parse each band entry)
-                    if (hb != null) o.put("horizontalBands", hb);
-                    if (vb != null) o.put("verticalBands", vb);
-                    ops.add(o);
-                }
+            for (String face : expandFaces(faces)) {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "SURFACE_BANDS");
+                o.put("face", face);
+                // bounds
+                o.put("x0", -hx); o.put("x1", hx);
+                o.put("y0", y0);  o.put("y1", y1);
+                o.put("z0", -hz); o.put("z1", hz);
+                // transmit band lists verbatim (engine will parse each band entry)
+                if (hb != null) o.put("horizontalBands", hb);
+                if (vb != null) o.put("verticalBands", vb);
+                ops.add(o);
             }
         }
     }

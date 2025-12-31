@@ -28,6 +28,13 @@ public final class AssemblySpecValidator {
             return out;
         }
 
+        // Root unknown-key warnings (training-friendly)
+        warnUnknownKeys(out, "$", root, Set.of(
+                "paletteId", "entranceFacing",
+                "ops",
+                "graph", "components", "connections"
+        ));
+
         // ops form
         Object opsObj = root.get("ops");
         if (opsObj instanceof List<?> opsList) {
@@ -37,6 +44,9 @@ public final class AssemblySpecValidator {
         // graph/components form
         Object graphObj = root.get("graph");
         Map<?, ?> graph = (graphObj instanceof Map<?, ?> gm) ? gm : null;
+        if (graph != null) {
+            warnUnknownKeys(out, "$.graph", graph, Set.of("components", "connections"));
+        }
         Object compsObj = (graph != null) ? graph.get("components") : root.get("components");
         Object connsObj = (graph != null) ? graph.get("connections") : root.get("connections");
 
@@ -65,6 +75,45 @@ public final class AssemblySpecValidator {
                 out.add(err(p, "E_OP_NOT_OBJECT", "op 必须是对象（map）"));
                 continue;
             }
+            warnUnknownKeys(out, p, m, Set.of(
+                    "op",
+                    "at", "x", "y", "z", "dx", "dy", "dz",
+                    // common bounds
+                    "x0", "x1", "y0", "y1", "z0", "z1",
+                    // materials
+                    "material", "wall", "roof", "slab", "floor", "window", "fill", "frame", "accent", "air",
+                    // generic knobs
+                    "type", "kind", "face", "faces",
+                    "w", "d", "h", "width", "depth", "height",
+                    // spline
+                    "points", "profile", "profileFrame", "profileSnap", "frame", "snap",
+                    "profileW", "profileH", "profilePoints", "profileRings", "rings",
+                    "profileScale0", "profileScale1", "scale0", "scale1",
+                    "profileW0", "profileW1", "profileH0", "profileH1",
+                    "twistTurns", "twistPhase",
+                    "capEnds", "capThickness", "carveInterior",
+                    "connectSamples", "connectMaxStep",
+                    "r", "radius", "r0", "r1", "radius0", "radius1",
+                    "hollow", "thickness", "samplesPerBlock",
+                    // openings
+                    "rows", "cols", "winW", "winH", "sillY", "marginX", "marginY", "gapX", "gapY", "frameThickness", "mullionStep",
+                    "doorW", "doorH",
+                    "archType", "arch", "archThickness", "archT",
+                    "keystone", "keystoneOn",
+                    "tracery", "traceryType", "traceryMaterial", "traceryThickness", "traceryT", "traceryY", "traceryInset",
+                    "foilRadius", "foilCenterY", "foilCount", "foilStepY", "foilGapY",
+                    "traceryFoilRadius", "traceryFoilCenterY", "traceryFoilCount", "traceryFoilStepY",
+                    "r", "radius", "centerY", "petals", "spokes", "ring", "phase", "phi", "spokeWidth", "spokeW", "spokeThreshold", "spokeThresh",
+                    "innerFill", "spokeMaterial",
+                    // facade grid
+                    "bayW", "bayH", "moduleW", "moduleH", "gridW", "gridH",
+                    "mullionThickness", "mullionT", "transomThickness", "transomT", "borderThickness", "borderT",
+                    "marginU", "inset", "depth",
+                    "spandrelEvery", "spEvery", "spandrelHeight", "spH", "spandrelOffset", "spOffset", "spandrelFill",
+                    // surface bands
+                    "horizontalBands", "hBands", "bandsH",
+                    "verticalBands", "vBands", "bandsV"
+            ));
             String op = str(m.get("op"), "").trim().toUpperCase(Locale.ROOT);
             if (op.isBlank()) out.add(err(p + ".op", "E_OP_MISSING", "缺少 op 字段"));
 
@@ -77,6 +126,16 @@ public final class AssemblySpecValidator {
                     validatePoints(out, p + ".points", l);
                 }
             }
+            if (op.equals("SURFACE_PATTERN")) {
+                requireFace(out, p, m);
+                String pattern = str(m.get("pattern"), str(m.get("type"), "GRID")).trim().toUpperCase(Locale.ROOT);
+                if (!(pattern.equals("GRID") || pattern.equals("STRIPES_V") || pattern.equals("STRIPES_H") || pattern.equals("RIBS_V") || pattern.equals("RIBS_H")
+                        || pattern.equals("STRIPES_VERTICAL") || pattern.equals("STRIPES_HORIZONTAL") || pattern.equals("RIBS_VERTICAL") || pattern.equals("RIBS_HORIZONTAL"))) {
+                    out.add(err(p + ".pattern", "E_PATTERN_VALUE", "SURFACE_PATTERN.pattern 取值非法: " + pattern));
+                }
+                requireIntMin(out, p, m, "step", 1);
+                requireIntMin(out, p, m, "thickness", 1);
+            }
             if (op.equals("FACADE_GRID")) {
                 requireFace(out, p, m);
                 requireIntMin(out, p, m, "bayW", 1);
@@ -84,6 +143,40 @@ public final class AssemblySpecValidator {
             }
             if (op.equals("SURFACE_BANDS")) {
                 requireFace(out, p, m);
+            }
+            if (op.equals("OPENINGS")) {
+                requireFace(out, p, m);
+                String kind = str(m.get("kind"), str(m.get("type"), "")).trim().toUpperCase(Locale.ROOT);
+                if (kind.isBlank()) {
+                    out.add(err(p + ".kind", "E_OPENINGS_KIND_MISSING", "OPENINGS.kind 缺失"));
+                } else {
+                    boolean ok = kind.equals("WINDOW_GRID") || kind.equals("DOOR") || kind.equals("ARCH_WINDOW") || kind.equals("ROSE_WINDOW");
+                    if (!ok) out.add(err(p + ".kind", "E_OPENINGS_KIND_VALUE", "OPENINGS.kind 取值非法: " + kind));
+                }
+                // Range sanity (soft): allow missing fields (engine has defaults), but validate if present.
+                requireIntMin(out, p, m, "rows", 1);
+                requireIntMin(out, p, m, "cols", 1);
+                requireIntMin(out, p, m, "winW", 1);
+                requireIntMin(out, p, m, "winH", 1);
+                if (m.get("doorW") != null) requireIntMin(out, p, m, "doorW", 1);
+                if (m.get("doorH") != null) requireIntMin(out, p, m, "doorH", 2);
+                if (m.get("r") != null || m.get("radius") != null) {
+                    // rose window uses r>=2
+                    Integer rv = intOrNull(m.get("r"));
+                    if (rv == null) rv = intOrNull(m.get("radius"));
+                    if (rv != null && rv < 2) out.add(err(p + ".r", "E_ROSE_R_RANGE", "ROSE_WINDOW.r 必须 >= 2"));
+                }
+                if (m.get("petals") != null || m.get("spokes") != null) {
+                    Integer pv = intOrNull(m.get("petals"));
+                    if (pv == null) pv = intOrNull(m.get("spokes"));
+                    if (pv != null && pv < 3) out.add(err(p + ".petals", "E_ROSE_PETALS_RANGE", "ROSE_WINDOW.petals 必须 >= 3"));
+                }
+                if (m.get("archType") != null || m.get("arch") != null) {
+                    String at = str(m.get("archType"), str(m.get("arch"), "")).trim().toUpperCase(Locale.ROOT);
+                    if (!at.isEmpty() && !(at.equals("ROUND") || at.equals("POINTED"))) {
+                        out.add(err(p + ".archType", "E_ARCH_TYPE_VALUE", "ARCH_WINDOW.archType 取值非法: " + at + "（允许 ROUND/POINTED）"));
+                    }
+                }
             }
         }
     }
@@ -98,6 +191,25 @@ public final class AssemblySpecValidator {
                 out.add(err(p, "E_COMPONENT_NOT_OBJECT", "component 必须是对象（map）"));
                 continue;
             }
+            warnUnknownKeys(out, p, c, Set.of(
+                    "id", "type", "op",
+                    "at", "x", "y", "z",
+                    "w", "d", "h", "width", "depth", "height",
+                    "r", "radius",
+                    "points",
+                    "profile", "profileFrame", "profileSnap", "frame", "snap",
+                    "profileW", "profileH",
+                    "profilePoints", "profileRings", "rings",
+                    "profileScale0", "profileScale1", "scale0", "scale1",
+                    "profileW0", "profileW1", "profileH0", "profileH1",
+                    "twistTurns", "twistPhase",
+                    "capEnds", "capThickness", "carveInterior",
+                    "connectSamples", "connectMaxStep",
+                    "hollow", "thickness",
+                    "material", "wall", "window", "floor", "roof", "slab",
+                    "ports",
+                    "facade", "facade_logic", "facadeLogic"
+            ));
             String id = str(c.get("id"), "").trim();
             if (!id.isEmpty()) {
                 if (!idsOut.add(id)) out.add(err(p + ".id", "E_COMPONENT_ID_DUP", "重复的 component id: " + id));
@@ -178,6 +290,21 @@ public final class AssemblySpecValidator {
                 out.add(err(p, "E_CONN_NOT_OBJECT", "connection 必须是对象（map）"));
                 continue;
             }
+            warnUnknownKeys(out, p, c, Set.of(
+                    "type",
+                    "from", "to",
+                    "via",
+                    "avoid", "avoidComponents", "avoidAllComponents", "avoidMargin", "avoidExcludeComponents", "avoidIncludeComponents",
+                    "routing", "avoidAStar",
+                    "routingPad", "routingMaxArea", "routingMaxNodes",
+                    "routingPreferStraight", "routingPreferAxis", "routingPreferAxisWeight", "routingPreferDoorAxis",
+                    "routingLeadOut", "routingLeadIn", "routingAutoLead", "routingLeadSoft", "routingLeadHard",
+                    "routingLeadWeight", "routingLeadOutWeight", "routingLeadInWeight", "routingLeadRing", "routingLeadInStepsMaxNodes",
+                    "routingStyle", "routingStyleStrength", "routingQoS",
+                    "width", "wallHeight", "wallThickness", "foundationDepth", "maxStep",
+                    "material",
+                    "terrainAdaptation"
+            ));
             validateEndpointRef(out, p + ".from", c.get("from"), componentIds);
             validateEndpointRef(out, p + ".to", c.get("to"), componentIds);
         }
@@ -274,6 +401,19 @@ public final class AssemblySpecValidator {
             return;
         }
         if (x < min) out.add(err(base + "." + key, "E_INT_RANGE", "必须 >= " + min));
+    }
+
+    private static void warnUnknownKeys(List<AssemblyValidationIssue> out, String base, Map<?, ?> m, Set<String> allowed) {
+        if (m == null || allowed == null || allowed.isEmpty()) return;
+        for (Object k : m.keySet()) {
+            if (k == null) continue;
+            String key = String.valueOf(k);
+            if (allowed.contains(key)) continue;
+            // tolerate some common aliases by ignoring case/underscore differences
+            String norm = key.replace("-", "_");
+            if (allowed.contains(norm)) continue;
+            out.add(warn(base + "." + key, "W_UNKNOWN_KEY", "未知字段（可能是拼写错误/幻觉字段）: " + key));
+        }
     }
 
     private static Integer intOrNull(Object v) {

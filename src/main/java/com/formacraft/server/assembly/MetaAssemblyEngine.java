@@ -636,7 +636,7 @@ public final class MetaAssemblyEngine {
                         // - profilePoints: single ring
                         // - profileRings: [ring0, ring1, ...] where ring0 is outer, others are holes
                         List<List<int[]>> rings2 = parseProfileRings(op);
-                        if (rings2.isEmpty() || rings2.get(0).size() < 3) break;
+                        if (rings2.isEmpty() || rings2.getFirst().size() < 3) break;
                         double s0 = d(op.get("profileScale0"), d(op.get("scale0"), 1.0));
                         double s1 = d(op.get("profileScale1"), d(op.get("scale1"), 1.0));
                         double sc = lerp(s0, s1, tt);
@@ -879,10 +879,24 @@ public final class MetaAssemblyEngine {
                     int u1 = uIsX ? ax1 : az1;
                     int fixed;
                     int inwardSign;
-                    if ("NORTH".equals(f)) { fixed = az0; inwardSign = +1; }
-                    else if ("SOUTH".equals(f)) { fixed = az1; inwardSign = -1; }
-                    else if ("WEST".equals(f)) { fixed = ax0; inwardSign = +1; }
-                    else { fixed = ax1; inwardSign = -1; } // EAST
+                    switch (f) {
+                        case "NORTH" -> {
+                            fixed = az0;
+                            inwardSign = +1;
+                        }
+                        case "SOUTH" -> {
+                            fixed = az1;
+                            inwardSign = -1;
+                        }
+                        case "WEST" -> {
+                            fixed = ax0;
+                            inwardSign = +1;
+                        }
+                        case null, default -> {
+                            fixed = ax1;
+                            inwardSign = -1;
+                        }
+                    }
 
                     // Horizontal bands
                     if (hbObj instanceof List<?> hbList) {
@@ -1696,7 +1710,7 @@ public final class MetaAssemblyEngine {
     private static boolean pointInRings2D(int u, int v, List<List<int[]>> rings) {
         if (rings == null || rings.isEmpty()) return false;
         // inside outer AND not inside any hole rings
-        if (!pointInPoly2D(u, v, rings.get(0))) return false;
+        if (!pointInPoly2D(u, v, rings.getFirst())) return false;
         for (int i = 1; i < rings.size(); i++) {
             if (pointInPoly2D(u, v, rings.get(i))) return false;
         }

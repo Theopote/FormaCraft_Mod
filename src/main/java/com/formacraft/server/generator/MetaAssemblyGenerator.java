@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * MetaAssemblyGenerator (v1):
  * Opt-in generator that executes extra.assembly via MetaAssemblyEngine.
- *
+ * <p>
  * This is the "creator engine" entrypoint: topology + geometry + material semantics -> blocks.
  */
 public class MetaAssemblyGenerator implements StructureGenerator {
@@ -48,7 +48,7 @@ public class MetaAssemblyGenerator implements StructureGenerator {
         }
 
         AssemblySpec as = AssemblySpec.fromExtra(assemblyObj);
-        if (as == null || as.ops == null || as.ops.isEmpty()) {
+        if (as == null || as.ops.isEmpty()) {
             // allow higher-level graph/components form
             AssemblySpec compiled = MetaAssemblyCompiler.compile(assemblyObj);
             if (compiled != null) as = compiled;
@@ -59,7 +59,7 @@ public class MetaAssemblyGenerator implements StructureGenerator {
 
         // palette preference: assembly.paletteId > extra.paletteId
         String paletteId = as.paletteId;
-        if ((paletteId == null || paletteId.isBlank()) && extra != null && extra.get("paletteId") != null) {
+        if ((paletteId == null || paletteId.isBlank()) && extra.get("paletteId") != null) {
             paletteId = String.valueOf(extra.get("paletteId")).trim();
         }
 
