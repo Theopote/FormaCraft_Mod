@@ -41,7 +41,7 @@ public class MetaAssemblyGenerator implements StructureGenerator {
                 if (is.severity() != AssemblyValidationIssue.Severity.ERROR) continue;
                 if (shown++ >= 6) break;
                 if (shown > 1) sb.append(" | ");
-                sb.append(is.path()).append(": ").append(is.message());
+                sb.append(is.path()).append("[").append(is.code()).append("]").append(": ").append(is.message());
             }
             if (errCount > 6) sb.append(" | ... (").append(errCount).append(" errors)");
             return new GeneratedStructure(null, origin, sb.toString(), List.of());

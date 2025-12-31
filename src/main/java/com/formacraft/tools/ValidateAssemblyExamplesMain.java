@@ -65,7 +65,7 @@ public final class ValidateAssemblyExamplesMain {
                 for (AssemblyValidationIssue is : issues) {
                     if (is.severity() != AssemblyValidationIssue.Severity.ERROR) continue;
                     if (shown++ >= 10) break;
-                    System.err.println("  - " + is.path() + " : " + is.message());
+                    System.err.println("  - " + is.path() + " [" + is.code() + "] : " + is.message());
                 }
             }
         }

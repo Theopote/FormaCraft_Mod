@@ -24,7 +24,7 @@ public final class AssemblySpecValidator {
     public static List<AssemblyValidationIssue> validate(Object assemblyObj) {
         List<AssemblyValidationIssue> out = new ArrayList<>();
         if (!(assemblyObj instanceof Map<?, ?> root)) {
-            out.add(err("$", "extra.assembly 必须是 JSON 对象（map）"));
+            out.add(err("$", "E_ROOT_TYPE", "extra.assembly 必须是 JSON 对象（map）"));
             return out;
         }
 
@@ -45,7 +45,7 @@ public final class AssemblySpecValidator {
             validateComponents(out, graph != null ? "$.graph.components" : "$.components", comps, componentIds);
         } else if (opsObj == null) {
             // If neither ops nor components exist, that's almost certainly wrong.
-            out.add(err("$", "extra.assembly 缺少 ops 或 graph.components/components"));
+            out.add(err("$", "E_MISSING_OPS_OR_COMPONENTS", "extra.assembly 缺少 ops 或 graph.components/components"));
         }
 
         if (connsObj instanceof List<?> conns) {
@@ -62,17 +62,17 @@ public final class AssemblySpecValidator {
             Object it = ops.get(i);
             String p = path + "[" + i + "]";
             if (!(it instanceof Map<?, ?> m)) {
-                out.add(err(p, "op 必须是对象（map）"));
+                out.add(err(p, "E_OP_NOT_OBJECT", "op 必须是对象（map）"));
                 continue;
             }
             String op = str(m.get("op"), "").trim().toUpperCase(Locale.ROOT);
-            if (op.isBlank()) out.add(err(p + ".op", "缺少 op 字段"));
+            if (op.isBlank()) out.add(err(p + ".op", "E_OP_MISSING", "缺少 op 字段"));
 
             // P0 per-op required fields
             if (op.contains("SPLINE")) {
                 Object pts = m.get("points");
                 if (!(pts instanceof List<?> l) || l.size() < 2) {
-                    out.add(err(p + ".points", "SPLINE_SWEEP.points 至少需要 2 个点"));
+                    out.add(err(p + ".points", "E_SPLINE_POINTS_MIN2", "SPLINE_SWEEP.points 至少需要 2 个点"));
                 } else {
                     validatePoints(out, p + ".points", l);
                 }
@@ -95,17 +95,17 @@ public final class AssemblySpecValidator {
             Object it = comps.get(i);
             String p = path + "[" + i + "]";
             if (!(it instanceof Map<?, ?> c)) {
-                out.add(err(p, "component 必须是对象（map）"));
+                out.add(err(p, "E_COMPONENT_NOT_OBJECT", "component 必须是对象（map）"));
                 continue;
             }
             String id = str(c.get("id"), "").trim();
             if (!id.isEmpty()) {
-                if (!idsOut.add(id)) out.add(err(p + ".id", "重复的 component id: " + id));
+                if (!idsOut.add(id)) out.add(err(p + ".id", "E_COMPONENT_ID_DUP", "重复的 component id: " + id));
             }
 
             String type = str(c.get("type"), str(c.get("op"), "")).trim().toUpperCase(Locale.ROOT);
             if (type.isBlank()) {
-                out.add(err(p + ".type", "缺少 type（或 op）字段"));
+                out.add(err(p + ".type", "E_COMPONENT_TYPE_MISSING", "缺少 type（或 op）字段"));
                 continue;
             }
 
@@ -113,7 +113,7 @@ public final class AssemblySpecValidator {
             if (type.contains("SPLINE")) {
                 Object pts = c.get("points");
                 if (!(pts instanceof List<?> l) || l.size() < 2) {
-                    out.add(err(p + ".points", "SPLINE_SWEEP.points 至少需要 2 个点"));
+                    out.add(err(p + ".points", "E_SPLINE_POINTS_MIN2", "SPLINE_SWEEP.points 至少需要 2 个点"));
                 } else {
                     validatePoints(out, p + ".points", l);
                 }
@@ -159,12 +159,12 @@ public final class AssemblySpecValidator {
             Object hb = m.get("horizontalBands");
             if (hb == null) hb = m.get("hBands");
             if (hb == null) hb = m.get("bandsH");
-            if (hb != null && !(hb instanceof List<?>)) out.add(err(p + ".horizontalBands", "horizontalBands 必须是数组"));
+            if (hb != null && !(hb instanceof List<?>)) out.add(err(p + ".horizontalBands", "E_BANDS_H_NOT_LIST", "horizontalBands 必须是数组"));
 
             Object vb = m.get("verticalBands");
             if (vb == null) vb = m.get("vBands");
             if (vb == null) vb = m.get("bandsV");
-            if (vb != null && !(vb instanceof List<?>)) out.add(err(p + ".verticalBands", "verticalBands 必须是数组"));
+            if (vb != null && !(vb instanceof List<?>)) out.add(err(p + ".verticalBands", "E_BANDS_V_NOT_LIST", "verticalBands 必须是数组"));
         }
     }
 
@@ -175,7 +175,7 @@ public final class AssemblySpecValidator {
             Object it = conns.get(i);
             String p = path + "[" + i + "]";
             if (!(it instanceof Map<?, ?> c)) {
-                out.add(err(p, "connection 必须是对象（map）"));
+                out.add(err(p, "E_CONN_NOT_OBJECT", "connection 必须是对象（map）"));
                 continue;
             }
             validateEndpointRef(out, p + ".from", c.get("from"), componentIds);
@@ -185,17 +185,17 @@ public final class AssemblySpecValidator {
 
     private static void validateEndpointRef(List<AssemblyValidationIssue> out, String path, Object v, Set<String> ids) {
         if (v == null) {
-            out.add(err(path, "缺少端点"));
+            out.add(err(path, "E_ENDPOINT_MISSING", "缺少端点"));
             return;
         }
         if (v instanceof String s) {
             String t = s.trim();
-            if (t.isEmpty()) { out.add(err(path, "端点字符串不能为空")); return; }
+            if (t.isEmpty()) { out.add(err(path, "E_ENDPOINT_EMPTY", "端点字符串不能为空")); return; }
             int dot = t.indexOf('.');
             if (dot > 0) {
                 String id = t.substring(0, dot).trim();
                 if (!id.isEmpty() && !ids.isEmpty() && !ids.contains(id)) {
-                    out.add(warn(path, "引用了不存在的组件 id: " + id + "（示例/训练建议修正）"));
+                    out.add(warn(path, "W_ENDPOINT_UNKNOWN_COMPONENT", "引用了不存在的组件 id: " + id + "（示例/训练建议修正）"));
                 }
             }
             return;
@@ -209,11 +209,11 @@ public final class AssemblySpecValidator {
             }
             String id = str(cid, "").trim();
             if (!id.isEmpty() && !ids.isEmpty() && !ids.contains(id)) {
-                out.add(warn(path, "引用了不存在的组件 id: " + id + "（示例/训练建议修正）"));
+                out.add(warn(path, "W_ENDPOINT_UNKNOWN_COMPONENT", "引用了不存在的组件 id: " + id + "（示例/训练建议修正）"));
             }
             return;
         }
-        out.add(err(path, "端点必须是字符串 \"A.port\" 或对象 {component/id,port,...} 或坐标 {x,y,z}"));
+        out.add(err(path, "E_ENDPOINT_BAD_TYPE", "端点必须是字符串 \"A.port\" 或对象 {component/id,port,...} 或坐标 {x,y,z}"));
     }
 
     // ---------------- helpers ----------------
@@ -223,18 +223,18 @@ public final class AssemblySpecValidator {
             Object it = pts.get(i);
             String p = path + "[" + i + "]";
             if (!(it instanceof Map<?, ?> m)) {
-                out.add(err(p, "point 必须是 {x,y,z} 对象"));
+                out.add(err(p, "E_POINT_NOT_OBJECT", "point 必须是 {x,y,z} 对象"));
                 continue;
             }
             if (m.get("x") == null || m.get("y") == null || m.get("z") == null) {
-                out.add(err(p, "point 必须包含 x/y/z"));
+                out.add(err(p, "E_POINT_MISSING_XYZ", "point 必须包含 x/y/z"));
             }
         }
     }
 
     private static void requireFace(List<AssemblyValidationIssue> out, String base, Map<?, ?> m) {
         if (m.get("face") == null && m.get("faces") == null) {
-            out.add(err(base + ".face", "缺少 face/faces"));
+            out.add(err(base + ".face", "E_FACE_MISSING", "缺少 face/faces"));
         } else {
             requireFacesString(out, base, m);
         }
@@ -244,7 +244,25 @@ public final class AssemblySpecValidator {
         Object f = m.get("face");
         if (f == null) f = m.get("faces");
         if (f == null) return;
-        if (!(f instanceof String)) out.add(err(base + ".face", "face/faces 必须是字符串（如 ALL 或 NORTH,EAST）"));
+        if (!(f instanceof String)) {
+            out.add(err(base + ".face", "E_FACE_TYPE", "face/faces 必须是字符串（如 ALL 或 NORTH,EAST）"));
+            return;
+        }
+        // validate enum-ish tokens
+        String raw = String.valueOf(f).trim();
+        if (raw.isEmpty()) {
+            out.add(err(base + ".face", "E_FACE_EMPTY", "face/faces 不能为空"));
+            return;
+        }
+        for (String tok : raw.split(",")) {
+            String t = tok.trim().toUpperCase(Locale.ROOT);
+            if (t.isEmpty()) continue;
+            if (t.equals("ALL") || t.equals("*")) continue;
+            if (!(t.equals("NORTH") || t.equals("SOUTH") || t.equals("EAST") || t.equals("WEST"))) {
+                out.add(err(base + ".face", "E_FACE_VALUE", "face/faces 取值非法: " + tok + "（允许 ALL 或 NORTH/SOUTH/EAST/WEST 或逗号分隔）"));
+                break;
+            }
+        }
     }
 
     private static void requireIntMin(List<AssemblyValidationIssue> out, String base, Map<?, ?> m, String key, int min) {
@@ -252,10 +270,10 @@ public final class AssemblySpecValidator {
         if (v == null) return; // allow defaulting
         Integer x = intOrNull(v);
         if (x == null) {
-            out.add(err(base + "." + key, "必须是整数"));
+            out.add(err(base + "." + key, "E_INT_TYPE", "必须是整数"));
             return;
         }
-        if (x < min) out.add(err(base + "." + key, "必须 >= " + min));
+        if (x < min) out.add(err(base + "." + key, "E_INT_RANGE", "必须 >= " + min));
     }
 
     private static Integer intOrNull(Object v) {
@@ -272,12 +290,12 @@ public final class AssemblySpecValidator {
         return s.isEmpty() ? def : s;
     }
 
-    private static AssemblyValidationIssue err(String path, String msg) {
-        return new AssemblyValidationIssue(path, AssemblyValidationIssue.Severity.ERROR, msg);
+    private static AssemblyValidationIssue err(String path, String code, String msg) {
+        return new AssemblyValidationIssue(path, AssemblyValidationIssue.Severity.ERROR, code, msg);
     }
 
-    private static AssemblyValidationIssue warn(String path, String msg) {
-        return new AssemblyValidationIssue(path, AssemblyValidationIssue.Severity.WARNING, msg);
+    private static AssemblyValidationIssue warn(String path, String code, String msg) {
+        return new AssemblyValidationIssue(path, AssemblyValidationIssue.Severity.WARNING, code, msg);
     }
 }
 
