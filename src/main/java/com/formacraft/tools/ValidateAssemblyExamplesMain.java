@@ -18,7 +18,7 @@ import java.util.List;
 
 /**
  * Build-time validator for assembly examples.
- *
+ * <p>
  * Intended usage from Gradle:
  *  - validate all JSON files under src/main/resources/assets/formacraft/assembly_examples
  */
@@ -61,10 +61,10 @@ public final class ValidateAssemblyExamplesMain {
             }
 
             AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(json);
-            Object normalized = norm != null ? norm.normalized() : json;
+            Object normalized = norm.normalized();
             AssemblyMacroApplyResult macro = AssemblyMacroApplier.apply(normalized);
-            Object applied = macro != null ? macro.applied() : normalized;
-            if (norm != null && norm.issues() != null && !norm.issues().isEmpty()) {
+            Object applied = macro.applied();
+            if (norm.issues() != null && !norm.issues().isEmpty()) {
                 // Print normalization warnings (does not fail).
                 int shown = 0;
                 for (AssemblyValidationIssue is : norm.issues()) {
@@ -76,7 +76,7 @@ public final class ValidateAssemblyExamplesMain {
                     System.out.println("[validateAssemblyExamples] WARN " + p.getFileName() + " : ... (" + norm.issues().size() + " warnings)");
                 }
             }
-            if (macro != null && macro.issues() != null && !macro.issues().isEmpty()) {
+            if (macro.issues() != null && !macro.issues().isEmpty()) {
                 int shown = 0;
                 for (AssemblyValidationIssue is : macro.issues()) {
                     if (is.severity() != AssemblyValidationIssue.Severity.WARNING) continue;

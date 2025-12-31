@@ -9,9 +9,9 @@ import java.util.Map;
 
 /**
  * P0 Macro parameter table applier.
- *
+ * <p>
  * Reads extra.assembly.macro and maps high-level "gene-like" sliders onto existing assembly knobs.
- *
+ * <p>
  * Principles:
  * - Explicit low-level parameters always win (macro only fills missing bits or adds best-effort helpers).
  * - Conservative: do not invent complex geometry; only map to already-supported ops/components.
@@ -63,10 +63,10 @@ public final class AssemblyMacroApplier {
 
         // Apply shapeType & heightScale to primary component (best-effort).
         if (primary != null) {
-            applyShapeType(primary, "$.macro.shapeType", macro, issues);
-            applyHeightScale(primary, "$.macro.heightScale", macro, issues);
+            applyShapeType(primary, macro, issues);
+            applyHeightScale(primary, macro, issues);
             applyRoofMacro(m, graph, compsObj, primary, macro, issues);
-            applyOpenness(primary, "$.macro.openness", macro, issues);
+            applyOpenness(primary, macro, issues);
         }
 
         // Apply symmetry macro to routing defaults (connections)
@@ -215,7 +215,7 @@ public final class AssemblyMacroApplier {
 
                 java.util.HashSet<String> used = new java.util.HashSet<>();
                 for (Object it0 : comps) if (it0 instanceof Map<?, ?> cm) {
-                    String id0 = str(((Map<?, ?>) cm).get("id"), "").trim();
+                    String id0 = str(cm.get("id"), "").trim();
                     if (!id0.isEmpty()) used.add(id0);
                 }
 
@@ -263,7 +263,7 @@ public final class AssemblyMacroApplier {
             boolean hasFrame = false;
             for (Object it0 : comps) {
                 if (it0 instanceof Map<?, ?> cm) {
-                    String t = str(((Map<?, ?>) cm).get("type"), str(((Map<?, ?>) cm).get("op"), "")).trim().toUpperCase(Locale.ROOT);
+                    String t = str(cm.get("type"), str(cm.get("op"), "")).trim().toUpperCase(Locale.ROOT);
                     if (t.contains("FRAME_GRID_3D")) { hasFrame = true; break; }
                 }
             }
@@ -291,8 +291,7 @@ public final class AssemblyMacroApplier {
 
         // Symmetry slider (numeric) -> routingStyle defaults if not explicitly set.
         if (connsObj instanceof List<?> conns) {
-            for (int i = 0; i < conns.size(); i++) {
-                Object it0 = conns.get(i);
+            for (Object it0 : conns) {
                 if (!(it0 instanceof Map<?, ?> cm)) continue;
                 Map<String, Object> c = safeMap(cm);
                 if (c == null) continue;
@@ -306,8 +305,7 @@ public final class AssemblyMacroApplier {
     private static double clamp01(double v) {
         if (Double.isNaN(v)) return 0.0;
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
     }
 
     private static double d(Object v, double def) {
@@ -343,7 +341,7 @@ public final class AssemblyMacroApplier {
             root.put("graph", g);
         }
 
-        Object co = (g != null) ? g.get("components") : compsObj;
+        Object co = g.get("components");
         List<Object> comps;
         if (co instanceof List<?> list) comps = (List<Object>) list;
         else {
@@ -355,7 +353,7 @@ public final class AssemblyMacroApplier {
         java.util.HashSet<String> used = new java.util.HashSet<>();
         for (Object it : comps) {
             if (it instanceof Map<?, ?> cm) {
-                String id = str(((Map<?, ?>) cm).get("id"), "").trim();
+                String id = str(cm.get("id"), "").trim();
                 if (!id.isEmpty()) used.add(id);
             }
         }
@@ -365,7 +363,7 @@ public final class AssemblyMacroApplier {
         used.add(baseId);
 
         // Placement (absolute, stored in component.at)
-        int ax = 0, ay = 0, az = 0;
+        int ax, ay, az;
         Object at = bt.get("at");
         if (at instanceof Map<?, ?> am) {
             ax = i(am.get("x"), 0);
@@ -413,7 +411,7 @@ public final class AssemblyMacroApplier {
         tower.put("d", towerD);
         tower.put("h", towerH);
         if (towerWall != null) tower.put("wall", towerWall);
-        if (towerFloor != null) tower.put("floor", towerFloor);
+        tower.put("floor", towerFloor);
         if (towerRoof != null) tower.put("roof", towerRoof);
 
         // Auto semantic ports for cables (aliases near top_center).
@@ -424,18 +422,16 @@ public final class AssemblyMacroApplier {
         if (portsObj instanceof Map<?, ?> pm) ports = safeMap(pm);
         if (ports == null) ports = new java.util.LinkedHashMap<>();
         int saddleYLocal = saddleY - ay;
-        int off0 = o0;
-        int off1 = o1;
         if ("X".equals(saddleAxis)) {
-            putPortIfAbsent(ports, "saddle_left", -Math.abs(off1), saddleYLocal, 0);
-            putPortIfAbsent(ports, "saddle_right", Math.abs(off1), saddleYLocal, 0);
-            putPortIfAbsent(ports, "saddle_a", off0, saddleYLocal, 0);
-            putPortIfAbsent(ports, "saddle_b", off1, saddleYLocal, 0);
+            putPortIfAbsent(ports, "saddle_left", -Math.abs(o1), saddleYLocal, 0);
+            putPortIfAbsent(ports, "saddle_right", Math.abs(o1), saddleYLocal, 0);
+            putPortIfAbsent(ports, "saddle_a", o0, saddleYLocal, 0);
+            putPortIfAbsent(ports, "saddle_b", o1, saddleYLocal, 0);
         } else {
-            putPortIfAbsent(ports, "saddle_left", 0, saddleYLocal, -Math.abs(off1));
-            putPortIfAbsent(ports, "saddle_right", 0, saddleYLocal, Math.abs(off1));
-            putPortIfAbsent(ports, "saddle_a", 0, saddleYLocal, off0);
-            putPortIfAbsent(ports, "saddle_b", 0, saddleYLocal, off1);
+            putPortIfAbsent(ports, "saddle_left", 0, saddleYLocal, -Math.abs(o1));
+            putPortIfAbsent(ports, "saddle_right", 0, saddleYLocal, Math.abs(o1));
+            putPortIfAbsent(ports, "saddle_a", 0, saddleYLocal, o0);
+            putPortIfAbsent(ports, "saddle_b", 0, saddleYLocal, o1);
         }
         putPortIfAbsent(ports, "saddle_center", 0, saddleYLocal, 0);
         putPortIfAbsent(ports, "cable_top", 0, towerH, 0); // alias of top_center
@@ -535,7 +531,7 @@ public final class AssemblyMacroApplier {
                 int hz = i(hole.get("z"), 0);
 
                 // convert hole spec to a clear box
-                int cx0 = 0, cx1 = 0, cz0 = 0, cz1 = 0;
+                int cx0, cx1, cz0, cz1;
                 int cy0 = Math.max(0, hy - r), cy1 = Math.min(towerH + 1, hy + r);
 
                 if (face.equals("EAST") || face.equals("WEST")) {
@@ -617,7 +613,7 @@ public final class AssemblyMacroApplier {
         return b + "_" + System.nanoTime();
     }
 
-    private static void applyShapeType(Map<String, Object> primary, String path, Map<String, Object> macro, List<AssemblyValidationIssue> issues) {
+    private static void applyShapeType(Map<String, Object> primary, Map<String, Object> macro, List<AssemblyValidationIssue> issues) {
         String st = str(macro.get("shapeType"), str(macro.get("shape"), null));
         if (st == null || st.isBlank()) return;
         String shape = st.trim().toUpperCase(Locale.ROOT);
@@ -630,75 +626,79 @@ public final class AssemblyMacroApplier {
         String type = str(primary.get("type"), str(primary.get("op"), "")).trim().toUpperCase(Locale.ROOT);
         if (type.isBlank()) return;
 
-        if (shape.equals("CIRCLE")) {
-            // Convert a SHELL_BOX-like body into a CYLINDER (best-effort).
-            if (type.contains("SHELL_BOX") || type.contains("BOX_SHELL")) {
-                // r from w/d (if present)
-                Integer w = intOrNull(primary.get("w"));
-                Integer d = intOrNull(primary.get("d"));
-                int r = 6;
-                if (w != null || d != null) {
-                    int ww = (w != null) ? w : (d != null ? d : 15);
-                    int dd = (d != null) ? d : (w != null ? w : 15);
-                    r = Math.max(2, Math.round((ww + dd) / 4.0f));
+        switch (shape) {
+            case "CIRCLE" -> {
+                // Convert a SHELL_BOX-like body into a CYLINDER (best-effort).
+                if (type.contains("SHELL_BOX") || type.contains("BOX_SHELL")) {
+                    // r from w/d (if present)
+                    Integer w = intOrNull(primary.get("w"));
+                    Integer d = intOrNull(primary.get("d"));
+                    int r = 6;
+                    if (w != null || d != null) {
+                        int ww = w != null ? w : d;
+                        int dd = d != null ? d : w;
+                        r = Math.max(2, Math.round((ww + dd) / 4.0f));
+                    }
+                    // preserve height
+                    Integer h = intOrNull(primary.get("h"));
+                    primary.put("type", "CYLINDER");
+                    primary.remove("w");
+                    primary.remove("d");
+                    primary.put("r", r);
+                    if (h != null) primary.put("h", h);
+                    issues.add(warn("$.macro.shapeType", "W_MACRO_SHAPE", "shapeType=CIRCLE: converted main component from SHELL_BOX to CYLINDER (r=" + r + ")"));
                 }
-                // preserve height
-                Integer h = intOrNull(primary.get("h"));
-                primary.put("type", "CYLINDER");
-                primary.remove("w");
-                primary.remove("d");
-                primary.put("r", r);
-                if (h != null) primary.put("h", h);
-                issues.add(warn(path, "W_MACRO_SHAPE", "shapeType=CIRCLE: converted main component from SHELL_BOX to CYLINDER (r=" + r + ")"));
             }
-        } else if (shape.equals("RECTANGLE")) {
-            // If a cylinder was chosen but macro wants rectangle, convert to SHELL_BOX using r.
-            if (type.contains("CYLINDER")) {
-                Integer r = intOrNull(primary.get("r"));
-                if (r == null) r = intOrNull(primary.get("radius"));
-                int w = (r != null) ? (r * 2 + 1) : 15;
-                Integer h = intOrNull(primary.get("h"));
-                primary.put("type", "SHELL_BOX");
-                primary.remove("r");
-                primary.remove("radius");
-                primary.put("w", w);
-                primary.put("d", w);
-                if (h != null) primary.put("h", h);
-                issues.add(warn(path, "W_MACRO_SHAPE", "shapeType=RECTANGLE: converted main component from CYLINDER to SHELL_BOX (w=d=" + w + ")"));
-            }
-        } else if (shape.equals("HEXAGON") || shape.equals("HEXAGONAL")) {
-            if (type.contains("SHELL_BOX") || type.contains("BOX_SHELL")) {
-                Integer w = intOrNull(primary.get("w"));
-                Integer d = intOrNull(primary.get("d"));
-                Integer h = intOrNull(primary.get("h"));
-                if (w == null || d == null || h == null) return;
-
-                int r = Math.max(3, Math.round((w + d) / 6.0f));
-                List<Map<String, Object>> points = new ArrayList<>();
-                for (int i = 0; i < 6; i++) {
-                    double ang = (Math.PI * 2.0) * (i / 6.0);
-                    int px = (int) Math.round(Math.cos(ang) * r);
-                    int pz = (int) Math.round(Math.sin(ang) * r);
-                    points.add(java.util.Map.of("x", px, "z", pz));
+            case "RECTANGLE" -> {
+                // If a cylinder was chosen but macro wants rectangle, convert to SHELL_BOX using r.
+                if (type.contains("CYLINDER")) {
+                    Integer r = intOrNull(primary.get("r"));
+                    if (r == null) r = intOrNull(primary.get("radius"));
+                    int w = (r != null) ? (r * 2 + 1) : 15;
+                    Integer h = intOrNull(primary.get("h"));
+                    primary.put("type", "SHELL_BOX");
+                    primary.remove("r");
+                    primary.remove("radius");
+                    primary.put("w", w);
+                    primary.put("d", w);
+                    if (h != null) primary.put("h", h);
+                    issues.add(warn("$.macro.shapeType", "W_MACRO_SHAPE", "shapeType=RECTANGLE: converted main component from CYLINDER to SHELL_BOX (w=d=" + w + ")"));
                 }
-
-                primary.put("type", "EXTRUDE_POLYGON");
-                primary.put("shape", "POINTS");
-                primary.put("points", points);
-                primary.put("h", h);
-                primary.remove("w");
-                primary.remove("d");
-                issues.add(warn(path, "W_MACRO_SHAPE", "shapeType=HEXAGON: converted main component from SHELL_BOX to EXTRUDE_POLYGON (r≈" + r + ")"));
-            } else {
-                issues.add(warn(path, "W_MACRO_SHAPE_UNSUPPORTED", "shapeType=HEXAGON currently supports only SHELL_BOX-like primary components"));
             }
-        } else {
-            // For now, just warn (future: HEXAGON -> EXTRUDE_POLYGON)
-            issues.add(warn(path, "W_MACRO_SHAPE_UNSUPPORTED", "shapeType unsupported: " + st));
+            case "HEXAGON", "HEXAGONAL" -> {
+                if (type.contains("SHELL_BOX") || type.contains("BOX_SHELL")) {
+                    Integer w = intOrNull(primary.get("w"));
+                    Integer d = intOrNull(primary.get("d"));
+                    Integer h = intOrNull(primary.get("h"));
+                    if (w == null || d == null || h == null) return;
+
+                    int r = Math.max(3, Math.round((w + d) / 6.0f));
+                    List<Map<String, Object>> points = new ArrayList<>();
+                    for (int i = 0; i < 6; i++) {
+                        double ang = (Math.PI * 2.0) * (i / 6.0);
+                        int px = (int) Math.round(Math.cos(ang) * r);
+                        int pz = (int) Math.round(Math.sin(ang) * r);
+                        points.add(Map.of("x", px, "z", pz));
+                    }
+
+                    primary.put("type", "EXTRUDE_POLYGON");
+                    primary.put("shape", "POINTS");
+                    primary.put("points", points);
+                    primary.put("h", h);
+                    primary.remove("w");
+                    primary.remove("d");
+                    issues.add(warn("$.macro.shapeType", "W_MACRO_SHAPE", "shapeType=HEXAGON: converted main component from SHELL_BOX to EXTRUDE_POLYGON (r≈" + r + ")"));
+                } else {
+                    issues.add(warn("$.macro.shapeType", "W_MACRO_SHAPE_UNSUPPORTED", "shapeType=HEXAGON currently supports only SHELL_BOX-like primary components"));
+                }
+            }
+            default ->
+                // For now, just warn (future: HEXAGON -> EXTRUDE_POLYGON)
+                    issues.add(warn("$.macro.shapeType", "W_MACRO_SHAPE_UNSUPPORTED", "shapeType unsupported: " + st));
         }
     }
 
-    private static void applyHeightScale(Map<String, Object> primary, String path, Map<String, Object> macro, List<AssemblyValidationIssue> issues) {
+    private static void applyHeightScale(Map<String, Object> primary, Map<String, Object> macro, List<AssemblyValidationIssue> issues) {
         Object hs = macro.get("heightScale");
         if (hs == null) hs = macro.get("height_scale");
         if (hs == null) return;
@@ -708,11 +708,16 @@ public final class AssemblyMacroApplier {
         else {
             String s = String.valueOf(hs).trim().toUpperCase(Locale.ROOT);
             if (s.isEmpty()) return;
-            if (s.equals("LOW") || s.equals("SHORT")) scale = 0.7;
-            else if (s.equals("MEDIUM") || s.equals("MID")) scale = 1.0;
-            else if (s.equals("HIGH") || s.equals("TALL")) scale = 1.6;
-            else {
-                try { scale = Double.parseDouble(s); } catch (Exception ignored) {}
+            switch (s) {
+                case "LOW", "SHORT" -> scale = 0.7;
+                case "MEDIUM", "MID" -> scale = 1.0;
+                case "HIGH", "TALL" -> scale = 1.6;
+                default -> {
+                    try {
+                        scale = Double.parseDouble(s);
+                    } catch (Exception ignored) {
+                    }
+                }
             }
         }
         if (Double.isNaN(scale) || scale <= 0.0) return;
@@ -725,7 +730,7 @@ public final class AssemblyMacroApplier {
         if (h == null) return;
         int nh = Math.max(2, (int) Math.round(h * scale));
         primary.put("h", nh);
-        issues.add(warn(path, "W_MACRO_HEIGHT", "heightScale applied to primary.h: " + h + " -> " + nh));
+        issues.add(warn("$.macro.heightScale", "W_MACRO_HEIGHT", "heightScale applied to primary.h: " + h + " -> " + nh));
     }
 
     private static void applyRoofMacro(Map<String, Object> root,
@@ -745,7 +750,7 @@ public final class AssemblyMacroApplier {
             boolean hasRoof = false;
             for (Object it : comps) {
                 if (!(it instanceof Map<?, ?> cm)) continue;
-                String t = str(((Map<?, ?>) cm).get("type"), str(((Map<?, ?>) cm).get("op"), "")).trim().toUpperCase(Locale.ROOT);
+                String t = str(cm.get("type"), str(cm.get("op"), "")).trim().toUpperCase(Locale.ROOT);
                 if (t.contains("ROOF")) { hasRoof = true; break; }
             }
 
@@ -862,7 +867,7 @@ public final class AssemblyMacroApplier {
         };
     }
 
-    private static void applyOpenness(Map<String, Object> primary, String path, Map<String, Object> macro, List<AssemblyValidationIssue> issues) {
+    private static void applyOpenness(Map<String, Object> primary, Map<String, Object> macro, List<AssemblyValidationIssue> issues) {
         Object ov = macro.get("openness");
         if (ov == null) return;
         double o = Double.NaN;
@@ -899,7 +904,7 @@ public final class AssemblyMacroApplier {
                 int rows = clampInt((int) Math.round(1 + o * 6), 1, 12);
                 opening.put("cols", cols);
                 opening.put("rows", rows);
-                issues.add(warn(path + ".facade.openings[" + i + "]", "W_MACRO_OPENNESS", "openness=" + o + ": rows/cols " + baseRows + "/" + baseCols + " -> " + rows + "/" + cols));
+                issues.add(warn("$.macro.openness" + ".facade.openings[" + i + "]", "W_MACRO_OPENNESS", "openness=" + o + ": rows/cols " + baseRows + "/" + baseCols + " -> " + rows + "/" + cols));
             }
         }
     }

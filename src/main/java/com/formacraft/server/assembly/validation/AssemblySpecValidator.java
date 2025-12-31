@@ -40,7 +40,7 @@ public final class AssemblySpecValidator {
         // macro validation (P0)
         Object macroObj = root.get("macro");
         if (macroObj instanceof Map<?, ?> mm) {
-            validateMacro(out, "$.macro", mm);
+            validateMacro(out, mm);
         } else if (macroObj != null) {
             out.add(err("$.macro", "E_MACRO_TYPE", "macro 必须是对象（map）"));
         }
@@ -123,7 +123,6 @@ public final class AssemblySpecValidator {
                     "stopOnSolid",
                     "allowWaterEdit", "allowLavaEdit",
                     "solid",
-                    "carve",
                     // anchorage detailing
                     "topBevel", "top_bevel", "bevel",
                     "guardWallHeight", "guard_wall_height", "parapetHeight",
@@ -142,6 +141,8 @@ public final class AssemblySpecValidator {
                     "twistTurns", "twistPhase",
                     "capEnds", "capThickness", "carveInterior",
                     "connectSamples", "connectMaxStep",
+                    // bezier surface
+                    "uSamples", "vSamples", "u", "v",
                     "r", "radius", "r0", "r1", "radius0", "radius1",
                     "hollow", "thickness", "samplesPerBlock",
                     // openings
@@ -273,6 +274,44 @@ public final class AssemblySpecValidator {
                         out.add(warn(p + ".cableAxis", "W_CABLE_AXIS_VALUE", "cableAxis 建议使用 AUTO/X/Z（当前=" + m.get("cableAxis") + "）"));
                     }
                 }
+            }
+            if (op.equals("BEZIER_SURFACE")) {
+                Object pts = m.get("points");
+                if (!(pts instanceof List<?> list)) {
+                    out.add(err(p + ".points", "E_BEZIER_POINTS_MISSING", "BEZIER_SURFACE.points 必须是数组（16 点或 4x4 网格）"));
+                } else {
+                    int count = 0;
+                    if (!list.isEmpty() && list.getFirst() instanceof List<?>) {
+                        for (Object rowObj : list) {
+                            if (!(rowObj instanceof List<?> row)) continue;
+                            for (Object po : row) {
+                                if (po instanceof Map<?, ?> pm) {
+                                    count++;
+                                    if (intOrNull(pm.get("x")) == null) out.add(err(p + ".points", "E_BEZIER_POINT_X", "控制点 x 必须是整数"));
+                                    if (intOrNull(pm.get("y")) == null) out.add(err(p + ".points", "E_BEZIER_POINT_Y", "控制点 y 必须是整数"));
+                                    if (intOrNull(pm.get("z")) == null) out.add(err(p + ".points", "E_BEZIER_POINT_Z", "控制点 z 必须是整数"));
+                                }
+                            }
+                        }
+                    } else {
+                        for (Object po : list) {
+                            if (po instanceof Map<?, ?> pm) {
+                                count++;
+                                if (intOrNull(pm.get("x")) == null) out.add(err(p + ".points", "E_BEZIER_POINT_X", "控制点 x 必须是整数"));
+                                if (intOrNull(pm.get("y")) == null) out.add(err(p + ".points", "E_BEZIER_POINT_Y", "控制点 y 必须是整数"));
+                                if (intOrNull(pm.get("z")) == null) out.add(err(p + ".points", "E_BEZIER_POINT_Z", "控制点 z 必须是整数"));
+                            }
+                        }
+                    }
+                    if (count != 16) out.add(err(p + ".points", "E_BEZIER_POINTS_COUNT", "BEZIER_SURFACE 需要 16 个控制点（当前=" + count + "）"));
+                }
+                if (m.get("uSamples") != null || m.get("u") != null) requireIntMin(out, p, m, "uSamples", 2);
+                if (m.get("vSamples") != null || m.get("v") != null) requireIntMin(out, p, m, "vSamples", 2);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+                if (m.get("connectSamples") != null && !(m.get("connectSamples") instanceof Boolean)) {
+                    out.add(err(p + ".connectSamples", "E_BOOL_TYPE", "connectSamples 必须是布尔"));
+                }
+                if (m.get("connectMaxStep") != null) requireIntMin(out, p, m, "connectMaxStep", 1);
             }
             if (op.equals("ANCHOR_FOOTPRINT")) {
                 if (m.get("x0") == null || m.get("x1") == null || m.get("z0") == null || m.get("z1") == null) {
@@ -485,8 +524,8 @@ public final class AssemblySpecValidator {
         }
     }
 
-    private static void validateMacro(List<AssemblyValidationIssue> out, String path, Map<?, ?> macro) {
-        warnUnknownKeys(out, path, macro, Set.of(
+    private static void validateMacro(List<AssemblyValidationIssue> out, Map<?, ?> macro) {
+        warnUnknownKeys(out, "$.macro", macro, Set.of(
                 "primaryComponent", "primaryComponentId",
                 "shapeType", "shape",
                 "heightScale", "height_scale",
@@ -505,7 +544,7 @@ public final class AssemblySpecValidator {
             String s = String.valueOf(st).trim().toUpperCase(Locale.ROOT);
             if (!s.isEmpty()) {
                 boolean ok = s.contains("RECT") || s.contains("BOX") || s.contains("CIRC") || s.contains("CYL") || s.contains("HEX");
-                if (!ok) out.add(warn(path + ".shapeType", "W_MACRO_SHAPE_VALUE", "shapeType 可能不可识别: " + st));
+                if (!ok) out.add(warn("$.macro" + ".shapeType", "W_MACRO_SHAPE_VALUE", "shapeType 可能不可识别: " + st));
             }
         }
 
@@ -513,15 +552,15 @@ public final class AssemblySpecValidator {
         if (hs == null) hs = macro.get("height_scale");
         if (hs != null) {
             if (!(hs instanceof Number) && !(hs instanceof String)) {
-                out.add(err(path + ".heightScale", "E_MACRO_HEIGHTSCALE_TYPE", "heightScale 必须是数字或枚举字符串"));
+                out.add(err("$.macro" + ".heightScale", "E_MACRO_HEIGHTSCALE_TYPE", "heightScale 必须是数字或枚举字符串"));
             }
         }
 
         Object op = macro.get("openness");
         if (op != null) {
             Double d = doubleOrNull(op);
-            if (d == null) out.add(err(path + ".openness", "E_MACRO_OPENNESS_TYPE", "openness 必须是 0..1 的数字"));
-            else if (d < 0.0 || d > 1.0) out.add(warn(path + ".openness", "W_MACRO_OPENNESS_RANGE", "openness 建议范围 0..1（当前=" + d + "）"));
+            if (d == null) out.add(err("$.macro" + ".openness", "E_MACRO_OPENNESS_TYPE", "openness 必须是 0..1 的数字"));
+            else if (d < 0.0 || d > 1.0) out.add(warn("$.macro" + ".openness", "W_MACRO_OPENNESS_RANGE", "openness 建议范围 0..1（当前=" + d + "）"));
         }
 
         Object rt = macro.get("roofType");
@@ -529,7 +568,7 @@ public final class AssemblySpecValidator {
         if (rt != null) {
             String s = String.valueOf(rt).trim().toUpperCase(Locale.ROOT);
             if (!s.isEmpty() && !(s.equals("FLAT") || s.equals("GABLE"))) {
-                out.add(warn(path + ".roofType", "W_MACRO_ROOFTYPE_VALUE", "roofType 当前仅支持 FLAT/GABLE（当前=" + rt + "）"));
+                out.add(warn("$.macro" + ".roofType", "W_MACRO_ROOFTYPE_VALUE", "roofType 当前仅支持 FLAT/GABLE（当前=" + rt + "）"));
             }
         }
 
@@ -537,18 +576,17 @@ public final class AssemblySpecValidator {
         if (bt == null) bt = macro.get("bridge_tower");
         if (bt != null) {
             if (!(bt instanceof Map<?, ?>) && !(bt instanceof Boolean)) {
-                out.add(warn(path + ".bridgeTower", "W_MACRO_BRIDGETOWER_TYPE", "bridgeTower 建议是对象（map）或 true（启用默认注入）"));
+                out.add(warn("$.macro" + ".bridgeTower", "W_MACRO_BRIDGETOWER_TYPE", "bridgeTower 建议是对象（map）或 true（启用默认注入）"));
             }
         }
 
         Object styleObj = macro.get("style");
         if (styleObj == null) styleObj = macro.get("culture");
         if (styleObj != null) {
-            if (!(styleObj instanceof Map<?, ?>)) {
-                out.add(warn(path + ".style", "W_MACRO_STYLE_TYPE", "style/culture 建议是对象（map）"));
+            if (!(styleObj instanceof Map<?, ?> m)) {
+                out.add(warn("$.macro" + ".style", "W_MACRO_STYLE_TYPE", "style/culture 建议是对象（map）"));
             } else {
-                Map<?, ?> m = (Map<?, ?>) styleObj;
-                warnUnknownKeys(out, path + ".style", m, Set.of(
+                warnUnknownKeys(out, "$.macro" + ".style", m, Set.of(
                         "styleId", "style_id", "id",
                         "intent", "mood",
                         "density", "symmetry", "verticality", "transparency",
@@ -559,8 +597,8 @@ public final class AssemblySpecValidator {
                     Object v = m.get(k);
                     if (v == null) continue;
                     Double d = doubleOrNull(v);
-                    if (d == null) out.add(err(path + ".style." + k, "E_MACRO_STYLE_SLIDER_TYPE", k + " 必须是数字"));
-                    else if (d < 0.0 || d > 1.0) out.add(warn(path + ".style." + k, "W_MACRO_STYLE_SLIDER_RANGE", k + " 建议范围 0..1（当前=" + d + "）"));
+                    if (d == null) out.add(err("$.macro" + ".style." + k, "E_MACRO_STYLE_SLIDER_TYPE", k + " 必须是数字"));
+                    else if (d < 0.0 || d > 1.0) out.add(warn("$.macro" + ".style." + k, "W_MACRO_STYLE_SLIDER_RANGE", k + " 建议范围 0..1（当前=" + d + "）"));
                 }
             }
         }
@@ -1328,7 +1366,6 @@ public final class AssemblySpecValidator {
         if (bestD > 2) return null;
         // Keep conservative: distance-2 only for longer keys.
         if (bestD == 2 && nk.length() < 7) return null;
-        if (nk.length() < 4 && bestD > 1) return null;
         return best;
     }
 

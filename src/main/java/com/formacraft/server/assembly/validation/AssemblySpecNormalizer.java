@@ -479,6 +479,8 @@ public final class AssemblySpecNormalizer {
             "twistTurns", "twistPhase",
             "capEnds", "capThickness", "carveInterior",
             "connectSamples", "connectMaxStep",
+            // bezier surface
+            "uSamples", "vSamples", "u", "v",
             "hollow", "thickness",
             "material", "wall", "window", "floor", "roof", "slab",
             "ports",
@@ -511,6 +513,8 @@ public final class AssemblySpecNormalizer {
             "twistTurns", "twistPhase",
             "capEnds", "capThickness", "carveInterior",
             "connectSamples", "connectMaxStep",
+            // bezier surface
+            "uSamples", "vSamples", "u", "v",
             "r", "radius", "r0", "r1", "radius0", "radius1",
             "hollow", "thickness", "samplesPerBlock",
             // anchoring / anchorage

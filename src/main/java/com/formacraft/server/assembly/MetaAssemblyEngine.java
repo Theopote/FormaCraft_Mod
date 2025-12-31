@@ -883,6 +883,71 @@ public final class MetaAssemblyEngine {
                     prevX = x; prevY = y; prevZ = z;
                 }
             }
+            case "BEZIER_SURFACE" -> {
+                // Bezier surface patch (P0): 4x4 cubic Bezier surface, voxelized as a shell.
+                //
+                // Required:
+                // - points: either 16 control points [{x,y,z}...] or 4 rows of 4 points [[{x,y,z}..]..]
+                // Optional:
+                // - uSamples/vSamples: sampling density (default 24/24)
+                // - thickness: voxel thickness (default 1)
+                // - connectSamples: connect adjacent samples with beams (default true)
+                // - connectMaxStep: reserved (currently unused; default 2)
+                // - material: semantic PRIMARY_STRUCTURE (fallback quartz)
+                Object ptsObj = op.get("points");
+                List<int[]> ctrl = readBezierControlPoints(ptsObj);
+                if (ctrl == null || ctrl.size() != 16) break;
+
+                int uN = clamp(i(op.get("uSamples"), i(op.get("u"), 24)), 2, 512);
+                int vN = clamp(i(op.get("vSamples"), i(op.get("v"), 24)), 2, 512);
+                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
+                boolean connect = bool(op.get("connectSamples"), true);
+
+                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0xA57480L, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+                // Sample grid and place points; optionally connect adjacent samples to reduce gaps.
+                int[][][] grid = new int[uN + 1][vN + 1][3];
+                for (int iu = 0; iu <= uN; iu++) {
+                    double u = iu / (double) uN;
+                    double[] Bu = bezierBasis3(u);
+                    for (int iv = 0; iv <= vN; iv++) {
+                        double v = iv / (double) vN;
+                        double[] Bv = bezierBasis3(v);
+                        double x = 0, y = 0, z = 0;
+                        for (int i = 0; i < 4; i++) {
+                            for (int j = 0; j < 4; j++) {
+                                double w = Bu[i] * Bv[j];
+                                int[] p = ctrl.get(i * 4 + j);
+                                x += p[0] * w;
+                                y += p[1] * w;
+                                z += p[2] * w;
+                            }
+                        }
+                        int xi = (int) Math.round(x);
+                        int yi = (int) Math.round(y);
+                        int zi = (int) Math.round(z);
+                        grid[iu][iv][0] = xi;
+                        grid[iu][iv][1] = yi;
+                        grid[iu][iv][2] = zi;
+                        placePrism(out, ctx, curOrigin, xi, yi, zi, thick, 1, mat);
+                    }
+                }
+                if (connect) {
+                    for (int iu = 0; iu <= uN; iu++) {
+                        for (int iv = 0; iv <= vN; iv++) {
+                            int x = grid[iu][iv][0], y = grid[iu][iv][1], z = grid[iu][iv][2];
+                            if (iu + 1 <= uN) {
+                                int[] b = grid[iu + 1][iv];
+                                placeBeamLine(out, ctx, curOrigin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                            }
+                            if (iv + 1 <= vN) {
+                                int[] b = grid[iu][iv + 1];
+                                placeBeamLine(out, ctx, curOrigin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                            }
+                        }
+                    }
+                }
+            }
             case "PATH_ROUTE" -> {
                 // Reuse PathGenerator (supports DRAPE etc via terrainAdaptation in extra).
                 int width = clamp(i(op.get("width"), i(op.get("thickness"), 3)), 1, 15);
@@ -2634,6 +2699,41 @@ public final class MetaAssemblyEngine {
             int z = (int) Math.round(z0 + dz * t);
             placePrism(out, ctx, origin, x, y, z, thickness, beamH, s);
         }
+    }
+
+    private static double[] bezierBasis3(double t) {
+        double u = 1.0 - t;
+        double b0 = u * u * u;
+        double b1 = 3.0 * u * u * t;
+        double b2 = 3.0 * u * t * t;
+        double b3 = t * t * t;
+        return new double[]{b0, b1, b2, b3};
+    }
+
+    private static List<int[]> readBezierControlPoints(Object ptsObj) {
+        // Accept:
+        // - flat list of 16 point maps: [{x,y,z}...]
+        // - nested 4 rows: [[{x,y,z}..4]..4]
+        if (!(ptsObj instanceof List<?> list)) return null;
+        List<int[]> out = new ArrayList<>();
+        if (!list.isEmpty() && list.getFirst() instanceof List<?>) {
+            for (Object rowObj : list) {
+                if (!(rowObj instanceof List<?> row)) continue;
+                for (Object p : row) {
+                    if (p instanceof Map<?, ?> pm) {
+                        out.add(new int[]{i(pm.get("x"), 0), i(pm.get("y"), 0), i(pm.get("z"), 0)});
+                    }
+                }
+            }
+        } else {
+            for (Object p : list) {
+                if (p instanceof Map<?, ?> pm) {
+                    out.add(new int[]{i(pm.get("x"), 0), i(pm.get("y"), 0), i(pm.get("z"), 0)});
+                }
+            }
+        }
+        if (out.size() != 16) return null;
+        return out;
     }
 
     private static int[] bounds(List<int[]> pts) {

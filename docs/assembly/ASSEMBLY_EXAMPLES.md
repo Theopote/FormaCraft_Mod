@@ -162,6 +162,14 @@
 - `from/to`：楼梯起止点
 - `width`：楼梯宽度
 - `clearHeight + carve`：自动挖出净空（避免撞头）
+
+## 示例二十五：曲面壳体（BEZIER_SURFACE：贝塞尔曲面片）
+
+文件：`src/main/resources/assets/formacraft/assembly_examples/bezier_surface_patch.json`
+
+- `BEZIER_SURFACE.points`：**16 个控制点**（支持 4x4 网格写法）
+- `uSamples/vSamples`：曲面采样密度（越大越平滑，但方块量更高）
+- `connectSamples=true`：自动把相邻采样点用短梁连接，减少曲面“断点/漏风”
 - `support`：简单支撑（P0：每步下方补一层承重块）
 
 ## 示例十二：古典（檐口/腰线/柱网：SURFACE_BANDS）

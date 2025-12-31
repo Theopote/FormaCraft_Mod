@@ -37,11 +37,11 @@ public class MetaAssemblyGenerator implements StructureGenerator {
 
         // Auto-fix / normalize (never fails; emits WARNING issues for training/debug).
         AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assemblyObj);
-        Object normalized = norm != null ? norm.normalized() : assemblyObj;
+        Object normalized = norm.normalized();
 
         // Macro layer (high-level gene sliders -> low-level knobs). Explicit low-level params always win.
         AssemblyMacroApplyResult macro = AssemblyMacroApplier.apply(normalized);
-        Object applied = macro != null ? macro.applied() : normalized;
+        Object applied = macro.applied();
 
         // Validate early for stable LLM output & better error messages.
         List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
@@ -71,7 +71,7 @@ public class MetaAssemblyGenerator implements StructureGenerator {
 
         // palette preference: assembly.paletteId > extra.paletteId
         String paletteId = as.paletteId;
-        if ((paletteId == null || paletteId.isBlank()) && extra.get("paletteId") != null) {
+        if (extra != null && (paletteId == null || paletteId.isBlank()) && extra.get("paletteId") != null) {
             paletteId = String.valueOf(extra.get("paletteId")).trim();
         }
 

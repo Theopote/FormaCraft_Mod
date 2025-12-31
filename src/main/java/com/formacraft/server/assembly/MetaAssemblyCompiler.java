@@ -212,6 +212,18 @@ public final class MetaAssemblyCompiler {
                 copy(comp, o, "supportMaterial");
                 ops.add(o);
             }
+            case "BEZIER_SURFACE", "BEZIER_PATCH", "BEZIER" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "BEZIER_SURFACE");
+                copy(comp, o, "points"); // 16 points or 4x4
+                copyInt(comp, o, "uSamples", i(comp.get("uSamples"), i(comp.get("u"), 24)));
+                copyInt(comp, o, "vSamples", i(comp.get("vSamples"), i(comp.get("v"), 24)));
+                copyInt(comp, o, "thickness", i(comp.get("thickness"), 1));
+                copy(comp, o, "connectSamples");
+                copyInt(comp, o, "connectMaxStep", i(comp.get("connectMaxStep"), 2));
+                copy(comp, o, "material");
+                ops.add(o);
+            }
             case "BUTTRESS", "FLYING_BUTTRESS" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "BUTTRESS");
