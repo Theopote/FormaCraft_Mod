@@ -134,7 +134,7 @@ public final class AssemblySpecValidator {
                     "type", "kind", "face", "faces",
                     "w", "d", "h", "width", "depth", "height",
                     // spline
-                    "points", "profile", "profileFrame", "profileSnap", "frame", "snap",
+                    "points", "profile", "profileFrame", "profileSnap", "snap",
                     "profileW", "profileH", "profilePoints", "profileRings", "rings",
                     "profileScale0", "profileScale1", "scale0", "scale1",
                     "profileW0", "profileW1", "profileH0", "profileH1",
@@ -153,12 +153,12 @@ public final class AssemblySpecValidator {
                     "tracery", "traceryType", "traceryMaterial", "traceryThickness", "traceryT", "traceryY", "traceryInset",
                     "foilRadius", "foilCenterY", "foilCount", "foilStepY", "foilGapY",
                     "traceryFoilRadius", "traceryFoilCenterY", "traceryFoilCount", "traceryFoilStepY",
-                    "r", "radius", "centerY", "petals", "spokes", "ring", "phase", "phi", "spokeWidth", "spokeW", "spokeThreshold", "spokeThresh",
+                    "centerY", "petals", "spokes", "ring", "phase", "phi", "spokeWidth", "spokeW", "spokeThreshold", "spokeThresh",
                     "innerFill", "spokeMaterial",
                     // facade grid
                     "bayW", "bayH", "moduleW", "moduleH", "gridW", "gridH",
                     "mullionThickness", "mullionT", "transomThickness", "transomT", "borderThickness", "borderT",
-                    "marginU", "inset", "depth",
+                    "marginU", "inset",
                     "spandrelEvery", "spEvery", "spandrelHeight", "spH", "spandrelOffset", "spOffset", "spandrelFill",
                     // surface bands
                     "horizontalBands", "hBands", "bandsH",
