@@ -9,13 +9,13 @@ import java.util.Set;
 
 /**
  * P0 "auto-fix / normalizer" for extra.assembly.
- *
+ * <p>
  * Design goals:
  * - Deep-copy input (never mutate caller maps).
  * - Canonicalize common aliases and casing.
  * - Migrate common fields (e.g., facade.pattern -> facade.surfacePattern) for LLM stability.
  * - Emit WARNING issues describing each change (path + code).
- *
+ * <p>
  * Non-goals (for now):
  * - Aggressive schema repair (inventing missing required data).
  * - Perfect normalization for every op ever.
@@ -122,9 +122,9 @@ public final class AssemblySpecNormalizer {
         }
 
         // Normalize connection/type/op/kind/mode-like values (uppercasing)
-        normalizeValueUpper(m, path, issues, "type", "W_NORM_VALUE_CANON");
-        normalizeValueUpper(m, path, issues, "op", "W_NORM_VALUE_CANON");
-        normalizeValueUpper(m, path, issues, "kind", "W_NORM_VALUE_CANON");
+        normalizeValueUpper(m, path, issues, "type");
+        normalizeValueUpper(m, path, issues, "op");
+        normalizeValueUpper(m, path, issues, "kind");
         // Move cableHoles -> holes (canonical) if holes absent
         if (m.get("cableHoles") instanceof List<?> l && m.get("holes") == null) {
             m.put("holes", l);
@@ -316,7 +316,7 @@ public final class AssemblySpecNormalizer {
         }
     }
 
-    private static void normalizeValueUpper(Map<String, Object> m, String path, List<AssemblyValidationIssue> issues, String key, String code) {
+    private static void normalizeValueUpper(Map<String, Object> m, String path, List<AssemblyValidationIssue> issues, String key) {
         Object v = m.get(key);
         if (!(v instanceof String s)) return;
         String t = s.trim();
@@ -324,7 +324,7 @@ public final class AssemblySpecNormalizer {
         String u = t.toUpperCase(Locale.ROOT);
         if (!u.equals(s)) {
             m.put(key, u);
-            issues.add(warn(path + "." + key, code, key + " 规范化: \"" + s + "\" -> \"" + u + "\""));
+            issues.add(warn(path + "." + key, "W_NORM_VALUE_CANON", key + " 规范化: \"" + s + "\" -> \"" + u + "\""));
         }
     }
 
@@ -365,22 +365,24 @@ public final class AssemblySpecNormalizer {
         for (String p : parts) {
             String x = normalizeFaceToken(p.trim());
             if (x.isEmpty()) continue;
-            if (sb.length() > 0) sb.append(',');
+            if (!sb.isEmpty()) sb.append(',');
             sb.append(x);
         }
-        return sb.length() == 0 ? "ALL" : sb.toString();
+        return sb.isEmpty() ? "ALL" : sb.toString();
     }
 
     private static String normalizeFaceToken(String t) {
         if (t == null) return "";
         String u = t.trim().toUpperCase(Locale.ROOT);
         if (u.isEmpty()) return "";
-        if (u.equals("*") || u.equals("ALL")) return "ALL";
-        if (u.equals("N")) return "NORTH";
-        if (u.equals("S")) return "SOUTH";
-        if (u.equals("E")) return "EAST";
-        if (u.equals("W")) return "WEST";
-        return u;
+        return switch (u) {
+            case "*", "ALL" -> "ALL";
+            case "N" -> "NORTH";
+            case "S" -> "SOUTH";
+            case "E" -> "EAST";
+            case "W" -> "WEST";
+            default -> u;
+        };
     }
 
     private static String normalizeTerrainMode(String s) {
@@ -536,8 +538,7 @@ public final class AssemblySpecNormalizer {
         if (m == null || m.isEmpty() || allowed == null || allowed.isEmpty()) return;
 
         // Work on a snapshot of keys to avoid concurrent modification issues.
-        List<String> keys = new ArrayList<>();
-        for (String k : m.keySet()) keys.add(k);
+        List<String> keys = new ArrayList<>(m.keySet());
 
         for (String key : keys) {
             if (key == null) continue;
@@ -569,7 +570,7 @@ public final class AssemblySpecNormalizer {
         for (String cand : allowed) {
             String nc = normKey(cand);
             if (nc.isEmpty()) continue;
-            int d = editDistance(nk, nc, 2); // cap at 2 for performance
+            int d = editDistance(nk, nc); // cap at 2 for performance
             if (d < 0) continue;
             if (d < bestD) {
                 bestD = d;
@@ -588,7 +589,6 @@ public final class AssemblySpecNormalizer {
         // Distance-2 repairs are only allowed for long keys (reduces false positives like rows->ops).
         if (bestD == 2 && nk.length() < 7) return null;
         // Additional guard: short keys must be distance-1 only.
-        if (nk.length() < 4 && bestD > 1) return null;
         return best;
     }
 
@@ -603,12 +603,12 @@ public final class AssemblySpecNormalizer {
      * Levenshtein edit distance with an early-exit cap.
      * Returns -1 if distance exceeds cap.
      */
-    private static int editDistance(String a, String b, int cap) {
+    private static int editDistance(String a, String b) {
         if (a.equals(b)) return 0;
         int la = a.length(), lb = b.length();
-        if (Math.abs(la - lb) > cap) return -1;
-        if (la == 0) return lb <= cap ? lb : -1;
-        if (lb == 0) return la <= cap ? la : -1;
+        if (Math.abs(la - lb) > 2) return -1;
+        if (la == 0) return lb <= 2 ? lb : -1;
+        if (lb == 0) return la <= 2 ? la : -1;
 
         int[] prev = new int[lb + 1];
         int[] cur = new int[lb + 1];
@@ -624,27 +624,33 @@ public final class AssemblySpecNormalizer {
                 cur[j] = v;
                 if (v < minRow) minRow = v;
             }
-            if (minRow > cap) return -1;
+            if (minRow > 2) return -1;
             int[] tmp = prev; prev = cur; cur = tmp;
         }
         int d = prev[lb];
-        return d <= cap ? d : -1;
+        return d <= 2 ? d : -1;
     }
 
     private static Object deepCopy(Object v) {
-        if (v == null) return null;
-        if (v instanceof Map<?, ?> mm) {
-            Map<String, Object> out = new LinkedHashMap<>();
-            for (Map.Entry<?, ?> e : mm.entrySet()) {
-                if (e.getKey() == null) continue;
-                out.put(String.valueOf(e.getKey()), (Object) deepCopy(e.getValue()));
+        switch (v) {
+            case null -> {
+                return null;
             }
-            return out;
-        }
-        if (v instanceof List<?> ll) {
-            List<Object> out = new ArrayList<>(ll.size());
-            for (Object it : ll) out.add(deepCopy(it));
-            return out;
+            case Map<?, ?> mm -> {
+                Map<String, Object> out = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> e : mm.entrySet()) {
+                    if (e.getKey() == null) continue;
+                    out.put(String.valueOf(e.getKey()), deepCopy(e.getValue()));
+                }
+                return out;
+            }
+            case List<?> ll -> {
+                List<Object> out = new ArrayList<>(ll.size());
+                for (Object it : ll) out.add(deepCopy(it));
+                return out;
+            }
+            default -> {
+            }
         }
         // primitives: String/Number/Boolean/etc
         return v;
