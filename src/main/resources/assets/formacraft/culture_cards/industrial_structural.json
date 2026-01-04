@@ -1,0 +1,35 @@
+{
+  "id": "industrial_structural",
+  "styleId": "Industrial_Structural",
+  "intents": ["INDUSTRIAL", "工业"],
+  "keywords": ["工业", "结构外露", "桁架", "钢", "桥梁", "骨骼外露"],
+  "exampleRefs": [
+    "macro_style_industrial_exoskeleton.json",
+    "frame_grid_3d_exoskeleton.json",
+    "truss_simple_bridge.json",
+    "industrial_bridge_anchorage_endgame.json"
+  ],
+  "archetypes": [
+    {
+      "name": "exoskeleton_macro",
+      "exampleRef": "macro_style_industrial_exoskeleton.json",
+      "macroHint": {
+        "style": {
+          "styleId": "Industrial_Structural",
+          "intent": "工业",
+          "density": 0.6,
+          "symmetry": 0.7,
+          "verticality": 0.55,
+          "transparency": 0.5,
+          "structureExposure": 0.95
+        }
+      },
+      "constraints": [
+        "结构外露：FRAME_GRID_3D / TRUSS_2D / TENSION_CABLE 优先",
+        "材料语义：STRUCTURAL_* 与 GLAZING 可并存"
+      ]
+    }
+  ]
+}
+
+

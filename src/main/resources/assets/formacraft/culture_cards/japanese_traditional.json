@@ -1,0 +1,21 @@
+{
+  "id": "japanese_traditional",
+  "styleId": "Japanese_Traditional",
+  "intents": ["ZEN", "禅意", "TRADITIONAL"],
+  "keywords": ["日式", "神社", "茶室", "障子", "木构", "水平线条", "唐破风", "非对称"],
+  "exampleRefs": [
+    "box_japanese_facade.json"
+  ],
+  "archetypes": [
+    {
+      "name": "japanese_facade_box",
+      "exampleRef": "box_japanese_facade.json",
+      "constraints": [
+        "强调水平线条与木质立面节律",
+        "门窗更轻：OPENINGS + SURFACE_BANDS 可组合"
+      ]
+    }
+  ]
+}
+
+

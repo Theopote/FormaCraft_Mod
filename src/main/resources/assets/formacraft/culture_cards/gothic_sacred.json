@@ -1,0 +1,34 @@
+{
+  "id": "gothic_sacred",
+  "styleId": "Gothic_Cathedral",
+  "intents": ["SACRED", "神圣"],
+  "keywords": ["哥特", "教堂", "尖拱", "玫瑰花窗", "飞扶壁", "垂直性", "彩窗"],
+  "exampleRefs": [
+    "macro_style_gothic_box.json",
+    "box_gothic_vertical.json",
+    "gothic_flying_buttress.json"
+  ],
+  "archetypes": [
+    {
+      "name": "box_cathedral_macro",
+      "exampleRef": "macro_style_gothic_box.json",
+      "macroHint": {
+        "style": {
+          "styleId": "Gothic_Cathedral",
+          "intent": "神圣",
+          "density": 0.75,
+          "symmetry": 0.8,
+          "verticality": 0.95,
+          "transparency": 0.35,
+          "structureExposure": 0.8
+        }
+      },
+      "constraints": [
+        "OPENINGS 包含 ARCH_WINDOW(POINTED) 与 ROSE_WINDOW",
+        "高 verticality（尖塔/竖向节律）优先"
+      ]
+    }
+  ]
+}
+
+

@@ -1,0 +1,30 @@
+{
+  "id": "industrial_macro_exoskeleton",
+  "prompt": "生成一个工业结构表现主义建筑：骨骼外露、钢框架、可见结构",
+  "assembly": {
+    "entranceFacing": "SOUTH",
+    "graph": {
+      "components": [
+        { "id": "Core", "type": "SHELL_BOX", "at": { "x": 0, "y": 0, "z": 0 }, "w": 18, "d": 14, "h": 20 }
+      ],
+      "connections": []
+    },
+    "macro": {
+      "style": {
+        "styleId": "Industrial_Structural",
+        "intent": "工业",
+        "density": 0.6,
+        "symmetry": 0.7,
+        "verticality": 0.55,
+        "transparency": 0.5,
+        "structureExposure": 0.95
+      }
+    }
+  },
+  "expect": {
+    "mustOps": ["FRAME_GRID_3D"],
+    "maxOps": 800
+  }
+}
+
+

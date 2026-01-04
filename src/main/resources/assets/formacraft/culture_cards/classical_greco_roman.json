@@ -1,0 +1,21 @@
+{
+  "id": "classical_greco_roman",
+  "styleId": "Classical_GrecoRoman",
+  "intents": ["CLASSICAL", "古典"],
+  "keywords": ["古希腊", "古罗马", "柱廊", "三角门楣", "比例", "神庙", "万神殿"],
+  "exampleRefs": [
+    "box_classical_bands_columns.json"
+  ],
+  "archetypes": [
+    {
+      "name": "classical_columns_box",
+      "exampleRef": "box_classical_bands_columns.json",
+      "constraints": [
+        "立面节律：SURFACE_BANDS（柱/壁柱节奏）优先",
+        "材料趋向：石英/砂岩/白色系"
+      ]
+    }
+  ]
+}
+
+

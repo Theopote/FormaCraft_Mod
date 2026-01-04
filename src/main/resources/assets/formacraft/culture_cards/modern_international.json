@@ -1,0 +1,24 @@
+{
+  "id": "modern_international",
+  "styleId": "Modern_International",
+  "intents": ["MODERN", "现代主义", "INTERNATIONAL_STYLE"],
+  "keywords": ["现代主义", "国际主义", "少即是多", "幕墙", "方盒子", "平屋顶", "包豪斯"],
+  "exampleRefs": [
+    "macro_modern_tower.json",
+    "box_modern_curtainwall.json",
+    "box_modern_facade_grid.json",
+    "box_modern_facade_grid_spandrel.json"
+  ],
+  "archetypes": [
+    {
+      "name": "curtainwall_box",
+      "exampleRef": "box_modern_facade_grid_spandrel.json",
+      "constraints": [
+        "FACADE_GRID（幕墙网格）优先",
+        "平屋顶（ROOF_COVER FLAT 或 rise 很小）"
+      ]
+    }
+  ]
+}
+
+
