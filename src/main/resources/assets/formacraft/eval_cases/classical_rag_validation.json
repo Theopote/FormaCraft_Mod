@@ -1,0 +1,33 @@
+{
+  "id": "classical_rag_validation",
+  "prompt": "生成一个古希腊/古罗马建筑：柱式、三角门楣、圆形拱顶、石英柱",
+  "assembly": {
+    "entranceFacing": "EAST",
+    "graph": {
+      "components": [
+        { "id": "Temple", "type": "SHELL_BOX", "at": { "x": 0, "y": 0, "z": 0 }, "w": 20, "d": 14, "h": 16 }
+      ],
+      "connections": []
+    },
+    "macro": {
+      "style": {
+        "styleId": "Classical_GrecoRoman",
+        "intent": "古典",
+        "density": 0.7,
+        "symmetry": 0.9,
+        "verticality": 0.5,
+        "transparency": 0.2,
+        "structureExposure": 0.4
+      }
+    }
+  },
+  "expect": {
+    "expectedCultureCardId": "classical_greco_roman",
+    "mustMacro": {
+      "style.styleId": "Classical_GrecoRoman"
+    },
+    "mustNotOps": ["FRAME_GRID_3D", "FACADE_GRID"],
+    "maxOps": 500
+  }
+}
+

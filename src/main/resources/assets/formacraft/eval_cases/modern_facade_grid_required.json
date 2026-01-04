@@ -1,0 +1,51 @@
+{
+  "id": "modern_facade_grid_required",
+  "prompt": "生成一个现代主义包豪斯办公楼：幕墙系统、平屋顶、少即是多",
+  "assembly": {
+    "entranceFacing": "SOUTH",
+    "graph": {
+      "components": [
+        {
+          "id": "Office",
+          "type": "SHELL_BOX",
+          "at": { "x": 0, "y": 0, "z": 0 },
+          "w": 20,
+          "d": 14,
+          "h": 16,
+          "facade": {
+            "facadeGrid": {
+              "faces": "NORTH,SOUTH,EAST,WEST",
+              "rows": 6,
+              "cols": 8,
+              "frame": "minecraft:iron_bars",
+              "fill": "minecraft:light_blue_stained_glass"
+            }
+          }
+        }
+      ],
+      "connections": []
+    },
+    "macro": {
+      "style": {
+        "styleId": "Modern_International",
+        "intent": "现代主义",
+        "density": 0.5,
+        "symmetry": 0.7,
+        "verticality": 0.6,
+        "transparency": 0.9,
+        "structureExposure": 0.3
+      }
+    }
+  },
+  "expect": {
+    "expectedCultureCardId": "modern_international",
+    "mustOps": ["FACADE_GRID"],
+    "mustMacro": {
+      "style.styleId": "Modern_International",
+      "style.transparency": 0.9
+    },
+    "mustNotOps": ["BUTTRESS", "ROSE_WINDOW", "ARCH_WINDOW"],
+    "maxOps": 500
+  }
+}
+

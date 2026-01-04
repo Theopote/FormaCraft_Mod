@@ -8,6 +8,8 @@ import com.formacraft.server.assembly.validation.AssemblySpecNormalizer;
 import com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult;
 import com.formacraft.server.assembly.validation.AssemblySpecValidator;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
+import com.formacraft.server.rag.CultureCardRepository;
+import com.formacraft.server.rag.KeywordCultureRetriever;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -89,7 +91,43 @@ public final class EvalAssemblyCasesMain {
             Object expectObj = root.get("expect");
             Map<?, ?> expect = (expectObj instanceof Map<?, ?> em) ? em : Map.of();
             Set<String> mustOps = readStringSet(expect.get("mustOps"));
+            Set<String> mustNotOps = readStringSet(expect.get("mustNotOps"));
             Integer maxOps = intOrNull(expect.get("maxOps"));
+            String expectedCultureCardId = str(expect.get("expectedCultureCardId"), null);
+            Map<?, ?> mustMacro = (expect.get("mustMacro") instanceof Map<?, ?> mm) ? mm : null;
+            // mustOpKinds: {"OPENINGS": ["ROSE_WINDOW", "ARCH_WINDOW"]} - verify op has at least one matching kind
+            Map<?, ?> mustOpKinds = (expect.get("mustOpKinds") instanceof Map<?, ?> mok) ? mok : null;
+            
+            // RAG validation: if case has prompt, verify retrieval hits expected culture card
+            String prompt = str(root.get("prompt"), null);
+            KeywordCultureRetriever.RetrievalResult ragResult = null;
+            if (prompt != null && !prompt.isBlank()) {
+                try {
+                    CultureCardRepository repo = CultureCardRepository.load();
+                    KeywordCultureRetriever retriever = new KeywordCultureRetriever(repo);
+                    Object ragBudgetObj = root.get("ragBudget");
+                    int topK = 3, fewShotK = 3;
+                    if (ragBudgetObj instanceof Map<?, ?> rb) {
+                        topK = intOrNull(rb.get("topK")) != null ? intOrNull(rb.get("topK")) : topK;
+                        fewShotK = intOrNull(rb.get("fewShotK")) != null ? intOrNull(rb.get("fewShotK")) : fewShotK;
+                    }
+                    ragResult = retriever.retrieve(prompt, topK, fewShotK);
+                    
+                    if (expectedCultureCardId != null && !expectedCultureCardId.isBlank()) {
+                        String actualCardId = null;
+                        if (ragResult != null && !ragResult.hits().isEmpty()) {
+                            actualCardId = ragResult.hits().get(0).card().id();
+                        }
+                        if (!expectedCultureCardId.equals(actualCardId)) {
+                            System.err.println("[evalAssemblyCases] ERROR " + id + " : RAG expected cultureCardId=" + expectedCultureCardId + " but got=" + actualCardId);
+                            bad++;
+                            continue;
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("[evalAssemblyCases] WARN " + id + " : RAG retrieval failed: " + e.getMessage());
+                }
+            }
 
             AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assembly);
             AssemblyMacroApplyResult macro = AssemblyMacroApplier.apply(norm.normalized());
@@ -118,6 +156,7 @@ public final class EvalAssemblyCasesMain {
 
             int opCount = spec.ops.size();
             Map<String, Integer> hist = new TreeMap<>();
+            Map<String, Set<String>> opKinds = new TreeMap<>(); // opName -> set of kinds found
             for (var op : spec.ops) {
                 if (op == null) continue;
                 String opName = str(op.get("op"), null);
@@ -125,6 +164,12 @@ public final class EvalAssemblyCasesMain {
                 if (opName == null) continue;
                 opName = opName.trim().toUpperCase(Locale.ROOT);
                 hist.put(opName, hist.getOrDefault(opName, 0) + 1);
+                
+                // Track kinds for ops that have them (e.g., OPENINGS.kind)
+                String kind = str(op.get("kind"), null);
+                if (kind != null && !kind.isBlank()) {
+                    opKinds.computeIfAbsent(opName, k -> new HashSet<>()).add(kind.trim().toUpperCase(Locale.ROOT));
+                }
             }
 
             boolean fail = false;
@@ -134,9 +179,69 @@ public final class EvalAssemblyCasesMain {
                     fail = true;
                 }
             }
+            for (String forbid : mustNotOps) {
+                if (hist.containsKey(forbid.toUpperCase(Locale.ROOT))) {
+                    System.err.println("[evalAssemblyCases] ERROR " + id + " : forbidden op present: " + forbid);
+                    fail = true;
+                }
+            }
+            
+            // Verify mustOpKinds: e.g., {"OPENINGS": ["ROSE_WINDOW"]} means at least one OPENINGS op must have kind=ROSE_WINDOW
+            if (mustOpKinds != null) {
+                for (Map.Entry<?, ?> entry : mustOpKinds.entrySet()) {
+                    String opName = String.valueOf(entry.getKey()).trim().toUpperCase(Locale.ROOT);
+                    Object kindsObj = entry.getValue();
+                    Set<String> requiredKinds = readStringSet(kindsObj);
+                    if (requiredKinds.isEmpty()) continue;
+                    
+                    Set<String> foundKinds = opKinds.getOrDefault(opName, Set.of());
+                    boolean hasMatch = false;
+                    for (String reqKind : requiredKinds) {
+                        String reqKindUpper = reqKind.trim().toUpperCase(Locale.ROOT);
+                        if (foundKinds.contains(reqKindUpper)) {
+                            hasMatch = true;
+                            break;
+                        }
+                    }
+                    if (!hasMatch) {
+                        System.err.println("[evalAssemblyCases] ERROR " + id + " : op " + opName + " must have kind in " + requiredKinds + " but found " + foundKinds);
+                        fail = true;
+                    }
+                }
+            }
             if (maxOps != null && opCount > maxOps) {
                 System.err.println("[evalAssemblyCases] ERROR " + id + " : opCount " + opCount + " exceeds maxOps " + maxOps);
                 fail = true;
+            }
+            
+            // Verify mustMacro constraints (e.g., macro.style.styleId must match)
+            if (mustMacro != null && applied instanceof Map<?, ?> appMap) {
+                Object macroObj = appMap.get("macro");
+                if (macroObj instanceof Map<?, ?> macroMap) {
+                    for (Map.Entry<?, ?> entry : mustMacro.entrySet()) {
+                        String key = String.valueOf(entry.getKey());
+                        Object expectedValue = entry.getValue();
+                        Object actualValue = getNestedValue(macroMap, key);
+                        if (actualValue == null) {
+                            System.err.println("[evalAssemblyCases] ERROR " + id + " : mustMacro." + key + " expected=" + expectedValue + " but got=null");
+                            fail = true;
+                        } else {
+                            // Compare as numbers if both are numbers, otherwise as strings
+                            boolean match = false;
+                            if (expectedValue instanceof Number && actualValue instanceof Number) {
+                                double exp = ((Number) expectedValue).doubleValue();
+                                double act = ((Number) actualValue).doubleValue();
+                                match = Math.abs(exp - act) < 0.001; // tolerance for floating point
+                            } else {
+                                match = String.valueOf(actualValue).equals(String.valueOf(expectedValue));
+                            }
+                            if (!match) {
+                                System.err.println("[evalAssemblyCases] ERROR " + id + " : mustMacro." + key + " expected=" + expectedValue + " but got=" + actualValue);
+                                fail = true;
+                            }
+                        }
+                    }
+                }
             }
 
             if (fail) {
@@ -177,6 +282,17 @@ public final class EvalAssemblyCasesMain {
         if (v == null) return def;
         String s = String.valueOf(v).trim();
         return s.isEmpty() ? def : s;
+    }
+    
+    private static Object getNestedValue(Map<?, ?> map, String path) {
+        String[] parts = path.split("\\.");
+        Object current = map;
+        for (String part : parts) {
+            if (!(current instanceof Map<?, ?> m)) return null;
+            current = m.get(part);
+            if (current == null) return null;
+        }
+        return current;
     }
 }
 

@@ -1,0 +1,33 @@
+{
+  "id": "negative_keyword_test",
+  "prompt": "生成一个现代主义包豪斯建筑：幕墙、平屋顶、少即是多、不要哥特式、不要飞扶壁、不要玫瑰花窗",
+  "assembly": {
+    "entranceFacing": "SOUTH",
+    "graph": {
+      "components": [
+        { "id": "Building", "type": "SHELL_BOX", "at": { "x": 0, "y": 0, "z": 0 }, "w": 18, "d": 12, "h": 14 }
+      ],
+      "connections": []
+    },
+    "macro": {
+      "style": {
+        "styleId": "Modern_International",
+        "intent": "现代主义",
+        "density": 0.5,
+        "symmetry": 0.7,
+        "verticality": 0.6,
+        "transparency": 0.8,
+        "structureExposure": 0.3
+      }
+    }
+  },
+  "expect": {
+    "expectedCultureCardId": "modern_international",
+    "mustNotOps": ["BUTTRESS", "ROSE_WINDOW", "ARCH_WINDOW"],
+    "mustMacro": {
+      "style.styleId": "Modern_International"
+    },
+    "maxOps": 400
+  }
+}
+
