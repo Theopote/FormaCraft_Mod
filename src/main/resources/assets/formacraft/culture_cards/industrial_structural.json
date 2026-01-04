@@ -3,6 +3,17 @@
   "styleId": "Industrial_Structural",
   "intents": ["INDUSTRIAL", "工业"],
   "keywords": ["工业", "结构外露", "桁架", "钢", "桥梁", "骨骼外露"],
+  "synonyms": {
+    "结构外露": ["exoskeleton", "structure exposure", "外骨骼"],
+    "桁架": ["truss", "桁架桥"],
+    "钢": ["steel", "铁"]
+  },
+  "keywordWeights": {
+    "结构外露": 5.0,
+    "桁架": 4.0,
+    "桥梁": 3.5
+  },
+  "negativeKeywords": ["禅", "日式", "神社", "花园小屋", "田园"],
   "exampleRefs": [
     "macro_style_industrial_exoskeleton.json",
     "frame_grid_3d_exoskeleton.json",

@@ -103,6 +103,9 @@ public final class ValidateCultureCardsMain {
             errs += requireStringList(mm, "intents", p.getFileName().toString(), false);
             errs += requireStringList(mm, "keywords", p.getFileName().toString(), true);
             errs += requireList(mm, "archetypes", p.getFileName().toString(), true);
+            errs += requireStringList(mm, "negativeKeywords", p.getFileName().toString(), true);
+            errs += requireStringListMap(mm, "synonyms", p.getFileName().toString());
+            errs += requireDoubleMap(mm, "keywordWeights", p.getFileName().toString());
 
             // exampleRefs: optional at root
             errs += validateExampleRefs(mm.get("exampleRefs"), exampleNames, p.getFileName().toString(), "$.exampleRefs");
@@ -194,6 +197,63 @@ public final class ValidateCultureCardsMain {
             if (!(it instanceof String s) || s.trim().isEmpty()) {
                 System.err.println("[validateCultureCards] ERROR " + file + " : " + k + "[" + i + "] must be non-empty string");
                 e++;
+            }
+        }
+        return e;
+    }
+
+    private static int requireStringListMap(Map<?, ?> m, String k, String file) {
+        Object v = m.get(k);
+        if (v == null) return 0;
+        if (!(v instanceof Map<?, ?> mm)) {
+            System.err.println("[validateCultureCards] ERROR " + file + " : " + k + " must be a map<string, string[]>");
+            return 1;
+        }
+        int e = 0;
+        for (var ent : mm.entrySet()) {
+            if (!(ent.getKey() instanceof String ks) || ks.trim().isEmpty()) {
+                System.err.println("[validateCultureCards] ERROR " + file + " : " + k + " key must be non-empty string");
+                e++;
+                continue;
+            }
+            Object vv = ent.getValue();
+            if (!(vv instanceof List<?> list)) {
+                System.err.println("[validateCultureCards] ERROR " + file + " : " + k + "." + ks + " must be string[]");
+                e++;
+                continue;
+            }
+            for (int i = 0; i < list.size(); i++) {
+                Object it = list.get(i);
+                if (!(it instanceof String s) || s.trim().isEmpty()) {
+                    System.err.println("[validateCultureCards] ERROR " + file + " : " + k + "." + ks + "[" + i + "] must be non-empty string");
+                    e++;
+                }
+            }
+        }
+        return e;
+    }
+
+    private static int requireDoubleMap(Map<?, ?> m, String k, String file) {
+        Object v = m.get(k);
+        if (v == null) return 0;
+        if (!(v instanceof Map<?, ?> mm)) {
+            System.err.println("[validateCultureCards] ERROR " + file + " : " + k + " must be a map<string, number>");
+            return 1;
+        }
+        int e = 0;
+        for (var ent : mm.entrySet()) {
+            if (!(ent.getKey() instanceof String ks) || ks.trim().isEmpty()) {
+                System.err.println("[validateCultureCards] ERROR " + file + " : " + k + " key must be non-empty string");
+                e++;
+                continue;
+            }
+            Object vv = ent.getValue();
+            if (!(vv instanceof Number)) {
+                try { Double.parseDouble(String.valueOf(vv).trim()); }
+                catch (Exception ex) {
+                    System.err.println("[validateCultureCards] ERROR " + file + " : " + k + "." + ks + " must be number");
+                    e++;
+                }
             }
         }
         return e;

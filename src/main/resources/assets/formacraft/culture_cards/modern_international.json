@@ -3,6 +3,17 @@
   "styleId": "Modern_International",
   "intents": ["MODERN", "现代主义", "INTERNATIONAL_STYLE"],
   "keywords": ["现代主义", "国际主义", "少即是多", "幕墙", "方盒子", "平屋顶", "包豪斯"],
+  "synonyms": {
+    "幕墙": ["curtain wall", "玻璃幕墙"],
+    "包豪斯": ["bauhaus", "Bauhaus"],
+    "平屋顶": ["flat roof"]
+  },
+  "keywordWeights": {
+    "幕墙": 5.0,
+    "包豪斯": 4.0,
+    "平屋顶": 3.5
+  },
+  "negativeKeywords": ["哥特", "教堂", "飞扶壁", "中世纪", "古典柱廊", "神庙"],
   "exampleRefs": [
     "macro_modern_tower.json",
     "box_modern_curtainwall.json",

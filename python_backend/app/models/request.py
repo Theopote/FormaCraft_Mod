@@ -45,6 +45,17 @@ class ProtectedZone(BaseModel):
     max: Vec3i
 
 
+class RagBudget(BaseModel):
+    """
+    P0: RAG prompt injection budget. If omitted, server env defaults apply.
+    """
+    topK: Optional[int] = None
+    fewShotK: Optional[int] = None
+    maxItems: Optional[int] = None
+    maxExampleChars: Optional[int] = None
+    maxChars: Optional[int] = None
+
+
 class BuildRequest(BaseModel):
     """
     Minecraft → Python 的请求结构
@@ -72,4 +83,6 @@ class BuildRequest(BaseModel):
     # 新增：LLM Provider / Base URL（用于 DeepSeek/OpenAI-compatible/本地服务）
     llmProvider: Optional[str] = None
     llmBaseUrl: Optional[str] = None
+
+    ragBudget: Optional[RagBudget] = None
 

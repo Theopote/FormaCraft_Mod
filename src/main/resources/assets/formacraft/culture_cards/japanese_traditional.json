@@ -3,6 +3,17 @@
   "styleId": "Japanese_Traditional",
   "intents": ["ZEN", "禅意", "TRADITIONAL"],
   "keywords": ["日式", "神社", "茶室", "障子", "木构", "水平线条", "唐破风", "非对称"],
+  "synonyms": {
+    "障子": ["shoji", "纸门", "拉门"],
+    "神社": ["shrine", "鸟居"],
+    "唐破风": ["kara-hafu", "唐破风屋顶"]
+  },
+  "keywordWeights": {
+    "障子": 4.5,
+    "茶室": 4.0,
+    "神社": 4.0
+  },
+  "negativeKeywords": ["工业", "结构外露", "桁架", "哥特", "飞扶壁", "幕墙"],
   "exampleRefs": [
     "box_japanese_facade.json"
   ],

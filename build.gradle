@@ -85,6 +85,14 @@ tasks.register('evalAssemblyCases', JavaExec) {
 	args 'src/main/resources/assets/formacraft/eval_cases'
 }
 
+tasks.register('demoCultureRetrieve', JavaExec) {
+	group = 'application'
+	description = 'Demo: keyword retrieval over culture_cards, prints retrieval + draft + few-shots.'
+	dependsOn tasks.named('classes')
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.formacraft.tools.DemoCultureRetrieveMain'
+}
+
 tasks.named('check') {
 	dependsOn tasks.named('validateAssemblyExamples')
 	dependsOn tasks.named('validateCultureCards')

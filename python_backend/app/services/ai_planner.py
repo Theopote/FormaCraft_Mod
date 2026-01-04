@@ -37,6 +37,59 @@ _LLM_CALL_TIMEOUT_COMPOSITE_SEC = float(os.getenv("LLM_CALL_TIMEOUT_COMPOSITE_SE
 _LLM_CALL_TIMEOUT_CITY_SEC = float(os.getenv("LLM_CALL_TIMEOUT_CITY_SEC", "600"))
 
 
+def _int_env(name: str, default: int) -> int:
+    try:
+        v = os.getenv(name)
+        if v is None or str(v).strip() == "":
+            return default
+        return int(float(str(v).strip()))
+    except Exception:
+        return default
+
+
+def _resolve_rag_budget(req: Optional[BuildRequest]) -> dict:
+    """
+    RAG prompt-injection budget.
+    Priority: request.ragBudget.* > env vars > defaults.
+    """
+    # defaults (conservative)
+    topK = _int_env("RAG_TOPK", 3)
+    fewShotK = _int_env("RAG_FEWSHOTK", 3)
+    maxItems = _int_env("RAG_MAX_ITEMS", 2)
+    maxExampleChars = _int_env("RAG_MAX_EXAMPLE_CHARS", 1600)
+    maxChars = _int_env("RAG_MAX_CHARS", 6000)
+
+    if req is not None:
+        rb = getattr(req, "ragBudget", None)
+        if rb is not None:
+            for k in ("topK", "fewShotK", "maxItems", "maxExampleChars", "maxChars"):
+                try:
+                    v = getattr(rb, k, None)
+                    if v is None:
+                        continue
+                    iv = int(v)
+                    if k == "topK":
+                        topK = max(1, iv)
+                    elif k == "fewShotK":
+                        fewShotK = max(0, iv)
+                    elif k == "maxItems":
+                        maxItems = max(0, iv)
+                    elif k == "maxExampleChars":
+                        maxExampleChars = max(200, iv)
+                    elif k == "maxChars":
+                        maxChars = max(400, iv)
+                except Exception:
+                    pass
+
+    return dict(
+        topK=topK,
+        fewShotK=fewShotK,
+        maxItems=maxItems,
+        maxExampleChars=maxExampleChars,
+        maxChars=maxChars,
+    )
+
+
 def _call_with_timeout(fn, timeout_sec: float):
     """Run a blocking function with a hard timeout; do not block shutdown on timeout."""
     ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -117,6 +170,10 @@ def _build_system_prompt() -> str:
         "- If you set extra.styleProfileId, you MAY omit extra.paletteId (it will fallback to the style profile default palette).\n"
         "- If you set extra.paletteId, it MUST be one of the palette IDs listed in PaletteCatalog.\n"
         "- NEVER invent unknown styleProfileId/paletteId. If unsure, omit them.\n"
+        "\nRAG context (optional):\n"
+        "- The user prompt may include a CultureRetrieval(JSON) block.\n"
+        "- If provided, you SHOULD use it as a strong hint (few-shot + assemblyDraft.macro.style).\n"
+        "- Do NOT copy it into output; only use it to decide extra.styleProfileId/extra.paletteId/extra.assembly.\n"
         "\nLayout IR (optional, strongly recommended when the user asks for symmetry/axis/courtyard/entrance direction):\n"
         "- You MAY set extra.layout as a JSON object with:\n"
         "  - entranceFacing: 'NORTH'|'SOUTH'|'EAST'|'WEST'\n"
@@ -187,6 +244,17 @@ def _build_user_prompt(req: BuildRequest) -> str:
         parts.append("\nChat History:")
         for msg in req.chatHistory:
             parts.append(f"  {msg}")
+
+    # Keyword-based cultural retrieval (P0 RAG): culture_cards -> few-shot + assemblyDraft (macro.style)
+    try:
+        from app.services.keyword_culture_retriever import retrieve_budgeted as _culture_retrieve
+        qtext = (req.requestText or "") + "\n" + (getattr(req, "userMessage", None) or "")
+        rag = _culture_retrieve(qtext, **_resolve_rag_budget(req))
+        if rag and (rag.get("hits") or rag.get("fewShots")):
+            parts.append("\nCultureRetrieval(JSON):")
+            parts.append(json.dumps(rag, ensure_ascii=False))
+    except Exception:
+        pass
 
     # Provide data-driven style profile candidates (multiple-choice), so the model can set extra.styleProfileId deterministically.
     try:

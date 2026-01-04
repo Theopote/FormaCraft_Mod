@@ -14,6 +14,9 @@
 - **`styleId`**: string（必填，风格主键/桶名）
 - **`intents`**: string[]（可选，建议填写）
 - **`keywords`**: string[]（必填，检索关键词）
+- **`synonyms`**: map<string, string[]>（可选，同义词扩展，key 为关键词，value 为同义词列表）
+- **`keywordWeights`**: map<string, number>（可选，关键词权重，默认 3；可把“玫瑰花窗/飞扶壁”等提升权重）
+- **`negativeKeywords`**: string[]（可选，负向词；命中会惩罚分数，用于降低风格串味）
 - **`exampleRefs`**: string[]（可选，引用 `assembly_examples/*.json`，用于 Few-shot/对照）
 - **`archetypes`**: object[]（必填）
   - **`name`**: string

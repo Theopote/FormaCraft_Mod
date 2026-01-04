@@ -3,6 +3,17 @@
   "styleId": "Gothic_Cathedral",
   "intents": ["SACRED", "神圣"],
   "keywords": ["哥特", "教堂", "尖拱", "玫瑰花窗", "飞扶壁", "垂直性", "彩窗"],
+  "synonyms": {
+    "玫瑰花窗": ["rose window", "rose", "圆花窗"],
+    "飞扶壁": ["flying buttress", "扶壁"],
+    "尖拱": ["pointed arch", "尖顶拱"]
+  },
+  "keywordWeights": {
+    "玫瑰花窗": 5.0,
+    "飞扶壁": 4.0,
+    "尖拱": 4.0
+  },
+  "negativeKeywords": ["现代", "现代主义", "幕墙", "玻璃摩天楼", "包豪斯", "极简"],
   "exampleRefs": [
     "macro_style_gothic_box.json",
     "box_gothic_vertical.json",

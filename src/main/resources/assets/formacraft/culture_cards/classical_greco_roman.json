@@ -3,6 +3,17 @@
   "styleId": "Classical_GrecoRoman",
   "intents": ["CLASSICAL", "古典"],
   "keywords": ["古希腊", "古罗马", "柱廊", "三角门楣", "比例", "神庙", "万神殿"],
+  "synonyms": {
+    "柱廊": ["colonnade", "列柱"],
+    "三角门楣": ["pediment", "山花"],
+    "万神殿": ["pantheon", "穹顶", "dome"]
+  },
+  "keywordWeights": {
+    "柱廊": 4.0,
+    "三角门楣": 4.0,
+    "万神殿": 4.0
+  },
+  "negativeKeywords": ["哥特", "玫瑰花窗", "飞扶壁", "幕墙", "赛博朋克"],
   "exampleRefs": [
     "box_classical_bands_columns.json"
   ],
