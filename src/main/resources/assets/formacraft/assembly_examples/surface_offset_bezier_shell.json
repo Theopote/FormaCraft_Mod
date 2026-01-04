@@ -8,6 +8,11 @@
       "offset": 1,
       "shellThickness": 3,
       "mode": "BOTH",
+      "normalMode": "DDA",
+      "stepLen": 0.75,
+      "dedupe": true,
+      "connectSamples": true,
+      "connectMaxStep": 3,
       "material": "minecraft:white_concrete",
       "source": {
         "kind": "BEZIER_SURFACE",

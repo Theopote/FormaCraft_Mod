@@ -154,6 +154,11 @@ public final class AssemblySpecValidator {
                     "capMaterial", "cap_material",
                     // surface offset / implicit / marching
                     "source", "offset", "distance", "shellThickness", "shell_thickness",
+                    "normalMode", "normal_mode",
+                    "stepLen", "step_len",
+                    "dedupe", "deDupe",
+                    "connect_samples",
+                    "connect_max_step",
                     "field", "center", "cx", "cy", "cz", "r", "radius", "R", "majorR", "r2", "minorR",
                     "metaballs", "iso", "band",
                     "r0", "r1", "radius0", "radius1",
@@ -439,6 +444,20 @@ public final class AssemblySpecValidator {
                 if (m.get("vSamples") != null || m.get("v") != null) requireIntMin(out, p, m, "vSamples", 2);
                 if (m.get("offset") != null || m.get("distance") != null) requireIntIfPresent(out, p, m, "offset");
                 if (m.get("shellThickness") != null || m.get("shell_thickness") != null) requireIntMin(out, p, m, "shellThickness", 1);
+                if (m.get("normalMode") != null || m.get("normal_mode") != null) {
+                    String nm = str(m.get("normalMode"), str(m.get("normal_mode"), "")).trim().toUpperCase(Locale.ROOT);
+                    if (!nm.isEmpty() && !(nm.equals("DDA") || nm.equals("AXIS"))) {
+                        out.add(warn(p + ".normalMode", "W_SURF_OFFSET_NORMAL_MODE", "normalMode 建议 DDA/AXIS（当前=" + nm + "）"));
+                    }
+                }
+                if (m.get("stepLen") != null || m.get("step_len") != null || m.get("step") != null) {
+                    Double sl = doubleOrNull(m.get("stepLen"));
+                    if (sl == null) sl = doubleOrNull(m.get("step_len"));
+                    if (sl == null) sl = doubleOrNull(m.get("step"));
+                    if (sl == null) out.add(err(p + ".stepLen", "E_DOUBLE", "stepLen/step 必须是数字"));
+                    else if (sl < 0.25 || sl > 4.0) out.add(warn(p + ".stepLen", "W_RANGE", "stepLen 建议在 0.25..4.0（当前=" + sl + "）"));
+                }
+                if (m.get("connectMaxStep") != null || m.get("connect_max_step") != null) requireIntMin(out, p, m, "connectMaxStep", 1);
             }
             if (op.equals("IMPLICIT_FIELD")) {
                 // bounds or w/d/h

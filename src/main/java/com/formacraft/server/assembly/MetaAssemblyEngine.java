@@ -1198,13 +1198,18 @@ public final class MetaAssemblyEngine {
                 int offset = clamp(i(op.get("offset"), i(op.get("distance"), 0)), -32, 32);
                 int shellT = clamp(i(op.get("shellThickness"), i(op.get("thickness"), 2)), 1, 16);
                 String mode = str(op.get("mode"), "BOTH").trim().toUpperCase(Locale.ROOT);
+                String normalMode = str(op.get("normalMode"), str(op.get("normal_mode"), "DDA")).trim().toUpperCase(Locale.ROOT);
+                double stepLen = Math.max(0.25, Math.min(4.0, d(op.get("stepLen"), d(op.get("step_len"), d(op.get("step"), 1.0)))));
+                boolean dedupe = bool(op.get("dedupe"), bool(op.get("deDupe"), true));
+                boolean connect = bool(op.get("connectSamples"), bool(op.get("connect_samples"), false));
+                int connectMaxStep = clamp(i(op.get("connectMaxStep"), i(op.get("connect_max_step"), 2)), 1, 16);
                 BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x51AFC0L, Blocks.QUARTZ_BLOCK.getDefaultState());
 
                 if (kind.equals("BEZIER_SURFACE")) {
                     List<int[]> ctrl = readBezierControlPoints(sm.get("points"));
                     if (ctrl == null || ctrl.size() != 16) break;
                     int[][][] grid = sampleBezierSurface(ctrl, uN, vN);
-                    surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, mat);
+                    surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, normalMode, stepLen, dedupe, connect, connectMaxStep, mat);
                 } else if (kind.equals("BEZIER_SURFACE_SET")) {
                     Object patchesObj = sm.get("patches");
                     if (!(patchesObj instanceof List<?> pl) || pl.isEmpty()) break;
@@ -1227,7 +1232,7 @@ public final class MetaAssemblyEngine {
                         java.util.ArrayList<int[]> ctrl = new java.util.ArrayList<>(16);
                         for (int[] p : ctrl0) ctrl.add(new int[]{p[0] + ox, p[1] + oy, p[2] + oz});
                         int[][][] grid = sampleBezierSurface(ctrl, uN, vN);
-                        surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, mat);
+                        surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, normalMode, stepLen, dedupe, connect, connectMaxStep, mat);
                     }
                 }
             }
@@ -3593,10 +3598,17 @@ public final class MetaAssemblyEngine {
                                               int offset,
                                               int shellT,
                                               String mode,
+                                              String normalMode,
+                                              double stepLen,
+                                              boolean dedupe,
+                                              boolean connect,
+                                              int connectMaxStep,
                                               BlockState mat) {
         if (grid == null) return;
         boolean outSide = mode.isBlank() || mode.equals("BOTH") || mode.equals("OUT") || mode.equals("OUTWARD");
         boolean inSide = mode.equals("BOTH") || mode.equals("IN") || mode.equals("INWARD");
+        String nm = (normalMode == null) ? "DDA" : normalMode.trim().toUpperCase(Locale.ROOT);
+        double st = (stepLen <= 0) ? 1.0 : stepLen;
 
         for (int iu = 0; iu <= uN; iu++) {
             for (int iv = 0; iv <= vN; iv++) {
@@ -3620,33 +3632,124 @@ public final class MetaAssemblyEngine {
                 long nz = (long) dux * dvy - (long) duy * dvx;
                 if (nx == 0 && ny == 0 && nz == 0) continue;
 
-                // P0: choose dominant axis as voxel normal direction
-                int ax = (int) Math.signum(nx);
-                int ay = (int) Math.signum(ny);
-                int az = (int) Math.signum(nz);
-                long anx = Math.abs(nx), any = Math.abs(ny), anz = Math.abs(nz);
-                int dx = 0, dy = 0, dz = 0;
-                if (anx >= any && anx >= anz) { dx = ax; dy = 0; dz = 0; }
-                else if (any >= anz) { dx = 0; dy = ay; dz = 0; }
-                else { dx = 0; dy = 0; dz = az; }
-                if (dx == 0 && dy == 0 && dz == 0) continue;
+                if (nm.equals("AXIS")) {
+                    // Legacy: choose dominant axis as voxel normal direction
+                    int ax = (int) Math.signum(nx);
+                    int ay = (int) Math.signum(ny);
+                    int az = (int) Math.signum(nz);
+                    long anx = Math.abs(nx), any = Math.abs(ny), anz = Math.abs(nz);
+                    int dx = 0, dy = 0, dz = 0;
+                    if (anx >= any && anx >= anz) { dx = ax; dy = 0; dz = 0; }
+                    else if (any >= anz) { dx = 0; dy = ay; dz = 0; }
+                    else { dx = 0; dy = 0; dz = az; }
+                    if (dx == 0 && dy == 0 && dz == 0) continue;
 
-                // outward side along (dx,dy,dz); inward is opposite
-                if (outSide) {
-                    int base = offset;
-                    for (int t = 0; t < shellT; t++) {
-                        int k = base + t;
-                        put(out, ctx, origin, p[0] + dx * k, p[1] + dy * k, p[2] + dz * k, mat);
+                    if (outSide) {
+                        int base = offset;
+                        for (int t = 0; t < shellT; t++) {
+                            int k = base + t;
+                            put(out, ctx, origin, p[0] + dx * k, p[1] + dy * k, p[2] + dz * k, mat);
+                        }
                     }
-                }
-                if (inSide) {
-                    int base = -offset;
-                    for (int t = 0; t < shellT; t++) {
-                        int k = base + t;
-                        put(out, ctx, origin, p[0] - dx * k, p[1] - dy * k, p[2] - dz * k, mat);
+                    if (inSide) {
+                        int base = -offset;
+                        for (int t = 0; t < shellT; t++) {
+                            int k = base + t;
+                            put(out, ctx, origin, p[0] - dx * k, p[1] - dy * k, p[2] - dz * k, mat);
+                        }
+                    }
+                } else {
+                    // DDA: continuous unit normal, multi-step discrete walk (rounding each step)
+                    double len = Math.sqrt((double) nx * nx + (double) ny * ny + (double) nz * nz);
+                    if (len < 1e-6) continue;
+                    double ux = nx / len;
+                    double uy = ny / len;
+                    double uz = nz / len;
+
+                    if (outSide) {
+                        ddaWalkPut(out, ctx, origin, p[0], p[1], p[2], ux, uy, uz, offset, shellT, st, dedupe, connect, connectMaxStep, mat);
+                    }
+                    if (inSide) {
+                        ddaWalkPut(out, ctx, origin, p[0], p[1], p[2], -ux, -uy, -uz, offset, shellT, st, dedupe, connect, connectMaxStep, mat);
                     }
                 }
             }
+        }
+    }
+
+    private static void ddaWalkPut(List<PlannedBlock> out,
+                                   Context ctx,
+                                   BlockPos origin,
+                                   int x0, int y0, int z0,
+                                   double ux, double uy, double uz,
+                                   int offset,
+                                   int shellT,
+                                   double stepLen,
+                                   boolean dedupe,
+                                   boolean connect,
+                                   int connectMaxStep,
+                                   BlockState mat) {
+        double fx = x0 + ux * offset;
+        double fy = y0 + uy * offset;
+        double fz = z0 + uz * offset;
+
+        int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
+        for (int t = 0; t < shellT; t++) {
+            int xi = (int) Math.round(fx);
+            int yi = (int) Math.round(fy);
+            int zi = (int) Math.round(fz);
+
+            if (!dedupe || xi != lastX || yi != lastY || zi != lastZ) {
+                if (connect && lastX != Integer.MIN_VALUE) {
+                    int dx = Math.abs(xi - lastX);
+                    int dy = Math.abs(yi - lastY);
+                    int dz = Math.abs(zi - lastZ);
+                    int cheb = Math.max(dx, Math.max(dy, dz));
+                    if (cheb > 1 && cheb <= connectMaxStep) {
+                        drawVoxelLine(out, ctx, origin, lastX, lastY, lastZ, xi, yi, zi, mat);
+                    } else {
+                        put(out, ctx, origin, xi, yi, zi, mat);
+                    }
+                } else {
+                    put(out, ctx, origin, xi, yi, zi, mat);
+                }
+                lastX = xi; lastY = yi; lastZ = zi;
+            }
+
+            fx += ux * stepLen;
+            fy += uy * stepLen;
+            fz += uz * stepLen;
+        }
+    }
+
+    private static void drawVoxelLine(List<PlannedBlock> out,
+                                      Context ctx,
+                                      BlockPos origin,
+                                      int x0, int y0, int z0,
+                                      int x1, int y1, int z1,
+                                      BlockState mat) {
+        int dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+        if (steps <= 0) {
+            put(out, ctx, origin, x0, y0, z0, mat);
+            return;
+        }
+        double sx = dx / (double) steps;
+        double sy = dy / (double) steps;
+        double sz = dz / (double) steps;
+        double fx = x0, fy = y0, fz = z0;
+        int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
+        for (int i = 0; i <= steps; i++) {
+            int xi = (int) Math.round(fx);
+            int yi = (int) Math.round(fy);
+            int zi = (int) Math.round(fz);
+            if (xi != lastX || yi != lastY || zi != lastZ) {
+                put(out, ctx, origin, xi, yi, zi, mat);
+                lastX = xi; lastY = yi; lastZ = zi;
+            }
+            fx += sx;
+            fy += sy;
+            fz += sz;
         }
     }
 

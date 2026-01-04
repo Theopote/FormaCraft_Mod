@@ -233,6 +233,10 @@
 - `offset`：沿法线偏移距离（格）
 - `shellThickness`：沿法线方向生成厚度
 - `mode=BOTH/OUT/IN`：双向/外向/内向
+- `normalMode=DDA/AXIS`：法线离散策略（DDA 更圆润但更贵；AXIS 更快更硬朗）
+- `stepLen`：DDA 每步的步长（<1 更细腻但更贵；默认 1）
+- `dedupe`：DDA 去重（避免多步 round 到同一格重复写入；默认 true）
+- `connectSamples/connectMaxStep`：在相邻步落点之间做短距离补线，减少孔洞（默认 false/2）
 
 ## 示例三十四：隐式曲面（IMPLICIT_FIELD：体素等值面）
 
