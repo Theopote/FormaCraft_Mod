@@ -171,9 +171,12 @@ def _build_system_prompt() -> str:
         "- If you set extra.paletteId, it MUST be one of the palette IDs listed in PaletteCatalog.\n"
         "- NEVER invent unknown styleProfileId/paletteId. If unsure, omit them.\n"
         "\nRAG context (optional):\n"
-        "- The user prompt may include a CultureRetrieval(JSON) block.\n"
-        "- If provided, you SHOULD use it as a strong hint (few-shot + assemblyDraft.macro.style).\n"
-        "- Do NOT copy it into output; only use it to decide extra.styleProfileId/extra.paletteId/extra.assembly.\n"
+        "- The user prompt may include RAG context blocks:\n"
+        "  - AssemblyDraft(JSON): A minimal assembly structure (especially macro.style) as a starting point.\n"
+        "    You SHOULD use macro.style.* fields as strong hints for extra.assembly.macro.style.\n"
+        "  - CultureRetrieval(JSON): Contains few-shot examples and hit metadata.\n"
+        "    Use fewShots as reference examples for generating extra.assembly structure.\n"
+        "- Do NOT copy these blocks into output; only use them to decide extra.styleProfileId/extra.paletteId/extra.assembly.\n"
         "\nLayout IR (optional, strongly recommended when the user asks for symmetry/axis/courtyard/entrance direction):\n"
         "- You MAY set extra.layout as a JSON object with:\n"
         "  - entranceFacing: 'NORTH'|'SOUTH'|'EAST'|'WEST'\n"
@@ -250,9 +253,21 @@ def _build_user_prompt(req: BuildRequest) -> str:
         from app.services.keyword_culture_retriever import retrieve_budgeted as _culture_retrieve
         qtext = (req.requestText or "") + "\n" + (getattr(req, "userMessage", None) or "")
         rag = _culture_retrieve(qtext, **_resolve_rag_budget(req))
-        if rag and (rag.get("hits") or rag.get("fewShots")):
-            parts.append("\nCultureRetrieval(JSON):")
-            parts.append(json.dumps(rag, ensure_ascii=False))
+        if rag:
+            # Extract assemblyDraft separately for better visibility
+            assembly_draft = rag.get("assemblyDraft")
+            if assembly_draft:
+                parts.append("\nAssemblyDraft(JSON):")
+                parts.append(json.dumps(assembly_draft, ensure_ascii=False, indent=2))
+            
+            # Include fewShots and hits in CultureRetrieval block
+            if rag.get("fewShots") or rag.get("hits"):
+                culture_retrieval = {
+                    "hits": rag.get("hits", []),
+                    "fewShots": rag.get("fewShots", []),
+                }
+                parts.append("\nCultureRetrieval(JSON):")
+                parts.append(json.dumps(culture_retrieval, ensure_ascii=False, indent=2))
     except Exception:
         pass
 
