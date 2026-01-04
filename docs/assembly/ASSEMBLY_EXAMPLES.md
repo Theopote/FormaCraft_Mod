@@ -2,6 +2,18 @@
 
 本目录提供可以直接复制到 `BuildingSpec.extra.assembly` 的示例，帮助你用“去风格化原子语法”组合出不同文化气质的建筑立面。
 
+## 设计理念：参数化建模（Parametric Modeling）
+
+Formacraft 采用**参数化建模**的思想：LLM 不是在画图，而是在调节参数滑块。通过 `macro` 参数，你可以用高层抽象（如 `roofType: "GABLE"`、`openness: 0.7`）来控制底层操作（如 `ROOF_COVER`、`OPENINGS`）。
+
+**核心概念映射**：
+- **拓扑底座（Footprint）**：建筑的二维基座形状
+  - `SHELL_BOX.{w,d}` = 矩形 footprint
+  - `EXTRUDE_POLYGON.points[]` = 多边形 footprint
+  - `macro.shapeType: "HEXAGON"` = 六边形 footprint（会自动转换为 `EXTRUDE_POLYGON`）
+- **体积（Volume）**：`graph.components[]` 中的每个组件代表一个三维体积
+- **语义材质表（Palette）**：`paletteId` 将功能语义（如 `ROOF_TILE`、`WALL_STONE`）映射到具体方块 ID
+
 ## 关键点
 
 - **立面肌理（Surface Pattern）**：由 `SURFACE_PATTERN` op 执行；你通常只需要在组件上写 `facade.surfacePattern`，编译器会自动生成 op。
@@ -50,8 +62,13 @@
 
 ## 宏参数表（P0）：`assembly.macro`（高层滑块 -> 低层原子语法）
 
-当你希望 LLM 用更接近“基因表”的方式输出，而不是直接写大量细节字段，可以使用 `macro`。
+当你希望 LLM 用更接近"基因表"的方式输出，而不是直接写大量细节字段，可以使用 `macro`。
 执行管线是：**normalize → apply macro → validate → compile/execute**，并且遵循 **显式参数优先**（macro 只在缺省时注入/改写）。
+
+**参数化建模的优势**：
+- **简化 LLM 输出**：不需要写完整的 `facade.openings` 细节，只需 `openness: 0.7`
+- **风格一致性**：通过 `style` 宏，自动注入风格相关的操作（如哥特式的 `BUTTRESS`、工业的 `FRAME_GRID_3D`）
+- **可组合性**：多个 macro 参数可以组合使用，如 `roofType: "GABLE"` + `roofCurvature: "HIGH"` + `overhang: "LARGE"`
 
 当前支持的宏字段（P0）：
 - `primaryComponent`：宏作用的主组件 id（默认取第一个组件）
@@ -62,9 +79,28 @@
 - `roofType`：`FLAT/GABLE`（若当前没有屋顶组件，会自动添加一个 `ROOF_COVER`）
 - `overhang`：`NONE/SMALL/MEDIUM/LARGE`（影响自动添加屋顶的 overhang）
 - `roofCurvature`：0..1 或 `LOW/MEDIUM/HIGH`（驱动 `ROOF_COVER.rise`；不覆盖显式 rise）
+- `roofCurvaturePower`：0.1~3.0（Forma-Gene 集成：曲率幂次，1.0=线性，>1.0=凹曲线，<1.0=凸曲线）
+- `roofCornerLift`：0.0~2.0（Forma-Gene 集成：飞檐翘角系数，用于中式/日式/泰式屋顶）
+- `verticalProfile`：分段垂直操作（Forma-Gene 集成：将单个 `SHELL_BOX` 分解为多个分段，实现塔楼、金字塔等收缩/扩张效果）
+  - 输入：数组 `[{height: 5, scaleTop: 1.0}, {height: 4, scaleTop: 0.6}]`
+  - 输出：自动将主组件替换为多个 `SHELL_BOX` 分段，每个分段有不同的高度和 w/d 缩放
+  - 应用场景：塔楼、金字塔、阶梯式建筑、收缩式结构
+- `SHELL_BOX.twistTurns` / `SHELL_BOX.twistPhase`：扭转操作（Forma-Gene 集成：P2）
+  - `twistTurns`：扭转圈数（-2.0~2.0，如 0.25=90°、0.5=180°、1.0=360°）
+  - `twistPhase`：初始相位（0.0~1.0，控制起始旋转角度）
+  - 应用场景：DNA 塔、螺旋楼梯、扭转式建筑
+- `facade.surfacePattern.pattern: "NOISE"`：表面纹理噪点（Forma-Gene 集成：P2）
+  - `noiseMaterial`：噪点材质（默认使用 `accent`）
+  - `noiseProbability`：噪点概率（0.0~1.0，默认 0.2）
+  - `noiseMethod`：噪点方法（`PERLIN`/`RANDOM`/`HASH`，默认 `HASH`）
+  - 应用场景：增强建筑表面真实感，模拟风化、磨损、随机纹理
 - `bridgeTower`：桥塔一键注入（会向 `graph.components` 添加：`SHELL_BOX` 塔体 + `ANCHOR_FOOTPRINT` 深基础 + 顶部 `CYLINDER` 索鞍滚轮）
   - 并会在桥塔组件上补一组 `ports` 语义端口别名，便于连接缆索/道路：`Tower.saddle_left/right/saddle_center`、`Tower.cable_top` 等
   - 可选：`notch` / `notch*` + `holes`：在塔顶 **carve 索鞍槽 + 穿索孔**（宏会注入 `CLEAR_BOX` 雕刻组件）
+- `subtractHoles`：Boolean 运算辅助（**参数化挖洞**）
+  - 输入：数组 `[{type: "RECTANGLE", w: 6, d: 6, at: {x: 0, z: 0}}]`
+  - 输出：自动生成 `CLEAR_BOX` 组件，实现挖洞效果（如四合院的中空庭院、土楼的圆形中空）
+  - 位置：相对于主组件的原点，默认居中（`at` 可覆盖）
 - `style` / `culture`：文化/风格宏（**上层滑块 → 原子组合注入**）
   - 输入：`styleId + intent + density/symmetry/verticality/transparency/structureExposure`
   - 输出（P0 覆盖）：会自动注入 `paletteId`、`facade.openings/surfaceBands`、以及结构原子（例如 `BUTTRESS` 或 `FRAME_GRID_3D`）

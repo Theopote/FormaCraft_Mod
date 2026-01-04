@@ -1,0 +1,27 @@
+{
+  "paletteId": "PALETTE_JIANGNAN_WATERTOWN_A",
+  "entranceFacing": "SOUTH",
+  "macro": {
+    "primaryComponent": "Main",
+    "roofType": "GABLE",
+    "roofCurvature": "HIGH",
+    "roofCurvaturePower": 1.8,
+    "roofCornerLift": 1.2,
+    "overhang": "LARGE"
+  },
+  "graph": {
+    "components": [
+      {
+        "id": "Main",
+        "type": "SHELL_BOX",
+        "at": { "x": 0, "y": 0, "z": 0 },
+        "w": 18,
+        "d": 14,
+        "h": 10,
+        "wall": "minecraft:white_terracotta",
+        "floor": "minecraft:smooth_stone"
+      }
+    ]
+  }
+}
+

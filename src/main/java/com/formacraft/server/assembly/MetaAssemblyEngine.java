@@ -268,6 +268,9 @@ public final class MetaAssemblyEngine {
                 int d = clamp(i(op.get("d"), 15), 5, 129);
                 int h = clamp(i(op.get("h"), 18), 6, 255);
                 int floorStep = clamp(i(op.get("floorStep"), 4), 3, 8);
+                // Forma-Gene integration: twist support (twistTurns: number of full rotations, e.g., 0.25 = 90°, 1.0 = 360°)
+                double twistTurns = clamp(d(op.get("twistTurns"), d(op.get("twist_turns"), 0.0)), -2.0, 2.0);
+                double twistPhase = clamp(d(op.get("twistPhase"), d(op.get("twist_phase"), 0.0)), 0.0, 1.0);
 
                 BlockState wall = pick(ctx, op, "wall", "WALL_BASE", 0xA55001L, Blocks.STONE_BRICKS.getDefaultState());
                 BlockState glass = pick(ctx, op, "window", "WINDOW", 0xA55002L, Blocks.GLASS_PANE.getDefaultState());
@@ -278,38 +281,88 @@ public final class MetaAssemblyEngine {
                 int halfW = w / 2;
                 int halfD = d / 2;
 
+                boolean hasTwist = Math.abs(twistTurns) > 0.001;
+
                 // shell walls
                 for (int yy = 0; yy <= h; yy++) {
                     boolean windowBand = (yy % 4 == 2) && yy <= h - 2;
+                    double t = h > 0 ? (double) yy / h : 0.0; // 0..1
+                    double angle = (twistTurns * Math.PI * 2.0) * t + (twistPhase * Math.PI * 2.0);
+                    double cosA = Math.cos(angle);
+                    double sinA = Math.sin(angle);
+
                     for (int x = -halfW; x <= halfW; x++) {
                         for (int z = -halfD; z <= halfD; z++) {
                             boolean edge = (Math.abs(x) == halfW) || (Math.abs(z) == halfD);
                             if (!edge) continue;
+
+                            int finalX = x;
+                            int finalZ = z;
+                            if (hasTwist) {
+                                // Rotate coordinates around center (0,0)
+                                double rx = x * cosA - z * sinA;
+                                double rz = x * sinA + z * cosA;
+                                finalX = (int) Math.round(rx);
+                                finalZ = (int) Math.round(rz);
+                            }
+
                             BlockState s = wall;
                             if (windowBand && (Math.abs(x) != halfW || Math.abs(z) != halfD)) s = glass;
-                            put(out, ctx, curOrigin, x, yy, z, s);
+                            put(out, ctx, curOrigin, finalX, yy, finalZ, s);
                         }
                     }
                 }
 
-                // floors
+                // floors (with twist)
                 for (int yy = 0; yy <= h; yy += floorStep) {
+                    double t = h > 0 ? (double) yy / h : 0.0;
+                    double angle = (twistTurns * Math.PI * 2.0) * t + (twistPhase * Math.PI * 2.0);
+                    double cosA = Math.cos(angle);
+                    double sinA = Math.sin(angle);
+
                     for (int x = -halfW + 1; x <= halfW - 1; x++) {
                         for (int z = -halfD + 1; z <= halfD - 1; z++) {
-                            put(out, ctx, curOrigin, x, yy, z, floor);
+                            int finalX = x;
+                            int finalZ = z;
+                            if (hasTwist) {
+                                double rx = x * cosA - z * sinA;
+                                double rz = x * sinA + z * cosA;
+                                finalX = (int) Math.round(rx);
+                                finalZ = (int) Math.round(rz);
+                            }
+                            put(out, ctx, curOrigin, finalX, yy, finalZ, floor);
                         }
                     }
                 }
 
-                // roof cap (best-effort)
-                for (int x = -halfW; x <= halfW; x++) {
-                    for (int z = -halfD; z <= halfD; z++) {
-                        put(out, ctx, curOrigin, x, h + 1, z, roof);
+                // roof cap (with twist)
+                if (h > 0) {
+                    double angle = (twistTurns * Math.PI * 2.0) + (twistPhase * Math.PI * 2.0);
+                    double cosA = Math.cos(angle);
+                    double sinA = Math.sin(angle);
+                    for (int x = -halfW; x <= halfW; x++) {
+                        for (int z = -halfD; z <= halfD; z++) {
+                            int finalX = x;
+                            int finalZ = z;
+                            if (hasTwist) {
+                                double rx = x * cosA - z * sinA;
+                                double rz = x * sinA + z * cosA;
+                                finalX = (int) Math.round(rx);
+                                finalZ = (int) Math.round(rz);
+                            }
+                            put(out, ctx, curOrigin, finalX, h + 1, finalZ, roof);
+                        }
                     }
                 }
 
-                // hollow interior
-                fillBox(out, ctx, curOrigin, -halfW + 1, 1, -halfD + 1, halfW - 1, h, halfD - 1, Blocks.AIR.getDefaultState());
+                // hollow interior (approximate with twist - use bounding box)
+                if (hasTwist) {
+                    // For twisted boxes, clear a larger bounding box to ensure interior is hollow
+                    int maxRadius = (int) Math.ceil(Math.sqrt(halfW * halfW + halfD * halfD));
+                    fillBox(out, ctx, curOrigin, -maxRadius, 1, -maxRadius, maxRadius, h, maxRadius, Blocks.AIR.getDefaultState());
+                } else {
+                    fillBox(out, ctx, curOrigin, -halfW + 1, 1, -halfD + 1, halfW - 1, h, halfD - 1, Blocks.AIR.getDefaultState());
+                }
             }
             case "CYLINDER" -> {
                 // Cylinder (filled or hollow shell) in local coords centered at current origin.
@@ -1732,6 +1785,10 @@ public final class MetaAssemblyEngine {
                 int yBase = i(op.get("y"), 0);
                 int overhang = clamp(i(op.get("overhang"), 0), 0, 8);
                 int rise = clamp(i(op.get("rise"), Math.max(2, Math.min(6, Math.max(w, d) / 6))), 1, 32);
+                // Forma-Gene integration: curvature power (0.0=linear, >0=concave curve, <0=convex curve)
+                double curvaturePower = clamp(d(op.get("curvaturePower"), d(op.get("curvature_power"), 1.0)), 0.1, 3.0);
+                // Forma-Gene integration: corner lift factor (0.0=none, >0=lift corners for Chinese/Japanese eaves)
+                double cornerLift = clamp(d(op.get("cornerLift"), d(op.get("corner_lift"), 0.0)), 0.0, 2.0);
 
                 BlockState roof = pick(ctx, op, "roof", "ROOF_TILE", 0xA55501L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
                 BlockState slab = pick(ctx, op, "slab", "FLOOR_SLAB", 0xA55502L, Blocks.SMOOTH_STONE_SLAB.getDefaultState());
@@ -1755,35 +1812,52 @@ public final class MetaAssemblyEngine {
                 }
 
                 if (ridgeAlongX) {
-                    // slope along Z
+                    // slope along Z with curvature power
+                    int spanZ = z1 - z0;
                     for (int step = 0; step < rise; step++) {
-                        int y = yBase + step;
-                        int zz0 = z0 + step;
-                        int zz1 = z1 - step;
+                        double t = (double) step / Math.max(1, rise - 1); // 0..1
+                        // Apply curvature power: t^power (concave curve for power>1, linear for power=1)
+                        double curvedT = Math.pow(t, curvaturePower);
+                        int y = yBase + (int) Math.round(curvedT * rise);
+                        int zz0 = z0 + (int) Math.round(curvedT * spanZ / 2);
+                        int zz1 = z1 - (int) Math.round(curvedT * spanZ / 2);
                         if (zz0 > zz1) break;
-                        Direction faceNorth = Direction.NORTH; // local facing
+                        
+                        // Corner lift: add extra height at corners (x0/x1 positions) - max at mid-rise
+                        int cornerLiftY = (int) Math.round(cornerLift * (1.0 - Math.abs(t - 0.5) * 2.0));
+                        
+                        Direction faceNorth = Direction.NORTH;
                         Direction faceSouth = Direction.SOUTH;
                         BlockState sN = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, faceNorth) : roof;
                         BlockState sS = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, faceSouth) : roof;
                         for (int x = x0; x <= x1; x++) {
-                            put(out, ctx, curOrigin, x, y, zz0, sS); // south-facing stair on north slope edge
-                            put(out, ctx, curOrigin, x, y, zz1, sN); // north-facing stair on south slope edge
+                            int finalY = y + (cornerLiftY > 0 && (x == x0 || x == x1) ? cornerLiftY : 0);
+                            put(out, ctx, curOrigin, x, finalY, zz0, sS);
+                            put(out, ctx, curOrigin, x, finalY, zz1, sN);
                         }
                     }
                 } else {
-                    // slope along X
+                    // slope along X with curvature power
+                    int spanX = x1 - x0;
                     for (int step = 0; step < rise; step++) {
-                        int y = yBase + step;
-                        int xx0 = x0 + step;
-                        int xx1 = x1 - step;
+                        double t = (double) step / Math.max(1, rise - 1);
+                        double curvedT = Math.pow(t, curvaturePower);
+                        int y = yBase + (int) Math.round(curvedT * rise);
+                        int xx0 = x0 + (int) Math.round(curvedT * spanX / 2);
+                        int xx1 = x1 - (int) Math.round(curvedT * spanX / 2);
                         if (xx0 > xx1) break;
+                        
+                        // Corner lift
+                        int cornerLiftY = (int) Math.round(cornerLift * (1.0 - Math.abs(t - 0.5) * 2.0));
+                        
                         Direction faceWest = Direction.WEST;
                         Direction faceEast = Direction.EAST;
                         BlockState sW = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, faceWest) : roof;
                         BlockState sE = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, faceEast) : roof;
                         for (int z = z0; z <= z1; z++) {
-                            put(out, ctx, curOrigin, xx0, y, z, sE);
-                            put(out, ctx, curOrigin, xx1, y, z, sW);
+                            int finalY = y + (cornerLiftY > 0 && (z == z0 || z == z1) ? cornerLiftY : 0);
+                            put(out, ctx, curOrigin, xx0, finalY, z, sE);
+                            put(out, ctx, curOrigin, xx1, finalY, z, sW);
                         }
                     }
                 }
@@ -2082,9 +2156,13 @@ public final class MetaAssemblyEngine {
                 // - face: NORTH/SOUTH/EAST/WEST (local)
                 // - x0..x1,y0..y1,z0..z1 bounds (local)
                 // Optional:
-                // - pattern: GRID / STRIPES_V / STRIPES_H / RIBS_V / RIBS_H
-                // - step: spacing
-                // - thickness: rib thickness
+                // - pattern: GRID / STRIPES_V / STRIPES_H / RIBS_V / RIBS_H / NOISE
+                // - step: spacing (for GRID/STRIPES/RIBS)
+                // - thickness: rib thickness (for RIBS)
+                // Forma-Gene integration: NOISE pattern support
+                // - noiseMaterial: material for noise overlay (default: accent)
+                // - noiseProbability: probability 0.0~1.0 (default: 0.2)
+                // - noiseMethod: "PERLIN" / "RANDOM" / "HASH" (default: "HASH")
                 String face = str(op.get("face"), "NORTH").trim().toUpperCase(Locale.ROOT);
                 String pattern = str(op.get("pattern"), "GRID").trim().toUpperCase(Locale.ROOT);
                 int step = clamp(i(op.get("step"), i(op.get("spacing"), 3)), 1, 16);
@@ -2100,14 +2178,50 @@ public final class MetaAssemblyEngine {
                 BlockState accent = pick(ctx, op, "material", "FACADE_ACCENT", 0xA57001L,
                         pick(ctx, op, "accent", "DECOR_DETAIL", 0xA57002L, Blocks.STONE_BRICK_WALL.getDefaultState()));
 
+                // Forma-Gene integration: NOISE pattern support
+                BlockState noiseMat = accent;
+                if (pattern.equals("NOISE")) {
+                    Object nmObj = op.get("noiseMaterial");
+                    if (nmObj == null) nmObj = op.get("noise_material");
+                    if (nmObj != null) {
+                        BlockState parsed = parseBlockId(ctx.world, String.valueOf(nmObj).trim());
+                        if (parsed != null) noiseMat = parsed;
+                        else noiseMat = pick(ctx, op, "noiseMaterial", "FACADE_ACCENT", 0xA57003L, accent);
+                    }
+                }
+
+                double noiseProb = 0.2;
+                if (pattern.equals("NOISE")) {
+                    Object npObj = op.get("noiseProbability");
+                    if (npObj == null) npObj = op.get("noise_probability");
+                    if (npObj != null) {
+                        try {
+                            double v = (npObj instanceof Number n) ? n.doubleValue() : Double.parseDouble(String.valueOf(npObj));
+                            noiseProb = clamp(v, 0.0, 1.0);
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                String noiseMethod = "HASH";
+                if (pattern.equals("NOISE")) {
+                    Object nmObj = op.get("noiseMethod");
+                    if (nmObj == null) nmObj = op.get("noise_method");
+                    if (nmObj != null) {
+                        String m = String.valueOf(nmObj).trim().toUpperCase(Locale.ROOT);
+                        if (m.equals("PERLIN") || m.equals("RANDOM") || m.equals("HASH")) {
+                            noiseMethod = m;
+                        }
+                    }
+                }
+
                 if ("NORTH".equals(face)) {
-                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, ax0, ax1, ay0, ay1, az0, true);
+                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, ax0, ax1, ay0, ay1, az0, true);
                 } else if ("SOUTH".equals(face)) {
-                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, ax0, ax1, ay0, ay1, az1, true);
+                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, ax0, ax1, ay0, ay1, az1, true);
                 } else if ("WEST".equals(face)) {
-                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, az0, az1, ay0, ay1, ax0, false);
+                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, az0, az1, ay0, ay1, ax0, false);
                 } else if ("EAST".equals(face)) {
-                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, az0, az1, ay0, ay1, ax1, false);
+                    applyPatternPlane(out, ctx, curOrigin, pattern, step, thick, accent, noiseMat, noiseProb, noiseMethod, az0, az1, ay0, ay1, ax1, false);
                 }
             }
             case "FACADE_GRID" -> {
@@ -2398,6 +2512,9 @@ public final class MetaAssemblyEngine {
                                           int step,
                                           int thick,
                                           BlockState accent,
+                                          BlockState noiseMat,
+                                          double noiseProb,
+                                          String noiseMethod,
                                           int u0,
                                           int u1,
                                           int y0,
@@ -2408,20 +2525,96 @@ public final class MetaAssemblyEngine {
         int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
         for (int y = ay0; y <= ay1; y++) {
             for (int u = au0; u <= au1; u++) {
-                boolean place;
+                boolean place = false;
+                BlockState mat = accent;
+                
                 switch (pattern) {
                     case "STRIPES_V", "STRIPES_VERTICAL" -> place = (Math.floorMod(u, step) == 0);
                     case "STRIPES_H", "STRIPES_HORIZONTAL" -> place = (Math.floorMod(y, step) == 0);
                     case "RIBS_V", "RIBS_VERTICAL" -> place = (Math.floorMod(u, step) < thick);
                     case "RIBS_H", "RIBS_HORIZONTAL" -> place = (Math.floorMod(y, step) < thick);
+                    case "NOISE" -> {
+                        // Forma-Gene integration: noise overlay
+                        double noiseValue = 0.0;
+                        int x = uIsX ? u : fixed;
+                        int z = uIsX ? fixed : u;
+                        long seed = (long) x * 73856093L ^ (long) y * 19349663L ^ (long) z * 83492791L;
+                        
+                        if ("PERLIN".equals(noiseMethod)) {
+                            // Simple pseudo-Perlin using hash-based interpolation
+                            noiseValue = simplePerlinNoise(x, y, z, seed);
+                        } else if ("RANDOM".equals(noiseMethod)) {
+                            // Pure random based on coordinates
+                            java.util.Random rng = new java.util.Random(seed);
+                            noiseValue = rng.nextDouble();
+                        } else {
+                            // HASH (default): deterministic hash-based noise
+                            noiseValue = hashNoise(x, y, z, seed);
+                        }
+                        
+                        place = (noiseValue < noiseProb);
+                        if (place) mat = noiseMat;
+                    }
                     default -> place = (Math.floorMod(u, step) == 0) || (Math.floorMod(y, step) == 0);
                 }
+                
                 if (!place) continue;
                 int x = uIsX ? u : fixed;
                 int z = uIsX ? fixed : u;
-                put(out, ctx, origin, x, y, z, accent);
+                put(out, ctx, origin, x, y, z, mat);
             }
         }
+    }
+
+    // Simple hash-based noise (0.0~1.0)
+    private static double hashNoise(int x, int y, int z, long seed) {
+        long h = seed;
+        h ^= (long) x * 73856093L;
+        h ^= (long) y * 19349663L;
+        h ^= (long) z * 83492791L;
+        h = h * (h * h * 15731L + 789221L) + 1376312589L;
+        h = h ^ (h >>> 16);
+        return ((h & 0x7FFFFFFFL) % 10000) / 10000.0;
+    }
+
+    // Simple pseudo-Perlin noise (0.0~1.0)
+    private static double simplePerlinNoise(int x, int y, int z, long seed) {
+        // Simplified Perlin-like noise using hash interpolation
+        double fx = x * 0.1;
+        double fy = y * 0.1;
+        double fz = z * 0.1;
+        
+        int ix = (int) Math.floor(fx);
+        int iy = (int) Math.floor(fy);
+        int iz = (int) Math.floor(fz);
+        
+        double fx0 = fx - ix;
+        double fy0 = fy - iy;
+        double fz0 = fz - iz;
+        
+        // Smooth interpolation
+        double ux = fx0 * fx0 * (3.0 - 2.0 * fx0);
+        double uy = fy0 * fy0 * (3.0 - 2.0 * fy0);
+        double uz = fz0 * fz0 * (3.0 - 2.0 * fz0);
+        
+        // Hash values at 8 corners
+        double n000 = hashNoise(ix, iy, iz, seed);
+        double n100 = hashNoise(ix + 1, iy, iz, seed);
+        double n010 = hashNoise(ix, iy + 1, iz, seed);
+        double n110 = hashNoise(ix + 1, iy + 1, iz, seed);
+        double n001 = hashNoise(ix, iy, iz + 1, seed);
+        double n101 = hashNoise(ix + 1, iy, iz + 1, seed);
+        double n011 = hashNoise(ix, iy + 1, iz + 1, seed);
+        double n111 = hashNoise(ix + 1, iy + 1, iz + 1, seed);
+        
+        // Trilinear interpolation
+        double nx00 = lerp(n000, n100, ux);
+        double nx10 = lerp(n010, n110, ux);
+        double nx01 = lerp(n001, n101, ux);
+        double nx11 = lerp(n011, n111, ux);
+        double nxy0 = lerp(nx00, nx10, uy);
+        double nxy1 = lerp(nx01, nx11, uy);
+        return lerp(nxy0, nxy1, uz);
     }
 
     private static void applyFacadeGridPlane(List<PlannedBlock> out,
@@ -3999,6 +4192,12 @@ public final class MetaAssemblyEngine {
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
         } catch (Exception ignored) {}
         return def;
+    }
+
+    private static double clamp(double v, double min, double max) {
+        if (v < min) return min;
+        if (v > max) return max;
+        return v;
     }
 
     private static boolean bool(Object v, boolean def) {

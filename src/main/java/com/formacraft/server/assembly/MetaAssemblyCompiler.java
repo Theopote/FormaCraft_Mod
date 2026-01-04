@@ -488,6 +488,11 @@ public final class MetaAssemblyCompiler {
                 o.put("d", d);
                 o.put("h", h);
                 copyInt(comp, o, "floorStep", 4);
+                // Forma-Gene integration: twist support
+                copy(comp, o, "twistTurns");
+                copy(comp, o, "twist_turns");
+                copy(comp, o, "twistPhase");
+                copy(comp, o, "twist_phase");
                 // optional block overrides
                 copy(comp, o, "wall");
                 copy(comp, o, "window");
@@ -569,8 +574,10 @@ public final class MetaAssemblyCompiler {
                 o.put("op", "SURFACE_PATTERN");
                 o.put("face", face);
                 o.put("pattern", pattern);
-                o.put("step", step);
-                o.put("thickness", thickness);
+                if (!pattern.equals("NOISE")) {
+                    o.put("step", step);
+                    o.put("thickness", thickness);
+                }
                 // bounds
                 o.put("x0", -hx); o.put("x1", hx);
                 o.put("y0", y0);  o.put("y1", y1);
@@ -579,6 +586,15 @@ public final class MetaAssemblyCompiler {
                 copy(spx, o, "material");
                 copy(spx, o, "accent");
                 copy(spx, o, "frame");
+                // Forma-Gene integration: NOISE pattern parameters
+                if (pattern.equals("NOISE")) {
+                    copy(spx, o, "noiseMaterial");
+                    copy(spx, o, "noise_material");
+                    copy(spx, o, "noiseProbability");
+                    copy(spx, o, "noise_probability");
+                    copy(spx, o, "noiseMethod");
+                    copy(spx, o, "noise_method");
+                }
                 ops.add(o);
             }
         }

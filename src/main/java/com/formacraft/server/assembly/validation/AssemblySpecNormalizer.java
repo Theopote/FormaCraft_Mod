@@ -193,7 +193,11 @@ public final class AssemblySpecNormalizer {
                 "surfacePattern", "pattern",
                 "openings", "opening",
                 "facadeGrid", "FACADE_GRID", "curtainWall",
-                "surfaceBands", "SURFACE_BANDS", "bands"
+                "surfaceBands", "SURFACE_BANDS", "bands",
+                // Forma-Gene integration: NOISE pattern fields
+                "noiseMaterial", "noise_material",
+                "noiseProbability", "noise_probability",
+                "noiseMethod", "noise_method"
         ));
 
         // facade.pattern -> facade.surfacePattern (if surfacePattern absent)
@@ -594,6 +598,11 @@ public final class AssemblySpecNormalizer {
             "rows", "cols", "winW", "winH", "sillY", "marginX", "marginY", "gapX", "gapY", "frameThickness", "mullionStep",
             "doorW", "doorH",
             "archType", "arch", "archThickness", "archT",
+            // roof cover
+            "overhang", "overhangLength",
+            "rise", "sagitta",
+            "curvaturePower", "curvature_power",
+            "cornerLift", "corner_lift",
             "keystone", "keystoneOn",
             "tracery", "traceryType", "traceryMaterial", "traceryThickness", "traceryT", "traceryY", "traceryInset",
             "foilRadius", "foilCenterY", "foilCount", "foilStepY", "foilGapY",

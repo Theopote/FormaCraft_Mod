@@ -210,6 +210,25 @@ public final class AssemblySpecValidator {
                 requireIntMin(out, p, m, "d", 1);
                 requireIntMin(out, p, m, "h", 2);
                 if (m.get("floorStep") != null) requireIntMin(out, p, m, "floorStep", 1);
+                // Forma-Gene integration: twist support
+                if (m.get("twistTurns") != null || m.get("twist_turns") != null) {
+                    Object tt = m.get("twistTurns") != null ? m.get("twistTurns") : m.get("twist_turns");
+                    if (tt instanceof Number) {
+                        double v = ((Number) tt).doubleValue();
+                        if (v < -2.0 || v > 2.0) {
+                            out.add(warn(p + ".twistTurns", "W_SHELL_BOX_TWIST_RANGE", "twistTurns 建议在 -2.0~2.0 范围内"));
+                        }
+                    }
+                }
+                if (m.get("twistPhase") != null || m.get("twist_phase") != null) {
+                    Object tp = m.get("twistPhase") != null ? m.get("twistPhase") : m.get("twist_phase");
+                    if (tp instanceof Number) {
+                        double v = ((Number) tp).doubleValue();
+                        if (v < 0.0 || v > 1.0) {
+                            out.add(warn(p + ".twistPhase", "W_SHELL_BOX_TWIST_PHASE_RANGE", "twistPhase 建议在 0.0~1.0 范围内"));
+                        }
+                    }
+                }
             }
             if (op.equals("CYLINDER")) {
                 if (m.get("r") != null || m.get("radius") != null) {
@@ -646,6 +665,25 @@ public final class AssemblySpecValidator {
                 if (m.get("y") != null && intOrNull(m.get("y")) == null) out.add(err(p + ".y", "E_INT_TYPE", "y 必须是整数"));
                 if (m.get("overhang") != null) requireIntMin(out, p, m, "overhang", 0);
                 if (m.get("rise") != null) requireIntMin(out, p, m, "rise", 1);
+                // Forma-Gene integration: curvature power and corner lift
+                if (m.get("curvaturePower") != null || m.get("curvature_power") != null) {
+                    Object cp = m.get("curvaturePower") != null ? m.get("curvaturePower") : m.get("curvature_power");
+                    if (cp instanceof Number) {
+                        double v = ((Number) cp).doubleValue();
+                        if (v < 0.1 || v > 3.0) {
+                            out.add(warn(p + ".curvaturePower", "W_ROOF_CURVATURE_RANGE", "curvaturePower 建议在 0.1~3.0 范围内"));
+                        }
+                    }
+                }
+                if (m.get("cornerLift") != null || m.get("corner_lift") != null) {
+                    Object cl = m.get("cornerLift") != null ? m.get("cornerLift") : m.get("corner_lift");
+                    if (cl instanceof Number) {
+                        double v = ((Number) cl).doubleValue();
+                        if (v < 0.0 || v > 2.0) {
+                            out.add(warn(p + ".cornerLift", "W_ROOF_CORNER_LIFT_RANGE", "cornerLift 建议在 0.0~2.0 范围内"));
+                        }
+                    }
+                }
             }
             if (op.equals("BSP_FLOOR_PLAN")) {
                 requireIntMin(out, p, m, "w", 1);
@@ -678,11 +716,33 @@ public final class AssemblySpecValidator {
                 requireFace(out, p, m);
                 String pattern = str(m.get("pattern"), str(m.get("type"), "GRID")).trim().toUpperCase(Locale.ROOT);
                 if (!(pattern.equals("GRID") || pattern.equals("STRIPES_V") || pattern.equals("STRIPES_H") || pattern.equals("RIBS_V") || pattern.equals("RIBS_H")
-                        || pattern.equals("STRIPES_VERTICAL") || pattern.equals("STRIPES_HORIZONTAL") || pattern.equals("RIBS_VERTICAL") || pattern.equals("RIBS_HORIZONTAL"))) {
+                        || pattern.equals("STRIPES_VERTICAL") || pattern.equals("STRIPES_HORIZONTAL") || pattern.equals("RIBS_VERTICAL") || pattern.equals("RIBS_HORIZONTAL")
+                        || pattern.equals("NOISE"))) {
                     out.add(err(p + ".pattern", "E_PATTERN_VALUE", "SURFACE_PATTERN.pattern 取值非法: " + pattern));
                 }
-                requireIntMin(out, p, m, "step", 1);
-                requireIntMin(out, p, m, "thickness", 1);
+                if (!pattern.equals("NOISE")) {
+                    requireIntMin(out, p, m, "step", 1);
+                    requireIntMin(out, p, m, "thickness", 1);
+                }
+                // Forma-Gene integration: NOISE pattern parameters
+                if (pattern.equals("NOISE")) {
+                    if (m.get("noiseProbability") != null || m.get("noise_probability") != null) {
+                        Object np = m.get("noiseProbability") != null ? m.get("noiseProbability") : m.get("noise_probability");
+                        if (np instanceof Number) {
+                            double v = ((Number) np).doubleValue();
+                            if (v < 0.0 || v > 1.0) {
+                                out.add(warn(p + ".noiseProbability", "W_NOISE_PROB_RANGE", "noiseProbability 建议在 0.0~1.0 范围内"));
+                            }
+                        }
+                    }
+                    if (m.get("noiseMethod") != null || m.get("noise_method") != null) {
+                        Object nm = m.get("noiseMethod") != null ? m.get("noiseMethod") : m.get("noise_method");
+                        String method = String.valueOf(nm).trim().toUpperCase(Locale.ROOT);
+                        if (!(method.equals("PERLIN") || method.equals("RANDOM") || method.equals("HASH"))) {
+                            out.add(warn(p + ".noiseMethod", "W_NOISE_METHOD_VALUE", "noiseMethod 建议为 PERLIN/RANDOM/HASH: " + method));
+                        }
+                    }
+                }
             }
             if (op.equals("FACADE_GRID")) {
                 requireFace(out, p, m);
@@ -1021,12 +1081,27 @@ public final class AssemblySpecValidator {
             if (m.get("face") != null || m.get("faces") != null) requireFacesString(out, p, m);
             String pattern = str(m.get("pattern"), str(m.get("type"), "GRID")).trim().toUpperCase(Locale.ROOT);
             if (!(pattern.equals("GRID") || pattern.equals("STRIPES_V") || pattern.equals("STRIPES_H") || pattern.equals("RIBS_V") || pattern.equals("RIBS_H")
-                    || pattern.equals("STRIPES_VERTICAL") || pattern.equals("STRIPES_HORIZONTAL") || pattern.equals("RIBS_VERTICAL") || pattern.equals("RIBS_HORIZONTAL"))) {
+                    || pattern.equals("STRIPES_VERTICAL") || pattern.equals("STRIPES_HORIZONTAL") || pattern.equals("RIBS_VERTICAL") || pattern.equals("RIBS_HORIZONTAL")
+                    || pattern.equals("NOISE"))) {
                 out.add(err(p + ".pattern", "E_PATTERN_VALUE", "surfacePattern.pattern 取值非法: " + pattern));
             }
-            // step/thickness can be omitted; only validate if present
-            if (m.get("step") != null || m.get("spacing") != null) requireIntMin(out, p, m, "step", 1);
-            if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+            // step/thickness can be omitted; only validate if present (not required for NOISE)
+            if (!pattern.equals("NOISE")) {
+                if (m.get("step") != null || m.get("spacing") != null) requireIntMin(out, p, m, "step", 1);
+                if (m.get("thickness") != null) requireIntMin(out, p, m, "thickness", 1);
+            }
+            // Forma-Gene integration: NOISE pattern parameters
+            if (pattern.equals("NOISE")) {
+                if (m.get("noiseProbability") != null || m.get("noise_probability") != null) {
+                    Object np = m.get("noiseProbability") != null ? m.get("noiseProbability") : m.get("noise_probability");
+                    if (np instanceof Number) {
+                        double v = ((Number) np).doubleValue();
+                        if (v < 0.0 || v > 1.0) {
+                            out.add(warn(p + ".noiseProbability", "W_NOISE_PROB_RANGE", "noiseProbability 建议在 0.0~1.0 范围内"));
+                        }
+                    }
+                }
+            }
         }
 
         // surfaceBands

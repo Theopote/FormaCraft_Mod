@@ -61,6 +61,12 @@ public final class AssemblyMacroApplier {
             }
         }
 
+        // Apply verticalProfile FIRST (it replaces the primary component with segments)
+        // Must run before other macros that modify the primary component
+        if (primary != null) {
+            primary = applyVerticalProfile(m, graph, compsObj, primary, macro, issues);
+        }
+
         // Apply shapeType & heightScale to primary component (best-effort).
         if (primary != null) {
             applyShapeType(primary, macro, issues);
@@ -79,6 +85,9 @@ public final class AssemblyMacroApplier {
 
         // Bridge tower macro: inject ANCHOR_FOOTPRINT + tower body + saddle rollers
         applyBridgeTower(m, graph, compsObj, macro, issues);
+
+        // Subtract holes macro: inject CLEAR_BOX components for boolean subtraction (e.g., courtyards)
+        applySubtractHoles(m, graph, compsObj, primary, macro, issues);
 
         return new AssemblyMacroApplyResult(m, issues);
     }
@@ -603,6 +612,253 @@ public final class AssemblyMacroApplier {
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y");
     }
 
+    private static void applySubtractHoles(Map<String, Object> root,
+                                           Map<String, Object> graph,
+                                           Object compsObj,
+                                           Map<String, Object> primary,
+                                           Map<String, Object> macro,
+                                           List<AssemblyValidationIssue> issues) {
+        Object holesObj = macro.get("subtractHoles");
+        if (holesObj == null) holesObj = macro.get("subtract_holes");
+        if (holesObj == null) return;
+        if (!(holesObj instanceof List<?> holesList)) return;
+        if (holesList.isEmpty()) return;
+
+        if (primary == null) return;
+        if (!(compsObj instanceof List<?> list)) return;
+        @SuppressWarnings("unchecked")
+        List<Object> comps = (List<Object>) list;
+
+        Integer pw = intOrNull(primary.get("w"));
+        Integer pd = intOrNull(primary.get("d"));
+        Integer ph = intOrNull(primary.get("h"));
+        if (pw == null || pd == null || ph == null) return;
+
+        java.util.HashSet<String> used = new java.util.HashSet<>();
+        for (Object it0 : comps) if (it0 instanceof Map<?, ?> cm) {
+            String id0 = str(cm.get("id"), "").trim();
+            if (!id0.isEmpty()) used.add(id0);
+        }
+
+        int hx = pw / 2;
+        int hz = pd / 2;
+
+        for (int i = 0; i < holesList.size(); i++) {
+            Object holeObj = holesList.get(i);
+            if (!(holeObj instanceof Map<?, ?> holeMap)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> hole = (Map<String, Object>) holeMap;
+
+            String holeType = str(hole.get("type"), "RECTANGLE").trim().toUpperCase(Locale.ROOT);
+            if (!holeType.equals("RECTANGLE") && !holeType.equals("RECT")) continue;
+
+            Integer hw = intOrNull(hole.get("w"));
+            Integer hd = intOrNull(hole.get("d"));
+            if (hw == null || hd == null) continue;
+            if (hw <= 0 || hd <= 0) continue;
+
+            // Position: default to center (0,0), can override with at.x/z
+            Object atObj = hole.get("at");
+            int hcx = 0, hcz = 0;
+            if (atObj instanceof Map<?, ?> atMap) {
+                hcx = intOrNull(atMap.get("x")) != null ? intOrNull(atMap.get("x")) : 0;
+                hcz = intOrNull(atMap.get("z")) != null ? intOrNull(atMap.get("z")) : 0;
+            }
+
+            // Calculate CLEAR_BOX bounds (relative to primary component origin)
+            int x0 = hcx - hw / 2;
+            int x1 = hcx + hw / 2 - 1;
+            int z0 = hcz - hd / 2;
+            int z1 = hcz + hd / 2 - 1;
+            int y0 = 0; // Start from bottom
+            int y1 = ph - 1; // Full height
+
+            String holeId = uniqueId("Hole" + (i + 1), used);
+            used.add(holeId);
+
+            Map<String, Object> clearBox = new java.util.LinkedHashMap<>();
+            clearBox.put("id", holeId);
+            clearBox.put("type", "CLEAR_BOX");
+            clearBox.put("x0", x0);
+            clearBox.put("y0", y0);
+            clearBox.put("z0", z0);
+            clearBox.put("x1", x1);
+            clearBox.put("y1", y1);
+            clearBox.put("z1", z1);
+
+            comps.add(clearBox);
+        }
+
+        if (!holesList.isEmpty()) {
+            issues.add(warn("$.macro.subtractHoles", "W_MACRO_SUBTRACT_HOLES", "subtractHoles injected " + holesList.size() + " CLEAR_BOX components"));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> applyVerticalProfile(Map<String, Object> root,
+                                                            Map<String, Object> graph,
+                                                            Object compsObj,
+                                                            Map<String, Object> primary,
+                                                            Map<String, Object> macro,
+                                                            List<AssemblyValidationIssue> issues) {
+        Object vpObj = macro.get("verticalProfile");
+        if (vpObj == null) vpObj = macro.get("vertical_profile");
+        if (vpObj == null) return primary; // No vertical profile, return original
+        if (!(vpObj instanceof List<?> vpList)) return primary;
+        if (vpList.isEmpty()) return primary;
+
+        // Only support SHELL_BOX for now
+        String pType = str(primary.get("type"), str(primary.get("op"), "")).trim().toUpperCase(Locale.ROOT);
+        if (!(pType.contains("SHELL_BOX") || pType.contains("BOX_SHELL"))) {
+            issues.add(warn("$.macro.verticalProfile", "W_MACRO_VERTICAL_PROFILE_UNSUPPORTED", "verticalProfile 当前仅支持 SHELL_BOX（当前=" + pType + "）"));
+            return primary;
+        }
+
+        Integer pw = intOrNull(primary.get("w"));
+        Integer pd = intOrNull(primary.get("d"));
+        Integer ph = intOrNull(primary.get("h"));
+        if (pw == null || pd == null || ph == null) {
+            issues.add(warn("$.macro.verticalProfile", "W_MACRO_VERTICAL_PROFILE_DIM", "verticalProfile 需要主组件含 w/d/h"));
+            return primary;
+        }
+
+        // Ensure graph/components exist
+        Map<String, Object> g = graph;
+        if (g == null) {
+            g = new java.util.LinkedHashMap<>();
+            root.put("graph", g);
+        }
+        Object co = g.get("components");
+        List<Object> comps;
+        if (co instanceof List<?> list) comps = (List<Object>) list;
+        else {
+            comps = new java.util.ArrayList<>();
+            g.put("components", comps);
+        }
+
+        // Collect existing ids and find primary component index
+        java.util.HashSet<String> used = new java.util.HashSet<>();
+        int primaryIndex = -1;
+        String primaryId = str(primary.get("id"), "").trim();
+        for (int i = 0; i < comps.size(); i++) {
+            Object it = comps.get(i);
+            if (it instanceof Map<?, ?> cm) {
+                String id = str(cm.get("id"), "").trim();
+                if (!id.isEmpty()) used.add(id);
+                if (id.equals(primaryId)) primaryIndex = i;
+            }
+        }
+
+        if (primaryIndex < 0) {
+            issues.add(warn("$.macro.verticalProfile", "W_MACRO_VERTICAL_PROFILE_NOT_FOUND", "verticalProfile: 未在主组件列表中找到主组件 id=" + primaryId));
+            return primary;
+        }
+
+        // Parse segments
+        List<Segment> segments = new java.util.ArrayList<>();
+        double baseW = pw;
+        double baseD = pd;
+        int totalHeight = 0;
+        for (Object segObj : vpList) {
+            if (!(segObj instanceof Map<?, ?> segMap)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> seg = (Map<String, Object>) segMap;
+            Integer segH = intOrNull(seg.get("height"));
+            if (segH == null || segH <= 0) continue;
+            double scaleTop = d(seg.get("scaleTop"), d(seg.get("scale_top"), 1.0));
+            if (scaleTop < 0.1) scaleTop = 0.1;
+            if (scaleTop > 3.0) scaleTop = 3.0;
+            segments.add(new Segment(segH, scaleTop));
+            totalHeight += segH;
+        }
+
+        if (segments.isEmpty()) return primary;
+
+        // Validate total height matches original (allow some tolerance)
+        if (Math.abs(totalHeight - ph) > 2) {
+            issues.add(warn("$.macro.verticalProfile", "W_MACRO_VERTICAL_PROFILE_HEIGHT_MISMATCH", 
+                "verticalProfile 总高度 (" + totalHeight + ") 与主组件高度 (" + ph + ") 不匹配，将使用分段高度"));
+        }
+
+        // Replace primary component with segments
+        Object atObj = primary.get("at");
+        int baseX = 0, baseY = 0, baseZ = 0;
+        if (atObj instanceof Map<?, ?> atMap) {
+            baseX = intOrNull(atMap.get("x")) != null ? intOrNull(atMap.get("x")) : 0;
+            baseY = intOrNull(atMap.get("y")) != null ? intOrNull(atMap.get("y")) : 0;
+            baseZ = intOrNull(atMap.get("z")) != null ? intOrNull(atMap.get("z")) : 0;
+        }
+
+        // Copy other properties from primary (material, facade, etc.)
+        java.util.Map<String, Object> baseProps = new java.util.LinkedHashMap<>();
+        for (java.util.Map.Entry<String, Object> e : primary.entrySet()) {
+            String k = e.getKey();
+            if (!k.equals("id") && !k.equals("type") && !k.equals("op") && !k.equals("w") && !k.equals("d") && !k.equals("h") && !k.equals("at")) {
+                baseProps.put(k, e.getValue());
+            }
+        }
+
+        // Generate segments
+        List<Object> segmentComps = new java.util.ArrayList<>();
+        int currentY = baseY;
+        double currentW = baseW;
+        double currentD = baseD;
+
+        for (int i = 0; i < segments.size(); i++) {
+            Segment seg = segments.get(i);
+            int segH = seg.height;
+            double nextScale = seg.scaleTop;
+
+            // Calculate segment dimensions (use current scale)
+            int segW = Math.max(3, (int) Math.round(currentW));
+            int segD = Math.max(3, (int) Math.round(currentD));
+            double nextW = baseW * nextScale;
+            double nextD = baseD * nextScale;
+
+            String segId = (i == 0) ? primaryId : uniqueId(primaryId + "_Seg" + (i + 1), used);
+            used.add(segId);
+
+            Map<String, Object> segComp = new java.util.LinkedHashMap<>();
+            segComp.put("id", segId);
+            segComp.put("type", "SHELL_BOX");
+            segComp.put("at", java.util.Map.of("x", baseX, "y", currentY, "z", baseZ));
+            segComp.put("w", segW);
+            segComp.put("d", segD);
+            segComp.put("h", segH);
+            segComp.putAll(baseProps); // Copy material, facade, etc.
+
+            segmentComps.add(segComp);
+            currentY += segH;
+            currentW = nextW;
+            currentD = nextD;
+        }
+
+        // Replace primary component with first segment, insert others after
+        comps.set(primaryIndex, segmentComps.get(0));
+        for (int i = 1; i < segmentComps.size(); i++) {
+            comps.add(primaryIndex + i, segmentComps.get(i));
+        }
+
+        // Return first segment as new primary (for other macros to work on)
+        @SuppressWarnings("unchecked")
+        Map<String, Object> newPrimary = (Map<String, Object>) segmentComps.get(0);
+
+        issues.add(warn("$.macro.verticalProfile", "W_MACRO_VERTICAL_PROFILE", 
+            "verticalProfile 将主组件分解为 " + segments.size() + " 个分段 SHELL_BOX"));
+
+        return newPrimary;
+    }
+
+    private static class Segment {
+        final int height;
+        final double scaleTop;
+
+        Segment(int height, double scaleTop) {
+            this.height = height;
+            this.scaleTop = scaleTop;
+        }
+    }
+
     private static String uniqueId(String base, java.util.Set<String> used) {
         String b = (base == null || base.isBlank()) ? "Component" : base.trim();
         if (!used.contains(b)) return b;
@@ -801,6 +1057,25 @@ public final class AssemblyMacroApplier {
             roof.put("roofType", rt);
             if (overhang > 0) roof.put("overhang", overhang);
             if (rise != null && rt.equals("GABLE")) roof.put("rise", rise);
+            
+            // Forma-Gene integration: support curvaturePower and cornerLift from macro
+            Object cpObj = macro.get("roofCurvaturePower");
+            if (cpObj == null) cpObj = macro.get("roof_curvature_power");
+            if (cpObj != null) {
+                try {
+                    double cp = (cpObj instanceof Number n) ? n.doubleValue() : Double.parseDouble(String.valueOf(cpObj));
+                    if (cp >= 0.1 && cp <= 3.0) roof.put("curvaturePower", cp);
+                } catch (Exception ignored) {}
+            }
+            Object clObj = macro.get("roofCornerLift");
+            if (clObj == null) clObj = macro.get("roof_corner_lift");
+            if (clObj != null) {
+                try {
+                    double cl = (clObj instanceof Number n) ? n.doubleValue() : Double.parseDouble(String.valueOf(clObj));
+                    if (cl >= 0.0 && cl <= 2.0) roof.put("cornerLift", cl);
+                } catch (Exception ignored) {}
+            }
+            
             comps.add(roof);
             issues.add(warn("$.macro.roofType", "W_MACRO_ROOF_ADD", "auto-added ROOF_COVER (roofType=" + rt + ")"));
         }
