@@ -989,7 +989,7 @@ public final class MetaAssemblyEngine {
                     String id = str(pm.get("id"), "P" + pi).trim();
 
                     // Per-patch offset
-                    int ox = 0, oy = 0, oz = 0;
+                    int ox, oy, oz;
                     Object at = pm.get("at");
                     if (at instanceof Map<?, ?> am) {
                         ox = i(am.get("x"), 0);
@@ -1216,7 +1216,7 @@ public final class MetaAssemblyEngine {
                     for (Object po : pl) {
                         if (!(po instanceof Map<?, ?> pm)) continue;
                         // apply patch at offset if present
-                        int ox = 0, oy = 0, oz = 0;
+                        int ox, oy, oz;
                         Object at = pm.get("at");
                         if (at instanceof Map<?, ?> am) {
                             ox = i(am.get("x"), 0);
@@ -1445,21 +1445,20 @@ public final class MetaAssemblyEngine {
                 List<LoftSection> sections = new ArrayList<>();
                 for (Object sObj : secs) {
                     if (!(sObj instanceof Map<?, ?> sm)) continue;
-                    Map<?, ?> s = sm;
-                    Object atObj = s.get("at");
-                    int ax = 0, ay = 0, az = 0;
+                    Object atObj = sm.get("at");
+                    int ax, ay, az;
                     if (atObj instanceof Map<?, ?> am) {
                         ax = i(am.get("x"), 0);
                         ay = i(am.get("y"), 0);
                         az = i(am.get("z"), 0);
                     } else {
-                        ax = i(s.get("x"), 0);
-                        ay = i(s.get("y"), 0);
-                        az = i(s.get("z"), 0);
+                        ax = i(sm.get("x"), 0);
+                        ay = i(sm.get("y"), 0);
+                        az = i(sm.get("z"), 0);
                     }
-                    Object profObj = s.get("profileRings");
-                    if (profObj == null) profObj = s.get("rings");
-                    if (profObj == null) profObj = s.get("profilePoints");
+                    Object profObj = sm.get("profileRings");
+                    if (profObj == null) profObj = sm.get("rings");
+                    if (profObj == null) profObj = sm.get("profilePoints");
                     List<int[]> prof = read2DProfilePoints(profObj);
                     if (prof == null || prof.size() < 2) continue;
                     sections.add(new LoftSection(ax, ay, az, prof));
@@ -3451,7 +3450,7 @@ public final class MetaAssemblyEngine {
         if (n < 2) n = 2;
         double sum = 0.0;
         for (int i = 0; i < n; i++) {
-            double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
+            double t = i / (double) (n - 1);
             int[] pa = resample ? edgePointAt(a, ea, t) : edgePoint(a, ea, clamp((int) Math.round(t * (edgeCount(a, ea) - 1)), 0, edgeCount(a, ea) - 1));
             double tt = reverse ? (1.0 - t) : t;
             int[] pb = resample ? edgePointAt(b, eb, tt) : edgePoint(b, eb, clamp((int) Math.round(tt * (edgeCount(b, eb) - 1)), 0, edgeCount(b, eb) - 1));
