@@ -393,3 +393,66 @@ def _compact_example(ex: Any) -> Dict[str, Any]:
     return out
 
 
+def retrieve_building_knowledge(prompt: str, topK: int = 1) -> Optional[Dict[str, Any]]:
+    """
+    Retrieve building knowledge from building_knowledge directory.
+    Returns the best matching building knowledge entry, or None if no match.
+    
+    This is used to provide detailed architectural features for specific buildings
+    (e.g., Bird's Nest Stadium, Eiffel Tower) to enhance AI understanding.
+    """
+    assets = _find_repo_assets_dir()
+    if not assets:
+        return None
+    
+    knowledge_dir = assets / "building_knowledge"
+    if not knowledge_dir.exists():
+        return None
+    
+    q = (prompt or "").strip()
+    qn = q.lower()
+    
+    best_match: Optional[Dict[str, Any]] = None
+    best_score = 0.0
+    
+    for p in sorted(knowledge_dir.glob("*.json")):
+        try:
+            kb = _load_json(p)
+        except Exception:
+            continue
+        if not isinstance(kb, dict):
+            continue
+        
+        kb_id = str(kb.get("id") or "").strip()
+        if not kb_id:
+            continue
+        
+        aliases = _str_list(kb.get("aliases"))
+        keywords = _str_list(kb.get("keywords"))
+        
+        score = 0.0
+        matched_aliases: List[str] = []
+        
+        # Match aliases (higher weight)
+        for alias in aliases:
+            alias_lower = alias.lower()
+            if alias_lower in qn:
+                # Longer alias matches get higher score
+                score += len(alias) * 2.0
+                matched_aliases.append(alias)
+        
+        # Match keywords (lower weight)
+        for kw in keywords:
+            kw_lower = kw.lower()
+            if kw_lower in qn:
+                score += 1.0
+        
+        if score > best_score:
+            best_score = score
+            best_match = dict(kb)
+            best_match["matchedAliases"] = matched_aliases
+    
+    return best_match if best_score > 0.01 else None
+
+
+

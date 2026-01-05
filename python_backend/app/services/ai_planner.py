@@ -136,6 +136,22 @@ def _build_system_prompt() -> str:
         "You are FormaCraft, an AI architect for Minecraft.\n"
         "Your job is to convert a player's natural language request and world context "
         "into a structured BuildingSpec JSON object.\n\n"
+        "CRITICAL: Understanding User Intent and Specific Buildings:\n"
+        "- When the user mentions a specific building name (e.g., '鸟巢体育馆'/'Bird's Nest Stadium', '埃菲尔铁塔'/'Eiffel Tower', '天坛'/'Temple of Heaven'),\n"
+        "  you MUST analyze the key architectural features of that building:\n"
+        "  * Shape and form (e.g., elliptical, circular, rectangular, organic curves)\n"
+        "  * Structural characteristics (e.g., steel frame, mesh structure, tiered platforms)\n"
+        "  * Materials and textures (e.g., steel, concrete, glass, traditional materials)\n"
+        "  * Scale and proportions (e.g., large stadium, tall tower, wide base)\n"
+        "  * Distinctive features (e.g., mesh facade, spiral structure, tiered roofs)\n"
+        "- For iconic buildings, you SHOULD:\n"
+        "  1. Set type='CUSTOM' (unless it clearly matches HOUSE/TOWER/BRIDGE/CASTLE/WALL)\n"
+        "  2. Use extra.assembly with appropriate components and macro parameters to capture the building's form\n"
+        "  3. For complex structures, consider using extra.blueprint with blueprint_type matching the building name\n"
+        "  4. Set appropriate styleProfileId if a matching style exists (e.g., Deconstructivism_Zaha for Bird's Nest)\n"
+        "  5. Use macro parameters like twist, curvature, verticalProfile to create organic/non-rectangular shapes\n"
+        "- If the building has a distinctive shape (e.g., elliptical stadium, curved facade), use extra.assembly.macro\n"
+        "  with appropriate geometric parameters rather than just a simple rectangular footprint.\n\n"
         "Requirements:\n"
         "- Always respond with pure JSON (no comments, no extra text).\n"
         "- Only use block IDs that exist in vanilla Minecraft.\n"
@@ -147,7 +163,9 @@ def _build_system_prompt() -> str:
         "- Building types: HOUSE, TOWER, BRIDGE, CASTLE, WALL, CUSTOM\n"
         "- Building styles: MEDIEVAL, MODERN, ASIAN, FUTURISTIC, RUSTIC, DEFAULT\n"
         "- For circular buildings (towers), use footprint.shape='circle' and set radius\n"
-        "- For rectangular buildings, use footprint.shape='rectangle' and set width/depth\n\n"
+        "- For rectangular buildings, use footprint.shape='rectangle' and set width/depth\n"
+        "- For elliptical or organic shapes, use footprint.shape='rectangle' with appropriate width/depth,\n"
+        "  then use extra.assembly.macro to define the actual shape (e.g., using twist, curvature, verticalProfile)\n\n"
         "Field names are STRICT and must match exactly:\n"
         "- Use 'type' (NOT 'buildingType')\n"
         "- Use 'style' (NOT 'buildingStyle')\n"
@@ -176,6 +194,10 @@ def _build_system_prompt() -> str:
         "    You SHOULD use macro.style.* fields as strong hints for extra.assembly.macro.style.\n"
         "  - CultureRetrieval(JSON): Contains few-shot examples and hit metadata.\n"
         "    Use fewShots as reference examples for generating extra.assembly structure.\n"
+        "  - BuildingKnowledge(JSON): Contains detailed architectural features for specific buildings.\n"
+        "    When present, you MUST analyze the building's features (shape, form, structuralType, materials, distinctiveElements)\n"
+        "    and use assemblyHints to generate appropriate extra.assembly structure.\n"
+        "    The description fields provide context about the building's key characteristics.\n"
         "- Do NOT copy these blocks into output; only use them to decide extra.styleProfileId/extra.paletteId/extra.assembly.\n"
         "\nLayout IR (STRONGLY RECOMMENDED when user mentions layout concepts):\n"
         "- When user mentions: symmetry/对称, axis/轴线, courtyard/中庭/庭院, entrance direction/入口方向, corridor/回廊:\n"
@@ -216,11 +238,21 @@ def _build_system_prompt() -> str:
         "  ]\n"
         "- This helps generators create proper connections between functional zones.\n"
         "\nBlueprint mode (advanced, optional):\n"
-        "- For complex structures like CASTLE compounds, you MAY include extra.blueprint as a semantic component blueprint.\n"
+        "- For complex structures like CASTLE compounds or iconic landmarks, you MAY include extra.blueprint as a semantic component blueprint.\n"
         "- extra.blueprint MUST be valid JSON (no comments).\n"
         "- extra.blueprint MUST include: blueprint_type (string), blueprint_version (int, must be 1).\n"
-        "- Recommended: blueprint_type values: castle, tulou, temple_of_heaven, great_wall, eiffel_tower, golden_gate_bridge, giant_wild_goose_pagoda.\n"
+        "- Recommended: blueprint_type values: castle, tulou, temple_of_heaven, great_wall, eiffel_tower, golden_gate_bridge, giant_wild_goose_pagoda, birds_nest_stadium.\n"
         "- Blueprint should also include: overall_dimensions{x,z,height_max}, components[] (for castle).\n"
+        "- When user mentions a specific landmark building, consider using blueprint_type matching the building name (e.g., 'birds_nest_stadium' for Bird's Nest).\n"
+        "\nAssembly mode (for parametric/organic shapes):\n"
+        "- When the building has organic curves, twisted forms, or non-rectangular geometry (e.g., Bird's Nest elliptical mesh, Zaha Hadid style),\n"
+        "  you SHOULD use extra.assembly with:\n"
+        "  - macro.style.styleId: appropriate style (e.g., 'Deconstructivism_Zaha' for Bird's Nest)\n"
+        "  - macro.twist: for twisted/rotated forms\n"
+        "  - macro.roofCurvature: for curved roofs\n"
+        "  - macro.verticalProfile: for segmented vertical operations\n"
+        "  - components: define SHELL_BOX, ROOF_COVER, SURFACE_PATTERN operations to create the desired form\n"
+        "- The assembly system can generate complex geometries that simple footprint shapes cannot represent.\n"
     )
 
 
@@ -281,7 +313,7 @@ def _build_user_prompt(req: BuildRequest) -> str:
 
     # Keyword-based cultural retrieval (P0 RAG): culture_cards -> few-shot + assemblyDraft (macro.style)
     try:
-        from app.services.keyword_culture_retriever import retrieve_budgeted as _culture_retrieve
+        from app.services.keyword_culture_retriever import retrieve_budgeted as _culture_retrieve, retrieve_building_knowledge as _building_knowledge_retrieve
         qtext = (req.requestText or "") + "\n" + (getattr(req, "userMessage", None) or "")
         rag = _culture_retrieve(qtext, **_resolve_rag_budget(req))
         if rag:
@@ -299,6 +331,27 @@ def _build_user_prompt(req: BuildRequest) -> str:
                 }
                 parts.append("\nCultureRetrieval(JSON):")
                 parts.append(json.dumps(culture_retrieval, ensure_ascii=False, indent=2))
+    except Exception:
+        pass
+    
+    # Building knowledge retrieval: specific building features -> detailed architectural information
+    try:
+        from app.services.keyword_culture_retriever import retrieve_building_knowledge as _building_knowledge_retrieve
+        qtext = (req.requestText or "") + "\n" + (getattr(req, "userMessage", None) or "")
+        building_kb = _building_knowledge_retrieve(qtext, topK=1)
+        if building_kb:
+            # Extract relevant information for LLM
+            building_info = {
+                "name": building_kb.get("name"),
+                "nameEn": building_kb.get("nameEn"),
+                "description": building_kb.get("description"),
+                "descriptionZh": building_kb.get("descriptionZh"),
+                "features": building_kb.get("features"),
+                "dimensions": building_kb.get("dimensions"),
+                "assemblyHints": building_kb.get("assemblyHints"),
+            }
+            parts.append("\nBuildingKnowledge(JSON):")
+            parts.append(json.dumps(building_info, ensure_ascii=False, indent=2))
     except Exception:
         pass
 

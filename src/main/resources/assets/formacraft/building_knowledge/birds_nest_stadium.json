@@ -1,0 +1,88 @@
+{
+  "id": "birds_nest_stadium",
+  "name": "鸟巢体育馆",
+  "nameEn": "Bird's Nest Stadium / Beijing National Stadium",
+  "aliases": [
+    "鸟巢",
+    "鸟巢体育馆",
+    "国家体育场",
+    "北京鸟巢",
+    "birds nest",
+    "birds nest stadium",
+    "national stadium",
+    "beijing national stadium"
+  ],
+  "category": "LANDMARK",
+  "architect": "Herzog & de Meuron",
+  "style": "Deconstructivism",
+  "styleId": "Deconstructivism_Zaha",
+  
+  "features": {
+    "shape": "elliptical",
+    "form": "organic_curved",
+    "structuralType": "steel_frame_mesh",
+    "materials": ["steel", "concrete", "glass"],
+    "scale": "large",
+    "distinctiveElements": [
+      "mesh facade structure",
+      "irregular steel frame",
+      "elliptical footprint",
+      "exposed structural elements",
+      "organic curved form",
+      "twisted steel members",
+      "interwoven structure"
+    ]
+  },
+  
+  "dimensions": {
+    "typicalWidth": 60,
+    "typicalDepth": 80,
+    "typicalHeight": 30,
+    "footprintShape": "ellipse",
+    "aspectRatio": "3:4"
+  },
+  
+  "assemblyHints": {
+    "type": "CUSTOM",
+    "macro": {
+      "style": {
+        "styleId": "Deconstructivism_Zaha",
+        "structureExposure": 0.95,
+        "density": 0.8,
+        "symmetry": 0.3,
+        "verticality": 0.5,
+        "transparency": 0.4
+      },
+      "roofCurvature": 0.6
+    },
+    "components": [
+      {
+        "type": "SHELL_BOX",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "MESH",
+            "density": 0.8
+          }
+        }
+      }
+    ]
+  },
+  
+  "description": "Beijing National Stadium, known as the Bird's Nest, features an irregular steel frame structure forming a mesh-like facade. The elliptical form and exposed structural elements are characteristic of deconstructivist architecture. The interwoven steel members create an organic, nest-like appearance.",
+  "descriptionZh": "北京国家体育场，又称鸟巢，采用不规则的钢框架结构，形成网状立面。椭圆形形态和外露的结构元素是解构主义建筑的典型特征。交织的钢结构构件创造出有机的、鸟巢般的外观。",
+  
+  "keywords": [
+    "鸟巢",
+    "体育馆",
+    "体育场",
+    "钢结构",
+    "网状结构",
+    "椭圆形",
+    "解构主义",
+    "扎哈风格",
+    "不规则",
+    "外露结构"
+  ],
+  "exampleRefs": []
+}
+

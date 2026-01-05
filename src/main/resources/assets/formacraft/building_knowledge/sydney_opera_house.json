@@ -1,0 +1,88 @@
+{
+  "id": "sydney_opera_house",
+  "name": "悉尼歌剧院",
+  "nameEn": "Sydney Opera House",
+  "aliases": [
+    "悉尼歌剧院",
+    "悉尼歌剧",
+    "sydney opera house",
+    "sydney opera",
+    "opera house",
+    "贝壳建筑",
+    "帆船建筑"
+  ],
+  "category": "LANDMARK",
+  "architect": "Jørn Utzon",
+  "style": "Expressionist Modern",
+  "styleId": "Modern_International",
+  
+  "features": {
+    "shape": "organic_shells",
+    "form": "curved_shells",
+    "structuralType": "concrete_shell",
+    "materials": ["concrete", "tile", "glass"],
+    "scale": "large",
+    "distinctiveElements": [
+      "sail-like shells",
+      "curved roof segments",
+      "white tile cladding",
+      "organic forms",
+      "waterfront location",
+      "expressionist design",
+      "concrete shells",
+      "interlocking forms"
+    ]
+  },
+  
+  "dimensions": {
+    "typicalWidth": 120,
+    "typicalDepth": 60,
+    "typicalHeight": 35,
+    "footprintShape": "rectangular",
+    "aspectRatio": "2:1"
+  },
+  
+  "assemblyHints": {
+    "type": "CUSTOM",
+    "macro": {
+      "style": {
+        "styleId": "Modern_International",
+        "structureExposure": 0.3,
+        "density": 0.5,
+        "symmetry": 0.4,
+        "verticality": 0.3,
+        "transparency": 0.4
+      },
+      "roofCurvature": 0.9,
+      "roofCurvaturePower": 0.8
+    },
+    "components": [
+      {
+        "type": "SHELL_BOX",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "CURVED_RIBS",
+            "density": 0.5
+          }
+        }
+      }
+    ]
+  },
+  
+  "description": "Sydney Opera House is renowned for its distinctive sail-like shells formed by precast concrete segments. The building features white tile cladding, organic curved forms, and an expressionist design that makes it one of the most recognizable buildings in the world.",
+  "descriptionZh": "悉尼歌剧院以其独特的帆状外壳而闻名，由预制混凝土段形成。建筑采用白色瓷砖覆层、有机曲线形式，以及表现主义设计，使其成为世界上最易识别的建筑之一。",
+  
+  "keywords": [
+    "悉尼",
+    "歌剧院",
+    "贝壳",
+    "帆船",
+    "曲线",
+    "白色",
+    "现代",
+    "混凝土",
+    "有机形态"
+  ],
+  "exampleRefs": []
+}
+

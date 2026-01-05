@@ -1,0 +1,90 @@
+{
+  "id": "pyramid_of_giza",
+  "name": "吉萨金字塔",
+  "nameEn": "Great Pyramid of Giza",
+  "aliases": [
+    "金字塔",
+    "吉萨金字塔",
+    "胡夫金字塔",
+    "pyramid",
+    "pyramid of giza",
+    "great pyramid",
+    "埃及金字塔",
+    "三角锥"
+  ],
+  "category": "LANDMARK",
+  "architect": "Ancient Egyptian",
+  "style": "Ancient Egyptian",
+  "styleId": "Ancient_Egyptian",
+  
+  "features": {
+    "shape": "square_pyramid",
+    "form": "tapered_monument",
+    "structuralType": "stone_masonry",
+    "materials": ["limestone", "granite"],
+    "scale": "huge",
+    "distinctiveElements": [
+      "square base",
+      "triangular faces",
+      "precise geometry",
+      "massive stone blocks",
+      "smooth sides",
+      "apex point",
+      "ancient construction",
+      "geometric precision"
+    ]
+  },
+  
+  "dimensions": {
+    "typicalWidth": 40,
+    "typicalDepth": 40,
+    "typicalHeight": 30,
+    "footprintShape": "square",
+    "aspectRatio": "1:0.75"
+  },
+  
+  "assemblyHints": {
+    "type": "TOWER",
+    "macro": {
+      "style": {
+        "styleId": "Ancient_Egyptian",
+        "structureExposure": 0.1,
+        "density": 0.95,
+        "symmetry": 1.0,
+        "verticality": 0.7,
+        "transparency": 0.0
+      },
+      "verticalProfile": [
+        {"height": 30, "scaleTop": 0.01}
+      ],
+      "roofType": "pyramid"
+    },
+    "components": [
+      {
+        "type": "SHELL_BOX",
+        "facade": {
+          "surfacePattern": {
+            "pattern": "SMOOTH",
+            "density": 0.95
+          }
+        }
+      }
+    ]
+  },
+  
+  "description": "The Great Pyramid of Giza is a massive square pyramid built with precise geometric precision. It features a square base, four triangular faces meeting at an apex, and is constructed from massive stone blocks with smooth sides.",
+  "descriptionZh": "吉萨大金字塔是一座以精确几何精度建造的大型方形金字塔。它具有方形底座、四个在顶点汇合的三角形面，并由带有光滑侧面的大型石块建造。",
+  
+  "keywords": [
+    "金字塔",
+    "埃及",
+    "三角锥",
+    "石头",
+    "几何",
+    "对称",
+    "古老",
+    "巨大"
+  ],
+  "exampleRefs": []
+}
+

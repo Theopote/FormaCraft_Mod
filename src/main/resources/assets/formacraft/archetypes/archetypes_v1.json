@@ -81,6 +81,15 @@
       "defaults": { "rows": 3, "cols": 4, "spacing": 18, "blockWidth": 11, "blockDepth": 11, "blockHeight": 22, "includeRoads": true, "roadWidth": 3 },
       "constraints": { "minRows": 1, "maxRows": 12, "minCols": 1, "maxCols": 12, "minSpacing": 10, "maxSpacing": 40, "minBlockWidth": 9, "maxBlockWidth": 21, "minBlockDepth": 9, "maxBlockDepth": 21, "minBlockHeight": 14, "maxBlockHeight": 60, "minRoadWidth": 1, "maxRoadWidth": 7 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "birds_nest_stadium",
+      "aliases": ["鸟巢", "鸟巢体育馆", "国家体育场", "北京鸟巢", "birds nest", "birds nest stadium", "national stadium", "beijing national stadium"],
+      "category": "LANDMARK",
+      "generatorId": "birds_nest_stadium",
+      "defaults": { "width": 60, "depth": 80, "height": 30, "elliptical": true, "meshStructure": true },
+      "constraints": { "minWidth": 30, "maxWidth": 120, "minDepth": 40, "maxDepth": 160, "minHeight": 15, "maxHeight": 60 },
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
     }
   ]
 }
