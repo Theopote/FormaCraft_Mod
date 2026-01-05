@@ -1,0 +1,43 @@
+{
+  "asset_id": "chinese_dougong_small",
+  "version": "1.0",
+  "tags": ["Chinese", "Structure", "Connector", "Traditional"],
+  "category": "CONNECTOR",
+  "size": [3, 2, 2],
+  "anchor": "BOTTOM_CENTER",
+  "is_flexible": false,
+  "generator_class": null,
+  "material_variables": {
+    "$primary_log": "PRIMARY_STRUCTURE",
+    "$accent_stairs": "ACCENT",
+    "$accent_slab": "ACCENT"
+  },
+  "blocks": [
+    {
+      "pos": [1, 0, 0],
+      "type": "$primary_log",
+      "state": {"axis": "y"}
+    },
+    {
+      "pos": [0, 1, 0],
+      "type": "$accent_stairs",
+      "state": {"facing": "east", "half": "top"}
+    },
+    {
+      "pos": [2, 1, 0],
+      "type": "$accent_stairs",
+      "state": {"facing": "west", "half": "top"}
+    },
+    {
+      "pos": [1, 1, 0],
+      "type": "$accent_slab",
+      "state": {"type": "top"}
+    },
+    {
+      "pos": [1, 1, 1],
+      "type": "$accent_stairs",
+      "state": {"facing": "north", "half": "top"}
+    }
+  ]
+}
+

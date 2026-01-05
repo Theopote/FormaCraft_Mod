@@ -3362,6 +3362,67 @@ public final class MetaAssemblyEngine {
         }
     }
 
+    /**
+     * Compute anchor position for asset placement based on placement rule.
+     */
+    private static BlockPos computeAssetAnchor(BlockPos origin, Direction entranceFacing, String face, String placement, 
+                                               int x0, int x1, int y0, int y1, int z0, int z1) {
+        // For now, use a simple placement: center of the face at middle Y
+        // TODO: Implement more sophisticated placement rules (WINDOW_FRAME, COLUMN_TOP, etc.)
+        int cx = (x0 + x1) / 2;
+        int cy = (y0 + y1) / 2;
+        int cz = (z0 + z1) / 2;
+        
+        // Adjust based on face (place on the surface)
+        return switch (face) {
+            case "NORTH" -> PlacementUtil.local(origin, entranceFacing, cx, cy, z0);
+            case "SOUTH" -> PlacementUtil.local(origin, entranceFacing, cx, cy, z1);
+            case "EAST" -> PlacementUtil.local(origin, entranceFacing, x1, cy, cz);
+            case "WEST" -> PlacementUtil.local(origin, entranceFacing, x0, cy, cz);
+            default -> PlacementUtil.local(origin, entranceFacing, cx, cy, cz);
+        };
+    }
+    
+    /**
+     * Parse face direction and convert to world direction considering entrance facing.
+     * Returns the direction perpendicular to the face (pointing outward).
+     */
+    private static Direction parseFaceDirection(String face, Direction entranceFacing) {
+        Direction localDir = switch (face) {
+            case "NORTH" -> Direction.NORTH;
+            case "SOUTH" -> Direction.SOUTH;
+            case "EAST" -> Direction.EAST;
+            case "WEST" -> Direction.WEST;
+            default -> Direction.NORTH;
+        };
+        // Rotate local direction to world direction (entranceFacing is the rotation)
+        if (entranceFacing == null) entranceFacing = Direction.SOUTH;
+        return switch (entranceFacing) {
+            case NORTH -> switch (localDir) {
+                case NORTH -> Direction.SOUTH;
+                case SOUTH -> Direction.NORTH;
+                case EAST -> Direction.WEST;
+                case WEST -> Direction.EAST;
+                default -> localDir;
+            };
+            case EAST -> switch (localDir) {
+                case NORTH -> Direction.EAST;
+                case SOUTH -> Direction.WEST;
+                case EAST -> Direction.NORTH;
+                case WEST -> Direction.SOUTH;
+                default -> localDir;
+            };
+            case WEST -> switch (localDir) {
+                case NORTH -> Direction.WEST;
+                case SOUTH -> Direction.EAST;
+                case EAST -> Direction.SOUTH;
+                case WEST -> Direction.NORTH;
+                default -> localDir;
+            };
+            default -> localDir; // SOUTH (default)
+        };
+    }
+    
     private static int[] parsePoint(Object v) {
         if (v instanceof Map<?, ?> m) {
             return new int[]{i(m.get("x"), 0), i(m.get("y"), 0), i(m.get("z"), 0)};

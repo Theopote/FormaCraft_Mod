@@ -1,6 +1,7 @@
 package com.formacraft.server;
 
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.server.asset.AssetLibrary;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.networking.ModPacket;
 import net.fabricmc.api.DedicatedServerModInitializer;
@@ -20,6 +21,9 @@ public class ServerInitializer implements DedicatedServerModInitializer {
         
         // 注册建造执行服务的 Tick 处理器
         BuildExecutionService.registerTickHandler();
+        
+        // 加载预制件库
+        AssetLibrary.loadAssets();
     }
 }
 

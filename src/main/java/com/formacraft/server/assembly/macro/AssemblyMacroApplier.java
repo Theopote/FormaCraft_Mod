@@ -166,6 +166,7 @@ public final class AssemblyMacroApplier {
         String it = (intent != null) ? intent.toUpperCase(Locale.ROOT) : "";
         boolean gothic = sid.contains("GOTHIC") || it.contains("神圣") || it.contains("SACRED");
         boolean industrial = sid.contains("INDUSTRIAL") || it.contains("工业") || it.contains("INDUSTRIAL");
+        boolean chinese = sid.contains("CHINESE") || sid.contains("ASIAN") || it.contains("中式") || it.contains("传统") || it.contains("CHINESE") || it.contains("TRADITIONAL");
 
         // 1) Gothic: pointed arches + rose window + vertical rhythm + (optional) buttresses
         if (gothic) {
@@ -256,7 +257,90 @@ public final class AssemblyMacroApplier {
             }
         }
 
-        // 2) Industrial: exoskeleton frame grid around primary
+        // 2) Chinese/Traditional: decorative elements (dougong, lattice windows, roof finials)
+        if (chinese) {
+            Object existingDeco = facade.get("decorativeElements");
+            if (existingDeco == null) {
+                List<Map<String, Object>> decorativeElements = new ArrayList<>();
+                
+                // Add dougong (connector) on column tops with medium density
+                if (density >= 0.3) {
+                    decorativeElements.add(new java.util.LinkedHashMap<>(java.util.Map.of(
+                        "type", "CONNECTOR",
+                        "assetId", "chinese_dougong_small",
+                        "placement", "COLUMN_TOP",
+                        "face", "ALL",
+                        "density", Math.max(0.5, density)
+                    )));
+                }
+                
+                // Add lattice windows (filler) if density allows (openness is not directly available here)
+                // Use density as a proxy for openness requirement
+                // Randomly select from available lattice window variants for variety
+                if (density >= 0.2) {
+                    String[] latticeVariants = {
+                        "chinese_lattice_window_cross",
+                        "chinese_lattice_window_diamond",
+                        "chinese_lattice_window_square"
+                    };
+                    // Use a deterministic selection based on building dimensions
+                    int variantIndex = (w + dep + h) % latticeVariants.length;
+                    decorativeElements.add(new java.util.LinkedHashMap<>(java.util.Map.of(
+                        "type", "FILLER",
+                        "assetId", latticeVariants[variantIndex],
+                        "placement", "WINDOW_FRAME",
+                        "face", "ALL"
+                    )));
+                }
+                
+                // Add luxury door (filler) for main entrance if structure exposure is high
+                if (structureExposure >= 0.6) {
+                    decorativeElements.add(new java.util.LinkedHashMap<>(java.util.Map.of(
+                        "type", "FILLER",
+                        "assetId", "chinese_door_luxury",
+                        "placement", "ENTRANCE",
+                        "face", "NORTH"
+                    )));
+                }
+                
+                // Add roof finials (terminator) on roof ridge ends with high structure exposure
+                if (structureExposure >= 0.5) {
+                    decorativeElements.add(new java.util.LinkedHashMap<>(java.util.Map.of(
+                        "type", "TERMINATOR",
+                        "assetId", "chinese_roof_finial",
+                        "placement", "ROOF_RIDGE_END",
+                        "face", "ALL"
+                    )));
+                }
+                
+                // Add flying eaves (connector) along roof edges with high structure exposure
+                if (structureExposure >= 0.6) {
+                    decorativeElements.add(new java.util.LinkedHashMap<>(java.util.Map.of(
+                        "type", "CONNECTOR",
+                        "assetId", "chinese_flying_eave",
+                        "placement", "ROOF_EDGE",
+                        "face", "ALL"
+                    )));
+                }
+                
+                // Add eave details (terminator) along roof edges
+                if (structureExposure >= 0.4) {
+                    decorativeElements.add(new java.util.LinkedHashMap<>(java.util.Map.of(
+                        "type", "TERMINATOR",
+                        "assetId", "chinese_eave_detail",
+                        "placement", "ROOF_EDGE",
+                        "face", "ALL"
+                    )));
+                }
+                
+                if (!decorativeElements.isEmpty()) {
+                    facade.put("decorativeElements", decorativeElements);
+                    issues.add(warn("$.macro.style", "W_MACRO_STYLE_CHINESE_DECOR", "style=chinese/traditional: injected facade.decorativeElements (dougong, lattice windows, roof finials)"));
+                }
+            }
+        }
+
+        // 3) Industrial: exoskeleton frame grid around primary
         if (industrial) {
             Map<String, Object> g = graph;
             if (g == null) {

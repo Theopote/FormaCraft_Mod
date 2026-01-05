@@ -688,6 +688,40 @@ public final class MetaAssemblyCompiler {
             }
         }
 
+        // -------- decorative elements (asset library) --------
+        Object decoObj = facade.get("decorativeElements");
+        if (decoObj == null) decoObj = facade.get("decorative_elements");
+        if (decoObj instanceof List<?> decoList) {
+            for (Object item : decoList) {
+                if (!(item instanceof Map<?, ?> im)) continue;
+                Map<String, Object> deco;
+                try { deco = (Map<String, Object>) im; } catch (Exception e) { continue; }
+                
+                String assetId = str(deco.get("assetId"), "");
+                if (assetId.isEmpty()) continue;
+                
+                String placement = str(deco.get("placement"), "BOTTOM_CENTER");
+                String faces = str(deco.get("face"), str(deco.get("faces"), "ALL")).trim().toUpperCase(Locale.ROOT);
+                String type = str(deco.get("type"), "FILLER");
+                
+                for (String face : expandFaces(faces)) {
+                    Map<String, Object> o = new HashMap<>();
+                    o.put("op", "PLACE_ASSET");
+                    o.put("assetId", assetId);
+                    o.put("face", face);
+                    o.put("placement", placement);
+                    o.put("type", type);
+                    // bounds (for placement calculation)
+                    o.put("x0", -hx); o.put("x1", hx);
+                    o.put("y0", y0);  o.put("y1", y1);
+                    o.put("z0", -hz); o.put("z1", hz);
+                    // Optional parameters
+                    copy(deco, o, "parameters");
+                    ops.add(o);
+                }
+            }
+        }
+
         // -------- facade grid (curtain wall macro) --------
         Object fg = facade.get("facadeGrid");
         if (fg == null) fg = facade.get("FACADE_GRID");
