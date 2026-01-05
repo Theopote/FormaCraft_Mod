@@ -147,7 +147,7 @@ public final class EvalAssemblyCasesMain {
                 continue;
             }
 
-            AssemblySpec spec = MetaAssemblyCompiler.compile(applied);
+            AssemblySpec spec = MetaAssemblyCompiler.compile(applied, null);
             if (spec == null || spec.ops == null) {
                 bad++;
                 System.err.println("[evalAssemblyCases] FAIL " + id + " (" + p.getFileName() + ") : compile returned null");
