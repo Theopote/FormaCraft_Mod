@@ -145,6 +145,51 @@ def main() -> int:
         _assert(l4.get("courtyard") is True, "Case4: courtyard should normalize to True", errors)
         _assert(abs(float(l4.get("courtyardRatio")) - 0.45) < 1e-6, "Case4: courtyardRatio should normalize to 0.45", errors)
 
+    # Case 5: 关键字段必须存在
+    data5 = {
+        "type": "HOUSE",
+        "style": "DEFAULT",
+        "footprint": {"shape": "rectangle", "width": 8, "depth": 6},
+        "height": 10,
+        "materials": {},
+        "features": {},
+    }
+    n5 = _normalize(data5)
+    _assert(n5.get("type") == "HOUSE", "Case5: type should be preserved", errors)
+    _assert(isinstance(n5.get("footprint"), dict), "Case5: footprint should be a dict", errors)
+    fp5 = n5.get("footprint")
+    if isinstance(fp5, dict):
+        _assert(fp5.get("shape") == "rectangle", "Case5: footprint.shape should be rectangle", errors)
+        _assert(isinstance(fp5.get("width"), (int, float)), "Case5: footprint.width should be a number", errors)
+
+    # Case 6: 尺寸合理性验证（过大值）
+    data6 = {
+        "type": "HOUSE",
+        "style": "DEFAULT",
+        "footprint": {"shape": "rectangle", "width": 500, "depth": 500},  # 过大
+        "height": 1000,  # 过大
+        "materials": {},
+        "features": {},
+    }
+    n6 = _normalize(data6)
+    fp6 = n6.get("footprint")
+    if isinstance(fp6, dict):
+        # 规范化应该保留值（验证在运行时进行）
+        _assert(fp6.get("width") == 500, "Case6: large width should be preserved (validation happens at runtime)", errors)
+
+    # Case 7: 负值处理
+    data7 = {
+        "type": "HOUSE",
+        "style": "DEFAULT",
+        "footprint": {"shape": "rectangle", "width": -5, "depth": 8},
+        "height": -10,
+        "materials": {},
+        "features": {},
+    }
+    n7 = _normalize(data7)
+    # 负值应该被保留（运行时验证会警告）
+    _assert(isinstance(n7.get("footprint"), dict), "Case7: footprint should exist even with negative values", errors)
+
     if errors:
         print("FAIL")
         for e in errors:

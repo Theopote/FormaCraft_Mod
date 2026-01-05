@@ -14,8 +14,23 @@ import com.formacraft.FormacraftMod;
  * 处理客户端发送的建筑请求数据包
  */
 public class BuildRequestHandler {
-    private static final String ORCHESTRATOR_ENDPOINT = "http://localhost:8000";
-    private static final OrchestratorClient orchestratorClient = new OrchestratorClient(ORCHESTRATOR_ENDPOINT);
+    // 使用延迟初始化的客户端（从配置读取）
+    private static volatile OrchestratorClient orchestratorClient = null;
+    private static String lastEndpoint = null;
+    
+    private static OrchestratorClient getOrchestratorClient() {
+        String currentEndpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
+        // 如果端点改变或客户端未初始化，重新创建
+        if (orchestratorClient == null || !currentEndpoint.equals(lastEndpoint)) {
+            synchronized (BuildRequestHandler.class) {
+                if (orchestratorClient == null || !currentEndpoint.equals(lastEndpoint)) {
+                    orchestratorClient = new OrchestratorClient(currentEndpoint);
+                    lastEndpoint = currentEndpoint;
+                }
+            }
+        }
+        return orchestratorClient;
+    }
 
     public static void handle(BuildRequestPacket packet, ServerPlayerEntity player, PacketSender responseSender) {
         if (player == null) {
@@ -35,7 +50,7 @@ public class BuildRequestHandler {
         FormacraftMod.LOGGER.info("Received build request from player {}: {}", player.getName().getString(), request.getRequestText());
 
         // 异步请求 AI 生成建筑规格
-        orchestratorClient.requestBuildingSpec(request).thenAccept(spec -> {
+        getOrchestratorClient().requestBuildingSpec(request).thenAccept(spec -> {
             if (spec == null) {
                 FormacraftMod.LOGGER.error("Failed to get BuildingSpec from orchestrator");
                 return;

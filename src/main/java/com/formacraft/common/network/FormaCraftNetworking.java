@@ -52,8 +52,23 @@ public class FormaCraftNetworking {
     public static final Identifier PATCH_REDO = Identifier.of("formacraft", "patch_redo");
     public static final Identifier PATCH_APPLY = Identifier.of("formacraft", "patch_apply");
 
-    // 后端客户端（应该从配置读取，这里先硬编码）
-    private static final OrchestratorClient ORCHESTRATOR = new OrchestratorClient("http://localhost:8000");
+    // 后端客户端（延迟初始化，从配置读取）
+    private static volatile OrchestratorClient orchestratorClient = null;
+    private static String lastEndpoint = null;
+    
+    private static OrchestratorClient getOrchestrator() {
+        String currentEndpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
+        // 如果端点改变或客户端未初始化，重新创建
+        if (orchestratorClient == null || !currentEndpoint.equals(lastEndpoint)) {
+            synchronized (FormaCraftNetworking.class) {
+                if (orchestratorClient == null || !currentEndpoint.equals(lastEndpoint)) {
+                    orchestratorClient = new OrchestratorClient(currentEndpoint);
+                    lastEndpoint = currentEndpoint;
+                }
+            }
+        }
+        return orchestratorClient;
+    }
 
     // 防止在客户端/集成服务器环境下重复注册导致崩溃（PayloadTypeRegistry 不允许重复 register）
     private static boolean registeredC2SPayloadTypes = false;
@@ -178,6 +193,24 @@ public class FormaCraftNetworking {
         String rawMsg = root == null ? "" : String.valueOf(root.getMessage());
         if (rawMsg == null) rawMsg = "";
 
+        // 改进：检测连接错误
+        String connectionError = detectConnectionError(root, rawMsg);
+        if (connectionError != null) {
+            String endpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
+            return String.format(
+                    "无法连接到后端服务（%s）。\n" +
+                    "%s\n" +
+                    "请检查：\n" +
+                    "1. Python 后端是否正在运行（运行：cd python_backend && uvicorn app.main:app --reload）\n" +
+                    "2. 后端地址是否正确（当前：%s，可在设置中修改）\n" +
+                    "3. 防火墙是否允许连接\n" +
+                    "4. 如果后端在其他机器，确保端口已开放且可访问",
+                    stage != null && !stage.isBlank() ? stage : "请求失败",
+                    connectionError,
+                    endpoint
+            );
+        }
+
         String body = tryExtractBodyJson(rawMsg);
         String detail = tryExtractDetailFromBody(body);
 
@@ -194,6 +227,47 @@ public class FormaCraftNetworking {
             return header + "\n原因：" + best + "\n" + hint + tail;
         }
         return header + "\n" + hint + tail;
+    }
+
+    /**
+     * 检测连接相关的错误（ConnectException, UnknownHostException, SocketTimeoutException 等）
+     */
+    private static String detectConnectionError(Throwable root, String rawMsg) {
+        if (root == null) return null;
+        
+        String className = root.getClass().getSimpleName();
+        String msg = rawMsg.toLowerCase();
+        
+        // 连接拒绝
+        if (className.contains("ConnectException") || msg.contains("connection refused") || 
+            msg.contains("connect refused") || msg.contains("connection reset")) {
+            return "连接被拒绝：后端服务可能未启动";
+        }
+        
+        // 未知主机
+        if (className.contains("UnknownHostException") || msg.contains("unknown host") || 
+            msg.contains("name or service not known")) {
+            return "无法解析主机名：请检查后端地址是否正确";
+        }
+        
+        // 连接超时
+        if (className.contains("ConnectTimeoutException") || msg.contains("connection timed out") ||
+            msg.contains("connect timeout")) {
+            return "连接超时：后端可能未响应，或网络有问题";
+        }
+        
+        // 读取超时
+        if (className.contains("SocketTimeoutException") || msg.contains("read timed out") ||
+            msg.contains("socket timeout")) {
+            return "读取超时：后端响应时间过长";
+        }
+        
+        // HTTP 客户端错误
+        if (className.contains("HttpConnectTimeoutException")) {
+            return "HTTP 连接超时：无法连接到后端";
+        }
+        
+        return null;
     }
 
     // C2S 数据包定义
@@ -455,7 +529,7 @@ public class FormaCraftNetworking {
                 startStatusHeartbeat(context.server(), player, hbAlive, hbStartMs, hbPhase);
 
                 // 请求城市级结构
-                ORCHESTRATOR.requestCitySpec(req)
+                getOrchestrator().requestCitySpec(req)
                         .orTimeout(605, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
                             hbAlive.set(false);
@@ -551,7 +625,14 @@ public class FormaCraftNetworking {
                 startStatusHeartbeat(context.server(), player, hbAlive, hbStartMs, hbPhase);
 
                 // 请求复合结构
-                ORCHESTRATOR.requestCompositeSpec(req)
+                OrchestratorClient orchestrator = getOrchestrator();
+                if (!orchestrator.checkHealth()) {
+                    String endpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
+                    String errorMsg = "后端服务不可用：无法连接到 " + endpoint + "。请检查后端是否正在运行。";
+                    ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(errorMsg));
+                    return;
+                }
+                orchestrator.requestCompositeSpec(req)
                         .orTimeout(605, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
                             hbAlive.set(false);
@@ -649,7 +730,14 @@ public class FormaCraftNetworking {
                     long hbStartMs = System.currentTimeMillis();
                     startStatusHeartbeat(context.server(), player, hbAlive, hbStartMs, hbPhase);
 
-                    ORCHESTRATOR.editBuilding(buildingId, currentJson, req.getRequestText())
+                    OrchestratorClient orchestrator = getOrchestrator();
+                    if (!orchestrator.checkHealth()) {
+                        String endpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
+                        String errorMsg = "后端服务不可用：无法连接到 " + endpoint + "。请检查后端是否正在运行。";
+                        ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(errorMsg));
+                        return;
+                    }
+                    orchestrator.editBuilding(buildingId, currentJson, req.getRequestText())
                             .orTimeout(605, TimeUnit.SECONDS)
                             .exceptionally(ex -> {
                                 hbAlive.set(false);
@@ -729,12 +817,30 @@ public class FormaCraftNetworking {
                     return;
                 }
 
+                // 在发送请求前先检查后端健康状态
+                OrchestratorClient orchestrator = getOrchestrator();
+                if (!orchestrator.checkHealth()) {
+                    String endpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
+                    String errorMsg = String.format(
+                            "后端服务不可用：无法连接到 %s\n" +
+                            "请检查：\n" +
+                            "1. Python 后端是否正在运行\n" +
+                            "2. 后端地址是否正确（可在设置中修改）\n" +
+                            "3. 防火墙是否允许连接\n" +
+                            "4. 如果是远程服务器，请确保端口已开放",
+                            endpoint
+                    );
+                    ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(errorMsg));
+                    FormacraftMod.LOGGER.error("Backend health check failed before sending request: {}", endpoint);
+                    return;
+                }
+
                 AtomicBoolean hbAlive = new AtomicBoolean(true);
                 AtomicReference<String> hbPhase = new AtomicReference<>("后端仍在生成建筑方案");
                 long hbStartMs = System.currentTimeMillis();
                 startStatusHeartbeat(context.server(), player, hbAlive, hbStartMs, hbPhase);
 
-                ORCHESTRATOR.requestBuildingSpec(req)
+                orchestrator.requestBuildingSpec(req)
                         .orTimeout(605, TimeUnit.SECONDS)
                         .exceptionally(ex -> {
                             hbAlive.set(false);

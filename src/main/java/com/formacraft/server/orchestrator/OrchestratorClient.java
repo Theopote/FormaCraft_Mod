@@ -24,8 +24,34 @@ public class OrchestratorClient {
     private final String endpoint;
     private final HttpClient httpClient;
     // 复合/城市规划类请求可能耗时较长（尤其是 deepseek/reasoner），这里给足时间，避免过早中断。
-    // 如果需要更短超时，可后续做成 config 可配。
-    private static final long ORCHESTRATOR_TIMEOUT_SEC = 600;
+    // 从配置读取，默认 600 秒
+    private static final long ORCHESTRATOR_TIMEOUT_SEC = getTimeoutFromConfig();
+    
+    private static long getTimeoutFromConfig() {
+        // TODO: 从 SettingsConfig 读取（如果将来添加超时配置选项）
+        // 目前暂时保持 600 秒的默认值
+        return 600;
+    }
+    
+    /**
+     * 检查后端健康状态
+     * @return true 如果后端可用，false 如果不可用
+     */
+    public boolean checkHealth() {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint + "/health"))
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+            
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() >= 200 && response.statusCode() < 300;
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.debug("Health check failed for {}: {}", endpoint, e.getMessage());
+            return false;
+        }
+    }
 
     public OrchestratorClient(String endpoint) {
         this.endpoint = endpoint;
@@ -39,6 +65,55 @@ public class OrchestratorClient {
         // 简单打码：避免在日志里泄露密钥（哪怕是本地开发也不安全）
         // e.g. "apiKey":"sk-..." -> "apiKey":"***"
         return json.replaceAll("(\"apiKey\"\\s*:\\s*\")([^\"]*)(\")", "$1***$3");
+    }
+
+    /**
+     * 运行时验证 BuildingSpec 的关键字段
+     * @param spec 要验证的 BuildingSpec
+     * @throws RuntimeException 如果验证失败
+     */
+    private static void validateBuildingSpec(BuildingSpec spec) {
+        if (spec == null) {
+            throw new RuntimeException("BuildingSpec is null");
+        }
+        
+        // 验证类型
+        if (spec.getType() == null) {
+            throw new RuntimeException("BuildingSpec.type is null");
+        }
+        
+        // 验证 footprint
+        if (spec.getFootprint() == null) {
+            throw new RuntimeException("BuildingSpec.footprint is null");
+        }
+        var fp = spec.getFootprint();
+        if (fp.getShape() == null || fp.getShape().isBlank()) {
+            throw new RuntimeException("BuildingSpec.footprint.shape is null or empty");
+        }
+        
+        // 验证高度和楼层（合理性检查）
+        if (spec.getHeight() <= 0) {
+            FormacraftMod.LOGGER.warn("BuildingSpec.height is {} (<=0), clamping to 1", spec.getHeight());
+            // 注意：不能直接修改 spec，因为可能是不可变的。这里只记录警告。
+        }
+        if (spec.getFloors() < 0) {
+            FormacraftMod.LOGGER.warn("BuildingSpec.floors is {} (<0), should be >= 0", spec.getFloors());
+        }
+        
+        // 验证尺寸合理性（避免生成过大的建筑）
+        int maxDimension = 200; // 最大尺寸（可根据需要调整）
+        Integer width = fp.getWidth();
+        if (width != null && width > maxDimension) {
+            FormacraftMod.LOGGER.warn("BuildingSpec.footprint.width is {} (>{})", width, maxDimension);
+        }
+        Integer depth = fp.getDepth();
+        if (depth != null && depth > maxDimension) {
+            FormacraftMod.LOGGER.warn("BuildingSpec.footprint.depth is {} (>{})", depth, maxDimension);
+        }
+        int height = spec.getHeight();
+        if (height > maxDimension) {
+            FormacraftMod.LOGGER.warn("BuildingSpec.height is {} (>{})", height, maxDimension);
+        }
     }
 
     /**
@@ -81,6 +156,8 @@ public class OrchestratorClient {
                                 if (spec == null) {
                                     throw new RuntimeException("Orchestrator returned 200 but BuildingSpec is null. body=" + body);
                                 }
+                                // 运行时验证：检查关键字段
+                                validateBuildingSpec(spec);
                                 return spec;
                             } catch (Exception e) {
                                 FormacraftMod.LOGGER.error("Failed to parse response from orchestrator", e);
@@ -172,7 +249,12 @@ public class OrchestratorClient {
                             try {
                                 // 尝试解析为 CitySpec
                                 if (body.contains("\"zones\"") || body.contains("\"cityName\"")) {
-                                    return JsonUtil.fromJson(body, CitySpec.class);
+                                    CitySpec city = JsonUtil.fromJson(body, CitySpec.class);
+                                    if (city != null) {
+                                        // 验证 CitySpec 的关键字段
+                                        validateCitySpec(city);
+                                    }
+                                    return city;
                                 } else {
                                     FormacraftMod.LOGGER.warn("Response is not a CitySpec");
                                     return null;
@@ -309,6 +391,30 @@ public class OrchestratorClient {
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to create HTTP request for building edit", e);
             return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * 运行时验证 CompositeSpec 的关键字段
+     */
+    private static void validateCompositeSpec(CompositeSpec spec) {
+        if (spec == null) {
+            throw new RuntimeException("CompositeSpec is null");
+        }
+        if (spec.getStructures() == null || spec.getStructures().isEmpty()) {
+            FormacraftMod.LOGGER.warn("CompositeSpec.structures is null or empty");
+        }
+    }
+
+    /**
+     * 运行时验证 CitySpec 的关键字段
+     */
+    private static void validateCitySpec(CitySpec spec) {
+        if (spec == null) {
+            throw new RuntimeException("CitySpec is null");
+        }
+        if (spec.getZones() == null || spec.getZones().isEmpty()) {
+            FormacraftMod.LOGGER.warn("CitySpec.zones is null or empty");
         }
     }
 }

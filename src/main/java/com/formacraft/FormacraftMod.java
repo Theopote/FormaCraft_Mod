@@ -44,7 +44,8 @@ public class FormacraftMod implements ModInitializer {
 		// Proceed with mild caution.
 
 		LOGGER.info("FormaCraft initialized!");
-		ConfigManager.loadConfig();
+		// 加载配置（必须在其他模块使用配置之前）
+		com.formacraft.common.config.ConfigManager.loadConfig();
 
 		// 关键：BuildExecutionService 的 Tick 处理器必须在“集成服务器（单机）”中也注册。
 		// DedicatedServerModInitializer 不会在单机触发；如果不在这里注册，确认建造只会入队但永远不执行。

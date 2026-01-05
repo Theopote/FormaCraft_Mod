@@ -2879,41 +2879,71 @@ public class HouseGenerator implements StructureGenerator {
     }
 
     private static BlockState defaultWall(BuildingStyle style) {
-        return switch (style) {
-            case MODERN -> Blocks.WHITE_CONCRETE.getDefaultState();
-            // 明清官式默认红墙
-            case ASIAN -> Blocks.RED_TERRACOTTA.getDefaultState();
-            case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
-            case MEDIEVAL -> Blocks.STONE_BRICKS.getDefaultState();
-            case DEFAULT -> Blocks.OAK_PLANKS.getDefaultState();
-        };
+        if (style == null) style = BuildingStyle.DEFAULT;
+        switch (style) {
+            case MODERN:
+                return Blocks.WHITE_CONCRETE.getDefaultState();
+            case ASIAN:
+                // 明清官式默认红墙
+                return Blocks.RED_TERRACOTTA.getDefaultState();
+            case FUTURISTIC:
+                return Blocks.QUARTZ_BLOCK.getDefaultState();
+            case RUSTIC:
+                return Blocks.SPRUCE_PLANKS.getDefaultState();
+            case MEDIEVAL:
+                return Blocks.STONE_BRICKS.getDefaultState();
+            case DEFAULT:
+            default:
+                return Blocks.OAK_PLANKS.getDefaultState();
+        }
     }
 
     private static BlockState defaultFloor(BuildingStyle style) {
-        return switch (style) {
-            case MODERN, FUTURISTIC -> Blocks.SMOOTH_QUARTZ.getDefaultState();
-            case ASIAN, MEDIEVAL, DEFAULT -> Blocks.OAK_PLANKS.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
-        };
+        if (style == null) style = BuildingStyle.DEFAULT;
+        switch (style) {
+            case MODERN:
+            case FUTURISTIC:
+                return Blocks.SMOOTH_QUARTZ.getDefaultState();
+            case ASIAN:
+            case MEDIEVAL:
+            case DEFAULT:
+                return Blocks.OAK_PLANKS.getDefaultState();
+            case RUSTIC:
+                return Blocks.SPRUCE_PLANKS.getDefaultState();
+            default:
+                return Blocks.OAK_PLANKS.getDefaultState();
+        }
     }
 
     private static BlockState defaultWindow(BuildingStyle style) {
-        return switch (style) {
-            case MODERN, FUTURISTIC -> Blocks.GLASS.getDefaultState();
-            default -> Blocks.GLASS_PANE.getDefaultState();
-        };
+        if (style == null) style = BuildingStyle.DEFAULT;
+        switch (style) {
+            case MODERN:
+            case FUTURISTIC:
+                return Blocks.GLASS.getDefaultState();
+            default:
+                return Blocks.GLASS_PANE.getDefaultState();
+        }
     }
 
     private static BlockState defaultRoof(BuildingStyle style) {
-        return switch (style) {
-            case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
-            case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
-            // 官式灰瓦（近似）：深板岩瓦
-            case ASIAN -> Blocks.DEEPSLATE_TILES.getDefaultState();
-            case MEDIEVAL, DEFAULT -> Blocks.DARK_OAK_PLANKS.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
-        };
+        if (style == null) style = BuildingStyle.DEFAULT;
+        switch (style) {
+            case MODERN:
+                return Blocks.BLACK_CONCRETE.getDefaultState();
+            case FUTURISTIC:
+                return Blocks.QUARTZ_BLOCK.getDefaultState();
+            case ASIAN:
+                // 官式灰瓦（近似）：深板岩瓦
+                return Blocks.DEEPSLATE_TILES.getDefaultState();
+            case MEDIEVAL:
+            case DEFAULT:
+                return Blocks.DARK_OAK_PLANKS.getDefaultState();
+            case RUSTIC:
+                return Blocks.SPRUCE_PLANKS.getDefaultState();
+            default:
+                return Blocks.DARK_OAK_PLANKS.getDefaultState();
+        }
     }
 
     private static BlockState defaultTrim(BuildingStyle style, BlockState wall) {
@@ -2921,12 +2951,20 @@ public class HouseGenerator implements StructureGenerator {
         if (wall != null && wall.getBlock() == Blocks.STONE_BRICKS) {
             return Blocks.CHISELED_STONE_BRICKS.getDefaultState();
         }
-        return switch (style) {
-            case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
-            case FUTURISTIC -> Blocks.LIGHT_BLUE_STAINED_GLASS.getDefaultState();
-            case ASIAN -> Blocks.RED_TERRACOTTA.getDefaultState();
-            case RUSTIC, MEDIEVAL, DEFAULT -> Blocks.SPRUCE_LOG.getDefaultState();
-        };
+        if (style == null) style = BuildingStyle.DEFAULT;
+        switch (style) {
+            case MODERN:
+                return Blocks.BLACK_CONCRETE.getDefaultState();
+            case FUTURISTIC:
+                return Blocks.LIGHT_BLUE_STAINED_GLASS.getDefaultState();
+            case ASIAN:
+                return Blocks.RED_TERRACOTTA.getDefaultState();
+            case RUSTIC:
+            case MEDIEVAL:
+            case DEFAULT:
+            default:
+                return Blocks.SPRUCE_LOG.getDefaultState();
+        }
     }
 
     private static BlockState defaultFoundation(BuildingStyle style, BlockState wall) {
