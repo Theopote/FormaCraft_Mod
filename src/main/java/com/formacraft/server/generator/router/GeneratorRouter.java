@@ -35,6 +35,12 @@ public final class GeneratorRouter {
             return new TowerGenerator();
         }
 
+        // 0) styleProfileId-based routing (data-driven style wants a dedicated generator)
+        // NOTE: Check this BEFORE assembly routing, so specialized generators (like ParametricDeconstructivismGenerator)
+        // take precedence over generic MetaAssemblyGenerator when styleProfileId matches.
+        StructureGenerator byStyleProfileId = routeByStyleProfileId(spec);
+        if (byStyleProfileId != null) return byStyleProfileId;
+
         // 0) meta-assembly routing (first-principles parametric engine, opt-in via extra.assembly)
         StructureGenerator byAssembly = routeByAssembly(spec);
         if (byAssembly != null) return byAssembly;
@@ -47,10 +53,6 @@ public final class GeneratorRouter {
         // 0) template-based routing (deterministic templates)
         StructureGenerator byTemplate = routeByTemplate(spec);
         if (byTemplate != null) return byTemplate;
-
-        // 0) styleProfileId-based routing (data-driven style wants a dedicated generator)
-        StructureGenerator byStyleProfileId = routeByStyleProfileId(spec);
-        if (byStyleProfileId != null) return byStyleProfileId;
 
         // 0) legacy landmark flag (keeps current behavior)
         StructureGenerator legacy = routeLegacyLandmark(spec);
