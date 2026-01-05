@@ -1,0 +1,98 @@
+{
+  "asset_id": "chinese_lattice_window_square",
+  "version": "1.0",
+  "tags": ["Chinese", "Window", "Filler", "Traditional", "Lattice", "Square"],
+  "category": "FILLER",
+  "size": [4, 4, 1],
+  "anchor": "BOTTOM_CENTER",
+  "is_flexible": true,
+  "generator_class": null,
+  "material_variables": {
+    "$primary_wood": "PRIMARY_STRUCTURE",
+    "$window_glass": "WINDOW",
+    "$frame_material": "FACADE_TRIM"
+  },
+  "blocks": [
+    {
+      "pos": [0, 0, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [1, 0, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [2, 0, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [3, 0, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [0, 1, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [1, 1, 0],
+      "type": "$primary_wood",
+      "state": {}
+    },
+    {
+      "pos": [2, 1, 0],
+      "type": "$primary_wood",
+      "state": {}
+    },
+    {
+      "pos": [3, 1, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [0, 2, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [1, 2, 0],
+      "type": "$primary_wood",
+      "state": {}
+    },
+    {
+      "pos": [2, 2, 0],
+      "type": "$primary_wood",
+      "state": {}
+    },
+    {
+      "pos": [3, 2, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [0, 3, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [1, 3, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [2, 3, 0],
+      "type": "$frame_material",
+      "state": {}
+    },
+    {
+      "pos": [3, 3, 0],
+      "type": "$frame_material",
+      "state": {}
+    }
+  ]
+}
+

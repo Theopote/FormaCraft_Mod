@@ -1,0 +1,104 @@
+{
+  "asset_id": "chinese_flying_eave",
+  "version": "1.0",
+  "tags": ["Chinese", "Roof", "Connector", "Traditional", "Eave"],
+  "category": "CONNECTOR",
+  "size": [5, 2, 3],
+  "anchor": "BOTTOM_CENTER",
+  "is_flexible": true,
+  "generator_class": null,
+  "material_variables": {
+    "$roof_material": "ROOF_TILE",
+    "$roof_slab": "ROOF_SLOPE",
+    "$accent": "ACCENT",
+    "$support": "PRIMARY_STRUCTURE"
+  },
+  "blocks": [
+    {
+      "pos": [0, 0, 0],
+      "type": "$support",
+      "state": {"axis": "y"}
+    },
+    {
+      "pos": [1, 0, 0],
+      "type": "$support",
+      "state": {"axis": "y"}
+    },
+    {
+      "pos": [2, 0, 0],
+      "type": "$support",
+      "state": {"axis": "y"}
+    },
+    {
+      "pos": [3, 0, 0],
+      "type": "$support",
+      "state": {"axis": "y"}
+    },
+    {
+      "pos": [4, 0, 0],
+      "type": "$support",
+      "state": {"axis": "y"}
+    },
+    {
+      "pos": [0, 1, 0],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [1, 1, 0],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [2, 1, 0],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [3, 1, 0],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [4, 1, 0],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [0, 1, 1],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [1, 1, 1],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [2, 1, 1],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [3, 1, 1],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [4, 1, 1],
+      "type": "$roof_slab",
+      "state": {"facing": "north", "half": "top"}
+    },
+    {
+      "pos": [0, 1, 2],
+      "type": "$accent",
+      "state": {}
+    },
+    {
+      "pos": [4, 1, 2],
+      "type": "$accent",
+      "state": {}
+    }
+  ]
+}
+
