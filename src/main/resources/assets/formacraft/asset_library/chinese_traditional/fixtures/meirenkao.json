@@ -1,0 +1,33 @@
+{
+  "asset_id": "chinese_meirenkao",
+  "version": "1.0",
+  "tags": ["Chinese", "Railing", "Fixture", "Traditional", "Waterfront", "Bench"],
+  "category": "FIXTURE",
+  "size": [1, 2, 1],
+  "anchor": "BOTTOM_CENTER",
+  "is_flexible": true,
+  "generator_class": null,
+  "material_variables": {
+    "$frame_wood": "FRAME",
+    "$support": "PILLAR",
+    "$seat": "DECOR_DETAIL"
+  },
+  "blocks": [
+    {
+      "pos": [0, 0, 0],
+      "type": "$support",
+      "state": {"axis": "y"}
+    },
+    {
+      "pos": [0, 1, 0],
+      "type": "$frame_wood",
+      "state": {"type": "bottom"}
+    },
+    {
+      "pos": [0, 1, 1],
+      "type": "$frame_wood",
+      "state": {"facing": "south", "half": "top"}
+    }
+  ]
+}
+

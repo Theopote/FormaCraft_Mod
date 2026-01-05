@@ -20,6 +20,9 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.BlockPos;
+import com.formacraft.server.generator.HorseHeadWallGenerator;
+import com.formacraft.server.waterfront.WaterDetector;
+import com.formacraft.server.waterfront.WaterfrontPierGenerator;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -544,10 +547,10 @@ public class HouseGenerator implements StructureGenerator {
                     addKaraHafuGable(blocks, origin, width, depth, height, roofHeight, doorSide, roofSlab, trim);
                 }
 
-                // Huizhou (徽派) phenotype: 马头墙（阶梯状山墙），在双坡屋顶两端做“墙高逐级上升”的收边。
+                // Huizhou (徽派) phenotype: 马头墙（阶梯状山墙），在双坡屋顶两端做"墙高逐级上升"的收边。
                 // Trigger when paletteId/styleProfileId indicates Huizhou; keep best-effort and non-invasive.
-                if (isHuizhouStyle(spec, paletteId)) {
-                    addHuizhouHorseHeadWalls(blocks, origin, width, depth, height, roofHeight, wall, trim, roofSlab);
+                if (HorseHeadWallGenerator.isHuizhouStyle(spec, paletteId)) {
+                    HorseHeadWallGenerator.generate(blocks, origin, width, depth, height, roofHeight, wall, trim, roofSlab, doorSide);
                 }
 
             } else {
@@ -2716,19 +2719,6 @@ public class HouseGenerator implements StructureGenerator {
         }
     }
 
-    private static boolean isHuizhouStyle(BuildingSpec spec, String paletteId) {
-        try {
-            if (spec != null && spec.getExtra() != null) {
-                Object spid = spec.getExtra().get("styleProfileId");
-                if (spid != null) {
-                    String s = String.valueOf(spid).trim();
-                    if (s.equals("Chinese_Vernacular_Huizhou")) return true;
-                }
-            }
-        } catch (Throwable ignored) {}
-        if (paletteId == null) return false;
-        return paletteId.trim().equalsIgnoreCase("PALETTE_HUIZHOU_WHITE_BLACK_A");
-    }
 
     private static boolean isJapaneseTraditionalStyle(BuildingSpec spec, String paletteId) {
         try {
@@ -2787,45 +2777,6 @@ public class HouseGenerator implements StructureGenerator {
         blocks.add(new PlannedBlock(origin.add(mid, yPeak - 1, zFront), trim));
     }
 
-    /**
-     * 徽派马头墙（MVP）：在双坡屋顶两端（z=-1 / z=depth）做阶梯状加高的山墙。
-     * - 使用 wall 填充（白墙），trim/roofSlab 做顶部收边（黑线脚/压顶）
-     * - 仅做轮廓识别性，不尝试精确徽派比例学
-     */
-    private static void addHuizhouHorseHeadWalls(List<PlannedBlock> blocks, BlockPos origin,
-                                                 int width, int depth, int height, int roofHeight,
-                                                 BlockState wall, BlockState trim, BlockState cap) {
-        // gable ends are at the ends of the ridge line (z = -1 and z = depth) for our roof orientation.
-        int[] zEnds = new int[]{-1, depth};
-        int maxTop = height + roofHeight + 2;
-        // step size: every 2 blocks in X distance creates one "horse-head" step
-        for (int ze : zEnds) {
-            for (int x = 0; x < width; x++) {
-                int i = Math.min(x, width - 1 - x);
-                int step = (i / 2);
-                int top = Math.min(maxTop, height + step + 2);
-                // ensure edges still have some height above eaves
-                if (top < height + 2) top = height + 2;
-
-                // Fill the stepped gable wall (outside plane)
-                for (int y = height; y <= top; y++) {
-                    BlockState s = wall;
-                    // cap line
-                    if (y == top) s = cap != null ? cap : trim;
-                    else if (y == top - 1) s = trim;
-                    blocks.add(new PlannedBlock(origin.add(x, y, ze), s));
-                }
-            }
-        }
-
-        // Add two “notches” near the ridge center to avoid a perfectly flat top edge.
-        int mid = width / 2;
-        for (int ze : zEnds) {
-            blocks.add(new PlannedBlock(origin.add(mid, maxTop, ze), trim));
-            if (mid - 1 >= 0) blocks.add(new PlannedBlock(origin.add(mid - 1, maxTop - 1, ze), trim));
-            if (mid + 1 < width) blocks.add(new PlannedBlock(origin.add(mid + 1, maxTop - 1, ze), trim));
-        }
-    }
 
     private static void addFlyingEavesCorners(List<PlannedBlock> blocks, BlockPos o, int baseH,
                                               int ox, int oz, int ow, int od, BlockState roofSlab) {
@@ -3156,6 +3107,69 @@ public class HouseGenerator implements StructureGenerator {
             // 如果解析失败，使用回退方案
             return resolveBlockFallback(id);
         }
+    }
+
+    /**
+     * 生成临水码头（如果满足条件）
+     */
+    private static void generateWaterfrontPierIfNeeded(
+            List<PlannedBlock> blocks, ServerWorld world, BuildingSpec spec,
+            BlockPos origin, int width, int depth, int height, Direction doorSide, String paletteId) {
+        
+        // 检查是否启用（通过配置控制，默认启用）
+        if (spec != null && spec.getExtra() != null) {
+            Object waterfrontObj = spec.getExtra().get("waterfront");
+            if (waterfrontObj instanceof java.util.Map<?, ?> wf) {
+                Object enabled = wf.get("enabled");
+                if (enabled != null && !Boolean.parseBoolean(String.valueOf(enabled))) {
+                    return; // 禁用
+                }
+            }
+        }
+        
+        // 检测附近水体
+        WaterDetector.WaterDetectionResult waterResult = WaterDetector.detectNearbyWater(
+            world, origin, width, depth, 8, 8
+        );
+        
+        if (!waterResult.hasWater()) {
+            return; // 没有附近水体
+        }
+        
+        // 计算建筑出入口位置
+        BlockPos buildingExit = calculateDoorExitPosition(origin, width, depth, doorSide);
+        
+        // 寻找最佳接驳点
+        WaterDetector.PierAnchor anchor = WaterDetector.findBestPierAnchor(
+            world, buildingExit, doorSide, 8
+        );
+        
+        if (anchor == null) {
+            return; // 未找到合适的接驳点
+        }
+        
+        // 生成码头
+        List<PlannedBlock> pierBlocks = WaterfrontPierGenerator.generate(
+            world, anchor, paletteId, 3  // 默认宽度3格
+        );
+        
+        blocks.addAll(pierBlocks);
+    }
+    
+    /**
+     * 计算建筑出入口位置（门外的位置）
+     */
+    private static BlockPos calculateDoorExitPosition(BlockPos origin, int width, int depth, Direction doorSide) {
+        int cx = width / 2;
+        int cz = depth / 2;
+        
+        return switch (doorSide) {
+            case NORTH -> origin.add(cx, 0, -1);  // 门外1格
+            case SOUTH -> origin.add(cx, 0, depth);
+            case EAST -> origin.add(width, 0, cz);
+            case WEST -> origin.add(-1, 0, cz);
+            default -> origin.add(cx, 0, -1);
+        };
     }
 
     /**
