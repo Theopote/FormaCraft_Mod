@@ -62,11 +62,12 @@ public class MetaAssemblyGenerator implements StructureGenerator {
         AssemblySpec as = AssemblySpec.fromExtra(applied);
         if (as == null || as.ops.isEmpty()) {
             // allow higher-level graph/components form
-            AssemblySpec compiled = MetaAssemblyCompiler.compile(applied);
+            // 传递 BuildingSpec 以便编译器可以从 footprint 获取尺寸
+            AssemblySpec compiled = MetaAssemblyCompiler.compile(applied, spec);
             if (compiled != null) as = compiled;
         }
-        if (as == null) {
-            return new GeneratedStructure(null, origin, "MetaAssembly (missing extra.assembly)", List.of());
+        if (as == null || as.ops.isEmpty()) {
+            return new GeneratedStructure(null, origin, "MetaAssembly (missing extra.assembly or cannot compile)", List.of());
         }
 
         // palette preference: assembly.paletteId > extra.paletteId

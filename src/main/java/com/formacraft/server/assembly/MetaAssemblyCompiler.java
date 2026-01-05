@@ -21,9 +21,11 @@ public final class MetaAssemblyCompiler {
     /**
      * Compile an assembly map into an AssemblySpec with an ops list.
      * Returns null if cannot compile.
+     * @param assemblyObj The assembly object to compile
+     * @param spec Optional BuildingSpec to get dimensions from (can be null)
      */
     @SuppressWarnings("unchecked")
-    public static AssemblySpec compile(Object assemblyObj) {
+    public static AssemblySpec compile(Object assemblyObj, com.formacraft.common.model.build.BuildingSpec spec) {
         if (!(assemblyObj instanceof Map<?, ?> mm)) return null;
         Map<String, Object> m;
         try { m = (Map<String, Object>) mm; } catch (Exception e) { return null; }
@@ -45,7 +47,17 @@ public final class MetaAssemblyCompiler {
         }
 
         Object compsObj = (graph != null) ? graph.get("components") : m.get("components");
-        if (!(compsObj instanceof List<?> comps)) return null;
+        List<?> comps = null;
+        if (compsObj instanceof List<?> cl) {
+            comps = cl;
+        }
+        
+        // 如果没有 components，但有 macro，尝试从 macro 生成基本组件
+        if ((comps == null || comps.isEmpty()) && m.get("macro") instanceof Map<?, ?>) {
+            comps = generateBasicComponentFromMacro(m, graph, spec);
+        }
+        
+        if (comps == null || comps.isEmpty()) return null;
 
                    // Build a lightweight component index for topology connections.
         // id -> component map (raw) + resolved local origin (x,y,z)
@@ -2204,6 +2216,60 @@ public final class MetaAssemblyCompiler {
         if (v == null) return def;
         String s = String.valueOf(v).trim();
         return s.isEmpty() ? def : s;
+    }
+
+    /**
+     * 从 macro 生成基本组件（当 assembly 只有 macro 但没有 components 时）
+     * 生成一个基本的 SHELL_BOX 组件作为主结构
+     */
+    @SuppressWarnings("unchecked")
+    private static List<?> generateBasicComponentFromMacro(Map<String, Object> m, Map<String, Object> graph, 
+                                                              com.formacraft.common.model.build.BuildingSpec spec) {
+        Object macroObj = m.get("macro");
+        if (!(macroObj instanceof Map<?, ?>)) return null;
+        Map<String, Object> macro = safeMap((Map<?, ?>) macroObj);
+        if (macro == null) return null;
+
+        // 从 BuildingSpec 获取尺寸
+        int w = 20, d = 30, h = 15;
+        if (spec != null) {
+            if (spec.getFootprint() != null) {
+                Integer width = spec.getFootprint().getWidth();
+                Integer depth = spec.getFootprint().getDepth();
+                if (width != null && width > 0) w = width;
+                if (depth != null && depth > 0) d = depth;
+            }
+            if (spec.getHeight() > 0) h = spec.getHeight();
+        }
+        
+        // 创建基本 SHELL_BOX 组件
+        Map<String, Object> basicComponent = new HashMap<>();
+        basicComponent.put("id", "MainVolume");
+        basicComponent.put("type", "SHELL_BOX");
+        basicComponent.put("w", w);
+        basicComponent.put("d", d);
+        basicComponent.put("h", h);
+        
+        List<Object> comps = new ArrayList<>();
+        comps.add(basicComponent);
+        
+        // 更新 graph 或 root
+        if (graph != null) {
+            graph.put("components", comps);
+        } else {
+            m.put("components", comps);
+        }
+        
+        return comps;
+    }
+    
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> safeMap(Map<?, ?> m) {
+        try {
+            return (Map<String, Object>) m;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
 
