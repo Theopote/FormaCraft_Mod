@@ -68,22 +68,25 @@
 
 ---
 
-### ⏳ Phase 3：集成到生成流程（待实现）
+### ✅ Phase 3：集成到生成流程（已完成）
 
-**需求**：
-1. 在 `HouseGenerator` 中添加自动检测逻辑
-2. 或在后处理系统中调用
-3. 支持通过配置启用/禁用
+**实现**：
+1. ✅ 在 `HouseGenerator` 中添加自动检测逻辑
+2. ✅ 支持通过配置启用/禁用（`extra.waterfront.enabled`）
 
-**集成点建议**：
+**集成点**：
 - 在 `HouseGenerator.generate()` 方法末尾，建筑生成完成后
-- 检测是否满足条件（距离阈值、高差等）
-- 如果满足，调用 `WaterfrontPierGenerator.generate()`
+- 调用 `generateWaterfrontPierIfNeeded()` 方法
+- 静默失败，不影响主建筑生成
 
 **触发条件**：
 - 建筑附近有水体（距离 < 8格）
 - 建筑有出入口（通过 `resolveDoorSide` 获取）
-- 可选的配置开关（`extra.waterfront.enabled`）
+- 可选的配置开关（`extra.waterfront.enabled`，默认启用）
+
+**实现细节**：
+- `generateWaterfrontPierIfNeeded()`：检查配置、检测水体、寻找接驳点、生成码头
+- `calculateDoorExitPosition()`：计算建筑出入口位置（门外1格）
 
 ---
 
@@ -120,10 +123,10 @@ if (waterResult.hasWater()) {
 ## 下一步工作
 
 ### 优先级 1：集成到 HouseGenerator
-- [ ] 在 `HouseGenerator.generate()` 中添加自动检测逻辑
-- [ ] 计算建筑出入口位置
-- [ ] 调用水体检测和码头生成
-- [ ] 添加配置开关支持
+- [x] 在 `HouseGenerator.generate()` 中添加自动检测逻辑
+- [x] 计算建筑出入口位置
+- [x] 调用水体检测和码头生成
+- [x] 添加配置开关支持
 
 ### 优先级 2：调色板材质变量
 - [ ] 在调色板文件中添加码头专用变量（可选，当前已有默认材质）

@@ -685,6 +685,13 @@ public class HouseGenerator implements StructureGenerator {
             }
         } catch (Throwable ignored) {}
 
+        // 临水码头自动关联逻辑（可选）
+        try {
+            generateWaterfrontPierIfNeeded(blocks, world, spec, origin, width, depth, height, doorSide, paletteId);
+        } catch (Exception e) {
+            // 静默失败，不影响主建筑生成
+        }
+
         String description = String.format("House (%s, %dx%dx%d, floors=%d)", 
                 spec.getType(), width, height, depth, floors);
 
