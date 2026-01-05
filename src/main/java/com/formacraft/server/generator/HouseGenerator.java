@@ -329,8 +329,8 @@ public class HouseGenerator implements StructureGenerator {
                                     boolean isTwoHighBand = (wallStrategy != BuildStrategy.SOLID_WALL)
                                             && !isExtraHighBand
                                             && (localYForBand == 1 || localYForBand == 2);
-                                    boolean isBottomOfBand = isTwoHighBand ? (localYForBand == 1) : true;
-                                    boolean isTopOfBand = isTwoHighBand ? (localYForBand == 2) : true;
+                                    boolean isBottomOfBand = !isTwoHighBand || (localYForBand == 1);
+                                    boolean isTopOfBand = !isTwoHighBand || (localYForBand == 2);
 
                                     if (isBottomOfBand && y > 0) blocks.add(new PlannedBlock(origin.add(x, y - 1, z), trim));
                                     if (isTopOfBand && y + 1 < height) {
@@ -456,7 +456,7 @@ public class HouseGenerator implements StructureGenerator {
         if (hasRoof) {
             // 从 styleOptions 获取屋顶类型（向后兼容 extra）
             String actualRoofType = roofType;
-            BuildStrategy roofStrategy = BuildStrategy.ROOF_SLOPE;
+            BuildStrategy roofStrategy;
             if (profile != null) {
                 roofStrategy = profile.resolve("ROOF", java.util.Collections.emptySet());
             } else {
@@ -505,11 +505,10 @@ public class HouseGenerator implements StructureGenerator {
             if ("xie_shan".equalsIgnoreCase(actualRoofType) || "hipped".equalsIgnoreCase(actualRoofType) || "pyramid".equalsIgnoreCase(actualRoofType)) {
                 boolean emphasizeEaves = (profile != null && profile.details() != null && profile.details().emphasizeEaves);
                 boolean overhang = (style == BuildingStyle.ASIAN) || emphasizeEaves;
-                boolean flying = emphasizeEaves;
                 if ("xie_shan".equalsIgnoreCase(actualRoofType)) {
-                    addXieShanRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, flying);
+                    addXieShanRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, emphasizeEaves);
                 } else {
-                    addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, flying);
+                    addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, emphasizeEaves);
                 }
             } else if ("spires".equalsIgnoreCase(actualRoofType) || "spire".equalsIgnoreCase(actualRoofType)) {
                 // Gothic-ish: steep gable + corner spires
@@ -965,13 +964,22 @@ public class HouseGenerator implements StructureGenerator {
                 if (plan != null) {
                     String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
                     if (p.isEmpty()) return "none";
-                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
-                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
-                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
-                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
-                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
-                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
-                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
+                    switch (p) {
+                        case "none", "no", "false", "0", "off" -> {
+                            return "none";
+                        }
+                        case "front_back", "frontback", "front-back", "front/back", "前后", "前后分区", "前后布局",
+                             "前厅后室" -> {
+                            return "front_back";
+                        }
+                        case "left_right", "leftright", "left-right", "left/right", "左右", "左右分区", "左右布局" -> {
+                            return "left_right";
+                        }
+                        case "ring_corridor", "ring", "courtyard_corridor", "gallery", "cloister", "回廊", "环廊",
+                             "环形走廊", "围绕中庭", "回字形", "回字布局", "回字走廊" -> {
+                            return "ring_corridor";
+                        }
+                    }
                 }
             }
         } catch (Throwable ignored) {}
@@ -1040,23 +1048,21 @@ public class HouseGenerator implements StructureGenerator {
             int yTop = Math.min(height - 1, y0 + yMax);
             for (int y = y0 + yMin; y < yTop; y++) {
                 if (splitZ) {
-                    int z = zSplitInterior;
                     for (int x = 1; x < width - 1; x++) {
                         boolean opening = (doorOnNS && x >= open0 && x <= open1 && y < (y0 + yMin + doorH));
                         if (opening) continue;
                         BlockState w = wall;
                         // add a subtle trim at top of partition wall
                         if (y == yTop - 1) w = trim;
-                        blocks.add(new PlannedBlock(origin.add(x, y, z), w));
+                        blocks.add(new PlannedBlock(origin.add(x, y, zSplitInterior), w));
                     }
                 } else if (splitX) {
-                    int x = xSplitInterior;
                     for (int z = 1; z < depth - 1; z++) {
                         boolean opening = (!doorOnNS && z >= open0 && z <= open1 && y < (y0 + yMin + doorH));
                         if (opening) continue;
                         BlockState w = wall;
                         if (y == yTop - 1) w = trim;
-                        blocks.add(new PlannedBlock(origin.add(x, y, z), w));
+                        blocks.add(new PlannedBlock(origin.add(xSplitInterior, y, z), w));
                     }
                 }
             }
@@ -1223,7 +1229,7 @@ public class HouseGenerator implements StructureGenerator {
         // keep at least 1 block margin to outer walls for structural stability
         cw = Math.min(cw, interiorW - 2);
         cd = Math.min(cd, interiorD - 2);
-        if (cw < 3 || cd < 3) return new LayoutCourtyard(false, 0, -1, 0, -1);
+        if (cd < 3) return new LayoutCourtyard(false, 0, -1, 0, -1);
 
         int x0 = 1 + (interiorW - cw) / 2;
         int z0 = 1 + (interiorD - cd) / 2;
@@ -1631,14 +1637,13 @@ public class HouseGenerator implements StructureGenerator {
 
         // neon strip: use trim material as a "light band" (cyberpunk often uses stained-glass trim)
         if (ep.contains("neon")) {
-            int y = height;
             for (int x = -1; x <= width; x++) {
-                blocks.add(new PlannedBlock(origin.add(x, y, -1), trim));
-                blocks.add(new PlannedBlock(origin.add(x, y, depth), trim));
+                blocks.add(new PlannedBlock(origin.add(x, height, -1), trim));
+                blocks.add(new PlannedBlock(origin.add(x, height, depth), trim));
             }
             for (int z = -1; z <= depth; z++) {
-                blocks.add(new PlannedBlock(origin.add(-1, y, z), trim));
-                blocks.add(new PlannedBlock(origin.add(width, y, z), trim));
+                blocks.add(new PlannedBlock(origin.add(-1, height, z), trim));
+                blocks.add(new PlannedBlock(origin.add(width, height, z), trim));
             }
             return;
         }
@@ -1715,7 +1720,6 @@ public class HouseGenerator implements StructureGenerator {
         boolean onNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
         int center = onNS ? (width / 2) : (depth / 2);
         int a0 = center - 1;
-        int a1 = center;
         int a2 = center + 1;
         int ox = (doorSide == Direction.WEST) ? -1 : (doorSide == Direction.EAST ? width : 0);
         int oz = (doorSide == Direction.NORTH) ? -1 : (doorSide == Direction.SOUTH ? depth : 0);
@@ -1731,11 +1735,11 @@ public class HouseGenerator implements StructureGenerator {
             sign = withFacingIfPossible(sign, doorSide);
             int y = 3;
             if (onNS) {
-                blocks.add(new PlannedBlock(origin.add(a1, y, oz), sign));
+                blocks.add(new PlannedBlock(origin.add(center, y, oz), sign));
                 blocks.add(new PlannedBlock(origin.add(a0, y, oz), slab));
                 blocks.add(new PlannedBlock(origin.add(a2, y, oz), slab));
             } else {
-                blocks.add(new PlannedBlock(origin.add(ox, y, a1), sign));
+                blocks.add(new PlannedBlock(origin.add(ox, y, center), sign));
                 blocks.add(new PlannedBlock(origin.add(ox, y, a0), slab));
                 blocks.add(new PlannedBlock(origin.add(ox, y, a2), slab));
             }
@@ -1786,22 +1790,21 @@ public class HouseGenerator implements StructureGenerator {
 
         // --- Cyber signage: neon-ish plate using trim (often stained glass) above/side of door
         if (op.contains("cyber") || op.contains("sign")) {
-            BlockState plate = t;
             int y = 4;
             if (onNS) {
-                blocks.add(new PlannedBlock(origin.add(a1, y, oz), plate));
-                blocks.add(new PlannedBlock(origin.add(a2 + 1, y, oz), plate));
+                blocks.add(new PlannedBlock(origin.add(center, y, oz), t));
+                blocks.add(new PlannedBlock(origin.add(a2 + 1, y, oz), t));
                 // symmetry X/BOTH: mirror to the left side as well
                 if (sym.equals("X") || sym.equals("BOTH")) {
-                    blocks.add(new PlannedBlock(origin.add(a0 - 1, y, oz), plate));
-                    blocks.add(new PlannedBlock(origin.add(a0, y, oz), plate));
+                    blocks.add(new PlannedBlock(origin.add(a0 - 1, y, oz), t));
+                    blocks.add(new PlannedBlock(origin.add(a0, y, oz), t));
                 }
             } else {
-                blocks.add(new PlannedBlock(origin.add(ox, y, a1), plate));
-                blocks.add(new PlannedBlock(origin.add(ox, y, a2 + 1), plate));
+                blocks.add(new PlannedBlock(origin.add(ox, y, center), t));
+                blocks.add(new PlannedBlock(origin.add(ox, y, a2 + 1), t));
                 if (sym.equals("Z") || sym.equals("BOTH")) {
-                    blocks.add(new PlannedBlock(origin.add(ox, y, a0 - 1), plate));
-                    blocks.add(new PlannedBlock(origin.add(ox, y, a0), plate));
+                    blocks.add(new PlannedBlock(origin.add(ox, y, a0 - 1), t));
+                    blocks.add(new PlannedBlock(origin.add(ox, y, a0), t));
                 }
             }
             return;
@@ -1846,11 +1849,11 @@ public class HouseGenerator implements StructureGenerator {
             if (onNS) {
                 blocks.add(new PlannedBlock(origin.add(a0, y, oz), leaf));
                 blocks.add(new PlannedBlock(origin.add(a2, y, oz), leaf));
-                blocks.add(new PlannedBlock(origin.add(a1, y + 1, oz), lantern));
+                blocks.add(new PlannedBlock(origin.add(center, y + 1, oz), lantern));
             } else {
                 blocks.add(new PlannedBlock(origin.add(ox, y, a0), leaf));
                 blocks.add(new PlannedBlock(origin.add(ox, y, a2), leaf));
-                blocks.add(new PlannedBlock(origin.add(ox, y + 1, a1), lantern));
+                blocks.add(new PlannedBlock(origin.add(ox, y + 1, center), lantern));
             }
         }
     }
@@ -2880,70 +2883,48 @@ public class HouseGenerator implements StructureGenerator {
 
     private static BlockState defaultWall(BuildingStyle style) {
         if (style == null) style = BuildingStyle.DEFAULT;
-        switch (style) {
-            case MODERN:
-                return Blocks.WHITE_CONCRETE.getDefaultState();
-            case ASIAN:
+        return switch (style) {
+            case MODERN -> Blocks.WHITE_CONCRETE.getDefaultState();
+            case ASIAN ->
                 // 明清官式默认红墙
-                return Blocks.RED_TERRACOTTA.getDefaultState();
-            case FUTURISTIC:
-                return Blocks.QUARTZ_BLOCK.getDefaultState();
-            case RUSTIC:
-                return Blocks.SPRUCE_PLANKS.getDefaultState();
-            case MEDIEVAL:
-                return Blocks.STONE_BRICKS.getDefaultState();
-            case DEFAULT:
-            default:
-                return Blocks.OAK_PLANKS.getDefaultState();
-        }
+                    Blocks.RED_TERRACOTTA.getDefaultState();
+            case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
+            case MEDIEVAL -> Blocks.STONE_BRICKS.getDefaultState();
+            default -> Blocks.OAK_PLANKS.getDefaultState();
+        };
     }
 
     private static BlockState defaultFloor(BuildingStyle style) {
         if (style == null) style = BuildingStyle.DEFAULT;
-        switch (style) {
-            case MODERN:
-            case FUTURISTIC:
-                return Blocks.SMOOTH_QUARTZ.getDefaultState();
-            case ASIAN:
-            case MEDIEVAL:
-            case DEFAULT:
-                return Blocks.OAK_PLANKS.getDefaultState();
-            case RUSTIC:
-                return Blocks.SPRUCE_PLANKS.getDefaultState();
-            default:
-                return Blocks.OAK_PLANKS.getDefaultState();
-        }
+        return switch (style) {
+            case MODERN, FUTURISTIC -> Blocks.SMOOTH_QUARTZ.getDefaultState();
+            case ASIAN, MEDIEVAL, DEFAULT -> Blocks.OAK_PLANKS.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
+            default -> Blocks.OAK_PLANKS.getDefaultState();
+        };
     }
 
     private static BlockState defaultWindow(BuildingStyle style) {
         if (style == null) style = BuildingStyle.DEFAULT;
-        switch (style) {
-            case MODERN:
-            case FUTURISTIC:
-                return Blocks.GLASS.getDefaultState();
-            default:
-                return Blocks.GLASS_PANE.getDefaultState();
-        }
+        return switch (style) {
+            case MODERN, FUTURISTIC -> Blocks.GLASS.getDefaultState();
+            default -> Blocks.GLASS_PANE.getDefaultState();
+        };
     }
 
     private static BlockState defaultRoof(BuildingStyle style) {
         if (style == null) style = BuildingStyle.DEFAULT;
-        switch (style) {
-            case MODERN:
-                return Blocks.BLACK_CONCRETE.getDefaultState();
-            case FUTURISTIC:
-                return Blocks.QUARTZ_BLOCK.getDefaultState();
-            case ASIAN:
+        return switch (style) {
+            case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
+            case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
+            case ASIAN ->
                 // 官式灰瓦（近似）：深板岩瓦
-                return Blocks.DEEPSLATE_TILES.getDefaultState();
-            case MEDIEVAL:
-            case DEFAULT:
-                return Blocks.DARK_OAK_PLANKS.getDefaultState();
-            case RUSTIC:
-                return Blocks.SPRUCE_PLANKS.getDefaultState();
-            default:
-                return Blocks.DARK_OAK_PLANKS.getDefaultState();
-        }
+                    Blocks.DEEPSLATE_TILES.getDefaultState();
+            case MEDIEVAL, DEFAULT -> Blocks.DARK_OAK_PLANKS.getDefaultState();
+            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
+            default -> Blocks.DARK_OAK_PLANKS.getDefaultState();
+        };
     }
 
     private static BlockState defaultTrim(BuildingStyle style, BlockState wall) {
@@ -2952,19 +2933,12 @@ public class HouseGenerator implements StructureGenerator {
             return Blocks.CHISELED_STONE_BRICKS.getDefaultState();
         }
         if (style == null) style = BuildingStyle.DEFAULT;
-        switch (style) {
-            case MODERN:
-                return Blocks.BLACK_CONCRETE.getDefaultState();
-            case FUTURISTIC:
-                return Blocks.LIGHT_BLUE_STAINED_GLASS.getDefaultState();
-            case ASIAN:
-                return Blocks.RED_TERRACOTTA.getDefaultState();
-            case RUSTIC:
-            case MEDIEVAL:
-            case DEFAULT:
-            default:
-                return Blocks.SPRUCE_LOG.getDefaultState();
-        }
+        return switch (style) {
+            case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
+            case FUTURISTIC -> Blocks.LIGHT_BLUE_STAINED_GLASS.getDefaultState();
+            case ASIAN -> Blocks.RED_TERRACOTTA.getDefaultState();
+            default -> Blocks.SPRUCE_LOG.getDefaultState();
+        };
     }
 
     private static BlockState defaultFoundation(BuildingStyle style, BlockState wall) {

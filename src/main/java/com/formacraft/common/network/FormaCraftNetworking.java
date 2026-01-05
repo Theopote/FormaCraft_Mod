@@ -198,13 +198,14 @@ public class FormaCraftNetworking {
         if (connectionError != null) {
             String endpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
             return String.format(
-                    "无法连接到后端服务（%s）。\n" +
-                    "%s\n" +
-                    "请检查：\n" +
-                    "1. Python 后端是否正在运行（运行：cd python_backend && uvicorn app.main:app --reload）\n" +
-                    "2. 后端地址是否正确（当前：%s，可在设置中修改）\n" +
-                    "3. 防火墙是否允许连接\n" +
-                    "4. 如果后端在其他机器，确保端口已开放且可访问",
+                    """
+                            无法连接到后端服务（%s）。
+                            %s
+                            请检查：
+                            1. Python 后端是否正在运行（运行：cd python_backend && uvicorn app.main:app --reload）
+                            2. 后端地址是否正确（当前：%s，可在设置中修改）
+                            3. 防火墙是否允许连接
+                            4. 如果后端在其他机器，确保端口已开放且可访问""",
                     stage != null && !stage.isBlank() ? stage : "请求失败",
                     connectionError,
                     endpoint
@@ -822,12 +823,13 @@ public class FormaCraftNetworking {
                 if (!orchestrator.checkHealth()) {
                     String endpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
                     String errorMsg = String.format(
-                            "后端服务不可用：无法连接到 %s\n" +
-                            "请检查：\n" +
-                            "1. Python 后端是否正在运行\n" +
-                            "2. 后端地址是否正确（可在设置中修改）\n" +
-                            "3. 防火墙是否允许连接\n" +
-                            "4. 如果是远程服务器，请确保端口已开放",
+                            """
+                                    后端服务不可用：无法连接到 %s
+                                    请检查：
+                                    1. Python 后端是否正在运行
+                                    2. 后端地址是否正确（可在设置中修改）
+                                    3. 防火墙是否允许连接
+                                    4. 如果是远程服务器，请确保端口已开放""",
                             endpoint
                     );
                     ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(errorMsg));
