@@ -223,6 +223,77 @@ public final class BackendAutoStarter {
         return f0; // 不存在，返回原值用于日志
     }
 
+    /**
+     * 检测虚拟环境并返回虚拟环境中的 Python 可执行文件路径
+     * 支持的虚拟环境类型：venv, .venv, env, virtualenv
+     * @param workDir 工作目录（python_backend）
+     * @return 虚拟环境中的 Python 可执行文件，如果未找到则返回 null
+     */
+    private static String findVirtualEnvPython(File workDir) {
+        if (workDir == null || !workDir.exists()) return null;
+        
+        // 检查工作目录内的虚拟环境
+        String[] venvNames = {"venv", ".venv", "env", "virtualenv"};
+        for (String venvName : venvNames) {
+            File venvDir = new File(workDir, venvName);
+            if (venvDir.exists() && venvDir.isDirectory()) {
+                // Windows: Scripts\python.exe, Unix: bin/python
+                String[] pythonPaths = {
+                    venvName + File.separator + "Scripts" + File.separator + "python.exe",
+                    venvName + File.separator + "bin" + File.separator + "python",
+                    venvName + File.separator + "Scripts" + File.separator + "python",
+                };
+                for (String pythonPath : pythonPaths) {
+                    File pythonExe = new File(workDir, pythonPath);
+                    if (pythonExe.exists() && pythonExe.canExecute()) {
+                        return pythonExe.getAbsolutePath();
+                    }
+                }
+            }
+        }
+        
+        // 检查工作目录的父目录中的虚拟环境（常见于项目根目录有 venv）
+        File parent = workDir.getParentFile();
+        if (parent != null) {
+            for (String venvName : venvNames) {
+                File venvDir = new File(parent, venvName);
+                if (venvDir.exists() && venvDir.isDirectory()) {
+                    String[] pythonPaths = {
+                        ".." + File.separator + venvName + File.separator + "Scripts" + File.separator + "python.exe",
+                        ".." + File.separator + venvName + File.separator + "bin" + File.separator + "python",
+                        ".." + File.separator + venvName + File.separator + "Scripts" + File.separator + "python",
+                    };
+                    for (String pythonPath : pythonPaths) {
+                        File pythonExe = new File(workDir, pythonPath);
+                        if (pythonExe.exists() && pythonExe.canExecute()) {
+                            return pythonExe.getAbsolutePath();
+                        }
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * 检测 Python 可执行文件是否可用（通过运行 --version）
+     * @param pythonPath Python 可执行文件路径
+     * @return true 如果可用，false 如果不可用
+     */
+    private static boolean testPythonExecutable(String pythonPath) {
+        if (pythonPath == null || pythonPath.isBlank()) return false;
+        try {
+            ProcessBuilder pb = new ProcessBuilder(pythonPath, "--version");
+            pb.redirectErrorStream(true);
+            Process proc = pb.start();
+            int exitCode = proc.waitFor();
+            return exitCode == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private static void startProcess(SettingsConfig cfg) {
         // 已有进程且还活着：不重复启动
         Process p = backendProcess;
@@ -244,17 +315,42 @@ public final class BackendAutoStarter {
             logsDir.mkdirs();
             File logFile = new File(logsDir, "formacraft_orchestrator.log");
 
-            // Windows 兼容：如果没配置 pythonExecutable，优先尝试 python，再尝试 py（Python Launcher）
+            // 构建 Python 候选列表（优先级：配置 > 虚拟环境 > 系统 Python）
             List<String> pythonCandidates = new ArrayList<>();
+            
+            // 1. 如果配置了，优先使用配置的
             if (!pythonConfigured.isBlank()) {
                 pythonCandidates.add(pythonConfigured);
             } else {
+                // 2. 尝试检测虚拟环境
+                String venvPython = findVirtualEnvPython(wd);
+                if (venvPython != null) {
+                    log("detected virtual environment Python: " + venvPython);
+                    pythonCandidates.add(venvPython);
+                }
+                
+                // 3. 系统 Python（Windows 兼容：python 和 py）
                 pythonCandidates.add("python");
                 pythonCandidates.add("py");
+                // Linux/Mac 可能还有 python3
+                if (!System.getProperty("os.name").toLowerCase().contains("windows")) {
+                    pythonCandidates.add("python3");
+                }
             }
 
             IOException lastIo = null;
+            String lastTestedPython = null;
             for (String py : pythonCandidates) {
+                lastTestedPython = py;
+                
+                // 先测试 Python 可执行文件是否可用（仅对路径形式的，不对命令形式的）
+                if (py.contains(File.separator) || py.contains("/") || py.contains("\\")) {
+                    if (!testPythonExecutable(py)) {
+                        log("Python executable not available: " + py);
+                        continue;
+                    }
+                }
+                
                 List<String> cmd = new ArrayList<>();
                 cmd.add(py);
                 cmd.add("-m");
@@ -300,8 +396,27 @@ public final class BackendAutoStarter {
             }
 
             if (backendProcess == null && lastIo != null) {
-                lastError = "failed to start backend (python not found / uvicorn missing). "
-                        + "请设置 config/formacraft_settings.json 里的 pythonExecutable 或确认 uvicorn 已安装。";
+                StringBuilder errorMsg = new StringBuilder();
+                errorMsg.append("无法启动后端服务。");
+                errorMsg.append("\n已尝试的 Python 可执行文件：");
+                for (String py : pythonCandidates) {
+                    errorMsg.append("\n  - ").append(py);
+                }
+                errorMsg.append("\n\n可能的原因：");
+                errorMsg.append("\n1. Python 未安装或未添加到 PATH");
+                errorMsg.append("\n2. uvicorn 未安装（运行：pip install uvicorn fastapi）");
+                errorMsg.append("\n3. 虚拟环境未激活或配置不正确");
+                errorMsg.append("\n\n解决方案：");
+                errorMsg.append("\n1. 在设置中配置正确的 pythonExecutable 路径");
+                errorMsg.append("\n2. 确保在 python_backend 目录中安装了依赖：pip install -r requirements.txt");
+                errorMsg.append("\n3. 如果使用虚拟环境，确保虚拟环境已创建并激活");
+                if (lastTestedPython != null) {
+                    errorMsg.append("\n\n最后尝试的 Python：").append(lastTestedPython);
+                }
+                if (lastIo != null) {
+                    errorMsg.append("\n错误详情：").append(lastIo.getMessage());
+                }
+                lastError = errorMsg.toString();
                 log(lastError);
                 return;
             }

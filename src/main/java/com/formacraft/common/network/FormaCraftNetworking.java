@@ -558,6 +558,17 @@ public class FormaCraftNetworking {
                                             BuildConstraintContext.withRequest(req, () -> cityBuilder.generate(citySpec, origin, serverWorld))
                                     );
                             final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                            
+                            // 质量检查（CitySpec 没有 BuildingSpec，传递 null）
+                            com.formacraft.server.build.QualityChecker.QualityReport qualityReport = 
+                                    com.formacraft.server.build.QualityChecker.checkQuality(generated, null, serverWorld);
+                            com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
+                            
+                            // 如果有严重错误，记录但不阻止预览（让用户看到问题）
+                            if (!qualityReport.errors.isEmpty()) {
+                                FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
+                            }
+                            
                             String terrainSummary = reported.report().summaryZh();
                             if (!terrainSummary.isBlank()) {
                                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
@@ -660,6 +671,17 @@ public class FormaCraftNetworking {
                                             BuildConstraintContext.withRequest(req, () -> generator.generate(compositeSpec, origin, serverWorld))
                                     );
                             final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                            
+                            // 质量检查（CitySpec 没有 BuildingSpec，传递 null）
+                            com.formacraft.server.build.QualityChecker.QualityReport qualityReport = 
+                                    com.formacraft.server.build.QualityChecker.checkQuality(generated, null, serverWorld);
+                            com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
+                            
+                            // 如果有严重错误，记录但不阻止预览（让用户看到问题）
+                            if (!qualityReport.errors.isEmpty()) {
+                                FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
+                            }
+                            
                             String terrainSummary = reported.report().summaryZh();
                             if (!terrainSummary.isBlank()) {
                                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
@@ -768,6 +790,17 @@ public class FormaCraftNetworking {
                                                 BuildConstraintContext.withRequest(req, () -> generator.generate(updated, origin, serverWorld))
                                         );
                                 final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                                
+                                // 质量检查
+                                com.formacraft.server.build.QualityChecker.QualityReport qualityReport = 
+                                        com.formacraft.server.build.QualityChecker.checkQuality(generated, updated, serverWorld);
+                                com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
+                                
+                                // 如果有严重错误，记录但不阻止预览（让用户看到问题）
+                                if (!qualityReport.errors.isEmpty()) {
+                                    FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
+                                }
+                                
                                 String terrainSummary = reported.report().summaryZh();
                                 if (!terrainSummary.isBlank()) {
                                     ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
@@ -872,6 +905,17 @@ public class FormaCraftNetworking {
                                             BuildConstraintContext.withRequest(req, () -> generator.generate(spec, origin, serverWorld))
                                     );
                             final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                            
+                            // 质量检查（CitySpec 没有 BuildingSpec，传递 null）
+                            com.formacraft.server.build.QualityChecker.QualityReport qualityReport = 
+                                    com.formacraft.server.build.QualityChecker.checkQuality(generated, null, serverWorld);
+                            com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
+                            
+                            // 如果有严重错误，记录但不阻止预览（让用户看到问题）
+                            if (!qualityReport.errors.isEmpty()) {
+                                FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
+                            }
+                            
                             String terrainSummary = reported.report().summaryZh();
                             if (!terrainSummary.isBlank()) {
                                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(terrainSummary));
@@ -935,19 +979,29 @@ public class FormaCraftNetworking {
             }
 
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                // 优先：按“预览已生成的结构”执行，保证与预览一致（也包含禁区/轮廓硬裁剪）
+                // 优先：按"预览已生成的结构"执行，保证与预览一致（也包含禁区/轮廓硬裁剪）
                 com.formacraft.server.build.GeneratedStructure preview = com.formacraft.server.preview.PreviewStorage.getStructure(player);
                 boolean hasPreview = com.formacraft.server.preview.PreviewStorage.hasPreview(player);
                 if (hasPreview && preview != null) {
-                    try { sendClearOutline(player); } catch (Throwable ignored) {}
-                    com.formacraft.server.preview.PreviewStorage.setPreview(player, false);
-                    BuildExecutionService.getInstance().enqueueBuild(serverWorld, preview);
-                    try {
-                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已确认建造：开始放置方块…（按预览结果执行）"));
-                    } catch (Throwable ignored) {}
-                    FormacraftMod.LOGGER.info("Player {} confirmed build (from preview) at {}",
-                            player.getName().getString(), preview.getOrigin());
-                    return;
+                    // 验证预览结构有效性
+                    if (!com.formacraft.server.preview.PreviewStorage.validatePreview(player)) {
+                        FormacraftMod.LOGGER.warn("Player {} preview structure validation failed, falling back to regenerate", 
+                                player.getName().getString());
+                        // 继续执行回退逻辑
+                    } else {
+                        try { sendClearOutline(player); } catch (Throwable ignored) {}
+                        com.formacraft.server.preview.PreviewStorage.setPreview(player, false);
+                        BuildExecutionService.getInstance().enqueueBuild(serverWorld, preview);
+                        try {
+                            ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
+                                    String.format("已确认建造：开始放置方块…（按预览结果执行，共 %d 个方块）", 
+                                            preview.getBlocks() != null ? preview.getBlocks().size() : 0)));
+                        } catch (Throwable ignored) {}
+                        FormacraftMod.LOGGER.info("Player {} confirmed build (from preview) at {} with {} blocks",
+                                player.getName().getString(), preview.getOrigin(),
+                                preview.getBlocks() != null ? preview.getBlocks().size() : 0);
+                        return;
+                    }
                 }
 
                 // 回退：重新生成（兼容旧流程/无预览时）

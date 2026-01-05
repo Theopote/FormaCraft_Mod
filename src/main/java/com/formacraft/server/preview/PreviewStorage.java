@@ -1,5 +1,6 @@
 package com.formacraft.server.preview;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.server.build.GeneratedStructure;
 import net.minecraft.server.network.ServerPlayerEntity;
 
@@ -22,7 +23,35 @@ public class PreviewStorage {
         if (player != null && structure != null) {
             lastStructures.put(player.getUuid(), structure);
             hasPreview.put(player.getUuid(), false);
+            FormacraftMod.LOGGER.debug("Stored preview structure for player {}: {} blocks at {}", 
+                    player.getName().getString(), 
+                    structure.getBlocks() != null ? structure.getBlocks().size() : 0,
+                    structure.getOrigin());
         }
+    }
+    
+    /**
+     * 验证预览结构是否仍然有效（用于确认建造前检查）
+     * @param player 玩家
+     * @return true 如果预览结构有效，false 如果无效或不存在
+     */
+    public static boolean validatePreview(ServerPlayerEntity player) {
+        if (player == null) return false;
+        UUID uuid = player.getUuid();
+        GeneratedStructure structure = lastStructures.get(uuid);
+        if (structure == null) {
+            FormacraftMod.LOGGER.warn("Player {} has no preview structure stored", player.getName().getString());
+            return false;
+        }
+        if (structure.getBlocks() == null || structure.getBlocks().isEmpty()) {
+            FormacraftMod.LOGGER.warn("Player {} preview structure has no blocks", player.getName().getString());
+            return false;
+        }
+        if (structure.getOrigin() == null) {
+            FormacraftMod.LOGGER.warn("Player {} preview structure has no origin", player.getName().getString());
+            return false;
+        }
+        return true;
     }
 
     /**
