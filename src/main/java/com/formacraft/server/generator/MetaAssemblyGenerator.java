@@ -45,8 +45,21 @@ public class MetaAssemblyGenerator implements StructureGenerator {
 
         // Validate early for stable LLM output & better error messages.
         List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
-        long errCount = issues.stream().filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR).count();
-        if (errCount > 0) {
+        
+        // Check if the only error is missing ops/components (can be auto-generated from macro)
+        boolean onlyMissingOpsComponents = true;
+        long errCount = 0;
+        for (AssemblyValidationIssue is : issues) {
+            if (is.severity() == AssemblyValidationIssue.Severity.ERROR) {
+                errCount++;
+                if (!is.code().equals("E_MISSING_OPS_OR_COMPONENTS")) {
+                    onlyMissingOpsComponents = false;
+                }
+            }
+        }
+        
+        // If there are other errors, fail early
+        if (errCount > 0 && !onlyMissingOpsComponents) {
             StringBuilder sb = new StringBuilder("MetaAssembly (validation failed): ");
             int shown = 0;
             for (AssemblyValidationIssue is : issues) {
@@ -58,6 +71,7 @@ public class MetaAssemblyGenerator implements StructureGenerator {
             if (errCount > 6) sb.append(" | ... (").append(errCount).append(" errors)");
             return new GeneratedStructure(null, origin, sb.toString(), List.of());
         }
+        // If only missing ops/components, try to compile from macro (will generate basic component)
 
         AssemblySpec as = AssemblySpec.fromExtra(applied);
         if (as == null || as.ops.isEmpty()) {
