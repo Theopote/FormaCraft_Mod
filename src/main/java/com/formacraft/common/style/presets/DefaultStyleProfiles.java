@@ -32,9 +32,10 @@ public final class DefaultStyleProfiles {
     private static SemanticStyleProfile createDefaultProfile() {
         SemanticStyleProfile style = new SemanticStyleProfile("DEFAULT");
 
-        // 使用简单的默认映射
-        // 实际使用时，应该从配置文件加载或使用更完善的默认值
-        // 这里先提供一个基础版本
+        // 使用 DefaultPalettes 中的基础映射作为默认风格
+        // 这里提供一个基础版本，实际使用时可以从配置文件加载
+        // 注意：默认风格不包含几何修饰器，只提供基本的材质映射
+        // 如果需要几何修饰，应该使用具体的风格配置（如 MEDIEVAL_CASTLE）
 
         return style;
     }
