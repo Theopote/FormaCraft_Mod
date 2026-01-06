@@ -119,6 +119,9 @@ Output MUST be valid JSON. No explanation text.
         // 6.5. 路径约束（PathTool - 地形自适应系统的灵魂）
         sb.append(pathBlock(ctx));
 
+        // 6.5.5. Skeleton Hint（骨架提示 - 显式告诉 AI 路径骨架）
+        sb.append(skeletonHintBlock(ctx));
+
         // 6.6. 地形策略（新增）
         sb.append(terrainBlock(ctx));
 
@@ -271,29 +274,18 @@ SEMANTIC REGIONS:
      * - 台阶 / 缓坡 / 桥
      */
     private static String pathBlock(PromptContext ctx) {
-        if (ctx == null || ctx.terrainPolicy == null) {
+        if (ctx == null || ctx.pathSkeleton == null || !ctx.pathSkeleton.isValid()) {
             return "";
         }
 
-        // 只有在 PATH 作用域时才输出路径约束
-        if (ctx.terrainPolicy.scope != com.formacraft.common.terrain.TerrainPolicy.Scope.PATH) {
-            return "";
-        }
-
-        // 检查 PathTool 是否有路径
-        try {
-            var pathTool = com.formacraft.client.tool.PathTool.INSTANCE;
-            if (pathTool == null) return "";
-
-            var paths = pathTool.getPaths();
-            if (paths == null || paths.isEmpty()) return "";
-
-            StringBuilder sb = new StringBuilder();
-            sb.append("PATH CONSTRAINT:\n");
-            sb.append("- follow the provided path geometry\n");
-            sb.append("- generate terrain-following structures\n");
-            sb.append("- adapt structure height smoothly to terrain\n");
-            
+        PathSkeleton skeleton = ctx.pathSkeleton;
+        StringBuilder sb = new StringBuilder();
+        sb.append("PATH CONSTRAINT:\n");
+        sb.append("- follow the provided path geometry\n");
+        sb.append("- generate terrain-following structures\n");
+        sb.append("- adapt structure height smoothly to terrain\n");
+        
+        if (ctx.terrainPolicy != null) {
             if (ctx.terrainPolicy.allowStairs) {
                 sb.append("- add steps or ramps where slope increases\n");
             }
@@ -301,14 +293,35 @@ SEMANTIC REGIONS:
             if (ctx.terrainPolicy.allowBridges) {
                 sb.append("- use small bridges over gaps/water\n");
             }
-            
-            sb.append("- keep within path corridor\n");
-            sb.append("\n");
-            return sb.toString();
-        } catch (Exception e) {
-            // 如果 PathTool 不可用，静默失败
+        }
+        
+        sb.append("- keep within path corridor (radius: ").append(skeleton.corridorRadius).append(")\n");
+        sb.append("- path intent: ").append(skeleton.intent.name()).append("\n");
+        sb.append("\n");
+        return sb.toString();
+    }
+
+    /**
+     * Skeleton Hint（骨架提示）
+     * 
+     * 显式告诉 AI 路径骨架信息，让 AI 知道必须使用 PATH_POLYLINE
+     */
+    private static String skeletonHintBlock(PromptContext ctx) {
+        if (ctx == null || ctx.pathSkeleton == null || !ctx.pathSkeleton.isValid()) {
             return "";
         }
+
+        PathSkeleton skeleton = ctx.pathSkeleton;
+        StringBuilder sb = new StringBuilder();
+        sb.append("SKELETON HINT:\n");
+        sb.append("- type: PATH_POLYLINE\n");
+        sb.append("- intent: ").append(skeleton.intent.name()).append("\n");
+        sb.append("- corridor_radius: ").append(skeleton.corridorRadius).append("\n");
+        sb.append("- node_count: ").append(skeleton.getNodeCount()).append("\n");
+        sb.append("- IMPORTANT: You MUST use PATH_POLYLINE skeleton type\n");
+        sb.append("- The path topology is fixed; you can only adjust style and details\n");
+        sb.append("\n");
+        return sb.toString();
     }
 
     /**

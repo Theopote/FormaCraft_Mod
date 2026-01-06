@@ -40,7 +40,7 @@ public final class SkeletonGeneratorRegistry {
         
         // 注册所有骨架类型的生成器
         reg.register(SkeletonType.LINEAR_PATH, new LinearPathGenerator());
-        reg.register(SkeletonType.PATH_POLYLINE, new PathPolylineGenerator());
+        reg.register(SkeletonType.PATH_POLYLINE, new com.formacraft.server.skeleton.gen.path.PathSkeletonGenerator());
         reg.register(SkeletonType.CONTOUR_FOLLOW, new ContourFollowGenerator());
         reg.register(SkeletonType.RADIAL_RING, new RadialRingGenerator());
         reg.register(SkeletonType.RADIAL_SPOKE, new RadialSpokeGenerator());

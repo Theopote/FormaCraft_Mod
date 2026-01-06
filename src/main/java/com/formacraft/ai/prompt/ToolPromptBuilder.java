@@ -5,6 +5,8 @@ import com.formacraft.ai.context.ProtectedZoneContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.context.SemanticLabelContext;
 import com.formacraft.ai.context.SymmetryContext;
+import com.formacraft.client.tool.PathTool;
+import com.formacraft.common.skeleton.PathSkeleton;
 
 /**
  * 工具状态 → PromptContext 语义构建器。
@@ -18,6 +20,14 @@ public final class ToolPromptBuilder {
         if (ctx == null) return;
 
         // 空间语义（anchor/facing/mode 等）由 PromptAssembler 统一输出，避免重复与双源。
+
+        // PathTool → PathSkeleton（新增：路径骨架）
+        if (PathTool.INSTANCE != null) {
+            PathSkeleton skeleton = PathTool.INSTANCE.toSkeleton();
+            if (skeleton != null && skeleton.isValid()) {
+                ctx.pathSkeleton = skeleton;
+            }
+        }
 
         // 选区（边界约束）
         if (SelectionContext.hasSelection()) {

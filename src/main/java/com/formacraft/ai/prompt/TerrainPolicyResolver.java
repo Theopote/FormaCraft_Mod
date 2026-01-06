@@ -51,9 +51,11 @@ public final class TerrainPolicyResolver {
             var paths = PathTool.INSTANCE.getPaths();
             if (paths != null && !paths.isEmpty()) {
                 // 有路径：使用 PATH 作用域，允许更大的调整
+                // 强制规则：PATH_POLYLINE 时，FLATTEN 策略被禁止（除非用户明确）
                 b.scope(TerrainPolicy.Scope.PATH)
                  .maxCutDepth(3)
-                 .maxFillHeight(3);
+                 .maxFillHeight(3)
+                 .avoidLargeScaleFlatten(true); // 强制避免大规模平整
                 return b.build();
             }
         }
