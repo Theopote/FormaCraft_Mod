@@ -16,7 +16,6 @@ import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.BlockPos;
-import com.formacraft.server.generator.HorseHeadWallGenerator;
 import com.formacraft.server.waterfront.WaterDetector;
 import com.formacraft.server.waterfront.WaterfrontPierGenerator;
 
