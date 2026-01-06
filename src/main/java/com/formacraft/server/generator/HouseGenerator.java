@@ -323,7 +323,7 @@ public class HouseGenerator implements StructureGenerator {
                                     blocks.add(new PlannedBlock(pos, windowBlock));
                                     // Gothic mullions: place iron bars just behind the glass (inside cell), best-effort.
                                     if (profile != null && profile.details() != null && profile.details().mullions) {
-                                        addMullionBehindWindow(blocks, origin, x, y, z, width, depth, doorSide);
+                                        HouseDecorator.addMullionBehindWindow(blocks, origin, x, y, z, width, depth, doorSide);
                                     }
                                     // 窗套/窗框（v1）：
                                     // 只在窗带“上下边缘”放 trim，避免双层窗时互相覆盖。
@@ -340,7 +340,7 @@ public class HouseGenerator implements StructureGenerator {
                                         // Gothic: pointed arch window head (best-effort, don't clobber dense window bands)
                                         boolean pointed = (profile != null && profile.details() != null && profile.details().pointedArches);
                                         if (pointed && isPointedArchWindowSafe(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth, doorSide)) {
-                                            addPointedWindowFrame(blocks, origin, x, y + 1, z, width, depth, trim, roofStairs);
+                                            HouseDecorator.addPointedWindowFrame(blocks, origin, x, y + 1, z, width, depth, trim, roofStairs);
                                         } else {
                                             blocks.add(new PlannedBlock(origin.add(x, y + 1, z), trim));
                                         }
@@ -495,7 +495,7 @@ public class HouseGenerator implements StructureGenerator {
                     actualRoofType = "xie_shan";
                 }
             }
-            // 如果不是显式指定（StyleOptions/extra），则允许 StyleProfile 修正“平/坡”大方向
+            // 如果不是显式指定（StyleOptions/extra），则允许 StyleProfile 修正"平/坡"大方向
             if (!roofExplicit && !roofFromExtra) {
                 if (roofStrategy == BuildStrategy.ROOF_FLAT) {
                     actualRoofType = "flat";
@@ -504,113 +504,17 @@ public class HouseGenerator implements StructureGenerator {
                 }
             }
             
-            // 四坡/攒尖/歇山（hipped/pyramid/xie_shan）
-            if ("xie_shan".equalsIgnoreCase(actualRoofType) || "hipped".equalsIgnoreCase(actualRoofType) || "pyramid".equalsIgnoreCase(actualRoofType)) {
-                boolean emphasizeEaves = (profile != null && profile.details() != null && profile.details().emphasizeEaves);
-                boolean overhang = (style == BuildingStyle.ASIAN) || emphasizeEaves;
-                if ("xie_shan".equalsIgnoreCase(actualRoofType)) {
-                    addXieShanRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, emphasizeEaves);
-                } else {
-                    addHippedRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim, overhang, emphasizeEaves);
-                }
-            } else if ("spires".equalsIgnoreCase(actualRoofType) || "spire".equalsIgnoreCase(actualRoofType)) {
-                // Gothic-ish: steep gable + corner spires
-                addSpireRoof(blocks, origin, width, depth, height, roof, roofStairs, roofSlab, trim);
-            } else if ("gable".equalsIgnoreCase(actualRoofType) || roofStrategy == BuildStrategy.ROOF_SLOPE
-                    || style == BuildingStyle.MEDIEVAL || style == BuildingStyle.RUSTIC) {
-                // 双坡屋顶（沿 X 方向上升）；优先用 stairs/slab，视觉明显更好
+            // 使用 HouseRoofGenerator 生成屋顶
+            HouseRoofGenerator.generateRoof(blocks, origin, width, depth, height, actualRoofType,
+                    roof, roofStairs, roofSlab, trim, style, profile, doorSide, spec, paletteId);
+            
+            // Huizhou (徽派) phenotype: 马头墙（阶梯状山墙），在双坡屋顶两端做"墙高逐级上升"的收边。
+            // 注意：需要在屋顶生成后调用，因为需要知道屋顶高度
+            if (HorseHeadWallGenerator.isHuizhouStyle(spec, paletteId) 
+                    && ("gable".equalsIgnoreCase(actualRoofType) || roofStrategy == BuildStrategy.ROOF_SLOPE
+                    || style == BuildingStyle.MEDIEVAL || style == BuildingStyle.RUSTIC)) {
                 int roofHeight = Math.min(width / 2 + 1, 7);
-
-                for (int i = 0; i < roofHeight; i++) {
-                    int rightX = width - 1 - i;
-                    if (i > rightX) break;
-
-                    for (int z = -1; z <= depth; z++) {
-                        // 左坡
-                        blocks.add(new PlannedBlock(origin.add(i, height + i, z), withFacingIfPossible(roofStairs, Direction.EAST)));
-                        // 右坡
-                        blocks.add(new PlannedBlock(origin.add(rightX, height + i, z), withFacingIfPossible(roofStairs, Direction.WEST)));
-                    }
-                }
-
-                // 屋脊：用 slab
-                int ridgeY = height + roofHeight - 1;
-                int midLeft = (width - 1) / 2;
-                int midRight = width / 2;
-                for (int z = -1; z <= depth; z++) {
-                    blocks.add(new PlannedBlock(origin.add(midLeft, ridgeY + 1, z), roofSlab));
-                    blocks.add(new PlannedBlock(origin.add(midRight, ridgeY + 1, z), roofSlab));
-                }
-
-                // Japanese Traditional: 唐破风（kara-hafu）MVP（只在门位于 NORTH/SOUTH 时添加到正面山墙）
-                if (isJapaneseTraditionalStyle(spec, paletteId) && (doorSide == Direction.NORTH || doorSide == Direction.SOUTH)) {
-                    addKaraHafuGable(blocks, origin, width, depth, height, roofHeight, doorSide, roofSlab, trim);
-                }
-
-                // Huizhou (徽派) phenotype: 马头墙（阶梯状山墙），在双坡屋顶两端做"墙高逐级上升"的收边。
-                // Trigger when paletteId/styleProfileId indicates Huizhou; keep best-effort and non-invasive.
-                if (HorseHeadWallGenerator.isHuizhouStyle(spec, paletteId)) {
-                    HorseHeadWallGenerator.generate(blocks, origin, width, depth, height, roofHeight, wall, trim, roofSlab, doorSide);
-                }
-
-            } else {
-                // 平顶（现代/未来风格）：屋面 + 女儿墙边框
-                for (int x = -1; x <= width; x++) {
-                    for (int z = -1; z <= depth; z++) {
-                        boolean edge = (x == -1 || x == width || z == -1 || z == depth);
-                        if (edge) {
-                            blocks.add(new PlannedBlock(origin.add(x, height, z), trim));
-                            blocks.add(new PlannedBlock(origin.add(x, height + 1, z), trim));
-                        } else {
-                            blocks.add(new PlannedBlock(origin.add(x, height, z), roof));
-                        }
-                    }
-                }
-
-                // 现代风格：简单天窗（中间一条玻璃）
-                if (style == BuildingStyle.MODERN || style == BuildingStyle.FUTURISTIC) {
-                    int midZ = depth / 2;
-                    for (int x = 2; x < width - 2; x++) {
-                        blocks.add(new PlannedBlock(origin.add(x, height, midZ), Blocks.GLASS.getDefaultState()));
-                    }
-                }
-            }
-
-            // 檐口装饰（y=height-1 一圈 slab）
-            for (int x = -1; x <= width; x++) {
-                blocks.add(new PlannedBlock(origin.add(x, height - 1, -1), roofSlab));
-                blocks.add(new PlannedBlock(origin.add(x, height - 1, depth), roofSlab));
-            }
-            for (int z = -1; z <= depth; z++) {
-                blocks.add(new PlannedBlock(origin.add(-1, height - 1, z), roofSlab));
-                blocks.add(new PlannedBlock(origin.add(width, height - 1, z), roofSlab));
-            }
-
-            // Cross-style roof-edge/eaves profile
-            String eavesProfile = null;
-            try {
-                if (profile != null && profile.details() != null) eavesProfile = profile.details().eavesProfile;
-            } catch (Throwable ignored) {}
-            if (eavesProfile != null && !eavesProfile.isBlank()) {
-                applyEavesProfile(blocks, origin, width, depth, height, style, eavesProfile, trim, roof, roofSlab);
-            }
-
-            // 额外一圈线脚（更有“屋檐层次”）：仅在“偏层次屋顶”的风格下启用
-            if (height >= 4 && profile != null && profile.rules() != null && profile.rules().layeredRoof) {
-                int y = height - 2;
-                for (int x = -1; x <= width; x++) {
-                    blocks.add(new PlannedBlock(origin.add(x, y, -1), trim));
-                    blocks.add(new PlannedBlock(origin.add(x, y, depth), trim));
-                }
-                for (int z = -1; z <= depth; z++) {
-                    blocks.add(new PlannedBlock(origin.add(-1, y, z), trim));
-                    blocks.add(new PlannedBlock(origin.add(width, y, z), trim));
-                }
-            }
-
-            // 中式：简化斗拱/雀替（檐下 1 格）+ 彩画点缀
-            if (style == BuildingStyle.ASIAN || (profile != null && profile.details() != null && profile.details().emphasizeEaves)) {
-                addDougongAndPainting(blocks, origin, width, depth, height, trim);
+                HorseHeadWallGenerator.generate(blocks, origin, width, depth, height, roofHeight, wall, trim, roofSlab, doorSide);
             }
 
             // Layout IR: courtyard opening (best-effort)
@@ -661,25 +565,18 @@ public class HouseGenerator implements StructureGenerator {
                 }
             }
 
-            if (!"none".equals(lightingMode)) {
-                addDoorLighting(blocks, origin, width, depth, foundation, doorSide, lightingType);
-                if ("perimeter".equals(lightingMode)) {
-                    addPerimeterLighting(blocks, origin, width, depth, doorSide, lightingType, lightingSpacing);
-                }
-            }
-
-            if (banner) {
-                addDoorBanners(blocks, origin, width, depth, doorSide, bannerColor, paletteId, world);
-            }
+            // 使用 HouseDecorator 生成照明
+            HouseDecorator.generateLighting(blocks, origin, width, depth, foundation, doorSide,
+                    lightingMode, lightingType, lightingSpacing, banner ? bannerColor : null, paletteId, world);
         }
 
         // -------------------------------------
-        // 5. 返回结构对象
+        // 5. 装饰元素（使用 HouseDecorator）
         // -------------------------------------
         // --- Facade component library (Greco-Roman / Gothic), best-effort ---
         try {
             if (profile != null && profile.details() != null) {
-                addFacadeComponents(blocks, origin, world, spec, width, depth, height,
+                HouseDecorator.decorate(blocks, origin, world, spec, width, depth, height,
                         wall, trim, foundation, pillar, roof, roofStairs, roofSlab, windowBlock,
                         paletteId, profile.details());
             }
