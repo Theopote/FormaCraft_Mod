@@ -17,7 +17,6 @@ import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.BlockPos;
 import com.formacraft.server.generator.HorseHeadWallGenerator;
@@ -59,48 +58,19 @@ public class HouseGenerator implements StructureGenerator {
         // GeneratorRouter 会根据 extra.template 或 styleProfileId 路由到专用生成器
         // ===============================
 
-        // 获取材质
-        String wallId = spec.getMaterials() != null ? spec.getMaterials().getWall() : null;
-        String floorId = spec.getMaterials() != null ? spec.getMaterials().getFloor() : null;
-        String windowId = spec.getMaterials() != null ? spec.getMaterials().getWindow() : null;
-        String roofId = spec.getMaterials() != null ? spec.getMaterials().getRoof() : null;
-
-        String pWall = (profile != null && profile.palette() != null) ? profile.palette().wall : null;
-        String pFloor = (profile != null && profile.palette() != null) ? profile.palette().floor : null;
-        String pWindow = (profile != null && profile.palette() != null) ? profile.palette().window : null;
-        String pRoof = (profile != null && profile.palette() != null) ? profile.palette().roof : null;
-
-        BlockState wall = getStateOrDefault(world, wallId,
-                getStateOrDefault(world,
-                        genome != null && genome.palette != null ? genome.palette.wall : pWall,
-                        defaultWall(style)));
-        BlockState floor = getStateOrDefault(world, floorId,
-                getStateOrDefault(world,
-                        genome != null && genome.palette != null ? genome.palette.floor : pFloor,
-                        defaultFloor(style)));
-        BlockState window = getStateOrDefault(world, windowId,
-                getStateOrDefault(world,
-                        genome != null && genome.palette != null ? genome.palette.window : pWindow,
-                        defaultWindow(style)));
-        BlockState roof = getStateOrDefault(world, roofId,
-                getStateOrDefault(world,
-                        genome != null && genome.palette != null ? genome.palette.roof : pRoof,
-                        defaultRoof(style)));
-
-        // 装饰/细节材质（不要求模型显式提供，但能显著提升观感）
-        BlockState trim = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.trim : (profile != null && profile.palette() != null ? profile.palette().trim : null),
-                defaultTrim(style, wall));
-        BlockState foundation = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.foundation : (profile != null && profile.palette() != null ? profile.palette().foundation : null),
-                defaultFoundation(style, wall));
-        BlockState pillar = getStateOrDefault(world,
-                genome != null && genome.palette != null ? genome.palette.pillar : (profile != null && profile.palette() != null ? profile.palette().pillar : null),
-                defaultPillar(style));
-        BlockState roofStairs = defaultRoofStairs(style, roof);
-        BlockState roofSlab = defaultRoofSlab(style, roof);
-        BlockState windowBlock = resolveWindowByStyleOption(world, style, spec, genome, profile, window, pillar, trim);
-        BlockState doorLower = defaultDoor(style);
+        // 解析材质（使用 HouseMaterialResolver）
+        HouseMaterialResolver.MaterialSet materials = HouseMaterialResolver.resolveMaterials(world, spec, style, genome, profile);
+        BlockState wall = materials.wall();
+        BlockState floor = materials.floor();
+        BlockState window = materials.window();
+        BlockState roof = materials.roof();
+        BlockState trim = materials.trim();
+        BlockState foundation = materials.foundation();
+        BlockState pillar = materials.pillar();
+        BlockState roofStairs = materials.roofStairs();
+        BlockState roofSlab = materials.roofSlab();
+        BlockState doorLower = materials.door();
+        BlockState windowBlock = materials.windowBlock();
 
         // 获取特性
         boolean hasWindows = spec.getFeatures() != null && spec.getFeatures().hasWindows();
@@ -137,7 +107,7 @@ public class HouseGenerator implements StructureGenerator {
         // - curtain_wall: more glazing
         // - slit/bars: fewer, defensive openings
         // - shoji/fence: moderate density
-        String effWindowStyle = resolveEffectiveWindowStyle(spec, genome, profile, style);
+        String effWindowStyle = HouseMaterialResolver.resolveEffectiveWindowStyle(spec, genome, profile, style);
         String ews = (effWindowStyle == null) ? "" : effWindowStyle.trim().toLowerCase(java.util.Locale.ROOT);
         if (!ews.isBlank()) {
             if (ews.contains("curtain")) windowRatio = Math.max(windowRatio, 0.70);
@@ -204,7 +174,8 @@ public class HouseGenerator implements StructureGenerator {
 
         // Palette-aware finer roof semantics (best-effort, low intrusion):
         // Only apply when caller did not explicitly set roof material id.
-        if (paletteId != null && !paletteId.isBlank() && (roofId == null || roofId.isBlank())) {
+        String roofIdFromSpec = spec.getMaterials() != null ? spec.getMaterials().getRoof() : null;
+        if (paletteId != null && !paletteId.isBlank() && (roofIdFromSpec == null || roofIdFromSpec.isBlank())) {
             roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_SLOPE", origin, 0xA501001L, roofStairs);
             roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0xA501002L, roofStairs);
             roofSlab = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xA501003L, roofSlab);
@@ -2023,216 +1994,6 @@ public class HouseGenerator implements StructureGenerator {
 
 
 
-    private static BlockState defaultWall(BuildingStyle style) {
-        if (style == null) style = BuildingStyle.DEFAULT;
-        return switch (style) {
-            case MODERN -> Blocks.WHITE_CONCRETE.getDefaultState();
-            case ASIAN ->
-                // 明清官式默认红墙
-                    Blocks.RED_TERRACOTTA.getDefaultState();
-            case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
-            case MEDIEVAL -> Blocks.STONE_BRICKS.getDefaultState();
-            default -> Blocks.OAK_PLANKS.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultFloor(BuildingStyle style) {
-        if (style == null) style = BuildingStyle.DEFAULT;
-        return switch (style) {
-            case MODERN, FUTURISTIC -> Blocks.SMOOTH_QUARTZ.getDefaultState();
-            case ASIAN, MEDIEVAL, DEFAULT -> Blocks.OAK_PLANKS.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
-            default -> Blocks.OAK_PLANKS.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultWindow(BuildingStyle style) {
-        if (style == null) style = BuildingStyle.DEFAULT;
-        return switch (style) {
-            case MODERN, FUTURISTIC -> Blocks.GLASS.getDefaultState();
-            default -> Blocks.GLASS_PANE.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultRoof(BuildingStyle style) {
-        if (style == null) style = BuildingStyle.DEFAULT;
-        return switch (style) {
-            case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
-            case FUTURISTIC -> Blocks.QUARTZ_BLOCK.getDefaultState();
-            case ASIAN ->
-                // 官式灰瓦（近似）：深板岩瓦
-                    Blocks.DEEPSLATE_TILES.getDefaultState();
-            case MEDIEVAL, DEFAULT -> Blocks.DARK_OAK_PLANKS.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_PLANKS.getDefaultState();
-            default -> Blocks.DARK_OAK_PLANKS.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultTrim(BuildingStyle style, BlockState wall) {
-        // 如果墙材本身是 stone bricks，trim 用石砖更一致
-        if (wall != null && wall.getBlock() == Blocks.STONE_BRICKS) {
-            return Blocks.CHISELED_STONE_BRICKS.getDefaultState();
-        }
-        if (style == null) style = BuildingStyle.DEFAULT;
-        return switch (style) {
-            case MODERN -> Blocks.BLACK_CONCRETE.getDefaultState();
-            case FUTURISTIC -> Blocks.LIGHT_BLUE_STAINED_GLASS.getDefaultState();
-            case ASIAN -> Blocks.RED_TERRACOTTA.getDefaultState();
-            default -> Blocks.SPRUCE_LOG.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultFoundation(BuildingStyle style, BlockState wall) {
-        if (wall != null && (wall.getBlock() == Blocks.WHITE_CONCRETE || wall.getBlock() == Blocks.QUARTZ_BLOCK)) {
-            return Blocks.SMOOTH_STONE.getDefaultState();
-        }
-        return switch (style) {
-            case MODERN, FUTURISTIC -> Blocks.SMOOTH_STONE.getDefaultState();
-            case ASIAN -> Blocks.POLISHED_BLACKSTONE.getDefaultState();
-            case RUSTIC, MEDIEVAL, DEFAULT -> Blocks.COBBLESTONE.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultPillar(BuildingStyle style) {
-        return switch (style) {
-            case MODERN, FUTURISTIC -> Blocks.QUARTZ_PILLAR.getDefaultState();
-            case ASIAN -> Blocks.DARK_OAK_LOG.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_LOG.getDefaultState();
-            case MEDIEVAL, DEFAULT -> Blocks.OAK_LOG.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultRoofStairs(BuildingStyle style, BlockState roof) {
-        Block b = roof != null ? roof.getBlock() : null;
-        if (b == Blocks.DARK_OAK_PLANKS) return Blocks.DARK_OAK_STAIRS.getDefaultState();
-        if (b == Blocks.SPRUCE_PLANKS) return Blocks.SPRUCE_STAIRS.getDefaultState();
-        if (b == Blocks.OAK_PLANKS) return Blocks.OAK_STAIRS.getDefaultState();
-        if (b == Blocks.BRICKS) return Blocks.BRICK_STAIRS.getDefaultState();
-        if (b == Blocks.STONE_BRICKS) return Blocks.STONE_BRICK_STAIRS.getDefaultState();
-        if (b == Blocks.BLACK_CONCRETE) return Blocks.POLISHED_BLACKSTONE_STAIRS.getDefaultState();
-        return switch (style) {
-            case MEDIEVAL, ASIAN, DEFAULT -> Blocks.DARK_OAK_STAIRS.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_STAIRS.getDefaultState();
-            case MODERN, FUTURISTIC -> Blocks.POLISHED_BLACKSTONE_STAIRS.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultRoofSlab(BuildingStyle style, BlockState roof) {
-        Block b = roof != null ? roof.getBlock() : null;
-        if (b == Blocks.DARK_OAK_PLANKS) return Blocks.DARK_OAK_SLAB.getDefaultState();
-        if (b == Blocks.SPRUCE_PLANKS) return Blocks.SPRUCE_SLAB.getDefaultState();
-        if (b == Blocks.OAK_PLANKS) return Blocks.OAK_SLAB.getDefaultState();
-        if (b == Blocks.BLACK_CONCRETE) return Blocks.POLISHED_BLACKSTONE_SLAB.getDefaultState();
-        if (b == Blocks.STONE_BRICKS) return Blocks.STONE_BRICK_SLAB.getDefaultState();
-        return switch (style) {
-            case MODERN, FUTURISTIC -> Blocks.SMOOTH_STONE_SLAB.getDefaultState();
-            case ASIAN, MEDIEVAL, DEFAULT -> Blocks.DARK_OAK_SLAB.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_SLAB.getDefaultState();
-        };
-    }
-
-    private static BlockState defaultDoor(BuildingStyle style) {
-        return switch (style) {
-            case MODERN, FUTURISTIC -> Blocks.IRON_DOOR.getDefaultState();
-            case ASIAN -> Blocks.DARK_OAK_DOOR.getDefaultState();
-            case RUSTIC -> Blocks.SPRUCE_DOOR.getDefaultState();
-            case MEDIEVAL, DEFAULT -> Blocks.OAK_DOOR.getDefaultState();
-        };
-    }
-
-    private BlockState resolveWindowByStyleOption(ServerWorld world,
-                                                BuildingStyle style,
-                                                BuildingSpec spec,
-                                                StyleGenome genome,
-                                                StyleProfile profile,
-                                                BlockState fallback,
-                                                BlockState pillar,
-                                                BlockState trim) {
-        String windowStyle = resolveEffectiveWindowStyle(spec, genome, profile, style);
-        String ws = (windowStyle == null) ? "" : windowStyle.trim().toLowerCase();
-
-        switch (ws) {
-            case "shoji", "paper" -> {
-                return Blocks.WHITE_STAINED_GLASS_PANE.getDefaultState();
-            }
-            case "fence" -> {
-                // lattice window: pick wood fence matching pillars if possible
-                String pid = (profile != null && profile.palette() != null) ? profile.palette().pillar : null;
-                if ((pid == null || pid.isBlank()) && pillar != null) {
-                    pid = Registries.BLOCK.getId(pillar.getBlock()).toString();
-                }
-                String fenceId;
-                if (pid != null && pid.contains("dark_oak")) fenceId = "minecraft:dark_oak_fence";
-                else if (pid != null && pid.contains("spruce")) fenceId = "minecraft:spruce_fence";
-                else fenceId = (style == BuildingStyle.ASIAN) ? "minecraft:oak_fence" : "minecraft:oak_fence";
-                return getStateOrDefault(world, fenceId, Blocks.OAK_FENCE.getDefaultState());
-            }
-            case "bars", "iron_bars" -> {
-                // medieval/castle: iron bar windows
-                return Blocks.IRON_BARS.getDefaultState();
-            }
-            case "slit" -> {
-                // Use bars for thin openings; density is handled by windowRatio clamps.
-                return Blocks.IRON_BARS.getDefaultState();
-            }
-            case "stained" -> {
-                // stained glass pane: derive color from trim first (if it's stained glass)
-                String tid = (profile != null && profile.palette() != null) ? profile.palette().trim : null;
-                if ((tid == null || tid.isBlank()) && trim != null) {
-                    tid = Registries.BLOCK.getId(trim.getBlock()).toString();
-                }
-                String paneId = deriveStainedPaneId(tid);
-                return getStateOrDefault(world, paneId, Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.getDefaultState());
-            }
-            case "curtain_wall", "curtain" -> {
-                // Modern curtain wall: prefer panes for thin facade, fallback to glass pane.
-                try {
-                    if (fallback != null && fallback.getBlock() == Blocks.TINTED_GLASS) {
-                        return Blocks.TINTED_GLASS.getDefaultState();
-                    }
-                } catch (Throwable ignored) {}
-                return Blocks.GLASS_PANE.getDefaultState();
-            }
-            default -> {
-                // pane: if fallback is full glass, use glass pane for better proportions
-                try {
-                    if (fallback != null && fallback.getBlock() == Blocks.GLASS) {
-                        return Blocks.GLASS_PANE.getDefaultState();
-                    }
-                } catch (Throwable ignored) {}
-                return fallback != null ? fallback : Blocks.GLASS_PANE.getDefaultState();
-            }
-        }
-    }
-
-    private static String resolveEffectiveWindowStyle(BuildingSpec spec,
-                                                     StyleGenome genome,
-                                                     StyleProfile profile,
-                                                     BuildingStyle style) {
-        // Priority: StyleOptions（显式） > genome.params.windowStyle > styleProfile.details.windowStyle > heuristic default
-        String windowStyle = (spec != null && spec.getStyleOptions() != null) ? spec.getStyleOptions().getWindowStyle() : null;
-        if (windowStyle == null || windowStyle.isBlank()) {
-            windowStyle = (genome != null && genome.params != null) ? genome.params.windowStyle : null;
-        }
-        if (windowStyle == null || windowStyle.isBlank()) {
-            try {
-                if (profile != null && profile.details() != null) {
-                    windowStyle = profile.details().windowStyle;
-                }
-            } catch (Throwable ignored) {}
-        }
-        if (windowStyle == null || windowStyle.isBlank()) {
-            windowStyle = switch (style) {
-                case ASIAN -> "fence";
-                case MEDIEVAL -> "bars";
-                case MODERN, FUTURISTIC -> "pane";
-                case RUSTIC -> "pane";
-                default -> "pane";
-            };
-        }
-        return windowStyle;
-    }
 
     private static boolean isFenceLikeWindow(BlockState windowBlock) {
         if (windowBlock == null) return false;
@@ -2262,43 +2023,6 @@ public class HouseGenerator implements StructureGenerator {
         out.add(origin.add(x, y, z));
     }
 
-    private static String deriveStainedPaneId(String id) {
-        if (id == null || id.isBlank()) return "minecraft:light_blue_stained_glass_pane";
-        String s = id.trim();
-        if (s.endsWith("_stained_glass_pane")) return s;
-        if (s.endsWith("_stained_glass")) return s + "_pane";
-        // best-effort: unknown stained id, use safe fallback
-        return "minecraft:light_blue_stained_glass_pane";
-    }
-
-    /**
-     * 将字符串 blockId 转为 BlockState（比如 "minecraft:stone_bricks"）
-     * 与 TowerGenerator 使用相同的解析逻辑
-     */
-    private BlockState getState(ServerWorld world, String id) {
-        if (id == null || id.isEmpty()) {
-            return Blocks.OAK_PLANKS.getDefaultState();
-        }
-
-        try {
-            // 解析 Identifier
-            Identifier identifier;
-            if (id.contains(":")) {
-                identifier = Identifier.of(id);
-            } else {
-                identifier = Identifier.of("minecraft", id);
-            }
-
-            // 从注册表获取 Block（使用静态 Registries）
-            Block block = Registries.BLOCK.get(identifier);
-            return block.getDefaultState();
-
-            // 如果找不到，尝试使用简单的字符串匹配作为回退
-        } catch (Exception e) {
-            // 如果解析失败，使用回退方案
-            return resolveBlockFallback(id);
-        }
-    }
 
     /**
      * 生成临水码头（如果满足条件）
@@ -2363,72 +2087,5 @@ public class HouseGenerator implements StructureGenerator {
         };
     }
 
-    /**
-     * 回退方案：通过字符串匹配解析常用方块
-     */
-    private BlockState resolveBlockFallback(String material) {
-        if (material == null) return Blocks.OAK_PLANKS.getDefaultState();
-        
-        String lower = material.toLowerCase();
-        
-        // 石头类
-        if (lower.contains("stone_brick") || lower.contains("stonebrick")) {
-            return Blocks.STONE_BRICKS.getDefaultState();
-        }
-        if (lower.contains("cobblestone")) {
-            return Blocks.COBBLESTONE.getDefaultState();
-        }
-        if (lower.contains("stone") && !lower.contains("brick")) {
-            return Blocks.STONE.getDefaultState();
-        }
-        
-        // 砖类
-        if (lower.contains("brick") && !lower.contains("stone")) {
-            return Blocks.BRICKS.getDefaultState();
-        }
-        
-        // 木头类
-        if (lower.contains("dark_oak")) {
-            return Blocks.DARK_OAK_PLANKS.getDefaultState();
-        }
-        if (lower.contains("oak_plank") || lower.contains("oak_wood")) {
-            return Blocks.OAK_PLANKS.getDefaultState();
-        }
-        if (lower.contains("spruce")) {
-            return Blocks.SPRUCE_PLANKS.getDefaultState();
-        }
-        if (lower.contains("birch")) {
-            return Blocks.BIRCH_PLANKS.getDefaultState();
-        }
-        if (lower.contains("jungle")) {
-            return Blocks.JUNGLE_PLANKS.getDefaultState();
-        }
-        if (lower.contains("acacia")) {
-            return Blocks.ACACIA_PLANKS.getDefaultState();
-        }
-        if (lower.contains("wood") || lower.contains("plank") || lower.contains("oak")) {
-            return Blocks.OAK_PLANKS.getDefaultState();
-        }
-        
-        // 玻璃类
-        if (lower.contains("glass_pane")) {
-            return Blocks.GLASS_PANE.getDefaultState();
-        }
-        if (lower.contains("glass")) {
-            return Blocks.GLASS.getDefaultState();
-        }
-        
-        // 默认返回橡木木板
-        return Blocks.OAK_PLANKS.getDefaultState();
-    }
-
-    private BlockState getStateOrDefault(ServerWorld world, String id, BlockState defaultState) {
-        if (id == null || id.isBlank()) return defaultState;
-        try {
-            return getState(world, id);
-        } catch (Throwable ignored) {
-            return defaultState;
-        }
-    }
 }
 
