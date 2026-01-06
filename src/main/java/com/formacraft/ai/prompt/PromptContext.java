@@ -1,5 +1,7 @@
 package com.formacraft.ai.prompt;
 
+import com.formacraft.common.terrain.TerrainPolicy;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,6 +14,9 @@ public class PromptContext {
 
     /** 玩家自然语言输入 */
     public String userMessage = "";
+
+    /** 地形策略（新增） */
+    public TerrainPolicy terrainPolicy = null;
 
     /** 硬规则（必须遵守） */
     public final List<String> rules = new ArrayList<>();

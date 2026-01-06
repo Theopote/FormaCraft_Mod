@@ -1,6 +1,7 @@
 package com.formacraft.ai.prompt;
 
 import com.formacraft.ai.context.SelectionContext;
+import com.formacraft.common.terrain.TerrainPolicy;
 
 /**
  * Prompt 拼接器：把用户自然语言增强为“可控、可解析”的结构化 Prompt。
@@ -26,6 +27,10 @@ public final class PromptAssembler {
 
         // 1) 工具 → 结构化上下文
         ToolPromptBuilder.buildToolContext(ctx);
+
+        // 1.5) 解析地形策略（从工具状态 + 用户输入）
+        TerrainPolicy basePolicy = TerrainPolicyResolver.resolve(ctx);
+        ctx.terrainPolicy = TerrainPolicyResolver.resolveFromUserText(raw, basePolicy);
 
         // 2) 模式规则（预留：目前聊天建造仍走 BUILD）
         switch (ctx.mode) {
@@ -77,6 +82,9 @@ You ONLY output structured JSON building blueprints.
 All geometry must obey the spatial constraints below.
 If constraints conflict, you must adapt the design, not break constraints.
 
+Terrain is part of architectural semantics. Respect terrain strategy constraints.
+Do NOT flatten terrain by default. Adapt buildings to terrain naturally.
+
 Output MUST be valid JSON. No explanation text.
 
 """;
@@ -107,6 +115,12 @@ Output MUST be valid JSON. No explanation text.
 
         // 6. 区域语义标注
         sb.append(semanticBlock(ctx));
+
+        // 6.5. 路径约束（PathTool - 地形自适应系统的灵魂）
+        sb.append(pathBlock(ctx));
+
+        // 6.6. 地形策略（新增）
+        sb.append(terrainBlock(ctx));
 
         // 7. 其他约束（从 ctx.constraints）
         if (!ctx.constraints.isEmpty()) {
@@ -243,6 +257,147 @@ SEMANTIC REGIONS:
 - sacred: central, dominant, vertical emphasis
 - circulation: paths, stairs, bridges only
 - residential: modular, repeatable units
+
+""";
+    }
+
+    /**
+     * 路径约束（PathTool - 地形自适应系统的灵魂）
+     * 
+     * PathTool 驱动：
+     * - 道路生成
+     * - 长城生成
+     * - 建筑沿线布局
+     * - 台阶 / 缓坡 / 桥
+     */
+    private static String pathBlock(PromptContext ctx) {
+        if (ctx == null || ctx.terrainPolicy == null) {
+            return "";
+        }
+
+        // 只有在 PATH 作用域时才输出路径约束
+        if (ctx.terrainPolicy.scope != com.formacraft.common.terrain.TerrainPolicy.Scope.PATH) {
+            return "";
+        }
+
+        // 检查 PathTool 是否有路径
+        try {
+            var pathTool = com.formacraft.client.tool.PathTool.INSTANCE;
+            if (pathTool == null) return "";
+
+            var paths = pathTool.getPaths();
+            if (paths == null || paths.isEmpty()) return "";
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("PATH CONSTRAINT:\n");
+            sb.append("- follow the provided path geometry\n");
+            sb.append("- generate terrain-following structures\n");
+            sb.append("- adapt structure height smoothly to terrain\n");
+            
+            if (ctx.terrainPolicy.allowStairs) {
+                sb.append("- add steps or ramps where slope increases\n");
+            }
+            
+            if (ctx.terrainPolicy.allowBridges) {
+                sb.append("- use small bridges over gaps/water\n");
+            }
+            
+            sb.append("- keep within path corridor\n");
+            sb.append("\n");
+            return sb.toString();
+        } catch (Exception e) {
+            // 如果 PathTool 不可用，静默失败
+            return "";
+        }
+    }
+
+    /**
+     * 地形策略（Terrain Strategy）
+     * 
+     * 这是"人工智能建筑师"的核心：地形本身是建筑语义的一部分
+     */
+    private static String terrainBlock(PromptContext ctx) {
+        if (ctx == null || ctx.terrainPolicy == null) {
+            // 默认策略：ADAPTIVE
+            return defaultTerrainBlock();
+        }
+
+        TerrainPolicy policy = ctx.terrainPolicy;
+        StringBuilder sb = new StringBuilder();
+        sb.append("TERRAIN STRATEGY:\n");
+
+        // 策略语义
+        String strategySemantic = switch (policy.strategy) {
+            case PRESERVE -> "preserve existing terrain; avoid terrain modification except minimal supports";
+            case ADAPTIVE -> "adapt buildings individually to terrain; allow minor local leveling under each building";
+            case TERRACE -> "use terraces/platforms; buildings sit on terraces; connect by stairs/ramps";
+            case FLATTEN -> "flatten terrain within allowed scope before building";
+        };
+        sb.append("- strategy: ").append(policy.strategy.name()).append(" (").append(strategySemantic).append(")\n");
+
+        // 作用域
+        sb.append("- scope: ").append(policy.scope.name()).append("\n");
+
+        // 限制
+        sb.append("- limits:\n");
+        sb.append("  * max_cut_depth: ").append(policy.maxCutDepth).append("\n");
+        sb.append("  * max_fill_height: ").append(policy.maxFillHeight).append("\n");
+        sb.append("  * allow_bridges: ").append(policy.allowBridges).append("\n");
+        sb.append("  * allow_stairs: ").append(policy.allowStairs).append("\n");
+        sb.append("  * allow_foundations: ").append(policy.allowFoundations).append("\n");
+
+        // 重要提示
+        if (policy.avoidLargeScaleFlatten && policy.strategy != com.formacraft.common.terrain.TerrainStrategy.FLATTEN) {
+            sb.append("- IMPORTANT: avoid large-scale flattening; adapt buildings individually\n");
+        }
+        if (policy.preserveOverallShape) {
+            sb.append("- preserve overall terrain shape (avoid massive earthwork)\n");
+        }
+
+        // 路径约束（如果有 PathTool）
+        if (policy.scope == TerrainPolicy.Scope.PATH) {
+            sb.append("\nPATH CONSTRAINTS:\n");
+            sb.append("- follow the provided path geometry\n");
+            sb.append("- adapt structure height smoothly to terrain\n");
+            sb.append("- add steps/ramps where slope increases\n");
+            if (policy.allowBridges) {
+                sb.append("- use small bridges over gaps/water\n");
+            }
+        }
+
+        // 建筑群规则
+        sb.append("\nCLUSTER RULES:\n");
+        sb.append("- buildings may sit at different elevations\n");
+        if (policy.allowStairs) {
+            sb.append("- connect buildings using terrain-following paths\n");
+            sb.append("- use stairs, ramps, or small bridges where needed\n");
+        }
+
+        sb.append("\n");
+        return sb.toString();
+    }
+
+    /**
+     * 默认地形策略（ADAPTIVE）
+     */
+    private static String defaultTerrainBlock() {
+        return """
+TERRAIN STRATEGY:
+- strategy: ADAPTIVE (adapt buildings individually to terrain; allow minor local leveling under each building)
+- scope: NONE
+- limits:
+  * max_cut_depth: 2
+  * max_fill_height: 2
+  * allow_bridges: true
+  * allow_stairs: true
+  * allow_foundations: true
+- IMPORTANT: avoid large-scale flattening; adapt buildings individually
+- preserve overall terrain shape (avoid massive earthwork)
+
+CLUSTER RULES:
+- buildings may sit at different elevations
+- connect buildings using terrain-following paths
+- use stairs, ramps, or small bridges where needed
 
 """;
     }
