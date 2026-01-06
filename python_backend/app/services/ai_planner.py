@@ -132,10 +132,15 @@ def _resolve_model(req: Optional[BuildRequest], default: str) -> str:
 
 
 def _build_system_prompt() -> str:
+    from ..llm.skeleton_semantics import get_skeleton_semantics_prompt
+    
+    skeleton_block = get_skeleton_semantics_prompt()
+    
     return (
         "You are FormaCraft, an AI architect for Minecraft.\n"
         "Your job is to convert a player's natural language request and world context "
         "into a structured BuildingSpec JSON object.\n\n"
+        + skeleton_block + "\n\n"
         "CRITICAL: Understanding User Intent and Specific Buildings:\n"
         "- When the user mentions a specific building name (e.g., '鸟巢体育馆'/'Bird's Nest Stadium', '埃菲尔铁塔'/'Eiffel Tower', '天坛'/'Temple of Heaven'),\n"
         "  you MUST analyze the key architectural features of that building:\n"
