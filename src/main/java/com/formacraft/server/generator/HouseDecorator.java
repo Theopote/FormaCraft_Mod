@@ -47,6 +47,7 @@ public class HouseDecorator {
      * @param windowBlock 窗户材质
      * @param paletteId 调色板ID
      * @param details 细节偏好
+     * @param layoutInfo 布局信息（可选）
      */
     public static void decorate(
             List<PlannedBlock> blocks,
@@ -65,13 +66,14 @@ public class HouseDecorator {
             BlockState roofSlab,
             BlockState windowBlock,
             String paletteId,
-            DetailPreferences details) {
+            DetailPreferences details,
+            HouseLayoutGenerator.LayoutInfo layoutInfo) {
         
         if (blocks == null || origin == null || details == null) return;
         if (width < 9 || depth < 9 || height < 6) return; // too small
         
         Direction doorSide = resolveDoorSide(spec);
-        String layoutSymmetry = resolveLayoutSymmetry(spec);
+        String layoutSymmetry = (layoutInfo != null) ? layoutInfo.symmetry() : "NONE";
         
         // --- Entry / portal feature (cross-style) ---
         if (details.portalStyle != null && !details.portalStyle.isBlank()) {

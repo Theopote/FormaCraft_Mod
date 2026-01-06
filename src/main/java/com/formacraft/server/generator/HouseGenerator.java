@@ -55,14 +55,9 @@ public class HouseGenerator implements StructureGenerator {
         StyleProfile profile = StyleProfileRegistry.resolve(spec);
 
         // ===============================
-        // Ming/Qing 官式中式宅院（优先实现）
+        // 注：中式建筑（MingQing Courtyard）已由 MingQingCourtyardGenerator 处理
+        // GeneratorRouter 会根据 extra.template 或 styleProfileId 路由到专用生成器
         // ===============================
-        // ASIAN 作为“中式”总开关；当占地足够大时，生成四合院（围墙+门楼+主殿+厢房）
-        if (style == BuildingStyle.ASIAN && width >= 16 && depth >= 16) {
-            generateMingQingCourtyard(spec, origin, world, blocks, width, depth);
-            String description = String.format("MingQing Courtyard (ASIAN, %dx%d)", width, depth);
-            return new GeneratedStructure(null, origin, description, blocks);
-        }
 
         // 获取材质
         String wallId = spec.getMaterials() != null ? spec.getMaterials().getWall() : null;
@@ -219,8 +214,8 @@ public class HouseGenerator implements StructureGenerator {
         // Door side (for compounds like gatehouses): default keeps legacy behavior (NORTH wall, z==0).
         // Layout IR: extra.layout.entranceFacing has higher priority.
         Direction doorSide = resolveDoorSide(spec);
-        LayoutCourtyard courtyard = resolveLayoutCourtyard(spec, width, depth);
-        String layoutPlan = resolveLayoutPlan(spec);
+        HouseLayoutGenerator.LayoutInfo layoutInfo = HouseLayoutGenerator.resolveLayout(spec, width, depth);
+        HouseLayoutGenerator.LayoutCourtyard courtyard = layoutInfo.courtyard();
 
         // 2.1 地基（y=0 一圈）
         for (int x = 0; x < width; x++) {
@@ -414,7 +409,7 @@ public class HouseGenerator implements StructureGenerator {
 
             for (int x = 1; x < width - 1; x++) {
                 for (int z = 1; z < depth - 1; z++) {
-                    if (courtyard.enabled && courtyard.containsInterior(x, z)) continue;
+                    if (courtyard.enabled() && courtyard.containsInterior(x, z)) continue;
                     BlockPos fp = origin.add(x, y0, z);
                     BlockState fl = floor;
                     if (paletteId != null && !paletteId.isBlank()) {
@@ -444,14 +439,9 @@ public class HouseGenerator implements StructureGenerator {
         // -------------------------------------
         // 3.5 内部分区（Layout IR: extra.layout.plan）
         // -------------------------------------
-        // NOTE: best-effort zoning.
-        // - ring_corridor is designed to work WITH courtyard.
-        // - other plans are skipped when courtyard is enabled to avoid conflicting geometry.
-        if (courtyard.enabled && isLayoutPlanRingCorridor(layoutPlan)) {
-            addRingCorridorPartitions(blocks, origin, width, depth, height, floors, floorHeight, wall, trim, courtyard, doorSide);
-        } else if (!courtyard.enabled) {
-            addInteriorPartitions(blocks, origin, width, depth, height, floors, floorHeight, wall, trim, doorSide, layoutPlan);
-        }
+        // 使用 HouseLayoutGenerator 生成内部分区
+        HouseLayoutGenerator.generatePartitions(blocks, origin, width, depth, height, floors, floorHeight,
+                wall, trim, doorSide, layoutInfo);
 
         // -------------------------------------
         // 4. 屋顶（根据 roofType；加入：檐口/楼梯屋顶/平顶女儿墙）
@@ -519,11 +509,11 @@ public class HouseGenerator implements StructureGenerator {
 
             // Layout IR: courtyard opening (best-effort)
             // We carve an open shaft by placing AIR blocks after roof generation.
-            if (courtyard.enabled) {
+            if (courtyard.enabled()) {
                 int yMax = height + 14; // conservative upper bound across roof types
                 for (int y = 1; y <= yMax; y++) {
-                    for (int x = courtyard.x0; x <= courtyard.x1; x++) {
-                        for (int z = courtyard.z0; z <= courtyard.z1; z++) {
+                    for (int x = courtyard.x0(); x <= courtyard.x1(); x++) {
+                        for (int z = courtyard.z0(); z <= courtyard.z1(); z++) {
                             blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
                         }
                     }
@@ -578,7 +568,7 @@ public class HouseGenerator implements StructureGenerator {
             if (profile != null && profile.details() != null) {
                 HouseDecorator.decorate(blocks, origin, world, spec, width, depth, height,
                         wall, trim, foundation, pillar, roof, roofStairs, roofSlab, windowBlock,
-                        paletteId, profile.details());
+                        paletteId, profile.details(), layoutInfo);
             }
         } catch (Throwable ignored) {}
 
@@ -847,303 +837,6 @@ public class HouseGenerator implements StructureGenerator {
         };
     }
 
-    private static String resolveLayoutSymmetry(BuildingSpec spec) {
-        if (spec == null || spec.getExtra() == null) return "NONE";
-        try {
-            Object layoutObj = spec.getExtra().get("layout");
-            if (layoutObj instanceof java.util.Map<?, ?> m) {
-                Object sym = m.get("symmetry");
-                if (sym != null) {
-                    String s = String.valueOf(sym).trim().toUpperCase(java.util.Locale.ROOT);
-                    if (s.equals("NONE") || s.equals("X") || s.equals("Z") || s.equals("BOTH")) return s;
-                }
-            }
-        } catch (Throwable ignored) {}
-        return "NONE";
-    }
-
-    private static String resolveLayoutPlan(BuildingSpec spec) {
-        if (spec == null || spec.getExtra() == null) return "none";
-        try {
-            Object layoutObj = spec.getExtra().get("layout");
-            if (layoutObj instanceof java.util.Map<?, ?> m) {
-                Object plan = m.get("plan");
-                if (plan != null) {
-                    String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
-                    if (p.isEmpty()) return "none";
-                    switch (p) {
-                        case "none", "no", "false", "0", "off" -> {
-                            return "none";
-                        }
-                        case "front_back", "frontback", "front-back", "front/back", "前后", "前后分区", "前后布局",
-                             "前厅后室" -> {
-                            return "front_back";
-                        }
-                        case "left_right", "leftright", "left-right", "left/right", "左右", "左右分区", "左右布局" -> {
-                            return "left_right";
-                        }
-                        case "ring_corridor", "ring", "courtyard_corridor", "gallery", "cloister", "回廊", "环廊",
-                             "环形走廊", "围绕中庭", "回字形", "回字布局", "回字走廊" -> {
-                            return "ring_corridor";
-                        }
-                    }
-                }
-            }
-        } catch (Throwable ignored) {}
-        return "none";
-    }
-
-    private static boolean isLayoutPlanRingCorridor(String plan) {
-        if (plan == null) return false;
-        String p = plan.trim().toLowerCase(java.util.Locale.ROOT);
-        return p.equals("ring_corridor");
-    }
-
-    private static void addInteriorPartitions(List<PlannedBlock> blocks, BlockPos origin,
-                                              int width, int depth, int height,
-                                              int floors, int floorHeight,
-                                              BlockState wall, BlockState trim,
-                                              Direction doorSide, String plan) {
-        if (plan == null) return;
-        String p = plan.trim().toLowerCase(java.util.Locale.ROOT);
-        if (p.isEmpty() || p.equals("none")) return;
-
-        // Need a minimum interior to partition meaningfully.
-        if (width < 8 || depth < 8) return;
-
-        // y range inside each floor cell: leave floor at y0 and ceiling at y0+floorHeight.
-        int yMin = 1;
-        int yMax = Math.max(2, floorHeight - 1); // exclusive upper bound for walls
-        int doorH = Math.min(3, Math.max(2, yMax - yMin)); // 2~3 blocks door opening
-
-        boolean splitZ = p.equals("front_back");   // partition line is Z constant (splits front/back)
-        boolean splitX = p.equals("left_right");   // partition line is X constant (splits left/right)
-        if (!splitZ && !splitX) return;
-
-        boolean doorOnNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
-        int doorAxisCenter = doorOnNS ? (width / 2) : (depth / 2);
-
-        // Partition position: slightly biased so "front" zone (near entrance) is smaller than "back" zone.
-        double frontRatio = 0.42;
-        int interiorW = width - 2;
-        int interiorD = depth - 2;
-        int zSplitInterior = 1 + (int) Math.round((interiorD - 1) * frontRatio);
-        int xSplitInterior = 1 + (int) Math.round((interiorW - 1) * frontRatio);
-
-        if (doorSide == Direction.SOUTH) {
-            // entrance at far Z: mirror split
-            zSplitInterior = (depth - 2) - (zSplitInterior - 1);
-        }
-        if (doorSide == Direction.EAST) {
-            // entrance at far X: mirror split
-            xSplitInterior = (width - 2) - (xSplitInterior - 1);
-        }
-
-        // clamp
-        zSplitInterior = Math.max(2, Math.min(depth - 3, zSplitInterior));
-        xSplitInterior = Math.max(2, Math.min(width - 3, xSplitInterior));
-
-        // opening width: 1 for narrow, 2 for wide.
-        int openW = (doorOnNS ? width : depth) >= 12 ? 2 : 1;
-        int open0 = Math.max(2, doorAxisCenter - (openW / 2));
-        int open1 = Math.min((doorOnNS ? width - 3 : depth - 3), open0 + openW - 1);
-
-        for (int f = 0; f < floors; f++) {
-            int y0 = f * floorHeight;
-            if (y0 >= height) break;
-
-            int yTop = Math.min(height - 1, y0 + yMax);
-            for (int y = y0 + yMin; y < yTop; y++) {
-                if (splitZ) {
-                    for (int x = 1; x < width - 1; x++) {
-                        boolean opening = (doorOnNS && x >= open0 && x <= open1 && y < (y0 + yMin + doorH));
-                        if (opening) continue;
-                        BlockState w = wall;
-                        // add a subtle trim at top of partition wall
-                        if (y == yTop - 1) w = trim;
-                        blocks.add(new PlannedBlock(origin.add(x, y, zSplitInterior), w));
-                    }
-                } else if (splitX) {
-                    for (int z = 1; z < depth - 1; z++) {
-                        boolean opening = (!doorOnNS && z >= open0 && z <= open1 && y < (y0 + yMin + doorH));
-                        if (opening) continue;
-                        BlockState w = wall;
-                        if (y == yTop - 1) w = trim;
-                        blocks.add(new PlannedBlock(origin.add(xSplitInterior, y, z), w));
-                    }
-                }
-            }
-        }
-    }
-
-    private static void addRingCorridorPartitions(List<PlannedBlock> blocks, BlockPos origin,
-                                                  int width, int depth, int height,
-                                                  int floors, int floorHeight,
-                                                  BlockState wall, BlockState trim,
-                                                  LayoutCourtyard courtyard, Direction doorSide) {
-        if (courtyard == null || !courtyard.enabled) return;
-        if (width < 11 || depth < 11) return; // too tight for courtyard + ring corridor + rooms
-
-        // corridor thickness: 1 for small, 2 for larger footprints
-        int t = (width >= 21 && depth >= 21) ? 2 : 1;
-
-        // ring wall rectangle is offset from courtyard by (t+1), leaving a corridor strip between courtyard void and ring wall.
-        int rx0 = courtyard.x0 - (t + 1);
-        int rx1 = courtyard.x1 + (t + 1);
-        int rz0 = courtyard.z0 - (t + 1);
-        int rz1 = courtyard.z1 + (t + 1);
-
-        // clamp inside interior (keep 1-block margin to outer walls)
-        rx0 = Math.max(2, rx0);
-        rz0 = Math.max(2, rz0);
-        rx1 = Math.min(width - 3, rx1);
-        rz1 = Math.min(depth - 3, rz1);
-
-        if (rx1 - rx0 < 3 || rz1 - rz0 < 3) return;
-
-        int yMin = 1;
-        int yMax = Math.max(2, floorHeight - 1);
-        int doorH = Math.min(3, Math.max(2, yMax - yMin));
-
-        // openings on ring wall: 4 midpoints (N/S/E/W)
-        int midX = (rx0 + rx1) / 2;
-        int midZ = (rz0 + rz1) / 2;
-        int openW = (width >= 14 && depth >= 14) ? 2 : 1;
-        int openX0 = midX - (openW / 2);
-        int openX1 = openX0 + openW - 1;
-        int openZ0 = midZ - (openW / 2);
-        int openZ1 = openZ0 + openW - 1;
-
-        for (int f = 0; f < floors; f++) {
-            int y0 = f * floorHeight;
-            if (y0 >= height) break;
-            int yTop = Math.min(height - 1, y0 + yMax);
-
-            for (int y = y0 + yMin; y < yTop; y++) {
-                boolean openingY = y < (y0 + yMin + doorH);
-
-                BlockState w = (y == yTop - 1) ? trim : wall;
-
-                // north (z=rz0): opening at midpoint
-                for (int x = rx0; x <= rx1; x++) {
-                    boolean opening = openingY && x >= openX0 && x <= openX1;
-                    if (opening) continue;
-                    blocks.add(new PlannedBlock(origin.add(x, y, rz0), w));
-                }
-                // south (z=rz1)
-                for (int x = rx0; x <= rx1; x++) {
-                    boolean opening = openingY && x >= openX0 && x <= openX1;
-                    if (opening) continue;
-                    blocks.add(new PlannedBlock(origin.add(x, y, rz1), w));
-                }
-                // west (x=rx0)
-                for (int z = rz0; z <= rz1; z++) {
-                    boolean opening = openingY && z >= openZ0 && z <= openZ1;
-                    if (opening) continue;
-                    blocks.add(new PlannedBlock(origin.add(rx0, y, z), w));
-                }
-                // east (x=rx1)
-                for (int z = rz0; z <= rz1; z++) {
-                    boolean opening = openingY && z >= openZ0 && z <= openZ1;
-                    if (opening) continue;
-                    blocks.add(new PlannedBlock(origin.add(rx1, y, z), w));
-                }
-            }
-        }
-
-        // Optional: two radial walls to split the outer zone into 4 rooms (best-effort)
-        int cx = width / 2;
-        int cz = depth / 2;
-        boolean doorOnNS = (doorSide == Direction.NORTH || doorSide == Direction.SOUTH);
-        int doorTopRel = 3;
-
-        for (int f = 0; f < floors; f++) {
-            int y0 = f * floorHeight;
-            if (y0 >= height) break;
-            int yTop = Math.min(height - 1, y0 + (floorHeight - 1));
-
-            for (int y = y0 + 1; y < yTop; y++) {
-                boolean openingY = y < (y0 + doorTopRel);
-                if (doorOnNS) {
-                    // split left/right: wall at x=cx from ring wall to outer walls, with an opening at the ring boundary
-                    for (int z = rz0; z >= 1; z--) {
-                        boolean opening = openingY && z == rz0;
-                        if (opening) continue;
-                        blocks.add(new PlannedBlock(origin.add(cx, y, z), wall));
-                    }
-                    for (int z = rz1; z <= depth - 2; z++) {
-                        boolean opening = openingY && z == rz1;
-                        if (opening) continue;
-                        blocks.add(new PlannedBlock(origin.add(cx, y, z), wall));
-                    }
-                } else {
-                    // split front/back: wall at z=cz from ring wall to outer walls, with an opening at the ring boundary
-                    for (int x = rx0; x >= 1; x--) {
-                        boolean opening = openingY && x == rx0;
-                        if (opening) continue;
-                        blocks.add(new PlannedBlock(origin.add(x, y, cz), wall));
-                    }
-                    for (int x = rx1; x <= width - 2; x++) {
-                        boolean opening = openingY && x == rx1;
-                        if (opening) continue;
-                        blocks.add(new PlannedBlock(origin.add(x, y, cz), wall));
-                    }
-                }
-            }
-        }
-    }
-
-    private record LayoutCourtyard(boolean enabled, int x0, int x1, int z0, int z1) {
-        boolean containsInterior(int x, int z) {
-            return enabled && x >= x0 && x <= x1 && z >= z0 && z <= z1;
-        }
-    }
-
-    private static LayoutCourtyard resolveLayoutCourtyard(BuildingSpec spec, int width, int depth) {
-        // Only meaningful when there is enough interior space.
-        if (width < 9 || depth < 9) return new LayoutCourtyard(false, 0, -1, 0, -1);
-        if (spec == null || spec.getExtra() == null) return new LayoutCourtyard(false, 0, -1, 0, -1);
-
-        boolean enabled = false;
-        double ratio = 0.45; // default when enabled
-        try {
-            Object layoutObj = spec.getExtra().get("layout");
-            if (layoutObj instanceof java.util.Map<?, ?> m) {
-                Object ct = m.get("courtyard");
-                if (ct instanceof Boolean b) enabled = b;
-                else if (ct != null) {
-                    String s = String.valueOf(ct).trim().toLowerCase(java.util.Locale.ROOT);
-                    if (!s.isEmpty()) enabled = (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on"));
-                }
-                Object cr = m.get("courtyardRatio");
-                if (cr != null) {
-                    try {
-                        ratio = Double.parseDouble(String.valueOf(cr).trim());
-                    } catch (Exception ignored) {}
-                }
-            }
-        } catch (Throwable ignored) {}
-
-        if (!enabled) return new LayoutCourtyard(false, 0, -1, 0, -1);
-
-        if (ratio < 0.2) ratio = 0.2;
-        if (ratio > 0.8) ratio = 0.8;
-
-        int interiorW = width - 2;
-        int interiorD = depth - 2;
-        int cw = Math.max(3, (int) Math.round(interiorW * ratio));
-        int cd = Math.max(3, (int) Math.round(interiorD * ratio));
-        // keep at least 1 block margin to outer walls for structural stability
-        cw = Math.min(cw, interiorW - 2);
-        cd = Math.min(cd, interiorD - 2);
-        if (cd < 3) return new LayoutCourtyard(false, 0, -1, 0, -1);
-
-        int x0 = 1 + (interiorW - cw) / 2;
-        int z0 = 1 + (interiorD - cd) / 2;
-        int x1 = x0 + cw - 1;
-        int z1 = z0 + cd - 1;
-        return new LayoutCourtyard(true, x0, x1, z0, z1);
-    }
 
     private static boolean isDoorEdge(Direction doorSide, int x, int z, int width, int depth) {
         if (doorSide == null) return (z == 0);
@@ -1270,76 +963,6 @@ public class HouseGenerator implements StructureGenerator {
         return current;
     }
 
-    private static void addFacadeComponents(List<PlannedBlock> blocks,
-                                           BlockPos origin,
-                                           ServerWorld world,
-                                           BuildingSpec spec,
-                                           int width,
-                                           int depth,
-                                           int height,
-                                           BlockState wall,
-                                           BlockState trim,
-                                           BlockState foundation,
-                                           BlockState pillar,
-                                           BlockState roof,
-                                           BlockState roofStairs,
-                                           BlockState roofSlab,
-                                           BlockState windowBlock,
-                                           String paletteId,
-                                           com.formacraft.common.style.profile.DetailPreferences details) {
-        if (blocks == null || origin == null || details == null) return;
-        if (width < 9 || depth < 9 || height < 6) return; // too small
-
-        Direction doorSide = resolveDoorSide(spec);
-        String layoutSymmetry = resolveLayoutSymmetry(spec);
-
-        // --- Entry / portal feature (cross-style) ---
-        if (details.portalStyle != null && !details.portalStyle.isBlank()) {
-            addPortalFeature(blocks, origin, width, depth, height, doorSide, foundation, trim, roofSlab, roofStairs, details.portalStyle);
-        }
-
-        // --- Ornaments / props (cross-style) ---
-        if (details.ornamentProfile != null && !details.ornamentProfile.isBlank()) {
-            addOrnamentProfile(blocks, origin, world, width, depth, height, doorSide, foundation, trim, roofSlab,
-                    paletteId, details.ornamentProfile, details, layoutSymmetry);
-        }
-
-        // --- Classical stylobate / podium ring ---
-        if (details.stylobate) {
-            addStylobate(blocks, origin, width, depth, doorSide, foundation, roofSlab, roofStairs);
-        }
-
-        // --- Greco-Roman: colonnade + pediment ---
-        if (details.peristyle) {
-            addPeristyleColonnade(blocks, origin, width, depth, height, doorSide, foundation, pillar, roofSlab,
-                    details.entablature ? trim : null,
-                    Math.max(2, Math.min(4, details.colonnadeSpacing)),
-                    details.classicalColumnOrder);
-            if (details.pediment) {
-                addPediment(blocks, origin, width, depth, height, doorSide, trim, roofSlab);
-            }
-        } else if (details.colonnade || details.pediment) {
-            // only build a front portico to avoid heavy intrusion
-            addFrontColonnade(blocks, origin, width, depth, height, doorSide, foundation, pillar, roofSlab,
-                    details.entablature ? trim : null,
-                    Math.max(2, Math.min(4, details.colonnadeSpacing)),
-                    details.classicalColumnOrder);
-            if (details.pediment) {
-                addPediment(blocks, origin, width, depth, height, doorSide, trim, roofSlab);
-            }
-        }
-
-        // --- Gothic: rose window + buttresses ---
-        if (details.roseWindow) {
-            addRoseWindow(blocks, origin, width, depth, height, doorSide, windowBlock, trim);
-        }
-        if (details.buttresses) {
-            addFlyingButtresses(blocks, origin, width, depth, height, doorSide, foundation, trim, roofStairs);
-        }
-        if (details.pointedArches || details.arches) {
-            addPointedDoorPortal(blocks, origin, width, depth, height, doorSide, trim, roofStairs);
-        }
-    }
 
     private static void addPortalFeature(List<PlannedBlock> blocks,
                                          BlockPos origin,
@@ -2213,200 +1836,6 @@ public class HouseGenerator implements StructureGenerator {
 
     // ========== Ming/Qing courtyard ==========
 
-    private static void generateMingQingCourtyard(BuildingSpec spec, BlockPos origin, ServerWorld world, List<PlannedBlock> blocks, int width, int depth) {
-        // palette：红墙灰瓦/黄瓦（imperial 可通过 extra/roof material 控制）
-        BlockState wall = Blocks.RED_TERRACOTTA.getDefaultState();                 // 红墙
-        BlockState foundation = Blocks.STONE_BRICKS.getDefaultState();            // 台基/基座
-        BlockState courtyardFloor = Blocks.STONE_BRICKS.getDefaultState();        // 院落地面（先用石砖，后续可加青砖纹理）
-        BlockState pillar = Blocks.DARK_OAK_LOG.getDefaultState();                // 木柱
-        BlockState trim = Blocks.DARK_OAK_PLANKS.getDefaultState();               // 额枋/梁/檐口
-        BlockState roofMain = Blocks.DEEPSLATE_TILES.getDefaultState();           // 灰瓦（用深板岩瓦近似）
-        BlockState roofSlab = Blocks.DEEPSLATE_TILE_SLAB.getDefaultState();
-        BlockState roofStairs = Blocks.DEEPSLATE_TILE_STAIRS.getDefaultState();
-
-        // imperial: 黄瓦（可选）
-        boolean imperial = false;
-        try {
-            if (spec != null && spec.getExtra() != null) {
-                Object v = spec.getExtra().get("imperial");
-                if (v instanceof Boolean b) imperial = b;
-                if (v instanceof String s && (s.equalsIgnoreCase("true") || s.equals("1"))) imperial = true;
-            }
-        } catch (Throwable ignored) {}
-        if (imperial) {
-            roofMain = Blocks.YELLOW_GLAZED_TERRACOTTA.getDefaultState();
-            roofSlab = Blocks.SMOOTH_SANDSTONE_SLAB.getDefaultState();
-            roofStairs = Blocks.SMOOTH_SANDSTONE_STAIRS.getDefaultState();
-        }
-
-        // 1) 清空空间（避免山体干扰）
-        int clearH = 14;
-        for (int x = -1; x <= width + 1; x++) {
-            for (int z = -1; z <= depth + 1; z++) {
-                for (int y = 0; y <= clearH; y++) {
-                    blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
-                }
-            }
-        }
-
-        // 2) 外围围墙（红墙 + 台基）
-        int wallH = 4;
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < wallH; y++) {
-                blocks.add(new PlannedBlock(origin.add(x, 0, 0), foundation));
-                blocks.add(new PlannedBlock(origin.add(x, 0, depth - 1), foundation));
-                if (y > 0) {
-                    blocks.add(new PlannedBlock(origin.add(x, y, 0), wall));
-                    blocks.add(new PlannedBlock(origin.add(x, y, depth - 1), wall));
-                }
-            }
-        }
-        for (int z = 0; z < depth; z++) {
-            for (int y = 0; y < wallH; y++) {
-                blocks.add(new PlannedBlock(origin.add(0, 0, z), foundation));
-                blocks.add(new PlannedBlock(origin.add(width - 1, 0, z), foundation));
-                if (y > 0) {
-                    blocks.add(new PlannedBlock(origin.add(0, y, z), wall));
-                    blocks.add(new PlannedBlock(origin.add(width - 1, y, z), wall));
-                }
-            }
-        }
-
-        // 3) 门楼（南侧中门，z=0）
-        int gateW = 4;
-        int gateX0 = width / 2 - gateW / 2;
-        int gateH = 3;
-        for (int x = gateX0; x < gateX0 + gateW; x++) {
-            for (int y = 1; y <= gateH; y++) {
-                blocks.add(new PlannedBlock(origin.add(x, y, 0), Blocks.AIR.getDefaultState()));
-            }
-        }
-        // 门柱
-        blocks.add(new PlannedBlock(origin.add(gateX0 - 1, 1, 0), pillar));
-        blocks.add(new PlannedBlock(origin.add(gateX0 - 1, 2, 0), pillar));
-        blocks.add(new PlannedBlock(origin.add(gateX0 + gateW, 1, 0), pillar));
-        blocks.add(new PlannedBlock(origin.add(gateX0 + gateW, 2, 0), pillar));
-        // 门楣
-        for (int x = gateX0 - 1; x <= gateX0 + gateW; x++) {
-            blocks.add(new PlannedBlock(origin.add(x, gateH + 1, 0), trim));
-        }
-        // 门楼小屋顶（hipped）
-        addHippedRoof(blocks, origin.add(gateX0 - 2, 1, 0), gateW + 4, 3, gateH + 1, roofMain, roofStairs, roofSlab, trim, false, false);
-
-        // 4) 院落地面（石砖，留出主殿/厢房占地）
-        for (int x = 1; x < width - 1; x++) {
-            for (int z = 1; z < depth - 1; z++) {
-                blocks.add(new PlannedBlock(origin.add(x, 0, z), courtyardFloor));
-            }
-        }
-        // 中轴道路（更像官式）
-        int cx = width / 2;
-        for (int z = 1; z < depth - 2; z++) {
-            blocks.add(new PlannedBlock(origin.add(cx, 0, z), Blocks.POLISHED_ANDESITE.getDefaultState()));
-            blocks.add(new PlannedBlock(origin.add(cx - 1, 0, z), Blocks.POLISHED_ANDESITE.getDefaultState()));
-        }
-
-        // 5) 主殿（北侧，面向院落）
-        int hallW = Math.max(8, width - 6);
-        int hallD = 6;
-        int hallX0 = (width - hallW) / 2;
-        int hallZ0 = depth - hallD - 2;
-        int hallH = 6;
-        addMingQingHall(blocks, origin.add(hallX0, 0, hallZ0), hallW, hallD, hallH,
-                wall, foundation, pillar, trim, roofMain, roofStairs, roofSlab, true);
-
-        // 6) 东西厢房（可选：宽度足够时加）
-        if (width >= 20) {
-            int wingW = 6;
-            int wingD = depth - hallD - 6;
-            int wingH = 5;
-            int leftX = 2;
-            int rightX = width - wingW - 2;
-            int wingZ = 4;
-            addMingQingHall(blocks, origin.add(leftX, 0, wingZ), wingW, wingD, wingH,
-                    wall, foundation, pillar, trim, roofMain, roofStairs, roofSlab, false);
-            addMingQingHall(blocks, origin.add(rightX, 0, wingZ), wingW, wingD, wingH,
-                    wall, foundation, pillar, trim, roofMain, roofStairs, roofSlab, false);
-        }
-    }
-
-    private static void addMingQingHall(List<PlannedBlock> blocks, BlockPos o, int w, int d, int h,
-                                        BlockState wall, BlockState foundation, BlockState pillar, BlockState trim,
-                                        BlockState roofMain, BlockState roofStairs, BlockState roofSlab,
-                                        boolean mainHall) {
-        // 台基
-        for (int x = -1; x <= w; x++) {
-            for (int z = -1; z <= d; z++) {
-                blocks.add(new PlannedBlock(o.add(x, 0, z), foundation));
-            }
-        }
-
-        // 柱网 + 墙体（留门洞）
-        int doorW = mainHall ? 3 : 2;
-        int dx0 = w / 2 - doorW / 2;
-        for (int y = 1; y <= h; y++) {
-            for (int x = 0; x < w; x++) {
-                for (int z = 0; z < d; z++) {
-                    boolean edge = (x == 0 || x == w - 1 || z == 0 || z == d - 1);
-                    if (!edge) continue;
-
-                    // 柱（四角+门廊柱）
-                    boolean isCorner = (x == 0 || x == w - 1) && (z == 0 || z == d - 1);
-                    boolean isPorchPillar = (z == 0) && (x == dx0 - 1 || x == dx0 + doorW);
-                    if (isCorner || isPorchPillar) {
-                        blocks.add(new PlannedBlock(o.add(x, y, z), pillar));
-                        continue;
-                    }
-
-                    // 门洞（朝院落方向：z==0）
-                    boolean inDoor = (z == 0) && (x >= dx0 && x < dx0 + doorW) && (y <= 3);
-                    if (inDoor) {
-                        blocks.add(new PlannedBlock(o.add(x, y, z), Blocks.AIR.getDefaultState()));
-                        continue;
-                    }
-
-                    // 窗带（格栅窗）
-                    boolean windowBand = (y == 2);
-                    boolean inWindow = windowBand && (z == 0 || z == d - 1 || x == 0 || x == w - 1);
-                    if (inWindow && !((z == 0) && (x >= dx0 - 1 && x <= dx0 + doorW))) {
-                        blocks.add(new PlannedBlock(o.add(x, y, z), Blocks.DARK_OAK_TRAPDOOR.getDefaultState()));
-                        continue;
-                    }
-
-                    // 腰线/额枋
-                    if (y == 4 || y == h) {
-                        blocks.add(new PlannedBlock(o.add(x, y, z), trim));
-                        continue;
-                    }
-
-                    blocks.add(new PlannedBlock(o.add(x, y, z), wall));
-                }
-            }
-        }
-
-        // 地面（室内）
-        for (int x = 1; x < w - 1; x++) {
-            for (int z = 1; z < d - 1; z++) {
-                blocks.add(new PlannedBlock(o.add(x, 0, z), Blocks.OAK_PLANKS.getDefaultState()));
-            }
-        }
-
-        // 屋顶（官式：hipped）
-        // 主殿开启飞檐角 + 更细檐口层次；厢房不开启（避免过花）
-        addHippedRoof(blocks, o, w, d, h, roofMain, roofStairs, roofSlab, trim, true, mainHall);
-
-        // 彩画点缀：檐下绿/蓝条带（少量即可）
-        for (int x = 0; x < w; x++) {
-            blocks.add(new PlannedBlock(o.add(x, h - 1, -1), Blocks.GREEN_GLAZED_TERRACOTTA.getDefaultState()));
-            blocks.add(new PlannedBlock(o.add(x, h - 1, d), Blocks.BLUE_GLAZED_TERRACOTTA.getDefaultState()));
-        }
-    }
-
-    @SuppressWarnings("unused")
-    private static void addHippedRoof(List<PlannedBlock> blocks, BlockPos o, int w, int d, int baseH,
-                                      BlockState roofMain, BlockState roofStairs, BlockState roofSlab, BlockState trim) {
-        addHippedRoof(blocks, o, w, d, baseH, roofMain, roofStairs, roofSlab, trim, true, false);
-    }
 
     /**
      * Spire roof (MVP):
@@ -2532,97 +1961,7 @@ public class HouseGenerator implements StructureGenerator {
                 }
             }
         }
-
-        // 顶部封顶
-        int topY = baseH + layers;
-        int cx = ox + ow / 2;
-        int cz = oz + od / 2;
-        blocks.add(new PlannedBlock(o.add(cx, topY, cz), roofSlab));
-
-        // 飞檐角：四角外挑 + 上翘（用 slab 逐级抬升，稳定且不会出现“空洞”）
-        if (flyingEaves && overhang) {
-            addFlyingEavesCorners(blocks, o, baseH, ox, oz, ow, od, roofSlab);
-        }
     }
-
-    /**
-     * 歇山顶（hip-and-gable, MVP）
-     * 在四坡屋顶基础上“收短屋脊 + 两端斜收”，形成明显区别于纯四坡的轮廓。
-     *
-     * 约束：
-     * - 仍保持轴对齐（不做任意角旋转）
-     * - 以 Z 方向为“进深”，在两端（z=-1 / z=depth）做斜收
-     */
-    private static void addXieShanRoof(List<PlannedBlock> blocks, BlockPos o, int w, int d, int baseH,
-                                       BlockState roofMain, BlockState roofStairs, BlockState roofSlab, BlockState trim,
-                                       boolean overhang, boolean flyingEaves) {
-        int ox = overhang ? -1 : 0;
-        int oz = overhang ? -1 : 0;
-        int ow = w + (overhang ? 2 : 0);
-        int od = d + (overhang ? 2 : 0);
-
-        // reuse the same eaves/cornice layering as hipped roof for consistency
-        if (overhang) {
-            int y0 = baseH - 1;
-            for (int x = ox - 1; x <= ox + ow; x++) {
-                blocks.add(new PlannedBlock(o.add(x, y0, oz - 1), roofSlab));
-                blocks.add(new PlannedBlock(o.add(x, y0, oz + od), roofSlab));
-            }
-            for (int z = oz - 1; z <= oz + od; z++) {
-                blocks.add(new PlannedBlock(o.add(ox - 1, y0, z), roofSlab));
-                blocks.add(new PlannedBlock(o.add(ox + ow, y0, z), roofSlab));
-            }
-            for (int x = ox; x <= ox + ow - 1; x++) {
-                blocks.add(new PlannedBlock(o.add(x, y0, oz), trim));
-                blocks.add(new PlannedBlock(o.add(x, y0, oz + od - 1), trim));
-            }
-            for (int z = oz; z <= oz + od - 1; z++) {
-                blocks.add(new PlannedBlock(o.add(ox, y0, z), trim));
-                blocks.add(new PlannedBlock(o.add(ox + ow - 1, y0, z), trim));
-            }
-        }
-
-        // Roof height: similar to gable, but capped for stability
-        int layers = Math.min(Math.min(ow, od) / 2 + 1, 8);
-        int capDepth = Math.max(2, Math.min(4, layers)); // how much to "hip" the gable ends
-
-        // Build per-Z slices: full height in the middle, reduced height near both ends -> creates hip ends
-        for (int z = oz; z <= oz + od - 1; z++) {
-            int distToEnd = Math.min(z - oz, (oz + od - 1) - z);
-            int reduce = Math.max(0, (capDepth - 1) - distToEnd);
-            int hSlice = layers - reduce;
-            if (hSlice <= 0) continue;
-
-            for (int i = 0; i < hSlice; i++) {
-                int x0 = ox + i;
-                int x1 = ox + ow - 1 - i;
-                if (x0 > x1) break;
-                int y = baseH + i;
-
-                // side slopes (along X) using stairs; these define the main gable silhouette
-                blocks.add(new PlannedBlock(o.add(x0, y, z), withFacingIfPossible(roofStairs, Direction.EAST)));
-                blocks.add(new PlannedBlock(o.add(x1, y, z), withFacingIfPossible(roofStairs, Direction.WEST)));
-
-                // fill between slopes for this slice
-                for (int x = x0 + 1; x <= x1 - 1; x++) {
-                    blocks.add(new PlannedBlock(o.add(x, y, z), roofMain));
-                }
-            }
-
-            // ridge line: shorter at ends due to reduced hSlice -> distinctive xie-shan roof ridge
-            int ridgeY = baseH + hSlice;
-            int midLeft = ox + (ow - 1) / 2;
-            int midRight = ox + (ow / 2);
-            blocks.add(new PlannedBlock(o.add(midLeft, ridgeY, z), roofSlab));
-            blocks.add(new PlannedBlock(o.add(midRight, ridgeY, z), roofSlab));
-        }
-
-        // flying eaves corners: reuse existing horn for imperial silhouette emphasis
-        if (flyingEaves && overhang) {
-            addFlyingEavesCorners(blocks, o, baseH, ox, oz, ow, od, roofSlab);
-        }
-    }
-
 
     private static boolean isJapaneseTraditionalStyle(BuildingSpec spec, String paletteId) {
         try {
@@ -2682,59 +2021,7 @@ public class HouseGenerator implements StructureGenerator {
     }
 
 
-    private static void addFlyingEavesCorners(List<PlannedBlock> blocks, BlockPos o, int baseH,
-                                              int ox, int oz, int ow, int od, BlockState roofSlab) {
-        // 四角坐标（以 overhang 扩展后的外轮廓为基准）
-        int x1 = ox + ow - 1;
-        int z1 = oz + od - 1;
 
-        // 每个角向外延伸 2 格，并逐级抬升 2 格
-        // 角1：(-,-)
-        addCornerHorn(blocks, o, ox, oz, -1, -1, baseH, roofSlab);
-        // 角2：(+, -)
-        addCornerHorn(blocks, o, x1, oz, +1, -1, baseH, roofSlab);
-        // 角3：(-, +)
-        addCornerHorn(blocks, o, ox, z1, -1, +1, baseH, roofSlab);
-        // 角4：(+, +)
-        addCornerHorn(blocks, o, x1, z1, +1, +1, baseH, roofSlab);
-    }
-
-    private static void addCornerHorn(List<PlannedBlock> blocks, BlockPos o,
-                                      int cx, int cz, int sx, int sz, int baseH, BlockState slab) {
-        // level 0：角点本身稍微抬起一点（让角更“翘”）
-        blocks.add(new PlannedBlock(o.add(cx, baseH + 1, cz), slab));
-
-        // level 1：向外 1 格（对角），抬升 1
-        blocks.add(new PlannedBlock(o.add(cx + sx, baseH + 2, cz), slab));
-        blocks.add(new PlannedBlock(o.add(cx, baseH + 2, cz + sz), slab));
-        blocks.add(new PlannedBlock(o.add(cx + sx, baseH + 2, cz + sz), slab));
-
-        // level 2：向外 2 格（对角），再抬升 1
-        blocks.add(new PlannedBlock(o.add(cx + sx * 2, baseH + 3, cz + sz), slab));
-        blocks.add(new PlannedBlock(o.add(cx + sx, baseH + 3, cz + sz * 2), slab));
-        blocks.add(new PlannedBlock(o.add(cx + sx * 2, baseH + 3, cz + sz * 2), slab));
-    }
-
-    private static void addDougongAndPainting(List<PlannedBlock> blocks, BlockPos origin, int width, int depth, int height, BlockState trim) {
-        // 檐下“斗拱”简化：每隔 2 格在外墙下沿挂一块（stairs/slab/栅栏都可），这里用 trapdoor/柱材太花，先用 trim
-        int y = height - 2;
-        for (int x = 0; x < width; x += 2) {
-            blocks.add(new PlannedBlock(origin.add(x, y, -1), trim));
-            blocks.add(new PlannedBlock(origin.add(x, y, depth), trim));
-        }
-        for (int z = 0; z < depth; z += 2) {
-            blocks.add(new PlannedBlock(origin.add(-1, y, z), trim));
-            blocks.add(new PlannedBlock(origin.add(width, y, z), trim));
-        }
-
-        // 彩画点缀：檐下用少量绿/蓝，避免过花
-        for (int x = 1; x < width - 1; x += 3) {
-            blocks.add(new PlannedBlock(origin.add(x, height - 2, -1), Blocks.GREEN_TERRACOTTA.getDefaultState()));
-        }
-        for (int z = 1; z < depth - 1; z += 3) {
-            blocks.add(new PlannedBlock(origin.add(width, height - 2, z), Blocks.BLUE_TERRACOTTA.getDefaultState()));
-        }
-    }
 
     private static BlockState defaultWall(BuildingStyle style) {
         if (style == null) style = BuildingStyle.DEFAULT;
