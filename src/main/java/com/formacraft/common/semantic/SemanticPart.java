@@ -18,15 +18,28 @@ public enum SemanticPart {
     PATH_EDGE,
     STAIRS,
     RAILING,
+    WALKWAY_FLOOR,
 
     // 开口
     DOORWAY,
     WINDOW,
+    GATE_OPENING,
+    GATE_LINTEL,
+
+    // 楼梯
+    STAIR_STEP,
 
     // 防御类
     BATTLEMENT,
     TOWER_CORE,
     TOWER_TRIM,
+    TOWER_WALL,
+
+    // 场地 / 空间
+    COURTYARD_FLOOR,
+
+    // 屋顶
+    ROOF_SURFACE,
 
     // 装饰/光源
     LIGHT,
