@@ -3,12 +3,16 @@ package com.formacraft.server.skeleton.gen;
 import com.formacraft.common.component.ComponentPlan;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.semantic.SemanticPlacementOp;
+import com.formacraft.common.style.SemanticStyleProfile;
+import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.server.skeleton.gen.assembler.ComponentAssemblyPipeline;
+import com.formacraft.server.skeleton.gen.geometry.GeometryModifierPipeline;
+import com.formacraft.server.skeleton.gen.palette.SemanticBlockStateResolver;
 
 import java.util.List;
 
 /**
- * 组件建造流程（完整闭环）
+ * Component 建造流程（完整闭环）
  * 
  * 最终完整闭环：
  * LLM
@@ -17,9 +21,11 @@ import java.util.List;
  *         ↓
  * ComponentAssemblyPipeline
  *         ↓
- * SemanticPlacementOps
+ * SemanticPlacementOps（基础）
  *         ↓
- * SemanticResolver + Palette
+ * GeometryModifierPipeline（几何修饰）
+ *         ↓
+ * SemanticBlockStateResolver + Palette
  *         ↓
  * BlockPatch
  *         ↓
@@ -35,7 +41,7 @@ public final class ComponentBuildPipeline {
      * @param ctx 生成上下文
      * @param skeleton 骨架计划
      * @param components 组件计划
-     * @param paletteId 调色板 ID
+     * @param paletteId 调色板 ID（也用作 styleProfileId）
      * @param patchOrigin Patch 原点（用于计算相对坐标）
      * @return BlockPatch 列表（相对 patchOrigin 的偏移）
      */
@@ -55,13 +61,17 @@ public final class ComponentBuildPipeline {
             return SkeletonBuildPipeline.buildSkeletonAsPatch(ctx, skeleton, paletteId, patchOrigin);
         }
 
-        // 装配所有组件，生成语义操作
-        List<SemanticPlacementOp> semanticOps = ComponentAssemblyPipeline.assembleAll(
+        // 1. 装配所有组件，生成基础语义操作
+        List<SemanticPlacementOp> baseOps = ComponentAssemblyPipeline.assembleAll(
                 ctx, skeleton, components
         );
 
-        // 解析语义操作为 BlockPatch
-        return SemanticResolver.resolveToPatches(patchOrigin, semanticOps, paletteId, ctx.random);
+        // 2. 应用几何修饰器（如果有风格配置）
+        SemanticStyleProfile style = SemanticStyleProfileRegistry.getOrDefault(paletteId);
+        List<SemanticPlacementOp> expandedOps = GeometryModifierPipeline.applyModifiers(baseOps, style);
+
+        // 3. 解析为 BlockPatch（使用 BlockState 解析器）
+        return SemanticBlockStateResolver.resolveToPatches(patchOrigin, expandedOps, paletteId, ctx.random);
     }
 }
 

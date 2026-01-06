@@ -236,8 +236,8 @@ public final class SkeletonHelper {
             return Direction.SOUTH; // 默认南向
         }
         try {
-            return Direction.byName(dirStr.toLowerCase());
-        } catch (Exception e) {
+            return Direction.valueOf(dirStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
             return Direction.SOUTH;
         }
     }
