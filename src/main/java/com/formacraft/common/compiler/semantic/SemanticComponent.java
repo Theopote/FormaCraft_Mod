@@ -21,6 +21,16 @@ public record SemanticComponent(
         Slot slot,
         
         /** 原始 LLM component */
-        Component source
-) {}
+        Component source,
+        
+        /** 风格配置（可选，从 LlmPlan.styleProfile 传递） */
+        String styleProfile
+) {
+    /**
+     * 兼容旧代码的构造函数（styleProfile 为 null）
+     */
+    public SemanticComponent(String componentType, Slot slot, Component source) {
+        this(componentType, slot, source, null);
+    }
+}
 

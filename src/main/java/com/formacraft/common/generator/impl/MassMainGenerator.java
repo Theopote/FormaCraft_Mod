@@ -42,10 +42,16 @@ public class MassMainGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         // 检查 features（扩展关键词匹配，支持更多变体）
-        boolean hasWindows = hasFeature(c, "windows", "window", "facade_windows", "lattice", "opening");
-        boolean hasRoof = hasFeature(c, "roof", "curved_roof", "sloped_roof", "hip", "gable", "gabled");
-        boolean hasDoors = hasFeature(c, "door", "doors", "entrance", "entry", "gateway");
-        boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved", "carving", "lintel", "overhang");
+        boolean hasWindows = hasFeature(c, "windows", "window", "facade_windows", "lattice", "opening",
+                                        "wooden_frames", "lattice_patterns", "symmetrical_placement");
+        boolean hasRoof = hasFeature(c, "roof", "curved_roof", "sloped_roof", "hip", "gable", "gabled",
+                                     "black_tile_roof", "upturned_eaves", "ridge_decorations");
+        boolean hasDoors = hasFeature(c, "door", "doors", "entrance", "entry", "gateway",
+                                      "double_doors", "stone_steps", "overhang_roof");
+        boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved", "carving", "lintel", "overhang",
+                                      "wood_carvings", "intricate", "white_walls");
+        boolean hasInterior = hasFeature(c, "interior", "rooms", "hollow", "courtyard", "central_courtyard",
+                                         "inner_space", "empty_interior");
         
         // 默认生成基础细节（即使没有匹配的 features）
         // 对于住宅类建筑，默认应该有门和窗
@@ -63,6 +69,29 @@ public class MassMainGenerator implements ComponentGenerator {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
+                    // 检查是否是内部空间（留空）
+                    if (hasInterior && isInteriorSpace(x, z, width, depth, y, height)) {
+                        // 内部空间不放置方块（保持空气）
+                        // 但底部可以放置地板
+                        if (y == 0) {
+                            SemanticPart part = SemanticPart.FLOOR;
+                            String block = palette.pick(part);
+                            if (block == null || block.isEmpty()) {
+                                block = palette.pick(SemanticPart.COURTYARD_FLOOR);
+                            }
+                            if (block != null && !block.isEmpty()) {
+                                out.add(new BlockPatch(
+                                        BlockPatch.PLACE,
+                                        rp.x() + x,
+                                        rp.y() + y,
+                                        rp.z() + z,
+                                        block
+                                ));
+                            }
+                        }
+                        continue;
+                    }
+
                     // 检查是否是窗户位置
                     if (hasWindows && isWindowPosition(x, z, width, depth, y, height)) {
                         // 生成窗户（使用 WINDOW 语义部位）
@@ -215,8 +244,27 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     private String getStyleProfile(SemanticComponent semantic) {
+        // 1. 优先使用 SemanticComponent 中的 styleProfile
+        if (semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
+            return semantic.styleProfile();
+        }
+
+        // 2. 尝试从 Component 的 features 推断风格
+        Component c = semantic.source();
+        if (c != null && c.features() != null) {
+            for (String feature : c.features()) {
+                if (feature != null) {
+                    String lower = feature.toLowerCase();
+                    if (lower.contains("hui") || lower.contains("chinese") || 
+                        lower.contains("white_walls") || lower.contains("black_tile")) {
+                        return "HUI_STYLE_VILLA";
+                    }
+                }
+            }
+        }
+
+        // 3. 根据 program 映射到风格
         if (semantic.slot() != null && semantic.slot().program() != null) {
-            // 可以根据 program 映射到风格
             String programName = semantic.slot().program();
             if ("COMMERCIAL".equals(programName)) {
                 return "MODERN_CLASSIC";
@@ -224,7 +272,24 @@ public class MassMainGenerator implements ComponentGenerator {
                 return "MEDIEVAL_CLASSIC";
             }
         }
+
+        // 4. 默认返回
         return "MEDIEVAL_CLASSIC";
+    }
+
+    /**
+     * 检查是否是内部空间（需要留空）
+     */
+    private boolean isInteriorSpace(int x, int z, int width, int depth, int y, int height) {
+        // 留出边缘（墙体），内部留空
+        int wallThickness = 1;
+        boolean isInteriorX = x >= wallThickness && x < width - wallThickness;
+        boolean isInteriorZ = z >= wallThickness && z < depth - wallThickness;
+        
+        // 内部空间（不包括屋顶层）
+        boolean isInteriorY = y < height - 1;
+        
+        return isInteriorX && isInteriorZ && isInteriorY;
     }
 
     private SemanticPart determinePart(int y, int height, int width, int depth, int x, int z) {

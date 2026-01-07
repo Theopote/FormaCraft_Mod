@@ -3,8 +3,6 @@ package com.formacraft.common.compiler;
 import com.formacraft.common.compiler.postprocess.PostProcessContext;
 import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.ComponentGenerator;
-import com.formacraft.common.generator.GeneratorRegistry;
 import com.formacraft.common.generator.adaptor.SmartGeneratorRouter;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -91,11 +89,13 @@ public final class ComponentPlanCompiler {
                 FormacraftMod.LOGGER.debug("ComponentPlanCompiler: component {} has no slot, using default slot", c.componentType());
             }
 
-            // 创建语义构件
+            // 创建语义构件（传递 styleProfile）
+            String styleProfile = plan.styleProfile();
             SemanticComponent semantic = new SemanticComponent(
                     c.componentType(),
                     slot,
-                    c
+                    c,
+                    styleProfile
             );
 
             // 使用智能路由：自动选择最适合的生成器

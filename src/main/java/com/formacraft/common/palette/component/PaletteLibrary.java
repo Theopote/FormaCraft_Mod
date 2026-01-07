@@ -16,6 +16,7 @@ public final class PaletteLibrary {
     private static final Palette MEDIEVAL_STONE = new Palette();
     private static final Palette CYBERPUNK = new Palette();
     private static final Palette ELVEN = new Palette();
+    private static final Palette HUI_STYLE = new Palette(); // 徽派风格
 
     static {
         // ========== 中世纪石墙风格 ==========
@@ -124,6 +125,53 @@ public final class PaletteLibrary {
 
         ELVEN.add(SemanticPart.ROAD_EDGE, "minecraft:birch_log", 70);
         ELVEN.add(SemanticPart.ROAD_EDGE, "minecraft:stripped_birch_log", 30);
+
+        // ========== 徽派风格（Hui Style / 徽派建筑）==========
+        // 白墙黑瓦，木雕装饰
+        HUI_STYLE.add(SemanticPart.WALL, "minecraft:white_terracotta", 50);
+        HUI_STYLE.add(SemanticPart.WALL, "minecraft:white_concrete", 30);
+        HUI_STYLE.add(SemanticPart.WALL, "minecraft:quartz_block", 20);
+
+        HUI_STYLE.add(SemanticPart.WALL_BASE, "minecraft:stone_bricks", 60);
+        HUI_STYLE.add(SemanticPart.WALL_BASE, "minecraft:polished_blackstone_bricks", 40);
+
+        HUI_STYLE.add(SemanticPart.WALL_ACCENT, "minecraft:dark_oak_planks", 50);
+        HUI_STYLE.add(SemanticPart.WALL_ACCENT, "minecraft:spruce_planks", 30);
+        HUI_STYLE.add(SemanticPart.WALL_ACCENT, "minecraft:oak_planks", 20);
+
+        // 黑瓦屋顶
+        HUI_STYLE.add(SemanticPart.ROOF, "minecraft:black_terracotta", 50);
+        HUI_STYLE.add(SemanticPart.ROOF, "minecraft:black_concrete", 30);
+        HUI_STYLE.add(SemanticPart.ROOF, "minecraft:gray_terracotta", 20);
+
+        HUI_STYLE.add(SemanticPart.ROOF_SURFACE, "minecraft:black_terracotta", 60);
+        HUI_STYLE.add(SemanticPart.ROOF_SURFACE, "minecraft:black_concrete", 40);
+
+        HUI_STYLE.add(SemanticPart.ROOF, "minecraft:black_terracotta", 70);
+        HUI_STYLE.add(SemanticPart.ROOF, "minecraft:gray_terracotta", 30);
+
+        // 地面（石板）
+        HUI_STYLE.add(SemanticPart.FLOOR, "minecraft:stone_bricks", 60);
+        HUI_STYLE.add(SemanticPart.FLOOR, "minecraft:polished_andesite", 40);
+
+        HUI_STYLE.add(SemanticPart.COURTYARD_FLOOR, "minecraft:stone_bricks", 70);
+        HUI_STYLE.add(SemanticPart.COURTYARD_FLOOR, "minecraft:polished_andesite", 30);
+
+        // 木雕装饰
+        HUI_STYLE.add(SemanticPart.DECOR, "minecraft:dark_oak_fence", 50);
+        HUI_STYLE.add(SemanticPart.DECOR, "minecraft:spruce_fence", 30);
+        HUI_STYLE.add(SemanticPart.DECOR, "minecraft:oak_fence", 20);
+
+        // 窗户（格子窗）
+        HUI_STYLE.add(SemanticPart.WINDOW, "minecraft:iron_bars", 60);
+        HUI_STYLE.add(SemanticPart.WINDOW, "minecraft:glass", 40);
+
+        // 门（木门）
+        HUI_STYLE.add(SemanticPart.DOORWAY, "minecraft:air", 100); // 门洞保持空气
+
+        // 柱子
+        HUI_STYLE.add(SemanticPart.PILLAR, "minecraft:dark_oak_log", 70);
+        HUI_STYLE.add(SemanticPart.PILLAR, "minecraft:spruce_log", 30);
     }
 
     private PaletteLibrary() {}
@@ -144,6 +192,7 @@ public final class PaletteLibrary {
             case "MEDIEVAL_CLASSIC", "MEDIEVAL", "MEDIEVAL_STONE" -> MEDIEVAL_STONE;
             case "CYBERPUNK", "CYBER", "FUTURISTIC" -> CYBERPUNK;
             case "ELVEN", "ELVISH", "NATURE" -> ELVEN;
+            case "HUI_STYLE_VILLA", "HUI_VILLA", "CHINESE_VILLA", "CHINESE_HUI", "HUI" -> HUI_STYLE;
             default -> MEDIEVAL_STONE; // 默认返回中世纪风格
         };
     }
