@@ -7,9 +7,7 @@ import com.formacraft.common.terrain.TerrainStrategy;
 import com.formacraft.server.skeleton.gen.GenerationContext;
 import com.formacraft.server.skeleton.gen.ISkeletonGenerator;
 import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
-import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**

@@ -25,7 +25,26 @@ public final class ToolPromptBuilder {
         if (PathTool.INSTANCE != null) {
             PathSkeleton skeleton = PathTool.INSTANCE.toSkeleton();
             if (skeleton != null && skeleton.isValid()) {
+                // 从用户输入中识别路径意图
+                PathSkeleton.PathIntent intent = resolvePathIntent(ctx.userMessage);
+                if (intent != PathSkeleton.PathIntent.GENERIC) {
+                    // 如果识别到明确意图，创建新的 PathSkeleton
+                    skeleton = new PathSkeleton(
+                        skeleton.nodes,
+                        skeleton.corridorRadius,
+                        skeleton.snapToGround,
+                        intent
+                    );
+                }
                 ctx.pathSkeleton = skeleton;
+                
+                // K2 新增：根据用户输入和工具状态确定 StreetProfile
+                ctx.streetProfile = resolveStreetProfile(ctx.userMessage);
+                
+                // 如果 SymmetryTool 启用，强制对称
+                if (SymmetryContext.enabled() && ctx.streetProfile != null) {
+                    ctx.streetProfile = ctx.streetProfile.withSymmetric(true);
+                }
             }
         }
 
@@ -55,6 +74,78 @@ public final class ToolPromptBuilder {
         if (SemanticLabelContext.hasLabels()) {
             addMultiline(ctx.annotations, SemanticLabelContext.toPromptBlock());
         }
+    }
+
+    /**
+     * 从用户输入中解析路径意图
+     */
+    private static PathSkeleton.PathIntent resolvePathIntent(String userText) {
+        if (userText == null || userText.trim().isEmpty()) {
+            return PathSkeleton.PathIntent.GENERIC;
+        }
+
+        String lower = userText.toLowerCase();
+        
+        // 检查关键词
+        if (lower.contains("长城") || lower.contains("城墙") || lower.contains("wall") || 
+            lower.contains("防御") || lower.contains("要塞")) {
+            return PathSkeleton.PathIntent.WALL;
+        }
+        
+        if (lower.contains("桥") || lower.contains("bridge") || lower.contains("跨越")) {
+            return PathSkeleton.PathIntent.BRIDGE;
+        }
+        
+        if (lower.contains("路") || lower.contains("road") || lower.contains("道路") || 
+            lower.contains("街道") || lower.contains("street")) {
+            return PathSkeleton.PathIntent.ROAD;
+        }
+        
+        if (lower.contains("沿街") || lower.contains("沿线") || lower.contains("沿路径") || 
+            lower.contains("along") || lower.contains("building")) {
+            return PathSkeleton.PathIntent.ALONG_PATH_BUILDING;
+        }
+        
+        return PathSkeleton.PathIntent.GENERIC;
+    }
+
+    /**
+     * 从用户输入解析 StreetProfile（K2 新增）
+     */
+    private static com.formacraft.common.cluster.StreetProfile resolveStreetProfile(String userText) {
+        if (userText == null || userText.trim().isEmpty()) {
+            return com.formacraft.common.cluster.StreetProfile.simple(); // 默认单排
+        }
+
+        String lower = userText.toLowerCase();
+        
+        // 检查关键词
+        if (lower.contains("商业街") || lower.contains("主街") || lower.contains("boulevard") || 
+            lower.contains("商业") || lower.contains("commercial")) {
+            return com.formacraft.common.cluster.StreetProfile.boulevard(); // 双排
+        }
+        
+        if (lower.contains("城市大道") || lower.contains("大道") || lower.contains("avenue") || 
+            lower.contains("三排") || lower.contains("wide")) {
+            return com.formacraft.common.cluster.StreetProfile.avenue(); // 三排
+        }
+        
+        if (lower.contains("城墙") || lower.contains("长城") || lower.contains("wall") || 
+            lower.contains("走廊") || lower.contains("corridor")) {
+            return com.formacraft.common.cluster.StreetProfile.wallCorridor(); // 城墙走廊
+        }
+        
+        if (lower.contains("中轴") || lower.contains("轴线") || lower.contains("axis") || 
+            lower.contains("单侧") || lower.contains("one side")) {
+            return com.formacraft.common.cluster.StreetProfile.processionalAxis(); // 中轴线
+        }
+        
+        if (lower.contains("两排") || lower.contains("双排") || lower.contains("two lanes")) {
+            return com.formacraft.common.cluster.StreetProfile.boulevard(); // 双排
+        }
+        
+        // 默认：单排
+        return com.formacraft.common.cluster.StreetProfile.simple();
     }
 
     private static void addMultiline(java.util.List<String> target, String block) {

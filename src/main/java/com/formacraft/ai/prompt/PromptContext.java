@@ -1,5 +1,6 @@
 package com.formacraft.ai.prompt;
 
+import com.formacraft.common.skeleton.PathSkeleton;
 import com.formacraft.common.terrain.TerrainPolicy;
 
 import java.util.ArrayList;
@@ -17,6 +18,15 @@ public class PromptContext {
 
     /** 地形策略（新增） */
     public TerrainPolicy terrainPolicy = null;
+
+    /** PathSkeleton（路径骨架，新增） */
+    public PathSkeleton pathSkeleton = null;
+
+    /** PathClusterLayout（路径建筑群布局，K1 新增） */
+    public com.formacraft.common.cluster.PathClusterLayout clusterLayout = null;
+
+    /** StreetProfile（街道剖面，K2 新增） */
+    public com.formacraft.common.cluster.StreetProfile streetProfile = null;
 
     /** 硬规则（必须遵守） */
     public final List<String> rules = new ArrayList<>();

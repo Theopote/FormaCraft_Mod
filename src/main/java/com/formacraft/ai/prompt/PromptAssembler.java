@@ -1,6 +1,7 @@
 package com.formacraft.ai.prompt;
 
 import com.formacraft.ai.context.SelectionContext;
+import com.formacraft.common.skeleton.PathSkeleton;
 import com.formacraft.common.terrain.TerrainPolicy;
 
 /**
@@ -121,6 +122,9 @@ Output MUST be valid JSON. No explanation text.
 
         // 6.5.5. Skeleton Hint（骨架提示 - 显式告诉 AI 路径骨架）
         sb.append(skeletonHintBlock(ctx));
+
+        // 6.5.6. Cluster Layout（建筑群布局提示 - K1 新增）
+        sb.append(clusterLayoutBlock(ctx));
 
         // 6.6. 地形策略（新增）
         sb.append(terrainBlock(ctx));
@@ -312,15 +316,66 @@ SEMANTIC REGIONS:
         }
 
         PathSkeleton skeleton = ctx.pathSkeleton;
+        String sb = "SKELETON HINT:\n" +
+                "- type: PATH_POLYLINE\n" +
+                "- intent: " + skeleton.intent.name() + "\n" +
+                "- corridor_radius: " + skeleton.corridorRadius + "\n" +
+                "- node_count: " + skeleton.getNodeCount() + "\n" +
+                "- IMPORTANT: You MUST use PATH_POLYLINE skeleton type\n" +
+                "- The path topology is fixed; you can only adjust style and details\n" +
+                "\n";
+        return sb;
+    }
+
+    /**
+     * Cluster Layout（建筑群布局提示）
+     * 
+     * K1 新增：告诉 AI 建筑站位已经确定，AI 只需要决定建筑样式
+     * K2 扩展：添加街道布局信息（多排、对称等）
+     * 
+     * 关键设计原则：
+     * - ❌ AI 不决定"建筑站哪"（站位由算法决定）
+     * - ✅ AI 决定"建筑长什么样"（风格、细节由 AI 决定）
+     */
+    private static String clusterLayoutBlock(PromptContext ctx) {
+        if (ctx == null || ctx.clusterLayout == null || !ctx.clusterLayout.isValid()) {
+            return "";
+        }
+
+        com.formacraft.common.cluster.PathClusterLayout layout = ctx.clusterLayout;
+        String strategy = ctx.terrainPolicy != null ? ctx.terrainPolicy.strategy.name() : "ADAPTIVE";
+        
         StringBuilder sb = new StringBuilder();
-        sb.append("SKELETON HINT:\n");
-        sb.append("- type: PATH_POLYLINE\n");
-        sb.append("- intent: ").append(skeleton.intent.name()).append("\n");
-        sb.append("- corridor_radius: ").append(skeleton.corridorRadius).append("\n");
-        sb.append("- node_count: ").append(skeleton.getNodeCount()).append("\n");
-        sb.append("- IMPORTANT: You MUST use PATH_POLYLINE skeleton type\n");
-        sb.append("- The path topology is fixed; you can only adjust style and details\n");
+        sb.append("CLUSTER LAYOUT:\n");
+        sb.append("- type: PATH_ALIGNED\n");
+        sb.append("- building_count: ").append(layout.getSlotCount()).append("\n");
+        sb.append("- spacing: 8 (algorithm-determined)\n");
+        sb.append("- placement_rule: buildings aligned along path, placed on both sides\n");
+        sb.append("- terrain_strategy: ").append(strategy).append("\n");
+        
+        // K2 新增：街道布局信息
+        if (ctx.streetProfile != null) {
+            sb.append("\nSTREET LAYOUT:\n");
+            sb.append("- type: MULTI_LANE_PATH\n");
+            sb.append("- lanes_per_side: ").append(ctx.streetProfile.laneCount()).append("\n");
+            sb.append("- road_width: ").append(ctx.streetProfile.roadWidth()).append("\n");
+            sb.append("- lane_spacing: ").append(ctx.streetProfile.laneSpacing()).append("\n");
+            sb.append("- symmetry: ").append(ctx.streetProfile.symmetric()).append("\n");
+            
+            // 样式分布建议（AI 可以遵循）
+            if (ctx.streetProfile.laneCount() >= 2) {
+                sb.append("- style_distribution:\n");
+                sb.append("  * inner_lane: commercial (closer to road)\n");
+                sb.append("  * outer_lane: residential (farther from road)\n");
+            }
+        }
+        
         sb.append("\n");
+        sb.append("- IMPORTANT: Building positions (anchors) are already determined by algorithm\n");
+        sb.append("- Your role: decide building style, details, and variations\n");
+        sb.append("- Do NOT change building positions or anchors\n");
+        sb.append("\n");
+        
         return sb.toString();
     }
 

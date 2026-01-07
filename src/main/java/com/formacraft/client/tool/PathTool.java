@@ -58,6 +58,69 @@ public final class PathTool implements FormacraftTool {
         return Collections.unmodifiableList(paths);
     }
 
+    /**
+     * 获取路径节点（用于生成器）
+     * 返回所有已完成路径的节点列表（合并所有路径的 polyline）
+     */
+    public List<BlockPos> getNodes() {
+        List<BlockPos> allNodes = new ArrayList<>();
+        for (Path path : paths) {
+            if (path == null || path.polyline == null) continue;
+            for (Vec3d v : path.polyline) {
+                if (v != null) {
+                    allNodes.add(new BlockPos((int) Math.floor(v.x), (int) Math.floor(v.y), (int) Math.floor(v.z)));
+                }
+            }
+        }
+        return allNodes;
+    }
+
+    /**
+     * 获取走廊半径（默认值，后续可从配置读取）
+     */
+    public int getCorridorRadius() {
+        return 3; // 默认 3 格，后续可从配置读取
+    }
+
+    /**
+     * 导出为 PathSkeleton（用于生成器）
+     * 
+     * 这是不依赖 AI 的结构事实
+     * AI 只能"补充风格"，不能破坏骨架
+     */
+    public PathSkeleton toSkeleton() {
+        List<BlockPos> nodes = getNodes();
+        if (nodes.size() < 2) {
+            // 如果没有有效路径，返回空骨架
+            return new PathSkeleton(List.of(), getCorridorRadius(), true, PathSkeleton.PathIntent.GENERIC);
+        }
+        
+        return new PathSkeleton(
+            nodes,
+            getCorridorRadius(),
+            true, // 默认贴地
+            resolveIntent()
+        );
+    }
+
+    /**
+     * 解析路径意图（v1：简单规则，后续可被 AI 覆盖）
+     */
+    private PathSkeleton.PathIntent resolveIntent() {
+        // v1：简单规则（后续可被 AI 覆盖）
+        // 可以通过工具模式或用户输入来设置
+        // 目前返回 GENERIC，由 AI 根据用户输入决定
+        return PathSkeleton.PathIntent.GENERIC;
+    }
+
+    /**
+     * 设置路径意图（从用户输入或工具模式）
+     */
+    public void setIntent(PathSkeleton.PathIntent intent) {
+        // v1：暂不实现，后续可以添加状态存储
+        // 目前意图由 resolveIntent() 或 AI 决定
+    }
+
     public void clearAll() {
         paths.clear();
         cancelDraft();
