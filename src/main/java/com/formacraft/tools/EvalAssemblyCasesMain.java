@@ -20,7 +20,7 @@ import java.util.*;
 
 /**
  * P0 build-time evaluation runner for "prompt -> assembly" (without calling LLM).
- *
+ * <p>
  * Case schema (P0):
  * {
  *   "id": "case_id",
@@ -31,7 +31,7 @@ import java.util.*;
  *     "maxOps": 500
  *   }
  * }
- *
+ * <p>
  * Pipeline:
  *  - Normalizer -> MacroApplier -> Validator -> Compiler
  *  - Metrics: opCount, opType histogram, errors/warnings
@@ -100,7 +100,7 @@ public final class EvalAssemblyCasesMain {
             
             // RAG validation: if case has prompt, verify retrieval hits expected culture card
             String prompt = str(root.get("prompt"), null);
-            KeywordCultureRetriever.RetrievalResult ragResult = null;
+            KeywordCultureRetriever.RetrievalResult ragResult;
             if (prompt != null && !prompt.isBlank()) {
                 try {
                     CultureCardRepository repo = CultureCardRepository.load();
@@ -115,8 +115,8 @@ public final class EvalAssemblyCasesMain {
                     
                     if (expectedCultureCardId != null && !expectedCultureCardId.isBlank()) {
                         String actualCardId = null;
-                        if (ragResult != null && !ragResult.hits().isEmpty()) {
-                            actualCardId = ragResult.hits().get(0).card().id();
+                        if (!ragResult.hits().isEmpty()) {
+                            actualCardId = ragResult.hits().getFirst().card().id();
                         }
                         if (!expectedCultureCardId.equals(actualCardId)) {
                             System.err.println("[evalAssemblyCases] ERROR " + id + " : RAG expected cultureCardId=" + expectedCultureCardId + " but got=" + actualCardId);
@@ -227,7 +227,7 @@ public final class EvalAssemblyCasesMain {
                             fail = true;
                         } else {
                             // Compare as numbers if both are numbers, otherwise as strings
-                            boolean match = false;
+                            boolean match;
                             if (expectedValue instanceof Number && actualValue instanceof Number) {
                                 double exp = ((Number) expectedValue).doubleValue();
                                 double act = ((Number) actualValue).doubleValue();

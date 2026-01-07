@@ -1,6 +1,5 @@
 package com.formacraft;
 
-import com.formacraft.common.config.ConfigManager;
 import com.formacraft.common.item.FormaCraftToolItem;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.command.FormaCraftCommands;

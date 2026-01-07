@@ -16,10 +16,10 @@ import java.util.Set;
 
 /**
  * Build-time validator for culture cards.
- *
+ * <p>
  * Intended usage from Gradle:
  *  - validate all JSON files under src/main/resources/assets/formacraft/culture_cards
- *
+ * <p>
  * This is a P0 schema validator: focuses on "stable shape" + references to existing assembly examples.
  */
 public final class ValidateCultureCardsMain {
@@ -102,7 +102,7 @@ public final class ValidateCultureCardsMain {
 
             errs += requireStringList(mm, "intents", p.getFileName().toString(), false);
             errs += requireStringList(mm, "keywords", p.getFileName().toString(), true);
-            errs += requireList(mm, "archetypes", p.getFileName().toString(), true);
+            errs += requireList(mm, "archetypes", p.getFileName().toString());
             errs += requireStringList(mm, "negativeKeywords", p.getFileName().toString(), true);
             errs += requireStringListMap(mm, "synonyms", p.getFileName().toString());
             errs += requireDoubleMap(mm, "keywordWeights", p.getFileName().toString());
@@ -134,25 +134,31 @@ public final class ValidateCultureCardsMain {
     }
 
     private static int validateExampleRefs(Object v, Set<String> examples, String file, String path) {
-        if (v == null) return 0;
-        if (v instanceof String s) {
-            if (!examples.contains(s)) {
-                System.err.println("[validateCultureCards] ERROR " + file + " : " + path + " : missing example: " + s);
-                return 1;
+        switch (v) {
+            case null -> {
+                return 0;
             }
-            return 0;
-        }
-        if (v instanceof List<?> list) {
-            int e = 0;
-            for (int i = 0; i < list.size(); i++) {
-                Object it = list.get(i);
-                if (!(it instanceof String ss)) continue;
-                if (!examples.contains(ss)) {
-                    System.err.println("[validateCultureCards] ERROR " + file + " : " + path + "[" + i + "] : missing example: " + ss);
-                    e++;
+            case String s -> {
+                if (!examples.contains(s)) {
+                    System.err.println("[validateCultureCards] ERROR " + file + " : " + path + " : missing example: " + s);
+                    return 1;
                 }
+                return 0;
             }
-            return e;
+            case List<?> list -> {
+                int e = 0;
+                for (int i = 0; i < list.size(); i++) {
+                    Object it = list.get(i);
+                    if (!(it instanceof String ss)) continue;
+                    if (!examples.contains(ss)) {
+                        System.err.println("[validateCultureCards] ERROR " + file + " : " + path + "[" + i + "] : missing example: " + ss);
+                        e++;
+                    }
+                }
+                return e;
+            }
+            default -> {
+            }
         }
         System.out.println("[validateCultureCards] WARN " + file + " : " + path + " should be string or list of strings");
         return 0;
@@ -167,14 +173,10 @@ public final class ValidateCultureCardsMain {
         return 0;
     }
 
-    private static int requireList(Map<?, ?> m, String k, String file, boolean allowEmpty) {
+    private static int requireList(Map<?, ?> m, String k, String file) {
         Object v = m.get(k);
-        if (!(v instanceof List<?> list)) {
+        if (!(v instanceof List<?>)) {
             System.err.println("[validateCultureCards] ERROR " + file + " : missing list: " + k);
-            return 1;
-        }
-        if (!allowEmpty && list.isEmpty()) {
-            System.err.println("[validateCultureCards] ERROR " + file + " : list must be non-empty: " + k);
             return 1;
         }
         return 0;
