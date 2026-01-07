@@ -381,6 +381,15 @@ SEMANTIC REGIONS:
             sb.append(zoningBlock(ctx));
         }
         
+        // K3.1 新增：组件预设信息
+        if (ctx.clusterLayout != null) {
+            String presetBlock = componentPresetBlock(ctx);
+            if (!presetBlock.isEmpty()) {
+                sb.append("\n");
+                sb.append(presetBlock);
+            }
+        }
+        
         sb.append("\n");
         return sb.toString();
     }
@@ -444,6 +453,127 @@ SEMANTIC REGIONS:
         sb.append("- Style is controlled by StyleProfile (palette), but components should match the program\n");
         
         return sb.toString();
+    }
+
+    /**
+     * Component Preset Block（组件预设提示）
+     * 
+     * K3.1 新增：告诉 AI 每个 Slot 的组件装配清单
+     * 
+     * 关键设计原则：
+     * - ✅ LLM 看到"组件装配清单"（preset）
+     * - ✅ LLM 根据 preset 生成具体组件（而不是自由发散）
+     * - ❌ LLM 不决定组件类型（组件类型由 preset 决定）
+     */
+    private static String componentPresetBlock(PromptContext ctx) {
+        if (ctx == null || ctx.clusterLayout == null || !ctx.clusterLayout.isValid()) {
+            return "";
+        }
+
+        // 如果已经有 zonedSlots，使用 zonedSlots
+        if (ctx.zonedSlots != null && !ctx.zonedSlots.isEmpty()) {
+            return buildZonedSlotsJson(ctx.zonedSlots);
+        }
+
+        // 否则从 clusterLayout 构建（需要解析 preset）
+        return buildSlotsWithPresets(ctx);
+    }
+
+    /**
+     * 构建带预设的槽位 JSON（从 ZonedSlot 列表）
+     */
+    private static String buildZonedSlotsJson(java.util.List<com.formacraft.common.cluster.ZonedSlot> zonedSlots) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("COMPONENT_PRESETS:\n");
+        sb.append("\"slots\": [\n");
+        
+        for (int i = 0; i < zonedSlots.size(); i++) {
+            com.formacraft.common.cluster.ZonedSlot s = zonedSlots.get(i);
+            sb.append("  {\n");
+            sb.append("    \"anchor\": [").append(s.anchor().getX()).append(",")
+              .append(s.anchor().getY()).append(",").append(s.anchor().getZ()).append("],\n");
+            sb.append("    \"t\": ").append(String.format(java.util.Locale.ROOT, "%.3f", s.t())).append(",\n");
+            sb.append("    \"side\": \"").append(s.side().name()).append("\",\n");
+            sb.append("    \"lane\": ").append(s.laneIndex()).append(",\n");
+            sb.append("    \"facing\": \"").append(s.facing().name()).append("\",\n");
+            sb.append("    \"program\": \"").append(s.program().name()).append("\",\n");
+            sb.append("    \"component_preset_id\": \"").append(s.presetId()).append("\",\n");
+            sb.append("    \"component_preset\": ").append(jsonString(s.presetText())).append("\n");
+            sb.append("  }");
+            if (i < zonedSlots.size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+        
+        sb.append("]\n");
+        sb.append("- IMPORTANT: Component types are already determined by preset\n");
+        sb.append("- Your role: generate specific instances of these components (e.g., actual shop windows, signage designs, etc.)\n");
+        sb.append("- Follow the preset weights and densities when placing components\n");
+        
+        return sb.toString();
+    }
+
+    /**
+     * 构建带预设的槽位（从 clusterLayout 解析）
+     */
+    private static String buildSlotsWithPresets(PromptContext ctx) {
+        // 如果没有 zonedSlots，尝试从 clusterLayout 和 zoningProfile 构建
+        if (ctx.clusterLayout == null || ctx.zoningProfile == null) {
+            return "";
+        }
+
+        // 获取风格 ID（如果有）
+        String styleId = ctx.styleProfileId != null ? ctx.styleProfileId : null;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("COMPONENT_PRESETS:\n");
+        sb.append("\"slots\": [\n");
+
+        int count = 0;
+        for (var slot : ctx.clusterLayout.slots) {
+            if (count >= 20) break; // 限制输出数量
+
+            // 解析 preset
+            var preset = com.formacraft.common.cluster.zoning.ProgramPresetResolver.resolve(
+                    styleId, slot.program
+            );
+
+            sb.append("  {\n");
+            sb.append("    \"anchor\": [").append(slot.anchor.getX()).append(",")
+              .append(slot.anchor.getY()).append(",").append(slot.anchor.getZ()).append("],\n");
+            sb.append("    \"t\": ").append(String.format(java.util.Locale.ROOT, "%.3f", slot.t)).append(",\n");
+            sb.append("    \"side\": \"").append(slot.side.name()).append("\",\n");
+            sb.append("    \"lane\": ").append(slot.laneIndex).append(",\n");
+            sb.append("    \"facing\": \"").append(slot.facing.name()).append("\",\n");
+            sb.append("    \"program\": \"").append(slot.program.name()).append("\",\n");
+            sb.append("    \"component_preset_id\": \"").append(preset.id).append("\",\n");
+            sb.append("    \"component_preset\": ").append(jsonString(preset.toPromptText())).append("\n");
+            sb.append("  }");
+            if (count < Math.min(20, ctx.clusterLayout.slots.size() - 1)) sb.append(",");
+            sb.append("\n");
+
+            count++;
+        }
+
+        sb.append("]\n");
+        sb.append("- IMPORTANT: Component types are already determined by preset\n");
+        sb.append("- Your role: generate specific instances of these components\n");
+        sb.append("- Follow the preset weights and densities when placing components\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * 将字符串转换为 JSON 字符串（转义特殊字符）
+     */
+    private static String jsonString(String text) {
+        if (text == null) return "\"\"";
+        // 简单转义：换行、引号、反斜杠
+        String escaped = text.replace("\\", "\\\\")
+                            .replace("\"", "\\\"")
+                            .replace("\n", "\\n")
+                            .replace("\r", "\\r")
+                            .replace("\t", "\\t");
+        return "\"" + escaped + "\"";
     }
 
     /**

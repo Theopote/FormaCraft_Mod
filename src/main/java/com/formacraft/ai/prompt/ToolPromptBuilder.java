@@ -48,6 +48,11 @@ public final class ToolPromptBuilder {
                 
                 // K3 新增：根据用户输入确定 ZoningProfile
                 ctx.zoningProfile = resolveZoningProfile(ctx.userMessage, ctx.streetProfile);
+                
+                // K3.1 新增：生成 PathClusterLayout 和 ZonedSlot（如果可能）
+                // 注意：这里需要 ServerWorld，但 ToolPromptBuilder 是客户端代码
+                // 实际生成应该在服务端进行，这里只设置必要的参数
+                // clusterLayout 和 zonedSlots 将在服务端生成后设置到 ctx
             }
         }
 

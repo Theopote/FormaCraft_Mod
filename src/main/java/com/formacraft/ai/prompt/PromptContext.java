@@ -31,6 +31,12 @@ public class PromptContext {
     /** ZoningProfile（分区预设，K3 新增） */
     public com.formacraft.common.cluster.zoning.ZoningProfile zoningProfile = null;
 
+    /** ZonedSlot 列表（K3.1 新增，包含 preset 信息） */
+    public java.util.List<com.formacraft.common.cluster.ZonedSlot> zonedSlots = null;
+
+    /** StyleProfile ID（K3.1 新增，用于风格偏置） */
+    public String styleProfileId = null;
+
     /** 硬规则（必须遵守） */
     public final List<String> rules = new ArrayList<>();
 
