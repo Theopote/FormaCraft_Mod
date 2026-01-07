@@ -8,6 +8,7 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
+import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
@@ -75,9 +76,9 @@ public class MassMainGenerator implements ComponentGenerator {
                         // 但底部可以放置地板
                         if (y == 0) {
                             SemanticPart part = SemanticPart.FLOOR;
-                            String block = palette.pick(part);
+                            String block = getBlockForPart(part, semantic, palette);
                             if (block == null || block.isEmpty()) {
-                                block = palette.pick(SemanticPart.COURTYARD_FLOOR);
+                                block = getBlockForPart(SemanticPart.COURTYARD_FLOOR, semantic, palette);
                             }
                             if (block != null && !block.isEmpty()) {
                                 out.add(new BlockPatch(
@@ -114,7 +115,7 @@ public class MassMainGenerator implements ComponentGenerator {
                     if (hasDoors && isDoorPosition(x, z, width, depth, y)) {
                         // 生成门（使用 DOORWAY 语义部位）
                         SemanticPart part = SemanticPart.DOORWAY;
-                        String block = palette.pick(part);
+                        String block = getBlockForPart(part, semantic, palette);
                         if (block == null || block.isEmpty()) {
                             block = "minecraft:air"; // 门洞保持空气
                         }
@@ -122,7 +123,7 @@ public class MassMainGenerator implements ComponentGenerator {
                         if (y == 0 || (x == width / 2 && z == 0)) {
                             // 门框
                             part = SemanticPart.WALL_ACCENT;
-                            block = palette.pick(part);
+                            block = getBlockForPart(part, semantic, palette);
                             out.add(new BlockPatch(
                                     BlockPatch.PLACE,
                                     rp.x() + x,
@@ -138,10 +139,10 @@ public class MassMainGenerator implements ComponentGenerator {
                     if (hasRoof && y >= height - 1) {
                         // 生成屋顶（使用 ROOF_SURFACE 语义部位）
                         SemanticPart part = SemanticPart.ROOF_SURFACE;
-                        String block = palette.pick(part);
+                        String block = getBlockForPart(part, semantic, palette);
                         if (block == null || block.isEmpty()) {
                             part = SemanticPart.ROOF;
-                            block = palette.pick(part);
+                            block = getBlockForPart(part, semantic, palette);
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
@@ -157,10 +158,10 @@ public class MassMainGenerator implements ComponentGenerator {
                     if (hasDecor && isDecorPosition(x, z, width, depth, y, height)) {
                         // 生成装饰（使用 DECOR 语义部位）
                         SemanticPart part = SemanticPart.DECOR;
-                        String block = palette.pick(part);
+                        String block = getBlockForPart(part, semantic, palette);
                         if (block == null || block.isEmpty()) {
                             part = SemanticPart.WALL_ACCENT;
-                            block = palette.pick(part);
+                            block = getBlockForPart(part, semantic, palette);
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
@@ -174,7 +175,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
                     // 默认：根据位置确定 SemanticPart
                     SemanticPart part = determinePart(y, height, width, depth, x, z);
-                    String block = palette.pick(part);
+                    String block = getBlockForPart(part, semantic, palette);
                     
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
@@ -275,6 +276,45 @@ public class MassMainGenerator implements ComponentGenerator {
 
         // 4. 默认返回
         return "MEDIEVAL_CLASSIC";
+    }
+
+    /**
+     * 获取方块（优先使用动态解析，回退到传统 Palette）
+     */
+    private String getBlockForPart(SemanticPart part, SemanticComponent semantic, Palette palette) {
+        // 1. 优先使用动态解析（如果 LlmPlan 有 style_attributes）
+        if (semantic.styleAttributes() != null) {
+            String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        
+        // 2. 回退到传统 Palette
+        if (palette != null) {
+            String block = palette.pick(part);
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        
+        // 3. 默认方块
+        return getDefaultBlock(part);
+    }
+    
+    /**
+     * 获取默认方块
+     */
+    private String getDefaultBlock(SemanticPart part) {
+        return switch (part) {
+            case WALL, WALL_BASE -> "minecraft:stone_bricks";
+            case ROOF, ROOF_SURFACE -> "minecraft:spruce_planks";
+            case FLOOR, COURTYARD_FLOOR -> "minecraft:stone_bricks";
+            case DECOR -> "minecraft:stone_brick_slab";
+            case WINDOW -> "minecraft:glass";
+            case DOORWAY -> "minecraft:air";
+            default -> "minecraft:stone";
+        };
     }
 
     /**

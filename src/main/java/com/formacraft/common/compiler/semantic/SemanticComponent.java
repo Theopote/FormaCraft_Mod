@@ -2,6 +2,7 @@ package com.formacraft.common.compiler.semantic;
 
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Slot;
+import com.formacraft.common.llm.dto.StyleAttributes;
 
 /**
  * SemanticComponent（语义构件）
@@ -12,6 +13,8 @@ import com.formacraft.common.llm.dto.Slot;
  * - componentType - 构件类型（TOWER / KEEP / WALL / ROAD / GATE ...）
  * - slot - 所属 slot（路径 / 布局）
  * - source - 原始 LLM component
+ * - styleProfile - 风格配置（可选，从 LlmPlan.styleProfile 传递）
+ * - styleAttributes - 风格属性（可选，从 LlmPlan.styleAttributes 传递，用于动态材质选择）
  */
 public record SemanticComponent(
         /** 构件类型（TOWER / KEEP / WALL / ROAD / GATE ...） */
@@ -24,13 +27,23 @@ public record SemanticComponent(
         Component source,
         
         /** 风格配置（可选，从 LlmPlan.styleProfile 传递） */
-        String styleProfile
+        String styleProfile,
+        
+        /** 风格属性（可选，从 LlmPlan.styleAttributes 传递，用于动态材质选择） */
+        StyleAttributes styleAttributes
 ) {
     /**
-     * 兼容旧代码的构造函数（styleProfile 为 null）
+     * 兼容旧代码的构造函数（styleProfile 和 styleAttributes 为 null）
      */
     public SemanticComponent(String componentType, Slot slot, Component source) {
-        this(componentType, slot, source, null);
+        this(componentType, slot, source, null, null);
+    }
+    
+    /**
+     * 兼容旧代码的构造函数（styleAttributes 为 null）
+     */
+    public SemanticComponent(String componentType, Slot slot, Component source, String styleProfile) {
+        this(componentType, slot, source, styleProfile, null);
     }
 }
 

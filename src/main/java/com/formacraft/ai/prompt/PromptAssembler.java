@@ -97,6 +97,17 @@ Core rules:
 - If information is missing, infer reasonable defaults consistent with style and program.
 - Output VALID JSON ONLY. No comments, no explanations.
 
+STYLE ANALYSIS (IMPORTANT):
+- Analyze the user's description to extract style characteristics:
+  * Colors: wall_color (white, gray, red, brown, black, etc.), roof_color, accent_color
+  * Materials: wall_material (stone, brick, wood, concrete, terracotta, etc.), roof_material (tile, shingle, slate, metal), floor_material
+  * Decorative elements: wood_carvings, lattice_windows, columns, etc.
+- Output these in the "style_attributes" field
+- If the user mentions specific colors or materials, use them explicitly
+- If the user mentions a known style (e.g., "Chinese", "Medieval", "Modern", "徽派"), infer appropriate attributes
+- Be creative and specific: "red brick walls" → wall_color: "red", wall_material: "brick"
+- For traditional styles, include characteristic decorative elements
+
 If mode = "patch":
 - Only modify components inside the allowed area.
 - Do NOT affect protected or forbidden zones.

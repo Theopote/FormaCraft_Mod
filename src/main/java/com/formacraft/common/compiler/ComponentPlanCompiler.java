@@ -89,13 +89,15 @@ public final class ComponentPlanCompiler {
                 FormacraftMod.LOGGER.debug("ComponentPlanCompiler: component {} has no slot, using default slot", c.componentType());
             }
 
-            // 创建语义构件（传递 styleProfile）
+            // 创建语义构件（传递 styleProfile 和 styleAttributes）
             String styleProfile = plan.styleProfile();
+            com.formacraft.common.llm.dto.StyleAttributes styleAttributes = plan.styleAttributes();
             SemanticComponent semantic = new SemanticComponent(
                     c.componentType(),
                     slot,
                     c,
-                    styleProfile
+                    styleProfile,
+                    styleAttributes
             );
 
             // 使用智能路由：自动选择最适合的生成器

@@ -18,6 +18,9 @@ public record LlmPlan(
         @JsonProperty("layout") Layout layout,
         @JsonProperty("components") List<Component> components,
 
+        // 风格属性（AI 分析用户描述后提取，用于动态材质选择）
+        @JsonProperty("style_attributes") StyleAttributes styleAttributes,
+
         // patch 专用（可选）
         @JsonProperty("target_slot_id") String targetSlotId,
         @JsonProperty("allowed_area") String allowedArea,
