@@ -41,11 +41,23 @@ public class MassMainGenerator implements ComponentGenerator {
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 检查 features
-        boolean hasWindows = hasFeature(c, "windows", "window", "facade_windows");
-        boolean hasRoof = hasFeature(c, "roof", "curved_roof", "sloped_roof");
-        boolean hasDoors = hasFeature(c, "door", "doors", "entrance");
-        boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved");
+        // 检查 features（扩展关键词匹配，支持更多变体）
+        boolean hasWindows = hasFeature(c, "windows", "window", "facade_windows", "lattice", "opening");
+        boolean hasRoof = hasFeature(c, "roof", "curved_roof", "sloped_roof", "hip", "gable", "gabled");
+        boolean hasDoors = hasFeature(c, "door", "doors", "entrance", "entry", "gateway");
+        boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved", "carving", "lintel", "overhang");
+        
+        // 默认生成基础细节（即使没有匹配的 features）
+        // 对于住宅类建筑，默认应该有门和窗
+        boolean isResidential = semantic.slot() != null && 
+                                "RESIDENTIAL".equals(semantic.slot().program());
+        boolean shouldGenerateDefaultDetails = isResidential && !hasDoors && !hasWindows;
+        
+        // 如果应该生成默认细节，启用门和窗
+        if (shouldGenerateDefaultDetails) {
+            hasDoors = true;
+            hasWindows = true;
+        }
 
         // 生成矩形体块（基础结构）
         for (int y = 0; y < height; y++) {

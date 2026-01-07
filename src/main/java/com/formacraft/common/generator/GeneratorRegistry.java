@@ -44,6 +44,9 @@ public final class GeneratorRegistry {
         register("CHIMNEY", new ChimneyGenerator());
         register("FOUNDATION", new FoundationGenerator());
         register("DECOR_DETAIL", new DecorDetailGenerator());
+        
+        // 侧翼生成器（复用 MassMainGenerator）
+        register("SIDE_WING", new MassMainGenerator());
 
         // 后续可以不断添加
         // register("BRIDGE", new BridgeGenerator());
