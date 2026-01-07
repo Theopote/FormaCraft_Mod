@@ -41,7 +41,7 @@ public class WallGenerator implements ComponentGenerator {
         int height = Math.max(1, d.height());
 
         // 获取风格
-        String styleProfile = "MEDIEVAL_CLASSIC"; // 默认
+        String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         // 检查 features
@@ -200,6 +200,46 @@ public class WallGenerator implements ComponentGenerator {
         
         // 默认墙体
         return SemanticPart.WALL;
+    }
+    
+    /**
+     * 获取风格配置
+     */
+    private String getStyleProfile(SemanticComponent semantic) {
+        // 1. 优先使用 SemanticComponent 中的 styleProfile
+        if (semantic != null && semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
+            String profile = semantic.styleProfile().trim();
+            // 映射 LLM 返回的风格名称到系统支持的风格
+            String upper = profile.toUpperCase();
+            if (upper.contains("CHINESE") && (upper.contains("GREAT") || upper.contains("WALL"))) {
+                return "MEDIEVAL_CLASSIC"; // 长城风格使用中世纪石头风格
+            }
+            if (upper.contains("CHINESE") || upper.contains("HUI")) {
+                return "HUI_STYLE_VILLA";
+            }
+            return profile;
+        }
+
+        // 2. 尝试从 Component 的 features 推断风格
+        Component c = semantic != null ? semantic.source() : null;
+        if (c != null && c.features() != null) {
+            for (String feature : c.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase();
+                if (lower.contains("chinese") || lower.contains("中式") || lower.contains("great_wall")) {
+                    return "MEDIEVAL_CLASSIC";
+                }
+                if (lower.contains("medieval") || lower.contains("gothic") || lower.contains("stone_brick")) {
+                    return "MEDIEVAL_CLASSIC";
+                }
+                if (lower.contains("modern") || lower.contains("contemporary")) {
+                    return "MODERN";
+                }
+            }
+        }
+
+        // 3. 默认
+        return "MEDIEVAL_CLASSIC";
     }
 }
 

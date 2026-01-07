@@ -155,8 +155,8 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
         return switch (componentType) {
             case "TOWER" -> BuildingType.TOWER;
             case "HOUSE", "MASS_MAIN", "MASS_SECONDARY" -> BuildingType.HOUSE;
-            case "WALL" -> BuildingType.WALL;
-            case "BRIDGE" -> BuildingType.BRIDGE;
+            case "WALL", "WALL_SEGMENT" -> BuildingType.WALL;
+            case "BRIDGE", "CONNECTOR" -> BuildingType.BRIDGE;
             case "CASTLE", "KEEP" -> BuildingType.CASTLE;
             default -> BuildingType.CUSTOM;
         };

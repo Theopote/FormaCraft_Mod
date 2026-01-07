@@ -21,6 +21,7 @@ public final class GeneratorRegistry {
         register("TOWER", new TowerGenerator());
         register("KEEP", new KeepGenerator());
         register("WALL", new WallGenerator());
+        register("WALL_SEGMENT", new WallGenerator()); // 复用 WallGenerator
         register("GATE", new GateGenerator());
         register("ROAD", new RoadGenerator());
         
@@ -48,12 +49,13 @@ public final class GeneratorRegistry {
         
         // 侧翼生成器（复用 MassMainGenerator）
         register("SIDE_WING", new MassMainGenerator());
+        
+        // 连接器（桥、坡道等）
+        register("CONNECTOR", new PathGenerator()); // 临时复用 PathGenerator，后续可创建专用生成器
+        register("BRIDGE", new PathGenerator()); // 临时复用 PathGenerator
 
         // 后续可以不断添加
-        // register("BRIDGE", new BridgeGenerator());
         // register("COURTYARD", new CourtyardGenerator());
-        // register("ROOF", new RoofGenerator());
-        // register("BALCONY", new BalconyGenerator());
         // register("PLAZA_CORE", new PlazaCoreGenerator());
     }
 

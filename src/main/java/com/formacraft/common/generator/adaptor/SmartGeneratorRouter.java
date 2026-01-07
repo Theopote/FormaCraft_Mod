@@ -50,11 +50,16 @@ public final class SmartGeneratorRouter {
                 if (patches != null && !patches.isEmpty()) {
                     FormacraftMod.LOGGER.debug("SmartGeneratorRouter: using new system generator for {}", componentType);
                     return patches;
+                } else {
+                    FormacraftMod.LOGGER.warn("SmartGeneratorRouter: generator {} returned empty patches for component {}", 
+                            componentType, componentType);
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.warn("SmartGeneratorRouter: new system generator failed for {}, trying fallback", 
                         componentType, e);
             }
+        } else {
+            FormacraftMod.LOGGER.warn("SmartGeneratorRouter: no generator registered for component type: {}", componentType);
         }
 
         // 2. 回退到传统系统（server.generator）

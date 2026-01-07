@@ -10,6 +10,7 @@ import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
+import com.formacraft.FormacraftMod;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,32 @@ public class MassMainGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
+        
+        // 尺寸规范化：确保高度至少3米（3格）
+        // 如果用户指定了具体高度，使用用户的要求
+        int userFloorHeight = com.formacraft.common.generator.util.ProportionalFacadeCalculator
+                .extractFloorHeightFromFeatures(c.features());
+        if (userFloorHeight > 0) {
+            // 用户指定了每层高度，验证总高度是否合理
+            int minTotalHeight = userFloorHeight * 1; // 至少1层
+            if (height < minTotalHeight) {
+                FormacraftMod.LOGGER.warn("MassMainGenerator: total height {} is less than minimum {} (floor height: {})", 
+                        height, minTotalHeight, userFloorHeight);
+                // 调整总高度以匹配用户要求
+                height = minTotalHeight;
+            }
+        } else {
+            // 用户未指定，确保总高度至少3米
+            height = Math.max(3, height);
+        }
+        
+        // 验证尺寸合理性
+        if (!com.formacraft.common.generator.util.ProportionalFacadeCalculator.validateDimensions(width, depth, height)) {
+            FormacraftMod.LOGGER.warn("MassMainGenerator: invalid dimensions {}x{}x{}, using defaults", width, depth, height);
+            width = Math.max(3, width);
+            depth = Math.max(3, depth);
+            height = Math.max(3, height);
+        }
 
         // 获取风格
         String styleProfile = getStyleProfile(semantic);
@@ -68,24 +95,27 @@ public class MassMainGenerator implements ComponentGenerator {
             hasWindows = true;
         }
 
-        // 计算每层的尺寸（如果有 stepped_facade，每层逐渐缩小）
+        // 计算每层的尺寸（如果有 stepped_facade，使用智能比例计算）
         int[] layerWidths = new int[height];
         int[] layerDepths = new int[height];
         int[] layerXOffsets = new int[height];
         int[] layerZOffsets = new int[height];
         
-        if (hasSteppedFacade && height > 4) {
-            // 阶梯式立面：每层逐渐缩小
-            int floors = Math.max(1, height / 4); // 假设每层约4格高
-            int stepSize = Math.max(1, Math.min(2, width / (floors * 2))); // 每层缩小1-2格
+        if (hasSteppedFacade && height >= 3) {
+            // 阶梯式立面：使用比例化计算器
+            double userSetbackRatio = com.formacraft.common.generator.util.ProportionalFacadeCalculator
+                    .extractSetbackRatioFromFeatures(c.features());
+            
+            com.formacraft.common.generator.util.ProportionalFacadeCalculator.LayerConfig[] layerConfigs = 
+                    com.formacraft.common.generator.util.ProportionalFacadeCalculator.calculateSteppedFacade(
+                            width, depth, height, userFloorHeight, userSetbackRatio
+                    );
             
             for (int y = 0; y < height; y++) {
-                int floor = y / 4; // 当前楼层
-                int step = Math.min(floor, floors - 1);
-                layerWidths[y] = Math.max(3, width - step * stepSize * 2);
-                layerDepths[y] = Math.max(3, depth - step * stepSize * 2);
-                layerXOffsets[y] = step * stepSize;
-                layerZOffsets[y] = step * stepSize;
+                layerWidths[y] = layerConfigs[y].width;
+                layerDepths[y] = layerConfigs[y].depth;
+                layerXOffsets[y] = layerConfigs[y].xOffset;
+                layerZOffsets[y] = layerConfigs[y].zOffset;
             }
         } else {
             // 普通立面：所有层尺寸相同
