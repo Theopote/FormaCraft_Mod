@@ -53,6 +53,8 @@ public class MassMainGenerator implements ComponentGenerator {
                                       "wood_carvings", "intricate", "white_walls");
         boolean hasInterior = hasFeature(c, "interior", "rooms", "hollow", "courtyard", "central_courtyard",
                                          "inner_space", "empty_interior");
+        boolean hasSteppedFacade = hasFeature(c, "stepped_facade", "stepped", "setback", "setbacks", 
+                                               "进退", "进退关系", "立面", "facade_setback", "tiered");
         
         // 默认生成基础细节（即使没有匹配的 features）
         // 对于住宅类建筑，默认应该有门和窗
@@ -66,12 +68,54 @@ public class MassMainGenerator implements ComponentGenerator {
             hasWindows = true;
         }
 
+        // 计算每层的尺寸（如果有 stepped_facade，每层逐渐缩小）
+        int[] layerWidths = new int[height];
+        int[] layerDepths = new int[height];
+        int[] layerXOffsets = new int[height];
+        int[] layerZOffsets = new int[height];
+        
+        if (hasSteppedFacade && height > 4) {
+            // 阶梯式立面：每层逐渐缩小
+            int floors = Math.max(1, height / 4); // 假设每层约4格高
+            int stepSize = Math.max(1, Math.min(2, width / (floors * 2))); // 每层缩小1-2格
+            
+            for (int y = 0; y < height; y++) {
+                int floor = y / 4; // 当前楼层
+                int step = Math.min(floor, floors - 1);
+                layerWidths[y] = Math.max(3, width - step * stepSize * 2);
+                layerDepths[y] = Math.max(3, depth - step * stepSize * 2);
+                layerXOffsets[y] = step * stepSize;
+                layerZOffsets[y] = step * stepSize;
+            }
+        } else {
+            // 普通立面：所有层尺寸相同
+            for (int y = 0; y < height; y++) {
+                layerWidths[y] = width;
+                layerDepths[y] = depth;
+                layerXOffsets[y] = 0;
+                layerZOffsets[y] = 0;
+            }
+        }
+
         // 生成矩形体块（基础结构）
         for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                for (int z = 0; z < depth; z++) {
+            int currentWidth = layerWidths[y];
+            int currentDepth = layerDepths[y];
+            int xOffset = layerXOffsets[y];
+            int zOffset = layerZOffsets[y];
+            
+            for (int x = 0; x < currentWidth; x++) {
+                for (int z = 0; z < currentDepth; z++) {
+                    // 转换为全局坐标（考虑 offset）
+                    int globalX = x + xOffset;
+                    int globalZ = z + zOffset;
+                    
+                    // 检查是否超出原始边界（不应该发生，但安全起见）
+                    if (globalX >= width || globalZ >= depth) {
+                        continue;
+                    }
                     // 检查是否是内部空间（留空）
-                    if (hasInterior && isInteriorSpace(x, z, width, depth, y, height)) {
+                    if (hasInterior && isInteriorSpace(globalX, globalZ, width, depth, y, height)) {
                         // 内部空间不放置方块（保持空气）
                         // 但底部可以放置地板
                         if (y == 0) {
@@ -93,8 +137,8 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    // 检查是否是窗户位置
-                    if (hasWindows && isWindowPosition(x, z, width, depth, y, height)) {
+                    // 检查是否是窗户位置（使用全局坐标）
+                    if (hasWindows && isWindowPosition(globalX, globalZ, width, depth, y, height)) {
                         // 生成窗户（使用 WINDOW 语义部位）
                         SemanticPart part = SemanticPart.WINDOW;
                         String block = palette.pick(part);
@@ -103,16 +147,16 @@ public class MassMainGenerator implements ComponentGenerator {
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
-                                rp.x() + x,
+                                rp.x() + globalX,
                                 rp.y() + y,
-                                rp.z() + z,
+                                rp.z() + globalZ,
                                 block
                         ));
                         continue;
                     }
 
-                    // 检查是否是门位置
-                    if (hasDoors && isDoorPosition(x, z, width, depth, y)) {
+                    // 检查是否是门位置（使用全局坐标）
+                    if (hasDoors && isDoorPosition(globalX, globalZ, width, depth, y)) {
                         // 生成门（使用 DOORWAY 语义部位）
                         SemanticPart part = SemanticPart.DOORWAY;
                         String block = getBlockForPart(part, semantic, palette);
@@ -120,15 +164,15 @@ public class MassMainGenerator implements ComponentGenerator {
                             block = "minecraft:air"; // 门洞保持空气
                         }
                         // 门洞不放置方块，但可以放置门框
-                        if (y == 0 || (x == width / 2 && z == 0)) {
+                        if (y == 0 || (globalX == width / 2 && globalZ == 0)) {
                             // 门框
                             part = SemanticPart.WALL_ACCENT;
                             block = getBlockForPart(part, semantic, palette);
                             out.add(new BlockPatch(
                                     BlockPatch.PLACE,
-                                    rp.x() + x,
+                                    rp.x() + globalX,
                                     rp.y() + y,
-                                    rp.z() + z,
+                                    rp.z() + globalZ,
                                     block
                             ));
                         }
@@ -146,16 +190,16 @@ public class MassMainGenerator implements ComponentGenerator {
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
-                                rp.x() + x,
+                                rp.x() + globalX,
                                 rp.y() + y,
-                                rp.z() + z,
+                                rp.z() + globalZ,
                                 block
                         ));
                         continue;
                     }
 
-                    // 检查是否是装饰位置
-                    if (hasDecor && isDecorPosition(x, z, width, depth, y, height)) {
+                    // 检查是否是装饰位置（使用全局坐标）
+                    if (hasDecor && isDecorPosition(globalX, globalZ, width, depth, y, height)) {
                         // 生成装饰（使用 DECOR 语义部位）
                         SemanticPart part = SemanticPart.DECOR;
                         String block = getBlockForPart(part, semantic, palette);
@@ -165,23 +209,29 @@ public class MassMainGenerator implements ComponentGenerator {
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
-                                rp.x() + x,
+                                rp.x() + globalX,
                                 rp.y() + y,
-                                rp.z() + z,
+                                rp.z() + globalZ,
                                 block
                         ));
                         continue;
                     }
 
-                    // 默认：根据位置确定 SemanticPart
-                    SemanticPart part = determinePart(y, height, width, depth, x, z);
+                    // 检查是否在当前层的边界内（stepped_facade 时，只生成当前层的方块）
+                    boolean isInCurrentLayer = (x >= 0 && x < currentWidth && z >= 0 && z < currentDepth);
+                    if (!isInCurrentLayer) {
+                        continue; // 跳过不在当前层的方块
+                    }
+
+                    // 默认：根据位置确定 SemanticPart（使用全局坐标）
+                    SemanticPart part = determinePart(y, height, width, depth, globalX, globalZ);
                     String block = getBlockForPart(part, semantic, palette);
                     
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
-                            rp.x() + x,
+                            rp.x() + globalX,
                             rp.y() + y,
-                            rp.z() + z,
+                            rp.z() + globalZ,
                             block
                     ));
                 }
@@ -247,7 +297,16 @@ public class MassMainGenerator implements ComponentGenerator {
     private String getStyleProfile(SemanticComponent semantic) {
         // 1. 优先使用 SemanticComponent 中的 styleProfile
         if (semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
-            return semantic.styleProfile();
+            String profile = semantic.styleProfile().trim();
+            // 映射 LLM 返回的风格名称到系统支持的风格
+            String upper = profile.toUpperCase();
+            if (upper.contains("CHINESE") && (upper.contains("TRADITIONAL") || upper.contains("TRAD"))) {
+                return "HUI_STYLE_VILLA"; // 映射到徽派风格
+            }
+            if (upper.contains("CHINESE") || upper.contains("HUI")) {
+                return "HUI_STYLE_VILLA";
+            }
+            return profile; // 其他风格直接返回
         }
 
         // 2. 尝试从 Component 的 features 推断风格

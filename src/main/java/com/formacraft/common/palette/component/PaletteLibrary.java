@@ -192,7 +192,8 @@ public final class PaletteLibrary {
             case "MEDIEVAL_CLASSIC", "MEDIEVAL", "MEDIEVAL_STONE" -> MEDIEVAL_STONE;
             case "CYBERPUNK", "CYBER", "FUTURISTIC" -> CYBERPUNK;
             case "ELVEN", "ELVISH", "NATURE" -> ELVEN;
-            case "HUI_STYLE_VILLA", "HUI_VILLA", "CHINESE_VILLA", "CHINESE_HUI", "HUI" -> HUI_STYLE;
+            case "HUI_STYLE_VILLA", "HUI_VILLA", "CHINESE_VILLA", "CHINESE_HUI", "HUI", 
+                 "CHINESE_TRADITIONAL", "CHINESE_TRAD" -> HUI_STYLE;
             default -> MEDIEVAL_STONE; // 默认返回中世纪风格
         };
     }

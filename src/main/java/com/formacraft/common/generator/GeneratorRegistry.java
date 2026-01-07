@@ -41,6 +41,7 @@ public final class GeneratorRegistry {
         
         // 完整建筑生成所需的生成器
         register("BALCONY", new BalconyGenerator());
+        register("TERRACE", new TerraceGenerator());
         register("CHIMNEY", new ChimneyGenerator());
         register("FOUNDATION", new FoundationGenerator());
         register("DECOR_DETAIL", new DecorDetailGenerator());
