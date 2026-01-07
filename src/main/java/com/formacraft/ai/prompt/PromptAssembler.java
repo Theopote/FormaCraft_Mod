@@ -53,23 +53,21 @@ public final class PromptAssembler {
     }
 
     private static String buildFinalPrompt(PromptContext ctx) {
+        StringBuilder sb = new StringBuilder(1024);
 
         // 1. System Role（AI 身份，永远固定）
+        sb.append(systemRole());
 
         // 2. Spatial Constraints（空间约束块）
+        sb.append(spatialConstraints(ctx));
+
         // 3. User Intent（玩家原始描述）
-        // 4. Output Contract（输出契约）
+        sb.append(userIntent(ctx));
 
-        return systemRole() +
+        // 4. Structured JSON Template（结构化 JSON 模板 - K3.1 新增）
+        sb.append(structuredJsonTemplate(ctx));
 
-                // 2. Spatial Constraints（空间约束块）
-                spatialConstraints(ctx) +
-
-                // 3. User Intent（玩家原始描述）
-                userIntent(ctx) +
-
-                // 4. Output Contract（输出契约）
-                outputContract();
+        return sb.toString();
     }
 
     /**
@@ -366,7 +364,7 @@ SEMANTIC REGIONS:
         }
 
         PathSkeleton skeleton = ctx.pathSkeleton;
-        return "SKELETON HINT:\n" +
+        String sb = "SKELETON HINT:\n" +
                 "- type: PATH_POLYLINE\n" +
                 "- intent: " + skeleton.intent.name() + "\n" +
                 "- corridor_radius: " + skeleton.corridorRadius + "\n" +
@@ -374,6 +372,7 @@ SEMANTIC REGIONS:
                 "- IMPORTANT: You MUST use PATH_POLYLINE skeleton type\n" +
                 "- The path topology is fixed; you can only adjust style and details\n" +
                 "\n";
+        return sb;
     }
 
     /**
@@ -441,6 +440,145 @@ SEMANTIC REGIONS:
         
         sb.append("\n");
         return sb.toString();
+    }
+
+    /**
+     * Structured JSON Template（结构化 JSON 模板）
+     * 
+     * K3.1 新增：生成可直接测试大模型的完整 JSON 模板
+     * 
+     * 包含所有关键信息：anchor, facing, path, slots, program, component preset, terrain strategy
+     */
+    private static String structuredJsonTemplate(PromptContext ctx) {
+        if (ctx == null) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== STRUCTURED JSON TEMPLATE ===\n");
+        sb.append("Fill in the following JSON structure based on the constraints above:\n\n");
+
+        // 获取 anchor
+        com.formacraft.common.buildcontext.BuildContext bc = 
+            com.formacraft.client.buildcontext.BuildContextResolver.resolve(false);
+        int anchorX = (bc != null && bc.origin != null) ? bc.origin.getX() : 0;
+        int anchorY = (bc != null && bc.origin != null) ? bc.origin.getY() : 0;
+        int anchorZ = (bc != null && bc.origin != null) ? bc.origin.getZ() : 0;
+
+        // 获取 facing
+        String facing = (bc != null && bc.facing != null) ? bc.facing.name() : "SOUTH";
+
+        // 获取 symmetry
+        String symmetry = com.formacraft.ai.context.SymmetryContext.enabled() ? "MIRROR_X" : "NONE";
+
+        // 获取 terrain strategy
+        String terrainStrategy = (ctx.terrainPolicy != null && ctx.terrainPolicy.strategy != null)
+                ? ctx.terrainPolicy.strategy.name() : "ADAPTIVE";
+
+        // 获取 style profile
+        String styleProfile = ctx.styleProfileId != null ? ctx.styleProfileId : "DEFAULT";
+
+        // 获取 skeleton type
+        String skeletonType = "LINEAR_PATH";
+        if (ctx.pathSkeleton != null) {
+            switch (ctx.pathSkeleton.intent) {
+                case ROAD -> skeletonType = "LINEAR_PATH";
+                case WALL -> skeletonType = "LINEAR_PATH";
+                case BRIDGE -> skeletonType = "LINEAR_PATH";
+                default -> skeletonType = "LINEAR_PATH";
+            }
+        }
+
+        // 开始构建 JSON
+        sb.append("{\n");
+        sb.append("  \"mode\": \"").append(ctx.mode != null ? ctx.mode.name().toLowerCase() : "build").append("\",\n");
+        sb.append("  \"style_profile\": \"").append(styleProfile).append("\",\n");
+        sb.append("  \"anchor\": { \"x\": ").append(anchorX).append(", \"y\": ").append(anchorY).append(", \"z\": ").append(anchorZ).append(" },\n");
+        sb.append("\n");
+        sb.append("  \"global_constraints\": {\n");
+        sb.append("    \"facing\": \"").append(facing).append("\",\n");
+        sb.append("    \"symmetry\": \"").append(symmetry).append("\",\n");
+        sb.append("    \"terrain_strategy\": \"").append(terrainStrategy).append("\"\n");
+        sb.append("  },\n");
+        sb.append("\n");
+        sb.append("  \"layout\": {\n");
+        sb.append("    \"skeleton_type\": \"").append(skeletonType).append("\",\n");
+        sb.append("    \"path_based\": ").append(ctx.pathSkeleton != null ? "true" : "false").append(",\n");
+        
+        // Slots
+        if (ctx.clusterLayout != null && ctx.clusterLayout.isValid()) {
+            sb.append("    \"slots\": [\n");
+            
+            int slotIndex = 0;
+            for (var slot : ctx.clusterLayout.slots) {
+                if (slotIndex >= 20) break; // 限制输出数量
+                
+                // 解析 preset
+                var preset = com.formacraft.common.cluster.zoning.ProgramPresetResolver.resolve(
+                        ctx.styleProfileId, slot.program
+                );
+                
+                // 计算相对 anchor 的位置
+                int relX = slot.anchor.getX() - anchorX;
+                int relY = slot.anchor.getY() - anchorY;
+                int relZ = slot.anchor.getZ() - anchorZ;
+                
+                // 解析 facing
+                String slotFacing = facing;
+                if (slot.facing == com.formacraft.common.cluster.PathClusterLayout.Facing.LEFT_OF_PATH) {
+                    slotFacing = "EAST"; // 简化：左侧建筑朝向路径（东）
+                } else if (slot.facing == com.formacraft.common.cluster.PathClusterLayout.Facing.RIGHT_OF_PATH) {
+                    slotFacing = "WEST"; // 简化：右侧建筑朝向路径（西）
+                }
+                
+                sb.append("      {\n");
+                sb.append("        \"slot_id\": \"slot_").append(String.format("%02d", slotIndex + 1)).append("\",\n");
+                sb.append("        \"anchor\": { \"x\": ").append(relX).append(", \"y\": ").append(relY).append(", \"z\": ").append(relZ).append(" },\n");
+                sb.append("        \"facing\": \"").append(slotFacing).append("\",\n");
+                sb.append("        \"program\": \"").append(slot.program.name()).append("\",\n");
+                sb.append("        \"component_preset_id\": \"").append(preset.id).append("\",\n");
+                sb.append("        \"component_preset\": \"").append(escapeJsonString(preset.descriptionForPrompt)).append("\"\n");
+                sb.append("      }");
+                
+                if (slotIndex < Math.min(20, ctx.clusterLayout.slots.size() - 1)) {
+                    sb.append(",");
+                }
+                sb.append("\n");
+                
+                slotIndex++;
+            }
+            
+            sb.append("    ]\n");
+        } else {
+            sb.append("    \"slots\": []\n");
+        }
+        
+        sb.append("  },\n");
+        sb.append("\n");
+        sb.append("  \"components\": []\n");
+        sb.append("}\n");
+        
+        sb.append("\n");
+        sb.append("IMPORTANT:\n");
+        sb.append("- Fill the \"components\" array with ComponentObject entries based on the component_preset for each slot.\n");
+        sb.append("- Use semantic component types (MASS_MAIN, ENTRANCE, FACADE_WINDOWS, SIGNAGE, etc.), NOT block IDs.\n");
+        sb.append("- All positions in components must be relative to the slot's anchor.\n");
+        sb.append("- Respect the component_preset weights and densities when generating components.\n");
+        sb.append("- Output ONLY valid JSON. No comments, no explanations.\n");
+        
+        return sb.toString();
+    }
+
+    /**
+     * 转义 JSON 字符串（用于 component_preset 字段）
+     */
+    private static String escapeJsonString(String text) {
+        if (text == null) return "";
+        return text.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t");
     }
 
     /**
@@ -727,38 +865,6 @@ CLUSTER RULES:
         return """
 USER REQUEST:
 """ + ctx.userMessage.trim() + "\n\n";
-    }
-
-    /**
-     * Output Contract（AI 不敢乱来）
-     */
-    private static String outputContract() {
-        return """
-OUTPUT FORMAT (STRICT JSON):
-
-{
-  "style_profile": "string",
-  "skeleton_type": "string",
-  "components": [
-    {
-      "semantic": "TOWER | WALL | HALL | COURTYARD | BRIDGE | PATH",
-      "shape": "CYLINDER | CUBOID | LINE | RING | CURVE",
-      "relative_position": {"x": int, "y": int, "z": int},
-      "dimensions": {...},
-      "notes": "optional"
-    }
-  ]
-}
-
-Rules:
-- All positions are relative to anchor (0,0,0)
-- Must obey all constraints above
-- JSON only
-- No explanation text
-- No markdown code blocks
-- Must be directly parseable
-
-""";
     }
 
 }

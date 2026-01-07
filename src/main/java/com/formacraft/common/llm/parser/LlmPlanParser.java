@@ -1,0 +1,115 @@
+package com.formacraft.common.llm.parser;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.formacraft.common.llm.dto.*;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * LLM Plan Parser（解析 + 校验）
+ * 
+ * 核心功能：
+ * - 解析 LLM 输出的 JSON
+ * - 基础校验（必填字段、尺寸合法、相对坐标等）
+ * - 支持 build 和 patch 两种模式
+ */
+public final class LlmPlanParser {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    private LlmPlanParser() {}
+
+    /**
+     * 解析 + 校验（失败抛异常，便于你在 ChatPanel 里显示错误）
+     */
+    public static LlmPlan parseAndValidate(String json) throws PlanParseException {
+        final LlmPlan plan;
+        try {
+            plan = MAPPER.readValue(json, LlmPlan.class);
+        } catch (JsonProcessingException e) {
+            throw new PlanParseException("Invalid JSON: " + e.getOriginalMessage(), e);
+        } catch (Exception e) {
+            throw new PlanParseException("Parse error: " + e.getMessage(), e);
+        }
+
+        validate(plan);
+        return plan;
+    }
+
+    /**
+     * 只解析不校验（一般不建议）
+     */
+    public static LlmPlan parse(String json) throws PlanParseException {
+        try {
+            return MAPPER.readValue(json, LlmPlan.class);
+        } catch (Exception e) {
+            throw new PlanParseException("Parse error: " + e.getMessage(), e);
+        }
+    }
+
+    private static void validate(LlmPlan plan) throws PlanParseException {
+        if (plan == null) throw new PlanParseException("Plan is null");
+        if (plan.mode() == null) throw new PlanParseException("Missing field: mode");
+        if (plan.anchor() == null) throw new PlanParseException("Missing field: anchor");
+
+        // build / patch 都允许 style_profile 为空（让后端套默认），但建议有
+        if (plan.globalConstraints() == null) {
+            // 允许为空：后端给默认
+        } else {
+            // facing/symmetry/terrain_strategy 都允许为空：后端给默认
+        }
+
+        // layout 可选：比如单体建筑不走 slots
+        Layout layout = plan.layout();
+        if (layout != null) {
+            // slots 可为空，但若有则校验 slot_id 唯一、anchor 不为空
+            List<Slot> slots = layout.slots();
+            if (slots != null && !slots.isEmpty()) {
+                Set<String> ids = new HashSet<>();
+                for (Slot s : slots) {
+                    if (s == null) continue;
+                    if (isBlank(s.slotId())) throw new PlanParseException("slot.slot_id is required");
+                    if (!ids.add(s.slotId())) throw new PlanParseException("Duplicate slot_id: " + s.slotId());
+                    if (s.anchor() == null) throw new PlanParseException("slot.anchor is required (slot_id=" + s.slotId() + ")");
+                }
+            }
+        }
+
+        // components：build 可以为空（让生成器从 slots/preset 推导）；patch 通常应提供
+        if (plan.components() != null) {
+            for (Component c : plan.components()) {
+                if (c == null) continue;
+                if (isBlank(c.componentType())) throw new PlanParseException("component.component_type is required");
+                if (c.relativePosition() == null) throw new PlanParseException("component.relative_position is required");
+                if (c.dimensions() == null) throw new PlanParseException("component.dimensions is required");
+                if (c.dimensions().width() <= 0 || c.dimensions().depth() <= 0 || c.dimensions().height() <= 0) {
+                    throw new PlanParseException("component.dimensions must be > 0 (type=" + c.componentType() + ")");
+                }
+            }
+        }
+
+        // patch mode 附加约束
+        if (plan.mode() == LlmPlan.Mode.patch) {
+            // 允许两种 patch：语义组件 patch 或 block patch
+            boolean hasComponentPatch = plan.components() != null && !plan.components().isEmpty();
+            boolean hasBlockPatch = plan.patch() != null && plan.patch().blocks() != null && !plan.patch().blocks().isEmpty();
+
+            if (!hasComponentPatch && !hasBlockPatch) {
+                throw new PlanParseException("mode=patch requires either components[] or patch.blocks[]");
+            }
+            if (hasBlockPatch) {
+                if (plan.patch().origin() == null) throw new PlanParseException("patch.origin is required");
+            }
+        }
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+}
+
