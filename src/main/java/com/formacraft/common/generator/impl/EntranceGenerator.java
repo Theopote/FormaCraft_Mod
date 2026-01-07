@@ -96,6 +96,36 @@ public class EntranceGenerator implements ComponentGenerator {
     }
 
     private String getStyleProfile(SemanticComponent semantic) {
+        // 1. 优先使用 SemanticComponent 中的 styleProfile
+        if (semantic != null && semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
+            String profile = semantic.styleProfile().trim();
+            // 映射 LLM 返回的风格名称到系统支持的风格
+            String upper = profile.toUpperCase();
+            if (upper.contains("GOTHIC")) {
+                return "MEDIEVAL_CLASSIC"; // 哥特式使用中世纪风格
+            }
+            if (upper.contains("CHINESE") || upper.contains("HUI")) {
+                return "HUI_STYLE_VILLA";
+            }
+            return profile;
+        }
+
+        // 2. 尝试从 Component 的 features 推断风格
+        Component c = semantic != null ? semantic.source() : null;
+        if (c != null && c.features() != null) {
+            for (String feature : c.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase();
+                if (lower.contains("gothic") || lower.contains("pointed") || lower.contains("flying")) {
+                    return "MEDIEVAL_CLASSIC";
+                }
+                if (lower.contains("chinese") || lower.contains("中式")) {
+                    return "HUI_STYLE_VILLA";
+                }
+            }
+        }
+
+        // 3. 默认
         return "MEDIEVAL_CLASSIC";
     }
     

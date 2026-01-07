@@ -189,7 +189,7 @@ public final class PaletteLibrary {
 
         String s = styleProfile.trim().toUpperCase();
         return switch (s) {
-            case "MEDIEVAL_CLASSIC", "MEDIEVAL", "MEDIEVAL_STONE" -> MEDIEVAL_STONE;
+            case "MEDIEVAL_CLASSIC", "MEDIEVAL", "MEDIEVAL_STONE", "GOTHIC" -> MEDIEVAL_STONE;
             case "CYBERPUNK", "CYBER", "FUTURISTIC" -> CYBERPUNK;
             case "ELVEN", "ELVISH", "NATURE" -> ELVEN;
             case "HUI_STYLE_VILLA", "HUI_VILLA", "CHINESE_VILLA", "CHINESE_HUI", "HUI", 

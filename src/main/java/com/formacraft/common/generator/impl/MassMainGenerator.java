@@ -71,28 +71,60 @@ public class MassMainGenerator implements ComponentGenerator {
 
         // 检查 features（扩展关键词匹配，支持更多变体）
         boolean hasWindows = hasFeature(c, "windows", "window", "facade_windows", "lattice", "opening",
-                                        "wooden_frames", "lattice_patterns", "symmetrical_placement");
+                                        "wooden_frames", "lattice_patterns", "symmetrical_placement",
+                                        "stained_glass", "stained_glass_windows", "glass", "glass_panels",
+                                        "rose_window", "pointed_arches"); // 哥特式特征
         boolean hasRoof = hasFeature(c, "roof", "curved_roof", "sloped_roof", "hip", "gable", "gabled",
-                                     "black_tile_roof", "upturned_eaves", "ridge_decorations");
+                                     "black_tile_roof", "upturned_eaves", "ridge_decorations",
+                                     "ribbed_vaults", "vaults", "vaulted"); // 哥特式拱顶
         boolean hasDoors = hasFeature(c, "door", "doors", "entrance", "entry", "gateway",
-                                      "double_doors", "stone_steps", "overhang_roof");
+                                      "double_doors", "stone_steps", "overhang_roof",
+                                      "large_door", "tympanum", "statues"); // 哥特式入口
         boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved", "carving", "lintel", "overhang",
-                                      "wood_carvings", "intricate", "white_walls");
+                                      "wood_carvings", "intricate", "white_walls",
+                                      "flying_buttresses", "buttresses", "gargoyles", "spire", // 哥特式装饰
+                                      "pointed_arches", "arches", "ribbed_vaults"); // 哥特式结构
         boolean hasInterior = hasFeature(c, "interior", "rooms", "hollow", "courtyard", "central_courtyard",
                                          "inner_space", "empty_interior");
         boolean hasSteppedFacade = hasFeature(c, "stepped_facade", "stepped", "setback", "setbacks", 
                                                "进退", "进退关系", "立面", "facade_setback", "tiered");
         
+        // 对于大多数建筑类型，默认应该有内部空间（除非明确不需要）
+        // 教堂、住宅、商业建筑等都应该有内部空间
+        boolean isBuilding = semantic.slot() != null && 
+                            (semantic.slot().program() != null && 
+                             !semantic.slot().program().equals("PLAZA") &&
+                             !semantic.slot().program().equals("LANDSCAPE"));
+        if (!hasInterior && isBuilding && width >= 5 && depth >= 5 && height >= 4) {
+            // 对于足够大的建筑，默认应该有内部空间
+            hasInterior = true;
+            FormacraftMod.LOGGER.info("MassMainGenerator: enabling default interior space for building {}x{}x{} (program: {})", 
+                    width, depth, height, semantic.slot() != null ? semantic.slot().program() : "unknown");
+        }
+        
+        // 记录特征匹配结果（用于调试）
+        FormacraftMod.LOGGER.debug("MassMainGenerator: features check - hasWindows: {}, hasDoors: {}, hasRoof: {}, hasDecor: {}, hasInterior: {}", 
+                hasWindows, hasDoors, hasRoof, hasDecor, hasInterior);
+        
         // 默认生成基础细节（即使没有匹配的 features）
-        // 对于住宅类建筑，默认应该有门和窗
+        // 对于大多数建筑类型，默认应该有门和窗（除非明确不需要）
         boolean isResidential = semantic.slot() != null && 
                                 "RESIDENTIAL".equals(semantic.slot().program());
-        boolean shouldGenerateDefaultDetails = isResidential && !hasDoors && !hasWindows;
+        boolean isLandmark = semantic.slot() != null && 
+                            "LANDMARK".equals(semantic.slot().program());
+        boolean isCivic = semantic.slot() != null && 
+                         "CIVIC".equals(semantic.slot().program());
+        
+        // 对于住宅、地标、市政建筑，默认应该有门和窗
+        boolean shouldGenerateDefaultDetails = (isResidential || isLandmark || isCivic) && 
+                                               !hasDoors && !hasWindows;
         
         // 如果应该生成默认细节，启用门和窗
         if (shouldGenerateDefaultDetails) {
             hasDoors = true;
             hasWindows = true;
+            FormacraftMod.LOGGER.debug("MassMainGenerator: enabling default doors and windows for program: {}", 
+                    semantic.slot() != null ? semantic.slot().program() : "unknown");
         }
 
         // 计算每层的尺寸（如果有 stepped_facade，使用智能比例计算）
@@ -145,7 +177,9 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
                     // 检查是否是内部空间（留空）
+                    // 注意：使用全局坐标 globalX, globalZ 和原始尺寸 width, depth
                     if (hasInterior && isInteriorSpace(globalX, globalZ, width, depth, y, height)) {
+                        FormacraftMod.LOGGER.debug("MassMainGenerator: skipping interior space at ({}, {}, {})", globalX, y, globalZ);
                         // 内部空间不放置方块（保持空气）
                         // 但底部可以放置地板
                         if (y == 0) {
@@ -330,6 +364,9 @@ public class MassMainGenerator implements ComponentGenerator {
             String profile = semantic.styleProfile().trim();
             // 映射 LLM 返回的风格名称到系统支持的风格
             String upper = profile.toUpperCase();
+            if (upper.contains("GOTHIC")) {
+                return "MEDIEVAL_CLASSIC"; // 哥特式使用中世纪风格
+            }
             if (upper.contains("CHINESE") && (upper.contains("TRADITIONAL") || upper.contains("TRAD"))) {
                 return "HUI_STYLE_VILLA"; // 映射到徽派风格
             }
@@ -345,6 +382,10 @@ public class MassMainGenerator implements ComponentGenerator {
             for (String feature : c.features()) {
                 if (feature != null) {
                     String lower = feature.toLowerCase();
+                    if (lower.contains("gothic") || lower.contains("pointed_arches") || 
+                        lower.contains("flying_buttresses") || lower.contains("ribbed_vaults")) {
+                        return "MEDIEVAL_CLASSIC"; // 哥特式特征
+                    }
                     if (lower.contains("hui") || lower.contains("chinese") || 
                         lower.contains("white_walls") || lower.contains("black_tile")) {
                         return "HUI_STYLE_VILLA";
