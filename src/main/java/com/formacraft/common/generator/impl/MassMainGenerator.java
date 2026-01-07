@@ -68,6 +68,12 @@ public class MassMainGenerator implements ComponentGenerator {
         // 获取风格
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
+        
+        // 记录风格信息（用于调试）
+        FormacraftMod.LOGGER.info("MassMainGenerator: styleProfile={}, hasStyleAttributes={}, features={}", 
+                styleProfile, 
+                semantic.styleAttributes() != null,
+                c.features() != null ? c.features().size() : 0);
 
         // 检查 features（扩展关键词匹配，支持更多变体）
         boolean hasWindows = hasFeature(c, "windows", "window", "facade_windows", "lattice", "opening",
@@ -416,11 +422,22 @@ public class MassMainGenerator implements ComponentGenerator {
         if (semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
             if (block != null && !block.isEmpty()) {
+                FormacraftMod.LOGGER.debug("MassMainGenerator: using DynamicPaletteResolver for {}: {}", part, block);
                 return block;
             }
         }
         
-        // 2. 回退到传统 Palette
+        // 2. 尝试从 features 中提取材质信息（如果 style_attributes 为空）
+        Component c = semantic.source();
+        if (c != null && c.features() != null) {
+            String block = extractBlockFromFeatures(part, c.features());
+            if (block != null && !block.isEmpty()) {
+                FormacraftMod.LOGGER.debug("MassMainGenerator: extracted block from features for {}: {}", part, block);
+                return block;
+            }
+        }
+        
+        // 3. 回退到传统 Palette
         if (palette != null) {
             String block = palette.pick(part);
             if (block != null && !block.isEmpty()) {
@@ -428,8 +445,67 @@ public class MassMainGenerator implements ComponentGenerator {
             }
         }
         
-        // 3. 默认方块
+        // 4. 默认方块
         return getDefaultBlock(part);
+    }
+    
+    /**
+     * 从 features 中提取材质信息
+     * 例如：features 中包含 "white_concrete" → 返回 "minecraft:white_concrete"
+     */
+    private String extractBlockFromFeatures(SemanticPart part, List<String> features) {
+        if (features == null || features.isEmpty()) {
+            return null;
+        }
+        
+        for (String feature : features) {
+            if (feature == null || feature.isBlank()) {
+                continue;
+            }
+            
+            String lower = feature.toLowerCase().trim();
+            
+            // 检查是否是直接的方块 ID（例如 "white_concrete", "glass", "glass_pane"）
+            if (lower.contains("white_concrete") || lower.contains("white concrete")) {
+                if (part == SemanticPart.WALL || part == SemanticPart.WALL_BASE || part == SemanticPart.WALL_ACCENT) {
+                    return "minecraft:white_concrete";
+                }
+            }
+            if (lower.contains("glass_curtain") || lower.contains("curtain_wall") || 
+                lower.contains("glass_pane") || (lower.contains("glass") && lower.contains("curtain"))) {
+                if (part == SemanticPart.WINDOW) {
+                    return "minecraft:glass_pane";
+                }
+            }
+            if (lower.contains("glass") && !lower.contains("curtain")) {
+                if (part == SemanticPart.WINDOW) {
+                    return "minecraft:glass";
+                }
+            }
+            if (lower.contains("black_concrete") || lower.contains("black concrete")) {
+                if (part == SemanticPart.ROOF || part == SemanticPart.ROOF_SURFACE) {
+                    return "minecraft:black_concrete";
+                }
+            }
+            if (lower.contains("gray_concrete") || lower.contains("grey_concrete") || lower.contains("gray concrete")) {
+                if (part == SemanticPart.WALL || part == SemanticPart.WALL_BASE) {
+                    return "minecraft:gray_concrete";
+                }
+            }
+            if (lower.contains("metal") || lower.contains("steel") || lower.contains("iron")) {
+                if (part == SemanticPart.DECOR || part == SemanticPart.WALL_ACCENT) {
+                    return "minecraft:iron_block";
+                }
+            }
+            if (lower.contains("concrete") && !lower.contains("white") && !lower.contains("black") && !lower.contains("gray")) {
+                // 默认混凝土（灰色）
+                if (part == SemanticPart.WALL || part == SemanticPart.WALL_BASE) {
+                    return "minecraft:gray_concrete";
+                }
+            }
+        }
+        
+        return null;
     }
     
     /**

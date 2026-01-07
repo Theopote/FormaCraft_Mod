@@ -49,10 +49,20 @@ public final class GeneratorRegistry {
         
         // 侧翼生成器（复用 MassMainGenerator）
         register("SIDE_WING", new MassMainGenerator());
+        register("MASS_WING", new MassMainGenerator()); // 扎哈风格侧翼
+        
+        // 入口和屋顶结构
+        register("ENTRANCE_CANOPY", new EntranceGenerator()); // 入口顶篷，复用 EntranceGenerator
+        register("ROOF_STRUCTURE", new RoofGenerator()); // 屋顶结构，复用 RoofGenerator
+        
+        // 平台和广场
+        register("TERRACE_PLAZA", new TerraceGenerator()); // 平台广场，复用 TerraceGenerator
+        register("PLAZA", new TerraceGenerator()); // 广场
         
         // 连接器（桥、坡道等）
         register("CONNECTOR", new PathGenerator()); // 临时复用 PathGenerator，后续可创建专用生成器
         register("BRIDGE", new PathGenerator()); // 临时复用 PathGenerator
+        register("BRIDGE_CONNECTOR", new PathGenerator()); // 桥连接器
 
         // 后续可以不断添加
         // register("COURTYARD", new CourtyardGenerator());
