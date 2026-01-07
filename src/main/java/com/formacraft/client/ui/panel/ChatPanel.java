@@ -106,9 +106,8 @@ public class ChatPanel extends BasePanel {
     // 原版风格按钮（与 SettingsPanel 保持一致：ButtonWidget 渲染）
     private ButtonWidget sendButton;
     private ButtonWidget stopButton;
-    private ButtonWidget modeButton;
 
-    // Prompt 模式：默认 BUILD
+    // Prompt 模式：默认 BUILD（不再显示按钮，直接使用默认模式）
     private PromptMode promptMode = PromptMode.BUILD;
 
     public ChatPanel() {
@@ -139,18 +138,6 @@ public class ChatPanel extends BasePanel {
                 })
                 .dimensions(0, 0, STOP_BUTTON_SIZE, STOP_BUTTON_SIZE)
                 .tooltip(Tooltip.of(Text.literal("中断生成")))
-                .build();
-
-        modeButton = ButtonWidget.builder(Text.literal("B"), b -> {
-                    // cycle: BUILD -> PATCH -> MODIFY_REGION -> BUILD
-                    promptMode = switch (promptMode) {
-                        case BUILD -> PromptMode.PATCH;
-                        case PATCH -> PromptMode.MODIFY_REGION;
-                        case MODIFY_REGION -> PromptMode.BUILD;
-                    };
-                })
-                .dimensions(0, 0, SEND_BUTTON_SIZE, SEND_BUTTON_SIZE)
-                .tooltip(Tooltip.of(Text.literal("PromptMode：B=BUILD / P=PATCH / R=MODIFY_REGION")))
                 .build();
     }
 
@@ -425,7 +412,6 @@ public class ChatPanel extends BasePanel {
 
         int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
         int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
-        int modeX = btnX - SEND_BUTTON_SIZE - 2;
 
         // Stop 按钮（仅流式打印时显示，位于发送按钮上方）
         boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
@@ -441,13 +427,6 @@ public class ChatPanel extends BasePanel {
         sendButton.active = true;
         sendButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
 
-        // Mode（B/P/R）
-        modeButton.setMessage(Text.literal(promptMode == PromptMode.BUILD ? "B" : (promptMode == PromptMode.PATCH ? "P" : "R")));
-        modeButton.setPosition(modeX, btnY);
-        modeButton.visible = true;
-        modeButton.active = true;
-        modeButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
-
         // Stop（原版 ButtonWidget 渲染）
         stopButton.setPosition(btnX, stopY);
         stopButton.visible = generating;
@@ -459,7 +438,7 @@ public class ChatPanel extends BasePanel {
         // 输入框区域（根据字体大小调整高度，减小边距）
         int inputBoxX = innerX + 2;
         int inputBoxY = inputY + 2;
-        int inputBoxW = innerW - (SEND_BUTTON_SIZE * 2) - 8;
+        int inputBoxW = innerW - SEND_BUTTON_SIZE - 8;
         int inputBoxH = inputAreaHeight - 4;
 
         // 选区提示（在输入框上方一行灰字）
@@ -467,9 +446,6 @@ public class ChatPanel extends BasePanel {
             String hint = "已选区：" + SelectionContext.sizeX() + " × " + SelectionContext.sizeY() + " × " + SelectionContext.sizeZ() + "（将作为 AI 建造范围）";
             ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), inputBoxX, inputBoxY - 12, 0xFFAAAAAA);
         }
-        String modeHint = promptMode == PromptMode.BUILD ? "模式：BUILD（新建）" :
-                (promptMode == PromptMode.PATCH ? "模式：PATCH（增量编辑）" : "模式：MODIFY_REGION（仅改选区）");
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(modeHint), inputBoxX, inputBoxY - 24, 0xFFAAAAAA);
 
         inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
         inputBox.render(ctx);
@@ -515,17 +491,6 @@ public class ChatPanel extends BasePanel {
                 return true;
             }
 
-        if (modeButton != null && modeButton.visible && modeButton.isMouseOver(mouseX, mouseY)) {
-            java.util.List<Text> lines = java.util.List.of(
-                    Text.literal("PromptMode："),
-                    Text.literal("B = BUILD（新建）"),
-                    Text.literal("P = PATCH（增量编辑）"),
-                    Text.literal("R = MODIFY_REGION（仅改选区）")
-            );
-            drawTooltipCompat(ctx, lines, (int) mouseX, (int) mouseY);
-            return true;
-        }
-
         return false;
     }
 
@@ -555,7 +520,6 @@ public class ChatPanel extends BasePanel {
         boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
         int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
         int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
-        int modeX = btnX - SEND_BUTTON_SIZE - 2;
         int stopY = btnY - STOP_BUTTON_SIZE - 2;
 
         // ButtonWidget 点击（优先 Stop）
@@ -574,13 +538,6 @@ public class ChatPanel extends BasePanel {
             return true;
         }
 
-        modeButton.setPosition(modeX, btnY);
-        modeButton.visible = true;
-        modeButton.active = true;
-        if (modeButton.mouseClicked(click, false)) {
-            return true;
-        }
-
         // 在输出区点击：开始选择 / 或点击空白清除
         if (tryStartSelection(mouseX, mouseY)) {
             // 选中输出文本后，不要抢输入框焦点
@@ -593,10 +550,10 @@ public class ChatPanel extends BasePanel {
         }
 
         // 点击输入框区域，设置焦点
-        // 注意：这里必须与 drawInputArea 的 bounds 完全一致，否则会出现“点击位置不准/放不到中间”的问题
+        // 注意：这里必须与 drawInputArea 的 bounds 完全一致，否则会出现"点击位置不准/放不到中间"的问题
         int inputBoxX = innerX + 2;
         int inputBoxY = inputY + 2;
-        int inputBoxW = innerW - (SEND_BUTTON_SIZE * 2) - 8;
+        int inputBoxW = innerW - SEND_BUTTON_SIZE - 8;
         int inputBoxH = inputAreaHeight - 4;
         
         inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
