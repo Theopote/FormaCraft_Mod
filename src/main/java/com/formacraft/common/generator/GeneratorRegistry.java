@@ -32,6 +32,12 @@ public final class GeneratorRegistry {
         register("FACADE_WINDOWS", new EntranceGenerator()); // 临时复用，后续可单独实现
         register("PAVING", new RoadGenerator()); // 临时复用，后续可单独实现
         register("FENCE_OR_WALL", new WallGenerator()); // 复用 WallGenerator
+        
+        // 新增生成器
+        register("ROOF", new RoofGenerator());
+        register("COURTYARD_SPACE", new CourtyardSpaceGenerator());
+        register("GATE_STRUCTURE", new GateStructureGenerator());
+        register("PATH", new PathGenerator());
 
         // 后续可以不断添加
         // register("BRIDGE", new BridgeGenerator());
