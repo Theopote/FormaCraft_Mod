@@ -7,9 +7,9 @@ import java.util.Map;
 
 /**
  * GeneratorRegistry（生成器注册表）
- * 
+ * <p>
  * component_type → Generator 映射
- * 
+ * <p>
  * 插件式扩展的关键：后续可以不断添加新的 Generator
  */
 public final class GeneratorRegistry {

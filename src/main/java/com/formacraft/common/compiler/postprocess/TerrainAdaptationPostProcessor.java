@@ -12,9 +12,9 @@ import java.util.List;
 
 /**
  * TerrainAdaptationPostProcessor（地形适应后处理器）
- * 
+ * <p>
  * 根据地形策略，调整 BlockPatch 的 Y 坐标，使建筑适应地形。
- * 
+ * <p>
  * 功能：
  * - PRESERVE：保持原样（不调整）
  * - ADAPTIVE：根据地形调整每个方块的高度
@@ -96,9 +96,8 @@ public class TerrainAdaptationPostProcessor implements PostProcessor {
             }
             case TERRACE -> {
                 // 平台化：创建分段平台
-                int groundY = terrainSampler.sampleGroundY(world, worldPos.getX(), worldPos.getZ());
                 // 简化：调整到最近的地面高度
-                yield groundY;
+                yield terrainSampler.sampleGroundY(world, worldPos.getX(), worldPos.getZ());
             }
             case FLATTEN -> {
                 // 平整：所有方块调整到同一高度（使用 anchor 的 Y）
