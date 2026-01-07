@@ -28,6 +28,9 @@ public class PromptContext {
     /** StreetProfile（街道剖面，K2 新增） */
     public com.formacraft.common.cluster.StreetProfile streetProfile = null;
 
+    /** ZoningProfile（分区预设，K3 新增） */
+    public com.formacraft.common.cluster.zoning.ZoningProfile zoningProfile = null;
+
     /** 硬规则（必须遵守） */
     public final List<String> rules = new ArrayList<>();
 

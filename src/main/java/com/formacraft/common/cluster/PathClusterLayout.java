@@ -26,10 +26,21 @@ public final class PathClusterLayout {
      * 建筑槽位（Building Slot）
      * 
      * 定义沿路径的一个建筑位置和参数
+     * 
+     * K3 扩展：添加了路径进度、侧、lane、功能等字段
      */
     public static final class BuildingSlot {
         /** 建筑锚点（世界坐标） */
         public final BlockPos anchor;
+        
+        /** 路径进度 [0..1]（K3 新增） */
+        public final float t;
+        
+        /** 街道侧（K3 新增） */
+        public final com.formacraft.common.cluster.StreetSide side;
+        
+        /** Lane 索引（K3 新增） */
+        public final int laneIndex;
         
         /** 朝向路径的方向 */
         public final Facing facing;
@@ -42,7 +53,13 @@ public final class PathClusterLayout {
         
         /** 高度提示（用于 AI 生成） */
         public final int heightHint;
+        
+        /** 建筑功能（K3 新增） */
+        public final com.formacraft.common.cluster.zoning.BuildingProgram program;
 
+        /**
+         * K1/K2 兼容构造函数（无 zoning 信息）
+         */
         public BuildingSlot(
                 BlockPos anchor,
                 Facing facing,
@@ -50,11 +67,34 @@ public final class PathClusterLayout {
                 int depth,
                 int heightHint
         ) {
+            this(anchor, 0.0f, com.formacraft.common.cluster.StreetSide.LEFT, 0,
+                 facing, width, depth, heightHint,
+                 com.formacraft.common.cluster.zoning.BuildingProgram.RESIDENTIAL);
+        }
+
+        /**
+         * K3 完整构造函数（包含 zoning 信息）
+         */
+        public BuildingSlot(
+                BlockPos anchor,
+                float t,
+                com.formacraft.common.cluster.StreetSide side,
+                int laneIndex,
+                Facing facing,
+                int width,
+                int depth,
+                int heightHint,
+                com.formacraft.common.cluster.zoning.BuildingProgram program
+        ) {
             this.anchor = anchor != null ? anchor : BlockPos.ORIGIN;
+            this.t = Math.max(0.0f, Math.min(1.0f, t));
+            this.side = side != null ? side : com.formacraft.common.cluster.StreetSide.LEFT;
+            this.laneIndex = Math.max(0, laneIndex);
             this.facing = facing != null ? facing : Facing.ALONG_PATH;
             this.width = Math.max(1, width);
             this.depth = Math.max(1, depth);
             this.heightHint = Math.max(1, heightHint);
+            this.program = program != null ? program : com.formacraft.common.cluster.zoning.BuildingProgram.RESIDENTIAL;
         }
     }
 

@@ -374,7 +374,74 @@ SEMANTIC REGIONS:
         sb.append("- IMPORTANT: Building positions (anchors) are already determined by algorithm\n");
         sb.append("- Your role: decide building style, details, and variations\n");
         sb.append("- Do NOT change building positions or anchors\n");
+        
+        // K3 新增：功能分区信息
+        if (ctx.clusterLayout != null && ctx.zoningProfile != null) {
+            sb.append("\n");
+            sb.append(zoningBlock(ctx));
+        }
+        
         sb.append("\n");
+        return sb.toString();
+    }
+
+    /**
+     * Zoning Block（功能分区提示）
+     * 
+     * K3 新增：告诉 AI 建筑功能分区信息
+     * 
+     * 关键设计原则：
+     * - ✅ LLM 看到"规划意图"（功能分区）
+     * - ❌ LLM 不决定 slot 坐标（坐标仍由布局算法给）
+     */
+    private static String zoningBlock(PromptContext ctx) {
+        if (ctx == null || ctx.clusterLayout == null || !ctx.clusterLayout.isValid() || 
+            ctx.zoningProfile == null) {
+            return "";
+        }
+
+        com.formacraft.common.cluster.PathClusterLayout layout = ctx.clusterLayout;
+        com.formacraft.common.cluster.zoning.ZoningProfile profile = ctx.zoningProfile;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("ZONING:\n");
+        sb.append("- basis: path\n");
+        sb.append("- profile: ").append(profile.id).append("\n");
+        
+        // 规则摘要
+        sb.append("- rules_summary:\n");
+        for (var rule : profile.rules) {
+            String sideStr = rule.sides() != null && !rule.sides().isEmpty()
+                    ? rule.sides().toString() : "both";
+            String laneStr = rule.laneIndex() != null 
+                    ? "lane=" + rule.laneIndex() : "all-lanes";
+            String labelStr = rule.requiredLabel() != null 
+                    ? "label=" + rule.requiredLabel() : "";
+            
+            sb.append("  * t=").append(String.format("%.2f", rule.startT()))
+              .append("~").append(String.format("%.2f", rule.endT()))
+              .append(" ").append(sideStr).append(" ").append(laneStr);
+            if (!labelStr.isEmpty()) {
+                sb.append(" ").append(labelStr);
+            }
+            sb.append(" -> ").append(rule.program().name()).append("\n");
+        }
+        
+        // 槽位信息（前 10 个作为示例）
+        sb.append("- slots (sample):\n");
+        int count = 0;
+        for (var slot : layout.slots) {
+            if (count >= 10) break;
+            sb.append("  * {t:").append(String.format("%.2f", slot.t))
+              .append(",side:").append(slot.side.name())
+              .append(",lane:").append(slot.laneIndex)
+              .append(",program:").append(slot.program.name()).append("}\n");
+            count++;
+        }
+        
+        sb.append("- IMPORTANT: Building functions (programs) are already determined by zoning rules\n");
+        sb.append("- Your role: generate appropriate components for each program (shop fronts, stalls, residential balconies, industrial chimneys, etc.)\n");
+        sb.append("- Style is controlled by StyleProfile (palette), but components should match the program\n");
         
         return sb.toString();
     }

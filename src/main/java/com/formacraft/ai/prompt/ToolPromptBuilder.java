@@ -45,6 +45,9 @@ public final class ToolPromptBuilder {
                 if (SymmetryContext.enabled() && ctx.streetProfile != null) {
                     ctx.streetProfile = ctx.streetProfile.withSymmetric(true);
                 }
+                
+                // K3 新增：根据用户输入确定 ZoningProfile
+                ctx.zoningProfile = resolveZoningProfile(ctx.userMessage, ctx.streetProfile);
             }
         }
 
@@ -146,6 +149,37 @@ public final class ToolPromptBuilder {
         
         // 默认：单排
         return com.formacraft.common.cluster.StreetProfile.simple();
+    }
+
+    /**
+     * 从用户输入解析 ZoningProfile（K3 新增）
+     */
+    private static com.formacraft.common.cluster.zoning.ZoningProfile resolveZoningProfile(
+            String userText,
+            com.formacraft.common.cluster.StreetProfile streetProfile
+    ) {
+        if (userText == null || userText.trim().isEmpty()) {
+            // 默认使用城镇街道分区
+            int laneCount = (streetProfile != null) ? streetProfile.laneCount() : 1;
+            return com.formacraft.common.cluster.zoning.ZoningProfile.defaultTownStreet(laneCount);
+        }
+
+        String lower = userText.toLowerCase();
+        int laneCount = (streetProfile != null) ? streetProfile.laneCount() : 1;
+        
+        // 检查关键词
+        if (lower.contains("商业街") || lower.contains("commercial") || 
+            lower.contains("商店") || lower.contains("shop")) {
+            return com.formacraft.common.cluster.zoning.ZoningProfile.commercialStreet(laneCount);
+        }
+        
+        if (lower.contains("城墙") || lower.contains("长城") || lower.contains("防御") || 
+            lower.contains("wall") || lower.contains("defensive")) {
+            return com.formacraft.common.cluster.zoning.ZoningProfile.defensiveStreet();
+        }
+        
+        // 默认：城镇街道分区
+        return com.formacraft.common.cluster.zoning.ZoningProfile.defaultTownStreet(laneCount);
     }
 
     private static void addMultiline(java.util.List<String> target, String block) {
