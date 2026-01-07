@@ -518,9 +518,7 @@ public class ToolPanel extends BasePanel {
         }
 
         if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
-        if (clearAnchorButton != null && clearAnchorButton.visible && clearAnchorButton.mouseClicked(click, false)) return true;
-
-        return false;
+        return clearAnchorButton != null && clearAnchorButton.visible && clearAnchorButton.mouseClicked(click, false);
     }
 
     @Override
@@ -591,7 +589,7 @@ public class ToolPanel extends BasePanel {
         return LABEL_RANGE_MIN + (int) Math.round(v * (LABEL_RANGE_MAX - LABEL_RANGE_MIN));
     }
 
-    private class LabelRangeSlider extends SliderWidget {
+    private static class LabelRangeSlider extends SliderWidget {
         public LabelRangeSlider(int x, int y, int width, int height, Text message, double value) {
             super(x, y, width, height, message, value);
             updateMessage();

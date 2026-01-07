@@ -29,7 +29,7 @@ public final class GeneratorRegistry {
         register("MASS_SECONDARY", new MassMainGenerator()); // 复用 MassMainGenerator
         register("ENTRANCE", new EntranceGenerator());
         register("SIGNAGE", new SignageGenerator());
-        register("FACADE_WINDOWS", new EntranceGenerator()); // 临时复用，后续可单独实现
+        register("FACADE_WINDOWS", new FacadeWindowsGenerator()); // 使用专用生成器
         register("PAVING", new RoadGenerator()); // 临时复用，后续可单独实现
         register("FENCE_OR_WALL", new WallGenerator()); // 复用 WallGenerator
         
@@ -38,6 +38,12 @@ public final class GeneratorRegistry {
         register("COURTYARD_SPACE", new CourtyardSpaceGenerator());
         register("GATE_STRUCTURE", new GateStructureGenerator());
         register("PATH", new PathGenerator());
+        
+        // 完整建筑生成所需的生成器
+        register("BALCONY", new BalconyGenerator());
+        register("CHIMNEY", new ChimneyGenerator());
+        register("FOUNDATION", new FoundationGenerator());
+        register("DECOR_DETAIL", new DecorDetailGenerator());
 
         // 后续可以不断添加
         // register("BRIDGE", new BridgeGenerator());

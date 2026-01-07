@@ -41,11 +41,97 @@ public class MassMainGenerator implements ComponentGenerator {
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 生成矩形体块
+        // 检查 features
+        boolean hasWindows = hasFeature(c, "windows", "window", "facade_windows");
+        boolean hasRoof = hasFeature(c, "roof", "curved_roof", "sloped_roof");
+        boolean hasDoors = hasFeature(c, "door", "doors", "entrance");
+        boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved");
+
+        // 生成矩形体块（基础结构）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 根据位置确定 SemanticPart
+                    // 检查是否是窗户位置
+                    if (hasWindows && isWindowPosition(x, z, width, depth, y, height)) {
+                        // 生成窗户（使用 WINDOW 语义部位）
+                        SemanticPart part = SemanticPart.WINDOW;
+                        String block = palette.pick(part);
+                        if (block == null || block.isEmpty()) {
+                            block = "minecraft:glass";
+                        }
+                        out.add(new BlockPatch(
+                                BlockPatch.PLACE,
+                                rp.x() + x,
+                                rp.y() + y,
+                                rp.z() + z,
+                                block
+                        ));
+                        continue;
+                    }
+
+                    // 检查是否是门位置
+                    if (hasDoors && isDoorPosition(x, z, width, depth, y)) {
+                        // 生成门（使用 DOORWAY 语义部位）
+                        SemanticPart part = SemanticPart.DOORWAY;
+                        String block = palette.pick(part);
+                        if (block == null || block.isEmpty()) {
+                            block = "minecraft:air"; // 门洞保持空气
+                        }
+                        // 门洞不放置方块，但可以放置门框
+                        if (y == 0 || (x == width / 2 && z == 0)) {
+                            // 门框
+                            part = SemanticPart.WALL_ACCENT;
+                            block = palette.pick(part);
+                            out.add(new BlockPatch(
+                                    BlockPatch.PLACE,
+                                    rp.x() + x,
+                                    rp.y() + y,
+                                    rp.z() + z,
+                                    block
+                            ));
+                        }
+                        continue;
+                    }
+
+                    // 检查是否是屋顶位置
+                    if (hasRoof && y >= height - 1) {
+                        // 生成屋顶（使用 ROOF_SURFACE 语义部位）
+                        SemanticPart part = SemanticPart.ROOF_SURFACE;
+                        String block = palette.pick(part);
+                        if (block == null || block.isEmpty()) {
+                            part = SemanticPart.ROOF;
+                            block = palette.pick(part);
+                        }
+                        out.add(new BlockPatch(
+                                BlockPatch.PLACE,
+                                rp.x() + x,
+                                rp.y() + y,
+                                rp.z() + z,
+                                block
+                        ));
+                        continue;
+                    }
+
+                    // 检查是否是装饰位置
+                    if (hasDecor && isDecorPosition(x, z, width, depth, y, height)) {
+                        // 生成装饰（使用 DECOR 语义部位）
+                        SemanticPart part = SemanticPart.DECOR;
+                        String block = palette.pick(part);
+                        if (block == null || block.isEmpty()) {
+                            part = SemanticPart.WALL_ACCENT;
+                            block = palette.pick(part);
+                        }
+                        out.add(new BlockPatch(
+                                BlockPatch.PLACE,
+                                rp.x() + x,
+                                rp.y() + y,
+                                rp.z() + z,
+                                block
+                        ));
+                        continue;
+                    }
+
+                    // 默认：根据位置确定 SemanticPart
                     SemanticPart part = determinePart(y, height, width, depth, x, z);
                     String block = palette.pick(part);
                     
@@ -61,6 +147,59 @@ public class MassMainGenerator implements ComponentGenerator {
         }
 
         return out;
+    }
+
+    /**
+     * 检查是否是窗户位置
+     */
+    private boolean isWindowPosition(int x, int z, int width, int depth, int y, int height) {
+        // 窗户通常在立面（z=0 或 z=depth-1），不在底部和顶部
+        boolean isFacade = (z == 0 || z == depth - 1);
+        boolean isMiddleHeight = (y > 0 && y < height - 1);
+        // 窗户通常不在角落
+        boolean isNotCorner = (x > 0 && x < width - 1);
+        // 窗户通常间隔放置
+        boolean isWindowSpacing = (x % 3 == 1 || x % 3 == 2);
+        return isFacade && isMiddleHeight && isNotCorner && isWindowSpacing;
+    }
+
+    /**
+     * 检查是否是门位置
+     */
+    private boolean isDoorPosition(int x, int z, int width, int depth, int y) {
+        // 门通常在正面（z=0），居中，只在底部
+        boolean isFront = (z == 0);
+        boolean isCenter = (x >= width / 2 - 1 && x <= width / 2 + 1);
+        boolean isBottom = (y < 3);
+        return isFront && isCenter && isBottom;
+    }
+
+    /**
+     * 检查是否是装饰位置
+     */
+    private boolean isDecorPosition(int x, int z, int width, int depth, int y, int height) {
+        // 装饰通常在边缘、顶部、角落
+        boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
+        boolean isTop = (y >= height - 2);
+        boolean isCorner = ((x == 0 || x == width - 1) && (z == 0 || z == depth - 1));
+        return (isEdge || isTop || isCorner) && (y > 0);
+    }
+
+    /**
+     * 检查是否有特定特征
+     */
+    private boolean hasFeature(Component c, String... keywords) {
+        if (c.features() == null) return false;
+        for (String feature : c.features()) {
+            if (feature == null) continue;
+            String lower = feature.toLowerCase();
+            for (String keyword : keywords) {
+                if (lower.contains(keyword.toLowerCase())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private String getStyleProfile(SemanticComponent semantic) {

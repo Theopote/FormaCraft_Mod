@@ -913,9 +913,6 @@ public class FormaCraftNetworking {
                                     if (llmPlanJson != null) {
                                         LlmPlan llmPlan = LlmPlanParser.parseAndValidate(llmPlanJson);
                                         
-                                        // 编译 components 为 BlockPatch
-                                        List<BlockPatch> patches = ComponentPlanCompiler.compile(llmPlan);
-                                        
                                         // 获取 anchor（全局或第一个 slot）
                                         BlockPos planOrigin = origin;
                                         if (llmPlan.anchor() != null) {
@@ -925,6 +922,18 @@ public class FormaCraftNetworking {
                                                     llmPlan.anchor().z()
                                             );
                                         }
+                                        
+                                        // 编译 components 为 BlockPatch（包含后处理）
+                                        // 创建地形采样器
+                                        com.formacraft.common.terrain.TerrainStrategySampler terrainSampler = 
+                                                new com.formacraft.common.terrain.TerrainStrategySampler();
+                                        
+                                        List<BlockPatch> patches = ComponentPlanCompiler.compile(
+                                                llmPlan,
+                                                planOrigin,
+                                                serverWorld,
+                                                terrainSampler
+                                        );
                                         
                                         // 将 BlockPatch 转换为 PlannedBlock
                                         List<PlannedBlock> plannedBlocks = new ArrayList<>();

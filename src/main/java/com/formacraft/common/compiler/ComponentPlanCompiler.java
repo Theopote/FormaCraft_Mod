@@ -1,5 +1,7 @@
 package com.formacraft.common.compiler;
 
+import com.formacraft.common.compiler.postprocess.PostProcessContext;
+import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generator.ComponentGenerator;
 import com.formacraft.common.generator.GeneratorRegistry;
@@ -9,6 +11,9 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import com.formacraft.common.terrain.TerrainStrategySampler;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,12 +39,30 @@ public final class ComponentPlanCompiler {
     private ComponentPlanCompiler() {}
 
     /**
-     * 编译 LLM Plan 为 BlockPatch 列表
+     * 编译 LLM Plan 为 BlockPatch 列表（基础版本，不包含后处理）
      * 
      * @param plan LLM 输出的 Plan
      * @return BlockPatch 列表（相对 plan.anchor）
      */
     public static List<BlockPatch> compile(LlmPlan plan) {
+        return compile(plan, null, null, null);
+    }
+
+    /**
+     * 编译 LLM Plan 为 BlockPatch 列表（完整版本，包含后处理）
+     * 
+     * @param plan LLM 输出的 Plan
+     * @param globalAnchor 全局 anchor（世界坐标，用于地形适应）
+     * @param world 服务器世界（用于地形适应，可选）
+     * @param terrainSampler 地形采样器（用于地形适应，可选）
+     * @return BlockPatch 列表（相对 plan.anchor）
+     */
+    public static List<BlockPatch> compile(
+            LlmPlan plan,
+            BlockPos globalAnchor,
+            ServerWorld world,
+            TerrainStrategySampler terrainSampler
+    ) {
         List<BlockPatch> result = new ArrayList<>();
 
         if (plan == null) {
@@ -97,6 +120,24 @@ public final class ComponentPlanCompiler {
 
         FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches", 
                 plan.components().size(), result.size());
+
+        // 后处理步骤
+        if (globalAnchor != null) {
+            PostProcessContext context = PostProcessContext.create(plan, globalAnchor);
+            PostProcessPipeline pipeline;
+            
+            if (world != null && terrainSampler != null) {
+                // 包含地形适应的完整管道
+                pipeline = PostProcessPipeline.createWithTerrain(context, world, terrainSampler);
+            } else {
+                // 基础管道（不包含地形适应）
+                pipeline = PostProcessPipeline.createDefault(context);
+            }
+            
+            result = pipeline.process(result, context);
+            
+            FormacraftMod.LOGGER.info("ComponentPlanCompiler: post-processed to {} patches", result.size());
+        }
 
         return result;
     }

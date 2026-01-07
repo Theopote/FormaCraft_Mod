@@ -1,0 +1,120 @@
+package com.formacraft.common.generator.impl;
+
+import com.formacraft.common.compiler.semantic.SemanticComponent;
+import com.formacraft.common.generator.ComponentGenerator;
+import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.palette.component.Palette;
+import com.formacraft.common.palette.component.PaletteLibrary;
+import com.formacraft.common.semantic.SemanticPart;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * FacadeWindowsGenerator（立面窗户生成器）
+ * 
+ * 生成建筑立面的窗户/橱窗/窗带
+ * 支持不同风格的窗户（格子窗、大窗、落地窗等）
+ */
+public class FacadeWindowsGenerator implements ComponentGenerator {
+
+    @Override
+    public List<BlockPatch> generate(SemanticComponent semantic) {
+        List<BlockPatch> out = new ArrayList<>();
+
+        Component c = semantic.source();
+        if (c == null || c.dimensions() == null || c.relativePosition() == null) {
+            return out;
+        }
+
+        Dimensions d = c.dimensions();
+        Vec3i rp = c.relativePosition();
+
+        int width = Math.max(1, d.width());
+        int depth = Math.max(1, d.depth());
+        int height = Math.max(1, d.height());
+
+        String styleProfile = getStyleProfile(semantic);
+        Palette palette = PaletteLibrary.forStyle(styleProfile);
+
+        // 检查 features 以确定窗户类型
+        boolean isLattice = hasFeature(c, "lattice", "lattice_pattern");
+        boolean isLarge = hasFeature(c, "large", "big", "wide");
+        // boolean isFloorToCeiling = hasFeature(c, "floor_to_ceiling", "full_height"); // 保留用于未来扩展
+
+        // 生成窗户（通常只在立面，depth 通常为 1）
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                for (int z = 0; z < depth; z++) {
+                    // 窗户通常只在立面（z=0 或 z=depth-1）
+                    boolean isFacade = (z == 0 || z == depth - 1);
+                    
+                    if (isFacade) {
+                        // 根据位置和特征决定窗户类型
+                        SemanticPart part = determineWindowPart(y, height, isLattice, isLarge);
+                        String block = palette.pick(part);
+                        
+                        // 如果没有窗户材质，使用玻璃
+                        if (block == null || block.isEmpty()) {
+                            block = isLattice ? "minecraft:iron_bars" : "minecraft:glass";
+                        }
+                        
+                        out.add(new BlockPatch(
+                                BlockPatch.PLACE,
+                                rp.x() + x,
+                                rp.y() + y,
+                                rp.z() + z,
+                                block
+                        ));
+                    }
+                }
+            }
+        }
+
+        return out;
+    }
+
+    /**
+     * 确定窗户的语义部位
+     */
+    private SemanticPart determineWindowPart(int y, int height, boolean isLattice, boolean isLarge) {
+        // 顶部和底部使用窗框
+        if (y == 0 || y >= height - 1) {
+            return SemanticPart.WINDOW; // 窗框
+        }
+        
+        // 中间部分使用窗户
+        if (isLattice) {
+            return SemanticPart.WINDOW; // 格子窗
+        } else if (isLarge) {
+            return SemanticPart.WINDOW; // 大窗
+        } else {
+            return SemanticPart.WINDOW; // 普通窗
+        }
+    }
+
+    /**
+     * 检查是否有特定特征
+     */
+    private boolean hasFeature(Component c, String... keywords) {
+        if (c.features() == null) return false;
+        for (String feature : c.features()) {
+            if (feature == null) continue;
+            String lower = feature.toLowerCase();
+            for (String keyword : keywords) {
+                if (lower.contains(keyword.toLowerCase())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private String getStyleProfile(SemanticComponent semantic) {
+        return "MEDIEVAL_CLASSIC";
+    }
+}
+
