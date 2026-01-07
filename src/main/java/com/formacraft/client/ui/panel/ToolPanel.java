@@ -71,9 +71,10 @@ public class ToolPanel extends BasePanel {
     private int labelNameInputH = 0;
     private boolean labelNameInputBoundsValid = false;
 
-    // 滚动
+    // 滚动（仅用于选项区域）
     private int scrollY = 0;
     private int maxScrollY = 0;
+    private int separatorY = 0; // 分隔线的 Y 坐标
 
     private void ensureWidgets() {
         // 工具列表按钮：如果工具数量发生变化则重建
@@ -186,7 +187,6 @@ public class ToolPanel extends BasePanel {
         ensureWidgets();
 
         int x = panelX + CONTENT_PADDING;
-        int y = getContentY() + CONTENT_PADDING - scrollY;
         int w = panelWidth - CONTENT_PADDING * 2;
 
         // 每帧重置 bounds（如果本帧没画到输入框，就不允许点击命中它）
@@ -195,28 +195,26 @@ public class ToolPanel extends BasePanel {
         // 半透明底
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
 
-        // 内容裁剪（避免滚动时画出边界）
-        int sx0 = panelX + 1;
-        int sy0 = getContentY() + 1;
-        int sx1 = panelX + panelWidth - 1;
-        int sy1 = panelY + panelHeight - 1;
-        if (sx1 > sx0 && sy1 > sy0) ctx.enableScissor(sx0, sy0, sx1, sy1);
-        try {
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("Tools"), x, y, 0xFFFFFFFF);
-        y += 20;
+        // ====================
+        // 第一部分：固定区域（工具列表，不滚动）
+        // ====================
+        int fixedY = getContentY() + CONTENT_PADDING;
 
-        // --------------------
-        // 工具列表（插件化）
-        // --------------------
+        // 第一行：当前工具按钮（独占一行）
         noneToolButton.setMessage(Text.literal(ToolManager.getActiveTool() == null ? "当前工具：无" :
                 "当前工具：" + ToolManager.getActiveTool().getDisplayName().getString()));
-        noneToolButton.setPosition(x, y);
+        noneToolButton.setPosition(x, fixedY);
         noneToolButton.setWidth(w);
         noneToolButton.visible = true;
         noneToolButton.active = true;
         noneToolButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
+        fixedY += LABEL_OFFSET;
 
+        // 工具列表（插件化）：每行两个按钮
+        int buttonWidth = (w - 4) / 2; // 两个按钮之间的间距为4
+        int buttonIndex = 0;
+        int currentRowY = fixedY;
+        
         for (Map.Entry<String, ButtonWidget> e : toolButtons.entrySet()) {
             String id = e.getKey();
             ButtonWidget b = e.getValue();
@@ -226,125 +224,226 @@ public class ToolPanel extends BasePanel {
             if (base == null) base = b.getMessage();
             // 关键：不要基于 b.getMessage() 累积拼接；每帧都从 base 重新生成
             b.setMessage(Text.literal((active ? "▶ " : "") + base.getString()));
-            b.setPosition(x, y);
-            b.setWidth(w);
+            
+            // 计算按钮位置：每行两个
+            int buttonX = (buttonIndex % 2 == 0) ? x : (x + buttonWidth + 4);
+            b.setPosition(buttonX, currentRowY);
+            b.setWidth(buttonWidth);
             b.visible = true;
             b.active = true;
             b.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
+            
+            buttonIndex++;
+            // 每两个按钮换一行
+            if (buttonIndex % 2 == 0) {
+                currentRowY += LABEL_OFFSET;
+            }
+        }
+        
+        // 如果最后一个按钮是奇数个，需要换行
+        if (buttonIndex % 2 != 0) {
+            currentRowY += LABEL_OFFSET;
+        }
+        
+        fixedY = currentRowY;
+        fixedY += 4; // 减小到分割线的距离
+        separatorY = fixedY;
+
+        // 绘制分隔线
+        int separatorX0 = panelX + 1;
+        int separatorX1 = panelX + panelWidth - 1;
+        ctx.fill(separatorX0, separatorY, separatorX1, separatorY + 1, 0xFF808080);
+
+        // ====================
+        // 第二部分：滚动区域（当前工具选项）
+        // ====================
+        int optionsStartY = separatorY + 1 + CONTENT_PADDING;
+        int optionsY = optionsStartY - scrollY;
+        int optionsAreaBottom = panelY + panelHeight - 1;
+        int optionsVisibleHeight = optionsAreaBottom - optionsStartY;
+
+        // 内容裁剪（仅裁剪滚动区域）
+        int sx0 = panelX + 1;
+        int sx1 = panelX + panelWidth - 1;
+        if (sx1 > sx0 && optionsAreaBottom > optionsStartY) ctx.enableScissor(sx0, optionsStartY, sx1, optionsAreaBottom);
+        try {
+        // 根据当前激活的工具，只渲染对应工具的选项
+        FormacraftTool activeTool = ToolManager.getActiveTool();
+        String activeToolId = activeTool != null ? activeTool.getId() : null;
+
+        if (activeToolId != null) {
+            // 显示当前工具名称
+            optionsY = drawWrappedText(ctx, 
+                    Text.literal("▼ " + activeTool.getDisplayName().getString() + " Options"), 
+                    x, optionsY, w, 0xFFFFFFFF);
+            optionsY += 2; // 小间距
+        } else {
+            // 没有激活工具时，显示提示
+            optionsY = drawWrappedText(ctx, 
+                    Text.literal("请选择一个工具/右键设置锚点"), 
+                    x, optionsY, w, 0xFFAAAAAA);
+            optionsY += 2; // 小间距
+            
+            // 没有工具时也显示锚点选项（因为锚点是在没有工具时设置的）
+            optionsY += FIELD_SPACING;
+            String anchorText = AnchorState.hasAnchor() ? ("锚点：" + AnchorState.get().getX() + "," + AnchorState.get().getY() + "," + AnchorState.get().getZ()
+                    + "  facing=" + AnchorState.getFacing().name())
+                    : "锚点：未设置（面板外右键设置）";
+            optionsY = drawWrappedText(ctx, Text.literal(anchorText), x, optionsY, w, 0xFFAAAAAA);
+            optionsY += 2; // 小间距
+            clearAnchorButton.setPosition(x, optionsY);
+            clearAnchorButton.setWidth(w);
+            clearAnchorButton.visible = true;
+            clearAnchorButton.active = AnchorState.hasAnchor();
+            clearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+            optionsY += LABEL_OFFSET;
         }
 
-        y += LABEL_OFFSET;
+        // 根据激活的工具ID，渲染对应的选项
+        if (ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
+            optionsY = drawSelectionToolOptions(ctx, x, optionsY, w);
+        } else if (ToolManager.isActive(ProtectedZoneTool.INSTANCE.getId())) {
+            optionsY = drawProtectedZoneToolOptions(ctx, x, optionsY, w);
+        } else if (ToolManager.isActive(OutlineTool.INSTANCE.getId())) {
+            optionsY = drawOutlineToolOptions(ctx, x, optionsY, w);
+        } else if (ToolManager.isActive(PathTool.INSTANCE.getId())) {
+            optionsY = drawPathToolOptions(ctx, x, optionsY, w);
+        } else if (ToolManager.isActive(BrushTool.INSTANCE.getId())) {
+            optionsY = drawBrushToolOptions(ctx, x, optionsY, w);
+        } else if (ToolManager.isActive(SymmetryTool.INSTANCE.getId())) {
+            optionsY = drawSymmetryToolOptions(ctx, x, optionsY, w);
+        } else if (ToolManager.isActive(SemanticLabelTool.INSTANCE.getId())) {
+            optionsY = drawSemanticLabelToolOptions(ctx, x, optionsY, w);
+        }
 
-        // 选区状态
+        // 锚点状态（有工具时也显示在底部，作为通用选项）
+        if (activeToolId != null) {
+            optionsY += FIELD_SPACING;
+            String anchorText = AnchorState.hasAnchor() ? ("锚点：" + AnchorState.get().getX() + "," + AnchorState.get().getY() + "," + AnchorState.get().getZ()
+                    + "  facing=" + AnchorState.getFacing().name())
+                    : "锚点：未设置（面板外右键设置）";
+            optionsY = drawWrappedText(ctx, Text.literal(anchorText), x, optionsY, w, 0xFFAAAAAA);
+            optionsY += 2; // 小间距
+            clearAnchorButton.setPosition(x, optionsY);
+            clearAnchorButton.setWidth(w);
+            clearAnchorButton.visible = true;
+            clearAnchorButton.active = AnchorState.hasAnchor();
+            clearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+            optionsY += LABEL_OFFSET;
+        }
+
+        // 计算最大滚动（基于选项区域的内容高度）
+        int optionsContentHeight = (optionsY + scrollY) - optionsStartY;
+        maxScrollY = Math.max(0, optionsContentHeight - optionsVisibleHeight);
+        if (scrollY > maxScrollY) scrollY = maxScrollY;
+        if (scrollY < 0) scrollY = 0;
+        } finally {
+            if (sx1 > sx0 && optionsAreaBottom > optionsStartY) ctx.disableScissor();
+        }
+    }
+
+    // 绘制 SelectionTool 的选项
+    private int drawSelectionToolOptions(DrawContext ctx, int x, int y, int w) {
         String status;
-        if (!ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
-            status = "当前工具：无";
-        } else if (SelectionTool.INSTANCE.isSelecting()) {
+        if (SelectionTool.INSTANCE.isSelecting()) {
             status = "选区中：点击设置起点/终点";
         } else if (SelectionTool.INSTANCE.hasSelection()) {
             var min = SelectionTool.INSTANCE.getMin();
             var max = SelectionTool.INSTANCE.getMax();
-            int dx = 0;
-            if (max != null) {
-                if (min != null) {
-                    dx = (max.getX() - min.getX() + 1);
-                }
-            }
-            int dy = 0;
-            if (max != null) {
-                if (min != null) {
-                    dy = (max.getY() - min.getY() + 1);
-                }
-            }
-            int dz = 0;
-            if (min != null) {
-                if (max != null) {
-                    dz = (max.getZ() - min.getZ() + 1);
-                }
+            int dx = 0, dy = 0, dz = 0;
+            if (max != null && min != null) {
+                dx = (max.getX() - min.getX() + 1);
+                dy = (max.getY() - min.getY() + 1);
+                dz = (max.getZ() - min.getZ() + 1);
             }
             status = "Selection: " + dx + " x " + dy + " x " + dz;
         } else {
             status = "提示：左键点方块设置起点，再点一次设置终点";
         }
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(status), x, y, 0xFFAAAAAA);
-
-        y += LABEL_OFFSET;
+        y = drawWrappedText(ctx, Text.literal(status), x, y, w, 0xFFAAAAAA);
+        y += 2; // 小间距
 
         clearSelectionButton.setPosition(x, y);
         clearSelectionButton.setWidth(w);
         clearSelectionButton.visible = true;
         clearSelectionButton.active = true;
         clearSelectionButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        // --------------------
-        // 禁区/保护区
-        // --------------------
-        y += FIELD_SPACING;
-        ctx.drawTextWithShadow(client.textRenderer,
-                Text.literal("已添加禁区：" + ProtectedZoneTool.INSTANCE.getZones().size()),
-                x, y, 0xFFAAAAAA);
         y += LABEL_OFFSET;
+
+        return y;
+    }
+
+    // 绘制 ProtectedZoneTool 的选项
+    private int drawProtectedZoneToolOptions(DrawContext ctx, int x, int y, int w) {
+        y = drawWrappedText(ctx,
+                Text.literal("已添加禁区：" + ProtectedZoneTool.INSTANCE.getZones().size()),
+                x, y, w, 0xFFAAAAAA);
+        y += 2; // 小间距
 
         clearProtectedZonesButton.setPosition(x, y);
         clearProtectedZonesButton.setWidth(w);
         clearProtectedZonesButton.visible = true;
         clearProtectedZonesButton.active = true;
         clearProtectedZonesButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
 
-        // --------------------
-        // 轮廓工具
-        // --------------------
-        y += FIELD_SPACING;
+        return y;
+    }
+
+    // 绘制 OutlineTool 的选项
+    private int drawOutlineToolOptions(DrawContext ctx, int x, int y, int w) {
         outlineModeButton.setMessage(Text.literal("模式：" + OutlineTool.INSTANCE.getMode().name()));
         outlineModeButton.setPosition(x, y);
         outlineModeButton.setWidth(w);
         outlineModeButton.visible = true;
         outlineModeButton.active = true;
         outlineModeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
         y += LABEL_OFFSET;
-        ctx.drawTextWithShadow(client.textRenderer,
+
+        y = drawWrappedText(ctx,
                 Text.literal(OutlineTool.INSTANCE.hasShape() ? "轮廓：已完成（紫色区域）" :
                         (OutlineTool.INSTANCE.isDrafting() ? "轮廓：绘制中（右键结束）" : "轮廓：未设置")),
-                x, y, 0xFFAAAAAA);
-        y += LABEL_OFFSET;
+                x, y, w, 0xFFAAAAAA);
+        y += 2; // 小间距
 
         clearOutlineButton.setPosition(x, y);
         clearOutlineButton.setWidth(w);
         clearOutlineButton.visible = true;
         clearOutlineButton.active = true;
         clearOutlineButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
 
-        // --------------------
-        // 路径工具
-        // --------------------
-        y += FIELD_SPACING;
+        return y;
+    }
+
+    // 绘制 PathTool 的选项
+    private int drawPathToolOptions(DrawContext ctx, int x, int y, int w) {
         String pathStatus = PathTool.INSTANCE.isDrafting()
                 ? ("路径：绘制中（草稿点=" + PathTool.INSTANCE.getDraftPointCount() + "，右键结束）")
                 : ("路径：已完成 " + PathTool.INSTANCE.getPathCount() + " 条");
-        ctx.drawTextWithShadow(client.textRenderer,
+        y = drawWrappedText(ctx,
                 Text.literal(pathStatus),
-                x, y, 0xFFAAAAAA);
-        y += LABEL_OFFSET;
+                x, y, w, 0xFFAAAAAA);
+        y += 2; // 小间距
 
         clearPathsButton.setPosition(x, y);
         clearPathsButton.setWidth(w);
         clearPathsButton.visible = true;
         clearPathsButton.active = PathTool.INSTANCE.getPathCount() > 0 || PathTool.INSTANCE.getDraftPointCount() > 0;
         clearPathsButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        // --------------------
-        // 笔刷工具
-        // --------------------
-        y += FIELD_SPACING;
-        ctx.drawTextWithShadow(client.textRenderer,
-                Text.literal("笔刷：半径=" + BrushTool.INSTANCE.getRadius()
-                        + "  已选中=" + BrushTool.INSTANCE.getSelectedCount()),
-                x, y, 0xFFAAAAAA);
         y += LABEL_OFFSET;
 
-        // 模式按钮
+        return y;
+    }
+
+    // 绘制 BrushTool 的选项
+    private int drawBrushToolOptions(DrawContext ctx, int x, int y, int w) {
+        y = drawWrappedText(ctx,
+                Text.literal("笔刷：半径=" + BrushTool.INSTANCE.getRadius()
+                        + "  已选中=" + BrushTool.INSTANCE.getSelectedCount()),
+                x, y, w, 0xFFAAAAAA);
+        y += 2; // 小间距
+
         brushModeButton.setMessage(Text.literal("笔刷模式：" + BrushTool.INSTANCE.getMode().name()));
         brushModeButton.setPosition(x, y);
         brushModeButton.setWidth(w);
@@ -353,7 +452,6 @@ public class ToolPanel extends BasePanel {
         brushModeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
-        // 半径 - / + 两个按钮并排
         int half = (w - 4) / 2;
         brushRadiusMinusButton.setPosition(x, y);
         brushRadiusMinusButton.setWidth(half);
@@ -373,29 +471,33 @@ public class ToolPanel extends BasePanel {
         clearBrushSelectionButton.visible = true;
         clearBrushSelectionButton.active = BrushTool.INSTANCE.getSelectedCount() > 0;
         clearBrushSelectionButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
 
-        // --------------------
-        // 对称/镜像
-        // --------------------
-        y += FIELD_SPACING;
+        return y;
+    }
+
+    // 绘制 SymmetryTool 的选项
+    private int drawSymmetryToolOptions(DrawContext ctx, int x, int y, int w) {
         symmetryModeButton.setMessage(Text.literal("模式：" + SymmetryTool.INSTANCE.getMode().name()));
         symmetryModeButton.setPosition(x, y);
         symmetryModeButton.setWidth(w);
         symmetryModeButton.visible = true;
         symmetryModeButton.active = true;
         symmetryModeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
         y += LABEL_OFFSET;
+
         clearSymmetryButton.setPosition(x, y);
         clearSymmetryButton.setWidth(w);
         clearSymmetryButton.visible = true;
         clearSymmetryButton.active = true;
         clearSymmetryButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
 
-        // --------------------
-        // 语义标注
-        // --------------------
-        y += FIELD_SPACING;
+        return y;
+    }
+
+    // 绘制 SemanticLabelTool 的选项
+    private int drawSemanticLabelToolOptions(DrawContext ctx, int x, int y, int w) {
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("标签名："), x, y, 0xFFAAAAAA);
         int nameInputY = y + LABEL_OFFSET - 2;
         labelNameInput.render(ctx, x, nameInputY, w, 14);
@@ -404,10 +506,9 @@ public class ToolPanel extends BasePanel {
         labelNameInputW = w;
         labelNameInputH = 14;
         labelNameInputBoundsValid = true;
-        // 让工具实时拿到最新标签名
         SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
-
         y += FIELD_SPACING;
+
         int rangeLabelY = y;
         int rangeSliderY = y + LABEL_OFFSET;
         ctx.drawTextWithShadow(client.textRenderer,
@@ -419,44 +520,42 @@ public class ToolPanel extends BasePanel {
         labelRangeSlider.visible = true;
         labelRangeSlider.active = true;
         labelRangeSlider.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
         y += FIELD_SPACING;
-        ctx.drawTextWithShadow(client.textRenderer,
+
+        y = drawWrappedText(ctx,
                 Text.literal("已添加标签：" + SemanticLabelTool.INSTANCE.getLabels().size()),
-                x, y, 0xFFAAAAAA);
-        y += LABEL_OFFSET;
+                x, y, w, 0xFFAAAAAA);
+        y += 2; // 小间距
 
         clearLabelsButton.setPosition(x, y);
         clearLabelsButton.setWidth(w);
         clearLabelsButton.visible = true;
         clearLabelsButton.active = true;
         clearLabelsButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        // --------------------
-        // 锚点状态（置于底部：不挤占工具列表）
-        // --------------------
-        y += FIELD_SPACING;
-        String anchorText = AnchorState.hasAnchor() ? ("锚点：" + AnchorState.get().getX() + "," + AnchorState.get().getY() + "," + AnchorState.get().getZ()
-                + "  facing=" + AnchorState.getFacing().name())
-                : "锚点：未设置（面板外右键设置）";
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(anchorText), x, y, 0xFFAAAAAA);
         y += LABEL_OFFSET;
-        clearAnchorButton.setPosition(x, y);
-        clearAnchorButton.setWidth(w);
-        clearAnchorButton.visible = true;
-        clearAnchorButton.active = AnchorState.hasAnchor();
-        clearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
 
-        // 计算最大滚动（基于未滚动起点）
-        int contentTop = getContentY() + CONTENT_PADDING;
-        int visibleH = getContentHeight() - CONTENT_PADDING * 2;
-        int totalH = (y + scrollY) - contentTop + LABEL_OFFSET; // y 是已减 scrollY 的
-        maxScrollY = Math.max(0, totalH - visibleH);
-        if (scrollY > maxScrollY) scrollY = maxScrollY;
-        if (scrollY < 0) scrollY = 0;
-        } finally {
-            if (sx1 > sx0 && sy1 > sy0) ctx.disableScissor();
+        return y;
+
+    }
+
+    /**
+     * 绘制可换行的文字（当文字超出指定宽度时自动换行）
+     * @param ctx 绘制上下文
+     * @param text 要绘制的文字
+     * @param x 起始 X 坐标
+     * @param y 起始 Y 坐标
+     * @param maxWidth 最大宽度（超出此宽度将换行）
+     * @param color 文字颜色
+     * @return 绘制后的 Y 坐标（最后一行文字的下方）
+     */
+    private int drawWrappedText(DrawContext ctx, Text text, int x, int y, int maxWidth, int color) {
+        if (text == null) return y;
+        int lineHeight = client.textRenderer.fontHeight;
+        for (var line : client.textRenderer.wrapLines(text, maxWidth)) {
+            ctx.drawTextWithShadow(client.textRenderer, line, x, y, color);
+            y += lineHeight;
         }
+        return y;
     }
 
     private double getScaledMouseX() {
@@ -474,50 +573,60 @@ public class ToolPanel extends BasePanel {
         if (!isMouseOver(mouseX, mouseY)) return false;
 
         ensureWidgets();
-        // 只允许点击内容区（避免滚动导致“看不见的按钮”仍可点）
-        double contentTop = getContentY() + 1;
-        double contentBottom = panelY + panelHeight - 1;
-        if (mouseY < contentTop || mouseY > contentBottom) return false;
-
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
-        // 关键策略：不在这里重复计算布局；直接复用 drawContents() 已经写入到各 Widget 的 position/width。
-        // 否则极易出现“点击区域与渲染区域偏移”的问题。
-
-        if (noneToolButton != null && noneToolButton.visible && noneToolButton.mouseClicked(click, false)) return true;
-        for (ButtonWidget b : toolButtons.values()) {
-            if (b != null && b.visible && b.mouseClicked(click, false)) return true;
+        // 固定区域（工具列表）：始终可点击，不受滚动影响
+        double fixedAreaTop = getContentY() + 1;
+        double fixedAreaBottom = separatorY + 1;
+        if (mouseY >= fixedAreaTop && mouseY <= fixedAreaBottom) {
+            if (noneToolButton != null && noneToolButton.visible && noneToolButton.mouseClicked(click, false)) return true;
+            for (ButtonWidget b : toolButtons.values()) {
+                if (b != null && b.visible && b.mouseClicked(click, false)) return true;
+            }
+            return false; // 固定区域只处理工具按钮
         }
 
-        if (clearSelectionButton != null && clearSelectionButton.visible && clearSelectionButton.mouseClicked(click, false)) return true;
-        if (clearProtectedZonesButton != null && clearProtectedZonesButton.visible && clearProtectedZonesButton.mouseClicked(click, false)) return true;
-        if (outlineModeButton != null && outlineModeButton.visible && outlineModeButton.mouseClicked(click, false)) return true;
-        if (clearOutlineButton != null && clearOutlineButton.visible && clearOutlineButton.mouseClicked(click, false)) return true;
-        if (clearPathsButton != null && clearPathsButton.visible && clearPathsButton.mouseClicked(click, false)) return true;
+        // 滚动区域（工具选项）：只允许点击可见区域
+        double optionsAreaTop = separatorY + 1;
+        double optionsAreaBottom = panelY + panelHeight - 1;
+        if (mouseY < optionsAreaTop || mouseY > optionsAreaBottom) return false;
 
-        if (brushModeButton != null && brushModeButton.visible && brushModeButton.mouseClicked(click, false)) return true;
-        if (brushRadiusMinusButton != null && brushRadiusMinusButton.visible && brushRadiusMinusButton.mouseClicked(click, false)) return true;
-        if (brushRadiusPlusButton != null && brushRadiusPlusButton.visible && brushRadiusPlusButton.mouseClicked(click, false)) return true;
-        if (clearBrushSelectionButton != null && clearBrushSelectionButton.visible && clearBrushSelectionButton.mouseClicked(click, false)) return true;
+        // 根据当前激活的工具，处理对应的选项按钮
 
-        if (symmetryModeButton != null && symmetryModeButton.visible && symmetryModeButton.mouseClicked(click, false)) return true;
-        if (clearSymmetryButton != null && clearSymmetryButton.visible && clearSymmetryButton.mouseClicked(click, false)) return true;
-
-        // 标签名输入框（使用 drawContents 缓存的 bounds）
-        if (labelNameInputBoundsValid) {
-            if (labelNameInput.mouseClicked(mouseX, mouseY, labelNameInputX, labelNameInputY, labelNameInputW, labelNameInputH)) {
+        if (ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
+            if (clearSelectionButton != null && clearSelectionButton.visible && clearSelectionButton.mouseClicked(click, false)) return true;
+        } else if (ToolManager.isActive(ProtectedZoneTool.INSTANCE.getId())) {
+            if (clearProtectedZonesButton != null && clearProtectedZonesButton.visible && clearProtectedZonesButton.mouseClicked(click, false)) return true;
+        } else if (ToolManager.isActive(OutlineTool.INSTANCE.getId())) {
+            if (outlineModeButton != null && outlineModeButton.visible && outlineModeButton.mouseClicked(click, false)) return true;
+            if (clearOutlineButton != null && clearOutlineButton.visible && clearOutlineButton.mouseClicked(click, false)) return true;
+        } else if (ToolManager.isActive(PathTool.INSTANCE.getId())) {
+            if (clearPathsButton != null && clearPathsButton.visible && clearPathsButton.mouseClicked(click, false)) return true;
+        } else if (ToolManager.isActive(BrushTool.INSTANCE.getId())) {
+            if (brushModeButton != null && brushModeButton.visible && brushModeButton.mouseClicked(click, false)) return true;
+            if (brushRadiusMinusButton != null && brushRadiusMinusButton.visible && brushRadiusMinusButton.mouseClicked(click, false)) return true;
+            if (brushRadiusPlusButton != null && brushRadiusPlusButton.visible && brushRadiusPlusButton.mouseClicked(click, false)) return true;
+            if (clearBrushSelectionButton != null && clearBrushSelectionButton.visible && clearBrushSelectionButton.mouseClicked(click, false)) return true;
+        } else if (ToolManager.isActive(SymmetryTool.INSTANCE.getId())) {
+            if (symmetryModeButton != null && symmetryModeButton.visible && symmetryModeButton.mouseClicked(click, false)) return true;
+            if (clearSymmetryButton != null && clearSymmetryButton.visible && clearSymmetryButton.mouseClicked(click, false)) return true;
+        } else if (ToolManager.isActive(SemanticLabelTool.INSTANCE.getId())) {
+            // 标签名输入框（使用 drawContents 缓存的 bounds）
+            if (labelNameInputBoundsValid) {
+                if (labelNameInput.mouseClicked(mouseX, mouseY, labelNameInputX, labelNameInputY, labelNameInputW, labelNameInputH)) {
+                    return true;
+                }
+            }
+            // 标签范围滑条（按 SettingsPanel 逻辑：mouseClicked 命中后记录 activeSlider）
+            if (labelRangeSlider != null && labelRangeSlider.visible && labelRangeSlider.mouseClicked(click, false)) {
+                labelNameInput.setFocused(false);
+                activeSlider = labelRangeSlider;
                 return true;
             }
+            if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
         }
 
-        // 标签范围滑条（按 SettingsPanel 逻辑：mouseClicked 命中后记录 activeSlider）
-        if (labelRangeSlider != null && labelRangeSlider.visible && labelRangeSlider.mouseClicked(click, false)) {
-            labelNameInput.setFocused(false);
-            activeSlider = labelRangeSlider;
-            return true;
-        }
-
-        if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
+        // 锚点按钮（无论是否有激活工具都显示，因为锚点可以在没有工具时设置）
         return clearAnchorButton != null && clearAnchorButton.visible && clearAnchorButton.mouseClicked(click, false);
     }
 
@@ -525,6 +634,10 @@ public class ToolPanel extends BasePanel {
     public void mouseScrolled(double mouseX, double mouseY, double amount) {
         // 只有在面板内容区内滚动才处理
         if (!isMouseOver(mouseX, mouseY)) return;
+        // 只在选项区域（滚动区域）滚动，固定区域不滚动
+        double optionsAreaTop = separatorY + 1;
+        double optionsAreaBottom = panelY + panelHeight - 1;
+        if (mouseY < optionsAreaTop || mouseY > optionsAreaBottom) return;
         int step = 12;
         scrollY = (int) Math.round(scrollY - amount * step);
         if (scrollY < 0) scrollY = 0;

@@ -21,14 +21,14 @@ import java.util.Map;
 
 /**
  * ComponentPlanCompiler（组件计划编译器）
- * 
+ * <p>
  * 核心职责：把 LLM 的 components[] 编译为 List<BlockPatch>
- * 
+ * <p>
  * 核心原则：
  * - ❌ LLM 永远不直接 SetBlock
  * - ✅ LLM 只描述 "我想要什么构件"
  * - 🧠 Java 端负责 "怎么在 Minecraft 里实现"
- * 
+ * <p>
  * 完整链路：
  * LLM JSON (components[]) → ComponentPlanCompiler → SemanticComponent → 
  * ComponentGenerator → List<BlockPatch> → Preview / Apply
