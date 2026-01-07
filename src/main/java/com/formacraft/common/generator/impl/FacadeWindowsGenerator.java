@@ -8,6 +8,7 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
+import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
@@ -55,12 +56,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (isFacade) {
                         // 根据位置和特征决定窗户类型
                         SemanticPart part = determineWindowPart(y, height, isLattice, isLarge);
-                        String block = palette.pick(part);
-                        
-                        // 如果没有窗户材质，使用玻璃
-                        if (block == null || block.isEmpty()) {
-                            block = isLattice ? "minecraft:iron_bars" : "minecraft:glass";
-                        }
+                        String block = getBlockForWindow(semantic, palette, part, isLattice);
                         
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
@@ -145,6 +141,69 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
 
         // 3. 默认
         return "MEDIEVAL_CLASSIC";
+    }
+    
+    /**
+     * 获取窗户方块（优先使用动态解析和 features，回退到传统 Palette）
+     */
+    private String getBlockForWindow(SemanticComponent semantic, Palette palette, SemanticPart part, boolean isLattice) {
+        // 1. 优先使用动态解析（如果 LlmPlan 有 style_attributes）
+        if (semantic.styleAttributes() != null) {
+            String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        
+        // 2. 尝试从 features 中提取材质信息
+        Component c = semantic.source();
+        if (c != null && c.features() != null) {
+            String block = extractBlockFromFeatures(c.features());
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        
+        // 3. 回退到传统 Palette
+        if (palette != null) {
+            String block = palette.pick(part);
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        
+        // 4. 默认方块
+        return isLattice ? "minecraft:iron_bars" : "minecraft:glass";
+    }
+    
+    /**
+     * 从 features 中提取窗户材质
+     */
+    private String extractBlockFromFeatures(List<String> features) {
+        if (features == null || features.isEmpty()) {
+            return null;
+        }
+        
+        for (String feature : features) {
+            if (feature == null || feature.isBlank()) {
+                continue;
+            }
+            
+            String lower = feature.toLowerCase().trim();
+            
+            if (lower.contains("glass_curtain") || lower.contains("curtain_wall") || 
+                lower.contains("glass_pane") || (lower.contains("glass") && lower.contains("curtain"))) {
+                return "minecraft:glass_pane";
+            }
+            if (lower.contains("glass") && !lower.contains("curtain")) {
+                return "minecraft:glass";
+            }
+            if (lower.contains("lattice") || lower.contains("iron_bars")) {
+                return "minecraft:iron_bars";
+            }
+        }
+        
+        return null;
     }
 }
 

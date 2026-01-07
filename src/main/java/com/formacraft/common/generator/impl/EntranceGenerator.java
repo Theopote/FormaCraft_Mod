@@ -8,6 +8,7 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
+import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
@@ -54,7 +55,7 @@ public class EntranceGenerator implements ComponentGenerator {
                         // 但可以在底部放置门槛
                         if (y == 0) {
                             SemanticPart part = SemanticPart.WALL_BASE;
-                            String block = palette.pick(part);
+                            String block = getBlockForPart(part, semantic, palette);
                             out.add(new BlockPatch(
                                     BlockPatch.PLACE,
                                     rp.x() + x,
@@ -76,10 +77,7 @@ public class EntranceGenerator implements ComponentGenerator {
                     } else {
                         part = SemanticPart.WALL_ACCENT; // 门框
                     }
-                    String block = palette.pick(part);
-                    if (block == null || block.isEmpty()) {
-                        block = palette.pick(SemanticPart.WALL_ACCENT);
-                    }
+                    String block = getBlockForPart(part, semantic, palette);
                     
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
@@ -127,6 +125,86 @@ public class EntranceGenerator implements ComponentGenerator {
 
         // 3. 默认
         return "MEDIEVAL_CLASSIC";
+    }
+    
+    /**
+     * 获取方块（优先使用动态解析和 features，回退到传统 Palette）
+     */
+    private String getBlockForPart(SemanticPart part, SemanticComponent semantic, Palette palette) {
+        // 1. 优先使用动态解析（如果 LlmPlan 有 style_attributes）
+        if (semantic.styleAttributes() != null) {
+            String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        
+        // 2. 尝试从 features 中提取材质信息
+        Component c = semantic.source();
+        if (c != null && c.features() != null) {
+            String block = extractBlockFromFeatures(part, c.features());
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        
+        // 3. 回退到传统 Palette
+        if (palette != null) {
+            String block = palette.pick(part);
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        
+        // 4. 默认方块
+        return getDefaultBlock(part);
+    }
+    
+    /**
+     * 从 features 中提取材质信息
+     */
+    private String extractBlockFromFeatures(SemanticPart part, List<String> features) {
+        if (features == null || features.isEmpty()) {
+            return null;
+        }
+        
+        for (String feature : features) {
+            if (feature == null || feature.isBlank()) {
+                continue;
+            }
+            
+            String lower = feature.toLowerCase().trim();
+            
+            if (lower.contains("white_concrete") || lower.contains("white concrete")) {
+                if (part == SemanticPart.WALL || part == SemanticPart.WALL_BASE || part == SemanticPart.WALL_ACCENT) {
+                    return "minecraft:white_concrete";
+                }
+            }
+            if (lower.contains("gray_concrete") || lower.contains("grey_concrete") || lower.contains("gray concrete")) {
+                if (part == SemanticPart.WALL || part == SemanticPart.WALL_BASE || part == SemanticPart.WALL_ACCENT) {
+                    return "minecraft:gray_concrete";
+                }
+            }
+            if (lower.contains("metal") || lower.contains("steel") || lower.contains("iron")) {
+                if (part == SemanticPart.DECOR || part == SemanticPart.WALL_ACCENT) {
+                    return "minecraft:iron_block";
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 获取默认方块
+     */
+    private String getDefaultBlock(SemanticPart part) {
+        return switch (part) {
+            case WALL, WALL_BASE, WALL_ACCENT -> "minecraft:stone_bricks";
+            case ROOF_SURFACE -> "minecraft:spruce_planks";
+            case DECOR -> "minecraft:stone_brick_slab";
+            default -> "minecraft:stone";
+        };
     }
     
     /**
