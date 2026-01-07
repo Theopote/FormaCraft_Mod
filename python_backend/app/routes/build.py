@@ -10,6 +10,7 @@ from ..services.ai_planner import (
     generate_building_spec, 
     generate_composite_spec, 
     generate_city_spec,
+    generate_llm_plan,
     _should_generate_composite,
     _should_generate_city
 )
@@ -18,7 +19,7 @@ router = APIRouter()
 
 
 @router.post("/build")
-async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec, CitySpec]:
+async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec, CitySpec, dict]:
     """
     接收来自 Minecraft 服务器的 BuildRequest，
     调用 AI 生成 BuildingSpec，并返回。
@@ -46,8 +47,20 @@ async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec,
                     detail=f"Invalid request format. FormaRequestAdapter error: {e1}, BuildRequest error: {e2}"
                 )
         
-        # 检查应该生成什么类型的结构（优先级：城市 > 复合 > 单个）
+        # 检查应该生成什么类型的结构（优先级：LlmPlan > 城市 > 复合 > 单个）
         try:
+            # 如果 promptMode 是 BUILD，且 requestText 包含 LlmPlan 格式的 prompt，使用 LlmPlan 处理
+            if build_req.promptMode == "BUILD":
+                request_text = build_req.requestText or ""
+                llm_plan_indicators = [
+                    "LlmPlan", "component_type", "semantic components", 
+                    "ComponentObject", "SlotObject", "STRUCTURED JSON TEMPLATE",
+                    "mode", "style_profile", "components"
+                ]
+                # 检查是否包含 LlmPlan 格式的特征
+                if any(indicator in request_text for indicator in llm_plan_indicators):
+                    return generate_llm_plan(build_req)
+            
             if _should_generate_city(build_req):
                 return generate_city_spec(build_req)
             if _should_generate_composite(build_req):

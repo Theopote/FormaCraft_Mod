@@ -2888,6 +2888,18 @@ def _generate_fallback_spec(req: BuildRequest) -> BuildingSpec:
 
 def _should_generate_city(req: BuildRequest) -> bool:
     """检测是否应该生成城市级结构"""
+    # 如果 promptMode 是 BUILD，且 requestText 包含 LlmPlan 格式的 prompt，不应该生成城市
+    # LlmPlan 格式的 prompt 通常包含 "mode", "style_profile", "anchor", "components" 等字段说明
+    if req.promptMode == "BUILD":
+        request_text = req.requestText or ""
+        # 检查是否包含 LlmPlan 格式的特征（Java 端发送的 prompt 包含这些关键词）
+        llm_plan_indicators = [
+            "LlmPlan", "component_type", "semantic components", 
+            "ComponentObject", "SlotObject", "STRUCTURED JSON TEMPLATE"
+        ]
+        if any(indicator in request_text for indicator in llm_plan_indicators):
+            return False
+    
     request_lower = req.requestText.lower()
     city_keywords = [
         "城市", "城镇", "city", "town", "settlement", "urban", 
@@ -3355,6 +3367,62 @@ def _generate_fallback_composite_spec(req: BuildRequest) -> CompositeSpec:
         ]
     
     return CompositeSpec(structures=structures, paths=paths)
+
+
+def generate_llm_plan(req: BuildRequest) -> dict:
+    """
+    处理 LlmPlan 格式的请求（Java 端的新格式）
+    直接返回 LLM 的原始 JSON 输出，不做格式转换
+    """
+    client = get_client(req)
+    if not client:
+        raise ValueError("LLM client not available for LlmPlan generation")
+    
+    # 使用 requestText 作为完整的 prompt（Java 端已经组装好了）
+    # requestText 包含了完整的 system prompt 和 user prompt
+    request_text = req.requestText or ""
+    
+    # 尝试分离 system prompt 和 user prompt
+    if "USER REQUEST:" in request_text:
+        parts = request_text.split("USER REQUEST:")
+        system_prompt = parts[0].strip()
+        user_prompt = parts[1].strip() if len(parts) > 1 else req.userMessage or ""
+    else:
+        # 如果没有明确的分隔符，使用 requestText 作为 user prompt
+        system_prompt = ""
+        user_prompt = request_text
+    
+    # 如果没有 user prompt，使用 userMessage
+    if not user_prompt:
+        user_prompt = req.userMessage or request_text
+    
+    try:
+        model = _resolve_model(req, "gpt-4o-mini")
+        timeout_sec = _resolve_timeout_sec(req, model)
+        
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": user_prompt})
+        
+        response = _call_with_timeout(
+            lambda: client.chat.completions.create(
+                model=model,
+                messages=messages,
+                response_format={"type": "json_object"},
+                temperature=_clamp_temperature(getattr(req, "temperature", None), 0.7),
+            ),
+            timeout_sec,
+        )
+        
+        raw_output = response.choices[0].message.content
+        if not raw_output:
+            raise ValueError("Empty response from LLM for LlmPlan")
+        
+        # 直接返回解析后的 JSON，不做格式转换
+        return json.loads(raw_output)
+    except Exception as e:
+        raise RuntimeError(f"LLM call failed for LlmPlan: {e}") from e
 
 
 def generate_building_spec(req: BuildRequest) -> BuildingSpec:

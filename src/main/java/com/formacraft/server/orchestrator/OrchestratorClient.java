@@ -1,6 +1,9 @@
 package com.formacraft.server.orchestrator;
 
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.llm.parser.LlmPlanParser;
+import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.city.CitySpec;
 import com.formacraft.common.model.composite.CompositeSpec;
@@ -140,7 +143,48 @@ public class OrchestratorClient {
                             String body = resp.body();
                             FormacraftMod.LOGGER.info("Received response from orchestrator: {}", body);
                             try {
-                                // 首先尝试解析为 CompositeSpec
+                                // 首先尝试解析为 LlmPlan 格式（Java 端的新格式）
+                                // LlmPlan 格式的特征：包含 "mode" 字段，且包含 "components" 或 "layout"
+                                if (body.contains("\"mode\"") && (body.contains("\"components\"") || body.contains("\"layout\""))) {
+                                    try {
+                                        LlmPlan llmPlan = LlmPlanParser.parseAndValidate(body);
+                                        FormacraftMod.LOGGER.info("Received LlmPlan from orchestrator, mode: {}", llmPlan.mode());
+                                        
+                                        // LlmPlan 需要特殊处理：不能直接转换为 BuildingSpec
+                                        // 创建一个占位 BuildingSpec，在 extra 中存储 LlmPlan JSON，供后续处理
+                                        BuildingSpec placeholder = new BuildingSpec();
+                                        placeholder.setType(com.formacraft.common.model.build.BuildingType.CUSTOM);
+                                        placeholder.setStyle(com.formacraft.common.model.build.BuildingStyle.DEFAULT);
+                                        
+                                        // 设置必需的 footprint（使用默认值）
+                                        com.formacraft.common.model.build.Footprint defaultFootprint = 
+                                                new com.formacraft.common.model.build.Footprint();
+                                        defaultFootprint.setShape("rectangle");
+                                        defaultFootprint.setWidth(10);
+                                        defaultFootprint.setDepth(10);
+                                        placeholder.setFootprint(defaultFootprint);
+                                        
+                                        placeholder.setHeight(10);
+                                        placeholder.setFloors(1);
+                                        placeholder.setMaterials(new com.formacraft.common.model.build.Materials());
+                                        placeholder.setFeatures(new com.formacraft.common.model.build.Features());
+                                        
+                                        // 在 extra 中存储 LlmPlan JSON 和标志
+                                        if (placeholder.getExtra() == null) {
+                                            placeholder.setExtra(new java.util.HashMap<>());
+                                        }
+                                        placeholder.getExtra().put("llmPlanJson", body); // 存储原始 JSON
+                                        placeholder.getExtra().put("llmPlanMode", llmPlan.mode().name());
+                                        placeholder.getExtra().put("isLlmPlan", true);
+                                        
+                                        return placeholder;
+                                    } catch (PlanParseException e) {
+                                        FormacraftMod.LOGGER.warn("Failed to parse as LlmPlan, trying other formats: {}", e.getMessage());
+                                        // 继续尝试其他格式
+                                    }
+                                }
+                                
+                                // 然后尝试解析为 CompositeSpec
                                 if (body.contains("\"structures\"") && body.contains("\"type\"")) {
                                     CompositeSpec composite = JsonUtil.fromJson(body, CompositeSpec.class);
                                     // 如果是 CompositeSpec，转换为单个 BuildingSpec（临时方案）

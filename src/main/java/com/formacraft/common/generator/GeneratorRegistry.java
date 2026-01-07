@@ -1,10 +1,6 @@
 package com.formacraft.common.generator;
 
-import com.formacraft.common.generator.impl.GateGenerator;
-import com.formacraft.common.generator.impl.KeepGenerator;
-import com.formacraft.common.generator.impl.RoadGenerator;
-import com.formacraft.common.generator.impl.TowerGenerator;
-import com.formacraft.common.generator.impl.WallGenerator;
+import com.formacraft.common.generator.impl.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,11 +23,22 @@ public final class GeneratorRegistry {
         register("WALL", new WallGenerator());
         register("GATE", new GateGenerator());
         register("ROAD", new RoadGenerator());
+        
+        // 语义组件（K3.1 新增）
+        register("MASS_MAIN", new MassMainGenerator());
+        register("MASS_SECONDARY", new MassMainGenerator()); // 复用 MassMainGenerator
+        register("ENTRANCE", new EntranceGenerator());
+        register("SIGNAGE", new SignageGenerator());
+        register("FACADE_WINDOWS", new EntranceGenerator()); // 临时复用，后续可单独实现
+        register("PAVING", new RoadGenerator()); // 临时复用，后续可单独实现
+        register("FENCE_OR_WALL", new WallGenerator()); // 复用 WallGenerator
 
         // 后续可以不断添加
         // register("BRIDGE", new BridgeGenerator());
         // register("COURTYARD", new CourtyardGenerator());
         // register("ROOF", new RoofGenerator());
+        // register("BALCONY", new BalconyGenerator());
+        // register("PLAZA_CORE", new PlazaCoreGenerator());
     }
 
     private GeneratorRegistry() {}

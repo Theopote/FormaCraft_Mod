@@ -17,6 +17,11 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.llm.parser.LlmPlanParser;
+import com.formacraft.common.llm.parser.PlanParseException;
+import com.formacraft.common.compiler.ComponentPlanCompiler;
+import com.formacraft.server.build.PlannedBlock;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -897,6 +902,104 @@ public class FormaCraftNetworking {
                         // 生成预览结构
                         BlockPos origin = req.getPlayerPos();
                         if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                            // 检查是否是 LlmPlan 格式
+                            boolean isLlmPlan = spec.getExtra() != null && 
+                                    Boolean.TRUE.equals(spec.getExtra().get("isLlmPlan"));
+                            
+                            if (isLlmPlan) {
+                                // 处理 LlmPlan 格式
+                                try {
+                                    String llmPlanJson = (String) spec.getExtra().get("llmPlanJson");
+                                    if (llmPlanJson != null) {
+                                        LlmPlan llmPlan = LlmPlanParser.parseAndValidate(llmPlanJson);
+                                        
+                                        // 编译 components 为 BlockPatch
+                                        List<BlockPatch> patches = ComponentPlanCompiler.compile(llmPlan);
+                                        
+                                        // 获取 anchor（全局或第一个 slot）
+                                        BlockPos planOrigin = origin;
+                                        if (llmPlan.anchor() != null) {
+                                            planOrigin = new BlockPos(
+                                                    llmPlan.anchor().x(),
+                                                    llmPlan.anchor().y(),
+                                                    llmPlan.anchor().z()
+                                            );
+                                        }
+                                        
+                                        // 将 BlockPatch 转换为 PlannedBlock
+                                        List<PlannedBlock> plannedBlocks = new ArrayList<>();
+                                        for (BlockPatch patch : patches) {
+                                            BlockPos worldPos = planOrigin.add(patch.dx(), patch.dy(), patch.dz());
+                                            String blockId = patch.targetBlock();
+                                            if (blockId != null && !blockId.isEmpty()) {
+                                                try {
+                                                    net.minecraft.block.BlockState state = 
+                                                            net.minecraft.registry.Registries.BLOCK
+                                                                    .get(net.minecraft.util.Identifier.tryParse(blockId))
+                                                                    .getDefaultState();
+                                                    plannedBlocks.add(new PlannedBlock(worldPos, state));
+                                                } catch (Exception e) {
+                                                    FormacraftMod.LOGGER.warn("Failed to parse block ID: {}", blockId, e);
+                                                }
+                                            }
+                                        }
+                                        
+                                        // 创建 GeneratedStructure
+                                        com.formacraft.server.build.GeneratedStructure generated = 
+                                                new com.formacraft.server.build.GeneratedStructure(
+                                                        player.getUuid(),
+                                                        planOrigin,
+                                                        "LlmPlan generated structure",
+                                                        plannedBlocks
+                                                );
+                                        
+                                        // 应用约束裁剪
+                                        com.formacraft.server.build.GeneratedStructure structure = 
+                                                new com.formacraft.server.build.GeneratedStructure(
+                                                        player.getUuid(),
+                                                        planOrigin,
+                                                        generated.getDescription(),
+                                                        BuildConstraintClipper.clipPlannedBlocks(plannedBlocks, req)
+                                                );
+                                        
+                                        // 存储结构用于预览
+                                        com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
+                                        
+                                        // 自动发送预览
+                                        List<OutlineBlock> outline =
+                                                com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
+                                        sendPreviewOutline(player, outline);
+                                        
+                                        com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
+                                        
+                                        player.sendMessage(net.minecraft.text.Text.translatable(
+                                                "formacraft.preview.ready.building"),
+                                                false);
+                                        ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
+                                                "LlmPlan preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
+                                        ));
+                                        hbAlive.set(false);
+                                        
+                                        // 也发送 BuildingSpec 给客户端（用于 UI 显示）
+                                        ServerPlayNetworking.send(player, new ResponseBuildSpecPayload(spec));
+                                        return;
+                                    }
+                                } catch (PlanParseException e) {
+                                    FormacraftMod.LOGGER.error("Failed to parse LlmPlan from extra", e);
+                                    ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                            "Failed to parse LlmPlan: " + e.getMessage()
+                                    ));
+                                    return;
+                                } catch (Exception e) {
+                                    FormacraftMod.LOGGER.error("Failed to process LlmPlan", e);
+                                    ServerPlayNetworking.send(player, new ResponseBuildErrorPayload(
+                                            "Failed to process LlmPlan: " + e.getMessage()
+                                    ));
+                                    return;
+                                }
+                            }
+                            
+                            // 传统的 BuildingSpec 处理流程
                             // 生成结构用于预览
                             com.formacraft.server.generator.StructureGenerator generator =
                                     com.formacraft.server.generator.StructureGeneratorFactory.getGenerator(spec);
