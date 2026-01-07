@@ -5,6 +5,7 @@ import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generator.ComponentGenerator;
 import com.formacraft.common.generator.GeneratorRegistry;
+import com.formacraft.common.generator.adaptor.SmartGeneratorRouter;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -97,20 +98,16 @@ public final class ComponentPlanCompiler {
                     c
             );
 
-            // 获取生成器
-            ComponentGenerator generator = GeneratorRegistry.getGenerator(c.componentType());
-
-            if (generator == null) {
-                // ⚠️ 非致命错误：未知构件类型
-                FormacraftMod.LOGGER.warn("[FormaCraft] No generator for component: {}", c.componentType());
-                continue;
-            }
-
-            // 生成 BlockPatch
+            // 使用智能路由：自动选择最适合的生成器
+            // 优先使用新系统，如果失败或不存在，自动回退到传统系统
+            List<BlockPatch> patches;
             try {
-                List<BlockPatch> patches = generator.generate(semantic);
-                if (patches != null) {
+                patches = SmartGeneratorRouter.generate(semantic, world);
+                if (patches != null && !patches.isEmpty()) {
                     result.addAll(patches);
+                } else {
+                    FormacraftMod.LOGGER.warn("ComponentPlanCompiler: no patches generated for component: {}", 
+                            c.componentType());
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.error("ComponentPlanCompiler: error generating component {}: {}", 
