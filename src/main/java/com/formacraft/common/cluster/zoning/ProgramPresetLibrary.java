@@ -8,9 +8,9 @@ import java.util.Map;
 
 /**
  * ProgramPresetLibrary（程序预设库）
- * 
+ * <p>
  * K3.1 核心：Program → Preset 映射库
- * 
+ * <p>
  * 提供"通用城市街区"默认库，一接上就能跑
  */
 public final class ProgramPresetLibrary {

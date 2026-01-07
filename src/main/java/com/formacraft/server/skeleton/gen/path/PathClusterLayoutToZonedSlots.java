@@ -9,9 +9,9 @@ import java.util.List;
 
 /**
  * PathClusterLayoutToZonedSlots（路径建筑群布局 → ZonedSlot 转换器）
- * 
+ * <p>
  * K3.1 核心：将 PathClusterLayout 转换为 ZonedSlot 列表
- * 
+ * <p>
  * 关键功能：
  * - 为每个 BuildingSlot 解析 ComponentPreset
  * - 创建 ZonedSlot（包含 preset 信息）

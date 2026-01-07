@@ -2,7 +2,7 @@ package com.formacraft.common.semantic;
 
 /**
  * SemanticComponentType（语义组件类型）
- * 
+ * <p>
  * K3.1 核心：定义各种语义组件类型，用于组件装配清单
  */
 public enum SemanticComponentType {

@@ -17,9 +17,9 @@ import java.util.Set;
 
 /**
  * PathStreetLayoutBuilder（路径街道布局构建器）
- * 
+ * <p>
  * K2 核心：在 K1 基础上扩展为多排街道/放射街区/城墙走廊
- * 
+ * <p>
  * 核心算法：
  * 1. 沿路径采样锚点
  * 2. 多排偏移公式：offset = roadWidth / 2 + laneSpacing * (lane + 1)
@@ -102,7 +102,7 @@ public final class PathStreetLayoutBuilder {
         // 3. 为每个锚点生成多排建筑（K3：支持功能分区）
         for (int i = 0; i < anchors.size(); i++) {
             BlockPos p = anchors.get(i);
-            BlockPos prev = (i > 0) ? anchors.get(i - 1) : nodes.get(0);
+            BlockPos prev = (i > 0) ? anchors.get(i - 1) : nodes.getFirst();
 
             // 计算路径进度 t [0..1]（K3）
             float t = (anchors.size() <= 1) ? 0.0f : (i / (float) (anchors.size() - 1));
@@ -167,7 +167,7 @@ public final class PathStreetLayoutBuilder {
             return anchors;
         }
 
-        anchors.add(nodes.get(0));
+        anchors.add(nodes.getFirst());
 
         int acc = 0;
         for (int i = 1; i < nodes.size(); i++) {
@@ -184,8 +184,8 @@ public final class PathStreetLayoutBuilder {
             }
         }
 
-        if (!anchors.contains(nodes.get(nodes.size() - 1))) {
-            anchors.add(nodes.get(nodes.size() - 1));
+        if (!anchors.contains(nodes.getLast())) {
+            anchors.add(nodes.getLast());
         }
 
         return anchors;

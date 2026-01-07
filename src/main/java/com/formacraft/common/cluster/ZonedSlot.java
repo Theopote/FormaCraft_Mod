@@ -6,9 +6,9 @@ import net.minecraft.util.math.BlockPos;
 
 /**
  * ZonedSlot（带功能分区的槽位）
- * 
+ * <p>
  * K3.1 核心：扩展 BuildingSlot，包含 preset 信息
- * 
+ * <p>
  * 用于将 BuildingSlot 转换为包含组件预设信息的 ZonedSlot
  */
 public record ZonedSlot(

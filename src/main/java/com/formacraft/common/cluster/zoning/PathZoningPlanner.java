@@ -8,9 +8,9 @@ import java.util.Set;
 
 /**
  * PathZoningPlanner（路径分区规划器）
- * 
+ * <p>
  * 根据 ZoningProfile 为每个 BuildingSlot 计算 Program
- * 
+ * <p>
  * K3 核心：将分区规则应用到具体的建筑槽位
  */
 public final class PathZoningPlanner {

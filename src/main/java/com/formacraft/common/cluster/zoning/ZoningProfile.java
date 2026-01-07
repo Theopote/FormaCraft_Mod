@@ -5,9 +5,9 @@ import java.util.List;
 
 /**
  * ZoningProfile（街区分区预设）
- * 
+ * <p>
  * 一套完整的街区分区规则集合
- * 
+ * <p>
  * 可以给不同 StyleProfile 或用户输入套不同 profile
  */
 public final class ZoningProfile {
@@ -31,7 +31,7 @@ public final class ZoningProfile {
 
     /**
      * 默认城镇街道分区预设
-     * 
+     * <p>
      * 典型布局：主街 + 尾端工业 + 中段广场节点
      * 
      * @param laneCount 建筑排数

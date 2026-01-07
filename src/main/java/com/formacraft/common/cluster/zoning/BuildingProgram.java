@@ -2,9 +2,9 @@ package com.formacraft.common.cluster.zoning;
 
 /**
  * BuildingProgram（建筑功能/业态）
- * 
+ * <p>
  * 用于 Prompt 和 Generator 选预设
- * 
+ * <p>
  * K3 核心：定义建筑的功能类型，让 AI 理解规划意图
  */
 public enum BuildingProgram {

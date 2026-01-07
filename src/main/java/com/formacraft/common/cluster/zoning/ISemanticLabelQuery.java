@@ -4,9 +4,9 @@ import java.util.Set;
 
 /**
  * ISemanticLabelQuery（语义标签查询接口）
- * 
+ * <p>
  * K3 核心：根据路径进度查询该位置附近的标签集合
- * 
+ * <p>
  * 例如：{"plaza","gate"} 表示该位置附近有广场和城门标签
  */
 public interface ISemanticLabelQuery {

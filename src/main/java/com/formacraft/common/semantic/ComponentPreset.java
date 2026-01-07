@@ -5,9 +5,9 @@ import java.util.List;
 
 /**
  * ComponentPreset（组件装配清单）
- * 
+ * <p>
  * K3.1 核心：一套完整的组件装配清单，包含权重、密度、尺寸建议
- * 
+ * <p>
  * 用于将 BuildingProgram 转换为具体的组件装配指令
  */
 public final class ComponentPreset {

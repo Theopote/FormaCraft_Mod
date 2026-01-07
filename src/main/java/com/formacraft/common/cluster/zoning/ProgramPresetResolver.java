@@ -5,9 +5,9 @@ import com.formacraft.common.semantic.SemanticComponentType;
 
 /**
  * ProgramPresetResolver（程序预设解析器）
- * 
+ * <p>
  * K3.1 核心：支持风格偏置的预设解析器
- * 
+ * <p>
  * 可以根据 styleId 对默认预设进行微调，实现不同风格下的差异化效果
  */
 public final class ProgramPresetResolver {

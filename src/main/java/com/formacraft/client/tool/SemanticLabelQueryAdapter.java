@@ -10,9 +10,9 @@ import java.util.Set;
 
 /**
  * SemanticLabelQueryAdapter（语义标签查询适配器）
- * 
+ * <p>
  * 将 SemanticLabelTool 适配为 ISemanticLabelQuery 接口
- * 
+ * <p>
  * K3 核心：根据路径进度查询标签
  */
 public final class SemanticLabelQueryAdapter implements ISemanticLabelQuery {

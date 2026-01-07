@@ -7,9 +7,9 @@ import java.util.Set;
 
 /**
  * ZoneRule（分区规则）
- * 
+ * <p>
  * 按路径进度 / 侧 / lane / 标签触发
- * 
+ * <p>
  * K3 核心：定义何时何地应用哪种建筑功能
  */
 public record ZoneRule(
@@ -60,7 +60,7 @@ public record ZoneRule(
         if (requiredLabel != null && (labelsAtT == null || !labelsAtT.contains(requiredLabel))) {
             return false;
         }
-        
+
         return true;
     }
 

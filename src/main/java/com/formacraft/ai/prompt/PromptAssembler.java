@@ -53,40 +53,90 @@ public final class PromptAssembler {
     }
 
     private static String buildFinalPrompt(PromptContext ctx) {
-        StringBuilder sb = new StringBuilder(1024);
 
         // 1. System Role（AI 身份，永远固定）
-        sb.append(systemRole());
 
         // 2. Spatial Constraints（空间约束块）
-        sb.append(spatialConstraints(ctx));
-
         // 3. User Intent（玩家原始描述）
-        sb.append(userIntent(ctx));
-
         // 4. Output Contract（输出契约）
-        sb.append(outputContract());
 
-        return sb.toString();
+        return systemRole() +
+
+                // 2. Spatial Constraints（空间约束块）
+                spatialConstraints(ctx) +
+
+                // 3. User Intent（玩家原始描述）
+                userIntent(ctx) +
+
+                // 4. Output Contract（输出契约）
+                outputContract();
     }
 
     /**
      * System Prompt（AI 身份，永远固定）
+     * 
+     * K3.1 更新：完整的 System Prompt，包含输出格式硬约束
      */
     private static String systemRole() {
         return """
 You are Formacraft Core, a Minecraft architectural planning engine.
 
-You do NOT place blocks directly.
-You ONLY output structured JSON building blueprints.
+Your task is to convert structured spatial constraints into a BUILD BLUEPRINT or PATCH PLAN.
+You DO NOT place blocks directly.
+You ONLY output structured JSON following the schema below.
 
-All geometry must obey the spatial constraints below.
-If constraints conflict, you must adapt the design, not break constraints.
+Core rules:
+- Coordinate system: X/Z = horizontal plane, Y = vertical height.
+- All positions are relative to the provided anchor (0,0,0).
+- Respect all spatial constraints: path, outline, forbidden zones, symmetry, terrain strategy.
+- Use semantic components (TOWER, WALL, ROOF, ENTRANCE, SIGNAGE, etc.), NOT blocks.
+- If information is missing, infer reasonable defaults consistent with style and program.
+- Output VALID JSON ONLY. No comments, no explanations.
 
-Terrain is part of architectural semantics. Respect terrain strategy constraints.
-Do NOT flatten terrain by default. Adapt buildings to terrain naturally.
+If mode = "patch":
+- Only modify components inside the allowed area.
+- Do NOT affect protected or forbidden zones.
 
-Output MUST be valid JSON. No explanation text.
+If mode = "build":
+- Produce a full blueprint.
+
+Output schema:
+
+{
+  "mode": "build | patch",
+  "style_profile": "string",
+  "anchor": { "x": int, "y": int, "z": int },
+  "global_constraints": {
+    "facing": "NORTH | SOUTH | EAST | WEST",
+    "symmetry": "NONE | MIRROR_X | MIRROR_Z | RADIAL",
+    "terrain_strategy": "PRESERVE | ADAPTIVE | TERRACE | FLATTEN"
+  },
+  "layout": {
+    "skeleton_type": "LINEAR_PATH | RADIAL_RING | GRID | COMPOUND",
+    "path_based": true,
+    "slots": [ SlotObject ]
+  },
+  "components": [ ComponentObject ]
+}
+
+SlotObject:
+{
+  "slot_id": "string",
+  "anchor": { "x": int, "y": int, "z": int },
+  "facing": "NORTH | SOUTH | EAST | WEST",
+  "program": "COMMERCIAL | RESIDENTIAL | PLAZA | INDUSTRIAL | DEFENSIVE | CIVIC | LANDMARK",
+  "component_preset_id": "string",
+  "component_preset": "text description"
+}
+
+ComponentObject:
+{
+  "component_type": "string",
+  "slot_id": "string",
+  "relative_position": { "x": int, "y": int, "z": int },
+  "dimensions": { "width": int, "depth": int, "height": int },
+  "features": [ "string" ]
+}
 
 """;
     }
@@ -316,7 +366,7 @@ SEMANTIC REGIONS:
         }
 
         PathSkeleton skeleton = ctx.pathSkeleton;
-        String sb = "SKELETON HINT:\n" +
+        return "SKELETON HINT:\n" +
                 "- type: PATH_POLYLINE\n" +
                 "- intent: " + skeleton.intent.name() + "\n" +
                 "- corridor_radius: " + skeleton.corridorRadius + "\n" +
@@ -324,7 +374,6 @@ SEMANTIC REGIONS:
                 "- IMPORTANT: You MUST use PATH_POLYLINE skeleton type\n" +
                 "- The path topology is fixed; you can only adjust style and details\n" +
                 "\n";
-        return sb;
     }
 
     /**

@@ -6,11 +6,11 @@ import java.util.List;
 
 /**
  * PathClusterLayout（路径建筑群布局）
- * 
+ * <p>
  * 这是 K1 的核心：从"单体建筑生成"跃迁到"城市级生成"
- * 
+ * <p>
  * 本质：一维主骨架（Path） + 二维附着（Buildings）
- * 
+ * <p>
  * PathSkeleton：告诉你"主干在哪里"
  * PathClusterLayout：告诉你"建筑站位在哪里"
  */
@@ -24,9 +24,9 @@ public final class PathClusterLayout {
 
     /**
      * 建筑槽位（Building Slot）
-     * 
+     * <p>
      * 定义沿路径的一个建筑位置和参数
-     * 
+     * <p>
      * K3 扩展：添加了路径进度、侧、lane、功能等字段
      */
     public static final class BuildingSlot {

@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * Skeleton 预览辅助类
- * 
+ * <p>
  * 提供便捷方法，将 Skeleton 生成并发送到客户端预览
  */
 public final class SkeletonPreviewHelper {
