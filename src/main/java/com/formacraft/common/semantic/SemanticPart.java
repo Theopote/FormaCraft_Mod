@@ -43,6 +43,12 @@ public enum SemanticPart {
 
     // 装饰/光源
     LIGHT,
-    DECOR
+    DECOR,
+
+    // 扩展：用于 ComponentGenerator 的专用部位
+    WALL_BASE,      // 墙体基础（地基）
+    WALL_ACCENT,    // 墙体装饰（强调）
+    ROAD_SURFACE,   // 道路表面
+    ROAD_EDGE       // 道路边缘
 }
 
