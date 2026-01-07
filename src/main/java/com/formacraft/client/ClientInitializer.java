@@ -1,6 +1,7 @@
 package com.formacraft.client;
 
 import com.formacraft.client.preview.OutlineRenderer;
+import com.formacraft.client.preview.LayoutSiteHudOverlay;
 import com.formacraft.client.backend.BackendAutoStarter;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.InputEventHandler;
@@ -34,6 +35,8 @@ public class ClientInitializer implements ClientModInitializer {
         OutlineRenderer.register();
         // 注册 HUD Overlay
         FormaCraftHudOverlay.register();
+        // 注册站点预览 HUD Overlay
+        LayoutSiteHudOverlay.register();
         // 初始化面板（设置监听器等）
         FormaCraftHudOverlay.initialize();
         // 注册输入事件处理器
