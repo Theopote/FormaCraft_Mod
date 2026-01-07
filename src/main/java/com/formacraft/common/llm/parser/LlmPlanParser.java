@@ -87,8 +87,23 @@ public final class LlmPlanParser {
                 if (isBlank(c.componentType())) throw new PlanParseException("component.component_type is required");
                 if (c.relativePosition() == null) throw new PlanParseException("component.relative_position is required");
                 if (c.dimensions() == null) throw new PlanParseException("component.dimensions is required");
-                if (c.dimensions().width() <= 0 || c.dimensions().depth() <= 0 || c.dimensions().height() <= 0) {
-                    throw new PlanParseException("component.dimensions must be > 0 (type=" + c.componentType() + ")");
+                
+                // 平面组件允许 height = 0（如 COURTYARD、PATH、PLAZA 等）
+                String componentType = c.componentType().toUpperCase();
+                boolean isPlanarComponent = isPlanarComponentType(componentType);
+                
+                if (c.dimensions().width() <= 0 || c.dimensions().depth() <= 0) {
+                    throw new PlanParseException("component.dimensions.width and depth must be > 0 (type=" + c.componentType() + ")");
+                }
+                
+                // 对于平面组件，允许 height = 0；对于其他组件，height 必须 > 0
+                if (!isPlanarComponent && c.dimensions().height() <= 0) {
+                    throw new PlanParseException("component.dimensions.height must be > 0 (type=" + c.componentType() + ")");
+                }
+                
+                // 平面组件的 height 应该 >= 0（允许 0）
+                if (isPlanarComponent && c.dimensions().height() < 0) {
+                    throw new PlanParseException("component.dimensions.height must be >= 0 for planar components (type=" + c.componentType() + ")");
                 }
             }
         }
@@ -110,6 +125,30 @@ public final class LlmPlanParser {
 
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
+    }
+    
+    /**
+     * 判断组件类型是否为平面组件（允许 height = 0）
+     * 
+     * 平面组件包括：
+     * - COURTYARD（庭院）
+     * - PATH（路径）
+     * - PLAZA（广场）
+     * - FLOOR（地板，如果作为平面使用）
+     * - GROUND（地面）
+     */
+    private static boolean isPlanarComponentType(String componentType) {
+        if (componentType == null) return false;
+        
+        String upper = componentType.toUpperCase();
+        return upper.equals("COURTYARD") ||
+               upper.equals("PATH") ||
+               upper.equals("PLAZA") ||
+               upper.equals("FLOOR") ||
+               upper.equals("GROUND") ||
+               upper.equals("TERRAIN") ||
+               upper.equals("PARKING") ||
+               upper.equals("GARDEN");
     }
 }
 
