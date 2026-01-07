@@ -11,6 +11,11 @@ public record GlobalConstraints(
 ) {
     public enum Facing { NORTH, SOUTH, EAST, WEST }
     public enum Symmetry { NONE, MIRROR_X, MIRROR_Z, RADIAL }
-    public enum TerrainStrategy { FOLLOW, PAD_PER_BUILDING, TERRACE, FLATTEN_ALL }
+    public enum TerrainStrategy { 
+        PRESERVE,      // 保护地形（不削山、不填谷）
+        ADAPTIVE,      // 自适应（默认推荐，单体建筑各自处理底座）
+        TERRACE,       // 梯田/台地（把地形离散为几个高度平台）
+        FLATTEN        // 强制平整（大范围填平）
+    }
 }
 

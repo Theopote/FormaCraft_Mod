@@ -180,7 +180,9 @@ public class OrchestratorClient {
                                         return placeholder;
                                     } catch (PlanParseException e) {
                                         FormacraftMod.LOGGER.warn("Failed to parse as LlmPlan, trying other formats: {}", e.getMessage());
-                                        // 继续尝试其他格式
+                                        // 如果明确是 LlmPlan 格式但解析失败，不应该回退到 BuildingSpec
+                                        // 因为 LlmPlan 和 BuildingSpec 的格式完全不同
+                                        // 这里继续尝试其他格式（CompositeSpec），但如果都不匹配，应该抛出异常
                                     }
                                 }
                                 
@@ -195,6 +197,17 @@ public class OrchestratorClient {
                                         return composite.getStructures().getFirst().getSpec();
                                     }
                                 }
+                                
+                                // 最后尝试解析为 BuildingSpec（只有当不是 LlmPlan 格式时）
+                                // 如果 body 包含 "mode" 和 "components"/"layout"，说明是 LlmPlan 格式但解析失败
+                                // 此时不应该尝试解析为 BuildingSpec
+                                if (body.contains("\"mode\"") && (body.contains("\"components\"") || body.contains("\"layout\""))) {
+                                    // 这是 LlmPlan 格式但解析失败，抛出明确的错误
+                                    throw new RuntimeException("Response appears to be LlmPlan format but failed to parse. " +
+                                            "This may be due to enum value mismatch (e.g., TerrainStrategy). " +
+                                            "Original error should be logged above.");
+                                }
+                                
                                 // 否则解析为 BuildingSpec
                                 BuildingSpec spec = JsonUtil.fromJson(body, BuildingSpec.class);
                                 if (spec == null) {
