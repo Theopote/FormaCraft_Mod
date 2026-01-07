@@ -95,6 +95,27 @@ public class ProjectMemory {
             int[] coords = anchors.get(name);
             return new BlockPos(coords[0], coords[1], coords[2]);
         }
+        
+        /**
+         * 扩展边界以包含新位置
+         */
+        public void expandBounds(BlockPos minPos, BlockPos maxPos) {
+            if (minPos == null || maxPos == null) return;
+            
+            if (this.min == null || this.max == null) {
+                this.min = new int[]{minPos.getX(), minPos.getY(), minPos.getZ()};
+                this.max = new int[]{maxPos.getX(), maxPos.getY(), maxPos.getZ()};
+                return;
+            }
+            
+            this.min[0] = Math.min(this.min[0], minPos.getX());
+            this.min[1] = Math.min(this.min[1], minPos.getY());
+            this.min[2] = Math.min(this.min[2], minPos.getZ());
+            
+            this.max[0] = Math.max(this.max[0], maxPos.getX());
+            this.max[1] = Math.max(this.max[1], maxPos.getY());
+            this.max[2] = Math.max(this.max[2], maxPos.getZ());
+        }
     }
     
     /**
@@ -206,6 +227,65 @@ public class ProjectMemory {
      */
     public boolean contains(BlockPos pos) {
         return bounds != null && bounds.contains(pos);
+    }
+    
+    /**
+     * 扩展边界以包含新区域
+     */
+    public void expandBounds(BlockPos minPos, BlockPos maxPos) {
+        if (bounds == null) {
+            // 如果没有边界，创建新的
+            bounds = new SpatialBounds();
+            if (minPos != null && maxPos != null) {
+                bounds.setMin(new int[]{minPos.getX(), minPos.getY(), minPos.getZ()});
+                bounds.setMax(new int[]{maxPos.getX(), maxPos.getY(), maxPos.getZ()});
+            }
+            return;
+        }
+        
+        if (minPos != null && maxPos != null) {
+            bounds.expandBounds(minPos, maxPos);
+        }
+    }
+    
+    /**
+     * 应用基因变更增量（delta）
+     * 将 delta 中的变更应用到 metadata 中
+     */
+    public void applyGeneDelta(java.util.Map<String, Object> delta) {
+        if (delta == null || delta.isEmpty()) {
+            return;
+        }
+        
+        if (metadata == null) {
+            metadata = new HashMap<>();
+        }
+        
+        // 将 delta 合并到 metadata
+        for (var entry : delta.entrySet()) {
+            metadata.put(entry.getKey(), entry.getValue());
+        }
+        
+        // 更新修改历史（可选：记录变更历史）
+        @SuppressWarnings("unchecked")
+        java.util.List<java.util.Map<String, Object>> history = 
+            (java.util.List<java.util.Map<String, Object>>) metadata.get("mutation_history");
+        
+        if (history == null) {
+            history = new ArrayList<>();
+            metadata.put("mutation_history", history);
+        }
+        
+        // 记录本次变更
+        java.util.Map<String, Object> mutationRecord = new HashMap<>();
+        mutationRecord.put("timestamp", java.time.Instant.now().toString());
+        mutationRecord.put("delta", new HashMap<>(delta));
+        history.add(mutationRecord);
+        
+        // 限制历史记录数量（最多保留 50 条）
+        if (history.size() > 50) {
+            history.remove(0);
+        }
     }
     
     /**

@@ -11,7 +11,7 @@ import java.util.List;
  * Stores per-step deck center positions (with Y already terrain-adjusted),
  * plus tower indices and per-step cable Y for hangers.
  */
-public final class SpanSuspensionPlan implements SkeletonPlan {
+public final class SpanSuspensionPlan extends SkeletonPlan {
     public final List<BlockPos> deckCenters; // size = span+1
     public final int deckHalfWidth;
     public final int towerIndex1;
@@ -21,6 +21,7 @@ public final class SpanSuspensionPlan implements SkeletonPlan {
     public final boolean refined;
 
     public SpanSuspensionPlan(List<BlockPos> deckCenters, int deckHalfWidth, int towerIndex1, int towerIndex2, int towerHeight, int[] cableY, boolean refined) {
+        super();
         this.deckCenters = deckCenters;
         this.deckHalfWidth = deckHalfWidth;
         this.towerIndex1 = towerIndex1;

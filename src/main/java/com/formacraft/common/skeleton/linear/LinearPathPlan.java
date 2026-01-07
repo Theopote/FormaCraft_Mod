@@ -10,7 +10,7 @@ import java.util.List;
  * A linear path plan represented as a list of anchor-relative points.
  * Points are in world coords at generation time to support terrain following.
  */
-public final class LinearPathPlan implements SkeletonPlan {
+public final class LinearPathPlan extends SkeletonPlan {
     public final List<BlockPos> pathPoints;
     public final int thickness;
     public final int height;
@@ -18,6 +18,7 @@ public final class LinearPathPlan implements SkeletonPlan {
     public final boolean crenels;
 
     public LinearPathPlan(List<BlockPos> pathPoints, int thickness, int height, int towerSpacing, boolean crenels) {
+        super();
         this.pathPoints = pathPoints;
         this.thickness = thickness;
         this.height = height;

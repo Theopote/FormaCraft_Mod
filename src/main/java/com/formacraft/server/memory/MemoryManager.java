@@ -166,6 +166,98 @@ public class MemoryManager {
     }
     
     /**
+     * 应用基因变更（Mutation）到记忆系统
+     * 
+     * 这是 Memory → Patch → Memory 闭环的核心方法
+     * 
+     * @param mutation 基因变更记录
+     * @param newBounds 新的边界（如果扩建）
+     * @return 更新后的记忆（如果成功）
+     */
+    public ProjectMemory applyMutation(GeneMutation mutation, BlockPos minPos, BlockPos maxPos) {
+        if (mutation == null) {
+            return null;
+        }
+        
+        try {
+            if (mutation.buildingId() == null) {
+                // 新建筑：创建新记忆
+                ProjectMemory created = createMemoryFromMutation(mutation, minPos, maxPos);
+                if (created != null) {
+                    FormacraftMod.LOGGER.info("Created new memory from mutation: {}", created.getUuid());
+                }
+                return created;
+            }
+            
+            // 修改已有建筑
+            ProjectMemory memory = getMemory(mutation.buildingId().toString());
+            if (memory == null) {
+                FormacraftMod.LOGGER.warn("Cannot apply mutation: building {} not found", mutation.buildingId());
+                return null;
+            }
+            
+            // 1. 更新边界（如果扩建）
+            if (minPos != null && maxPos != null) {
+                memory.expandBounds(minPos, maxPos);
+            }
+            
+            // 2. 应用基因变更
+            memory.applyGeneDelta(mutation.geneDelta());
+            
+            // 3. 更新修改时间
+            memory.updateLastModified();
+            
+            // 4. 保存并更新索引
+            updateMemory(memory);
+            
+            FormacraftMod.LOGGER.info("Applied mutation to memory: {} - {}", 
+                memory.getUuid(), mutation.reason());
+            
+            return memory;
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.error("Failed to apply mutation", e);
+            return null;
+        }
+    }
+    
+    /**
+     * 从 Mutation 创建新记忆（用于新建建筑）
+     */
+    private ProjectMemory createMemoryFromMutation(GeneMutation mutation, BlockPos minPos, BlockPos maxPos) {
+        ProjectMemory memory = new ProjectMemory();
+        memory.setName("Building from Patch");
+        memory.setDescription(mutation.reason());
+        
+        // 设置边界
+        if (minPos != null && maxPos != null) {
+            ProjectMemory.SpatialBounds bounds = new ProjectMemory.SpatialBounds();
+            bounds.setMin(new int[]{minPos.getX(), minPos.getY(), minPos.getZ()});
+            bounds.setMax(new int[]{maxPos.getX(), maxPos.getY(), maxPos.getZ()});
+            bounds.setDimension("minecraft:overworld"); // 默认维度
+            memory.setBounds(bounds);
+        }
+        
+        // 应用基因变更
+        memory.applyGeneDelta(mutation.geneDelta());
+        
+        // 添加标签
+        for (SemanticPart part : mutation.affectedParts()) {
+            memory.addTag(part.name());
+        }
+        
+        // 保存
+        try {
+            MemoryStorage.saveMemory(server, memory);
+            spatialIndex.addMemory(memory);
+            semanticIndex.addMemory(memory);
+            return memory;
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.error("Failed to create memory from mutation", e);
+            return null;
+        }
+    }
+    
+    /**
      * 删除记忆
      */
     public boolean deleteMemory(String uuid) {

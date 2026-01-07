@@ -9,8 +9,12 @@ import java.util.List;
 /**
  * A plan consisting of radial primitives.
  */
-public final class RadialPlan implements SkeletonPlan {
+public final class RadialPlan extends SkeletonPlan {
     public final List<RadialPrimitive> primitives = new ArrayList<>();
+
+    public RadialPlan() {
+        super();
+    }
 
     @Override
     public SkeletonType type() {

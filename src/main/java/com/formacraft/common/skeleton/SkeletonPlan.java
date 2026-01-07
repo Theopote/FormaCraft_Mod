@@ -16,18 +16,27 @@ import java.util.Map;
  * - points: for path/polyline/ring, etc. (world positions)
  * - params: numeric/string params (width, radius, height, etc.)
  */
-public class SkeletonPlan {
-    public final SkeletonType type;
-    public final BlockPos anchor;
-    public final List<BlockPos> points; // optional
-    public final Map<String, Object> params; // optional
+public abstract class SkeletonPlan {
+    public BlockPos anchor;
+    public List<BlockPos> points; // optional
+    public Map<String, Object> params; // optional
 
-    public SkeletonPlan(SkeletonType type, BlockPos anchor, List<BlockPos> points, Map<String, Object> params) {
-        this.type = type;
+    public SkeletonPlan() {
+        this.anchor = null;
+        this.points = null;
+        this.params = null;
+    }
+
+    public SkeletonPlan(BlockPos anchor, List<BlockPos> points, Map<String, Object> params) {
         this.anchor = anchor;
         this.points = points;
         this.params = params;
     }
+
+    /**
+     * 获取骨架类型（子类必须实现）
+     */
+    public abstract SkeletonType type();
 
     /**
      * 获取整数参数

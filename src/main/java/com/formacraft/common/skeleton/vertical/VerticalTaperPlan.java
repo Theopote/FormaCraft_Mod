@@ -9,7 +9,7 @@ import java.util.List;
  * VerticalTaperPlan: per-y half-size for a vertical taper structure,
  * plus optional platform levels and spire span.
  */
-public final class VerticalTaperPlan implements SkeletonPlan {
+public final class VerticalTaperPlan extends SkeletonPlan {
     public final int height;
     public final int baseHalf;
     public final int topHalf;
@@ -20,6 +20,7 @@ public final class VerticalTaperPlan implements SkeletonPlan {
     public final int spireEndY;
 
     public VerticalTaperPlan(int height, int baseHalf, int topHalf, int[] halfByY, List<Integer> platformsY, boolean refined, int spireStartY, int spireEndY) {
+        super();
         this.height = height;
         this.baseHalf = baseHalf;
         this.topHalf = topHalf;

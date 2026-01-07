@@ -9,12 +9,13 @@ import java.util.List;
 /**
  * VerticalStackPlan: a sequence of stacked levels (square footprints), typically shrinking upward.
  */
-public final class VerticalStackPlan implements SkeletonPlan {
+public final class VerticalStackPlan extends SkeletonPlan {
     public final List<Level> levels;
     public final Direction facing;
     public final boolean refined;
 
     public VerticalStackPlan(List<Level> levels, Direction facing, boolean refined) {
+        super();
         this.levels = levels;
         this.facing = facing;
         this.refined = refined;

@@ -55,6 +55,7 @@ public final class PatchHistoryManager {
 
     /**
      * 应用 patch，并写入历史（事务）。
+     * 同时更新 Memory 系统（Memory → Patch → Memory 闭环）
      */
     public static void applyWithHistory(ServerWorld world, UUID playerId, BlockPos origin, List<BlockPatch> patches) {
         if (world == null || playerId == null) return;
@@ -76,6 +77,57 @@ public final class PatchHistoryManager {
         while (s.undo.size() > MAX_HISTORY) {
             s.undo.removeLast();
         }
+        
+        // ========== Memory → Patch → Memory 闭环 ==========
+        // 分析 Patch 影响并更新 Memory
+        updateMemoryFromPatch(world, origin, patches);
+    }
+    
+    /**
+     * 从 Patch 更新 Memory（Memory → Patch → Memory 闭环的核心）
+     */
+    private static void updateMemoryFromPatch(ServerWorld world, BlockPos origin, List<BlockPatch> patches) {
+        try {
+            // 获取 MemoryManager
+            com.formacraft.server.memory.MemoryManager memoryManager = 
+                com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
+            
+            if (memoryManager == null) {
+                // Memory 系统未初始化，跳过
+                return;
+            }
+            
+            // 分析 Patch 影响
+            com.formacraft.server.memory.PatchDiffAnalyzer analyzer = 
+                new com.formacraft.server.memory.PatchDiffAnalyzer(memoryManager);
+            java.util.List<com.formacraft.server.memory.PatchImpact> impacts = 
+                analyzer.analyze(origin, patches);
+            
+            // 对每个影响应用 Mutation
+            for (com.formacraft.server.memory.PatchImpact impact : impacts) {
+                // 获取建筑记忆（如果存在）
+                com.formacraft.server.memory.ProjectMemory memory = null;
+                if (impact.getTargetBuilding() != null) {
+                    memory = memoryManager.getMemory(impact.getTargetBuilding().toString());
+                }
+                
+                // 构建 GeneMutation
+                com.formacraft.server.memory.GeneMutation mutation = 
+                    com.formacraft.server.memory.MutationBuilder.build(impact, memory);
+                
+                if (mutation != null) {
+                    // 应用 Mutation 到 Memory
+                    memoryManager.applyMutation(
+                        mutation,
+                        impact.getMinPos(),
+                        impact.getMaxPos()
+                    );
+                }
+            }
+        } catch (Exception e) {
+            // 静默失败，不影响 Patch 执行
+            com.formacraft.FormacraftMod.LOGGER.warn("Failed to update memory from patch: {}", e.getMessage());
+        }
     }
 
     public static boolean undo(ServerWorld world, UUID playerId) {
@@ -86,6 +138,11 @@ public final class PatchHistoryManager {
         PatchTransaction tx = s.undo.pop();
         restore(world, tx.before());
         s.redo.push(tx);
+        
+        // ========== Undo 时反向更新 Memory ==========
+        // 注意：Undo 是反向操作，需要反向 Mutation
+        updateMemoryFromPatchUndo(world, tx);
+        
         return true;
     }
 
@@ -97,7 +154,76 @@ public final class PatchHistoryManager {
         PatchTransaction tx = s.redo.pop();
         restore(world, tx.after());
         s.undo.push(tx);
+        
+        // ========== Redo 时再次更新 Memory ==========
+        updateMemoryFromPatch(world, tx.origin(), tx.patches());
+        
         return true;
+    }
+    
+    /**
+     * Undo 时的 Memory 更新（反向 Mutation）
+     */
+    private static void updateMemoryFromPatchUndo(ServerWorld world, PatchTransaction tx) {
+        try {
+            // 获取 MemoryManager
+            com.formacraft.server.memory.MemoryManager memoryManager = 
+                com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
+            
+            if (memoryManager == null) {
+                return;
+            }
+            
+            // Undo 是反向操作：从 after 恢复到 before
+            // 我们需要分析 before 状态的影响
+            // 简化实现：分析原始 patch 的反向影响
+            com.formacraft.server.memory.PatchDiffAnalyzer analyzer = 
+                new com.formacraft.server.memory.PatchDiffAnalyzer(memoryManager);
+            
+            // 创建反向 patch（将 place 改为 remove，remove 改为 place）
+            java.util.List<com.formacraft.common.patch.BlockPatch> reversePatches = 
+                new java.util.ArrayList<>();
+            for (com.formacraft.common.patch.BlockPatch patch : tx.patches()) {
+                String reverseAction = com.formacraft.common.patch.BlockPatch.REMOVE.equals(patch.action())
+                    ? com.formacraft.common.patch.BlockPatch.PLACE
+                    : com.formacraft.common.patch.BlockPatch.REMOVE;
+                reversePatches.add(new com.formacraft.common.patch.BlockPatch(
+                    reverseAction, patch.dx(), patch.dy(), patch.dz(), patch.targetBlock()
+                ));
+            }
+            
+            java.util.List<com.formacraft.server.memory.PatchImpact> impacts = 
+                analyzer.analyze(tx.origin(), reversePatches);
+            
+            // 应用反向 Mutation
+            for (com.formacraft.server.memory.PatchImpact impact : impacts) {
+                com.formacraft.server.memory.ProjectMemory memory = null;
+                if (impact.getTargetBuilding() != null) {
+                    memory = memoryManager.getMemory(impact.getTargetBuilding().toString());
+                }
+                
+                com.formacraft.server.memory.GeneMutation mutation = 
+                    com.formacraft.server.memory.MutationBuilder.build(impact, memory);
+                
+                if (mutation != null) {
+                    // 添加 undo 标记
+                    java.util.Map<String, Object> delta = new java.util.HashMap<>(mutation.geneDelta());
+                    delta.put("undone", true);
+                    delta.put("undo_timestamp", System.currentTimeMillis());
+                    
+                    com.formacraft.server.memory.GeneMutation undoMutation = new com.formacraft.server.memory.GeneMutation(
+                        mutation.buildingId(),
+                        "Undo: " + mutation.reason(),
+                        mutation.affectedParts(),
+                        delta
+                    );
+                    
+                    memoryManager.applyMutation(undoMutation, impact.getMinPos(), impact.getMaxPos());
+                }
+            }
+        } catch (Exception e) {
+            com.formacraft.FormacraftMod.LOGGER.warn("Failed to update memory from patch undo: {}", e.getMessage());
+        }
     }
 
     private static Set<BlockPos> collectAffected(BlockPos origin, List<BlockPatch> patches) {

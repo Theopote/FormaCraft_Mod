@@ -11,8 +11,12 @@ import java.util.List;
  * CompoundPlan composes multiple child plans with transforms.
  * This enables axial symmetry, mirroring, tiling, and modular composition.
  */
-public final class CompoundPlan implements SkeletonPlan {
+public final class CompoundPlan extends SkeletonPlan {
     public final List<Component> components = new ArrayList<>();
+
+    public CompoundPlan() {
+        super();
+    }
 
     @Override
     public SkeletonType type() {

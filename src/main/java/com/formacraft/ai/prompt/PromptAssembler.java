@@ -58,6 +58,12 @@ public final class PromptAssembler {
         // 1. System Role（AI 身份，永远固定）
         sb.append(systemRole());
 
+        // 1.5. Memory Context（记忆上下文 - RAG 功能）
+        MemoryContext memoryContext = retrieveMemory(ctx);
+        if (memoryContext != null && !memoryContext.isEmpty()) {
+            sb.append(memoryContextBlock(memoryContext));
+        }
+
         // 2. Spatial Constraints（空间约束块）
         sb.append(spatialConstraints(ctx));
 
@@ -865,6 +871,191 @@ CLUSTER RULES:
         return """
 USER REQUEST:
 """ + ctx.userMessage.trim() + "\n\n";
+    }
+
+    // ========== RAG 功能：记忆检索与上下文构建 ==========
+
+    /**
+     * 从 MemoryManager 检索相关建筑记忆
+     * 
+     * @param ctx Prompt 上下文
+     * @return 记忆上下文，如果没有找到相关记忆则返回 null
+     */
+    private static MemoryContext retrieveMemory(PromptContext ctx) {
+        if (ctx == null) {
+            return null;
+        }
+
+        // 尝试获取 MemoryManager（仅在服务端可用）
+        com.formacraft.server.memory.MemoryManager memoryManager = null;
+        try {
+            memoryManager = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
+        } catch (Exception e) {
+            // 客户端或未初始化时返回 null
+            return null;
+        }
+
+        if (memoryManager == null) {
+            return null;
+        }
+
+        java.util.Set<com.formacraft.server.memory.ProjectMemory> result = new java.util.LinkedHashSet<>();
+
+        // 1. 空间优先：从 BuildContext 获取玩家位置
+        try {
+            com.formacraft.common.buildcontext.BuildContext bc = 
+                com.formacraft.client.buildcontext.BuildContextResolver.resolve(false);
+            if (bc != null && bc.origin != null) {
+                result.addAll(memoryManager.findAtPosition(bc.origin));
+                
+                // 也查找附近的建筑
+                com.formacraft.server.memory.ProjectMemory nearest = 
+                    memoryManager.findNearest(bc.origin, 32.0);
+                if (nearest != null) {
+                    result.add(nearest);
+                }
+            }
+        } catch (Exception e) {
+            // 忽略客户端访问错误
+        }
+
+        // 2. 语义召回：从用户输入中提取关键词
+        java.util.Set<String> keywords = extractKeywords(ctx.userMessage);
+        if (!keywords.isEmpty()) {
+            // 使用 OR 逻辑搜索（更宽松）
+            for (String keyword : keywords) {
+                if (keyword.length() >= 2) {
+                    result.addAll(memoryManager.searchContains(keyword));
+                }
+            }
+        }
+
+        // 3. 限制数量（防止 prompt 爆炸）
+        java.util.List<com.formacraft.server.memory.ProjectMemory> top = 
+            result.stream().limit(3).toList();
+
+        if (top.isEmpty()) {
+            return null;
+        }
+
+        return new MemoryContext(top, summarize(top));
+    }
+
+    /**
+     * 从用户输入中提取关键词（轻量版）
+     * 
+     * @param input 用户输入文本
+     * @return 关键词集合
+     */
+    private static java.util.Set<String> extractKeywords(String input) {
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        
+        if (input == null || input.trim().isEmpty()) {
+            return keys;
+        }
+
+        // 极简规则：按非字母数字和中文分词
+        String[] tokens = input.toLowerCase().split("[^a-zA-Z0-9\\u4e00-\\u9fa5]+");
+        
+        for (String t : tokens) {
+            if (t.length() >= 2) {
+                keys.add(t);
+            }
+        }
+        
+        return keys;
+    }
+
+    /**
+     * 将建筑记忆列表转换为 LLM 可理解的文本摘要
+     * 
+     * @param buildings 建筑记忆列表
+     * @return 文本摘要
+     */
+    private static String summarize(java.util.List<com.formacraft.server.memory.ProjectMemory> buildings) {
+        if (buildings == null || buildings.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== WORLD MEMORY CONTEXT ===\n");
+        sb.append("The following buildings already exist in this world:\n\n");
+
+        for (com.formacraft.server.memory.ProjectMemory b : buildings) {
+            sb.append("- Building: ").append(b.getName() != null ? b.getName() : "Unnamed").append("\n");
+            sb.append("  UUID: ").append(b.getUuid()).append("\n");
+
+            if (b.getDescription() != null && !b.getDescription().isEmpty()) {
+                sb.append("  Description: ").append(b.getDescription()).append("\n");
+            }
+
+            if (b.getTags() != null && !b.getTags().isEmpty()) {
+                sb.append("  Tags: ").append(String.join(", ", b.getTags())).append("\n");
+            }
+
+            if (b.getBounds() != null) {
+                com.formacraft.server.memory.ProjectMemory.SpatialBounds bounds = b.getBounds();
+                if (bounds.getMin() != null && bounds.getMax() != null) {
+                    int[] min = bounds.getMin();
+                    int[] max = bounds.getMax();
+                    sb.append("  Bounds: (")
+                      .append(min[0]).append(",").append(min[1]).append(",").append(min[2])
+                      .append(") → (")
+                      .append(max[0]).append(",").append(max[1]).append(",").append(max[2])
+                      .append(")\n");
+                }
+            }
+
+            if (b.getBounds() != null && b.getBounds().getAnchors() != null && !b.getBounds().getAnchors().isEmpty()) {
+                sb.append("  Anchors:\n");
+                for (var e : b.getBounds().getAnchors().entrySet()) {
+                    int[] coords = e.getValue();
+                    sb.append("    - ")
+                      .append(e.getKey())
+                      .append(": (")
+                      .append(coords[0]).append(",")
+                      .append(coords[1]).append(",")
+                      .append(coords[2]).append(")\n");
+                }
+            }
+
+            // Gene Summary（简要信息）
+            if (b.getGeneData() != null) {
+                com.formacraft.common.model.build.BuildingSpec spec = b.getGeneData();
+                sb.append("  Gene Summary: ");
+                if (spec.getType() != null) {
+                    sb.append("type=").append(spec.getType().name()).append(", ");
+                }
+                if (spec.getStyle() != null) {
+                    sb.append("style=").append(spec.getStyle().name()).append(", ");
+                }
+                if (spec.getHeight() > 0) {
+                    sb.append("height=").append(spec.getHeight());
+                }
+                sb.append("\n");
+            }
+
+            sb.append("\n");
+        }
+
+        sb.append("IMPORTANT:\n");
+        sb.append("- You MUST treat the above buildings as existing structures.\n");
+        sb.append("- Only modify them if the user explicitly requests changes.\n");
+        sb.append("- When modifying existing buildings, preserve their core identity and style.\n");
+        sb.append("- Use anchors to reference specific parts of buildings (e.g., \"main_entrance\").\n");
+        sb.append("\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * 生成记忆上下文块（用于拼接到 Prompt 中）
+     */
+    private static String memoryContextBlock(MemoryContext memoryContext) {
+        if (memoryContext == null || memoryContext.isEmpty()) {
+            return "";
+        }
+        return memoryContext.summary;
     }
 
 }
