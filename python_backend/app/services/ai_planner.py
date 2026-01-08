@@ -424,6 +424,10 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
 
     components = plan.get("components")
     if isinstance(components, list):
+        floors_hint = None
+        if req is not None:
+            text = (req.userMessage or "") + "\n" + (req.requestText or "")
+            floors_hint = _parse_levels_from_text(text)
         for comp in components:
             if not isinstance(comp, dict):
                 continue
@@ -432,6 +436,20 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
                 params = {}
             _fill_component_params(params, comp, plan.get("genome", {}))
             comp["params"] = params
+            if floors_hint:
+                ctype = str(comp.get("component_type", "")).upper()
+                if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS"):
+                    params.setdefault("floor_count", floors_hint)
+                    params.setdefault("floor_height", 3)
+                    dims = comp.get("dimensions") or {}
+                    try:
+                        height = int(dims.get("height", 0))
+                    except Exception:
+                        height = 0
+                    min_height = max(3, int(params.get("floor_height", 3)) * int(params.get("floor_count", floors_hint)))
+                    if height < min_height:
+                        dims["height"] = min_height
+                        comp["dimensions"] = dims
     return plan
 
 
@@ -2169,14 +2187,20 @@ def _parse_levels_from_text(s: str) -> Optional[int]:
             return v if v > 0 else None
         except Exception:
             return None
-    # 中文数字（简化：只覆盖常用）
+    # 中文数字（简化：覆盖常用 1~20）
     t = s.lower()
-    if "七层" in t:
-        return 7
-    if "五层" in t:
-        return 5
-    if "九层" in t:
-        return 9
+    m = re.search(r"([一二两三四五六七八九十]{1,3})\s*层", t)
+    if m:
+        cn = m.group(1)
+        mapping = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+        if cn in mapping:
+            return mapping[cn]
+        if cn.startswith("十") and len(cn) == 2 and cn[1] in mapping:
+            return 10 + mapping[cn[1]]
+        if len(cn) == 2 and cn[0] in mapping and cn[1] == "十":
+            return mapping[cn[0]] * 10
+        if len(cn) == 3 and cn[0] in mapping and cn[1] == "十" and cn[2] in mapping:
+            return mapping[cn[0]] * 10 + mapping[cn[2]]
     return None
 
 

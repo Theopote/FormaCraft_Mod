@@ -128,6 +128,13 @@ public class MouseMixin {
             return;
         }
 
+        // 中键按下时：仅用于移动视角，不触发Minecraft的pickBlock功能
+        if (button == 2 && action == 1) {
+            // 中键按下：阻止Minecraft的pickBlock功能，仅用于视角移动
+            ci.cancel();
+            return;
+        }
+
         // UI 未处理（点击在UI外）：允许游戏处理鼠标按钮
         // 如果是释放事件，也通知UI（可能正在拖拽）
         if (action == 0 && button == 0) {

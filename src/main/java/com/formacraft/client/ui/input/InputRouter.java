@@ -110,17 +110,19 @@ public class InputRouter {
             }
 
             boolean handled = false;
-            if (BuildConfirmPanel.INSTANCE.isVisible() && action == 1) {
-                handled = BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button);
-            }
-            if (!handled
-                    && FormacraftUIState.isOpen
-                    && FormaCraftHudOverlay.activePanel == PanelType.CHAT
-                    && action == 1) {
+            boolean chatActive = FormacraftUIState.isOpen
+                    && FormaCraftHudOverlay.activePanel == PanelType.CHAT;
+            boolean insideChat = chatActive && isMouseInsideUI(x, y);
+
+            if (insideChat && action == 1) {
                 BasePanel panel = getPanel();
                 if (panel != null) {
                     panel.mouseClicked(x, y, button);
+                    handled = true;
                 }
+            }
+            if (!handled && BuildConfirmPanel.INSTANCE.isVisible() && action == 1) {
+                BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button);
             }
             return true;
         }

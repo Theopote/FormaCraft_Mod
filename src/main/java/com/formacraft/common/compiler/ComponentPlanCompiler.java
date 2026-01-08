@@ -66,6 +66,19 @@ public final class ComponentPlanCompiler {
             ServerWorld world,
             TerrainStrategySampler terrainSampler
     ) {
+        return compile(plan, globalAnchor, world, terrainSampler, true);
+    }
+
+    /**
+     * 编译 LLM Plan 为 BlockPatch 列表（完整版本，可选择是否应用地形适应）
+     */
+    public static List<BlockPatch> compile(
+            LlmPlan plan,
+            BlockPos globalAnchor,
+            ServerWorld world,
+            TerrainStrategySampler terrainSampler,
+            boolean applyTerrainAdaptation
+    ) {
         List<BlockPatch> result = new ArrayList<>();
 
         if (plan == null) {
@@ -154,7 +167,7 @@ public final class ComponentPlanCompiler {
             PostProcessContext context = PostProcessContext.create(plan, globalAnchor);
             PostProcessPipeline pipeline;
             
-            if (world != null && terrainSampler != null) {
+            if (applyTerrainAdaptation && world != null && terrainSampler != null) {
                 // 包含地形适应的完整管道
                 pipeline = PostProcessPipeline.createWithTerrain(context, world, terrainSampler);
             } else {

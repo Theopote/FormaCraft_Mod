@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * InGameHud Mixin
  * <p>
- * 当 FormaCraft UI 打开时，隐藏默认的十字星（crosshair），
+ * 当 FormaCraft UI 打开时，隐藏默认的十字星（crosshair）和物品栏（hotbar），
  * 避免与自定义光标产生视觉冲突和逻辑混乱。
  */
 @Mixin(InGameHud.class)
@@ -24,6 +24,19 @@ public class InGameHudMixin {
     private void formacraft$hideCrosshairWhenUIOpen(net.minecraft.client.gui.DrawContext context, net.minecraft.client.render.RenderTickCounter tickCounter, CallbackInfo ci) {
         // 如果 FormaCraft UI 打开，隐藏十字星
         // 这样可以避免十字星与自定义光标产生视觉冲突和逻辑混乱
+        if (FormacraftUIState.isOpen) {
+            ci.cancel();
+        }
+    }
+
+    /**
+     * 拦截物品栏渲染
+     * 当 UI 打开时，不渲染物品栏（相当于按下F11全屏模式的效果）
+     */
+    @Inject(method = "renderHotbar", at = @At("HEAD"), cancellable = true)
+    private void formacraft$hideHotbarWhenUIOpen(net.minecraft.client.gui.DrawContext context, net.minecraft.client.render.RenderTickCounter tickCounter, CallbackInfo ci) {
+        // 如果 FormaCraft UI 打开，隐藏物品栏
+        // 这样可以提供更清晰的界面，类似于全屏模式（F11）的效果
         if (FormacraftUIState.isOpen) {
             ci.cancel();
         }

@@ -174,6 +174,88 @@ public final class TerrainFit {
         return out;
     }
 
+    /**
+     * Balanced pad (earthwork): cut/fill to targetY within footprint.
+     * - fill columns below targetY with foundation material (limited by padDepth)
+     * - cut columns above targetY down to targetY (limited by clearHeight)
+     * - clear vegetation in the footprint
+     */
+    public static List<PlannedBlock> balancedPad(ServerWorld world,
+                                                 BlockPos origin,
+                                                 int width,
+                                                 int depth,
+                                                 int targetY,
+                                                 BlockState fill,
+                                                 int padDepth,
+                                                 int clearHeight,
+                                                 boolean allowWaterEdit,
+                                                 boolean allowLavaEdit) {
+        if (world == null || origin == null) return List.of();
+        int w = Math.max(3, width);
+        int d = Math.max(3, depth);
+        int halfW = w / 2;
+        int halfD = d / 2;
+        BlockState fillState = (fill != null) ? fill : Blocks.COBBLESTONE.getDefaultState();
+        int pad = Math.max(0, Math.min(8, padDepth));
+        int clear = Math.max(0, Math.min(24, clearHeight));
+
+        List<PlannedBlock> out = new ArrayList<>(Math.max(256, w * d * 6));
+        int fillCount = 0;
+        int clearCount = 0;
+
+        for (int x = origin.getX() - halfW; x <= origin.getX() + halfW; x++) {
+            for (int z = origin.getZ() - halfD; z <= origin.getZ() + halfD; z++) {
+                int topY = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, x, z);
+
+                if (topY < targetY) {
+                    int fillStart = Math.max(topY + 1, targetY - pad);
+                    for (int y = fillStart; y <= targetY; y++) {
+                        BlockPos p = new BlockPos(x, y, z);
+                        if (!BuildConstraintContext.allow(p)) continue;
+                        BlockState cur = world.getBlockState(p);
+                        boolean isAir = cur.isAir();
+                        boolean isWater = cur.getBlock() == Blocks.WATER;
+                        boolean isLava = cur.getBlock() == Blocks.LAVA;
+                        if (isAir
+                                || (allowWaterEdit && isWater)
+                                || (allowLavaEdit && isLava)) {
+                            out.add(new PlannedBlock(p, fillState));
+                            fillCount++;
+                        }
+                    }
+                } else if (topY > targetY) {
+                    int cutTop = Math.min(topY, targetY + clear);
+                    for (int y = targetY + 1; y <= cutTop; y++) {
+                        BlockPos p = new BlockPos(x, y, z);
+                        if (!BuildConstraintContext.allow(p)) continue;
+                        BlockState cur = world.getBlockState(p);
+                        if (!cur.isAir()) {
+                            out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                            clearCount++;
+                        }
+                    }
+                }
+
+                // Always clear vegetation right above targetY.
+                int vegTop = targetY + Math.max(1, clear);
+                for (int y = targetY + 1; y <= vegTop; y++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    if (!BuildConstraintContext.allow(p)) continue;
+                    BlockState cur = world.getBlockState(p);
+                    if (!cur.isAir() && isObstacle(cur)) {
+                        out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                        clearCount++;
+                    }
+                }
+            }
+        }
+
+        if (fillCount > 0 || clearCount > 0) {
+            BuildReportContext.addTerrainPad(fillCount, clearCount);
+        }
+        return out;
+    }
+
     private static boolean isObstacle(BlockState state) {
         // keep this intentionally small and conservative; we only clear common natural blockers.
         return state.isOf(Blocks.OAK_LOG)

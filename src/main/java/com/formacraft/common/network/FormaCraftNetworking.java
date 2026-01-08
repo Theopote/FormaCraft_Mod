@@ -973,7 +973,8 @@ public class FormaCraftNetworking {
                                                 llmPlan,
                                                 planOrigin,
                                                 serverWorld,
-                                                terrainSampler
+                                                terrainSampler,
+                                                false
                                         );
                                         
                                         // 将 BlockPatch 转换为 PlannedBlock
@@ -1070,9 +1071,11 @@ public class FormaCraftNetworking {
                                                 }
                                             }
 
+                                            int baseY = minY;
                                             // 创建 final 变量供 lambda 使用
                                             final int finalMinY = Math.min(minY, analysis.minY());
                                             final int finalMaxY = Math.max(maxY, analysis.maxY());
+                                            final int finalBaseY = baseY;
                                             final BlockState finalFillMaterial = fillMaterial;
                                             
                                             TerrainAdaptationEngine.Bounds bounds = new TerrainAdaptationEngine.Bounds(
@@ -1085,7 +1088,7 @@ public class FormaCraftNetworking {
                                                 case STILT -> TerrainAdaptationEngine.anchorPillars(
                                                         serverWorld,
                                                         bounds,
-                                                        finalMinY,
+                                                        finalBaseY,
                                                         finalFillMaterial,
                                                         Math.max(6, fd.clearHeight() + 4),
                                                         true,
@@ -1094,18 +1097,20 @@ public class FormaCraftNetworking {
                                                 case EMBEDDED -> TerrainAdaptationEngine.carve(
                                                         serverWorld,
                                                         bounds,
-                                                        finalMinY - Math.max(0, fd.padDepth()),
+                                                        finalBaseY - Math.max(0, fd.padDepth()),
                                                         fd.clearHeight()
                                                 );
-                                                case STEPPED, FLAT_PAD -> TerrainFit.adaptivePad(
+                                                case STEPPED, FLAT_PAD -> TerrainFit.balancedPad(
                                                         serverWorld,
                                                         center,
                                                         width,
                                                         depth,
-                                                        finalMinY,
+                                                        finalBaseY,
                                                         finalFillMaterial,
                                                         fd.padDepth(),
-                                                        fd.clearHeight()
+                                                        fd.clearHeight(),
+                                                        true,
+                                                        true
                                                 );
                                             });
 
