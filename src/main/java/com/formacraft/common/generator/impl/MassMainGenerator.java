@@ -11,6 +11,7 @@ import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.FormacraftMod;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,12 +109,12 @@ public class MassMainGenerator implements ComponentGenerator {
         }
         if (userFloorHeight > 0) {
             // 用户指定了每层高度，验证总高度是否合理
-            int minTotalHeight = userFloorHeight * 1; // 至少1层
-            if (height < minTotalHeight) {
+            // 至少1层
+            if (height < userFloorHeight) {
                 FormacraftMod.LOGGER.warn("MassMainGenerator: total height {} is less than minimum {} (floor height: {})", 
-                        height, minTotalHeight, userFloorHeight);
+                        height, userFloorHeight, userFloorHeight);
                 // 调整总高度以匹配用户要求
-                height = minTotalHeight;
+                height = userFloorHeight;
             }
         } else {
             // 用户未指定，确保总高度至少3米
@@ -186,7 +187,7 @@ public class MassMainGenerator implements ComponentGenerator {
             // 对于足够大的建筑，默认应该有内部空间
             hasInterior = true;
             FormacraftMod.LOGGER.info("MassMainGenerator: enabling default interior space for building {}x{}x{} (program: {})", 
-                    width, depth, height, semantic.slot() != null ? semantic.slot().program() : "unknown");
+                    width, depth, height, semantic.slot().program());
         }
         
         // 记录特征匹配结果（用于调试）
@@ -195,23 +196,25 @@ public class MassMainGenerator implements ComponentGenerator {
         
         // 默认生成基础细节（即使没有匹配的 features）
         // 对于大多数建筑类型，默认应该有门和窗（除非明确不需要）
-        boolean isResidential = semantic.slot() != null && 
-                                "RESIDENTIAL".equals(semantic.slot().program());
-        boolean isLandmark = semantic.slot() != null && 
-                            "LANDMARK".equals(semantic.slot().program());
-        boolean isCivic = semantic.slot() != null && 
-                         "CIVIC".equals(semantic.slot().program());
-        
-        // 对于住宅、地标、市政建筑，默认应该有门和窗
-        boolean shouldGenerateDefaultDetails = (isResidential || isLandmark || isCivic) && 
-                                               !hasDoors && !hasWindows;
-        
+        boolean shouldGenerateDefaultDetails = isShouldGenerateDefaultDetails(semantic, hasDoors, hasWindows);
+
         // 如果应该生成默认细节，启用门和窗
         if (shouldGenerateDefaultDetails) {
             hasDoors = true;
             hasWindows = true;
-            FormacraftMod.LOGGER.debug("MassMainGenerator: enabling default doors and windows for program: {}", 
-                    semantic.slot() != null ? semantic.slot().program() : "unknown");
+            if (semantic.slot() != null) {
+                FormacraftMod.LOGGER.debug("MassMainGenerator: enabling default doors and windows for program: {}",
+                        semantic.slot().program());
+            }
+        }
+        if (isBuilding && !hasWindows && width >= 5 && depth >= 5 && height >= 4) {
+            hasWindows = true;
+            if (windowRatio == null) {
+                windowRatio = 0.25;
+            }
+        }
+        if (isBuilding && !hasDoors && width >= 4 && depth >= 4 && height >= 3) {
+            hasDoors = true;
         }
         if (windowRatio != null) {
             hasWindows = windowRatio > 0.05;
@@ -229,6 +232,19 @@ public class MassMainGenerator implements ComponentGenerator {
         }
 
         return out;
+    }
+
+    private static boolean isShouldGenerateDefaultDetails(SemanticComponent semantic, boolean hasDoors, boolean hasWindows) {
+        boolean isResidential = semantic.slot() != null &&
+                                "RESIDENTIAL".equals(semantic.slot().program());
+        boolean isLandmark = semantic.slot() != null &&
+                            "LANDMARK".equals(semantic.slot().program());
+        boolean isCivic = semantic.slot() != null &&
+                         "CIVIC".equals(semantic.slot().program());
+
+        // 对于住宅、地标、市政建筑，默认应该有门和窗
+        return (isResidential || isLandmark || isCivic) &&
+                                               !hasDoors && !hasWindows;
     }
 
     private void emitMass(
@@ -303,7 +319,7 @@ public class MassMainGenerator implements ComponentGenerator {
                         if (y == 0) {
                             SemanticPart part = SemanticPart.COURTYARD_FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
-                            if (block != null && !block.isEmpty()) {
+                            if (!block.isEmpty()) {
                                 out.add(new BlockPatch(
                                         BlockPatch.PLACE,
                                         rp.x() + mass.offsetX + localX,
@@ -321,10 +337,10 @@ public class MassMainGenerator implements ComponentGenerator {
                         if (y == 0) {
                             SemanticPart part = SemanticPart.FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
-                            if (block == null || block.isEmpty()) {
+                            if (block.isEmpty()) {
                                 block = getBlockForPart(SemanticPart.COURTYARD_FLOOR, semantic, palette);
                             }
-                            if (block != null && !block.isEmpty()) {
+                            if (!block.isEmpty()) {
                                 out.add(new BlockPatch(
                                         BlockPatch.PLACE,
                                         rp.x() + mass.offsetX + localX,
@@ -358,7 +374,7 @@ public class MassMainGenerator implements ComponentGenerator {
                             mass.cornerRadius, mass.pattern, doorFacing)) {
                         SemanticPart part = SemanticPart.DOORWAY;
                         String block = getBlockForPart(part, semantic, palette);
-                        if (block == null || block.isEmpty()) {
+                        if (block.isEmpty()) {
                             block = "minecraft:air";
                         }
                         if (y == 0) {
@@ -378,7 +394,7 @@ public class MassMainGenerator implements ComponentGenerator {
                     if (hasRoof && y >= height - 1) {
                         SemanticPart part = SemanticPart.ROOF_SURFACE;
                         String block = getBlockForPart(part, semantic, palette);
-                        if (block == null || block.isEmpty()) {
+                        if (block.isEmpty()) {
                             part = SemanticPart.ROOF;
                             block = getBlockForPart(part, semantic, palette);
                         }
@@ -396,7 +412,7 @@ public class MassMainGenerator implements ComponentGenerator {
                             mass.cornerRadius, mass.pattern)) {
                         SemanticPart part = SemanticPart.DECOR;
                         String block = getBlockForPart(part, semantic, palette);
-                        if (block == null || block.isEmpty()) {
+                        if (block.isEmpty()) {
                             part = SemanticPart.WALL_ACCENT;
                             block = getBlockForPart(part, semantic, palette);
                         }
@@ -646,9 +662,8 @@ public class MassMainGenerator implements ComponentGenerator {
      */
     private String getDefaultBlock(SemanticPart part) {
         return switch (part) {
-            case WALL, WALL_BASE -> "minecraft:stone_bricks";
+            case WALL, WALL_BASE, FLOOR, COURTYARD_FLOOR -> "minecraft:stone_bricks";
             case ROOF, ROOF_SURFACE -> "minecraft:spruce_planks";
-            case FLOOR, COURTYARD_FLOOR -> "minecraft:stone_bricks";
             case DECOR -> "minecraft:stone_brick_slab";
             case WINDOW -> "minecraft:glass";
             case DOORWAY -> "minecraft:air";
@@ -762,11 +777,9 @@ public class MassMainGenerator implements ComponentGenerator {
 
         if (planType == null && semantic != null) {
             String profile = getStyleProfile(semantic);
-            if (profile != null) {
-                String upper = profile.toUpperCase();
-                if (upper.contains("HUI") || upper.contains("CHINESE")) {
-                    planType = "cut_corners";
-                }
+            String upper = profile.toUpperCase();
+            if (upper.contains("HUI") || upper.contains("CHINESE")) {
+                planType = "cut_corners";
             }
         }
 
@@ -825,7 +838,6 @@ public class MassMainGenerator implements ComponentGenerator {
         String v = value.trim().toLowerCase();
         if (v.isEmpty()) return PlanPattern.NONE;
         return switch (v) {
-            case "none", "rect", "rectangle", "plain", "basic" -> PlanPattern.NONE;
             case "cross", "cruciform", "plus", "t_shape", "t-shape", "tshape" -> PlanPattern.CROSS;
             case "cut_corners", "cut-corners", "cutcorner", "cut_corner", "chamfer", "chamfered", "octagon", "octagonal" ->
                     PlanPattern.CUT_CORNERS;
@@ -920,9 +932,6 @@ public class MassMainGenerator implements ComponentGenerator {
         }
         int holeWidth = Math.max(1, Math.min(width - 2, (int) Math.round(width * ratio)));
         int holeDepth = Math.max(1, Math.min(depth - 2, (int) Math.round(depth * ratio)));
-        if (holeWidth <= 0 || holeDepth <= 0) {
-            return false;
-        }
         int startX = (width - holeWidth) / 2;
         int startZ = (depth - holeDepth) / 2;
         int endX = startX + holeWidth - 1;
@@ -978,31 +987,34 @@ public class MassMainGenerator implements ComponentGenerator {
             }
             int cr = resolveCornerRadius(m, mw, md, shape);
             PatternConfig pattern = resolvePlanPattern(m, semantic, mw, md, shape);
-            if ((pattern == null || pattern.pattern == PlanPattern.NONE)
-                    && basePattern != null && basePattern.pattern != null
-                    && basePattern.pattern != PlanPattern.NONE) {
-                Map<String, Object> fallback = new java.util.HashMap<>();
-                fallback.put("plan_type", basePattern.pattern.name().toLowerCase());
-                if (basePattern.pattern == PlanPattern.COURTYARD && basePattern.ratio > 0.0) {
-                    fallback.put("courtyard_ratio", basePattern.ratio);
-                } else if (basePattern.size > 0) {
-                    if (basePattern.pattern == PlanPattern.CROSS) {
-                        fallback.put("arm_width", basePattern.size);
-                    } else if (basePattern.pattern == PlanPattern.CUT_CORNERS) {
-                        fallback.put("corner_cut", basePattern.size);
-                    } else if (basePattern.pattern == PlanPattern.L_SHAPE) {
-                        fallback.put("l_cut", basePattern.size);
-                    }
-                }
-                if (basePattern.corner != null && !basePattern.corner.isBlank()) {
-                    fallback.put("l_corner", basePattern.corner);
-                }
+            if (pattern.pattern == PlanPattern.NONE && basePattern != null && basePattern.pattern != null && basePattern.pattern != PlanPattern.NONE) {
+                Map<String, Object> fallback = getStringObjectMap(basePattern);
                 pattern = resolvePlanPattern(fallback, semantic, mw, md, shape);
             }
             masses.add(new MassConfig(ox, oy, oz, mw, md, mh, shape, cr, pattern));
         }
 
         return masses;
+    }
+
+    private static @NotNull Map<String, Object> getStringObjectMap(PatternConfig basePattern) {
+        Map<String, Object> fallback = new java.util.HashMap<>();
+        fallback.put("plan_type", basePattern.pattern.name().toLowerCase());
+        if (basePattern.pattern == PlanPattern.COURTYARD && basePattern.ratio > 0.0) {
+            fallback.put("courtyard_ratio", basePattern.ratio);
+        } else if (basePattern.size > 0) {
+            if (basePattern.pattern == PlanPattern.CROSS) {
+                fallback.put("arm_width", basePattern.size);
+            } else if (basePattern.pattern == PlanPattern.CUT_CORNERS) {
+                fallback.put("corner_cut", basePattern.size);
+            } else if (basePattern.pattern == PlanPattern.L_SHAPE) {
+                fallback.put("l_cut", basePattern.size);
+            }
+        }
+        if (basePattern.corner != null && !basePattern.corner.isBlank()) {
+            fallback.put("l_corner", basePattern.corner);
+        }
+        return fallback;
     }
 
     private Double resolveVoidRatio(Map<String, Object> params, SemanticComponent semantic) {
@@ -1054,9 +1066,7 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     private String resolveRoofType(Map<String, Object> params, SemanticComponent semantic) {
-        String type = getParamString(params, "roof_type", "roofType");
-        if (type != null) return type;
-        return null;
+        return getParamString(params, "roof_type", "roofType");
     }
 
     private boolean shouldEnableSteppedFacade(SemanticComponent semantic) {
@@ -1084,7 +1094,7 @@ public class MassMainGenerator implements ComponentGenerator {
             return (dx * dx + dz * dz) <= 1.0;
         }
         int r = Math.max(0, Math.min(cornerRadius, Math.min(width, depth) / 2));
-        if (r <= 0) {
+        if (r == 0) {
             return true;
         }
         int maxX = width - 1;
@@ -1195,7 +1205,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
     private boolean isWindowSpacing(int x, int z, int spacing) {
         int mod = Math.max(2, spacing);
-        return ((x + z) % mod) != 0;
+        return ((x + z) % mod) == (mod / 2);
     }
 
     private int resolveWindowSpacing(Double windowRatio) {
@@ -1213,14 +1223,18 @@ public class MassMainGenerator implements ComponentGenerator {
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) {
-                return n.intValue();
-            }
-            if (v instanceof String s) {
-                try {
-                    return Integer.parseInt(s.trim());
-                } catch (NumberFormatException ignored) {}
+            switch (v) {
+                case Number n -> {
+                    return n.intValue();
+                }
+                case String s -> {
+                    try {
+                        return Integer.parseInt(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                case null, default -> {
+                }
             }
         }
         return fallback;
@@ -1231,14 +1245,18 @@ public class MassMainGenerator implements ComponentGenerator {
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) {
-                return n.doubleValue();
-            }
-            if (v instanceof String s) {
-                try {
-                    return Double.parseDouble(s.trim());
-                } catch (NumberFormatException ignored) {}
+            switch (v) {
+                case Number n -> {
+                    return n.doubleValue();
+                }
+                case String s -> {
+                    try {
+                        return Double.parseDouble(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                case null, default -> {
+                }
             }
         }
         return null;
@@ -1268,8 +1286,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
     }
 }
 

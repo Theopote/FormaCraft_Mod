@@ -109,10 +109,12 @@ public class InputRouter {
                 case 2 -> middleDown = (action == 1);
             }
 
+            boolean handled = false;
             if (BuildConfirmPanel.INSTANCE.isVisible() && action == 1) {
-                return BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button);
+                handled = BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button);
             }
-            if (FormacraftUIState.isOpen
+            if (!handled
+                    && FormacraftUIState.isOpen
                     && FormaCraftHudOverlay.activePanel == PanelType.CHAT
                     && action == 1) {
                 BasePanel panel = getPanel();

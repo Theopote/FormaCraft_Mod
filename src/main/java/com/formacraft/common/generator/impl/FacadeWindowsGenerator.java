@@ -79,9 +79,27 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (!isWindowBand(y, height, floorHeight)) {
                         continue;
                     }
-                    int axis = (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
-                            || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST)
-                            ? z : x;
+                    int axis;
+                    int axisMax;
+                    if (wrapFacade) {
+                        if (z == 0 || z == depth - 1) {
+                            axis = x;
+                            axisMax = width;
+                        } else {
+                            axis = z;
+                            axisMax = depth;
+                        }
+                    } else if (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                            || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST) {
+                        axis = z;
+                        axisMax = depth;
+                    } else {
+                        axis = x;
+                        axisMax = width;
+                    }
+                    if (axis <= 0 || axis >= axisMax - 1) {
+                        continue;
+                    }
                     if (!shouldPlaceWindow(axis, y, windowSpacing, windowRatio, rhythm)) {
                         continue;
                     }
@@ -272,23 +290,20 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
     }
 
     private boolean shouldPlaceWindow(int axis, int y, int spacing, Double ratio, String rhythm) {
-        int density = ratio != null ? (int) Math.round(Math.max(0.0, Math.min(1.0, ratio)) * 100.0) : 60;
-        int hash = stableHash(axis, y);
-        if ((hash % 100) >= density) {
-            return false;
-        }
         int step = Math.max(2, spacing);
         if (rhythm == null || rhythm.isBlank() || "regular".equalsIgnoreCase(rhythm)) {
-            return axis % step != 0;
+            return (axis % step) == (step / 2);
         }
         if ("segmented".equalsIgnoreCase(rhythm)) {
             int block = axis % (step + 2);
-            return block == 1 || block == 2;
+            return block == 1 || block == step;
         }
         if ("irregular".equalsIgnoreCase(rhythm)) {
-            return (hash % 5) != 0;
+            int density = ratio != null ? (int) Math.round(Math.max(0.0, Math.min(1.0, ratio)) * 100.0) : 45;
+            int hash = stableHash(axis, y);
+            return (hash % 100) < density;
         }
-        return axis % step != 0;
+        return (axis % step) == (step / 2);
     }
 
     private int resolveWindowSpacing(Double windowRatio) {

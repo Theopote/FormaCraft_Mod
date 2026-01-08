@@ -5,9 +5,11 @@ import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generator.adaptor.SmartGeneratorRouter;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;
@@ -16,8 +18,10 @@ import com.formacraft.common.terrain.TerrainStrategySampler;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * ComponentPlanCompiler（组件计划编译器）
@@ -69,16 +73,17 @@ public final class ComponentPlanCompiler {
             return result;
         }
 
-        if (plan.components() == null || plan.components().isEmpty()) {
+        // 索引 slots（便于快速查找）
+        Map<String, Slot> slotMap = indexSlots(plan);
+        List<Component> components = prepareComponents(plan, slotMap);
+
+        if (components.isEmpty()) {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: no components to compile");
             return result;
         }
 
-        // 索引 slots（便于快速查找）
-        Map<String, Slot> slotMap = indexSlots(plan);
-
         // 遍历所有 components
-        for (Component c : plan.components()) {
+        for (Component c : components) {
             if (c == null) continue;
 
             // 查找对应的 slot
@@ -142,7 +147,7 @@ public final class ComponentPlanCompiler {
         }
 
         FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches", 
-                plan.components().size(), result.size());
+                components.size(), result.size());
 
         // 后处理步骤
         if (globalAnchor != null) {
@@ -198,6 +203,189 @@ public final class ComponentPlanCompiler {
                 null,
                 null
         );
+    }
+
+    private static List<Component> prepareComponents(LlmPlan plan, Map<String, Slot> slotMap) {
+        List<Component> components = new ArrayList<>();
+        if (plan.components() != null) {
+            components.addAll(plan.components());
+        }
+        if (components.isEmpty()) {
+            return components;
+        }
+
+        Set<String> slotsWithFacade = new HashSet<>();
+        Set<String> slotsWithEntrance = new HashSet<>();
+        for (Component c : components) {
+            if (c == null) continue;
+            String type = normalizeType(c.componentType());
+            String slotKey = slotKey(c);
+            if ("FACADE_WINDOWS".equals(type)) {
+                slotsWithFacade.add(slotKey);
+            } else if ("ENTRANCE".equals(type)) {
+                slotsWithEntrance.add(slotKey);
+            }
+        }
+
+        List<Component> inferred = new ArrayList<>();
+        for (Component c : components) {
+            if (c == null) continue;
+            String type = normalizeType(c.componentType());
+            if (!isMassType(type)) {
+                continue;
+            }
+            String slotKey = slotKey(c);
+            String slotId = c.slotId();
+            Slot slot = slotId != null ? slotMap.get(slotId) : null;
+            GlobalConstraints.Facing facing = slot != null && slot.facing() != null
+                    ? slot.facing()
+                    : (plan.globalConstraints() != null ? plan.globalConstraints().facing() : GlobalConstraints.Facing.SOUTH);
+
+            if (!slotsWithFacade.contains(slotKey)) {
+                inferred.add(makeFacadeComponent(c, slotId));
+                slotsWithFacade.add(slotKey);
+            }
+            if (!slotsWithEntrance.contains(slotKey)) {
+                Component entrance = makeEntranceComponent(c, slotId, facing);
+                if (entrance != null) {
+                    inferred.add(entrance);
+                    slotsWithEntrance.add(slotKey);
+                }
+            }
+        }
+
+        if (!inferred.isEmpty()) {
+            FormacraftMod.LOGGER.info("ComponentPlanCompiler: inferred {} facade/entrance components", inferred.size());
+            components.addAll(inferred);
+        }
+
+        return components;
+    }
+
+    private static Component makeFacadeComponent(Component base, String slotId) {
+        Map<String, Object> params = new HashMap<>();
+        if (base.params() != null) {
+            params.putAll(base.params());
+        }
+        Double ratio = getParamDouble(params, "window_ratio", "windowRatio");
+        if (ratio == null) {
+            params.put("window_ratio", 0.25);
+        }
+        params.putIfAbsent("rhythm", "regular");
+
+        List<String> features = new ArrayList<>();
+        if (base.features() != null) {
+            features.addAll(base.features());
+        }
+        Dimensions dims = base.dimensions();
+        if (dims != null && dims.width() >= 8 && dims.depth() >= 8 && !features.contains("wrap")) {
+            features.add("wrap");
+        }
+
+        return new Component(
+                "FACADE_WINDOWS",
+                slotId,
+                base.relativePosition(),
+                base.dimensions(),
+                features,
+                params
+        );
+    }
+
+    private static Component makeEntranceComponent(Component base, String slotId, GlobalConstraints.Facing facing) {
+        Dimensions dims = base.dimensions();
+        Vec3i rp = base.relativePosition();
+        if (dims == null || rp == null) {
+            return null;
+        }
+        int width = Math.max(1, dims.width());
+        int depth = Math.max(1, dims.depth());
+        int height = Math.max(2, dims.height());
+
+        int entranceWidth = Math.max(3, Math.min(5, Math.max(3, width / 3)));
+        entranceWidth = Math.min(entranceWidth, Math.max(3, width - 2));
+        if (entranceWidth % 2 == 0) {
+            entranceWidth = Math.max(3, entranceWidth - 1);
+        }
+        int entranceDepth = Math.max(1, Math.min(2, Math.max(1, depth / 4)));
+        int entranceHeight = Math.max(3, Math.min(height, Math.max(4, height / 2)));
+
+        int relX = rp.x();
+        int relZ = rp.z();
+        switch (facing != null ? facing : GlobalConstraints.Facing.SOUTH) {
+            case NORTH -> {
+                relX = rp.x() + Math.max(0, (width - entranceWidth) / 2);
+                relZ = rp.z() + Math.max(0, depth - entranceDepth);
+            }
+            case EAST -> {
+                relX = rp.x();
+                relZ = rp.z() + Math.max(0, (depth - entranceDepth) / 2);
+            }
+            case WEST -> {
+                relX = rp.x() + Math.max(0, width - entranceWidth);
+                relZ = rp.z() + Math.max(0, (depth - entranceDepth) / 2);
+            }
+            case SOUTH -> {
+                relX = rp.x() + Math.max(0, (width - entranceWidth) / 2);
+                relZ = rp.z();
+            }
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("door_width", Math.max(2, Math.min(entranceWidth - 1, entranceWidth)));
+        params.put("door_height", Math.max(2, Math.min(entranceHeight - 1, entranceHeight)));
+        params.put("canopy_depth", 1);
+
+        List<String> features = new ArrayList<>();
+        features.add("entrance");
+        features.add("overhang");
+        if (base.features() != null) {
+            features.addAll(base.features());
+        }
+
+        return new Component(
+                "ENTRANCE",
+                slotId,
+                new Vec3i(relX, rp.y(), relZ),
+                new Dimensions(entranceWidth, entranceDepth, entranceHeight),
+                features,
+                params
+        );
+    }
+
+    private static String slotKey(Component c) {
+        return c.slotId() != null ? c.slotId() : "__global__";
+    }
+
+    private static String normalizeType(String value) {
+        if (value == null) return "";
+        return value.trim().toUpperCase();
+    }
+
+    private static boolean isMassType(String type) {
+        return "MASS_MAIN".equals(type)
+                || "MASS_SECONDARY".equals(type)
+                || "MASS_WING".equals(type)
+                || "SIDE_WING".equals(type)
+                || "MAIN_MASS".equals(type);
+    }
+
+    private static Double getParamDouble(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) {
+                return n.doubleValue();
+            }
+            if (v instanceof String s) {
+                try {
+                    return Double.parseDouble(s.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return null;
     }
 }
 
