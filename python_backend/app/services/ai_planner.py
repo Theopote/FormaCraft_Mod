@@ -352,6 +352,13 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
                 params["roof_type"] = "cone"
             elif feat_contains("dome") or feat_contains("curved"):
                 params["roof_type"] = "dome"
+        if "roof_type" not in params:
+            if feat_contains("chinese") or feat_contains("hui") or genome_contains("chinese") or genome_contains("hui"):
+                params["roof_type"] = "gable"
+            elif feat_contains("gothic") or feat_contains("medieval") or genome_contains("gothic") or genome_contains("medieval"):
+                params["roof_type"] = "gable"
+            elif feat_contains("modern") or genome_contains("modern"):
+                params["roof_type"] = "flat"
         if "window_ratio" not in params:
             params["window_ratio"] = 0.6 if feat_contains("glass") or feat_contains("curtain") else 0.35
         if "void_ratio" not in params:

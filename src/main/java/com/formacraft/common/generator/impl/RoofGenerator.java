@@ -43,7 +43,11 @@ public class RoofGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofType roofType = resolveRoofType(c, semantic, params);
-        int roofHeight = getParamInt(params, height, "roof_height", "roofHeight", "roofHeightBlocks");
+        int roofHeight = getParamInt(params, 0, "roof_height", "roofHeight", "roofHeightBlocks");
+        if (roofHeight <= 0) {
+            int span = Math.max(2, Math.min(width, depth));
+            roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
+        }
         height = Math.max(1, roofHeight);
 
         int overhang = getParamInt(params, 0, "overhang", "overhang_blocks", "eave_overhang");
@@ -238,7 +242,20 @@ public class RoofGenerator implements ComponentGenerator {
             }
         }
         if (type == null) {
-            return RoofType.FLAT;
+            String profile = getStyleProfile(semantic);
+            if (profile != null) {
+                String upper = profile.toUpperCase();
+                if (upper.contains("CHINESE") || upper.contains("HUI")) {
+                    return RoofType.GABLE;
+                }
+                if (upper.contains("GOTHIC") || upper.contains("MEDIEVAL")) {
+                    return RoofType.GABLE;
+                }
+                if (upper.contains("MODERN")) {
+                    return RoofType.FLAT;
+                }
+            }
+            return RoofType.GABLE;
         }
         return switch (type.trim().toLowerCase()) {
             case "gable", "gabled" -> RoofType.GABLE;

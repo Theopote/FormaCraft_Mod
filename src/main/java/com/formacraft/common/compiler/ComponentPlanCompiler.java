@@ -229,6 +229,7 @@ public final class ComponentPlanCompiler {
 
         Set<String> slotsWithFacade = new HashSet<>();
         Set<String> slotsWithEntrance = new HashSet<>();
+        Set<String> slotsWithRoof = new HashSet<>();
         for (Component c : components) {
             if (c == null) continue;
             String type = normalizeType(c.componentType());
@@ -237,14 +238,18 @@ public final class ComponentPlanCompiler {
                 slotsWithFacade.add(slotKey);
             } else if ("ENTRANCE".equals(type)) {
                 slotsWithEntrance.add(slotKey);
+            } else if (isRoofType(type)) {
+                slotsWithRoof.add(slotKey);
             }
         }
 
         List<Component> inferred = new ArrayList<>();
+        List<Component> prepared = new ArrayList<>(components.size());
         for (Component c : components) {
             if (c == null) continue;
             String type = normalizeType(c.componentType());
             if (!isMassType(type)) {
+                prepared.add(c);
                 continue;
             }
             String slotKey = slotKey(c);
@@ -265,14 +270,23 @@ public final class ComponentPlanCompiler {
                     slotsWithEntrance.add(slotKey);
                 }
             }
+            if (!slotsWithRoof.contains(slotKey)) {
+                Component roof = makeRoofComponent(plan, c, slotId);
+                if (roof != null) {
+                    inferred.add(roof);
+                    slotsWithRoof.add(slotKey);
+                    c = suppressMassRoof(c);
+                }
+            }
+            prepared.add(c);
         }
 
         if (!inferred.isEmpty()) {
-            FormacraftMod.LOGGER.info("ComponentPlanCompiler: inferred {} facade/entrance components", inferred.size());
-            components.addAll(inferred);
+            FormacraftMod.LOGGER.info("ComponentPlanCompiler: inferred {} facade/entrance/roof components", inferred.size());
+            prepared.addAll(inferred);
         }
 
-        return components;
+        return prepared;
     }
 
     private static Component makeFacadeComponent(Component base, String slotId) {
@@ -366,6 +380,67 @@ public final class ComponentPlanCompiler {
         );
     }
 
+    private static Component makeRoofComponent(LlmPlan plan, Component base, String slotId) {
+        Dimensions dims = base.dimensions();
+        Vec3i rp = base.relativePosition();
+        if (dims == null || rp == null) {
+            return null;
+        }
+        int width = Math.max(2, dims.width());
+        int depth = Math.max(2, dims.depth());
+        int span = Math.max(2, Math.min(width, depth));
+        int roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
+
+        Map<String, Object> params = new HashMap<>();
+        if (base.params() != null) {
+            params.putAll(base.params());
+        }
+        String roofType = getParamString(params, "roof_type", "roofType");
+        if (roofType == null || roofType.isBlank()) {
+            roofType = resolveDefaultRoofType(plan, base);
+        }
+        if (roofType != null) {
+            params.put("roof_type", roofType);
+        }
+        params.putIfAbsent("roof_height", roofHeight);
+        if (isChineseStyle(plan, base)) {
+            params.putIfAbsent("overhang", 1);
+        }
+
+        List<String> features = new ArrayList<>();
+        if (base.features() != null) {
+            features.addAll(base.features());
+        }
+        features.add("roof");
+
+        return new Component(
+                "ROOF",
+                slotId,
+                new Vec3i(rp.x(), rp.y() + Math.max(1, dims.height() - 1), rp.z()),
+                new Dimensions(width, depth, roofHeight),
+                features,
+                params
+        );
+    }
+
+    private static Component suppressMassRoof(Component base) {
+        Map<String, Object> params = base.params();
+        if (params != null) {
+            params.put("roof_type", "none");
+            return base;
+        }
+        Map<String, Object> next = new HashMap<>();
+        next.put("roof_type", "none");
+        return new Component(
+                base.componentType(),
+                base.slotId(),
+                base.relativePosition(),
+                base.dimensions(),
+                base.features(),
+                next
+        );
+    }
+
     private static String slotKey(Component c) {
         return c.slotId() != null ? c.slotId() : "__global__";
     }
@@ -381,6 +456,68 @@ public final class ComponentPlanCompiler {
                 || "MASS_WING".equals(type)
                 || "SIDE_WING".equals(type)
                 || "MAIN_MASS".equals(type);
+    }
+
+    private static boolean isRoofType(String type) {
+        if (type == null) return false;
+        return type.startsWith("ROOF");
+    }
+
+    private static boolean isChineseStyle(LlmPlan plan, Component base) {
+        String profile = plan != null ? plan.styleProfile() : null;
+        if (profile != null) {
+            String upper = profile.toUpperCase();
+            if (upper.contains("CHINESE") || upper.contains("HUI")) return true;
+        }
+        if (base.features() != null) {
+            for (String f : base.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase();
+                if (lower.contains("chinese") || lower.contains("中式") || lower.contains("徽派")) {
+                    return true;
+                }
+            }
+        }
+        if (plan != null && plan.genome() != null && plan.genome().culturalStyle != null) {
+            String region = plan.genome().culturalStyle.region;
+            if (region != null && region.toLowerCase().contains("chinese")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String resolveDefaultRoofType(LlmPlan plan, Component base) {
+        if (isChineseStyle(plan, base)) {
+            return "gable";
+        }
+        if (base.features() != null) {
+            for (String f : base.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase();
+                if (lower.contains("gothic") || lower.contains("cathedral") || lower.contains("church")) {
+                    return "gable";
+                }
+                if (lower.contains("modern") || lower.contains("flat")) {
+                    return "flat";
+                }
+            }
+        }
+        return "gable";
+    }
+
+    private static String getParamString(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).trim();
+            if (!s.isEmpty()) {
+                return s;
+            }
+        }
+        return null;
     }
 
     private static Double getParamDouble(Map<String, Object> params, String... keys) {
