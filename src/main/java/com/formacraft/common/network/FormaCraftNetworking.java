@@ -978,21 +978,44 @@ public class FormaCraftNetworking {
                                         
                                         // 将 BlockPatch 转换为 PlannedBlock
                                         List<PlannedBlock> plannedBlocks = new ArrayList<>();
+                                        int invalidBlockCount = 0;
                                         for (BlockPatch patch : patches) {
                                             BlockPos worldPos = planOrigin.add(patch.dx(), patch.dy(), patch.dz());
                                             String blockId = patch.targetBlock();
                                             if (blockId != null && !blockId.isEmpty()) {
                                                 try {
-                                                    net.minecraft.block.BlockState state = 
-                                                            net.minecraft.registry.Registries.BLOCK
-                                                                    .get(net.minecraft.util.Identifier.tryParse(blockId))
-                                                                    .getDefaultState();
+                                                    net.minecraft.util.Identifier blockIdentifier = net.minecraft.util.Identifier.tryParse(blockId);
+                                                    if (blockIdentifier == null) {
+                                                        invalidBlockCount++;
+                                                        if (invalidBlockCount <= 5) {
+                                                            FormacraftMod.LOGGER.warn("Failed to parse block ID (invalid format): {}", blockId);
+                                                        }
+                                                        continue;
+                                                    }
+                                                    net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(blockIdentifier);
+                                                    if (block == null) {
+                                                        invalidBlockCount++;
+                                                        if (invalidBlockCount <= 5) {
+                                                            FormacraftMod.LOGGER.warn("Block not found in registry: {}", blockId);
+                                                        }
+                                                        continue;
+                                                    }
+                                                    net.minecraft.block.BlockState state = block.getDefaultState();
                                                     plannedBlocks.add(new PlannedBlock(worldPos, state));
                                                 } catch (Exception e) {
-                                                    FormacraftMod.LOGGER.warn("Failed to parse block ID: {}", blockId, e);
+                                                    invalidBlockCount++;
+                                                    if (invalidBlockCount <= 5) {
+                                                        FormacraftMod.LOGGER.warn("Failed to parse block ID: {} at position ({}, {}, {})", 
+                                                                blockId, worldPos.getX(), worldPos.getY(), worldPos.getZ(), e);
+                                                    }
                                                 }
                                             }
                                         }
+                                        if (invalidBlockCount > 0) {
+                                            FormacraftMod.LOGGER.warn("LlmPlan: {} invalid blocks out of {} total patches", invalidBlockCount, patches.size());
+                                        }
+                                        FormacraftMod.LOGGER.info("LlmPlan: converted {} patches to {} planned blocks (origin: {})", 
+                                                patches.size(), plannedBlocks.size(), planOrigin);
 
                                         // 地形基础处理（仅 LlmPlan）：根据地形起伏决定台阶/支柱/覆土
                                         if (!plannedBlocks.isEmpty()

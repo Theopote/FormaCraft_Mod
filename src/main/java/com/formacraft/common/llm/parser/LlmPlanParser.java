@@ -90,11 +90,24 @@ public final class LlmPlanParser {
                 if (c.dimensions() == null) throw new PlanParseException("component.dimensions is required");
                 
                 // 平面组件允许 height = 0（如 COURTYARD、PATH、PLAZA 等）
+                // 立面组件允许 depth = 0（如 FACADE_WINDOWS 等）
                 String componentType = c.componentType().toUpperCase();
                 boolean isPlanarComponent = isPlanarComponentType(componentType);
+                boolean isFacadeComponent = isFacadeComponentType(componentType);
                 
-                if (c.dimensions().width() <= 0 || c.dimensions().depth() <= 0) {
-                    throw new PlanParseException("component.dimensions.width and depth must be > 0 (type=" + c.componentType() + ")");
+                // width 必须 > 0
+                if (c.dimensions().width() <= 0) {
+                    throw new PlanParseException("component.dimensions.width must be > 0 (type=" + c.componentType() + ")");
+                }
+                
+                // depth 必须 > 0，除非是立面组件（立面组件允许 depth = 0）
+                if (!isFacadeComponent && c.dimensions().depth() <= 0) {
+                    throw new PlanParseException("component.dimensions.depth must be > 0 (type=" + c.componentType() + ")");
+                }
+                
+                // 立面组件的 depth 应该 >= 0（允许 0）
+                if (isFacadeComponent && c.dimensions().depth() < 0) {
+                    throw new PlanParseException("component.dimensions.depth must be >= 0 for facade components (type=" + c.componentType() + ")");
                 }
                 
                 // 对于平面组件，允许 height = 0；对于其他组件，height 必须 > 0
@@ -150,6 +163,23 @@ public final class LlmPlanParser {
                upper.equals("TERRAIN") ||
                upper.equals("PARKING") ||
                upper.equals("GARDEN");
+    }
+    
+    /**
+     * 判断组件类型是否为立面组件（允许 depth = 0）
+     * 
+     * 立面组件包括：
+     * - FACADE_WINDOWS（立面窗户）
+     * - FACADE（立面）
+     * - WALL_FACADE（墙体立面）
+     */
+    private static boolean isFacadeComponentType(String componentType) {
+        if (componentType == null) return false;
+        
+        String upper = componentType.toUpperCase();
+        return upper.equals("FACADE_WINDOWS") ||
+               upper.equals("FACADE") ||
+               upper.equals("WALL_FACADE");
     }
 }
 
