@@ -8,6 +8,7 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
+import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
@@ -42,22 +43,35 @@ public class RoofGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofType roofType = resolveRoofType(c, semantic, params);
+        int roofHeight = getParamInt(params, height, "roof_height", "roofHeight", "roofHeightBlocks");
+        height = Math.max(1, roofHeight);
+
+        int overhang = getParamInt(params, 0, "overhang", "overhang_blocks", "eave_overhang");
+        int baseX = rp.x();
+        int baseZ = rp.z();
+        if (overhang > 0) {
+            baseX = rp.x() - overhang;
+            baseZ = rp.z() - overhang;
+            width = Math.max(1, width + overhang * 2);
+            depth = Math.max(1, depth + overhang * 2);
+        }
 
         switch (roofType) {
-            case GABLE -> generateGableRoof(out, rp, width, depth, height, palette);
-            case HIP -> generateHipRoof(out, rp, width, depth, height, palette);
-            case PYRAMID -> generatePyramidRoof(out, rp, width, depth, height, palette);
-            case CONE -> generateConeRoof(out, rp, width, depth, height, palette, false);
-            case DOME -> generateConeRoof(out, rp, width, depth, height, palette, true);
-            default -> generateFlatRoof(out, rp, width, depth, height, palette);
+            case GABLE -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+            case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+            case PYRAMID -> generatePyramidRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+            case CONE -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, false);
+            case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true);
+            default -> generateFlatRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
         }
 
         return out;
     }
 
-    private void generateGableRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height, Palette palette) {
+    private void generateGableRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                   int width, int depth, int height, Palette palette) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, rp, width, depth, height, palette);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
             return;
         }
         boolean alongDepth = depth >= width;
@@ -70,21 +84,22 @@ public class RoofGenerator implements ComponentGenerator {
                 int rise = (int) Math.round((1.0 - (dist / (double) maxSpan)) * (height - 1));
                 if (rise < 0) continue;
                 SemanticPart part = (dist == 0) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
-                String block = palette.pick(part);
+                String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
-                        rp.x() + x,
-                        rp.y() + rise,
-                        rp.z() + z,
+                        baseX + x,
+                        baseY + rise,
+                        baseZ + z,
                         block
                 ));
             }
         }
     }
 
-    private void generateHipRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height, Palette palette) {
+    private void generateHipRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                 int width, int depth, int height, Palette palette) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, rp, width, depth, height, palette);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
             return;
         }
         int centerX = width / 2;
@@ -96,26 +111,28 @@ public class RoofGenerator implements ComponentGenerator {
                 int rise = (int) Math.round((1.0 - (dist / (double) maxSpan)) * (height - 1));
                 if (rise < 0) continue;
                 SemanticPart part = (dist == 0) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
-                String block = palette.pick(part);
+                String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
-                        rp.x() + x,
-                        rp.y() + rise,
-                        rp.z() + z,
+                        baseX + x,
+                        baseY + rise,
+                        baseZ + z,
                         block
                 ));
             }
         }
     }
 
-    private void generatePyramidRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height, Palette palette) {
-        generateHipRoof(out, rp, width, depth, height, palette);
+    private void generatePyramidRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                     int width, int depth, int height, Palette palette) {
+        generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
     }
 
-    private void generateConeRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height,
+    private void generateConeRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                  int width, int depth, int height,
                                   Palette palette, boolean dome) {
         if (width < 2 || depth < 2 || height < 2) {
-            generateFlatRoof(out, rp, width, depth, height, palette);
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
             return;
         }
         double cx = (width - 1) / 2.0;
@@ -133,12 +150,12 @@ public class RoofGenerator implements ComponentGenerator {
                 double curve = dome ? Math.sqrt(t) : t;
                 int rise = (int) Math.round(curve * (height - 1));
                 SemanticPart part = (dist <= 0.5) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
-                String block = palette.pick(part);
+                String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
-                        rp.x() + x,
-                        rp.y() + rise,
-                        rp.z() + z,
+                        baseX + x,
+                        baseY + rise,
+                        baseZ + z,
                         block
                 ));
             }
@@ -148,19 +165,20 @@ public class RoofGenerator implements ComponentGenerator {
     /**
      * 生成平屋顶
      */
-    private void generateFlatRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height, Palette palette) {
+    private void generateFlatRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                  int width, int depth, int height, Palette palette) {
         // 平屋顶：只在最上层放置方块
         int topY = height - 1;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 SemanticPart part = SemanticPart.ROOF_SURFACE;
-                String block = palette.pick(part);
+                String block = getBlockForPart(semantic, palette, part);
                 
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
-                        rp.x() + x,
-                        rp.y() + topY,
-                        rp.z() + z,
+                        baseX + x,
+                        baseY + topY,
+                        baseZ + z,
                         block
                 ));
             }
@@ -168,6 +186,30 @@ public class RoofGenerator implements ComponentGenerator {
     }
 
     private String getStyleProfile(SemanticComponent semantic) {
+        if (semantic != null && semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
+            String profile = semantic.styleProfile().trim();
+            String upper = profile.toUpperCase();
+            if (upper.contains("GOTHIC")) {
+                return "MEDIEVAL_CLASSIC";
+            }
+            if (upper.contains("CHINESE") || upper.contains("HUI")) {
+                return "HUI_STYLE_VILLA";
+            }
+            return profile;
+        }
+        Component c = semantic != null ? semantic.source() : null;
+        if (c != null && c.features() != null) {
+            for (String feature : c.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase();
+                if (lower.contains("gothic") || lower.contains("pointed") || lower.contains("ribbed")) {
+                    return "MEDIEVAL_CLASSIC";
+                }
+                if (lower.contains("chinese") || lower.contains("中式")) {
+                    return "HUI_STYLE_VILLA";
+                }
+            }
+        }
         return "MEDIEVAL_CLASSIC";
     }
 
@@ -218,6 +260,43 @@ public class RoofGenerator implements ComponentGenerator {
             if (!s.isEmpty()) return s;
         }
         return null;
+    }
+
+    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
+        if (params == null || keys == null) return fallback;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) {
+                return n.intValue();
+            }
+            if (v instanceof String s) {
+                try {
+                    return Integer.parseInt(s.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return fallback;
+    }
+
+    private static String getBlockForPart(SemanticComponent semantic, Palette palette, SemanticPart part) {
+        if (semantic != null && semantic.styleAttributes() != null) {
+            String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        if (palette != null) {
+            String block = palette.pick(part);
+            if (block != null && !block.isEmpty()) {
+                return block;
+            }
+        }
+        return switch (part) {
+            case ROOF, ROOF_SURFACE -> "minecraft:spruce_planks";
+            default -> "minecraft:stone_bricks";
+        };
     }
 
     private enum RoofType {

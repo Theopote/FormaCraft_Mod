@@ -15,6 +15,7 @@ import java.util.UUID;
 public class PreviewStorage {
     private static final Map<UUID, GeneratedStructure> lastStructures = new HashMap<>();
     private static final Map<UUID, Boolean> hasPreview = new HashMap<>();
+    private static final Map<UUID, Object> skeletonLayouts = new HashMap<>();
 
     /**
      * 存储玩家的建筑结构
@@ -23,10 +24,20 @@ public class PreviewStorage {
         if (player != null && structure != null) {
             lastStructures.put(player.getUuid(), structure);
             hasPreview.put(player.getUuid(), false);
+            skeletonLayouts.remove(player.getUuid());
             FormacraftMod.LOGGER.debug("Stored preview structure for player {}: {} blocks at {}", 
                     player.getName().getString(), 
                     structure.getBlocks() != null ? structure.getBlocks().size() : 0,
                     structure.getOrigin());
+        }
+    }
+
+    /**
+     * 更新玩家的预览结构（不改变 preview active 状态）
+     */
+    public static void updateStructure(ServerPlayerEntity player, GeneratedStructure structure) {
+        if (player != null && structure != null) {
+            lastStructures.put(player.getUuid(), structure);
         }
     }
     
@@ -72,6 +83,7 @@ public class PreviewStorage {
             UUID uuid = player.getUuid();
             lastStructures.remove(uuid);
             hasPreview.remove(uuid);
+            skeletonLayouts.remove(uuid);
         }
     }
 
@@ -92,6 +104,23 @@ public class PreviewStorage {
         if (player != null) {
             hasPreview.put(player.getUuid(), active);
         }
+    }
+
+    public static void setSkeletonLayout(ServerPlayerEntity player, Object layout) {
+        if (player == null) return;
+        UUID uuid = player.getUuid();
+        if (layout == null) {
+            skeletonLayouts.remove(uuid);
+        } else {
+            skeletonLayouts.put(uuid, layout);
+        }
+    }
+
+    public static Object getSkeletonLayout(ServerPlayerEntity player) {
+        if (player == null) {
+            return null;
+        }
+        return skeletonLayouts.get(player.getUuid());
     }
 }
 

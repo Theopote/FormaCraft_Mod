@@ -7,6 +7,7 @@ import com.formacraft.ai.prompt.PromptAssembler;
 import com.formacraft.ai.prompt.PromptMode;
 import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.preview.BuildingPreviewState;
+import com.formacraft.client.preview.OutlinePreviewState;
 import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.client.ui.widget.MultilineTextInput;
 import com.formacraft.client.ui.panel.chat.AIStreamPrinter;
@@ -25,11 +26,15 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.net.URI;
@@ -723,6 +728,12 @@ public class ChatPanel extends BasePanel {
             return;
         }
 
+        // 预览状态下的“位置微调”指令：不走 AI 请求
+        if (tryHandlePreviewAdjust(text)) {
+            inputBox.clear();
+            return;
+        }
+
         // 如果上一条还在生成，先真中断，避免并发覆盖 UI（本地流式）
         stopGenerating();
 
@@ -890,6 +901,127 @@ public class ChatPanel extends BasePanel {
 
         // 清空输入框
         inputBox.clear();
+    }
+
+    private boolean tryHandlePreviewAdjust(String text) {
+        if (!(BuildingPreviewState.isActive() || OutlinePreviewState.active) || text == null) {
+            return false;
+        }
+        PreviewAdjustCommand cmd = PreviewAdjustCommand.parse(text, client.player != null ? client.player.getHorizontalFacing() : null);
+        if (cmd == null) {
+            return false;
+        }
+        messages.add(new ChatMessage(text, true));
+        scrollOffset = 0;
+
+        if (inputHistory.isEmpty() || !inputHistory.getLast().equals(text)) {
+            inputHistory.add(text);
+            if (inputHistory.size() > 50) {
+                inputHistory.removeFirst();
+            }
+        }
+        historyIndex = -1;
+        historyDraft = "";
+
+        messages.add(ChatMessage.system(cmd.hint));
+        scrollOffset = 0;
+        FormaCraftNetworking.sendPreviewAdjust(cmd.dx, cmd.dy, cmd.dz);
+        return true;
+    }
+
+    private static final class PreviewAdjustCommand {
+        private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d{1,3})");
+        private final int dx;
+        private final int dy;
+        private final int dz;
+        private final String hint;
+
+        private PreviewAdjustCommand(int dx, int dy, int dz, String hint) {
+            this.dx = dx;
+            this.dy = dy;
+            this.dz = dz;
+            this.hint = hint;
+        }
+
+        private static PreviewAdjustCommand parse(String raw, Direction facing) {
+            String text = raw.trim();
+            if (text.isEmpty() || text.startsWith("/")) {
+                return null;
+            }
+            String lower = text.toLowerCase(Locale.ROOT);
+
+            int step = parseStep(lower);
+            Direction dir = parseAbsoluteDirection(lower);
+            if (dir == null) {
+                dir = parseRelativeDirection(lower, facing);
+            }
+
+            int dx = 0;
+            int dy = 0;
+            int dz = 0;
+
+            if (dir != null) {
+                dx = dir.getOffsetX() * step;
+                dz = dir.getOffsetZ() * step;
+            }
+            if (containsAny(lower, "上移", "往上", "向上", "上挪", "抬高", "升高", "往高", "向高", "up", "raise")) {
+                dy = step;
+            } else if (containsAny(lower, "下移", "往下", "向下", "下挪", "降低", "下降", "down", "lower")) {
+                dy = -step;
+            }
+
+            if (dx == 0 && dy == 0 && dz == 0) {
+                return null;
+            }
+            String hint = "正在调整预览位置：dx=" + dx + " dy=" + dy + " dz=" + dz;
+            return new PreviewAdjustCommand(dx, dy, dz, hint);
+        }
+
+        private static int parseStep(String text) {
+            Matcher m = NUMBER_PATTERN.matcher(text);
+            if (m.find()) {
+                try {
+                    int v = Integer.parseInt(m.group(1));
+                    return Math.max(1, Math.min(32, v));
+                } catch (NumberFormatException ignored) {}
+            }
+            if (text.contains("多一点") || text.contains("再多") || text.contains("再往")) {
+                return 2;
+            }
+            return 1;
+        }
+
+        private static Direction parseAbsoluteDirection(String text) {
+            if (containsAny(text, "向北", "往北", "北移", "north")) return Direction.NORTH;
+            if (containsAny(text, "向南", "往南", "南移", "south")) return Direction.SOUTH;
+            if (containsAny(text, "向东", "往东", "东移", "east")) return Direction.EAST;
+            if (containsAny(text, "向西", "往西", "西移", "west")) return Direction.WEST;
+            return null;
+        }
+
+        private static Direction parseRelativeDirection(String text, Direction facing) {
+            if (facing == null) return null;
+            if (containsAny(text, "往前", "向前", "前移", "前挪", "forward")) {
+                return facing;
+            }
+            if (containsAny(text, "往后", "向后", "后移", "后退", "back")) {
+                return facing.getOpposite();
+            }
+            if (containsAny(text, "往左", "向左", "左移", "left")) {
+                return facing.rotateYCounterclockwise();
+            }
+            if (containsAny(text, "往右", "向右", "右移", "right")) {
+                return facing.rotateYClockwise();
+            }
+            return null;
+        }
+
+        private static boolean containsAny(String text, String... keys) {
+            for (String key : keys) {
+                if (text.contains(key)) return true;
+            }
+            return false;
+        }
     }
 
     private static String buildHealthUrlOrNull(String endpoint) {

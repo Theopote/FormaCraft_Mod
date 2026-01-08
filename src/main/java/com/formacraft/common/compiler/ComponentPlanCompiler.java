@@ -107,7 +107,7 @@ public final class ComponentPlanCompiler {
             List<BlockPatch> patches;
             try {
                 patches = SmartGeneratorRouter.generate(semantic, world);
-                if (patches != null && !patches.isEmpty()) {
+                if (!patches.isEmpty()) {
                     result.addAll(patches);
                 } else {
                     FormacraftMod.LOGGER.warn("ComponentPlanCompiler: no patches generated for component: {}", 

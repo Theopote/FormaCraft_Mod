@@ -24,6 +24,7 @@ import com.formacraft.common.compiler.ComponentPlanCompiler;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.server.foundation.FoundationType;
+import com.formacraft.server.preview.PreviewStorage;
 import com.formacraft.server.terrain.TerrainAdaptationEngine;
 import com.formacraft.server.terrain.TerrainFit;
 
@@ -58,6 +59,8 @@ public class FormaCraftNetworking {
     public static final Identifier RESPONSE_BUILD_STATUS = Identifier.of("formacraft", "response_buildstatus");
     public static final Identifier PREVIEW_OUTLINE = Identifier.of("formacraft", "preview_outline");
     public static final Identifier PREVIEW_SKELETON = Identifier.of("formacraft", "preview_skeleton");
+    public static final Identifier PREVIEW_ADJUST = Identifier.of("formacraft", "preview_adjust");
+    public static final Identifier PREVIEW_ORIGIN = Identifier.of("formacraft", "preview_origin");
     public static final Identifier CLEAR_OUTLINE = Identifier.of("formacraft", "clear_outline");
     public static final Identifier PATCH_UNDO = Identifier.of("formacraft", "patch_undo");
     public static final Identifier PATCH_REDO = Identifier.of("formacraft", "patch_redo");
@@ -365,6 +368,38 @@ public class FormaCraftNetworking {
         public static final PacketCodec<PacketByteBuf, PreviewSkeletonPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> PreviewSkeletonPacket.write(buf, payload.json),
                 buf -> new PreviewSkeletonPayload(PreviewSkeletonPacket.read(buf))
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /** 预览位置微调请求（客户端 -> 服务端） */
+    public record PreviewAdjustPayload(int dx, int dy, int dz) implements CustomPayload {
+        public static final CustomPayload.Id<PreviewAdjustPayload> ID = new CustomPayload.Id<>(PREVIEW_ADJUST);
+        public static final PacketCodec<PacketByteBuf, PreviewAdjustPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {
+                    buf.writeVarInt(payload.dx());
+                    buf.writeVarInt(payload.dy());
+                    buf.writeVarInt(payload.dz());
+                },
+                buf -> new PreviewAdjustPayload(buf.readVarInt(), buf.readVarInt(), buf.readVarInt())
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /** 预览原点更新（服务端 -> 客户端） */
+    public record PreviewOriginPayload(BlockPos origin) implements CustomPayload {
+        public static final CustomPayload.Id<PreviewOriginPayload> ID = new CustomPayload.Id<>(PREVIEW_ORIGIN);
+        public static final PacketCodec<PacketByteBuf, PreviewOriginPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> buf.writeBlockPos(payload.origin()),
+                buf -> new PreviewOriginPayload(buf.readBlockPos())
         );
 
         @Override
@@ -1304,6 +1339,80 @@ public class FormaCraftNetworking {
             if (filtered.isEmpty()) return;
             com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, filtered);
         }));
+
+        // 预览位置微调（服务端执行）
+        ServerPlayNetworking.registerGlobalReceiver(PreviewAdjustPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            if (!PreviewStorage.hasPreview(player)) {
+                try {
+                    ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("当前没有可调整的预览。"));
+                } catch (Throwable ignored) {}
+                return;
+            }
+            com.formacraft.server.build.GeneratedStructure structure = PreviewStorage.getStructure(player);
+            if (structure == null || structure.getBlocks() == null || structure.getBlocks().isEmpty()) {
+                try {
+                    ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("预览结构为空，无法调整。"));
+                } catch (Throwable ignored) {}
+                return;
+            }
+
+            int dx = payload.dx();
+            int dy = payload.dy();
+            int dz = payload.dz();
+            int max = 32;
+            dx = Math.max(-max, Math.min(max, dx));
+            dy = Math.max(-max, Math.min(max, dy));
+            dz = Math.max(-max, Math.min(max, dz));
+            if (dx == 0 && dy == 0 && dz == 0) return;
+
+            com.formacraft.server.build.GeneratedStructure shifted = shiftStructure(structure, dx, dy, dz);
+            PreviewStorage.updateStructure(player, shifted);
+            PreviewStorage.setPreview(player, true);
+
+            List<OutlineBlock> outline =
+                    com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(shifted.getBlocks());
+            sendPreviewOutline(player, outline);
+            sendPreviewOrigin(player, shifted.getOrigin());
+
+            Object layout = PreviewStorage.getSkeletonLayout(player);
+            if (layout != null) {
+                java.util.Map<String, Object> extra = new java.util.HashMap<>();
+                extra.put("skeletonLayout", layout);
+                sendPreviewSkeleton(player, shifted.getOrigin(), extra);
+            }
+
+            try {
+                ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
+                        "预览已调整：dx=" + dx + " dy=" + dy + " dz=" + dz));
+            } catch (Throwable ignored) {}
+        }));
+    }
+
+    private static com.formacraft.server.build.GeneratedStructure shiftStructure(
+            com.formacraft.server.build.GeneratedStructure structure,
+            int dx,
+            int dy,
+            int dz
+    ) {
+        if (structure == null) return null;
+        BlockPos origin = structure.getOrigin();
+        if (origin == null) return structure;
+        BlockPos newOrigin = origin.add(dx, dy, dz);
+        List<PlannedBlock> shifted = new ArrayList<>(structure.getBlocks().size());
+        for (PlannedBlock block : structure.getBlocks()) {
+            if (block == null || block.getPos() == null) continue;
+            BlockPos pos = block.getPos();
+            BlockPos newPos = pos.add(dx, dy, dz);
+            shifted.add(new PlannedBlock(newPos, block.getTargetState()));
+        }
+        return new com.formacraft.server.build.GeneratedStructure(
+                structure.getOwner(),
+                newOrigin,
+                structure.getDescription(),
+                shifted
+        );
     }
 
     private static boolean isIsComposite(String requestText, boolean isCity) {
@@ -1417,6 +1526,13 @@ public class FormaCraftNetworking {
             FormacraftMod.LOGGER.info("Received preview skeleton: {} chars", json != null ? json.length() : 0);
         }));
 
+        // 预览原点更新（用于预览移动后确认建造）
+        ClientPlayNetworking.registerGlobalReceiver(PreviewOriginPayload.ID, (payload, context) -> context.client().execute(() -> {
+            BlockPos origin = payload.origin();
+            com.formacraft.client.preview.BuildingPreviewState.setOrigin(origin);
+            FormacraftMod.LOGGER.info("Preview origin updated: {}", origin);
+        }));
+
         // 清除预览数据包接收器
         ClientPlayNetworking.registerGlobalReceiver(ClearOutlinePayload.ID, (payload, context) -> context.client().execute(() -> {
             com.formacraft.client.preview.OutlinePreviewState.clear();
@@ -1435,6 +1551,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchApplyPayload.ID, PatchApplyPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PreviewAdjustPayload.ID, PreviewAdjustPayload.CODEC);
     }
 
     /** 注册所有 S2C PayloadType（客户端解码 & 服务端编码都需要）。 */
@@ -1447,6 +1564,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playS2C().register(ResponseBuildStatusPayload.ID, ResponseBuildStatusPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewOutlinePayload.ID, PreviewOutlinePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewSkeletonPayload.ID, PreviewSkeletonPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(PreviewOriginPayload.ID, PreviewOriginPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
     }
 
@@ -1511,6 +1629,17 @@ public class FormaCraftNetworking {
         ClientPlayNetworking.send(payload);
     }
 
+    /** 客户端请求预览位置微调 */
+    public static void sendPreviewAdjust(int dx, int dy, int dz) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        PreviewAdjustPayload payload = new PreviewAdjustPayload(dx, dy, dz);
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
+            return;
+        }
+        ClientPlayNetworking.send(payload);
+    }
+
     /**
      * 服务端发送预览线框
      * @param player 目标玩家
@@ -1518,6 +1647,16 @@ public class FormaCraftNetworking {
      */
     public static void sendPreviewOutline(ServerPlayerEntity player, List<OutlineBlock> blocks) {
         ServerPlayNetworking.send(player, new PreviewOutlinePayload(blocks));
+    }
+
+    /**
+     * 服务端发送预览原点更新
+     * @param player 目标玩家
+     * @param origin 预览原点
+     */
+    public static void sendPreviewOrigin(ServerPlayerEntity player, BlockPos origin) {
+        if (player == null || origin == null) return;
+        ServerPlayNetworking.send(player, new PreviewOriginPayload(origin));
     }
 
     /**
@@ -1530,6 +1669,7 @@ public class FormaCraftNetworking {
         if (player == null || origin == null || extra == null) return;
         Object sk = extra.get("skeletonLayout");
         if (sk == null) return;
+        PreviewStorage.setSkeletonLayout(player, sk);
 
         java.util.Map<String, Object> payload = new java.util.HashMap<>();
         java.util.Map<String, Object> o = new java.util.HashMap<>();

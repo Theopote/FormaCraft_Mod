@@ -66,5 +66,8 @@ public final class BuildingPreviewState {
     public static BlockPos getOrigin() {
         return origin;
     }
-}
 
+    public static void setOrigin(BlockPos pos) {
+        origin = pos;
+    }
+}
