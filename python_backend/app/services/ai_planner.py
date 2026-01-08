@@ -21,7 +21,7 @@ from ..models.building_spec import (
     BuildingSpec, BuildingType, BuildingStyle, 
     Footprint, Materials, Features, StyleOptions
 )
-from ..models.building_genome import BuildingGenome, Archetype as GenomeArchetype
+from ..models.building_genome import BuildingGenome
 from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
 from ..models.semantic_spatial_plan import SemanticSpatialPlan
@@ -129,6 +129,275 @@ def _resolve_model(req: Optional[BuildRequest], default: str) -> str:
     # 统一从 llm_client 解析（支持 DeepSeek/OpenAI-compatible）
     cfg = build_config(req, default_model=default)
     return cfg.model
+
+
+def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(base or {})
+    for k, v in (override or {}).items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out.get(k, {}), v)
+        else:
+            out[k] = v
+    return out
+
+
+def _semantic_material_from_block(block_id: Optional[str]) -> Optional[str]:
+    if not block_id:
+        return None
+    s = str(block_id).lower()
+    if "glass" in s:
+        return "glass"
+    if "planks" in s or "wood" in s or "log" in s:
+        return "wood"
+    if "brick" in s or "stone" in s or "deepslate" in s or "cobble" in s:
+        return "stone"
+    if "terracotta" in s or "clay" in s:
+        return "earth"
+    if "iron" in s or "copper" in s or "gold" in s or "metal" in s:
+        return "metal"
+    return "mixed"
+
+
+def _build_genome_from_spec(req: Optional[BuildRequest], spec: BuildingSpec) -> BuildingGenome:
+    g = BuildingGenome()
+    if spec is None:
+        return g
+
+    fp = spec.footprint
+    if fp and fp.shape:
+        shape = fp.shape.lower()
+        if shape == "circle":
+            g.topology.layout = "circular"
+            g.symmetry.type = "radial"
+        elif shape == "rectangle":
+            g.topology.layout = "rectangular"
+
+    if spec.style is not None:
+        style = str(spec.style.value if hasattr(spec.style, "value") else spec.style).lower()
+        if "asian" in style:
+            g.culturalStyle.region = "chinese"
+            g.culturalStyle.era = "traditional"
+        elif "medieval" in style:
+            g.culturalStyle.region = "european"
+            g.culturalStyle.era = "medieval"
+        elif "futuristic" in style:
+            g.culturalStyle.region = "modern"
+            g.culturalStyle.era = "modern"
+        elif "modern" in style:
+            g.culturalStyle.region = "modern"
+            g.culturalStyle.era = "modern"
+        elif "rustic" in style:
+            g.culturalStyle.region = "rustic"
+            g.culturalStyle.era = "traditional"
+
+    if spec.materials is not None:
+        g.materials.primary = _semantic_material_from_block(spec.materials.wall)
+        g.materials.secondary = _semantic_material_from_block(spec.materials.roof)
+        g.materials.accent = _semantic_material_from_block(spec.materials.window)
+
+    if spec.features is not None:
+        if spec.features.hasRoof:
+            g.modules.append("roof")
+        if spec.features.hasWindows:
+            g.modules.append("windows")
+        if spec.features.hasBalcony:
+            g.modules.append("balcony")
+
+    if spec.styleOptions is not None and spec.styleOptions.roofType:
+        rt = spec.styleOptions.roofType.lower()
+        if rt in ("pyramid", "cone"):
+            g.form.progression = "tapering"
+        if rt in ("gable", "hipped"):
+            g.form.curvature = "straight"
+
+    if spec.height and fp and fp.width and fp.depth:
+        footprint = max(1, max(fp.width, fp.depth))
+        ratio = spec.height / float(footprint)
+        if ratio >= 1.2:
+            g.form.progression = g.form.progression or "upward"
+        g.structure.massiveness = min(1.0, max(0.2, ratio / 2.5))
+
+    if req is not None:
+        g.constraints.insideSelectionOnly = req.selection is not None or req.outline is not None
+        g.constraints.respectTerrain = True
+
+    return g
+
+
+def _default_component_params_for_spec(spec: BuildingSpec) -> Dict[str, Any]:
+    if spec is None:
+        return {}
+    params = {}
+    fp = spec.footprint
+    if fp and fp.shape:
+        params["shape"] = fp.shape.lower()
+    if spec.styleOptions is not None and spec.styleOptions.roofType:
+        params["roof_type"] = spec.styleOptions.roofType
+    if spec.styleOptions is not None:
+        params["window_ratio"] = spec.styleOptions.windowRatio
+    if spec.floors:
+        params["floor_count"] = spec.floors
+        params["floor_height"] = max(3, int(spec.height / max(1, spec.floors)))
+    return {"MASS_MAIN": params}
+
+
+def _ensure_genome_for_spec(spec: BuildingSpec, req: Optional[BuildRequest]) -> BuildingSpec:
+    if spec is None:
+        return _ensure_genome_for_spec(spec, req)
+    if spec.extra is None:
+        spec.extra = {}
+    if "genome" not in spec.extra or not isinstance(spec.extra.get("genome"), dict):
+        spec.extra["genome"] = _build_genome_from_spec(req, spec).model_dump()
+    else:
+        default = _build_genome_from_spec(req, spec).model_dump()
+        spec.extra["genome"] = _deep_merge(default, spec.extra.get("genome", {}))
+    if "component_params" not in spec.extra:
+        spec.extra["component_params"] = _default_component_params_for_spec(spec)
+    return spec
+
+
+def _attach_archetype_genome(
+    spec: BuildingSpec,
+    req: Optional[BuildRequest],
+    arche: Optional[Any],
+    mode: Optional[str],
+    include_reason_tags: bool = False,
+) -> BuildingSpec:
+    spec = _ensure_genome_for_spec(spec, req)
+    if spec is None or arche is None:
+        spec = _ensure_genome_for_city_spec(spec, req)
+        return _ensure_genome_for_spec(spec, req)
+    try:
+        if spec.extra is None:
+            spec.extra = {}
+        genome = spec.extra.get("genome")
+        if not isinstance(genome, dict):
+            genome = _build_genome_from_spec(req, spec).model_dump()
+            spec.extra["genome"] = genome
+        genome["archetype"] = {
+            "id": str(getattr(arche, "id", "generic")),
+            "confidence": float(getattr(arche, "confidence", 0.0)),
+        }
+        if mode:
+            spec.extra["archetypeMode"] = mode
+        if include_reason_tags:
+            reason_tags = getattr(arche, "reason_tags", None)
+            if reason_tags is not None:
+                spec.extra["archetypeReasonTags"] = list(reason_tags)
+    except Exception:
+        pass
+    return spec
+
+
+def _ensure_genome_for_composite_spec(spec: CompositeSpec, req: Optional[BuildRequest]) -> CompositeSpec:
+    if spec is None:
+        return _ensure_genome_for_spec(spec, req)
+    for entry in (spec.structures or []):
+        if entry is None or getattr(entry, "spec", None) is None:
+            continue
+        entry.spec = _ensure_genome_for_spec(entry.spec, req)
+    return spec
+
+
+def _ensure_genome_for_city_spec(spec: CitySpec, req: Optional[BuildRequest]) -> CitySpec:
+    if spec is None:
+        return spec
+    for entry in (spec.structures or []):
+        if entry is None or getattr(entry, "spec", None) is None:
+            continue
+        entry.spec = _ensure_genome_for_spec(entry.spec, req)
+    return spec
+
+
+def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome: Dict[str, Any]) -> None:
+    ctype = str(comp.get("component_type", "")).upper()
+    features = comp.get("features") or []
+    dims = comp.get("dimensions") or {}
+
+    def feat_contains(token: str) -> bool:
+        return any(token in str(f).lower() for f in features if f)
+
+    if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING"):
+        if "shape" not in params:
+            layout = ((genome.get("topology") or {}).get("layout") or "").lower()
+            if "circular" in layout or feat_contains("round") or feat_contains("circle"):
+                params["shape"] = "circle"
+            elif feat_contains("rounded"):
+                params["shape"] = "rounded_rect"
+            else:
+                params["shape"] = "rectangle"
+        if "roof_type" not in params:
+            if feat_contains("gable"):
+                params["roof_type"] = "gable"
+            elif feat_contains("hip"):
+                params["roof_type"] = "hip"
+            elif feat_contains("pyramid"):
+                params["roof_type"] = "pyramid"
+            elif feat_contains("cone"):
+                params["roof_type"] = "cone"
+            elif feat_contains("dome") or feat_contains("curved"):
+                params["roof_type"] = "dome"
+        if "window_ratio" not in params:
+            params["window_ratio"] = 0.6 if feat_contains("glass") or feat_contains("curtain") else 0.35
+        if "void_ratio" not in params:
+            vr = ((genome.get("structure") or {}).get("voidRatio"))
+            params["void_ratio"] = vr if vr is not None else (0.35 if feat_contains("courtyard") else 0.15)
+        if "setback_ratio" not in params:
+            prog = ((genome.get("form") or {}).get("progression") or "").lower()
+            if prog in ("stepping", "tapering"):
+                params["setback_ratio"] = 0.06
+        if "floor_height" not in params and dims.get("height"):
+            params["floor_height"] = max(3, int(dims.get("height", 6) / max(1, dims.get("height", 6) // 3)))
+
+    if ctype == "FACADE_WINDOWS":
+        if "window_ratio" not in params:
+            params["window_ratio"] = 0.5 if feat_contains("large") else 0.35
+        if "window_style" not in params:
+            if feat_contains("lattice"):
+                params["window_style"] = "lattice"
+            elif feat_contains("stained"):
+                params["window_style"] = "stained"
+        if "rhythm" not in params:
+            rhythm = ((genome.get("form") or {}).get("rhythm"))
+            if rhythm:
+                params["rhythm"] = rhythm
+
+    if ctype == "ENTRANCE":
+        if "door_width" not in params and dims.get("width"):
+            params["door_width"] = max(2, int(dims.get("width", 3)) - 2)
+        if "door_height" not in params and dims.get("height"):
+            params["door_height"] = min(4, int(dims.get("height", 4)))
+
+
+def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[str, Any]:
+    if not isinstance(raw, dict):
+        return raw
+    plan = dict(raw)
+    default_genome = BuildingGenome().model_dump()
+    if req is not None:
+        try:
+            # Provide a minimal hint to topology based on selection/outline.
+            if req.outline is not None:
+                default_genome["constraints"]["insideSelectionOnly"] = True
+        except Exception:
+            pass
+
+    if not isinstance(plan.get("genome"), dict):
+        plan["genome"] = default_genome
+    else:
+        plan["genome"] = _deep_merge(default_genome, plan.get("genome", {}))
+
+    components = plan.get("components")
+    if isinstance(components, list):
+        for comp in components:
+            if not isinstance(comp, dict):
+                continue
+            params = comp.get("params")
+            if not isinstance(params, dict):
+                params = {}
+            _fill_component_params(params, comp, plan.get("genome", {}))
+            comp["params"] = params
+    return plan
 
 
 def _build_system_prompt() -> str:
@@ -1137,7 +1406,7 @@ def _generate_temple_of_heaven_building_spec(req: BuildRequest) -> BuildingSpec:
             "accentBlock": "minecraft:yellow_terracotta",
         },
     )
-    return spec
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _should_use_great_wall_template(req: Optional[BuildRequest]) -> bool:
@@ -1296,7 +1565,7 @@ def _generate_great_wall_building_spec(req: BuildRequest) -> BuildingSpec:
             "accentBlock": "minecraft:mossy_stone_bricks",
         },
     )
-    return spec
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _should_use_golden_gate_bridge_template(req: Optional[BuildRequest]) -> bool:
@@ -1441,7 +1710,7 @@ def _generate_golden_gate_bridge_building_spec(req: BuildRequest) -> BuildingSpe
             "foundationBlock": "minecraft:stone_bricks",
         },
     )
-    return spec
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _should_use_giant_wild_goose_pagoda_template(req: Optional[BuildRequest]) -> bool:
@@ -1526,7 +1795,7 @@ def _generate_castle_compound_building_spec(req: BuildRequest) -> BuildingSpec:
         wallPattern="random",
     )
 
-    return BuildingSpec(
+    spec = BuildingSpec(
         type=BuildingType.CASTLE,
         style=BuildingStyle.MEDIEVAL,
         footprint=Footprint(shape="rectangle", width=w, depth=d),
@@ -1550,6 +1819,7 @@ def _generate_castle_compound_building_spec(req: BuildRequest) -> BuildingSpec:
             "pathWidth": int(path_width),
         },
     )
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _try_generate_castle_blueprint(req: BuildRequest, spec: BuildingSpec) -> None:
@@ -1817,7 +2087,7 @@ def _generate_office_district_building_spec(req: BuildRequest) -> BuildingSpec:
         wallPattern="uniform",
     )
 
-    return BuildingSpec(
+    spec = BuildingSpec(
         type=BuildingType.HOUSE,
         style=BuildingStyle.MODERN,
         footprint=Footprint(shape="rectangle", width=max(24, cols * spacing), depth=max(24, rows * spacing)),
@@ -1840,6 +2110,7 @@ def _generate_office_district_building_spec(req: BuildRequest) -> BuildingSpec:
             "roadWidth": int(road_width),
         },
     )
+    return _ensure_genome_for_spec(spec, req)
 
 def _parse_levels_from_text(s: str) -> Optional[int]:
     if not s:
@@ -1951,7 +2222,7 @@ def _generate_giant_wild_goose_pagoda_building_spec(req: BuildRequest) -> Buildi
             "accentBlock": "minecraft:chiseled_stone_bricks",
         },
     )
-    return spec
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _parse_height_from_text(s: str) -> Optional[int]:
@@ -2056,7 +2327,7 @@ def _generate_eiffel_tower_building_spec(req: BuildRequest) -> BuildingSpec:
             "spireBlock": "minecraft:iron_block",
         },
     )
-    return spec
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _parse_diameter_from_text(s: str) -> Optional[int]:
@@ -2346,7 +2617,7 @@ def _generate_tulou_building_spec(req: BuildRequest) -> BuildingSpec:
         # 默认深色；用户明确“浅色/橡木”则覆盖
         extra["windowShutterBlock"] = shutter_block or "minecraft:dark_oak_trapdoor"
 
-    return BuildingSpec(
+    spec = BuildingSpec(
         type=BuildingType.HOUSE,
         style=BuildingStyle.ASIAN,
         footprint=Footprint(shape="circle", radius=radius),
@@ -2358,6 +2629,7 @@ def _generate_tulou_building_spec(req: BuildRequest) -> BuildingSpec:
         notes=f"模板：福建土楼（直径≈{radius*2}，{floors}层，门朝{door_facing}）。使用确定性模板以保证形态稳定。",
         extra=extra,
     )
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _parse_rect_size_from_text(s: str) -> Optional[tuple[int, int]]:
@@ -2419,7 +2691,7 @@ def _generate_mingqing_courtyard_building_spec(req: BuildRequest) -> BuildingSpe
     path_width = _parse_path_width_from_text(text) or _arche_default_int(arche_id, "pathWidth", 3)
     path_width = _clamp_with_arche_constraints(arche_id, path_width, "minPathWidth", "maxPathWidth")
 
-    return BuildingSpec(
+    spec = BuildingSpec(
         type=BuildingType.HOUSE,
         style=BuildingStyle.ASIAN,
         footprint=Footprint(shape="rectangle", width=w, depth=d),
@@ -2431,6 +2703,7 @@ def _generate_mingqing_courtyard_building_spec(req: BuildRequest) -> BuildingSpe
         notes=f"模板：明清官式院落（{w}×{d}）。为保证按描述生成，使用确定性模板（除非用户要求随意）。",
         extra={"template": "mingqing_courtyard", "includePaths": bool(include_paths), "pathWidth": int(path_width)},
     )
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _normalize_building_spec_dict(data: Any) -> Any:
@@ -2873,7 +3146,7 @@ def _generate_fallback_spec(req: BuildRequest) -> BuildingSpec:
             windowRatio=0.35
         )
     
-    return BuildingSpec(
+    spec = BuildingSpec(
         type=building_type,
         style=style,
         footprint=footprint,
@@ -2884,6 +3157,7 @@ def _generate_fallback_spec(req: BuildRequest) -> BuildingSpec:
         styleOptions=style_options,
         notes=f"根据规则生成的{building_type.value}建筑"
     )
+    return _ensure_genome_for_spec(spec, req)
 
 
 def _should_generate_city(req: BuildRequest) -> bool:
@@ -2929,7 +3203,7 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
     client = get_client(req)
 
     if not client:
-        return _generate_fallback_city_spec(req)
+        return _ensure_genome_for_city_spec(_generate_fallback_city_spec(req), req)
 
     # I-layer: best-effort semantic spatial planning before full city generation.
     # This is used both as prompt context and as a source of spec.extra knobs (terrain/semantic scoring).
@@ -3127,7 +3401,7 @@ def _generate_fallback_city_spec(req: BuildRequest) -> CitySpec:
     # 创建桥梁（可选）
     bridges = []
     
-    return CitySpec(
+    spec = CitySpec(
         cityName="Fallback City",
         style=base_spec.style.value if hasattr(base_spec.style, 'value') else str(base_spec.style),
         size="MEDIUM",
@@ -3137,6 +3411,7 @@ def _generate_fallback_city_spec(req: BuildRequest) -> CitySpec:
         roads=roads,
         bridges=bridges
     )
+    return _ensure_genome_for_city_spec(spec, req)
 
 
 def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
@@ -3147,7 +3422,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
 
     # 如果 OpenAI 客户端不可用，使用回退方案
     if not client:
-        return _generate_fallback_composite_spec(req)
+        return _ensure_genome_for_composite_spec(_generate_fallback_composite_spec(req), req)
 
     # I-layer: best-effort semantic plan as context for composite generation (clusters/courtyards/compounds).
     semantic_plan = generate_semantic_spatial_plan(req)
@@ -3221,6 +3496,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
             except Exception:
                 pass
 
+        spec = _ensure_genome_for_composite_spec(spec, req)
         return spec
         
     except Exception as e:
@@ -3366,7 +3642,8 @@ def _generate_fallback_composite_spec(req: BuildRequest) -> CompositeSpec:
             )
         ]
     
-    return CompositeSpec(structures=structures, paths=paths)
+    spec = CompositeSpec(structures=structures, paths=paths)
+    return _ensure_genome_for_composite_spec(spec, req)
 
 
 def generate_llm_plan(req: BuildRequest) -> dict:
@@ -3419,8 +3696,8 @@ def generate_llm_plan(req: BuildRequest) -> dict:
         if not raw_output:
             raise ValueError("Empty response from LLM for LlmPlan")
         
-        # 直接返回解析后的 JSON，不做格式转换
-        return json.loads(raw_output)
+        plan = json.loads(raw_output)
+        return _normalize_llm_plan_output(plan, req)
     except Exception as e:
         raise RuntimeError(f"LLM call failed for LlmPlan: {e}") from e
 
@@ -3447,239 +3724,125 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     # 已实现的强原型：土楼、埃菲尔铁塔（其它 archetype 已进入 Registry/候选集，后续补专用生成器）
     if arche is not None and arche.id == "tulou" and strong:
         spec = _generate_tulou_building_spec(req)
-        # attach genome IR for routing/debug (does not change current behavior)
-        try:
-            g = BuildingGenome()
-            g.archetype = GenomeArchetype(id="tulou", confidence=float(arche.confidence))
-            if spec.extra is None:
-                spec.extra = {}
-            spec.extra["genome"] = g.model_dump()
-            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
-            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(spec, req, arche, "LANDMARK_STRONG", True)
 
     if arche is not None and arche.id == "eiffel_tower" and strong:
         spec = _generate_eiffel_tower_building_spec(req)
-        try:
-            g = BuildingGenome()
-            g.archetype = GenomeArchetype(id="eiffel_tower", confidence=float(arche.confidence))
-            if spec.extra is None:
-                spec.extra = {}
-            spec.extra["genome"] = g.model_dump()
-            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
-            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(spec, req, arche, "LANDMARK_STRONG", True)
 
     if arche is not None and arche.id == "temple_of_heaven" and strong:
         spec = _generate_temple_of_heaven_building_spec(req)
-        try:
-            g = BuildingGenome()
-            g.archetype = GenomeArchetype(id="temple_of_heaven", confidence=float(arche.confidence))
-            if spec.extra is None:
-                spec.extra = {}
-            spec.extra["genome"] = g.model_dump()
-            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
-            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(spec, req, arche, "LANDMARK_STRONG", True)
 
     if arche is not None and arche.id == "great_wall" and strong:
         spec = _generate_great_wall_building_spec(req)
-        try:
-            g = BuildingGenome()
-            g.archetype = GenomeArchetype(id="great_wall", confidence=float(arche.confidence))
-            if spec.extra is None:
-                spec.extra = {}
-            spec.extra["genome"] = g.model_dump()
-            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
-            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(spec, req, arche, "LANDMARK_STRONG", True)
 
     if arche is not None and arche.id == "golden_gate_bridge" and strong:
         spec = _generate_golden_gate_bridge_building_spec(req)
-        try:
-            g = BuildingGenome()
-            g.archetype = GenomeArchetype(id="golden_gate_bridge", confidence=float(arche.confidence))
-            if spec.extra is None:
-                spec.extra = {}
-            spec.extra["genome"] = g.model_dump()
-            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
-            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(spec, req, arche, "LANDMARK_STRONG", True)
 
     if arche is not None and arche.id == "giant_wild_goose_pagoda" and strong:
         spec = _generate_giant_wild_goose_pagoda_building_spec(req)
-        try:
-            g = BuildingGenome()
-            g.archetype = GenomeArchetype(id="giant_wild_goose_pagoda", confidence=float(arche.confidence))
-            if spec.extra is None:
-                spec.extra = {}
-            spec.extra["genome"] = g.model_dump()
-            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
-            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(spec, req, arche, "LANDMARK_STRONG", True)
 
     if arche is not None and arche.id == "castle_compound" and strong:
         spec = _generate_castle_compound_building_spec(req)
-        try:
-            g = BuildingGenome()
-            g.archetype = GenomeArchetype(id="castle_compound", confidence=float(arche.confidence))
-            if spec.extra is None:
-                spec.extra = {}
-            spec.extra["genome"] = g.model_dump()
-            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
-            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
-        except Exception:
-            pass
         # Best-effort blueprint augmentation: lets LLM describe semantic components without direct blocks.
         _try_generate_castle_blueprint(req, spec)
-        return spec
+        return _attach_archetype_genome(spec, req, arche, "LANDMARK_STRONG", True)
 
     if arche is not None and arche.id == "office_district" and strong:
         spec = _generate_office_district_building_spec(req)
-        try:
-            g = BuildingGenome()
-            g.archetype = GenomeArchetype(id="office_district", confidence=float(arche.confidence))
-            if spec.extra is None:
-                spec.extra = {}
-            spec.extra["genome"] = g.model_dump()
-            spec.extra["archetypeMode"] = "LANDMARK_STRONG"
-            spec.extra["archetypeReasonTags"] = list(arche.reason_tags)
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(spec, req, arche, "LANDMARK_STRONG", True)
 
     # 兼容旧逻辑：土楼（强形象地标）仍优先使用确定性模板（除非用户明确要求“随意/自由发挥”）
     if _should_use_tulou_template(req):
         spec = _generate_tulou_building_spec(req)
-        try:
-            if spec.extra is None:
-                spec.extra = {}
-            # soft inspired mode tagging
-            if arche is not None and arche.id == "tulou":
-                g = BuildingGenome()
-                g.archetype = GenomeArchetype(id="tulou", confidence=float(arche.confidence))
-                spec.extra["genome"] = g.model_dump()
-                spec.extra["archetypeMode"] = "INSPIRED"
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(
+            spec,
+            req,
+            arche if arche is not None and arche.id == "tulou" else None,
+            "INSPIRED",
+            False,
+        )
 
     # 兼容旧逻辑：埃菲尔铁塔（强形象地标）
     if _should_use_eiffel_tower_template(req):
         spec = _generate_eiffel_tower_building_spec(req)
-        try:
-            if spec.extra is None:
-                spec.extra = {}
-            if arche is not None and arche.id == "eiffel_tower":
-                g = BuildingGenome()
-                g.archetype = GenomeArchetype(id="eiffel_tower", confidence=float(arche.confidence))
-                spec.extra["genome"] = g.model_dump()
-                spec.extra["archetypeMode"] = "INSPIRED"
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(
+            spec,
+            req,
+            arche if arche is not None and arche.id == "eiffel_tower" else None,
+            "INSPIRED",
+            False,
+        )
 
     # 兼容旧逻辑：天坛（祈年殿）（强形象地标）
     if _should_use_temple_of_heaven_template(req):
         spec = _generate_temple_of_heaven_building_spec(req)
-        try:
-            if spec.extra is None:
-                spec.extra = {}
-            if arche is not None and arche.id == "temple_of_heaven":
-                g = BuildingGenome()
-                g.archetype = GenomeArchetype(id="temple_of_heaven", confidence=float(arche.confidence))
-                spec.extra["genome"] = g.model_dump()
-                spec.extra["archetypeMode"] = "INSPIRED"
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(
+            spec,
+            req,
+            arche if arche is not None and arche.id == "temple_of_heaven" else None,
+            "INSPIRED",
+            False,
+        )
 
     # 兼容旧逻辑：长城（强形象地标）
     if _should_use_great_wall_template(req):
         spec = _generate_great_wall_building_spec(req)
-        try:
-            if spec.extra is None:
-                spec.extra = {}
-            if arche is not None and arche.id == "great_wall":
-                g = BuildingGenome()
-                g.archetype = GenomeArchetype(id="great_wall", confidence=float(arche.confidence))
-                spec.extra["genome"] = g.model_dump()
-                spec.extra["archetypeMode"] = "INSPIRED"
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(
+            spec,
+            req,
+            arche if arche is not None and arche.id == "great_wall" else None,
+            "INSPIRED",
+            False,
+        )
 
     # 兼容旧逻辑：金门大桥（强形象地标）
     if _should_use_golden_gate_bridge_template(req):
         spec = _generate_golden_gate_bridge_building_spec(req)
-        try:
-            if spec.extra is None:
-                spec.extra = {}
-            if arche is not None and arche.id == "golden_gate_bridge":
-                g = BuildingGenome()
-                g.archetype = GenomeArchetype(id="golden_gate_bridge", confidence=float(arche.confidence))
-                spec.extra["genome"] = g.model_dump()
-                spec.extra["archetypeMode"] = "INSPIRED"
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(
+            spec,
+            req,
+            arche if arche is not None and arche.id == "golden_gate_bridge" else None,
+            "INSPIRED",
+            False,
+        )
 
     # 兼容旧逻辑：大慈恩寺（大雁塔）（强形象地标）
     if _should_use_giant_wild_goose_pagoda_template(req):
         spec = _generate_giant_wild_goose_pagoda_building_spec(req)
-        try:
-            if spec.extra is None:
-                spec.extra = {}
-            if arche is not None and arche.id == "giant_wild_goose_pagoda":
-                g = BuildingGenome()
-                g.archetype = GenomeArchetype(id="giant_wild_goose_pagoda", confidence=float(arche.confidence))
-                spec.extra["genome"] = g.model_dump()
-                spec.extra["archetypeMode"] = "INSPIRED"
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(
+            spec,
+            req,
+            arche if arche is not None and arche.id == "giant_wild_goose_pagoda" else None,
+            "INSPIRED",
+            False,
+        )
 
     # 兼容旧逻辑：城堡复合体（COMPOUND）
     if _should_use_castle_compound_template(req):
         spec = _generate_castle_compound_building_spec(req)
-        try:
-            if spec.extra is None:
-                spec.extra = {}
-            if arche is not None and arche.id == "castle_compound":
-                g = BuildingGenome()
-                g.archetype = GenomeArchetype(id="castle_compound", confidence=float(arche.confidence))
-                spec.extra["genome"] = g.model_dump()
-                spec.extra["archetypeMode"] = "INSPIRED"
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(
+            spec,
+            req,
+            arche if arche is not None and arche.id == "castle_compound" else None,
+            "INSPIRED",
+            False,
+        )
 
     # 兼容旧逻辑：办公楼群（GRID/CLUSTER）
     if _should_use_office_district_template(req):
         spec = _generate_office_district_building_spec(req)
-        try:
-            if spec.extra is None:
-                spec.extra = {}
-            if arche is not None and arche.id == "office_district":
-                g = BuildingGenome()
-                g.archetype = GenomeArchetype(id="office_district", confidence=float(arche.confidence))
-                spec.extra["genome"] = g.model_dump()
-                spec.extra["archetypeMode"] = "INSPIRED"
-        except Exception:
-            pass
-        return spec
+        return _attach_archetype_genome(
+            spec,
+            req,
+            arche if arche is not None and arche.id == "office_district" else None,
+            "INSPIRED",
+            False,
+        )
 
     # 明清官式院落：优先使用确定性模板（除非用户明确要求“随意/自由发挥”）
     if _should_use_mingqing_courtyard_template(req):
@@ -3735,7 +3898,7 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
             if spec.footprint.radius is None or spec.footprint.radius <= 0:
                 spec.footprint.radius = 6
         
-        return spec
+        return _ensure_genome_for_spec(spec, req)
         
     except Exception as e:
         raise RuntimeError(f"LLM call failed for building spec: {e}") from e

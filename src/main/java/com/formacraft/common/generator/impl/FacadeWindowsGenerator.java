@@ -13,6 +13,7 @@ import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * FacadeWindowsGenerator（立面窗户生成器）
@@ -37,6 +38,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
+        Map<String, Object> params = c.params();
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
@@ -44,28 +46,56 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         // 检查 features 以确定窗户类型
         boolean isLattice = hasFeature(c, "lattice", "lattice_pattern");
         boolean isLarge = hasFeature(c, "large", "big", "wide");
+        boolean wrapFacade = hasFeature(c, "wrap", "all_sides", "around", "perimeter");
+        Double windowRatio = getParamDouble(params, "window_ratio", "windowRatio");
+        String rhythm = getParamString(params, "rhythm");
+        if (rhythm == null && semantic != null && semantic.genome() != null && semantic.genome().form != null) {
+            rhythm = semantic.genome().form.rhythm;
+        }
+        String windowStyle = getParamString(params, "window_style", "windowStyle");
+        int floorHeight = getParamInt(params, 0, "floor_height", "floorHeight");
+        int floorCount = getParamInt(params, 0, "floor_count", "floorCount");
+        if (floorHeight <= 0 && floorCount > 0) {
+            floorHeight = Math.max(3, height / Math.max(1, floorCount));
+        }
+        if (floorHeight <= 0) {
+            floorHeight = 3;
+        }
+        int windowSpacing = resolveWindowSpacing(windowRatio);
+        com.formacraft.common.llm.dto.GlobalConstraints.Facing facing =
+                (semantic.slot() != null && semantic.slot().facing() != null)
+                        ? semantic.slot().facing()
+                        : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
         // boolean isFloorToCeiling = hasFeature(c, "floor_to_ceiling", "full_height"); // 保留用于未来扩展
 
         // 生成窗户（通常只在立面，depth 通常为 1）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 窗户通常只在立面（z=0 或 z=depth-1）
-                    boolean isFacade = (z == 0 || z == depth - 1);
-                    
-                    if (isFacade) {
-                        // 根据位置和特征决定窗户类型
-                        SemanticPart part = determineWindowPart(y, height, isLattice, isLarge);
-                        String block = getBlockForWindow(semantic, palette, part, isLattice);
-                        
-                        out.add(new BlockPatch(
-                                BlockPatch.PLACE,
-                                rp.x() + x,
-                                rp.y() + y,
-                                rp.z() + z,
-                                block
-                        ));
+                    boolean isFacade = isFacadePosition(x, z, width, depth, facing, wrapFacade);
+                    if (!isFacade) {
+                        continue;
                     }
+                    if (!isWindowBand(y, height, floorHeight)) {
+                        continue;
+                    }
+                    int axis = (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                            || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST)
+                            ? z : x;
+                    if (!shouldPlaceWindow(axis, y, windowSpacing, windowRatio, rhythm)) {
+                        continue;
+                    }
+
+                    SemanticPart part = determineWindowPart(y, height, isLattice, isLarge);
+                    String block = getBlockForWindow(semantic, palette, part, isLattice, windowStyle);
+
+                    out.add(new BlockPatch(
+                            BlockPatch.PLACE,
+                            rp.x() + x,
+                            rp.y() + y,
+                            rp.z() + z,
+                            block
+                    ));
                 }
             }
         }
@@ -146,7 +176,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
     /**
      * 获取窗户方块（优先使用动态解析和 features，回退到传统 Palette）
      */
-    private String getBlockForWindow(SemanticComponent semantic, Palette palette, SemanticPart part, boolean isLattice) {
+    private String getBlockForWindow(SemanticComponent semantic, Palette palette, SemanticPart part, boolean isLattice,
+                                     String windowStyle) {
         // 1. 优先使用动态解析（如果 LlmPlan 有 style_attributes）
         if (semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
@@ -173,6 +204,18 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         }
         
         // 4. 默认方块
+        if (windowStyle != null && !windowStyle.isBlank()) {
+            String v = windowStyle.trim().toLowerCase();
+            if (v.contains("lattice") || v.contains("fence") || v.contains("bars")) {
+                return "minecraft:iron_bars";
+            }
+            if (v.contains("stained")) {
+                return "minecraft:blue_stained_glass";
+            }
+            if (v.contains("pane")) {
+                return "minecraft:glass_pane";
+            }
+        }
         return isLattice ? "minecraft:iron_bars" : "minecraft:glass";
     }
     
@@ -203,6 +246,113 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             }
         }
         
+        return null;
+    }
+
+    private boolean isFacadePosition(int x, int z, int width, int depth,
+                                     com.formacraft.common.llm.dto.GlobalConstraints.Facing facing,
+                                     boolean wrapFacade) {
+        if (wrapFacade) {
+            return x == 0 || z == 0 || x == width - 1 || z == depth - 1;
+        }
+        return switch (facing) {
+            case NORTH -> z == depth - 1;
+            case EAST -> x == 0;
+            case WEST -> x == width - 1;
+            case SOUTH -> z == 0;
+        };
+    }
+
+    private boolean isWindowBand(int y, int height, int floorHeight) {
+        if (y <= 0 || y >= height - 1) {
+            return false;
+        }
+        int band = y % Math.max(1, floorHeight);
+        return band >= 1 && band <= Math.max(1, floorHeight - 2);
+    }
+
+    private boolean shouldPlaceWindow(int axis, int y, int spacing, Double ratio, String rhythm) {
+        int density = ratio != null ? (int) Math.round(Math.max(0.0, Math.min(1.0, ratio)) * 100.0) : 60;
+        int hash = stableHash(axis, y);
+        if ((hash % 100) >= density) {
+            return false;
+        }
+        int step = Math.max(2, spacing);
+        if (rhythm == null || rhythm.isBlank() || "regular".equalsIgnoreCase(rhythm)) {
+            return axis % step != 0;
+        }
+        if ("segmented".equalsIgnoreCase(rhythm)) {
+            int block = axis % (step + 2);
+            return block == 1 || block == 2;
+        }
+        if ("irregular".equalsIgnoreCase(rhythm)) {
+            return (hash % 5) != 0;
+        }
+        return axis % step != 0;
+    }
+
+    private int resolveWindowSpacing(Double windowRatio) {
+        if (windowRatio == null) {
+            return 3;
+        }
+        if (windowRatio >= 0.6) return 2;
+        if (windowRatio >= 0.35) return 3;
+        if (windowRatio >= 0.2) return 4;
+        return 5;
+    }
+
+    private static int stableHash(int a, int b) {
+        int h = a * 734287 + b * 912271;
+        h ^= (h >>> 11);
+        h *= 1103515245;
+        return h;
+    }
+
+    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
+        if (params == null || keys == null) return fallback;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) {
+                return n.intValue();
+            }
+            if (v instanceof String s) {
+                try {
+                    return Integer.parseInt(s.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return fallback;
+    }
+
+    private static Double getParamDouble(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) {
+                return n.doubleValue();
+            }
+            if (v instanceof String s) {
+                try {
+                    return Double.parseDouble(s.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return null;
+    }
+
+    private static String getParamString(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).trim();
+            if (!s.isEmpty()) return s;
+        }
         return null;
     }
 }

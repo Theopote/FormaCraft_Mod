@@ -12,6 +12,7 @@ import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * RoofGenerator（屋顶生成器）
@@ -35,58 +36,111 @@ public class RoofGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
+        Map<String, Object> params = c.params();
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 检查是否有斜屋顶特征
-        boolean isPitched = c.features() != null && c.features().stream()
-                .anyMatch(f -> f != null && (f.contains("pitched") || f.contains("sloped") || f.contains("curved")));
+        RoofType roofType = resolveRoofType(c, semantic, params);
 
-        if (isPitched) {
-            // 生成斜屋顶
-            generatePitchedRoof(out, rp, width, depth, height, palette);
-        } else {
-            // 生成平屋顶
-            generateFlatRoof(out, rp, width, depth, height, palette);
+        switch (roofType) {
+            case GABLE -> generateGableRoof(out, rp, width, depth, height, palette);
+            case HIP -> generateHipRoof(out, rp, width, depth, height, palette);
+            case PYRAMID -> generatePyramidRoof(out, rp, width, depth, height, palette);
+            case CONE -> generateConeRoof(out, rp, width, depth, height, palette, false);
+            case DOME -> generateConeRoof(out, rp, width, depth, height, palette, true);
+            default -> generateFlatRoof(out, rp, width, depth, height, palette);
         }
 
         return out;
     }
 
-    /**
-     * 生成斜屋顶
-     */
-    private void generatePitchedRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height, Palette palette) {
-        // 简化的斜屋顶：从边缘向中心逐渐升高
+    private void generateGableRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height, Palette palette) {
+        if (width < 2 || depth < 2 || height < 2) {
+            generateFlatRoof(out, rp, width, depth, height, palette);
+            return;
+        }
+        boolean alongDepth = depth >= width;
+        int center = alongDepth ? depth / 2 : width / 2;
+        int maxSpan = Math.max(1, alongDepth ? depth / 2 : width / 2);
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                int axis = alongDepth ? z : x;
+                int dist = Math.abs(axis - center);
+                int rise = (int) Math.round((1.0 - (dist / (double) maxSpan)) * (height - 1));
+                if (rise < 0) continue;
+                SemanticPart part = (dist == 0) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
+                String block = palette.pick(part);
+                out.add(new BlockPatch(
+                        BlockPatch.PLACE,
+                        rp.x() + x,
+                        rp.y() + rise,
+                        rp.z() + z,
+                        block
+                ));
+            }
+        }
+    }
+
+    private void generateHipRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height, Palette palette) {
+        if (width < 2 || depth < 2 || height < 2) {
+            generateFlatRoof(out, rp, width, depth, height, palette);
+            return;
+        }
         int centerX = width / 2;
         int centerZ = depth / 2;
-        
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                for (int z = 0; z < depth; z++) {
-                    // 计算到中心的距离
-                    int dx = Math.abs(x - centerX);
-                    int dz = Math.abs(z - centerZ);
-                    int dist = Math.max(dx, dz);
-                    
-                    // 根据距离和高度决定是否放置方块
-                    int maxDist = Math.max(width, depth) / 2;
-                    int targetY = (int) (height - 1 - (double) dist / maxDist * (height - 1));
-                    
-                    if (y == targetY || (y < targetY && dist < maxDist)) {
-                        SemanticPart part = (y == height - 1) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
-                        String block = palette.pick(part);
-                        
-                        out.add(new BlockPatch(
-                                BlockPatch.PLACE,
-                                rp.x() + x,
-                                rp.y() + y,
-                                rp.z() + z,
-                                block
-                        ));
-                    }
+        int maxSpan = Math.max(1, Math.min(width, depth) / 2);
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                int dist = Math.max(Math.abs(x - centerX), Math.abs(z - centerZ));
+                int rise = (int) Math.round((1.0 - (dist / (double) maxSpan)) * (height - 1));
+                if (rise < 0) continue;
+                SemanticPart part = (dist == 0) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
+                String block = palette.pick(part);
+                out.add(new BlockPatch(
+                        BlockPatch.PLACE,
+                        rp.x() + x,
+                        rp.y() + rise,
+                        rp.z() + z,
+                        block
+                ));
+            }
+        }
+    }
+
+    private void generatePyramidRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height, Palette palette) {
+        generateHipRoof(out, rp, width, depth, height, palette);
+    }
+
+    private void generateConeRoof(List<BlockPatch> out, Vec3i rp, int width, int depth, int height,
+                                  Palette palette, boolean dome) {
+        if (width < 2 || depth < 2 || height < 2) {
+            generateFlatRoof(out, rp, width, depth, height, palette);
+            return;
+        }
+        double cx = (width - 1) / 2.0;
+        double cz = (depth - 1) / 2.0;
+        double radius = Math.max(1.0, Math.min(width, depth) / 2.0);
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                double dx = x - cx;
+                double dz = z - cz;
+                double dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > radius + 0.25) {
+                    continue;
                 }
+                double t = Math.max(0.0, 1.0 - (dist / radius));
+                double curve = dome ? Math.sqrt(t) : t;
+                int rise = (int) Math.round(curve * (height - 1));
+                SemanticPart part = (dist <= 0.5) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
+                String block = palette.pick(part);
+                out.add(new BlockPatch(
+                        BlockPatch.PLACE,
+                        rp.x() + x,
+                        rp.y() + rise,
+                        rp.z() + z,
+                        block
+                ));
             }
         }
     }
@@ -115,6 +169,64 @@ public class RoofGenerator implements ComponentGenerator {
 
     private String getStyleProfile(SemanticComponent semantic) {
         return "MEDIEVAL_CLASSIC";
+    }
+
+    private RoofType resolveRoofType(Component c, SemanticComponent semantic, Map<String, Object> params) {
+        String type = getParamString(params, "roof_type", "roofType");
+        if (type == null && c.features() != null) {
+            for (String feature : c.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase();
+                if (lower.contains("gable")) type = "gable";
+                else if (lower.contains("hip")) type = "hip";
+                else if (lower.contains("pyramid")) type = "pyramid";
+                else if (lower.contains("cone")) type = "cone";
+                else if (lower.contains("dome") || lower.contains("curved")) type = "dome";
+                else if (lower.contains("sloped") || lower.contains("pitched")) type = "gable";
+            }
+        }
+        if (type == null && semantic != null && semantic.genome() != null && semantic.genome().form != null) {
+            String curvature = semantic.genome().form.curvature;
+            if ("curved".equalsIgnoreCase(curvature)) {
+                type = "dome";
+            }
+            String progression = semantic.genome().form.progression;
+            if ("tapering".equalsIgnoreCase(progression)) {
+                type = "pyramid";
+            }
+        }
+        if (type == null) {
+            return RoofType.FLAT;
+        }
+        return switch (type.trim().toLowerCase()) {
+            case "gable", "gabled" -> RoofType.GABLE;
+            case "hip", "hipped" -> RoofType.HIP;
+            case "pyramid" -> RoofType.PYRAMID;
+            case "cone", "conical" -> RoofType.CONE;
+            case "dome", "domed", "curved" -> RoofType.DOME;
+            default -> RoofType.FLAT;
+        };
+    }
+
+    private static String getParamString(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).trim();
+            if (!s.isEmpty()) return s;
+        }
+        return null;
+    }
+
+    private enum RoofType {
+        FLAT,
+        GABLE,
+        HIP,
+        PYRAMID,
+        CONE,
+        DOME
     }
 }
 

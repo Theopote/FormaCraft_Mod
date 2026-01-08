@@ -22,6 +22,10 @@ import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.compiler.ComponentPlanCompiler;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.foundation.FoundationPlanner;
+import com.formacraft.server.foundation.FoundationType;
+import com.formacraft.server.terrain.TerrainAdaptationEngine;
+import com.formacraft.server.terrain.TerrainFit;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -33,6 +37,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -950,6 +956,113 @@ public class FormaCraftNetworking {
                                                 } catch (Exception e) {
                                                     FormacraftMod.LOGGER.warn("Failed to parse block ID: {}", blockId, e);
                                                 }
+                                            }
+                                        }
+
+                                        // 地形基础处理（仅 LlmPlan）：根据地形起伏决定台阶/支柱/覆土
+                                        if (!plannedBlocks.isEmpty()
+                                                && llmPlan.globalConstraints() != null
+                                                && llmPlan.globalConstraints().terrainStrategy() != null
+                                                && llmPlan.globalConstraints().terrainStrategy()
+                                                != com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.PRESERVE) {
+                                            int minX = Integer.MAX_VALUE;
+                                            int minY = Integer.MAX_VALUE;
+                                            int minZ = Integer.MAX_VALUE;
+                                            int maxX = Integer.MIN_VALUE;
+                                            int maxY = Integer.MIN_VALUE;
+                                            int maxZ = Integer.MIN_VALUE;
+                                            for (PlannedBlock pb : plannedBlocks) {
+                                                if (pb == null || pb.getPos() == null) continue;
+                                                BlockPos p = pb.getPos();
+                                                minX = Math.min(minX, p.getX());
+                                                minY = Math.min(minY, p.getY());
+                                                minZ = Math.min(minZ, p.getZ());
+                                                maxX = Math.max(maxX, p.getX());
+                                                maxY = Math.max(maxY, p.getY());
+                                                maxZ = Math.max(maxZ, p.getZ());
+                                            }
+
+                                            int width = Math.max(1, maxX - minX + 1);
+                                            int depth = Math.max(1, maxZ - minZ + 1);
+                                            int blockHeight = Math.max(1, maxY - minY + 1);
+                                            BlockPos center = new BlockPos((minX + maxX) / 2, planOrigin.getY(), (minZ + maxZ) / 2);
+
+                                            TerrainFit.FootprintAnalysis analysis = TerrainFit.analyze(serverWorld, center, width, depth);
+                                            FoundationType foundationType = FoundationPlanner.chooseType(analysis.range(), blockHeight, null);
+                                            com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy strategy =
+                                                    llmPlan.globalConstraints().terrainStrategy();
+                                            if (strategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.TERRACE) {
+                                                foundationType = FoundationType.STEPPED;
+                                            } else if (strategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN) {
+                                                foundationType = FoundationType.FLAT_PAD;
+                                            }
+
+                                            FoundationPlanner.Decision fd = FoundationPlanner.knobsFor(
+                                                    foundationType,
+                                                    analysis.range(),
+                                                    blockHeight,
+                                                    2,
+                                                    6
+                                            );
+
+                                            BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
+                                            if (llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null) {
+                                                String mat = llmPlan.styleAttributes().floorMaterial().trim();
+                                                if (!mat.isEmpty()) {
+                                                    String id = mat.startsWith("minecraft:") ? mat : "minecraft:" + mat;
+                                                    try {
+                                                        net.minecraft.util.Identifier bid = net.minecraft.util.Identifier.tryParse(id);
+                                                        if (bid != null) {
+                                                            fillMaterial = net.minecraft.registry.Registries.BLOCK.get(bid).getDefaultState();
+                                                        }
+                                                    } catch (Exception ignored) {}
+                                                }
+                                            }
+
+                                            // 创建 final 变量供 lambda 使用
+                                            final int finalMinY = Math.min(minY, analysis.minY());
+                                            final int finalMaxY = Math.max(maxY, analysis.maxY());
+                                            final BlockState finalFillMaterial = fillMaterial;
+                                            
+                                            TerrainAdaptationEngine.Bounds bounds = new TerrainAdaptationEngine.Bounds(
+                                                    new BlockPos(minX, finalMinY, minZ),
+                                                    new BlockPos(maxX, finalMaxY, maxZ),
+                                                    false
+                                            );
+
+                                            List<PlannedBlock> terrainPrep = BuildConstraintContext.withRequest(req, () -> switch (fd.type()) {
+                                                case STILT -> TerrainAdaptationEngine.anchorPillars(
+                                                        serverWorld,
+                                                        bounds,
+                                                        finalMinY,
+                                                        finalFillMaterial,
+                                                        Math.max(6, fd.clearHeight() + 4),
+                                                        true,
+                                                        true
+                                                );
+                                                case EMBEDDED -> TerrainAdaptationEngine.carve(
+                                                        serverWorld,
+                                                        bounds,
+                                                        finalMinY - Math.max(0, fd.padDepth()),
+                                                        fd.clearHeight()
+                                                );
+                                                case STEPPED, FLAT_PAD -> TerrainFit.adaptivePad(
+                                                        serverWorld,
+                                                        center,
+                                                        width,
+                                                        depth,
+                                                        finalMinY,
+                                                        finalFillMaterial,
+                                                        fd.padDepth(),
+                                                        fd.clearHeight()
+                                                );
+                                            });
+
+                                            if (terrainPrep != null && !terrainPrep.isEmpty()) {
+                                                List<PlannedBlock> merged = new ArrayList<>(terrainPrep.size() + plannedBlocks.size());
+                                                merged.addAll(terrainPrep);
+                                                merged.addAll(plannedBlocks);
+                                                plannedBlocks = merged;
                                             }
                                         }
                                         

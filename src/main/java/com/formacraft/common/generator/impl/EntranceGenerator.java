@@ -13,6 +13,7 @@ import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * EntranceGenerator（入口生成器）
@@ -36,6 +37,7 @@ public class EntranceGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
+        Map<String, Object> params = c.params();
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
@@ -43,16 +45,26 @@ public class EntranceGenerator implements ComponentGenerator {
         // 检查 features
         boolean hasOverhang = hasFeature(c, "overhang", "canopy", "awning");
         boolean hasDecorativeLintel = hasFeature(c, "decorative_lintel", "lintel", "carving", "ornament", "decorative");
+        boolean hasArch = hasFeature(c, "arched", "arch", "archway");
+
+        int doorWidth = getParamInt(params, Math.max(2, width - 2), "door_width", "doorWidth");
+        int doorHeight = getParamInt(params, Math.max(2, height - 1), "door_height", "doorHeight");
+        doorWidth = Math.max(1, Math.min(doorWidth, Math.max(1, width - 1)));
+        doorHeight = Math.max(2, Math.min(doorHeight, height));
+        int canopyDepth = getParamInt(params, 0, "canopy_depth", "canopyDepth");
+        if (canopyDepth > 0) {
+            hasOverhang = true;
+        }
+        com.formacraft.common.llm.dto.GlobalConstraints.Facing facing =
+                (semantic.slot() != null && semantic.slot().facing() != null)
+                        ? semantic.slot().facing()
+                        : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
         
         // 生成入口结构（门洞 + 门框）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 门洞（中间部分为空，但底部可以放置门槛）
-                    boolean isDoorOpening = (x > 0 && x < width - 1 && z > 0 && z < depth - 1 && y < height - 1);
-                    if (isDoorOpening) {
-                        // 门洞内部不放置方块（保持空气）
-                        // 但可以在底部放置门槛
+                    if (isDoorOpening(x, z, y, width, depth, doorWidth, doorHeight, facing, hasArch)) {
                         if (y == 0) {
                             SemanticPart part = SemanticPart.WALL_BASE;
                             String block = getBlockForPart(part, semantic, palette);
@@ -86,6 +98,18 @@ public class EntranceGenerator implements ComponentGenerator {
                             rp.z() + z,
                             block
                     ));
+
+                    if (hasOverhang && y == height - 1 && isCanopyEdge(x, z, width, depth, facing, canopyDepth)) {
+                        SemanticPart canopyPart = SemanticPart.ROOF_SURFACE;
+                        String canopyBlock = getBlockForPart(canopyPart, semantic, palette);
+                        out.add(new BlockPatch(
+                                BlockPatch.PLACE,
+                                rp.x() + x,
+                                rp.y() + y,
+                                rp.z() + z,
+                                canopyBlock
+                        ));
+                    }
                 }
             }
         }
@@ -222,6 +246,75 @@ public class EntranceGenerator implements ComponentGenerator {
             }
         }
         return false;
+    }
+
+    private boolean isDoorOpening(int x, int z, int y, int width, int depth, int doorWidth, int doorHeight,
+                                  com.formacraft.common.llm.dto.GlobalConstraints.Facing facing, boolean arch) {
+        if (y >= doorHeight) {
+            return false;
+        }
+        int axis = (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST)
+                ? z : x;
+        int axisMax = (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST)
+                ? depth : width;
+        int center = axisMax / 2;
+        int half = doorWidth / 2;
+        boolean inWidth = axis >= center - half && axis <= center + (doorWidth - 1 - half);
+
+        boolean onPlane = switch (facing) {
+            case NORTH -> z == depth - 1;
+            case EAST -> x == 0;
+            case WEST -> x == width - 1;
+            case SOUTH -> z == 0;
+        };
+
+        if (!onPlane || !inWidth) {
+            return false;
+        }
+
+        if (!arch) {
+            return true;
+        }
+
+        int archTop = doorHeight - 1;
+        if (y < archTop) {
+            return true;
+        }
+        int dist = Math.abs(axis - center);
+        return dist <= half - 1;
+    }
+
+    private boolean isCanopyEdge(int x, int z, int width, int depth,
+                                 com.formacraft.common.llm.dto.GlobalConstraints.Facing facing, int canopyDepth) {
+        if (canopyDepth <= 0) {
+            return false;
+        }
+        return switch (facing) {
+            case NORTH -> z >= depth - Math.min(canopyDepth, depth);
+            case EAST -> x < Math.min(canopyDepth, width);
+            case WEST -> x >= width - Math.min(canopyDepth, width);
+            case SOUTH -> z < Math.min(canopyDepth, depth);
+        };
+    }
+
+    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
+        if (params == null || keys == null) return fallback;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) {
+                return n.intValue();
+            }
+            if (v instanceof String s) {
+                try {
+                    return Integer.parseInt(s.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return fallback;
     }
 }
 
