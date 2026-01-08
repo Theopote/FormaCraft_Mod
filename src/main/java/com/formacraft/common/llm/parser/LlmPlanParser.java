@@ -11,7 +11,7 @@ import java.util.Set;
 
 /**
  * LLM Plan Parser（解析 + 校验）
- * 
+ * <p>
  * 核心功能：
  * - 解析 LLM 输出的 JSON
  * - 基础校验（必填字段、尺寸合法、相对坐标等）
@@ -143,7 +143,7 @@ public final class LlmPlanParser {
     
     /**
      * 判断组件类型是否为平面组件（允许 height = 0）
-     * 
+     * <p>
      * 平面组件包括：
      * - COURTYARD（庭院）
      * - PATH（路径）
@@ -167,7 +167,7 @@ public final class LlmPlanParser {
     
     /**
      * 判断组件类型是否为立面组件（允许 depth = 0）
-     * 
+     * <p>
      * 立面组件包括：
      * - FACADE_WINDOWS（立面窗户）
      * - FACADE（立面）

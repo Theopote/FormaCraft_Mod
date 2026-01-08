@@ -993,13 +993,6 @@ public class FormaCraftNetworking {
                                                         continue;
                                                     }
                                                     net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(blockIdentifier);
-                                                    if (block == null) {
-                                                        invalidBlockCount++;
-                                                        if (invalidBlockCount <= 5) {
-                                                            FormacraftMod.LOGGER.warn("Block not found in registry: {}", blockId);
-                                                        }
-                                                        continue;
-                                                    }
                                                     net.minecraft.block.BlockState state = block.getDefaultState();
                                                     plannedBlocks.add(new PlannedBlock(worldPos, state));
                                                 } catch (Exception e) {
