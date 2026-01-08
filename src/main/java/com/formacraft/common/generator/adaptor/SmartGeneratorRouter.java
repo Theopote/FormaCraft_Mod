@@ -15,13 +15,16 @@ import java.util.List;
  * 
  * 自动选择最适合的生成器：
  * 1. 优先使用新系统（common.generator）的 ComponentGenerator
- * 2. 如果新系统没有生成器或功能不够，自动回退到传统系统（server.generator）
- * 3. 用户无需关心后台有两套系统
+ * 2. 如果新系统没有生成器或返回空结果，直接返回空列表（不回退到传统系统）
+ * 
+ * 重要说明：
+ * - 传统系统（server.generator）是为完整建筑设计的，不适合组件级别的生成
+ * - 在 LlmPlan 流程中，每个组件应该只使用新系统的 ComponentGenerator
+ * - 如果某个组件没有生成器或返回空结果，该组件将被跳过，不会影响其他组件
  * 
  * 设计原则：
- * - 用户透明：用户不需要知道有两套系统
- * - 自动选择：系统自动选择最适合的生成器
- * - 向后兼容：保持现有功能不变
+ * - 组件级别只使用新系统，避免生成完整建筑覆盖其他组件
+ * - 如果组件无法生成，静默跳过（返回空列表）
  */
 public final class SmartGeneratorRouter {
 
@@ -31,7 +34,7 @@ public final class SmartGeneratorRouter {
      * 智能生成 BlockPatch
      * 
      * @param semantic 语义组件
-     * @param world 服务器世界（可选，用于传统系统）
+     * @param world 服务器世界（保留参数以保持接口兼容性，但不再用于回退）
      * @return BlockPatch 列表
      */
     public static List<BlockPatch> generate(SemanticComponent semantic, ServerWorld world) {
@@ -42,7 +45,7 @@ public final class SmartGeneratorRouter {
         Component c = semantic.source();
         String componentType = c.componentType();
 
-        // 1. 优先使用新系统（common.generator）
+        // 只使用新系统（common.generator）的 ComponentGenerator
         ComponentGenerator newSystemGenerator = GeneratorRegistry.getGenerator(componentType);
         if (newSystemGenerator != null) {
             try {
@@ -51,37 +54,21 @@ public final class SmartGeneratorRouter {
                     FormacraftMod.LOGGER.debug("SmartGeneratorRouter: using new system generator for {}", componentType);
                     return patches;
                 } else {
-                    FormacraftMod.LOGGER.warn("SmartGeneratorRouter: generator {} returned empty patches for component {}", 
+                    // 生成器返回空结果，静默跳过（不记录警告，因为这是正常的）
+                    FormacraftMod.LOGGER.debug("SmartGeneratorRouter: generator {} returned empty patches for component {}, skipping", 
                             componentType, componentType);
+                    return new java.util.ArrayList<>();
                 }
             } catch (Exception e) {
-                FormacraftMod.LOGGER.warn("SmartGeneratorRouter: new system generator failed for {}, trying fallback", 
+                FormacraftMod.LOGGER.warn("SmartGeneratorRouter: new system generator failed for {}, skipping component", 
                         componentType, e);
+                return new java.util.ArrayList<>();
             }
         } else {
-            FormacraftMod.LOGGER.warn("SmartGeneratorRouter: no generator registered for component type: {}", componentType);
+            // 没有注册生成器，静默跳过（不记录警告，因为这是正常的）
+            FormacraftMod.LOGGER.debug("SmartGeneratorRouter: no generator registered for component type: {}, skipping", componentType);
+            return new java.util.ArrayList<>();
         }
-
-        // 2. 回退到传统系统（server.generator）
-        if (world != null) {
-            StructureGeneratorAdaptor adaptor = StructureGeneratorAdaptor.createFor(componentType);
-            if (adaptor != null) {
-                try {
-                    List<BlockPatch> patches = adaptor.generate(semantic, world);
-                    if (patches != null && !patches.isEmpty()) {
-                        FormacraftMod.LOGGER.debug("SmartGeneratorRouter: using traditional system generator for {}", componentType);
-                        return patches;
-                    }
-                } catch (Exception e) {
-                    FormacraftMod.LOGGER.warn("SmartGeneratorRouter: traditional system generator failed for {}", 
-                            componentType, e);
-                }
-            }
-        }
-
-        // 3. 如果都失败了，返回空列表
-        FormacraftMod.LOGGER.warn("SmartGeneratorRouter: no generator available for {}", componentType);
-        return new java.util.ArrayList<>();
     }
 
     /**
