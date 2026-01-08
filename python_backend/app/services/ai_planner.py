@@ -241,6 +241,10 @@ def _default_component_params_for_spec(spec: BuildingSpec) -> Dict[str, Any]:
     if spec.floors:
         params["floor_count"] = spec.floors
         params["floor_height"] = max(3, int(spec.height / max(1, spec.floors)))
+    if spec.extra is not None:
+        plan_type = spec.extra.get("plan_type") or spec.extra.get("planType") or spec.extra.get("footprint_pattern")
+        if plan_type:
+            params["plan_type"] = plan_type
     return {"MASS_MAIN": params}
 
 
@@ -320,6 +324,14 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
     def feat_contains(token: str) -> bool:
         return any(token in str(f).lower() for f in features if f)
 
+    def genome_contains(token: str) -> bool:
+        cultural = genome.get("culturalStyle") or {}
+        region = str(cultural.get("region") or "").lower()
+        keywords = cultural.get("keywords") or []
+        if token and token in region:
+            return True
+        return any(token in str(k).lower() for k in keywords if k)
+
     if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING"):
         if "shape" not in params:
             layout = ((genome.get("topology") or {}).get("layout") or "").lower()
@@ -345,6 +357,26 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
         if "void_ratio" not in params:
             vr = ((genome.get("structure") or {}).get("voidRatio"))
             params["void_ratio"] = vr if vr is not None else (0.35 if feat_contains("courtyard") else 0.15)
+        if "plan_type" not in params:
+            plan_alias = params.get("footprint_pattern") or params.get("plan_pattern") or params.get("planPattern")
+            if plan_alias:
+                params["plan_type"] = plan_alias
+            else:
+                plan_type = None
+                if feat_contains("courtyard") or feat_contains("siheyuan") or "courtyard" in (genome.get("modules") or []):
+                    plan_type = "courtyard"
+                elif feat_contains("gothic") or feat_contains("cathedral") or feat_contains("cruciform"):
+                    plan_type = "cross"
+                elif feat_contains("l-shape") or feat_contains("l_shape") or feat_contains("corner_wing"):
+                    plan_type = "l_shape"
+                elif feat_contains("chinese") or feat_contains("hui") or genome_contains("chinese") or genome_contains("hui"):
+                    plan_type = "cut_corners"
+                if plan_type:
+                    params["plan_type"] = plan_type
+        if params.get("plan_type") == "courtyard" and "courtyard_ratio" not in params:
+            ratio = params.get("void_ratio")
+            if isinstance(ratio, (int, float)):
+                params["courtyard_ratio"] = float(max(0.2, min(0.6, ratio)))
         if "setback_ratio" not in params:
             prog = ((genome.get("form") or {}).get("progression") or "").lower()
             if prog in ("stepping", "tapering"):

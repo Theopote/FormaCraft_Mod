@@ -30,6 +30,28 @@ public class MassMainGenerator implements ComponentGenerator {
         ROUNDED_RECT
     }
 
+    private enum PlanPattern {
+        NONE,
+        CROSS,
+        CUT_CORNERS,
+        L_SHAPE,
+        COURTYARD
+    }
+
+    private static final class PatternConfig {
+        private final PlanPattern pattern;
+        private final int size;
+        private final double ratio;
+        private final String corner;
+
+        private PatternConfig(PlanPattern pattern, int size, double ratio, String corner) {
+            this.pattern = pattern;
+            this.size = size;
+            this.ratio = ratio;
+            this.corner = corner;
+        }
+    }
+
     private static final class MassConfig {
         private final int offsetX;
         private final int offsetY;
@@ -39,9 +61,10 @@ public class MassMainGenerator implements ComponentGenerator {
         private final int height;
         private final FootprintShape shape;
         private final int cornerRadius;
+        private final PatternConfig pattern;
 
         private MassConfig(int offsetX, int offsetY, int offsetZ, int width, int depth, int height,
-                           FootprintShape shape, int cornerRadius) {
+                           FootprintShape shape, int cornerRadius, PatternConfig pattern) {
             this.offsetX = offsetX;
             this.offsetY = offsetY;
             this.offsetZ = offsetZ;
@@ -50,6 +73,7 @@ public class MassMainGenerator implements ComponentGenerator {
             this.height = height;
             this.shape = shape;
             this.cornerRadius = cornerRadius;
+            this.pattern = pattern;
         }
     }
 
@@ -72,7 +96,8 @@ public class MassMainGenerator implements ComponentGenerator {
 
         FootprintShape baseShape = resolveShape(c, semantic);
         int cornerRadius = resolveCornerRadius(params, width, depth, baseShape);
-        List<MassConfig> massConfigs = resolveMasses(params, width, depth, height, baseShape, cornerRadius);
+        PatternConfig basePattern = resolvePlanPattern(params, semantic, width, depth, baseShape);
+        List<MassConfig> massConfigs = resolveMasses(params, semantic, width, depth, height, baseShape, cornerRadius, basePattern);
         
         // 尺寸规范化：确保高度至少3米（3格）
         // 如果用户指定了具体高度，使用用户的要求
@@ -269,11 +294,30 @@ public class MassMainGenerator implements ComponentGenerator {
                     int localX = x + xOffset;
                     int localZ = z + zOffset;
 
-                    if (!isInsideFootprint(localX, localZ, width, depth, mass.shape, mass.cornerRadius)) {
+                    if (!isInsideFootprint(localX, localZ, width, depth, mass.shape, mass.cornerRadius, mass.pattern)) {
                         continue;
                     }
 
-                    if (hasInterior && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness, mass.shape, mass.cornerRadius)) {
+                    if (mass.pattern != null && mass.pattern.pattern == PlanPattern.COURTYARD
+                            && isInCourtyardHole(localX, localZ, width, depth, mass.pattern)) {
+                        if (y == 0) {
+                            SemanticPart part = SemanticPart.COURTYARD_FLOOR;
+                            String block = getBlockForPart(part, semantic, palette);
+                            if (block != null && !block.isEmpty()) {
+                                out.add(new BlockPatch(
+                                        BlockPatch.PLACE,
+                                        rp.x() + mass.offsetX + localX,
+                                        rp.y() + mass.offsetY + y,
+                                        rp.z() + mass.offsetZ + localZ,
+                                        block
+                                ));
+                            }
+                        }
+                        continue;
+                    }
+
+                    if (hasInterior && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness,
+                            mass.shape, mass.cornerRadius, mass.pattern)) {
                         if (y == 0) {
                             SemanticPart part = SemanticPart.FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
@@ -293,7 +337,8 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    if (hasWindows && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape, mass.cornerRadius, windowSpacing)) {
+                    if (hasWindows && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape,
+                            mass.cornerRadius, mass.pattern, windowSpacing)) {
                         SemanticPart part = SemanticPart.WINDOW;
                         String block = palette.pick(part);
                         if (block == null || block.isEmpty()) {
@@ -309,7 +354,8 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    if (hasDoors && isDoorPosition(localX, localZ, width, depth, y, mass.shape, mass.cornerRadius, doorFacing)) {
+                    if (hasDoors && isDoorPosition(localX, localZ, width, depth, y, mass.shape,
+                            mass.cornerRadius, mass.pattern, doorFacing)) {
                         SemanticPart part = SemanticPart.DOORWAY;
                         String block = getBlockForPart(part, semantic, palette);
                         if (block == null || block.isEmpty()) {
@@ -346,7 +392,8 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    if (hasDecor && isDecorPosition(localX, localZ, width, depth, y, height, mass.shape, mass.cornerRadius)) {
+                    if (hasDecor && isDecorPosition(localX, localZ, width, depth, y, height, mass.shape,
+                            mass.cornerRadius, mass.pattern)) {
                         SemanticPart part = SemanticPart.DECOR;
                         String block = getBlockForPart(part, semantic, palette);
                         if (block == null || block.isEmpty()) {
@@ -363,7 +410,8 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    SemanticPart part = determinePart(y, height, width, depth, localX, localZ, mass.shape, mass.cornerRadius);
+                    SemanticPart part = determinePart(y, height, width, depth, localX, localZ,
+                            mass.shape, mass.cornerRadius, mass.pattern);
                     String block = getBlockForPart(part, semantic, palette);
 
                     out.add(new BlockPatch(
@@ -382,16 +430,16 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是窗户位置
      */
     private boolean isWindowPosition(int x, int z, int width, int depth, int y, int height,
-                                     FootprintShape shape, int cornerRadius, int spacing) {
+                                     FootprintShape shape, int cornerRadius, PatternConfig pattern, int spacing) {
         boolean isMiddleHeight = (y > 0 && y < height - 1);
         if (!isMiddleHeight) {
             return false;
         }
-        boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius);
+        boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern);
         if (!isExterior) {
             return false;
         }
-        if (isCornerPosition(x, z, width, depth, shape, cornerRadius)) {
+        if (isCornerPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
             return false;
         }
         return isWindowSpacing(x, z, spacing);
@@ -401,12 +449,12 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是门位置
      */
     private boolean isDoorPosition(int x, int z, int width, int depth, int y,
-                                   FootprintShape shape, int cornerRadius,
+                                   FootprintShape shape, int cornerRadius, PatternConfig pattern,
                                    com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
         if (y >= 3) {
             return false;
         }
-        if (!isExteriorWallPosition(x, z, width, depth, shape, cornerRadius)) {
+        if (!isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
             return false;
         }
         int centerX = width / 2;
@@ -425,10 +473,10 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是装饰位置
      */
     private boolean isDecorPosition(int x, int z, int width, int depth, int y, int height,
-                                    FootprintShape shape, int cornerRadius) {
+                                    FootprintShape shape, int cornerRadius, PatternConfig pattern) {
         boolean isTop = (y >= height - 2);
-        boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius);
-        boolean isCorner = isCornerPosition(x, z, width, depth, shape, cornerRadius);
+        boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern);
+        boolean isCorner = isCornerPosition(x, z, width, depth, shape, cornerRadius, pattern);
         return (isTop || isExterior || isCorner) && (y > 0);
     }
 
@@ -612,15 +660,16 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是内部空间（需要留空）
      */
     private boolean isInteriorSpace(int x, int z, int width, int depth, int y, int height,
-                                    int wallThickness, FootprintShape shape, int cornerRadius) {
+                                    int wallThickness, FootprintShape shape, int cornerRadius,
+                                    PatternConfig pattern) {
         if (y >= height - 1) {
             return false;
         }
-        return isInsideInnerFootprint(x, z, width, depth, wallThickness, shape, cornerRadius);
+        return isInsideInnerFootprint(x, z, width, depth, wallThickness, shape, cornerRadius, pattern);
     }
 
     private SemanticPart determinePart(int y, int height, int width, int depth, int x, int z,
-                                       FootprintShape shape, int cornerRadius) {
+                                       FootprintShape shape, int cornerRadius, PatternConfig pattern) {
         // 基础部分
         if (y == 0) {
             return SemanticPart.WALL_BASE;
@@ -631,7 +680,7 @@ public class MassMainGenerator implements ComponentGenerator {
             return SemanticPart.WALL_ACCENT;
         }
         
-        if (isExteriorWallPosition(x, z, width, depth, shape, cornerRadius)) {
+        if (isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
             return SemanticPart.WALL_ACCENT;
         }
         
@@ -677,6 +726,210 @@ public class MassMainGenerator implements ComponentGenerator {
         };
     }
 
+    private PatternConfig resolvePlanPattern(Map<String, Object> params, SemanticComponent semantic,
+                                             int width, int depth, FootprintShape shape) {
+        String planType = getParamString(params, "plan_type", "planType",
+                "footprint_pattern", "footprintPattern", "plan_pattern", "planPattern");
+        Component c = semantic != null ? semantic.source() : null;
+
+        if (planType == null && c != null) {
+            if (hasFeature(c, "gothic", "cathedral", "church", "basilica", "cruciform", "cross")) {
+                planType = "cross";
+            } else if (hasFeature(c, "courtyard", "siheyuan", "四合院", "庭院", "compound", "ring")) {
+                planType = "courtyard";
+            } else if (hasFeature(c, "l-shape", "l_shape", "lshape", "corner_wing")) {
+                planType = "l_shape";
+            } else if (hasFeature(c, "chinese", "hui", "徽派", "中式")) {
+                planType = "cut_corners";
+            }
+        }
+
+        if (planType == null && semantic != null && semantic.genome() != null && semantic.genome().culturalStyle != null) {
+            String region = semantic.genome().culturalStyle.region;
+            List<String> keywords = semantic.genome().culturalStyle.keywords;
+            if (region != null && region.toLowerCase().contains("chinese")) {
+                planType = "cut_corners";
+            }
+            if (keywords != null) {
+                if (containsKeyword(keywords, "gothic", "cathedral", "church", "cruciform")) {
+                    planType = "cross";
+                }
+                if (containsKeyword(keywords, "courtyard", "siheyuan")) {
+                    planType = "courtyard";
+                }
+            }
+        }
+
+        if (planType == null && semantic != null) {
+            String profile = getStyleProfile(semantic);
+            if (profile != null) {
+                String upper = profile.toUpperCase();
+                if (upper.contains("HUI") || upper.contains("CHINESE")) {
+                    planType = "cut_corners";
+                }
+            }
+        }
+
+        PlanPattern pattern = parsePlanPattern(planType);
+        if (pattern == PlanPattern.NONE) {
+            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
+        }
+        if (shape == FootprintShape.CIRCLE && pattern != PlanPattern.COURTYARD) {
+            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
+        }
+
+        int size = 0;
+        double ratio = 0.0;
+        String corner = null;
+
+        switch (pattern) {
+            case CROSS -> {
+                size = getParamInt(params, 0, "arm_width", "cross_arm", "cross_arm_width", "armWidth", "crossArmWidth");
+                if (size <= 0) {
+                    size = Math.max(3, Math.min(width, depth) / 3);
+                }
+            }
+            case CUT_CORNERS -> {
+                size = getParamInt(params, 0, "corner_cut", "cornerCut", "cut_corner", "cutCorner", "cut_size");
+                if (size <= 0) {
+                    size = Math.max(2, Math.min(width, depth) / 5);
+                }
+            }
+            case L_SHAPE -> {
+                size = getParamInt(params, 0, "l_cut", "lCut", "cut_size", "corner_cut", "cornerCut");
+                if (size <= 0) {
+                    size = Math.max(3, Math.min(width, depth) / 3);
+                }
+                corner = normalizeCorner(getParamString(params, "l_corner", "lCorner", "cut_corner", "cutCorner", "corner"));
+            }
+            case COURTYARD -> {
+                ratio = getParamDouble(params, "courtyard_ratio", "courtyardRatio", "court_ratio", "void_ratio", "voidRatio");
+                if (ratio <= 0.0) {
+                    ratio = 0.35;
+                }
+            }
+            default -> {
+            }
+        }
+
+        if (pattern == PlanPattern.COURTYARD) {
+            ratio = Math.max(0.2, Math.min(0.6, ratio));
+        }
+        size = Math.max(1, Math.min(size, Math.min(width, depth) - 2));
+
+        return new PatternConfig(pattern, size, ratio, corner);
+    }
+
+    private static PlanPattern parsePlanPattern(String value) {
+        if (value == null) return PlanPattern.NONE;
+        String v = value.trim().toLowerCase();
+        if (v.isEmpty()) return PlanPattern.NONE;
+        return switch (v) {
+            case "none", "rect", "rectangle", "plain", "basic" -> PlanPattern.NONE;
+            case "cross", "cruciform", "plus", "t_shape", "t-shape", "tshape" -> PlanPattern.CROSS;
+            case "cut_corners", "cut-corners", "cutcorner", "cut_corner", "chamfer", "chamfered", "octagon", "octagonal" ->
+                    PlanPattern.CUT_CORNERS;
+            case "l", "l_shape", "l-shape", "lshape", "corner", "corner_wing" -> PlanPattern.L_SHAPE;
+            case "courtyard", "court", "ring", "donut", "siheyuan", "compound" -> PlanPattern.COURTYARD;
+            default -> PlanPattern.NONE;
+        };
+    }
+
+    private static String normalizeCorner(String value) {
+        if (value == null) return null;
+        String v = value.trim().toLowerCase();
+        if (v.isEmpty()) return null;
+        if (v.contains("nw") || (v.contains("north") && v.contains("west"))
+                || v.contains("top_left") || v.contains("upper_left") || v.contains("left_top")) {
+            return "NW";
+        }
+        if (v.contains("ne") || (v.contains("north") && v.contains("east"))
+                || v.contains("top_right") || v.contains("upper_right") || v.contains("right_top")) {
+            return "NE";
+        }
+        if (v.contains("sw") || (v.contains("south") && v.contains("west"))
+                || v.contains("bottom_left") || v.contains("lower_left") || v.contains("left_bottom")) {
+            return "SW";
+        }
+        if (v.contains("se") || (v.contains("south") && v.contains("east"))
+                || v.contains("bottom_right") || v.contains("lower_right") || v.contains("right_bottom")) {
+            return "SE";
+        }
+        return null;
+    }
+
+    private static boolean containsKeyword(List<String> keywords, String... tokens) {
+        if (keywords == null || tokens == null) return false;
+        for (String kw : keywords) {
+            if (kw == null) continue;
+            String lower = kw.toLowerCase();
+            for (String token : tokens) {
+                if (token == null) continue;
+                if (lower.contains(token.toLowerCase())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isInCrossArms(int x, int z, int width, int depth, int size) {
+        int arm = Math.max(1, Math.min(size, Math.min(width, depth)));
+        if (arm >= width || arm >= depth) {
+            return true;
+        }
+        int startX = (width - arm) / 2;
+        int endX = startX + arm - 1;
+        int startZ = (depth - arm) / 2;
+        int endZ = startZ + arm - 1;
+        return (x >= startX && x <= endX) || (z >= startZ && z <= endZ);
+    }
+
+    private static boolean isInCornerCut(int x, int z, int width, int depth, int size) {
+        if (size <= 0) return false;
+        int cut = Math.max(1, Math.min(size, Math.min(width, depth) - 1));
+        boolean left = x < cut;
+        boolean right = x >= width - cut;
+        boolean top = z < cut;
+        boolean bottom = z >= depth - cut;
+        return (left && top) || (left && bottom) || (right && top) || (right && bottom);
+    }
+
+    private static boolean isInLCut(int x, int z, int width, int depth, int size, String corner) {
+        if (size <= 0) return false;
+        int cut = Math.max(1, Math.min(size, Math.min(width, depth) - 1));
+        String c = corner != null ? corner : "NE";
+        return switch (c) {
+            case "NW" -> x < cut && z < cut;
+            case "SW" -> x < cut && z >= depth - cut;
+            case "SE" -> x >= width - cut && z >= depth - cut;
+            default -> x >= width - cut && z < cut;
+        };
+    }
+
+    private static boolean isInCourtyardHole(int x, int z, int width, int depth, PatternConfig pattern) {
+        if (pattern == null || pattern.pattern != PlanPattern.COURTYARD) {
+            return false;
+        }
+        if (width < 3 || depth < 3) {
+            return false;
+        }
+        double ratio = pattern.ratio;
+        if (ratio <= 0.0) {
+            ratio = 0.35;
+        }
+        int holeWidth = Math.max(1, Math.min(width - 2, (int) Math.round(width * ratio)));
+        int holeDepth = Math.max(1, Math.min(depth - 2, (int) Math.round(depth * ratio)));
+        if (holeWidth <= 0 || holeDepth <= 0) {
+            return false;
+        }
+        int startX = (width - holeWidth) / 2;
+        int startZ = (depth - holeDepth) / 2;
+        int endX = startX + holeWidth - 1;
+        int endZ = startZ + holeDepth - 1;
+        return x >= startX && x <= endX && z >= startZ && z <= endZ;
+    }
+
     private int resolveCornerRadius(Map<String, Object> params, int width, int depth, FootprintShape shape) {
         int radius = getParamInt(params, 0, "corner_radius", "cornerRadius");
         if (radius <= 0 && shape == FootprintShape.ROUNDED_RECT) {
@@ -686,10 +939,12 @@ public class MassMainGenerator implements ComponentGenerator {
         return Math.max(0, Math.min(radius, max));
     }
 
-    private List<MassConfig> resolveMasses(Map<String, Object> params, int width, int depth, int height,
-                                          FootprintShape baseShape, int cornerRadius) {
+    private List<MassConfig> resolveMasses(Map<String, Object> params, SemanticComponent semantic,
+                                          int width, int depth, int height,
+                                          FootprintShape baseShape, int cornerRadius,
+                                          PatternConfig basePattern) {
         List<MassConfig> masses = new ArrayList<>();
-        masses.add(new MassConfig(0, 0, 0, width, depth, height, baseShape, cornerRadius));
+        masses.add(new MassConfig(0, 0, 0, width, depth, height, baseShape, cornerRadius, basePattern));
 
         Object massesObj = params != null ? params.get("masses") : null;
         if (!(massesObj instanceof List<?> list)) {
@@ -722,7 +977,29 @@ public class MassMainGenerator implements ComponentGenerator {
                 };
             }
             int cr = resolveCornerRadius(m, mw, md, shape);
-            masses.add(new MassConfig(ox, oy, oz, mw, md, mh, shape, cr));
+            PatternConfig pattern = resolvePlanPattern(m, semantic, mw, md, shape);
+            if ((pattern == null || pattern.pattern == PlanPattern.NONE)
+                    && basePattern != null && basePattern.pattern != null
+                    && basePattern.pattern != PlanPattern.NONE) {
+                Map<String, Object> fallback = new java.util.HashMap<>();
+                fallback.put("plan_type", basePattern.pattern.name().toLowerCase());
+                if (basePattern.pattern == PlanPattern.COURTYARD && basePattern.ratio > 0.0) {
+                    fallback.put("courtyard_ratio", basePattern.ratio);
+                } else if (basePattern.size > 0) {
+                    if (basePattern.pattern == PlanPattern.CROSS) {
+                        fallback.put("arm_width", basePattern.size);
+                    } else if (basePattern.pattern == PlanPattern.CUT_CORNERS) {
+                        fallback.put("corner_cut", basePattern.size);
+                    } else if (basePattern.pattern == PlanPattern.L_SHAPE) {
+                        fallback.put("l_cut", basePattern.size);
+                    }
+                }
+                if (basePattern.corner != null && !basePattern.corner.isBlank()) {
+                    fallback.put("l_corner", basePattern.corner);
+                }
+                pattern = resolvePlanPattern(fallback, semantic, mw, md, shape);
+            }
+            masses.add(new MassConfig(ox, oy, oz, mw, md, mh, shape, cr, pattern));
         }
 
         return masses;
@@ -790,7 +1067,7 @@ public class MassMainGenerator implements ComponentGenerator {
         return "stepping".equalsIgnoreCase(progression) || "tapering".equalsIgnoreCase(progression);
     }
 
-    private boolean isInsideFootprint(int x, int z, int width, int depth, FootprintShape shape, int cornerRadius) {
+    private boolean isInsideFootprintBase(int x, int z, int width, int depth, FootprintShape shape, int cornerRadius) {
         if (x < 0 || z < 0 || x >= width || z >= depth) {
             return false;
         }
@@ -825,15 +1102,45 @@ public class MassMainGenerator implements ComponentGenerator {
         return (dx * dx + dz * dz) <= (rr * rr);
     }
 
+    private boolean isInsideFootprint(int x, int z, int width, int depth,
+                                      FootprintShape shape, int cornerRadius,
+                                      PatternConfig pattern) {
+        if (!isInsideFootprintBase(x, z, width, depth, shape, cornerRadius)) {
+            return false;
+        }
+        if (pattern == null || pattern.pattern == null || pattern.pattern == PlanPattern.NONE) {
+            return true;
+        }
+        return switch (pattern.pattern) {
+            case CROSS -> isInCrossArms(x, z, width, depth, pattern.size);
+            case CUT_CORNERS -> !isInCornerCut(x, z, width, depth, pattern.size);
+            case L_SHAPE -> !isInLCut(x, z, width, depth, pattern.size, pattern.corner);
+            case COURTYARD -> !isInCourtyardHole(x, z, width, depth, pattern);
+            default -> true;
+        };
+    }
+
     private boolean isInsideInnerFootprint(int x, int z, int width, int depth, int wallThickness,
-                                           FootprintShape shape, int cornerRadius) {
+                                           FootprintShape shape, int cornerRadius,
+                                           PatternConfig pattern) {
         if (wallThickness <= 0) {
-            return isInsideFootprint(x, z, width, depth, shape, cornerRadius);
+            return isInsideFootprint(x, z, width, depth, shape, cornerRadius, pattern);
         }
         if (shape == FootprintShape.RECTANGLE) {
-            return x >= wallThickness && z >= wallThickness
-                    && x < width - wallThickness
-                    && z < depth - wallThickness;
+            int innerWidth = width - wallThickness * 2;
+            int innerDepth = depth - wallThickness * 2;
+            if (innerWidth <= 0 || innerDepth <= 0) {
+                return false;
+            }
+            return isInsideFootprint(
+                    x - wallThickness,
+                    z - wallThickness,
+                    innerWidth,
+                    innerDepth,
+                    FootprintShape.RECTANGLE,
+                    0,
+                    pattern
+            );
         }
         if (shape == FootprintShape.CIRCLE) {
             double cx = (width - 1) / 2.0;
@@ -855,29 +1162,34 @@ public class MassMainGenerator implements ComponentGenerator {
                 innerWidth,
                 innerDepth,
                 FootprintShape.ROUNDED_RECT,
-                Math.max(0, cornerRadius - wallThickness)
+                Math.max(0, cornerRadius - wallThickness),
+                pattern
         );
     }
 
-    private boolean isExteriorWallPosition(int x, int z, int width, int depth, FootprintShape shape, int cornerRadius) {
-        if (!isInsideFootprint(x, z, width, depth, shape, cornerRadius)) {
+    private boolean isExteriorWallPosition(int x, int z, int width, int depth,
+                                           FootprintShape shape, int cornerRadius,
+                                           PatternConfig pattern) {
+        if (!isInsideFootprint(x, z, width, depth, shape, cornerRadius, pattern)) {
             return false;
         }
-        return !isInsideFootprint(x + 1, z, width, depth, shape, cornerRadius)
-                || !isInsideFootprint(x - 1, z, width, depth, shape, cornerRadius)
-                || !isInsideFootprint(x, z + 1, width, depth, shape, cornerRadius)
-                || !isInsideFootprint(x, z - 1, width, depth, shape, cornerRadius);
+        return !isInsideFootprint(x + 1, z, width, depth, shape, cornerRadius, pattern)
+                || !isInsideFootprint(x - 1, z, width, depth, shape, cornerRadius, pattern)
+                || !isInsideFootprint(x, z + 1, width, depth, shape, cornerRadius, pattern)
+                || !isInsideFootprint(x, z - 1, width, depth, shape, cornerRadius, pattern);
     }
 
-    private boolean isCornerPosition(int x, int z, int width, int depth, FootprintShape shape, int cornerRadius) {
-        if (!isExteriorWallPosition(x, z, width, depth, shape, cornerRadius)) {
+    private boolean isCornerPosition(int x, int z, int width, int depth,
+                                     FootprintShape shape, int cornerRadius,
+                                     PatternConfig pattern) {
+        if (!isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
             return false;
         }
         int outside = 0;
-        if (!isInsideFootprint(x + 1, z, width, depth, shape, cornerRadius)) outside++;
-        if (!isInsideFootprint(x - 1, z, width, depth, shape, cornerRadius)) outside++;
-        if (!isInsideFootprint(x, z + 1, width, depth, shape, cornerRadius)) outside++;
-        if (!isInsideFootprint(x, z - 1, width, depth, shape, cornerRadius)) outside++;
+        if (!isInsideFootprint(x + 1, z, width, depth, shape, cornerRadius, pattern)) outside++;
+        if (!isInsideFootprint(x - 1, z, width, depth, shape, cornerRadius, pattern)) outside++;
+        if (!isInsideFootprint(x, z + 1, width, depth, shape, cornerRadius, pattern)) outside++;
+        if (!isInsideFootprint(x, z - 1, width, depth, shape, cornerRadius, pattern)) outside++;
         return outside >= 2;
     }
 

@@ -120,6 +120,7 @@ Output schema:
 {
   "mode": "build | patch",
   "style_profile": "string",
+  "style_attributes": { StyleAttributesObject },
   "anchor": { "x": int, "y": int, "z": int },
   "genome": { BuildingGenomeObject },
   "global_constraints": {
@@ -170,10 +171,26 @@ BuildingGenomeObject (v1):
   "aiHints": { "priority": ["string"], "avoid": ["string"] }
 }
 
+StyleAttributesObject:
+{
+  "wall_color": "string",
+  "roof_color": "string",
+  "accent_color": "string",
+  "wall_material": "string",
+  "roof_material": "string",
+  "floor_material": "string",
+  "decorative_elements": ["string"]
+}
+
 ComponentParamsObject:
 {
   "shape": "rectangle|circle|rounded_rect",
   "corner_radius": int,
+  "plan_type": "none|cross|cut_corners|l_shape|courtyard",
+  "arm_width": int,
+  "corner_cut": int,
+  "l_corner": "NW|NE|SW|SE",
+  "courtyard_ratio": 0.0-1.0,
   "void_ratio": 0.0-1.0,
   "window_ratio": 0.0-1.0,
   "roof_type": "flat|gable|hip|cone|pyramid|dome",
@@ -542,6 +559,8 @@ SEMANTIC REGIONS:
         sb.append("{\n");
         sb.append("  \"mode\": \"").append(ctx.mode != null ? ctx.mode.name().toLowerCase() : "build").append("\",\n");
         sb.append("  \"style_profile\": \"").append(styleProfile).append("\",\n");
+        sb.append("  \"style_attributes\": { \"wall_color\": null, \"roof_color\": null, \"accent_color\": null, ")
+          .append("\"wall_material\": null, \"roof_material\": null, \"floor_material\": null, \"decorative_elements\": [] },\n");
         sb.append("  \"anchor\": { \"x\": ").append(anchorX).append(", \"y\": ").append(anchorY).append(", \"z\": ").append(anchorZ).append(" },\n");
         sb.append("  \"genome\": {\n");
         sb.append("    \"genomeVersion\": \"1.0\",\n");
@@ -627,7 +646,7 @@ SEMANTIC REGIONS:
         sb.append("- All positions in components must be relative to the slot's anchor.\n");
         sb.append("- Respect the component_preset weights and densities when generating components.\n");
         sb.append("- Populate \"genome\" with topology/structure/form/material semantics to drive parameterized generation.\n");
-        sb.append("- Use ComponentObject.params to express shape/void/roof/setback/multi-mass intent instead of free-text features.\n");
+        sb.append("- Use ComponentObject.params to express shape/plan/void/roof/setback/multi-mass intent instead of free-text features.\n");
         sb.append("- Output ONLY valid JSON. No comments, no explanations.\n");
         
         return sb.toString();

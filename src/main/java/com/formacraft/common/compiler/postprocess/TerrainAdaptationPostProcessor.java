@@ -8,7 +8,9 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * TerrainAdaptationPostProcessor（地形适应后处理器）
@@ -48,28 +50,45 @@ public class TerrainAdaptationPostProcessor implements PostProcessor {
             return patches;
         }
 
-        List<BlockPatch> result = new ArrayList<>(patches.size());
         BlockPos globalAnchor = context.globalAnchor();
 
+        Map<Long, Integer> minDyByColumn = new HashMap<>();
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
+            long key = packColumn(patch.dx(), patch.dz());
+            int dy = patch.dy();
+            minDyByColumn.merge(key, dy, Math::min);
+        }
 
-            // 计算世界坐标
-            BlockPos worldPos = globalAnchor.add(patch.dx(), patch.dy(), patch.dz());
+        Map<Long, Integer> shiftByColumn = new HashMap<>();
+        for (Map.Entry<Long, Integer> entry : minDyByColumn.entrySet()) {
+            long key = entry.getKey();
+            int dx = unpackColumnX(key);
+            int dz = unpackColumnZ(key);
+            int baseDy = entry.getValue();
 
-            // 根据策略调整 Y 坐标
-            int adjustedY = adjustY(worldPos, strategy, context);
-            int dy = adjustedY - worldPos.getY();
+            int worldX = globalAnchor.getX() + dx;
+            int worldZ = globalAnchor.getZ() + dz;
+            int worldBaseY = globalAnchor.getY() + baseDy;
 
-            // 创建调整后的 patch
+            int groundY = terrainSampler.sampleGroundY(world, worldX, worldZ);
+            int rawShift = groundY - worldBaseY;
+            int shift = resolveShiftForStrategy(rawShift, strategy, context, worldBaseY);
+            shiftByColumn.put(key, shift);
+        }
+
+        List<BlockPatch> result = new ArrayList<>(patches.size());
+        for (BlockPatch patch : patches) {
+            if (patch == null) continue;
+            long key = packColumn(patch.dx(), patch.dz());
+            int shift = shiftByColumn.getOrDefault(key, 0);
             BlockPatch adjusted = new BlockPatch(
                     patch.action(),
                     patch.dx(),
-                    patch.dy() + dy,
+                    patch.dy() + shift,
                     patch.dz(),
                     patch.targetBlock()
             );
-
             result.add(adjusted);
         }
 
@@ -79,31 +98,46 @@ public class TerrainAdaptationPostProcessor implements PostProcessor {
     }
 
     /**
-     * 根据地形策略调整 Y 坐标
+     * 根据地形策略调整柱子的偏移
      */
-    private int adjustY(BlockPos worldPos, GlobalConstraints.TerrainStrategy strategy, PostProcessContext context) {
+    private int resolveShiftForStrategy(int rawShift, GlobalConstraints.TerrainStrategy strategy,
+                                        PostProcessContext context, int worldBaseY) {
         if (world == null || terrainSampler == null) {
-            return worldPos.getY();
+            return 0;
         }
 
         return switch (strategy) {
-            case PRESERVE -> worldPos.getY(); // 保持原样
-            case ADAPTIVE -> {
-                // 适应地形：获取地面高度
-                int groundY = terrainSampler.sampleGroundY(world, worldPos.getX(), worldPos.getZ());
-                // 如果当前 Y 低于地面，调整到地面
-                yield Math.max(worldPos.getY(), groundY);
-            }
+            case PRESERVE -> 0;
+            case ADAPTIVE -> clampShift(rawShift, 3);
             case TERRACE -> {
-                // 平台化：创建分段平台
-                // 简化：调整到最近的地面高度
-                yield terrainSampler.sampleGroundY(world, worldPos.getX(), worldPos.getZ());
+                int stepped = quantizeShift(rawShift, 2);
+                yield clampShift(stepped, 6);
             }
-            case FLATTEN -> {
-                // 平整：所有方块调整到同一高度（使用 anchor 的 Y）
-                yield context.globalAnchor().getY();
-            }
+            case FLATTEN -> context.globalAnchor().getY() - worldBaseY;
         };
+    }
+
+    private static int clampShift(int shift, int limit) {
+        int lim = Math.max(0, limit);
+        if (lim == 0) return 0;
+        return Math.max(-lim, Math.min(lim, shift));
+    }
+
+    private static int quantizeShift(int shift, int step) {
+        int s = Math.max(1, step);
+        return Math.round(shift / (float) s) * s;
+    }
+
+    private static long packColumn(int dx, int dz) {
+        return (((long) dx) << 32) ^ (dz & 0xffffffffL);
+    }
+
+    private static int unpackColumnX(long key) {
+        return (int) (key >> 32);
+    }
+
+    private static int unpackColumnZ(long key) {
+        return (int) key;
     }
 }
 

@@ -8,6 +8,7 @@ import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.preview.PreviewModalState;
 import com.formacraft.client.ui.panel.BasePanel;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
+import com.formacraft.client.ui.panel.PanelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
@@ -111,6 +112,14 @@ public class InputRouter {
             if (BuildConfirmPanel.INSTANCE.isVisible() && action == 1) {
                 return BuildConfirmPanel.INSTANCE.mouseClicked(x, y, button);
             }
+            if (FormacraftUIState.isOpen
+                    && FormaCraftHudOverlay.activePanel == PanelType.CHAT
+                    && action == 1) {
+                BasePanel panel = getPanel();
+                if (panel != null) {
+                    panel.mouseClicked(x, y, button);
+                }
+            }
             return true;
         }
 
@@ -198,7 +207,14 @@ public class InputRouter {
 
     /** 滚轮事件 */
     public static boolean onMouseScroll(double x, double y, double amount) {
-        if (isPreviewLocked()) return true;
+        if (isPreviewLocked()) {
+            if (FormacraftUIState.isOpen
+                    && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
+                BasePanel panel = getPanel();
+                if (panel != null) panel.mouseScrolled(x, y, amount);
+            }
+            return true;
+        }
         if (!FormacraftUIState.isOpen) return false;
         boolean inside = isMouseInsideUI(x, y);
 
@@ -220,6 +236,14 @@ public class InputRouter {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
                 BuildConfirmPanel.INSTANCE.cancel();
                 return true;
+            }
+            if (FormacraftUIState.isOpen
+                    && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
+                BasePanel panel = getPanel();
+                if (panel != null) {
+                    panel.keyPressed(keyCode, scanCode, modifiers);
+                    return true;
+                }
             }
             if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
                 BuildConfirmPanel.INSTANCE.confirm();
@@ -284,7 +308,16 @@ public class InputRouter {
 
     /** 字符输入事件 */
     public static boolean onCharTyped(char chr, int modifiers) {
-        if (isPreviewLocked()) return true;
+        if (isPreviewLocked()) {
+            if (FormacraftUIState.isOpen
+                    && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
+                BasePanel panel = getPanel();
+                if (panel != null) {
+                    panel.charTyped(chr);
+                }
+            }
+            return true;
+        }
         if (!FormacraftUIState.isOpen) return false;
 
         boolean inside = isMouseInsideUI();
