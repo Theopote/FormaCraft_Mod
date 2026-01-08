@@ -120,6 +120,13 @@ public final class ComponentPlanCompiler {
                         int slotOffsetY = slotAnchor.y() - planAnchor.y();
                         int slotOffsetZ = slotAnchor.z() - planAnchor.z();
                         
+                        // 调试：记录前几个 patch 的坐标调整
+                        if (result.size() < 5) {
+                            FormacraftMod.LOGGER.info("ComponentPlanCompiler: component={}, planAnchor={}, slotAnchor={}, slotOffset=({}, {}, {}), first patch dx={}, dy={}, dz={}", 
+                                    c.componentType(), planAnchor, slotAnchor, slotOffsetX, slotOffsetY, slotOffsetZ,
+                                    patches.get(0).dx(), patches.get(0).dy(), patches.get(0).dz());
+                        }
+                        
                         // 调整所有 patches 的坐标
                         for (BlockPatch patch : patches) {
                             if (patch != null) {
@@ -134,6 +141,7 @@ public final class ComponentPlanCompiler {
                         }
                     } else {
                         // 如果 anchor 信息不完整，直接添加 patches（保持向后兼容）
+                        FormacraftMod.LOGGER.warn("ComponentPlanCompiler: missing anchor info, planAnchor={}, slotAnchor={}", planAnchor, slotAnchor);
                         result.addAll(patches);
                     }
                 } else {

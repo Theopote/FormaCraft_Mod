@@ -980,7 +980,15 @@ public class FormaCraftNetworking {
                                         List<PlannedBlock> plannedBlocks = new ArrayList<>();
                                         int invalidBlockCount = 0;
                                         for (BlockPatch patch : patches) {
+                                            // 计算世界坐标：planOrigin + 相对偏移
                                             BlockPos worldPos = planOrigin.add(patch.dx(), patch.dy(), patch.dz());
+                                            
+                                            // 调试：检查坐标计算是否正确
+                                            if (plannedBlocks.size() < 5) {
+                                                FormacraftMod.LOGGER.info("LlmPlan: patch dx={}, dy={}, dz={}, planOrigin={}, worldPos={}", 
+                                                        patch.dx(), patch.dy(), patch.dz(), planOrigin, worldPos);
+                                            }
+                                            
                                             String blockId = patch.targetBlock();
                                             if (blockId != null && !blockId.isEmpty()) {
                                                 try {
