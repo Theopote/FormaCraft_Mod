@@ -53,6 +53,18 @@ public class CourtyardSpaceGenerator implements ComponentGenerator {
                     if (hasPath && isPathArea(x, z, width, depth)) {
                         SemanticPart part = SemanticPart.ROAD_SURFACE;
                         String block = palette.pick(part);
+                        if (block == null || block.isEmpty()) {
+                            // 回退到 COURTYARD_FLOOR 或 FLOOR
+                            part = SemanticPart.COURTYARD_FLOOR;
+                            block = palette.pick(part);
+                            if (block == null || block.isEmpty()) {
+                                part = SemanticPart.FLOOR;
+                                block = palette.pick(part);
+                            }
+                        }
+                        if (block == null || block.isEmpty()) {
+                            block = "minecraft:stone_bricks";
+                        }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
                                 rp.x() + x,
@@ -64,13 +76,22 @@ public class CourtyardSpaceGenerator implements ComponentGenerator {
                         // 花园区域：使用不同的材质或留空（由后续处理）
                         continue; // 暂时跳过，或使用特殊材质
                     } else {
-                        // 普通铺装（使用 ROAD_SURFACE 或 FLOOR）
-                        SemanticPart part = SemanticPart.ROAD_SURFACE;
+                        // 普通铺装（优先使用 COURTYARD_FLOOR，回退到 FLOOR 或 ROAD_SURFACE）
+                        SemanticPart part = SemanticPart.COURTYARD_FLOOR;
                         String block = palette.pick(part);
                         if (block == null || block.isEmpty()) {
-                            // 如果没有 ROAD_SURFACE，尝试 FLOOR
+                            // 如果没有 COURTYARD_FLOOR，尝试 FLOOR
                             part = SemanticPart.FLOOR;
                             block = palette.pick(part);
+                        }
+                        if (block == null || block.isEmpty()) {
+                            // 如果还没有，尝试 ROAD_SURFACE
+                            part = SemanticPart.ROAD_SURFACE;
+                            block = palette.pick(part);
+                        }
+                        if (block == null || block.isEmpty()) {
+                            // 最后的默认值
+                            block = "minecraft:stone_bricks";
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
@@ -110,6 +131,29 @@ public class CourtyardSpaceGenerator implements ComponentGenerator {
     }
 
     private String getStyleProfile(SemanticComponent semantic) {
+        // 1. 优先使用 SemanticComponent 中的 styleProfile
+        if (semantic != null && semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
+            String profile = semantic.styleProfile().trim();
+            String upper = profile.toUpperCase();
+            if (upper.contains("CHINESE") || upper.contains("HUI")) {
+                return "HUI_STYLE_VILLA";
+            }
+            return profile;
+        }
+        
+        // 2. 尝试从 Component 的 features 推断风格
+        Component c = semantic != null ? semantic.source() : null;
+        if (c != null && c.features() != null) {
+            for (String feature : c.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase();
+                if (lower.contains("chinese") || lower.contains("中式")) {
+                    return "HUI_STYLE_VILLA";
+                }
+            }
+        }
+        
+        // 3. 默认
         return "MEDIEVAL_CLASSIC";
     }
 }

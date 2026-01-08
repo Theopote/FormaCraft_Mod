@@ -37,6 +37,7 @@ public final class GeneratorRegistry {
         // 新增生成器
         register("ROOF", new RoofGenerator());
         register("COURTYARD_SPACE", new CourtyardSpaceGenerator());
+        register("COURTYARD", new CourtyardSpaceGenerator()); // 注册 COURTYARD 到 CourtyardSpaceGenerator
         register("GATE_STRUCTURE", new GateStructureGenerator());
         register("PATH", new PathGenerator());
         

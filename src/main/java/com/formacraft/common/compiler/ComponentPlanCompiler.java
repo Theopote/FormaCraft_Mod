@@ -108,7 +108,34 @@ public final class ComponentPlanCompiler {
             try {
                 patches = SmartGeneratorRouter.generate(semantic, world);
                 if (!patches.isEmpty()) {
-                    result.addAll(patches);
+                    // 调整 BlockPatch 坐标：组件生成器返回的坐标是相对于 slot anchor 的
+                    // 但 BlockPatch 的坐标应该是相对于 plan.anchor() 的
+                    // 所以需要加上 slot anchor 相对于 plan anchor 的偏移
+                    com.formacraft.common.llm.dto.Vec3i planAnchor = plan.anchor();
+                    com.formacraft.common.llm.dto.Vec3i slotAnchor = slot.anchor();
+                    
+                    if (planAnchor != null && slotAnchor != null) {
+                        // 计算 slot anchor 相对于 plan anchor 的偏移
+                        int slotOffsetX = slotAnchor.x() - planAnchor.x();
+                        int slotOffsetY = slotAnchor.y() - planAnchor.y();
+                        int slotOffsetZ = slotAnchor.z() - planAnchor.z();
+                        
+                        // 调整所有 patches 的坐标
+                        for (BlockPatch patch : patches) {
+                            if (patch != null) {
+                                result.add(new BlockPatch(
+                                        patch.action(),
+                                        patch.dx() + slotOffsetX,
+                                        patch.dy() + slotOffsetY,
+                                        patch.dz() + slotOffsetZ,
+                                        patch.targetBlock()
+                                ));
+                            }
+                        }
+                    } else {
+                        // 如果 anchor 信息不完整，直接添加 patches（保持向后兼容）
+                        result.addAll(patches);
+                    }
                 } else {
                     FormacraftMod.LOGGER.warn("ComponentPlanCompiler: no patches generated for component: {}", 
                             c.componentType());

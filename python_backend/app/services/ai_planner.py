@@ -32,6 +32,9 @@ from .archetype_registry import get_archetype_def
 _LLM_CALL_TIMEOUT_SEC = float(os.getenv("LLM_CALL_TIMEOUT_SEC", "45"))
 _LLM_CALL_TIMEOUT_DEEPSEEK_SEC = float(os.getenv("LLM_CALL_TIMEOUT_DEEPSEEK_SEC", "60"))
 _LLM_CALL_TIMEOUT_REASONER_SEC = float(os.getenv("LLM_CALL_TIMEOUT_REASONER_SEC", "120"))
+# LlmPlan tends to be more verbose; allow longer timeouts by default.
+# LlmPlan 通常需要更长的处理时间，特别是对于复杂的 prompt 和大型 JSON 输出
+_LLM_CALL_TIMEOUT_LLMPLAN_SEC = float(os.getenv("LLM_CALL_TIMEOUT_LLMPLAN_SEC", "180"))  # 增加到 180 秒
 # Composite/City 往往比单体 BuildingSpec 更慢；默认给更长时间（可通过环境变量覆盖）
 _LLM_CALL_TIMEOUT_COMPOSITE_SEC = float(os.getenv("LLM_CALL_TIMEOUT_COMPOSITE_SEC", "600"))
 _LLM_CALL_TIMEOUT_CITY_SEC = float(os.getenv("LLM_CALL_TIMEOUT_CITY_SEC", "600"))
@@ -1215,7 +1218,7 @@ def _resolve_timeout_sec(req: Optional[BuildRequest], model: Optional[str]) -> f
 
 def _resolve_timeout_sec_for_task(task: str, req: Optional[BuildRequest], model: Optional[str]) -> float:
     """
-    task: building / composite / city
+    task: building / composite / city / llmplan
     """
     t = (task or "").strip().lower()
     base = _resolve_timeout_sec(req, model)
@@ -1223,6 +1226,10 @@ def _resolve_timeout_sec_for_task(task: str, req: Optional[BuildRequest], model:
         return max(base, _LLM_CALL_TIMEOUT_COMPOSITE_SEC)
     if t == "city":
         return max(base, _LLM_CALL_TIMEOUT_CITY_SEC)
+    if t == "llmplan":
+        # LlmPlan 通常需要更长的处理时间，特别是对于复杂的 prompt 和大型 JSON 输出
+        # 确保使用足够的超时时间（默认 180 秒）
+        return max(base, _LLM_CALL_TIMEOUT_LLMPLAN_SEC)
     return base
 
 
@@ -3675,7 +3682,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
     
     try:
         model = _resolve_model(req, "gpt-4o-mini")
-        timeout_sec = _resolve_timeout_sec(req, model)
+        timeout_sec = _resolve_timeout_sec_for_task("llmplan", req, model)
         
         messages = []
         if system_prompt:
