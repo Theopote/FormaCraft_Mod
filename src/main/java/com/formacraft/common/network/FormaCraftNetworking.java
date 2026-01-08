@@ -980,15 +980,7 @@ public class FormaCraftNetworking {
                                         List<PlannedBlock> plannedBlocks = new ArrayList<>();
                                         int invalidBlockCount = 0;
                                         for (BlockPatch patch : patches) {
-                                            // 计算世界坐标：planOrigin + 相对偏移
                                             BlockPos worldPos = planOrigin.add(patch.dx(), patch.dy(), patch.dz());
-                                            
-                                            // 调试：检查坐标计算是否正确
-                                            if (plannedBlocks.size() < 5) {
-                                                FormacraftMod.LOGGER.info("LlmPlan: patch dx={}, dy={}, dz={}, planOrigin={}, worldPos={}", 
-                                                        patch.dx(), patch.dy(), patch.dz(), planOrigin, worldPos);
-                                            }
-                                            
                                             String blockId = patch.targetBlock();
                                             if (blockId != null && !blockId.isEmpty()) {
                                                 try {
@@ -1001,27 +993,7 @@ public class FormaCraftNetworking {
                                                         continue;
                                                     }
                                                     net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(blockIdentifier);
-                                                    if (block == null) {
-                                                        invalidBlockCount++;
-                                                        if (invalidBlockCount <= 5) {
-                                                            FormacraftMod.LOGGER.warn("Block not found in registry: {}", blockId);
-                                                        }
-                                                        continue;
-                                                    }
                                                     net.minecraft.block.BlockState state = block.getDefaultState();
-                                                    
-                                                    // 记录前几个方块的位置和类型（用于调试）
-                                                    if (plannedBlocks.size() < 10) {
-                                                        FormacraftMod.LOGGER.info("LlmPlan: sample block #{}: {} at {} (relative: dx={}, dy={}, dz={})", 
-                                                                plannedBlocks.size() + 1, blockId, worldPos, patch.dx(), patch.dy(), patch.dz());
-                                                    }
-                                                    
-                                                    // 检查是否是空气方块（可能是问题）
-                                                    if (block == net.minecraft.block.Blocks.AIR && plannedBlocks.size() < 20) {
-                                                        FormacraftMod.LOGGER.warn("LlmPlan: air block at {} (relative: dx={}, dy={}, dz={})", 
-                                                                worldPos, patch.dx(), patch.dy(), patch.dz());
-                                                    }
-                                                    
                                                     plannedBlocks.add(new PlannedBlock(worldPos, state));
                                                 } catch (Exception e) {
                                                     invalidBlockCount++;
