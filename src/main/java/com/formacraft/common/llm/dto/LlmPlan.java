@@ -2,6 +2,7 @@ package com.formacraft.common.llm.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.formacraft.common.genome.BuildingGenome;
 
 import java.util.List;
 
@@ -17,6 +18,7 @@ public record LlmPlan(
         @JsonProperty("global_constraints") GlobalConstraints globalConstraints,
         @JsonProperty("layout") Layout layout,
         @JsonProperty("components") List<Component> components,
+        @JsonProperty("genome") BuildingGenome genome,
 
         // 风格属性（AI 分析用户描述后提取，用于动态材质选择）
         @JsonProperty("style_attributes") StyleAttributes styleAttributes,

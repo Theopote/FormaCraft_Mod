@@ -121,6 +121,7 @@ Output schema:
   "mode": "build | patch",
   "style_profile": "string",
   "anchor": { "x": int, "y": int, "z": int },
+  "genome": { BuildingGenomeObject },
   "global_constraints": {
     "facing": "NORTH | SOUTH | EAST | WEST",
     "symmetry": "NONE | MIRROR_X | MIRROR_Z | RADIAL",
@@ -150,7 +151,38 @@ ComponentObject:
   "slot_id": "string",
   "relative_position": { "x": int, "y": int, "z": int },
   "dimensions": { "width": int, "depth": int, "height": int },
-  "features": [ "string" ]
+  "features": [ "string" ],
+  "params": { ComponentParamsObject }
+}
+
+BuildingGenomeObject (v1):
+{
+  "genomeVersion": "1.0",
+  "archetype": { "id": "generic", "confidence": 0.0 },
+  "topology": { "layout": "rectangular|circular|linear|radial|freeform", "composition": "single|cluster|chain|grid", "axis": "centered|axial|none", "levels": "horizontal|vertical|mixed" },
+  "structure": { "type": "solid|frame|hybrid|suspended", "massiveness": 0.0-1.0, "voidRatio": 0.0-1.0, "supports": "central|distributed" },
+  "form": { "repetition": "none|horizontal|vertical|radial", "progression": "uniform|tapering|stepping|upward", "curvature": "straight|curved|mixed", "rhythm": "regular|segmented|irregular" },
+  "symmetry": { "type": "none|bilateral|radial|grid", "order": int, "mirror": true|false },
+  "modules": [ "roof", "windows", "courtyard", "balcony", "arcade", "tower", "bridge" ],
+  "materials": { "primary": "stone|wood|earth|metal|glass|mixed", "secondary": "stone|wood|earth|metal|glass|mixed", "accent": "stone|wood|earth|metal|glass|mixed", "textureBias": "rough|smooth|polished|aged" },
+  "culturalStyle": { "region": "chinese|european|japanese|islamic|modern|industrial|...", "era": "traditional|medieval|19th_century|modern|...", "keywords": ["string"] },
+  "constraints": { "maxHeight": int, "respectTerrain": true|false, "insideSelectionOnly": true|false },
+  "aiHints": { "priority": ["string"], "avoid": ["string"] }
+}
+
+ComponentParamsObject:
+{
+  "shape": "rectangle|circle|rounded_rect",
+  "corner_radius": int,
+  "void_ratio": 0.0-1.0,
+  "window_ratio": 0.0-1.0,
+  "roof_type": "flat|gable|hip|cone|pyramid|dome",
+  "setback_ratio": 0.0-1.0,
+  "floor_height": int,
+  "floor_count": int,
+  "masses": [
+    { "offset": { "x": int, "y": int, "z": int }, "dimensions": { "width": int, "depth": int, "height": int }, "shape": "rectangle|circle|rounded_rect" }
+  ]
 }
 
 """;
@@ -511,6 +543,19 @@ SEMANTIC REGIONS:
         sb.append("  \"mode\": \"").append(ctx.mode != null ? ctx.mode.name().toLowerCase() : "build").append("\",\n");
         sb.append("  \"style_profile\": \"").append(styleProfile).append("\",\n");
         sb.append("  \"anchor\": { \"x\": ").append(anchorX).append(", \"y\": ").append(anchorY).append(", \"z\": ").append(anchorZ).append(" },\n");
+        sb.append("  \"genome\": {\n");
+        sb.append("    \"genomeVersion\": \"1.0\",\n");
+        sb.append("    \"archetype\": { \"id\": \"generic\", \"confidence\": 0.0 },\n");
+        sb.append("    \"topology\": { \"layout\": \"rectangular\", \"composition\": \"single\", \"axis\": \"none\", \"levels\": \"mixed\" },\n");
+        sb.append("    \"structure\": { \"type\": \"hybrid\", \"massiveness\": 0.5, \"voidRatio\": 0.2, \"supports\": \"distributed\" },\n");
+        sb.append("    \"form\": { \"repetition\": \"none\", \"progression\": \"uniform\", \"curvature\": \"straight\", \"rhythm\": \"regular\" },\n");
+        sb.append("    \"symmetry\": { \"type\": \"none\", \"order\": null, \"mirror\": null },\n");
+        sb.append("    \"modules\": [\"roof\", \"windows\"],\n");
+        sb.append("    \"materials\": { \"primary\": \"stone\", \"secondary\": \"wood\", \"accent\": \"metal\", \"textureBias\": \"aged\" },\n");
+        sb.append("    \"culturalStyle\": { \"region\": \"modern\", \"era\": \"modern\", \"keywords\": [] },\n");
+        sb.append("    \"constraints\": { \"maxHeight\": null, \"respectTerrain\": true, \"insideSelectionOnly\": false },\n");
+        sb.append("    \"aiHints\": { \"priority\": [], \"avoid\": [] }\n");
+        sb.append("  },\n");
         sb.append("\n");
         sb.append("  \"global_constraints\": {\n");
         sb.append("    \"facing\": \"").append(facing).append("\",\n");
@@ -581,6 +626,8 @@ SEMANTIC REGIONS:
         sb.append("- Use semantic component types (MASS_MAIN, ENTRANCE, FACADE_WINDOWS, SIGNAGE, etc.), NOT block IDs.\n");
         sb.append("- All positions in components must be relative to the slot's anchor.\n");
         sb.append("- Respect the component_preset weights and densities when generating components.\n");
+        sb.append("- Populate \"genome\" with topology/structure/form/material semantics to drive parameterized generation.\n");
+        sb.append("- Use ComponentObject.params to express shape/void/roof/setback/multi-mass intent instead of free-text features.\n");
         sb.append("- Output ONLY valid JSON. No comments, no explanations.\n");
         
         return sb.toString();
@@ -1070,4 +1117,3 @@ USER REQUEST:
     }
 
 }
-

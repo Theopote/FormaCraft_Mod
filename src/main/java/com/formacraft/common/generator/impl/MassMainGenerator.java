@@ -14,6 +14,7 @@ import com.formacraft.FormacraftMod;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * MassMainGenerator（主体体块生成器）
@@ -22,6 +23,35 @@ import java.util.List;
  * 使用 Palette 权重随机，支持不同风格
  */
 public class MassMainGenerator implements ComponentGenerator {
+
+    private enum FootprintShape {
+        RECTANGLE,
+        CIRCLE,
+        ROUNDED_RECT
+    }
+
+    private static final class MassConfig {
+        private final int offsetX;
+        private final int offsetY;
+        private final int offsetZ;
+        private final int width;
+        private final int depth;
+        private final int height;
+        private final FootprintShape shape;
+        private final int cornerRadius;
+
+        private MassConfig(int offsetX, int offsetY, int offsetZ, int width, int depth, int height,
+                           FootprintShape shape, int cornerRadius) {
+            this.offsetX = offsetX;
+            this.offsetY = offsetY;
+            this.offsetZ = offsetZ;
+            this.width = width;
+            this.depth = depth;
+            this.height = height;
+            this.shape = shape;
+            this.cornerRadius = cornerRadius;
+        }
+    }
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
@@ -38,11 +68,19 @@ public class MassMainGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
+        Map<String, Object> params = c.params();
+
+        FootprintShape baseShape = resolveShape(c, semantic);
+        int cornerRadius = resolveCornerRadius(params, width, depth, baseShape);
+        List<MassConfig> massConfigs = resolveMasses(params, width, depth, height, baseShape, cornerRadius);
         
         // 尺寸规范化：确保高度至少3米（3格）
         // 如果用户指定了具体高度，使用用户的要求
-        int userFloorHeight = com.formacraft.common.generator.util.ProportionalFacadeCalculator
-                .extractFloorHeightFromFeatures(c.features());
+        int userFloorHeight = getParamInt(params, 0, "floor_height", "floorHeight");
+        if (userFloorHeight <= 0) {
+            userFloorHeight = com.formacraft.common.generator.util.ProportionalFacadeCalculator
+                    .extractFloorHeightFromFeatures(c.features());
+        }
         if (userFloorHeight > 0) {
             // 用户指定了每层高度，验证总高度是否合理
             int minTotalHeight = userFloorHeight * 1; // 至少1层
@@ -94,6 +132,21 @@ public class MassMainGenerator implements ComponentGenerator {
                                          "inner_space", "empty_interior");
         boolean hasSteppedFacade = hasFeature(c, "stepped_facade", "stepped", "setback", "setbacks", 
                                                "进退", "进退关系", "立面", "facade_setback", "tiered");
+
+        Double voidRatio = resolveVoidRatio(params, semantic);
+        Double windowRatio = resolveWindowRatio(params, semantic);
+        Double setbackRatioOverride = resolveSetbackRatio(params, semantic);
+        int wallThickness = resolveWallThickness(params, semantic);
+        String roofType = resolveRoofType(params, semantic);
+
+        if ("none".equalsIgnoreCase(roofType)) {
+            hasRoof = false;
+        } else if (!hasRoof && roofType != null && !roofType.isBlank()) {
+            hasRoof = true;
+        }
+        if (!hasSteppedFacade && shouldEnableSteppedFacade(semantic)) {
+            hasSteppedFacade = true;
+        }
         
         // 对于大多数建筑类型，默认应该有内部空间（除非明确不需要）
         // 教堂、住宅、商业建筑等都应该有内部空间
@@ -101,6 +154,9 @@ public class MassMainGenerator implements ComponentGenerator {
                             (semantic.slot().program() != null && 
                              !semantic.slot().program().equals("PLAZA") &&
                              !semantic.slot().program().equals("LANDSCAPE"));
+        if (voidRatio != null) {
+            hasInterior = voidRatio >= 0.08;
+        }
         if (!hasInterior && isBuilding && width >= 5 && depth >= 5 && height >= 4) {
             // 对于足够大的建筑，默认应该有内部空间
             hasInterior = true;
@@ -132,23 +188,61 @@ public class MassMainGenerator implements ComponentGenerator {
             FormacraftMod.LOGGER.debug("MassMainGenerator: enabling default doors and windows for program: {}", 
                     semantic.slot() != null ? semantic.slot().program() : "unknown");
         }
+        if (windowRatio != null) {
+            hasWindows = windowRatio > 0.05;
+        }
 
-        // 计算每层的尺寸（如果有 stepped_facade，使用智能比例计算）
+        int windowSpacing = resolveWindowSpacing(windowRatio);
+        com.formacraft.common.llm.dto.GlobalConstraints.Facing doorFacing =
+                (semantic.slot() != null && semantic.slot().facing() != null)
+                        ? semantic.slot().facing()
+                        : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
+
+        for (MassConfig mass : massConfigs) {
+            emitMass(out, semantic, palette, rp, mass, hasInterior, hasWindows, hasDoors, hasRoof, hasDecor,
+                    hasSteppedFacade, windowSpacing, doorFacing, wallThickness, userFloorHeight, setbackRatioOverride);
+        }
+
+        return out;
+    }
+
+    private void emitMass(
+            List<BlockPatch> out,
+            SemanticComponent semantic,
+            Palette palette,
+            Vec3i rp,
+            MassConfig mass,
+            boolean hasInterior,
+            boolean hasWindows,
+            boolean hasDoors,
+            boolean hasRoof,
+            boolean hasDecor,
+            boolean hasSteppedFacade,
+            int windowSpacing,
+            com.formacraft.common.llm.dto.GlobalConstraints.Facing doorFacing,
+            int wallThickness,
+            int userFloorHeight,
+            Double setbackRatioOverride
+    ) {
+        int width = mass.width;
+        int depth = mass.depth;
+        int height = mass.height;
+
         int[] layerWidths = new int[height];
         int[] layerDepths = new int[height];
         int[] layerXOffsets = new int[height];
         int[] layerZOffsets = new int[height];
-        
+
         if (hasSteppedFacade && height >= 3) {
-            // 阶梯式立面：使用比例化计算器
-            double userSetbackRatio = com.formacraft.common.generator.util.ProportionalFacadeCalculator
-                    .extractSetbackRatioFromFeatures(c.features());
-            
-            com.formacraft.common.generator.util.ProportionalFacadeCalculator.LayerConfig[] layerConfigs = 
+            double userSetbackRatio = setbackRatioOverride != null ? setbackRatioOverride
+                    : com.formacraft.common.generator.util.ProportionalFacadeCalculator
+                    .extractSetbackRatioFromFeatures(semantic.source().features());
+
+            com.formacraft.common.generator.util.ProportionalFacadeCalculator.LayerConfig[] layerConfigs =
                     com.formacraft.common.generator.util.ProportionalFacadeCalculator.calculateSteppedFacade(
                             width, depth, height, userFloorHeight, userSetbackRatio
                     );
-            
+
             for (int y = 0; y < height; y++) {
                 layerWidths[y] = layerConfigs[y].width;
                 layerDepths[y] = layerConfigs[y].depth;
@@ -156,7 +250,6 @@ public class MassMainGenerator implements ComponentGenerator {
                 layerZOffsets[y] = layerConfigs[y].zOffset;
             }
         } else {
-            // 普通立面：所有层尺寸相同
             for (int y = 0; y < height; y++) {
                 layerWidths[y] = width;
                 layerDepths[y] = depth;
@@ -165,29 +258,22 @@ public class MassMainGenerator implements ComponentGenerator {
             }
         }
 
-        // 生成矩形体块（基础结构）
         for (int y = 0; y < height; y++) {
             int currentWidth = layerWidths[y];
             int currentDepth = layerDepths[y];
             int xOffset = layerXOffsets[y];
             int zOffset = layerZOffsets[y];
-            
+
             for (int x = 0; x < currentWidth; x++) {
                 for (int z = 0; z < currentDepth; z++) {
-                    // 转换为全局坐标（考虑 offset）
-                    int globalX = x + xOffset;
-                    int globalZ = z + zOffset;
-                    
-                    // 检查是否超出原始边界（不应该发生，但安全起见）
-                    if (globalX >= width || globalZ >= depth) {
+                    int localX = x + xOffset;
+                    int localZ = z + zOffset;
+
+                    if (!isInsideFootprint(localX, localZ, width, depth, mass.shape, mass.cornerRadius)) {
                         continue;
                     }
-                    // 检查是否是内部空间（留空）
-                    // 注意：使用全局坐标 globalX, globalZ 和原始尺寸 width, depth
-                    if (hasInterior && isInteriorSpace(globalX, globalZ, width, depth, y, height)) {
-                        FormacraftMod.LOGGER.debug("MassMainGenerator: skipping interior space at ({}, {}, {})", globalX, y, globalZ);
-                        // 内部空间不放置方块（保持空气）
-                        // 但底部可以放置地板
+
+                    if (hasInterior && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness, mass.shape, mass.cornerRadius)) {
                         if (y == 0) {
                             SemanticPart part = SemanticPart.FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
@@ -197,9 +283,9 @@ public class MassMainGenerator implements ComponentGenerator {
                             if (block != null && !block.isEmpty()) {
                                 out.add(new BlockPatch(
                                         BlockPatch.PLACE,
-                                        rp.x() + x,
-                                        rp.y() + y,
-                                        rp.z() + z,
+                                        rp.x() + mass.offsetX + localX,
+                                        rp.y() + mass.offsetY + y,
+                                        rp.z() + mass.offsetZ + localZ,
                                         block
                                 ));
                             }
@@ -207,9 +293,7 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    // 检查是否是窗户位置（使用全局坐标）
-                    if (hasWindows && isWindowPosition(globalX, globalZ, width, depth, y, height)) {
-                        // 生成窗户（使用 WINDOW 语义部位）
+                    if (hasWindows && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape, mass.cornerRadius, windowSpacing)) {
                         SemanticPart part = SemanticPart.WINDOW;
                         String block = palette.pick(part);
                         if (block == null || block.isEmpty()) {
@@ -217,41 +301,35 @@ public class MassMainGenerator implements ComponentGenerator {
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
-                                rp.x() + globalX,
-                                rp.y() + y,
-                                rp.z() + globalZ,
+                                rp.x() + mass.offsetX + localX,
+                                rp.y() + mass.offsetY + y,
+                                rp.z() + mass.offsetZ + localZ,
                                 block
                         ));
                         continue;
                     }
 
-                    // 检查是否是门位置（使用全局坐标）
-                    if (hasDoors && isDoorPosition(globalX, globalZ, width, depth, y)) {
-                        // 生成门（使用 DOORWAY 语义部位）
+                    if (hasDoors && isDoorPosition(localX, localZ, width, depth, y, mass.shape, mass.cornerRadius, doorFacing)) {
                         SemanticPart part = SemanticPart.DOORWAY;
                         String block = getBlockForPart(part, semantic, palette);
                         if (block == null || block.isEmpty()) {
-                            block = "minecraft:air"; // 门洞保持空气
+                            block = "minecraft:air";
                         }
-                        // 门洞不放置方块，但可以放置门框
-                        if (y == 0 || (globalX == width / 2 && globalZ == 0)) {
-                            // 门框
+                        if (y == 0) {
                             part = SemanticPart.WALL_ACCENT;
                             block = getBlockForPart(part, semantic, palette);
                             out.add(new BlockPatch(
                                     BlockPatch.PLACE,
-                                    rp.x() + globalX,
-                                    rp.y() + y,
-                                    rp.z() + globalZ,
+                                    rp.x() + mass.offsetX + localX,
+                                    rp.y() + mass.offsetY + y,
+                                    rp.z() + mass.offsetZ + localZ,
                                     block
                             ));
                         }
                         continue;
                     }
 
-                    // 检查是否是屋顶位置
                     if (hasRoof && y >= height - 1) {
-                        // 生成屋顶（使用 ROOF_SURFACE 语义部位）
                         SemanticPart part = SemanticPart.ROOF_SURFACE;
                         String block = getBlockForPart(part, semantic, palette);
                         if (block == null || block.isEmpty()) {
@@ -260,17 +338,15 @@ public class MassMainGenerator implements ComponentGenerator {
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
-                                rp.x() + globalX,
-                                rp.y() + y,
-                                rp.z() + globalZ,
+                                rp.x() + mass.offsetX + localX,
+                                rp.y() + mass.offsetY + y,
+                                rp.z() + mass.offsetZ + localZ,
                                 block
                         ));
                         continue;
                     }
 
-                    // 检查是否是装饰位置（使用全局坐标）
-                    if (hasDecor && isDecorPosition(globalX, globalZ, width, depth, y, height)) {
-                        // 生成装饰（使用 DECOR 语义部位）
+                    if (hasDecor && isDecorPosition(localX, localZ, width, depth, y, height, mass.shape, mass.cornerRadius)) {
                         SemanticPart part = SemanticPart.DECOR;
                         String block = getBlockForPart(part, semantic, palette);
                         if (block == null || block.isEmpty()) {
@@ -279,72 +355,81 @@ public class MassMainGenerator implements ComponentGenerator {
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
-                                rp.x() + globalX,
-                                rp.y() + y,
-                                rp.z() + globalZ,
+                                rp.x() + mass.offsetX + localX,
+                                rp.y() + mass.offsetY + y,
+                                rp.z() + mass.offsetZ + localZ,
                                 block
                         ));
                         continue;
                     }
 
-                    // 检查是否在当前层的边界内（stepped_facade 时，只生成当前层的方块）
-                    boolean isInCurrentLayer = (x >= 0 && x < currentWidth && z >= 0 && z < currentDepth);
-                    if (!isInCurrentLayer) {
-                        continue; // 跳过不在当前层的方块
-                    }
-
-                    // 默认：根据位置确定 SemanticPart（使用全局坐标）
-                    SemanticPart part = determinePart(y, height, width, depth, globalX, globalZ);
+                    SemanticPart part = determinePart(y, height, width, depth, localX, localZ, mass.shape, mass.cornerRadius);
                     String block = getBlockForPart(part, semantic, palette);
-                    
+
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
-                            rp.x() + globalX,
-                            rp.y() + y,
-                            rp.z() + globalZ,
+                            rp.x() + mass.offsetX + localX,
+                            rp.y() + mass.offsetY + y,
+                            rp.z() + mass.offsetZ + localZ,
                             block
                     ));
                 }
             }
         }
-
-        return out;
     }
 
     /**
      * 检查是否是窗户位置
      */
-    private boolean isWindowPosition(int x, int z, int width, int depth, int y, int height) {
-        // 窗户通常在立面（z=0 或 z=depth-1），不在底部和顶部
-        boolean isFacade = (z == 0 || z == depth - 1);
+    private boolean isWindowPosition(int x, int z, int width, int depth, int y, int height,
+                                     FootprintShape shape, int cornerRadius, int spacing) {
         boolean isMiddleHeight = (y > 0 && y < height - 1);
-        // 窗户通常不在角落
-        boolean isNotCorner = (x > 0 && x < width - 1);
-        // 窗户通常间隔放置
-        boolean isWindowSpacing = (x % 3 == 1 || x % 3 == 2);
-        return isFacade && isMiddleHeight && isNotCorner && isWindowSpacing;
+        if (!isMiddleHeight) {
+            return false;
+        }
+        boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius);
+        if (!isExterior) {
+            return false;
+        }
+        if (isCornerPosition(x, z, width, depth, shape, cornerRadius)) {
+            return false;
+        }
+        return isWindowSpacing(x, z, spacing);
     }
 
     /**
      * 检查是否是门位置
      */
-    private boolean isDoorPosition(int x, int z, int width, int depth, int y) {
-        // 门通常在正面（z=0），居中，只在底部
-        boolean isFront = (z == 0);
-        boolean isCenter = (x >= width / 2 - 1 && x <= width / 2 + 1);
-        boolean isBottom = (y < 3);
-        return isFront && isCenter && isBottom;
+    private boolean isDoorPosition(int x, int z, int width, int depth, int y,
+                                   FootprintShape shape, int cornerRadius,
+                                   com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
+        if (y >= 3) {
+            return false;
+        }
+        if (!isExteriorWallPosition(x, z, width, depth, shape, cornerRadius)) {
+            return false;
+        }
+        int centerX = width / 2;
+        int centerZ = depth / 2;
+        boolean isCenter = (x >= centerX - 1 && x <= centerX + 1) || (z >= centerZ - 1 && z <= centerZ + 1);
+
+        return switch (facing) {
+            case NORTH -> z >= depth - 1 && isCenter;
+            case EAST -> x <= 0 && isCenter;
+            case WEST -> x >= width - 1 && isCenter;
+            case SOUTH -> z <= 0 && isCenter;
+        };
     }
 
     /**
      * 检查是否是装饰位置
      */
-    private boolean isDecorPosition(int x, int z, int width, int depth, int y, int height) {
-        // 装饰通常在边缘、顶部、角落
-        boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
+    private boolean isDecorPosition(int x, int z, int width, int depth, int y, int height,
+                                    FootprintShape shape, int cornerRadius) {
         boolean isTop = (y >= height - 2);
-        boolean isCorner = ((x == 0 || x == width - 1) && (z == 0 || z == depth - 1));
-        return (isEdge || isTop || isCorner) && (y > 0);
+        boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius);
+        boolean isCorner = isCornerPosition(x, z, width, depth, shape, cornerRadius);
+        return (isTop || isExterior || isCorner) && (y > 0);
     }
 
     /**
@@ -526,19 +611,16 @@ public class MassMainGenerator implements ComponentGenerator {
     /**
      * 检查是否是内部空间（需要留空）
      */
-    private boolean isInteriorSpace(int x, int z, int width, int depth, int y, int height) {
-        // 留出边缘（墙体），内部留空
-        int wallThickness = 1;
-        boolean isInteriorX = x >= wallThickness && x < width - wallThickness;
-        boolean isInteriorZ = z >= wallThickness && z < depth - wallThickness;
-        
-        // 内部空间（不包括屋顶层）
-        boolean isInteriorY = y < height - 1;
-        
-        return isInteriorX && isInteriorZ && isInteriorY;
+    private boolean isInteriorSpace(int x, int z, int width, int depth, int y, int height,
+                                    int wallThickness, FootprintShape shape, int cornerRadius) {
+        if (y >= height - 1) {
+            return false;
+        }
+        return isInsideInnerFootprint(x, z, width, depth, wallThickness, shape, cornerRadius);
     }
 
-    private SemanticPart determinePart(int y, int height, int width, int depth, int x, int z) {
+    private SemanticPart determinePart(int y, int height, int width, int depth, int x, int z,
+                                       FootprintShape shape, int cornerRadius) {
         // 基础部分
         if (y == 0) {
             return SemanticPart.WALL_BASE;
@@ -549,14 +631,333 @@ public class MassMainGenerator implements ComponentGenerator {
             return SemanticPart.WALL_ACCENT;
         }
         
-        // 边缘（外墙）
-        boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
-        if (isEdge) {
+        if (isExteriorWallPosition(x, z, width, depth, shape, cornerRadius)) {
             return SemanticPart.WALL_ACCENT;
         }
         
         // 内部（填充）
         return SemanticPart.WALL;
+    }
+
+    private FootprintShape resolveShape(Component c, SemanticComponent semantic) {
+        String shape = getParamString(c.params(), "shape", "footprint_shape", "footprintShape");
+        if (shape == null && semantic != null && semantic.genome() != null
+                && semantic.genome().topology != null && semantic.genome().topology.layout != null) {
+            String layout = semantic.genome().topology.layout;
+            if (layout.equalsIgnoreCase("circular") || layout.equalsIgnoreCase("radial")) {
+                shape = "circle";
+            } else if (layout.equalsIgnoreCase("freeform")) {
+                shape = "rounded_rect";
+            }
+        }
+        if (shape == null && c.features() != null) {
+            for (String feature : c.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase();
+                if (lower.contains("circle") || lower.contains("circular") || lower.contains("round")) {
+                    shape = "circle";
+                    break;
+                }
+                if (lower.contains("rounded") || lower.contains("curved")) {
+                    shape = "rounded_rect";
+                }
+            }
+        }
+        if (shape == null && semantic != null && semantic.genome() != null
+                && semantic.genome().form != null && "curved".equalsIgnoreCase(semantic.genome().form.curvature)) {
+            shape = "rounded_rect";
+        }
+        if (shape == null) {
+            return FootprintShape.RECTANGLE;
+        }
+        return switch (shape.trim().toLowerCase()) {
+            case "circle", "circular", "round" -> FootprintShape.CIRCLE;
+            case "rounded_rect", "rounded", "roundrect", "round_rect" -> FootprintShape.ROUNDED_RECT;
+            default -> FootprintShape.RECTANGLE;
+        };
+    }
+
+    private int resolveCornerRadius(Map<String, Object> params, int width, int depth, FootprintShape shape) {
+        int radius = getParamInt(params, 0, "corner_radius", "cornerRadius");
+        if (radius <= 0 && shape == FootprintShape.ROUNDED_RECT) {
+            radius = Math.max(1, Math.min(width, depth) / 6);
+        }
+        int max = Math.max(1, Math.min(width, depth) / 2);
+        return Math.max(0, Math.min(radius, max));
+    }
+
+    private List<MassConfig> resolveMasses(Map<String, Object> params, int width, int depth, int height,
+                                          FootprintShape baseShape, int cornerRadius) {
+        List<MassConfig> masses = new ArrayList<>();
+        masses.add(new MassConfig(0, 0, 0, width, depth, height, baseShape, cornerRadius));
+
+        Object massesObj = params != null ? params.get("masses") : null;
+        if (!(massesObj instanceof List<?> list)) {
+            return masses;
+        }
+
+        for (Object obj : list) {
+            Map<String, Object> m = asMap(obj);
+            if (m == null) continue;
+            Map<String, Object> offset = asMap(m.get("offset"));
+            Map<String, Object> dims = asMap(m.get("dimensions"));
+            if (dims == null) continue;
+
+            int mw = getParamInt(dims, width, "width");
+            int md = getParamInt(dims, depth, "depth");
+            int mh = getParamInt(dims, height, "height");
+            if (mw <= 0 || md <= 0 || mh <= 0) continue;
+
+            int ox = offset != null ? getParamInt(offset, 0, "x") : 0;
+            int oy = offset != null ? getParamInt(offset, 0, "y") : 0;
+            int oz = offset != null ? getParamInt(offset, 0, "z") : 0;
+
+            FootprintShape shape = baseShape;
+            String massShape = getParamString(m, "shape");
+            if (massShape != null) {
+                shape = switch (massShape.trim().toLowerCase()) {
+                    case "circle", "circular", "round" -> FootprintShape.CIRCLE;
+                    case "rounded_rect", "rounded", "roundrect", "round_rect" -> FootprintShape.ROUNDED_RECT;
+                    default -> FootprintShape.RECTANGLE;
+                };
+            }
+            int cr = resolveCornerRadius(m, mw, md, shape);
+            masses.add(new MassConfig(ox, oy, oz, mw, md, mh, shape, cr));
+        }
+
+        return masses;
+    }
+
+    private Double resolveVoidRatio(Map<String, Object> params, SemanticComponent semantic) {
+        Double ratio = getParamDouble(params, "void_ratio", "voidRatio");
+        if (ratio != null) return clamp01(ratio);
+        if (semantic != null && semantic.genome() != null && semantic.genome().structure != null) {
+            Double v = semantic.genome().structure.voidRatio;
+            if (v != null) return clamp01(v);
+        }
+        return null;
+    }
+
+    private Double resolveWindowRatio(Map<String, Object> params, SemanticComponent semantic) {
+        Double ratio = getParamDouble(params, "window_ratio", "windowRatio");
+        if (ratio != null) return clamp01(ratio);
+        return null;
+    }
+
+    private Double resolveSetbackRatio(Map<String, Object> params, SemanticComponent semantic) {
+        Double ratio = getParamDouble(params, "setback_ratio", "setbackRatio");
+        if (ratio != null) return clamp01(ratio);
+        if (semantic != null && semantic.genome() != null && semantic.genome().form != null) {
+            String progression = semantic.genome().form.progression;
+            if ("stepping".equalsIgnoreCase(progression)) {
+                return 0.07;
+            }
+            if ("tapering".equalsIgnoreCase(progression)) {
+                return 0.05;
+            }
+        }
+        return null;
+    }
+
+    private int resolveWallThickness(Map<String, Object> params, SemanticComponent semantic) {
+        int override = getParamInt(params, -1, "wall_thickness", "wallThickness");
+        if (override > 0) {
+            return Math.min(4, override);
+        }
+        Double massiveness = getParamDouble(params, "massiveness");
+        if (massiveness == null && semantic != null && semantic.genome() != null
+                && semantic.genome().structure != null) {
+            massiveness = semantic.genome().structure.massiveness;
+        }
+        if (massiveness != null) {
+            if (massiveness >= 0.85) return 3;
+            if (massiveness >= 0.65) return 2;
+        }
+        return 1;
+    }
+
+    private String resolveRoofType(Map<String, Object> params, SemanticComponent semantic) {
+        String type = getParamString(params, "roof_type", "roofType");
+        if (type != null) return type;
+        return null;
+    }
+
+    private boolean shouldEnableSteppedFacade(SemanticComponent semantic) {
+        if (semantic == null || semantic.genome() == null || semantic.genome().form == null) {
+            return false;
+        }
+        String progression = semantic.genome().form.progression;
+        return "stepping".equalsIgnoreCase(progression) || "tapering".equalsIgnoreCase(progression);
+    }
+
+    private boolean isInsideFootprint(int x, int z, int width, int depth, FootprintShape shape, int cornerRadius) {
+        if (x < 0 || z < 0 || x >= width || z >= depth) {
+            return false;
+        }
+        if (shape == FootprintShape.RECTANGLE) {
+            return true;
+        }
+        if (shape == FootprintShape.CIRCLE) {
+            double cx = (width - 1) / 2.0;
+            double cz = (depth - 1) / 2.0;
+            double rx = Math.max(0.5, width / 2.0);
+            double rz = Math.max(0.5, depth / 2.0);
+            double dx = (x - cx) / rx;
+            double dz = (z - cz) / rz;
+            return (dx * dx + dz * dz) <= 1.0;
+        }
+        int r = Math.max(0, Math.min(cornerRadius, Math.min(width, depth) / 2));
+        if (r <= 0) {
+            return true;
+        }
+        int maxX = width - 1;
+        int maxZ = depth - 1;
+        boolean inXBand = x >= r && x <= maxX - r;
+        boolean inZBand = z >= r && z <= maxZ - r;
+        if (inXBand || inZBand) {
+            return true;
+        }
+        int cornerX = x < r ? r - 1 : maxX - r + 1;
+        int cornerZ = z < r ? r - 1 : maxZ - r + 1;
+        double dx = x - cornerX;
+        double dz = z - cornerZ;
+        double rr = r - 0.5;
+        return (dx * dx + dz * dz) <= (rr * rr);
+    }
+
+    private boolean isInsideInnerFootprint(int x, int z, int width, int depth, int wallThickness,
+                                           FootprintShape shape, int cornerRadius) {
+        if (wallThickness <= 0) {
+            return isInsideFootprint(x, z, width, depth, shape, cornerRadius);
+        }
+        if (shape == FootprintShape.RECTANGLE) {
+            return x >= wallThickness && z >= wallThickness
+                    && x < width - wallThickness
+                    && z < depth - wallThickness;
+        }
+        if (shape == FootprintShape.CIRCLE) {
+            double cx = (width - 1) / 2.0;
+            double cz = (depth - 1) / 2.0;
+            double rx = Math.max(0.1, (width / 2.0) - wallThickness);
+            double rz = Math.max(0.1, (depth / 2.0) - wallThickness);
+            double dx = (x - cx) / rx;
+            double dz = (z - cz) / rz;
+            return (dx * dx + dz * dz) <= 1.0;
+        }
+        int innerWidth = width - wallThickness * 2;
+        int innerDepth = depth - wallThickness * 2;
+        if (innerWidth <= 0 || innerDepth <= 0) {
+            return false;
+        }
+        return isInsideFootprint(
+                x - wallThickness,
+                z - wallThickness,
+                innerWidth,
+                innerDepth,
+                FootprintShape.ROUNDED_RECT,
+                Math.max(0, cornerRadius - wallThickness)
+        );
+    }
+
+    private boolean isExteriorWallPosition(int x, int z, int width, int depth, FootprintShape shape, int cornerRadius) {
+        if (!isInsideFootprint(x, z, width, depth, shape, cornerRadius)) {
+            return false;
+        }
+        return !isInsideFootprint(x + 1, z, width, depth, shape, cornerRadius)
+                || !isInsideFootprint(x - 1, z, width, depth, shape, cornerRadius)
+                || !isInsideFootprint(x, z + 1, width, depth, shape, cornerRadius)
+                || !isInsideFootprint(x, z - 1, width, depth, shape, cornerRadius);
+    }
+
+    private boolean isCornerPosition(int x, int z, int width, int depth, FootprintShape shape, int cornerRadius) {
+        if (!isExteriorWallPosition(x, z, width, depth, shape, cornerRadius)) {
+            return false;
+        }
+        int outside = 0;
+        if (!isInsideFootprint(x + 1, z, width, depth, shape, cornerRadius)) outside++;
+        if (!isInsideFootprint(x - 1, z, width, depth, shape, cornerRadius)) outside++;
+        if (!isInsideFootprint(x, z + 1, width, depth, shape, cornerRadius)) outside++;
+        if (!isInsideFootprint(x, z - 1, width, depth, shape, cornerRadius)) outside++;
+        return outside >= 2;
+    }
+
+    private boolean isWindowSpacing(int x, int z, int spacing) {
+        int mod = Math.max(2, spacing);
+        return ((x + z) % mod) != 0;
+    }
+
+    private int resolveWindowSpacing(Double windowRatio) {
+        if (windowRatio == null) {
+            return 3;
+        }
+        if (windowRatio >= 0.6) return 2;
+        if (windowRatio >= 0.35) return 3;
+        if (windowRatio >= 0.2) return 4;
+        return 5;
+    }
+
+    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
+        if (params == null || keys == null) return fallback;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) {
+                return n.intValue();
+            }
+            if (v instanceof String s) {
+                try {
+                    return Integer.parseInt(s.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return fallback;
+    }
+
+    private static Double getParamDouble(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) {
+                return n.doubleValue();
+            }
+            if (v instanceof String s) {
+                try {
+                    return Double.parseDouble(s.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return null;
+    }
+
+    private static String getParamString(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).trim();
+            if (!s.isEmpty()) {
+                return s;
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return null;
+    }
+
+    private static double clamp01(double v) {
+        if (v < 0.0) return 0.0;
+        if (v > 1.0) return 1.0;
+        return v;
     }
 }
 

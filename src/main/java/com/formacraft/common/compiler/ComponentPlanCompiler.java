@@ -92,12 +92,14 @@ public final class ComponentPlanCompiler {
             // 创建语义构件（传递 styleProfile 和 styleAttributes）
             String styleProfile = plan.styleProfile();
             com.formacraft.common.llm.dto.StyleAttributes styleAttributes = plan.styleAttributes();
+            com.formacraft.common.genome.BuildingGenome genome = plan.genome();
             SemanticComponent semantic = new SemanticComponent(
                     c.componentType(),
                     slot,
                     c,
                     styleProfile,
-                    styleAttributes
+                    styleAttributes,
+                    genome
             );
 
             // 使用智能路由：自动选择最适合的生成器

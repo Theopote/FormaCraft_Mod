@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record Component(
@@ -11,6 +12,7 @@ public record Component(
         @JsonProperty("slot_id") String slotId,
         @JsonProperty("relative_position") Vec3i relativePosition,
         @JsonProperty("dimensions") Dimensions dimensions,
-        @JsonProperty("features") List<String> features
+        @JsonProperty("features") List<String> features,
+        @JsonProperty("params") Map<String, Object> params
 ) {}
 
