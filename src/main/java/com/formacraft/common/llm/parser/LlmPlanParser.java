@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.formacraft.common.llm.dto.*;
 
 import java.util.HashSet;
@@ -20,10 +21,11 @@ import java.util.Set;
  */
 public final class LlmPlanParser {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true)
-            .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS, true);
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .enable(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL)
+            .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+            .build();
 
     private LlmPlanParser() {}
 
