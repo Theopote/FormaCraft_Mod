@@ -51,6 +51,11 @@ public class RoofGenerator implements ComponentGenerator {
         height = Math.max(1, roofHeight);
 
         int overhang = getParamInt(params, 0, "overhang", "overhang_blocks", "eave_overhang");
+        if (roofType == RoofType.XUANSHAN && overhang <= 0) {
+            overhang = 2;
+        } else if (roofType == RoofType.XIESHAN && overhang <= 0) {
+            overhang = 1;
+        }
         int baseX = rp.x();
         int baseZ = rp.z();
         if (overhang > 0) {
@@ -62,7 +67,10 @@ public class RoofGenerator implements ComponentGenerator {
 
         switch (roofType) {
             case GABLE -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+            case DOUBLE_GABLE -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
             case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+            case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+            case XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
             case PYRAMID -> generatePyramidRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
             case CONE -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, false);
             case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true);
@@ -115,6 +123,49 @@ public class RoofGenerator implements ComponentGenerator {
                 int rise = (int) Math.round((1.0 - (dist / (double) maxSpan)) * (height - 1));
                 if (rise < 0) continue;
                 SemanticPart part = (dist == 0) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
+                String block = getBlockForPart(semantic, palette, part);
+                out.add(new BlockPatch(
+                        BlockPatch.PLACE,
+                        baseX + x,
+                        baseY + rise,
+                        baseZ + z,
+                        block
+                ));
+            }
+        }
+    }
+
+    private void generateXieshanRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                     int width, int depth, int height, Palette palette) {
+        if (width < 2 || depth < 2 || height < 2) {
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
+            return;
+        }
+        boolean ridgeAlongDepth = depth >= width;
+        int spanAcross = Math.max(1, (ridgeAlongDepth ? width : depth) / 2);
+        int centerAcross = ridgeAlongDepth ? width / 2 : depth / 2;
+        int ridgeInset = Math.max(1, (ridgeAlongDepth ? depth : width) / 4);
+        int maxRise = height - 1;
+
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                int distAcross = ridgeAlongDepth ? Math.abs(x - centerAcross) : Math.abs(z - centerAcross);
+                int riseAcross = (int) Math.round((1.0 - (distAcross / (double) spanAcross)) * maxRise);
+                if (riseAcross < 0) continue;
+
+                int distAlong = ridgeAlongDepth ? Math.min(z, depth - 1 - z) : Math.min(x, width - 1 - x);
+                int riseAlong;
+                if (distAlong >= ridgeInset) {
+                    riseAlong = maxRise;
+                } else {
+                    riseAlong = (int) Math.round((distAlong / (double) ridgeInset) * maxRise);
+                }
+
+                int rise = Math.min(riseAcross, riseAlong);
+                if (rise < 0) continue;
+                SemanticPart part = (rise >= maxRise && distAcross == 0 && distAlong >= ridgeInset)
+                        ? SemanticPart.ROOF_SURFACE
+                        : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
@@ -223,7 +274,10 @@ public class RoofGenerator implements ComponentGenerator {
             for (String feature : c.features()) {
                 if (feature == null) continue;
                 String lower = feature.toLowerCase();
-                if (lower.contains("gable")) type = "gable";
+                if (lower.contains("xuanshan") || lower.contains("xuan_shan") || lower.contains("悬山")) type = "xuanshan";
+                else if (lower.contains("xieshan") || lower.contains("xie_shan") || lower.contains("hip_and_gable") || lower.contains("歇山")) type = "xieshan";
+                else if (lower.contains("double_gable") || lower.contains("double gable") || lower.contains("shuangpo") || lower.contains("双坡")) type = "double_gable";
+                else if (lower.contains("gable")) type = "gable";
                 else if (lower.contains("hip")) type = "hip";
                 else if (lower.contains("pyramid")) type = "pyramid";
                 else if (lower.contains("cone")) type = "cone";
@@ -246,7 +300,7 @@ public class RoofGenerator implements ComponentGenerator {
             if (profile != null) {
                 String upper = profile.toUpperCase();
                 if (upper.contains("CHINESE") || upper.contains("HUI")) {
-                    return RoofType.GABLE;
+                    return RoofType.XUANSHAN;
                 }
                 if (upper.contains("GOTHIC") || upper.contains("MEDIEVAL")) {
                     return RoofType.GABLE;
@@ -259,7 +313,10 @@ public class RoofGenerator implements ComponentGenerator {
         }
         return switch (type.trim().toLowerCase()) {
             case "gable", "gabled" -> RoofType.GABLE;
+            case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofType.DOUBLE_GABLE;
             case "hip", "hipped" -> RoofType.HIP;
+            case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "歇山" -> RoofType.XIESHAN;
+            case "xuanshan", "xuan_shan", "xuan-shan", "overhang_gable", "悬山" -> RoofType.XUANSHAN;
             case "pyramid" -> RoofType.PYRAMID;
             case "cone", "conical" -> RoofType.CONE;
             case "dome", "domed", "curved" -> RoofType.DOME;
@@ -319,7 +376,10 @@ public class RoofGenerator implements ComponentGenerator {
     private enum RoofType {
         FLAT,
         GABLE,
+        DOUBLE_GABLE,
         HIP,
+        XIESHAN,
+        XUANSHAN,
         PYRAMID,
         CONE,
         DOME

@@ -15,12 +15,25 @@ import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import com.formacraft.common.terrain.TerrainStrategySampler;
+import com.formacraft.server.assembly.AssemblySpec;
+import com.formacraft.server.assembly.MetaAssemblyCompiler;
+import com.formacraft.server.assembly.MetaAssemblyEngine;
+import com.formacraft.server.assembly.macro.AssemblyMacroApplier;
+import com.formacraft.server.assembly.macro.AssemblyMacroApplyResult;
+import com.formacraft.server.assembly.validation.AssemblySpecNormalizer;
+import com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult;
+import com.formacraft.server.assembly.validation.AssemblySpecValidator;
+import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
+import com.formacraft.server.build.PlannedBlock;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -40,6 +53,8 @@ import java.util.Set;
 public final class ComponentPlanCompiler {
 
     private ComponentPlanCompiler() {}
+
+    private record PreparedComponents(List<Component> components, Set<String> assemblyFacadeSlots) {}
 
     /**
      * 编译 LLM Plan 为 BlockPatch 列表（基础版本，不包含后处理）
@@ -88,7 +103,10 @@ public final class ComponentPlanCompiler {
 
         // 索引 slots（便于快速查找）
         Map<String, Slot> slotMap = indexSlots(plan);
-        List<Component> components = prepareComponents(plan, slotMap);
+        boolean allowAssemblyFacade = world != null && globalAnchor != null;
+        PreparedComponents prepared = prepareComponents(plan, slotMap, allowAssemblyFacade);
+        List<Component> components = prepared.components();
+        Set<String> assemblyFacadeSlots = prepared.assemblyFacadeSlots();
 
         if (components.isEmpty()) {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: no components to compile");
@@ -98,6 +116,7 @@ public final class ComponentPlanCompiler {
         // 遍历所有 components
         for (Component c : components) {
             if (c == null) continue;
+            String normalizedType = normalizeType(c.componentType());
 
             // 查找对应的 slot
             Slot slot = slotMap.get(c.slotId());
@@ -106,6 +125,7 @@ public final class ComponentPlanCompiler {
                 slot = defaultSlot(plan);
                 FormacraftMod.LOGGER.debug("ComponentPlanCompiler: component {} has no slot, using default slot", c.componentType());
             }
+            String slotKey = slotKey(c);
 
             // 创建语义构件（传递 styleProfile 和 styleAttributes）
             String styleProfile = plan.styleProfile();
@@ -126,6 +146,16 @@ public final class ComponentPlanCompiler {
             try {
                 patches = SmartGeneratorRouter.generate(semantic, world);
                 if (!patches.isEmpty()) {
+                    if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
+                            && assemblyFacadeSlots.contains(slotKey)) {
+                        List<BlockPatch> facade = generateAssemblyFacadePatches(plan, semantic, slot, globalAnchor, world);
+                        if (facade != null && !facade.isEmpty()) {
+                            List<BlockPatch> merged = new ArrayList<>(patches.size() + facade.size());
+                            merged.addAll(patches);
+                            merged.addAll(facade);
+                            patches = merged;
+                        }
+                    }
                     // 调整 BlockPatch 坐标：组件生成器返回的坐标是相对于 slot anchor 的
                     // 但 BlockPatch 的坐标应该是相对于 plan.anchor() 的
                     // slot.anchor() 已经是相对于 plan.anchor() 的，所以直接加上即可
@@ -218,18 +248,19 @@ public final class ComponentPlanCompiler {
         );
     }
 
-    private static List<Component> prepareComponents(LlmPlan plan, Map<String, Slot> slotMap) {
+    private static PreparedComponents prepareComponents(LlmPlan plan, Map<String, Slot> slotMap, boolean allowAssemblyFacade) {
         List<Component> components = new ArrayList<>();
         if (plan.components() != null) {
             components.addAll(plan.components());
         }
         if (components.isEmpty()) {
-            return components;
+            return new PreparedComponents(components, Set.of());
         }
 
         Set<String> slotsWithFacade = new HashSet<>();
         Set<String> slotsWithEntrance = new HashSet<>();
         Set<String> slotsWithRoof = new HashSet<>();
+        Set<String> assemblyFacadeSlots = new HashSet<>();
         for (Component c : components) {
             if (c == null) continue;
             String type = normalizeType(c.componentType());
@@ -258,16 +289,25 @@ public final class ComponentPlanCompiler {
             GlobalConstraints.Facing facing = slot != null && slot.facing() != null
                     ? slot.facing()
                     : (plan.globalConstraints() != null ? plan.globalConstraints().facing() : GlobalConstraints.Facing.SOUTH);
+            boolean useAssemblyFacade = allowAssemblyFacade
+                    && shouldUseAssemblyFacade(plan, c)
+                    && !slotsWithFacade.contains(slotKey)
+                    && !slotsWithEntrance.contains(slotKey);
 
-            if (!slotsWithFacade.contains(slotKey)) {
-                inferred.add(makeFacadeComponent(c, slotId));
-                slotsWithFacade.add(slotKey);
-            }
-            if (!slotsWithEntrance.contains(slotKey)) {
-                Component entrance = makeEntranceComponent(c, slotId, facing);
-                if (entrance != null) {
-                    inferred.add(entrance);
-                    slotsWithEntrance.add(slotKey);
+            if (useAssemblyFacade) {
+                assemblyFacadeSlots.add(slotKey);
+                c = markAssemblyFacade(c);
+            } else {
+                if (!slotsWithFacade.contains(slotKey)) {
+                    inferred.add(makeFacadeComponent(c, slotId));
+                    slotsWithFacade.add(slotKey);
+                }
+                if (!slotsWithEntrance.contains(slotKey)) {
+                    Component entrance = makeEntranceComponent(c, slotId, facing);
+                    if (entrance != null) {
+                        inferred.add(entrance);
+                        slotsWithEntrance.add(slotKey);
+                    }
                 }
             }
             if (!slotsWithRoof.contains(slotKey)) {
@@ -286,7 +326,7 @@ public final class ComponentPlanCompiler {
             prepared.addAll(inferred);
         }
 
-        return prepared;
+        return new PreparedComponents(prepared, assemblyFacadeSlots);
     }
 
     private static Component makeFacadeComponent(Component base, String slotId) {
@@ -404,7 +444,8 @@ public final class ComponentPlanCompiler {
         }
         params.putIfAbsent("roof_height", roofHeight);
         if (isChineseStyle(plan, base)) {
-            params.putIfAbsent("overhang", 1);
+            int defaultOverhang = "xuanshan".equalsIgnoreCase(roofType) ? 2 : 1;
+            params.putIfAbsent("overhang", defaultOverhang);
         }
 
         List<String> features = new ArrayList<>();
@@ -489,7 +530,7 @@ public final class ComponentPlanCompiler {
 
     private static String resolveDefaultRoofType(LlmPlan plan, Component base) {
         if (isChineseStyle(plan, base)) {
-            return "gable";
+            return "xuanshan";
         }
         if (base.features() != null) {
             for (String f : base.features()) {
@@ -506,6 +547,418 @@ public final class ComponentPlanCompiler {
         return "gable";
     }
 
+    private static Component markAssemblyFacade(Component base) {
+        if (base == null) return null;
+        Map<String, Object> params = new HashMap<>();
+        if (base.params() != null) {
+            params.putAll(base.params());
+        }
+        params.put("assembly_facade", true);
+        return new Component(
+                base.componentType(),
+                base.slotId(),
+                base.relativePosition(),
+                base.dimensions(),
+                base.features(),
+                params
+        );
+    }
+
+    private static boolean shouldUseAssemblyFacade(LlmPlan plan, Component c) {
+        if (plan == null || c == null || c.dimensions() == null || c.relativePosition() == null) {
+            return false;
+        }
+        Map<String, Object> params = c.params();
+        Boolean override = getParamBoolean(params, "assembly_facade", "assemblyFacade", "useAssemblyFacade");
+        if (override != null) {
+            return override;
+        }
+        Dimensions dims = c.dimensions();
+        if (dims.width() < 6 || dims.depth() < 6 || dims.height() < 4) {
+            return false;
+        }
+        String shape = getParamString(params, "shape");
+        if (shape != null && !shape.isBlank()) {
+            String s = shape.trim().toLowerCase(Locale.ROOT);
+            if (!(s.equals("rectangle") || s.equals("rounded_rect") || s.equals("rect") || s.equals("rounded"))) {
+                return false;
+            }
+        }
+        String planType = getParamString(params, "plan_type", "planType", "plan_pattern", "planPattern");
+        if (planType != null && !planType.isBlank()) {
+            String p = planType.trim().toLowerCase(Locale.ROOT);
+            if (p.equals("cut_corners") || p.equals("cutcorners")) {
+                return true;
+            }
+            if (!p.equals("none") && !p.equals("rect") && !p.equals("rectangle")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static List<BlockPatch> generateAssemblyFacadePatches(
+            LlmPlan plan,
+            SemanticComponent semantic,
+            Slot slot,
+            BlockPos globalAnchor,
+            ServerWorld world
+    ) {
+        Component c = semantic != null ? semantic.source() : null;
+        if (c == null || c.dimensions() == null || c.relativePosition() == null) {
+            return List.of();
+        }
+        if (slot == null || slot.anchor() == null || world == null || globalAnchor == null) {
+            return List.of();
+        }
+
+        Dimensions dims = c.dimensions();
+        Vec3i rp = c.relativePosition();
+        Vec3i slotAnchor = slot.anchor();
+
+        int width = Math.max(3, dims.width());
+        int depth = Math.max(3, dims.depth());
+        int height = Math.max(3, dims.height());
+
+        int shellW = (width % 2 == 0) ? Math.max(3, width - 1) : width;
+        int shellD = (depth % 2 == 0) ? Math.max(3, depth - 1) : depth;
+
+        int centerOffsetX = shellW / 2;
+        int centerOffsetZ = shellD / 2;
+
+        BlockPos slotWorld = globalAnchor.add(slotAnchor.x(), slotAnchor.y(), slotAnchor.z());
+        BlockPos componentBase = slotWorld.add(rp.x(), rp.y(), rp.z());
+        BlockPos origin = componentBase.add(centerOffsetX, 0, centerOffsetZ);
+
+        Map<String, Object> assembly = new HashMap<>();
+        String paletteId = resolveAssemblyPaletteId(plan, semantic);
+        if (paletteId != null && !paletteId.isBlank()) {
+            assembly.put("paletteId", paletteId);
+        }
+
+        Map<String, Object> macro = new HashMap<>();
+        Map<String, Object> style = buildAssemblyMacroStyle(plan, semantic, width, depth, height);
+        if (!style.isEmpty()) {
+            macro.put("style", style);
+        }
+        Double windowRatio = getParamDouble(c.params(), "window_ratio", "windowRatio");
+        if (windowRatio != null) {
+            macro.put("openness", clamp01(windowRatio));
+        }
+        if (!macro.isEmpty()) {
+            assembly.put("macro", macro);
+        }
+
+        Map<String, Object> primary = new HashMap<>();
+        primary.put("id", "MainVolume");
+        primary.put("type", "SHELL_BOX");
+        primary.put("w", shellW);
+        primary.put("d", shellD);
+        primary.put("h", height);
+
+        Map<String, Object> door = buildDoorOpening(plan, semantic, width, depth, height);
+        if (door != null) {
+            Map<String, Object> facade = new HashMap<>();
+            List<Map<String, Object>> openings = new ArrayList<>();
+            openings.add(door);
+            facade.put("openings", openings);
+            primary.put("facade", facade);
+        }
+
+        List<Object> comps = new ArrayList<>();
+        comps.add(primary);
+        assembly.put("components", comps);
+
+        AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assembly);
+        AssemblyMacroApplyResult macroApplied = AssemblyMacroApplier.apply(norm.normalized());
+        Object applied = macroApplied.applied();
+
+        List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
+        long errCount = issues.stream()
+                .filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR)
+                .count();
+        if (errCount > 0) {
+            FormacraftMod.LOGGER.warn("ComponentPlanCompiler: assembly facade validation failed ({} errors)", errCount);
+            return List.of();
+        }
+
+        AssemblySpec spec = MetaAssemblyCompiler.compile(applied, null);
+        if (spec == null || spec.ops == null || spec.ops.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> ops = filterAssemblyFacadeOps(spec.ops);
+        if (ops.isEmpty()) {
+            return List.of();
+        }
+
+        Direction facing = resolveEntranceFacing(plan, slot);
+        MetaAssemblyEngine engine = new MetaAssemblyEngine();
+        AssemblySpec facadeSpec = AssemblySpec.of(spec.paletteId, spec.entranceFacing, ops);
+        List<PlannedBlock> blocks = engine.execute(
+                facadeSpec,
+                new MetaAssemblyEngine.Context(world, origin, facing, spec.paletteId)
+        );
+        if (blocks.isEmpty()) {
+            return List.of();
+        }
+
+        List<BlockPatch> out = new ArrayList<>(blocks.size());
+        for (PlannedBlock pb : blocks) {
+            if (pb == null || pb.getPos() == null || pb.getTargetState() == null) continue;
+            BlockPos pos = pb.getPos();
+            int dx = pos.getX() - slotWorld.getX();
+            int dy = pos.getY() - slotWorld.getY();
+            int dz = pos.getZ() - slotWorld.getZ();
+            String blockId = Registries.BLOCK.getId(pb.getTargetState().getBlock()).toString();
+            String action = pb.getTargetState().isAir() ? BlockPatch.REMOVE : BlockPatch.PLACE;
+            if (action.equals(BlockPatch.REMOVE)) {
+                blockId = "minecraft:air";
+            }
+            out.add(new BlockPatch(action, dx, dy, dz, blockId));
+        }
+        return out;
+    }
+
+    private static Map<String, Object> buildAssemblyMacroStyle(
+            LlmPlan plan,
+            SemanticComponent semantic,
+            int width,
+            int depth,
+            int height
+    ) {
+        Map<String, Object> style = new HashMap<>();
+        String styleId = resolveAssemblyStyleId(plan, semantic);
+        if (styleId != null) {
+            style.put("styleId", styleId);
+        }
+        boolean chinese = styleId != null && styleId.toUpperCase(Locale.ROOT).contains("CHINESE")
+                || styleId != null && styleId.toUpperCase(Locale.ROOT).contains("HUIZHOU")
+                || styleId != null && styleId.toUpperCase(Locale.ROOT).contains("JIANGNAN");
+        boolean gothic = styleId != null && styleId.toUpperCase(Locale.ROOT).contains("GOTHIC");
+
+        double footprint = Math.max(1.0, Math.max(width, depth));
+        double verticality = clamp01((height / footprint) * 0.6 + 0.2);
+        if (gothic) {
+            verticality = Math.max(verticality, 0.7);
+        }
+        style.put("verticality", verticality);
+
+        double density = 0.55;
+        Double windowRatio = getParamDouble(semantic.source().params(), "window_ratio", "windowRatio");
+        if (windowRatio != null) {
+            density = clamp01(0.3 + windowRatio * 0.8);
+            style.put("transparency", clamp01(windowRatio));
+        }
+        if (chinese) {
+            density = Math.max(density, 0.55);
+        }
+        style.put("density", density);
+
+        double symmetry = 0.45;
+        if (plan != null && plan.globalConstraints() != null && plan.globalConstraints().symmetry() != null) {
+            if (plan.globalConstraints().symmetry() != GlobalConstraints.Symmetry.NONE) {
+                symmetry = 0.75;
+            }
+        }
+        style.put("symmetry", symmetry);
+
+        double structureExposure = 0.45 + Math.min(0.25, verticality * 0.2);
+        if (chinese) {
+            structureExposure = Math.max(structureExposure, 0.65);
+        }
+        style.put("structureExposure", clamp01(structureExposure));
+
+        return style;
+    }
+
+    private static String resolveAssemblyStyleId(LlmPlan plan, SemanticComponent semantic) {
+        String profile = plan != null ? plan.styleProfile() : null;
+        String merged = profile != null ? profile : "";
+        if (semantic != null && semantic.source() != null && semantic.source().features() != null) {
+            for (String f : semantic.source().features()) {
+                if (f == null) continue;
+                merged = merged + " " + f;
+            }
+        }
+        String hint = merged.toUpperCase(Locale.ROOT);
+
+        if (hint.contains("HUI") || hint.contains("HUIZHOU") || hint.contains("徽派")) {
+            return "HUIZHOU_TRADITIONAL";
+        }
+        if (hint.contains("JIANGNAN") || hint.contains("WATERTOWN") || hint.contains("江南")) {
+            return "JIANGNAN_WATERTOWN";
+        }
+        if (hint.contains("CHINESE") || hint.contains("ASIAN") || hint.contains("中式") || hint.contains("传统")) {
+            return "CHINESE_TRADITIONAL";
+        }
+        if (hint.contains("GOTHIC") || hint.contains("CATHEDRAL")) {
+            return "GOTHIC";
+        }
+        if (hint.contains("INDUSTRIAL")) {
+            return "INDUSTRIAL";
+        }
+        if (hint.contains("MODERN")) {
+            return "MODERN";
+        }
+
+        if (plan != null && plan.styleAttributes() != null) {
+            com.formacraft.common.llm.dto.StyleAttributes attrs = plan.styleAttributes();
+            if (attrs.decorativeElements() != null) {
+                for (String deco : attrs.decorativeElements()) {
+                    if (deco == null) continue;
+                    String d = deco.toLowerCase(Locale.ROOT);
+                    if (d.contains("lattice") || d.contains("dougong") || d.contains("飞檐") || d.contains("斗拱")) {
+                        return "CHINESE_TRADITIONAL";
+                    }
+                    if (d.contains("rose_window") || d.contains("pointed") || d.contains("gothic")) {
+                        return "GOTHIC";
+                    }
+                }
+            }
+            String roofMat = attrs.roofMaterial();
+            String wallMat = attrs.wallMaterial();
+            if (roofMat != null && wallMat != null) {
+                String rm = roofMat.toLowerCase(Locale.ROOT);
+                String wm = wallMat.toLowerCase(Locale.ROOT);
+                if (rm.contains("tile") && (wm.contains("plaster") || wm.contains("lime") || wm.contains("white"))) {
+                    return "CHINESE_TRADITIONAL";
+                }
+            }
+        }
+
+        if (plan != null && plan.genome() != null && plan.genome().culturalStyle != null) {
+            String region = plan.genome().culturalStyle.region;
+            if (region != null) {
+                String r = region.toUpperCase(Locale.ROOT);
+                if (r.contains("CHINESE")) return "CHINESE_TRADITIONAL";
+                if (r.contains("EUROPEAN") && plan.genome().culturalStyle.era != null
+                        && plan.genome().culturalStyle.era.toUpperCase(Locale.ROOT).contains("MEDIEVAL")) {
+                    return "GOTHIC";
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String resolveAssemblyPaletteId(LlmPlan plan, SemanticComponent semantic) {
+        String styleId = resolveAssemblyStyleId(plan, semantic);
+        if (styleId != null) {
+            String s = styleId.toUpperCase(Locale.ROOT);
+            if (s.contains("HUIZHOU")) return "PALETTE_HUIZHOU_WHITE_BLACK_A";
+            if (s.contains("JIANGNAN")) return "PALETTE_JIANGNAN_WATERTOWN_A";
+            if (s.contains("CHINESE")) return "PALETTE_CHINESE_IMPERIAL_A";
+            if (s.contains("GOTHIC")) return "PALETTE_GOTHIC_CATHEDRAL_A";
+            if (s.contains("INDUSTRIAL")) return "PALETTE_INDUSTRIAL_STEEL_A";
+            if (s.contains("MODERN")) return "PALETTE_MODERN_GLASS_B";
+        }
+
+        if (plan != null && plan.styleAttributes() != null) {
+            com.formacraft.common.llm.dto.StyleAttributes attrs = plan.styleAttributes();
+            String wall = attrs.wallColor();
+            String roof = attrs.roofColor();
+            if (wall != null && roof != null) {
+                String wl = wall.toLowerCase(Locale.ROOT);
+                String rl = roof.toLowerCase(Locale.ROOT);
+                if (wl.contains("white") && (rl.contains("black") || rl.contains("dark"))) {
+                    return "PALETTE_HUIZHOU_WHITE_BLACK_A";
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Direction resolveEntranceFacing(LlmPlan plan, Slot slot) {
+        GlobalConstraints.Facing facing = null;
+        if (slot != null && slot.facing() != null) {
+            facing = slot.facing();
+        } else if (plan != null && plan.globalConstraints() != null) {
+            facing = plan.globalConstraints().facing();
+        }
+        if (facing == null) return Direction.SOUTH;
+        return switch (facing) {
+            case NORTH -> Direction.NORTH;
+            case EAST -> Direction.EAST;
+            case WEST -> Direction.WEST;
+            case SOUTH -> Direction.SOUTH;
+        };
+    }
+
+    private static List<Map<String, Object>> filterAssemblyFacadeOps(List<Map<String, Object>> ops) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (ops == null) return out;
+        for (Map<String, Object> op : ops) {
+            if (op == null) continue;
+            Object opName = op.get("op");
+            if (opName == null) continue;
+            String name = String.valueOf(opName).trim().toUpperCase(Locale.ROOT);
+            if (name.isEmpty()) continue;
+            if (name.equals("SHELL_BOX")
+                    || name.equals("EXTRUDE_POLYGON")
+                    || name.equals("CLEAR_BOX")
+                    || name.equals("ANCHOR_FOOTPRINT")
+                    || name.equals("ANCHORAGE")
+                    || name.equals("ROOF_COVER")
+                    || name.equals("BSP_FLOOR_PLAN")) {
+                continue;
+            }
+            out.add(op);
+        }
+        return out;
+    }
+
+    private static Map<String, Object> buildDoorOpening(
+            LlmPlan plan,
+            SemanticComponent semantic,
+            int width,
+            int depth,
+            int height
+    ) {
+        Component c = semantic != null ? semantic.source() : null;
+        Map<String, Object> params = c != null ? c.params() : null;
+        int doorW = getParamInt(params, 0, "door_width", "doorWidth");
+        int doorH = getParamInt(params, 0, "door_height", "doorHeight");
+        if (doorW <= 0) {
+            doorW = Math.max(2, Math.min(5, width / 4));
+        }
+        if (doorH <= 0) {
+            doorH = Math.max(3, Math.min(6, height / 3));
+        }
+        if (doorW <= 0 || doorH <= 0) {
+            return null;
+        }
+
+        Map<String, Object> door = new HashMap<>();
+        door.put("face", "SOUTH");
+        door.put("kind", "DOOR");
+        door.put("doorW", doorW);
+        door.put("doorH", doorH);
+        door.put("sillY", 1);
+        return door;
+    }
+
+    private static double clamp01(double v) {
+        if (v < 0.0) return 0.0;
+        if (v > 1.0) return 1.0;
+        return v;
+    }
+
+    private static Boolean getParamBoolean(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Boolean b) return b;
+            if (v instanceof String s) {
+                String t = s.trim().toLowerCase(Locale.ROOT);
+                if (t.equals("true") || t.equals("1") || t.equals("yes")) return true;
+                if (t.equals("false") || t.equals("0") || t.equals("no")) return false;
+            }
+        }
+        return null;
+    }
+
     private static String getParamString(Map<String, Object> params, String... keys) {
         if (params == null || keys == null) return null;
         for (String key : keys) {
@@ -518,6 +971,24 @@ public final class ComponentPlanCompiler {
             }
         }
         return null;
+    }
+
+    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
+        if (params == null || keys == null) return fallback;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Number n) {
+                return n.intValue();
+            }
+            if (v instanceof String s) {
+                try {
+                    return Integer.parseInt(s.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return fallback;
     }
 
     private static Double getParamDouble(Map<String, Object> params, String... keys) {

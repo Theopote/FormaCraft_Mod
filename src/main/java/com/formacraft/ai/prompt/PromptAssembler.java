@@ -193,7 +193,7 @@ ComponentParamsObject:
   "courtyard_ratio": 0.0-1.0,
   "void_ratio": 0.0-1.0,
   "window_ratio": 0.0-1.0,
-  "roof_type": "flat|gable|hip|cone|pyramid|dome",
+  "roof_type": "flat|gable|hip|cone|pyramid|dome|double_gable|xuanshan|xieshan",
   "setback_ratio": 0.0-1.0,
   "floor_height": int,
   "floor_count": int,

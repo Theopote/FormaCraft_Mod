@@ -15,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -158,6 +159,7 @@ public class MassMainGenerator implements ComponentGenerator {
                                          "inner_space", "empty_interior");
         boolean hasSteppedFacade = hasFeature(c, "stepped_facade", "stepped", "setback", "setbacks", 
                                                "进退", "进退关系", "立面", "facade_setback", "tiered");
+        boolean assemblyFacade = getParamBoolean(params, "assembly_facade", "assemblyFacade");
 
         Double voidRatio = resolveVoidRatio(params, semantic);
         Double windowRatio = resolveWindowRatio(params, semantic);
@@ -190,13 +192,18 @@ public class MassMainGenerator implements ComponentGenerator {
                     width, depth, height, semantic.slot().program());
         }
         
+        if (assemblyFacade) {
+            hasWindows = false;
+            hasDoors = false;
+        }
+
         // 记录特征匹配结果（用于调试）
-        FormacraftMod.LOGGER.debug("MassMainGenerator: features check - hasWindows: {}, hasDoors: {}, hasRoof: {}, hasDecor: {}, hasInterior: {}", 
-                hasWindows, hasDoors, hasRoof, hasDecor, hasInterior);
+        FormacraftMod.LOGGER.debug("MassMainGenerator: features check - hasWindows: {}, hasDoors: {}, hasRoof: {}, hasDecor: {}, hasInterior: {}, assemblyFacade: {}", 
+                hasWindows, hasDoors, hasRoof, hasDecor, hasInterior, assemblyFacade);
         
         // 默认生成基础细节（即使没有匹配的 features）
         // 对于大多数建筑类型，默认应该有门和窗（除非明确不需要）
-        boolean shouldGenerateDefaultDetails = isShouldGenerateDefaultDetails(semantic, hasDoors, hasWindows);
+        boolean shouldGenerateDefaultDetails = !assemblyFacade && isShouldGenerateDefaultDetails(semantic, hasDoors, hasWindows);
 
         // 如果应该生成默认细节，启用门和窗
         if (shouldGenerateDefaultDetails) {
@@ -207,16 +214,16 @@ public class MassMainGenerator implements ComponentGenerator {
                         semantic.slot().program());
             }
         }
-        if (isBuilding && !hasWindows && width >= 5 && depth >= 5 && height >= 4) {
+        if (!assemblyFacade && isBuilding && !hasWindows && width >= 5 && depth >= 5 && height >= 4) {
             hasWindows = true;
             if (windowRatio == null) {
                 windowRatio = 0.25;
             }
         }
-        if (isBuilding && !hasDoors && width >= 4 && depth >= 4 && height >= 3) {
+        if (!assemblyFacade && isBuilding && !hasDoors && width >= 4 && depth >= 4 && height >= 3) {
             hasDoors = true;
         }
-        if (windowRatio != null) {
+        if (!assemblyFacade && windowRatio != null) {
             hasWindows = windowRatio > 0.05;
         }
 
@@ -1240,6 +1247,24 @@ public class MassMainGenerator implements ComponentGenerator {
         return fallback;
     }
 
+    private static boolean getParamBoolean(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return false;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v == null) continue;
+            if (v instanceof Boolean b) {
+                return b;
+            }
+            if (v instanceof String s) {
+                String t = s.trim().toLowerCase(Locale.ROOT);
+                if (t.equals("true") || t.equals("1") || t.equals("yes")) return true;
+                if (t.equals("false") || t.equals("0") || t.equals("no")) return false;
+            }
+        }
+        return false;
+    }
+
     private static Double getParamDouble(Map<String, Object> params, String... keys) {
         if (params == null || keys == null) return null;
         for (String key : keys) {
@@ -1289,4 +1314,3 @@ public class MassMainGenerator implements ComponentGenerator {
         return Math.min(v, 1.0);
     }
 }
-

@@ -342,7 +342,13 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
             else:
                 params["shape"] = "rectangle"
         if "roof_type" not in params:
-            if feat_contains("gable"):
+            if feat_contains("xieshan") or feat_contains("hip_and_gable") or feat_contains("歇山"):
+                params["roof_type"] = "xieshan"
+            elif feat_contains("xuanshan") or feat_contains("悬山"):
+                params["roof_type"] = "xuanshan"
+            elif feat_contains("double_gable") or feat_contains("double gable") or feat_contains("shuangpo") or feat_contains("双坡"):
+                params["roof_type"] = "double_gable"
+            elif feat_contains("gable"):
                 params["roof_type"] = "gable"
             elif feat_contains("hip"):
                 params["roof_type"] = "hip"
@@ -354,7 +360,7 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
                 params["roof_type"] = "dome"
         if "roof_type" not in params:
             if feat_contains("chinese") or feat_contains("hui") or genome_contains("chinese") or genome_contains("hui"):
-                params["roof_type"] = "gable"
+                params["roof_type"] = "xuanshan"
             elif feat_contains("gothic") or feat_contains("medieval") or genome_contains("gothic") or genome_contains("medieval"):
                 params["roof_type"] = "gable"
             elif feat_contains("modern") or genome_contains("modern"):
