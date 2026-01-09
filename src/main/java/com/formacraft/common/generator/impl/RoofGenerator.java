@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * RoofGenerator（屋顶生成器）
- * 
+ * <p>
  * 生成屋顶结构（斜屋顶、平屋顶等）
  */
 public class RoofGenerator implements ComponentGenerator {
@@ -36,21 +36,21 @@ public class RoofGenerator implements ComponentGenerator {
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
-        int height = Math.max(1, d.height());
+        int height;
         Map<String, Object> params = c.params();
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofType roofType = resolveRoofType(c, semantic, params);
-        int roofHeight = getParamInt(params, 0, "roof_height", "roofHeight", "roofHeightBlocks");
+        int roofHeight = getParamInt(params, "roof_height", "roofHeight", "roofHeightBlocks");
         if (roofHeight <= 0) {
             int span = Math.max(2, Math.min(width, depth));
             roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
         }
-        height = Math.max(1, roofHeight);
+        height = roofHeight;
 
-        int overhang = getParamInt(params, 0, "overhang", "overhang_blocks", "eave_overhang");
+        int overhang = getParamInt(params, "overhang", "overhang_blocks", "eave_overhang");
         if (roofType == RoofType.XUANSHAN && overhang <= 0) {
             overhang = 2;
         } else if (roofType == RoofType.XIESHAN && overhang <= 0) {
@@ -66,11 +66,9 @@ public class RoofGenerator implements ComponentGenerator {
         }
 
         switch (roofType) {
-            case GABLE -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
-            case DOUBLE_GABLE -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+            case GABLE, DOUBLE_GABLE, XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
             case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
             case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
-            case XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
             case PYRAMID -> generatePyramidRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
             case CONE -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, false);
             case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true);
@@ -297,17 +295,15 @@ public class RoofGenerator implements ComponentGenerator {
         }
         if (type == null) {
             String profile = getStyleProfile(semantic);
-            if (profile != null) {
-                String upper = profile.toUpperCase();
-                if (upper.contains("CHINESE") || upper.contains("HUI")) {
-                    return RoofType.XUANSHAN;
-                }
-                if (upper.contains("GOTHIC") || upper.contains("MEDIEVAL")) {
-                    return RoofType.GABLE;
-                }
-                if (upper.contains("MODERN")) {
-                    return RoofType.FLAT;
-                }
+            String upper = profile.toUpperCase();
+            if (upper.contains("CHINESE") || upper.contains("HUI")) {
+                return RoofType.XUANSHAN;
+            }
+            if (upper.contains("GOTHIC") || upper.contains("MEDIEVAL")) {
+                return RoofType.GABLE;
+            }
+            if (upper.contains("MODERN")) {
+                return RoofType.FLAT;
             }
             return RoofType.GABLE;
         }
@@ -336,22 +332,26 @@ public class RoofGenerator implements ComponentGenerator {
         return null;
     }
 
-    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
-        if (params == null || keys == null) return fallback;
+    private static int getParamInt(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return 0;
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) {
-                return n.intValue();
-            }
-            if (v instanceof String s) {
-                try {
-                    return Integer.parseInt(s.trim());
-                } catch (NumberFormatException ignored) {}
+            switch (v) {
+                case Number n -> {
+                    return n.intValue();
+                }
+                case String s -> {
+                    try {
+                        return Integer.parseInt(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                case null, default -> {
+                }
             }
         }
-        return fallback;
+        return 0;
     }
 
     private static String getBlockForPart(SemanticComponent semantic, Palette palette, SemanticPart part) {

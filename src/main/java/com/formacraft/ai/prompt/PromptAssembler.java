@@ -384,7 +384,7 @@ SEMANTIC REGIONS:
 
     /**
      * 路径约束（PathTool - 地形自适应系统的灵魂）
-     * 
+     * <p>
      * PathTool 驱动：
      * - 道路生成
      * - 长城生成
@@ -421,7 +421,7 @@ SEMANTIC REGIONS:
 
     /**
      * Skeleton Hint（骨架提示）
-     * 
+     * <p>
      * 显式告诉 AI 路径骨架信息，让 AI 知道必须使用 PATH_POLYLINE
      */
     private static String skeletonHintBlock(PromptContext ctx) {
@@ -430,7 +430,7 @@ SEMANTIC REGIONS:
         }
 
         PathSkeleton skeleton = ctx.pathSkeleton;
-        String sb = "SKELETON HINT:\n" +
+        return "SKELETON HINT:\n" +
                 "- type: PATH_POLYLINE\n" +
                 "- intent: " + skeleton.intent.name() + "\n" +
                 "- corridor_radius: " + skeleton.corridorRadius + "\n" +
@@ -438,15 +438,14 @@ SEMANTIC REGIONS:
                 "- IMPORTANT: You MUST use PATH_POLYLINE skeleton type\n" +
                 "- The path topology is fixed; you can only adjust style and details\n" +
                 "\n";
-        return sb;
     }
 
     /**
      * Cluster Layout（建筑群布局提示）
-     * 
+     * <p>
      * K1 新增：告诉 AI 建筑站位已经确定，AI 只需要决定建筑样式
      * K2 扩展：添加街道布局信息（多排、对称等）
-     * 
+     * <p>
      * 关键设计原则：
      * - ❌ AI 不决定"建筑站哪"（站位由算法决定）
      * - ✅ AI 决定"建筑长什么样"（风格、细节由 AI 决定）
@@ -490,7 +489,7 @@ SEMANTIC REGIONS:
         sb.append("- Do NOT change building positions or anchors\n");
         
         // K3 新增：功能分区信息
-        if (ctx.clusterLayout != null && ctx.zoningProfile != null) {
+        if (ctx.zoningProfile != null) {
             sb.append("\n");
             sb.append(zoningBlock(ctx));
         }
@@ -510,9 +509,9 @@ SEMANTIC REGIONS:
 
     /**
      * Structured JSON Template（结构化 JSON 模板）
-     * 
+     * <p>
      * K3.1 新增：生成可直接测试大模型的完整 JSON 模板
-     * 
+     * <p>
      * 包含所有关键信息：anchor, facing, path, slots, program, component preset, terrain strategy
      */
     private static String structuredJsonTemplate(PromptContext ctx) {
@@ -547,12 +546,7 @@ SEMANTIC REGIONS:
         // 获取 skeleton type
         String skeletonType = "LINEAR_PATH";
         if (ctx.pathSkeleton != null) {
-            switch (ctx.pathSkeleton.intent) {
-                case ROAD -> skeletonType = "LINEAR_PATH";
-                case WALL -> skeletonType = "LINEAR_PATH";
-                case BRIDGE -> skeletonType = "LINEAR_PATH";
-                default -> skeletonType = "LINEAR_PATH";
-            }
+            skeletonType = "LINEAR_PATH";
         }
 
         // 开始构建 JSON
@@ -666,9 +660,9 @@ SEMANTIC REGIONS:
 
     /**
      * Zoning Block（功能分区提示）
-     * 
+     * <p>
      * K3 新增：告诉 AI 建筑功能分区信息
-     * 
+     * <p>
      * 关键设计原则：
      * - ✅ LLM 看到"规划意图"（功能分区）
      * - ❌ LLM 不决定 slot 坐标（坐标仍由布局算法给）
@@ -727,9 +721,9 @@ SEMANTIC REGIONS:
 
     /**
      * Component Preset Block（组件预设提示）
-     * 
+     * <p>
      * K3.1 新增：告诉 AI 每个 Slot 的组件装配清单
-     * 
+     * <p>
      * 关键设计原则：
      * - ✅ LLM 看到"组件装配清单"（preset）
      * - ✅ LLM 根据 preset 生成具体组件（而不是自由发散）
@@ -848,7 +842,7 @@ SEMANTIC REGIONS:
 
     /**
      * 地形策略（Terrain Strategy）
-     * 
+     * <p>
      * 这是"人工智能建筑师"的核心：地形本身是建筑语义的一部分
      */
     private static String terrainBlock(PromptContext ctx) {
@@ -964,7 +958,7 @@ USER REQUEST:
         }
 
         // 尝试获取 MemoryManager（仅在服务端可用）
-        com.formacraft.server.memory.MemoryManager memoryManager = null;
+        com.formacraft.server.memory.MemoryManager memoryManager;
         try {
             memoryManager = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
         } catch (Exception e) {

@@ -91,11 +91,21 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                         }
                     } else if (facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
                             || facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST) {
-                        axis = z;
-                        axisMax = depth;
+                        if (depth > 1) {
+                            axis = z;
+                            axisMax = depth;
+                        } else {
+                            axis = x;
+                            axisMax = width;
+                        }
                     } else {
-                        axis = x;
-                        axisMax = width;
+                        if (width > 1) {
+                            axis = x;
+                            axisMax = width;
+                        } else {
+                            axis = z;
+                            axisMax = depth;
+                        }
                     }
                     if (axis <= 0 || axis >= axisMax - 1) {
                         continue;
@@ -272,6 +282,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                                      boolean wrapFacade) {
         if (wrapFacade) {
             return x == 0 || z == 0 || x == width - 1 || z == depth - 1;
+        }
+        if (width <= 1 || depth <= 1) {
+            return true;
         }
         return switch (facing) {
             case NORTH -> z == depth - 1;

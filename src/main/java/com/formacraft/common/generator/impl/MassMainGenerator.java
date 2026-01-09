@@ -823,8 +823,11 @@ public class MassMainGenerator implements ComponentGenerator {
                 corner = normalizeCorner(getParamString(params, "l_corner", "lCorner", "cut_corner", "cutCorner", "corner"));
             }
             case COURTYARD -> {
-                ratio = getParamDouble(params, "courtyard_ratio", "courtyardRatio", "court_ratio", "void_ratio", "voidRatio");
-                if (ratio <= 0.0) {
+                Double ratioValue = getParamDouble(params, "courtyard_ratio", "courtyardRatio",
+                        "court_ratio", "void_ratio", "voidRatio");
+                if (ratioValue != null && ratioValue > 0.0) {
+                    ratio = ratioValue;
+                } else {
                     ratio = 0.35;
                 }
             }
@@ -1252,14 +1255,19 @@ public class MassMainGenerator implements ComponentGenerator {
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Boolean b) {
-                return b;
-            }
-            if (v instanceof String s) {
-                String t = s.trim().toLowerCase(Locale.ROOT);
-                if (t.equals("true") || t.equals("1") || t.equals("yes")) return true;
-                if (t.equals("false") || t.equals("0") || t.equals("no")) return false;
+            switch (v) {
+                case null -> {
+                }
+                case Boolean b -> {
+                    return b;
+                }
+                case String s -> {
+                    String t = s.trim().toLowerCase(Locale.ROOT);
+                    if (t.equals("true") || t.equals("1") || t.equals("yes")) return true;
+                    if (t.equals("false") || t.equals("0") || t.equals("no")) return false;
+                }
+                default -> {
+                }
             }
         }
         return false;

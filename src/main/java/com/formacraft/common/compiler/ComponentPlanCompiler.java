@@ -149,7 +149,7 @@ public final class ComponentPlanCompiler {
                     if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
                             && assemblyFacadeSlots.contains(slotKey)) {
                         List<BlockPatch> facade = generateAssemblyFacadePatches(plan, semantic, slot, globalAnchor, world);
-                        if (facade != null && !facade.isEmpty()) {
+                        if (!facade.isEmpty()) {
                             List<BlockPatch> merged = new ArrayList<>(patches.size() + facade.size());
                             merged.addAll(patches);
                             merged.addAll(facade);
@@ -372,7 +372,7 @@ public final class ComponentPlanCompiler {
         int entranceWidth = Math.max(3, Math.min(5, Math.max(3, width / 3)));
         entranceWidth = Math.min(entranceWidth, Math.max(3, width - 2));
         if (entranceWidth % 2 == 0) {
-            entranceWidth = Math.max(3, entranceWidth - 1);
+            entranceWidth = 3;
         }
         int entranceDepth = Math.max(1, Math.min(2, Math.max(1, depth / 4)));
         int entranceHeight = Math.max(3, Math.min(height, Math.max(4, height / 2)));
@@ -384,18 +384,12 @@ public final class ComponentPlanCompiler {
                 relX = rp.x() + Math.max(0, (width - entranceWidth) / 2);
                 relZ = rp.z() + Math.max(0, depth - entranceDepth);
             }
-            case EAST -> {
-                relX = rp.x();
-                relZ = rp.z() + Math.max(0, (depth - entranceDepth) / 2);
-            }
+            case EAST -> relZ = rp.z() + Math.max(0, (depth - entranceDepth) / 2);
             case WEST -> {
                 relX = rp.x() + Math.max(0, width - entranceWidth);
                 relZ = rp.z() + Math.max(0, (depth - entranceDepth) / 2);
             }
-            case SOUTH -> {
-                relX = rp.x() + Math.max(0, (width - entranceWidth) / 2);
-                relZ = rp.z();
-            }
+            case SOUTH -> relX = rp.x() + Math.max(0, (width - entranceWidth) / 2);
         }
 
         Map<String, Object> params = new HashMap<>();
@@ -428,7 +422,7 @@ public final class ComponentPlanCompiler {
         }
         int width = Math.max(2, dims.width());
         int depth = Math.max(2, dims.depth());
-        int span = Math.max(2, Math.min(width, depth));
+        int span = Math.min(width, depth);
         int roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
 
         Map<String, Object> params = new HashMap<>();
@@ -439,9 +433,7 @@ public final class ComponentPlanCompiler {
         if (roofType == null || roofType.isBlank()) {
             roofType = resolveDefaultRoofType(plan, base);
         }
-        if (roofType != null) {
-            params.put("roof_type", roofType);
-        }
+        params.put("roof_type", roofType);
         params.putIfAbsent("roof_height", roofHeight);
         if (isChineseStyle(plan, base)) {
             int defaultOverhang = "xuanshan".equalsIgnoreCase(roofType) ? 2 : 1;
@@ -521,9 +513,7 @@ public final class ComponentPlanCompiler {
         }
         if (plan != null && plan.genome() != null && plan.genome().culturalStyle != null) {
             String region = plan.genome().culturalStyle.region;
-            if (region != null && region.toLowerCase().contains("chinese")) {
-                return true;
-            }
+            return region != null && region.toLowerCase().contains("chinese");
         }
         return false;
     }
@@ -590,9 +580,7 @@ public final class ComponentPlanCompiler {
             if (p.equals("cut_corners") || p.equals("cutcorners")) {
                 return true;
             }
-            if (!p.equals("none") && !p.equals("rect") && !p.equals("rectangle")) {
-                return false;
-            }
+            return p.equals("none") || p.equals("rect") || p.equals("rectangle");
         }
         return true;
     }
@@ -657,13 +645,11 @@ public final class ComponentPlanCompiler {
         primary.put("h", height);
 
         Map<String, Object> door = buildDoorOpening(plan, semantic, width, depth, height);
-        if (door != null) {
-            Map<String, Object> facade = new HashMap<>();
-            List<Map<String, Object>> openings = new ArrayList<>();
-            openings.add(door);
-            facade.put("openings", openings);
-            primary.put("facade", facade);
-        }
+        Map<String, Object> facade = new HashMap<>();
+        List<Map<String, Object>> openings = new ArrayList<>();
+        openings.add(door);
+        facade.put("openings", openings);
+        primary.put("facade", facade);
 
         List<Object> comps = new ArrayList<>();
         comps.add(primary);
@@ -916,16 +902,13 @@ public final class ComponentPlanCompiler {
     ) {
         Component c = semantic != null ? semantic.source() : null;
         Map<String, Object> params = c != null ? c.params() : null;
-        int doorW = getParamInt(params, 0, "door_width", "doorWidth");
-        int doorH = getParamInt(params, 0, "door_height", "doorHeight");
+        int doorW = getParamInt(params, "door_width", "doorWidth");
+        int doorH = getParamInt(params, "door_height", "doorHeight");
         if (doorW <= 0) {
             doorW = Math.max(2, Math.min(5, width / 4));
         }
         if (doorH <= 0) {
             doorH = Math.max(3, Math.min(6, height / 3));
-        }
-        if (doorW <= 0 || doorH <= 0) {
-            return null;
         }
 
         Map<String, Object> door = new HashMap<>();
@@ -939,8 +922,7 @@ public final class ComponentPlanCompiler {
 
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
-        if (v > 1.0) return 1.0;
-        return v;
+        return Math.min(v, 1.0);
     }
 
     private static Boolean getParamBoolean(Map<String, Object> params, String... keys) {
@@ -948,12 +930,17 @@ public final class ComponentPlanCompiler {
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Boolean b) return b;
-            if (v instanceof String s) {
-                String t = s.trim().toLowerCase(Locale.ROOT);
-                if (t.equals("true") || t.equals("1") || t.equals("yes")) return true;
-                if (t.equals("false") || t.equals("0") || t.equals("no")) return false;
+            switch (v) {
+                case Boolean b -> {
+                    return b;
+                }
+                case String s -> {
+                    String t = s.trim().toLowerCase(Locale.ROOT);
+                    if (t.equals("true") || t.equals("1") || t.equals("yes")) return true;
+                    if (t.equals("false") || t.equals("0") || t.equals("no")) return false;
+                }
+                case null, default -> {
+                }
             }
         }
         return null;
@@ -973,22 +960,26 @@ public final class ComponentPlanCompiler {
         return null;
     }
 
-    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
-        if (params == null || keys == null) return fallback;
+    private static int getParamInt(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return 0;
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) {
-                return n.intValue();
-            }
-            if (v instanceof String s) {
-                try {
-                    return Integer.parseInt(s.trim());
-                } catch (NumberFormatException ignored) {}
+            switch (v) {
+                case Number n -> {
+                    return n.intValue();
+                }
+                case String s -> {
+                    try {
+                        return Integer.parseInt(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                case null, default -> {
+                }
             }
         }
-        return fallback;
+        return 0;
     }
 
     private static Double getParamDouble(Map<String, Object> params, String... keys) {
@@ -996,14 +987,18 @@ public final class ComponentPlanCompiler {
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) {
-                return n.doubleValue();
-            }
-            if (v instanceof String s) {
-                try {
-                    return Double.parseDouble(s.trim());
-                } catch (NumberFormatException ignored) {}
+            switch (v) {
+                case Number n -> {
+                    return n.doubleValue();
+                }
+                case String s -> {
+                    try {
+                        return Double.parseDouble(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                case null, default -> {
+                }
             }
         }
         return null;
