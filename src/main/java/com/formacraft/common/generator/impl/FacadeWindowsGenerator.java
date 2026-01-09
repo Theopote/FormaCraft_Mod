@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * FacadeWindowsGenerator（立面窗户生成器）
- * 
+ * <p>
  * 生成建筑立面的窗户/橱窗/窗带
  * 支持不同风格的窗户（格子窗、大窗、落地窗等）
  */
@@ -43,20 +43,23 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 检查 features 以确定窗户类型
-        boolean isLattice = hasFeature(c, "lattice", "lattice_pattern");
+        // 检查 features / style attributes 以确定窗户类型
+        boolean isLattice = hasFeature(c, "lattice", "lattice_pattern") || hasLatticeStyle(semantic);
         boolean isLarge = hasFeature(c, "large", "big", "wide");
         boolean wrapFacade = hasFeature(c, "wrap", "all_sides", "around", "perimeter");
         Double windowRatio = getParamDouble(params, "window_ratio", "windowRatio");
         String rhythm = getParamString(params, "rhythm");
-        if (rhythm == null && semantic != null && semantic.genome() != null && semantic.genome().form != null) {
+        if (rhythm == null && semantic.genome() != null && semantic.genome().form != null) {
             rhythm = semantic.genome().form.rhythm;
         }
         String windowStyle = getParamString(params, "window_style", "windowStyle");
-        int floorHeight = getParamInt(params, 0, "floor_height", "floorHeight");
-        int floorCount = getParamInt(params, 0, "floor_count", "floorCount");
+        if (windowStyle == null && isLattice) {
+            windowStyle = "lattice";
+        }
+        int floorHeight = getParamInt(params, "floor_height", "floorHeight");
+        int floorCount = getParamInt(params, "floor_count", "floorCount");
         if (floorHeight <= 0 && floorCount > 0) {
-            floorHeight = Math.max(3, height / Math.max(1, floorCount));
+            floorHeight = Math.max(3, height / floorCount);
         }
         if (floorHeight <= 0) {
             floorHeight = 3;
@@ -107,7 +110,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                             axisMax = depth;
                         }
                     }
-                    if (axis <= 0 || axis >= axisMax - 1) {
+                    if (axis == 0 || axis >= axisMax - 1) {
                         continue;
                     }
                     if (!shouldPlaceWindow(axis, y, windowSpacing, windowRatio, rhythm)) {
@@ -162,6 +165,20 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 if (lower.contains(keyword.toLowerCase())) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    private boolean hasLatticeStyle(SemanticComponent semantic) {
+        if (semantic == null || semantic.styleAttributes() == null) return false;
+        List<String> elements = semantic.styleAttributes().decorativeElements();
+        if (elements == null) return false;
+        for (String element : elements) {
+            if (element == null) continue;
+            String lower = element.toLowerCase();
+            if (lower.contains("lattice") || lower.contains("格子") || lower.contains("漏窗")) {
+                return true;
             }
         }
         return false;
@@ -336,22 +353,26 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         return h;
     }
 
-    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
-        if (params == null || keys == null) return fallback;
+    private static int getParamInt(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return 0;
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) {
-                return n.intValue();
-            }
-            if (v instanceof String s) {
-                try {
-                    return Integer.parseInt(s.trim());
-                } catch (NumberFormatException ignored) {}
+            switch (v) {
+                case Number n -> {
+                    return n.intValue();
+                }
+                case String s -> {
+                    try {
+                        return Integer.parseInt(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                case null, default -> {
+                }
             }
         }
-        return fallback;
+        return 0;
     }
 
     private static Double getParamDouble(Map<String, Object> params, String... keys) {
@@ -359,14 +380,18 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) {
-                return n.doubleValue();
-            }
-            if (v instanceof String s) {
-                try {
-                    return Double.parseDouble(s.trim());
-                } catch (NumberFormatException ignored) {}
+            switch (v) {
+                case Number n -> {
+                    return n.doubleValue();
+                }
+                case String s -> {
+                    try {
+                        return Double.parseDouble(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                case null, default -> {
+                }
             }
         }
         return null;

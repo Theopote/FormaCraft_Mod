@@ -438,9 +438,27 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
     components = plan.get("components")
     if isinstance(components, list):
         floors_hint = None
+        explicit_courtyard = False
+        explicit_roof = False
+        is_chinese_style = False
         if req is not None:
             text = (req.userMessage or "") + "\n" + (req.requestText or "")
             floors_hint = _parse_levels_from_text(text)
+            t_lower = text.lower()
+            explicit_courtyard = any(k in t_lower for k in (
+                "courtyard", "中庭", "庭院", "四合院", "院落", "内院"
+            ))
+            explicit_roof = any(k in t_lower for k in (
+                "roof", "屋顶", "屋面", "歇山", "悬山", "双坡", "四坡",
+                "gable", "hip", "xuanshan", "xieshan", "double_gable"
+            ))
+        style_profile = str(plan.get("style_profile") or "").lower()
+        cultural = (plan.get("genome") or {}).get("culturalStyle") or {}
+        region = str(cultural.get("region") or "").lower()
+        is_chinese_style = ("chinese" in style_profile or "hui" in style_profile
+                            or "chinese" in region or "hui" in region)
+        skip_courtyard_components = is_chinese_style and not explicit_courtyard
+        filtered_components = []
         for comp in components:
             if not isinstance(comp, dict):
                 continue
@@ -448,9 +466,24 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
             if not isinstance(params, dict):
                 params = {}
             _fill_component_params(params, comp, plan.get("genome", {}))
+            ctype = str(comp.get("component_type", "")).upper()
+            if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS"):
+                if params.get("plan_type") == "courtyard" and is_chinese_style and not explicit_courtyard:
+                    params["plan_type"] = "cut_corners"
+                    params.pop("courtyard_ratio", None)
+                    vr = params.get("void_ratio")
+                    if isinstance(vr, (int, float)) and vr > 0.2:
+                        params["void_ratio"] = 0.2
+                if is_chinese_style and not explicit_roof:
+                    rt = str(params.get("roof_type") or "").lower()
+                    if rt in ("", "hip", "pyramid", "xieshan"):
+                        params["roof_type"] = "xuanshan"
+            elif ctype == "ROOF" and is_chinese_style and not explicit_roof:
+                rt = str(params.get("roof_type") or "").lower()
+                if rt in ("", "hip", "pyramid", "xieshan"):
+                    params["roof_type"] = "xuanshan"
             comp["params"] = params
             if floors_hint:
-                ctype = str(comp.get("component_type", "")).upper()
                 if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS"):
                     params.setdefault("floor_count", floors_hint)
                     params.setdefault("floor_height", 3)
@@ -463,6 +496,10 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
                     if height < min_height:
                         dims["height"] = min_height
                         comp["dimensions"] = dims
+            if skip_courtyard_components and ctype == "COURTYARD":
+                continue
+            filtered_components.append(comp)
+        plan["components"] = filtered_components
     return plan
 
 

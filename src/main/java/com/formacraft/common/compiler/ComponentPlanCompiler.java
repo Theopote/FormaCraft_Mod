@@ -303,7 +303,7 @@ public final class ComponentPlanCompiler {
                     slotsWithFacade.add(slotKey);
                 }
                 if (!slotsWithEntrance.contains(slotKey)) {
-                    Component entrance = makeEntranceComponent(c, slotId, facing);
+                    Component entrance = makeEntranceComponent(plan, c, slotId, facing);
                     if (entrance != null) {
                         inferred.add(entrance);
                         slotsWithEntrance.add(slotKey);
@@ -359,7 +359,7 @@ public final class ComponentPlanCompiler {
         );
     }
 
-    private static Component makeEntranceComponent(Component base, String slotId, GlobalConstraints.Facing facing) {
+    private static Component makeEntranceComponent(LlmPlan plan, Component base, String slotId, GlobalConstraints.Facing facing) {
         Dimensions dims = base.dimensions();
         Vec3i rp = base.relativePosition();
         if (dims == null || rp == null) {
@@ -376,6 +376,11 @@ public final class ComponentPlanCompiler {
         }
         int entranceDepth = Math.max(1, Math.min(2, Math.max(1, depth / 4)));
         int entranceHeight = Math.max(3, Math.min(height, Math.max(4, height / 2)));
+        boolean chinese = isChineseStyle(plan, base);
+        if (chinese) {
+            entranceDepth = Math.min(Math.max(2, entranceDepth + 1), Math.max(2, depth / 3));
+            entranceHeight = Math.max(4, Math.min(height, entranceHeight + 1));
+        }
 
         int relX = rp.x();
         int relZ = rp.z();
@@ -395,11 +400,15 @@ public final class ComponentPlanCompiler {
         Map<String, Object> params = new HashMap<>();
         params.put("door_width", Math.max(2, Math.min(entranceWidth - 1, entranceWidth)));
         params.put("door_height", Math.max(2, Math.min(entranceHeight - 1, entranceHeight)));
-        params.put("canopy_depth", 1);
+        params.put("canopy_depth", chinese ? Math.max(1, entranceDepth - 1) : 1);
 
         List<String> features = new ArrayList<>();
         features.add("entrance");
         features.add("overhang");
+        if (chinese) {
+            features.add("decorative_lintel");
+            features.add("wood_carvings");
+        }
         if (base.features() != null) {
             features.addAll(base.features());
         }
@@ -580,6 +589,9 @@ public final class ComponentPlanCompiler {
             if (p.equals("cut_corners") || p.equals("cutcorners")) {
                 return true;
             }
+            if (p.equals("courtyard") || p.equals("court") || p.equals("ring") || p.equals("compound")) {
+                return isChineseStyle(plan, c);
+            }
             return p.equals("none") || p.equals("rect") || p.equals("rectangle");
         }
         return true;
@@ -618,14 +630,20 @@ public final class ComponentPlanCompiler {
         BlockPos componentBase = slotWorld.add(rp.x(), rp.y(), rp.z());
         BlockPos origin = componentBase.add(centerOffsetX, 0, centerOffsetZ);
 
+        Direction entranceDir = resolveEntranceFacing(plan, slot);
+        String entranceFace = directionToFaceToken(entranceDir);
+
         Map<String, Object> assembly = new HashMap<>();
         String paletteId = resolveAssemblyPaletteId(plan, semantic);
         if (paletteId != null && !paletteId.isBlank()) {
             assembly.put("paletteId", paletteId);
         }
+        if (!entranceFace.isBlank()) {
+            assembly.put("entranceFacing", entranceFace);
+        }
 
         Map<String, Object> macro = new HashMap<>();
-        Map<String, Object> style = buildAssemblyMacroStyle(plan, semantic, width, depth, height);
+        Map<String, Object> style = buildAssemblyMacroStyle(plan, semantic, width, depth, height, entranceFace);
         if (!style.isEmpty()) {
             macro.put("style", style);
         }
@@ -644,7 +662,7 @@ public final class ComponentPlanCompiler {
         primary.put("d", shellD);
         primary.put("h", height);
 
-        Map<String, Object> door = buildDoorOpening(plan, semantic, width, depth, height);
+        Map<String, Object> door = buildDoorOpening(plan, semantic, width, depth, height, entranceFace);
         Map<String, Object> facade = new HashMap<>();
         List<Map<String, Object>> openings = new ArrayList<>();
         openings.add(door);
@@ -678,12 +696,11 @@ public final class ComponentPlanCompiler {
             return List.of();
         }
 
-        Direction facing = resolveEntranceFacing(plan, slot);
         MetaAssemblyEngine engine = new MetaAssemblyEngine();
         AssemblySpec facadeSpec = AssemblySpec.of(spec.paletteId, spec.entranceFacing, ops);
         List<PlannedBlock> blocks = engine.execute(
                 facadeSpec,
-                new MetaAssemblyEngine.Context(world, origin, facing, spec.paletteId)
+                new MetaAssemblyEngine.Context(world, origin, entranceDir, spec.paletteId)
         );
         if (blocks.isEmpty()) {
             return List.of();
@@ -711,12 +728,16 @@ public final class ComponentPlanCompiler {
             SemanticComponent semantic,
             int width,
             int depth,
-            int height
+            int height,
+            String entranceFace
     ) {
         Map<String, Object> style = new HashMap<>();
         String styleId = resolveAssemblyStyleId(plan, semantic);
         if (styleId != null) {
             style.put("styleId", styleId);
+        }
+        if (entranceFace != null && !entranceFace.isBlank()) {
+            style.put("entranceFace", entranceFace);
         }
         boolean chinese = styleId != null && styleId.toUpperCase(Locale.ROOT).contains("CHINESE")
                 || styleId != null && styleId.toUpperCase(Locale.ROOT).contains("HUIZHOU")
@@ -738,6 +759,7 @@ public final class ComponentPlanCompiler {
         }
         if (chinese) {
             density = Math.max(density, 0.55);
+            style.putIfAbsent("intent", "中式 传统");
         }
         style.put("density", density);
 
@@ -760,14 +782,14 @@ public final class ComponentPlanCompiler {
 
     private static String resolveAssemblyStyleId(LlmPlan plan, SemanticComponent semantic) {
         String profile = plan != null ? plan.styleProfile() : null;
-        String merged = profile != null ? profile : "";
+        StringBuilder merged = new StringBuilder(profile != null ? profile : "");
         if (semantic != null && semantic.source() != null && semantic.source().features() != null) {
             for (String f : semantic.source().features()) {
                 if (f == null) continue;
-                merged = merged + " " + f;
+                merged.append(" ").append(f);
             }
         }
-        String hint = merged.toUpperCase(Locale.ROOT);
+        String hint = merged.toString().toUpperCase(Locale.ROOT);
 
         if (hint.contains("HUI") || hint.contains("HUIZHOU") || hint.contains("徽派")) {
             return "HUIZHOU_TRADITIONAL";
@@ -828,6 +850,28 @@ public final class ComponentPlanCompiler {
     }
 
     private static String resolveAssemblyPaletteId(LlmPlan plan, SemanticComponent semantic) {
+        if (plan != null && plan.styleAttributes() != null) {
+            com.formacraft.common.llm.dto.StyleAttributes attrs = plan.styleAttributes();
+            String wall = attrs.wallColor();
+            String roof = attrs.roofColor();
+            if (wall != null && roof != null) {
+                String wl = wall.toLowerCase(Locale.ROOT);
+                String rl = roof.toLowerCase(Locale.ROOT);
+                if (wl.contains("white") && (rl.contains("black") || rl.contains("dark") || rl.contains("gray") || rl.contains("grey"))) {
+                    return "PALETTE_HUIZHOU_WHITE_BLACK_A";
+                }
+            }
+            String wallMat = attrs.wallMaterial();
+            String roofMat = attrs.roofMaterial();
+            if (wallMat != null && roofMat != null) {
+                String wm = wallMat.toLowerCase(Locale.ROOT);
+                String rm = roofMat.toLowerCase(Locale.ROOT);
+                if ((wm.contains("plaster") || wm.contains("lime") || wm.contains("white"))
+                        && (rm.contains("tile") || rm.contains("slate") || rm.contains("gray") || rm.contains("grey"))) {
+                    return "PALETTE_HUIZHOU_WHITE_BLACK_A";
+                }
+            }
+        }
         String styleId = resolveAssemblyStyleId(plan, semantic);
         if (styleId != null) {
             String s = styleId.toUpperCase(Locale.ROOT);
@@ -837,19 +881,6 @@ public final class ComponentPlanCompiler {
             if (s.contains("GOTHIC")) return "PALETTE_GOTHIC_CATHEDRAL_A";
             if (s.contains("INDUSTRIAL")) return "PALETTE_INDUSTRIAL_STEEL_A";
             if (s.contains("MODERN")) return "PALETTE_MODERN_GLASS_B";
-        }
-
-        if (plan != null && plan.styleAttributes() != null) {
-            com.formacraft.common.llm.dto.StyleAttributes attrs = plan.styleAttributes();
-            String wall = attrs.wallColor();
-            String roof = attrs.roofColor();
-            if (wall != null && roof != null) {
-                String wl = wall.toLowerCase(Locale.ROOT);
-                String rl = roof.toLowerCase(Locale.ROOT);
-                if (wl.contains("white") && (rl.contains("black") || rl.contains("dark"))) {
-                    return "PALETTE_HUIZHOU_WHITE_BLACK_A";
-                }
-            }
         }
         return null;
     }
@@ -867,6 +898,19 @@ public final class ComponentPlanCompiler {
             case EAST -> Direction.EAST;
             case WEST -> Direction.WEST;
             case SOUTH -> Direction.SOUTH;
+        };
+    }
+
+    private static String directionToFaceToken(Direction direction) {
+        if (direction == null) {
+            return "SOUTH";
+        }
+        return switch (direction) {
+            case NORTH -> "NORTH";
+            case EAST -> "EAST";
+            case WEST -> "WEST";
+            case SOUTH -> "SOUTH";
+            default -> "SOUTH";
         };
     }
 
@@ -898,7 +942,8 @@ public final class ComponentPlanCompiler {
             SemanticComponent semantic,
             int width,
             int depth,
-            int height
+            int height,
+            String entranceFace
     ) {
         Component c = semantic != null ? semantic.source() : null;
         Map<String, Object> params = c != null ? c.params() : null;
@@ -912,7 +957,7 @@ public final class ComponentPlanCompiler {
         }
 
         Map<String, Object> door = new HashMap<>();
-        door.put("face", "SOUTH");
+        door.put("face", (entranceFace == null || entranceFace.isBlank()) ? "SOUTH" : entranceFace);
         door.put("kind", "DOOR");
         door.put("doorW", doorW);
         door.put("doorH", doorH);
@@ -1004,4 +1049,3 @@ public final class ComponentPlanCompiler {
         return null;
     }
 }
-

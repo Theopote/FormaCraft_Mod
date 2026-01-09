@@ -115,6 +115,9 @@ public final class AssemblyMacroApplier {
         if (styleId != null) styleId = styleId.trim();
         String intent = str(style.get("intent"), str(style.get("mood"), null));
         if (intent != null) intent = intent.trim();
+        String entranceFace = str(style.get("entranceFace"),
+                str(style.get("entranceFacing"), str(root.get("entranceFacing"), null)));
+        if (entranceFace != null) entranceFace = entranceFace.trim().toUpperCase(Locale.ROOT);
 
         double density = clamp01(d(style.get("density"), 0.6));
         double symmetry = clamp01(d(style.get("symmetry"), 0.6));
@@ -166,7 +169,9 @@ public final class AssemblyMacroApplier {
         String it = (intent != null) ? intent.toUpperCase(Locale.ROOT) : "";
         boolean gothic = sid.contains("GOTHIC") || it.contains("神圣") || it.contains("SACRED");
         boolean industrial = sid.contains("INDUSTRIAL") || it.contains("工业") || it.contains("INDUSTRIAL");
-        boolean chinese = sid.contains("CHINESE") || sid.contains("ASIAN") || it.contains("中式") || it.contains("传统") || it.contains("CHINESE") || it.contains("TRADITIONAL");
+        boolean chinese = sid.contains("CHINESE") || sid.contains("ASIAN")
+                || sid.contains("HUI") || sid.contains("HUIZHOU") || sid.contains("JIANGNAN")
+                || it.contains("中式") || it.contains("传统") || it.contains("CHINESE") || it.contains("TRADITIONAL");
 
         // 1) Gothic: pointed arches + rose window + vertical rhythm + (optional) buttresses
         if (gothic) {
@@ -295,11 +300,12 @@ public final class AssemblyMacroApplier {
                 
                 // Add luxury door (filler) for main entrance if structure exposure is high
                 if (structureExposure >= 0.6) {
+                    String doorFace = (entranceFace == null || entranceFace.isBlank()) ? "NORTH" : entranceFace;
                     decorativeElements.add(new java.util.LinkedHashMap<>(java.util.Map.of(
                         "type", "FILLER",
                         "assetId", "chinese_door_luxury",
                         "placement", "ENTRANCE",
-                        "face", "NORTH"
+                        "face", doorFace
                     )));
                 }
                 

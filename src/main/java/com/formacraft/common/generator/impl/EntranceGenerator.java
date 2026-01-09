@@ -65,17 +65,13 @@ public class EntranceGenerator implements ComponentGenerator {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     if (isDoorOpening(x, z, y, width, depth, doorWidth, doorHeight, facing, hasArch)) {
-                        if (y == 0) {
-                            SemanticPart part = SemanticPart.WALL_BASE;
-                            String block = getBlockForPart(part, semantic, palette);
-                            out.add(new BlockPatch(
-                                    BlockPatch.PLACE,
-                                    rp.x() + x,
-                                    rp.y() + y,
-                                    rp.z() + z,
-                                    block
-                            ));
-                        }
+                        out.add(new BlockPatch(
+                                BlockPatch.REMOVE,
+                                rp.x() + x,
+                                rp.y() + y,
+                                rp.z() + z,
+                                "minecraft:air"
+                        ));
                         continue;
                     }
                     
