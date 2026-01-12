@@ -4,7 +4,7 @@ import net.minecraft.util.math.Direction;
 
 /**
  * 将方块的 facing 随构件变换进行修正（mirror -> rotate）。
- *
+ * <p>
  * v1：仅处理水平四向（N/E/S/W）。UP/DOWN 原样返回。
  */
 public final class FacingTransformUtil {

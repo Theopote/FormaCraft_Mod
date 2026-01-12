@@ -100,6 +100,7 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget componentFacingButton;
     private ButtonWidget componentMirrorButton;
     private ButtonWidget componentSkinModeButton;
+    private ButtonWidget componentSemanticTagOnSaveButton;
     private ButtonWidget componentSemanticStyleButton;
     private ButtonWidget componentSemanticPartButton;
     private ButtonWidget componentSaveButton;
@@ -248,6 +249,10 @@ public class ToolPanel extends BasePanel {
         componentSkinModeButton = ButtonWidget.builder(Text.literal("材质：原样"), b -> ComponentTool.INSTANCE.toggleSemanticSkin())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("切换材质模式：原样方块 / 语义换皮（由风格调色板决定）")))
+                .build();
+        componentSemanticTagOnSaveButton = ButtonWidget.builder(Text.literal("存语义：开"), b -> ComponentTool.INSTANCE.getState().semanticTagOnSave = !ComponentTool.INSTANCE.getState().semanticTagOnSave)
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("保存构件时自动写入每个方块的 semantic（推荐开启，便于后续换皮）")))
                 .build();
         componentSemanticStyleButton = ButtonWidget.builder(Text.literal("风格：DEFAULT"), b -> ComponentTool.INSTANCE.cycleSemanticStyle())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -793,7 +798,7 @@ public class ToolPanel extends BasePanel {
         componentClearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
-        // 材质模式 / 风格 一行两个按钮
+        // 材质模式 / 存语义（两按钮一行）
         componentSkinModeButton.setMessage(Text.literal(st.semanticSkin ? "材质：语义" : "材质：原样"));
         componentSkinModeButton.setPosition(x, y);
         componentSkinModeButton.setWidth(half);
@@ -801,9 +806,18 @@ public class ToolPanel extends BasePanel {
         componentSkinModeButton.active = true;
         componentSkinModeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
 
+        componentSemanticTagOnSaveButton.setMessage(Text.literal(st.semanticTagOnSave ? "存语义：开" : "存语义：关"));
+        componentSemanticTagOnSaveButton.setPosition(x + half + 4, y);
+        componentSemanticTagOnSaveButton.setWidth(w - half - 4);
+        componentSemanticTagOnSaveButton.visible = true;
+        componentSemanticTagOnSaveButton.active = true;
+        componentSemanticTagOnSaveButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        // 风格（单行）
         componentSemanticStyleButton.setMessage(Text.literal("风格：" + (st.semanticStyleId != null ? st.semanticStyleId : "DEFAULT")));
-        componentSemanticStyleButton.setPosition(x + half + 4, y);
-        componentSemanticStyleButton.setWidth(w - half - 4);
+        componentSemanticStyleButton.setPosition(x, y);
+        componentSemanticStyleButton.setWidth(w);
         componentSemanticStyleButton.visible = true;
         componentSemanticStyleButton.active = st.semanticSkin;
         componentSemanticStyleButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
@@ -960,6 +974,7 @@ public class ToolPanel extends BasePanel {
             if (componentFacingButton != null && componentFacingButton.visible && componentFacingButton.mouseClicked(click, false)) return true;
             if (componentMirrorButton != null && componentMirrorButton.visible && componentMirrorButton.mouseClicked(click, false)) return true;
             if (componentSkinModeButton != null && componentSkinModeButton.visible && componentSkinModeButton.mouseClicked(click, false)) return true;
+            if (componentSemanticTagOnSaveButton != null && componentSemanticTagOnSaveButton.visible && componentSemanticTagOnSaveButton.mouseClicked(click, false)) return true;
             if (componentSemanticStyleButton != null && componentSemanticStyleButton.visible && componentSemanticStyleButton.mouseClicked(click, false)) return true;
             if (componentSemanticPartButton != null && componentSemanticPartButton.visible && componentSemanticPartButton.mouseClicked(click, false)) return true;
             if (componentSaveButton != null && componentSaveButton.visible && componentSaveButton.mouseClicked(click, false)) return true;

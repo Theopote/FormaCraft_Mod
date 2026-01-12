@@ -8,7 +8,7 @@ import net.minecraft.block.Blocks;
 
 /**
  * 默认风格配置
- * 
+ * <p>
  * 初始化所有预设风格
  */
 public final class DefaultStyleProfiles {
@@ -17,7 +17,7 @@ public final class DefaultStyleProfiles {
 
     /**
      * 初始化默认风格配置
-     * 
+     * <p>
      * 在 mod 初始化时调用
      */
     public static void bootstrap() {

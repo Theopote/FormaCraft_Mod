@@ -31,6 +31,13 @@ public class ComponentToolState {
     /** SemanticStyleProfile id（semanticSkin=true 时用于材质规则）。 */
     public String semanticStyleId = "DEFAULT";
 
+    /**
+     * 保存时是否写入每个 block 的 semantic（AUTO 标注）。
+     * - 打开：构件入库即具备“基因接口”，后续可任意风格换皮
+     * - 关闭：仅在 semanticSkin=true 时才写 semantic（旧行为）
+     */
+    public boolean semanticTagOnSave = true;
+
     /** 放置来源：false=当前选区；true=从构件库加载的构件。 */
     public boolean useLibrary = false;
     /** 构件库中当前选中的构件 id（仅 useLibrary=true 有意义）。 */

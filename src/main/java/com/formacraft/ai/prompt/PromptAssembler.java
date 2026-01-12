@@ -78,7 +78,7 @@ public final class PromptAssembler {
 
     /**
      * System Prompt（AI 身份，永远固定）
-     * 
+     * <p>
      * K3.1 更新：完整的 System Prompt，包含输出格式硬约束
      */
     private static String systemRole() {
@@ -268,7 +268,7 @@ ComponentParamsObject:
 
     /**
      * Player Component Library（Prefab/构件库 v1）。
-     *
+     * <p>
      * 注意：当前 JSON 输出 schema 不新增字段，避免破坏后端解析。
      * 若要“请求使用构件”，请在 components[].features 中写入 feature 字符串：
      * component_request:{"semantic":"main_entrance","category":"DOOR","tags":["Chinese"],"approx_size":{"w":4,"h":6,"d":1},"count":1}

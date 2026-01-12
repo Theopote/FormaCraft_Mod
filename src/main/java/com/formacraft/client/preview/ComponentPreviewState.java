@@ -8,7 +8,7 @@ import com.formacraft.common.component.transform.ComponentTransform;
 
 /**
  * Component 预览状态（纯客户端）。
- *
+ * <p>
  * - 不真正放置方块
  * - 仅用于 HUD 世界渲染
  */

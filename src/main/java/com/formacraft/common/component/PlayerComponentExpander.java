@@ -102,6 +102,14 @@ public final class PlayerComponentExpander {
         // 5) 展开为 patches（相对 slot anchor）
         List<BlockPatch> out = new ArrayList<>(def.blocks.size());
         long worldSeed = world.getSeed();
+
+        int minDy = Integer.MAX_VALUE;
+        for (ComponentDefinition.BlockEntry be : def.blocks) {
+            if (be == null) continue;
+            minDy = Math.min(minDy, be.dy);
+        }
+        if (minDy == Integer.MAX_VALUE) minDy = 0;
+
         for (ComponentDefinition.BlockEntry be : def.blocks) {
             if (be == null) continue;
             BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
@@ -112,9 +120,14 @@ public final class PlayerComponentExpander {
             int dz = baseZ + off.getZ();
 
             String block;
-            if (semanticSkin && be.semantic != null) {
-                long seed = mixSeed(worldSeed, dx, dy, dz, be.semantic.ordinal());
-                BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, be.semantic, seed);
+            if (semanticSkin) {
+                // B：兼容旧构件（没有 semantic 字段）——服务端兜底 AUTO 推断
+                com.formacraft.common.semantic.SemanticPart part = be.semantic != null
+                        ? be.semantic
+                        : guessSemanticPartFromString(be.block, be.dy, minDy);
+
+                long seed = mixSeed(worldSeed, dx, dy, dz, part.ordinal());
+                BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, part, seed);
 
                 // 若原始 blockstate 带有 facing，则把 facing 迁移到“换皮后”的方块上
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
@@ -131,6 +144,22 @@ public final class PlayerComponentExpander {
             out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
         }
         return out;
+    }
+
+    private static com.formacraft.common.semantic.SemanticPart guessSemanticPartFromString(String blockStateString, int dy, int minDy) {
+        if (dy == minDy) return com.formacraft.common.semantic.SemanticPart.FOUNDATION;
+        if (blockStateString == null || blockStateString.isBlank()) return com.formacraft.common.semantic.SemanticPart.WALL;
+        String s = blockStateString.toLowerCase(Locale.ROOT);
+
+        if (s.contains("door") || s.contains("trapdoor")) return com.formacraft.common.semantic.SemanticPart.DOORWAY;
+        if (s.contains("glass_pane") || s.contains("stained_glass_pane") || s.contains(":glass")) return com.formacraft.common.semantic.SemanticPart.WINDOW;
+        if (s.contains("fence") || s.contains("iron_bars") || s.contains("bars")) return com.formacraft.common.semantic.SemanticPart.RAILING;
+        if (s.contains("lantern") || s.contains("torch")) return com.formacraft.common.semantic.SemanticPart.LIGHT;
+        if (s.contains("stairs")) return com.formacraft.common.semantic.SemanticPart.STAIR_STEP;
+        if (s.contains("slab")) return com.formacraft.common.semantic.SemanticPart.FLOOR;
+        if (s.contains("log") || s.contains("stem")) return com.formacraft.common.semantic.SemanticPart.PILLAR;
+
+        return com.formacraft.common.semantic.SemanticPart.WALL;
     }
 
     private static String extractFeatureJson(List<String> features) {

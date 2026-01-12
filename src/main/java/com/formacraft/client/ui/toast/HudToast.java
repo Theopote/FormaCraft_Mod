@@ -7,7 +7,7 @@ import net.minecraft.text.Text;
 
 /**
  * HUD 简易 Toast（非原版 ToastManager）。
- *
+ * <p>
  * 设计目标：
  * - 轻量：不依赖 Screen
  * - 通用：ToolPanel / 其它 HUD 面板都可复用

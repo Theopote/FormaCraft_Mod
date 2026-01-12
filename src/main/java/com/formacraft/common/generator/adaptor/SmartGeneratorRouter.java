@@ -12,16 +12,16 @@ import java.util.List;
 
 /**
  * SmartGeneratorRouter（智能生成器路由）
- * 
+ * <p>
  * 自动选择最适合的生成器：
  * 1. 优先使用新系统（common.generator）的 ComponentGenerator
  * 2. 如果新系统没有生成器或返回空结果，直接返回空列表（不回退到传统系统）
- * 
+ * <p>
  * 重要说明：
  * - 传统系统（server.generator）是为完整建筑设计的，不适合组件级别的生成
  * - 在 LlmPlan 流程中，每个组件应该只使用新系统的 ComponentGenerator
  * - 如果某个组件没有生成器或返回空结果，该组件将被跳过，不会影响其他组件
- * 
+ * <p>
  * 设计原则：
  * - 组件级别只使用新系统，避免生成完整建筑覆盖其他组件
  * - 如果组件无法生成，静默跳过（返回空列表）
@@ -84,7 +84,7 @@ public final class SmartGeneratorRouter {
 
     /**
      * 检查是否应该使用传统系统
-     * 
+     * <p>
      * 某些组件类型更适合使用传统系统：
      * - HOUSE, CASTLE 等复杂建筑
      * - 地标建筑（土楼、埃菲尔铁塔等）

@@ -5,7 +5,7 @@ import java.util.Set;
 
 /**
  * 单个构件定义（v1）。
- *
+ * <p>
  * blocks 坐标系：以 anchor 为原点 (0,0,0)，blocks[].dx/dy/dz 为相对坐标。
  * anchor.facing 表示“构件正面”。
  */

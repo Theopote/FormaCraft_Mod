@@ -5,7 +5,7 @@ import net.minecraft.util.math.Direction;
 
 /**
  * 坐标变换（mirror -> rotate）。
- *
+ * <p>
  * 注意：这里的 dx/dz 视为“构件局部坐标”，其轴与世界 X/Z 轴一致；
  * rotate 是围绕 Y 轴做 90°*k 旋转。
  */
@@ -14,7 +14,7 @@ public final class ComponentTransformUtil {
 
     /**
      * 将构件局部偏移 (dx,dy,dz) 从 fromFacing 旋转到 targetFacing，并可选镜像。
-     *
+     * <p>
      * - mirror：先应用（翻转 x 或 z）
      * - rotate：再应用（按 facing 差值做 0~3 次顺时针旋转）
      */
