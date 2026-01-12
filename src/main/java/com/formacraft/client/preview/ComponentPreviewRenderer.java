@@ -2,6 +2,8 @@ package com.formacraft.client.preview;
 
 import com.formacraft.client.tool.ToolRenderUtil;
 import com.formacraft.client.tool.ToolWorldRenderContext;
+import com.formacraft.common.component.transform.ComponentTransform;
+import com.formacraft.common.component.transform.ComponentTransformUtil;
 import net.minecraft.client.render.VertexRendering;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -25,6 +27,8 @@ public final class ComponentPreviewRenderer {
 
         BlockPos anchor = ComponentPreviewState.getWorldAnchor();
         List<BlockPos> local = ComponentPreviewState.getLocalBlocks();
+        Direction fromFacing = ComponentPreviewState.getFromFacing();
+        ComponentTransform t = ComponentPreviewState.getTransform();
         if (anchor == null || local == null || local.isEmpty()) return;
 
         // 1) 体量（AABB 外框）
@@ -32,12 +36,13 @@ public final class ComponentPreviewRenderer {
         int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
         for (BlockPos p : local) {
             if (p == null) continue;
-            minX = Math.min(minX, p.getX());
-            minY = Math.min(minY, p.getY());
-            minZ = Math.min(minZ, p.getZ());
-            maxX = Math.max(maxX, p.getX());
-            maxY = Math.max(maxY, p.getY());
-            maxZ = Math.max(maxZ, p.getZ());
+            BlockPos tp = ComponentTransformUtil.transformOffset(p, fromFacing, t);
+            minX = Math.min(minX, tp.getX());
+            minY = Math.min(minY, tp.getY());
+            minZ = Math.min(minZ, tp.getZ());
+            maxX = Math.max(maxX, tp.getX());
+            maxY = Math.max(maxY, tp.getY());
+            maxZ = Math.max(maxZ, tp.getZ());
         }
         if (minX != Integer.MAX_VALUE) {
             Box world = new Box(
@@ -55,9 +60,10 @@ public final class ComponentPreviewRenderer {
         for (int i = 0; i < n; i += step) {
             BlockPos lp = local.get(i);
             if (lp == null) continue;
-            int wx = anchor.getX() + lp.getX();
-            int wy = anchor.getY() + lp.getY();
-            int wz = anchor.getZ() + lp.getZ();
+            BlockPos tp = ComponentTransformUtil.transformOffset(lp, fromFacing, t);
+            int wx = anchor.getX() + tp.getX();
+            int wy = anchor.getY() + tp.getY();
+            int wz = anchor.getZ() + tp.getZ();
             Box world = new Box(wx, wy, wz, wx + 1, wy + 1, wz + 1).expand(0.01);
             Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
             // 半透明紫色
@@ -82,7 +88,7 @@ public final class ComponentPreviewRenderer {
         ToolRenderUtil.line(ctx, cx, cy, cz - s, cx, cy, cz + s, 255, 220, 80, 220);
 
         // 4) Facing 箭头（从 anchor 指向 facing）
-        Direction facing = ComponentPreviewState.getFacing();
+        Direction facing = (t != null) ? t.facing() : null;
         if (facing != null) {
             double ex = cx + facing.getOffsetX() * 1.6;
             double ez = cz + facing.getOffsetZ() * 1.6;

@@ -3,9 +3,15 @@ package com.formacraft.client.tool;
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.preview.ComponentPreviewState;
+import com.formacraft.common.component.transform.ComponentTransform;
+import com.formacraft.common.component.transform.BlockStateStringUtil;
+import com.formacraft.common.component.transform.ComponentTransformUtil;
+import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.client.ui.panel.BuildConfirmPanel;
 import net.minecraft.block.BlockState;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
@@ -87,7 +93,18 @@ public final class ComponentTool implements FormacraftTool {
             default -> Direction.SOUTH;
         };
         if (ComponentPreviewState.isActive()) {
-            ComponentPreviewState.setFacing(state.facing);
+            ComponentPreviewState.setTransform(currentTransform());
+        }
+    }
+
+    public void cycleMirror() {
+        state.mirror = switch (state.mirror) {
+            case NONE -> Mirror.X;
+            case X -> Mirror.Z;
+            case Z -> Mirror.NONE;
+        };
+        if (ComponentPreviewState.isActive()) {
+            ComponentPreviewState.setTransform(currentTransform());
         }
     }
 
@@ -161,7 +178,8 @@ public final class ComponentTool implements FormacraftTool {
             return;
         }
 
-        ComponentPreviewState.show(local, state.anchorWorld, state.facing);
+        // v1：选区捕获的局部坐标以 SOUTH 为“前方”
+        ComponentPreviewState.show(local, state.anchorWorld, Direction.SOUTH, currentTransform());
         if (!force) {
             HudToast.show("已开启构件预览（" + local.size() + " blocks）");
         }
@@ -169,6 +187,56 @@ public final class ComponentTool implements FormacraftTool {
 
     public void preview(net.minecraft.client.MinecraftClient client) {
         preview(client, false);
+    }
+
+    /**
+     * 将当前选区作为构件“放置测试”：走 PatchPreview -> Apply（Undo/Redo）。
+     * - 不直接 setBlock
+     * - 会正确应用 mirror/rotate 到坐标
+     * - 会尽力修正 blockstate 中的 facing=...
+     */
+    public void applyPatchPreview(net.minecraft.client.MinecraftClient client) {
+        if (!SelectionTool.INSTANCE.hasSelection()) {
+            HudToast.show("放置失败：请先完成选区", true);
+            return;
+        }
+        if (state.anchorWorld == null || !isInsideSelection(state.anchorWorld)) {
+            HudToast.show("放置失败：请先选择 Anchor", true);
+            return;
+        }
+        if (client == null || client.world == null) {
+            HudToast.show("放置失败：世界未就绪", true);
+            return;
+        }
+
+        List<ComponentDefinition.BlockEntry> entries = buildLocalBlockEntries(client);
+        if (entries.isEmpty()) {
+            HudToast.show("放置失败：选区内没有非空气方块", true);
+            return;
+        }
+
+        // v1：捕获时默认 fromFacing=SOUTH（局部坐标系前方）
+        Direction fromFacing = Direction.SOUTH;
+        ComponentTransform t = currentTransform();
+
+        List<BlockPatch> patches = new ArrayList<>(entries.size());
+        for (ComponentDefinition.BlockEntry be : entries) {
+            if (be == null) continue;
+            BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
+            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, t);
+
+            String block = be.block;
+            // 尽力修正 facing/horizontal_facing
+            block = BlockStateStringUtil.withTransformedFacing(block, fromFacing, t);
+
+            patches.add(new BlockPatch(BlockPatch.PLACE, off.getX(), off.getY(), off.getZ(), block));
+        }
+
+        // 避免 overlay 叠太多：进入 patch preview 时关闭 component 预览
+        ComponentPreviewState.clear();
+
+        BuildConfirmPanel.INSTANCE.showPatchPreview(state.anchorWorld, patches);
+        HudToast.show("已进入 Patch 预览（可 Apply / Undo / Redo）");
     }
 
     private List<BlockPos> buildLocalBlocks(net.minecraft.client.MinecraftClient client) {
@@ -191,6 +259,40 @@ public final class ComponentTool implements FormacraftTool {
             }
         }
         return out;
+    }
+
+    private List<ComponentDefinition.BlockEntry> buildLocalBlockEntries(net.minecraft.client.MinecraftClient client) {
+        List<ComponentDefinition.BlockEntry> out = new ArrayList<>();
+        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) return out;
+
+        BlockPos anchor = state.anchorWorld;
+        if (anchor == null) return out;
+
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int y = min.getY(); y <= max.getY(); y++) {
+                for (int z = min.getZ(); z <= max.getZ(); z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    BlockState bs = client.world.getBlockState(p);
+                    if (bs == null || bs.isAir()) continue;
+
+                    ComponentDefinition.BlockEntry be = new ComponentDefinition.BlockEntry();
+                    be.dx = x - anchor.getX();
+                    be.dy = y - anchor.getY();
+                    be.dz = z - anchor.getZ();
+                    be.block = serializeBlockState(bs);
+                    out.add(be);
+                }
+            }
+        }
+        return out;
+    }
+
+    private ComponentTransform currentTransform() {
+        Direction f = state.facing != null ? state.facing : Direction.SOUTH;
+        Mirror m = state.mirror != null ? state.mirror : Mirror.NONE;
+        return new ComponentTransform(f, m);
     }
 
     /** 构造 ComponentDefinition 并序列化为 JSON（供 C2S 发送）。 */

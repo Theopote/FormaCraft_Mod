@@ -95,8 +95,10 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget componentPickAnchorButton;
     private ButtonWidget componentClearAnchorButton;
     private ButtonWidget componentFacingButton;
+    private ButtonWidget componentMirrorButton;
     private ButtonWidget componentSaveButton;
     private ButtonWidget componentPreviewButton;
+    private ButtonWidget componentApplyButton;
 
     // 滚动（仅用于选项区域）
     private int scrollY = 0;
@@ -221,6 +223,10 @@ public class ToolPanel extends BasePanel {
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("循环切换构件正面朝向（N/E/S/W）")))
                 .build();
+        componentMirrorButton = ButtonWidget.builder(Text.literal("镜像：NONE"), b -> ComponentTool.INSTANCE.cycleMirror())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("镜像模式：NONE / X / Z（先镜像再旋转）")))
+                .build();
         componentSaveButton = ButtonWidget.builder(Text.literal("保存为构件"), b -> {
                     // v1：Anchor 必须显式选择
                     if (!SelectionTool.INSTANCE.hasSelection()) {
@@ -254,6 +260,11 @@ public class ToolPanel extends BasePanel {
         componentPreviewButton = ButtonWidget.builder(Text.literal("预览放置"), b -> ComponentTool.INSTANCE.preview(client))
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("在锚点处预览该构件（不真正放置方块）")))
+                .build();
+
+        componentApplyButton = ButtonWidget.builder(Text.literal("放置构件（Patch）"), b -> ComponentTool.INSTANCE.applyPatchPreview(client))
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("将当前构件以 Patch 方式预览并可 Apply（支持 Undo/Redo）")))
                 .build();
 
         // Slider（用原版 SliderWidget 渲染/拖拽，手感与 SettingsPanel 一致）
@@ -713,8 +724,16 @@ public class ToolPanel extends BasePanel {
         componentFacingButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
-        componentClearAnchorButton.setPosition(x, y);
-        componentClearAnchorButton.setWidth(w);
+        // Mirror / ClearAnchor 一行两个按钮
+        componentMirrorButton.setMessage(Text.literal("Mirror: " + (st.mirror != null ? st.mirror.name() : "NONE")));
+        componentMirrorButton.setPosition(x, y);
+        componentMirrorButton.setWidth(half);
+        componentMirrorButton.visible = true;
+        componentMirrorButton.active = true;
+        componentMirrorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        componentClearAnchorButton.setPosition(x + half + 4, y);
+        componentClearAnchorButton.setWidth(w - half - 4);
         componentClearAnchorButton.visible = true;
         componentClearAnchorButton.active = st.anchorWorld != null || st.pickingAnchor;
         componentClearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
@@ -734,6 +753,13 @@ public class ToolPanel extends BasePanel {
         componentPreviewButton.active = canPreview;
         componentPreviewButton.setMessage(Text.literal(ComponentPreviewState.isActive() ? "关闭预览" : "预览放置"));
         componentPreviewButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        componentApplyButton.setPosition(x, y);
+        componentApplyButton.setWidth(w);
+        componentApplyButton.visible = true;
+        componentApplyButton.active = canPreview;
+        componentApplyButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
         return y;
@@ -850,8 +876,10 @@ public class ToolPanel extends BasePanel {
             if (componentPickAnchorButton != null && componentPickAnchorButton.visible && componentPickAnchorButton.mouseClicked(click, false)) return true;
             if (componentClearAnchorButton != null && componentClearAnchorButton.visible && componentClearAnchorButton.mouseClicked(click, false)) return true;
             if (componentFacingButton != null && componentFacingButton.visible && componentFacingButton.mouseClicked(click, false)) return true;
+            if (componentMirrorButton != null && componentMirrorButton.visible && componentMirrorButton.mouseClicked(click, false)) return true;
             if (componentSaveButton != null && componentSaveButton.visible && componentSaveButton.mouseClicked(click, false)) return true;
             if (componentPreviewButton != null && componentPreviewButton.visible && componentPreviewButton.mouseClicked(click, false)) return true;
+            if (componentApplyButton != null && componentApplyButton.visible && componentApplyButton.mouseClicked(click, false)) return true;
 
             if (componentNameInputBoundsValid) {
                 if (componentNameInput.mouseClicked(mouseX, mouseY, componentNameInputX, componentNameInputY, componentNameInputW, componentNameInputH)) {

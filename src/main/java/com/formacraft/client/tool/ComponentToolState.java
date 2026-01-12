@@ -1,6 +1,7 @@
 package com.formacraft.client.tool;
 
 import com.formacraft.common.component.ComponentCategory;
+import com.formacraft.common.component.transform.Mirror;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -19,6 +20,8 @@ public class ComponentToolState {
     public BlockPos anchorWorld = null;
     /** 构件正面朝向（用于后续旋转/匹配）。 */
     public Direction facing = Direction.SOUTH;
+    /** 构件镜像模式（v1）。 */
+    public Mirror mirror = Mirror.NONE;
 
     /** UI 状态：正在选择 anchor */
     public boolean pickingAnchor = false;
