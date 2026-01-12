@@ -84,9 +84,7 @@ public final class PatchExecutor {
                         Object v = parsed.get();
                         if (!(v instanceof Comparable<?> c)) continue;
                         // 类型擦除下的通用属性写入：我们只在 parse() 成功后写入
-                        Property rawProp = (Property) prop;
-                        Comparable rawValue = (Comparable) c;
-                        state = state.with(rawProp, rawValue);
+                        state = state.with((Property) prop, (Comparable) c);
                     }
                 }
             }

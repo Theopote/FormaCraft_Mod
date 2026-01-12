@@ -101,6 +101,7 @@ public final class ComponentTool implements FormacraftTool {
     public void cycleFacing() {
         state.facing = switch (state.facing) {
             case NORTH -> Direction.EAST;
+            case EAST -> Direction.SOUTH;
             case SOUTH -> Direction.WEST;
             case WEST -> Direction.NORTH;
             default -> Direction.SOUTH;
