@@ -106,6 +106,11 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget componentSaveButton;
     private ButtonWidget componentPreviewButton;
     private ButtonWidget componentApplyButton;
+    private ButtonWidget componentSocketTypeButton;
+    private ButtonWidget componentSocketPickOriginButton;
+    private ButtonWidget componentSocketFacingButton;
+    private ButtonWidget componentSocketAddButton;
+    private ButtonWidget componentSocketClearButton;
 
     // 滚动（仅用于选项区域）
     private int scrollY = 0;
@@ -261,6 +266,26 @@ public class ToolPanel extends BasePanel {
         componentSemanticPartButton = ButtonWidget.builder(Text.literal("语义：WALL"), b -> ComponentTool.INSTANCE.cycleSemanticPart())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("循环切换语义部位（用于语义换皮选材）")))
+                .build();
+        componentSocketTypeButton = ButtonWidget.builder(Text.literal("SocketType: DOOR"), b -> ComponentTool.INSTANCE.cycleSocketType())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("循环切换 SocketType（并套用默认尺寸）")))
+                .build();
+        componentSocketPickOriginButton = ButtonWidget.builder(Text.literal("点选 Socket 原点"), b -> ComponentTool.INSTANCE.startPickSocketOrigin())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("下一次左键点击选区内方块作为 socket 原点（相对 Anchor）")))
+                .build();
+        componentSocketFacingButton = ButtonWidget.builder(Text.literal("SocketFacing: SOUTH"), b -> ComponentTool.INSTANCE.cycleSocketFacing())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("循环切换 socket 朝向（N/E/S/W）")))
+                .build();
+        componentSocketAddButton = ButtonWidget.builder(Text.literal("添加 Socket"), b -> ComponentTool.INSTANCE.addSocket())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("将当前 socket 配置添加到构件（保存时写入 JSON）")))
+                .build();
+        componentSocketClearButton = ButtonWidget.builder(Text.literal("清空 Sockets"), b -> ComponentTool.INSTANCE.clearSockets())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("清空当前构件已添加的 sockets")))
                 .build();
         componentSaveButton = ButtonWidget.builder(Text.literal("保存为构件"), b -> {
                     // v1：Anchor 必须显式选择
@@ -832,6 +857,51 @@ public class ToolPanel extends BasePanel {
         componentSemanticPartButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
+        // ===== Socket（开洞/安装）编辑区 =====
+        String so = st.socketOriginLocal != null
+                ? ("SocketOrigin(local)=" + st.socketOriginLocal.getX() + "," + st.socketOriginLocal.getY() + "," + st.socketOriginLocal.getZ())
+                : "SocketOrigin(local)=未设置";
+        String sf = "SocketFacing=" + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH");
+        String ss = "Size=" + st.socketW + "x" + st.socketH + "x" + st.socketD;
+        y = drawWrappedText(ctx, Text.literal("Sockets: " + st.socketCount + "  " + so + "  " + ss + "  " + sf + (st.pickingSocket ? "（正在点选…）" : "")),
+                x, y, w, 0xFFAAAAAA);
+        y += 2;
+
+        componentSocketTypeButton.setMessage(Text.literal("SocketType: " + (st.socketType != null ? st.socketType.name() : "DOOR")));
+        componentSocketTypeButton.setPosition(x, y);
+        componentSocketTypeButton.setWidth(w);
+        componentSocketTypeButton.visible = true;
+        componentSocketTypeButton.active = SelectionTool.INSTANCE.hasSelection();
+        componentSocketTypeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        componentSocketPickOriginButton.setPosition(x, y);
+        componentSocketPickOriginButton.setWidth(half);
+        componentSocketPickOriginButton.visible = true;
+        componentSocketPickOriginButton.active = SelectionTool.INSTANCE.hasSelection() && st.anchorWorld != null;
+        componentSocketPickOriginButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        componentSocketFacingButton.setMessage(Text.literal("SocketFacing: " + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH")));
+        componentSocketFacingButton.setPosition(x + half + 4, y);
+        componentSocketFacingButton.setWidth(w - half - 4);
+        componentSocketFacingButton.visible = true;
+        componentSocketFacingButton.active = true;
+        componentSocketFacingButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        componentSocketAddButton.setPosition(x, y);
+        componentSocketAddButton.setWidth(half);
+        componentSocketAddButton.visible = true;
+        componentSocketAddButton.active = SelectionTool.INSTANCE.hasSelection() && st.socketOriginLocal != null;
+        componentSocketAddButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        componentSocketClearButton.setPosition(x + half + 4, y);
+        componentSocketClearButton.setWidth(w - half - 4);
+        componentSocketClearButton.visible = true;
+        componentSocketClearButton.active = st.socketCount > 0;
+        componentSocketClearButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
         componentSaveButton.setPosition(x, y);
         componentSaveButton.setWidth(w);
         componentSaveButton.visible = true;
@@ -977,6 +1047,11 @@ public class ToolPanel extends BasePanel {
             if (componentSemanticTagOnSaveButton != null && componentSemanticTagOnSaveButton.visible && componentSemanticTagOnSaveButton.mouseClicked(click, false)) return true;
             if (componentSemanticStyleButton != null && componentSemanticStyleButton.visible && componentSemanticStyleButton.mouseClicked(click, false)) return true;
             if (componentSemanticPartButton != null && componentSemanticPartButton.visible && componentSemanticPartButton.mouseClicked(click, false)) return true;
+            if (componentSocketTypeButton != null && componentSocketTypeButton.visible && componentSocketTypeButton.mouseClicked(click, false)) return true;
+            if (componentSocketPickOriginButton != null && componentSocketPickOriginButton.visible && componentSocketPickOriginButton.mouseClicked(click, false)) return true;
+            if (componentSocketFacingButton != null && componentSocketFacingButton.visible && componentSocketFacingButton.mouseClicked(click, false)) return true;
+            if (componentSocketAddButton != null && componentSocketAddButton.visible && componentSocketAddButton.mouseClicked(click, false)) return true;
+            if (componentSocketClearButton != null && componentSocketClearButton.visible && componentSocketClearButton.mouseClicked(click, false)) return true;
             if (componentSaveButton != null && componentSaveButton.visible && componentSaveButton.mouseClicked(click, false)) return true;
             if (componentPreviewButton != null && componentPreviewButton.visible && componentPreviewButton.mouseClicked(click, false)) return true;
             if (componentApplyButton != null && componentApplyButton.visible && componentApplyButton.mouseClicked(click, false)) return true;

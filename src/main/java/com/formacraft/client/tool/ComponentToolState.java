@@ -3,6 +3,7 @@ package com.formacraft.client.tool;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.semantic.SemanticPart;
+import com.formacraft.common.component.socket.SocketType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -47,5 +48,19 @@ public class ComponentToolState {
 
     /** UI 状态：正在选择 anchor */
     public boolean pickingAnchor = false;
+
+    // ===== Socket 编辑（v1）=====
+    /** 已添加 socket 数量（仅用于 UI 反馈/自动命名）。 */
+    public int socketCount = 0;
+    /** 当前 socket 类型（循环切换）。 */
+    public SocketType socketType = SocketType.DOOR;
+    /** 当前 socket 朝向（循环切换）。 */
+    public Direction socketFacing = Direction.SOUTH;
+    /** 当前 socket 尺寸（w/h/d）。 */
+    public int socketW = 2, socketH = 3, socketD = 1;
+    /** 当前 socket 原点（相对 anchor 的局部坐标），null 表示未设置。 */
+    public BlockPos socketOriginLocal = null;
+    /** UI 状态：正在点选 socket 原点 */
+    public boolean pickingSocket = false;
 }
 

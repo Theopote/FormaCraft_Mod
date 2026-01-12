@@ -12,6 +12,8 @@ import com.formacraft.common.component.semantic.BlockStatePropertyUtil;
 import com.formacraft.common.component.semantic.SemanticBlockStatePicker;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.socket.ComponentSocket;
+import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
@@ -52,6 +54,8 @@ public final class ComponentTool implements FormacraftTool {
     private volatile String awaitingComponentId = null;
     private volatile ComponentDefinition loadedComponent = null;
 
+    private final List<ComponentSocket> sockets = new ArrayList<>();
+
     private ComponentTool() {}
 
     public ComponentToolState getState() {
@@ -73,12 +77,13 @@ public final class ComponentTool implements FormacraftTool {
         // 避免预览残留（v1：预览随工具生命周期）
         ComponentPreviewState.clear();
         state.pickingAnchor = false;
+        state.pickingSocket = false;
     }
 
     @Override
     public boolean onMouseClick(double mx, double my, int button) {
         if (button != 0) return false;
-        if (!state.pickingAnchor) return true; // 吃掉点击，避免误破坏
+        if (!state.pickingAnchor && !state.pickingSocket) return true; // 吃掉点击，避免误破坏
 
         if (!SelectionTool.INSTANCE.hasSelection()) return true;
         BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
@@ -89,8 +94,19 @@ public final class ComponentTool implements FormacraftTool {
             if (!isInsideSelection(pos)) return true;
         }
 
-        state.anchorWorld = pos.toImmutable();
-        state.pickingAnchor = false;
+        if (state.pickingAnchor) {
+            state.anchorWorld = pos.toImmutable();
+            state.pickingAnchor = false;
+        } else if (state.pickingSocket) {
+            BlockPos anchor = state.anchorWorld;
+            if (anchor == null) {
+                HudToast.show("请先选择 Anchor（再点选 Socket 原点）", true);
+                return true;
+            }
+            state.socketOriginLocal = new BlockPos(pos.getX() - anchor.getX(), pos.getY() - anchor.getY(), pos.getZ() - anchor.getZ());
+            state.pickingSocket = false;
+            HudToast.show("已设置 Socket 原点（local=" + state.socketOriginLocal.getX() + "," + state.socketOriginLocal.getY() + "," + state.socketOriginLocal.getZ() + "）");
+        }
         // 若正在预览，更新 anchor
         if (ComponentPreviewState.isActive()) {
             preview(net.minecraft.client.MinecraftClient.getInstance(), true);
@@ -240,6 +256,68 @@ public final class ComponentTool implements FormacraftTool {
 
     public void startPickAnchor() {
         state.pickingAnchor = true;
+    }
+
+    public void startPickSocketOrigin() {
+        state.pickingSocket = true;
+    }
+
+    public void cycleSocketType() {
+        SocketType[] v = SocketType.values();
+        int idx = 0;
+        for (int i = 0; i < v.length; i++) {
+            if (v[i] == state.socketType) {
+                idx = i;
+                break;
+            }
+        }
+        state.socketType = v[(idx + 1) % v.length];
+        // 预设尺寸
+        switch (state.socketType) {
+            case DOOR -> { state.socketW = 2; state.socketH = 3; state.socketD = 1; }
+            case WINDOW -> { state.socketW = 2; state.socketH = 2; state.socketD = 1; }
+            case BALCONY -> { state.socketW = 3; state.socketH = 2; state.socketD = 1; }
+            case ROOF_ATTACHMENT -> { state.socketW = 3; state.socketH = 1; state.socketD = 1; }
+            case DECORATION -> { state.socketW = 1; state.socketH = 1; state.socketD = 1; }
+        }
+    }
+
+    public void cycleSocketFacing() {
+        state.socketFacing = switch (state.socketFacing) {
+            case NORTH -> Direction.EAST;
+            case EAST -> Direction.SOUTH;
+            case SOUTH -> Direction.WEST;
+            case WEST -> Direction.NORTH;
+            default -> Direction.SOUTH;
+        };
+    }
+
+    public void addSocket() {
+        if (state.socketOriginLocal == null) {
+            HudToast.show("请先点选 Socket 原点", true);
+            return;
+        }
+        state.socketCount++;
+        String id = "socket_" + state.socketCount;
+        ComponentSocket s = new ComponentSocket(
+                id,
+                state.socketType != null ? state.socketType : SocketType.DECORATION,
+                state.socketOriginLocal.getX(),
+                state.socketOriginLocal.getY(),
+                state.socketOriginLocal.getZ(),
+                (state.socketFacing != null ? state.socketFacing : Direction.SOUTH).name(),
+                Math.max(1, state.socketW),
+                Math.max(1, state.socketH),
+                Math.max(1, state.socketD)
+        );
+        sockets.add(s);
+        HudToast.show("已添加 Socket：" + id + " (" + s.type() + ") " + s.width() + "x" + s.height() + "x" + s.depth());
+    }
+
+    public void clearSockets() {
+        sockets.clear();
+        state.socketCount = 0;
+        HudToast.show("已清空 Sockets");
     }
 
     public void clearAnchor() {
@@ -555,6 +633,9 @@ public final class ComponentTool implements FormacraftTool {
 
         def.allowed_facing = java.util.Set.of("NORTH", "SOUTH", "EAST", "WEST");
         def.placement_rules = new ComponentDefinition.PlacementRules();
+        if (!sockets.isEmpty()) {
+            def.sockets = new ArrayList<>(sockets);
+        }
 
         def.blocks = new ArrayList<>();
         int minDy = Integer.MAX_VALUE;

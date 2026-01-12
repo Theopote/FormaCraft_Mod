@@ -107,11 +107,11 @@ public final class PlayerComponentExpander {
 
         // 5.1) 可选：先 carve（开洞/清洞）
         // - 默认：DOOR/WINDOW 会 carve，其他不 carve（可用 carve=false 关闭）
-        boolean carve = shouldCarve(reqMap);
+        boolean carve = shouldCarve(reqMap, def);
         if (carve) {
             SocketMask mask = resolveMask(reqMap, def);
             if (mask != null && mask.w > 0 && mask.h > 0 && mask.d > 0) {
-                BlockPos maskOrigin = resolveMaskOrigin(reqMap);
+                BlockPos maskOrigin = resolveMaskOrigin(reqMap, def);
                 for (int x = 0; x < mask.w; x++) {
                     for (int y = 0; y < mask.h; y++) {
                         for (int z = 0; z < mask.d; z++) {
@@ -171,9 +171,18 @@ public final class PlayerComponentExpander {
         return out;
     }
 
-    private static boolean shouldCarve(Map<String, Object> reqMap) {
+    private static boolean shouldCarve(Map<String, Object> reqMap, ComponentDefinition def) {
         Boolean explicit = getBoolNullable(reqMap, "carve", "carve_mask", "carveMask", "carve_socket", "carveSocket");
         if (explicit != null) return explicit;
+        // 如果显式给了 socket_id，默认 carve=true
+        String socketId = getString(reqMap, "socket_id", "socketId");
+        if (socketId != null && def != null && def.sockets != null) {
+            for (ComponentSocket s : def.sockets) {
+                if (s != null && socketId.equals(s.id())) {
+                    return true;
+                }
+            }
+        }
         // 默认只对 DOOR/WINDOW 进行开洞
         String cat = getString(reqMap, "category", "type", "socket_type", "socketType");
         if (cat == null) return false;
@@ -181,10 +190,19 @@ public final class PlayerComponentExpander {
         return u.contains("DOOR") || u.contains("WINDOW");
     }
 
-    private static BlockPos resolveMaskOrigin(Map<String, Object> reqMap) {
+    private static BlockPos resolveMaskOrigin(Map<String, Object> reqMap, ComponentDefinition def) {
         Object o = reqMap.get("mask_origin");
         if (!(o instanceof Map<?, ?>)) o = reqMap.get("socket_origin");
         if (!(o instanceof Map<?, ?> mm)) {
+            // 若提供 socket_id，则优先使用 def.sockets 中该 socket 的 origin
+            String socketId = getString(reqMap, "socket_id", "socketId");
+            if (socketId != null && def != null && def.sockets != null) {
+                for (ComponentSocket s : def.sockets) {
+                    if (s == null || s.id() == null) continue;
+                    if (!socketId.equals(s.id())) continue;
+                    return new BlockPos(s.x(), s.y(), s.z());
+                }
+            }
             return BlockPos.ORIGIN;
         }
         int x = getInt(mm, 0, "x");
