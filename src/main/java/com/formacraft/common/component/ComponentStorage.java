@@ -11,7 +11,7 @@ import java.util.ArrayList;
 
 /**
  * 构件库存储（world save 下 JSON）。
- *
+ * <p>
  * 目录结构：
  * <world>/formacraft/components/
  *   - catalog.json
@@ -54,7 +54,7 @@ public final class ComponentStorage {
      */
     public static ComponentCatalog loadCatalogWithSockets(Path worldDir) {
         ComponentCatalog cat = loadCatalog(worldDir);
-        if (cat == null || cat.components == null || cat.components.isEmpty()) return cat;
+        if (cat.components == null || cat.components.isEmpty()) return cat;
 
         for (ComponentCatalog.Entry e : cat.components) {
             if (e == null) continue;

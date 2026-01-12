@@ -5,7 +5,7 @@ import net.minecraft.util.math.Direction;
 
 /**
  * FacingUtil：把 (dx,dy,dz) 按 facing 映射到世界偏移。
- *
+ * <p>
  * 坐标约定（水平朝向）：
  * - +Y：向上
  * - +Z：forward（沿 facing）
