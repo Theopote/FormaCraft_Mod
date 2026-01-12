@@ -16,6 +16,9 @@ import com.formacraft.server.orchestrator.OrchestratorClient;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.component.ComponentCatalog;
+import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.parser.LlmPlanParser;
@@ -46,6 +49,7 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 
 /**
@@ -65,6 +69,11 @@ public class FormaCraftNetworking {
     public static final Identifier PATCH_UNDO = Identifier.of("formacraft", "patch_undo");
     public static final Identifier PATCH_REDO = Identifier.of("formacraft", "patch_redo");
     public static final Identifier PATCH_APPLY = Identifier.of("formacraft", "patch_apply");
+
+    // Component Library（v1）
+    public static final Identifier COMPONENT_SAVE = Identifier.of("formacraft", "component_save");
+    public static final Identifier COMPONENT_CATALOG_REQUEST = Identifier.of("formacraft", "component_catalog_request");
+    public static final Identifier COMPONENT_CATALOG = Identifier.of("formacraft", "component_catalog");
 
     // 后端客户端（延迟初始化，从配置读取）
     private static volatile OrchestratorClient orchestratorClient = null;
@@ -501,6 +510,42 @@ public class FormaCraftNetworking {
 
                     return new PatchApplyPayload(origin, ps, zs);
                 }
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** C2S：保存一个构件（payload 为 ComponentDefinition 的 JSON 字符串） */
+    public record ComponentSavePayload(String json) implements CustomPayload {
+        public static final CustomPayload.Id<ComponentSavePayload> ID = new CustomPayload.Id<>(COMPONENT_SAVE);
+        public static final PacketCodec<PacketByteBuf, ComponentSavePayload> CODEC = PacketCodec.of(
+                (payload, buf) -> buf.writeString(payload.json == null ? "" : payload.json),
+                buf -> new ComponentSavePayload(buf.readString())
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** C2S：请求服务端下发构件目录（catalog.json） */
+    public record ComponentCatalogRequestPayload() implements CustomPayload {
+        public static final CustomPayload.Id<ComponentCatalogRequestPayload> ID = new CustomPayload.Id<>(COMPONENT_CATALOG_REQUEST);
+        public static final PacketCodec<PacketByteBuf, ComponentCatalogRequestPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {},
+                buf -> new ComponentCatalogRequestPayload()
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** S2C：下发构件目录（ComponentCatalog 的 JSON 字符串） */
+    public record ComponentCatalogPayload(String json) implements CustomPayload {
+        public static final CustomPayload.Id<ComponentCatalogPayload> ID = new CustomPayload.Id<>(COMPONENT_CATALOG);
+        public static final PacketCodec<PacketByteBuf, ComponentCatalogPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> buf.writeString(payload.json == null ? "" : payload.json),
+                buf -> new ComponentCatalogPayload(buf.readString())
         );
 
         @Override
@@ -1361,6 +1406,54 @@ public class FormaCraftNetworking {
             com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, filtered);
         }));
 
+        // Component Library: 保存构件（客户端 -> 服务端）
+        ServerPlayNetworking.registerGlobalReceiver(ComponentSavePayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            net.minecraft.server.MinecraftServer server = context.server();
+            if (server == null) return;
+
+            String json = payload.json();
+            if (json == null || json.isBlank()) {
+                try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("保存构件失败：空数据")); } catch (Throwable ignored) {}
+                return;
+            }
+
+            ComponentDefinition def;
+            try {
+                def = JsonUtil.fromJson(json, ComponentDefinition.class);
+            } catch (Throwable t) {
+                try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("保存构件失败：JSON 解析失败")); } catch (Throwable ignored) {}
+                return;
+            }
+            if (def == null || def.id == null || def.id.isBlank()) {
+                try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("保存构件失败：缺少 id")); } catch (Throwable ignored) {}
+                return;
+            }
+
+            java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
+            ComponentStorage.saveComponent(worldDir, def);
+
+            // 回推最新 catalog 给该玩家（用于 Prompt 注入/工具 UI）
+            ComponentCatalog cat = ComponentStorage.loadCatalog(worldDir);
+            String catJson = JsonUtil.toJson(cat);
+            ServerPlayNetworking.send(player, new ComponentCatalogPayload(catJson));
+            try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已保存构件：" + def.name + "（" + def.id + "）")); } catch (Throwable ignored) {}
+        }));
+
+        // Component Library: 请求 catalog（客户端 -> 服务端）
+        ServerPlayNetworking.registerGlobalReceiver(ComponentCatalogRequestPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            net.minecraft.server.MinecraftServer server = context.server();
+            if (server == null) return;
+
+            java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
+            ComponentCatalog cat = ComponentStorage.loadCatalog(worldDir);
+            String catJson = JsonUtil.toJson(cat);
+            ServerPlayNetworking.send(player, new ComponentCatalogPayload(catJson));
+        }));
+
         // 预览位置微调（服务端执行）
         ServerPlayNetworking.registerGlobalReceiver(PreviewAdjustPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
@@ -1560,6 +1653,12 @@ public class FormaCraftNetworking {
             com.formacraft.client.preview.SkeletonPreviewState.clear();
             FormacraftMod.LOGGER.info("Preview outline cleared");
         }));
+
+        // Component Library: catalog 下发（服务端 -> 客户端）
+        ClientPlayNetworking.registerGlobalReceiver(ComponentCatalogPayload.ID, (payload, context) -> context.client().execute(() -> {
+            String json = payload.json();
+            com.formacraft.client.component.ClientComponentCatalogState.setFromJson(json);
+        }));
     }
 
     /** 注册所有 C2S PayloadType（客户端编码 & 服务端解码都需要）。 */
@@ -1573,6 +1672,8 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchApplyPayload.ID, PatchApplyPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PreviewAdjustPayload.ID, PreviewAdjustPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ComponentSavePayload.ID, ComponentSavePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ComponentCatalogRequestPayload.ID, ComponentCatalogRequestPayload.CODEC);
     }
 
     /** 注册所有 S2C PayloadType（客户端解码 & 服务端编码都需要）。 */
@@ -1587,6 +1688,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playS2C().register(PreviewSkeletonPayload.ID, PreviewSkeletonPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewOriginPayload.ID, PreviewOriginPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ComponentCatalogPayload.ID, ComponentCatalogPayload.CODEC);
     }
 
     /**
@@ -1654,6 +1756,28 @@ public class FormaCraftNetworking {
     public static void sendPreviewAdjust(int dx, int dy, int dz) {
         MinecraftClient mc = MinecraftClient.getInstance();
         PreviewAdjustPayload payload = new PreviewAdjustPayload(dx, dy, dz);
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
+            return;
+        }
+        ClientPlayNetworking.send(payload);
+    }
+
+    /** 客户端请求：拉取服务端构件目录（catalog） */
+    public static void sendComponentCatalogRequest() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        ComponentCatalogRequestPayload payload = new ComponentCatalogRequestPayload();
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
+            return;
+        }
+        ClientPlayNetworking.send(payload);
+    }
+
+    /** 客户端请求：保存一个构件（服务端落盘到 world save） */
+    public static void sendSaveComponent(String componentJson) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        ComponentSavePayload payload = new ComponentSavePayload(componentJson);
         if (mc != null && mc.getNetworkHandler() != null) {
             mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
             return;

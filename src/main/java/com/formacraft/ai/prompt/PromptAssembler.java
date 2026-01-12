@@ -231,6 +231,9 @@ ComponentParamsObject:
         // 6. 区域语义标注
         sb.append(semanticBlock(ctx));
 
+        // 6.25. Player Component Library（构件库 v1）
+        sb.append(componentLibraryBlock());
+
         // 6.5. 路径约束（PathTool - 地形自适应系统的灵魂）
         sb.append(pathBlock(ctx));
 
@@ -260,6 +263,33 @@ ComponentParamsObject:
         }
 
         sb.append("\n=== END CONSTRAINTS ===\n\n");
+        return sb.toString();
+    }
+
+    /**
+     * Player Component Library（Prefab/构件库 v1）。
+     *
+     * 注意：当前 JSON 输出 schema 不新增字段，避免破坏后端解析。
+     * 若要“请求使用构件”，请在 components[].features 中写入 feature 字符串：
+     * component_request:{"semantic":"main_entrance","category":"DOOR","tags":["Chinese"],"approx_size":{"w":4,"h":6,"d":1},"count":1}
+     */
+    private static String componentLibraryBlock() {
+        String summary;
+        try {
+            summary = com.formacraft.client.component.ClientComponentCatalogState.getSummary();
+        } catch (Throwable t) {
+            summary = "(no player components registered)";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("PLAYER COMPONENT LIBRARY (Prefab Library):\n");
+        sb.append(summary).append("\n");
+        sb.append("\nRules:\n");
+        sb.append("- You MAY request using player components by semantic requirements (category/tags/approx_size).\n");
+        sb.append("- Do NOT request exact component id unless necessary.\n");
+        sb.append("- If you want to use a player component, add a feature string to the relevant ComponentObject:\n");
+        sb.append("  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"count\":1}\n");
+        sb.append("\n");
         return sb.toString();
     }
 

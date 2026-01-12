@@ -7,10 +7,12 @@ import com.formacraft.client.tool.BrushTool;
 import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.tool.SemanticLabelTool;
 import com.formacraft.client.tool.SelectionTool;
+import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.interaction.AnchorState;
 import com.formacraft.client.ui.widget.HudTextInput;
+import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -58,6 +60,8 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget clearLabelsButton;
 
     private final HudTextInput labelNameInput = new HudTextInput();
+    private final HudTextInput componentNameInput = new HudTextInput();
+    private final HudTextInput componentTagsInput = new HudTextInput();
     // 标签“作用范围”滑动条（1~40）——参考 SettingsPanel 的 SliderWidget 实现
     private static final int LABEL_RANGE_MIN = 1;
     private static final int LABEL_RANGE_MAX = 40;
@@ -70,6 +74,25 @@ public class ToolPanel extends BasePanel {
     private int labelNameInputW = 0;
     private int labelNameInputH = 0;
     private boolean labelNameInputBoundsValid = false;
+
+    private int componentNameInputX = 0;
+    private int componentNameInputY = 0;
+    private int componentNameInputW = 0;
+    private int componentNameInputH = 0;
+    private boolean componentNameInputBoundsValid = false;
+
+    private int componentTagsInputX = 0;
+    private int componentTagsInputY = 0;
+    private int componentTagsInputW = 0;
+    private int componentTagsInputH = 0;
+    private boolean componentTagsInputBoundsValid = false;
+
+    // ComponentTool 选项按钮
+    private ButtonWidget componentCategoryButton;
+    private ButtonWidget componentPickAnchorButton;
+    private ButtonWidget componentClearAnchorButton;
+    private ButtonWidget componentFacingButton;
+    private ButtonWidget componentSaveButton;
 
     // 滚动（仅用于选项区域）
     private int scrollY = 0;
@@ -172,6 +195,38 @@ public class ToolPanel extends BasePanel {
         labelNameInput.setMaxLength(64);
         labelNameInput.setText("入口");
 
+        // ComponentTool inputs/buttons
+        componentNameInput.setMaxLength(64);
+        componentNameInput.setText("New Component");
+        componentTagsInput.setMaxLength(256);
+        componentTagsInput.setText("Chinese,Traditional,Wood");
+
+        componentCategoryButton = ButtonWidget.builder(Text.literal("分类：GENERIC"), b -> ComponentTool.INSTANCE.cycleCategory())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("循环切换构件分类")))
+                .build();
+        componentPickAnchorButton = ButtonWidget.builder(Text.literal("设置锚点（点方块）"), b -> ComponentTool.INSTANCE.startPickAnchor())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("下一次左键点击选区内方块作为构件 anchor")))
+                .build();
+        componentClearAnchorButton = ButtonWidget.builder(Text.literal("清除构件锚点"), b -> ComponentTool.INSTANCE.clearAnchor())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("清除构件 anchor（将回退为选区 min）")))
+                .build();
+        componentFacingButton = ButtonWidget.builder(Text.literal("正面：SOUTH"), b -> ComponentTool.INSTANCE.cycleFacing())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("循环切换构件正面朝向（N/E/S/W）")))
+                .build();
+        componentSaveButton = ButtonWidget.builder(Text.literal("保存为构件"), b -> {
+                    String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+                    if (json != null && !json.isBlank()) {
+                        FormaCraftNetworking.sendSaveComponent(json);
+                    }
+                })
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("将选区内容保存到构件库（服务端 world save）")))
+                .build();
+
         // Slider（用原版 SliderWidget 渲染/拖拽，手感与 SettingsPanel 一致）
         if (labelRangeSlider == null) {
             int initRange = SemanticLabelTool.INSTANCE.getPendingRange();
@@ -191,6 +246,8 @@ public class ToolPanel extends BasePanel {
 
         // 每帧重置 bounds（如果本帧没画到输入框，就不允许点击命中它）
         labelNameInputBoundsValid = false;
+        componentNameInputBoundsValid = false;
+        componentTagsInputBoundsValid = false;
 
         // 半透明底
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
@@ -314,6 +371,8 @@ public class ToolPanel extends BasePanel {
             optionsY = drawSymmetryToolOptions(ctx, x, optionsY, w);
         } else if (ToolManager.isActive(SemanticLabelTool.INSTANCE.getId())) {
             optionsY = drawSemanticLabelToolOptions(ctx, x, optionsY, w);
+        } else if (ToolManager.isActive(ComponentTool.INSTANCE.getId())) {
+            optionsY = drawComponentToolOptions(ctx, x, optionsY, w);
         }
 
         // 锚点状态（有工具时也显示在底部，作为通用选项）
@@ -538,6 +597,114 @@ public class ToolPanel extends BasePanel {
 
     }
 
+    // 绘制 ComponentTool 的选项
+    private int drawComponentToolOptions(DrawContext ctx, int x, int y, int w) {
+        // Selection 状态提示
+        String status;
+        if (SelectionTool.INSTANCE.isSelecting()) {
+            status = "选区中：请完成两点框选（起点/终点）";
+        } else if (SelectionTool.INSTANCE.hasSelection()) {
+            var min = SelectionTool.INSTANCE.getMin();
+            var max = SelectionTool.INSTANCE.getMax();
+            int dx = 0, dy = 0, dz = 0;
+            if (max != null && min != null) {
+                dx = (max.getX() - min.getX() + 1);
+                dy = (max.getY() - min.getY() + 1);
+                dz = (max.getZ() - min.getZ() + 1);
+            }
+            status = "Selection: " + dx + " x " + dy + " x " + dz + "（将保存非空气方块）";
+        } else {
+            status = "请先用“选区工具”框选一个门/窗/装饰等";
+        }
+        y = drawWrappedText(ctx, Text.literal(status), x, y, w, 0xFFAAAAAA);
+        y += 2;
+
+        // 分类按钮
+        componentCategoryButton.setMessage(Text.literal("分类：" + ComponentTool.INSTANCE.getState().category.name()));
+        componentCategoryButton.setPosition(x, y);
+        componentCategoryButton.setWidth(w);
+        componentCategoryButton.visible = true;
+        componentCategoryButton.active = true;
+        componentCategoryButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        // 名称输入
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal("名称："), x, y, 0xFFAAAAAA);
+        int nameInputY = y + LABEL_OFFSET - 2;
+        componentNameInput.render(ctx, x, nameInputY, w, 14);
+        componentNameInputX = x;
+        componentNameInputY = nameInputY;
+        componentNameInputW = w;
+        componentNameInputH = 14;
+        componentNameInputBoundsValid = true;
+        String nm = componentNameInput.getText();
+        if (nm != null && !nm.isBlank()) {
+            ComponentTool.INSTANCE.getState().name = nm.trim();
+        }
+        y += FIELD_SPACING;
+
+        // Tags 输入
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal("Tags（逗号分隔）："), x, y, 0xFFAAAAAA);
+        int tagsInputY = y + LABEL_OFFSET - 2;
+        componentTagsInput.render(ctx, x, tagsInputY, w, 14);
+        componentTagsInputX = x;
+        componentTagsInputY = tagsInputY;
+        componentTagsInputW = w;
+        componentTagsInputH = 14;
+        componentTagsInputBoundsValid = true;
+
+        String rawTags = componentTagsInput.getText();
+        java.util.Set<String> tags = new java.util.LinkedHashSet<>();
+        if (rawTags != null && !rawTags.isBlank()) {
+            for (String part : rawTags.split(",")) {
+                if (part == null) continue;
+                String t = part.trim();
+                if (!t.isEmpty()) tags.add(t);
+            }
+        }
+        ComponentTool.INSTANCE.getState().tags = tags;
+        y += FIELD_SPACING;
+
+        // Anchor + Facing 状态
+        var st = ComponentTool.INSTANCE.getState();
+        String anchorText = st.anchorWorld != null
+                ? ("构件锚点：" + st.anchorWorld.getX() + "," + st.anchorWorld.getY() + "," + st.anchorWorld.getZ())
+                : "构件锚点：未设置（默认=选区 min）";
+        y = drawWrappedText(ctx, Text.literal(anchorText + (st.pickingAnchor ? "（正在点选…）" : "")), x, y, w, 0xFFAAAAAA);
+        y += 2;
+
+        componentPickAnchorButton.setPosition(x, y);
+        componentPickAnchorButton.setWidth(w);
+        componentPickAnchorButton.visible = true;
+        componentPickAnchorButton.active = SelectionTool.INSTANCE.hasSelection();
+        componentPickAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        componentClearAnchorButton.setPosition(x, y);
+        componentClearAnchorButton.setWidth(w);
+        componentClearAnchorButton.visible = true;
+        componentClearAnchorButton.active = st.anchorWorld != null || st.pickingAnchor;
+        componentClearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        componentFacingButton.setMessage(Text.literal("正面：" + (st.facing != null ? st.facing.name() : "SOUTH")));
+        componentFacingButton.setPosition(x, y);
+        componentFacingButton.setWidth(w);
+        componentFacingButton.visible = true;
+        componentFacingButton.active = true;
+        componentFacingButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        componentSaveButton.setPosition(x, y);
+        componentSaveButton.setWidth(w);
+        componentSaveButton.visible = true;
+        componentSaveButton.active = ComponentTool.INSTANCE.canSave();
+        componentSaveButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        return y;
+    }
+
     /**
      * 绘制可换行的文字（当文字超出指定宽度时自动换行）
      * @param ctx 绘制上下文
@@ -624,6 +791,27 @@ public class ToolPanel extends BasePanel {
                 return true;
             }
             if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
+        } else if (ToolManager.isActive(ComponentTool.INSTANCE.getId())) {
+            if (componentCategoryButton != null && componentCategoryButton.visible && componentCategoryButton.mouseClicked(click, false)) return true;
+            if (componentPickAnchorButton != null && componentPickAnchorButton.visible && componentPickAnchorButton.mouseClicked(click, false)) return true;
+            if (componentClearAnchorButton != null && componentClearAnchorButton.visible && componentClearAnchorButton.mouseClicked(click, false)) return true;
+            if (componentFacingButton != null && componentFacingButton.visible && componentFacingButton.mouseClicked(click, false)) return true;
+            if (componentSaveButton != null && componentSaveButton.visible && componentSaveButton.mouseClicked(click, false)) return true;
+
+            if (componentNameInputBoundsValid) {
+                if (componentNameInput.mouseClicked(mouseX, mouseY, componentNameInputX, componentNameInputY, componentNameInputW, componentNameInputH)) {
+                    componentTagsInput.setFocused(false);
+                    labelNameInput.setFocused(false);
+                    return true;
+                }
+            }
+            if (componentTagsInputBoundsValid) {
+                if (componentTagsInput.mouseClicked(mouseX, mouseY, componentTagsInputX, componentTagsInputY, componentTagsInputW, componentTagsInputH)) {
+                    componentNameInput.setFocused(false);
+                    labelNameInput.setFocused(false);
+                    return true;
+                }
+            }
         }
 
         // 锚点按钮（无论是否有激活工具都显示，因为锚点可以在没有工具时设置）
@@ -651,6 +839,8 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.keyPressed(keyCode, modifiers)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
+        componentNameInput.keyPressed(keyCode, modifiers);
+        componentTagsInput.keyPressed(keyCode, modifiers);
     }
 
     @Override
@@ -659,11 +849,13 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.charTyped(chr)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
+        componentNameInput.charTyped(chr);
+        componentTagsInput.charTyped(chr);
     }
 
     @Override
     public boolean wantsKeyboardInput() {
-        return labelNameInput.isFocused();
+        return labelNameInput.isFocused() || componentNameInput.isFocused() || componentTagsInput.isFocused();
     }
 
     @Override

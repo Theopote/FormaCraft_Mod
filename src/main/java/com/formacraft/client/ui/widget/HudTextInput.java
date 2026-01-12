@@ -264,7 +264,8 @@ public class HudTextInput {
 
     public boolean charTyped(char chr) {
         if (!focused) return false;
-        if (chr < 32 || chr > 126) return false;
+        // 允许 Unicode（中文等），仅过滤控制字符
+        if (Character.isISOControl(chr)) return false;
 
         insert(String.valueOf(chr));
         return true;
