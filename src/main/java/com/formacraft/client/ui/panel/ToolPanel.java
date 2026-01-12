@@ -65,6 +65,7 @@ public class ToolPanel extends BasePanel {
     private final HudTextInput labelNameInput = new HudTextInput();
     private final HudTextInput componentNameInput = new HudTextInput();
     private final HudTextInput componentTagsInput = new HudTextInput();
+    private final HudTextInput componentSocketIdInput = new HudTextInput();
     // 标签“作用范围”滑动条（1~40）——参考 SettingsPanel 的 SliderWidget 实现
     private static final int LABEL_RANGE_MIN = 1;
     private static final int LABEL_RANGE_MAX = 40;
@@ -90,6 +91,12 @@ public class ToolPanel extends BasePanel {
     private int componentTagsInputH = 0;
     private boolean componentTagsInputBoundsValid = false;
 
+    private int componentSocketIdInputX = 0;
+    private int componentSocketIdInputY = 0;
+    private int componentSocketIdInputW = 0;
+    private int componentSocketIdInputH = 0;
+    private boolean componentSocketIdInputBoundsValid = false;
+
     // ComponentTool 选项按钮
     private ButtonWidget componentCategoryButton;
     private ButtonWidget componentSourceButton;
@@ -111,6 +118,7 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget componentSocketFacingButton;
     private ButtonWidget componentSocketAddButton;
     private ButtonWidget componentSocketClearButton;
+    private ButtonWidget componentSocketPreviewButton;
 
     // 滚动（仅用于选项区域）
     private int scrollY = 0;
@@ -218,6 +226,8 @@ public class ToolPanel extends BasePanel {
         componentNameInput.setText("New Component");
         componentTagsInput.setMaxLength(256);
         componentTagsInput.setText("Chinese,Traditional,Wood");
+        componentSocketIdInput.setMaxLength(64);
+        componentSocketIdInput.setText("main_door");
 
         componentCategoryButton = ButtonWidget.builder(Text.literal("分类：GENERIC"), b -> ComponentTool.INSTANCE.cycleCategory())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -287,6 +297,10 @@ public class ToolPanel extends BasePanel {
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("清空当前构件已添加的 sockets")))
                 .build();
+        componentSocketPreviewButton = ButtonWidget.builder(Text.literal("预览 Socket"), b -> ComponentTool.INSTANCE.toggleSocketPreview(client))
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("在世界中预览当前 Socket 的开洞体积与朝向")))
+                .build();
         componentSaveButton = ButtonWidget.builder(Text.literal("保存为构件"), b -> {
                     // v1：Anchor 必须显式选择
                     if (!SelectionTool.INSTANCE.hasSelection()) {
@@ -348,6 +362,7 @@ public class ToolPanel extends BasePanel {
         labelNameInputBoundsValid = false;
         componentNameInputBoundsValid = false;
         componentTagsInputBoundsValid = false;
+        componentSocketIdInputBoundsValid = false;
 
         // 半透明底
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
@@ -875,6 +890,21 @@ public class ToolPanel extends BasePanel {
         componentSocketTypeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
+        // socket id 输入
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal("SocketId："), x, y, 0xFFAAAAAA);
+        int sidY = y + LABEL_OFFSET - 2;
+        componentSocketIdInput.render(ctx, x, sidY, w, 14);
+        componentSocketIdInputX = x;
+        componentSocketIdInputY = sidY;
+        componentSocketIdInputW = w;
+        componentSocketIdInputH = 14;
+        componentSocketIdInputBoundsValid = true;
+        String sid = componentSocketIdInput.getText();
+        if (sid != null && !sid.isBlank()) {
+            ComponentTool.INSTANCE.getState().socketIdDraft = sid.trim();
+        }
+        y += FIELD_SPACING;
+
         componentSocketPickOriginButton.setPosition(x, y);
         componentSocketPickOriginButton.setWidth(half);
         componentSocketPickOriginButton.visible = true;
@@ -895,8 +925,15 @@ public class ToolPanel extends BasePanel {
         componentSocketAddButton.active = SelectionTool.INSTANCE.hasSelection() && st.socketOriginLocal != null;
         componentSocketAddButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
 
-        componentSocketClearButton.setPosition(x + half + 4, y);
-        componentSocketClearButton.setWidth(w - half - 4);
+        componentSocketPreviewButton.setPosition(x + half + 4, y);
+        componentSocketPreviewButton.setWidth(w - half - 4);
+        componentSocketPreviewButton.visible = true;
+        componentSocketPreviewButton.active = st.anchorWorld != null && st.socketOriginLocal != null;
+        componentSocketPreviewButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        componentSocketClearButton.setPosition(x, y);
+        componentSocketClearButton.setWidth(w);
         componentSocketClearButton.visible = true;
         componentSocketClearButton.active = st.socketCount > 0;
         componentSocketClearButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
@@ -1052,6 +1089,7 @@ public class ToolPanel extends BasePanel {
             if (componentSocketFacingButton != null && componentSocketFacingButton.visible && componentSocketFacingButton.mouseClicked(click, false)) return true;
             if (componentSocketAddButton != null && componentSocketAddButton.visible && componentSocketAddButton.mouseClicked(click, false)) return true;
             if (componentSocketClearButton != null && componentSocketClearButton.visible && componentSocketClearButton.mouseClicked(click, false)) return true;
+            if (componentSocketPreviewButton != null && componentSocketPreviewButton.visible && componentSocketPreviewButton.mouseClicked(click, false)) return true;
             if (componentSaveButton != null && componentSaveButton.visible && componentSaveButton.mouseClicked(click, false)) return true;
             if (componentPreviewButton != null && componentPreviewButton.visible && componentPreviewButton.mouseClicked(click, false)) return true;
             if (componentApplyButton != null && componentApplyButton.visible && componentApplyButton.mouseClicked(click, false)) return true;
@@ -1066,6 +1104,14 @@ public class ToolPanel extends BasePanel {
             if (componentTagsInputBoundsValid) {
                 if (componentTagsInput.mouseClicked(mouseX, mouseY, componentTagsInputX, componentTagsInputY, componentTagsInputW, componentTagsInputH)) {
                     componentNameInput.setFocused(false);
+                    labelNameInput.setFocused(false);
+                    return true;
+                }
+            }
+            if (componentSocketIdInputBoundsValid) {
+                if (componentSocketIdInput.mouseClicked(mouseX, mouseY, componentSocketIdInputX, componentSocketIdInputY, componentSocketIdInputW, componentSocketIdInputH)) {
+                    componentNameInput.setFocused(false);
+                    componentTagsInput.setFocused(false);
                     labelNameInput.setFocused(false);
                     return true;
                 }

@@ -21,6 +21,7 @@ import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.client.preview.ComponentSocketPreviewState;
 import net.minecraft.block.BlockState;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
@@ -76,6 +77,7 @@ public final class ComponentTool implements FormacraftTool {
     public void onDeactivate() {
         // 避免预览残留（v1：预览随工具生命周期）
         ComponentPreviewState.clear();
+        ComponentSocketPreviewState.clear();
         state.pickingAnchor = false;
         state.pickingSocket = false;
     }
@@ -106,6 +108,9 @@ public final class ComponentTool implements FormacraftTool {
             state.socketOriginLocal = new BlockPos(pos.getX() - anchor.getX(), pos.getY() - anchor.getY(), pos.getZ() - anchor.getZ());
             state.pickingSocket = false;
             HudToast.show("已设置 Socket 原点（local=" + state.socketOriginLocal.getX() + "," + state.socketOriginLocal.getY() + "," + state.socketOriginLocal.getZ() + "）");
+            if (ComponentSocketPreviewState.isActive()) {
+                showSocketPreview(true);
+            }
         }
         // 若正在预览，更新 anchor
         if (ComponentPreviewState.isActive()) {
@@ -298,7 +303,15 @@ public final class ComponentTool implements FormacraftTool {
             return;
         }
         state.socketCount++;
-        String id = "socket_" + state.socketCount;
+        String want = (state.socketIdDraft == null) ? "" : state.socketIdDraft.trim();
+        if (want.isEmpty()) {
+            want = "socket_" + state.socketCount;
+        } else {
+            // normalize
+            want = want.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]+", "_");
+            if (want.isEmpty()) want = "socket_" + state.socketCount;
+        }
+        String id = uniqueSocketId(want);
         ComponentSocket s = new ComponentSocket(
                 id,
                 state.socketType != null ? state.socketType : SocketType.DECORATION,
@@ -312,6 +325,69 @@ public final class ComponentTool implements FormacraftTool {
         );
         sockets.add(s);
         HudToast.show("已添加 Socket：" + id + " (" + s.type() + ") " + s.width() + "x" + s.height() + "x" + s.depth());
+    }
+
+    public void toggleSocketPreview(net.minecraft.client.MinecraftClient client) {
+        if (ComponentSocketPreviewState.isActive()) {
+            ComponentSocketPreviewState.clear();
+            HudToast.show("已关闭 Socket 预览");
+            return;
+        }
+        if (client == null || client.world == null) {
+            HudToast.show("Socket 预览失败：世界未就绪", true);
+            return;
+        }
+        if (state.anchorWorld == null) {
+            HudToast.show("Socket 预览失败：请先选择 Anchor", true);
+            return;
+        }
+        if (!SelectionTool.INSTANCE.hasSelection()) {
+            HudToast.show("Socket 预览失败：请先完成选区", true);
+            return;
+        }
+        if (state.socketOriginLocal == null) {
+            HudToast.show("Socket 预览失败：请先点选 Socket 原点", true);
+            return;
+        }
+        showSocketPreview(false);
+    }
+
+    private void showSocketPreview(boolean silent) {
+        Direction fromFacing = Direction.SOUTH; // capture local forward
+        ComponentSocketPreviewState.show(
+                state.anchorWorld,
+                state.socketOriginLocal,
+                Math.max(1, state.socketW),
+                Math.max(1, state.socketH),
+                Math.max(1, state.socketD),
+                state.socketFacing != null ? state.socketFacing : Direction.SOUTH,
+                fromFacing,
+                currentTransform()
+        );
+        if (!silent) {
+            HudToast.show("已开启 Socket 预览（" + (state.socketType != null ? state.socketType.name() : "SOCKET") + "）");
+        }
+    }
+
+    private String uniqueSocketId(String base) {
+        if (base == null || base.isBlank()) base = "socket";
+        String id = base;
+        int n = 2;
+        while (hasSocketId(id)) {
+            id = base + "_" + n;
+            n++;
+            if (n > 999) break;
+        }
+        return id;
+    }
+
+    private boolean hasSocketId(String id) {
+        if (id == null || id.isBlank()) return false;
+        for (ComponentSocket s : sockets) {
+            if (s == null || s.id() == null) continue;
+            if (id.equals(s.id())) return true;
+        }
+        return false;
     }
 
     public void clearSockets() {

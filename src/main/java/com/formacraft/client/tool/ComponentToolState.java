@@ -60,6 +60,8 @@ public class ComponentToolState {
     public int socketW = 2, socketH = 3, socketD = 1;
     /** 当前 socket 原点（相对 anchor 的局部坐标），null 表示未设置。 */
     public BlockPos socketOriginLocal = null;
+    /** 当前 socket id（用于保存到 ComponentDefinition.sockets）。 */
+    public String socketIdDraft = "main_door";
     /** UI 状态：正在点选 socket 原点 */
     public boolean pickingSocket = false;
 }

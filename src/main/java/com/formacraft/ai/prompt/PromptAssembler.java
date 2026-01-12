@@ -293,6 +293,8 @@ ComponentParamsObject:
                 "- For DOOR/WINDOW mounts, prefer carving a socket mask (carve=true). Default masks: DOOR=2x3x1, WINDOW=2x2x1. You may override via mask={w,h,d} and mask_origin={x,y,z}.\n" +
                 "- If you want to use a player component, add a feature string to the relevant ComponentObject:\n" +
                 "  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"facing\":\"NORTH|EAST|SOUTH|WEST\",\"mirror\":\"NONE|X|Z\",\"semantic_style_id\":\"DEFAULT|...\",\"semantic_skin\":true,\"carve\":true,\"mask\":{\"w\":2,\"h\":3,\"d\":1},\"mask_origin\":{\"x\":0,\"y\":0,\"z\":0}}\n" +
+                "- To mount a component into a host socket, use ONE component_request with mount fields (do not emit a separate host component):\n" +
+                "  component_request:{\"host_id\":\"...\",\"socket_id\":\"socket_1\",\"mount_id\":\"...\",\"facing\":\"SOUTH\",\"mirror\":\"NONE\",\"semantic_skin\":true}\n" +
                 "\n";
     }
 

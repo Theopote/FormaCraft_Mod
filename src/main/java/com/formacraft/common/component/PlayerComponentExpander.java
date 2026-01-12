@@ -59,19 +59,16 @@ public final class PlayerComponentExpander {
         }
         if (reqMap == null) return List.of();
 
-        // 1) 确定要加载的构件
-        String explicitId = getString(reqMap, "id", "component_id", "componentId");
-        ComponentDefinition def;
         Path worldDir = world.getServer().getSavePath(WorldSavePath.ROOT);
-        if (explicitId != null) {
-            def = ComponentStorage.loadComponent(worldDir, explicitId);
-        } else {
-            ComponentRequest req = parseRequest(reqMap);
-            def = ComponentLibrary.findBest(worldDir, req);
+
+        // mount 模式：一次性生成 host + carve + mount
+        if (isMountRequest(reqMap)) {
+            return expandMount(semantic, world, worldDir, reqMap);
         }
-        if (def == null || def.blocks == null || def.blocks.isEmpty()) {
-            return List.of();
-        }
+
+        // 1) 确定要加载的构件（单构件）
+        ComponentDefinition def = resolveComponent(worldDir, reqMap, null);
+        if (def == null || def.blocks == null || def.blocks.isEmpty()) return List.of();
 
         // 2) 解析变换参数（facing/mirror）
         Direction fromFacing = parseDir(def.anchor != null ? def.anchor.facing : null);
@@ -169,6 +166,225 @@ public final class PlayerComponentExpander {
             out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
         }
         return out;
+    }
+
+    private static List<BlockPatch> expandMount(SemanticComponent semantic, ServerWorld world, Path worldDir, Map<String, Object> reqMap) {
+        // host / mount request maps
+        Object host0 = reqMap.get("host");
+        Object mount0 = reqMap.get("mount");
+        if (!(host0 instanceof Map<?, ?>) || !(mount0 instanceof Map<?, ?>)) {
+            // 兼容扁平字段：host_xxx / mount_xxx
+            host0 = reqMap;
+            mount0 = reqMap;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> hostMap = (Map<String, Object>) host0;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> mountMap = (Map<String, Object>) mount0;
+
+        ComponentDefinition host = resolveComponent(worldDir, hostMap, "host_");
+        ComponentDefinition mount = resolveComponent(worldDir, mountMap, "mount_");
+        if (host == null || host.blocks == null || host.blocks.isEmpty()) return List.of();
+        if (mount == null || mount.blocks == null || mount.blocks.isEmpty()) return List.of();
+
+        // host transform（facing/mirror）
+        Direction hostFromFacing = parseDir(host.anchor != null ? host.anchor.facing : null);
+        if (hostFromFacing == null || !hostFromFacing.getAxis().isHorizontal()) hostFromFacing = Direction.SOUTH;
+
+        Direction hostTargetFacing = parseDir(getString(reqMap, "facing", "target_facing", "host_facing", "host_target_facing"));
+        if (hostTargetFacing == null || !hostTargetFacing.getAxis().isHorizontal()) {
+            hostTargetFacing = facingFromSlot(semantic);
+        }
+        if (hostTargetFacing == null || !hostTargetFacing.getAxis().isHorizontal()) hostTargetFacing = Direction.SOUTH;
+
+        Mirror hostMirror = parseMirror(getString(reqMap, "mirror", "mirror_mode", "mirrorMode", "host_mirror", "hostMirror"));
+        ComponentTransform hostTransform = new ComponentTransform(hostTargetFacing, hostMirror);
+
+        // base offset（相对 slot anchor）
+        int baseX = 0, baseY = 0, baseZ = 0;
+        if (semantic != null && semantic.source() != null && semantic.source().relativePosition() != null) {
+            baseX = semantic.source().relativePosition().x();
+            baseY = semantic.source().relativePosition().y();
+            baseZ = semantic.source().relativePosition().z();
+        }
+
+        // style / semantic skin（可分别覆盖 host/mount）
+        boolean semanticSkin = getBool(reqMap, "semantic_skin", "semanticSkin");
+        String semanticStyleId = getString(reqMap, "semantic_style_id", "semanticStyleId", "style_id", "styleId");
+        if (semanticStyleId == null) semanticStyleId = resolveSemanticStyleId(semantic != null ? semantic.styleProfile() : null);
+
+        Boolean hostSkin0 = getBoolNullable(reqMap, "host_semantic_skin", "hostSemanticSkin");
+        Boolean mountSkin0 = getBoolNullable(reqMap, "mount_semantic_skin", "mountSemanticSkin");
+        boolean hostSkin = hostSkin0 != null ? hostSkin0 : semanticSkin;
+        boolean mountSkin = mountSkin0 != null ? mountSkin0 : semanticSkin;
+
+        String hostStyleId = getString(reqMap, "host_semantic_style_id", "hostSemanticStyleId");
+        String mountStyleId = getString(reqMap, "mount_semantic_style_id", "mountSemanticStyleId");
+        if (hostStyleId == null) hostStyleId = semanticStyleId;
+        if (mountStyleId == null) mountStyleId = semanticStyleId;
+
+        // socket
+        String socketId = getString(reqMap, "socket_id", "socketId");
+        ComponentSocket socket = findSocket(host, socketId);
+        if (socket == null) {
+            FormacraftMod.LOGGER.warn("PlayerComponentExpander: mount requested but socket_id not found: {}", socketId);
+            return List.of();
+        }
+
+        // socket world offset and facing (in host placement space)
+        BlockPos socketLocal = new BlockPos(socket.x(), socket.y(), socket.z());
+        BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, hostFromFacing, hostTransform);
+
+        Direction socketLocalFacing = parseDir(socket.facing());
+        if (socketLocalFacing == null || !socketLocalFacing.getAxis().isHorizontal()) socketLocalFacing = Direction.SOUTH;
+        Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, hostFromFacing, hostTransform);
+        if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = hostTargetFacing;
+
+        // mount transform：对齐到 socketWorldFacing
+        Direction mountFromFacing = parseDir(mount.anchor != null ? mount.anchor.facing : null);
+        if (mountFromFacing == null || !mountFromFacing.getAxis().isHorizontal()) mountFromFacing = Direction.SOUTH;
+        Direction mountTargetFacing = parseDir(getString(reqMap, "mount_facing", "mountFacing"));
+        if (mountTargetFacing == null || !mountTargetFacing.getAxis().isHorizontal()) mountTargetFacing = socketWorldFacing;
+        Mirror mountMirror = parseMirror(getString(reqMap, "mount_mirror", "mountMirror"));
+        ComponentTransform mountTransform = new ComponentTransform(mountTargetFacing, mountMirror);
+
+        // carve mask defaults from socket
+        boolean carve = shouldCarve(reqMap, host);
+        SocketMask mask = carve ? new SocketMask(socket.width(), socket.height(), socket.depth()) : null;
+        BlockPos maskOrigin = socketLocal;
+
+        List<BlockPatch> out = new ArrayList<>(host.blocks.size() + mount.blocks.size() + 64);
+
+        // 1) place host
+        addComponentPatches(out, host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
+
+        // 2) carve
+        if (carve && mask != null && mask.w > 0 && mask.h > 0 && mask.d > 0) {
+            for (int x = 0; x < mask.w; x++) {
+                for (int y = 0; y < mask.h; y++) {
+                    for (int z = 0; z < mask.d; z++) {
+                        BlockPos local = new BlockPos(maskOrigin.getX() + x, maskOrigin.getY() + y, maskOrigin.getZ() + z);
+                        BlockPos off = ComponentTransformUtil.transformOffset(local, hostFromFacing, hostTransform);
+                        out.add(new BlockPatch(BlockPatch.REMOVE,
+                                baseX + off.getX(),
+                                baseY + off.getY(),
+                                baseZ + off.getZ(),
+                                "minecraft:air"));
+                    }
+                }
+            }
+        }
+
+        // 3) place mount at socket anchor
+        int mountBaseX = baseX + socketOff.getX();
+        int mountBaseY = baseY + socketOff.getY();
+        int mountBaseZ = baseZ + socketOff.getZ();
+        addComponentPatches(out, mount, mountFromFacing, mountTransform, mountBaseX, mountBaseY, mountBaseZ, mountSkin, mountStyleId, world.getSeed());
+
+        return out;
+    }
+
+    private static void addComponentPatches(List<BlockPatch> out,
+                                           ComponentDefinition def,
+                                           Direction fromFacing,
+                                           ComponentTransform transform,
+                                           int baseX, int baseY, int baseZ,
+                                           boolean semanticSkin,
+                                           String semanticStyleId,
+                                           long seedBase) {
+        if (def == null || def.blocks == null || def.blocks.isEmpty()) return;
+        int minDy = Integer.MAX_VALUE;
+        for (ComponentDefinition.BlockEntry be : def.blocks) {
+            if (be == null) continue;
+            minDy = Math.min(minDy, be.dy);
+        }
+        if (minDy == Integer.MAX_VALUE) minDy = 0;
+
+        for (ComponentDefinition.BlockEntry be : def.blocks) {
+            if (be == null) continue;
+            BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
+            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, transform);
+
+            int dx = baseX + off.getX();
+            int dy = baseY + off.getY();
+            int dz = baseZ + off.getZ();
+
+            String block;
+            if (semanticSkin) {
+                com.formacraft.common.semantic.SemanticPart part = be.semantic != null
+                        ? be.semantic
+                        : guessSemanticPartFromString(be.block, be.dy, minDy);
+                long seed = mixSeed(seedBase, dx, dy, dz, part.ordinal());
+                BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, part, seed);
+
+                Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
+                if (capturedFacing != null) {
+                    Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, transform);
+                    picked = BlockStatePropertyUtil.applyFacing(picked, tf);
+                }
+                block = BlockStateStringUtil.fromState(picked);
+            } else {
+                if (be.block == null || be.block.isBlank()) continue;
+                block = BlockStateStringUtil.withTransformedFacing(be.block, fromFacing, transform);
+            }
+            out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
+        }
+    }
+
+    private static ComponentSocket findSocket(ComponentDefinition def, String socketId) {
+        if (def == null || def.sockets == null || def.sockets.isEmpty()) return null;
+        if (socketId == null || socketId.isBlank()) return null;
+        for (ComponentSocket s : def.sockets) {
+            if (s == null || s.id() == null) continue;
+            if (socketId.equals(s.id())) return s;
+        }
+        return null;
+    }
+
+    private static boolean isMountRequest(Map<String, Object> reqMap) {
+        if (reqMap == null) return false;
+        if (reqMap.get("mount") != null || reqMap.get("host") != null) return true;
+        // 扁平字段
+        return reqMap.get("host_id") != null
+                || reqMap.get("mount_id") != null
+                || reqMap.get("socket_id") != null;
+    }
+
+    private static ComponentDefinition resolveComponent(Path worldDir, Map<String, Object> reqMap, String prefix) {
+        if (worldDir == null || reqMap == null) return null;
+        String px = prefix == null ? "" : prefix;
+        String explicitId = getString(reqMap, px + "id", px + "component_id", px + "componentId");
+        if (explicitId != null) {
+            return ComponentStorage.loadComponent(worldDir, explicitId);
+        }
+        ComponentRequest req = parseRequestWithPrefix(reqMap, px);
+        return ComponentLibrary.findBest(worldDir, req);
+    }
+
+    private static ComponentRequest parseRequestWithPrefix(Map<String, Object> reqMap, String prefix) {
+        if (prefix == null) prefix = "";
+        ComponentRequest req = new ComponentRequest();
+        String cat = getString(reqMap, prefix + "category", prefix + "type");
+        if (cat != null) {
+            try {
+                req.category = ComponentCategory.valueOf(cat.trim().toUpperCase(Locale.ROOT));
+            } catch (Throwable ignored) {
+                req.category = null;
+            }
+        }
+        Set<String> tags = parseTags(reqMap.get(prefix + "tags"));
+        req.tags = tags.isEmpty() ? null : tags;
+        Object approx = reqMap.get(prefix + "approx_size");
+        if (approx instanceof Map<?, ?> am) {
+            req.approxW = getInt(am, -1, "w", "width");
+            req.approxH = getInt(am, -1, "h", "height");
+            req.approxD = getInt(am, -1, "d", "depth");
+        } else {
+            req.approxW = getInt(reqMap, -1, prefix + "approxW", prefix + "approx_w");
+            req.approxH = getInt(reqMap, -1, prefix + "approxH", prefix + "approx_h");
+            req.approxD = getInt(reqMap, -1, prefix + "approxD", prefix + "approx_d");
+        }
+        return req;
     }
 
     private static boolean shouldCarve(Map<String, Object> reqMap, ComponentDefinition def) {
@@ -290,33 +506,7 @@ public final class PlayerComponentExpander {
         return null;
     }
 
-    private static ComponentRequest parseRequest(Map<String, Object> reqMap) {
-        ComponentRequest req = new ComponentRequest();
-
-        String cat = getString(reqMap, "category", "type");
-        if (cat != null) {
-            try {
-                req.category = ComponentCategory.valueOf(cat.trim().toUpperCase(Locale.ROOT));
-            } catch (Throwable ignored) {
-                req.category = null;
-            }
-        }
-
-        Set<String> tags = parseTags(reqMap.get("tags"));
-        req.tags = tags.isEmpty() ? null : tags;
-
-        Object approx = reqMap.get("approx_size");
-        if (approx instanceof Map<?, ?> am) {
-            req.approxW = getInt(am, -1, "w", "width");
-            req.approxH = getInt(am, -1, "h", "height");
-            req.approxD = getInt(am, -1, "d", "depth");
-        } else {
-            req.approxW = getInt(reqMap, -1, "approxW", "approx_w");
-            req.approxH = getInt(reqMap, -1, "approxH", "approx_h");
-            req.approxD = getInt(reqMap, -1, "approxD", "approx_d");
-        }
-        return req;
-    }
+    // reserved: keep parseRequestWithPrefix as the only entry
 
     private static Set<String> parseTags(Object v) {
         Set<String> out = new LinkedHashSet<>();
