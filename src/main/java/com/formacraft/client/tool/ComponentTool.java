@@ -17,7 +17,10 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
+import com.formacraft.common.component.ComponentCatalog;
+import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.block.BlockState;
+import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
@@ -44,6 +47,10 @@ public final class ComponentTool implements FormacraftTool {
     private final ComponentToolState state = new ComponentToolState();
     private volatile boolean awaitingSaveAck = false;
     private volatile String awaitingSaveName = null;
+
+    private volatile boolean awaitingComponentLoad = false;
+    private volatile String awaitingComponentId = null;
+    private volatile ComponentDefinition loadedComponent = null;
 
     private ComponentTool() {}
 
@@ -78,7 +85,9 @@ public final class ComponentTool implements FormacraftTool {
         if (hit == null) return true;
 
         BlockPos pos = hit.getBlockPos();
-        if (!isInsideSelection(pos)) return true;
+        if (!state.useLibrary) {
+            if (!isInsideSelection(pos)) return true;
+        }
 
         state.anchorWorld = pos.toImmutable();
         state.pickingAnchor = false;
@@ -130,6 +139,11 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public void cycleSemanticPart() {
+        // 允许一个“AUTO”档位：semanticPart == null
+        if (state.semanticPart == null) {
+            state.semanticPart = SemanticPart.values()[0];
+            return;
+        }
         SemanticPart[] v = SemanticPart.values();
         int idx = 0;
         for (int i = 0; i < v.length; i++) {
@@ -138,7 +152,11 @@ public final class ComponentTool implements FormacraftTool {
                 break;
             }
         }
-        state.semanticPart = v[(idx + 1) % v.length];
+        if (idx == v.length - 1) {
+            state.semanticPart = null; // AUTO
+        } else {
+            state.semanticPart = v[idx + 1];
+        }
     }
 
     public void cycleSemanticStyle() {
@@ -153,6 +171,73 @@ public final class ComponentTool implements FormacraftTool {
         state.semanticStyleId = ids.get((idx + 1) % ids.size());
     }
 
+    public void toggleSource() {
+        state.useLibrary = !state.useLibrary;
+        // 切换来源时关闭预览，避免状态错乱
+        ComponentPreviewState.clear();
+    }
+
+    public void cycleLibraryComponent() {
+        ComponentCatalog cat = com.formacraft.client.component.ClientComponentCatalogState.getCatalog();
+        if (cat == null || cat.components == null || cat.components.isEmpty()) {
+            HudToast.show("构件库为空：请先保存构件或等待 catalog 同步", true);
+            state.librarySelectedId = null;
+            state.librarySelectedName = null;
+            return;
+        }
+        int n = cat.components.size();
+        int idx = 0;
+        if (state.librarySelectedId != null) {
+            for (int i = 0; i < n; i++) {
+                var e = cat.components.get(i);
+                if (e != null && state.librarySelectedId.equals(e.id)) {
+                    idx = i;
+                    break;
+                }
+            }
+            idx = (idx + 1) % n;
+        }
+        var e = cat.components.get(idx);
+        if (e == null) return;
+        state.librarySelectedId = e.id;
+        state.librarySelectedName = (e.name != null && !e.name.isBlank()) ? e.name : e.id;
+    }
+
+    public void requestLoadSelectedComponent() {
+        if (state.librarySelectedId == null || state.librarySelectedId.isBlank()) {
+            HudToast.show("请先选择一个构件（构件库）", true);
+            return;
+        }
+        awaitingComponentLoad = true;
+        awaitingComponentId = state.librarySelectedId;
+        loadedComponent = null;
+        HudToast.show("正在加载构件：「" + (state.librarySelectedName != null ? state.librarySelectedName : state.librarySelectedId) + "」…");
+        FormaCraftNetworking.sendComponentGetRequest(state.librarySelectedId);
+    }
+
+    public void onComponentDefinitionFromServer(String json) {
+        if (!awaitingComponentLoad) return;
+        awaitingComponentLoad = false;
+        String id = awaitingComponentId;
+        awaitingComponentId = null;
+
+        if (json == null || json.isBlank()) {
+            HudToast.show("加载构件失败：服务端未找到该 id（" + (id != null ? id : "?") + "）", true);
+            return;
+        }
+        try {
+            ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
+            if (def == null || def.blocks == null || def.blocks.isEmpty()) {
+                HudToast.show("加载构件失败：数据为空", true);
+                return;
+            }
+            loadedComponent = def;
+            HudToast.show("已加载构件：「" + (def.name != null ? def.name : def.id) + "」 blocks=" + def.blocks.size());
+        } catch (Throwable t) {
+            HudToast.show("加载构件失败：JSON 解析失败", true);
+        }
+    }
+
     public void startPickAnchor() {
         state.pickingAnchor = true;
     }
@@ -161,6 +246,12 @@ public final class ComponentTool implements FormacraftTool {
         state.anchorWorld = null;
         state.pickingAnchor = false;
         ComponentPreviewState.clear();
+    }
+
+    private boolean isAnchorValid() {
+        if (state.anchorWorld == null) return false;
+        if (state.useLibrary) return true;
+        return isInsideSelection(state.anchorWorld);
     }
 
     public boolean canSave() {
@@ -192,11 +283,7 @@ public final class ComponentTool implements FormacraftTool {
             HudToast.show("已关闭构件预览");
             return;
         }
-        if (!SelectionTool.INSTANCE.hasSelection()) {
-            HudToast.show("预览失败：请先完成选区", true);
-            return;
-        }
-        if (state.anchorWorld == null || !isInsideSelection(state.anchorWorld)) {
+        if (!isAnchorValid()) {
             HudToast.show("预览失败：请先选择 Anchor", true);
             return;
         }
@@ -205,16 +292,40 @@ public final class ComponentTool implements FormacraftTool {
             return;
         }
 
-        List<BlockPos> local = buildLocalBlocks(client);
-        if (local.isEmpty()) {
-            HudToast.show("预览失败：选区内没有非空气方块", true);
-            return;
+        if (!state.useLibrary) {
+            if (!SelectionTool.INSTANCE.hasSelection()) {
+                HudToast.show("预览失败：请先完成选区", true);
+                return;
+            }
+            List<BlockPos> local = buildLocalBlocks(client);
+            if (local.isEmpty()) {
+                HudToast.show("预览失败：选区内没有非空气方块", true);
+                return;
+            }
+            // v1：选区捕获的局部坐标以 SOUTH 为“前方”
+            ComponentPreviewState.show(local, state.anchorWorld, Direction.SOUTH, currentTransform());
+        } else {
+            ComponentDefinition def = loadedComponent;
+            if (def == null || def.blocks == null || def.blocks.isEmpty()) {
+                HudToast.show("预览失败：请先从构件库加载一个构件", true);
+                return;
+            }
+            List<BlockPos> local = new ArrayList<>(def.blocks.size());
+            for (ComponentDefinition.BlockEntry be : def.blocks) {
+                if (be == null) continue;
+                local.add(new BlockPos(be.dx, be.dy, be.dz));
+            }
+            Direction fromFacing = Direction.SOUTH;
+            try {
+                if (def.anchor != null && def.anchor.facing != null) {
+                    Direction d = parseDir(def.anchor.facing);
+                    if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
+                }
+            } catch (Throwable ignored) {}
+            ComponentPreviewState.show(local, state.anchorWorld, fromFacing, currentTransform());
         }
-
-        // v1：选区捕获的局部坐标以 SOUTH 为“前方”
-        ComponentPreviewState.show(local, state.anchorWorld, Direction.SOUTH, currentTransform());
         if (!force) {
-            HudToast.show("已开启构件预览（" + local.size() + " blocks）");
+            HudToast.show("已开启构件预览");
         }
     }
 
@@ -229,11 +340,7 @@ public final class ComponentTool implements FormacraftTool {
      * - 会尽力修正 blockstate 中的 facing=...
      */
     public void applyPatchPreview(net.minecraft.client.MinecraftClient client) {
-        if (!SelectionTool.INSTANCE.hasSelection()) {
-            HudToast.show("放置失败：请先完成选区", true);
-            return;
-        }
-        if (state.anchorWorld == null || !isInsideSelection(state.anchorWorld)) {
+        if (!isAnchorValid()) {
             HudToast.show("放置失败：请先选择 Anchor", true);
             return;
         }
@@ -242,27 +349,62 @@ public final class ComponentTool implements FormacraftTool {
             return;
         }
 
-        List<ComponentDefinition.BlockEntry> entries = buildLocalBlockEntries(client);
-        if (entries.isEmpty()) {
-            HudToast.show("放置失败：选区内没有非空气方块", true);
-            return;
+        List<ComponentDefinition.BlockEntry> entries;
+        Direction fromFacing = Direction.SOUTH;
+        if (!state.useLibrary) {
+            if (!SelectionTool.INSTANCE.hasSelection()) {
+                HudToast.show("放置失败：请先完成选区", true);
+                return;
+            }
+            entries = buildLocalBlockEntries(client);
+            if (entries.isEmpty()) {
+                HudToast.show("放置失败：选区内没有非空气方块", true);
+                return;
+            }
+        } else {
+            ComponentDefinition def = loadedComponent;
+            if (def == null || def.blocks == null || def.blocks.isEmpty()) {
+                HudToast.show("放置失败：请先从构件库加载一个构件", true);
+                return;
+            }
+            entries = def.blocks;
+            try {
+                if (def.anchor != null && def.anchor.facing != null) {
+                    Direction d = parseDir(def.anchor.facing);
+                    if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
+                }
+            } catch (Throwable ignored) {}
         }
 
-        // v1：捕获时默认 fromFacing=SOUTH（局部坐标系前方）
-        Direction fromFacing = Direction.SOUTH;
         ComponentTransform t = currentTransform();
 
         List<BlockPatch> patches = new ArrayList<>(entries.size());
+        int minDy = Integer.MAX_VALUE;
+        if (state.semanticSkin && state.semanticPart == null) {
+            for (ComponentDefinition.BlockEntry be : entries) {
+                if (be == null) continue;
+                minDy = Math.min(minDy, be.dy);
+            }
+            if (minDy == Integer.MAX_VALUE) minDy = 0;
+        }
         for (ComponentDefinition.BlockEntry be : entries) {
             if (be == null) continue;
             BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
             BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, t);
 
             String block;
-            if (state.semanticSkin && be.semantic != null) {
+            if (state.semanticSkin) {
+                SemanticPart part;
+                if (state.semanticPart != null) {
+                    part = state.semanticPart;
+                } else if (be.semantic != null) {
+                    part = be.semantic;
+                } else {
+                    part = guessSemanticPartFromString(be.block, be.dy, minDy);
+                }
                 // 语义换皮：shape(坐标/朝向) 来自构件，material 来自 SemanticStyleProfile
-                long seed = mixSeed(state.anchorWorld, off, be.semantic);
-                BlockState picked = SemanticBlockStatePicker.pick(state.semanticStyleId, be.semantic, seed);
+                long seed = mixSeed(state.anchorWorld, off, part);
+                BlockState picked = SemanticBlockStatePicker.pick(state.semanticStyleId, part, seed);
 
                 // 若原始 blockstate 带有 facing，则尽力把 facing 传递到“换皮后”的方块上
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
@@ -318,6 +460,19 @@ public final class ComponentTool implements FormacraftTool {
         BlockPos anchor = state.anchorWorld;
         if (anchor == null) return out;
 
+        int minDy = Integer.MAX_VALUE;
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int y = min.getY(); y <= max.getY(); y++) {
+                for (int z = min.getZ(); z <= max.getZ(); z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    BlockState bs = client.world.getBlockState(p);
+                    if (bs == null || bs.isAir()) continue;
+                    minDy = Math.min(minDy, y - anchor.getY());
+                }
+            }
+        }
+        if (minDy == Integer.MAX_VALUE) minDy = 0;
+
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int y = min.getY(); y <= max.getY(); y++) {
                 for (int z = min.getZ(); z <= max.getZ(); z++) {
@@ -331,7 +486,11 @@ public final class ComponentTool implements FormacraftTool {
                     be.dz = z - anchor.getZ();
                     be.block = serializeBlockState(bs);
                     if (state.semanticSkin) {
-                        be.semantic = state.semanticPart != null ? state.semanticPart : SemanticPart.WALL;
+                        if (state.semanticPart != null) {
+                            be.semantic = state.semanticPart;
+                        } else {
+                            be.semantic = guessSemanticPart(bs, be.dy, minDy);
+                        }
                     }
                     out.add(be);
                 }
@@ -389,6 +548,20 @@ public final class ComponentTool implements FormacraftTool {
         def.placement_rules = new ComponentDefinition.PlacementRules();
 
         def.blocks = new ArrayList<>();
+        int minDy = Integer.MAX_VALUE;
+        if (state.semanticSkin) {
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        BlockPos p = new BlockPos(x, y, z);
+                        BlockState bs = client.world.getBlockState(p);
+                        if (bs == null || bs.isAir()) continue;
+                        minDy = Math.min(minDy, y - anchor.getY());
+                    }
+                }
+            }
+            if (minDy == Integer.MAX_VALUE) minDy = 0;
+        }
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
@@ -402,7 +575,11 @@ public final class ComponentTool implements FormacraftTool {
                     be.dz = z - anchor.getZ();
                     be.block = serializeBlockState(bs);
                     if (state.semanticSkin) {
-                        be.semantic = state.semanticPart != null ? state.semanticPart : SemanticPart.WALL;
+                        if (state.semanticPart != null) {
+                            be.semantic = state.semanticPart;
+                        } else {
+                            be.semantic = guessSemanticPart(bs, be.dy, minDy);
+                        }
                     }
                     def.blocks.add(be);
                 }
@@ -410,6 +587,73 @@ public final class ComponentTool implements FormacraftTool {
         }
 
         return JsonUtil.toJson(def);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static SemanticPart guessSemanticPart(BlockState bs, int dy, int minDy) {
+        if (bs == null) return SemanticPart.WALL;
+
+        // 低层优先视为 FOUNDATION（用于“地基换皮”）
+        if (dy == minDy) {
+            return SemanticPart.FOUNDATION;
+        }
+
+        var b = bs.getBlock();
+        // 门/窗/栏杆/光源/楼梯
+        if (b instanceof net.minecraft.block.DoorBlock || b instanceof net.minecraft.block.TrapdoorBlock) {
+            return SemanticPart.DOORWAY;
+        }
+        String id = null;
+        try {
+            var bid = Registries.BLOCK.getId(b);
+            id = bid != null ? bid.toString() : null;
+        } catch (Throwable ignored) {
+        }
+        if ((id != null && id.contains("glass_pane")) || b == net.minecraft.block.Blocks.GLASS) {
+            return SemanticPart.WINDOW;
+        }
+        if (b instanceof net.minecraft.block.FenceBlock || b instanceof net.minecraft.block.FenceGateBlock || b == net.minecraft.block.Blocks.IRON_BARS) {
+            return SemanticPart.RAILING;
+        }
+        if (b instanceof net.minecraft.block.LanternBlock || b instanceof net.minecraft.block.TorchBlock) {
+            return SemanticPart.LIGHT;
+        }
+        if (b instanceof net.minecraft.block.StairsBlock) {
+            return SemanticPart.STAIR_STEP;
+        }
+        if (b instanceof net.minecraft.block.SlabBlock) {
+            return SemanticPart.FLOOR;
+        }
+
+        // 柱/梁：按 axis 属性猜（避免依赖具体方块类名/映射）
+        try {
+            for (Property<?> p : bs.getProperties()) {
+                if (p == null) continue;
+                if (!"axis".equalsIgnoreCase(p.getName())) continue;
+                Property raw = (Property) p;
+                Object v = bs.get(raw);
+                if (v instanceof net.minecraft.util.math.Direction.Axis axis) {
+                    return axis == net.minecraft.util.math.Direction.Axis.Y ? SemanticPart.PILLAR : SemanticPart.BEAM;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+
+        return SemanticPart.WALL;
+    }
+
+    private static SemanticPart guessSemanticPartFromString(String blockStateString, int dy, int minDy) {
+        if (dy == minDy) return SemanticPart.FOUNDATION;
+        if (blockStateString == null) return SemanticPart.WALL;
+        String s = blockStateString.toLowerCase(Locale.ROOT);
+        if (s.contains("door") || s.contains("trapdoor")) return SemanticPart.DOORWAY;
+        if (s.contains("glass_pane") || s.contains("stained_glass_pane") || s.contains(":glass")) return SemanticPart.WINDOW;
+        if (s.contains("fence") || s.contains("iron_bars") || s.contains("bars")) return SemanticPart.RAILING;
+        if (s.contains("lantern") || s.contains("torch")) return SemanticPart.LIGHT;
+        if (s.contains("stairs")) return SemanticPart.STAIR_STEP;
+        if (s.contains("slab")) return SemanticPart.FLOOR;
+        if (s.contains("log") || s.contains("stem")) return SemanticPart.PILLAR;
+        return SemanticPart.WALL;
     }
 
     private static long mixSeed(BlockPos anchor, BlockPos off, SemanticPart part) {
@@ -440,6 +684,15 @@ public final class ComponentTool implements FormacraftTool {
         return pos.getX() >= min.getX() && pos.getX() <= max.getX()
                 && pos.getY() >= min.getY() && pos.getY() <= max.getY()
                 && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
+    }
+
+    private static Direction parseDir(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            return Direction.valueOf(s.trim().toUpperCase(Locale.ROOT));
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     private static String makeId(ComponentCategory cat, String name) {

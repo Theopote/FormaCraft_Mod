@@ -286,6 +286,9 @@ ComponentParamsObject:
                 "\nRules:\n" +
                 "- You MAY request using player components by semantic requirements (category/tags/approx_size).\n" +
                 "- Do NOT request exact component id unless necessary.\n" +
+                "- Components support style-driven semantic re-skinning: component shape is fixed, material is decided by SemanticStyleProfile.\n" +
+                "- Available semantic parts are from SemanticPart enum (e.g. WALL, FOUNDATION, PILLAR, BEAM, WINDOW, DOORWAY, RAILING, LIGHT, STAIR_STEP, ROOF...).\n" +
+                "- Available semantic style ids currently registered: DEFAULT, MEDIEVAL_CASTLE (and others if present).\n" +
                 "- If you want to use a player component, add a feature string to the relevant ComponentObject:\n" +
                 "  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"count\":1}\n" +
                 "\n";

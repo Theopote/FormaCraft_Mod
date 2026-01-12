@@ -92,6 +92,9 @@ public class ToolPanel extends BasePanel {
 
     // ComponentTool 选项按钮
     private ButtonWidget componentCategoryButton;
+    private ButtonWidget componentSourceButton;
+    private ButtonWidget componentLibraryPickButton;
+    private ButtonWidget componentLibraryLoadButton;
     private ButtonWidget componentPickAnchorButton;
     private ButtonWidget componentClearAnchorButton;
     private ButtonWidget componentFacingButton;
@@ -213,6 +216,18 @@ public class ToolPanel extends BasePanel {
         componentCategoryButton = ButtonWidget.builder(Text.literal("分类：GENERIC"), b -> ComponentTool.INSTANCE.cycleCategory())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("循环切换构件分类")))
+                .build();
+        componentSourceButton = ButtonWidget.builder(Text.literal("来源：选区"), b -> ComponentTool.INSTANCE.toggleSource())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("切换构件来源：当前选区 / 构件库")))
+                .build();
+        componentLibraryPickButton = ButtonWidget.builder(Text.literal("选择构件"), b -> ComponentTool.INSTANCE.cycleLibraryComponent())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("从服务端同步的 catalog 中循环选择构件")))
+                .build();
+        componentLibraryLoadButton = ButtonWidget.builder(Text.literal("加载构件"), b -> ComponentTool.INSTANCE.requestLoadSelectedComponent())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("请求服务端下发该构件定义（ComponentDefinition JSON）")))
                 .build();
         componentPickAnchorButton = ButtonWidget.builder(Text.literal("选择 Anchor"), b -> ComponentTool.INSTANCE.startPickAnchor())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -676,6 +691,32 @@ public class ToolPanel extends BasePanel {
         componentCategoryButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
+        // 来源 / 构件库选择（两按钮一行）
+        int half = (w - 4) / 2;
+        var st = ComponentTool.INSTANCE.getState();
+        componentSourceButton.setMessage(Text.literal(st.useLibrary ? "来源：构件库" : "来源：选区"));
+        componentSourceButton.setPosition(x, y);
+        componentSourceButton.setWidth(half);
+        componentSourceButton.visible = true;
+        componentSourceButton.active = true;
+        componentSourceButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        componentLibraryPickButton.setMessage(Text.literal("构件：" + (st.librarySelectedName != null ? st.librarySelectedName : "未选择")));
+        componentLibraryPickButton.setPosition(x + half + 4, y);
+        componentLibraryPickButton.setWidth(w - half - 4);
+        componentLibraryPickButton.visible = true;
+        componentLibraryPickButton.active = st.useLibrary;
+        componentLibraryPickButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        // 构件加载按钮（单行）
+        componentLibraryLoadButton.setPosition(x, y);
+        componentLibraryLoadButton.setWidth(w);
+        componentLibraryLoadButton.visible = true;
+        componentLibraryLoadButton.active = st.useLibrary && st.librarySelectedId != null && !st.librarySelectedId.isBlank();
+        componentLibraryLoadButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
         // 名称输入
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("名称："), x, y, 0xFFAAAAAA);
         int nameInputY = y + LABEL_OFFSET - 2;
@@ -713,10 +754,9 @@ public class ToolPanel extends BasePanel {
         y += FIELD_SPACING;
 
         // Anchor + Facing 状态
-        var st = ComponentTool.INSTANCE.getState();
         String anchorText = st.anchorWorld != null
                 ? ("构件锚点：" + st.anchorWorld.getX() + "," + st.anchorWorld.getY() + "," + st.anchorWorld.getZ())
-                : "构件锚点：未设置（默认=选区 min）";
+                : "构件锚点：未设置";
         String facingText = "Facing: " + (st.facing != null ? st.facing.name() : "SOUTH");
         y = drawWrappedText(ctx,
                 Text.literal(anchorText + "  " + facingText + (st.pickingAnchor ? "（正在点选…）" : "")),
@@ -724,11 +764,10 @@ public class ToolPanel extends BasePanel {
         y += 2;
 
         // Anchor / Facing 一行两个按钮（符合现有“两按钮一行”的风格）
-        int half = (w - 4) / 2;
         componentPickAnchorButton.setPosition(x, y);
         componentPickAnchorButton.setWidth(half);
         componentPickAnchorButton.visible = true;
-        componentPickAnchorButton.active = SelectionTool.INSTANCE.hasSelection();
+        componentPickAnchorButton.active = st.useLibrary || SelectionTool.INSTANCE.hasSelection();
         componentPickAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
 
         componentFacingButton.setMessage(Text.literal("Facing: " + (st.facing != null ? st.facing.name() : "SOUTH")));
@@ -771,7 +810,7 @@ public class ToolPanel extends BasePanel {
         y += LABEL_OFFSET;
 
         // 语义部位（单行）
-        componentSemanticPartButton.setMessage(Text.literal("语义：" + (st.semanticPart != null ? st.semanticPart.name() : "WALL")));
+        componentSemanticPartButton.setMessage(Text.literal("语义：" + (st.semanticPart != null ? st.semanticPart.name() : "AUTO")));
         componentSemanticPartButton.setPosition(x, y);
         componentSemanticPartButton.setWidth(w);
         componentSemanticPartButton.visible = true;
@@ -913,6 +952,9 @@ public class ToolPanel extends BasePanel {
             if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
         } else if (ToolManager.isActive(ComponentTool.INSTANCE.getId())) {
             if (componentCategoryButton != null && componentCategoryButton.visible && componentCategoryButton.mouseClicked(click, false)) return true;
+            if (componentSourceButton != null && componentSourceButton.visible && componentSourceButton.mouseClicked(click, false)) return true;
+            if (componentLibraryPickButton != null && componentLibraryPickButton.visible && componentLibraryPickButton.mouseClicked(click, false)) return true;
+            if (componentLibraryLoadButton != null && componentLibraryLoadButton.visible && componentLibraryLoadButton.mouseClicked(click, false)) return true;
             if (componentPickAnchorButton != null && componentPickAnchorButton.visible && componentPickAnchorButton.mouseClicked(click, false)) return true;
             if (componentClearAnchorButton != null && componentClearAnchorButton.visible && componentClearAnchorButton.mouseClicked(click, false)) return true;
             if (componentFacingButton != null && componentFacingButton.visible && componentFacingButton.mouseClicked(click, false)) return true;

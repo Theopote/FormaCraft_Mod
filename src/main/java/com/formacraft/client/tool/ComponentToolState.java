@@ -26,10 +26,17 @@ public class ComponentToolState {
 
     /** 材质模式：是否使用语义调色板进行“换皮”。 */
     public boolean semanticSkin = false;
-    /** 语义部位（semanticSkin=true 时用于选取材质）。 */
+    /** 语义部位（semanticSkin=true 时用于选取材质）；null 表示 AUTO（按方块类型/位置自动猜测）。 */
     public SemanticPart semanticPart = SemanticPart.WALL;
     /** SemanticStyleProfile id（semanticSkin=true 时用于材质规则）。 */
     public String semanticStyleId = "DEFAULT";
+
+    /** 放置来源：false=当前选区；true=从构件库加载的构件。 */
+    public boolean useLibrary = false;
+    /** 构件库中当前选中的构件 id（仅 useLibrary=true 有意义）。 */
+    public String librarySelectedId = null;
+    /** 构件库中当前选中的构件 name（仅用于 UI 展示）。 */
+    public String librarySelectedName = null;
 
     /** UI 状态：正在选择 anchor */
     public boolean pickingAnchor = false;
