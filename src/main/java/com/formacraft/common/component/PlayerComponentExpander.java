@@ -11,6 +11,8 @@ import com.formacraft.common.component.transform.FacingTransformUtil;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.component.socket.ComponentSocket;
+import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
@@ -103,6 +105,29 @@ public final class PlayerComponentExpander {
         List<BlockPatch> out = new ArrayList<>(def.blocks.size());
         long worldSeed = world.getSeed();
 
+        // 5.1) 可选：先 carve（开洞/清洞）
+        // - 默认：DOOR/WINDOW 会 carve，其他不 carve（可用 carve=false 关闭）
+        boolean carve = shouldCarve(reqMap);
+        if (carve) {
+            SocketMask mask = resolveMask(reqMap, def);
+            if (mask != null && mask.w > 0 && mask.h > 0 && mask.d > 0) {
+                BlockPos maskOrigin = resolveMaskOrigin(reqMap);
+                for (int x = 0; x < mask.w; x++) {
+                    for (int y = 0; y < mask.h; y++) {
+                        for (int z = 0; z < mask.d; z++) {
+                            BlockPos local = new BlockPos(maskOrigin.getX() + x, maskOrigin.getY() + y, maskOrigin.getZ() + z);
+                            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, transform);
+                            out.add(new BlockPatch(BlockPatch.REMOVE,
+                                    baseX + off.getX(),
+                                    baseY + off.getY(),
+                                    baseZ + off.getZ(),
+                                    "minecraft:air"));
+                        }
+                    }
+                }
+            }
+        }
+
         int minDy = Integer.MAX_VALUE;
         for (ComponentDefinition.BlockEntry be : def.blocks) {
             if (be == null) continue;
@@ -145,6 +170,77 @@ public final class PlayerComponentExpander {
         }
         return out;
     }
+
+    private static boolean shouldCarve(Map<String, Object> reqMap) {
+        Boolean explicit = getBoolNullable(reqMap, "carve", "carve_mask", "carveMask", "carve_socket", "carveSocket");
+        if (explicit != null) return explicit;
+        // 默认只对 DOOR/WINDOW 进行开洞
+        String cat = getString(reqMap, "category", "type", "socket_type", "socketType");
+        if (cat == null) return false;
+        String u = cat.trim().toUpperCase(Locale.ROOT);
+        return u.contains("DOOR") || u.contains("WINDOW");
+    }
+
+    private static BlockPos resolveMaskOrigin(Map<String, Object> reqMap) {
+        Object o = reqMap.get("mask_origin");
+        if (!(o instanceof Map<?, ?>)) o = reqMap.get("socket_origin");
+        if (!(o instanceof Map<?, ?> mm)) {
+            return BlockPos.ORIGIN;
+        }
+        int x = getInt(mm, 0, "x");
+        int y = getInt(mm, 0, "y");
+        int z = getInt(mm, 0, "z");
+        return new BlockPos(x, y, z);
+    }
+
+    private static SocketMask resolveMask(Map<String, Object> reqMap, ComponentDefinition def) {
+        // 1) 显式 mask
+        Object m0 = reqMap.get("mask");
+        if (!(m0 instanceof Map<?, ?>)) m0 = reqMap.get("socket_mask");
+        if (m0 instanceof Map<?, ?> m) {
+            int w = getInt(m, -1, "w", "width");
+            int h = getInt(m, -1, "h", "height");
+            int d = getInt(m, -1, "d", "depth");
+            if (w > 0 && h > 0 && d > 0) return new SocketMask(w, h, d);
+        }
+
+        // 2) 如果给了 socket_id，并且 def.sockets 中存在，则用 socket 自带尺寸
+        String socketId = getString(reqMap, "socket_id", "socketId");
+        if (socketId != null && def != null && def.sockets != null) {
+            for (ComponentSocket s : def.sockets) {
+                if (s == null || s.id() == null) continue;
+                if (!socketId.equals(s.id())) continue;
+                if (s.width() > 0 && s.height() > 0 && s.depth() > 0) {
+                    return new SocketMask(s.width(), s.height(), s.depth());
+                }
+            }
+        }
+
+        // 3) 默认（按类型）
+        String type = getString(reqMap, "socket_type", "socketType", "category", "type");
+        if (type == null) return null;
+        SocketType t = parseSocketType(type);
+        if (t == SocketType.DOOR) return new SocketMask(2, 3, 1);
+        if (t == SocketType.WINDOW) return new SocketMask(2, 2, 1);
+        if (t == SocketType.BALCONY) return new SocketMask(3, 2, 1);
+        return null;
+    }
+
+    private static SocketType parseSocketType(String s) {
+        if (s == null || s.isBlank()) return SocketType.DECORATION;
+        try {
+            return SocketType.valueOf(s.trim().toUpperCase(Locale.ROOT));
+        } catch (Throwable ignored) {
+            String u = s.trim().toUpperCase(Locale.ROOT);
+            if (u.contains("DOOR")) return SocketType.DOOR;
+            if (u.contains("WINDOW")) return SocketType.WINDOW;
+            if (u.contains("BALCONY")) return SocketType.BALCONY;
+            if (u.contains("ROOF")) return SocketType.ROOF_ATTACHMENT;
+            return SocketType.DECORATION;
+        }
+    }
+
+    private record SocketMask(int w, int h, int d) {}
 
     private static com.formacraft.common.semantic.SemanticPart guessSemanticPartFromString(String blockStateString, int dy, int minDy) {
         if (dy == minDy) return com.formacraft.common.semantic.SemanticPart.FOUNDATION;
@@ -193,13 +289,13 @@ public final class PlayerComponentExpander {
 
         Object approx = reqMap.get("approx_size");
         if (approx instanceof Map<?, ?> am) {
-            req.approxW = getInt(am, "w", "width");
-            req.approxH = getInt(am, "h", "height");
-            req.approxD = getInt(am, "d", "depth");
+            req.approxW = getInt(am, -1, "w", "width");
+            req.approxH = getInt(am, -1, "h", "height");
+            req.approxD = getInt(am, -1, "d", "depth");
         } else {
-            req.approxW = getInt(reqMap, "approxW", "approx_w");
-            req.approxH = getInt(reqMap, "approxH", "approx_h");
-            req.approxD = getInt(reqMap, "approxD", "approx_d");
+            req.approxW = getInt(reqMap, -1, "approxW", "approx_w");
+            req.approxH = getInt(reqMap, -1, "approxH", "approx_h");
+            req.approxD = getInt(reqMap, -1, "approxD", "approx_d");
         }
         return req;
     }
@@ -288,8 +384,22 @@ public final class PlayerComponentExpander {
         return true;
     }
 
-    private static int getInt(Map<?, ?> m, String... keys) {
-        if (m == null || keys == null) return -1;
+    private static Boolean getBoolNullable(Map<?, ?> m, String... keys) {
+        if (m == null || keys == null) return null;
+        for (String k : keys) {
+            if (k == null) continue;
+            Object v = m.get(k);
+            if (v == null) continue;
+            if (v instanceof Boolean b) return b;
+            String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
+            if (s.equals("true") || s.equals("1") || s.equals("yes")) return true;
+            if (s.equals("false") || s.equals("0") || s.equals("no")) return false;
+        }
+        return null;
+    }
+
+    private static int getInt(Map<?, ?> m, int def, String... keys) {
+        if (m == null || keys == null) return def;
         for (String k : keys) {
             if (k == null) continue;
             Object v = m.get(k);
@@ -300,7 +410,7 @@ public final class PlayerComponentExpander {
             } catch (Throwable ignored) {
             }
         }
-        return -1;
+        return def;
     }
 
     private static long mixSeed(long base, int x, int y, int z, int t) {

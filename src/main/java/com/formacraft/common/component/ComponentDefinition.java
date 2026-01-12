@@ -1,5 +1,6 @@
 package com.formacraft.common.component;
 
+import com.formacraft.common.component.socket.ComponentSocket;
 import java.util.List;
 import java.util.Set;
 
@@ -26,6 +27,9 @@ public class ComponentDefinition {
     public PlacementRules placement_rules;
 
     public List<BlockEntry> blocks;
+
+    /** 可选：构件插槽（用于“安装/开洞”）。 */
+    public List<ComponentSocket> sockets;
 
     public static class Size {
         public int w, h, d;

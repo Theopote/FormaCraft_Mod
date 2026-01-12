@@ -290,8 +290,9 @@ ComponentParamsObject:
                 "- Available semantic parts are from SemanticPart enum (e.g. WALL, FOUNDATION, PILLAR, BEAM, WINDOW, DOORWAY, RAILING, LIGHT, STAIR_STEP, ROOF...).\n" +
                 "- Available semantic style ids currently registered: DEFAULT, MEDIEVAL_CASTLE (and others if present).\n" +
                 "- When using player components, prefer semantic re-skinning (semantic_skin=true) unless you must preserve exact original blocks.\n" +
+                "- For DOOR/WINDOW mounts, prefer carving a socket mask (carve=true). Default masks: DOOR=2x3x1, WINDOW=2x2x1. You may override via mask={w,h,d} and mask_origin={x,y,z}.\n" +
                 "- If you want to use a player component, add a feature string to the relevant ComponentObject:\n" +
-                "  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"facing\":\"NORTH|EAST|SOUTH|WEST\",\"mirror\":\"NONE|X|Z\",\"semantic_style_id\":\"DEFAULT|...\",\"semantic_skin\":true}\n" +
+                "  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"facing\":\"NORTH|EAST|SOUTH|WEST\",\"mirror\":\"NONE|X|Z\",\"semantic_style_id\":\"DEFAULT|...\",\"semantic_skin\":true,\"carve\":true,\"mask\":{\"w\":2,\"h\":3,\"d\":1},\"mask_origin\":{\"x\":0,\"y\":0,\"z\":0}}\n" +
                 "\n";
     }
 
