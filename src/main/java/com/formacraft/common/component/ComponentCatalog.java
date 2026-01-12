@@ -1,5 +1,6 @@
 package com.formacraft.common.component;
 
+import com.formacraft.common.component.socket.ComponentSocket;
 import java.util.List;
 
 /**
@@ -18,6 +19,8 @@ public class ComponentCatalog {
         public ComponentDefinition.Size size;
         /** 文件名，例如 door_xxx.json */
         public String file;
+        /** 可选：该构件定义的 sockets（用于 LLM mount / 自动开洞）。 */
+        public List<ComponentSocket> sockets;
     }
 }
 

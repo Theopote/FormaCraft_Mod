@@ -1461,7 +1461,7 @@ public class FormaCraftNetworking {
             ComponentStorage.saveComponent(worldDir, def);
 
             // 回推最新 catalog 给该玩家（用于 Prompt 注入/工具 UI）
-            ComponentCatalog cat = ComponentStorage.loadCatalog(worldDir);
+            ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir);
             String catJson = JsonUtil.toJson(cat);
             ServerPlayNetworking.send(player, new ComponentCatalogPayload(catJson));
             try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已保存构件：" + def.name + "（" + def.id + "）")); } catch (Throwable ignored) {}
@@ -1475,7 +1475,7 @@ public class FormaCraftNetworking {
             if (server == null) return;
 
             java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
-            ComponentCatalog cat = ComponentStorage.loadCatalog(worldDir);
+            ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir);
             String catJson = JsonUtil.toJson(cat);
             ServerPlayNetworking.send(player, new ComponentCatalogPayload(catJson));
         }));

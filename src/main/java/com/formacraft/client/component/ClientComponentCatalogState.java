@@ -56,6 +56,20 @@ public final class ClientComponentCatalogState {
             if (e.tags != null) sb.append(" tags=").append(e.tags);
             if (e.size != null) sb.append(" size=").append(e.size.w).append("x").append(e.size.h).append("x").append(e.size.d);
             sb.append("\n");
+
+            // sockets（用于 mount / 自动开洞 / 对齐）
+            if (e.sockets != null && !e.sockets.isEmpty()) {
+                for (var s : e.sockets) {
+                    if (s == null) continue;
+                    sb.append("  - socket.")
+                            .append(s.id())
+                            .append(" type=").append(s.type())
+                            .append(" facing=").append(s.facing())
+                            .append(" origin=(").append(s.x()).append(",").append(s.y()).append(",").append(s.z()).append(")")
+                            .append(" size=").append(s.width()).append("x").append(s.height()).append("x").append(s.depth())
+                            .append("\n");
+                }
+            }
         }
         return sb.toString().trim();
     }

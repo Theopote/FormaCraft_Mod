@@ -12,6 +12,8 @@ import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.component.socket.ComponentSocket;
+import com.formacraft.common.component.socket.FacingUtil;
+import com.formacraft.common.component.socket.SocketMask;
 import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import net.minecraft.block.BlockState;
@@ -107,18 +109,18 @@ public final class PlayerComponentExpander {
         boolean carve = shouldCarve(reqMap, def);
         if (carve) {
             SocketMask mask = resolveMask(reqMap, def);
-            if (mask != null && mask.w > 0 && mask.h > 0 && mask.d > 0) {
-                BlockPos maskOrigin = resolveMaskOrigin(reqMap, def);
-                for (int x = 0; x < mask.w; x++) {
-                    for (int y = 0; y < mask.h; y++) {
-                        for (int z = 0; z < mask.d; z++) {
-                            BlockPos local = new BlockPos(maskOrigin.getX() + x, maskOrigin.getY() + y, maskOrigin.getZ() + z);
-                            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, transform);
-                            out.add(new BlockPatch(BlockPatch.REMOVE,
-                                    baseX + off.getX(),
-                                    baseY + off.getY(),
-                                    baseZ + off.getZ(),
-                                    "minecraft:air"));
+            if (mask != null && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
+                // mask_origin 为“局部 socket 原点”（相对 anchor 的局部坐标）
+                BlockPos maskOriginLocal = resolveMaskOrigin(reqMap, def);
+                BlockPos originOff = ComponentTransformUtil.transformOffset(maskOriginLocal, fromFacing, transform);
+                BlockPos originWorld = new BlockPos(baseX + originOff.getX(), baseY + originOff.getY(), baseZ + originOff.getZ());
+
+                // 沿“最终朝向 targetFacing”清洞（符合 SocketSystem 语义：depth 方向跟随 facing）
+                for (int x = 0; x < mask.width(); x++) {
+                    for (int y = 0; y < mask.height(); y++) {
+                        for (int z = 0; z < mask.depth(); z++) {
+                            BlockPos p = FacingUtil.offset(originWorld, targetFacing, x, y, z);
+                            out.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
                         }
                     }
                 }
@@ -251,7 +253,6 @@ public final class PlayerComponentExpander {
         // carve mask defaults from socket
         boolean carve = shouldCarve(reqMap, host);
         SocketMask mask = carve ? new SocketMask(socket.width(), socket.height(), socket.depth()) : null;
-        BlockPos maskOrigin = socketLocal;
 
         List<BlockPatch> out = new ArrayList<>(host.blocks.size() + mount.blocks.size() + 64);
 
@@ -259,17 +260,15 @@ public final class PlayerComponentExpander {
         addComponentPatches(out, host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
 
         // 2) carve
-        if (carve && mask != null && mask.w > 0 && mask.h > 0 && mask.d > 0) {
-            for (int x = 0; x < mask.w; x++) {
-                for (int y = 0; y < mask.h; y++) {
-                    for (int z = 0; z < mask.d; z++) {
-                        BlockPos local = new BlockPos(maskOrigin.getX() + x, maskOrigin.getY() + y, maskOrigin.getZ() + z);
-                        BlockPos off = ComponentTransformUtil.transformOffset(local, hostFromFacing, hostTransform);
-                        out.add(new BlockPatch(BlockPatch.REMOVE,
-                                baseX + off.getX(),
-                                baseY + off.getY(),
-                                baseZ + off.getZ(),
-                                "minecraft:air"));
+        if (carve && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
+            BlockPos socketWorld = new BlockPos(baseX + socketOff.getX(), baseY + socketOff.getY(), baseZ + socketOff.getZ());
+
+            // 沿 socket 的“世界朝向”清洞（depth 方向跟随 socketWorldFacing）
+            for (int x = 0; x < mask.width(); x++) {
+                for (int y = 0; y < mask.height(); y++) {
+                    for (int z = 0; z < mask.depth(); z++) {
+                        BlockPos p = FacingUtil.offset(socketWorld, socketWorldFacing, x, y, z);
+                        out.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
                     }
                 }
             }
@@ -473,8 +472,6 @@ public final class PlayerComponentExpander {
             return SocketType.DECORATION;
         }
     }
-
-    private record SocketMask(int w, int h, int d) {}
 
     private static com.formacraft.common.semantic.SemanticPart guessSemanticPartFromString(String blockStateString, int dy, int minDy) {
         if (dy == minDy) return com.formacraft.common.semantic.SemanticPart.FOUNDATION;

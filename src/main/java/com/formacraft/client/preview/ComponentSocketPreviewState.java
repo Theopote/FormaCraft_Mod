@@ -6,7 +6,7 @@ import net.minecraft.util.math.Direction;
 
 /**
  * Socket 预览状态（纯客户端）。
- *
+ * <p>
  * - 用于显示 socket 的开洞体积（mask）与朝向
  * - 坐标系：socketOriginLocal 是相对 anchor 的局部坐标（与 blocks dx/dy/dz 一致）
  */

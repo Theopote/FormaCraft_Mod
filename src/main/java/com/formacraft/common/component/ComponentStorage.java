@@ -46,6 +46,28 @@ public final class ComponentStorage {
         }
     }
 
+    /**
+     * 加载 catalog，并尽力把每个 entry 的 sockets 补齐（便于 Prompt/LLM mount 直接使用）。
+     * <p>
+     * - 兼容旧 catalog.json（entry.sockets 为空）
+     * - best-effort：某个组件文件缺失/解析失败不会影响其他条目
+     */
+    public static ComponentCatalog loadCatalogWithSockets(Path worldDir) {
+        ComponentCatalog cat = loadCatalog(worldDir);
+        if (cat == null || cat.components == null || cat.components.isEmpty()) return cat;
+
+        for (ComponentCatalog.Entry e : cat.components) {
+            if (e == null) continue;
+            if (e.sockets != null && !e.sockets.isEmpty()) continue;
+            if (e.id == null || e.id.isBlank()) continue;
+            ComponentDefinition def = loadComponent(worldDir, e.id);
+            if (def != null && def.sockets != null && !def.sockets.isEmpty()) {
+                e.sockets = def.sockets;
+            }
+        }
+        return cat;
+    }
+
     public static void saveCatalog(Path worldDir, ComponentCatalog catalog) {
         try {
             Path dir = getWorldComponentDir(worldDir);
@@ -82,6 +104,9 @@ public final class ComponentStorage {
             e.tags = def.tags;
             e.size = def.size;
             e.file = fileName;
+            if (def.sockets != null && !def.sockets.isEmpty()) {
+                e.sockets = def.sockets;
+            }
             cat.components.add(e);
 
             saveCatalog(worldDir, cat);
