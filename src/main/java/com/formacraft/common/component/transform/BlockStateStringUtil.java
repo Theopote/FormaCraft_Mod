@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 
 /**
  * v1：对 blockstate string 做“轻量”朝向修正。
- *
+ * <p>
  * 说明：
  * - 我们目前把 blockstate 作为字符串保存（例如 minecraft:oak_stairs[facing=east,half=bottom]）
  * - 这里不引入完整 Codec/NBT，只做尽力而为的 facing=... 替换
@@ -66,7 +66,7 @@ public final class BlockStateStringUtil {
         for (java.util.Map.Entry<net.minecraft.state.property.Property<?>, Comparable<?>> e : entries) {
             if (!first) sb.append(",");
             first = false;
-            sb.append(e.getKey().getName()).append("=").append(String.valueOf(e.getValue()));
+            sb.append(e.getKey().getName()).append("=").append(e.getValue());
         }
         sb.append("]");
         return sb.toString();

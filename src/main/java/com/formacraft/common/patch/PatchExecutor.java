@@ -16,7 +16,7 @@ import java.util.Optional;
 
 /**
  * Patch 执行器：在服务端世界应用增量修改。
- *
+ * <p>
  * 约定：
  * - place/replace：setBlockState(target)
  * - remove：setBlockState(AIR)
@@ -59,7 +59,6 @@ public final class PatchExecutor {
             Identifier ident = Identifier.tryParse(baseId.trim());
             if (ident == null) return Blocks.AIR.getDefaultState();
             Block b = Registries.BLOCK.get(ident);
-            if (b == null) return Blocks.AIR.getDefaultState();
             BlockState state = b.getDefaultState();
 
             // 应用属性（尽力而为：解析失败则忽略该键值）
@@ -85,9 +84,9 @@ public final class PatchExecutor {
                         if (!(v instanceof Comparable<?> c)) continue;
                         // 类型擦除下的通用属性写入：我们只在 parse() 成功后写入
                         @SuppressWarnings({"rawtypes"})
-                        Property rawProp = (Property) prop;
+                        Property rawProp = prop;
                         @SuppressWarnings({"rawtypes"})
-                        Comparable rawValue = (Comparable) c;
+                        Comparable rawValue = c;
                         //noinspection unchecked
                         state = state.with(rawProp, rawValue);
                     }

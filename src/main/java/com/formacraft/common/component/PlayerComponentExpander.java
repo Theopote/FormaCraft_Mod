@@ -31,7 +31,7 @@ import java.util.Set;
  * - 从 LLM component.features 中读取 component_request:{...}
  * - 在服务端 world save 中匹配/加载 ComponentDefinition
  * - 展开为 BlockPatch（支持旋转/镜像 + 可选语义换皮）
- *
+ * <p>
  * 约定：
  * - 返回 null 表示“该组件不是构件库请求”，上层应走正常生成器
  * - 返回 empty list 表示“是构件库请求，但未匹配到/无法生成”
@@ -93,7 +93,7 @@ public final class PlayerComponentExpander {
         }
 
         // 4) 是否启用语义换皮
-        boolean semanticSkin = getBool(reqMap, true, "semantic_skin", "semanticSkin");
+        boolean semanticSkin = getBool(reqMap, "semantic_skin", "semanticSkin");
         String semanticStyleId = getString(reqMap, "semantic_style_id", "semanticStyleId", "style_id", "styleId");
         if (semanticStyleId == null) {
             semanticStyleId = resolveSemanticStyleId(semantic.styleProfile());
@@ -164,13 +164,13 @@ public final class PlayerComponentExpander {
 
         Object approx = reqMap.get("approx_size");
         if (approx instanceof Map<?, ?> am) {
-            req.approxW = getInt(am, -1, "w", "width");
-            req.approxH = getInt(am, -1, "h", "height");
-            req.approxD = getInt(am, -1, "d", "depth");
+            req.approxW = getInt(am, "w", "width");
+            req.approxH = getInt(am, "h", "height");
+            req.approxD = getInt(am, "d", "depth");
         } else {
-            req.approxW = getInt(reqMap, -1, "approxW", "approx_w");
-            req.approxH = getInt(reqMap, -1, "approxH", "approx_h");
-            req.approxD = getInt(reqMap, -1, "approxD", "approx_d");
+            req.approxW = getInt(reqMap, "approxW", "approx_w");
+            req.approxH = getInt(reqMap, "approxH", "approx_h");
+            req.approxD = getInt(reqMap, "approxD", "approx_d");
         }
         return req;
     }
@@ -245,8 +245,8 @@ public final class PlayerComponentExpander {
         return null;
     }
 
-    private static boolean getBool(Map<?, ?> m, boolean def, String... keys) {
-        if (m == null || keys == null) return def;
+    private static boolean getBool(Map<?, ?> m, String... keys) {
+        if (m == null || keys == null) return true;
         for (String k : keys) {
             if (k == null) continue;
             Object v = m.get(k);
@@ -256,11 +256,11 @@ public final class PlayerComponentExpander {
             if (s.equals("true") || s.equals("1") || s.equals("yes")) return true;
             if (s.equals("false") || s.equals("0") || s.equals("no")) return false;
         }
-        return def;
+        return true;
     }
 
-    private static int getInt(Map<?, ?> m, int def, String... keys) {
-        if (m == null || keys == null) return def;
+    private static int getInt(Map<?, ?> m, String... keys) {
+        if (m == null || keys == null) return -1;
         for (String k : keys) {
             if (k == null) continue;
             Object v = m.get(k);
@@ -271,7 +271,7 @@ public final class PlayerComponentExpander {
             } catch (Throwable ignored) {
             }
         }
-        return def;
+        return -1;
     }
 
     private static long mixSeed(long base, int x, int y, int z, int t) {

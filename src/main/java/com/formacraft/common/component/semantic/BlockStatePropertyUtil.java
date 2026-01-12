@@ -34,11 +34,9 @@ public final class BlockStatePropertyUtil {
             if (parsed.isEmpty()) return state;
             Object v = parsed.get();
             if (!(v instanceof Comparable<?> c)) return state;
-            Property rawProp = (Property) p;
-            Comparable rawValue = (Comparable) c;
             // 这里的 unchecked 是可接受的：Property.parse() 成功意味着类型匹配。
             //noinspection unchecked
-            return state.with(rawProp, rawValue);
+            return state.with((Property) p, (Comparable) c);
         }
         return state;
     }

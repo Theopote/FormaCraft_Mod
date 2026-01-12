@@ -549,7 +549,7 @@ public final class ComponentTool implements FormacraftTool {
 
         def.blocks = new ArrayList<>();
         int minDy = Integer.MAX_VALUE;
-        if (state.semanticSkin) {
+        if (state.semanticTagOnSave || state.semanticSkin) {
             for (int x = minX; x <= maxX; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
@@ -574,12 +574,10 @@ public final class ComponentTool implements FormacraftTool {
                     be.dy = y - anchor.getY();
                     be.dz = z - anchor.getZ();
                     be.block = serializeBlockState(bs);
-                    if (state.semanticSkin) {
-                        if (state.semanticPart != null) {
-                            be.semantic = state.semanticPart;
-                        } else {
-                            be.semantic = guessSemanticPart(bs, be.dy, minDy);
-                        }
+                    if (state.semanticTagOnSave) {
+                        be.semantic = guessSemanticPart(bs, be.dy, minDy);
+                    } else if (state.semanticSkin) {
+                        be.semantic = (state.semanticPart != null) ? state.semanticPart : guessSemanticPart(bs, be.dy, minDy);
                     }
                     def.blocks.add(be);
                 }
