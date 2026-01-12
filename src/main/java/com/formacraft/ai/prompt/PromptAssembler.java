@@ -281,16 +281,14 @@ ComponentParamsObject:
             summary = "(no player components registered)";
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("PLAYER COMPONENT LIBRARY (Prefab Library):\n");
-        sb.append(summary).append("\n");
-        sb.append("\nRules:\n");
-        sb.append("- You MAY request using player components by semantic requirements (category/tags/approx_size).\n");
-        sb.append("- Do NOT request exact component id unless necessary.\n");
-        sb.append("- If you want to use a player component, add a feature string to the relevant ComponentObject:\n");
-        sb.append("  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"count\":1}\n");
-        sb.append("\n");
-        return sb.toString();
+        return "PLAYER COMPONENT LIBRARY (Prefab Library):\n" +
+                summary + "\n" +
+                "\nRules:\n" +
+                "- You MAY request using player components by semantic requirements (category/tags/approx_size).\n" +
+                "- Do NOT request exact component id unless necessary.\n" +
+                "- If you want to use a player component, add a feature string to the relevant ComponentObject:\n" +
+                "  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"count\":1}\n" +
+                "\n";
     }
 
     /**

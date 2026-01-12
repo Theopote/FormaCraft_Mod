@@ -3,6 +3,7 @@ package com.formacraft.common.component;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -17,12 +18,12 @@ public final class ComponentLibrary {
         if (cat.components == null || cat.components.isEmpty()) return null;
 
         List<ComponentCatalog.Entry> candidates = cat.components.stream()
-                .filter(e -> e != null)
-                .filter(e -> req != null && req.category != null ? e.category == req.category : true)
+                .filter(Objects::nonNull)
+                .filter(e -> req == null || req.category == null || e.category == req.category)
                 .collect(Collectors.toList());
 
         if (candidates.isEmpty()) {
-            candidates = cat.components.stream().filter(e -> e != null).collect(Collectors.toList());
+            candidates = cat.components.stream().filter(Objects::nonNull).toList();
         }
 
         double bestScore = Double.NEGATIVE_INFINITY;

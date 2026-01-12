@@ -1658,6 +1658,8 @@ public class FormaCraftNetworking {
         ClientPlayNetworking.registerGlobalReceiver(ComponentCatalogPayload.ID, (payload, context) -> context.client().execute(() -> {
             String json = payload.json();
             com.formacraft.client.component.ClientComponentCatalogState.setFromJson(json);
+            // 如果这是一次“保存构件”后的回推，则在 ToolPanel 内做强反馈 toast
+            try { com.formacraft.client.tool.ComponentTool.INSTANCE.onCatalogUpdatedFromServer(); } catch (Throwable ignored) {}
         }));
     }
 

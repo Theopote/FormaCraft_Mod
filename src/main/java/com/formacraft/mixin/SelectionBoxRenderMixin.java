@@ -6,6 +6,7 @@ import com.formacraft.client.tool.PathTool;
 import com.formacraft.client.tool.BrushTool;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.preview.BuildingOutlineRenderer;
+import com.formacraft.client.preview.ComponentPreviewRenderer;
 import com.formacraft.client.preview.PatchPreviewRenderer;
 import com.formacraft.client.preview.SkeletonPreviewRenderer;
 import com.formacraft.client.interaction.AnchorRenderer;
@@ -80,6 +81,9 @@ public class SelectionBoxRenderMixin {
 
         // Patch：增量修改预览（place/remove/replace 不同颜色）
         PatchPreviewRenderer.render(ctx);
+
+        // Component：构件预览（纯客户端，不放置方块）
+        ComponentPreviewRenderer.render(ctx);
     }
 }
 

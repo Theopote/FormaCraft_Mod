@@ -12,6 +12,8 @@ import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.interaction.AnchorState;
 import com.formacraft.client.ui.widget.HudTextInput;
+import com.formacraft.client.ui.toast.HudToast;
+import com.formacraft.client.preview.ComponentPreviewState;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -21,6 +23,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -93,6 +96,7 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget componentClearAnchorButton;
     private ButtonWidget componentFacingButton;
     private ButtonWidget componentSaveButton;
+    private ButtonWidget componentPreviewButton;
 
     // 滚动（仅用于选项区域）
     private int scrollY = 0;
@@ -205,7 +209,7 @@ public class ToolPanel extends BasePanel {
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("循环切换构件分类")))
                 .build();
-        componentPickAnchorButton = ButtonWidget.builder(Text.literal("设置锚点（点方块）"), b -> ComponentTool.INSTANCE.startPickAnchor())
+        componentPickAnchorButton = ButtonWidget.builder(Text.literal("选择 Anchor"), b -> ComponentTool.INSTANCE.startPickAnchor())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("下一次左键点击选区内方块作为构件 anchor")))
                 .build();
@@ -218,13 +222,38 @@ public class ToolPanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("循环切换构件正面朝向（N/E/S/W）")))
                 .build();
         componentSaveButton = ButtonWidget.builder(Text.literal("保存为构件"), b -> {
-                    String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
-                    if (json != null && !json.isBlank()) {
-                        FormaCraftNetworking.sendSaveComponent(json);
+                    // v1：Anchor 必须显式选择
+                    if (!SelectionTool.INSTANCE.hasSelection()) {
+                        HudToast.show("保存失败：请先完成选区", true);
+                        return;
                     }
+                    if (ComponentTool.INSTANCE.getState().anchorWorld == null) {
+                        HudToast.show("保存失败：请先选择 Anchor", true);
+                        return;
+                    }
+                    String nm = ComponentTool.INSTANCE.getState().name;
+                    if (nm == null || nm.isBlank()) {
+                        HudToast.show("保存失败：名称不能为空", true);
+                        return;
+                    }
+
+                    String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+                    if (json == null || json.isBlank()) {
+                        HudToast.show("保存失败：请检查选区/Anchor", true);
+                        return;
+                    }
+
+                    ComponentTool.INSTANCE.markSavePending(nm);
+                    HudToast.show("正在保存构件「" + nm.trim() + "」…");
+                    FormaCraftNetworking.sendSaveComponent(json);
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("将选区内容保存到构件库（服务端 world save）")))
+                .build();
+
+        componentPreviewButton = ButtonWidget.builder(Text.literal("预览放置"), b -> ComponentTool.INSTANCE.preview(client))
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("在锚点处预览该构件（不真正放置方块）")))
                 .build();
 
         // Slider（用原版 SliderWidget 渲染/拖拽，手感与 SettingsPanel 一致）
@@ -399,6 +428,10 @@ public class ToolPanel extends BasePanel {
         } finally {
             if (sx1 > sx0 && optionsAreaBottom > optionsStartY) ctx.disableScissor();
         }
+
+        // Toast：不参与滚动，也不被 scissor 裁剪（否则用户会觉得“点了没反应”）
+        int toastY = panelY + panelHeight - CONTENT_PADDING - client.textRenderer.fontHeight - 2;
+        HudToast.render(ctx, x, toastY);
     }
 
     // 绘制 SelectionTool 的选项
@@ -599,23 +632,12 @@ public class ToolPanel extends BasePanel {
 
     // 绘制 ComponentTool 的选项
     private int drawComponentToolOptions(DrawContext ctx, int x, int y, int w) {
+        // 标题
+        y = drawWrappedText(ctx, Text.literal("[ Component Tool ]"), x, y, w, 0xFFFFFFFF);
+        y += 2;
+
         // Selection 状态提示
-        String status;
-        if (SelectionTool.INSTANCE.isSelecting()) {
-            status = "选区中：请完成两点框选（起点/终点）";
-        } else if (SelectionTool.INSTANCE.hasSelection()) {
-            var min = SelectionTool.INSTANCE.getMin();
-            var max = SelectionTool.INSTANCE.getMax();
-            int dx = 0, dy = 0, dz = 0;
-            if (max != null && min != null) {
-                dx = (max.getX() - min.getX() + 1);
-                dy = (max.getY() - min.getY() + 1);
-                dz = (max.getZ() - min.getZ() + 1);
-            }
-            status = "Selection: " + dx + " x " + dy + " x " + dz + "（将保存非空气方块）";
-        } else {
-            status = "请先用“选区工具”框选一个门/窗/装饰等";
-        }
+        String status = getString();
         y = drawWrappedText(ctx, Text.literal(status), x, y, w, 0xFFAAAAAA);
         y += 2;
 
@@ -657,7 +679,6 @@ public class ToolPanel extends BasePanel {
         java.util.Set<String> tags = new java.util.LinkedHashSet<>();
         if (rawTags != null && !rawTags.isBlank()) {
             for (String part : rawTags.split(",")) {
-                if (part == null) continue;
                 String t = part.trim();
                 if (!t.isEmpty()) tags.add(t);
             }
@@ -670,14 +691,26 @@ public class ToolPanel extends BasePanel {
         String anchorText = st.anchorWorld != null
                 ? ("构件锚点：" + st.anchorWorld.getX() + "," + st.anchorWorld.getY() + "," + st.anchorWorld.getZ())
                 : "构件锚点：未设置（默认=选区 min）";
-        y = drawWrappedText(ctx, Text.literal(anchorText + (st.pickingAnchor ? "（正在点选…）" : "")), x, y, w, 0xFFAAAAAA);
+        String facingText = "Facing: " + (st.facing != null ? st.facing.name() : "SOUTH");
+        y = drawWrappedText(ctx,
+                Text.literal(anchorText + "  " + facingText + (st.pickingAnchor ? "（正在点选…）" : "")),
+                x, y, w, 0xFFAAAAAA);
         y += 2;
 
+        // Anchor / Facing 一行两个按钮（符合现有“两按钮一行”的风格）
+        int half = (w - 4) / 2;
         componentPickAnchorButton.setPosition(x, y);
-        componentPickAnchorButton.setWidth(w);
+        componentPickAnchorButton.setWidth(half);
         componentPickAnchorButton.visible = true;
         componentPickAnchorButton.active = SelectionTool.INSTANCE.hasSelection();
         componentPickAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        componentFacingButton.setMessage(Text.literal("Facing: " + (st.facing != null ? st.facing.name() : "SOUTH")));
+        componentFacingButton.setPosition(x + half + 4, y);
+        componentFacingButton.setWidth(w - half - 4);
+        componentFacingButton.visible = true;
+        componentFacingButton.active = true;
+        componentFacingButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
         componentClearAnchorButton.setPosition(x, y);
@@ -687,14 +720,6 @@ public class ToolPanel extends BasePanel {
         componentClearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
-        componentFacingButton.setMessage(Text.literal("正面：" + (st.facing != null ? st.facing.name() : "SOUTH")));
-        componentFacingButton.setPosition(x, y);
-        componentFacingButton.setWidth(w);
-        componentFacingButton.visible = true;
-        componentFacingButton.active = true;
-        componentFacingButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
         componentSaveButton.setPosition(x, y);
         componentSaveButton.setWidth(w);
         componentSaveButton.visible = true;
@@ -702,7 +727,36 @@ public class ToolPanel extends BasePanel {
         componentSaveButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
+        componentPreviewButton.setPosition(x, y);
+        componentPreviewButton.setWidth(w);
+        componentPreviewButton.visible = true;
+        boolean canPreview = ComponentTool.INSTANCE.canSave();
+        componentPreviewButton.active = canPreview;
+        componentPreviewButton.setMessage(Text.literal(ComponentPreviewState.isActive() ? "关闭预览" : "预览放置"));
+        componentPreviewButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
         return y;
+    }
+
+    private static @NotNull String getString() {
+        String status;
+        if (SelectionTool.INSTANCE.isSelecting()) {
+            status = "选区中：请完成两点框选（起点/终点）";
+        } else if (SelectionTool.INSTANCE.hasSelection()) {
+            var min = SelectionTool.INSTANCE.getMin();
+            var max = SelectionTool.INSTANCE.getMax();
+            int dx = 0, dy = 0, dz = 0;
+            if (max != null && min != null) {
+                dx = (max.getX() - min.getX() + 1);
+                dy = (max.getY() - min.getY() + 1);
+                dz = (max.getZ() - min.getZ() + 1);
+            }
+            status = "构件尺寸： " + dx + " × " + dy + " × " + dz + "（自动）";
+        } else {
+            status = "请先用“选区工具”框选一个门/窗/装饰等";
+        }
+        return status;
     }
 
     /**
@@ -797,6 +851,7 @@ public class ToolPanel extends BasePanel {
             if (componentClearAnchorButton != null && componentClearAnchorButton.visible && componentClearAnchorButton.mouseClicked(click, false)) return true;
             if (componentFacingButton != null && componentFacingButton.visible && componentFacingButton.mouseClicked(click, false)) return true;
             if (componentSaveButton != null && componentSaveButton.visible && componentSaveButton.mouseClicked(click, false)) return true;
+            if (componentPreviewButton != null && componentPreviewButton.visible && componentPreviewButton.mouseClicked(click, false)) return true;
 
             if (componentNameInputBoundsValid) {
                 if (componentNameInput.mouseClicked(mouseX, mouseY, componentNameInputX, componentNameInputY, componentNameInputW, componentNameInputH)) {

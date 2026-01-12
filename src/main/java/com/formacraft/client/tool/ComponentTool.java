@@ -1,6 +1,8 @@
 package com.formacraft.client.tool;
 
 import com.formacraft.client.interaction.CursorRaycastHelper;
+import com.formacraft.client.ui.toast.HudToast;
+import com.formacraft.client.preview.ComponentPreviewState;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.json.JsonUtil;
@@ -29,6 +31,8 @@ public final class ComponentTool implements FormacraftTool {
     public static final ComponentTool INSTANCE = new ComponentTool();
 
     private final ComponentToolState state = new ComponentToolState();
+    private volatile boolean awaitingSaveAck = false;
+    private volatile String awaitingSaveName = null;
 
     private ComponentTool() {}
 
@@ -47,6 +51,13 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     @Override
+    public void onDeactivate() {
+        // 避免预览残留（v1：预览随工具生命周期）
+        ComponentPreviewState.clear();
+        state.pickingAnchor = false;
+    }
+
+    @Override
     public boolean onMouseClick(double mx, double my, int button) {
         if (button != 0) return false;
         if (!state.pickingAnchor) return true; // 吃掉点击，避免误破坏
@@ -60,6 +71,10 @@ public final class ComponentTool implements FormacraftTool {
 
         state.anchorWorld = pos.toImmutable();
         state.pickingAnchor = false;
+        // 若正在预览，更新 anchor
+        if (ComponentPreviewState.isActive()) {
+            preview(net.minecraft.client.MinecraftClient.getInstance(), true);
+        }
         return true;
     }
 
@@ -71,6 +86,9 @@ public final class ComponentTool implements FormacraftTool {
             case WEST -> Direction.NORTH;
             default -> Direction.SOUTH;
         };
+        if (ComponentPreviewState.isActive()) {
+            ComponentPreviewState.setFacing(state.facing);
+        }
     }
 
     public void cycleCategory() {
@@ -92,10 +110,87 @@ public final class ComponentTool implements FormacraftTool {
     public void clearAnchor() {
         state.anchorWorld = null;
         state.pickingAnchor = false;
+        ComponentPreviewState.clear();
     }
 
     public boolean canSave() {
-        return SelectionTool.INSTANCE.hasSelection();
+        // v1：强制显式 Anchor（避免后续旋转/放置语义混乱）
+        return SelectionTool.INSTANCE.hasSelection() && state.anchorWorld != null && isInsideSelection(state.anchorWorld);
+    }
+
+    public void markSavePending(String displayName) {
+        this.awaitingSaveAck = true;
+        this.awaitingSaveName = (displayName == null || displayName.isBlank()) ? null : displayName.trim();
+    }
+
+    /** 服务端回推 catalog 后调用：用于给 ToolPanel toast 强反馈。 */
+    public void onCatalogUpdatedFromServer() {
+        if (!awaitingSaveAck) return;
+        awaitingSaveAck = false;
+        String n = (awaitingSaveName == null || awaitingSaveName.isBlank()) ? "（未命名）" : awaitingSaveName;
+        awaitingSaveName = null;
+        HudToast.show("构件「" + n + "」已保存");
+    }
+
+    /**
+     * 预览放置（纯客户端）：在 anchorWorld 处渲染构件线框。
+     * - force=true：强制刷新当前预览（用于 anchor 改变时）
+     */
+    public void preview(net.minecraft.client.MinecraftClient client, boolean force) {
+        if (!force && ComponentPreviewState.isActive()) {
+            ComponentPreviewState.clear();
+            HudToast.show("已关闭构件预览");
+            return;
+        }
+        if (!SelectionTool.INSTANCE.hasSelection()) {
+            HudToast.show("预览失败：请先完成选区", true);
+            return;
+        }
+        if (state.anchorWorld == null || !isInsideSelection(state.anchorWorld)) {
+            HudToast.show("预览失败：请先选择 Anchor", true);
+            return;
+        }
+        if (client == null || client.world == null) {
+            HudToast.show("预览失败：世界未就绪", true);
+            return;
+        }
+
+        List<BlockPos> local = buildLocalBlocks(client);
+        if (local.isEmpty()) {
+            HudToast.show("预览失败：选区内没有非空气方块", true);
+            return;
+        }
+
+        ComponentPreviewState.show(local, state.anchorWorld, state.facing);
+        if (!force) {
+            HudToast.show("已开启构件预览（" + local.size() + " blocks）");
+        }
+    }
+
+    public void preview(net.minecraft.client.MinecraftClient client) {
+        preview(client, false);
+    }
+
+    private List<BlockPos> buildLocalBlocks(net.minecraft.client.MinecraftClient client) {
+        List<BlockPos> out = new ArrayList<>();
+        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) return out;
+
+        BlockPos anchor = state.anchorWorld;
+        if (anchor == null) return out;
+
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int y = min.getY(); y <= max.getY(); y++) {
+                for (int z = min.getZ(); z <= max.getZ(); z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    BlockState bs = client.world.getBlockState(p);
+                    if (bs == null || bs.isAir()) continue;
+                    out.add(new BlockPos(x - anchor.getX(), y - anchor.getY(), z - anchor.getZ()));
+                }
+            }
+        }
+        return out;
     }
 
     /** 构造 ComponentDefinition 并序列化为 JSON（供 C2S 发送）。 */
@@ -114,10 +209,9 @@ public final class ComponentTool implements FormacraftTool {
         int maxY = max.getY();
         int maxZ = max.getZ();
 
-        BlockPos anchor = state.anchorWorld != null ? state.anchorWorld : min;
-        if (!isInsideSelection(anchor)) {
-            anchor = min;
-        }
+        // v1：Anchor 必须显式选择（不再默认选区 min）
+        BlockPos anchor = state.anchorWorld;
+        if (anchor == null || !isInsideSelection(anchor)) return null;
 
         ComponentDefinition def = new ComponentDefinition();
         def.id = makeId(state.category, state.name);
