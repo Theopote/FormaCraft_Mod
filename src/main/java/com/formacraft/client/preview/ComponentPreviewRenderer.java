@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Component 预览渲染（线框 + 锚点 + facing 指示）。
- *
+ * <p>
  * 注意：复用 lines RenderLayer（由 SelectionBoxRenderMixin 注入点驱动）。
  */
 public final class ComponentPreviewRenderer {

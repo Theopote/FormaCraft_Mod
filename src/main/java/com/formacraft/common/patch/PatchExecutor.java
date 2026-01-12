@@ -43,6 +43,7 @@ public final class PatchExecutor {
         }
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private static BlockState parseBlockState(String id) {
         if (id == null || id.isBlank()) return Blocks.AIR.getDefaultState();
         try {
@@ -83,11 +84,8 @@ public final class PatchExecutor {
                         Object v = parsed.get();
                         if (!(v instanceof Comparable<?> c)) continue;
                         // 类型擦除下的通用属性写入：我们只在 parse() 成功后写入
-                        @SuppressWarnings({"rawtypes"})
-                        Property rawProp = prop;
-                        @SuppressWarnings({"rawtypes"})
-                        Comparable rawValue = c;
-                        //noinspection unchecked
+                        Property rawProp = (Property) prop;
+                        Comparable rawValue = (Comparable) c;
                         state = state.with(rawProp, rawValue);
                     }
                 }

@@ -38,7 +38,7 @@ import java.util.Map;
  * - 依赖 SelectionTool 提供 AABB
  * - 可在选区内选择 anchor
  * - 保存时：读取方块 -> 相对 anchor 坐标 -> ComponentDefinition JSON
- *
+ * <p>
  * v1：不做旋转放置、不做预览展开，仅保存到服务端构件库。
  */
 public final class ComponentTool implements FormacraftTool {
@@ -101,7 +101,6 @@ public final class ComponentTool implements FormacraftTool {
     public void cycleFacing() {
         state.facing = switch (state.facing) {
             case NORTH -> Direction.EAST;
-            case EAST -> Direction.SOUTH;
             case SOUTH -> Direction.WEST;
             case WEST -> Direction.NORTH;
             default -> Direction.SOUTH;
@@ -256,7 +255,7 @@ public final class ComponentTool implements FormacraftTool {
 
     public boolean canSave() {
         // v1：强制显式 Anchor（避免后续旋转/放置语义混乱）
-        return SelectionTool.INSTANCE.hasSelection() && state.anchorWorld != null && isInsideSelection(state.anchorWorld);
+        return SelectionTool.INSTANCE.hasSelection() && isInsideSelection(state.anchorWorld);
     }
 
     public void markSavePending(String displayName) {
@@ -442,7 +441,10 @@ public final class ComponentTool implements FormacraftTool {
             for (int y = min.getY(); y <= max.getY(); y++) {
                 for (int z = min.getZ(); z <= max.getZ(); z++) {
                     BlockPos p = new BlockPos(x, y, z);
-                    BlockState bs = client.world.getBlockState(p);
+                    BlockState bs = null;
+                    if (client.world != null) {
+                        bs = client.world.getBlockState(p);
+                    }
                     if (bs == null || bs.isAir()) continue;
                     out.add(new BlockPos(x - anchor.getX(), y - anchor.getY(), z - anchor.getZ()));
                 }
@@ -465,7 +467,10 @@ public final class ComponentTool implements FormacraftTool {
             for (int y = min.getY(); y <= max.getY(); y++) {
                 for (int z = min.getZ(); z <= max.getZ(); z++) {
                     BlockPos p = new BlockPos(x, y, z);
-                    BlockState bs = client.world.getBlockState(p);
+                    BlockState bs = null;
+                    if (client.world != null) {
+                        bs = client.world.getBlockState(p);
+                    }
                     if (bs == null || bs.isAir()) continue;
                     minDy = Math.min(minDy, y - anchor.getY());
                 }
@@ -477,7 +482,10 @@ public final class ComponentTool implements FormacraftTool {
             for (int y = min.getY(); y <= max.getY(); y++) {
                 for (int z = min.getZ(); z <= max.getZ(); z++) {
                     BlockPos p = new BlockPos(x, y, z);
-                    BlockState bs = client.world.getBlockState(p);
+                    BlockState bs = null;
+                    if (client.world != null) {
+                        bs = client.world.getBlockState(p);
+                    }
                     if (bs == null || bs.isAir()) continue;
 
                     ComponentDefinition.BlockEntry be = new ComponentDefinition.BlockEntry();
@@ -523,7 +531,7 @@ public final class ComponentTool implements FormacraftTool {
 
         // v1：Anchor 必须显式选择（不再默认选区 min）
         BlockPos anchor = state.anchorWorld;
-        if (anchor == null || !isInsideSelection(anchor)) return null;
+        if (!isInsideSelection(anchor)) return null;
 
         ComponentDefinition def = new ComponentDefinition();
         def.id = makeId(state.category, state.name);
@@ -604,7 +612,7 @@ public final class ComponentTool implements FormacraftTool {
         String id = null;
         try {
             var bid = Registries.BLOCK.getId(b);
-            id = bid != null ? bid.toString() : null;
+            id = bid.toString();
         } catch (Throwable ignored) {
         }
         if ((id != null && id.contains("glass_pane")) || b == net.minecraft.block.Blocks.GLASS) {
@@ -628,8 +636,7 @@ public final class ComponentTool implements FormacraftTool {
             for (Property<?> p : bs.getProperties()) {
                 if (p == null) continue;
                 if (!"axis".equalsIgnoreCase(p.getName())) continue;
-                Property raw = (Property) p;
-                Object v = bs.get(raw);
+                Object v = bs.get((Property) p);
                 if (v instanceof net.minecraft.util.math.Direction.Axis axis) {
                     return axis == net.minecraft.util.math.Direction.Axis.Y ? SemanticPart.PILLAR : SemanticPart.BEAM;
                 }
@@ -716,7 +723,7 @@ public final class ComponentTool implements FormacraftTool {
         for (Map.Entry<Property<?>, Comparable<?>> e : entries) {
             if (!first) sb.append(",");
             first = false;
-            sb.append(e.getKey().getName()).append("=").append(String.valueOf(e.getValue()));
+            sb.append(e.getKey().getName()).append("=").append(e.getValue());
         }
         sb.append("]");
         return sb.toString();
