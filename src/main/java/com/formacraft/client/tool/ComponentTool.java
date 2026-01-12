@@ -6,12 +6,17 @@ import com.formacraft.client.preview.ComponentPreviewState;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
+import com.formacraft.common.component.transform.FacingTransformUtil;
 import com.formacraft.common.component.transform.Mirror;
+import com.formacraft.common.component.semantic.BlockStatePropertyUtil;
+import com.formacraft.common.component.semantic.SemanticBlockStatePicker;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
+import com.formacraft.common.semantic.SemanticPart;
+import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
@@ -120,6 +125,34 @@ public final class ComponentTool implements FormacraftTool {
         state.category = v[(idx + 1) % v.length];
     }
 
+    public void toggleSemanticSkin() {
+        state.semanticSkin = !state.semanticSkin;
+    }
+
+    public void cycleSemanticPart() {
+        SemanticPart[] v = SemanticPart.values();
+        int idx = 0;
+        for (int i = 0; i < v.length; i++) {
+            if (v[i] == state.semanticPart) {
+                idx = i;
+                break;
+            }
+        }
+        state.semanticPart = v[(idx + 1) % v.length];
+    }
+
+    public void cycleSemanticStyle() {
+        List<String> ids = SemanticStyleProfileRegistry.ids();
+        if (ids.isEmpty()) {
+            state.semanticStyleId = "DEFAULT";
+            return;
+        }
+        String cur = (state.semanticStyleId == null || state.semanticStyleId.isBlank()) ? "DEFAULT" : state.semanticStyleId.trim();
+        int idx = ids.indexOf(cur);
+        if (idx < 0) idx = 0;
+        state.semanticStyleId = ids.get((idx + 1) % ids.size());
+    }
+
     public void startPickAnchor() {
         state.pickingAnchor = true;
     }
@@ -225,9 +258,24 @@ public final class ComponentTool implements FormacraftTool {
             BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
             BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, t);
 
-            String block = be.block;
-            // 尽力修正 facing/horizontal_facing
-            block = BlockStateStringUtil.withTransformedFacing(block, fromFacing, t);
+            String block;
+            if (state.semanticSkin && be.semantic != null) {
+                // 语义换皮：shape(坐标/朝向) 来自构件，material 来自 SemanticStyleProfile
+                long seed = mixSeed(state.anchorWorld, off, be.semantic);
+                BlockState picked = SemanticBlockStatePicker.pick(state.semanticStyleId, be.semantic, seed);
+
+                // 若原始 blockstate 带有 facing，则尽力把 facing 传递到“换皮后”的方块上
+                Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
+                if (capturedFacing != null) {
+                    Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, t);
+                    picked = BlockStatePropertyUtil.applyFacing(picked, tf);
+                }
+                block = BlockStateStringUtil.fromState(picked);
+            } else {
+                block = be.block;
+                // 尽力修正 facing/horizontal_facing
+                block = BlockStateStringUtil.withTransformedFacing(block, fromFacing, t);
+            }
 
             patches.add(new BlockPatch(BlockPatch.PLACE, off.getX(), off.getY(), off.getZ(), block));
         }
@@ -282,6 +330,9 @@ public final class ComponentTool implements FormacraftTool {
                     be.dy = y - anchor.getY();
                     be.dz = z - anchor.getZ();
                     be.block = serializeBlockState(bs);
+                    if (state.semanticSkin) {
+                        be.semantic = state.semanticPart != null ? state.semanticPart : SemanticPart.WALL;
+                    }
                     out.add(be);
                 }
             }
@@ -350,12 +401,35 @@ public final class ComponentTool implements FormacraftTool {
                     be.dy = y - anchor.getY();
                     be.dz = z - anchor.getZ();
                     be.block = serializeBlockState(bs);
+                    if (state.semanticSkin) {
+                        be.semantic = state.semanticPart != null ? state.semanticPart : SemanticPart.WALL;
+                    }
                     def.blocks.add(be);
                 }
             }
         }
 
         return JsonUtil.toJson(def);
+    }
+
+    private static long mixSeed(BlockPos anchor, BlockPos off, SemanticPart part) {
+        long ax = anchor != null ? anchor.getX() : 0;
+        long ay = anchor != null ? anchor.getY() : 0;
+        long az = anchor != null ? anchor.getZ() : 0;
+        long x = off != null ? off.getX() : 0;
+        long y = off != null ? off.getY() : 0;
+        long z = off != null ? off.getZ() : 0;
+        long p = part != null ? part.ordinal() : 0;
+
+        long h = 1469598103934665603L;
+        h ^= ax; h *= 1099511628211L;
+        h ^= ay; h *= 1099511628211L;
+        h ^= az; h *= 1099511628211L;
+        h ^= x;  h *= 1099511628211L;
+        h ^= y;  h *= 1099511628211L;
+        h ^= z;  h *= 1099511628211L;
+        h ^= p;  h *= 1099511628211L;
+        return h;
     }
 
     private boolean isInsideSelection(BlockPos pos) {

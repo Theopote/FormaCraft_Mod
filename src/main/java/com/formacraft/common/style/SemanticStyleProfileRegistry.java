@@ -42,5 +42,10 @@ public final class SemanticStyleProfileRegistry {
         }
         return REGISTRY.get(profileId.trim());
     }
+
+    /** 返回当前已注册的所有 profile id（用于 UI 下拉/循环）。 */
+    public static java.util.List<String> ids() {
+        return REGISTRY.keySet().stream().sorted().toList();
+    }
 }
 

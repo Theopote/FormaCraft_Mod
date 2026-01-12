@@ -96,6 +96,9 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget componentClearAnchorButton;
     private ButtonWidget componentFacingButton;
     private ButtonWidget componentMirrorButton;
+    private ButtonWidget componentSkinModeButton;
+    private ButtonWidget componentSemanticStyleButton;
+    private ButtonWidget componentSemanticPartButton;
     private ButtonWidget componentSaveButton;
     private ButtonWidget componentPreviewButton;
     private ButtonWidget componentApplyButton;
@@ -226,6 +229,18 @@ public class ToolPanel extends BasePanel {
         componentMirrorButton = ButtonWidget.builder(Text.literal("镜像：NONE"), b -> ComponentTool.INSTANCE.cycleMirror())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("镜像模式：NONE / X / Z（先镜像再旋转）")))
+                .build();
+        componentSkinModeButton = ButtonWidget.builder(Text.literal("材质：原样"), b -> ComponentTool.INSTANCE.toggleSemanticSkin())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("切换材质模式：原样方块 / 语义换皮（由风格调色板决定）")))
+                .build();
+        componentSemanticStyleButton = ButtonWidget.builder(Text.literal("风格：DEFAULT"), b -> ComponentTool.INSTANCE.cycleSemanticStyle())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("循环切换语义风格（SemanticStyleProfile）")))
+                .build();
+        componentSemanticPartButton = ButtonWidget.builder(Text.literal("语义：WALL"), b -> ComponentTool.INSTANCE.cycleSemanticPart())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("循环切换语义部位（用于语义换皮选材）")))
                 .build();
         componentSaveButton = ButtonWidget.builder(Text.literal("保存为构件"), b -> {
                     // v1：Anchor 必须显式选择
@@ -739,6 +754,31 @@ public class ToolPanel extends BasePanel {
         componentClearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
+        // 材质模式 / 风格 一行两个按钮
+        componentSkinModeButton.setMessage(Text.literal(st.semanticSkin ? "材质：语义" : "材质：原样"));
+        componentSkinModeButton.setPosition(x, y);
+        componentSkinModeButton.setWidth(half);
+        componentSkinModeButton.visible = true;
+        componentSkinModeButton.active = true;
+        componentSkinModeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+        componentSemanticStyleButton.setMessage(Text.literal("风格：" + (st.semanticStyleId != null ? st.semanticStyleId : "DEFAULT")));
+        componentSemanticStyleButton.setPosition(x + half + 4, y);
+        componentSemanticStyleButton.setWidth(w - half - 4);
+        componentSemanticStyleButton.visible = true;
+        componentSemanticStyleButton.active = st.semanticSkin;
+        componentSemanticStyleButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        // 语义部位（单行）
+        componentSemanticPartButton.setMessage(Text.literal("语义：" + (st.semanticPart != null ? st.semanticPart.name() : "WALL")));
+        componentSemanticPartButton.setPosition(x, y);
+        componentSemanticPartButton.setWidth(w);
+        componentSemanticPartButton.visible = true;
+        componentSemanticPartButton.active = st.semanticSkin;
+        componentSemanticPartButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
         componentSaveButton.setPosition(x, y);
         componentSaveButton.setWidth(w);
         componentSaveButton.visible = true;
@@ -877,6 +917,9 @@ public class ToolPanel extends BasePanel {
             if (componentClearAnchorButton != null && componentClearAnchorButton.visible && componentClearAnchorButton.mouseClicked(click, false)) return true;
             if (componentFacingButton != null && componentFacingButton.visible && componentFacingButton.mouseClicked(click, false)) return true;
             if (componentMirrorButton != null && componentMirrorButton.visible && componentMirrorButton.mouseClicked(click, false)) return true;
+            if (componentSkinModeButton != null && componentSkinModeButton.visible && componentSkinModeButton.mouseClicked(click, false)) return true;
+            if (componentSemanticStyleButton != null && componentSemanticStyleButton.visible && componentSemanticStyleButton.mouseClicked(click, false)) return true;
+            if (componentSemanticPartButton != null && componentSemanticPartButton.visible && componentSemanticPartButton.mouseClicked(click, false)) return true;
             if (componentSaveButton != null && componentSaveButton.visible && componentSaveButton.mouseClicked(click, false)) return true;
             if (componentPreviewButton != null && componentPreviewButton.visible && componentPreviewButton.mouseClicked(click, false)) return true;
             if (componentApplyButton != null && componentApplyButton.visible && componentApplyButton.mouseClicked(click, false)) return true;

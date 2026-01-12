@@ -2,6 +2,7 @@ package com.formacraft.client.tool;
 
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.transform.Mirror;
+import com.formacraft.common.semantic.SemanticPart;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -22,6 +23,13 @@ public class ComponentToolState {
     public Direction facing = Direction.SOUTH;
     /** 构件镜像模式（v1）。 */
     public Mirror mirror = Mirror.NONE;
+
+    /** 材质模式：是否使用语义调色板进行“换皮”。 */
+    public boolean semanticSkin = false;
+    /** 语义部位（semanticSkin=true 时用于选取材质）。 */
+    public SemanticPart semanticPart = SemanticPart.WALL;
+    /** SemanticStyleProfile id（semanticSkin=true 时用于材质规则）。 */
+    public String semanticStyleId = "DEFAULT";
 
     /** UI 状态：正在选择 anchor */
     public boolean pickingAnchor = false;

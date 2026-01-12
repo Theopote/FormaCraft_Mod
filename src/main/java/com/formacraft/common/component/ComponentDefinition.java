@@ -46,6 +46,8 @@ public class ComponentDefinition {
 
     public static class BlockEntry {
         public int dx, dy, dz;
+        /** v1：可选语义部位（用于风格驱动的材质替换；为空则走 block 字符串） */
+        public com.formacraft.common.semantic.SemanticPart semantic;
         /** v1：blockstate string（例如 minecraft:spruce_door[facing=south,half=lower]） */
         public String block;
     }
