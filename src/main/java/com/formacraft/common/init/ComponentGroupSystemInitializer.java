@@ -5,7 +5,7 @@ import com.formacraft.common.component.group.ComponentGroup;
 import com.formacraft.common.component.group.ComponentGroupRegistry;
 import com.formacraft.common.component.group.GroupComponentEntry;
 import com.formacraft.common.component.socket.ComponentSocket;
-import com.formacraft.common.component.socket.SocketType;
+import com.formacraft.common.component.socket.*;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.skeleton.transform.YRotation;
 
@@ -36,7 +36,14 @@ public final class ComponentGroupSystemInitializer {
                         new GroupComponentEntry("tower_roof", 0, 12, 0, YRotation.NONE, Mirror.NONE)
                 ),
                 List.of(
-                        new ComponentSocket("door", SocketType.DOOR, 2, 1, 0, "SOUTH", 2, 3, 1)
+                        ComponentSocket.builder("door")
+                                .role(SocketRole.CONSUMER)
+                                .shape(SocketShape.RECT)
+                                .context(SocketContext.WALL)
+                                .facingPolicy(SocketFacingPolicy.IN_OUT)
+                                .size(SizeConstraint.rect(2, 3, 2, 3))
+                                .tag("door")
+                                .build()
                 )
         ));
 
@@ -51,8 +58,22 @@ public final class ComponentGroupSystemInitializer {
                         new GroupComponentEntry("gate_tower_right", 7, 0, 0, YRotation.NONE, Mirror.NONE)
                 ),
                 List.of(
-                        new ComponentSocket("wall_left", SocketType.WALL, -3, 0, 0, "WEST", 1, 5, 3),
-                        new ComponentSocket("wall_right", SocketType.WALL, 10, 0, 0, "EAST", 1, 5, 3)
+                        ComponentSocket.builder("wall_left")
+                                .role(SocketRole.PROVIDER)
+                                .shape(SocketShape.LINE)
+                                .context(SocketContext.WALL)
+                                .facingPolicy(SocketFacingPolicy.AXIS)
+                                .size(SizeConstraint.line(1, 10))
+                                .tag("wall")
+                                .build(),
+                        ComponentSocket.builder("wall_right")
+                                .role(SocketRole.PROVIDER)
+                                .shape(SocketShape.LINE)
+                                .context(SocketContext.WALL)
+                                .facingPolicy(SocketFacingPolicy.AXIS)
+                                .size(SizeConstraint.line(1, 10))
+                                .tag("wall")
+                                .build()
                 )
         ));
 
@@ -65,10 +86,23 @@ public final class ComponentGroupSystemInitializer {
                         new GroupComponentEntry("wall_segment", 0, 0, 0, YRotation.NONE, Mirror.NONE)
                 ),
                 List.of(
-                        // prev/next socket 的 origin 需要与你的 wall_segment 真实长度匹配；
-                        // 这里给一个默认长度 12，用于 prompt 引导/快速试验。
-                        new ComponentSocket("prev", SocketType.WALL, 0, 0, 0, "NORTH", 1, 5, 3),
-                        new ComponentSocket("next", SocketType.WALL, 0, 0, 12, "SOUTH", 1, 5, 3)
+                        // prev/next socket：城墙段的链式连接接口
+                        ComponentSocket.builder("prev")
+                                .role(SocketRole.PROVIDER)
+                                .shape(SocketShape.LINE)
+                                .context(SocketContext.WALL)
+                                .facingPolicy(SocketFacingPolicy.AXIS)
+                                .size(SizeConstraint.line(1, 10))
+                                .tag("wall_segment")
+                                .build(),
+                        ComponentSocket.builder("next")
+                                .role(SocketRole.PROVIDER)
+                                .shape(SocketShape.LINE)
+                                .context(SocketContext.WALL)
+                                .facingPolicy(SocketFacingPolicy.AXIS)
+                                .size(SizeConstraint.line(1, 10))
+                                .tag("wall_segment")
+                                .build()
                 )
         ));
 

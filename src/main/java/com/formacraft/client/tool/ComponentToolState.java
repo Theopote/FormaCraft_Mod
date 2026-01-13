@@ -3,7 +3,7 @@ package com.formacraft.client.tool;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.semantic.SemanticPart;
-import com.formacraft.common.component.socket.SocketType;
+import com.formacraft.common.component.socket.SocketContext;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -60,8 +60,8 @@ public class ComponentToolState {
     // ===== Socket 编辑（v1）=====
     /** 已添加 socket 数量（仅用于 UI 反馈/自动命名）。 */
     public int socketCount = 0;
-    /** 当前 socket 类型（循环切换）。 */
-    public SocketType socketType = SocketType.DOOR;
+    /** 当前 socket 上下文（循环切换）。 */
+    public SocketContext socketContext = SocketContext.WALL;
     /** 当前 socket 朝向（循环切换）。 */
     public Direction socketFacing = Direction.SOUTH;
     /** 当前 socket 尺寸（w/h/d）。 */

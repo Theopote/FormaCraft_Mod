@@ -7,6 +7,7 @@ import com.formacraft.client.tool.placement.PlacementAnalyzer;
 import com.formacraft.client.tool.placement.PlacementContext;
 import com.formacraft.client.tool.placement.PlacementResult;
 import com.formacraft.client.tool.placement.PlacementValidator;
+import com.formacraft.common.component.socket.*;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
@@ -21,8 +22,6 @@ import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.component.placement.FacingPolicy;
 import com.formacraft.common.component.placement.PlacementConstraints;
 import com.formacraft.common.component.placement.SpatialContext;
-import com.formacraft.common.component.socket.ComponentSocket;
-import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
@@ -465,23 +464,23 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public void cycleSocketType() {
-        SocketType[] v = SocketType.values();
+        SocketContext[] v = SocketContext.values();
         int idx = 0;
         for (int i = 0; i < v.length; i++) {
-            if (v[i] == state.socketType) {
+            if (v[i] == state.socketContext) {
                 idx = i;
                 break;
             }
         }
-        state.socketType = v[(idx + 1) % v.length];
+        state.socketContext = v[(idx + 1) % v.length];
         // 预设尺寸
-        switch (state.socketType) {
-            case DOOR -> { state.socketW = 2; state.socketH = 3; state.socketD = 1; }
-            case WINDOW -> { state.socketW = 2; state.socketH = 2; state.socketD = 1; }
-            case BALCONY -> { state.socketW = 3; state.socketH = 2; state.socketD = 1; }
-            case ROOF_ATTACHMENT -> { state.socketW = 3; state.socketH = 1; state.socketD = 1; }
-            case WALL -> { state.socketW = 1; state.socketH = 5; state.socketD = 3; }
-            case DECORATION -> { state.socketW = 1; state.socketH = 1; state.socketD = 1; }
+        switch (state.socketContext) {
+            case WALL -> { state.socketW = 2; state.socketH = 3; state.socketD = 1; } // 默认门尺寸
+            case EDGE -> { state.socketW = 4; state.socketH = 1; state.socketD = 1; } // 栏杆
+            case CORNER -> { state.socketW = 1; state.socketH = 3; state.socketD = 1; } // 角柱
+            case ROOF -> { state.socketW = 2; state.socketH = 3; state.socketD = 1; } // 烟囱
+            case GROUND -> { state.socketW = 3; state.socketH = 1; state.socketD = 3; } // 地砖
+            case INTERIOR -> { state.socketW = 1; state.socketH = 1; state.socketD = 1; } // 装饰
         }
     }
 
@@ -509,19 +508,24 @@ public final class ComponentTool implements FormacraftTool {
             if (want.isEmpty()) want = "socket_" + state.socketCount;
         }
         String id = uniqueSocketId(want);
-        ComponentSocket s = new ComponentSocket(
-                id,
-                state.socketType != null ? state.socketType : SocketType.DECORATION,
-                state.socketOriginLocal.getX(),
-                state.socketOriginLocal.getY(),
-                state.socketOriginLocal.getZ(),
-                (state.socketFacing != null ? state.socketFacing : Direction.SOUTH).name(),
-                Math.max(1, state.socketW),
-                Math.max(1, state.socketH),
-                Math.max(1, state.socketD)
-        );
+        // v1 新版 Socket：使用 Builder 模式
+        ComponentSocket s = ComponentSocket.builder(id)
+                .role(SocketRole.CONSUMER) // 默认 CONSUMER（组件需要接口）
+                .shape(SocketShape.RECT)   // 默认 RECT（门/窗）
+                .context(SocketContext.WALL) // 默认 WALL
+                .facingPolicy(SocketFacingPolicy.IN_OUT)
+                .size(SizeConstraint.rect(
+                        Math.max(1, state.socketW),
+                        Math.max(1, state.socketH),
+                        Math.max(1, state.socketW),
+                        Math.max(1, state.socketH)
+                ))
+                .tag("opening")
+                .build();
         sockets.add(s);
-        HudToast.show("已添加 Socket：" + id + " (" + s.type() + ") " + s.width() + "x" + s.height() + "x" + s.depth());
+        int w = s.size.min.length > 0 ? s.size.min[0] : 0;
+        int h = s.size.min.length > 1 ? s.size.min[1] : 0;
+        HudToast.show("已添加 Socket：" + id + " (" + s.context + ") " + w + "x" + h);
     }
 
     public void toggleSocketPreview(net.minecraft.client.MinecraftClient client) {
@@ -562,7 +566,7 @@ public final class ComponentTool implements FormacraftTool {
                 currentTransform()
         );
         if (!silent) {
-            HudToast.show("已开启 Socket 预览（" + (state.socketType != null ? state.socketType.name() : "SOCKET") + "）");
+            HudToast.show("已开启 Socket 预览（" + (state.socketContext != null ? state.socketContext.name() : "SOCKET") + "）");
         }
     }
 
@@ -581,8 +585,8 @@ public final class ComponentTool implements FormacraftTool {
     private boolean hasSocketId(String id) {
         if (id == null || id.isBlank()) return false;
         for (ComponentSocket s : sockets) {
-            if (s == null || s.id() == null) continue;
-            if (id.equals(s.id())) return true;
+            if (s == null) continue;
+            if (id.equals(s.id)) return true;
         }
         return false;
     }
@@ -1040,9 +1044,7 @@ public final class ComponentTool implements FormacraftTool {
                 spec.semanticTags.add("circulation");
                 spec.aiHint = "Stairs: direction may be user-defined; ensure continuity.";
             }
-            case GENERIC -> {
-                spec.aiHint = "Generic component: placement is unconstrained unless tags imply otherwise.";
-            }
+            case GENERIC -> spec.aiHint = "Generic component: placement is unconstrained unless tags imply otherwise.";
         }
 
         // tag hints（best-effort，避免引入新 UI）

@@ -116,11 +116,12 @@ public final class PlayerComponentGroupExpander {
                 return List.of();
             }
 
-            BlockPos socketLocal = new BlockPos(socket.x(), socket.y(), socket.z());
+            // v1 新版 Socket 不包含坐标和朝向，使用默认值（旧行为兼容）
+            BlockPos socketLocal = BlockPos.ORIGIN;
             BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, hostFromFacing, hostTransform);
 
-            Direction socketLocalFacing = parseDir(socket.facing());
-            if (socketLocalFacing == null || !socketLocalFacing.getAxis().isHorizontal()) socketLocalFacing = Direction.SOUTH;
+            // 新版 Socket 不包含 facing()，使用默认朝向
+            Direction socketLocalFacing = Direction.SOUTH;
             Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, hostFromFacing, hostTransform);
             if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = hostTargetFacing;
 
@@ -134,7 +135,15 @@ public final class PlayerComponentGroupExpander {
             Boolean carve0 = getBoolNullable(reqMap, "carve", "carve_mask", "carveMask", "carve_socket", "carveSocket");
             boolean carve = carve0 == null || carve0;
             if (carve) {
-                SocketMask mask = new SocketMask(socket.width(), socket.height(), socket.depth());
+                // v1 新版 Socket：从 size 约束中提取尺寸
+                SocketMask mask;
+                if (socket.size != null && socket.size.min != null && socket.size.min.length >= 2) {
+                    int w = socket.size.min[0];
+                    int h = socket.size.min[1];
+                    mask = new SocketMask(w, h, 1);
+                } else {
+                    mask = new SocketMask(2, 3, 1); // 默认门尺寸
+                }
                 if (mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
                     BlockPos socketWorld = new BlockPos(baseX, baseY, baseZ);
                     for (int x = 0; x < mask.width(); x++) {
@@ -237,14 +246,15 @@ public final class PlayerComponentGroupExpander {
             }
 
             // socket world offset (in group placement space)
-            BlockPos socketLocal = new BlockPos(socket.x(), socket.y(), socket.z());
+            // v1 新版 Socket 不包含坐标，返回原点（旧行为兼容）
+            BlockPos socketLocal = BlockPos.ORIGIN;
             BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, groupFromFacing, groupTransform);
             int socketX = baseX + socketOff.getX();
             int socketY = baseY + socketOff.getY();
             int socketZ = baseZ + socketOff.getZ();
 
-            Direction socketLocalFacing = parseDir(socket.facing());
-            if (socketLocalFacing == null || !socketLocalFacing.getAxis().isHorizontal()) socketLocalFacing = Direction.SOUTH;
+            // 新版 Socket 不包含 facing()，使用默认朝向
+            Direction socketLocalFacing = Direction.SOUTH;
             Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, groupFromFacing, groupTransform);
             if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = groupFacing;
 
@@ -256,7 +266,15 @@ public final class PlayerComponentGroupExpander {
 
             boolean carve = me.carve == null || me.carve;
             if (carve) {
-                SocketMask mask = new SocketMask(socket.width(), socket.height(), socket.depth());
+                // v1 新版 Socket：从 size 约束中提取尺寸
+                SocketMask mask;
+                if (socket.size != null && socket.size.min != null && socket.size.min.length >= 2) {
+                    int w = socket.size.min[0];
+                    int h = socket.size.min[1];
+                    mask = new SocketMask(w, h, 1);
+                } else {
+                    mask = new SocketMask(2, 3, 1); // 默认门尺寸
+                }
                 if (mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
                     for (int x = 0; x < mask.width(); x++) {
                         for (int y = 0; y < mask.height(); y++) {
@@ -314,11 +332,11 @@ public final class PlayerComponentGroupExpander {
             }
 
             // placementSpec 过滤：用 group socket 的语义附着类型约束挂载物
-            AttachmentType hostAttachment = AttachmentRecognizer.attachmentForSocketType(socket.type());
+            AttachmentType hostAttachment = AttachmentRecognizer.attachmentForSocketContext(socket.context);
             if (!AttachmentRecognizer.isCompatible(mount.placementSpec, hostAttachment)) {
-                FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount placementSpec incompatible: mount={} need={} groupSocketType={} hostAttachment={}",
-                        mount.id, (mount.placementSpec != null ? mount.placementSpec.attachment : null),
-                        socket.type(), hostAttachment);
+                FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount placementSpec incompatible: mount={} need={} groupSocketContext={} hostAttachment={}",
+                        mount.id, mount.placementSpec.attachment,
+                        socket.context, hostAttachment);
                 continue;
             }
 
@@ -359,8 +377,8 @@ public final class PlayerComponentGroupExpander {
         if (def == null || def.sockets == null || def.sockets.isEmpty()) return null;
         if (socketId == null || socketId.isBlank()) return null;
         for (ComponentSocket s : def.sockets) {
-            if (s == null || s.id() == null) continue;
-            if (socketId.equals(s.id())) return s;
+            if (s == null || s.id == null) continue;
+            if (socketId.equals(s.id)) return s;
         }
         return null;
     }
@@ -369,8 +387,8 @@ public final class PlayerComponentGroupExpander {
         if (group == null || group.getSockets() == null || group.getSockets().isEmpty()) return null;
         if (socketId == null || socketId.isBlank()) return null;
         for (ComponentSocket s : group.getSockets()) {
-            if (s == null || s.id() == null) continue;
-            if (socketId.equals(s.id())) return s;
+            if (s == null || s.id == null) continue;
+            if (socketId.equals(s.id)) return s;
         }
         return null;
     }
@@ -387,7 +405,8 @@ public final class PlayerComponentGroupExpander {
         Direction groupFromFacing = Direction.SOUTH;
         ComponentTransform groupTransform = new ComponentTransform(groupFacing, groupMirror);
 
-        BlockPos socketLocal = new BlockPos(s.x(), s.y(), s.z());
+        // 新版 Socket 不包含坐标和朝向，使用默认值
+        BlockPos socketLocal = BlockPos.ORIGIN;
         BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, groupFromFacing, groupTransform);
         BlockPos pos = new BlockPos(
                 groupAnchor.getX() + socketOff.getX(),
@@ -395,8 +414,8 @@ public final class PlayerComponentGroupExpander {
                 groupAnchor.getZ() + socketOff.getZ()
         );
 
-        Direction socketLocalFacing = parseDir(s.facing());
-        if (socketLocalFacing == null || !socketLocalFacing.getAxis().isHorizontal()) socketLocalFacing = Direction.SOUTH;
+        // 新版 Socket 不包含 facing()，使用默认朝向
+        Direction socketLocalFacing = Direction.SOUTH;
         Direction facing = FacingTransformUtil.transformFacing(socketLocalFacing, groupFromFacing, groupTransform);
         if (facing == null || !facing.getAxis().isHorizontal()) facing = groupFacing;
 
@@ -649,7 +668,7 @@ public final class PlayerComponentGroupExpander {
         Boolean carve = getBoolNullable(m, "carve", "carve_mask", "carveMask", "carve_socket", "carveSocket");
         String facing = getString(m, "mount_facing", "mountFacing", "facing");
         String mirror = getString(m, "mount_mirror", "mountMirror", "mirror");
-        int offX = 0, offY = 0, offZ = 0;
+        int offX, offY, offZ;
         Object off0 = m.get("mount_offset");
         if (!(off0 instanceof Map<?, ?>)) off0 = m.get("offset");
         if (off0 instanceof Map<?, ?> mm) {

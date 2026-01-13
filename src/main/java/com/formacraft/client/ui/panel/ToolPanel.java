@@ -938,7 +938,7 @@ public class ToolPanel extends BasePanel {
                 x, y, w, 0xFFAAAAAA);
         y += 2;
 
-        componentSocketTypeButton.setMessage(Text.literal("SocketType: " + (st.socketType != null ? st.socketType.name() : "DOOR")));
+        componentSocketTypeButton.setMessage(Text.literal("SocketContext: " + (st.socketContext != null ? st.socketContext.name() : "WALL")));
         componentSocketTypeButton.setPosition(x, y);
         componentSocketTypeButton.setWidth(w);
         componentSocketTypeButton.visible = true;

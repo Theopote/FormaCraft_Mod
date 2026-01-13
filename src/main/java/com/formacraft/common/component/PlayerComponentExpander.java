@@ -14,7 +14,7 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.component.socket.ComponentSocket;
 import com.formacraft.common.component.socket.FacingUtil;
 import com.formacraft.common.component.socket.SocketMask;
-import com.formacraft.common.component.socket.SocketType;
+import com.formacraft.common.component.socket.*;
 import com.formacraft.common.component.placement.AttachmentRecognizer;
 import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.placement.FacingDeriver;
@@ -260,11 +260,11 @@ public final class PlayerComponentExpander {
         }
 
         // placementSpec 过滤：避免把“需要 WALL_OPENING 的门”装到非 opening 的 socket 上
-        AttachmentType hostAttachment = AttachmentRecognizer.attachmentForSocketType(socket.type());
+        AttachmentType hostAttachment = AttachmentRecognizer.attachmentForSocketContext(socket.context);
         if (!AttachmentRecognizer.isCompatible(mount.placementSpec, hostAttachment)) {
-            FormacraftMod.LOGGER.warn("PlayerComponentExpander: mount placementSpec incompatible: mount={} need={} hostSocketType={} hostAttachment={}",
-                    mount.id, (mount.placementSpec != null ? mount.placementSpec.attachment : null),
-                    socket.type(), hostAttachment);
+            FormacraftMod.LOGGER.warn("PlayerComponentExpander: mount placementSpec incompatible: mount={} need={} hostSocketContext={} hostAttachment={}",
+                    mount.id, mount.placementSpec.attachment,
+                    socket.context, hostAttachment);
             // 仅放置 host；不 carve、不放置 mount（避免破坏结构）
             List<BlockPatch> onlyHost = new ArrayList<>(host.blocks.size() + 16);
             addComponentPatches(onlyHost, host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
@@ -272,11 +272,12 @@ public final class PlayerComponentExpander {
         }
 
         // socket world offset and facing (in host placement space)
-        BlockPos socketLocal = new BlockPos(socket.x(), socket.y(), socket.z());
+        // v1 新版 Socket 不包含坐标，返回原点（旧行为兼容）
+        BlockPos socketLocal = BlockPos.ORIGIN;
         BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, hostFromFacing, hostTransform);
 
-        Direction socketLocalFacing = parseDir(socket.facing());
-        if (socketLocalFacing == null || !socketLocalFacing.getAxis().isHorizontal()) socketLocalFacing = Direction.SOUTH;
+        // 新版 Socket 不包含 facing()，使用默认朝向
+        Direction socketLocalFacing = Direction.SOUTH;
         Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, hostFromFacing, hostTransform);
         if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = hostTargetFacing;
 
@@ -310,7 +311,13 @@ public final class PlayerComponentExpander {
 
         // carve mask defaults from socket
         boolean carve = shouldCarve(reqMap, host);
-        SocketMask mask = carve ? new SocketMask(socket.width(), socket.height(), socket.depth()) : null;
+        // v1 新版 Socket：从 size 约束中提取尺寸
+        SocketMask mask = null;
+        if (carve && socket.size != null && socket.size.min != null && socket.size.min.length >= 2) {
+            int w = socket.size.min[0];
+            int h = socket.size.min[1];
+            mask = new SocketMask(w, h, 1); // depth=1（默认）
+        }
 
         List<BlockPatch> out = new ArrayList<>(host.blocks.size() + mount.blocks.size() + 64);
 
@@ -318,7 +325,7 @@ public final class PlayerComponentExpander {
         addComponentPatches(out, host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
 
         // 2) carve
-        if (carve && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
+        if (mask != null && mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
             BlockPos socketWorld = new BlockPos(baseX + socketOff.getX(), baseY + socketOff.getY(), baseZ + socketOff.getZ());
 
             // 沿 socket 的“世界朝向”清洞（depth 方向跟随 socketWorldFacing）
@@ -392,8 +399,8 @@ public final class PlayerComponentExpander {
         if (def == null || def.sockets == null || def.sockets.isEmpty()) return null;
         if (socketId == null || socketId.isBlank()) return null;
         for (ComponentSocket s : def.sockets) {
-            if (s == null || s.id() == null) continue;
-            if (socketId.equals(s.id())) return s;
+            if (s == null || s.id == null) continue;
+            if (socketId.equals(s.id)) return s;
         }
         return null;
     }
@@ -451,7 +458,7 @@ public final class PlayerComponentExpander {
         String socketId = getString(reqMap, "socket_id", "socketId");
         if (socketId != null && def != null && def.sockets != null) {
             for (ComponentSocket s : def.sockets) {
-                if (s != null && socketId.equals(s.id())) {
+                if (s != null && socketId.equals(s.id)) {
                     return true;
                 }
             }
@@ -471,9 +478,10 @@ public final class PlayerComponentExpander {
             String socketId = getString(reqMap, "socket_id", "socketId");
             if (socketId != null && def != null && def.sockets != null) {
                 for (ComponentSocket s : def.sockets) {
-                    if (s == null || s.id() == null) continue;
-                    if (!socketId.equals(s.id())) continue;
-                    return new BlockPos(s.x(), s.y(), s.z());
+                    if (s == null || s.id == null) continue;
+                    if (!socketId.equals(s.id)) continue;
+                    // v1 新版 Socket 不包含坐标（由 SocketPlacement 提供），返回默认原点
+                    return BlockPos.ORIGIN;
                 }
             }
             return BlockPos.ORIGIN;
@@ -499,10 +507,15 @@ public final class PlayerComponentExpander {
         String socketId = getString(reqMap, "socket_id", "socketId");
         if (socketId != null && def != null && def.sockets != null) {
             for (ComponentSocket s : def.sockets) {
-                if (s == null || s.id() == null) continue;
-                if (!socketId.equals(s.id())) continue;
-                if (s.width() > 0 && s.height() > 0 && s.depth() > 0) {
-                    return new SocketMask(s.width(), s.height(), s.depth());
+                if (s == null || s.id == null) continue;
+                if (!socketId.equals(s.id)) continue;
+                // v1 新版 Socket：从 size 约束中提取尺寸
+                if (s.size != null && s.size.min != null && s.size.min.length >= 2) {
+                    int w = s.size.min[0];
+                    int h = s.size.min[1];
+                    if (w > 0 && h > 0) {
+                        return new SocketMask(w, h, 1); // depth=1（默认）
+                    }
                 }
             }
         }
@@ -510,26 +523,25 @@ public final class PlayerComponentExpander {
         // 3) 默认（按类型）
         String type = getString(reqMap, "socket_type", "socketType", "category", "type");
         if (type == null) return null;
-        SocketType t = parseSocketType(type);
-        if (t == SocketType.DOOR) return new SocketMask(2, 3, 1);
-        if (t == SocketType.WINDOW) return new SocketMask(2, 2, 1);
-        if (t == SocketType.BALCONY) return new SocketMask(3, 2, 1);
+        String typeLower = type.toLowerCase();
+        if (typeLower.contains("door")) return new SocketMask(2, 3, 1);
+        if (typeLower.contains("window")) return new SocketMask(2, 2, 1);
+        if (typeLower.contains("balcony")) return new SocketMask(3, 2, 1);
+        if (typeLower.contains("gate")) return new SocketMask(4, 4, 1);
+        if (typeLower.contains("arch")) return new SocketMask(3, 4, 1);
         return null;
     }
 
-    private static SocketType parseSocketType(String s) {
-        if (s == null || s.isBlank()) return SocketType.DECORATION;
-        try {
-            return SocketType.valueOf(s.trim().toUpperCase(Locale.ROOT));
-        } catch (Throwable ignored) {
-            String u = s.trim().toUpperCase(Locale.ROOT);
-            if (u.contains("DOOR")) return SocketType.DOOR;
-            if (u.contains("WINDOW")) return SocketType.WINDOW;
-            if (u.contains("BALCONY")) return SocketType.BALCONY;
-            if (u.contains("WALL")) return SocketType.WALL;
-            if (u.contains("ROOF")) return SocketType.ROOF_ATTACHMENT;
-            return SocketType.DECORATION;
-        }
+    private static SocketContext parseSocketContext(String s) {
+        if (s == null || s.isBlank()) return SocketContext.WALL;
+        String u = s.trim().toUpperCase(Locale.ROOT);
+        if (u.contains("WALL")) return SocketContext.WALL;
+        if (u.contains("EDGE")) return SocketContext.EDGE;
+        if (u.contains("CORNER")) return SocketContext.CORNER;
+        if (u.contains("ROOF")) return SocketContext.ROOF;
+        if (u.contains("GROUND")) return SocketContext.GROUND;
+        if (u.contains("INTERIOR")) return SocketContext.INTERIOR;
+        return SocketContext.WALL; // 默认墙面
     }
 
     private static com.formacraft.common.semantic.SemanticPart guessSemanticPartFromString(String blockStateString, int dy, int minDy) {

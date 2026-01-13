@@ -75,12 +75,23 @@ public final class ClientComponentCatalogState {
                 for (var s : e.sockets) {
                     if (s == null) continue;
                     sb.append("  - socket.")
-                            .append(s.id())
-                            .append(" type=").append(s.type())
-                            .append(" facing=").append(s.facing())
-                            .append(" origin=(").append(s.x()).append(",").append(s.y()).append(",").append(s.z()).append(")")
-                            .append(" size=").append(s.width()).append("x").append(s.height()).append("x").append(s.depth())
-                            .append("\n");
+                            .append(s.id)
+                            .append(" role=").append(s.role)
+                            .append(" shape=").append(s.shape)
+                            .append(" context=").append(s.context)
+                            .append(" facingPolicy=").append(s.facingPolicy);
+                    if (s.size != null && s.size.min != null && s.size.min.length > 0) {
+                        if (s.size.min.length == 1) {
+                            sb.append(" size=[width=").append(s.size.min[0]).append("-").append(s.size.max[0]).append("]");
+                        } else {
+                            sb.append(" size=[width=").append(s.size.min[0]).append("-").append(s.size.max[0])
+                                    .append(" height=").append(s.size.min[1]).append("-").append(s.size.max[1]).append("]");
+                        }
+                    }
+                    if (s.tags != null && !s.tags.isEmpty()) {
+                        sb.append(" tags=").append(s.tags);
+                    }
+                    sb.append("\n");
                 }
             }
         }

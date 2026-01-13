@@ -1,12 +1,12 @@
 package com.formacraft.common.component.placement;
 
-import com.formacraft.common.component.socket.SocketType;
+import com.formacraft.common.component.socket.SocketContext;
 
 /**
  * AttachmentRecognizer（v1，最小实现）：
- * - 在“装配/挂载”阶段，把 host 的 SocketType 映射为高层 AttachmentType
+ * - 在"装配/挂载"阶段，把 host 的 SocketContext 映射为高层 AttachmentType
  * - 用于对 placementSpec 做兼容性过滤/打分
- *
+ * <p>
  * 后续扩展：
  * - 从 outline / roof / edge 提取候选附着面（非 socket）
  * - 结合 SpatialContext（INTERIOR/EXTERIOR）与 edge 检测进行打分
@@ -14,14 +14,15 @@ import com.formacraft.common.component.socket.SocketType;
 public final class AttachmentRecognizer {
     private AttachmentRecognizer() {}
 
-    public static AttachmentType attachmentForSocketType(SocketType type) {
-        if (type == null) return AttachmentType.NONE;
-        return switch (type) {
-            case DOOR, WINDOW -> AttachmentType.WALL_OPENING;
-            case BALCONY -> AttachmentType.WALL_SURFACE; // 外挂平台：先视为贴墙面（外法线由 policy 决定）
-            case ROOF_ATTACHMENT -> AttachmentType.ROOF_EDGE;
-            case WALL -> AttachmentType.WALL_SURFACE;
-            case DECORATION -> AttachmentType.WALL_SURFACE;
+    public static AttachmentType attachmentForSocketContext(SocketContext context) {
+        if (context == null) return AttachmentType.NONE;
+        return switch (context) {
+            case WALL -> AttachmentType.WALL_OPENING;
+            case EDGE -> AttachmentType.EDGE;
+            case CORNER -> AttachmentType.CORNER;
+            case ROOF -> AttachmentType.ROOF_SURFACE;
+            case GROUND -> AttachmentType.FLOOR;
+            case INTERIOR -> AttachmentType.WALL_SURFACE;
         };
     }
 
@@ -44,8 +45,6 @@ public final class AttachmentRecognizer {
             return spec.constraints == null || !spec.constraints.requiresAttachment;
         }
         if (need == host) return true;
-        if (need == AttachmentType.CORNER && host == AttachmentType.WALL_SURFACE) return true;
-        return false;
+        return need == AttachmentType.CORNER && host == AttachmentType.WALL_SURFACE;
     }
 }
-
