@@ -5,6 +5,8 @@ import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.component.placement.AttachmentRecognizer;
 import com.formacraft.common.component.placement.AttachmentType;
+import com.formacraft.common.component.placement.FacingDeriver;
+import com.formacraft.common.component.placement.FacingPolicy;
 import com.formacraft.common.component.socket.ComponentSocket;
 import com.formacraft.common.component.socket.FacingUtil;
 import com.formacraft.common.component.socket.SocketMask;
@@ -325,6 +327,25 @@ public final class PlayerComponentGroupExpander {
 
             Direction mountFacing = parseDir(me.mountFacing);
             if (mountFacing == null || !mountFacing.getAxis().isHorizontal()) mountFacing = socketWorldFacing;
+            // PlacementSpec v1：根据 FacingPolicy 推导（仅当未显式指定 mount_facing）
+            try {
+                if (me.mountFacing == null || me.mountFacing.isBlank()) {
+                    mountFacing = FacingDeriver.derive(
+                            mount.placementSpec,
+                            socketWorldFacing,
+                            mountFacing,
+                            me.nestedReq // mounts 内的 hints（可塞 edge endpoints 等）；没有则 null
+                    );
+                }
+            } catch (Throwable ignored) {}
+            // PlacementSpec v1：若不需要方向且未显式给 mount_facing，则保持构件自身朝向
+            try {
+                if ((me.mountFacing == null || me.mountFacing.isBlank())
+                        && mount.placementSpec != null
+                        && mount.placementSpec.facingPolicy == FacingPolicy.NONE) {
+                    mountFacing = mountFromFacing;
+                }
+            } catch (Throwable ignored) {}
             Mirror mountMirror = parseMirror(me.mountMirror);
             ComponentTransform mountTransform = new ComponentTransform(mountFacing, mountMirror);
 

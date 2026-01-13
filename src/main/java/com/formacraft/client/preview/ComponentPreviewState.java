@@ -22,6 +22,8 @@ public final class ComponentPreviewState {
     private static volatile Direction fromFacing = Direction.SOUTH;
     /** 当前要放置到世界的变换（facing+mirror）。 */
     private static volatile ComponentTransform transform = ComponentTransform.IDENTITY;
+    /** 预览颜色（默认紫色）。 */
+    private static volatile float cr = 0.70f, cg = 0.40f, cb = 1.00f, ca = 0.65f;
 
     public static void show(List<BlockPos> local, BlockPos anchor, Direction defFacing, ComponentTransform t) {
         localBlocks = local;
@@ -30,6 +32,18 @@ public final class ComponentPreviewState {
         transform = (t != null) ? t : ComponentTransform.IDENTITY;
         active = (local != null && !local.isEmpty() && worldAnchor != null);
     }
+
+    public static void setColor(float r, float g, float b, float a) {
+        cr = clamp01(r);
+        cg = clamp01(g);
+        cb = clamp01(b);
+        ca = clamp01(a);
+    }
+
+    public static float getR() { return cr; }
+    public static float getG() { return cg; }
+    public static float getB() { return cb; }
+    public static float getA() { return ca; }
 
     public static void clear() {
         active = false;
@@ -59,6 +73,12 @@ public final class ComponentPreviewState {
 
     public static void setTransform(ComponentTransform t) {
         if (t != null) transform = t;
+    }
+
+    private static float clamp01(float v) {
+        if (v < 0f) return 0f;
+        if (v > 1f) return 1f;
+        return v;
     }
 }
 

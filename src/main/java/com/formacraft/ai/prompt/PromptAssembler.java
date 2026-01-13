@@ -315,6 +315,10 @@ ComponentParamsObject:
                 "- If a component entry lists lines like `socket.<id> type=... facing=... origin=(x,y,z) size=wxhxd`, those are AVAILABLE SOCKETS defined by that host component.\n" +
                 "- If a component entry lists a line like `placement attachment=... context=... facingPolicy=...`, treat it as the component's placement contract.\n" +
                 "- When choosing sockets for mounting, match placementSpec.attachment with the host socket type: DOOR/WINDOW -> WALL_OPENING; WALL/DECORATION/BALCONY -> WALL_SURFACE; ROOF_ATTACHMENT -> ROOF_EDGE.\n" +
+                "- FacingPolicy guidance:\n" +
+                "  - NONE: do NOT force a facing.\n" +
+                "  - DERIVED_FROM_HOST / OUTWARD_NORMAL: omit mount_facing, it will be derived from the host socket.\n" +
+                "  - ALONG_EDGE: omit mount_facing, but provide an edge hint when possible (edge endpoints from ATTACHMENT CANDIDATES).\n" +
                 "- To mount, set host_id to the host component id, and socket_id to the socket id (e.g. `main_door`, not including the `socket.` prefix).\n" +
                 "- When using player components, prefer semantic re-skinning (semantic_skin=true) unless you must preserve exact original blocks.\n" +
                 "- For DOOR/WINDOW mounts, prefer carving a socket mask (carve=true). Default masks: DOOR=2x3x1, WINDOW=2x2x1. You may override via mask={w,h,d} and mask_origin={x,y,z}.\n" +

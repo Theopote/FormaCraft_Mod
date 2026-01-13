@@ -808,6 +808,15 @@ public class ToolPanel extends BasePanel {
                 x, y, w, 0xFFAAAAAA);
         y += 2;
 
+        // 悬停合法性反馈（构件库放置模式）
+        if (st.useLibrary) {
+            String hint = ComponentTool.INSTANCE.getHoverPlacementHint();
+            if (hint != null && !hint.isBlank()) {
+                y = drawWrappedText(ctx, Text.literal(hint), x, y, w, 0xFFAAAAAA);
+                y += 2;
+            }
+        }
+
         // Anchor / Facing 一行两个按钮（符合现有“两按钮一行”的风格）
         componentPickAnchorButton.setPosition(x, y);
         componentPickAnchorButton.setWidth(half);

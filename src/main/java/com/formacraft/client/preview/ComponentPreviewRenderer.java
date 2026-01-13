@@ -29,6 +29,10 @@ public final class ComponentPreviewRenderer {
         List<BlockPos> local = ComponentPreviewState.getLocalBlocks();
         Direction fromFacing = ComponentPreviewState.getFromFacing();
         ComponentTransform t = ComponentPreviewState.getTransform();
+        float r = ComponentPreviewState.getR();
+        float g = ComponentPreviewState.getG();
+        float b = ComponentPreviewState.getB();
+        float a = ComponentPreviewState.getA();
         if (anchor == null || local == null || local.isEmpty()) return;
 
         // 1) 体量（AABB 外框）
@@ -50,8 +54,7 @@ public final class ComponentPreviewRenderer {
                     anchor.getX() + maxX + 1, anchor.getY() + maxY + 1, anchor.getZ() + maxZ + 1
             ).expand(0.01);
             Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
-            // 紫色外框（更淡）
-            VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.65f, 0.40f, 0.95f, 0.55f);
+            VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, Math.min(0.95f, a * 0.85f));
         }
 
         // 2) 方块线框（采样，避免超大选区卡顿）
@@ -66,8 +69,7 @@ public final class ComponentPreviewRenderer {
             int wz = anchor.getZ() + tp.getZ();
             Box world = new Box(wx, wy, wz, wx + 1, wy + 1, wz + 1).expand(0.01);
             Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
-            // 半透明紫色
-            VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.70f, 0.40f, 1.00f, 0.65f);
+            VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, a);
         }
 
         // 3) Anchor 标记（小方块 + 十字）

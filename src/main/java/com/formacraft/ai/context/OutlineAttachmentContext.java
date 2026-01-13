@@ -32,6 +32,7 @@ public final class OutlineAttachmentContext {
         sb.append("- y_range: ").append(s.minY()).append("..").append(s.maxY()).append("\n");
         sb.append("- CORNER: place CORNER components near corners\n");
         sb.append("- EDGE: place EDGE components along edges (e.g. railings/guards)\n");
+        sb.append("- For FacingPolicy=ALONG_EDGE, you may provide an edge hint as JSON: edge:{ax,az,bx,bz}\n");
 
         if (s.mode() == OutlineMode.CIRCLE && s.center() != null) {
             BlockPos c = s.center();
@@ -55,11 +56,23 @@ public final class OutlineAttachmentContext {
             for (BlockPos p : pts) {
                 sb.append("  - (").append(p.getX()).append(",").append(p.getZ()).append(")\n");
             }
-            sb.append("- edges: circumference (continuous)\n");
+            sb.append("- edges(sampled, with edge hint JSON):\n");
+            for (int i = 0; i < pts.size(); i++) {
+                BlockPos a = pts.get(i);
+                BlockPos b = pts.get((i + 1) % pts.size());
+                sb.append("  - ").append(i + 1).append(": (")
+                        .append(a.getX()).append(",").append(a.getZ()).append(") -> (")
+                        .append(b.getX()).append(",").append(b.getZ()).append(")")
+                        .append(" edge:{\"ax\":").append(a.getX())
+                        .append(",\"az\":").append(a.getZ())
+                        .append(",\"bx\":").append(b.getX())
+                        .append(",\"bz\":").append(b.getZ())
+                        .append("}\n");
+            }
             return sb.toString();
         }
 
-        List<BlockPos> poly = s.points();
+        List<BlockPos> poly = simplify(s.points(), 32);
         if (poly == null || poly.size() < 3) return sb.toString();
 
         sb.append("- shape: POLYGON\n");
@@ -67,15 +80,40 @@ public final class OutlineAttachmentContext {
         for (BlockPos p : poly) {
             sb.append("  - (").append(p.getX()).append(",").append(p.getZ()).append(")\n");
         }
-        sb.append("- edges:\n");
+        sb.append("- edges(with edge hint JSON):\n");
         for (int i = 0; i < poly.size(); i++) {
             BlockPos a = poly.get(i);
             BlockPos b = poly.get((i + 1) % poly.size());
             sb.append("  - ").append(i + 1).append(": (")
                     .append(a.getX()).append(",").append(a.getZ()).append(") -> (")
-                    .append(b.getX()).append(",").append(b.getZ()).append(")\n");
+                    .append(b.getX()).append(",").append(b.getZ()).append(")")
+                    .append(" edge:{\"ax\":").append(a.getX())
+                    .append(",\"az\":").append(a.getZ())
+                    .append(",\"bx\":").append(b.getX())
+                    .append(",\"bz\":").append(b.getZ())
+                    .append("}\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * 将点列表压缩到最多 max 个点（用于避免 FREE_DRAW 点过多导致 prompt 爆炸）。
+     * 保持顺序，均匀抽样。
+     */
+    private static List<BlockPos> simplify(List<BlockPos> pts, int max) {
+        if (pts == null || pts.isEmpty()) return pts;
+        if (max <= 0 || pts.size() <= max) return pts;
+        int n = pts.size();
+        int stride = (int) Math.ceil(n / (double) max);
+        List<BlockPos> out = new ArrayList<>(max);
+        for (int i = 0; i < n && out.size() < max; i += stride) {
+            out.add(pts.get(i));
+        }
+        // 确保至少 3 个点
+        while (out.size() < 3 && out.size() < n) {
+            out.add(pts.get(out.size()));
+        }
+        return out;
     }
 }
 

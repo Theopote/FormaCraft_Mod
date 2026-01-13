@@ -3,6 +3,10 @@ package com.formacraft.client.tool;
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.preview.ComponentPreviewState;
+import com.formacraft.client.tool.placement.PlacementAnalyzer;
+import com.formacraft.client.tool.placement.PlacementContext;
+import com.formacraft.client.tool.placement.PlacementResult;
+import com.formacraft.client.tool.placement.PlacementValidator;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
@@ -60,6 +64,11 @@ public final class ComponentTool implements FormacraftTool {
     private volatile String awaitingComponentId = null;
     private volatile ComponentDefinition loadedComponent = null;
 
+    // hover placement (library mode) status
+    private volatile PlacementResult lastHoverPlacement = null;
+    private volatile BlockPos lastHoverPos = null;
+    private volatile Direction lastHoverFace = null;
+
     private final List<ComponentSocket> sockets = new ArrayList<>();
 
     private ComponentTool() {}
@@ -89,6 +98,10 @@ public final class ComponentTool implements FormacraftTool {
 
     @Override
     public boolean onMouseClick(double mx, double my, int button) {
+        // 右键：在“构件库放置模式”下尝试放置（否则不消费）
+        if (button == 1) {
+            return tryPlaceFromLibrary();
+        }
         if (button != 0) return false;
         if (!state.pickingAnchor && !state.pickingSocket) return true; // 吃掉点击，避免误破坏
 
@@ -121,6 +134,185 @@ public final class ComponentTool implements FormacraftTool {
         if (ComponentPreviewState.isActive()) {
             preview(net.minecraft.client.MinecraftClient.getInstance(), true);
         }
+        return true;
+    }
+
+    @Override
+    public void tick() {
+        // v1：当 useLibrary=true 且已加载构件时，启用“悬停合法性检测 + 绿/红预览”
+        tryUpdatePlacementPreview(net.minecraft.client.MinecraftClient.getInstance());
+    }
+
+    /** 给 ToolPanel 用的 hover 反馈（不刷 toast）。 */
+    public String getHoverPlacementHint() {
+        PlacementResult pr = lastHoverPlacement;
+        BlockPos p = lastHoverPos;
+        Direction f = lastHoverFace;
+        if (pr == null || p == null || f == null) return null;
+        String s = switch (pr.status) {
+            case VALID -> "✅ 合法";
+            case WARN -> "🟡 可能需要条件";
+            case INVALID -> "❌ 非法";
+        };
+        String why = (pr.reason != null && !pr.reason.isBlank()) ? ("： " + pr.reason) : "";
+        return "Hover@" + p.getX() + "," + p.getY() + "," + p.getZ() + " face=" + f.name() + "  " + s + why;
+    }
+
+    private void tryUpdatePlacementPreview(net.minecraft.client.MinecraftClient client) {
+        if (client == null || client.world == null) return;
+        if (!state.useLibrary) return;
+        if (state.pickingAnchor || state.pickingSocket) return;
+        ComponentDefinition def = loadedComponent;
+        if (def == null || def.blocks == null || def.blocks.isEmpty()) return;
+
+        BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
+        if (hit == null) return;
+
+        BlockPos hitPos = hit.getBlockPos();
+        Direction face = hit.getSide();
+        if (hitPos == null || face == null) return;
+
+        PlacementContext pc = PlacementAnalyzer.analyze(client, hitPos, face);
+        PlacementResult pr = PlacementValidator.validate(def.placementSpec, pc, client);
+        lastHoverPlacement = pr;
+        lastHoverPos = hitPos.toImmutable();
+        lastHoverFace = face;
+
+        // anchor：把构件锚点放在被点击面的“外侧一格”
+        BlockPos anchor = switch (face) {
+            case UP -> hitPos.up();
+            case DOWN -> hitPos.down();
+            default -> hitPos.offset(face);
+        };
+
+        // build local blocks from def
+        List<BlockPos> local = new ArrayList<>(def.blocks.size());
+        for (ComponentDefinition.BlockEntry be : def.blocks) {
+            if (be == null) continue;
+            local.add(new BlockPos(be.dx, be.dy, be.dz));
+        }
+
+        // fromFacing：读取构件自身 anchor.facing（默认 SOUTH）
+        Direction fromFacing = Direction.SOUTH;
+        try {
+            if (def.anchor != null && def.anchor.facing != null) {
+                Direction d = parseDir(def.anchor.facing);
+                if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
+            }
+        } catch (Throwable ignored) {}
+
+        // preview transform：尽量不用“手动 facing”，让 policy/上下文决定
+        Direction previewFacing = fromFacing;
+        if (def.placementSpec != null && def.placementSpec.facingPolicy != null) {
+            switch (def.placementSpec.facingPolicy) {
+                case NONE -> previewFacing = fromFacing;
+                case USER_DEFINED -> previewFacing = state.facing != null ? state.facing : fromFacing;
+                case DERIVED_FROM_HOST, OUTWARD_NORMAL -> {
+                    if (pc.outwardNormal != null && pc.outwardNormal.getAxis().isHorizontal()) {
+                        previewFacing = pc.outwardNormal;
+                    } else {
+                        previewFacing = client.player != null ? client.player.getHorizontalFacing() : fromFacing;
+                    }
+                }
+                case ALONG_EDGE -> {
+                    if (pc.edgeDirection != null && pc.edgeDirection.getAxis().isHorizontal()) {
+                        previewFacing = pc.edgeDirection;
+                    } else {
+                        previewFacing = client.player != null ? client.player.getHorizontalFacing() : fromFacing;
+                    }
+                }
+            }
+        }
+
+        Mirror m = state.mirror != null ? state.mirror : Mirror.NONE;
+        ComponentTransform t = new ComponentTransform(previewFacing, m);
+        ComponentPreviewState.show(local, anchor, fromFacing, t);
+
+        // color：绿/红/黄
+        switch (pr.status) {
+            case VALID -> ComponentPreviewState.setColor(0.20f, 0.95f, 0.25f, 0.75f);
+            case WARN -> ComponentPreviewState.setColor(1.00f, 0.85f, 0.20f, 0.80f);
+            case INVALID -> ComponentPreviewState.setColor(1.00f, 0.25f, 0.25f, 0.85f);
+        }
+    }
+
+    private boolean tryPlaceFromLibrary() {
+        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client == null || client.world == null) return false;
+        if (!state.useLibrary) return false;
+        if (state.pickingAnchor || state.pickingSocket) return false;
+
+        ComponentDefinition def = loadedComponent;
+        if (def == null || def.blocks == null || def.blocks.isEmpty()) return false;
+
+        BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
+        if (hit == null) return false;
+        BlockPos hitPos = hit.getBlockPos();
+        Direction face = hit.getSide();
+        if (hitPos == null || face == null) return false;
+
+        PlacementContext pc = PlacementAnalyzer.analyze(client, hitPos, face);
+        PlacementResult pr = PlacementValidator.validate(def.placementSpec, pc, client);
+        if (pr.status == PlacementResult.Status.INVALID) {
+            HudToast.show("放置失败：" + (pr.reason != null ? pr.reason : "非法位置"), true);
+            return true;
+        }
+
+        // anchor：面外一格
+        BlockPos anchor = switch (face) {
+            case UP -> hitPos.up();
+            case DOWN -> hitPos.down();
+            default -> hitPos.offset(face);
+        };
+
+        // fromFacing
+        Direction fromFacing = Direction.SOUTH;
+        try {
+            if (def.anchor != null && def.anchor.facing != null) {
+                Direction d = parseDir(def.anchor.facing);
+                if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
+            }
+        } catch (Throwable ignored) {}
+
+        // transform 同预览逻辑
+        Direction placeFacing = fromFacing;
+        if (def.placementSpec != null && def.placementSpec.facingPolicy != null) {
+            switch (def.placementSpec.facingPolicy) {
+                case NONE -> placeFacing = fromFacing;
+                case USER_DEFINED -> placeFacing = state.facing != null ? state.facing : fromFacing;
+                case DERIVED_FROM_HOST, OUTWARD_NORMAL -> {
+                    if (pc.outwardNormal != null && pc.outwardNormal.getAxis().isHorizontal()) {
+                        placeFacing = pc.outwardNormal;
+                    } else {
+                        placeFacing = client.player != null ? client.player.getHorizontalFacing() : fromFacing;
+                    }
+                }
+                case ALONG_EDGE -> {
+                    if (pc.edgeDirection != null && pc.edgeDirection.getAxis().isHorizontal()) {
+                        placeFacing = pc.edgeDirection;
+                    } else {
+                        placeFacing = client.player != null ? client.player.getHorizontalFacing() : fromFacing;
+                    }
+                }
+            }
+        }
+        Mirror m = state.mirror != null ? state.mirror : Mirror.NONE;
+        ComponentTransform t = new ComponentTransform(placeFacing, m);
+
+        // build patches (relative to origin)
+        List<BlockPatch> patches = new ArrayList<>(def.blocks.size());
+        for (ComponentDefinition.BlockEntry be : def.blocks) {
+            if (be == null) continue;
+            BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
+            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, t);
+            String block = be.block;
+            block = BlockStateStringUtil.withTransformedFacing(block, fromFacing, t);
+            patches.add(new BlockPatch(BlockPatch.PLACE, off.getX(), off.getY(), off.getZ(), block));
+        }
+
+        // show patch preview (apply/undo/redo)
+        BuildConfirmPanel.INSTANCE.showPatchPreview(anchor, patches);
+        HudToast.show(pr.status == PlacementResult.Status.WARN ? ("已进入 Patch 预览（警告：" + pr.reason + "）") : "已进入 Patch 预览");
         return true;
     }
 

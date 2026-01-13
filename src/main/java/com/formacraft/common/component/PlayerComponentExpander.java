@@ -17,6 +17,8 @@ import com.formacraft.common.component.socket.SocketMask;
 import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.component.placement.AttachmentRecognizer;
 import com.formacraft.common.component.placement.AttachmentType;
+import com.formacraft.common.component.placement.FacingDeriver;
+import com.formacraft.common.component.placement.FacingPolicy;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
@@ -78,11 +80,33 @@ public final class PlayerComponentExpander {
         Direction fromFacing = parseDir(def.anchor != null ? def.anchor.facing : null);
         if (fromFacing == null || !fromFacing.getAxis().isHorizontal()) fromFacing = Direction.SOUTH;
 
-        Direction targetFacing = parseDir(getString(reqMap, "facing", "target_facing"));
+        String explicitFacingStr = getString(reqMap, "facing", "target_facing");
+        Direction targetFacing = parseDir(explicitFacingStr);
         if (targetFacing == null || !targetFacing.getAxis().isHorizontal()) {
             targetFacing = facingFromSlot(semantic);
         }
         if (targetFacing == null || !targetFacing.getAxis().isHorizontal()) targetFacing = Direction.SOUTH;
+
+        // PlacementSpec v1：根据 FacingPolicy 推导（仅当未显式指定 facing）
+        try {
+            if (explicitFacingStr == null || explicitFacingStr.isBlank()) {
+                targetFacing = FacingDeriver.derive(
+                        def.placementSpec,
+                        targetFacing, // host-like hint：slot facing（若有）
+                        targetFacing,
+                        reqMap        // 支持 edge hint（ALONG_EDGE）
+                );
+            }
+        } catch (Throwable ignored) {}
+
+        // PlacementSpec v1：当构件不需要方向（FacingPolicy.NONE）且用户未显式指定 facing 时，保持原朝向（不做旋转）
+        try {
+            if ((explicitFacingStr == null || explicitFacingStr.isBlank())
+                    && def.placementSpec != null
+                    && def.placementSpec.facingPolicy == FacingPolicy.NONE) {
+                targetFacing = fromFacing;
+            }
+        } catch (Throwable ignored) {}
 
         Mirror mirror = parseMirror(getString(reqMap, "mirror", "mirror_mode", "mirrorMode"));
         ComponentTransform transform = new ComponentTransform(targetFacing, mirror);
@@ -259,8 +283,28 @@ public final class PlayerComponentExpander {
         // mount transform：对齐到 socketWorldFacing
         Direction mountFromFacing = parseDir(mount.anchor != null ? mount.anchor.facing : null);
         if (mountFromFacing == null || !mountFromFacing.getAxis().isHorizontal()) mountFromFacing = Direction.SOUTH;
-        Direction mountTargetFacing = parseDir(getString(reqMap, "mount_facing", "mountFacing"));
+        String explicitMountFacingStr = getString(reqMap, "mount_facing", "mountFacing");
+        Direction mountTargetFacing = parseDir(explicitMountFacingStr);
         if (mountTargetFacing == null || !mountTargetFacing.getAxis().isHorizontal()) mountTargetFacing = socketWorldFacing;
+        // PlacementSpec v1：根据 FacingPolicy 推导（仅当未显式指定 mount_facing）
+        try {
+            if (explicitMountFacingStr == null || explicitMountFacingStr.isBlank()) {
+                mountTargetFacing = FacingDeriver.derive(
+                        mount.placementSpec,
+                        socketWorldFacing,
+                        mountTargetFacing,
+                        reqMap
+                );
+            }
+        } catch (Throwable ignored) {}
+        // PlacementSpec v1：mount 若不需要方向且未显式给 mount_facing，则保持构件自身朝向（只做平移/镜像）
+        try {
+            if ((explicitMountFacingStr == null || explicitMountFacingStr.isBlank())
+                    && mount.placementSpec != null
+                    && mount.placementSpec.facingPolicy == FacingPolicy.NONE) {
+                mountTargetFacing = mountFromFacing;
+            }
+        } catch (Throwable ignored) {}
         Mirror mountMirror = parseMirror(getString(reqMap, "mount_mirror", "mountMirror"));
         ComponentTransform mountTransform = new ComponentTransform(mountTargetFacing, mountMirror);
 
