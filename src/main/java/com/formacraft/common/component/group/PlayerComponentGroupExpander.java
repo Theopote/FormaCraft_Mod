@@ -69,6 +69,21 @@ public final class PlayerComponentGroupExpander {
 
         List<BlockPatch> out = new ArrayList<>(256);
 
+        // 预加载：避免“组件缺失但先 carve 挖洞”的副作用
+        List<GroupComponentEntry> entries = group.getComponents();
+        if (entries == null || entries.isEmpty()) return out;
+        List<ResolvedEntry> resolved = new ArrayList<>(entries.size());
+        for (GroupComponentEntry e : entries) {
+            if (e == null || e.componentId() == null || e.componentId().isBlank()) continue;
+            ComponentDefinition def = ComponentStorage.loadComponent(worldDir, e.componentId().trim());
+            if (def == null || def.blocks == null || def.blocks.isEmpty()) continue;
+            resolved.add(new ResolvedEntry(e, def));
+        }
+        if (resolved.isEmpty()) {
+            FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: group {} has no resolvable child components (missing ids?)", group.getId());
+            return out;
+        }
+
         // base anchor (relative to slot anchor)
         int baseX = 0, baseY = 0, baseZ = 0;
         if (semantic.source().relativePosition() != null) {
@@ -156,14 +171,10 @@ public final class PlayerComponentGroupExpander {
 
         long seedBase = world.getSeed();
 
-        List<GroupComponentEntry> entries = group.getComponents();
-        if (entries == null || entries.isEmpty()) return out;
-
-        for (GroupComponentEntry e : entries) {
-            if (e == null || e.componentId() == null || e.componentId().isBlank()) continue;
-
-            ComponentDefinition def = ComponentStorage.loadComponent(worldDir, e.componentId().trim());
-            if (def == null || def.blocks == null || def.blocks.isEmpty()) continue;
+        for (ResolvedEntry re : resolved) {
+            if (re == null) continue;
+            GroupComponentEntry e = re.entry;
+            ComponentDefinition def = re.def;
 
             // compute child base (group transform applied to offset)
             BlockPos childLocal = new BlockPos(e.offsetX(), e.offsetY(), e.offsetZ());
@@ -187,6 +198,70 @@ public final class PlayerComponentGroupExpander {
                     semanticSkin, semanticStyleId, seedBase);
         }
 
+        // Optional: mount external components onto group-exposed sockets (Group acts as host)
+        // Request shape (best-effort):
+        // - mounts: [{ "socket_id":"wall_left", "mount_id":"wall_segment", "carve":true, "mount_facing":"SOUTH", "mount_mirror":"NONE" }, ...]
+        // - mount:  { ... } (single entry)
+        for (MountEntry me : parseMountEntries(reqMap)) {
+            if (me == null) continue;
+            if (me.socketId == null || me.socketId.isBlank()) continue;
+            if (me.mountId == null || me.mountId.isBlank()) continue;
+
+            ComponentSocket socket = findGroupSocket(group, me.socketId);
+            if (socket == null) {
+                FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: group socket not found: {}.{}", group.getId(), me.socketId);
+                continue;
+            }
+
+            ComponentDefinition mount = ComponentStorage.loadComponent(worldDir, me.mountId.trim());
+            if (mount == null || mount.blocks == null || mount.blocks.isEmpty()) {
+                FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount component not found: {}", me.mountId);
+                continue;
+            }
+
+            // socket world offset (in group placement space)
+            BlockPos socketLocal = new BlockPos(socket.x(), socket.y(), socket.z());
+            BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, groupFromFacing, groupTransform);
+            int socketX = baseX + socketOff.getX();
+            int socketY = baseY + socketOff.getY();
+            int socketZ = baseZ + socketOff.getZ();
+
+            Direction socketLocalFacing = parseDir(socket.facing());
+            if (socketLocalFacing == null || !socketLocalFacing.getAxis().isHorizontal()) socketLocalFacing = Direction.SOUTH;
+            Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, groupFromFacing, groupTransform);
+            if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = groupFacing;
+
+            // carve at group socket before mounting
+            boolean carve = me.carve == null || me.carve;
+            if (carve) {
+                SocketMask mask = new SocketMask(socket.width(), socket.height(), socket.depth());
+                if (mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
+                    BlockPos socketPos = new BlockPos(socketX, socketY, socketZ);
+                    for (int x = 0; x < mask.width(); x++) {
+                        for (int y = 0; y < mask.height(); y++) {
+                            for (int z = 0; z < mask.depth(); z++) {
+                                BlockPos p = FacingUtil.offset(socketPos, socketWorldFacing, x, y, z);
+                                out.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // mount transform: inherit socket facing by default
+            Direction mountFromFacing = parseDir(mount.anchor != null ? mount.anchor.facing : null);
+            if (mountFromFacing == null || !mountFromFacing.getAxis().isHorizontal()) mountFromFacing = Direction.SOUTH;
+
+            Direction mountFacing = parseDir(me.mountFacing);
+            if (mountFacing == null || !mountFacing.getAxis().isHorizontal()) mountFacing = socketWorldFacing;
+            Mirror mountMirror = parseMirror(me.mountMirror);
+            ComponentTransform mountTransform = new ComponentTransform(mountFacing, mountMirror);
+
+            addComponentPatches(out, mount, mountFromFacing, mountTransform,
+                    socketX, socketY, socketZ,
+                    semanticSkin, semanticStyleId, seedBase);
+        }
+
         return out;
     }
 
@@ -196,6 +271,16 @@ public final class PlayerComponentGroupExpander {
         if (def == null || def.sockets == null || def.sockets.isEmpty()) return null;
         if (socketId == null || socketId.isBlank()) return null;
         for (ComponentSocket s : def.sockets) {
+            if (s == null || s.id() == null) continue;
+            if (socketId.equals(s.id())) return s;
+        }
+        return null;
+    }
+
+    private static ComponentSocket findGroupSocket(ComponentGroup group, String socketId) {
+        if (group == null || group.getSockets() == null || group.getSockets().isEmpty()) return null;
+        if (socketId == null || socketId.isBlank()) return null;
+        for (ComponentSocket s : group.getSockets()) {
             if (s == null || s.id() == null) continue;
             if (socketId.equals(s.id())) return s;
         }
@@ -409,5 +494,48 @@ public final class PlayerComponentGroupExpander {
     }
 
     private record MountTarget(String hostId, String socketId) {}
+
+    private record ResolvedEntry(GroupComponentEntry entry, ComponentDefinition def) {}
+
+    private static List<MountEntry> parseMountEntries(Map<String, Object> reqMap) {
+        if (reqMap == null) return List.of();
+        Object v = reqMap.get("mounts");
+        if (v == null) v = reqMap.get("mount");
+        if (v == null) v = reqMap.get("attachments");
+        if (v == null) return List.of();
+
+        List<MountEntry> out = new ArrayList<>();
+        if (v instanceof List<?> list) {
+            for (Object it : list) {
+                if (it instanceof Map<?, ?> mm) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> m = (Map<String, Object>) mm;
+                    MountEntry me = parseMountEntry(m);
+                    if (me != null) out.add(me);
+                }
+            }
+            return out;
+        }
+        if (v instanceof Map<?, ?> mm) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> m = (Map<String, Object>) mm;
+            MountEntry me = parseMountEntry(m);
+            return me != null ? List.of(me) : List.of();
+        }
+        return List.of();
+    }
+
+    private static MountEntry parseMountEntry(Map<String, Object> m) {
+        if (m == null) return null;
+        String socketId = getString(m, "socket_id", "socketId", "socket");
+        String mountId = getString(m, "mount_id", "mountId", "component_id", "componentId", "component");
+        Boolean carve = getBoolNullable(m, "carve", "carve_mask", "carveMask", "carve_socket", "carveSocket");
+        String facing = getString(m, "mount_facing", "mountFacing", "facing");
+        String mirror = getString(m, "mount_mirror", "mountMirror", "mirror");
+        if (socketId == null || mountId == null) return null;
+        return new MountEntry(socketId.trim(), mountId.trim(), carve, facing, mirror);
+    }
+
+    private record MountEntry(String socketId, String mountId, Boolean carve, String mountFacing, String mountMirror) {}
 }
 

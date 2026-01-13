@@ -122,7 +122,6 @@ public final class ComponentTool implements FormacraftTool {
     public void cycleFacing() {
         state.facing = switch (state.facing) {
             case NORTH -> Direction.EAST;
-            case EAST -> Direction.SOUTH;
             case SOUTH -> Direction.WEST;
             case WEST -> Direction.NORTH;
             default -> Direction.SOUTH;
@@ -291,7 +290,6 @@ public final class ComponentTool implements FormacraftTool {
     public void cycleSocketFacing() {
         state.socketFacing = switch (state.socketFacing) {
             case NORTH -> Direction.EAST;
-            case EAST -> Direction.SOUTH;
             case SOUTH -> Direction.WEST;
             case WEST -> Direction.NORTH;
             default -> Direction.SOUTH;
@@ -860,10 +858,12 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     private static String makeId(ComponentCategory cat, String name) {
-        String c = (cat != null ? cat.name() : "GENERIC").toLowerCase(Locale.ROOT);
         String n = (name == null ? "" : name).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_");
         if (n.isBlank()) n = "component";
-        return c + "_" + n + "_" + System.currentTimeMillis();
+        // Group/Socket 系统需要“可被引用”的稳定 id：
+        // - 默认使用 name 的规范化形式作为 id（例如 "tower_shell"）
+        // - 允许用户通过“同名覆盖保存”来更新构件（saveComponent 会覆盖同 id 文件）
+        return n;
     }
 
     /**

@@ -49,6 +49,9 @@ public class FormacraftMod implements ModInitializer {
 		// 初始化 Skeleton 系统（调色板、风格、生成器、装配器等）
 		com.formacraft.common.init.SkeletonSystemInitializer.initialize();
 
+		// 初始化 Component Group 系统（复合构件：tower/gatehouse/wall segment 等）
+		com.formacraft.common.init.ComponentGroupSystemInitializer.initialize();
+
 		// 关键：BuildExecutionService 的 Tick 处理器必须在“集成服务器（单机）”中也注册。
 		// DedicatedServerModInitializer 不会在单机触发；如果不在这里注册，确认建造只会入队但永远不执行。
 		BuildExecutionService.registerTickHandler();
