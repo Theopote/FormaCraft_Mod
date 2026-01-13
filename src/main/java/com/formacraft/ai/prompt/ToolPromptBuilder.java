@@ -1,6 +1,7 @@
 package com.formacraft.ai.prompt;
 
 import com.formacraft.ai.context.OutlineContext;
+import com.formacraft.ai.context.OutlineAttachmentContext;
 import com.formacraft.ai.context.ProtectedZoneContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.context.SemanticLabelContext;
@@ -71,6 +72,7 @@ public final class ToolPromptBuilder {
         // 轮廓/Footprint（强约束）
         if (OutlineContext.hasOutline()) {
             addMultiline(ctx.constraints, OutlineContext.toPromptBlock());
+            addMultiline(ctx.constraints, OutlineAttachmentContext.toPromptBlock());
         }
 
         // 对称/镜像（约束）
