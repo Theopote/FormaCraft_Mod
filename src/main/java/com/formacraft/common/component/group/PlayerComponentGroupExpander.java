@@ -69,21 +69,6 @@ public final class PlayerComponentGroupExpander {
 
         List<BlockPatch> out = new ArrayList<>(256);
 
-        // 预加载：避免“组件缺失但先 carve 挖洞”的副作用
-        List<GroupComponentEntry> entries = group.getComponents();
-        if (entries == null || entries.isEmpty()) return out;
-        List<ResolvedEntry> resolved = new ArrayList<>(entries.size());
-        for (GroupComponentEntry e : entries) {
-            if (e == null || e.componentId() == null || e.componentId().isBlank()) continue;
-            ComponentDefinition def = ComponentStorage.loadComponent(worldDir, e.componentId().trim());
-            if (def == null || def.blocks == null || def.blocks.isEmpty()) continue;
-            resolved.add(new ResolvedEntry(e, def));
-        }
-        if (resolved.isEmpty()) {
-            FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: group {} has no resolvable child components (missing ids?)", group.getId());
-            return out;
-        }
-
         // base anchor (relative to slot anchor)
         int baseX = 0, baseY = 0, baseZ = 0;
         if (semantic.source().relativePosition() != null) {
@@ -165,28 +150,66 @@ public final class PlayerComponentGroupExpander {
         String semanticStyleId = getString(reqMap, "semantic_style_id", "semanticStyleId", "style_id", "styleId");
         if (semanticStyleId == null) semanticStyleId = resolveSemanticStyleId(semantic.styleProfile());
 
+        // Expand group + optional mounts (components OR nested groups)
+        expandGroupInto(out, worldDir, group, baseX, baseY, baseZ, groupFacing, groupMirror,
+                semanticSkin, semanticStyleId, world.getSeed(),
+                reqMap, 0);
+
+        return out;
+    }
+
+    // ===== helpers (mostly mirrored from PlayerComponentExpander, kept local to avoid widening API surface) =====
+
+    private static final int MAX_NESTED_GROUP_DEPTH = 4;
+
+    private static void expandGroupInto(List<BlockPatch> out,
+                                        Path worldDir,
+                                        ComponentGroup group,
+                                        int baseX, int baseY, int baseZ,
+                                        Direction groupFacing,
+                                        Mirror groupMirror,
+                                        boolean semanticSkin,
+                                        String semanticStyleId,
+                                        long seedBase,
+                                        Map<String, Object> reqMap,
+                                        int depth) {
+        if (out == null || worldDir == null || group == null) return;
+        if (depth > MAX_NESTED_GROUP_DEPTH) {
+            FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: nested group depth exceeded at {}", group.getId());
+            return;
+        }
+
+        // 预加载：避免“组件缺失但先 carve 挖洞”的副作用
+        List<GroupComponentEntry> entries = group.getComponents();
+        if (entries == null || entries.isEmpty()) return;
+        List<ResolvedEntry> resolved = new ArrayList<>(entries.size());
+        for (GroupComponentEntry e : entries) {
+            if (e == null || e.componentId() == null || e.componentId().isBlank()) continue;
+            ComponentDefinition def = ComponentStorage.loadComponent(worldDir, e.componentId().trim());
+            if (def == null || def.blocks == null || def.blocks.isEmpty()) continue;
+            resolved.add(new ResolvedEntry(e, def));
+        }
+        if (resolved.isEmpty()) {
+            FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: group {} has no resolvable child components (missing ids?)", group.getId());
+            return;
+        }
+
         // expand group entries
         ComponentTransform groupTransform = new ComponentTransform(groupFacing, groupMirror);
         Direction groupFromFacing = Direction.SOUTH;
-
-        long seedBase = world.getSeed();
 
         for (ResolvedEntry re : resolved) {
             if (re == null) continue;
             GroupComponentEntry e = re.entry;
             ComponentDefinition def = re.def;
 
-            // compute child base (group transform applied to offset)
             BlockPos childLocal = new BlockPos(e.offsetX(), e.offsetY(), e.offsetZ());
             BlockPos childOff = ComponentTransformUtil.transformOffset(childLocal, groupFromFacing, groupTransform);
             int childBaseX = baseX + childOff.getX();
             int childBaseY = baseY + childOff.getY();
             int childBaseZ = baseZ + childOff.getZ();
 
-            // child facing: groupFacing + entry rotation steps
             Direction childFacing = applyYRotation(groupFacing, e.rotation());
-
-            // mirror composition (best-effort; Mirror enum is 1-axis only)
             Mirror childMirror = combineMirror(groupMirror, e.mirror());
             ComponentTransform childTransform = new ComponentTransform(childFacing, childMirror);
 
@@ -198,24 +221,14 @@ public final class PlayerComponentGroupExpander {
                     semanticSkin, semanticStyleId, seedBase);
         }
 
-        // Optional: mount external components onto group-exposed sockets (Group acts as host)
-        // Request shape (best-effort):
-        // - mounts: [{ "socket_id":"wall_left", "mount_id":"wall_segment", "carve":true, "mount_facing":"SOUTH", "mount_mirror":"NONE" }, ...]
-        // - mount:  { ... } (single entry)
+        // mounts on group sockets (Group acts as host)
         for (MountEntry me : parseMountEntries(reqMap)) {
             if (me == null) continue;
             if (me.socketId == null || me.socketId.isBlank()) continue;
-            if (me.mountId == null || me.mountId.isBlank()) continue;
 
             ComponentSocket socket = findGroupSocket(group, me.socketId);
             if (socket == null) {
                 FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: group socket not found: {}.{}", group.getId(), me.socketId);
-                continue;
-            }
-
-            ComponentDefinition mount = ComponentStorage.loadComponent(worldDir, me.mountId.trim());
-            if (mount == null || mount.blocks == null || mount.blocks.isEmpty()) {
-                FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount component not found: {}", me.mountId);
                 continue;
             }
 
@@ -231,16 +244,20 @@ public final class PlayerComponentGroupExpander {
             Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, groupFromFacing, groupTransform);
             if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = groupFacing;
 
-            // carve at group socket before mounting
+            // mount anchor offset (in socket-local coords: dx=right, dz=forward)
+            BlockPos anchorPos = new BlockPos(socketX, socketY, socketZ);
+            if (me.offX != 0 || me.offY != 0 || me.offZ != 0) {
+                anchorPos = FacingUtil.offset(anchorPos, socketWorldFacing, me.offX, me.offY, me.offZ);
+            }
+
             boolean carve = me.carve == null || me.carve;
             if (carve) {
                 SocketMask mask = new SocketMask(socket.width(), socket.height(), socket.depth());
                 if (mask.width() > 0 && mask.height() > 0 && mask.depth() > 0) {
-                    BlockPos socketPos = new BlockPos(socketX, socketY, socketZ);
                     for (int x = 0; x < mask.width(); x++) {
                         for (int y = 0; y < mask.height(); y++) {
                             for (int z = 0; z < mask.depth(); z++) {
-                                BlockPos p = FacingUtil.offset(socketPos, socketWorldFacing, x, y, z);
+                                BlockPos p = FacingUtil.offset(anchorPos, socketWorldFacing, x, y, z);
                                 out.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
                             }
                         }
@@ -248,7 +265,34 @@ public final class PlayerComponentGroupExpander {
                 }
             }
 
-            // mount transform: inherit socket facing by default
+            // Mount either a component OR a nested group
+            if (me.mountGroupId != null && !me.mountGroupId.isBlank()) {
+                ComponentGroup childGroup = ComponentGroupRegistry.get(me.mountGroupId);
+                if (childGroup == null) {
+                    FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount group not found: {}", me.mountGroupId);
+                    continue;
+                }
+                Direction childFacing = parseDir(me.mountFacing);
+                if (childFacing == null || !childFacing.getAxis().isHorizontal()) childFacing = socketWorldFacing;
+                Mirror childMirror = parseMirror(me.mountMirror);
+
+                // recurse: expand nested group at the socket anchor
+                expandGroupInto(out, worldDir, childGroup,
+                        anchorPos.getX(), anchorPos.getY(), anchorPos.getZ(),
+                        childFacing, childMirror,
+                        semanticSkin, semanticStyleId, seedBase,
+                        me.nestedReq != null ? me.nestedReq : Map.of(),
+                        depth + 1);
+                continue;
+            }
+
+            if (me.mountId == null || me.mountId.isBlank()) continue;
+            ComponentDefinition mount = ComponentStorage.loadComponent(worldDir, me.mountId.trim());
+            if (mount == null || mount.blocks == null || mount.blocks.isEmpty()) {
+                FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount component not found: {}", me.mountId);
+                continue;
+            }
+
             Direction mountFromFacing = parseDir(mount.anchor != null ? mount.anchor.facing : null);
             if (mountFromFacing == null || !mountFromFacing.getAxis().isHorizontal()) mountFromFacing = Direction.SOUTH;
 
@@ -258,14 +302,10 @@ public final class PlayerComponentGroupExpander {
             ComponentTransform mountTransform = new ComponentTransform(mountFacing, mountMirror);
 
             addComponentPatches(out, mount, mountFromFacing, mountTransform,
-                    socketX, socketY, socketZ,
+                    anchorPos.getX(), anchorPos.getY(), anchorPos.getZ(),
                     semanticSkin, semanticStyleId, seedBase);
         }
-
-        return out;
     }
-
-    // ===== helpers (mostly mirrored from PlayerComponentExpander, kept local to avoid widening API surface) =====
 
     private static ComponentSocket findSocket(ComponentDefinition def, String socketId) {
         if (def == null || def.sockets == null || def.sockets.isEmpty()) return null;
@@ -529,13 +569,68 @@ public final class PlayerComponentGroupExpander {
         if (m == null) return null;
         String socketId = getString(m, "socket_id", "socketId", "socket");
         String mountId = getString(m, "mount_id", "mountId", "component_id", "componentId", "component");
+        String mountGroupId = getString(m, "mount_group_id", "mountGroupId", "group_id", "groupId", "group");
         Boolean carve = getBoolNullable(m, "carve", "carve_mask", "carveMask", "carve_socket", "carveSocket");
         String facing = getString(m, "mount_facing", "mountFacing", "facing");
         String mirror = getString(m, "mount_mirror", "mountMirror", "mirror");
-        if (socketId == null || mountId == null) return null;
-        return new MountEntry(socketId.trim(), mountId.trim(), carve, facing, mirror);
+        int offX = 0, offY = 0, offZ = 0;
+        Object off0 = m.get("mount_offset");
+        if (!(off0 instanceof Map<?, ?>)) off0 = m.get("offset");
+        if (off0 instanceof Map<?, ?> mm) {
+            offX = getInt(mm, 0, "x", "dx");
+            offY = getInt(mm, 0, "y", "dy");
+            offZ = getInt(mm, 0, "z", "dz");
+        } else {
+            offX = getInt(m, 0, "mount_offset_x", "offsetX", "offX");
+            offY = getInt(m, 0, "mount_offset_y", "offsetY", "offY");
+            offZ = getInt(m, 0, "mount_offset_z", "offsetZ", "offZ");
+        }
+        Object nested = m.get("mounts");
+        if (nested == null) nested = m.get("mount");
+        Map<String, Object> nestedReq = null;
+        if (nested instanceof Map<?, ?> mm) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> n = (Map<String, Object>) mm;
+            nestedReq = n;
+        } else if (nested instanceof List<?> list) {
+            // Keep original list form by packing into a map so parseMountEntries works.
+            nestedReq = new java.util.HashMap<>();
+            nestedReq.put("mounts", list);
+        }
+
+        if (socketId == null) return null;
+        if ((mountId == null || mountId.isBlank()) && (mountGroupId == null || mountGroupId.isBlank())) return null;
+        return new MountEntry(socketId.trim(),
+                mountId != null ? mountId.trim() : null,
+                mountGroupId != null ? mountGroupId.trim() : null,
+                carve, facing, mirror, nestedReq,
+                offX, offY, offZ);
     }
 
-    private record MountEntry(String socketId, String mountId, Boolean carve, String mountFacing, String mountMirror) {}
+    private record MountEntry(String socketId,
+                              String mountId,
+                              String mountGroupId,
+                              Boolean carve,
+                              String mountFacing,
+                              String mountMirror,
+                              Map<String, Object> nestedReq,
+                              int offX,
+                              int offY,
+                              int offZ) {}
+
+    private static int getInt(Map<?, ?> m, int def, String... keys) {
+        if (m == null || keys == null) return def;
+        for (String k : keys) {
+            if (k == null) continue;
+            Object v = m.get(k);
+            if (v == null) continue;
+            if (v instanceof Number n) return n.intValue();
+            try {
+                return Integer.parseInt(String.valueOf(v).trim());
+            } catch (Throwable ignored) {
+            }
+        }
+        return def;
+    }
 }
 

@@ -56,6 +56,22 @@ public final class ComponentGroupSystemInitializer {
                 )
         ));
 
+        // 示例 3：城墙段（Wall Segment）——对外暴露前后两个接口，支持链式拼接
+        // 需要你在构件库中保存名为 "wall_segment" 的构件（或拆成多件自行改 entry 列表）。
+        ComponentGroupRegistry.register(new ComponentGroup(
+                "WALL_SEGMENT",
+                "Wall Segment",
+                List.of(
+                        new GroupComponentEntry("wall_segment", 0, 0, 0, YRotation.NONE, Mirror.NONE)
+                ),
+                List.of(
+                        // prev/next socket 的 origin 需要与你的 wall_segment 真实长度匹配；
+                        // 这里给一个默认长度 12，用于 prompt 引导/快速试验。
+                        new ComponentSocket("prev", SocketType.WALL, 0, 0, 0, "NORTH", 1, 5, 3),
+                        new ComponentSocket("next", SocketType.WALL, 0, 0, 12, "SOUTH", 1, 5, 3)
+                )
+        ));
+
         FormacraftMod.LOGGER.info("  ✓ Component groups registered: {}", ComponentGroupRegistry.list().size());
     }
 }

@@ -302,6 +302,10 @@ ComponentParamsObject:
                 "  group_request:{\"group_id\":\"MEDIEVAL_GATEHOUSE\",\"mount_to\":\"wall_id.main_gate\",\"carve\":true}\n" +
                 "- A group may expose sockets too (see `socket.<id> ...` lines under the group listing). You MAY mount extra components onto group sockets via mounts:\n" +
                 "  group_request:{\"group_id\":\"MEDIEVAL_GATEHOUSE\",\"mounts\":[{\"socket_id\":\"wall_left\",\"mount_id\":\"wall_segment\"},{\"socket_id\":\"wall_right\",\"mount_id\":\"wall_segment\"}]}\n" +
+                "- mounts can also mount a NESTED GROUP (group-to-group assembly) via mount_group_id:\n" +
+                "  group_request:{\"group_id\":\"MEDIEVAL_GATEHOUSE\",\"mounts\":[{\"socket_id\":\"wall_left\",\"mount_group_id\":\"WALL_SEGMENT\"}]}\n" +
+                "- mounts supports mount_offset (socket-local coords: x=right, y=up, z=forward along socket facing):\n" +
+                "  group_request:{\"group_id\":\"MEDIEVAL_GATEHOUSE\",\"mounts\":[{\"socket_id\":\"wall_left\",\"mount_id\":\"wall_segment\",\"mount_offset\":{\"x\":0,\"y\":0,\"z\":3}}]}\n" +
                 "- Components support style-driven semantic re-skinning: component shape is fixed, material is decided by SemanticStyleProfile.\n" +
                 "- Available semantic parts are from SemanticPart enum (e.g. WALL, FOUNDATION, PILLAR, BEAM, WINDOW, DOORWAY, RAILING, LIGHT, STAIR_STEP, ROOF...).\n" +
                 "- Available semantic style ids currently registered: DEFAULT, MEDIEVAL_CASTLE (and others if present).\n" +
