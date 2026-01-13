@@ -293,6 +293,7 @@ ComponentParamsObject:
                 "\nCOMPONENT GROUPS (Composite Prefabs):\n" +
                 groupSummary + "\n" +
                 "\nRules:\n" +
+                "- IMPORTANT: Facing is a low-level detail. Prefer semantic placement via placementSpec (Attachment/Context/FacingPolicy) when deciding where/how to mount.\n" +
                 "- You MAY request using player components by semantic requirements (category/tags/approx_size).\n" +
                 "- Do NOT request exact component id unless necessary.\n" +
                 "- You MAY request using component groups when you need stable multi-part structures (tower/gatehouse/wall segment...).\n" +
@@ -306,10 +307,13 @@ ComponentParamsObject:
                 "  group_request:{\"group_id\":\"MEDIEVAL_GATEHOUSE\",\"mounts\":[{\"socket_id\":\"wall_left\",\"mount_group_id\":\"WALL_SEGMENT\"}]}\n" +
                 "- mounts supports mount_offset (socket-local coords: x=right, y=up, z=forward along socket facing):\n" +
                 "  group_request:{\"group_id\":\"MEDIEVAL_GATEHOUSE\",\"mounts\":[{\"socket_id\":\"wall_left\",\"mount_id\":\"wall_segment\",\"mount_offset\":{\"x\":0,\"y\":0,\"z\":3}}]}\n" +
+                "- For chained wall building, mounts supports repeat/count when mounting a group. It will repeatedly mount the same group by following repeat_socket (default: next):\n" +
+                "  group_request:{\"group_id\":\"MEDIEVAL_GATEHOUSE\",\"mounts\":[{\"socket_id\":\"wall_left\",\"mount_group_id\":\"WALL_SEGMENT\",\"repeat\":5,\"repeat_socket\":\"next\"}]}\n" +
                 "- Components support style-driven semantic re-skinning: component shape is fixed, material is decided by SemanticStyleProfile.\n" +
                 "- Available semantic parts are from SemanticPart enum (e.g. WALL, FOUNDATION, PILLAR, BEAM, WINDOW, DOORWAY, RAILING, LIGHT, STAIR_STEP, ROOF...).\n" +
                 "- Available semantic style ids currently registered: DEFAULT, MEDIEVAL_CASTLE (and others if present).\n" +
                 "- If a component entry lists lines like `socket.<id> type=... facing=... origin=(x,y,z) size=wxhxd`, those are AVAILABLE SOCKETS defined by that host component.\n" +
+                "- If a component entry lists a line like `placement attachment=... context=... facingPolicy=...`, treat it as the component's placement contract.\n" +
                 "- To mount, set host_id to the host component id, and socket_id to the socket id (e.g. `main_door`, not including the `socket.` prefix).\n" +
                 "- When using player components, prefer semantic re-skinning (semantic_skin=true) unless you must preserve exact original blocks.\n" +
                 "- For DOOR/WINDOW mounts, prefer carving a socket mask (carve=true). Default masks: DOOR=2x3x1, WINDOW=2x2x1. You may override via mask={w,h,d} and mask_origin={x,y,z}.\n" +

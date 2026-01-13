@@ -12,6 +12,11 @@ import com.formacraft.common.component.semantic.BlockStatePropertyUtil;
 import com.formacraft.common.component.semantic.SemanticBlockStatePicker;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.placement.AttachmentType;
+import com.formacraft.common.component.placement.ComponentPlacementSpec;
+import com.formacraft.common.component.placement.FacingPolicy;
+import com.formacraft.common.component.placement.PlacementConstraints;
+import com.formacraft.common.component.placement.SpatialContext;
 import com.formacraft.common.component.socket.ComponentSocket;
 import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.json.JsonUtil;
@@ -711,6 +716,8 @@ public final class ComponentTool implements FormacraftTool {
         if (!sockets.isEmpty()) {
             def.sockets = new ArrayList<>(sockets);
         }
+        // v1：自动生成语义放置规格（Attachment / Context / FacingPolicy）
+        def.placementSpec = defaultPlacementSpec(def.category, def.tags);
 
         def.blocks = new ArrayList<>();
         int minDy = Integer.MAX_VALUE;
@@ -750,6 +757,141 @@ public final class ComponentTool implements FormacraftTool {
         }
 
         return JsonUtil.toJson(def);
+    }
+
+    private static ComponentPlacementSpec defaultPlacementSpec(ComponentCategory category, java.util.List<String> tags) {
+        ComponentCategory c = (category != null) ? category : ComponentCategory.GENERIC;
+        ComponentPlacementSpec spec = new ComponentPlacementSpec();
+
+        // defaults
+        spec.attachment = AttachmentType.NONE;
+        spec.spatialContext = SpatialContext.ANY;
+        spec.facingPolicy = FacingPolicy.NONE;
+        spec.constraints = new PlacementConstraints();
+
+        switch (c) {
+            case DOOR -> {
+                spec.attachment = AttachmentType.WALL_OPENING;
+                spec.spatialContext = SpatialContext.ANY;
+                spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
+                spec.hasInteriorExterior = true;
+                spec.constraints.requiresAttachment = true;
+                spec.constraints.minAttachments = 1;
+                spec.constraints.maxAttachments = 1;
+                spec.semanticTags.add("entry");
+                spec.semanticTags.add("circulation");
+                spec.aiHint = "WALL_OPENING: derive facing from host wall; keep inside/outside semantics.";
+            }
+            case WINDOW -> {
+                spec.attachment = AttachmentType.WALL_OPENING;
+                spec.spatialContext = SpatialContext.ANY;
+                spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
+                spec.hasInteriorExterior = true;
+                spec.constraints.requiresAttachment = true;
+                spec.constraints.minAttachments = 1;
+                spec.constraints.maxAttachments = 1;
+                spec.semanticTags.add("light");
+                spec.semanticTags.add("ventilation");
+                spec.aiHint = "WALL_OPENING: derive facing from host wall.";
+            }
+            case COLUMN -> {
+                spec.attachment = AttachmentType.FLOOR;
+                spec.spatialContext = SpatialContext.ANY;
+                spec.facingPolicy = FacingPolicy.NONE;
+                spec.constraints.requiresSupportBelow = true;
+                spec.semanticTags.add("structure");
+                spec.semanticTags.add("support");
+                spec.aiHint = "Structural support: no facing; requires support below.";
+            }
+            case BRACKET -> {
+                // 斗拱：通常位于柱顶/梁下，面向不重要
+                spec.attachment = AttachmentType.NONE;
+                spec.spatialContext = SpatialContext.ANY;
+                spec.facingPolicy = FacingPolicy.NONE;
+                spec.constraints.requiresSupportBelow = true;
+                spec.semanticTags.add("structure");
+                spec.semanticTags.add("transition");
+                spec.aiHint = "Bracket: no facing; attach near structural joints.";
+            }
+            case ROOF_DETAIL -> {
+                spec.attachment = AttachmentType.ROOF_EDGE;
+                spec.spatialContext = SpatialContext.EXTERIOR;
+                spec.facingPolicy = FacingPolicy.ALONG_EDGE;
+                spec.constraints.requiresAttachment = true;
+                spec.constraints.requiresEdge = true;
+                spec.semanticTags.add("roof");
+                spec.semanticTags.add("detail");
+                spec.aiHint = "Roof detail: attach to roof edge; align along edge.";
+            }
+            case ORNAMENT -> {
+                spec.attachment = AttachmentType.WALL_SURFACE;
+                spec.spatialContext = SpatialContext.ANY;
+                spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
+                spec.constraints.requiresAttachment = true;
+                spec.semanticTags.add("ornament");
+                spec.aiHint = "Ornament: attach to surfaces; facing derived from host.";
+            }
+            case ARCH -> {
+                spec.attachment = AttachmentType.WALL_OPENING;
+                spec.spatialContext = SpatialContext.ANY;
+                spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
+                spec.constraints.requiresAttachment = true;
+                spec.semanticTags.add("arch");
+                spec.aiHint = "Arch: treat as opening; derive facing from host.";
+            }
+            case STAIRS -> {
+                spec.attachment = AttachmentType.FLOOR;
+                spec.spatialContext = SpatialContext.ANY;
+                spec.facingPolicy = FacingPolicy.USER_DEFINED;
+                spec.constraints.requiresAttachment = true;
+                spec.semanticTags.add("circulation");
+                spec.aiHint = "Stairs: direction may be user-defined; ensure continuity.";
+            }
+            case GENERIC -> {
+                spec.aiHint = "Generic component: placement is unconstrained unless tags imply otherwise.";
+            }
+        }
+
+        // tag hints（best-effort，避免引入新 UI）
+        if (tags != null) {
+            for (String t : tags) {
+                if (t == null) continue;
+                String u = t.trim().toLowerCase(Locale.ROOT);
+                if (u.contains("balcony") || u.contains("terrace") || u.contains("awning") || u.contains("canopy")) {
+                    spec.attachment = AttachmentType.WALL_SURFACE;
+                    spec.spatialContext = SpatialContext.EXTERIOR;
+                    spec.facingPolicy = FacingPolicy.OUTWARD_NORMAL;
+                    spec.constraints.requiresAttachment = true;
+                    spec.constraints.minAttachments = 1;
+                    spec.constraints.maxAttachments = 2;
+                    spec.constraints.forbidInterior = true;
+                    spec.semanticTags.add("outdoor");
+                }
+                if (u.contains("railing") || u.contains("guard") || u.contains("balustrade")) {
+                    spec.attachment = AttachmentType.EDGE;
+                    spec.facingPolicy = FacingPolicy.ALONG_EDGE;
+                    spec.constraints.requiresEdge = true;
+                    spec.constraints.prefersContinuity = true;
+                    spec.semanticTags.add("safety");
+                }
+                if (u.contains("chimney")) {
+                    spec.attachment = AttachmentType.ROOF_SURFACE;
+                    spec.spatialContext = SpatialContext.EXTERIOR;
+                    spec.facingPolicy = FacingPolicy.NONE;
+                    spec.constraints.requiresAttachment = true;
+                    spec.semanticTags.add("roof");
+                    spec.semanticTags.add("ornament");
+                }
+                if (u.contains("dormer")) {
+                    spec.attachment = AttachmentType.ROOF_SURFACE;
+                    spec.spatialContext = SpatialContext.EXTERIOR;
+                    spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
+                    spec.constraints.requiresAttachment = true;
+                    spec.semanticTags.add("roof");
+                }
+            }
+        }
+        return spec;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

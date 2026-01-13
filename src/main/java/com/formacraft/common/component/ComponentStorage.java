@@ -58,11 +58,18 @@ public final class ComponentStorage {
 
         for (ComponentCatalog.Entry e : cat.components) {
             if (e == null) continue;
-            if (e.sockets != null && !e.sockets.isEmpty()) continue;
+            boolean needSockets = (e.sockets == null || e.sockets.isEmpty());
+            boolean needSpec = (e.placementSpec == null);
             if (e.id == null || e.id.isBlank()) continue;
+            if (!needSockets && !needSpec) continue;
             ComponentDefinition def = loadComponent(worldDir, e.id);
-            if (def != null && def.sockets != null && !def.sockets.isEmpty()) {
-                e.sockets = def.sockets;
+            if (def != null) {
+                if (needSockets && def.sockets != null && !def.sockets.isEmpty()) {
+                    e.sockets = def.sockets;
+                }
+                if (needSpec && def.placementSpec != null) {
+                    e.placementSpec = def.placementSpec;
+                }
             }
         }
         return cat;
@@ -106,6 +113,9 @@ public final class ComponentStorage {
             e.file = fileName;
             if (def.sockets != null && !def.sockets.isEmpty()) {
                 e.sockets = def.sockets;
+            }
+            if (def.placementSpec != null) {
+                e.placementSpec = def.placementSpec;
             }
             cat.components.add(e);
 

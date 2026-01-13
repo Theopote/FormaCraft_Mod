@@ -272,17 +272,33 @@ public final class PlayerComponentGroupExpander {
                     FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount group not found: {}", me.mountGroupId);
                     continue;
                 }
-                Direction childFacing = parseDir(me.mountFacing);
-                if (childFacing == null || !childFacing.getAxis().isHorizontal()) childFacing = socketWorldFacing;
+                Direction childFacing0 = parseDir(me.mountFacing);
+                if (childFacing0 == null || !childFacing0.getAxis().isHorizontal()) childFacing0 = socketWorldFacing;
                 Mirror childMirror = parseMirror(me.mountMirror);
 
-                // recurse: expand nested group at the socket anchor
-                expandGroupInto(out, worldDir, childGroup,
-                        anchorPos.getX(), anchorPos.getY(), anchorPos.getZ(),
-                        childFacing, childMirror,
-                        semanticSkin, semanticStyleId, seedBase,
-                        me.nestedReq != null ? me.nestedReq : Map.of(),
-                        depth + 1);
+                // chain / repeat: mount the group multiple times using its own socket as the next anchor
+                int repeat = Math.max(1, Math.min(64, me.repeat));
+                String repeatSocketId = (me.repeatSocketId != null && !me.repeatSocketId.isBlank()) ? me.repeatSocketId : "next";
+
+                BlockPos curAnchor = anchorPos;
+                Direction curFacing = childFacing0;
+                for (int i = 0; i < repeat; i++) {
+                    expandGroupInto(out, worldDir, childGroup,
+                            curAnchor.getX(), curAnchor.getY(), curAnchor.getZ(),
+                            curFacing, childMirror,
+                            semanticSkin, semanticStyleId, seedBase,
+                            me.nestedReq != null ? me.nestedReq : Map.of(),
+                            depth + 1);
+
+                    if (i == repeat - 1) break;
+                    SocketWorld next = resolveGroupSocketWorld(childGroup, curAnchor, curFacing, childMirror, repeatSocketId);
+                    if (next == null) {
+                        FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: repeat_socket not found: {}.{}", childGroup.getId(), repeatSocketId);
+                        break;
+                    }
+                    curAnchor = next.pos;
+                    curFacing = next.facing;
+                }
                 continue;
             }
 
@@ -325,6 +341,34 @@ public final class PlayerComponentGroupExpander {
             if (socketId.equals(s.id())) return s;
         }
         return null;
+    }
+
+    private static SocketWorld resolveGroupSocketWorld(ComponentGroup group,
+                                                      BlockPos groupAnchor,
+                                                      Direction groupFacing,
+                                                      Mirror groupMirror,
+                                                      String socketId) {
+        if (group == null || groupAnchor == null) return null;
+        ComponentSocket s = findGroupSocket(group, socketId);
+        if (s == null) return null;
+
+        Direction groupFromFacing = Direction.SOUTH;
+        ComponentTransform groupTransform = new ComponentTransform(groupFacing, groupMirror);
+
+        BlockPos socketLocal = new BlockPos(s.x(), s.y(), s.z());
+        BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, groupFromFacing, groupTransform);
+        BlockPos pos = new BlockPos(
+                groupAnchor.getX() + socketOff.getX(),
+                groupAnchor.getY() + socketOff.getY(),
+                groupAnchor.getZ() + socketOff.getZ()
+        );
+
+        Direction socketLocalFacing = parseDir(s.facing());
+        if (socketLocalFacing == null || !socketLocalFacing.getAxis().isHorizontal()) socketLocalFacing = Direction.SOUTH;
+        Direction facing = FacingTransformUtil.transformFacing(socketLocalFacing, groupFromFacing, groupTransform);
+        if (facing == null || !facing.getAxis().isHorizontal()) facing = groupFacing;
+
+        return new SocketWorld(pos, facing);
     }
 
     private static void addComponentPatches(List<BlockPatch> out,
@@ -600,11 +644,17 @@ public final class PlayerComponentGroupExpander {
 
         if (socketId == null) return null;
         if ((mountId == null || mountId.isBlank()) && (mountGroupId == null || mountGroupId.isBlank())) return null;
+
+        int repeat = getInt(m, 1, "repeat", "count", "n");
+        String repeatSocketId = getString(m, "repeat_socket", "repeatSocket", "chain_socket", "chainSocket", "next_socket", "nextSocket");
+
         return new MountEntry(socketId.trim(),
                 mountId != null ? mountId.trim() : null,
                 mountGroupId != null ? mountGroupId.trim() : null,
                 carve, facing, mirror, nestedReq,
-                offX, offY, offZ);
+                offX, offY, offZ,
+                Math.max(1, repeat),
+                repeatSocketId);
     }
 
     private record MountEntry(String socketId,
@@ -616,7 +666,9 @@ public final class PlayerComponentGroupExpander {
                               Map<String, Object> nestedReq,
                               int offX,
                               int offY,
-                              int offZ) {}
+                              int offZ,
+                              int repeat,
+                              String repeatSocketId) {}
 
     private static int getInt(Map<?, ?> m, int def, String... keys) {
         if (m == null || keys == null) return def;
@@ -632,5 +684,7 @@ public final class PlayerComponentGroupExpander {
         }
         return def;
     }
+
+    private record SocketWorld(BlockPos pos, Direction facing) {}
 }
 

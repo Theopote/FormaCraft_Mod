@@ -1,5 +1,6 @@
 package com.formacraft.common.component;
 
+import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.component.socket.ComponentSocket;
 import java.util.List;
 
@@ -21,6 +22,8 @@ public class ComponentCatalog {
         public String file;
         /** 可选：该构件定义的 sockets（用于 LLM mount / 自动开洞）。 */
         public List<ComponentSocket> sockets;
+        /** 可选：语义放置规格（Attachment / Context / FacingPolicy / Constraints）。 */
+        public ComponentPlacementSpec placementSpec;
     }
 }
 

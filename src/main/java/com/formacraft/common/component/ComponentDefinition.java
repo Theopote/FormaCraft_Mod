@@ -1,5 +1,6 @@
 package com.formacraft.common.component;
 
+import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.component.socket.ComponentSocket;
 import java.util.List;
 import java.util.Set;
@@ -25,6 +26,13 @@ public class ComponentDefinition {
     public Set<String> allowed_facing;
 
     public PlacementRules placement_rules;
+
+    /**
+     * v1：语义放置规格（Attachment / Context / FacingPolicy / Constraints）。
+     * <p>
+     * 注意：这是高层语义，低层 blockstate 的 facing 仍由 transform 在落 patch 时推导/修正。
+     */
+    public ComponentPlacementSpec placementSpec;
 
     public List<BlockEntry> blocks;
 
