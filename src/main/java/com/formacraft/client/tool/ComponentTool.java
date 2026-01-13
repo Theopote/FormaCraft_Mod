@@ -449,6 +449,7 @@ public final class ComponentTool implements FormacraftTool {
                 return;
             }
             loadedComponent = def;
+            try { com.formacraft.client.component.ComponentLibraryUsage.markLoaded(def.id); } catch (Throwable ignored) {}
             HudToast.show("已加载构件：「" + (def.name != null ? def.name : def.id) + "」 blocks=" + def.blocks.size());
         } catch (Throwable t) {
             HudToast.show("加载构件失败：JSON 解析失败", true);

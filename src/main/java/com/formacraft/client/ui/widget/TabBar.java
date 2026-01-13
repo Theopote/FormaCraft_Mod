@@ -27,7 +27,6 @@ public class TabBar {
     private final MinecraftClient client;
     private int x;
     private int y;
-    private int width;
     
     /**
      * 标签信息
@@ -53,6 +52,7 @@ public class TabBar {
         tabs.add(new TabInfo(PanelType.CHAT, "💬", Text.translatable("formacraft.tab.chat"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.BLUEPRINT, "📋", Text.translatable("formacraft.tab.blueprint"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.TOOLS, "🧰", Text.translatable("formacraft.tab.tools"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.COMPONENT_LIBRARY, "📦", Text.translatable("formacraft.tab.component_library"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.HISTORY, "📜", Text.translatable("formacraft.tab.history"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.SETTINGS, "⚙", Text.translatable("formacraft.tab.settings"), TAB_SIZE));
     }
@@ -63,8 +63,6 @@ public class TabBar {
     public void setBounds(int x, int y, int width) {
         this.x = x;
         this.y = y;
-        // width 参数保留用于未来扩展（如限制标签栏最大宽度）
-        this.width = width;
     }
     
     /**

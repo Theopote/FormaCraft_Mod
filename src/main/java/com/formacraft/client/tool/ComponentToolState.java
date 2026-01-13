@@ -49,6 +49,10 @@ public class ComponentToolState {
     public String librarySearch = "";
     /** 构件库分页（从 0 开始）。 */
     public int libraryPage = 0;
+    /** 构件库排序模式：RECENT / NAME / CATEGORY */
+    public String librarySort = "RECENT";
+    /** 构件库分类过滤：null 表示 ALL */
+    public ComponentCategory libraryFilterCategory = null;
 
     /** UI 状态：正在选择 anchor */
     public boolean pickingAnchor = false;

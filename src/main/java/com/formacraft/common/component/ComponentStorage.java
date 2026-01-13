@@ -85,6 +85,24 @@ public final class ComponentStorage {
             ComponentCatalog c = JsonUtil.get().fromJson(r, ComponentCatalog.class);
             if (c == null) c = new ComponentCatalog();
             if (c.components == null) c.components = new ArrayList<>();
+
+            // backfill updatedAtMs for old catalogs (best-effort from file mtime)
+            for (ComponentCatalog.Entry e : c.components) {
+                if (e == null || e.id == null || e.id.isBlank()) continue;
+                if (e.updatedAtMs != null) continue;
+                try {
+                    Path defFile = dir.resolve(e.id + ".json");
+                    if (Files.exists(defFile)) {
+                        e.updatedAtMs = Files.getLastModifiedTime(defFile).toMillis();
+                    }
+                } catch (Throwable ignored) {}
+                if (e.thumbnail == null || e.thumbnail.isBlank()) {
+                    String tn = e.id + ".png";
+                    try {
+                        if (Files.exists(dir.resolve(tn))) e.thumbnail = tn;
+                    } catch (Throwable ignored) {}
+                }
+            }
             return c;
         } catch (Exception e) {
             ComponentCatalog c = new ComponentCatalog();
@@ -173,6 +191,7 @@ public final class ComponentStorage {
             e.size = def.size;
             e.file = fileName;
             e.thumbnail = thumbName;
+            e.updatedAtMs = System.currentTimeMillis();
             if (def.sockets != null && !def.sockets.isEmpty()) {
                 e.sockets = def.sockets;
             }
