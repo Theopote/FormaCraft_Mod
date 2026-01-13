@@ -468,6 +468,7 @@ public final class PlayerComponentExpander {
             if (u.contains("DOOR")) return SocketType.DOOR;
             if (u.contains("WINDOW")) return SocketType.WINDOW;
             if (u.contains("BALCONY")) return SocketType.BALCONY;
+            if (u.contains("WALL")) return SocketType.WALL;
             if (u.contains("ROOF")) return SocketType.ROOF_ATTACHMENT;
             return SocketType.DECORATION;
         }

@@ -283,6 +283,7 @@ public final class ComponentTool implements FormacraftTool {
             case WINDOW -> { state.socketW = 2; state.socketH = 2; state.socketD = 1; }
             case BALCONY -> { state.socketW = 3; state.socketH = 2; state.socketD = 1; }
             case ROOF_ATTACHMENT -> { state.socketW = 3; state.socketH = 1; state.socketD = 1; }
+            case WALL -> { state.socketW = 1; state.socketH = 5; state.socketD = 3; }
             case DECORATION -> { state.socketW = 1; state.socketH = 1; state.socketD = 1; }
         }
     }

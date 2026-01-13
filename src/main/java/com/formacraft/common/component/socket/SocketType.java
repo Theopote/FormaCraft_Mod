@@ -7,6 +7,8 @@ public enum SocketType {
     DOOR,
     WINDOW,
     BALCONY,
+    /** 连接/挂接到墙段等“结构接口”。 */
+    WALL,
     DECORATION,
     ROOF_ATTACHMENT
 }

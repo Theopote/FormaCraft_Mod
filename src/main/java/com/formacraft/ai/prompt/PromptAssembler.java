@@ -281,14 +281,30 @@ ComponentParamsObject:
             summary = "(no player components registered)";
         }
 
+        String groupSummary;
+        try {
+            groupSummary = com.formacraft.common.component.group.ComponentGroupRegistry.summary();
+        } catch (Throwable t) {
+            groupSummary = "(no component groups registered)";
+        }
+
         return "PLAYER COMPONENT LIBRARY (Prefab Library):\n" +
                 summary + "\n" +
+                "\nCOMPONENT GROUPS (Composite Prefabs):\n" +
+                groupSummary + "\n" +
                 "\nRules:\n" +
                 "- You MAY request using player components by semantic requirements (category/tags/approx_size).\n" +
                 "- Do NOT request exact component id unless necessary.\n" +
+                "- You MAY request using component groups when you need stable multi-part structures (tower/gatehouse/wall segment...).\n" +
+                "- To use a group, add a feature string to the relevant ComponentObject:\n" +
+                "  group_request:{\"group_id\":\"TOWER_BASIC\",\"facing\":\"SOUTH\",\"mirror\":\"NONE\"}\n" +
+                "- To mount a group into a host socket, include mount_to (or host_id + socket_id):\n" +
+                "  group_request:{\"group_id\":\"MEDIEVAL_GATEHOUSE\",\"mount_to\":\"wall_id.main_gate\",\"carve\":true}\n" +
                 "- Components support style-driven semantic re-skinning: component shape is fixed, material is decided by SemanticStyleProfile.\n" +
                 "- Available semantic parts are from SemanticPart enum (e.g. WALL, FOUNDATION, PILLAR, BEAM, WINDOW, DOORWAY, RAILING, LIGHT, STAIR_STEP, ROOF...).\n" +
                 "- Available semantic style ids currently registered: DEFAULT, MEDIEVAL_CASTLE (and others if present).\n" +
+                "- If a component entry lists lines like `socket.<id> type=... facing=... origin=(x,y,z) size=wxhxd`, those are AVAILABLE SOCKETS defined by that host component.\n" +
+                "- To mount, set host_id to the host component id, and socket_id to the socket id (e.g. `main_door`, not including the `socket.` prefix).\n" +
                 "- When using player components, prefer semantic re-skinning (semantic_skin=true) unless you must preserve exact original blocks.\n" +
                 "- For DOOR/WINDOW mounts, prefer carving a socket mask (carve=true). Default masks: DOOR=2x3x1, WINDOW=2x2x1. You may override via mask={w,h,d} and mask_origin={x,y,z}.\n" +
                 "- If you want to use a player component, add a feature string to the relevant ComponentObject:\n" +

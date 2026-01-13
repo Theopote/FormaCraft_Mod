@@ -43,6 +43,17 @@ public final class SmartGeneratorRouter {
         }
 
         // Player Component Library：如果 features 中包含 component_request:{...}，优先走构件库展开
+        // Player Component Groups：如果 features 中包含 group_request:{...}，优先走 group 展开（复合构件）
+        try {
+            List<BlockPatch> expanded = com.formacraft.common.component.group.PlayerComponentGroupExpander.tryExpand(semantic, world);
+            if (expanded != null) {
+                return expanded;
+            }
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.warn("SmartGeneratorRouter: PlayerComponentGroupExpander failed, skipping", t);
+            return new java.util.ArrayList<>();
+        }
+
         try {
             List<BlockPatch> expanded = com.formacraft.common.component.PlayerComponentExpander.tryExpand(semantic, world);
             if (expanded != null) {
