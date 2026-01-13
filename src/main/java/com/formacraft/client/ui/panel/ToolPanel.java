@@ -10,6 +10,7 @@ import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
+import com.formacraft.client.component.ComponentThumbnailCache;
 import com.formacraft.client.interaction.AnchorState;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.client.ui.toast.HudToast;
@@ -66,6 +67,22 @@ public class ToolPanel extends BasePanel {
     private final HudTextInput componentNameInput = new HudTextInput();
     private final HudTextInput componentTagsInput = new HudTextInput();
     private final HudTextInput componentSocketIdInput = new HudTextInput();
+    private final HudTextInput componentLibrarySearchInput = new HudTextInput();
+
+    // Component Library grid hit boxes (for click-to-select)
+    private static final class ComponentGridItem {
+        final String id;
+        final String name;
+        final int x, y, w, h;
+        ComponentGridItem(String id, String name, int x, int y, int w, int h) {
+            this.id = id; this.name = name; this.x = x; this.y = y; this.w = w; this.h = h;
+        }
+        boolean hit(double mx, double my) {
+            return mx >= x && mx <= (x + w) && my >= y && my <= (y + h);
+        }
+    }
+    private final java.util.List<ComponentGridItem> componentGridItems = new java.util.ArrayList<>();
+    private boolean componentGridItemsValid = false;
     // 标签“作用范围”滑动条（1~40）——参考 SettingsPanel 的 SliderWidget 实现
     private static final int LABEL_RANGE_MIN = 1;
     private static final int LABEL_RANGE_MAX = 40;
@@ -97,11 +114,19 @@ public class ToolPanel extends BasePanel {
     private int componentSocketIdInputH = 0;
     private boolean componentSocketIdInputBoundsValid = false;
 
+    private int componentLibrarySearchInputX = 0;
+    private int componentLibrarySearchInputY = 0;
+    private int componentLibrarySearchInputW = 0;
+    private int componentLibrarySearchInputH = 0;
+    private boolean componentLibrarySearchInputBoundsValid = false;
+
     // ComponentTool 选项按钮
     private ButtonWidget componentCategoryButton;
     private ButtonWidget componentSourceButton;
     private ButtonWidget componentLibraryPickButton;
     private ButtonWidget componentLibraryLoadButton;
+    private ButtonWidget componentLibraryPrevPageButton;
+    private ButtonWidget componentLibraryNextPageButton;
     private ButtonWidget componentPickAnchorButton;
     private ButtonWidget componentClearAnchorButton;
     private ButtonWidget componentFacingButton;
@@ -228,6 +253,8 @@ public class ToolPanel extends BasePanel {
         componentTagsInput.setText("Chinese,Traditional,Wood");
         componentSocketIdInput.setMaxLength(64);
         componentSocketIdInput.setText("main_door");
+        componentLibrarySearchInput.setMaxLength(64);
+        componentLibrarySearchInput.setText("");
 
         componentCategoryButton = ButtonWidget.builder(Text.literal("分类：GENERIC"), b -> ComponentTool.INSTANCE.cycleCategory())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -244,6 +271,20 @@ public class ToolPanel extends BasePanel {
         componentLibraryLoadButton = ButtonWidget.builder(Text.literal("加载构件"), b -> ComponentTool.INSTANCE.requestLoadSelectedComponent())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("请求服务端下发该构件定义（ComponentDefinition JSON）")))
+                .build();
+        componentLibraryPrevPageButton = ButtonWidget.builder(Text.literal("上一页"), b -> {
+                    var st = ComponentTool.INSTANCE.getState();
+                    st.libraryPage = Math.max(0, st.libraryPage - 1);
+                })
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("构件库上一页")))
+                .build();
+        componentLibraryNextPageButton = ButtonWidget.builder(Text.literal("下一页"), b -> {
+                    var st = ComponentTool.INSTANCE.getState();
+                    st.libraryPage = st.libraryPage + 1;
+                })
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("构件库下一页")))
                 .build();
         componentPickAnchorButton = ButtonWidget.builder(Text.literal("选择 Anchor"), b -> ComponentTool.INSTANCE.startPickAnchor())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -363,6 +404,7 @@ public class ToolPanel extends BasePanel {
         componentNameInputBoundsValid = false;
         componentTagsInputBoundsValid = false;
         componentSocketIdInputBoundsValid = false;
+        componentLibrarySearchInputBoundsValid = false;
 
         // 半透明底
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
@@ -718,6 +760,9 @@ public class ToolPanel extends BasePanel {
 
     // 绘制 ComponentTool 的选项
     private int drawComponentToolOptions(DrawContext ctx, int x, int y, int w) {
+        componentGridItems.clear();
+        componentGridItemsValid = false;
+
         // 标题
         y = drawWrappedText(ctx, Text.literal("[ Component Tool ]"), x, y, w, 0xFFFFFFFF);
         y += 2;
@@ -761,6 +806,200 @@ public class ToolPanel extends BasePanel {
         componentLibraryLoadButton.active = st.useLibrary && st.librarySelectedId != null && !st.librarySelectedId.isBlank();
         componentLibraryLoadButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
+
+        // 缩略图预览（v1：从全局组件库读取 <id>.png）
+        if (st.useLibrary && st.librarySelectedId != null && !st.librarySelectedId.isBlank()) {
+            var thumb = ComponentThumbnailCache.getThumb(st.librarySelectedId, 32);
+            if (thumb != null && thumb.argb() != null) {
+                int sz = 64;
+                int px = x + w - sz;
+                int py = y;
+                int tw = thumb.w();
+                int th = thumb.h();
+                int[] argb = thumb.argb();
+
+                int scale = Math.max(1, sz / Math.max(1, Math.max(tw, th)));
+                int drawW = tw * scale;
+                int drawH = th * scale;
+                int ox = px + (sz - drawW) / 2;
+                int oy = py + (sz - drawH) / 2;
+
+                // 背板
+                ctx.fill(px, py, px + sz, py + sz, 0xFF111118);
+                // 像素绘制（小图，fill 次数可控）
+                for (int yy = 0; yy < th; yy++) {
+                    for (int xx = 0; xx < tw; xx++) {
+                        int c = argb[yy * tw + xx];
+                        // ImageIO 的 ARGB 已经是 0xAARRGGBB
+                        int x0 = ox + xx * scale;
+                        int y0 = oy + yy * scale;
+                        ctx.fill(x0, y0, x0 + scale, y0 + scale, c);
+                    }
+                }
+                // 边框
+                ctx.fill(px, py, px + sz, py + 1, 0x66FFFFFF);
+                ctx.fill(px, py + sz - 1, px + sz, py + sz, 0x66FFFFFF);
+                ctx.fill(px, py, px + 1, py + sz, 0x66FFFFFF);
+                ctx.fill(px + sz - 1, py, px + sz, py + sz, 0x66FFFFFF);
+                y += sz + 2;
+            }
+        }
+
+        // 构件库网格（点击选择）
+        if (st.useLibrary) {
+            var cat = com.formacraft.client.component.ClientComponentCatalogState.getCatalog();
+            if (cat != null && cat.components != null && !cat.components.isEmpty()) {
+                y = drawWrappedText(ctx, Text.literal("构件库（点击缩略图选择）:"), x, y, w, 0xFFAAAAAA);
+                y += 2;
+
+                // 搜索框
+                String curSearch = st.librarySearch != null ? st.librarySearch : "";
+                if (!componentLibrarySearchInput.isFocused() && !curSearch.equals(componentLibrarySearchInput.getText())) {
+                    componentLibrarySearchInput.setText(curSearch);
+                }
+                ctx.drawTextWithShadow(client.textRenderer, Text.literal("搜索："), x, y, 0xFFAAAAAA);
+                int searchY = y + LABEL_OFFSET - 2;
+                int searchW = w;
+                componentLibrarySearchInput.render(ctx, x, searchY, searchW, 14);
+                componentLibrarySearchInputX = x;
+                componentLibrarySearchInputY = searchY;
+                componentLibrarySearchInputW = searchW;
+                componentLibrarySearchInputH = 14;
+                componentLibrarySearchInputBoundsValid = true;
+                String newSearch = componentLibrarySearchInput.getText();
+                if (newSearch == null) newSearch = "";
+                if (!newSearch.equals(st.librarySearch)) {
+                    st.librarySearch = newSearch;
+                    st.libraryPage = 0; // 搜索变化：回到第一页
+                }
+                y += FIELD_SPACING;
+
+                // 过滤列表
+                String q = (st.librarySearch == null) ? "" : st.librarySearch.trim().toLowerCase(java.util.Locale.ROOT);
+                java.util.List<com.formacraft.common.component.ComponentCatalog.Entry> filtered = new java.util.ArrayList<>();
+                for (var e : cat.components) {
+                    if (e == null || e.id == null || e.id.isBlank()) continue;
+                    if (q.isEmpty()) {
+                        filtered.add(e);
+                        continue;
+                    }
+                    String id = e.id.toLowerCase(java.util.Locale.ROOT);
+                    String nm = (e.name != null ? e.name : "").toLowerCase(java.util.Locale.ROOT);
+                    boolean ok = id.contains(q) || nm.contains(q);
+                    if (!ok && e.tags != null) {
+                        for (String t : e.tags) {
+                            if (t != null && t.toLowerCase(java.util.Locale.ROOT).contains(q)) { ok = true; break; }
+                        }
+                    }
+                    if (ok) filtered.add(e);
+                }
+
+                // 分页
+                int cell = 52; // 包含边框与间距
+                int cols = Math.max(2, Math.min(4, w / cell));
+                int rowsPerPage = 4;
+                int pageSize = Math.max(1, cols * rowsPerPage);
+                int total = filtered.size();
+                int pageCount = Math.max(1, (int) Math.ceil(total / (double) pageSize));
+                int page = Math.max(0, Math.min(st.libraryPage, pageCount - 1));
+                st.libraryPage = page;
+                int start = page * pageSize;
+                if (start >= total) {
+                    st.libraryPage = 0;
+                    page = 0;
+                    start = 0;
+                }
+                int end = Math.min(total, start + pageSize);
+
+                // 分页按钮 + 文本
+                componentLibraryPrevPageButton.setPosition(x, y);
+                componentLibraryPrevPageButton.setWidth(half);
+                componentLibraryPrevPageButton.visible = true;
+                componentLibraryPrevPageButton.active = (page > 0);
+                componentLibraryPrevPageButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+                componentLibraryNextPageButton.setPosition(x + half + 4, y);
+                componentLibraryNextPageButton.setWidth(w - half - 4);
+                componentLibraryNextPageButton.visible = true;
+                componentLibraryNextPageButton.active = (page < pageCount - 1);
+                componentLibraryNextPageButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+
+                y += LABEL_OFFSET;
+                y = drawWrappedText(ctx,
+                        Text.literal("第 " + (page + 1) + "/" + pageCount + " 页  (共 " + total + " 个)"),
+                        x, y, w, 0xFFAAAAAA);
+                y += 2;
+
+                // 网格
+                int pad = 4;
+                int thumbSz = 40;
+                int startX = x;
+                int row = 0;
+                int col = 0;
+
+                for (int i = start; i < end; i++) {
+                    var e = filtered.get(i);
+                    if (e == null || e.id == null || e.id.isBlank()) continue;
+                    String id = e.id;
+                    String nm0 = (e.name != null && !e.name.isBlank()) ? e.name : id;
+
+                    int cx = startX + col * cell;
+                    int cy = y + row * cell;
+
+                    int bx = cx;
+                    int by = cy;
+                    int bw = cell - pad;
+                    int bh = cell - pad;
+
+                    boolean selected = id.equals(st.librarySelectedId);
+                    int border = selected ? 0xFF66FF66 : 0xFF444444;
+                    int bg = selected ? 0xAA223322 : 0xAA15151A;
+
+                    ctx.fill(bx, by, bx + bw, by + bh, bg);
+                    ctx.fill(bx, by, bx + bw, by + 1, border);
+                    ctx.fill(bx, by + bh - 1, bx + bw, by + bh, border);
+                    ctx.fill(bx, by, bx + 1, by + bh, border);
+                    ctx.fill(bx + bw - 1, by, bx + bw, by + bh, border);
+
+                    var t = ComponentThumbnailCache.getThumb(id, 24);
+                    if (t != null && t.argb() != null) {
+                        int tw = t.w();
+                        int th = t.h();
+                        int[] argb = t.argb();
+                        int scale = Math.max(1, thumbSz / Math.max(1, Math.max(tw, th)));
+                        int drawW = tw * scale;
+                        int ox = bx + (bw - drawW) / 2;
+                        int oy = by + 4;
+                        for (int yy = 0; yy < th; yy++) {
+                            for (int xx = 0; xx < tw; xx++) {
+                                int c = argb[yy * tw + xx];
+                                int x0 = ox + xx * scale;
+                                int y0 = oy + yy * scale;
+                                ctx.fill(x0, y0, x0 + scale, y0 + scale, c);
+                            }
+                        }
+                    } else {
+                        ctx.fill(bx + 6, by + 6, bx + bw - 6, by + 6 + thumbSz, 0x55222222);
+                    }
+
+                    String shortName = nm0.length() > 6 ? nm0.substring(0, 6) : nm0;
+                    ctx.drawTextWithShadow(client.textRenderer, Text.literal(shortName), bx + 4, by + bh - client.textRenderer.fontHeight - 2, 0xFFDDDDDD);
+
+                    componentGridItems.add(new ComponentGridItem(id, nm0, bx, by, bw, bh));
+
+                    col++;
+                    if (col >= cols) {
+                        col = 0;
+                        row++;
+                    }
+                }
+
+                componentGridItemsValid = !componentGridItems.isEmpty();
+                int rowsShown = Math.max(1, (int) Math.ceil((end - start) / (double) cols));
+                y += rowsShown * cell;
+                y += 2;
+            }
+        }
 
         // 名称输入
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("名称："), x, y, 0xFFAAAAAA);
@@ -1081,10 +1320,23 @@ public class ToolPanel extends BasePanel {
             }
             if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
         } else if (ToolManager.isActive(ComponentTool.INSTANCE.getId())) {
+            // 构件库网格点击（优先于按钮，避免 click 被按钮吞掉）
+            if (componentGridItemsValid) {
+                for (ComponentGridItem it : componentGridItems) {
+                    if (it != null && it.hit(mouseX, mouseY)) {
+                        var st = ComponentTool.INSTANCE.getState();
+                        st.librarySelectedId = it.id;
+                        st.librarySelectedName = it.name;
+                        return true;
+                    }
+                }
+            }
             if (componentCategoryButton != null && componentCategoryButton.visible && componentCategoryButton.mouseClicked(click, false)) return true;
             if (componentSourceButton != null && componentSourceButton.visible && componentSourceButton.mouseClicked(click, false)) return true;
             if (componentLibraryPickButton != null && componentLibraryPickButton.visible && componentLibraryPickButton.mouseClicked(click, false)) return true;
             if (componentLibraryLoadButton != null && componentLibraryLoadButton.visible && componentLibraryLoadButton.mouseClicked(click, false)) return true;
+            if (componentLibraryPrevPageButton != null && componentLibraryPrevPageButton.visible && componentLibraryPrevPageButton.mouseClicked(click, false)) return true;
+            if (componentLibraryNextPageButton != null && componentLibraryNextPageButton.visible && componentLibraryNextPageButton.mouseClicked(click, false)) return true;
             if (componentPickAnchorButton != null && componentPickAnchorButton.visible && componentPickAnchorButton.mouseClicked(click, false)) return true;
             if (componentClearAnchorButton != null && componentClearAnchorButton.visible && componentClearAnchorButton.mouseClicked(click, false)) return true;
             if (componentFacingButton != null && componentFacingButton.visible && componentFacingButton.mouseClicked(click, false)) return true;
@@ -1125,6 +1377,15 @@ public class ToolPanel extends BasePanel {
                     return true;
                 }
             }
+            if (componentLibrarySearchInputBoundsValid) {
+                if (componentLibrarySearchInput.mouseClicked(mouseX, mouseY, componentLibrarySearchInputX, componentLibrarySearchInputY, componentLibrarySearchInputW, componentLibrarySearchInputH)) {
+                    componentNameInput.setFocused(false);
+                    componentTagsInput.setFocused(false);
+                    componentSocketIdInput.setFocused(false);
+                    labelNameInput.setFocused(false);
+                    return true;
+                }
+            }
         }
 
         // 锚点按钮（无论是否有激活工具都显示，因为锚点可以在没有工具时设置）
@@ -1154,6 +1415,7 @@ public class ToolPanel extends BasePanel {
         }
         componentNameInput.keyPressed(keyCode, modifiers);
         componentTagsInput.keyPressed(keyCode, modifiers);
+        componentLibrarySearchInput.keyPressed(keyCode, modifiers);
     }
 
     @Override
@@ -1164,11 +1426,15 @@ public class ToolPanel extends BasePanel {
         }
         componentNameInput.charTyped(chr);
         componentTagsInput.charTyped(chr);
+        componentLibrarySearchInput.charTyped(chr);
     }
 
     @Override
     public boolean wantsKeyboardInput() {
-        return labelNameInput.isFocused() || componentNameInput.isFocused() || componentTagsInput.isFocused();
+        return labelNameInput.isFocused()
+                || componentNameInput.isFocused()
+                || componentTagsInput.isFocused()
+                || componentLibrarySearchInput.isFocused();
     }
 
     @Override

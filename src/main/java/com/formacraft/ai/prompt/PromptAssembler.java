@@ -94,6 +94,9 @@ Core rules:
 - All positions are relative to the provided anchor (0,0,0).
 - Respect all spatial constraints: path, outline, forbidden zones, symmetry, terrain strategy.
 - Use semantic components (TOWER, WALL, ROOF, ENTRANCE, SIGNAGE, etc.), NOT blocks.
+- Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
+- If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
+- If no compatible host exists, omit that prefab component instead of forcing an invalid placement.
 - If information is missing, infer reasonable defaults consistent with style and program.
 - Output VALID JSON ONLY. No comments, no explanations.
 
@@ -294,6 +297,21 @@ ComponentParamsObject:
                 groupSummary + "\n" +
                 "\nRules:\n" +
                 "- IMPORTANT: Facing is a low-level detail. Prefer semantic placement via placementSpec (Attachment/Context/FacingPolicy) when deciding where/how to mount.\n" +
+                "\nCOMPONENT PLACEMENT CONTRACTS (MUST FOLLOW):\n" +
+                "- Many prefabs include a line like: `placement attachment=... context=... facingPolicy=...`.\n" +
+                "- Treat that line as a strict placement contract. Do NOT use a prefab if you cannot satisfy its contract.\n" +
+                "- Contracts are satisfied by choosing a compatible HOST candidate:\n" +
+                "  * HOST=socket on a host component: map socket.type -> attachment: DOOR/WINDOW => WALL_OPENING; WALL/DECORATION/BALCONY => WALL_SURFACE; ROOF_ATTACHMENT => ROOF_EDGE.\n" +
+                "  * HOST=outline candidates (ATTACHMENT CANDIDATES): EDGE/CORNER segments/points.\n" +
+                "- Contract enforcement rules:\n" +
+                "  * attachment=WALL_OPENING: ONLY mount into DOOR/WINDOW sockets. Do NOT mount on WALL_SURFACE sockets.\n" +
+                "  * attachment=EDGE: ONLY place/mount when an EDGE candidate exists.\n" +
+                "  * attachment=CORNER: ONLY place/mount when a CORNER candidate exists.\n" +
+                "  * spatialContext=EXTERIOR: do not place it in interior/courtyard-facing sides.\n" +
+                "- FacingPolicy is NOT a legality check; it only affects how facing is derived:\n" +
+                "  * NONE: omit facing/mount_facing.\n" +
+                "  * DERIVED_FROM_HOST / OUTWARD_NORMAL: omit mount_facing; it will be derived from host.\n" +
+                "  * ALONG_EDGE: omit mount_facing, but provide an edge hint when possible (edge endpoints from ATTACHMENT CANDIDATES).\n" +
                 "- You MAY request using player components by semantic requirements (category/tags/approx_size).\n" +
                 "- Do NOT request exact component id unless necessary.\n" +
                 "- You MAY request using component groups when you need stable multi-part structures (tower/gatehouse/wall segment...).\n" +
@@ -315,10 +333,6 @@ ComponentParamsObject:
                 "- If a component entry lists lines like `socket.<id> type=... facing=... origin=(x,y,z) size=wxhxd`, those are AVAILABLE SOCKETS defined by that host component.\n" +
                 "- If a component entry lists a line like `placement attachment=... context=... facingPolicy=...`, treat it as the component's placement contract.\n" +
                 "- When choosing sockets for mounting, match placementSpec.attachment with the host socket type: DOOR/WINDOW -> WALL_OPENING; WALL/DECORATION/BALCONY -> WALL_SURFACE; ROOF_ATTACHMENT -> ROOF_EDGE.\n" +
-                "- FacingPolicy guidance:\n" +
-                "  - NONE: do NOT force a facing.\n" +
-                "  - DERIVED_FROM_HOST / OUTWARD_NORMAL: omit mount_facing, it will be derived from the host socket.\n" +
-                "  - ALONG_EDGE: omit mount_facing, but provide an edge hint when possible (edge endpoints from ATTACHMENT CANDIDATES).\n" +
                 "- To mount, set host_id to the host component id, and socket_id to the socket id (e.g. `main_door`, not including the `socket.` prefix).\n" +
                 "- When using player components, prefer semantic re-skinning (semantic_skin=true) unless you must preserve exact original blocks.\n" +
                 "- For DOOR/WINDOW mounts, prefer carving a socket mask (carve=true). Default masks: DOOR=2x3x1, WINDOW=2x2x1. You may override via mask={w,h,d} and mask_origin={x,y,z}.\n" +

@@ -45,6 +45,10 @@ public class ComponentToolState {
     public String librarySelectedId = null;
     /** 构件库中当前选中的构件 name（仅用于 UI 展示）。 */
     public String librarySelectedName = null;
+    /** 构件库搜索关键字（id/name/tags）。 */
+    public String librarySearch = "";
+    /** 构件库分页（从 0 开始）。 */
+    public int libraryPage = 0;
 
     /** UI 状态：正在选择 anchor */
     public boolean pickingAnchor = false;
