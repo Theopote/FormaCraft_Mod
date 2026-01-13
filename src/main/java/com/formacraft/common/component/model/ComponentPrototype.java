@@ -6,6 +6,7 @@ import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.component.placement.FacingPolicy;
 import com.formacraft.common.component.placement.PlacementConstraints;
 import com.formacraft.common.component.placement.SpatialContext;
+import com.formacraft.common.component.socket.ComponentSocket;
 
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,18 @@ public class ComponentPrototype {
     /** 与旧系统的 ComponentPlacementSpec 同语义，但字段名保持 JSON v1 规范（snake_case）。 */
     public Placement placement;
     public VariantRules variant_rules;
+    /** 
+     * Socket 接口列表（v1）：定义组件可以被放置/连接的语义接口。
+     * <p>
+     * 作用：
+     * - PROVIDER socket：提供接口给其他组件（例如墙体提供门洞）
+     * - CONSUMER socket：声明需要的接口（例如门需要墙体洞口）
+     * <p>
+     * 示例：
+     * - 墙体组件：[{role: PROVIDER, context: WALL, shape: RECT, tags: ["door","window"]}]
+     * - 门组件：[{role: CONSUMER, context: WALL, shape: RECT, tags: ["door"]}]
+     */
+    public List<ComponentSocket> sockets;
 
     public static class StructureRef {
         /** "nbt"（预期），也允许 "json"/"patch" 等后续格式 */
