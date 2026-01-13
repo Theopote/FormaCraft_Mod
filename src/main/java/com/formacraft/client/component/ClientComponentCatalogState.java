@@ -57,6 +57,19 @@ public final class ClientComponentCatalogState {
             if (e.size != null) sb.append(" size=").append(e.size.w).append("x").append(e.size.h).append("x").append(e.size.d);
             sb.append("\n");
 
+            // placement spec（Attachment/Context/Policy）
+            if (e.placementSpec != null) {
+                var ps = e.placementSpec;
+                sb.append("  - placement")
+                        .append(" attachment=").append(ps.attachment)
+                        .append(" context=").append(ps.spatialContext)
+                        .append(" facingPolicy=").append(ps.facingPolicy);
+                if (ps.hasInteriorExterior) sb.append(" interiorExterior=true");
+                if (ps.semanticTags != null && !ps.semanticTags.isEmpty()) sb.append(" tags=").append(ps.semanticTags);
+                if (ps.aiHint != null && !ps.aiHint.isBlank()) sb.append(" hint=").append(ps.aiHint.trim());
+                sb.append("\n");
+            }
+
             // sockets（用于 mount / 自动开洞 / 对齐）
             if (e.sockets != null && !e.sockets.isEmpty()) {
                 for (var s : e.sockets) {
