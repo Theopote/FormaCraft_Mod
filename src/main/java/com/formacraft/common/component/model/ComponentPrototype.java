@@ -81,11 +81,21 @@ public class ComponentPrototype {
             public Map<String, AxisRule> axes;
 
             public static class AxisRule {
-                /** "FIXED" / "REPEAT" / "TRIM"（v1 仅声明，不在此处执行） */
+                /** 
+                 * "FIXED" / "REPEAT" / "TRIM"
+                 * - FIXED: 该轴固定不变（例如门的宽度/深度）
+                 * - REPEAT: 重复中段（例如门拉高 = START + MID(repeat N) + END）
+                 * - TRIM: 裁剪中段（例如栏杆缩短 = START + MID(trim N) + END）
+                 */
                 public String type;
+                /** 最小尺寸约束（单位：方块数） */
                 public Integer min;
+                /** 最大尺寸约束（单位：方块数） */
                 public Integer max;
-                /** 例如 "MID_X" / "MID_Y" */
+                /** 
+                 * 重复/裁剪的分段标签（例如 "MID_X" / "MID_Y" / "MID_Z"）
+                 * 与结构模板中的 segment tag 对应
+                 */
                 public String segment;
             }
         }
