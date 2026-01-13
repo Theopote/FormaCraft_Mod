@@ -1,7 +1,9 @@
 package com.formacraft.common.component.model;
 
 import com.formacraft.common.component.ComponentCategory;
+import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
+import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.json.JsonUtil;
 
 import java.io.Reader;
@@ -172,6 +174,64 @@ public final class ComponentPrototypeStorage {
         saveCatalog(c);
     }
 
+    /**
+     * 从现有的 ComponentDefinition(v1) 一键导入为 Prototype(v1)。
+     * <p>
+     * v1 导入策略：
+     * - 在 prototype 目录内写入：
+     *   - prototype.json（ComponentPrototype）
+     *   - component.json（原始 ComponentDefinition JSON，作为 structure 载体）
+     * - structure.format = "component_v1_json"
+     * - placement 从 def.placementSpec（若存在）桥接
+     */
+    public static ComponentPrototype importFromComponentDefinition(ComponentDefinition def) {
+        if (def == null || def.id == null || def.id.isBlank()) return null;
+
+        ComponentPrototype proto = new ComponentPrototype();
+        proto.id = def.id;
+        proto.name = def.name;
+        proto.category = def.category != null ? def.category : ComponentCategory.GENERIC;
+        proto.tags = def.tags;
+
+        // structure -> component.json（v1 兼容路径）
+        ComponentPrototype.StructureRef sr = new ComponentPrototype.StructureRef();
+        sr.format = "component_v1_json";
+        sr.file = "component.json";
+        if (def.size != null) {
+            sr.bounds = new ComponentPrototype.StructureRef.Bounds();
+            sr.bounds.w = def.size.w;
+            sr.bounds.h = def.size.h;
+            sr.bounds.d = def.size.d;
+        }
+        if (def.anchor != null) {
+            sr.anchor = new ComponentPrototype.StructureRef.Anchor();
+            sr.anchor.x = def.anchor.dx;
+            sr.anchor.y = def.anchor.dy;
+            sr.anchor.z = def.anchor.dz;
+            sr.default_facing = def.anchor.facing;
+        }
+        proto.structure = sr;
+
+        // placement（桥接到 prototype.json 的 snake_case 结构）
+        proto.placement = placementFromSpec(def.placementSpec);
+        proto.variant_rules = null; // v1：导入时不猜测规则，后续可由 AI/玩家补齐
+
+        // 1) save prototype.json + catalog
+        savePrototype(proto);
+
+        // 2) save component.json（原始 v1 结构）
+        try {
+            Path dir = getPrototypeDir(proto.category, proto.id);
+            Files.createDirectories(dir);
+            Path f = dir.resolve("component.json");
+            try (Writer w = Files.newBufferedWriter(f, StandardCharsets.UTF_8)) {
+                JsonUtil.get().toJson(def, w);
+            }
+        } catch (Throwable ignored) {}
+
+        return proto;
+    }
+
     public static void saveVariant(ComponentVariant variant, ComponentCategory prototypeCategory) {
         if (variant == null || variant.prototype_id == null || variant.prototype_id.isBlank()) return;
         if (variant.variant_id == null || variant.variant_id.isBlank()) return;
@@ -206,6 +266,31 @@ public final class ComponentPrototypeStorage {
             if (e.id.equals(prototypeId)) return e;
         }
         return null;
+    }
+
+    private static ComponentPrototype.Placement placementFromSpec(ComponentPlacementSpec spec) {
+        if (spec == null) return null;
+        ComponentPrototype.Placement p = new ComponentPrototype.Placement();
+        try { p.attachment = spec.attachment != null ? spec.attachment.name() : null; } catch (Throwable ignored) {}
+        try { p.spatial_context = spec.spatialContext != null ? spec.spatialContext.name() : null; } catch (Throwable ignored) {}
+        try { p.facing_policy = spec.facingPolicy != null ? spec.facingPolicy.name() : null; } catch (Throwable ignored) {}
+        p.has_interior_exterior = spec.hasInteriorExterior;
+
+        ComponentPrototype.Placement.Constraints c = new ComponentPrototype.Placement.Constraints();
+        if (spec.constraints != null) {
+            c.requires_attachment = spec.constraints.requiresAttachment;
+            c.min_attachments = spec.constraints.minAttachments;
+            c.max_attachments = spec.constraints.maxAttachments;
+            c.requires_edge = spec.constraints.requiresEdge;
+            c.requires_support_below = spec.constraints.requiresSupportBelow;
+            c.forbid_interior = spec.constraints.forbidInterior;
+            c.respect_protected_zones = spec.constraints.respectProtectedZones;
+            c.prefers_continuity = spec.constraints.prefersContinuity;
+            c.min_height = spec.constraints.minHeight;
+            c.max_height = spec.constraints.maxHeight;
+        }
+        p.constraints = c;
+        return p;
     }
 
     private static String safeId(String s) {

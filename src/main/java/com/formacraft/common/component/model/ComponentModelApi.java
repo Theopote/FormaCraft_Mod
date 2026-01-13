@@ -33,6 +33,23 @@ public final class ComponentModelApi {
         ComponentPrototypeStorage.savePrototype(proto);
     }
 
+    public static ComponentPrototypeCatalog loadPrototypeCatalog() {
+        return ComponentPrototypeStorage.loadCatalog();
+    }
+
+    public static ComponentPrototypeCatalog rebuildPrototypeCatalog() {
+        return ComponentPrototypeStorage.rebuildCatalog();
+    }
+
+    public static List<ComponentPrototypeCatalog.Entry> listPrototypes() {
+        ComponentPrototypeCatalog c = loadPrototypeCatalog();
+        return (c != null && c.prototypes != null) ? c.prototypes : List.of();
+    }
+
+    public static ComponentPrototype importPrototypeFromComponentDefinition(ComponentDefinition def) {
+        return ComponentPrototypeStorage.importFromComponentDefinition(def);
+    }
+
     // -------- Variant --------
 
     /**
