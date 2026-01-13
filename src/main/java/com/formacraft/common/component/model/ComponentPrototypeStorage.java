@@ -5,6 +5,7 @@ import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.json.JsonUtil;
+import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -13,34 +14,81 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Locale;
+import java.util.List;
 
 /**
  * Prototype/Variant/Instance 的最小存储实现（v1）。
  * <p>
  * 目标：先把三层模型“落盘形态”固定下来，不影响现有 ComponentDefinition(v1) 组件库。
  * <p>
- * 全局（跨存档）目录：
+ * 推荐（跨存档共享）目录（按你的建议：客户端资源库，位于 .minecraft 下）：
+ * <gameDir>/formacraft/components/
+ *   - catalog.json
+ *   - doors/<prototypeId>/prototype.json
+ *   - doors/<prototypeId>/structure.nbt (或 structure.json / patch.json / component.json)
+ *   - doors/<prototypeId>/thumbnail.png
+ *   - doors/<prototypeId>/variants/<variantId>.json  (可选：逐个保存)
+ *   - doors/<prototypeId>/variants.json             (可选：预置变体集合，读取支持)
+ * <p>
+ * 兼容（旧版/开发期）目录（不主动写入，但会读取）：
  * <config>/formacraft/components/prototypes/<category>/<id>/prototype.json
- * <config>/formacraft/components/prototypes/<category>/<id>/variants/<variantId>.json
  * <config>/formacraft/components/prototype_catalog.json
  */
 public final class ComponentPrototypeStorage {
     private ComponentPrototypeStorage() {}
 
-    public static Path getGlobalPrototypesRoot() {
+    /**
+     * Prototype 库根目录（推荐）：<gameDir>/formacraft/components
+     * <p>
+     * 可通过 JVM 参数覆盖：-Dformacraft.prototypeLibraryDir=/abs/path
+     */
+    public static Path getPrototypeLibraryRoot() {
+        try {
+            String override = System.getProperty("formacraft.prototypeLibraryDir");
+            if (override != null && !override.isBlank()) {
+                return Path.of(override.trim());
+            }
+        } catch (Throwable ignored) {}
+        try {
+            return FabricLoader.getInstance().getGameDir().resolve("formacraft").resolve("components");
+        } catch (Throwable t) {
+            // 极少数环境 fallback
+            return Path.of("formacraft").resolve("components");
+        }
+    }
+
+    /** 旧版 prototype 根目录：<config>/formacraft/components/prototypes */
+    public static Path getLegacyPrototypesRoot() {
         return ComponentStorage.getGlobalComponentDir().resolve("prototypes");
     }
 
-    public static Path getGlobalPrototypeCatalogFile() {
+    /** 旧版 prototype 目录：<config>/formacraft/components/prototypes/<category>/<id>/ */
+    public static Path getLegacyPrototypeDir(ComponentCategory category, String prototypeId) {
+        String cat = (category != null ? category.name() : ComponentCategory.GENERIC.name());
+        return getLegacyPrototypesRoot()
+                .resolve(cat.toLowerCase(Locale.ROOT))
+                .resolve(safeId(prototypeId));
+    }
+
+    public static Path getLegacyVariantDir(ComponentCategory category, String prototypeId) {
+        return getLegacyPrototypeDir(category, prototypeId).resolve("variants");
+    }
+
+    /** 推荐 catalog 文件名：catalog.json */
+    public static Path getPrototypeCatalogFile() {
+        return getPrototypeLibraryRoot().resolve("catalog.json");
+    }
+
+    /** 旧版 catalog 文件名：prototype_catalog.json */
+    public static Path getLegacyPrototypeCatalogFile() {
         return ComponentStorage.getGlobalComponentDir().resolve("prototype_catalog.json");
     }
 
     public static Path getPrototypeDir(ComponentCategory category, String prototypeId) {
-        String cat = (category != null ? category.name() : ComponentCategory.GENERIC.name());
-        return getGlobalPrototypesRoot()
-                .resolve(cat.toLowerCase(Locale.ROOT))
+        return getPrototypeLibraryRoot()
+                .resolve(categoryFolder(category))
                 .resolve(safeId(prototypeId));
     }
 
@@ -53,29 +101,45 @@ public final class ComponentPrototypeStorage {
     }
 
     public static ComponentPrototypeCatalog loadCatalog() {
-        Path f = getGlobalPrototypeCatalogFile();
-        if (!Files.exists(f)) {
-            ComponentPrototypeCatalog c = new ComponentPrototypeCatalog();
-            c.prototypes = new ArrayList<>();
-            return c;
+        Path preferred = getPrototypeCatalogFile();
+        if (Files.exists(preferred)) {
+            try (Reader r = Files.newBufferedReader(preferred, StandardCharsets.UTF_8)) {
+                ComponentPrototypeCatalog c = JsonUtil.get().fromJson(r, ComponentPrototypeCatalog.class);
+                if (c == null) c = new ComponentPrototypeCatalog();
+                if (c.prototypes == null) c.prototypes = new ArrayList<>();
+                return c;
+            } catch (Throwable ignored) {}
         }
-        try (Reader r = Files.newBufferedReader(f, StandardCharsets.UTF_8)) {
-            ComponentPrototypeCatalog c = JsonUtil.get().fromJson(r, ComponentPrototypeCatalog.class);
-            if (c == null) c = new ComponentPrototypeCatalog();
-            if (c.prototypes == null) c.prototypes = new ArrayList<>();
-            return c;
-        } catch (Throwable ignored) {
-            ComponentPrototypeCatalog c = new ComponentPrototypeCatalog();
-            c.prototypes = new ArrayList<>();
-            return c;
+
+        // fallback: legacy file name/location
+        Path legacy = getLegacyPrototypeCatalogFile();
+        if (Files.exists(legacy)) {
+            try (Reader r = Files.newBufferedReader(legacy, StandardCharsets.UTF_8)) {
+                ComponentPrototypeCatalog c = JsonUtil.get().fromJson(r, ComponentPrototypeCatalog.class);
+                if (c == null) c = new ComponentPrototypeCatalog();
+                if (c.prototypes == null) c.prototypes = new ArrayList<>();
+                return c;
+            } catch (Throwable ignored) {}
         }
+
+        ComponentPrototypeCatalog c = new ComponentPrototypeCatalog();
+        c.prototypes = new ArrayList<>();
+        return c;
     }
 
     public static void saveCatalog(ComponentPrototypeCatalog catalog) {
         if (catalog == null) return;
         try {
+            Files.createDirectories(getPrototypeLibraryRoot());
+            Path f = getPrototypeCatalogFile();
+            try (Writer w = Files.newBufferedWriter(f, StandardCharsets.UTF_8)) {
+                JsonUtil.get().toJson(catalog, w);
+            }
+        } catch (Throwable ignored) {}
+        // best-effort：也写一份旧文件名，避免某些旧工具/脚本只认识 prototype_catalog.json
+        try {
             Files.createDirectories(ComponentStorage.getGlobalComponentDir());
-            Path f = getGlobalPrototypeCatalogFile();
+            Path f = getLegacyPrototypeCatalogFile();
             try (Writer w = Files.newBufferedWriter(f, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(catalog, w);
             }
@@ -90,32 +154,8 @@ public final class ComponentPrototypeStorage {
     public static ComponentPrototypeCatalog rebuildCatalog() {
         ComponentPrototypeCatalog out = new ComponentPrototypeCatalog();
         out.prototypes = new ArrayList<>();
-        Path root = getGlobalPrototypesRoot();
-        if (!Files.exists(root)) return out;
-
-        try (DirectoryStream<Path> cats = Files.newDirectoryStream(root)) {
-            for (Path catDir : cats) {
-                if (catDir == null || !Files.isDirectory(catDir)) continue;
-                try (DirectoryStream<Path> ids = Files.newDirectoryStream(catDir)) {
-                    for (Path idDir : ids) {
-                        if (idDir == null || !Files.isDirectory(idDir)) continue;
-                        Path pj = idDir.resolve("prototype.json");
-                        if (!Files.exists(pj)) continue;
-                        try (Reader r = Files.newBufferedReader(pj, StandardCharsets.UTF_8)) {
-                            ComponentPrototype p = JsonUtil.get().fromJson(r, ComponentPrototype.class);
-                            if (p == null || p.id == null || p.id.isBlank()) continue;
-                            ComponentPrototypeCatalog.Entry e = new ComponentPrototypeCatalog.Entry();
-                            e.id = p.id;
-                            e.name = p.name;
-                            e.category = p.category != null ? p.category : ComponentCategory.GENERIC;
-                            e.tags = p.tags;
-                            try { e.updatedAtMs = Files.getLastModifiedTime(pj).toMillis(); } catch (Throwable ignored) {}
-                            out.prototypes.add(e);
-                        } catch (Throwable ignored) {}
-                    }
-                } catch (Throwable ignored) {}
-            }
-        } catch (Throwable ignored) {}
+        scanRoot(out, getPrototypeLibraryRoot());
+        scanRoot(out, getLegacyPrototypesRoot());
 
         saveCatalog(out);
         return out;
@@ -137,7 +177,14 @@ public final class ComponentPrototypeStorage {
         }
         if (hit == null) return null;
 
+        // 优先按推荐目录读取；如缺失则 fallback 到 legacy 目录
         Path pj = getPrototypeJsonFile(hit.category, pid);
+        if (!Files.exists(pj)) {
+            pj = getLegacyPrototypesRoot()
+                    .resolve((hit.category != null ? hit.category.name() : ComponentCategory.GENERIC.name()).toLowerCase(Locale.ROOT))
+                    .resolve(safeId(pid))
+                    .resolve("prototype.json");
+        }
         if (!Files.exists(pj)) return null;
         try (Reader r = Files.newBufferedReader(pj, StandardCharsets.UTF_8)) {
             return JsonUtil.get().fromJson(r, ComponentPrototype.class);
@@ -251,11 +298,55 @@ public final class ComponentPrototypeStorage {
         if (variantId == null || variantId.isBlank()) return null;
         ComponentCategory cat = prototypeCategory != null ? prototypeCategory : ComponentCategory.GENERIC;
         Path vf = getVariantDir(cat, prototypeId).resolve(safeId(variantId) + ".json");
+        if (!Files.exists(vf)) {
+            // legacy fallback
+            Path legacyVdir = getLegacyPrototypesRoot()
+                    .resolve((cat != null ? cat.name() : ComponentCategory.GENERIC.name()).toLowerCase(Locale.ROOT))
+                    .resolve(safeId(prototypeId))
+                    .resolve("variants");
+            vf = legacyVdir.resolve(safeId(variantId) + ".json");
+        }
         if (!Files.exists(vf)) return null;
         try (Reader r = Files.newBufferedReader(vf, StandardCharsets.UTF_8)) {
             return JsonUtil.get().fromJson(r, ComponentVariant.class);
         } catch (Throwable ignored) {
             return null;
+        }
+    }
+
+    /**
+     * 读取可选的 variants.json（预置变体集合）。
+     * <p>
+     * 支持两种 JSON 形态：
+     * - 直接数组：[{...variant...}, ...]
+     * - 包装对象：{ "variants": [ ... ] }
+     */
+    public static List<ComponentVariant> loadPresetVariants(String prototypeId, ComponentCategory prototypeCategory) {
+        if (prototypeId == null || prototypeId.isBlank()) return List.of();
+        ComponentCategory cat = prototypeCategory != null ? prototypeCategory : ComponentCategory.GENERIC;
+
+        Path dir = getPrototypeDir(cat, prototypeId);
+        Path f = dir.resolve("variants.json");
+        if (!Files.exists(f)) {
+            // legacy fallback
+            f = getLegacyPrototypeDir(cat, prototypeId).resolve("variants.json");
+        }
+        if (!Files.exists(f)) return List.of();
+
+        try (Reader r = Files.newBufferedReader(f, StandardCharsets.UTF_8)) {
+            ComponentVariantPresetList box = JsonUtil.get().fromJson(r, ComponentVariantPresetList.class);
+            if (box != null && box.variants != null && !box.variants.isEmpty()) {
+                return box.variants;
+            }
+        } catch (Throwable ignored) {}
+
+        // fallback: array form
+        try (Reader r = Files.newBufferedReader(f, StandardCharsets.UTF_8)) {
+            ComponentVariant[] arr = JsonUtil.get().fromJson(r, ComponentVariant[].class);
+            if (arr == null || arr.length == 0) return List.of();
+            return Arrays.asList(arr);
+        } catch (Throwable ignored) {
+            return List.of();
         }
     }
 
@@ -300,6 +391,63 @@ public final class ComponentPrototypeStorage {
         // 文件夹/文件名安全化（尽量不改变可读性）
         t = t.replace('\\', '_').replace('/', '_').replace(':', '_');
         return t;
+    }
+
+    private static String categoryFolder(ComponentCategory category) {
+        ComponentCategory c = category != null ? category : ComponentCategory.GENERIC;
+        // 与建议布局保持一致（复数 + 小写）
+        return switch (c) {
+            case DOOR -> "doors";
+            case WINDOW -> "windows";
+            case COLUMN -> "columns";
+            case BRACKET -> "brackets";
+            case ORNAMENT -> "ornaments";
+            case ARCH -> "arches";
+            case ROOF_DETAIL -> "roof_details";
+            case STAIRS -> "stairs";
+            default -> "generic";
+        };
+    }
+
+    /**
+     * 扫描一个 root 目录，将 prototype.json 加入 catalog（best-effort）。
+     * <p>
+     * - root 是“category folder 的父目录”
+     * - depth=2: <root>/<categoryFolder>/<prototypeId>/prototype.json
+     */
+    private static void scanRoot(ComponentPrototypeCatalog out, Path root) {
+        if (out == null || out.prototypes == null) return;
+        if (root == null || !Files.exists(root) || !Files.isDirectory(root)) return;
+        try (DirectoryStream<Path> cats = Files.newDirectoryStream(root)) {
+            for (Path catDir : cats) {
+                if (catDir == null || !Files.isDirectory(catDir)) continue;
+                try (DirectoryStream<Path> ids = Files.newDirectoryStream(catDir)) {
+                    for (Path idDir : ids) {
+                        if (idDir == null || !Files.isDirectory(idDir)) continue;
+                        Path pj = idDir.resolve("prototype.json");
+                        if (!Files.exists(pj)) continue;
+                        try (Reader r = Files.newBufferedReader(pj, StandardCharsets.UTF_8)) {
+                            ComponentPrototype p = JsonUtil.get().fromJson(r, ComponentPrototype.class);
+                            if (p == null || p.id == null || p.id.isBlank()) continue;
+                            // 去重：同 id 时，以“先扫描到的”为准；rebuildCatalog() 会先扫描推荐目录再扫 legacy
+                            boolean exists = false;
+                            for (ComponentPrototypeCatalog.Entry e0 : out.prototypes) {
+                                if (e0 != null && p.id.equals(e0.id)) { exists = true; break; }
+                            }
+                            if (exists) continue;
+
+                            ComponentPrototypeCatalog.Entry e = new ComponentPrototypeCatalog.Entry();
+                            e.id = p.id;
+                            e.name = p.name;
+                            e.category = p.category != null ? p.category : ComponentCategory.GENERIC;
+                            e.tags = p.tags;
+                            try { e.updatedAtMs = Files.getLastModifiedTime(pj).toMillis(); } catch (Throwable ignored) {}
+                            out.prototypes.add(e);
+                        } catch (Throwable ignored) {}
+                    }
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
     }
 }
 

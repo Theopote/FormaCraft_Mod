@@ -75,6 +75,11 @@ public final class ComponentModelApi {
         ComponentPrototypeStorage.saveVariant(variant, proto.category);
     }
 
+    public static List<ComponentVariant> loadPresetVariants(ComponentPrototype proto) {
+        if (proto == null || proto.id == null || proto.id.isBlank()) return List.of();
+        return ComponentPrototypeStorage.loadPresetVariants(proto.id, proto.category);
+    }
+
     // -------- Instance --------
 
     public static ComponentInstance newInstance(String prototypeId, String variantId) {
@@ -114,6 +119,11 @@ public final class ComponentModelApi {
 
         Path dir = ComponentPrototypeStorage.getPrototypeDir(proto.category, proto.id);
         Path file = dir.resolve(proto.structure.file);
+        if (!Files.exists(file)) {
+            // legacy fallback：旧原型库存放在 <config>/formacraft/components/prototypes/...
+            Path legacyDir = ComponentPrototypeStorage.getLegacyPrototypeDir(proto.category, proto.id);
+            file = legacyDir.resolve(proto.structure.file);
+        }
         if (!Files.exists(file)) return List.of();
 
         try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
