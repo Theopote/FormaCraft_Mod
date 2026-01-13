@@ -3,6 +3,8 @@ package com.formacraft.common.component.group;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
+import com.formacraft.common.component.placement.AttachmentRecognizer;
+import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.socket.ComponentSocket;
 import com.formacraft.common.component.socket.FacingUtil;
 import com.formacraft.common.component.socket.SocketMask;
@@ -306,6 +308,15 @@ public final class PlayerComponentGroupExpander {
             ComponentDefinition mount = ComponentStorage.loadComponent(worldDir, me.mountId.trim());
             if (mount == null || mount.blocks == null || mount.blocks.isEmpty()) {
                 FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount component not found: {}", me.mountId);
+                continue;
+            }
+
+            // placementSpec 过滤：用 group socket 的语义附着类型约束挂载物
+            AttachmentType hostAttachment = AttachmentRecognizer.attachmentForSocketType(socket.type());
+            if (!AttachmentRecognizer.isCompatible(mount.placementSpec, hostAttachment)) {
+                FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: mount placementSpec incompatible: mount={} need={} groupSocketType={} hostAttachment={}",
+                        mount.id, (mount.placementSpec != null ? mount.placementSpec.attachment : null),
+                        socket.type(), hostAttachment);
                 continue;
             }
 

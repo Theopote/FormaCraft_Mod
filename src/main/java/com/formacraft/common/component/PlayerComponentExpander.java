@@ -15,6 +15,8 @@ import com.formacraft.common.component.socket.ComponentSocket;
 import com.formacraft.common.component.socket.FacingUtil;
 import com.formacraft.common.component.socket.SocketMask;
 import com.formacraft.common.component.socket.SocketType;
+import com.formacraft.common.component.placement.AttachmentRecognizer;
+import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
@@ -231,6 +233,18 @@ public final class PlayerComponentExpander {
         if (socket == null) {
             FormacraftMod.LOGGER.warn("PlayerComponentExpander: mount requested but socket_id not found: {}", socketId);
             return List.of();
+        }
+
+        // placementSpec 过滤：避免把“需要 WALL_OPENING 的门”装到非 opening 的 socket 上
+        AttachmentType hostAttachment = AttachmentRecognizer.attachmentForSocketType(socket.type());
+        if (!AttachmentRecognizer.isCompatible(mount.placementSpec, hostAttachment)) {
+            FormacraftMod.LOGGER.warn("PlayerComponentExpander: mount placementSpec incompatible: mount={} need={} hostSocketType={} hostAttachment={}",
+                    mount.id, (mount.placementSpec != null ? mount.placementSpec.attachment : null),
+                    socket.type(), hostAttachment);
+            // 仅放置 host；不 carve、不放置 mount（避免破坏结构）
+            List<BlockPatch> onlyHost = new ArrayList<>(host.blocks.size() + 16);
+            addComponentPatches(onlyHost, host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
+            return onlyHost;
         }
 
         // socket world offset and facing (in host placement space)
