@@ -24,7 +24,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
     public static SettingsPanel SETTINGS_PANEL;
     public static final BuildConfirmPanel BUILD_CONFIRM_PANEL = BuildConfirmPanel.INSTANCE;
 
-    private static boolean initialized = false;
     private static boolean panelsReady = false;
 
     /**
@@ -54,7 +53,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
      * 初始化面板（在客户端初始化时调用）
      */
     public static void initialize() {
-        initialized = true;
     }
     
     // 当前激活的面板
@@ -110,39 +108,37 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
     /**
      * 处理鼠标点击（从事件处理器调用）
      */
-    public static boolean handleMouseClick(double mouseX, double mouseY, int button) {
-        if (!FormacraftUIState.isOpen) return false;
-        if (!ensurePanelsReady()) return false;
+    public static void handleMouseClick(double mouseX, double mouseY, int button) {
+        if (!FormacraftUIState.isOpen) return;
+        if (!ensurePanelsReady()) return;
         
         // 面板点击（工具栏点击已集成在面板中）
         if (activePanel != PanelType.NONE) {
             switch (activePanel) {
                 case CHAT -> {
-                    if (CHAT_PANEL != null && CHAT_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (CHAT_PANEL != null && CHAT_PANEL.mouseClicked(mouseX, mouseY, button)) return;
                 }
                 case TOOLS -> {
-                    if (TOOL_PANEL != null && TOOL_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (TOOL_PANEL != null && TOOL_PANEL.mouseClicked(mouseX, mouseY, button)) return;
                 }
                 case COMPONENT_LIBRARY -> {
-                    if (COMPONENT_LIBRARY_PANEL != null && COMPONENT_LIBRARY_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (COMPONENT_LIBRARY_PANEL != null && COMPONENT_LIBRARY_PANEL.mouseClicked(mouseX, mouseY, button)) return;
                 }
                 case COMPONENT_CAPTURE -> {
-                    if (COMPONENT_CAPTURE_PANEL != null && COMPONENT_CAPTURE_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (COMPONENT_CAPTURE_PANEL != null && COMPONENT_CAPTURE_PANEL.mouseClicked(mouseX, mouseY, button)) return;
                 }
                 case SETTINGS -> {
-                    if (SETTINGS_PANEL != null && SETTINGS_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                    if (SETTINGS_PANEL != null && SETTINGS_PANEL.mouseClicked(mouseX, mouseY, button)) return;
                 }
-                case NONE -> { }
                 // 无操作
             }
         }
         
         // 确认面板点击
         if (BUILD_CONFIRM_PANEL.isVisible()) {
-            return BUILD_CONFIRM_PANEL.mouseClicked(mouseX, mouseY, button);
+            BUILD_CONFIRM_PANEL.mouseClicked(mouseX, mouseY, button);
         }
-        
-        return false;
+
     }
     
     /**
@@ -175,7 +171,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                     if (SETTINGS_PANEL != null) SETTINGS_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
-                case NONE -> { }
                 // 无操作
             }
         }
@@ -213,7 +208,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                     if (SETTINGS_PANEL != null) SETTINGS_PANEL.charTyped(chr);
                     return true;
                 }
-                case NONE -> { }
                 // 无操作
             }
         }

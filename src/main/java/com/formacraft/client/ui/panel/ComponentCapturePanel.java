@@ -547,10 +547,7 @@ public class ComponentCapturePanel extends BasePanel {
 
         // 绘制缩略图
         if (cachedThumbnail != null) {
-            // TODO: 将 BufferedImage 渲染到屏幕
-            // 这需要将图像转换为 Minecraft 纹理或直接绘制像素
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal("[缩略图]"), 
-                x + THUMBNAIL_SIZE / 2 - 20, y + THUMBNAIL_SIZE / 2, 0xFFAAAAAA);
+            com.formacraft.client.ui.render.ImageRenderer.renderCentered(ctx, cachedThumbnail, x, y, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
         } else {
             ctx.drawTextWithShadow(client.textRenderer, Text.literal("生成中..."), 
                 x + THUMBNAIL_SIZE / 2 - 20, y + THUMBNAIL_SIZE / 2, 0xFFAAAAAA);
