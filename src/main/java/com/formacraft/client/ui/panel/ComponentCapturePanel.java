@@ -83,6 +83,14 @@ public class ComponentCapturePanel extends BasePanel {
     private ButtonWidget boxSelectButton;
     private ButtonWidget pointSelectButton;
     private ButtonWidget clearSelectionButton;
+    
+    // Phase 3: 语义配置按钮
+    private ButtonWidget attachmentModeButton;
+    private ButtonWidget directionalityButton;
+    private ButtonWidget setInsideButton;
+    private ButtonWidget setOutsideButton;
+    private ButtonWidget setBottomButton;
+    private ButtonWidget setTopButton;
 
     // 输入框边界（用于点击检测）
     private int nameInputX, nameInputY, nameInputW, nameInputH;
@@ -108,6 +116,16 @@ public class ComponentCapturePanel extends BasePanel {
     private BlockPos boxStart = null;
     private BlockPos boxEnd = null;
     private boolean isDragging = false;
+    
+    // Phase 3: 语义配置状态
+    private com.formacraft.common.component.placement.AttachmentType attachmentMode = 
+        com.formacraft.common.component.placement.AttachmentType.NONE;
+    private DirectionalityMode directionalityMode = DirectionalityMode.NONE;
+    private DirectionMarkingMode markingMode = DirectionMarkingMode.NONE;
+    private BlockPos insideMark = null;
+    private BlockPos outsideMark = null;
+    private BlockPos bottomMark = null;
+    private BlockPos topMark = null;
 
     public ComponentCapturePanel() {
         nameInput.setMaxLength(64);
@@ -460,6 +478,221 @@ public class ComponentCapturePanel extends BasePanel {
                         
                         提示：清除后需要重新选择""")))
                 .build();
+        
+        // Phase 3: 语义配置按钮
+        attachmentModeButton = ButtonWidget.builder(
+                Text.literal("附着: " + getAttachmentModeDisplay()), 
+                b -> cycleAttachmentMode()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        附着模式
+                        ━━━━━━━━━━━━
+                        定义构件如何附着到建筑上
+                        
+                        模式：
+                        • 无附着 - 独立构件（柱子、雕塑）
+                        • 墙面 - 贴墙装饰、壁龛
+                        • 墙体洞口 - 门、窗
+                        • 地面 - 地板装饰
+                        • 屋面 - 老虎窗
+                        • 屋檐 - 飞檐
+                        
+                        点击循环切换""")))
+                .build();
+        
+        directionalityButton = ButtonWidget.builder(
+                Text.literal("方向: " + directionalityMode.getDisplayName()), 
+                b -> cycleDirectionality()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        方向性
+                        ━━━━━━━━━━━━
+                        定义构件是否有方向性
+                        
+                        模式：
+                        • 无方向 - 任意旋转
+                        • 内外 - 有内外侧（门、窗）
+                        • 上下 - 有上下端（楼梯）
+                        • 双向 - 同时有内外和上下
+                        
+                        点击循环切换""")))
+                .build();
+        
+        setInsideButton = ButtonWidget.builder(
+                Text.literal("🏠 设内侧"), 
+                b -> startMarkingInside()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        设置内侧标记
+                        ━━━━━━━━━━━━
+                        标记构件的内侧方向
+                        
+                        使用方法：
+                        1. 点击此按钮
+                        2. 在世界中点击内侧方块
+                        3. 系统自动计算朝向
+                        
+                        用于：门、窗等有内外之分的构件""")))
+                .build();
+        
+        setOutsideButton = ButtonWidget.builder(
+                Text.literal("🌍 设外侧"), 
+                b -> startMarkingOutside()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        设置外侧标记
+                        ━━━━━━━━━━━━
+                        标记构件的外侧方向
+                        
+                        使用方法：
+                        1. 点击此按钮
+                        2. 在世界中点击外侧方块
+                        3. 系统自动计算朝向
+                        
+                        用于：门、窗等有内外之分的构件""")))
+                .build();
+        
+        setBottomButton = ButtonWidget.builder(
+                Text.literal("⬇️ 设底端"), 
+                b -> startMarkingBottom()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        设置底端标记
+                        ━━━━━━━━━━━━
+                        标记构件的底端位置
+                        
+                        使用方法：
+                        1. 点击此按钮
+                        2. 在世界中点击底端方块
+                        3. 系统自动计算上下朝向
+                        
+                        用于：楼梯、梯子等有上下之分的构件""")))
+                .build();
+        
+        setTopButton = ButtonWidget.builder(
+                Text.literal("⬆️ 设顶端"), 
+                b -> startMarkingTop()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        设置顶端标记
+                        ━━━━━━━━━━━━
+                        标记构件的顶端位置
+                        
+                        使用方法：
+                        1. 点击此按钮
+                        2. 在世界中点击顶端方块
+                        3. 系统自动计算上下朝向
+                        
+                        用于：楼梯、梯子等有上下之分的构件""")))
+                .build();
+    }
+    
+    /**
+     * 获取附着模式的显示名称
+     */
+    private String getAttachmentModeDisplay() {
+        return switch (attachmentMode) {
+            case NONE -> "无附着";
+            case FLOOR -> "地面";
+            case WALL_SURFACE -> "墙面";
+            case WALL_OPENING -> "墙洞口";
+            case ROOF_SURFACE -> "屋面";
+            case ROOF_EDGE -> "屋檐";
+            case ROOF_RIDGE -> "屋脊";
+            case EDGE -> "边缘";
+            case CORNER -> "转角";
+        };
+    }
+    
+    /**
+     * 循环切换附着模式
+     */
+    private void cycleAttachmentMode() {
+        com.formacraft.common.component.placement.AttachmentType[] values = 
+            com.formacraft.common.component.placement.AttachmentType.values();
+        int index = attachmentMode.ordinal();
+        attachmentMode = values[(index + 1) % values.length];
+        System.out.println("[ComponentCapturePanel] 切换附着模式: " + attachmentMode);
+    }
+    
+    /**
+     * 循环切换方向性模式
+     */
+    private void cycleDirectionality() {
+        directionalityMode = directionalityMode.next();
+        System.out.println("[ComponentCapturePanel] 切换方向性: " + directionalityMode.getDisplayName());
+    }
+    
+    /**
+     * 开始标记内侧
+     */
+    private void startMarkingInside() {
+        markingMode = DirectionMarkingMode.MARKING_INSIDE;
+        System.out.println("[ComponentCapturePanel] 进入内侧标记模式");
+    }
+    
+    /**
+     * 开始标记外侧
+     */
+    private void startMarkingOutside() {
+        markingMode = DirectionMarkingMode.MARKING_OUTSIDE;
+        System.out.println("[ComponentCapturePanel] 进入外侧标记模式");
+    }
+    
+    /**
+     * 开始标记底端
+     */
+    private void startMarkingBottom() {
+        markingMode = DirectionMarkingMode.MARKING_BOTTOM;
+        System.out.println("[ComponentCapturePanel] 进入底端标记模式");
+    }
+    
+    /**
+     * 开始标记顶端
+     */
+    private void startMarkingTop() {
+        markingMode = DirectionMarkingMode.MARKING_TOP;
+        System.out.println("[ComponentCapturePanel] 进入顶端标记模式");
+    }
+    
+    /**
+     * 处理方向标记（在世界点击时调用）
+     */
+    private void handleDirectionMarking(net.minecraft.util.math.BlockPos pos) {
+        switch (markingMode) {
+            case MARKING_INSIDE:
+                insideMark = pos.toImmutable();
+                System.out.println("[ComponentCapturePanel] 内侧标记: " + insideMark);
+                markingMode = DirectionMarkingMode.NONE;
+                break;
+                
+            case MARKING_OUTSIDE:
+                outsideMark = pos.toImmutable();
+                System.out.println("[ComponentCapturePanel] 外侧标记: " + outsideMark);
+                markingMode = DirectionMarkingMode.NONE;
+                break;
+                
+            case MARKING_BOTTOM:
+                bottomMark = pos.toImmutable();
+                System.out.println("[ComponentCapturePanel] 底端标记: " + bottomMark);
+                markingMode = DirectionMarkingMode.NONE;
+                break;
+                
+            case MARKING_TOP:
+                topMark = pos.toImmutable();
+                System.out.println("[ComponentCapturePanel] 顶端标记: " + topMark);
+                markingMode = DirectionMarkingMode.NONE;
+                break;
+                
+            default:
+                break;
+        }
     }
     
     /**
@@ -638,7 +871,74 @@ public class ComponentCapturePanel extends BasePanel {
         // 分隔线
         ctx.fill(x, y, x + w, y + 1, 0xFF444444);
         y += 4;
-
+        
+        // Phase 3: 语义配置
+        y = drawWrappedText(ctx, Text.literal("🔧 附着与方向性"), x, y, w, 0xFFFFFFFF);
+        y += 2;
+        
+        // 附着模式和方向性
+        int halfW = (w - 4) / 2;
+        
+        attachmentModeButton.setMessage(Text.literal("附着: " + getAttachmentModeDisplay()));
+        attachmentModeButton.setPosition(x, y);
+        attachmentModeButton.setWidth(halfW);
+        attachmentModeButton.visible = true;
+        attachmentModeButton.active = true;
+        attachmentModeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+        
+        directionalityButton.setMessage(Text.literal("方向: " + directionalityMode.getDisplayName()));
+        directionalityButton.setPosition(x + halfW + 4, y);
+        directionalityButton.setWidth(w - halfW - 4);
+        directionalityButton.visible = true;
+        directionalityButton.active = true;
+        directionalityButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+        
+        // 方向标记按钮（根据方向性模式显示）
+        if (directionalityMode.needsInsideOutside()) {
+            setInsideButton.setMessage(Text.literal(insideMark != null ? "🏠✓ 内侧" : "🏠 设内侧"));
+            setInsideButton.setPosition(x, y);
+            setInsideButton.setWidth(halfW);
+            setInsideButton.visible = true;
+            setInsideButton.active = true;
+            setInsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            
+            setOutsideButton.setMessage(Text.literal(outsideMark != null ? "🌍✓ 外侧" : "🌍 设外侧"));
+            setOutsideButton.setPosition(x + halfW + 4, y);
+            setOutsideButton.setWidth(w - halfW - 4);
+            setOutsideButton.visible = true;
+            setOutsideButton.active = true;
+            setOutsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+        }
+        
+        if (directionalityMode.needsBottomTop()) {
+            setBottomButton.setMessage(Text.literal(bottomMark != null ? "⬇️✓ 底端" : "⬇️ 设底端"));
+            setBottomButton.setPosition(x, y);
+            setBottomButton.setWidth(halfW);
+            setBottomButton.visible = true;
+            setBottomButton.active = true;
+            setBottomButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            
+            setTopButton.setMessage(Text.literal(topMark != null ? "⬆️✓ 顶端" : "⬆️ 设顶端"));
+            setTopButton.setPosition(x + halfW + 4, y);
+            setTopButton.setWidth(w - halfW - 4);
+            setTopButton.visible = true;
+            setTopButton.active = true;
+            setTopButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+        }
+        
+        // 标记模式提示
+        if (markingMode != DirectionMarkingMode.NONE) {
+            y = drawWrappedText(ctx, Text.literal("⚡ " + markingMode.getHint()), x, y, w, 0xFFFFFF00);
+            y += 4;
+        }
+        
+        // 分隔线
+        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+        y += 4;
+        
         // 锚点与朝向
         y = drawWrappedText(ctx, Text.literal("🎯 锚点与朝向"), x, y, w, 0xFFFFFFFF);
         y += 2;
@@ -1109,6 +1409,14 @@ public class ComponentCapturePanel extends BasePanel {
         if (pointSelectButton != null && pointSelectButton.visible && pointSelectButton.mouseClicked(click, false)) return true;
         if (clearSelectionButton != null && clearSelectionButton.visible && clearSelectionButton.mouseClicked(click, false)) return true;
         
+        // Phase 3: 语义配置按钮点击
+        if (attachmentModeButton != null && attachmentModeButton.visible && attachmentModeButton.mouseClicked(click, false)) return true;
+        if (directionalityButton != null && directionalityButton.visible && directionalityButton.mouseClicked(click, false)) return true;
+        if (setInsideButton != null && setInsideButton.visible && setInsideButton.mouseClicked(click, false)) return true;
+        if (setOutsideButton != null && setOutsideButton.visible && setOutsideButton.mouseClicked(click, false)) return true;
+        if (setBottomButton != null && setBottomButton.visible && setBottomButton.mouseClicked(click, false)) return true;
+        if (setTopButton != null && setTopButton.visible && setTopButton.mouseClicked(click, false)) return true;
+        
         // 按钮点击
         if (categoryButton != null && categoryButton.visible && categoryButton.mouseClicked(click, false)) return true;
         if (pickAnchorButton != null && pickAnchorButton.visible && pickAnchorButton.mouseClicked(click, false)) return true;
@@ -1268,7 +1576,13 @@ public class ComponentCapturePanel extends BasePanel {
     public boolean handleWorldClick(net.minecraft.util.math.BlockPos pos, int button) {
         if (pos == null) return false;
         
-        System.out.println("[ComponentCapturePanel] 世界点击: " + pos + ", 按钮: " + button + ", 模式: " + selectionMode);
+        System.out.println("[ComponentCapturePanel] 世界点击: " + pos + ", 按钮: " + button + ", 模式: " + selectionMode + ", 标记模式: " + markingMode);
+        
+        // Phase 3: 优先处理方向标记模式
+        if (markingMode != DirectionMarkingMode.NONE && button == 0) {
+            handleDirectionMarking(pos);
+            return true;
+        }
         
         // 右键设置锚点
         if (button == 1) {
@@ -1482,6 +1796,100 @@ public class ComponentCapturePanel extends BasePanel {
                 renderBlockHighlight(ctx, pos, 0.0f, 1.0f, 0.0f, 0.3f); // 绿色高亮
             }
         }
+        
+        // Phase 3: 渲染方向标记
+        renderDirectionMarkers(ctx);
+    }
+    
+    /**
+     * 渲染方向标记（内外、上下）
+     */
+    private void renderDirectionMarkers(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
+        // 渲染内侧标记（蓝色）
+        if (insideMark != null) {
+            renderBlockHighlight(ctx, insideMark, 0.2f, 0.5f, 1.0f, 0.6f); // 蓝色
+            renderDirectionArrow(ctx, insideMark, 0.2f, 0.5f, 1.0f); // 箭头向上
+        }
+        
+        // 渲染外侧标记（橙色）
+        if (outsideMark != null) {
+            renderBlockHighlight(ctx, outsideMark, 1.0f, 0.5f, 0.0f, 0.6f); // 橙色
+            renderDirectionArrow(ctx, outsideMark, 1.0f, 0.5f, 0.0f);
+        }
+        
+        // 渲染底端标记（绿色）
+        if (bottomMark != null) {
+            renderBlockHighlight(ctx, bottomMark, 0.0f, 1.0f, 0.3f, 0.6f); // 绿色
+        }
+        
+        // 渲染顶端标记（紫色）
+        if (topMark != null) {
+            renderBlockHighlight(ctx, topMark, 0.8f, 0.2f, 1.0f, 0.6f); // 紫色
+        }
+        
+        // 渲染内外朝向箭头
+        if (insideMark != null && outsideMark != null) {
+            renderDirectionLine(ctx, insideMark, outsideMark, 1.0f, 1.0f, 0.0f, 0.8f); // 黄色箭头
+        }
+        
+        // 渲染上下朝向箭头
+        if (bottomMark != null && topMark != null) {
+            renderDirectionLine(ctx, bottomMark, topMark, 0.5f, 1.0f, 0.5f, 0.8f); // 浅绿色箭头
+        }
+    }
+    
+    /**
+     * 渲染方向箭头（从方块中心向上）
+     */
+    private void renderDirectionArrow(com.formacraft.client.tool.ToolWorldRenderContext ctx,
+                                      net.minecraft.util.math.BlockPos pos,
+                                      float r, float g, float b) {
+        double x = pos.getX() + 0.5;
+        double y = pos.getY() + 0.5;
+        double z = pos.getZ() + 0.5;
+        
+        // 绘制向上的短线
+        double arrowHeight = 0.8;
+        net.minecraft.util.math.Vec3d from = new net.minecraft.util.math.Vec3d(x, y, z);
+        net.minecraft.util.math.Vec3d to = new net.minecraft.util.math.Vec3d(x, y + arrowHeight, z);
+        
+        from = from.subtract(ctx.cameraX, ctx.cameraY, ctx.cameraZ);
+        to = to.subtract(ctx.cameraX, ctx.cameraY, ctx.cameraZ);
+        
+        ctx.vertexConsumer
+            .vertex(ctx.matrices.peek(), (float)from.x, (float)from.y, (float)from.z)
+            .color(r, g, b, 1.0f);
+        ctx.vertexConsumer
+            .vertex(ctx.matrices.peek(), (float)to.x, (float)to.y, (float)to.z)
+            .color(r, g, b, 1.0f);
+    }
+    
+    /**
+     * 渲染方向连线（从起点到终点的箭头）
+     */
+    private void renderDirectionLine(com.formacraft.client.tool.ToolWorldRenderContext ctx,
+                                     net.minecraft.util.math.BlockPos from, 
+                                     net.minecraft.util.math.BlockPos to,
+                                     float r, float g, float b, float a) {
+        double x1 = from.getX() + 0.5;
+        double y1 = from.getY() + 0.5;
+        double z1 = from.getZ() + 0.5;
+        
+        double x2 = to.getX() + 0.5;
+        double y2 = to.getY() + 0.5;
+        double z2 = to.getZ() + 0.5;
+        
+        net.minecraft.util.math.Vec3d vFrom = new net.minecraft.util.math.Vec3d(x1, y1, z1)
+            .subtract(ctx.cameraX, ctx.cameraY, ctx.cameraZ);
+        net.minecraft.util.math.Vec3d vTo = new net.minecraft.util.math.Vec3d(x2, y2, z2)
+            .subtract(ctx.cameraX, ctx.cameraY, ctx.cameraZ);
+        
+        ctx.vertexConsumer
+            .vertex(ctx.matrices.peek(), (float)vFrom.x, (float)vFrom.y, (float)vFrom.z)
+            .color(r, g, b, a);
+        ctx.vertexConsumer
+            .vertex(ctx.matrices.peek(), (float)vTo.x, (float)vTo.y, (float)vTo.z)
+            .color(r, g, b, a);
     }
     
     /**
