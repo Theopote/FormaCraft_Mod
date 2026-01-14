@@ -326,9 +326,26 @@ public class ToolPanel extends BasePanel {
                         return;
                     }
 
+                    // 生成缩略图
+                    byte[] thumbnailPng = null;
+                    try {
+                        com.formacraft.common.component.ComponentDefinition def = com.formacraft.common.json.JsonUtil.fromJson(json, com.formacraft.common.component.ComponentDefinition.class);
+                        if (def != null) {
+                            java.awt.image.BufferedImage thumb = com.formacraft.client.component.ComponentThumbnailGenerator.generateThumbnail(def);
+                            if (thumb != null) {
+                                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                                javax.imageio.ImageIO.write(thumb, "PNG", baos);
+                                thumbnailPng = baos.toByteArray();
+                            }
+                        }
+                    } catch (Throwable t) {
+                        // 缩略图生成失败不影响保存
+                        System.err.println("Failed to generate thumbnail: " + t.getMessage());
+                    }
+
                     ComponentTool.INSTANCE.markSavePending(nm);
                     HudToast.show("正在保存构件「" + nm.trim() + "」…");
-                    FormaCraftNetworking.sendSaveComponent(json);
+                    FormaCraftNetworking.sendSaveComponent(json, thumbnailPng);
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("将选区内容保存到构件库（服务端 world save）")))

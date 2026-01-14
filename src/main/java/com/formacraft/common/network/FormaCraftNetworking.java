@@ -518,12 +518,30 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** C2S：保存一个构件（payload 为 ComponentDefinition 的 JSON 字符串） */
-    public record ComponentSavePayload(String json) implements CustomPayload {
+    /** C2S：保存一个构件（payload 为 ComponentDefinition 的 JSON 字符串 + 可选的缩略图 PNG 数据） */
+    public record ComponentSavePayload(String json, byte[] thumbnailPng) implements CustomPayload {
         public static final CustomPayload.Id<ComponentSavePayload> ID = new CustomPayload.Id<>(COMPONENT_SAVE);
         public static final PacketCodec<PacketByteBuf, ComponentSavePayload> CODEC = PacketCodec.of(
-                (payload, buf) -> buf.writeString(payload.json == null ? "" : payload.json),
-                buf -> new ComponentSavePayload(buf.readString())
+                (payload, buf) -> {
+                    buf.writeString(payload.json == null ? "" : payload.json);
+                    byte[] png = payload.thumbnailPng;
+                    if (png != null && png.length > 0 && png.length < 1024 * 1024) { // 限制 1MB
+                        buf.writeVarInt(png.length);
+                        buf.writeBytes(png);
+                    } else {
+                        buf.writeVarInt(0);
+                    }
+                },
+                buf -> {
+                    String json = buf.readString();
+                    int len = buf.readVarInt();
+                    byte[] png = null;
+                    if (len > 0 && len < 1024 * 1024) {
+                        png = new byte[len];
+                        buf.readBytes(png);
+                    }
+                    return new ComponentSavePayload(json, png);
+                }
         );
 
         @Override
@@ -1460,6 +1478,20 @@ public class FormaCraftNetworking {
             java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
             ComponentStorage.saveComponent(worldDir, def);
 
+            // 保存缩略图（如果有）
+            byte[] thumbnailPng = payload.thumbnailPng();
+            if (thumbnailPng != null && thumbnailPng.length > 0) {
+                try {
+                    java.nio.file.Path globalDir = ComponentStorage.getGlobalComponentDir();
+                    java.nio.file.Files.createDirectories(globalDir);
+                    java.nio.file.Path thumbFile = globalDir.resolve(def.id + ".png");
+                    java.nio.file.Files.write(thumbFile, thumbnailPng);
+                } catch (Throwable t) {
+                    // 缩略图保存失败不影响构件保存
+                    System.err.println("Failed to save thumbnail for component " + def.id + ": " + t.getMessage());
+                }
+            }
+
             // 回推最新 catalog 给该玩家（用于 Prompt 注入/工具 UI）
             ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir);
             String catJson = JsonUtil.toJson(cat);
@@ -1834,9 +1866,9 @@ public class FormaCraftNetworking {
     }
 
     /** 客户端请求：保存一个构件（服务端落盘到 world save） */
-    public static void sendSaveComponent(String componentJson) {
+    public static void sendSaveComponent(String componentJson, byte[] thumbnailPng) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        ComponentSavePayload payload = new ComponentSavePayload(componentJson);
+        ComponentSavePayload payload = new ComponentSavePayload(componentJson, thumbnailPng);
         if (mc != null && mc.getNetworkHandler() != null) {
             mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
             return;
