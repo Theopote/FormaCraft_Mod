@@ -492,11 +492,14 @@ public class ComponentCapturePanel extends BasePanel {
                         
                         模式：
                         • 无附着 - 独立构件（柱子、雕塑）
-                        • 墙面 - 贴墙装饰、壁龛
-                        • 墙体洞口 - 门、窗
                         • 地面 - 地板装饰
+                        • 墙面 - 贴墙装饰、壁龛
+                        • 墙体 - 门、窗（自动开洞）
                         • 屋面 - 老虎窗
                         • 屋檐 - 飞檐
+                        • 屋脊 - 脊兽
+                        • 边缘 - 栏杆、护栏
+                        • 转角 - 阳台、塔角装饰
                         
                         点击循环切换""")))
                 .build();
@@ -601,7 +604,7 @@ public class ComponentCapturePanel extends BasePanel {
             case NONE -> "无附着";
             case FLOOR -> "地面";
             case WALL_SURFACE -> "墙面";
-            case WALL_OPENING -> "墙洞口";
+            case WALL_OPENING -> "墙体"; // 门、窗等会在墙体上开洞的构件
             case ROOF_SURFACE -> "屋面";
             case ROOF_EDGE -> "屋檐";
             case ROOF_RIDGE -> "屋脊";
