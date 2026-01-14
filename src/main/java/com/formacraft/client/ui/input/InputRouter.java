@@ -67,6 +67,7 @@ public class InputRouter {
             case CHAT -> FormaCraftHudOverlay.CHAT_PANEL;
             case BLUEPRINT -> FormaCraftHudOverlay.BLUEPRINT_PANEL;
             case TOOLS -> FormaCraftHudOverlay.TOOL_PANEL;
+            case COMPONENT_LIBRARY -> FormaCraftHudOverlay.COMPONENT_LIBRARY_PANEL;
             case SETTINGS -> FormaCraftHudOverlay.SETTINGS_PANEL;
             case HISTORY -> FormaCraftHudOverlay.HISTORY_PANEL;
             default -> null;

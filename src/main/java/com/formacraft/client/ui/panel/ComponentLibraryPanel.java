@@ -389,6 +389,9 @@ public final class ComponentLibraryPanel extends BasePanel {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (super.mouseClicked(mouseX, mouseY, button)) return true;
         if (button != 0) return false;
+        // 注意：不在这里检查 isMouseOver，因为 super.mouseClicked 已经检查过了
+        // 如果 super 返回 false，说明鼠标不在面板内或没有命中标签栏/按钮
+        // 此时我们需要检查面板内的其他元素（按钮、输入框、网格项）
         if (!isMouseOver(mouseX, mouseY)) return false;
 
         ensureWidgets();
@@ -427,7 +430,9 @@ public final class ComponentLibraryPanel extends BasePanel {
             }
         }
 
-        return false;
+        // 鼠标在面板内，消费点击事件（防止点击穿透到游戏世界）
+        // 设计原则：面板内的所有点击都应该被UI处理，不应传递给游戏
+        return true;
     }
 
     @Override
