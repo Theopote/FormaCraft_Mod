@@ -1806,18 +1806,17 @@ public class ComponentCapturePanel extends BasePanel {
     
     /**
      * 渲染方向标记（内外、上下）
+     * 使用彩色方块高亮来标识不同的方向标记
      */
     private void renderDirectionMarkers(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
         // 渲染内侧标记（蓝色）
         if (insideMark != null) {
             renderBlockHighlight(ctx, insideMark, 0.2f, 0.5f, 1.0f, 0.6f); // 蓝色
-            renderDirectionArrow(ctx, insideMark, 0.2f, 0.5f, 1.0f); // 箭头向上
         }
         
         // 渲染外侧标记（橙色）
         if (outsideMark != null) {
             renderBlockHighlight(ctx, outsideMark, 1.0f, 0.5f, 0.0f, 0.6f); // 橙色
-            renderDirectionArrow(ctx, outsideMark, 1.0f, 0.5f, 0.0f);
         }
         
         // 渲染底端标记（绿色）
@@ -1830,69 +1829,8 @@ public class ComponentCapturePanel extends BasePanel {
             renderBlockHighlight(ctx, topMark, 0.8f, 0.2f, 1.0f, 0.6f); // 紫色
         }
         
-        // 渲染内外朝向箭头
-        if (insideMark != null && outsideMark != null) {
-            renderDirectionLine(ctx, insideMark, outsideMark, 1.0f, 1.0f, 0.0f, 0.8f); // 黄色箭头
-        }
-        
-        // 渲染上下朝向箭头
-        if (bottomMark != null && topMark != null) {
-            renderDirectionLine(ctx, bottomMark, topMark, 0.5f, 1.0f, 0.5f, 0.8f); // 浅绿色箭头
-        }
-    }
-    
-    /**
-     * 渲染方向箭头（从方块中心向上）
-     */
-    private void renderDirectionArrow(com.formacraft.client.tool.ToolWorldRenderContext ctx,
-                                      net.minecraft.util.math.BlockPos pos,
-                                      float r, float g, float b) {
-        double x = pos.getX() + 0.5;
-        double y = pos.getY() + 0.5;
-        double z = pos.getZ() + 0.5;
-        
-        // 绘制向上的短线
-        double arrowHeight = 0.8;
-        net.minecraft.util.math.Vec3d from = new net.minecraft.util.math.Vec3d(x, y, z);
-        net.minecraft.util.math.Vec3d to = new net.minecraft.util.math.Vec3d(x, y + arrowHeight, z);
-        
-        from = from.subtract(ctx.cameraX, ctx.cameraY, ctx.cameraZ);
-        to = to.subtract(ctx.cameraX, ctx.cameraY, ctx.cameraZ);
-        
-        ctx.vertexConsumer
-            .vertex(ctx.matrices.peek(), (float)from.x, (float)from.y, (float)from.z)
-            .color(r, g, b, 1.0f);
-        ctx.vertexConsumer
-            .vertex(ctx.matrices.peek(), (float)to.x, (float)to.y, (float)to.z)
-            .color(r, g, b, 1.0f);
-    }
-    
-    /**
-     * 渲染方向连线（从起点到终点的箭头）
-     */
-    private void renderDirectionLine(com.formacraft.client.tool.ToolWorldRenderContext ctx,
-                                     net.minecraft.util.math.BlockPos from, 
-                                     net.minecraft.util.math.BlockPos to,
-                                     float r, float g, float b, float a) {
-        double x1 = from.getX() + 0.5;
-        double y1 = from.getY() + 0.5;
-        double z1 = from.getZ() + 0.5;
-        
-        double x2 = to.getX() + 0.5;
-        double y2 = to.getY() + 0.5;
-        double z2 = to.getZ() + 0.5;
-        
-        net.minecraft.util.math.Vec3d vFrom = new net.minecraft.util.math.Vec3d(x1, y1, z1)
-            .subtract(ctx.cameraX, ctx.cameraY, ctx.cameraZ);
-        net.minecraft.util.math.Vec3d vTo = new net.minecraft.util.math.Vec3d(x2, y2, z2)
-            .subtract(ctx.cameraX, ctx.cameraY, ctx.cameraZ);
-        
-        ctx.vertexConsumer
-            .vertex(ctx.matrices.peek(), (float)vFrom.x, (float)vFrom.y, (float)vFrom.z)
-            .color(r, g, b, a);
-        ctx.vertexConsumer
-            .vertex(ctx.matrices.peek(), (float)vTo.x, (float)vTo.y, (float)vTo.z)
-            .color(r, g, b, a);
+        // TODO: 方向箭头渲染（需要更复杂的顶点格式处理）
+        // 当前彩色方块高亮已经足够清晰地标识不同的方向标记
     }
     
     /**
