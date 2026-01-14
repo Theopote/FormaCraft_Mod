@@ -28,27 +28,45 @@ public final class ComponentThumbnailCache {
      * @param maxSize 缩放到不超过该尺寸（建议 32）
      */
     public static Thumb getThumb(String componentId, int maxSize) {
-        if (componentId == null || componentId.isBlank()) return null;
+        if (componentId == null || componentId.isBlank()) {
+            System.err.println("[ComponentThumbnailCache] componentId 为空");
+            return null;
+        }
+        
         String id = componentId.trim();
         Path file = ComponentStorage.getGlobalComponentDir().resolve(id + ".png");
-        if (!Files.exists(file)) return null;
+        
+        if (!Files.exists(file)) {
+            System.err.println("[ComponentThumbnailCache] PNG 文件不存在: " + file.toAbsolutePath());
+            return null;
+        }
 
         long lm = 0L;
         try { lm = Files.getLastModifiedTime(file).toMillis(); } catch (Throwable ignored) {}
 
         Cached c = CACHE.get(id);
         if (c != null && c.lastModifiedMs == lm) {
+            System.out.println("[ComponentThumbnailCache] 从缓存加载: " + id);
             return c.thumb;
         }
 
         try (InputStream in = Files.newInputStream(file)) {
             BufferedImage img = ImageIO.read(in);
-            if (img == null) return null;
+            if (img == null) {
+                System.err.println("[ComponentThumbnailCache] ImageIO.read 返回 null: " + file);
+                return null;
+            }
             Thumb t = downscale(img, Math.max(8, Math.min(128, maxSize)));
-            if (t == null) return null;
+            if (t == null) {
+                System.err.println("[ComponentThumbnailCache] downscale 返回 null");
+                return null;
+            }
+            System.out.println("[ComponentThumbnailCache] ✓ 加载成功: " + id + " (" + t.w() + "x" + t.h() + ")");
             CACHE.put(id, new Cached(t, lm));
             return t;
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            System.err.println("[ComponentThumbnailCache] 读取失败: " + file);
+            e.printStackTrace();
             return null;
         }
     }

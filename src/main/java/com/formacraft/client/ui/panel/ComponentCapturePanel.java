@@ -91,6 +91,7 @@ public class ComponentCapturePanel extends BasePanel {
     private BufferedImage cachedThumbnail = null;
     private BlockPos lastSelectionMin = null;
     private BlockPos lastSelectionMax = null;
+    private volatile boolean isGeneratingThumbnail = false;
 
     // 滚动
     private int scrollY = 0;
@@ -539,10 +540,15 @@ public class ComponentCapturePanel extends BasePanel {
         BlockPos min = SelectionTool.INSTANCE.getMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
 
-        if (max != null && min != null && (cachedThumbnail == null || !min.equals(lastSelectionMin) || !max.equals(lastSelectionMax))) {
-            regenerateThumbnail();
-            lastSelectionMin = min;
-            lastSelectionMax = max;
+        // 防止重复触发生成（防抖）
+        if (max != null && min != null && 
+            (cachedThumbnail == null || !min.equals(lastSelectionMin) || !max.equals(lastSelectionMax))) {
+            // 只有在没有正在生成时才触发新的生成
+            if (!isGeneratingThumbnail) {
+                regenerateThumbnail();
+                lastSelectionMin = min;
+                lastSelectionMax = max;
+            }
         }
 
         // 绘制缩略图
@@ -555,20 +561,74 @@ public class ComponentCapturePanel extends BasePanel {
     }
 
     private void regenerateThumbnail() {
+        // 防止重复生成
+        if (isGeneratingThumbnail) {
+            System.out.println("[缩略图] 已有生成任务在进行，跳过");
+            return;
+        }
+        
+        // 清空旧缩略图
+        cachedThumbnail = null;
+        isGeneratingThumbnail = true;
+        
+        System.out.println("[缩略图] 开始生成...");
+        
         // 异步生成缩略图
         new Thread(() -> {
             try {
+                // 检查前置条件
+                if (client == null || client.world == null) {
+                    System.err.println("✗ client 或 client.world 为 null");
+                    return;
+                }
+                
+                if (!SelectionTool.INSTANCE.hasSelection()) {
+                    System.err.println("✗ 没有选区");
+                    return;
+                }
+                
+                BlockPos min = SelectionTool.INSTANCE.getMin();
+                BlockPos max = SelectionTool.INSTANCE.getMax();
+                if (min == null || max == null) {
+                    System.err.println("✗ 选区 min 或 max 为 null");
+                    return;
+                }
+                
+                // 检查锚点
+                var st = ComponentTool.INSTANCE.getState();
+                if (st.anchorWorld == null) {
+                    System.err.println("✗ 锚点未设置！请先设置锚点（右键点击方块）");
+                    return;
+                }
+                
+                System.out.println("[缩略图] 选区: " + min + " -> " + max);
+                System.out.println("[缩略图] 锚点: " + st.anchorWorld);
+                
                 String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
                 if (json != null) {
                     ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
                     if (def != null) {
-                        cachedThumbnail = ComponentThumbnailGenerator.generateThumbnail(def);
+                        java.awt.image.BufferedImage thumb = ComponentThumbnailGenerator.generateThumbnail(def);
+                        if (thumb != null) {
+                            System.out.println("✓ 缩略图生成成功: " + thumb.getWidth() + "x" + thumb.getHeight());
+                            cachedThumbnail = thumb;
+                        } else {
+                            System.err.println("✗ 缩略图生成失败: generateThumbnail 返回 null");
+                        }
+                    } else {
+                        System.err.println("✗ 无法解析 ComponentDefinition");
                     }
+                } else {
+                    System.err.println("✗ buildCurrentComponentJson 返回 null（可能是锚点问题）");
                 }
             } catch (Exception e) {
-                System.err.println("Failed to generate thumbnail preview: " + e.getMessage());
+                System.err.println("✗ 生成缩略图时出错: " + e.getMessage());
+                e.printStackTrace();
+            } finally {
+                isGeneratingThumbnail = false;
+                System.out.println("[缩略图] 生成任务结束");
             }
-        }).start();
+        }, "ThumbnailGenerator").start();
     }
 
     private int countBlocksInSelection() {

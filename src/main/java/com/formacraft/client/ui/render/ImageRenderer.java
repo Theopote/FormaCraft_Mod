@@ -53,6 +53,8 @@ public final class ImageRenderer {
         
         if (srcWidth <= 0 || srcHeight <= 0) return;
         
+        int pixelsRendered = 0;
+        
         // 使用最近邻插值进行缩放
         for (int py = 0; py < height; py++) {
             int srcY = (int) ((py / (double) height) * srcHeight);
@@ -66,9 +68,12 @@ public final class ImageRenderer {
                 // 只绘制不透明的像素
                 if ((argb & 0xFF000000) != 0) {
                     ctx.fill(x + px, y + py, x + px + 1, y + py + 1, argb);
+                    pixelsRendered++;
                 }
             }
         }
+        
+        System.out.println("[ImageRenderer] renderScaled 完成: 渲染了 " + pixelsRendered + " 个像素");
     }
 
     /**
@@ -81,12 +86,22 @@ public final class ImageRenderer {
      * @param areaHeight 区域高度
      */
     public static void renderCentered(DrawContext ctx, BufferedImage image, int x, int y, int areaWidth, int areaHeight) {
-        if (image == null || areaWidth <= 0 || areaHeight <= 0) return;
+        if (image == null) {
+            System.err.println("[ImageRenderer] image 为 null");
+            return;
+        }
+        if (areaWidth <= 0 || areaHeight <= 0) {
+            System.err.println("[ImageRenderer] 区域尺寸无效: " + areaWidth + "x" + areaHeight);
+            return;
+        }
         
         int srcWidth = image.getWidth();
         int srcHeight = image.getHeight();
         
-        if (srcWidth <= 0 || srcHeight <= 0) return;
+        if (srcWidth <= 0 || srcHeight <= 0) {
+            System.err.println("[ImageRenderer] 图像尺寸无效: " + srcWidth + "x" + srcHeight);
+            return;
+        }
         
         // 计算缩放比例（保持宽高比）
         double scaleX = areaWidth / (double) srcWidth;
@@ -100,6 +115,7 @@ public final class ImageRenderer {
         int offsetX = (areaWidth - targetWidth) / 2;
         int offsetY = (areaHeight - targetHeight) / 2;
         
+        System.out.println("[ImageRenderer] 渲染: " + srcWidth + "x" + srcHeight + " -> " + targetWidth + "x" + targetHeight + " at (" + (x + offsetX) + "," + (y + offsetY) + ")");
         renderScaled(ctx, image, x + offsetX, y + offsetY, targetWidth, targetHeight);
     }
 }
