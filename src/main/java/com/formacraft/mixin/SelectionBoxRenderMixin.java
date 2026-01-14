@@ -70,6 +70,13 @@ public class SelectionBoxRenderMixin {
 
         // Brush：笔刷选中范围（即便切换到其他工具也保持可见）
         BrushTool.renderGlobal(ctx);
+        
+        // ComponentCapturePanel：构件拾取面板的选区预览
+        if (com.formacraft.client.ui.FormaCraftHudOverlay.activePanel == com.formacraft.client.ui.panel.PanelType.COMPONENT_CAPTURE) {
+            if (com.formacraft.client.ui.FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL != null) {
+                com.formacraft.client.ui.FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL.renderWorldSelection(ctx);
+            }
+        }
 
         // Anchor：锚点可视化（不依赖 activeTool）
         AnchorRenderer.render(ctx);

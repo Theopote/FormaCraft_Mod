@@ -81,8 +81,8 @@ public class ComponentCapturePanel extends BasePanel {
     
     // 选择工具按钮
     private ButtonWidget boxSelectButton;
-    private ButtonWidget addSelectButton;
-    private ButtonWidget removeSelectButton;
+    private ButtonWidget pointSelectButton;
+    private ButtonWidget clearSelectionButton;
 
     // 输入框边界（用于点击检测）
     private int nameInputX, nameInputY, nameInputW, nameInputH;
@@ -420,47 +420,45 @@ public class ComponentCapturePanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("""
                         框选模式
                         ━━━━━━━━━━━━
-                        拖拽框选区域
+                        拖拽框选区域（有实时预览）
                         
                         使用方法：
                         1. 激活此模式
                         2. 在世界中左键拖拽
-                        3. 形成选区框
+                        3. 看到蓝色预览框
+                        4. 释放鼠标完成选择
                         
-                        快捷键：左键拖拽
-                        提示：适合框选完整结构""")))
+                        提示：适合快速框选完整结构""")))
                 .build();
         
-        addSelectButton = ButtonWidget.builder(Text.literal("➕ 点选加"), b -> setSelectionMode(ComponentSelectionMode.ADD_SELECT))
+        pointSelectButton = ButtonWidget.builder(Text.literal("👆 点选"), b -> setSelectionMode(ComponentSelectionMode.POINT_SELECT))
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        点选加模式
+                        点选模式
                         ━━━━━━━━━━━━
-                        点击添加单个方块到选区
+                        单个方块精确选择
                         
                         使用方法：
-                        1. 激活此模式
-                        2. 在世界中左键点击方块
-                        3. 方块添加到选区
+                        • 点击未选方块 → 加选
+                        • 点击已选方块 → 减选
+                        • Ctrl+点击 → 强制加选
                         
-                        快捷键：Shift + 左键
-                        提示：适合精细调整选区""")))
+                        提示：适合精细调整和不规则选区""")))
                 .build();
         
-        removeSelectButton = ButtonWidget.builder(Text.literal("➖ 点选减"), b -> setSelectionMode(ComponentSelectionMode.REMOVE_SELECT))
+        clearSelectionButton = ButtonWidget.builder(Text.literal("🗑️ 清除"), b -> clearSelection())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        点选减模式
+                        清除选区
                         ━━━━━━━━━━━━
-                        点击从选区移除方块
+                        一键清空当前选区
                         
-                        使用方法：
-                        1. 激活此模式
-                        2. 在世界中左键点击方块
-                        3. 方块从选区移除
+                        使用场景：
+                        • 重新开始选择
+                        • 清除错误的选区
+                        • 快速重置
                         
-                        快捷键：Ctrl + 左键
-                        提示：移除多余的方块""")))
+                        提示：清除后需要重新选择""")))
                 .build();
     }
     
@@ -510,21 +508,21 @@ public class ComponentCapturePanel extends BasePanel {
         boxSelectButton.active = true;
         boxSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
         
-        // 点选加按钮
-        addSelectButton.setMessage(Text.literal(selectionMode == ComponentSelectionMode.ADD_SELECT ? "➕ [点选加]" : "➕ 点选加"));
-        addSelectButton.setPosition(x + buttonW + 4, y);
-        addSelectButton.setWidth(buttonW);
-        addSelectButton.visible = true;
-        addSelectButton.active = true;
-        addSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+        // 点选按钮
+        pointSelectButton.setMessage(Text.literal(selectionMode == ComponentSelectionMode.POINT_SELECT ? "👆 [点选]" : "👆 点选"));
+        pointSelectButton.setPosition(x + buttonW + 4, y);
+        pointSelectButton.setWidth(buttonW);
+        pointSelectButton.visible = true;
+        pointSelectButton.active = true;
+        pointSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
         
-        // 点选减按钮
-        removeSelectButton.setMessage(Text.literal(selectionMode == ComponentSelectionMode.REMOVE_SELECT ? "➖ [点选减]" : "➖ 点选减"));
-        removeSelectButton.setPosition(x + buttonW * 2 + 8, y);
-        removeSelectButton.setWidth(buttonW);
-        removeSelectButton.visible = true;
-        removeSelectButton.active = true;
-        removeSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+        // 清除按钮
+        clearSelectionButton.setMessage(Text.literal("🗑️ 清除"));
+        clearSelectionButton.setPosition(x + buttonW * 2 + 8, y);
+        clearSelectionButton.setWidth(buttonW);
+        clearSelectionButton.visible = true;
+        clearSelectionButton.active = !selectedBlocks.isEmpty() || SelectionTool.INSTANCE.hasSelection();
+        clearSelectionButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
         
         y += LABEL_OFFSET;
         
@@ -534,7 +532,10 @@ public class ComponentCapturePanel extends BasePanel {
         y += 4;
         
         // 快捷键说明
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("快捷键: Shift+左键=加选 | Ctrl+左键=减选 | 右键=设锚点"), x, y, 0xFF666666);
+        String hint = selectionMode == ComponentSelectionMode.POINT_SELECT 
+            ? "提示: 点击方块切换选择 | Ctrl+点击强制加选 | 右键设锚点"
+            : "提示: 拖拽可见预览框 | 右键设锚点";
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), x, y, 0xFF666666);
         y += client.textRenderer.fontHeight + 4;
         
         // 分隔线
@@ -1105,8 +1106,8 @@ public class ComponentCapturePanel extends BasePanel {
 
         // 选择工具按钮点击
         if (boxSelectButton != null && boxSelectButton.visible && boxSelectButton.mouseClicked(click, false)) return true;
-        if (addSelectButton != null && addSelectButton.visible && addSelectButton.mouseClicked(click, false)) return true;
-        if (removeSelectButton != null && removeSelectButton.visible && removeSelectButton.mouseClicked(click, false)) return true;
+        if (pointSelectButton != null && pointSelectButton.visible && pointSelectButton.mouseClicked(click, false)) return true;
+        if (clearSelectionButton != null && clearSelectionButton.visible && clearSelectionButton.mouseClicked(click, false)) return true;
         
         // 按钮点击
         if (categoryButton != null && categoryButton.visible && categoryButton.mouseClicked(click, false)) return true;
@@ -1279,25 +1280,38 @@ public class ComponentCapturePanel extends BasePanel {
         if (button == 0) {
             switch (selectionMode) {
                 case BOX_SELECT:
-                    // 框选模式：开始拖拽
-                    if (!isDragging) {
-                        boxStart = pos;
-                        boxEnd = pos;
-                        isDragging = true;
-                        System.out.println("[ComponentCapturePanel] 开始框选: " + pos);
+                    // 框选模式：直接使用 SelectionTool 进行框选
+                    // SelectionTool 会处理拖拽和渲染预览
+                    SelectionTool.INSTANCE.onMouseClick(0, 0, button);
+                    System.out.println("[ComponentCapturePanel] 框选: 交给 SelectionTool 处理");
+                    return true;
+                    
+                case POINT_SELECT:
+                    // 点选模式：切换方块选择状态
+                    boolean isCtrlDown = org.lwjgl.glfw.GLFW.glfwGetKey(
+                        client.getWindow().getHandle(), 
+                        org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL
+                    ) == org.lwjgl.glfw.GLFW.GLFW_PRESS || org.lwjgl.glfw.GLFW.glfwGetKey(
+                        client.getWindow().getHandle(), 
+                        org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_CONTROL
+                    ) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+                    
+                    if (isCtrlDown) {
+                        // Ctrl+点击：强制加选
+                        addBlockToSelection(pos);
+                        System.out.println("[ComponentCapturePanel] Ctrl+点击 强制加选: " + pos);
+                    } else {
+                        // 普通点击：切换状态
+                        if (selectedBlocks.contains(pos.toImmutable())) {
+                            // 已选中 → 减选
+                            removeBlockFromSelection(pos);
+                            System.out.println("[ComponentCapturePanel] 点击减选: " + pos + ", 总数: " + selectedBlocks.size());
+                        } else {
+                            // 未选中 → 加选
+                            addBlockToSelection(pos);
+                            System.out.println("[ComponentCapturePanel] 点击加选: " + pos + ", 总数: " + selectedBlocks.size());
+                        }
                     }
-                    return true;
-                    
-                case ADD_SELECT:
-                    // 点选加：添加单个方块
-                    addBlockToSelection(pos);
-                    System.out.println("[ComponentCapturePanel] 加选方块: " + pos + ", 总数: " + selectedBlocks.size());
-                    return true;
-                    
-                case REMOVE_SELECT:
-                    // 点选减：移除单个方块
-                    removeBlockFromSelection(pos);
-                    System.out.println("[ComponentCapturePanel] 减选方块: " + pos + ", 总数: " + selectedBlocks.size());
                     return true;
             }
         }
@@ -1307,30 +1321,27 @@ public class ComponentCapturePanel extends BasePanel {
     
     /**
      * 处理世界拖拽（从 tick 调用）
+     * 框选模式下由 SelectionTool 自动处理
      */
     public void handleWorldDrag(net.minecraft.util.math.BlockPos currentPos) {
-        if (!isDragging || currentPos == null) return;
-        
-        // 更新框选的结束点
-        if (!currentPos.equals(boxEnd)) {
-            boxEnd = currentPos;
-            // System.out.println("[ComponentCapturePanel] 更新框选: " + boxStart + " -> " + boxEnd);
-        }
+        // 框选模式：SelectionTool 自动更新
+        // 点选模式：无需拖拽处理
     }
     
     /**
      * 处理鼠标释放（从 InputRouter 调用）
      */
     public void handleWorldRelease(int button) {
-        if (button == 0 && isDragging) {
-            // 完成框选
-            if (boxStart != null && boxEnd != null) {
-                setBoxSelection(boxStart, boxEnd);
-                System.out.println("[ComponentCapturePanel] 完成框选: " + boxStart + " -> " + boxEnd + ", 方块数: " + selectedBlocks.size());
+        if (button == 0 && selectionMode == ComponentSelectionMode.BOX_SELECT) {
+            // 框选模式完成：从 SelectionTool 同步选区
+            if (SelectionTool.INSTANCE.hasSelection()) {
+                net.minecraft.util.math.BlockPos min = SelectionTool.INSTANCE.getMin();
+                net.minecraft.util.math.BlockPos max = SelectionTool.INSTANCE.getMax();
+                if (min != null && max != null) {
+                    setBoxSelection(min, max);
+                    System.out.println("[ComponentCapturePanel] 从 SelectionTool 同步选区: " + min + " -> " + max + ", 方块数: " + selectedBlocks.size());
+                }
             }
-            isDragging = false;
-            boxStart = null;
-            boxEnd = null;
         }
     }
     
@@ -1448,14 +1459,43 @@ public class ComponentCapturePanel extends BasePanel {
     }
     
     /**
-     * Tick 方法 - 处理拖拽更新
+     * Tick 方法 - 更新 SelectionTool
      */
     public void tick() {
-        if (isDragging) {
-            var hit = com.formacraft.client.interaction.CursorRaycastHelper.getLastBlockHit();
-            if (hit != null) {
-                handleWorldDrag(hit.getBlockPos());
+        // 框选模式：让 SelectionTool 处理拖拽
+        if (selectionMode == ComponentSelectionMode.BOX_SELECT && SelectionTool.INSTANCE.isSelecting()) {
+            SelectionTool.INSTANCE.tick();
+        }
+    }
+    
+    /**
+     * 渲染世界中的选区预览
+     * 从 SelectionBoxRenderMixin 调用
+     */
+    public void renderWorldSelection(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
+        // 渲染 SelectionTool 的选区（框选和已完成的选区）
+        SelectionTool.INSTANCE.renderWorld(ctx);
+        
+        // 渲染点选模式下的单个方块高亮
+        if (selectionMode == ComponentSelectionMode.POINT_SELECT && !selectedBlocks.isEmpty()) {
+            for (net.minecraft.util.math.BlockPos pos : selectedBlocks) {
+                renderBlockHighlight(ctx, pos, 0.0f, 1.0f, 0.0f, 0.3f); // 绿色高亮
             }
         }
+    }
+    
+    /**
+     * 渲染单个方块的高亮边框
+     */
+    private void renderBlockHighlight(com.formacraft.client.tool.ToolWorldRenderContext ctx, 
+                                      net.minecraft.util.math.BlockPos pos,
+                                      float r, float g, float b, float a) {
+        net.minecraft.util.math.Box worldBox = new net.minecraft.util.math.Box(
+                pos.getX(), pos.getY(), pos.getZ(),
+                pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1
+        ).expand(0.01);
+        
+        net.minecraft.util.math.Box box = worldBox.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+        net.minecraft.client.render.VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, a);
     }
 }
