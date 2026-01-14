@@ -230,7 +230,7 @@ private void renderDirectionMarkers(ToolWorldRenderContext ctx) {
 1. 框选一个门
 2. 输入名称："橡木门"
 3. 选择分类："DOOR"
-4. 点击"附着"切换到"墙洞口"
+4. 点击"附着"切换到"墙体"（表示会在墙体上自动开洞）
 5. 点击"方向"切换到"内外"
 6. 点击"🏠 设内侧"
 7. 在世界中点击门内侧的一个方块 → 看到蓝色高亮

@@ -42,6 +42,13 @@ public class InputEventHandler {
 
             // Tools tick：实时预览/状态更新
             ToolManager.tick();
+            
+            // ComponentCapturePanel tick：框选工具实时更新
+            if (FormaCraftHudOverlay.activePanel == com.formacraft.client.ui.panel.PanelType.COMPONENT_CAPTURE) {
+                if (FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL != null) {
+                    FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL.tick();
+                }
+            }
         });
     }
     
