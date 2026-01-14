@@ -24,13 +24,13 @@ import java.io.ByteArrayOutputStream;
 
 /**
  * 构件拾取面板（独立面板）
- * 
+ * <p>
  * 职责：
  * - 显示当前选区预览
  * - 配置构件的所有参数（基础信息、锚点朝向、语义标注、Socket）
  * - 智能分析构件特征
  * - 保存构件到库
- * 
+ * <p>
  * 工作流：
  * 1. 用户在世界中用 SelectionTool 框选
  * 2. 切换到此面板
@@ -78,6 +78,11 @@ public class ComponentCapturePanel extends BasePanel {
     // 底部按钮
     private ButtonWidget cancelButton;
     private ButtonWidget saveButton;
+    
+    // 选择工具按钮
+    private ButtonWidget boxSelectButton;
+    private ButtonWidget addSelectButton;
+    private ButtonWidget removeSelectButton;
 
     // 输入框边界（用于点击检测）
     private int nameInputX, nameInputY, nameInputW, nameInputH;
@@ -96,11 +101,23 @@ public class ComponentCapturePanel extends BasePanel {
     // 滚动
     private int scrollY = 0;
     private int maxScrollY = 0;
+    
+    // 选择工具状态
+    private ComponentSelectionMode selectionMode = ComponentSelectionMode.BOX_SELECT;
+    private java.util.Set<BlockPos> selectedBlocks = new java.util.HashSet<>();
+    private BlockPos boxStart = null;
+    private BlockPos boxEnd = null;
+    private boolean isDragging = false;
 
     public ComponentCapturePanel() {
         nameInput.setMaxLength(64);
+        nameInput.setPlaceholder("输入构件名称（如：橡木门）");
+        
         tagsInput.setMaxLength(256);
+        tagsInput.setPlaceholder("输入标签，用逗号分隔（如：wood, modern）");
+        
         socketIdInput.setMaxLength(64);
+        socketIdInput.setPlaceholder("输入 Socket ID（如：door_frame）");
     }
 
     private void ensureWidgets() {
@@ -111,90 +128,258 @@ public class ComponentCapturePanel extends BasePanel {
         // 基础信息按钮
         categoryButton = ButtonWidget.builder(Text.literal("分类：GENERIC"), b -> cycleCategory())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换构件分类")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        构件分类
+                        ━━━━━━━━━━━━
+                        点击循环切换构件的类型分类
+                        
+                        分类用于：
+                        • AI 智能放置时的语义识别
+                        • 构件库的分类浏览
+                        • 自动检测附着模式
+                        
+                        常见分类：门、窗、柱子、装饰等""")))
                 .build();
 
         pickAnchorButton = ButtonWidget.builder(Text.literal("📍 点击选择锚点"), b -> ComponentTool.INSTANCE.startPickAnchor())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("在世界中点击选择构件的原点（锚点）")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        设置锚点（原点）
+                        ━━━━━━━━━━━━
+                        锚点是构件的参考原点
+                        
+                        使用方法：
+                        1. 点击此按钮
+                        2. 在世界中右键点击方块
+                        3. 该方块将成为锚点
+                        
+                        建议位置：
+                        • 门窗：底部中心
+                        • 柱子：底部中心
+                        • 装饰：附着点
+                        • 家具：前侧底部中心""")))
                 .build();
 
         clearAnchorButton = ButtonWidget.builder(Text.literal("清除锚点"), b -> ComponentTool.INSTANCE.clearAnchor())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("清除构件锚点")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        清除锚点
+                        ━━━━━━━━━━━━
+                        移除当前设置的锚点
+                        
+                        清除后需要重新设置锚点
+                        才能保存构件""")))
                 .build();
 
         facingButton = ButtonWidget.builder(Text.literal("朝向：SOUTH"), b -> cycleFacing())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("构件的正面朝向")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        构件朝向
+                        ━━━━━━━━━━━━
+                        定义构件的"正面"朝向
+                        
+                        用途：
+                        • AI 放置时自动旋转
+                        • 确保门窗朝向正确
+                        • 对称构件的镜像参考
+                        
+                        点击循环切换：北/东/南/西""")))
                 .build();
 
         mirrorButton = ButtonWidget.builder(Text.literal("镜像：NONE"), b -> cycleMirror())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("镜像模式")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        镜像模式
+                        ━━━━━━━━━━━━
+                        控制构件的镜像行为
+                        
+                        选项：
+                        • NONE：不镜像
+                        • LEFT_RIGHT：左右镜像
+                        • FRONT_BACK：前后镜像
+                        
+                        用于创建对称变体""")))
                 .build();
 
         // 语义标注按钮
         semanticSkinButton = ButtonWidget.builder(Text.literal("材质：原样"), b -> ComponentTool.INSTANCE.toggleSemanticSkin())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("切换材质模式：原样方块 / 语义换皮")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        材质模式（高级）
+                        ━━━━━━━━━━━━
+                        控制方块材质的处理方式
+                        
+                        原样方块：
+                        • 保留精确的方块类型
+                        • 适合特定设计的构件
+                        
+                        语义换皮：
+                        • AI 可根据风格替换材质
+                        • 适合可变风格的构件""")))
                 .build();
 
         semanticTagOnSaveButton = ButtonWidget.builder(Text.literal("存语义：开"), b -> st.semanticTagOnSave = !st.semanticTagOnSave)
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("保存构件时自动写入每个方块的 semantic")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        保存语义标注（高级）
+                        ━━━━━━━━━━━━
+                        保存时为每个方块添加语义信息
+                        
+                        开启后：
+                        • 自动标注方块的功能部位
+                        • AI 可更智能地调整构件
+                        • 支持风格驱动的材质替换
+                        
+                        推荐：通用构件开启""")))
                 .build();
 
         semanticStyleButton = ButtonWidget.builder(Text.literal("风格：DEFAULT"), b -> ComponentTool.INSTANCE.cycleSemanticStyle())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换语义风格")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        建筑风格（高级）
+                        ━━━━━━━━━━━━
+                        定义构件的建筑风格
+                        
+                        风格类型：
+                        • DEFAULT：默认/混合
+                        • MEDIEVAL：中世纪
+                        • MODERN：现代
+                        • ASIAN：亚洲风格
+                        
+                        用于 AI 风格匹配""")))
                 .build();
 
         semanticPartButton = ButtonWidget.builder(Text.literal("语义：AUTO"), b -> ComponentTool.INSTANCE.cycleSemanticPart())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换语义部位")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        语义部位（高级）
+                        ━━━━━━━━━━━━
+                        标注构件的功能部位
+                        
+                        AUTO：自动检测
+                        手动选项：
+                        • FRAME：框架/边框
+                        • FILL：填充/主体
+                        • DETAIL：装饰细节
+                        
+                        用于智能材质替换""")))
                 .build();
 
         // Socket 配置按钮
         socketContextButton = ButtonWidget.builder(Text.literal("Context: WALL"), b -> ComponentTool.INSTANCE.cycleSocketType())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换 Socket Context")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        Socket 上下文（高级）
+                        ━━━━━━━━━━━━
+                        定义 Socket 的附着类型
+                        
+                        类型：
+                        • WALL：墙面（门窗）
+                        • FLOOR：地板（家具）
+                        • CEILING：天花板（吊灯）
+                        • EDGE：边缘（栏杆）
+                        
+                        AI 将根据上下文智能放置""")))
                 .build();
 
         socketPickOriginButton = ButtonWidget.builder(Text.literal("点选原点"), b -> ComponentTool.INSTANCE.startPickSocketOrigin())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("在世界中点击选择 Socket 原点")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        设置 Socket 原点（高级）
+                        ━━━━━━━━━━━━
+                        Socket 是构件的嵌入位置
+                        
+                        使用方法：
+                        1. 点击此按钮
+                        2. 在世界中右键点击
+                        3. 设置 Socket 的参考点
+                        
+                        例如：门框的底部中心""")))
                 .build();
 
         socketFacingButton = ButtonWidget.builder(Text.literal("朝向: SOUTH"), b -> ComponentTool.INSTANCE.cycleSocketFacing())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换 Socket 朝向")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        Socket 朝向（高级）
+                        ━━━━━━━━━━━━
+                        定义 Socket 的放置方向
+                        
+                        确保：
+                        • 门窗朝向正确
+                        • 附着面对齐
+                        • 多个 Socket 协调一致
+                        
+                        点击循环切换方向""")))
                 .build();
 
         socketAddButton = ButtonWidget.builder(Text.literal("添加 Socket"), b -> ComponentTool.INSTANCE.addSocket())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("将当前 Socket 配置添加到构件")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        添加 Socket（高级）
+                        ━━━━━━━━━━━━
+                        将当前配置的 Socket 添加到构件
+                        
+                        一个构件可以有多个 Socket
+                        例如：墙体可以有多个门窗位置
+                        
+                        添加后在列表中显示""")))
                 .build();
 
         socketPreviewButton = ButtonWidget.builder(Text.literal("预览"), b -> ComponentTool.INSTANCE.toggleSocketPreview(client))
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("在世界中预览当前 Socket")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        预览 Socket（高级）
+                        ━━━━━━━━━━━━
+                        在世界中显示 Socket 的：
+                        • 位置标记
+                        • 朝向箭头
+                        • 大小区域
+                        
+                        帮助验证 Socket 配置正确""")))
                 .build();
 
         socketClearButton = ButtonWidget.builder(Text.literal("清空 Sockets"), b -> ComponentTool.INSTANCE.clearSockets())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("清空所有已添加的 Sockets")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        清空所有 Socket（高级）
+                        ━━━━━━━━━━━━
+                        移除所有已添加的 Socket
+                        
+                        注意：此操作不可撤销
+                        清空后需要重新配置""")))
                 .build();
 
         // 智能分析按钮
         autoAnalyzeButton = ButtonWidget.builder(Text.literal("🔍 智能分析"), b -> runAutoAnalysis())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("自动分析构件特征：附着类型、朝向策略、文化风格、建筑原型")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        智能分析构件（推荐）
+                        ━━━━━━━━━━━━
+                        自动分析构件特征并设置参数
+                        
+                        分析内容：
+                        • 构件类型（门/窗/柱子等）
+                        • 附着模式（底面/竖边等）
+                        • 建筑风格（现代/中世纪等）
+                        • 建筑原型（民居/宫殿等）
+                        
+                        节省手动配置时间！""")))
                 .build();
 
         autoDetectSocketsButton = ButtonWidget.builder(Text.literal("🔍 自动检测"), b -> autoDetectSockets())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("自动检测门、窗、栏杆等 Socket")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        自动检测 Socket（高级）
+                        ━━━━━━━━━━━━
+                        智能识别构件中的嵌入位置
+                        
+                        可检测：
+                        • 门框开口
+                        • 窗户位置
+                        • 栏杆连接点
+                        • 装饰附着点
+                        
+                        自动创建 Socket 列表""")))
                 .build();
 
         // 底部按钮
@@ -203,12 +388,88 @@ public class ComponentCapturePanel extends BasePanel {
                     FormaCraftHudOverlay.activePanel = PanelType.TOOLS;
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        取消构件拾取
+                        ━━━━━━━━━━━━
+                        放弃当前构件配置
+                        返回工具面板
+                        
+                        已配置的内容将丢失""")))
                 .build();
 
         saveButton = ButtonWidget.builder(Text.literal("✓ 保存到构件库"), b -> saveComponent())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("保存构件到全局构件库，并自动跳转到构件库面板")))
+                .tooltip(Tooltip.of(Text.literal("""
+                        保存构件到库
+                        ━━━━━━━━━━━━
+                        将构件保存到全局构件库
+                        
+                        保存内容：
+                        • 方块数据和结构
+                        • 锚点和朝向
+                        • 分类和标签
+                        • 缩略图预览
+                        • Socket 配置（如果有）
+                        
+                        保存后自动跳转到构件库""")))
                 .build();
+        
+        // 选择工具按钮
+        boxSelectButton = ButtonWidget.builder(Text.literal("📦 框选"), b -> setSelectionMode(ComponentSelectionMode.BOX_SELECT))
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        框选模式
+                        ━━━━━━━━━━━━
+                        拖拽框选区域
+                        
+                        使用方法：
+                        1. 激活此模式
+                        2. 在世界中左键拖拽
+                        3. 形成选区框
+                        
+                        快捷键：左键拖拽
+                        提示：适合框选完整结构""")))
+                .build();
+        
+        addSelectButton = ButtonWidget.builder(Text.literal("➕ 点选加"), b -> setSelectionMode(ComponentSelectionMode.ADD_SELECT))
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        点选加模式
+                        ━━━━━━━━━━━━
+                        点击添加单个方块到选区
+                        
+                        使用方法：
+                        1. 激活此模式
+                        2. 在世界中左键点击方块
+                        3. 方块添加到选区
+                        
+                        快捷键：Shift + 左键
+                        提示：适合精细调整选区""")))
+                .build();
+        
+        removeSelectButton = ButtonWidget.builder(Text.literal("➖ 点选减"), b -> setSelectionMode(ComponentSelectionMode.REMOVE_SELECT))
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        点选减模式
+                        ━━━━━━━━━━━━
+                        点击从选区移除方块
+                        
+                        使用方法：
+                        1. 激活此模式
+                        2. 在世界中左键点击方块
+                        3. 方块从选区移除
+                        
+                        快捷键：Ctrl + 左键
+                        提示：移除多余的方块""")))
+                .build();
+    }
+    
+    /**
+     * 设置选择模式
+     */
+    private void setSelectionMode(ComponentSelectionMode mode) {
+        this.selectionMode = mode;
+        System.out.println("[ComponentCapturePanel] 切换选择模式: " + mode.getDisplayName());
     }
 
     @Override
@@ -233,12 +494,58 @@ public class ComponentCapturePanel extends BasePanel {
         // 标题
         y = drawWrappedText(ctx, Text.literal("[ 🎯 构件拾取 ]"), x, y, w, 0xFFFFFFFF);
         y += 4;
+        
+        // 选择工具区域
+        y = drawWrappedText(ctx, Text.literal("🔧 选择工具"), x, y, w, 0xFFFFFF00);
+        y += 2;
+        
+        // 选择模式按钮组
+        int buttonW = (w - 8) / 3; // 3个按钮平分宽度
+        
+        // 框选按钮
+        boxSelectButton.setMessage(Text.literal(selectionMode == ComponentSelectionMode.BOX_SELECT ? "📦 [框选]" : "📦 框选"));
+        boxSelectButton.setPosition(x, y);
+        boxSelectButton.setWidth(buttonW);
+        boxSelectButton.visible = true;
+        boxSelectButton.active = true;
+        boxSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+        
+        // 点选加按钮
+        addSelectButton.setMessage(Text.literal(selectionMode == ComponentSelectionMode.ADD_SELECT ? "➕ [点选加]" : "➕ 点选加"));
+        addSelectButton.setPosition(x + buttonW + 4, y);
+        addSelectButton.setWidth(buttonW);
+        addSelectButton.visible = true;
+        addSelectButton.active = true;
+        addSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+        
+        // 点选减按钮
+        removeSelectButton.setMessage(Text.literal(selectionMode == ComponentSelectionMode.REMOVE_SELECT ? "➖ [点选减]" : "➖ 点选减"));
+        removeSelectButton.setPosition(x + buttonW * 2 + 8, y);
+        removeSelectButton.setWidth(buttonW);
+        removeSelectButton.visible = true;
+        removeSelectButton.active = true;
+        removeSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+        
+        y += LABEL_OFFSET;
+        
+        // 当前模式提示
+        String modeText = "当前模式: " + selectionMode.getDisplayName() + " - " + selectionMode.getHint();
+        y = drawWrappedText(ctx, Text.literal(modeText), x, y, w, 0xFF88CCFF);
+        y += 4;
+        
+        // 快捷键说明
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal("快捷键: Shift+左键=加选 | Ctrl+左键=减选 | 右键=设锚点"), x, y, 0xFF666666);
+        y += client.textRenderer.fontHeight + 4;
+        
+        // 分隔线
+        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+        y += 4;
 
         // 检查是否有选区
-        if (!SelectionTool.INSTANCE.hasSelection()) {
-            y = drawWrappedText(ctx, Text.literal("请先使用选区工具框选要拾取的构件"), x, y, w, 0xFFFF6666);
+        if (!SelectionTool.INSTANCE.hasSelection() && selectedBlocks.isEmpty()) {
+            y = drawWrappedText(ctx, Text.literal("请使用上面的选择工具框选要拾取的构件"), x, y, w, 0xFFFFAA00);
             y += 4;
-            y = drawWrappedText(ctx, Text.literal("提示：切换到工具面板，使用选区工具框选"), x, y, w, 0xFFAAAAAA);
+            y = drawWrappedText(ctx, Text.literal("提示：点击'框选'，然后在世界中拖拽鼠标"), x, y, w, 0xFFAAAAAA);
             ctx.disableScissor();
             return;
         }
@@ -273,6 +580,10 @@ public class ComponentCapturePanel extends BasePanel {
         y = drawWrappedText(ctx, Text.literal("尺寸: " + sizeX + "×" + sizeY + "×" + sizeZ), x, y, w, 0xFFAAAAAA);
         y += client.textRenderer.fontHeight;
         y = drawWrappedText(ctx, Text.literal("方块数: " + blockCount), x, y, w, 0xFFAAAAAA);
+        y += 6;
+        
+        // 状态指示器
+        y = drawStatusIndicator(ctx, x, y, w);
         y += 4;
 
         // 缩略图预览
@@ -792,6 +1103,11 @@ public class ComponentCapturePanel extends BasePanel {
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
+        // 选择工具按钮点击
+        if (boxSelectButton != null && boxSelectButton.visible && boxSelectButton.mouseClicked(click, false)) return true;
+        if (addSelectButton != null && addSelectButton.visible && addSelectButton.mouseClicked(click, false)) return true;
+        if (removeSelectButton != null && removeSelectButton.visible && removeSelectButton.mouseClicked(click, false)) return true;
+        
         // 按钮点击
         if (categoryButton != null && categoryButton.visible && categoryButton.mouseClicked(click, false)) return true;
         if (pickAnchorButton != null && pickAnchorButton.visible && pickAnchorButton.mouseClicked(click, false)) return true;
@@ -895,5 +1211,251 @@ public class ComponentCapturePanel extends BasePanel {
 
     private int getScaledMouseY() {
         return (int) (client.mouse.getY() / client.getWindow().getScaleFactor());
+    }
+
+    /**
+     * 绘制状态指示器
+     */
+    private int drawStatusIndicator(DrawContext ctx, int x, int y, int w) {
+        var st = ComponentTool.INSTANCE.getState();
+        
+        // 边框
+        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+        y += 2;
+        
+        // 选区状态
+        String selectionStatus = SelectionTool.INSTANCE.hasSelection() ? "✓" : "⚠";
+        int selectionColor = SelectionTool.INSTANCE.hasSelection() ? 0xFF00FF00 : 0xFFFFAA00;
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(selectionStatus + " 选区已设置"), x, y, selectionColor);
+        y += client.textRenderer.fontHeight + 2;
+        
+        // 锚点状态
+        boolean hasAnchor = st.anchorWorld != null;
+        String anchorStatus = hasAnchor ? "✓" : "⚠";
+        int anchorColor = hasAnchor ? 0xFF00FF00 : 0xFFFFAA00;
+        String anchorText = hasAnchor ? 
+            String.format("✓ 锚点: (%d, %d, %d)", st.anchorWorld.getX(), st.anchorWorld.getY(), st.anchorWorld.getZ()) :
+            "⚠ 锚点: 未设置";
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(anchorText), x, y, anchorColor);
+        y += client.textRenderer.fontHeight + 2;
+        
+        // 朝向状态
+        String facingText = "➡ 朝向: " + st.facing.name();
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(facingText), x, y, 0xFF88CCFF);
+        y += client.textRenderer.fontHeight + 2;
+        
+        // 名称状态
+        boolean hasName = st.name != null && !st.name.isEmpty() && !st.name.equals("New Component");
+        String nameStatus = hasName ? "✓" : "⚠";
+        int nameColor = hasName ? 0xFF00FF00 : 0xFFFFAA00;
+        String nameText = hasName ? "✓ 名称已填写" : "⚠ 名称: 请填写";
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(nameText), x, y, nameColor);
+        y += client.textRenderer.fontHeight + 2;
+        
+        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+        y += 2;
+        
+        return y;
+    }
+    
+    // ============ 世界交互方法 ============
+    
+    /**
+     * 处理世界点击（从 InputRouter 调用）
+     * @return true 如果事件被处理
+     */
+    public boolean handleWorldClick(net.minecraft.util.math.BlockPos pos, int button) {
+        if (pos == null) return false;
+        
+        System.out.println("[ComponentCapturePanel] 世界点击: " + pos + ", 按钮: " + button + ", 模式: " + selectionMode);
+        
+        // 右键设置锚点
+        if (button == 1) {
+            setAnchor(pos);
+            return true;
+        }
+        
+        // 左键根据模式处理
+        if (button == 0) {
+            switch (selectionMode) {
+                case BOX_SELECT:
+                    // 框选模式：开始拖拽
+                    if (!isDragging) {
+                        boxStart = pos;
+                        boxEnd = pos;
+                        isDragging = true;
+                        System.out.println("[ComponentCapturePanel] 开始框选: " + pos);
+                    }
+                    return true;
+                    
+                case ADD_SELECT:
+                    // 点选加：添加单个方块
+                    addBlockToSelection(pos);
+                    System.out.println("[ComponentCapturePanel] 加选方块: " + pos + ", 总数: " + selectedBlocks.size());
+                    return true;
+                    
+                case REMOVE_SELECT:
+                    // 点选减：移除单个方块
+                    removeBlockFromSelection(pos);
+                    System.out.println("[ComponentCapturePanel] 减选方块: " + pos + ", 总数: " + selectedBlocks.size());
+                    return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 处理世界拖拽（从 tick 调用）
+     */
+    public void handleWorldDrag(net.minecraft.util.math.BlockPos currentPos) {
+        if (!isDragging || currentPos == null) return;
+        
+        // 更新框选的结束点
+        if (!currentPos.equals(boxEnd)) {
+            boxEnd = currentPos;
+            // System.out.println("[ComponentCapturePanel] 更新框选: " + boxStart + " -> " + boxEnd);
+        }
+    }
+    
+    /**
+     * 处理鼠标释放（从 InputRouter 调用）
+     */
+    public void handleWorldRelease(int button) {
+        if (button == 0 && isDragging) {
+            // 完成框选
+            if (boxStart != null && boxEnd != null) {
+                setBoxSelection(boxStart, boxEnd);
+                System.out.println("[ComponentCapturePanel] 完成框选: " + boxStart + " -> " + boxEnd + ", 方块数: " + selectedBlocks.size());
+            }
+            isDragging = false;
+            boxStart = null;
+            boxEnd = null;
+        }
+    }
+    
+    /**
+     * 添加单个方块到选区
+     */
+    private void addBlockToSelection(net.minecraft.util.math.BlockPos pos) {
+        if (pos == null) return;
+        selectedBlocks.add(pos.toImmutable());
+        updateSelectionToolFromBlocks();
+    }
+    
+    /**
+     * 从选区移除单个方块
+     */
+    private void removeBlockFromSelection(net.minecraft.util.math.BlockPos pos) {
+        if (pos == null) return;
+        selectedBlocks.remove(pos.toImmutable());
+        updateSelectionToolFromBlocks();
+    }
+    
+    /**
+     * 设置框选区域
+     */
+    private void setBoxSelection(net.minecraft.util.math.BlockPos start, net.minecraft.util.math.BlockPos end) {
+        if (start == null || end == null) return;
+        
+        // 清空现有选区
+        selectedBlocks.clear();
+        
+        // 计算边界
+        int minX = Math.min(start.getX(), end.getX());
+        int minY = Math.min(start.getY(), end.getY());
+        int minZ = Math.min(start.getZ(), end.getZ());
+        int maxX = Math.max(start.getX(), end.getX());
+        int maxY = Math.max(start.getY(), end.getY());
+        int maxZ = Math.max(start.getZ(), end.getZ());
+        
+        // 添加所有方块
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    selectedBlocks.add(new net.minecraft.util.math.BlockPos(x, y, z));
+                }
+            }
+        }
+        
+        // 同步到 SelectionTool（保持兼容）
+        SelectionTool.INSTANCE.setSelection(
+            new net.minecraft.util.math.BlockPos(minX, minY, minZ),
+            new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ)
+        );
+    }
+    
+    /**
+     * 更新 SelectionTool 以匹配 selectedBlocks
+     */
+    private void updateSelectionToolFromBlocks() {
+        if (selectedBlocks.isEmpty()) {
+            SelectionTool.INSTANCE.clearSelection();
+            return;
+        }
+        
+        // 计算边界
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        
+        for (net.minecraft.util.math.BlockPos pos : selectedBlocks) {
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+        
+        // 更新 SelectionTool
+        SelectionTool.INSTANCE.setSelection(
+            new net.minecraft.util.math.BlockPos(minX, minY, minZ),
+            new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ)
+        );
+    }
+    
+    /**
+     * 设置锚点
+     */
+    private void setAnchor(net.minecraft.util.math.BlockPos pos) {
+        if (pos == null) return;
+        
+        var st = ComponentTool.INSTANCE.getState();
+        st.anchorWorld = pos.toImmutable();
+        st.pickingAnchor = false;
+        
+        System.out.println("[ComponentCapturePanel] 设置锚点: " + pos);
+        com.formacraft.client.ui.toast.HudToast.show("✓ 锚点已设置: " + pos.toShortString());
+    }
+    
+    /**
+     * 清除选区
+     */
+    public void clearSelection() {
+        selectedBlocks.clear();
+        boxStart = null;
+        boxEnd = null;
+        isDragging = false;
+        SelectionTool.INSTANCE.clearSelection();
+        System.out.println("[ComponentCapturePanel] 清除选区");
+    }
+    
+    /**
+     * 是否正在选择
+     */
+    public boolean isSelecting() {
+        return isDragging || selectionMode != ComponentSelectionMode.BOX_SELECT;
+    }
+    
+    /**
+     * Tick 方法 - 处理拖拽更新
+     */
+    public void tick() {
+        if (isDragging) {
+            var hit = com.formacraft.client.interaction.CursorRaycastHelper.getLastBlockHit();
+            if (hit != null) {
+                handleWorldDrag(hit.getBlockPos());
+            }
+        }
     }
 }

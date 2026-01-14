@@ -4,7 +4,6 @@ import com.formacraft.common.component.ComponentDefinition;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
@@ -263,7 +262,7 @@ public final class ComponentThumbnailGenerator {
             Identifier id = Identifier.tryParse(blockId);
             if (id == null) return null;
             Block block = Registries.BLOCK.get(id);
-            if (block == null || block == Blocks.AIR) return null;
+            if (block == Blocks.AIR) return null;
             return block.getDefaultState();
         } catch (Throwable t) {
             return null;
@@ -412,7 +411,6 @@ public final class ComponentThumbnailGenerator {
             else if (blockName.contains("green") && !blockName.contains("lime")) color = 0xFF495B23;
             else if (blockName.contains("red")) color = 0xFF8E2121;
             else if (blockName.contains("black")) color = 0xFF080A0F;
-            else color = 0xFFAAAAAA;
         }
         // 金属块
         else if (blockName.contains("iron_block")) {

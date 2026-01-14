@@ -122,5 +122,21 @@ public final class SelectionTool implements FormacraftTool {
         this.end = null;
         this.selecting = false;
     }
+    
+    /**
+     * 直接设置选区（用于其他工具）
+     */
+    public void setSelection(BlockPos start, BlockPos end) {
+        this.start = start != null ? start.toImmutable() : null;
+        this.end = end != null ? end.toImmutable() : null;
+        this.selecting = false;
+    }
+    
+    /**
+     * 清除选区
+     */
+    public void clearSelection() {
+        clear();
+    }
 }
 

@@ -16,7 +16,7 @@ import com.formacraft.common.network.FormaCraftNetworking;
 
 /**
  * 输入路由中心（HUD 模式）
- *
+ * <p> <p>
  * 负责处理：
  * - 面板内：鼠标、键盘全部进入 UI
  * - 面板外：恢复原版游戏交互
@@ -168,6 +168,17 @@ public class InputRouter {
         // - 若工具未消费：右键设置锚点；左键也应被吞掉（完全拦截原版破坏/放置/开箱）
         boolean inside = isMouseInsideUI(x, y);
         if (!inside && (button == 0 || button == 1)) {
+            // 特殊处理：构件拾取面板激活时的世界交互
+            if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE) {
+                var hit = CursorRaycastHelper.getLastBlockHit();
+                if (hit != null && FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL != null) {
+                    if (FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL.handleWorldClick(hit.getBlockPos(), button)) {
+                        lastClickHandledByUI = true;
+                        return true;
+                    }
+                }
+            }
+            
             if (ToolManager.handleWorldClick(x, y, button)) {
                 lastClickHandledByUI = true;
                 return true;
@@ -349,6 +360,13 @@ public class InputRouter {
     public static boolean onMouseReleased(double x, double y, int button) {
         if (isPreviewLocked()) return true;
         if (!FormacraftUIState.isOpen) return false;
+        
+        // 特殊处理：构件拾取面板的世界交互
+        if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE) {
+            if (FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL != null) {
+                FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL.handleWorldRelease(button);
+            }
+        }
 
         BasePanel panel = getPanel();
         if (panel == null) return false;

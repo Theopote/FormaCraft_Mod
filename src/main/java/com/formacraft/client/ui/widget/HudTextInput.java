@@ -32,6 +32,9 @@ public class HudTextInput {
 
     // 限制
     private int maxLength = 512;
+    
+    // Placeholder 提示文本
+    private String placeholder = "";
 
     // 光标闪烁
     private long lastBlinkMs = 0;
@@ -73,6 +76,14 @@ public class HudTextInput {
 
     public void setPasswordMode(boolean passwordMode) {
         this.passwordMode = passwordMode;
+    }
+
+    public void setPlaceholder(String placeholder) {
+        this.placeholder = placeholder != null ? placeholder : "";
+    }
+    
+    public String getPlaceholder() {
+        return placeholder;
     }
 
     public void setMaxLength(int maxLength) {
@@ -133,10 +144,15 @@ public class HudTextInput {
             ctx.fill(selX1, y + 2, selX2, y + h - 2, 0xFF5555AA);
         }
 
-        // 文本
-        // 使用阴影增强可读性（HUD/世界背景上更稳定）
+        // 文本或 Placeholder
+        if (display.isEmpty() && !focused && !placeholder.isEmpty()) {
+            // 显示 Placeholder（灰色、半透明）
+            ctx.drawText(client.textRenderer, placeholder, drawX, textY, 0xFF888888, true);
+        } else {
+            // 使用阴影增强可读性（HUD/世界背景上更稳定）
             // 注意：颜色在 1.21+ 通常按 ARGB 解释，需要显式 alpha
             ctx.drawText(client.textRenderer, display, drawX, textY, 0xFFFFFFFF, true);
+        }
 
         // 光标
         if (focused && isCursorVisible()) {
