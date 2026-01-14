@@ -71,13 +71,16 @@ public final class ComponentThumbnailGenerator {
         // 投影公式：screenX = (x - z) * scale, screenY = y * scale - (x + z) * scale / 2
         BufferedImage img = new BufferedImage(THUMB_SIZE, THUMB_SIZE, BufferedImage.TYPE_INT_ARGB);
 
-        // 计算缩放比例
+        // 计算缩放比例 - 使每个方块占据更多像素
         double maxDim = Math.max(sizeX + sizeZ, sizeY + (sizeX + sizeZ) / 2.0);
-        double scale = (THUMB_SIZE * 0.8) / maxDim;
+        double scale = (THUMB_SIZE * 0.7) / maxDim; // 稍微放大一点
+        
+        // 确保每个方块至少有 3 像素大小
+        int blockPixelSize = Math.max(3, (int) Math.ceil(scale));
 
         // 中心偏移
         int centerX = THUMB_SIZE / 2;
-        int centerY = THUMB_SIZE / 2;
+        int centerY = (int) (THUMB_SIZE * 0.6); // 稍微向下偏移
 
         // 先填充透明背景
         for (int y = 0; y < THUMB_SIZE; y++) {
@@ -109,14 +112,30 @@ public final class ComponentThumbnailGenerator {
                     int px = (int) Math.round(centerX + screenX);
                     int py = (int) Math.round(centerY - screenY);
 
-                    // 绘制一个小方块（2x2 像素）
-                    for (int dy = 0; dy < 2; dy++) {
-                        for (int dx = 0; dx < 2; dx++) {
+                    // 绘制一个方块（使用计算的像素大小）
+                    // 三个可见面：顶面、左面、右面（等轴测视图）
+                    for (int dy = 0; dy < blockPixelSize; dy++) {
+                        for (int dx = 0; dx < blockPixelSize; dx++) {
                             int drawX = px + dx;
                             int drawY = py + dy;
                             if (drawX >= 0 && drawX < THUMB_SIZE && drawY >= 0 && drawY < THUMB_SIZE) {
-                                // 简单的深度着色（越高越亮）
-                                float brightness = 0.6f + 0.4f * (ry / (float) Math.max(1, sizeY));
+                                // 计算亮度：顶部最亮，两侧较暗
+                                float brightness;
+                                if (dy < blockPixelSize / 3) {
+                                    // 顶面 - 最亮
+                                    brightness = 1.0f;
+                                } else if (dx < blockPixelSize / 2) {
+                                    // 左面 - 中等亮度
+                                    brightness = 0.7f;
+                                } else {
+                                    // 右面 - 稍暗
+                                    brightness = 0.85f;
+                                }
+                                
+                                // 根据高度调整整体亮度
+                                float heightFactor = 0.7f + 0.3f * (ry / (float) Math.max(1, sizeY));
+                                brightness *= heightFactor;
+                                
                                 int shadedColor = applyBrightness(color, brightness);
                                 img.setRGB(drawX, drawY, shadedColor);
                             }
@@ -161,47 +180,105 @@ public final class ComponentThumbnailGenerator {
             return COLOR_CACHE.get(block);
         }
 
-        int color = 0xFFCCCCCC; // 默认灰色
-
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.getBlockColors() != null) {
-                BlockColors blockColors = client.getBlockColors();
-                // 获取方块颜色（使用默认 tint index 0）
-                int tint = blockColors.getColor(state, null, null, 0);
-                if (tint != -1) {
-                    color = 0xFF000000 | tint; // 添加完全不透明的 alpha
-                }
-            }
-        } catch (Throwable ignored) {}
-
-        // 特殊方块的颜色映射（简化）
-        if (block == Blocks.STONE || block == Blocks.COBBLESTONE) {
+        int color = 0xFFAAAAAA; // 默认中灰色
+        
+        // 使用方块名称进行颜色映射（更可靠）
+        String blockName = Registries.BLOCK.getId(block).getPath().toLowerCase();
+        
+        // 石头类
+        if (blockName.contains("stone") && !blockName.contains("sandstone")) {
+            color = 0xFF7F7F7F; // 灰色
+        } else if (blockName.contains("cobblestone") || blockName.contains("cobble")) {
             color = 0xFF7F7F7F;
-        } else if (block == Blocks.DIRT || block == Blocks.COARSE_DIRT) {
+        } else if (blockName.contains("andesite")) {
+            color = 0xFF838383;
+        } else if (blockName.contains("diorite")) {
+            color = 0xFFC4C4C4;
+        } else if (blockName.contains("granite")) {
+            color = 0xFF9F5D56;
+        }
+        // 泥土和草
+        else if (blockName.contains("dirt") || blockName.contains("soil")) {
             color = 0xFF8B5A3C;
-        } else if (block == Blocks.GRASS_BLOCK) {
+        } else if (blockName.contains("grass_block")) {
             color = 0xFF5C8A3E;
-        } else if (block == Blocks.OAK_PLANKS) {
+        }
+        // 木板
+        else if (blockName.contains("oak") && blockName.contains("planks")) {
             color = 0xFFB8945F;
-        } else if (block == Blocks.SPRUCE_PLANKS) {
+        } else if (blockName.contains("spruce") && blockName.contains("planks")) {
             color = 0xFF6F4E37;
-        } else if (block == Blocks.BIRCH_PLANKS) {
+        } else if (blockName.contains("birch") && blockName.contains("planks")) {
             color = 0xFFD7CB8D;
-        } else if (block == Blocks.GLASS) {
-            color = 0xCCFFFFFF; // 半透明白色
-        } else if (block == Blocks.BRICKS) {
-            color = 0xFF9A5A3C;
-        } else if (block == Blocks.OAK_LOG || block == Blocks.SPRUCE_LOG) {
+        } else if (blockName.contains("jungle") && blockName.contains("planks")) {
+            color = 0xFF9F7654;
+        } else if (blockName.contains("acacia") && blockName.contains("planks")) {
+            color = 0xFFB4684D;
+        } else if (blockName.contains("dark_oak") && blockName.contains("planks")) {
+            color = 0xFF4F2F1C;
+        }
+        // 原木
+        else if (blockName.contains("log")) {
             color = 0xFF6F4E37;
-        } else if (block == Blocks.OAK_LEAVES || block == Blocks.SPRUCE_LEAVES) {
+        }
+        // 叶子
+        else if (blockName.contains("leaves")) {
             color = 0xFF5C8A3E;
-        } else if (block == Blocks.SAND) {
+        }
+        // 玻璃
+        else if (blockName.contains("glass")) {
+            color = 0xAADDDDDD; // 半透明
+        }
+        // 砖类
+        else if (blockName.contains("bricks") || blockName.equals("bricks")) {
+            color = 0xFF9A5A3C;
+        } else if (blockName.contains("stone_brick")) {
+            color = 0xFF7A7A7A;
+        }
+        // 沙子和砂岩
+        else if (blockName.contains("sand") && !blockName.contains("stone")) {
             color = 0xFFDBD3A0;
-        } else if (block == Blocks.SANDSTONE) {
+        } else if (blockName.contains("sandstone")) {
             color = 0xFFC9B181;
-        } else if (block == Blocks.WHITE_WOOL || block.toString().contains("wool")) {
+        }
+        // 羊毛
+        else if (blockName.contains("white_wool")) {
             color = 0xFFEEEEEE;
+        } else if (blockName.contains("wool")) {
+            // 尝试根据颜色名称确定
+            if (blockName.contains("red")) color = 0xFFB02E26;
+            else if (blockName.contains("orange")) color = 0xFFF9801D;
+            else if (blockName.contains("yellow")) color = 0xFFFED83D;
+            else if (blockName.contains("green") && !blockName.contains("lime")) color = 0xFF5E7C16;
+            else if (blockName.contains("lime")) color = 0xFF80C71F;
+            else if (blockName.contains("blue") && !blockName.contains("light")) color = 0xFF3C44AA;
+            else if (blockName.contains("light_blue")) color = 0xFF3AB3DA;
+            else if (blockName.contains("cyan")) color = 0xFF169C9C;
+            else if (blockName.contains("purple")) color = 0xFF8932B8;
+            else if (blockName.contains("magenta")) color = 0xFFC74EBD;
+            else if (blockName.contains("pink")) color = 0xFFF38BAA;
+            else if (blockName.contains("black")) color = 0xFF1D1D21;
+            else if (blockName.contains("gray") && !blockName.contains("light")) color = 0xFF474F52;
+            else if (blockName.contains("light_gray")) color = 0xFF9D9D97;
+            else if (blockName.contains("brown")) color = 0xFF835432;
+            else color = 0xFFDDDDDD;
+        }
+        // 混凝土
+        else if (blockName.contains("concrete") && !blockName.contains("powder")) {
+            if (blockName.contains("white")) color = 0xFFE0E0E0;
+            else if (blockName.contains("red")) color = 0xFF8E2121;
+            else if (blockName.contains("black")) color = 0xFF080A0F;
+            else color = 0xFFAAAAAA;
+        }
+        // 金属块
+        else if (blockName.contains("iron_block")) {
+            color = 0xFFD8D8D8;
+        } else if (blockName.contains("gold_block")) {
+            color = 0xFFF9E865;
+        } else if (blockName.contains("diamond_block")) {
+            color = 0xFF5CDBD5;
+        } else if (blockName.contains("emerald_block")) {
+            color = 0xFF17DD62;
         }
 
         COLOR_CACHE.put(block, color);
