@@ -66,11 +66,9 @@ public abstract class BasePanel {
                 .dimensions(0, 0, COLLAPSE_BUTTON_SIZE, COLLAPSE_BUTTON_SIZE)
                 .build();
         newChatButton = ButtonWidget.builder(Text.literal("+"), b -> {
-                    // 仅 Chat 标签下使用：保存到历史并新建对话
+                    // 仅 Chat 标签下使用：新建对话（历史功能已移除）
                     if (!FormaCraftHudOverlay.ensurePanelsReady()) return;
-                    if (FormaCraftHudOverlay.CHAT_PANEL == null || FormaCraftHudOverlay.HISTORY_PANEL == null) return;
-                    ChatPanel.ConversationSnapshot snap = FormaCraftHudOverlay.CHAT_PANEL.exportConversationSnapshot();
-                    FormaCraftHudOverlay.HISTORY_PANEL.addConversation(snap);
+                    if (FormaCraftHudOverlay.CHAT_PANEL == null) return;
                     FormaCraftHudOverlay.CHAT_PANEL.startNewConversation();
                 })
                 .dimensions(0, 0, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)

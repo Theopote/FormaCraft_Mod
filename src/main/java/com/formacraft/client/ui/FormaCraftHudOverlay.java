@@ -18,12 +18,10 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
     
     // 面板实例（公开访问，供 InputRouter 使用）
     public static ChatPanel CHAT_PANEL;
-    public static BlueprintPanel BLUEPRINT_PANEL;
     public static ToolPanel TOOL_PANEL;
     public static ComponentLibraryPanel COMPONENT_LIBRARY_PANEL;
-    public static ComponentCapturePanel COMPONENT_CAPTURE_PANEL;  // 新增：构件拾取面板
+    public static ComponentCapturePanel COMPONENT_CAPTURE_PANEL;
     public static SettingsPanel SETTINGS_PANEL;
-    public static HistoryPanel HISTORY_PANEL;
     public static final BuildConfirmPanel BUILD_CONFIRM_PANEL = BuildConfirmPanel.INSTANCE;
 
     private static boolean initialized = false;
@@ -43,21 +41,10 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
         }
 
         if (CHAT_PANEL == null) CHAT_PANEL = new ChatPanel();
-        if (BLUEPRINT_PANEL == null) BLUEPRINT_PANEL = new BlueprintPanel();
         if (TOOL_PANEL == null) TOOL_PANEL = new ToolPanel();
         if (COMPONENT_LIBRARY_PANEL == null) COMPONENT_LIBRARY_PANEL = new ComponentLibraryPanel();
-        if (COMPONENT_CAPTURE_PANEL == null) COMPONENT_CAPTURE_PANEL = new ComponentCapturePanel();  // 新增
+        if (COMPONENT_CAPTURE_PANEL == null) COMPONENT_CAPTURE_PANEL = new ComponentCapturePanel();
         if (SETTINGS_PANEL == null) SETTINGS_PANEL = new SettingsPanel();
-        if (HISTORY_PANEL == null) HISTORY_PANEL = new HistoryPanel();
-
-        // 初始化 BlueprintPanel 的监听器（只做一次）
-        if (initialized) {
-            BLUEPRINT_PANEL.setListener((spec, name) -> {
-                if (spec != null) {
-                    BUILD_CONFIRM_PANEL.show(spec);
-                }
-            });
-        }
 
         panelsReady = true;
         return true;
@@ -68,14 +55,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
      */
     public static void initialize() {
         initialized = true;
-        // 如果面板已经初始化完，则立即挂 listener；否则等 ensurePanelsReady() 时挂
-        if (BLUEPRINT_PANEL != null) {
-            BLUEPRINT_PANEL.setListener((spec, name) -> {
-                if (spec != null) {
-                    BUILD_CONFIRM_PANEL.show(spec);
-                }
-            });
-        }
     }
     
     // 当前激活的面板
@@ -107,12 +86,10 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
         // 根据激活的面板渲染对应内容
         switch (activePanel) {
             case CHAT -> { if (CHAT_PANEL != null) CHAT_PANEL.render(context); }
-            case BLUEPRINT -> { if (BLUEPRINT_PANEL != null) BLUEPRINT_PANEL.render(context); }
             case TOOLS -> { if (TOOL_PANEL != null) TOOL_PANEL.render(context); }
             case COMPONENT_LIBRARY -> { if (COMPONENT_LIBRARY_PANEL != null) COMPONENT_LIBRARY_PANEL.render(context); }
             case COMPONENT_CAPTURE -> { if (COMPONENT_CAPTURE_PANEL != null) COMPONENT_CAPTURE_PANEL.render(context); }
             case SETTINGS -> { if (SETTINGS_PANEL != null) SETTINGS_PANEL.render(context); }
-            case HISTORY -> { if (HISTORY_PANEL != null) HISTORY_PANEL.render(context); }
             case NONE -> {} // 无操作
         }
         
@@ -143,9 +120,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                 case CHAT -> {
                     if (CHAT_PANEL != null && CHAT_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
-                case BLUEPRINT -> {
-                    if (BLUEPRINT_PANEL != null && BLUEPRINT_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
-                }
                 case TOOLS -> {
                     if (TOOL_PANEL != null && TOOL_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
@@ -157,9 +131,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                 }
                 case SETTINGS -> {
                     if (SETTINGS_PANEL != null && SETTINGS_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
-                }
-                case HISTORY -> {
-                    if (HISTORY_PANEL != null && HISTORY_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
                 case NONE -> { }
                 // 无操作
@@ -188,10 +159,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                     if (CHAT_PANEL != null) CHAT_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
-                case BLUEPRINT -> {
-                    if (BLUEPRINT_PANEL != null) BLUEPRINT_PANEL.keyPressed(keyCode, scanCode, modifiers);
-                    return true;
-                }
                 case TOOLS -> {
                     if (TOOL_PANEL != null) TOOL_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
@@ -206,10 +173,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                 }
                 case SETTINGS -> {
                     if (SETTINGS_PANEL != null) SETTINGS_PANEL.keyPressed(keyCode, scanCode, modifiers);
-                    return true;
-                }
-                case HISTORY -> {
-                    if (HISTORY_PANEL != null) HISTORY_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
                 case NONE -> { }
@@ -234,10 +197,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                     if (CHAT_PANEL != null) CHAT_PANEL.charTyped(chr);
                     return true;
                 }
-                case BLUEPRINT -> {
-                    if (BLUEPRINT_PANEL != null) BLUEPRINT_PANEL.charTyped(chr);
-                    return true;
-                }
                 case TOOLS -> {
                     if (TOOL_PANEL != null) TOOL_PANEL.charTyped(chr);
                     return true;
@@ -252,10 +211,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                 }
                 case SETTINGS -> {
                     if (SETTINGS_PANEL != null) SETTINGS_PANEL.charTyped(chr);
-                    return true;
-                }
-                case HISTORY -> {
-                    if (HISTORY_PANEL != null) HISTORY_PANEL.charTyped(chr);
                     return true;
                 }
                 case NONE -> { }
