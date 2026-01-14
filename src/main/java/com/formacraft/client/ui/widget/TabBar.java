@@ -53,6 +53,7 @@ public class TabBar {
         tabs.add(new TabInfo(PanelType.BLUEPRINT, "📋", Text.translatable("formacraft.tab.blueprint"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.TOOLS, "🧰", Text.translatable("formacraft.tab.tools"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.COMPONENT_LIBRARY, "📦", Text.translatable("formacraft.tab.component_library"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.COMPONENT_CAPTURE, "🎯", Text.translatable("formacraft.tab.component_capture"), TAB_SIZE));  // 新增
         tabs.add(new TabInfo(PanelType.HISTORY, "📜", Text.translatable("formacraft.tab.history"), TAB_SIZE));
         tabs.add(new TabInfo(PanelType.SETTINGS, "⚙", Text.translatable("formacraft.tab.settings"), TAB_SIZE));
     }

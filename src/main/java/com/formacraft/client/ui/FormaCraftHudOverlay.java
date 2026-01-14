@@ -21,6 +21,7 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
     public static BlueprintPanel BLUEPRINT_PANEL;
     public static ToolPanel TOOL_PANEL;
     public static ComponentLibraryPanel COMPONENT_LIBRARY_PANEL;
+    public static ComponentCapturePanel COMPONENT_CAPTURE_PANEL;  // 新增：构件拾取面板
     public static SettingsPanel SETTINGS_PANEL;
     public static HistoryPanel HISTORY_PANEL;
     public static final BuildConfirmPanel BUILD_CONFIRM_PANEL = BuildConfirmPanel.INSTANCE;
@@ -45,6 +46,7 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
         if (BLUEPRINT_PANEL == null) BLUEPRINT_PANEL = new BlueprintPanel();
         if (TOOL_PANEL == null) TOOL_PANEL = new ToolPanel();
         if (COMPONENT_LIBRARY_PANEL == null) COMPONENT_LIBRARY_PANEL = new ComponentLibraryPanel();
+        if (COMPONENT_CAPTURE_PANEL == null) COMPONENT_CAPTURE_PANEL = new ComponentCapturePanel();  // 新增
         if (SETTINGS_PANEL == null) SETTINGS_PANEL = new SettingsPanel();
         if (HISTORY_PANEL == null) HISTORY_PANEL = new HistoryPanel();
 
@@ -108,6 +110,7 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
             case BLUEPRINT -> { if (BLUEPRINT_PANEL != null) BLUEPRINT_PANEL.render(context); }
             case TOOLS -> { if (TOOL_PANEL != null) TOOL_PANEL.render(context); }
             case COMPONENT_LIBRARY -> { if (COMPONENT_LIBRARY_PANEL != null) COMPONENT_LIBRARY_PANEL.render(context); }
+            case COMPONENT_CAPTURE -> { if (COMPONENT_CAPTURE_PANEL != null) COMPONENT_CAPTURE_PANEL.render(context); }
             case SETTINGS -> { if (SETTINGS_PANEL != null) SETTINGS_PANEL.render(context); }
             case HISTORY -> { if (HISTORY_PANEL != null) HISTORY_PANEL.render(context); }
             case NONE -> {} // 无操作
@@ -148,6 +151,9 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                 }
                 case COMPONENT_LIBRARY -> {
                     if (COMPONENT_LIBRARY_PANEL != null && COMPONENT_LIBRARY_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
+                }
+                case COMPONENT_CAPTURE -> {
+                    if (COMPONENT_CAPTURE_PANEL != null && COMPONENT_CAPTURE_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
                 }
                 case SETTINGS -> {
                     if (SETTINGS_PANEL != null && SETTINGS_PANEL.mouseClicked(mouseX, mouseY, button)) return true;
@@ -194,6 +200,10 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                     if (COMPONENT_LIBRARY_PANEL != null) COMPONENT_LIBRARY_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
+                case COMPONENT_CAPTURE -> {
+                    if (COMPONENT_CAPTURE_PANEL != null) COMPONENT_CAPTURE_PANEL.keyPressed(keyCode, scanCode, modifiers);
+                    return true;
+                }
                 case SETTINGS -> {
                     if (SETTINGS_PANEL != null) SETTINGS_PANEL.keyPressed(keyCode, scanCode, modifiers);
                     return true;
@@ -234,6 +244,10 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
                 }
                 case COMPONENT_LIBRARY -> {
                     if (COMPONENT_LIBRARY_PANEL != null) COMPONENT_LIBRARY_PANEL.charTyped(chr);
+                    return true;
+                }
+                case COMPONENT_CAPTURE -> {
+                    if (COMPONENT_CAPTURE_PANEL != null) COMPONENT_CAPTURE_PANEL.charTyped(chr);
                     return true;
                 }
                 case SETTINGS -> {

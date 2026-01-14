@@ -10,12 +10,9 @@ import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
-import com.formacraft.client.component.ComponentThumbnailCache;
 import com.formacraft.client.interaction.AnchorState;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.client.ui.toast.HudToast;
-import com.formacraft.client.preview.ComponentPreviewState;
-import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -24,7 +21,6 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,9 +60,6 @@ public class ToolPanel extends BasePanel {
     private ButtonWidget clearLabelsButton;
 
     private final HudTextInput labelNameInput = new HudTextInput();
-    private final HudTextInput componentNameInput = new HudTextInput();
-    private final HudTextInput componentTagsInput = new HudTextInput();
-    private final HudTextInput componentSocketIdInput = new HudTextInput();
 
     // 标签“作用范围”滑动条（1~40）——参考 SettingsPanel 的 SliderWidget 实现
     private static final int LABEL_RANGE_MIN = 1;
@@ -81,47 +74,11 @@ public class ToolPanel extends BasePanel {
     private int labelNameInputH = 0;
     private boolean labelNameInputBoundsValid = false;
 
-    private int componentNameInputX = 0;
-    private int componentNameInputY = 0;
-    private int componentNameInputW = 0;
-    private int componentNameInputH = 0;
-    private boolean componentNameInputBoundsValid = false;
-
-    private int componentTagsInputX = 0;
-    private int componentTagsInputY = 0;
-    private int componentTagsInputW = 0;
-    private int componentTagsInputH = 0;
-    private boolean componentTagsInputBoundsValid = false;
-
-    private int componentSocketIdInputX = 0;
-    private int componentSocketIdInputY = 0;
-    private int componentSocketIdInputW = 0;
-    private int componentSocketIdInputH = 0;
-    private boolean componentSocketIdInputBoundsValid = false;
 
 
-    // ComponentTool 选项按钮
-    private ButtonWidget componentCategoryButton;
-    private ButtonWidget componentSourceButton;
-    private ButtonWidget componentLibraryPickButton;
-    private ButtonWidget componentLibraryLoadButton;
-    private ButtonWidget componentPickAnchorButton;
-    private ButtonWidget componentClearAnchorButton;
-    private ButtonWidget componentFacingButton;
-    private ButtonWidget componentMirrorButton;
-    private ButtonWidget componentSkinModeButton;
-    private ButtonWidget componentSemanticTagOnSaveButton;
-    private ButtonWidget componentSemanticStyleButton;
-    private ButtonWidget componentSemanticPartButton;
-    private ButtonWidget componentSaveButton;
+    // ComponentTool 使用按钮（保留预览和放置功能）
     private ButtonWidget componentPreviewButton;
     private ButtonWidget componentApplyButton;
-    private ButtonWidget componentSocketTypeButton;
-    private ButtonWidget componentSocketPickOriginButton;
-    private ButtonWidget componentSocketFacingButton;
-    private ButtonWidget componentSocketAddButton;
-    private ButtonWidget componentSocketClearButton;
-    private ButtonWidget componentSocketPreviewButton;
 
     // 滚动（仅用于选项区域）
     private int scrollY = 0;
@@ -224,133 +181,7 @@ public class ToolPanel extends BasePanel {
         labelNameInput.setMaxLength(64);
         labelNameInput.setText("入口");
 
-        // ComponentTool inputs/buttons
-        componentNameInput.setMaxLength(64);
-        componentNameInput.setText("New Component");
-        componentTagsInput.setMaxLength(256);
-        componentTagsInput.setText("Chinese,Traditional,Wood");
-        componentSocketIdInput.setMaxLength(64);
-        componentSocketIdInput.setText("main_door");
-
-        componentCategoryButton = ButtonWidget.builder(Text.literal("分类：GENERIC"), b -> ComponentTool.INSTANCE.cycleCategory())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换构件分类")))
-                .build();
-        componentSourceButton = ButtonWidget.builder(Text.literal("来源：选区"), b -> ComponentTool.INSTANCE.toggleSource())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("切换构件来源：当前选区 / 构件库")))
-                .build();
-        componentLibraryPickButton = ButtonWidget.builder(Text.literal("构件库"), b -> com.formacraft.client.ui.FormaCraftHudOverlay.activePanel = PanelType.COMPONENT_LIBRARY)
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("打开构件库面板（缩略图浏览/搜索/排序）")))
-                .build();
-        componentLibraryLoadButton = ButtonWidget.builder(Text.literal("加载构件"), b -> ComponentTool.INSTANCE.requestLoadSelectedComponent())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("请求服务端下发该构件定义（ComponentDefinition JSON）")))
-                .build();
-        componentPickAnchorButton = ButtonWidget.builder(Text.literal("选择 Anchor"), b -> ComponentTool.INSTANCE.startPickAnchor())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("下一次左键点击选区内方块作为构件 anchor")))
-                .build();
-        componentClearAnchorButton = ButtonWidget.builder(Text.literal("清除构件锚点"), b -> ComponentTool.INSTANCE.clearAnchor())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("清除构件 anchor（将回退为选区 min）")))
-                .build();
-        componentFacingButton = ButtonWidget.builder(Text.literal("正面：SOUTH"), b -> ComponentTool.INSTANCE.cycleFacing())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换构件正面朝向（N/E/S/W）")))
-                .build();
-        componentMirrorButton = ButtonWidget.builder(Text.literal("镜像：NONE"), b -> ComponentTool.INSTANCE.cycleMirror())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("镜像模式：NONE / X / Z（先镜像再旋转）")))
-                .build();
-        componentSkinModeButton = ButtonWidget.builder(Text.literal("材质：原样"), b -> ComponentTool.INSTANCE.toggleSemanticSkin())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("切换材质模式：原样方块 / 语义换皮（由风格调色板决定）")))
-                .build();
-        componentSemanticTagOnSaveButton = ButtonWidget.builder(Text.literal("存语义：开"), b -> ComponentTool.INSTANCE.getState().semanticTagOnSave = !ComponentTool.INSTANCE.getState().semanticTagOnSave)
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("保存构件时自动写入每个方块的 semantic（推荐开启，便于后续换皮）")))
-                .build();
-        componentSemanticStyleButton = ButtonWidget.builder(Text.literal("风格：DEFAULT"), b -> ComponentTool.INSTANCE.cycleSemanticStyle())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换语义风格（SemanticStyleProfile）")))
-                .build();
-        componentSemanticPartButton = ButtonWidget.builder(Text.literal("语义：WALL"), b -> ComponentTool.INSTANCE.cycleSemanticPart())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换语义部位（用于语义换皮选材）")))
-                .build();
-        componentSocketTypeButton = ButtonWidget.builder(Text.literal("SocketType: DOOR"), b -> ComponentTool.INSTANCE.cycleSocketType())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换 SocketType（并套用默认尺寸）")))
-                .build();
-        componentSocketPickOriginButton = ButtonWidget.builder(Text.literal("点选 Socket 原点"), b -> ComponentTool.INSTANCE.startPickSocketOrigin())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("下一次左键点击选区内方块作为 socket 原点（相对 Anchor）")))
-                .build();
-        componentSocketFacingButton = ButtonWidget.builder(Text.literal("SocketFacing: SOUTH"), b -> ComponentTool.INSTANCE.cycleSocketFacing())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("循环切换 socket 朝向（N/E/S/W）")))
-                .build();
-        componentSocketAddButton = ButtonWidget.builder(Text.literal("添加 Socket"), b -> ComponentTool.INSTANCE.addSocket())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("将当前 socket 配置添加到构件（保存时写入 JSON）")))
-                .build();
-        componentSocketClearButton = ButtonWidget.builder(Text.literal("清空 Sockets"), b -> ComponentTool.INSTANCE.clearSockets())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("清空当前构件已添加的 sockets")))
-                .build();
-        componentSocketPreviewButton = ButtonWidget.builder(Text.literal("预览 Socket"), b -> ComponentTool.INSTANCE.toggleSocketPreview(client))
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("在世界中预览当前 Socket 的开洞体积与朝向")))
-                .build();
-        componentSaveButton = ButtonWidget.builder(Text.literal("保存为构件"), b -> {
-                    // v1：Anchor 必须显式选择
-                    if (!SelectionTool.INSTANCE.hasSelection()) {
-                        HudToast.show("保存失败：请先完成选区", true);
-                        return;
-                    }
-                    if (ComponentTool.INSTANCE.getState().anchorWorld == null) {
-                        HudToast.show("保存失败：请先选择 Anchor", true);
-                        return;
-                    }
-                    String nm = ComponentTool.INSTANCE.getState().name;
-                    if (nm == null || nm.isBlank()) {
-                        HudToast.show("保存失败：名称不能为空", true);
-                        return;
-                    }
-
-                    String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
-                    if (json == null || json.isBlank()) {
-                        HudToast.show("保存失败：请检查选区/Anchor", true);
-                        return;
-                    }
-
-                    // 生成缩略图
-                    byte[] thumbnailPng = null;
-                    try {
-                        com.formacraft.common.component.ComponentDefinition def = com.formacraft.common.json.JsonUtil.fromJson(json, com.formacraft.common.component.ComponentDefinition.class);
-                        if (def != null) {
-                            java.awt.image.BufferedImage thumb = com.formacraft.client.component.ComponentThumbnailGenerator.generateThumbnail(def);
-                            if (thumb != null) {
-                                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                                javax.imageio.ImageIO.write(thumb, "PNG", baos);
-                                thumbnailPng = baos.toByteArray();
-                            }
-                        }
-                    } catch (Throwable t) {
-                        // 缩略图生成失败不影响保存
-                        System.err.println("Failed to generate thumbnail: " + t.getMessage());
-                    }
-
-                    ComponentTool.INSTANCE.markSavePending(nm);
-                    HudToast.show("正在保存构件「" + nm.trim() + "」…");
-                    FormaCraftNetworking.sendSaveComponent(json, thumbnailPng);
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("将选区内容保存到构件库（服务端 world save）")))
-                .build();
-
+        // ComponentTool 使用按钮（构件拾取功能已迁移到 ComponentCapturePanel）
         componentPreviewButton = ButtonWidget.builder(Text.literal("预览放置"), b -> ComponentTool.INSTANCE.preview(client))
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("在锚点处预览该构件（不真正放置方块）")))
@@ -380,9 +211,6 @@ public class ToolPanel extends BasePanel {
 
         // 每帧重置 bounds（如果本帧没画到输入框，就不允许点击命中它）
         labelNameInputBoundsValid = false;
-        componentNameInputBoundsValid = false;
-        componentTagsInputBoundsValid = false;
-        componentSocketIdInputBoundsValid = false;
 
         // 半透明底
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
@@ -507,7 +335,12 @@ public class ToolPanel extends BasePanel {
         } else if (ToolManager.isActive(SemanticLabelTool.INSTANCE.getId())) {
             optionsY = drawSemanticLabelToolOptions(ctx, x, optionsY, w);
         } else if (ToolManager.isActive(ComponentTool.INSTANCE.getId())) {
-            optionsY = drawComponentToolOptions(ctx, x, optionsY, w);
+            // 构件工具已迁移到 ComponentCapturePanel
+            optionsY = drawWrappedText(ctx, Text.literal("💡 构件拾取功能已移至「构件拾取」面板"), x, optionsY, w, 0xFF66CCFF);
+            optionsY += 2;
+            optionsY = drawWrappedText(ctx, Text.literal("请切换到顶部「构件拾取」标签页进行构件配置和保存"), x, optionsY, w, 0xFFAAAAAA);
+            optionsY += 4;
+            // optionsY = drawComponentToolOptions(ctx, x, optionsY, w);  // 已废弃
         }
 
         // 锚点状态（有工具时也显示在底部，作为通用选项）
@@ -736,328 +569,6 @@ public class ToolPanel extends BasePanel {
 
     }
 
-    // 绘制 ComponentTool 的选项
-    private int drawComponentToolOptions(DrawContext ctx, int x, int y, int w) {
-        // 标题
-        y = drawWrappedText(ctx, Text.literal("[ Component Tool ]"), x, y, w, 0xFFFFFFFF);
-        y += 2;
-
-        // Selection 状态提示
-        String status = getString();
-        y = drawWrappedText(ctx, Text.literal(status), x, y, w, 0xFFAAAAAA);
-        y += 2;
-
-        // 分类按钮
-        componentCategoryButton.setMessage(Text.literal("分类：" + ComponentTool.INSTANCE.getState().category.name()));
-        componentCategoryButton.setPosition(x, y);
-        componentCategoryButton.setWidth(w);
-        componentCategoryButton.visible = true;
-        componentCategoryButton.active = true;
-        componentCategoryButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 来源 / 构件库选择（两按钮一行）
-        int half = (w - 4) / 2;
-        var st = ComponentTool.INSTANCE.getState();
-        componentSourceButton.setMessage(Text.literal(st.useLibrary ? "来源：构件库" : "来源：选区"));
-        componentSourceButton.setPosition(x, y);
-        componentSourceButton.setWidth(half);
-        componentSourceButton.visible = true;
-        componentSourceButton.active = true;
-        componentSourceButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        componentLibraryPickButton.setMessage(Text.literal("构件：" + (st.librarySelectedName != null ? st.librarySelectedName : "未选择")));
-        componentLibraryPickButton.setPosition(x + half + 4, y);
-        componentLibraryPickButton.setWidth(w - half - 4);
-        componentLibraryPickButton.visible = true;
-        componentLibraryPickButton.active = st.useLibrary;
-        componentLibraryPickButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 构件加载按钮（单行）
-        componentLibraryLoadButton.setPosition(x, y);
-        componentLibraryLoadButton.setWidth(w);
-        componentLibraryLoadButton.visible = true;
-        componentLibraryLoadButton.active = st.useLibrary && st.librarySelectedId != null && !st.librarySelectedId.isBlank();
-        componentLibraryLoadButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 缩略图预览（v1：从全局组件库读取 <id>.png）
-        if (st.useLibrary && st.librarySelectedId != null && !st.librarySelectedId.isBlank()) {
-            var thumb = ComponentThumbnailCache.getThumb(st.librarySelectedId, 32);
-            if (thumb != null && thumb.argb() != null) {
-                int sz = 64;
-                int px = x + w - sz;
-                int py = y;
-                int tw = thumb.w();
-                int th = thumb.h();
-                int[] argb = thumb.argb();
-
-                int scale = Math.max(1, sz / Math.max(1, Math.max(tw, th)));
-                int drawW = tw * scale;
-                int drawH = th * scale;
-                int ox = px + (sz - drawW) / 2;
-                int oy = py + (sz - drawH) / 2;
-
-                // 背板
-                ctx.fill(px, py, px + sz, py + sz, 0xFF111118);
-                // 像素绘制（小图，fill 次数可控）
-                for (int yy = 0; yy < th; yy++) {
-                    for (int xx = 0; xx < tw; xx++) {
-                        int c = argb[yy * tw + xx];
-                        // ImageIO 的 ARGB 已经是 0xAARRGGBB
-                        int x0 = ox + xx * scale;
-                        int y0 = oy + yy * scale;
-                        ctx.fill(x0, y0, x0 + scale, y0 + scale, c);
-                    }
-                }
-                // 边框
-                ctx.fill(px, py, px + sz, py + 1, 0x66FFFFFF);
-                ctx.fill(px, py + sz - 1, px + sz, py + sz, 0x66FFFFFF);
-                ctx.fill(px, py, px + 1, py + sz, 0x66FFFFFF);
-                ctx.fill(px + sz - 1, py, px + sz, py + sz, 0x66FFFFFF);
-                y += sz + 2;
-            }
-        }
-
-        // 构件库已独立为顶部标签页：请在“构件库”面板中浏览/搜索/排序/双击加载
-        if (st.useLibrary) {
-            y = drawWrappedText(ctx, Text.literal("提示：构件库已移动到顶部「构件库」标签页。"), x, y, w, 0xFFAAAAAA);
-            y += 2;
-        }
-
-        // 名称输入
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("名称："), x, y, 0xFFAAAAAA);
-        int nameInputY = y + LABEL_OFFSET - 2;
-        componentNameInput.render(ctx, x, nameInputY, w, 14);
-        componentNameInputX = x;
-        componentNameInputY = nameInputY;
-        componentNameInputW = w;
-        componentNameInputH = 14;
-        componentNameInputBoundsValid = true;
-        String nm = componentNameInput.getText();
-        if (nm != null && !nm.isBlank()) {
-            ComponentTool.INSTANCE.getState().name = nm.trim();
-        }
-        y += FIELD_SPACING;
-
-        // Tags 输入
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("Tags（逗号分隔）："), x, y, 0xFFAAAAAA);
-        int tagsInputY = y + LABEL_OFFSET - 2;
-        componentTagsInput.render(ctx, x, tagsInputY, w, 14);
-        componentTagsInputX = x;
-        componentTagsInputY = tagsInputY;
-        componentTagsInputW = w;
-        componentTagsInputH = 14;
-        componentTagsInputBoundsValid = true;
-
-        String rawTags = componentTagsInput.getText();
-        java.util.Set<String> tags = new java.util.LinkedHashSet<>();
-        if (rawTags != null && !rawTags.isBlank()) {
-            for (String part : rawTags.split(",")) {
-                String t = part.trim();
-                if (!t.isEmpty()) tags.add(t);
-            }
-        }
-        ComponentTool.INSTANCE.getState().tags = tags;
-        y += FIELD_SPACING;
-
-        // Anchor + Facing 状态
-        String anchorText = st.anchorWorld != null
-                ? ("构件锚点：" + st.anchorWorld.getX() + "," + st.anchorWorld.getY() + "," + st.anchorWorld.getZ())
-                : "构件锚点：未设置";
-        String facingText = "Facing: " + (st.facing != null ? st.facing.name() : "SOUTH");
-        y = drawWrappedText(ctx,
-                Text.literal(anchorText + "  " + facingText + (st.pickingAnchor ? "（正在点选…）" : "")),
-                x, y, w, 0xFFAAAAAA);
-        y += 2;
-
-        // 悬停合法性反馈（构件库放置模式）
-        if (st.useLibrary) {
-            String hint = ComponentTool.INSTANCE.getHoverPlacementHint();
-            if (hint != null && !hint.isBlank()) {
-                y = drawWrappedText(ctx, Text.literal(hint), x, y, w, 0xFFAAAAAA);
-                y += 2;
-            }
-        }
-
-        // Anchor / Facing 一行两个按钮（符合现有“两按钮一行”的风格）
-        componentPickAnchorButton.setPosition(x, y);
-        componentPickAnchorButton.setWidth(half);
-        componentPickAnchorButton.visible = true;
-        componentPickAnchorButton.active = st.useLibrary || SelectionTool.INSTANCE.hasSelection();
-        componentPickAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        componentFacingButton.setMessage(Text.literal("Facing: " + (st.facing != null ? st.facing.name() : "SOUTH")));
-        componentFacingButton.setPosition(x + half + 4, y);
-        componentFacingButton.setWidth(w - half - 4);
-        componentFacingButton.visible = true;
-        componentFacingButton.active = true;
-        componentFacingButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // Mirror / ClearAnchor 一行两个按钮
-        componentMirrorButton.setMessage(Text.literal("Mirror: " + (st.mirror != null ? st.mirror.name() : "NONE")));
-        componentMirrorButton.setPosition(x, y);
-        componentMirrorButton.setWidth(half);
-        componentMirrorButton.visible = true;
-        componentMirrorButton.active = true;
-        componentMirrorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        componentClearAnchorButton.setPosition(x + half + 4, y);
-        componentClearAnchorButton.setWidth(w - half - 4);
-        componentClearAnchorButton.visible = true;
-        componentClearAnchorButton.active = st.anchorWorld != null || st.pickingAnchor;
-        componentClearAnchorButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 材质模式 / 存语义（两按钮一行）
-        componentSkinModeButton.setMessage(Text.literal(st.semanticSkin ? "材质：语义" : "材质：原样"));
-        componentSkinModeButton.setPosition(x, y);
-        componentSkinModeButton.setWidth(half);
-        componentSkinModeButton.visible = true;
-        componentSkinModeButton.active = true;
-        componentSkinModeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        componentSemanticTagOnSaveButton.setMessage(Text.literal(st.semanticTagOnSave ? "存语义：开" : "存语义：关"));
-        componentSemanticTagOnSaveButton.setPosition(x + half + 4, y);
-        componentSemanticTagOnSaveButton.setWidth(w - half - 4);
-        componentSemanticTagOnSaveButton.visible = true;
-        componentSemanticTagOnSaveButton.active = true;
-        componentSemanticTagOnSaveButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 风格（单行）
-        componentSemanticStyleButton.setMessage(Text.literal("风格：" + (st.semanticStyleId != null ? st.semanticStyleId : "DEFAULT")));
-        componentSemanticStyleButton.setPosition(x, y);
-        componentSemanticStyleButton.setWidth(w);
-        componentSemanticStyleButton.visible = true;
-        componentSemanticStyleButton.active = st.semanticSkin;
-        componentSemanticStyleButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 语义部位（单行）
-        componentSemanticPartButton.setMessage(Text.literal("语义：" + (st.semanticPart != null ? st.semanticPart.name() : "AUTO")));
-        componentSemanticPartButton.setPosition(x, y);
-        componentSemanticPartButton.setWidth(w);
-        componentSemanticPartButton.visible = true;
-        componentSemanticPartButton.active = st.semanticSkin;
-        componentSemanticPartButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // ===== Socket（开洞/安装）编辑区 =====
-        String so = st.socketOriginLocal != null
-                ? ("SocketOrigin(local)=" + st.socketOriginLocal.getX() + "," + st.socketOriginLocal.getY() + "," + st.socketOriginLocal.getZ())
-                : "SocketOrigin(local)=未设置";
-        String sf = "SocketFacing=" + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH");
-        String ss = "Size=" + st.socketW + "x" + st.socketH + "x" + st.socketD;
-        y = drawWrappedText(ctx, Text.literal("Sockets: " + st.socketCount + "  " + so + "  " + ss + "  " + sf + (st.pickingSocket ? "（正在点选…）" : "")),
-                x, y, w, 0xFFAAAAAA);
-        y += 2;
-
-        componentSocketTypeButton.setMessage(Text.literal("SocketContext: " + (st.socketContext != null ? st.socketContext.name() : "WALL")));
-        componentSocketTypeButton.setPosition(x, y);
-        componentSocketTypeButton.setWidth(w);
-        componentSocketTypeButton.visible = true;
-        componentSocketTypeButton.active = SelectionTool.INSTANCE.hasSelection();
-        componentSocketTypeButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // socket id 输入
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("SocketId："), x, y, 0xFFAAAAAA);
-        int sidY = y + LABEL_OFFSET - 2;
-        componentSocketIdInput.render(ctx, x, sidY, w, 14);
-        componentSocketIdInputX = x;
-        componentSocketIdInputY = sidY;
-        componentSocketIdInputW = w;
-        componentSocketIdInputH = 14;
-        componentSocketIdInputBoundsValid = true;
-        String sid = componentSocketIdInput.getText();
-        if (sid != null && !sid.isBlank()) {
-            ComponentTool.INSTANCE.getState().socketIdDraft = sid.trim();
-        }
-        y += FIELD_SPACING;
-
-        componentSocketPickOriginButton.setPosition(x, y);
-        componentSocketPickOriginButton.setWidth(half);
-        componentSocketPickOriginButton.visible = true;
-        componentSocketPickOriginButton.active = SelectionTool.INSTANCE.hasSelection() && st.anchorWorld != null;
-        componentSocketPickOriginButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        componentSocketFacingButton.setMessage(Text.literal("SocketFacing: " + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH")));
-        componentSocketFacingButton.setPosition(x + half + 4, y);
-        componentSocketFacingButton.setWidth(w - half - 4);
-        componentSocketFacingButton.visible = true;
-        componentSocketFacingButton.active = true;
-        componentSocketFacingButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        componentSocketAddButton.setPosition(x, y);
-        componentSocketAddButton.setWidth(half);
-        componentSocketAddButton.visible = true;
-        componentSocketAddButton.active = SelectionTool.INSTANCE.hasSelection() && st.socketOriginLocal != null;
-        componentSocketAddButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-
-        componentSocketPreviewButton.setPosition(x + half + 4, y);
-        componentSocketPreviewButton.setWidth(w - half - 4);
-        componentSocketPreviewButton.visible = true;
-        componentSocketPreviewButton.active = st.anchorWorld != null && st.socketOriginLocal != null;
-        componentSocketPreviewButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        componentSocketClearButton.setPosition(x, y);
-        componentSocketClearButton.setWidth(w);
-        componentSocketClearButton.visible = true;
-        componentSocketClearButton.active = st.socketCount > 0;
-        componentSocketClearButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        componentSaveButton.setPosition(x, y);
-        componentSaveButton.setWidth(w);
-        componentSaveButton.visible = true;
-        componentSaveButton.active = ComponentTool.INSTANCE.canSave();
-        componentSaveButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        componentPreviewButton.setPosition(x, y);
-        componentPreviewButton.setWidth(w);
-        componentPreviewButton.visible = true;
-        boolean canPreview = ComponentTool.INSTANCE.canSave();
-        componentPreviewButton.active = canPreview;
-        componentPreviewButton.setMessage(Text.literal(ComponentPreviewState.isActive() ? "关闭预览" : "预览放置"));
-        componentPreviewButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        componentApplyButton.setPosition(x, y);
-        componentApplyButton.setWidth(w);
-        componentApplyButton.visible = true;
-        componentApplyButton.active = canPreview;
-        componentApplyButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        return y;
-    }
-
-    private static @NotNull String getString() {
-        String status;
-        if (SelectionTool.INSTANCE.isSelecting()) {
-            status = "选区中：请完成两点框选（起点/终点）";
-        } else if (SelectionTool.INSTANCE.hasSelection()) {
-            var min = SelectionTool.INSTANCE.getMin();
-            var max = SelectionTool.INSTANCE.getMax();
-            int dx = 0, dy = 0, dz = 0;
-            if (max != null && min != null) {
-                dx = (max.getX() - min.getX() + 1);
-                dy = (max.getY() - min.getY() + 1);
-                dz = (max.getZ() - min.getZ() + 1);
-            }
-            status = "构件尺寸： " + dx + " × " + dy + " × " + dz + "（自动）";
-        } else {
-            status = "请先用“选区工具”框选一个门/窗/装饰等";
-        }
-        return status;
-    }
-
     /**
      * 绘制可换行的文字（当文字超出指定宽度时自动换行）
      * @param ctx 绘制上下文
@@ -1145,50 +656,9 @@ public class ToolPanel extends BasePanel {
             }
             if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
         } else if (ToolManager.isActive(ComponentTool.INSTANCE.getId())) {
-            if (componentCategoryButton != null && componentCategoryButton.visible && componentCategoryButton.mouseClicked(click, false)) return true;
-            if (componentSourceButton != null && componentSourceButton.visible && componentSourceButton.mouseClicked(click, false)) return true;
-            if (componentLibraryPickButton != null && componentLibraryPickButton.visible && componentLibraryPickButton.mouseClicked(click, false)) return true;
-            if (componentLibraryLoadButton != null && componentLibraryLoadButton.visible && componentLibraryLoadButton.mouseClicked(click, false)) return true;
-            if (componentPickAnchorButton != null && componentPickAnchorButton.visible && componentPickAnchorButton.mouseClicked(click, false)) return true;
-            if (componentClearAnchorButton != null && componentClearAnchorButton.visible && componentClearAnchorButton.mouseClicked(click, false)) return true;
-            if (componentFacingButton != null && componentFacingButton.visible && componentFacingButton.mouseClicked(click, false)) return true;
-            if (componentMirrorButton != null && componentMirrorButton.visible && componentMirrorButton.mouseClicked(click, false)) return true;
-            if (componentSkinModeButton != null && componentSkinModeButton.visible && componentSkinModeButton.mouseClicked(click, false)) return true;
-            if (componentSemanticTagOnSaveButton != null && componentSemanticTagOnSaveButton.visible && componentSemanticTagOnSaveButton.mouseClicked(click, false)) return true;
-            if (componentSemanticStyleButton != null && componentSemanticStyleButton.visible && componentSemanticStyleButton.mouseClicked(click, false)) return true;
-            if (componentSemanticPartButton != null && componentSemanticPartButton.visible && componentSemanticPartButton.mouseClicked(click, false)) return true;
-            if (componentSocketTypeButton != null && componentSocketTypeButton.visible && componentSocketTypeButton.mouseClicked(click, false)) return true;
-            if (componentSocketPickOriginButton != null && componentSocketPickOriginButton.visible && componentSocketPickOriginButton.mouseClicked(click, false)) return true;
-            if (componentSocketFacingButton != null && componentSocketFacingButton.visible && componentSocketFacingButton.mouseClicked(click, false)) return true;
-            if (componentSocketAddButton != null && componentSocketAddButton.visible && componentSocketAddButton.mouseClicked(click, false)) return true;
-            if (componentSocketClearButton != null && componentSocketClearButton.visible && componentSocketClearButton.mouseClicked(click, false)) return true;
-            if (componentSocketPreviewButton != null && componentSocketPreviewButton.visible && componentSocketPreviewButton.mouseClicked(click, false)) return true;
-            if (componentSaveButton != null && componentSaveButton.visible && componentSaveButton.mouseClicked(click, false)) return true;
+            // 构件工具已迁移到 ComponentCapturePanel，这里只保留预览和放置按钮
             if (componentPreviewButton != null && componentPreviewButton.visible && componentPreviewButton.mouseClicked(click, false)) return true;
             if (componentApplyButton != null && componentApplyButton.visible && componentApplyButton.mouseClicked(click, false)) return true;
-
-            if (componentNameInputBoundsValid) {
-                if (componentNameInput.mouseClicked(mouseX, mouseY, componentNameInputX, componentNameInputY, componentNameInputW, componentNameInputH)) {
-                    componentTagsInput.setFocused(false);
-                    labelNameInput.setFocused(false);
-                    return true;
-                }
-            }
-            if (componentTagsInputBoundsValid) {
-                if (componentTagsInput.mouseClicked(mouseX, mouseY, componentTagsInputX, componentTagsInputY, componentTagsInputW, componentTagsInputH)) {
-                    componentNameInput.setFocused(false);
-                    labelNameInput.setFocused(false);
-                    return true;
-                }
-            }
-            if (componentSocketIdInputBoundsValid) {
-                if (componentSocketIdInput.mouseClicked(mouseX, mouseY, componentSocketIdInputX, componentSocketIdInputY, componentSocketIdInputW, componentSocketIdInputH)) {
-                    componentNameInput.setFocused(false);
-                    componentTagsInput.setFocused(false);
-                    labelNameInput.setFocused(false);
-                    return true;
-                }
-            }
         }
 
         // 锚点按钮（无论是否有激活工具都显示，因为锚点可以在没有工具时设置）
@@ -1216,8 +686,6 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.keyPressed(keyCode, modifiers)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
-        componentNameInput.keyPressed(keyCode, modifiers);
-        componentTagsInput.keyPressed(keyCode, modifiers);
     }
 
     @Override
@@ -1226,15 +694,11 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.charTyped(chr)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
-        componentNameInput.charTyped(chr);
-        componentTagsInput.charTyped(chr);
     }
 
     @Override
     public boolean wantsKeyboardInput() {
-        return labelNameInput.isFocused()
-                || componentNameInput.isFocused()
-                || componentTagsInput.isFocused();
+        return labelNameInput.isFocused();
     }
 
     @Override
