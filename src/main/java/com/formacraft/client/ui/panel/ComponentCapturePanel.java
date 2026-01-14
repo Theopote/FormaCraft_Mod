@@ -10,7 +10,6 @@ import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.network.FormaCraftNetworking;
-import com.formacraft.common.semantic.SemanticComponentType;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
@@ -140,9 +139,7 @@ public class ComponentCapturePanel extends BasePanel {
                 .tooltip(Tooltip.of(Text.literal("切换材质模式：原样方块 / 语义换皮")))
                 .build();
 
-        semanticTagOnSaveButton = ButtonWidget.builder(Text.literal("存语义：开"), b -> {
-                    st.semanticTagOnSave = !st.semanticTagOnSave;
-                })
+        semanticTagOnSaveButton = ButtonWidget.builder(Text.literal("存语义：开"), b -> st.semanticTagOnSave = !st.semanticTagOnSave)
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("保存构件时自动写入每个方块的 semantic")))
                 .build();
@@ -252,9 +249,24 @@ public class ComponentCapturePanel extends BasePanel {
         y = drawWrappedText(ctx, Text.literal("当前选区"), x, y, w, 0xFFFFFFFF);
         y += 2;
 
-        int sizeX = max.getX() - min.getX() + 1;
-        int sizeY = max.getY() - min.getY() + 1;
-        int sizeZ = max.getZ() - min.getZ() + 1;
+        int sizeX = 0;
+        if (max != null) {
+            if (min != null) {
+                sizeX = max.getX() - min.getX() + 1;
+            }
+        }
+        int sizeY = 0;
+        if (max != null) {
+            if (min != null) {
+                sizeY = max.getY() - min.getY() + 1;
+            }
+        }
+        int sizeZ = 0;
+        if (max != null) {
+            if (min != null) {
+                sizeZ = max.getZ() - min.getZ() + 1;
+            }
+        }
         int blockCount = countBlocksInSelection();
 
         y = drawWrappedText(ctx, Text.literal("尺寸: " + sizeX + "×" + sizeY + "×" + sizeZ), x, y, w, 0xFFAAAAAA);
@@ -505,7 +517,15 @@ public class ComponentCapturePanel extends BasePanel {
         y += LABEL_OFFSET;
 
         // 计算最大滚动
-        maxScrollY = Math.max(0, y - (panelY + panelHeight - getContentY() - CONTENT_PADDING));
+        // y 已经减去了 scrollY，所以需要加回来计算总内容高度
+        int contentStartY = getContentY() + CONTENT_PADDING;
+        int totalContentHeight = (y + scrollY) - contentStartY;
+        int visibleHeight = panelHeight - (contentStartY - panelY) - CONTENT_PADDING;
+        maxScrollY = Math.max(0, totalContentHeight - visibleHeight);
+        
+        // 限制当前滚动位置
+        if (scrollY > maxScrollY) scrollY = maxScrollY;
+        if (scrollY < 0) scrollY = 0;
 
         ctx.disableScissor();
     }
@@ -519,7 +539,7 @@ public class ComponentCapturePanel extends BasePanel {
         BlockPos min = SelectionTool.INSTANCE.getMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
 
-        if (cachedThumbnail == null || !min.equals(lastSelectionMin) || !max.equals(lastSelectionMax)) {
+        if (max != null && min != null && (cachedThumbnail == null || !min.equals(lastSelectionMin) || !max.equals(lastSelectionMax))) {
             regenerateThumbnail();
             lastSelectionMin = min;
             lastSelectionMax = max;
@@ -562,11 +582,14 @@ public class ComponentCapturePanel extends BasePanel {
         BlockPos max = SelectionTool.INSTANCE.getMax();
         int count = 0;
 
-        for (int x = min.getX(); x <= max.getX(); x++) {
-            for (int y = min.getY(); y <= max.getY(); y++) {
-                for (int z = min.getZ(); z <= max.getZ(); z++) {
-                    if (!client.world.getBlockState(new BlockPos(x, y, z)).isAir()) {
-                        count++;
+        assert min != null;
+        if (max != null) {
+            for (int x = min.getX(); x <= max.getX(); x++) {
+                for (int y = min.getY(); y <= max.getY(); y++) {
+                    for (int z = min.getZ(); z <= max.getZ(); z++) {
+                        if (!client.world.getBlockState(new BlockPos(x, y, z)).isAir()) {
+                            count++;
+                        }
                     }
                 }
             }
@@ -769,8 +792,13 @@ public class ComponentCapturePanel extends BasePanel {
     public void mouseScrolled(double mouseX, double mouseY, double amount) {
         if (!isMouseOver(mouseX, mouseY)) return;
         
-        scrollY -= (int) (amount * 10);
-        scrollY = Math.max(0, Math.min(scrollY, maxScrollY));
+        // 滚动步长：每次滚轮滚动 12 像素（与 ToolPanel 和 SettingsPanel 一致）
+        int step = 12;
+        scrollY = (int) Math.round(scrollY - amount * step);
+        
+        // 限制滚动范围
+        if (scrollY < 0) scrollY = 0;
+        if (scrollY > maxScrollY) scrollY = maxScrollY;
     }
 
     @Override
