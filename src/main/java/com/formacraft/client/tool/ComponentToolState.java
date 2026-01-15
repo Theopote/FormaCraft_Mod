@@ -72,5 +72,109 @@ public class ComponentToolState {
     public String socketIdDraft = "main_door";
     /** UI 状态：正在点选 socket 原点 */
     public boolean pickingSocket = false;
+
+    // ===== 验证和修复状态（新增）=====
+    /** 当前加载的构件定义（用于验证和修复） */
+    private transient com.formacraft.common.component.ComponentDefinition componentForValidation = null;
+    /** 验证结果 */
+    private transient com.formacraft.common.component.validate.ValidationResult validationResult = null;
+    /** 自动修复报告 */
+    private transient com.formacraft.common.component.autofix.AutoFixReport autoFixReport = null;
+    /** 是否已被 AutoFix 修改过 */
+    private transient boolean componentDirty = false;
+    /** 是否已运行验证 */
+    private transient boolean validated = false;
+    /** 是否已运行 AutoFix */
+    private transient boolean autoFixed = false;
+
+    /**
+     * 设置要验证的构件（重置验证状态）
+     */
+    public void setComponentForValidation(com.formacraft.common.component.ComponentDefinition component) {
+        this.componentForValidation = component;
+        this.validationResult = null;
+        this.autoFixReport = null;
+        this.componentDirty = false;
+        this.validated = false;
+        this.autoFixed = false;
+    }
+
+    /**
+     * 获取当前验证的构件
+     */
+    public com.formacraft.common.component.ComponentDefinition getComponentForValidation() {
+        return componentForValidation;
+    }
+
+    /**
+     * 获取验证结果
+     */
+    public com.formacraft.common.component.validate.ValidationResult getValidationResult() {
+        return validationResult;
+    }
+
+    /**
+     * 获取自动修复报告
+     */
+    public com.formacraft.common.component.autofix.AutoFixReport getAutoFixReport() {
+        return autoFixReport;
+    }
+
+    /**
+     * 检查构件是否有效（无错误）
+     */
+    public boolean isComponentValid() {
+        return validationResult != null && validationResult.ok();
+    }
+
+    /**
+     * 检查构件是否已被修改
+     */
+    public boolean isComponentDirty() {
+        return componentDirty;
+    }
+
+    /**
+     * 检查是否已运行验证
+     */
+    public boolean isValidated() {
+        return validated;
+    }
+
+    /**
+     * 检查是否已运行 AutoFix
+     */
+    public boolean isAutoFixed() {
+        return autoFixed;
+    }
+
+    /**
+     * 运行验证
+     */
+    public void validateComponent() {
+        if (componentForValidation == null) {
+            validationResult = null;
+            validated = false;
+            return;
+        }
+        validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(componentForValidation);
+        validated = true;
+    }
+
+    /**
+     * 运行自动修复（修复后自动重新验证）
+     */
+    public void autoFixComponent() {
+        if (componentForValidation == null) {
+            autoFixReport = null;
+            autoFixed = false;
+            return;
+        }
+        autoFixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(componentForValidation);
+        autoFixed = true;
+        componentDirty = !autoFixReport.empty();
+        // 修复后自动重新验证
+        validateComponent();
+    }
 }
 

@@ -91,4 +91,18 @@ public final class ValidationResult {
     public int size() {
         return issues.size();
     }
+
+    /**
+     * 检查是否有错误
+     */
+    public boolean hasErrors() {
+        return !errors().isEmpty();
+    }
+
+    /**
+     * 检查是否有警告
+     */
+    public boolean hasWarnings() {
+        return !warnings().isEmpty();
+    }
 }

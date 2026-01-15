@@ -291,10 +291,31 @@ ComponentParamsObject:
             groupSummary = "(no component groups registered)";
         }
 
+        // 检查当前加载的构件是否有效（AI 接口保护）
+        StringBuilder validationWarning = new StringBuilder();
+        try {
+            var componentTool = com.formacraft.client.tool.ComponentTool.INSTANCE;
+            if (componentTool.getLoadedComponent() != null) {
+                if (!componentTool.isLoadedComponentValid()) {
+                    var validationResult = componentTool.getState().getValidationResult();
+                    if (validationResult != null && validationResult.hasErrors()) {
+                        validationWarning.append("\n⚠️ WARNING: Currently loaded component has validation errors and should NOT be used in AI generation:\n");
+                        for (var error : validationResult.errors()) {
+                            validationWarning.append("  - ").append(error.path).append(": ").append(error.message).append("\n");
+                        }
+                        validationWarning.append("Please fix the component before using it in AI generation.\n");
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            // 忽略检查错误，不影响 Prompt 生成
+        }
+
         return "PLAYER COMPONENT LIBRARY (Prefab Library):\n" +
                 summary + "\n" +
                 "\nCOMPONENT GROUPS (Composite Prefabs):\n" +
                 groupSummary + "\n" +
+                validationWarning.toString() +
                 "\nRules:\n" +
                 "- IMPORTANT: Facing is a low-level detail. Prefer semantic placement via placementSpec (Attachment/Context/FacingPolicy) when deciding where/how to mount.\n" +
                 "\nCOMPONENT PLACEMENT CONTRACTS (MUST FOLLOW):\n" +

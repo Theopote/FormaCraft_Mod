@@ -80,6 +80,13 @@ public final class ComponentTool implements FormacraftTool {
         return state;
     }
 
+    /**
+     * 获取当前加载的构件定义（用于验证和 AI 接口）
+     */
+    public ComponentDefinition getLoadedComponent() {
+        return loadedComponent;
+    }
+
     @Override
     public String getId() {
         return "component";
@@ -470,11 +477,95 @@ public final class ComponentTool implements FormacraftTool {
                 return;
             }
             loadedComponent = def;
+            // 设置验证目标并自动验证
+            state.setComponentForValidation(def);
+            state.validateComponent();
+            
+            // 显示验证结果
+            var validationResult = state.getValidationResult();
+            if (validationResult != null) {
+                if (validationResult.hasErrors()) {
+                    HudToast.show("已加载构件，但有 " + validationResult.errors().size() + " 个错误", true);
+                } else if (validationResult.hasWarnings()) {
+                    HudToast.show("已加载构件，有 " + validationResult.warnings().size() + " 个警告");
+                } else {
+                    HudToast.show("已加载构件（验证通过）");
+                }
+            } else {
+                HudToast.show("已加载构件：「" + (def.name != null ? def.name : def.id) + "」 blocks=" + def.blocks.size());
+            }
+            
             try { com.formacraft.client.component.ComponentLibraryUsage.markLoaded(def.id); } catch (Throwable ignored) {}
-            HudToast.show("已加载构件：「" + (def.name != null ? def.name : def.id) + "」 blocks=" + def.blocks.size());
         } catch (Throwable t) {
             HudToast.show("加载构件失败：JSON 解析失败", true);
         }
+    }
+
+    /**
+     * 手动触发验证（用于 UI 按钮）
+     */
+    public void validateLoadedComponent() {
+        if (loadedComponent == null) {
+            HudToast.show("请先加载一个构件", true);
+            return;
+        }
+        state.setComponentForValidation(loadedComponent);
+        state.validateComponent();
+        var result = state.getValidationResult();
+        if (result != null) {
+            if (result.hasErrors()) {
+                HudToast.show("验证失败：发现 " + result.errors().size() + " 个错误", true);
+            } else if (result.hasWarnings()) {
+                HudToast.show("验证通过，但有 " + result.warnings().size() + " 个警告");
+            } else {
+                HudToast.show("验证通过 ✓");
+            }
+        }
+    }
+
+    /**
+     * 手动触发自动修复（用于 UI 按钮）
+     */
+    public void autoFixLoadedComponent() {
+        if (loadedComponent == null) {
+            HudToast.show("请先加载一个构件", true);
+            return;
+        }
+        state.setComponentForValidation(loadedComponent);
+        state.autoFixComponent();
+        var report = state.getAutoFixReport();
+        if (report != null && !report.empty()) {
+            HudToast.show("已应用 " + report.size() + " 个自动修复");
+            // 更新 loadedComponent 引用（因为 AutoFix 修改了对象）
+            loadedComponent = state.getComponentForValidation();
+        } else {
+            HudToast.show("无需修复");
+        }
+        
+        // 显示修复后的验证结果
+        var result = state.getValidationResult();
+        if (result != null) {
+            if (result.hasErrors()) {
+                HudToast.show("修复后仍有 " + result.errors().size() + " 个错误", true);
+            } else if (result.hasWarnings()) {
+                HudToast.show("修复后仍有 " + result.warnings().size() + " 个警告");
+            } else {
+                HudToast.show("修复完成，验证通过 ✓");
+            }
+        }
+    }
+
+    /**
+     * 检查当前加载的构件是否有效（用于 AI 接口保护）
+     */
+    public boolean isLoadedComponentValid() {
+        if (loadedComponent == null) return false;
+        if (state.getComponentForValidation() != loadedComponent) {
+            // 如果验证目标不是当前加载的构件，重新验证
+            state.setComponentForValidation(loadedComponent);
+            state.validateComponent();
+        }
+        return state.isComponentValid();
     }
 
     public void startPickAnchor() {
