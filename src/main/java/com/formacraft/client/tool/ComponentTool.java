@@ -25,6 +25,10 @@ import com.formacraft.common.component.placement.SpatialContext;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
+import com.formacraft.client.patch.filter.ToolPatchFilter;
+import com.formacraft.client.buildcontext.BuildContextResolver;
+import com.formacraft.client.preview.PromptModeState;
+import com.formacraft.common.patch.filter.PatchFilterResult;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.common.component.ComponentCatalog;
@@ -309,9 +313,27 @@ public final class ComponentTool implements FormacraftTool {
             patches.add(new BlockPatch(BlockPatch.PLACE, off.getX(), off.getY(), off.getZ(), block));
         }
 
-        // show patch preview (apply/undo/redo)
-        BuildConfirmPanel.INSTANCE.showPatchPreview(anchor, patches);
-        HudToast.show(pr.status == PlacementResult.Status.WARN ? ("已进入 Patch 预览（警告：" + pr.reason + "）") : "已进入 Patch 预览");
+        // 直接应用 Patch，不显示预览确认界面
+        // 应用 PatchFilter 过滤（禁区、选区等约束）
+        boolean restrict = PromptModeState.restrictToSelection();
+        var bc = BuildContextResolver.resolve(restrict);
+        if (bc != null) bc = bc.withOrigin(anchor);
+        PatchFilterResult r = ToolPatchFilter.filter(bc, anchor, patches);
+        
+        if (r.accepted.isEmpty()) {
+            HudToast.show("放置失败：所有方块都被过滤（可能因为禁区或选区约束）", true);
+            return true;
+        }
+        
+        // 直接发送 Patch 应用请求
+        FormaCraftNetworking.sendPatchApply(anchor, r.accepted, com.formacraft.client.tool.ProtectedZoneTool.INSTANCE.getZones());
+        HudToast.show(pr.status == PlacementResult.Status.WARN ? ("已放置构件（警告：" + pr.reason + "）") : "已放置构件");
+        
+        // 放置完成后，退出库模式，清除状态
+        state.useLibrary = false;
+        loadedComponent = null;
+        ComponentPreviewState.clear();
+        
         return true;
     }
 

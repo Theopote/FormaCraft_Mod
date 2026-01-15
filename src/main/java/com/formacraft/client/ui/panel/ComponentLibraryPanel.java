@@ -4,6 +4,7 @@ import com.formacraft.client.component.ClientComponentCatalogState;
 import com.formacraft.client.component.ComponentThumbnailCache;
 import com.formacraft.client.component.ComponentLibraryUsage;
 import com.formacraft.client.tool.ComponentTool;
+import com.formacraft.client.tool.ComponentToolState;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentCategory;
@@ -13,6 +14,7 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -94,15 +96,13 @@ public final class ComponentLibraryPanel extends BasePanel {
     private void cycleSort() {
         var st = ComponentTool.INSTANCE.getState();
         String cur = st.librarySort != null ? st.librarySort : "RECENT";
-        String next = switch (cur.toUpperCase(Locale.ROOT)) {
+        st.librarySort = switch (cur.toUpperCase(Locale.ROOT)) {
             case "RECENT" -> "LOADED";
             case "LOADED" -> "TAG_MATCH";
             case "TAG_MATCH" -> "NAME";
             case "NAME" -> "CATEGORY";
-            case "CATEGORY" -> "RECENT";
             default -> "RECENT";
         };
-        st.librarySort = next;
         st.libraryPage = 0;
     }
 
@@ -215,29 +215,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         }
 
         // sort
-        String sort = st.librarySort != null ? st.librarySort : "RECENT";
-        Comparator<ComponentCatalog.Entry> cmp = switch (sort.toUpperCase(Locale.ROOT)) {
-            case "NAME" -> Comparator.comparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-            case "CATEGORY" -> Comparator
-                    .comparing((ComponentCatalog.Entry e) -> e.category != null ? e.category.name() : "ZZZ", String.CASE_INSENSITIVE_ORDER)
-                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-            case "LOADED" -> Comparator
-                    .comparingLong((ComponentCatalog.Entry e) -> ComponentLibraryUsage.getLastLoadedMs(e.id))
-                    .reversed()
-                    .thenComparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
-                    .reversed()
-                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-            case "TAG_MATCH" -> Comparator
-                    .comparingInt((ComponentCatalog.Entry e) -> matchScore(e, q))
-                    .reversed()
-                    .thenComparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
-                    .reversed()
-                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-            default -> Comparator
-                    .comparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
-                    .reversed()
-                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
-        };
+        Comparator<ComponentCatalog.Entry> cmp = getEntryComparator(st, q);
         filtered.sort(cmp);
 
         // paging
@@ -333,6 +311,32 @@ public final class ComponentLibraryPanel extends BasePanel {
         y += Math.max(1, (int) Math.ceil((end - start) / (double) cols)) * cell;
         y += 4;
         y = drawWrappedText(ctx, Text.literal("提示：单击选中；双击加载构件到鼠标（可右键放置）。"), x, y, w, 0xFF888888);
+    }
+
+    private static @NotNull Comparator<ComponentCatalog.Entry> getEntryComparator(ComponentToolState st, String q) {
+        String sort = st.librarySort != null ? st.librarySort : "RECENT";
+        return switch (sort.toUpperCase(Locale.ROOT)) {
+            case "NAME" -> Comparator.comparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
+            case "CATEGORY" -> Comparator
+                    .comparing((ComponentCatalog.Entry e) -> e.category != null ? e.category.name() : "ZZZ", String.CASE_INSENSITIVE_ORDER)
+                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
+            case "LOADED" -> Comparator
+                    .comparingLong((ComponentCatalog.Entry e) -> ComponentLibraryUsage.getLastLoadedMs(e.id))
+                    .reversed()
+                    .thenComparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
+                    .reversed()
+                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
+            case "TAG_MATCH" -> Comparator
+                    .comparingInt((ComponentCatalog.Entry e) -> matchScore(e, q))
+                    .reversed()
+                    .thenComparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
+                    .reversed()
+                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
+            default -> Comparator
+                    .comparingLong((ComponentCatalog.Entry e) -> e.updatedAtMs != null ? e.updatedAtMs : 0L)
+                    .reversed()
+                    .thenComparing(ComponentLibraryPanel::displayName, String.CASE_INSENSITIVE_ORDER);
+        };
     }
 
     private static String sortLabel(String s) {

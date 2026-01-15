@@ -7,6 +7,7 @@ import com.formacraft.client.tool.SemanticLabelTool;
 import com.formacraft.common.geom.Geom2D;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -90,9 +91,7 @@ public class ToolSnapshot {
         // -------- SemanticLabelTool adapter --------
         if (semanticLabelTool != null) {
             List<SemanticRegion> regions = getSemanticRegions(semanticLabelTool);
-            if (regions != null) {
-                s.semanticRegions.addAll(regions);
-            }
+            s.semanticRegions.addAll(regions);
         }
 
         return s;
@@ -107,18 +106,7 @@ public class ToolSnapshot {
         // 圆形：转换为多边形（近似）
         com.formacraft.client.tool.OutlineMode mode = shape.mode();
         if (mode == com.formacraft.client.tool.OutlineMode.CIRCLE && shape.center() != null) {
-            List<Geom2D.Vec2> poly = new ArrayList<>();
-            int segments = 32;
-            double cx = shape.center().getX() + 0.5;
-            double cz = shape.center().getZ() + 0.5;
-            int radius = shape.radius();
-            for (int i = 0; i < segments; i++) {
-                double angle = (Math.PI * 2.0) * i / segments;
-                double x = cx + Math.cos(angle) * radius;
-                double z = cz + Math.sin(angle) * radius;
-                poly.add(new Geom2D.Vec2(x, z));
-            }
-            return poly;
+            return getVec2s(shape);
         }
 
         // 多边形：直接使用 points
@@ -128,6 +116,21 @@ public class ToolSnapshot {
         List<Geom2D.Vec2> poly = new ArrayList<>();
         for (BlockPos p : points) {
             poly.add(new Geom2D.Vec2(p.getX() + 0.5, p.getZ() + 0.5));
+        }
+        return poly;
+    }
+
+    private static @NotNull List<Geom2D.Vec2> getVec2s(OutlineTool.OutlineShape shape) {
+        List<Geom2D.Vec2> poly = new ArrayList<>();
+        int segments = 32;
+        double cx = shape.center().getX() + 0.5;
+        double cz = shape.center().getZ() + 0.5;
+        int radius = shape.radius();
+        for (int i = 0; i < segments; i++) {
+            double angle = (Math.PI * 2.0) * i / segments;
+            double x = cx + Math.cos(angle) * radius;
+            double z = cz + Math.sin(angle) * radius;
+            poly.add(new Geom2D.Vec2(x, z));
         }
         return poly;
     }

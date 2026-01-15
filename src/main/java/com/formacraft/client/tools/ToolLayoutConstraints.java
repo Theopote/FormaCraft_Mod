@@ -8,9 +8,9 @@ import java.util.List;
 
 /**
  * ToolLayoutConstraints（工具布局约束）
- * 
+ * <p>
  * 核心功能：把 Snapshot 变成 LayoutConstraints（真正裁切/禁区过滤）
- * 
+ * <p>
  * 功能：
  * - 选区 AABB 约束
  * - 轮廓多边形约束
