@@ -110,8 +110,11 @@ public final class SocketFinder {
         List<SocketPlacement> sorted = new ArrayList<>(placements);
         sorted.sort((a, b) -> {
             // 1. 按 matchScore 排序（降序）
-            double scoreA = SocketMatcher.matchScore(provider, consumer);
-            double scoreB = SocketMatcher.matchScore(provider, consumer);
+            // v1：暂时使用简单的类型匹配分数
+            double scoreA = (a.providerSocket != null && a.consumerSocket != null && 
+                            a.providerSocket.type == a.consumerSocket.type) ? 1.0 : 0.0;
+            double scoreB = (b.providerSocket != null && b.consumerSocket != null && 
+                            b.providerSocket.type == b.consumerSocket.type) ? 1.0 : 0.0;
             if (Math.abs(scoreA - scoreB) > 0.01) {
                 return Double.compare(scoreB, scoreA);
             }
