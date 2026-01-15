@@ -1,33 +1,39 @@
 package com.formacraft.common.component.socket;
 
 /**
- * SocketType（旧版 Socket 类型枚举）v0：兼容旧代码。
+ * SocketType（插槽类型）：建筑表面的"可接受接口"。
  * <p>
- * ⚠️ Deprecated：请使用新的 SocketContext / SocketShape / SocketRole 组合。
+ * 核心思想：
+ * - Socket = 建筑表面的"可接受接口"
+ * - 墙不是"一个面"，墙是一组可被插入的 socket
+ * - 构件不是"随便贴"，构件是声明：我需要哪种 socket
  * <p>
- * 此枚举仅用于过渡期兼容，v2 将移除。
+ * ⚠️ 注意：
+ * - 没有 NORTH / SOUTH / EAST / WEST
+ * - 方向不是 socket 的职责
  */
-@Deprecated
 public enum SocketType {
-    /**
-     * 门洞（旧版）
-     * <p>
-     * 新版等价：
-     * - context = WALL
-     * - shape = RECT
-     * - role = PROVIDER
-     * - tags = ["door"]
-     */
-    DOOR,
+    /** 墙面（可贴） */
+    WALL_SURFACE,
 
-    /**
-     * 窗洞（旧版）
-     * <p>
-     * 新版等价：
-     * - context = WALL
-     * - shape = RECT
-     * - role = PROVIDER
-     * - tags = ["window"]
-     */
-    WINDOW
+    /** 墙洞（门/窗） */
+    WALL_OPENING,
+
+    /** 外轮廓边缘（栏杆/阳台） */
+    EDGE_OUTER,
+
+    /** 屋面 */
+    ROOF_SLOPE,
+
+    /** 屋脊 */
+    ROOF_RIDGE,
+
+    /** 地面 */
+    FLOOR_SURFACE,
+
+    /** 柱顶 */
+    COLUMN_TOP,
+
+    /** 自由（装饰） */
+    FREE_ATTACH
 }

@@ -61,6 +61,9 @@ public final class PromptAssembler {
         // 1.25. ComponentQuery System Prompt（构件查询系统 - AI-first 组件选择）
         sb.append(componentQuerySystemPrompt());
 
+        // 1.3. Socket System Prompt（插槽系统 - AI 看到约束）
+        sb.append(socketSystemPrompt());
+
         // 1.5. Memory Context（记忆上下文 - RAG 功能）
         MemoryContext memoryContext = retrieveMemory(ctx);
         if (memoryContext != null && !memoryContext.isEmpty()) {
@@ -1406,6 +1409,55 @@ USER REQUEST:
             You must output a JSON array of ComponentQuery objects.
             
             If no components are needed, output an empty array: []
+            
+            """;
+    }
+
+    /**
+     * Socket System Prompt（插槽系统 - AI 看到约束）
+     * <p>
+     * 核心思想：
+     * - AI 不需要知道 socket
+     * - 但需要知道限制结果
+     * - PromptAssembler 自动生成约束信息
+     */
+    private static String socketSystemPrompt() {
+        return """
+            
+            ========================================
+            SOCKET SYSTEM (Component Placement Constraints)
+            ========================================
+            
+            IMPORTANT: Components have placement constraints based on their architectural function.
+            
+            You do NOT need to know about "sockets" or "attachment types".
+            You only need to understand the placement constraints that are automatically derived.
+            
+            When a ComponentQuery specifies placement requirements, the system will automatically:
+            - Find valid placement locations (sockets) in the building
+            - Filter out invalid positions
+            - Only allow placement where the component can legally attach
+            
+            Common constraints (automatically enforced):
+            - Doors and windows: Can only be placed in WALL_OPENING sockets (wall openings)
+            - Railings: Can only be placed on EDGE_OUTER sockets (outer edges)
+            - Balconies: Can only be placed on WALL_SURFACE sockets (exterior walls)
+            - Columns: Can be placed on FLOOR_SURFACE or COLUMN_TOP sockets
+            - Roof decorations: Can only be placed on ROOF_SLOPE or ROOF_RIDGE sockets
+            
+            You will see constraints in the component_query output as:
+            {
+              "component_constraints": {
+                "placement": {
+                  "allowed": ["WALL_OPENING"],
+                  "exterior_only": true,
+                  "alignment": "BOTTOM"
+                }
+              }
+            }
+            
+            These constraints are automatically derived from the component's placement specification.
+            You only need to understand: "I can only place this component in wall openings on the exterior."
             
             """;
     }

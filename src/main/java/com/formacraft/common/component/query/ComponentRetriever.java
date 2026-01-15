@@ -41,7 +41,7 @@ public final class ComponentRetriever {
         }
 
         // 1. 从 ComponentCatalog 获取所有构件
-        ComponentCatalog catalog = ComponentCatalog.getGlobal();
+        ComponentCatalog catalog = ComponentStorage.loadCatalog(null);
         if (catalog == null || catalog.components == null || catalog.components.isEmpty()) {
             return List.of();
         }
@@ -266,7 +266,9 @@ public final class ComponentRetriever {
      * 根据语义标签快速检索
      */
     public static List<ComponentScore> retrieveBySemantic(String... tags) {
-        ComponentQuery query = ComponentQuery.semantic(tags);
+        ComponentQuery query = new ComponentQuery();
+        query.semantic = new ComponentQuery.Semantic();
+        query.semantic.tags = Set.of(tags);
         return retrieve(query);
     }
 
