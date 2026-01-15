@@ -156,7 +156,18 @@ ComponentObject:
   "relative_position": { "x": int, "y": int, "z": int },
   "dimensions": { "width": int, "depth": int, "height": int },
   "features": [ "string" ],
-  "params": { ComponentParamsObject }
+  "params": { ComponentParamsObject },
+  "component_query": { ComponentQueryObject }  // OPTIONAL: Use ComponentQuery instead of exact component_id
+}
+
+ComponentQueryObject:
+{
+  "semantic": { "role": "string", "tags": [ "string" ], "importance": [ "string" ] },
+  "context": { "placement": "string", "side": "string", "height_level": "string", "edge_condition": "string" },
+  "geometry": { "opening": { "width": int, "height": int, "tolerance": int }, "scalable": boolean },
+  "style": { "style_profile": "string", "material_tone": "string" },
+  "constraints": { "forbidden_tags": [ "string" ], "must_have": [ "string" ] },
+  "usage_hint": { "frequency": "string", "visibility": "string" }
 }
 
 BuildingGenomeObject (v1):
@@ -361,6 +372,26 @@ ComponentParamsObject:
                 "  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"facing\":\"NORTH|EAST|SOUTH|WEST\",\"mirror\":\"NONE|X|Z\",\"semantic_style_id\":\"DEFAULT|...\",\"semantic_skin\":true,\"carve\":true,\"mask\":{\"w\":2,\"h\":3,\"d\":1},\"mask_origin\":{\"x\":0,\"y\":0,\"z\":0}}\n" +
                 "- To mount a component into a host socket, use ONE component_request with mount fields (do not emit a separate host component):\n" +
                 "  component_request:{\"host_id\":\"...\",\"socket_id\":\"socket_1\",\"mount_id\":\"...\",\"facing\":\"SOUTH\",\"mirror\":\"NONE\",\"semantic_skin\":true}\n" +
+                "\n" +
+                "COMPONENT QUERY SYSTEM (AI-first component selection):\n" +
+                "- IMPORTANT: You DO NOT select specific component IDs. Instead, describe what kind of component you need using ComponentQuery.\n" +
+                "- The system will automatically find the best matching component from the library based on your query.\n" +
+                "- ComponentQuery structure (use this in component_request instead of exact component_id):\n" +
+                "  component_query:{\n" +
+                "    \"semantic\":{\"role\":\"door|window|column|railing|decoration\",\"tags\":[\"gothic\",\"arched\"],\"importance\":[\"role\",\"placement\"]},\n" +
+                "    \"context\":{\"placement\":\"wall|roof|edge|ground|interior\",\"side\":\"interior|exterior|both\",\"height_level\":\"ground|mid|roof\",\"edge_condition\":\"corner|flat|convex\"},\n" +
+                "    \"geometry\":{\"opening\":{\"width\":2,\"height\":3,\"tolerance\":1},\"scalable\":true},\n" +
+                "    \"style\":{\"style_profile\":\"Medieval_Castle\",\"material_tone\":\"dark_stone\"},\n" +
+                "    \"constraints\":{\"forbidden_tags\":[\"glass\",\"modern\"],\"must_have\":[\"structural\"]},\n" +
+                "    \"usage_hint\":{\"frequency\":\"primary|secondary|decorative\",\"visibility\":\"high|low\"}\n" +
+                "  }\n" +
+                "- Example: Instead of \"component_id\":\"gothic_door_A\", use:\n" +
+                "  component_query:{\"semantic\":{\"role\":\"door\",\"tags\":[\"gothic\",\"stone\"]},\"context\":{\"placement\":\"wall\",\"side\":\"exterior\"},\"style\":{\"style_profile\":\"Medieval_Castle\"}}\n" +
+                "- The system will automatically:\n" +
+                "  1. Filter components by hard constraints (role, placement, side, forbidden tags)\n" +
+                "  2. Score components by semantic match, context match, geometry fit, style affinity, usage priority\n" +
+                "  3. Select the best matching component (or top-N candidates for variant generation)\n" +
+                "- You never know which specific component was selected - you only describe requirements.\n" +
                 "\n";
     }
 

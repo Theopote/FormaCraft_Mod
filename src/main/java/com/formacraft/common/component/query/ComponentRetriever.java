@@ -25,6 +25,11 @@ public final class ComponentRetriever {
 
     /**
      * 检索构件（返回排序后的候选列表）
+     * <p>
+     * 流程：
+     * 1. 硬过滤（ComponentRetriever）- 从 200 个 → 20 个候选
+     * 2. 多维评分（ComponentRanker）- 对候选进行详细评分
+     * 3. 排序和过滤 - 返回 Top-N
      * 
      * @param query 查询条件
      * @param maxResults 最大结果数量（默认 10）
@@ -41,38 +46,161 @@ public final class ComponentRetriever {
             return List.of();
         }
 
-        // 2. 对每个构件评分
-        List<ComponentScore> scores = new ArrayList<>();
+        // 2. 硬过滤阶段（必须通过的条件）
+        List<ComponentMetadata> candidates = new ArrayList<>();
         for (ComponentCatalog.Entry entry : catalog.components) {
             if (entry == null || entry.id == null || entry.id.isBlank()) {
                 continue;
             }
 
-            // 加载构件定义
+            // 加载构件定义和 Archetype
             ComponentDefinition component = ComponentStorage.loadComponent(entry.id);
             if (component == null) {
                 continue;
             }
 
-            // 评分
-            ComponentScore score = ComponentScorer.score(component, query);
+            // 获取 Archetype（如果有）
+            com.formacraft.common.component.archetype.ComponentArchetype archetype = null;
+            if (component.id != null) {
+                archetype = com.formacraft.common.component.archetype.ComponentArchetypeStorage.get(component.id);
+            }
+
+            // 创建元数据
+            ComponentMetadata metadata = ComponentMetadata.fromComponent(component, archetype);
+
+            // 硬过滤（必须通过）
+            if (hardFilter(metadata, query)) {
+                candidates.add(metadata);
+            }
+        }
+
+        // 3. 多维评分阶段（使用 ComponentRanker）
+        List<ComponentScore> scores = new ArrayList<>();
+        for (ComponentMetadata metadata : candidates) {
+            // 加载构件定义用于评分
+            ComponentDefinition component = ComponentStorage.loadComponent(metadata.componentId);
+            if (component == null) {
+                continue;
+            }
+
+            // 使用 ComponentRanker 进行详细评分
+            ComponentScore score = ComponentRanker.rank(metadata, component, query);
             scores.add(score);
         }
 
-        // 3. 排序（按总分降序）
+        // 4. 排序（按总分降序）
         scores.sort(Comparator.comparingDouble((ComponentScore s) -> s.totalScore).reversed());
 
-        // 4. 过滤低分结果（总分 < 0.3）
+        // 5. 过滤低分结果（总分 < 0.3）
         scores = scores.stream()
                 .filter(s -> s.totalScore >= 0.3)
                 .collect(Collectors.toList());
 
-        // 5. 限制结果数量
+        // 6. 限制结果数量
         if (maxResults > 0 && scores.size() > maxResults) {
             scores = scores.subList(0, maxResults);
         }
 
         return scores;
+    }
+
+    /**
+     * 硬过滤（必须通过的条件，没有"评分"，只有"能不能用"）
+     * <p>
+     * 硬过滤条件：
+     * - semantic.role 匹配
+     * - placement_spec.allowed_placements 包含
+     * - side_policy 不冲突
+     * - requires_opening 与 geometry.opening 是否满足
+     * - forbidden_tags 不命中
+     */
+    private static boolean hardFilter(ComponentMetadata metadata, ComponentQuery query) {
+        // 1. semantic.role 匹配
+        if (query.semantic != null && query.semantic.role != null) {
+            if (metadata.semantic == null || metadata.semantic.role == null) {
+                return false;
+            }
+            if (!query.semantic.role.equalsIgnoreCase(metadata.semantic.role)) {
+                return false;
+            }
+        }
+
+        // 2. placement_spec.allowed_placements 包含
+        if (query.context != null && query.context.placement != null) {
+            if (metadata.placementSpec == null || metadata.placementSpec.allowedPlacements == null) {
+                return false;
+            }
+            boolean placementMatch = metadata.placementSpec.allowedPlacements.stream()
+                    .anyMatch(p -> p.equalsIgnoreCase(query.context.placement));
+            if (!placementMatch) {
+                return false;
+            }
+        }
+
+        // 3. side_policy 不冲突
+        if (query.context != null && query.context.side != null) {
+            if (metadata.placementSpec != null && metadata.placementSpec.sidePolicy != null) {
+                String sidePolicy = metadata.placementSpec.sidePolicy.toLowerCase();
+                String querySide = query.context.side.toLowerCase();
+                if (sidePolicy.equals("exterior_only") && !querySide.equals("exterior")) {
+                    return false;
+                }
+                if (sidePolicy.equals("interior_only") && !querySide.equals("interior")) {
+                    return false;
+                }
+            }
+        }
+
+        // 4. requires_opening 与 geometry.opening 是否满足
+        if (query.geometry != null && query.geometry.opening != null) {
+            if (metadata.placementSpec != null && Boolean.TRUE.equals(metadata.placementSpec.requiresOpening)) {
+                // 需要开口，且查询提供了开口信息 → 通过
+                // 如果查询没有提供开口信息，但构件需要开口 → 可能不匹配，但暂时通过（由评分阶段处理）
+            }
+        } else {
+            // 查询没有提供开口信息
+            if (metadata.placementSpec != null && Boolean.TRUE.equals(metadata.placementSpec.requiresOpening)) {
+                // 构件需要开口，但查询没有提供 → 可能不匹配，但暂时通过（由评分阶段处理）
+            }
+        }
+
+        // 5. forbidden_tags 不命中
+        if (query.constraints != null && query.constraints.forbiddenTags != null) {
+            if (metadata.semantic != null && metadata.semantic.tags != null) {
+                for (String forbiddenTag : query.constraints.forbiddenTags) {
+                    if (forbiddenTag == null || forbiddenTag.isBlank()) continue;
+                    String lowerForbidden = forbiddenTag.toLowerCase();
+                    for (String componentTag : metadata.semantic.tags) {
+                        if (componentTag != null && componentTag.toLowerCase().contains(lowerForbidden)) {
+                            return false; // 命中禁止标签
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. must_have 必须命中
+        if (query.constraints != null && query.constraints.mustHave != null && !query.constraints.mustHave.isEmpty()) {
+            if (metadata.semantic == null || metadata.semantic.tags == null || metadata.semantic.tags.isEmpty()) {
+                return false;
+            }
+            for (String mustHaveTag : query.constraints.mustHave) {
+                if (mustHaveTag == null || mustHaveTag.isBlank()) continue;
+                String lowerMustHave = mustHaveTag.toLowerCase();
+                boolean found = false;
+                for (String componentTag : metadata.semantic.tags) {
+                    if (componentTag != null && componentTag.toLowerCase().contains(lowerMustHave)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return false; // 缺少必须标签
+                }
+            }
+        }
+
+        return true; // 通过所有硬过滤条件
     }
 
     /**

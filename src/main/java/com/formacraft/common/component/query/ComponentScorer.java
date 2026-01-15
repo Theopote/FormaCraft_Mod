@@ -11,45 +11,38 @@ import java.util.List;
 /**
  * ComponentScorer（构件评分器）：计算构件与查询的匹配评分。
  * <p>
- * 核心功能：
- * - 语义匹配（标签匹配）
- * - 上下文匹配（放置上下文、表面侧）
- * - 风格匹配（风格兼容性）
- * - 可变形程度（是否满足约束条件）
+ * 注意：这个类保留用于向后兼容，新的代码应该使用 ComponentRanker。
+ * <p>
+ * ComponentRanker 提供了更详细的多维评分系统。
  */
 public final class ComponentScorer {
     private ComponentScorer() {}
 
     /**
-     * 对构件进行评分
+     * 对构件进行评分（向后兼容方法）
      * 
      * @param component 构件定义
      * @param query 查询条件
      * @return 评分结果
+     * @deprecated 使用 ComponentRanker.rank() 代替
      */
+    @Deprecated
     public static ComponentScore score(ComponentDefinition component, ComponentQuery query) {
         if (component == null || query == null) {
             return new ComponentScore(component != null ? component.id : "unknown");
         }
 
-        ComponentScore score = new ComponentScore(component.id);
+        // 获取 Archetype（如果有）
+        ComponentArchetype archetype = null;
+        if (component.id != null) {
+            archetype = ComponentArchetypeStorage.get(component.id);
+        }
 
-        // 1. 语义匹配评分
-        score.semanticScore = scoreSemantic(component, query);
+        // 创建元数据
+        ComponentMetadata metadata = ComponentMetadata.fromComponent(component, archetype);
 
-        // 2. 上下文匹配评分
-        score.contextScore = scoreContext(component, query);
-
-        // 3. 风格匹配评分
-        score.styleScore = scoreStyle(component, query);
-
-        // 4. 可变形程度评分
-        score.flexibilityScore = scoreFlexibility(component, query);
-
-        // 5. 计算总分
-        score.calculateTotal();
-
-        return score;
+        // 使用 ComponentRanker 进行评分
+        return ComponentRanker.rank(metadata, component, query);
     }
 
     /**
