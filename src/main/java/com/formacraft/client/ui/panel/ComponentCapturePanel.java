@@ -113,8 +113,6 @@ public class ComponentCapturePanel extends BasePanel {
     // 选择工具状态
     private ComponentSelectionMode selectionMode = ComponentSelectionMode.BOX_SELECT;
     private java.util.Set<BlockPos> selectedBlocks = new java.util.HashSet<>();
-    private BlockPos boxStart = null;
-    private BlockPos boxEnd = null;
     private boolean isDragging = false;
     
     // Phase 3: 语义配置状态
@@ -1827,8 +1825,8 @@ public class ComponentCapturePanel extends BasePanel {
      */
     public void clearSelection() {
         selectedBlocks.clear();
-        boxStart = null;
-        boxEnd = null;
+        BlockPos boxStart = null;
+        BlockPos boxEnd = null;
         isDragging = false;
         SelectionTool.INSTANCE.clearSelection();
         System.out.println("[ComponentCapturePanel] 清除选区");
