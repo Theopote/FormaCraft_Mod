@@ -4,7 +4,6 @@ import com.formacraft.client.component.ClientComponentCatalogState;
 import com.formacraft.client.component.ComponentThumbnailCache;
 import com.formacraft.client.component.ComponentLibraryUsage;
 import com.formacraft.client.tool.ComponentTool;
-import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentCategory;
@@ -333,7 +332,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         // hint
         y += Math.max(1, (int) Math.ceil((end - start) / (double) cols)) * cell;
         y += 4;
-        y = drawWrappedText(ctx, Text.literal("提示：单击选中；双击直接加载构件。"), x, y, w, 0xFF888888);
+        y = drawWrappedText(ctx, Text.literal("提示：单击选中；双击加载构件到鼠标（可右键放置）。"), x, y, w, 0xFF888888);
     }
 
     private static String sortLabel(String s) {
@@ -423,7 +422,9 @@ public final class ComponentLibraryPanel extends BasePanel {
                     if (dbl) {
                         ComponentTool.INSTANCE.requestLoadSelectedComponent();
                         // 双击加载后自动跳回“工具”标签，方便立刻放置
-                        FormaCraftHudOverlay.activePanel = PanelType.TOOLS;
+                        // 不切换面板，保持在构件库面板，方便继续浏览和拾取
+                        var toolState = ComponentTool.INSTANCE.getState();
+                        toolState.useLibrary = true; // 启用库模式
                     }
                     return true;
                 }

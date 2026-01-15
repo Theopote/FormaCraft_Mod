@@ -168,6 +168,18 @@ public class InputRouter {
         // - 若工具未消费：右键设置锚点；左键也应被吞掉（完全拦截原版破坏/放置/开箱）
         boolean inside = isMouseInsideUI(x, y);
         if (!inside && (button == 0 || button == 1)) {
+            // 特殊处理：构件库模式下的右键放置（双击构件后）
+            if (button == 1) {
+                var toolState = com.formacraft.client.tool.ComponentTool.INSTANCE.getState();
+                if (toolState.useLibrary) {
+                    // 尝试通过 ComponentTool 处理右键放置
+                    if (com.formacraft.client.tool.ComponentTool.INSTANCE.onMouseClick(x, y, button)) {
+                        lastClickHandledByUI = true;
+                        return true;
+                    }
+                }
+            }
+            
             // 特殊处理：构件拾取面板激活时的世界交互
             if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE) {
                 var hit = CursorRaycastHelper.getLastBlockHit();

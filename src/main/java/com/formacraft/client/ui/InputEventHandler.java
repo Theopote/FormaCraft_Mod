@@ -43,6 +43,12 @@ public class InputEventHandler {
             // Tools tick：实时预览/状态更新
             ToolManager.tick();
             
+            // ComponentTool tick：构件库模式下的悬停预览（双击构件后）
+            var toolState = com.formacraft.client.tool.ComponentTool.INSTANCE.getState();
+            if (toolState.useLibrary) {
+                com.formacraft.client.tool.ComponentTool.INSTANCE.tick();
+            }
+            
             // ComponentCapturePanel tick：框选工具实时更新
             if (FormaCraftHudOverlay.activePanel == com.formacraft.client.ui.panel.PanelType.COMPONENT_CAPTURE) {
                 if (FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL != null) {
