@@ -161,6 +161,25 @@ public final class ComponentStorage {
 
     public static void saveComponent(Path worldDir, ComponentDefinition def) {
         if (def == null || def.id == null || def.id.isBlank()) return;
+        
+        // 验证构件定义
+        var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
+        if (!validationResult.ok()) {
+            // 记录错误但不阻止保存（允许用户修复）
+            System.err.println("[ComponentStorage] 保存构件 " + def.id + " 时发现验证错误：");
+            for (var issue : validationResult.errors()) {
+                System.err.println("  " + issue);
+            }
+            // 可以选择抛出异常阻止保存，或仅记录警告
+            // throw new IllegalArgumentException("Invalid component: " + def.id + " - " + validationResult.errors().get(0).message);
+        }
+        if (validationResult.warnings().size() > 0) {
+            System.out.println("[ComponentStorage] 保存构件 " + def.id + " 时发现验证警告：");
+            for (var issue : validationResult.warnings()) {
+                System.out.println("  " + issue);
+            }
+        }
+        
         try {
             Path globalDir = getGlobalComponentDir();
             Files.createDirectories(globalDir);
@@ -230,18 +249,47 @@ public final class ComponentStorage {
         Path g = getGlobalComponentDir().resolve(fileName);
         if (Files.exists(g)) {
             try (Reader r = Files.newBufferedReader(g, StandardCharsets.UTF_8)) {
-                return JsonUtil.get().fromJson(r, ComponentDefinition.class);
+                ComponentDefinition def = JsonUtil.get().fromJson(r, ComponentDefinition.class);
+                if (def != null) {
+                    // 验证加载的构件
+                    validateLoadedComponent(def, id);
+                }
+                return def;
             } catch (Exception ignored) {}
         }
         if (worldDir != null) {
             Path w = getWorldComponentDir(worldDir).resolve(fileName);
             if (Files.exists(w)) {
                 try (Reader r = Files.newBufferedReader(w, StandardCharsets.UTF_8)) {
-                    return JsonUtil.get().fromJson(r, ComponentDefinition.class);
+                    ComponentDefinition def = JsonUtil.get().fromJson(r, ComponentDefinition.class);
+                    if (def != null) {
+                        // 验证加载的构件
+                        validateLoadedComponent(def, id);
+                    }
+                    return def;
                 } catch (Exception ignored) {}
             }
         }
         return null;
+    }
+    
+    /**
+     * 验证加载的构件（记录问题但不阻止加载）
+     */
+    private static void validateLoadedComponent(ComponentDefinition def, String id) {
+        var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
+        if (!validationResult.ok()) {
+            System.err.println("[ComponentStorage] 加载构件 " + id + " 时发现验证错误：");
+            for (var issue : validationResult.errors()) {
+                System.err.println("  " + issue);
+            }
+        }
+        if (validationResult.warnings().size() > 0) {
+            System.out.println("[ComponentStorage] 加载构件 " + id + " 时发现验证警告：");
+            for (var issue : validationResult.warnings()) {
+                System.out.println("  " + issue);
+            }
+        }
     }
 
     public static String buildCatalogSummary(Path worldDir) {
