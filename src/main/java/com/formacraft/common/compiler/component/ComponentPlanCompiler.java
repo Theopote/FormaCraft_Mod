@@ -58,7 +58,7 @@ public final class ComponentPlanCompiler {
 
         // 2. 根据世界现状生成 Patch Diff
         BlockPos origin = ctx != null ? ctx.targetPos : BlockPos.ORIGIN;
-        Random rng = world != null ? world.getRandom() : new Random();
+        Random rng = new Random(); // WorldView 没有 getRandom()，使用默认 Random
 
         return PatchDiffGenerator.diff(origin, plan, world, styleProfileId, rng);
     }

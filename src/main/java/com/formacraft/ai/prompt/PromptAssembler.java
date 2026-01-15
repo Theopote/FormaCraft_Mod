@@ -315,7 +315,7 @@ ComponentParamsObject:
                 summary + "\n" +
                 "\nCOMPONENT GROUPS (Composite Prefabs):\n" +
                 groupSummary + "\n" +
-                validationWarning.toString() +
+                validationWarning +
                 "\nRules:\n" +
                 "- IMPORTANT: Facing is a low-level detail. Prefer semantic placement via placementSpec (Attachment/Context/FacingPolicy) when deciding where/how to mount.\n" +
                 "\nCOMPONENT PLACEMENT CONTRACTS (MUST FOLLOW):\n" +

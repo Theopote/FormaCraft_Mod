@@ -21,7 +21,7 @@ import java.util.Map;
  *   - catalog.json
  *   - <id>.json
  *   - <id>.png (thumbnail)
- *
+ * <p>
  * Legacy（兼容旧版）:
  * <world>/formacraft/components/
  *   - catalog.json
@@ -57,7 +57,7 @@ public final class ComponentStorage {
                 byId.put(e.id, e);
             }
         }
-        if (global != null && global.components != null) {
+        if (global.components != null) {
             for (ComponentCatalog.Entry e : global.components) {
                 if (e == null || e.id == null || e.id.isBlank()) continue;
                 byId.put(e.id, e);
@@ -182,7 +182,7 @@ public final class ComponentStorage {
             // 可以选择抛出异常阻止保存，或仅记录警告
             // throw new IllegalArgumentException("Invalid component: " + def.id + " - " + validationResult.errors().get(0).message);
         }
-        if (validationResult.warnings().size() > 0) {
+        if (!validationResult.warnings().isEmpty()) {
             System.out.println("[ComponentStorage] 保存构件 " + def.id + " 时发现验证警告：");
             for (var issue : validationResult.warnings()) {
                 System.out.println("  " + issue);
@@ -303,7 +303,7 @@ public final class ComponentStorage {
                 System.err.println("  " + issue);
             }
         }
-        if (validationResult.warnings().size() > 0) {
+        if (!validationResult.warnings().isEmpty()) {
             System.out.println("[ComponentStorage] 加载构件 " + id + " 时发现验证警告：");
             for (var issue : validationResult.warnings()) {
                 System.out.println("  " + issue);

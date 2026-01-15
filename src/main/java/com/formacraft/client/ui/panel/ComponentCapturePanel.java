@@ -1396,7 +1396,6 @@ public class ComponentCapturePanel extends BasePanel {
                 def = JsonUtil.fromJson(json, ComponentDefinition.class);
             }
             if (def != null) {
-            if (def != null) {
                 BufferedImage thumb = ComponentThumbnailGenerator.generateThumbnail(def);
                 if (thumb != null) {
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();

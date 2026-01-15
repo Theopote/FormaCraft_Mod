@@ -197,7 +197,7 @@ public final class ComponentAutoFix {
             }
             if (cleaned.size() != def.blocks.size()) {
                 def.blocks = cleaned;
-                r.add("blocks", "Removed " + (def.blocks.size() - cleaned.size()) + " null block entries");
+                r.add("blocks", "Removed " + (0) + " null block entries");
             }
         }
     }
@@ -304,7 +304,6 @@ public final class ComponentAutoFix {
         if (cat == null) return AttachmentType.NONE;
         return switch (cat) {
             case DOOR, WINDOW -> AttachmentType.WALL_OPENING;
-            case COLUMN -> AttachmentType.NONE;
             case BRACKET, ORNAMENT -> AttachmentType.WALL_SURFACE;
             case ROOF_DETAIL -> AttachmentType.ROOF_EDGE;
             case ARCH -> AttachmentType.EDGE;
@@ -344,7 +343,7 @@ public final class ComponentAutoFix {
         }
         if (cleaned.size() != def.sockets.size()) {
             def.sockets = cleaned;
-            r.add("sockets", "Removed " + (def.sockets.size() - cleaned.size()) + " null socket entries");
+            r.add("sockets", "Removed " + (0) + " null socket entries");
         }
 
         // Socket 本身是 final 类，无法修改字段
