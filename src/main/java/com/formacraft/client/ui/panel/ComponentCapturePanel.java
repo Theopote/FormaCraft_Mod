@@ -42,7 +42,7 @@ public class ComponentCapturePanel extends BasePanel {
     private static final int CONTENT_PADDING = 10;
     private static final int LABEL_OFFSET = 18;
     private static final int BUTTON_HEIGHT = 16;
-    private static final int THUMBNAIL_SIZE = 120;
+    private static final int THUMBNAIL_SIZE = 120; // 增大显示尺寸以更好地展示构件细节
     private static final int FIELD_SPACING = 28;
 
     // 输入框

@@ -7,7 +7,6 @@ import com.formacraft.client.tool.BrushTool;
 import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.tool.SemanticLabelTool;
 import com.formacraft.client.tool.SelectionTool;
-import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.interaction.AnchorState;
@@ -76,9 +75,6 @@ public class ToolPanel extends BasePanel {
 
 
 
-    // ComponentTool 使用按钮（保留预览和放置功能）
-    private ButtonWidget componentPreviewButton;
-    private ButtonWidget componentApplyButton;
 
     // 滚动（仅用于选项区域）
     private int scrollY = 0;
@@ -181,16 +177,6 @@ public class ToolPanel extends BasePanel {
         labelNameInput.setMaxLength(64);
         labelNameInput.setText("入口");
 
-        // ComponentTool 使用按钮（构件拾取功能已迁移到 ComponentCapturePanel）
-        componentPreviewButton = ButtonWidget.builder(Text.literal("预览放置"), b -> ComponentTool.INSTANCE.preview(client))
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("在锚点处预览该构件（不真正放置方块）")))
-                .build();
-
-        componentApplyButton = ButtonWidget.builder(Text.literal("放置构件（Patch）"), b -> ComponentTool.INSTANCE.applyPatchPreview(client))
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("将当前构件以 Patch 方式预览并可 Apply（支持 Undo/Redo）")))
-                .build();
 
         // Slider（用原版 SliderWidget 渲染/拖拽，手感与 SettingsPanel 一致）
         if (labelRangeSlider == null) {
@@ -334,13 +320,6 @@ public class ToolPanel extends BasePanel {
             optionsY = drawSymmetryToolOptions(ctx, x, optionsY, w);
         } else if (ToolManager.isActive(SemanticLabelTool.INSTANCE.getId())) {
             optionsY = drawSemanticLabelToolOptions(ctx, x, optionsY, w);
-        } else if (ToolManager.isActive(ComponentTool.INSTANCE.getId())) {
-            // 构件工具已迁移到 ComponentCapturePanel
-            optionsY = drawWrappedText(ctx, Text.literal("💡 构件拾取功能已移至「构件拾取」面板"), x, optionsY, w, 0xFF66CCFF);
-            optionsY += 2;
-            optionsY = drawWrappedText(ctx, Text.literal("请切换到顶部「构件拾取」标签页进行构件配置和保存"), x, optionsY, w, 0xFFAAAAAA);
-            optionsY += 4;
-            // optionsY = drawComponentToolOptions(ctx, x, optionsY, w);  // 已废弃
         }
 
         // 锚点状态（有工具时也显示在底部，作为通用选项）
@@ -655,10 +634,6 @@ public class ToolPanel extends BasePanel {
                 return true;
             }
             if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
-        } else if (ToolManager.isActive(ComponentTool.INSTANCE.getId())) {
-            // 构件工具已迁移到 ComponentCapturePanel，这里只保留预览和放置按钮
-            if (componentPreviewButton != null && componentPreviewButton.visible && componentPreviewButton.mouseClicked(click, false)) return true;
-            if (componentApplyButton != null && componentApplyButton.visible && componentApplyButton.mouseClicked(click, false)) return true;
         }
 
         // 锚点按钮（无论是否有激活工具都显示，因为锚点可以在没有工具时设置）

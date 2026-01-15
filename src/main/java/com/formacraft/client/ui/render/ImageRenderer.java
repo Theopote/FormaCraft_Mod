@@ -77,7 +77,7 @@ public final class ImageRenderer {
     }
 
     /**
-     * 渲染 BufferedImage 到指定区域（居中，保持宽高比）
+     * 渲染 BufferedImage 到指定区域（居中，保持宽高比，直接缩放）
      * @param ctx DrawContext
      * @param image 要渲染的图像
      * @param x 区域左上角 X 坐标
@@ -87,11 +87,9 @@ public final class ImageRenderer {
      */
     public static void renderCentered(DrawContext ctx, BufferedImage image, int x, int y, int areaWidth, int areaHeight) {
         if (image == null) {
-            System.err.println("[ImageRenderer] image 为 null");
             return;
         }
         if (areaWidth <= 0 || areaHeight <= 0) {
-            System.err.println("[ImageRenderer] 区域尺寸无效: " + areaWidth + "x" + areaHeight);
             return;
         }
         
@@ -99,23 +97,14 @@ public final class ImageRenderer {
         int srcHeight = image.getHeight();
         
         if (srcWidth <= 0 || srcHeight <= 0) {
-            System.err.println("[ImageRenderer] 图像尺寸无效: " + srcWidth + "x" + srcHeight);
             return;
         }
         
-        // 计算缩放比例（保持宽高比）
-        double scaleX = areaWidth / (double) srcWidth;
-        double scaleY = areaHeight / (double) srcHeight;
-        double scale = Math.min(scaleX, scaleY);
+        // 简单的缩放策略：直接按区域尺寸缩放（1:1填充）
+        // 因为我们在生成时已经使用了 0.85 的填充比例，所以这里直接缩放即可
+        int targetWidth = areaWidth;
+        int targetHeight = areaHeight;
         
-        int targetWidth = (int) Math.round(srcWidth * scale);
-        int targetHeight = (int) Math.round(srcHeight * scale);
-        
-        // 居中
-        int offsetX = (areaWidth - targetWidth) / 2;
-        int offsetY = (areaHeight - targetHeight) / 2;
-        
-        System.out.println("[ImageRenderer] 渲染: " + srcWidth + "x" + srcHeight + " -> " + targetWidth + "x" + targetHeight + " at (" + (x + offsetX) + "," + (y + offsetY) + ")");
-        renderScaled(ctx, image, x + offsetX, y + offsetY, targetWidth, targetHeight);
+        renderScaled(ctx, image, x, y, targetWidth, targetHeight);
     }
 }

@@ -22,7 +22,7 @@ import java.util.List;
 public final class ComponentThumbnailGenerator {
     private ComponentThumbnailGenerator() {}
 
-    private static final int THUMB_SIZE = 64;
+    private static final int THUMB_SIZE = 256; // 提高分辨率以获得清晰的缩略图
     private static final Map<Block, Integer> COLOR_CACHE = new HashMap<>();
 
     /**
@@ -111,13 +111,13 @@ public final class ComponentThumbnailGenerator {
 
         // 计算缩放和偏移
         double maxDim = Math.max(sizeX + sizeZ, sizeY + (sizeX + sizeZ) / 2.0);
-        double scale = (THUMB_SIZE * 0.65) / maxDim;
+        double scale = (THUMB_SIZE * 0.75) / maxDim; // 使用 0.75 平衡填充度和边距
         
-        // 确保方块足够大
-        int blockPixelSize = Math.max(4, (int) Math.ceil(scale * 1.2));
+        // 方块尺寸
+        int blockPixelSize = Math.max(5, (int) Math.ceil(scale * 1.3));
         
         int centerX = THUMB_SIZE / 2;
-        int centerY = (int) (THUMB_SIZE * 0.58);
+        int centerY = THUMB_SIZE / 2;
 
         // 渲染每个体素
         for (Voxel voxel : voxels) {
@@ -144,7 +144,7 @@ public final class ComponentThumbnailGenerator {
     }
 
     /**
-     * 绘制等轴测方块（三个面）
+     * 绘制等轴测方块（三个面）- 紧密连接，无间隙
      */
     private static void drawIsometricBlock(Graphics2D g2d, int x, int y, int size, 
                                           int baseColor, float ao, int height, int maxHeight) {
@@ -169,13 +169,17 @@ public final class ComponentThumbnailGenerator {
         int green = (baseColor >> 8) & 0xFF;
         int blue = baseColor & 0xFF;
 
+        // 等轴测坐标（标准计算）
+        int halfSize = size / 2;
+        int quarterSize = size / 4;
+        
         // 顶面（菱形）
-        int[] topX = {x, x + size/2, x, x - size/2};
-        int[] topY = {y, y + size/4, y + size/2, y + size/4};
+        int[] topX = {x, x + halfSize, x, x - halfSize};
+        int[] topY = {y, y + quarterSize, y + halfSize, y + quarterSize};
         g2d.setColor(applyBrightness(red, green, blue, alpha, topBrightness));
         g2d.fillPolygon(topX, topY, 4);
         
-        // 绘制顶面细节纹理（模拟像素）
+        // 绘制顶面细节（简单的几个高亮点）
         if (size >= 6) {
             g2d.setColor(applyBrightness(red, green, blue, alpha, topBrightness * 1.1f));
             for (int i = 0; i < 2; i++) {
@@ -186,27 +190,16 @@ public final class ComponentThumbnailGenerator {
         }
 
         // 左面（平行四边形）
-        int[] leftX = {x - size/2, x, x, x - size/2};
-        int[] leftY = {y + size/4, y + size/2, y + size, y + size*3/4};
+        int[] leftX = {x - halfSize, x, x, x - halfSize};
+        int[] leftY = {y + quarterSize, y + halfSize, y + size, y + size*3/4};
         g2d.setColor(applyBrightness(red, green, blue, alpha, leftBrightness));
         g2d.fillPolygon(leftX, leftY, 4);
 
         // 右面（平行四边形）
-        int[] rightX = {x, x + size/2, x + size/2, x};
-        int[] rightY = {y + size/2, y + size/4, y + size*3/4, y + size};
+        int[] rightX = {x, x + halfSize, x + halfSize, x};
+        int[] rightY = {y + halfSize, y + quarterSize, y + size*3/4, y + size};
         g2d.setColor(applyBrightness(red, green, blue, alpha, rightBrightness));
         g2d.fillPolygon(rightX, rightY, 4);
-
-        // 绘制边缘轮廓（增强立体感）
-        g2d.setColor(new Color(0, 0, 0, 100));
-        g2d.setStroke(new BasicStroke(0.5f));
-        
-        // 顶面轮廓
-        g2d.drawPolygon(topX, topY, 4);
-        // 左面轮廓
-        g2d.drawLine(x - size/2, y + size/4, x, y + size);
-        // 右面轮廓
-        g2d.drawLine(x + size/2, y + size/4, x, y + size);
     }
 
     /**
