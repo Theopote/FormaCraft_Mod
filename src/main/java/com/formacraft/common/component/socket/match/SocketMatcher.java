@@ -243,9 +243,9 @@ public final class SocketMatcher {
      * 计算尺寸评分
      */
     private static double sizeScore(Socket socket, ComponentPlacementSpec spec) {
-        double w = socket.bounds.getXLength();
-        double h = socket.bounds.getYLength();
-        double d = socket.bounds.getZLength();
+        double w = socket.bounds.getLengthX();
+        double h = socket.bounds.getLengthY();
+        double d = socket.bounds.getLengthZ();
 
         // v1：只看最小包围尺寸
         // 如果 spec 有 constraints，使用 constraints 的 minHeight / maxHeight

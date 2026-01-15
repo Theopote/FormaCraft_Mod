@@ -2,12 +2,15 @@ package com.formacraft.common.assembly;
 
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
+import com.formacraft.common.component.anchor.ComponentAnchor;
 import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.query.ComponentRetriever;
 import com.formacraft.common.component.query.ComponentScore;
 import com.formacraft.common.component.socket.Socket;
 import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.component.socket.match.SocketMatchResult;
+import com.formacraft.common.component.socket.place.ComponentInstanceTransform;
+import com.formacraft.common.component.socket.place.SocketAnchorResolver;
 import com.formacraft.common.component.variant.ComponentVariant;
 import com.formacraft.common.component.variant.VariantGenerator;
 
@@ -92,8 +95,14 @@ public final class AutoAssembler {
             // 生成变体
             ComponentVariant variant = VariantGenerator.generate(component, q, random);
 
-            // 创建装配结果
-            AssemblyResult result = new AssemblyResult(component, variant, s);
+            // 解析 Socket 到 Component 实例变换（H3）
+            ComponentAnchor anchor = ComponentAnchor.fromDefinition(component.anchor);
+            ComponentInstanceTransform transform = SocketAnchorResolver.resolve(
+                    s, anchor, component.placementSpec
+            );
+
+            // 创建装配结果（包含 transform）
+            AssemblyResult result = new AssemblyResult(component, variant, s, transform);
             results.add(result);
 
             // 标记 Socket 为已占用
@@ -109,6 +118,7 @@ public final class AutoAssembler {
     public record AssemblyResult(
             ComponentDefinition component,
             ComponentVariant variant,
-            Socket socket
+            Socket socket,
+            ComponentInstanceTransform transform
     ) {}
 }
