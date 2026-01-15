@@ -39,6 +39,10 @@ public final class ComponentLibraryPanel extends BasePanel {
     private ButtonWidget categoryButton;
     private ButtonWidget prevPageButton;
     private ButtonWidget nextPageButton;
+    
+    // 验证和修复按钮（当有加载的构件时显示）
+    private ButtonWidget validateButton;
+    private ButtonWidget autoFixButton;
 
     // grid hitboxes
     private static final class GridItem {
@@ -90,6 +94,23 @@ public final class ComponentLibraryPanel extends BasePanel {
                     st.libraryPage = st.libraryPage + 1;
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .build();
+        
+        // 验证和修复按钮
+        validateButton = ButtonWidget.builder(
+                Text.literal("验证"),
+                b -> ComponentTool.INSTANCE.validateLoadedComponent()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("验证当前加载的构件")))
+                .build();
+        
+        autoFixButton = ButtonWidget.builder(
+                Text.literal("自动修复"),
+                b -> ComponentTool.INSTANCE.autoFixLoadedComponent()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("自动修复构件的明显错误")))
                 .build();
     }
 
@@ -311,6 +332,115 @@ public final class ComponentLibraryPanel extends BasePanel {
         y += Math.max(1, (int) Math.ceil((end - start) / (double) cols)) * cell;
         y += 4;
         y = drawWrappedText(ctx, Text.literal("提示：单击选中；双击加载构件到鼠标（可右键放置）。"), x, y, w, 0xFF888888);
+        
+        // 验证和修复区域（如果有加载的构件）
+        var loadedComponent = ComponentTool.INSTANCE.getLoadedComponent();
+        if (loadedComponent != null) {
+            y += 8;
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+            
+            // 构件信息
+            String componentName = loadedComponent.name != null ? loadedComponent.name : loadedComponent.id;
+            y = drawWrappedText(ctx, Text.literal("已加载: " + componentName), x, y, w, 0xFFFFFFFF);
+            y += 2;
+            
+            // 验证状态
+            var validationResult = ComponentTool.INSTANCE.getState().getValidationResult();
+            if (validationResult != null) {
+                String statusText;
+                int statusColor;
+                if (validationResult.hasErrors()) {
+                    statusText = "❌ 错误 (" + validationResult.errors().size() + ")";
+                    statusColor = 0xFFFF5555;
+                } else if (validationResult.hasWarnings()) {
+                    statusText = "⚠️ 警告 (" + validationResult.warnings().size() + ")";
+                    statusColor = 0xFFFFAA00;
+                } else {
+                    statusText = "✅ 验证通过";
+                    statusColor = 0xFF55FF55;
+                }
+                y = drawWrappedText(ctx, Text.literal(statusText), x, y, w, statusColor);
+                y += 2;
+            } else {
+                y = drawWrappedText(ctx, Text.literal("⏳ 未验证"), x, y, w, 0xFFAAAAAA);
+                y += 2;
+            }
+            
+            // 修复状态
+            var autoFixReport = ComponentTool.INSTANCE.getState().getAutoFixReport();
+            if (autoFixReport != null && !autoFixReport.empty()) {
+                y = drawWrappedText(ctx, Text.literal("🛠 已修复 (" + autoFixReport.size() + " 项)"), x, y, w, 0xFF66CCFF);
+                y += 2;
+            }
+            
+            // 按钮
+            int buttonW = (w - 4) / 2;
+            validateButton.setPosition(x, y);
+            validateButton.setWidth(buttonW);
+            validateButton.visible = true;
+            validateButton.active = true;
+            validateButton.render(ctx, (int) (client.mouse.getX() / client.getWindow().getScaleFactor()),
+                    (int) (client.mouse.getY() / client.getWindow().getScaleFactor()), 0f);
+            
+            autoFixButton.setPosition(x + buttonW + 4, y);
+            autoFixButton.setWidth(w - buttonW - 4);
+            autoFixButton.visible = true;
+            autoFixButton.active = true;
+            autoFixButton.render(ctx, (int) (client.mouse.getX() / client.getWindow().getScaleFactor()),
+                    (int) (client.mouse.getY() / client.getWindow().getScaleFactor()), 0f);
+            y += LABEL_OFFSET;
+            
+            // 显示验证结果详情（如果有错误或警告）
+            if (validationResult != null) {
+                if (validationResult.hasErrors()) {
+                    y += 4;
+                    y = drawWrappedText(ctx, Text.literal("错误:"), x, y, w, 0xFFFF5555);
+                    y += 2;
+                    for (var error : validationResult.errors()) {
+                        String errorText = "  • " + error.path + ": " + error.message;
+                        y = drawWrappedText(ctx, Text.literal(errorText), x + 6, y, w - 6, 0xFFDD7777);
+                        y += 1;
+                    }
+                }
+                if (validationResult.hasWarnings()) {
+                    y += 4;
+                    y = drawWrappedText(ctx, Text.literal("警告:"), x, y, w, 0xFFFFAA00);
+                    y += 2;
+                    int warnCount = 0;
+                    for (var warning : validationResult.warnings()) {
+                        if (warnCount >= 3) { // 最多显示3个警告
+                            y = drawWrappedText(ctx, Text.literal("  ... 还有 " + (validationResult.warnings().size() - 3) + " 个警告"), 
+                                    x + 6, y, w - 6, 0xFFDDCC88);
+                            break;
+                        }
+                        String warnText = "  • " + warning.path + ": " + warning.message;
+                        y = drawWrappedText(ctx, Text.literal(warnText), x + 6, y, w - 6, 0xFFDDCC88);
+                        y += 1;
+                        warnCount++;
+                    }
+                }
+                
+                // 显示修复报告（如果有）
+                if (autoFixReport != null && !autoFixReport.empty()) {
+                    y += 4;
+                    y = drawWrappedText(ctx, Text.literal("修复内容:"), x, y, w, 0xFF66CCFF);
+                    y += 2;
+                    int fixCount = 0;
+                    for (var fix : autoFixReport.fixes()) {
+                        if (fixCount >= 3) { // 最多显示3个修复
+                            y = drawWrappedText(ctx, Text.literal("  ... 还有 " + (autoFixReport.size() - 3) + " 个修复"), 
+                                    x + 6, y, w - 6, 0xFF99CCFF);
+                            break;
+                        }
+                        String fixText = "  • " + fix.path + ": " + fix.message;
+                        y = drawWrappedText(ctx, Text.literal(fixText), x + 6, y, w - 6, 0xFF99CCFF);
+                        y += 1;
+                        fixCount++;
+                    }
+                }
+            }
+        }
     }
 
     private static @NotNull Comparator<ComponentCatalog.Entry> getEntryComparator(ComponentToolState st, String q) {
@@ -405,6 +535,8 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (categoryButton != null && categoryButton.visible && categoryButton.mouseClicked(click, false)) return true;
         if (prevPageButton != null && prevPageButton.visible && prevPageButton.mouseClicked(click, false)) return true;
         if (nextPageButton != null && nextPageButton.visible && nextPageButton.mouseClicked(click, false)) return true;
+        if (validateButton != null && validateButton.visible && validateButton.mouseClicked(click, false)) return true;
+        if (autoFixButton != null && autoFixButton.visible && autoFixButton.mouseClicked(click, false)) return true;
 
         if (searchBoundsValid) {
             if (searchInput.mouseClicked(mouseX, mouseY, searchX, searchY, searchW, searchH)) {

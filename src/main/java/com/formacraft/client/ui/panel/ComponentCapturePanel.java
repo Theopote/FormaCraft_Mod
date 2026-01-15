@@ -1351,11 +1351,51 @@ public class ComponentCapturePanel extends BasePanel {
             HudToast.show("保存失败：请检查选区", true);
             return;
         }
+        
+        // 解析、验证和自动修复（保存前）
+        ComponentDefinition def = null;
+        try {
+            def = JsonUtil.fromJson(json, ComponentDefinition.class);
+            if (def != null) {
+                // 自动修复
+                var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
+                if (!fixReport.empty()) {
+                    System.out.println("[ComponentCapturePanel] 保存前自动修复: " + fixReport.size() + " 项");
+                    for (var fix : fixReport.fixes()) {
+                        System.out.println("  " + fix);
+                    }
+                    // 重新生成 JSON（修复后）
+                    json = JsonUtil.toJson(def);
+                }
+                
+                // 验证
+                var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
+                if (validationResult.hasErrors()) {
+                    // 有错误，记录但不阻止保存（允许用户手动修复）
+                    System.err.println("[ComponentCapturePanel] 保存前验证发现错误:");
+                    for (var error : validationResult.errors()) {
+                        System.err.println("  " + error);
+                    }
+                    HudToast.show("警告：构件有 " + validationResult.errors().size() + " 个错误，但仍将保存", true);
+                } else if (validationResult.hasWarnings()) {
+                    System.out.println("[ComponentCapturePanel] 保存前验证发现警告: " + validationResult.warnings().size());
+                } else {
+                    System.out.println("[ComponentCapturePanel] 保存前验证通过");
+                }
+            }
+        } catch (Throwable t) {
+            System.err.println("[ComponentCapturePanel] 保存前验证/修复失败: " + t.getMessage());
+            t.printStackTrace();
+            // 继续保存，不阻止
+        }
 
-        // 生成缩略图
+        // 生成缩略图（使用修复后的 def，如果 def 为 null 则重新解析）
         byte[] thumbnailPng = null;
         try {
-            ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
+            if (def == null) {
+                def = JsonUtil.fromJson(json, ComponentDefinition.class);
+            }
+            if (def != null) {
             if (def != null) {
                 BufferedImage thumb = ComponentThumbnailGenerator.generateThumbnail(def);
                 if (thumb != null) {
@@ -1563,6 +1603,33 @@ public class ComponentCapturePanel extends BasePanel {
         String nameText = hasName ? "✓ 名称已填写" : "⚠ 名称: 请填写";
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(nameText), x, y, nameColor);
         y += client.textRenderer.fontHeight + 2;
+        
+        // 验证状态（如果已构建构件定义）
+        String currentJson = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+        if (currentJson != null) {
+            try {
+                var def = com.formacraft.common.json.JsonUtil.fromJson(currentJson, com.formacraft.common.component.ComponentDefinition.class);
+                if (def != null) {
+                    // 临时验证（不修改状态）
+                    var tempValidation = com.formacraft.common.component.validate.ComponentValidator.validate(def);
+                    if (tempValidation.hasErrors()) {
+                        String validationText = "❌ 验证: " + tempValidation.errors().size() + " 个错误";
+                        ctx.drawTextWithShadow(client.textRenderer, Text.literal(validationText), x, y, 0xFFFF5555);
+                        y += client.textRenderer.fontHeight + 2;
+                    } else if (tempValidation.hasWarnings()) {
+                        String validationText = "⚠️ 验证: " + tempValidation.warnings().size() + " 个警告";
+                        ctx.drawTextWithShadow(client.textRenderer, Text.literal(validationText), x, y, 0xFFFFAA00);
+                        y += client.textRenderer.fontHeight + 2;
+                    } else {
+                        String validationText = "✅ 验证通过";
+                        ctx.drawTextWithShadow(client.textRenderer, Text.literal(validationText), x, y, 0xFF55FF55);
+                        y += client.textRenderer.fontHeight + 2;
+                    }
+                }
+            } catch (Throwable ignored) {
+                // 忽略验证错误，不影响显示
+            }
+        }
         
         ctx.fill(x, y, x + w, y + 1, 0xFF444444);
         y += 2;
