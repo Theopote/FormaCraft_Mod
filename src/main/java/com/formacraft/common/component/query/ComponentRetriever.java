@@ -147,8 +147,8 @@ public final class ComponentRetriever {
             }
         }
 
-        // 4. requires_opening 与 geometry.opening 是否满足
-        if (query.geometry != null && query.geometry.opening != null) {
+        // 4. requires_opening 与 geometry 是否满足
+        if (query.geometry != null && query.geometry.requiresOpening) {
             if (metadata.placementSpec != null && Boolean.TRUE.equals(metadata.placementSpec.requiresOpening)) {
                 // 需要开口，且查询提供了开口信息 → 通过
                 // 如果查询没有提供开口信息，但构件需要开口 → 可能不匹配，但暂时通过（由评分阶段处理）
