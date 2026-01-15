@@ -162,7 +162,16 @@ public final class ComponentStorage {
     public static void saveComponent(Path worldDir, ComponentDefinition def) {
         if (def == null || def.id == null || def.id.isBlank()) return;
         
-        // 验证构件定义
+        // 自动修复明显错误
+        var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
+        if (!fixReport.empty()) {
+            System.out.println("[ComponentStorage] 保存构件 " + def.id + " 时应用了自动修复：");
+            for (var fix : fixReport.fixes()) {
+                System.out.println("  " + fix);
+            }
+        }
+        
+        // 验证构件定义（修复后）
         var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
         if (!validationResult.ok()) {
             // 记录错误但不阻止保存（允许用户修复）
@@ -277,6 +286,16 @@ public final class ComponentStorage {
      * 验证加载的构件（记录问题但不阻止加载）
      */
     private static void validateLoadedComponent(ComponentDefinition def, String id) {
+        // 自动修复明显错误
+        var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
+        if (!fixReport.empty()) {
+            System.out.println("[ComponentStorage] 加载构件 " + id + " 时应用了自动修复：");
+            for (var fix : fixReport.fixes()) {
+                System.out.println("  " + fix);
+            }
+        }
+        
+        // 验证构件定义（修复后）
         var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
         if (!validationResult.ok()) {
             System.err.println("[ComponentStorage] 加载构件 " + id + " 时发现验证错误：");
