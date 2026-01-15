@@ -14,6 +14,16 @@ import java.util.Random;
 /**
  * ComponentPlanCompiler（组件计划编译器）：Component → Patch 编译器。
  * <p>
+ * 支持两种变体类型：
+ * - 旧的 ComponentVariant（com.formacraft.common.component.model.ComponentVariant）
+ * - 新的 ComponentVariant（com.formacraft.common.component.variant.ComponentVariant）
+ * <p>
+ * 如果传入新的 ComponentVariant，会自动适配为旧的 ComponentVariant。
+ */
+
+/**
+ * ComponentPlanCompiler（组件计划编译器）：Component → Patch 编译器。
+ * <p>
  * 这是"组件系统真正落地为世界修改"的核心，也是整个 Formacraft 架构里最重要的一环之一。
  * <p>
  * 核心原则：
@@ -84,5 +94,33 @@ public final class ComponentPlanCompiler {
             PlacementContext ctx
     ) {
         return compile(component, variant, ctx, null, null);
+    }
+
+    /**
+     * 编译 ComponentDefinition 为 BlockPatch 列表（使用新的 ComponentVariant）
+     * 
+     * @param component 构件定义（已验证）
+     * @param newVariant 新的构件变体（com.formacraft.common.component.variant.ComponentVariant）
+     * @param ctx 放置上下文
+     * @param world 世界视图
+     * @param styleProfileId 风格配置 ID
+     * @return BlockPatch 列表
+     */
+    public static List<BlockPatch> compileWithNewVariant(
+            ComponentDefinition component,
+            com.formacraft.common.component.variant.ComponentVariant newVariant,
+            PlacementContext ctx,
+            WorldView world,
+            String styleProfileId
+    ) {
+        if (component == null) {
+            return List.of();
+        }
+
+        // 适配新的 ComponentVariant 为旧的 ComponentVariant
+        ComponentVariant oldVariant = ComponentVariantAdapter.adapt(newVariant, component);
+
+        // 使用旧的编译流程
+        return compile(component, oldVariant, ctx, world, styleProfileId);
     }
 }

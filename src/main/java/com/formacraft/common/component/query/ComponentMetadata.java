@@ -44,6 +44,16 @@ public class ComponentMetadata {
     public VariantCapability variantCapability;
 
     /**
+     * 是否为主要构件（用于排序）
+     */
+    public boolean isPrimary = false;
+
+    /**
+     * 是否视觉突出（用于排序）
+     */
+    public boolean isVisuallyStrong = false;
+
+    /**
      * 语义信息
      */
     public static class Semantic {
@@ -76,6 +86,32 @@ public class ComponentMetadata {
          * 是否需要开口
          */
         public Boolean requiresOpening;
+
+        /**
+         * 边缘偏好（例如："flat", "corner", "convex"）
+         */
+        public String edgePreference;
+
+        /**
+         * 检查是否允许指定的表面侧
+         */
+        public boolean isSideAllowed(String side) {
+            if (sidePolicy == null || side == null) {
+                return true; // 默认允许
+            }
+            String policy = sidePolicy.toLowerCase();
+            String sideLower = side.toLowerCase();
+            if (policy.equals("both")) {
+                return true;
+            }
+            if (policy.equals("exterior_only")) {
+                return sideLower.equals("exterior");
+            }
+            if (policy.equals("interior_only")) {
+                return sideLower.equals("interior");
+            }
+            return true; // 默认允许
+        }
     }
 
     /**
@@ -101,6 +137,25 @@ public class ComponentMetadata {
          * 最小缩放比例
          */
         public Double minScale;
+
+        /**
+         * 是否需要开口
+         */
+        public boolean requiresOpening = false;
+
+        /**
+         * 基础宽度（从 baseSize[0] 获取）
+         */
+        public int getBaseWidth() {
+            return baseSize != null && baseSize.length > 0 ? baseSize[0] : 1;
+        }
+
+        /**
+         * 基础高度（从 baseSize[1] 获取）
+         */
+        public int getBaseHeight() {
+            return baseSize != null && baseSize.length > 1 ? baseSize[1] : 1;
+        }
     }
 
     /**

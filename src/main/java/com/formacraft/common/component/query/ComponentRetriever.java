@@ -75,16 +75,15 @@ public final class ComponentRetriever {
         }
 
         // 3. 多维评分阶段（使用 ComponentRanker）
-        List<ComponentScore> scores = new ArrayList<>();
-        for (ComponentMetadata metadata : candidates) {
-            // 加载构件定义用于评分
-            ComponentDefinition component = ComponentStorage.loadComponent(metadata.componentId);
-            if (component == null) {
-                continue;
-            }
+        List<com.formacraft.common.component.rank.ComponentRanker.ScoredComponent> scored = 
+            com.formacraft.common.component.rank.ComponentRanker.rank(query, candidates);
 
-            // 使用 ComponentRanker 进行详细评分
-            ComponentScore score = ComponentRanker.rank(metadata, component, query);
+        // 转换为 ComponentScore（向后兼容）
+        List<ComponentScore> scores = new ArrayList<>();
+        for (var sc : scored) {
+            ComponentScore score = new ComponentScore(sc.component().componentId);
+            score.totalScore = sc.score();
+            // 其他维度分数可以从 ComponentRanker 扩展获取（如果需要）
             scores.add(score);
         }
 
@@ -230,6 +229,38 @@ public final class ComponentRetriever {
 
         return ComponentStorage.loadComponent(best.componentId);
     }
+
+    /**
+     * 检索最佳匹配的构件并生成变体
+     * <p>
+     * 这是 AI 使用构件的标准流程：
+     * 1. 检索最佳匹配
+     * 2. 自动生成变体（用户完全不需要参与）
+     * 
+     * @param query 查询条件
+     * @param random 随机数生成器（用于变体生成）
+     * @return 变体结果（包含基础构件和生成的变体）
+     */
+    public static VariantResult retrieveBestWithVariant(ComponentQuery query, java.util.Random random) {
+        ComponentDefinition base = retrieveBest(query);
+        if (base == null) {
+            return null;
+        }
+
+        // 自动生成变体
+        com.formacraft.common.component.variant.ComponentVariant variant = 
+            com.formacraft.common.component.variant.VariantGenerator.generate(base, query, random);
+
+        return new VariantResult(base, variant);
+    }
+
+    /**
+     * 变体结果
+     */
+    public record VariantResult(
+            ComponentDefinition base,
+            com.formacraft.common.component.variant.ComponentVariant variant
+    ) {}
 
     /**
      * 根据语义标签快速检索

@@ -1,220 +1,110 @@
 package com.formacraft.common.component.query;
 
-import com.formacraft.common.component.archetype.ContextType;
-import com.formacraft.common.component.archetype.SurfaceSide;
-
-import java.util.List;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
- * ComponentQuery（构件查询）：AI 选择构件时的查询模型。
+ * ComponentQuery
  * <p>
- * 核心思想：
- * - AI 说"我要一个门"，系统如何从 ComponentLibrary 里选"最合适的门"？
- * - 这不是玩家交互，而是 AI 的决策单位
- * - AI 永远不知道构件 ID，只描述"我想要什么样的构件"
+ * 描述"我想要一个什么样的构件"
+ * —— 由 PromptAssembler / LLM 生成
+ * —— 由 ComponentRetriever / Ranker 消费
  * <p>
- * 这是 PromptAssembler 输出的一部分，也是后端的第一输入。
+ * 设计目标：
+ * - 完全数据驱动
+ * - 可 JSON 映射（Gson / Jackson）
+ * - 不包含任何"选择逻辑"
+ * - 能被 LLM 明确输出
  */
 public class ComponentQuery {
-    /**
-     * 语义信息（我是什么）
-     */
-    public Semantic semantic;
+    /** 我是什么（门 / 窗 / 柱 / 装饰等） */
+    public Semantic semantic = new Semantic();
 
-    /**
-     * 上下文信息（我要放在哪里）
-     */
-    public Context context;
+    /** 放在哪里 */
+    public Context context = new Context();
 
-    /**
-     * 几何信息（我大概多大）
-     */
-    public Geometry geometry;
+    /** 尺寸 / 形态约束 */
+    public Geometry geometry = new Geometry();
 
-    /**
-     * 风格信息（风格一致性）
-     */
-    public Style style;
+    /** 风格一致性 */
+    public Style style = new Style();
 
-    /**
-     * 约束条件（硬性约束）
-     */
-    public Constraints constraints;
+    /** 强约束 */
+    public Constraints constraints = new Constraints();
 
-    /**
-     * 使用提示（排序辅助）
-     */
-    public UsageHint usageHint;
+    /** 排序辅助（主次、可见度） */
+    public UsageHint usageHint = new UsageHint();
 
-    /**
-     * 语义信息
-     */
+    /* ----------------------------
+     * 子结构定义
+     * ---------------------------- */
+
     public static class Semantic {
-        /**
-         * 角色（例如："door", "window", "column", "railing", "decoration"）
-         */
+        /** 构件语义角色：door / window / column / balcony / railing ... */
         public String role;
 
-        /**
-         * 标签（例如：["gothic", "arched", "heavy"]）
-         */
-        public List<String> tags;
+        /** 语义标签：gothic / arched / heavy / modern */
+        public Set<String> tags = new HashSet<>();
 
         /**
-         * 重要性字段（用于调权重，例如：["role", "placement"]）
+         * 重要性提示：
+         * role / placement / style / geometry
+         * 用于 Ranker 调整权重
          */
-        public List<String> importance;
+        public Set<String> importance = new HashSet<>();
     }
 
-    /**
-     * 上下文信息（Attachment / Context / FacingPolicy 的消费端）
-     */
     public static class Context {
-        /**
-         * 放置上下文（例如："wall", "roof", "edge", "ground", "interior"）
-         */
+        /** wall / roof / edge / ground / interior */
         public String placement;
 
-        /**
-         * 表面侧（例如："interior", "exterior", "both"）
-         */
+        /** exterior / interior / both */
         public String side;
 
-        /**
-         * 高度层级（例如："ground", "mid", "roof"）
-         */
+        /** ground / mid / roof */
         public String heightLevel;
 
-        /**
-         * 边缘条件（例如："corner", "flat", "convex"）
-         */
+        /** flat / corner / convex / concave */
         public String edgeCondition;
     }
 
-    /**
-     * 几何信息
-     */
     public static class Geometry {
-        /**
-         * 开口信息（洞口类构件）
-         */
-        public Opening opening;
+        /** 是否需要洞口（门窗） */
+        public boolean requiresOpening = false;
 
-        /**
-         * 是否允许变体缩放
-         */
-        public Boolean scalable;
+        /** 期望洞口尺寸（可选） */
+        public Integer openingWidth;
+        public Integer openingHeight;
 
-        /**
-         * 容差（给 AI 留余地，很重要）
-         */
-        public Integer tolerance;
+        /** 尺寸允许误差（± block） */
+        public int tolerance = 0;
+
+        /** 是否允许缩放 */
+        public boolean scalable = true;
     }
 
-    /**
-     * 开口信息
-     */
-    public static class Opening {
-        /**
-         * 宽度
-         */
-        public Integer width;
-
-        /**
-         * 高度
-         */
-        public Integer height;
-
-        /**
-         * 容差
-         */
-        public Integer tolerance;
-    }
-
-    /**
-     * 风格信息
-     */
     public static class Style {
-        /**
-         * 风格配置（来自 StyleProfileCatalog，例如："Medieval_Castle"）
-         */
+        /** StyleProfile ID */
         public String styleProfile;
 
-        /**
-         * 材质色调（例如："dark_stone", "light_wood"）
-         */
+        /** 材质色调（dark_stone / light_wood / red_brick） */
         public String materialTone;
     }
 
-    /**
-     * 约束条件（硬性约束）
-     */
     public static class Constraints {
-        /**
-         * 禁止的标签（明确不要）
-         */
-        public List<String> forbiddenTags;
+        /** 必须包含的标签 */
+        public Set<String> mustHave = new HashSet<>();
 
-        /**
-         * 必须有的标签（必须具备）
-         */
-        public List<String> mustHave;
+        /** 禁止出现的标签 */
+        public Set<String> forbiddenTags = new HashSet<>();
     }
 
-    /**
-     * 使用提示（排序辅助）
-     */
     public static class UsageHint {
-        /**
-         * 频率（例如："primary", "secondary", "decorative"）
-         */
+        /** primary / secondary / decorative */
         public String frequency;
 
-        /**
-         * 可见性（例如："high", "low"）
-         */
+        /** high / medium / low */
         public String visibility;
     }
 
-    /**
-     * 创建基础查询（仅语义角色）
-     */
-    public static ComponentQuery role(String role) {
-        ComponentQuery query = new ComponentQuery();
-        query.semantic = new Semantic();
-        query.semantic.role = role;
-        return query;
-    }
-
-    /**
-     * 创建基础查询（仅语义标签）
-     */
-    public static ComponentQuery semantic(String... tags) {
-        ComponentQuery query = new ComponentQuery();
-        query.semantic = new Semantic();
-        query.semantic.tags = List.of(tags);
-        return query;
-    }
-
-    /**
-     * 创建完整查询
-     */
-    public static ComponentQuery create(
-            Semantic semantic,
-            Context context,
-            Geometry geometry,
-            Style style,
-            Constraints constraints,
-            UsageHint usageHint
-    ) {
-        ComponentQuery query = new ComponentQuery();
-        query.semantic = semantic;
-        query.context = context;
-        query.geometry = geometry;
-        query.style = style;
-        query.constraints = constraints;
-        query.usageHint = usageHint;
-        return query;
-    }
 }

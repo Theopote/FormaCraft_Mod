@@ -1,0 +1,159 @@
+package com.formacraft.common.component.variant;
+
+import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.query.ComponentQuery;
+import com.formacraft.common.component.archetype.ComponentArchetype;
+import com.formacraft.common.component.archetype.ComponentArchetypeStorage;
+
+import java.util.Random;
+
+/**
+ * VariantGenerator（变体生成器）：核心逻辑。
+ * <p>
+ * 核心思想：
+ * - Variant ≠ Random
+ * - Variant = 受控变形
+ * - 保持"看起来是同一个建筑师设计的东西"
+ * <p>
+ * 触发时机：
+ * - Prompt → ComponentQuery
+ * - Rank → Archetype
+ * - VariantGenerator 自动触发
+ * - 用户不需要知道它发生过
+ */
+public final class VariantGenerator {
+    private VariantGenerator() {}
+
+    /**
+     * 生成变体
+     * 
+     * @param base 基础构件定义（Archetype）
+     * @param query 查询条件（用于指导变体生成）
+     * @param random 随机数生成器
+     * @return 生成的变体
+     */
+    public static ComponentVariant generate(
+            ComponentDefinition base,
+            ComponentQuery query,
+            Random random
+    ) {
+        if (base == null) {
+            return null;
+        }
+
+        // 获取 Archetype（如果有）
+        ComponentArchetype archetype = null;
+        if (base.id != null) {
+            archetype = ComponentArchetypeStorage.get(base.id);
+        }
+
+        // 创建变体规格
+        ComponentVariantSpec spec;
+        if (archetype != null && archetype.variation != null) {
+            spec = ComponentVariantSpec.fromArchetype(archetype.variation);
+        } else {
+            spec = ComponentVariantSpec.createDefault();
+        }
+
+        // 创建变体
+        ComponentVariant variant = new ComponentVariant(base);
+
+        // 1️⃣ 尺寸变体
+        if (spec.allowScaling && query.geometry != null) {
+            // 根据查询的几何要求调整缩放
+            float scale = lerp(spec.scaleMin, spec.scaleMax, random.nextFloat());
+            
+            // 如果查询指定了 openingWidth/Height，尝试匹配
+            if (query.geometry.openingWidth != null && query.geometry.openingHeight != null && base.size != null) {
+                float targetWidth = (float) query.geometry.openingWidth / base.size.w;
+                float targetHeight = (float) query.geometry.openingHeight / base.size.h;
+                
+                // 在允许范围内调整
+                if (targetWidth >= spec.scaleMin && targetWidth <= spec.scaleMax) {
+                    scale = targetWidth;
+                }
+            }
+            
+            variant.applyScale(scale, spec.scalePolicy);
+        }
+
+        // 2️⃣ 分段重复（栏杆 / 窗组）
+        if (spec.allowSegmentRepeat && query.usageHint != null) {
+            String frequency = query.usageHint.frequency;
+            if ("secondary".equals(frequency) || "decorative".equals(frequency)) {
+                int repeatCount = randomRepeatCount(random, spec.repeatUnit);
+                variant.applyRepeat(spec.repeatAxis, repeatCount);
+            }
+        }
+
+        // 3️⃣ 裁剪（适配 opening / edge）
+        if (spec.allowTrim && query.geometry != null && query.geometry.requiresOpening) {
+            if (query.geometry.openingWidth != null && query.geometry.openingHeight != null) {
+                int width = query.geometry.openingWidth;
+                int height = query.geometry.openingHeight;
+                int depth = base.size != null ? base.size.d : 1;
+                variant.applyTrim(width, height, depth);
+            }
+        }
+
+        // 4️⃣ 材质语义替换
+        if (spec.materialPolicy != MaterialVariantPolicy.NONE && query.style != null) {
+            // 根据风格推断材质语义（简化处理）
+            String semantic = inferMaterialSemantic(query, base);
+            if (semantic != null) {
+                variant.applyMaterialSemantic(semantic);
+            }
+        }
+
+        // 5️⃣ 镜像（如果允许且查询需要）
+        if (spec.materialPolicy != MaterialVariantPolicy.NONE && archetype != null && archetype.variation != null) {
+            if (archetype.variation.allowMirror && random.nextFloat() < 0.3f) {
+                // 30% 概率镜像
+                variant.applyMirror(ComponentVariantSpec.Axis.X);
+            }
+        }
+
+        return variant;
+    }
+
+    /**
+     * 线性插值
+     */
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
+
+    /**
+     * 随机重复次数
+     */
+    private static int randomRepeatCount(Random random, int minUnit) {
+        // 1-5 个重复单元
+        return minUnit + random.nextInt(5);
+    }
+
+    /**
+     * 推断材质语义
+     */
+    private static String inferMaterialSemantic(ComponentQuery query, ComponentDefinition base) {
+        // 简化处理：根据查询的风格和构件的角色推断材质语义
+        if (query.style == null || query.style.styleProfile == null) {
+            return null;
+        }
+
+        // 根据构件的分类推断材质语义
+        if (base.category != null) {
+            String category = base.category.name().toLowerCase();
+            if (category.contains("door") || category.contains("window")) {
+                return "FRAME";
+            } else if (category.contains("wall")) {
+                return "WALL_PRIMARY";
+            } else if (category.contains("column") || category.contains("support")) {
+                return "SUPPORT";
+            } else if (category.contains("roof")) {
+                return "ROOF";
+            }
+        }
+
+        return "WALL_PRIMARY"; // 默认
+    }
+}

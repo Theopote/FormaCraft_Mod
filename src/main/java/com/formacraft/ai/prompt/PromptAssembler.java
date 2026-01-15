@@ -58,6 +58,9 @@ public final class PromptAssembler {
         // 1. System Role（AI 身份，永远固定）
         sb.append(systemRole());
 
+        // 1.25. ComponentQuery System Prompt（构件查询系统 - AI-first 组件选择）
+        sb.append(componentQuerySystemPrompt());
+
         // 1.5. Memory Context（记忆上下文 - RAG 功能）
         MemoryContext memoryContext = retrieveMemory(ctx);
         if (memoryContext != null && !memoryContext.isEmpty()) {
@@ -160,14 +163,38 @@ ComponentObject:
   "component_query": { ComponentQueryObject }  // OPTIONAL: Use ComponentQuery instead of exact component_id
 }
 
-ComponentQueryObject:
+ComponentQueryObject (use in component_query field):
 {
-  "semantic": { "role": "string", "tags": [ "string" ], "importance": [ "string" ] },
-  "context": { "placement": "string", "side": "string", "height_level": "string", "edge_condition": "string" },
-  "geometry": { "opening": { "width": int, "height": int, "tolerance": int }, "scalable": boolean },
-  "style": { "style_profile": "string", "material_tone": "string" },
-  "constraints": { "forbidden_tags": [ "string" ], "must_have": [ "string" ] },
-  "usage_hint": { "frequency": "string", "visibility": "string" }
+  "semantic": {
+    "role": "door | window | column | balcony | railing | ornament | canopy | bracket",
+    "tags": [ "string" ],
+    "importance": [ "role | placement | style | geometry" ]
+  },
+  "context": {
+    "placement": "wall | roof | edge | ground | interior",
+    "side": "exterior | interior | both",
+    "heightLevel": "ground | mid | roof | any",
+    "edgeCondition": "flat | corner | convex | concave | any"
+  },
+  "geometry": {
+    "requiresOpening": boolean,
+    "openingWidth": integer | null,
+    "openingHeight": integer | null,
+    "tolerance": integer,
+    "scalable": boolean
+  },
+  "style": {
+    "styleProfile": "string | null",
+    "materialTone": "string | null"
+  },
+  "constraints": {
+    "mustHave": [ "string" ],
+    "forbiddenTags": [ "string" ]
+  },
+  "usageHint": {
+    "frequency": "primary | secondary | decorative",
+    "visibility": "high | medium | low"
+  }
 }
 
 BuildingGenomeObject (v1):
@@ -1249,6 +1276,138 @@ USER REQUEST:
         sb.append("\n");
 
         return sb.toString();
+    }
+
+    /**
+     * ComponentQuery System Prompt（构件查询系统 - AI-first 组件选择）
+     * <p>
+     * 这是 System Prompt（不是 user / assistant）
+     * <p>
+     * 目标：
+     * - LLM 输出 100% 可被 Gson/Jackson 解析
+     * - 不掺杂自然语言
+     * - 不让 LLM 越权（不选具体构件、不操作方块）
+     */
+    private static String componentQuerySystemPrompt() {
+        return """
+            
+            ========================================
+            COMPONENT QUERY SYSTEM (AI-first component selection)
+            ========================================
+            
+            You are Formacraft Core, a backend reasoning engine for Minecraft architectural generation.
+            
+            You do NOT place blocks.
+            You do NOT select specific components.
+            You ONLY describe architectural intent in structured JSON.
+            
+            Your task:
+            When a building requires architectural components (doors, windows, columns, balconies, railings, ornaments, etc),
+            you must describe each required component as a ComponentQuery object.
+            
+            ComponentQuery describes WHAT kind of component is needed,
+            NOT which concrete component to use.
+            
+            -----------------------------------
+            OUTPUT RULES (CRITICAL)
+            -----------------------------------
+            - Output MUST be valid JSON
+            - Output MUST NOT contain explanations or comments
+            - Output MUST strictly follow the schema below
+            - Do NOT invent fields
+            - Use null instead of omitting optional fields
+            - Use arrays even if only one item exists
+            
+            -----------------------------------
+            ComponentQuery JSON Schema
+            -----------------------------------
+            
+            {
+              "semantic": {
+                "role": "string",
+                "tags": ["string"],
+                "importance": ["string"]
+              },
+              "context": {
+                "placement": "wall | roof | edge | ground | interior",
+                "side": "exterior | interior | both",
+                "heightLevel": "ground | mid | roof | any",
+                "edgeCondition": "flat | corner | convex | concave | any"
+              },
+              "geometry": {
+                "requiresOpening": boolean,
+                "openingWidth": integer | null,
+                "openingHeight": integer | null,
+                "tolerance": integer,
+                "scalable": boolean
+              },
+              "style": {
+                "styleProfile": "string | null",
+                "materialTone": "string | null"
+              },
+              "constraints": {
+                "mustHave": ["string"],
+                "forbiddenTags": ["string"]
+              },
+              "usageHint": {
+                "frequency": "primary | secondary | decorative",
+                "visibility": "high | medium | low"
+              }
+            }
+            
+            -----------------------------------
+            SEMANTIC GUIDELINES
+            -----------------------------------
+            
+            - role describes the architectural function:
+              examples: door, window, column, balcony, railing, ornament, canopy, bracket
+            
+            - tags describe shape, feeling, or subtype:
+              examples: arched, gothic, heavy, slender, carved, modular
+            
+            - importance affects ranking weight:
+              examples: role, placement, style, geometry
+            
+            -----------------------------------
+            CONSTRAINT GUIDELINES
+            -----------------------------------
+            
+            - Use mustHave only for hard requirements
+            - Use forbiddenTags to prevent unsuitable components
+            - Do NOT overconstrain unless explicitly required
+            
+            -----------------------------------
+            STYLE GUIDELINES
+            -----------------------------------
+            
+            - styleProfile should match the building's StyleProfile if known
+            - materialTone is a hint, not a strict requirement
+            
+            -----------------------------------
+            GEOMETRY GUIDELINES
+            -----------------------------------
+            
+            - requiresOpening = true for doors and windows
+            - scalable = false ONLY when shape must remain fixed
+            - tolerance defines how much size mismatch is allowed
+            
+            -----------------------------------
+            USAGE GUIDELINES
+            -----------------------------------
+            
+            - primary: main structural or focal component
+            - secondary: supporting or repeating component
+            - decorative: visual detail
+            
+            -----------------------------------
+            IMPORTANT
+            -----------------------------------
+            
+            You must output a JSON array of ComponentQuery objects.
+            
+            If no components are needed, output an empty array: []
+            
+            """;
     }
 
     /**
