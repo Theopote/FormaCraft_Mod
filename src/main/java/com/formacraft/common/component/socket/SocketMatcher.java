@@ -2,9 +2,11 @@ package com.formacraft.common.component.socket;
 
 import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.component.variant.ComponentVariant;
+import com.formacraft.common.component.socket.match.SocketMatchResult;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * SocketMatcher（插槽匹配器）：真正的"合法性裁判"。
@@ -15,12 +17,15 @@ import java.util.List;
  * - 不是构件有方向，而是"它能附着在什么地方"
  * - AI 永远不碰 Socket
  * - Socket 是世界几何 + 建筑语义自动推导的
+ * <p>
+ * 注意：新的详细匹配逻辑在 com.formacraft.common.component.socket.match.SocketMatcher 中。
+ * 这个类保留用于向后兼容。
  */
 public final class SocketMatcher {
     private SocketMatcher() {}
 
     /**
-     * 匹配构件与 Socket
+     * 匹配构件与 Socket（向后兼容方法）
      * 
      * @param component 构件变体
      * @param sockets 可用的 Socket 列表
@@ -42,50 +47,20 @@ public final class SocketMatcher {
                     .toList();
         }
 
-        List<Socket> result = new ArrayList<>();
+        // 使用新的详细匹配逻辑
+        List<SocketMatchResult> results = com.formacraft.common.component.socket.match.SocketMatcher.match(
+                sockets, spec, null
+        );
 
-        for (Socket s : sockets) {
-            // 1. 检查是否被占用
-            if (s.occupied) {
-                continue;
-            }
-
-            // 2. 检查 Socket 类型是否允许
-            if (spec.allowedSockets != null && !spec.allowedSockets.isEmpty()) {
-                if (!spec.allowedSockets.contains(s.type)) {
-                    continue;
-                }
-            }
-
-            // 3. 检查是否必须在外侧
-            if (spec.requireExterior && !s.isExterior()) {
-                continue;
-            }
-
-            // 4. 检查是否必须嵌入（门 / 窗）
-            if (spec.requiresOpening && s.type != SocketType.WALL_OPENING) {
-                continue;
-            }
-
-            // 5. 检查是否必须在边缘
-            if (spec.requireEdge && s.type != SocketType.EDGE_OUTER) {
-                continue;
-            }
-
-            // 6. 检查是否禁止内部（如果 spec 有 forbidInterior）
-            if (spec.constraints != null && spec.constraints.forbidInterior && !s.isExterior()) {
-                continue;
-            }
-
-            // 通过所有检查，添加到结果
-            result.add(s);
-        }
-
-        return result;
+        // 只返回合法的 Socket
+        return results.stream()
+                .filter(r -> r.valid)
+                .map(r -> r.socket)
+                .collect(Collectors.toList());
     }
 
     /**
-     * 匹配构件与 Socket（使用 ComponentPlacementSpec）
+     * 匹配构件与 Socket（使用 ComponentPlacementSpec，向后兼容方法）
      * 
      * @param spec 构件放置规格
      * @param sockets 可用的 Socket 列表
@@ -99,45 +74,15 @@ public final class SocketMatcher {
             return List.of();
         }
 
-        List<Socket> result = new ArrayList<>();
+        // 使用新的详细匹配逻辑
+        List<SocketMatchResult> results = com.formacraft.common.component.socket.match.SocketMatcher.match(
+                sockets, spec, null
+        );
 
-        for (Socket s : sockets) {
-            // 1. 检查是否被占用
-            if (s.occupied) {
-                continue;
-            }
-
-            // 2. 检查 Socket 类型是否允许
-            if (spec.allowedSockets != null && !spec.allowedSockets.isEmpty()) {
-                if (!spec.allowedSockets.contains(s.type)) {
-                    continue;
-                }
-            }
-
-            // 3. 检查是否必须在外侧
-            if (spec.requireExterior && !s.isExterior()) {
-                continue;
-            }
-
-            // 4. 检查是否必须嵌入（门 / 窗）
-            if (spec.requiresOpening && s.type != SocketType.WALL_OPENING) {
-                continue;
-            }
-
-            // 5. 检查是否必须在边缘
-            if (spec.requireEdge && s.type != SocketType.EDGE_OUTER) {
-                continue;
-            }
-
-            // 6. 检查是否禁止内部（如果 spec 有 forbidInterior）
-            if (spec.constraints != null && spec.constraints.forbidInterior && !s.isExterior()) {
-                continue;
-            }
-
-            // 通过所有检查，添加到结果
-            result.add(s);
-        }
-
-        return result;
+        // 只返回合法的 Socket
+        return results.stream()
+                .filter(r -> r.valid)
+                .map(r -> r.socket)
+                .collect(Collectors.toList());
     }
 }

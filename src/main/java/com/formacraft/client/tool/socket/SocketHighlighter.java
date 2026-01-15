@@ -3,13 +3,19 @@ package com.formacraft.client.tool.socket;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.socket.Socket;
 import com.formacraft.common.component.socket.SocketMatcher;
-import com.formacraft.common.component.socket.SocketRegistry;
+import com.formacraft.common.component.socket.SocketProviders;
+import com.formacraft.common.component.socket.SocketQueryContext;
+import com.formacraft.common.component.socket.SocketQueryContextBuilder;
+import com.formacraft.common.component.socket.match.SocketMatchResult;
 import com.formacraft.common.component.variant.ComponentVariant;
-import com.formacraft.common.buildcontext.BuildContext;
+import com.formacraft.client.tool.OutlineTool;
+import com.formacraft.client.tool.PathTool;
+import com.formacraft.client.tool.SelectionTool;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * SocketHighlighter（插槽高亮器）：ComponentTool 如何利用 Socket。
@@ -29,46 +35,74 @@ public final class SocketHighlighter {
      * 
      * @param component 构件定义
      * @param variant 构件变体（可选）
-     * @param ctx 构建上下文
-     * @return 合法的 Socket 列表
+     * @param focus 焦点位置（鼠标 hit 或 anchor）
+     * @return 合法的 Socket 列表（带评分）
      */
-    public static List<Socket> getValidSockets(
+    public static List<SocketMatchResult> getValidSockets(
             ComponentDefinition component,
             ComponentVariant variant,
-            BuildContext ctx
+            Vec3d focus
     ) {
-        if (component == null || ctx == null) {
+        if (component == null || component.placementSpec == null) {
             return List.of();
         }
 
-        // 1. 获取所有 Socket
-        List<Socket> allSockets = SocketRegistry.getAllSockets(ctx);
-
-        // 2. 创建变体（如果没有提供）
-        if (variant == null) {
-            // 使用默认变体（不缩放、不镜像）
-            variant = new ComponentVariant(component);
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) {
+            return List.of();
         }
 
-        // 3. 匹配合法的 Socket
-        return SocketMatcher.match(variant, allSockets);
+        // 1. 从工具状态创建查询上下文
+        SocketQueryContext ctx = SocketQueryContextBuilder.fromTools(
+                SelectionTool.INSTANCE,
+                OutlineTool.INSTANCE,
+                PathTool.INSTANCE,
+                focus
+        );
+
+        // 2. 收集所有 Socket
+        List<Socket> allSockets = SocketProviders.collect(client.world, ctx);
+
+        // 3. 使用新的详细匹配逻辑
+        return com.formacraft.common.component.socket.match.SocketMatcher.match(
+                allSockets, component.placementSpec, focus
+        );
+    }
+
+    /**
+     * 获取合法的 Socket 列表（简化版，只返回 Socket）
+     * 
+     * @param component 构件定义
+     * @param variant 构件变体（可选）
+     * @param focus 焦点位置
+     * @return 合法的 Socket 列表
+     */
+    public static List<Socket> getValidSocketsSimple(
+            ComponentDefinition component,
+            ComponentVariant variant,
+            Vec3d focus
+    ) {
+        return getValidSockets(component, variant, focus).stream()
+                .filter(r -> r.valid)
+                .map(r -> r.socket)
+                .collect(Collectors.toList());
     }
 
     /**
      * 渲染 Socket 高亮（在 ComponentTool 中使用）
      * 
      * @param client Minecraft 客户端
-     * @param sockets 要渲染的 Socket 列表
+     * @param results 匹配结果列表（包含评分和原因）
      */
-    public static void renderHighlights(MinecraftClient client, List<Socket> sockets) {
-        if (client == null || sockets == null || sockets.isEmpty()) {
+    public static void renderHighlights(MinecraftClient client, List<SocketMatchResult> results) {
+        if (client == null || results == null || results.isEmpty()) {
             return;
         }
 
         // TODO: 实现渲染逻辑
-        // 1. 遍历 sockets
-        // 2. 对每个 socket.bounds 渲染高亮框
-        // 3. 合法位置：绿色半透明
-        // 4. 非法位置：红色半透明（如果有）
+        // 1. 遍历 results
+        // 2. 对每个 result.socket.bounds 渲染高亮框
+        // 3. 合法位置：绿色半透明（根据 score.total() 调整亮度）
+        // 4. 非法位置：红色半透明（根据 reasons 显示原因）
     }
 }

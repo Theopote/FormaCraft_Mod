@@ -7,6 +7,7 @@ import com.formacraft.common.component.query.ComponentRetriever;
 import com.formacraft.common.component.query.ComponentScore;
 import com.formacraft.common.component.socket.Socket;
 import com.formacraft.common.component.socket.SocketType;
+import com.formacraft.common.component.socket.match.SocketMatchResult;
 import com.formacraft.common.component.variant.ComponentVariant;
 import com.formacraft.common.component.variant.VariantGenerator;
 
@@ -76,6 +77,17 @@ public final class AutoAssembler {
             // 加载 ComponentDefinition
             ComponentDefinition component = ComponentStorage.loadComponent(bestComponentId);
             if (component == null) continue;
+
+            // 使用新的详细匹配逻辑验证 Socket
+            if (component.placementSpec != null) {
+                List<SocketMatchResult> matchResults = com.formacraft.common.component.socket.match.SocketMatcher.match(
+                        List.of(s), component.placementSpec, s.center()
+                );
+
+                if (matchResults.isEmpty() || !matchResults.get(0).valid) {
+                    continue; // Socket 不匹配，跳过
+                }
+            }
 
             // 生成变体
             ComponentVariant variant = VariantGenerator.generate(component, q, random);
