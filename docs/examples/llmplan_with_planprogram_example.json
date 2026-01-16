@@ -1,0 +1,70 @@
+{
+  "mode": "build",
+  "style_profile": "CHINESE_VILLA",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "plan_program": {
+    "schema": "formacraft.plan_program.v1",
+    "intent": {
+      "building_type": "residential",
+      "style_hint": "medieval",
+      "scale": "medium"
+    },
+    "zones": [
+      {
+        "id": "core",
+        "role": "main_hall",
+        "importance": "primary",
+        "area_ratio": 0.4
+      },
+      {
+        "id": "wing_a",
+        "role": "living",
+        "importance": "secondary",
+        "area_ratio": 0.3
+      },
+      {
+        "id": "wing_b",
+        "role": "living",
+        "importance": "secondary",
+        "area_ratio": 0.3
+      }
+    ],
+    "adjacency": [
+      ["core", "wing_a"],
+      ["core", "wing_b"]
+    ],
+    "massing": {
+      "strategy": "decompose",
+      "rules": {
+        "max_zone_area": 100,
+        "preferred_operations": ["add_wings"]
+      }
+    },
+    "circulation": {
+      "primary_axis": "core",
+      "connection_style": "direct"
+    },
+    "constraints": {
+      "terrain": {
+        "respect_slope": true,
+        "avoid": ["water"]
+      },
+      "geometry": {
+        "avoid_shapes": ["perfect_circle"],
+        "prefer_symmetry": "axial"
+      }
+    }
+  },
+  "components": null,
+  "style_attributes": {
+    "wall_color": "white",
+    "wall_material": "stone",
+    "roof_color": "gray",
+    "roof_material": "tile"
+  }
+}

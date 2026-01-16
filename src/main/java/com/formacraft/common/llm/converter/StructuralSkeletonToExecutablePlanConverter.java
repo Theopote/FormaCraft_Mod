@@ -1,6 +1,8 @@
 package com.formacraft.common.llm.converter;
 
 import com.formacraft.common.geometry.Vec2;
+import com.formacraft.common.geometry.extrusion.ExtrudedSolid;
+import com.formacraft.common.geometry.extrusion.WallExtrusion;
 import com.formacraft.common.llm.dto.StructuralSkeleton;
 import com.formacraft.common.skeleton.SkeletonType;
 import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
@@ -48,9 +50,7 @@ public final class StructuralSkeletonToExecutablePlanConverter {
             for (StructuralSkeleton.WallSegment wall : structural.walls) {
                 if (wall == null) continue;
                 ExecutableSkeletonPlan wallPlan = convertWallSegment(wall);
-                if (wallPlan != null) {
-                    plans.add(wallPlan);
-                }
+                plans.add(wallPlan);
             }
         }
 
@@ -75,6 +75,10 @@ public final class StructuralSkeletonToExecutablePlanConverter {
      *   - WALL_SURFACE
      *   - WALL_OPENING
      *   - EDGE_OUTER（仅 EXTERNAL）
+     * <p>
+     * 几何信息：
+     * - 执行 extrusion 生成 ExtrudedSolid（存储在 params 中，供未来使用）
+     * - 提取关键参数用于 ExecutableSkeletonPlan（与现有 Generator 兼容）
      */
     private static ExecutableSkeletonPlan convertWallSegment(StructuralSkeleton.WallSegment wall) {
         // v1 简化：使用 PERIMETER_LOOP 作为基础类型（因为现有系统有 WallGenerator）
@@ -93,8 +97,8 @@ public final class StructuralSkeletonToExecutablePlanConverter {
                 
                 // 计算长度
                 if (points.size() >= 2) {
-                    Vec2 start = points.get(0);
-                    Vec2 end = points.get(points.size() - 1);
+                    Vec2 start = points.getFirst();
+                    Vec2 end = points.getLast();
                     double length = start.distanceTo(end);
                     plan.length = Math.max(1, (int) length);
                 }
@@ -122,6 +126,18 @@ public final class StructuralSkeletonToExecutablePlanConverter {
         // 设置 normal（法线方向）
         if (wall.normal != null) {
             plan.put("wall_normal", wall.normal.toString());
+        }
+
+        // 执行 extrusion 生成 3D 几何（存储在 params 中，供未来使用）
+        // 注意：当前 Generator 可能不使用 ExtrudedSolid，但为未来的几何查询/调试/可视化保留
+        List<ExtrudedSolid> extrudedSolids = WallExtrusion.extrude(wall);
+        if (!extrudedSolids.isEmpty()) {
+            // v1：存储第一个 solid（折线墙可能产生多个，后续可以扩展）
+            plan.put("extruded_solid", extrudedSolids.get(0));
+            // 存储所有 solids（如果是折线墙）
+            if (extrudedSolids.size() > 1) {
+                plan.put("extruded_solids", extrudedSolids);
+            }
         }
 
         return plan;

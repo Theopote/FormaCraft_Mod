@@ -9,6 +9,10 @@ import java.util.List;
 /**
  * LLM 输出的统一 Plan（build 或 patch）
  * 与 PromptAssembler 的 JSON schema 对齐。
+ * <p>
+ * 增强支持：
+ * - 传统的 components[] 模式（现有系统）
+ * - PlanProgram 模式（新的平面规划系统，可选）
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record LlmPlan(
@@ -28,8 +32,40 @@ public record LlmPlan(
         @JsonProperty("allowed_area") String allowedArea,
 
         // 如果 LLM 直接输出 block-level patch（可选）
-        @JsonProperty("patch") PatchBlockSection patch
+        @JsonProperty("patch") PatchBlockSection patch,
+
+        // ========== 新增：PlanProgram 模式（可选）==========
+        /**
+         * PlanProgram（平面程序）
+         * <p>
+         * 如果提供，系统会使用新的 PlanProgram → PlanSkeleton → StructuralSkeleton → ExtrudedSolid 编译管线。
+         * <p>
+         * 如果未提供，系统使用传统的 components[] 模式（向后兼容）。
+         */
+        @JsonProperty("plan_program") PlanProgram planProgram,
+
+        /**
+         * PlanSkeleton（2D 几何语义）
+         * <p>
+         * 如果 LLM 直接提供了 PlanSkeleton（而不是 PlanProgram），可以直接使用。
+         * <p>
+         * 优先级：planSkeleton > planProgram（如果两者都提供，优先使用 planSkeleton）
+         */
+        @JsonProperty("plan_skeleton") PlanSkeleton planSkeleton
 ) {
     public enum Mode { build, patch }
-}
 
+    /**
+     * 检查是否使用 PlanProgram 模式
+     */
+    public boolean usesPlanProgramMode() {
+        return planSkeleton != null || planProgram != null;
+    }
+
+    /**
+     * 检查是否使用传统 components 模式
+     */
+    public boolean usesComponentMode() {
+        return components != null && !components.isEmpty();
+    }
+}

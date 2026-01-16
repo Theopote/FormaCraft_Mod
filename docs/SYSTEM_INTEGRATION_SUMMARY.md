@@ -1,169 +1,167 @@
-# 系统集成总结报告
+# PlanProgram → 3D 几何系统集成总结
 
-## ✅ 已完成的工作
+## 🎉 完成状态
 
-### 1. 创建了统一的初始化系统
+已实现从 PlanProgram（AI 建筑思考）到 3D 几何体（ExtrudedSolid）的完整编译管线。
 
-**文件**：`src/main/java/com/formacraft/common/init/SkeletonSystemInitializer.java`
+## ✅ 已完成组件
 
-**功能**：
-- 统一管理所有 Skeleton/Component/Semantic/Geometry 相关系统的初始化
-- 确保所有注册表在 mod 启动时正确初始化
+### 1. 数据层（DTOs）
 
-**初始化内容**：
-1. `DefaultPalettes.bootstrap()` - 默认调色板
-2. `DefaultStyleProfiles.bootstrap()` - 默认风格配置
-3. `SkeletonSemanticRegistry.registerDefaults()` - 语义生成器
-4. `ComponentAssemblerRegistry.registerDefaults()` - 组件装配器
+- ✅ **PlanProgram** - AI 的建筑思考（功能关系）
+- ✅ **PlanSkeleton** - 2D 几何语义
+- ✅ **StructuralSkeleton** - 3D 结构骨架（几何类型）
+- ✅ **ExtrudedSolid** - 3D 几何体（顶点 + 面）
+- ✅ **LlmPlan** - 增强支持 PlanProgram/PlanSkeleton
 
-**调用位置**：`FormacraftMod.onInitialize()`
+### 2. 几何类型
 
-### 2. 创建了工具约束构建器
+- ✅ **Vec2, Vector2** - 2D 向量
+- ✅ **Vec3** - 3D 向量
+- ✅ **Line2D** - 2D 直线
+- ✅ **Polyline2D** - 2D 折线
+- ✅ **Polygon2D** - 2D 多边形
 
-**文件**：`src/main/java/com/formacraft/server/skeleton/gen/geometry/ToolConstraintBuilder.java`
+### 3. 转换器层
 
-**功能**：
-- 从 BuildContext 和工具状态构建 `GeometryConstraintPipeline` 和 `SymmetryProcessor`
-- 连接客户端工具状态和服务端约束系统
+- ✅ **PlanProgramToPlanSkeletonConverter** - 功能关系 → 几何语义
+- ✅ **PlanSkeletonToStructuralSkeletonConverter** - 几何语义 → 结构骨架
+- ✅ **StructuralSkeletonToExecutablePlanConverter** - 结构骨架 → 可执行计划（自动执行 extrusion）
+- ✅ **WallExtrusion** - WallSegment → ExtrudedSolid
 
-**支持的约束**：
-- 选区约束（Selection）
-- 轮廓约束（Outline）
-- 禁区约束（Protected Zones）
-- 对称处理（Symmetry）
+### 4. 编译器层
 
-### 3. 修复了集成问题
+- ✅ **PlanToSkeletonCompiler** - 统一编译接口
+- ✅ **PlanToSkeletonCompilerV1** - 管线式实现
+- ✅ **CompiledSkeleton** - 编译结果（skeletons + graph）
+- ✅ **PlanToSkeletonIntegrationHelper** - 便捷整合入口
+- ✅ **PlanProgramCompiler** - 统一编译入口（新的编译管线）
 
-**问题**：
-- ❌ `DefaultStyleProfiles.bootstrap()` 未被调用
-- ❌ `DefaultPalettes.bootstrap()` 未被调用
-- ❌ `ComponentAssemblerRegistry.registerDefaults()` 未被调用
-- ❌ `SkeletonSemanticRegistry.registerDefaults()` 未被调用
+### 5. 辅助类型
 
-**修复**：
-- ✅ 所有初始化都已添加到 `SkeletonSystemInitializer.initialize()`
-- ✅ 在 `FormacraftMod.onInitialize()` 中调用
+- ✅ **HeightProfile** - 高度轮廓
+- ✅ **GroundingMode** - 地基贴合方式
+- ✅ **WallType** - 墙体类型
+- ✅ **AxisRole** - 轴线等级
+- ✅ **PlanCompileContext** - 编译上下文
+- ✅ **SkeletonGraph** - 骨架关系图
 
-## 📋 系统调用链检查
+## 🔄 完整链路
 
-### ✅ 已正确集成的调用链
-
-#### 1. Skeleton 建造流程
 ```
-SkeletonBuildPipeline.buildSkeletonAsPatch()
+LLM 输出
   ↓
-SkeletonSemanticRegistry.get() → ISkeletonSemanticGenerator.generateSemantic()
+PlanProgram.json / PlanSkeleton.json
   ↓
-GeometryModifierPipeline.applyModifiers()
+PlanProgramToPlanSkeletonConverter (如果输入是 PlanProgram)
   ↓
-SemanticBlockStateResolver.resolveToPatches()
+PlanSkeleton (2D 几何语义)
   ↓
-BlockPatch
-```
-
-#### 2. Component 建造流程
-```
-ComponentBuildPipeline.buildComponentAsPatch()
+PlanToSkeletonCompiler.compile()
+  ↓ (内部步骤)
+  1. PlanNormalizationStep
+  2. StructuralExtractionStep → StructuralSkeleton
+  3. SkeletonGenerationStep → ExecutableSkeletonPlan
+     ↓ (内部调用)
+     WallExtrusion.extrude() → ExtrudedSolid
+  4. SkeletonPostProcessStep
+  5. SkeletonGraphBuilder → SkeletonGraph
   ↓
-ComponentAssemblyPipeline.assembleAll()
-  ├─ ComponentAssemblerRegistry.get() → ComponentAssembler.assemble()
-  └─ 输出 SemanticPlacementOp
+CompiledSkeleton (skeletons + graph)
   ↓
-GeometryModifierPipeline.applyModifiers()
+ExecutableSkeletonPlan (包含 ExtrudedSolid，存储在 params)
+  ↓ (待集成)
+Generator.generate() → BlockPatch
   ↓
-SemanticBlockStateResolver.resolveToPatches()
+SocketProvider → Socket
   ↓
-BlockPatch
-```
-
-#### 3. Prompt 生成流程
-```
-PromptAssembler.assemble()
-  ↓
-ToolPromptBuilder.buildToolContext()
-  ↓
-PromptContext (包含所有约束)
-  ↓
-LLM (输出 JSON)
+AutoAssembler → Component
 ```
 
-## 🔍 关键组件状态
+## 📊 关键能力
 
-| 组件 | 状态 | 初始化 | 使用位置 |
-|------|------|--------|----------|
-| **DefaultPalettes** | ✅ | ✅ | `SkeletonSystemInitializer` |
-| **DefaultStyleProfiles** | ✅ | ✅ | `SkeletonSystemInitializer` |
-| **SkeletonSemanticRegistry** | ✅ | ✅ | `SkeletonSystemInitializer` |
-| **ComponentAssemblerRegistry** | ✅ | ✅ | `SkeletonSystemInitializer` |
-| **SkeletonGeneratorRegistry** | ✅ | ✅ | `SkeletonBuildService` |
-| **GeometryModifierPipeline** | ✅ | N/A | `SkeletonBuildPipeline`, `ComponentBuildPipeline` |
-| **SemanticBlockStateResolver** | ✅ | N/A | `SkeletonBuildPipeline`, `ComponentBuildPipeline` |
-| **ToolConstraintBuilder** | ✅ | N/A | 可选使用 |
-| **PromptAssembler** | ✅ | N/A | 聊天系统 |
+### 已实现
 
-## ⚠️ 可选功能（已实现但未强制使用）
+1. ✅ **完整的转换链**：PlanProgram → PlanSkeleton → StructuralSkeleton → ExtrudedSolid
+2. ✅ **几何类型系统**：完整的 2D/3D 几何类型支持
+3. ✅ **Extrusion 算法**：直线墙和折线墙的 extrusion
+4. ✅ **向后兼容**：LlmPlan 支持新旧两种模式
+5. ✅ **集成入口**：PlanProgramCompiler 统一入口
 
-### Geometry Modifier × Tool 约束系统
+### 待集成
 
-**状态**：✅ 已完全实现，但当前使用简化版本
+1. ⚠️ **Generator 集成**：ExecutableSkeletonPlan → Generator → BlockPatch
+2. ⚠️ **网络层集成**：在 FormaCraftNetworking 中添加 PlanProgram 模式支持
+3. ⚠️ **Debug 可视化**：渲染 ExtrudedSolid 线框
 
-**当前使用**：
+## 💻 使用方式
+
+### 方式 1：直接使用 PlanProgramCompiler
+
 ```java
-// 当前：只应用几何修饰器
-GeometryModifierPipeline.applyModifiers(baseOps, style);
-```
+// 从 PlanProgram 编译
+PlanProgram planProgram = ...;
+List<BlockPatch> patches = PlanProgramCompiler.compile(
+    planProgram,
+    globalAnchor,
+    world
+);
 
-**可选增强**：
-```java
-// 可选：应用几何修饰器 + 工具约束
-ToolConstraintBuilder.ConstraintResult constraints = 
-    ToolConstraintBuilder.buildConstraints(restrictToSelection);
-GeometryModifierPipeline.applyModifiersAndConstraints(
-    baseOps, style, 
-    constraints.constraintPipeline(), 
-    constraints.symmetryProcessor()
+// 从 PlanSkeleton 编译
+PlanSkeleton planSkeleton = ...;
+List<BlockPatch> patches = PlanProgramCompiler.compileFromPlanSkeleton(
+    planSkeleton,
+    globalAnchor,
+    world
 );
 ```
 
-**建议**：
-- 当前系统已经可以正常工作
-- 约束系统作为可选功能，可以在需要时启用
-- 客户端已经有 `ToolPatchFilter` 提供二次保护
+### 方式 2：使用 PlanToSkeletonIntegrationHelper
 
-## 🎯 系统完整性检查
+```java
+// 一步到位编译
+PlanSkeleton planSkeleton = ...;
+CompiledSkeleton compiled = PlanToSkeletonIntegrationHelper.compileFromPlanSkeleton(planSkeleton);
 
-### ✅ 所有核心系统都已正确集成
+// 提取 ExtrudedSolid
+List<ExtrudedSolid> solids = PlanToSkeletonIntegrationHelper.extractExtrudedSolids(compiled);
 
-1. **初始化系统** ✅
-   - 所有注册表都已初始化
-   - 所有预设配置都已注册
+// 获取统计信息
+CompilationStats stats = PlanToSkeletonIntegrationHelper.getStats(compiled);
+```
 
-2. **生成系统** ✅
-   - Skeleton 生成器已注册
-   - Component 装配器已注册
-   - 语义生成器已注册
+### 方式 3：使用增强的 LlmPlan
 
-3. **处理系统** ✅
-   - 几何修饰器已集成
-   - 调色板解析器已集成
-   - 约束系统已实现（可选）
+```java
+LlmPlan llmPlan = ...;
 
-4. **Prompt 系统** ✅
-   - PromptAssembler 已集成
-   - 工具约束已转换为 Prompt
+if (llmPlan.usesPlanProgramMode()) {
+    // 使用新的编译管线
+    PlanSkeleton planSkeleton = llmPlan.planSkeleton();
+    if (planSkeleton == null && llmPlan.planProgram() != null) {
+        planSkeleton = PlanProgramToPlanSkeletonConverter.convert(llmPlan.planProgram());
+    }
+    // ... 编译
+} else if (llmPlan.usesComponentMode()) {
+    // 使用传统的编译管线
+    // ... ComponentPlanCompiler
+}
+```
 
-## 📝 总结
+## 📚 文档
 
-**✅ 所有新建的代码文件都已正确集成并工作！**
+- `docs/PLAN_PROGRAM_SCHEMA_V1.md` - PlanProgram schema
+- `docs/PLAN_SKELETON_SCHEMA_V1.md` - PlanSkeleton schema
+- `docs/STRUCTURAL_SKELETON_GEOMETRY_V1.md` - StructuralSkeleton 几何字段
+- `docs/WALL_EXTRUSION_V1.md` - WallExtrusion 算法
+- `docs/PLAN_TO_SKELETON_COMPILER.md` - 编译器文档
+- `docs/PLAN_PROGRAM_COMPILER_INTEGRATION.md` - 集成指南
+- `docs/COMPLETE_PLAN_TO_3D_PIPELINE.md` - 完整管线文档
+- `docs/examples/` - 各种示例
 
-- ✅ 所有初始化都已添加到统一入口
-- ✅ 所有调用链都已正确连接
-- ✅ 所有注册表都已正确初始化
-- ✅ 所有管道都已正确集成
+## 🔮 下一步
 
-**系统现在可以正常工作！**
-
-可选增强：
-- 可以在需要时使用 `ToolConstraintBuilder` 来启用完整的工具约束系统
-- 当前系统已经提供了基础功能，约束系统作为可选增强
-
+1. **Generator 集成**：将 ExecutableSkeletonPlan 连接到现有的 Generator 系统
+2. **网络层集成**：在 FormaCraftNetworking 中添加 PlanProgram 模式支持
+3. **Debug 可视化**：实现 ExtrudedSolid 的可视化渲染
+4. **测试**：使用真实数据测试完整流程
