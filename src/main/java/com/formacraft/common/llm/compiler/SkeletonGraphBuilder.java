@@ -46,7 +46,7 @@ public final class SkeletonGraphBuilder {
         }
 
         // 设置 zone 映射
-        if (structural != null && structural.wallSegments() != null) {
+        if (structural != null && structural.walls != null) {
             // v1：从 skeletons 的 wall_zones 参数提取 zone 信息
             // 未来：可以更精确地从 wall.id 和 wall.zoneIds 匹配
             for (ExecutableSkeletonPlan skeleton : skeletons) {

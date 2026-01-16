@@ -1,5 +1,6 @@
 package com.formacraft.common.llm.converter;
 
+import com.formacraft.common.geometry.Vec2;
 import com.formacraft.common.llm.dto.StructuralSkeleton;
 import com.formacraft.common.skeleton.SkeletonType;
 import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
@@ -15,8 +16,8 @@ import java.util.List;
  * <p>
  * 映射规则：
  * 1. WallSegment → WALL Skeleton（EXTERNAL/INTERNAL/COURTYARD）
- * 2. FloorPlate → FLOOR Skeleton
- * 3. RoofPlate → ROOF Skeleton
+ * 2. FloorPlate → FLOOR Skeleton（v1 暂不生成）
+ * 3. RoofPlate → ROOF Skeleton（v1 暂不生成）
  * 4. CourtyardVoid → 不直接生成 Skeleton（但影响周围 wall 的生成）
  * <p>
  * 设计原则：
@@ -42,9 +43,9 @@ public final class StructuralSkeletonToExecutablePlanConverter {
 
         List<ExecutableSkeletonPlan> plans = new ArrayList<>();
 
-        // 1. WallSegments → WALL Skeletons
-        if (structural.wallSegments() != null) {
-            for (StructuralSkeleton.WallSegment wall : structural.wallSegments()) {
+        // 1. Walls → WALL Skeletons
+        if (structural.walls != null) {
+            for (StructuralSkeleton.WallSegment wall : structural.walls) {
                 if (wall == null) continue;
                 ExecutableSkeletonPlan wallPlan = convertWallSegment(wall);
                 if (wallPlan != null) {
@@ -56,8 +57,7 @@ public final class StructuralSkeletonToExecutablePlanConverter {
         // 2. FloorPlate → FLOOR Skeleton（可选，v1 可以先跳过）
         // 未来：如果系统需要独立的 FLOOR Skeleton，可以在这里生成
 
-        // 3. RoofPlate → ROOF Skeleton（可选，v1 可以先跳过）
-        // 未来：如果系统需要独立的 ROOF Skeleton，可以在这里生成
+        // 3. CourtyardVoid → 不直接生成 Skeleton（但影响周围 wall 的生成）
 
         return plans;
     }
@@ -82,39 +82,46 @@ public final class StructuralSkeletonToExecutablePlanConverter {
         ExecutableSkeletonPlan plan = new ExecutableSkeletonPlan(SkeletonType.PERIMETER_LOOP);
 
         // 设置基础参数
-        if (wall.baseLine() != null && !wall.baseLine().isEmpty()) {
-            // 计算长度（从 baseLine 的两个端点）
-            if (wall.baseLine().size() >= 2) {
-                BlockPos start = wall.baseLine().get(0);
-                BlockPos end = wall.baseLine().get(wall.baseLine().size() - 1);
-                int length = (int) Math.sqrt(
-                        Math.pow(end.getX() - start.getX(), 2) +
-                        Math.pow(end.getZ() - start.getZ(), 2)
-                );
-                plan.length = Math.max(1, length);
+        if (wall.baseline != null) {
+            List<Vec2> points = wall.baseline.getPoints();
+            if (!points.isEmpty()) {
+                // 转换为 BlockPos 列表（用于 PERIMETER_LOOP）
+                List<BlockPos> blockPosPoints = new ArrayList<>();
+                for (Vec2 point : points) {
+                    blockPosPoints.add(new BlockPos((int) point.x(), (int) wall.heightProfile.baseY, (int) point.z()));
+                }
+                
+                // 计算长度
+                if (points.size() >= 2) {
+                    Vec2 start = points.get(0);
+                    Vec2 end = points.get(points.size() - 1);
+                    double length = start.distanceTo(end);
+                    plan.length = Math.max(1, (int) length);
+                }
+
+                // 设置 points（用于 PERIMETER_LOOP）
+                plan.put("points", blockPosPoints);
             }
-
-            // 设置 points（用于 PERIMETER_LOOP）
-            plan.put("points", wall.baseLine());
         }
 
-        // 设置高度
-        if (wall.height() != null) {
-            plan.height = Math.max(1, wall.height());
-            plan.put("height", wall.height());
+        // 设置高度（从 HeightProfile）
+        if (wall.heightProfile != null) {
+            int height = (int) wall.heightProfile.height();
+            plan.height = Math.max(1, height);
+            plan.put("height", height);
         }
 
-        // 设置宽度（墙厚度，默认 1）
-        plan.width = 1;
-        plan.put("width", 1);
+        // 设置宽度（墙厚度）
+        plan.width = (int) wall.thickness;
+        plan.put("width", (int) wall.thickness);
 
         // 设置上下文信息（用于后续 Socket 生成）
-        plan.put("wall_kind", wall.kind());  // EXTERNAL / INTERNAL / COURTYARD
-        plan.put("wall_zones", wall.zoneIds());
+        plan.put("wall_kind", wall.type.name());  // EXTERNAL / INTERNAL / COURTYARD
+        plan.put("wall_zones", new ArrayList<>(wall.zones));
 
         // 设置 normal（法线方向）
-        if (wall.normal() != null) {
-            plan.put("wall_normal", wall.normal());
+        if (wall.normal != null) {
+            plan.put("wall_normal", wall.normal.toString());
         }
 
         return plan;

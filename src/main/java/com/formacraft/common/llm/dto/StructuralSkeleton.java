@@ -1,8 +1,7 @@
 package com.formacraft.common.llm.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import net.minecraft.util.math.BlockPos;
+import com.formacraft.common.geometry.*;
+import com.formacraft.common.llm.dto.structural.*;
 
 import java.util.List;
 
@@ -17,117 +16,187 @@ import java.util.List;
  * - 墙有多高
  * - 地面 / 屋顶是否存在
  * <p>
- * v1 只需要 5 种 Structural Element：
- * - FLOOR_PLATE - 地面板
- * - WALL_SEGMENT - 墙段
- * - COURTYARD_VOID - 庭院空洞
- * - ROOF_PLATE - 屋顶板
- * - VERTICAL_CORE - 垂直核心（可选，v1 可忽略）
+ * 设计原则：
+ * 1. 只描述"连续几何"，不描述 block
+ * 2. XZ 是主维度，Y 只描述高度策略
+ * 3. 所有元素必须能推导出：边、面、内外法向
+ * 4. 必须能被可视化（debug overlay）
+ * 5. 必须能一对一映射到 Skeleton
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
-public record StructuralSkeleton(
-        @JsonProperty("schema") String schema,
-        @JsonProperty("floor_plate") FloorPlate floorPlate,
-        @JsonProperty("wall_segments") List<WallSegment> wallSegments,
-        @JsonProperty("courtyard_voids") List<CourtyardVoid> courtyardVoid,
-        @JsonProperty("roof_plate") RoofPlate roofPlate,
-        @JsonProperty("alignment_constraints") List<AlignmentConstraint> alignmentConstraints
-) {
+public class StructuralSkeleton {
+    public final FloorPlate floorPlate;
+    public final List<WallSegment> walls;
+    public final List<CourtyardVoid> courtyards;
+    public final List<AxisConstraint> axes;
+
+    public StructuralSkeleton(
+            FloorPlate floorPlate,
+            List<WallSegment> walls,
+            List<CourtyardVoid> courtyards,
+            List<AxisConstraint> axes
+    ) {
+        this.floorPlate = floorPlate;
+        this.walls = walls != null ? List.copyOf(walls) : List.of();
+        this.courtyards = courtyards != null ? List.copyOf(courtyards) : List.of();
+        this.axes = axes != null ? List.copyOf(axes) : List.of();
+    }
+
     /**
-     * FloorPlate：地面板
+     * FloorPlate（地面板）
      * <p>
-     * floor plate 是唯一必定存在的元素。
+     * 一切的"几何基底"
      * <p>
-     * 仅定义：
-     * - XZ 范围（polygon）
-     * - 基准高度（通常 y=0 或 terrain 对齐）
+     * floor plate 是唯一必定存在的元素
      * <p>
      * ⚠️ 注意：floor plate ≠ 房间，它只是承载墙和体量的"地基"
      */
-    public record FloorPlate(
-            @JsonProperty("polygon_xz") List<BlockPos> polygonXZ,  // XZ 平面上的点（y 忽略）
-            @JsonProperty("base_y") Integer baseY
-    ) {}
+    public static class FloorPlate {
+        /** 闭合多边形（XZ 平面） */
+        public final Polygon2D footprint;
 
-    /**
-     * WallSegment：墙段
-     * <p>
-     * 核心元素，决定：
-     * - 墙的位置（baseLine）
-     * - 墙的类型（external/internal/courtyard）
-     * - 墙的高度
-     * - 法线方向（outward/inward）
-     */
-    public record WallSegment(
-            @JsonProperty("id") String id,
-            @JsonProperty("kind") String kind,
-            @JsonProperty("base_line") List<BlockPos> baseLine,  // 墙基线（XZ平面）
-            @JsonProperty("height") Integer height,
-            @JsonProperty("normal") String normal,  // 法线方向（NORTH/SOUTH/EAST/WEST 或 OUTWARD/INWARD）
-            @JsonProperty("zone_ids") List<String> zoneIds
-    ) {
-        public enum Kind {
-            EXTERNAL,      // 外墙
-            INTERNAL,      // 内墙（shared_wall）
-            COURTYARD      // 庭院墙（内向立面）
+        /** 地基参考高度 */
+        public final double baseY;
+
+        /** 厚度（结构厚度，不是最终方块） */
+        public final double thickness;
+
+        /** 与 terrain 的贴合方式 */
+        public final GroundingMode groundingMode;
+
+        public FloorPlate(
+                Polygon2D footprint,
+                double baseY,
+                double thickness,
+                GroundingMode groundingMode
+        ) {
+            this.footprint = footprint;
+            this.baseY = baseY;
+            this.thickness = thickness;
+            this.groundingMode = groundingMode != null ? groundingMode : GroundingMode.FLAT;
         }
     }
 
     /**
-     * CourtyardVoid：庭院空洞
+     * WallSegment（墙段）
      * <p>
-     * 体量减法：不生成 FLOOR_PLATE，不生成 ROOF。
-     * 但周围生成 courtyard_wall（inward-facing）。
-     * <p>
-     * 这是回字形 / 中式院落 / 修道院的根。
+     * 核心中的核心，90% 的建筑"感觉"来自墙
      */
-    public record CourtyardVoid(
-            @JsonProperty("id") String id,
-            @JsonProperty("polygon_xz") List<BlockPos> polygonXZ,  // 空洞边界（XZ平面）
-            @JsonProperty("open_to_sky") Boolean openToSky,
-            @JsonProperty("adjacent_zone_ids") List<String> adjacentZoneIds
-    ) {}
+    public static class WallSegment {
+        /** 唯一 ID（用于 graph / debug） */
+        public final String id;
+
+        /** 墙体类型 */
+        public final WallType type;
+
+        /** XZ 平面中的基线（有方向） */
+        public final Polyline2D baseline;
+
+        /** 墙厚（结构厚度） */
+        public final double thickness;
+
+        /** 墙体高度策略 */
+        public final HeightProfile heightProfile;
+
+        /** 墙体法向（指向 exterior 或 courtyard） */
+        public final Vector2 normal;
+
+        /** 关联的 zone（一个或两个） */
+        public final List<String> zones;
+
+        public WallSegment(
+                String id,
+                WallType type,
+                Polyline2D baseline,
+                double thickness,
+                HeightProfile heightProfile,
+                Vector2 normal,
+                List<String> zones
+        ) {
+            this.id = id;
+            this.type = type;
+            this.baseline = baseline;
+            this.thickness = thickness;
+            this.heightProfile = heightProfile;
+            this.normal = normal;
+            this.zones = zones != null ? List.copyOf(zones) : List.of();
+        }
+
+        /**
+         * 判断是否是外墙
+         */
+        public boolean isExterior() {
+            return type == WallType.EXTERNAL;
+        }
+
+        /**
+         * 判断是否是庭院墙
+         */
+        public boolean isCourtyard() {
+            return type == WallType.COURTYARD;
+        }
+    }
 
     /**
-     * RoofPlate：屋顶板
+     * CourtyardVoid（庭院空洞）
      * <p>
-     * v1 简化：统一屋顶（从 outline.offset(inward) 生成）
+     * "负体量"的几何实体
      * <p>
-     * 后续可支持：
-     * - 分区屋顶
-     * - 高低错动
-     * - 坡屋顶
+     * footprint 从 FloorPlate 中布尔减去
+     * 周边自动生成 WallType.COURTYARD
      */
-    public record RoofPlate(
-            @JsonProperty("polygon_xz") List<BlockPos> polygonXZ,
-            @JsonProperty("base_y") Integer baseY,
-            @JsonProperty("thickness") Integer thickness
-    ) {}
+    public static class CourtyardVoid {
+        /** 庭院轮廓 */
+        public final Polygon2D footprint;
+
+        /** 是否完全露天 */
+        public final boolean openToSky;
+
+        /** 相邻 zone */
+        public final List<String> adjacentZones;
+
+        public CourtyardVoid(
+                Polygon2D footprint,
+                boolean openToSky,
+                List<String> adjacentZones
+        ) {
+            this.footprint = footprint;
+            this.openToSky = openToSky;
+            this.adjacentZones = adjacentZones != null ? List.copyOf(adjacentZones) : List.of();
+        }
+    }
 
     /**
-     * AlignmentConstraint：对齐约束
+     * AxisConstraint（对齐约束）
+     * <p>
+     * 非几何但强影响
      * <p>
      * 来自 axes，不直接生成结构，而是：
      * - 调整墙的直线性
      * - zone 的偏移容忍度
      * - 对称策略
      */
-    public record AlignmentConstraint(
-            @JsonProperty("axis_id") String axisId,
-            @JsonProperty("role") String role,
-            @JsonProperty("zone_ids") List<String> zoneIds,
-            @JsonProperty("preferences") AlignmentPreferences preferences
-    ) {
-        public enum Role {
-            primary,    // 主轴线：尽量直线、尽量正交
-            secondary,  // 次轴线：可偏移
-            symmetry    // 对称轴
-        }
+    public static class AxisConstraint {
+        public final String id;
 
-        public record AlignmentPreferences(
-                @JsonProperty("straightness") Double straightness,  // 0.0-1.0，直线性偏好
-                @JsonProperty("orthogonal") Boolean orthogonal,      // 是否偏好正交
-                @JsonProperty("symmetry") Boolean symmetry          // 是否对称
-        ) {}
+        /** 轴线（XZ） */
+        public final Line2D axis;
+
+        /** 轴线等级 */
+        public final AxisRole role;
+
+        /** 影响的 zones */
+        public final List<String> zones;
+
+        public AxisConstraint(
+                String id,
+                Line2D axis,
+                AxisRole role,
+                List<String> zones
+        ) {
+            this.id = id;
+            this.axis = axis;
+            this.role = role != null ? role : AxisRole.SECONDARY;
+            this.zones = zones != null ? List.copyOf(zones) : List.of();
+        }
     }
 }
