@@ -11,11 +11,16 @@ import java.util.stream.Collectors;
  * ComponentRetriever（构件检索器）：从构件库中检索和排序构件。
  * <p>
  * 核心功能：
- * - 根据查询条件从 ComponentLibrary 检索构件
- * - 使用 ComponentScorer 对构件评分
+ * - 根据查询条件从 ComponentCatalog 检索构件
+ * - 使用 ComponentRanker 对构件进行多维评分
  * - 返回排序后的候选构件列表
  * <p>
  * 这是 AI 选择构件的核心逻辑。
+ * <p>
+ * 流程：
+ * 1. 硬过滤阶段（ComponentRetriever）- 从 200 个 → 20 个候选
+ * 2. 多维评分阶段（ComponentRanker）- 对候选进行详细评分
+ * 3. 排序和过滤 - 返回 Top-N
  */
 public final class ComponentRetriever {
     private ComponentRetriever() {}

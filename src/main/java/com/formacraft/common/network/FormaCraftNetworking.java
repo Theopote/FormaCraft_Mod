@@ -1058,12 +1058,13 @@ public class FormaCraftNetworking {
                                         com.formacraft.common.terrain.TerrainStrategySampler terrainSampler = 
                                                 new com.formacraft.common.terrain.TerrainStrategySampler();
                                         
+                                        // 启用地形适应（根据LLM Plan中的terrain_strategy自动处理地形）
                                         List<BlockPatch> patches = ComponentPlanCompiler.compile(
                                                 llmPlan,
                                                 planOrigin,
                                                 serverWorld,
                                                 terrainSampler,
-                                                false
+                                                true  // 启用地形适应后处理
                                         );
                                         
                                         // 将 BlockPatch 转换为 PlannedBlock
