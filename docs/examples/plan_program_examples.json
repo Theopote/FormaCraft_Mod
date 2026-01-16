@@ -1,0 +1,206 @@
+{
+  "examples": [
+    {
+      "description": "简单住宅 - 主体 + 两翼",
+      "plan_program": {
+        "schema": "formacraft.plan_program.v1",
+        "intent": {
+          "building_type": "residential",
+          "style_hint": "medieval",
+          "scale": "medium"
+        },
+        "zones": [
+          {
+            "id": "core",
+            "role": "main_hall",
+            "importance": "primary",
+            "area_ratio": 0.4
+          },
+          {
+            "id": "wing_a",
+            "role": "living",
+            "importance": "secondary",
+            "area_ratio": 0.3
+          },
+          {
+            "id": "wing_b",
+            "role": "living",
+            "importance": "secondary",
+            "area_ratio": 0.3
+          }
+        ],
+        "adjacency": [
+          ["core", "wing_a"],
+          ["core", "wing_b"]
+        ],
+        "massing": {
+          "strategy": "decompose",
+          "rules": {
+            "max_zone_area": 100,
+            "preferred_operations": ["add_wings"]
+          }
+        },
+        "circulation": {
+          "primary_axis": "core",
+          "connection_style": "direct"
+        },
+        "constraints": {
+          "terrain": {
+            "respect_slope": true,
+            "avoid": ["water", "cliff"]
+          },
+          "geometry": {
+            "avoid_shapes": ["perfect_circle"],
+            "prefer_symmetry": "axial"
+          }
+        }
+      }
+    },
+    {
+      "description": "回字形庭院建筑",
+      "plan_program": {
+        "schema": "formacraft.plan_program.v1",
+        "intent": {
+          "building_type": "temple",
+          "style_hint": "chinese",
+          "scale": "large"
+        },
+        "zones": [
+          {
+            "id": "main_hall",
+            "role": "worship",
+            "importance": "primary",
+            "area_ratio": 0.3
+          },
+          {
+            "id": "north_wing",
+            "role": "ancillary",
+            "importance": "secondary",
+            "area_ratio": 0.2
+          },
+          {
+            "id": "south_wing",
+            "role": "ancillary",
+            "importance": "secondary",
+            "area_ratio": 0.2
+          },
+          {
+            "id": "east_wing",
+            "role": "ancillary",
+            "importance": "secondary",
+            "area_ratio": 0.15
+          },
+          {
+            "id": "west_wing",
+            "role": "ancillary",
+            "importance": "secondary",
+            "area_ratio": 0.15
+          }
+        ],
+        "adjacency": [
+          ["main_hall", "north_wing"],
+          ["main_hall", "south_wing"],
+          ["main_hall", "east_wing"],
+          ["main_hall", "west_wing"],
+          ["north_wing", "east_wing"],
+          ["north_wing", "west_wing"],
+          ["south_wing", "east_wing"],
+          ["south_wing", "west_wing"]
+        ],
+        "massing": {
+          "strategy": "decompose",
+          "rules": {
+            "max_zone_area": 150,
+            "preferred_operations": ["wrap_around_courtyard", "subtract_courtyard"]
+          }
+        },
+        "circulation": {
+          "primary_axis": "main_hall",
+          "connection_style": "ring"
+        },
+        "constraints": {
+          "terrain": {
+            "respect_slope": true,
+            "avoid": ["water"]
+          },
+          "geometry": {
+            "avoid_shapes": [],
+            "prefer_symmetry": "bilateral"
+          }
+        }
+      }
+    },
+    {
+      "description": "大型市场建筑 - 多区块集群",
+      "plan_program": {
+        "schema": "formacraft.plan_program.v1",
+        "intent": {
+          "building_type": "market",
+          "style_hint": "medieval",
+          "scale": "large"
+        },
+        "zones": [
+          {
+            "id": "entrance_plaza",
+            "role": "circulation",
+            "importance": "primary",
+            "area_ratio": 0.2
+          },
+          {
+            "id": "market_hall_a",
+            "role": "commercial",
+            "importance": "secondary",
+            "area_ratio": 0.25
+          },
+          {
+            "id": "market_hall_b",
+            "role": "commercial",
+            "importance": "secondary",
+            "area_ratio": 0.25
+          },
+          {
+            "id": "storage",
+            "role": "service",
+            "importance": "support",
+            "area_ratio": 0.15
+          },
+          {
+            "id": "admin",
+            "role": "service",
+            "importance": "support",
+            "area_ratio": 0.15
+          }
+        ],
+        "adjacency": [
+          ["entrance_plaza", "market_hall_a"],
+          ["entrance_plaza", "market_hall_b"],
+          ["market_hall_a", "storage"],
+          ["market_hall_b", "storage"],
+          ["market_hall_a", "admin"],
+          ["market_hall_b", "admin"]
+        ],
+        "massing": {
+          "strategy": "cluster",
+          "rules": {
+            "max_zone_area": 200,
+            "preferred_operations": ["offset_volumes", "split_along_axis"]
+          }
+        },
+        "circulation": {
+          "primary_axis": "entrance_plaza",
+          "connection_style": "branch"
+        },
+        "constraints": {
+          "terrain": {
+            "respect_slope": false,
+            "avoid": ["cliff"]
+          },
+          "geometry": {
+            "avoid_shapes": ["perfect_circle"],
+            "prefer_symmetry": "none"
+          }
+        }
+      }
+    }
+  ]
+}
