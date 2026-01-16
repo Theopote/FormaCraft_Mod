@@ -52,6 +52,18 @@ public enum DebugLayer {
     /** Roof Slope（屋顶坡面） */
     STRUCT_ROOF_SLOPE,
 
+    /** Roof Ridge Main（正脊） */
+    ROOF_RIDGE_MAIN,
+
+    /** Roof Ridge Hip（垂脊） */
+    ROOF_RIDGE_HIP,
+
+    /** Roof Ridge Diagonal（戗脊） */
+    ROOF_RIDGE_DIAGONAL,
+
+    /** Roof Slope Triangle（三角坡面） */
+    ROOF_SLOPE_TRI,
+
     // ========== Skeleton 层（可执行骨架）==========
     /** Skeleton Bounds（骨架边界） */
     SKELETON_BOUNDS,

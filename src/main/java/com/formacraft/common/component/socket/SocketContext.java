@@ -36,5 +36,12 @@ public enum SocketContext {
     /**
      * 室内（例如：吊灯、内墙装饰、家具）
      */
-    INTERIOR
+    INTERIOR,
+
+    // ========== 屋顶 Socket Context（v2 新增）==========
+
+    /**
+     * 屋顶边缘（檐口）
+     */
+    ROOF_EDGE
 }

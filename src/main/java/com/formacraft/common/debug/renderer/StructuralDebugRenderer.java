@@ -64,6 +64,22 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
         if (enabledLayers.contains(DebugLayer.STRUCT_ROOF_SLOPE)) {
             renderRoofSlopes(structural, y, ctx.scale);
         }
+
+        // 7. Roof Ridge v3（按类型细分）
+        if (enabledLayers.contains(DebugLayer.ROOF_RIDGE_MAIN)) {
+            renderRidgesByType(structural, y, ctx.scale, com.formacraft.common.llm.dto.structural.RidgeType.MAIN_RIDGE, com.formacraft.common.debug.color.DebugColors.ROOF_RIDGE_MAIN);
+        }
+        if (enabledLayers.contains(DebugLayer.ROOF_RIDGE_HIP)) {
+            renderRidgesByType(structural, y, ctx.scale, com.formacraft.common.llm.dto.structural.RidgeType.HIP_RIDGE, com.formacraft.common.debug.color.DebugColors.ROOF_RIDGE_HIP);
+        }
+        if (enabledLayers.contains(DebugLayer.ROOF_RIDGE_DIAGONAL)) {
+            renderRidgesByType(structural, y, ctx.scale, com.formacraft.common.llm.dto.structural.RidgeType.DIAGONAL_RIDGE, com.formacraft.common.debug.color.DebugColors.ROOF_RIDGE_DIAGONAL);
+        }
+
+        // 8. Roof Slope Triangle（v3）
+        if (enabledLayers.contains(DebugLayer.ROOF_SLOPE_TRI)) {
+            renderTriangularSlopes(structural, y, ctx.scale);
+        }
     }
 
     @Override
@@ -218,6 +234,66 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
         // for (RoofSlope slope : structural.roofPlate.slopes) {
         //     // 渲染坡面（根据 normal 和 pitch 计算 3D 几何）
         //     fillPolygonXZ3D(slope.area, slope.normal, slope.pitch, DebugColors.STRUCT_ROOF_SLOPE);
+        // }
+    }
+
+    /**
+     * 按类型渲染脊线（v3）
+     * <p>
+     * 画什么：RidgeLine（按类型）
+     * 怎么画：
+     * - MAIN_RIDGE：粗红
+     * - HIP_RIDGE：橙
+     * - DIAGONAL_RIDGE：紫
+     * <p>
+     * 你会第一次真正"看到"歇山结构
+     */
+    private void renderRidgesByType(
+            StructuralSkeleton structural,
+            double y,
+            double scale,
+            com.formacraft.common.llm.dto.structural.RidgeType targetType,
+            java.awt.Color color
+    ) {
+        if (structural.roofPlate == null || structural.roofPlate.ridges == null) {
+            return;
+        }
+
+        // TODO: 实际渲染逻辑（客户端实现）
+        // for (RidgeLine ridge : structural.roofPlate.ridges) {
+        //     if (ridge.type == targetType) {
+        //         // 使用 3D 脊线或 2D 投影
+        //         Line3D line3D = ridge.line3D;
+        //         Line2D line2D = ridge.lineXZ;
+        //         if (line3D != null) {
+        //             // 渲染 3D 脊线
+        //             drawLine3D(line3D, color);
+        //         } else if (line2D != null) {
+        //             // 渲染 2D 脊线（在 heightY 高度）
+        //             drawLineXZ(line2D, ridge.heightY, color);
+        //         }
+        //     }
+        // }
+    }
+
+    /**
+     * 渲染三角坡面（v3）
+     * <p>
+     * 画什么：歇山四个角的三角坡面
+     * 怎么画：半透明分色
+     */
+    private void renderTriangularSlopes(StructuralSkeleton structural, double y, double scale) {
+        if (structural.roofPlate == null || structural.roofPlate.slopes == null) {
+            return;
+        }
+
+        // TODO: 实际渲染逻辑（客户端实现）
+        // for (RoofSlope slope : structural.roofPlate.slopes) {
+        //     // 检查是否是三角坡面（vertexCount == 3）
+        //     if (slope.area != null && slope.area.vertexCount() == 3) {
+        //         // 渲染三角坡面
+        //         fillPolygonXZ3D(slope.area3D, slope.normal, slope.pitch, DebugColors.ROOF_SLOPE_TRI);
+        //     }
         // }
     }
 }

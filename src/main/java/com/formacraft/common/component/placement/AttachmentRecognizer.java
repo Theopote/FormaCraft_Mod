@@ -21,6 +21,7 @@ public final class AttachmentRecognizer {
             case EDGE -> AttachmentType.EDGE;
             case CORNER -> AttachmentType.CORNER;
             case ROOF -> AttachmentType.ROOF_SURFACE;
+            case ROOF_EDGE -> AttachmentType.EDGE; // 屋顶边缘视为边缘附着
             case GROUND -> AttachmentType.FLOOR;
             case INTERIOR -> AttachmentType.WALL_SURFACE;
         };

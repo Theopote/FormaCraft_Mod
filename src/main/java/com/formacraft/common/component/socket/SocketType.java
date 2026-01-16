@@ -22,11 +22,20 @@ public enum SocketType {
     /** 外轮廓边缘（栏杆/阳台） */
     EDGE_OUTER,
 
-    /** 屋面 */
+    /** 屋面（v1，保留向后兼容） */
     ROOF_SLOPE,
 
-    /** 屋脊 */
+    /** 屋脊（v1，保留向后兼容） */
     ROOF_RIDGE,
+
+    /** 屋脊线（v2 新增，用于屋脊装饰） */
+    RIDGE_LINE,
+
+    /** 檐口线（v2 新增，用于檐口装饰） */
+    EAVE_LINE,
+
+    /** 屋顶表面（v2 新增，用于屋瓦铺设） */
+    ROOF_SURFACE,
 
     /** 地面 */
     FLOOR_SURFACE,

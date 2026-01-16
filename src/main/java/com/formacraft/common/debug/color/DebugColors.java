@@ -63,6 +63,18 @@ public final class DebugColors {
     /** Roof Slope（半透明斜面） */
     public static final Color STRUCT_ROOF_SLOPE = new Color(0xFFCC99); // 半透明效果（实际渲染时处理 alpha）
 
+    /** Roof Ridge Main（粗红，正脊） */
+    public static final Color ROOF_RIDGE_MAIN = new Color(0xFF0000);
+
+    /** Roof Ridge Hip（橙，垂脊） */
+    public static final Color ROOF_RIDGE_HIP = new Color(0xFF8800);
+
+    /** Roof Ridge Diagonal（紫，戗脊） */
+    public static final Color ROOF_RIDGE_DIAGONAL = new Color(0xAA00FF);
+
+    /** Roof Slope Triangle（半透明三角坡面） */
+    public static final Color ROOF_SLOPE_TRI = new Color(0xCCFFCC); // 半透明效果（实际渲染时处理 alpha）
+
     // ========== Skeleton 层 ==========
 
     /** Skeleton Bounds（线框 🟦） */
@@ -88,6 +100,10 @@ public final class DebugColors {
             case STRUCT_ROOF -> STRUCT_ROOF;
             case STRUCT_ROOF_RIDGE -> STRUCT_ROOF_RIDGE;
             case STRUCT_ROOF_SLOPE -> STRUCT_ROOF_SLOPE;
+            case ROOF_RIDGE_MAIN -> ROOF_RIDGE_MAIN;
+            case ROOF_RIDGE_HIP -> ROOF_RIDGE_HIP;
+            case ROOF_RIDGE_DIAGONAL -> ROOF_RIDGE_DIAGONAL;
+            case ROOF_SLOPE_TRI -> ROOF_SLOPE_TRI;
             case SKELETON_BOUNDS -> SKELETON_BOUNDS;
             case SKELETON_SOCKETS -> SKELETON_SOCKETS;
         };
