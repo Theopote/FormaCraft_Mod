@@ -43,6 +43,15 @@ public enum DebugLayer {
     /** Courtyard Void（空洞） */
     STRUCT_COURTYARD_VOID,
 
+    /** Roof Solid（屋顶体量） */
+    STRUCT_ROOF,
+
+    /** Roof Ridge（屋顶脊线） */
+    STRUCT_ROOF_RIDGE,
+
+    /** Roof Slope（屋顶坡面） */
+    STRUCT_ROOF_SLOPE,
+
     // ========== Skeleton 层（可执行骨架）==========
     /** Skeleton Bounds（骨架边界） */
     SKELETON_BOUNDS,
@@ -71,7 +80,10 @@ public enum DebugLayer {
                 STRUCT_WALL_BASELINE_COURTYARD,
                 STRUCT_WALL_BASELINE_INTERNAL,
                 STRUCT_WALL_SOLID,
-                STRUCT_COURTYARD_VOID
+                STRUCT_COURTYARD_VOID,
+                STRUCT_ROOF,
+                STRUCT_ROOF_RIDGE,
+                STRUCT_ROOF_SLOPE
         );
     }
 

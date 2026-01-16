@@ -2,6 +2,7 @@ package com.formacraft.common.llm.converter;
 
 import com.formacraft.common.geometry.*;
 import com.formacraft.common.geometry.boolean_.FloorCourtyardBooleanProcessor;
+import com.formacraft.common.geometry.boolean_.RoofPlateGenerator;
 import com.formacraft.common.llm.dto.PlanSkeleton;
 import com.formacraft.common.llm.dto.StructuralSkeleton;
 import com.formacraft.common.llm.dto.structural.*;
@@ -76,10 +77,17 @@ public final class PlanSkeletonToStructuralSkeletonConverter {
         List<StructuralSkeleton.WallSegment> allWalls = new ArrayList<>(booleanWalls);
         allWalls.addAll(edgeWalls);
 
-        // 5. 生成 alignment constraints（从 axes）
+        // 5. 生成 roof plate（从 Boolean 结果）
+        StructuralSkeleton.RoofPlate roofPlate = RoofPlateGenerator.generateRoofPlate(
+                floorPlate,
+                courtyards,
+                DEFAULT_WALL_HEIGHT
+        );
+
+        // 6. 生成 alignment constraints（从 axes）
         List<StructuralSkeleton.AxisConstraint> axes = generateAlignmentConstraints(planSkeleton);
 
-        return new StructuralSkeleton(floorPlate, allWalls, courtyards, axes);
+        return new StructuralSkeleton(floorPlate, allWalls, courtyards, roofPlate, axes);
     }
 
     /**

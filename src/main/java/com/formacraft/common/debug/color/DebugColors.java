@@ -54,6 +54,15 @@ public final class DebugColors {
     /** Courtyard Void（黑色网格 ⬛） */
     public static final Color STRUCT_COURTYARD_VOID = new Color(0x000000); // 半透明效果（实际渲染时处理 alpha）
 
+    /** Roof Solid（半透明灰） */
+    public static final Color STRUCT_ROOF = new Color(0xC0C0C0); // 半透明效果（实际渲染时处理 alpha）
+
+    /** Roof Ridge（粗红线） */
+    public static final Color STRUCT_ROOF_RIDGE = new Color(0xFF0000);
+
+    /** Roof Slope（半透明斜面） */
+    public static final Color STRUCT_ROOF_SLOPE = new Color(0xFFCC99); // 半透明效果（实际渲染时处理 alpha）
+
     // ========== Skeleton 层 ==========
 
     /** Skeleton Bounds（线框 🟦） */
@@ -76,6 +85,9 @@ public final class DebugColors {
             case STRUCT_WALL_BASELINE_INTERNAL -> STRUCT_WALL_BASELINE_INTERNAL;
             case STRUCT_WALL_SOLID -> STRUCT_WALL_SOLID;
             case STRUCT_COURTYARD_VOID -> STRUCT_COURTYARD_VOID;
+            case STRUCT_ROOF -> STRUCT_ROOF;
+            case STRUCT_ROOF_RIDGE -> STRUCT_ROOF_RIDGE;
+            case STRUCT_ROOF_SLOPE -> STRUCT_ROOF_SLOPE;
             case SKELETON_BOUNDS -> SKELETON_BOUNDS;
             case SKELETON_SOCKETS -> SKELETON_SOCKETS;
         };

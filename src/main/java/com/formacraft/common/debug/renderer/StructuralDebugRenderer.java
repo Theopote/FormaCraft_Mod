@@ -49,6 +49,21 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
         if (enabledLayers.contains(DebugLayer.STRUCT_COURTYARD_VOID)) {
             renderCourtyardVoids(structural, y, ctx.scale);
         }
+
+        // 4. Roof
+        if (enabledLayers.contains(DebugLayer.STRUCT_ROOF)) {
+            renderRoof(structural, y, ctx.scale);
+        }
+
+        // 5. Roof Ridge（v2）
+        if (enabledLayers.contains(DebugLayer.STRUCT_ROOF_RIDGE)) {
+            renderRoofRidges(structural, y, ctx.scale);
+        }
+
+        // 6. Roof Slope（v2）
+        if (enabledLayers.contains(DebugLayer.STRUCT_ROOF_SLOPE)) {
+            renderRoofSlopes(structural, y, ctx.scale);
+        }
     }
 
     @Override
@@ -132,5 +147,77 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
                 // drawText("VOID", courtyard.footprint.centroid(), y);
             }
         }
+    }
+
+    /**
+     * 渲染 Roof（屋顶体量）
+     * <p>
+     * 画什么：RoofPlate.roofFootprints
+     * 怎么画：半透明灰色，或线框
+     * <p>
+     * 你会立刻看到：
+     * - 屋顶有没有盖住庭院 ❌ / ✅
+     * - 多体量是否各自封顶
+     * - 是否和墙顶对齐
+     */
+    private void renderRoof(StructuralSkeleton structural, double y, double scale) {
+        if (structural.roofPlate == null || structural.roofPlate.roofFootprints.isEmpty()) {
+            return;
+        }
+
+        // TODO: 实际渲染逻辑（客户端实现）
+        // for (Polygon2D roofFootprint : structural.roofPlate.roofFootprints) {
+        //     // 渲染屋顶 polygon（在 roofPlate.baseY 高度）
+        //     fillPolygonXZ(roofFootprint, structural.roofPlate.baseY, DebugColors.STRUCT_ROOF);
+        //     // 或渲染线框
+        //     drawPolylineXZ(roofFootprint.getBoundary(), structural.roofPlate.baseY, DebugColors.STRUCT_ROOF);
+        // }
+    }
+
+    /**
+     * 渲染 Roof Ridge（脊线）
+     * <p>
+     * 画什么：RidgeLine.lineXZ
+     * 怎么画：粗红线（XZ）+ 高度标注
+     * <p>
+     * 你会非常直观地看到：
+     * - 脊线有没有跑偏
+     * - 脊线高度是否合理
+     */
+    private void renderRoofRidges(StructuralSkeleton structural, double y, double scale) {
+        if (structural.roofPlate == null || structural.roofPlate.ridges == null || structural.roofPlate.ridges.isEmpty()) {
+            return;
+        }
+
+        // TODO: 实际渲染逻辑（客户端实现）
+        // for (RidgeLine ridge : structural.roofPlate.ridges) {
+        //     // 在 ridge.heightY 高度绘制脊线
+        //     drawLineXZ(ridge.lineXZ, ridge.heightY, DebugColors.STRUCT_ROOF_RIDGE);
+        //     // 可加高度标注
+        //     Vec2 midPoint = ridge.lineXZ.midPoint();
+        //     drawText(String.format("Ridge: %.1f", ridge.heightY), midPoint, ridge.heightY);
+        // }
+    }
+
+    /**
+     * 渲染 Roof Slope（坡面）
+     * <p>
+     * 画什么：RoofSlope.area
+     * 怎么画：半透明斜面
+     * <p>
+     * 你会非常直观地看到：
+     * - 坡面是否对称
+     * - Courtyard 是否完全敞开
+     */
+    private void renderRoofSlopes(StructuralSkeleton structural, double y, double scale) {
+        if (structural.roofPlate == null || structural.roofPlate.slopes == null || structural.roofPlate.slopes.isEmpty()) {
+            return;
+        }
+
+        // TODO: 实际渲染逻辑（客户端实现）
+        // for (RoofSlope slope : structural.roofPlate.slopes) {
+        //     // 渲染坡面（根据 normal 和 pitch 计算 3D 几何）
+        //     fillPolygonXZ3D(slope.area, slope.normal, slope.pitch, DebugColors.STRUCT_ROOF_SLOPE);
+        // }
     }
 }

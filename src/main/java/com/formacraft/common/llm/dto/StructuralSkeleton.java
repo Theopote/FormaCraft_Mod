@@ -27,17 +27,20 @@ public class StructuralSkeleton {
     public final FloorPlate floorPlate;
     public final List<WallSegment> walls;
     public final List<CourtyardVoid> courtyards;
+    public final RoofPlate roofPlate;
     public final List<AxisConstraint> axes;
 
     public StructuralSkeleton(
             FloorPlate floorPlate,
             List<WallSegment> walls,
             List<CourtyardVoid> courtyards,
+            RoofPlate roofPlate,
             List<AxisConstraint> axes
     ) {
         this.floorPlate = floorPlate;
         this.walls = walls != null ? List.copyOf(walls) : List.of();
         this.courtyards = courtyards != null ? List.copyOf(courtyards) : List.of();
+        this.roofPlate = roofPlate;
         this.axes = axes != null ? List.copyOf(axes) : List.of();
     }
 
@@ -162,6 +165,84 @@ public class StructuralSkeleton {
             this.footprint = footprint;
             this.openToSky = openToSky;
             this.adjacentZones = adjacentZones != null ? List.copyOf(adjacentZones) : List.of();
+        }
+    }
+
+    /**
+     * RoofPlate（屋顶板）
+     * <p>
+     * 核心定义：RoofPlate = 对 FloorPlate 的"有效实心区域"做封顶，
+     * 而不是对原始平面做封顶。
+     * <p>
+     * 重要规则：
+     * - roofFootprints = EffectiveFootprint.outerPolygons（Boolean 之后的结果）
+     * - 不要包含 hole
+     * - 不要重新减 courtyard
+     * - roofFootprints 可以是多个 polygon（多体量）
+     * <p>
+     * v1 基础字段：
+     * - roofFootprints, baseY, thickness, type
+     * <p>
+     * v2 扩展字段（向后兼容）：
+     * - form: 屋顶形式（FLAT / GABLED / HIP / AXIAL_GABLED / AXIAL_HIP）
+     * - ridges: 脊线列表
+     * - slopes: 坡面列表
+     */
+    public static class RoofPlate {
+        /** 封顶区域（XZ 平面，多 polygon） */
+        public final List<Polygon2D> roofFootprints;
+
+        /** 屋顶基准高度（通常 = 墙顶） */
+        public final double baseY;
+
+        /** 屋顶厚度（结构厚度） */
+        public final double thickness;
+
+        /** 屋顶类型（v1 非几何，仅语义，v2 建议使用 form） */
+        public final RoofType type;
+
+        /** v2 新增：屋顶形式 */
+        public final RoofForm form;
+
+        /** v2 新增：脊线列表 */
+        public final List<RidgeLine> ridges;
+
+        /** v2 新增：坡面列表 */
+        public final List<RoofSlope> slopes;
+
+        /** v1 构造函数（向后兼容） */
+        public RoofPlate(
+                List<Polygon2D> roofFootprints,
+                double baseY,
+                double thickness,
+                RoofType type
+        ) {
+            this.roofFootprints = roofFootprints != null ? List.copyOf(roofFootprints) : List.of();
+            this.baseY = baseY;
+            this.thickness = thickness;
+            this.type = type != null ? type : RoofType.FLAT;
+            this.form = RoofForm.FLAT; // v1 默认
+            this.ridges = List.of();
+            this.slopes = List.of();
+        }
+
+        /** v2 构造函数 */
+        public RoofPlate(
+                List<Polygon2D> roofFootprints,
+                double baseY,
+                double thickness,
+                RoofType type,
+                RoofForm form,
+                List<RidgeLine> ridges,
+                List<RoofSlope> slopes
+        ) {
+            this.roofFootprints = roofFootprints != null ? List.copyOf(roofFootprints) : List.of();
+            this.baseY = baseY;
+            this.thickness = thickness;
+            this.type = type != null ? type : RoofType.FLAT;
+            this.form = form != null ? form : RoofForm.FLAT;
+            this.ridges = ridges != null ? List.copyOf(ridges) : List.of();
+            this.slopes = slopes != null ? List.copyOf(slopes) : List.of();
         }
     }
 
