@@ -1,0 +1,206 @@
+{
+  "examples": [
+    {
+      "description": "简单住宅 - 主体 + 两翼的 PlanSkeleton",
+      "plan_skeleton": {
+        "schema": "formacraft.plan_skeleton.v1",
+        "outline": {
+          "source": "generated",
+          "shape": "rectilinear"
+        },
+        "zones": [
+          {
+            "id": "core",
+            "boundary": "external",
+            "access": "public",
+            "connected_to": ["wing_a", "wing_b"]
+          },
+          {
+            "id": "wing_a",
+            "boundary": "external",
+            "access": "semi_private",
+            "connected_to": ["core"]
+          },
+          {
+            "id": "wing_b",
+            "boundary": "external",
+            "access": "semi_private",
+            "connected_to": ["core"]
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge_core_north",
+            "type": "external_wall",
+            "zones": ["core"],
+            "exterior": true
+          },
+          {
+            "id": "edge_core_south",
+            "type": "external_wall",
+            "zones": ["core"],
+            "exterior": true
+          },
+          {
+            "id": "edge_core_wing_a",
+            "type": "shared_wall",
+            "zones": ["core", "wing_a"],
+            "exterior": false
+          },
+          {
+            "id": "edge_core_wing_b",
+            "type": "shared_wall",
+            "zones": ["core", "wing_b"],
+            "exterior": false
+          }
+        ],
+        "courtyards": [],
+        "axes": [
+          {
+            "id": "main_axis",
+            "role": "primary",
+            "zones": ["wing_a", "core", "wing_b"]
+          }
+        ]
+      }
+    },
+    {
+      "description": "回字形庭院建筑的 PlanSkeleton",
+      "plan_skeleton": {
+        "schema": "formacraft.plan_skeleton.v1",
+        "outline": {
+          "source": "generated",
+          "shape": "rectilinear"
+        },
+        "zones": [
+          {
+            "id": "main_hall",
+            "boundary": "external",
+            "access": "public",
+            "connected_to": ["north_wing", "south_wing", "east_wing", "west_wing"]
+          },
+          {
+            "id": "north_wing",
+            "boundary": "external",
+            "access": "semi_private",
+            "connected_to": ["main_hall", "east_wing", "west_wing"]
+          },
+          {
+            "id": "south_wing",
+            "boundary": "external",
+            "access": "semi_private",
+            "connected_to": ["main_hall", "east_wing", "west_wing"]
+          },
+          {
+            "id": "east_wing",
+            "boundary": "external",
+            "access": "semi_private",
+            "connected_to": ["main_hall", "north_wing", "south_wing"]
+          },
+          {
+            "id": "west_wing",
+            "boundary": "external",
+            "access": "semi_private",
+            "connected_to": ["main_hall", "north_wing", "south_wing"]
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge_main_north",
+            "type": "shared_wall",
+            "zones": ["main_hall", "north_wing"],
+            "exterior": false
+          },
+          {
+            "id": "edge_main_south",
+            "type": "shared_wall",
+            "zones": ["main_hall", "south_wing"],
+            "exterior": false
+          },
+          {
+            "id": "edge_main_east",
+            "type": "shared_wall",
+            "zones": ["main_hall", "east_wing"],
+            "exterior": false
+          },
+          {
+            "id": "edge_main_west",
+            "type": "shared_wall",
+            "zones": ["main_hall", "west_wing"],
+            "exterior": false
+          },
+          {
+            "id": "edge_court_north",
+            "type": "courtyard_wall",
+            "zones": ["north_wing"],
+            "exterior": false
+          },
+          {
+            "id": "edge_court_south",
+            "type": "courtyard_wall",
+            "zones": ["south_wing"],
+            "exterior": false
+          },
+          {
+            "id": "edge_court_east",
+            "type": "courtyard_wall",
+            "zones": ["east_wing"],
+            "exterior": false
+          },
+          {
+            "id": "edge_court_west",
+            "type": "courtyard_wall",
+            "zones": ["west_wing"],
+            "exterior": false
+          }
+        ],
+        "courtyards": [
+          {
+            "id": "central_court",
+            "adjacent_zones": ["main_hall", "north_wing", "south_wing", "east_wing", "west_wing"]
+          }
+        ],
+        "axes": [
+          {
+            "id": "main_axis_ns",
+            "role": "primary",
+            "zones": ["north_wing", "main_hall", "south_wing"]
+          },
+          {
+            "id": "secondary_axis_ew",
+            "role": "secondary",
+            "zones": ["east_wing", "main_hall", "west_wing"]
+          }
+        ]
+      }
+    },
+    {
+      "description": "用户绘制的平面轮廓（user_drawn source）",
+      "plan_skeleton": {
+        "schema": "formacraft.plan_skeleton.v1",
+        "outline": {
+          "source": "user_drawn",
+          "shape": "freeform"
+        },
+        "zones": [
+          {
+            "id": "main",
+            "boundary": "external",
+            "access": "public",
+            "connected_to": []
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge_perimeter",
+            "type": "external_wall",
+            "zones": ["main"],
+            "exterior": true
+          }
+        ],
+        "courtyards": [],
+        "axes": []
+      }
+    }
+  ]
+}
