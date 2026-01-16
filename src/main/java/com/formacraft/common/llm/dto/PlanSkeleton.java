@@ -6,29 +6,43 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * PlanSkeleton（2D 平面骨架）v1
+ * PlanSkeleton（2D 平面骨架）v1 - 架构校准后
  * <p>
- * 核心定义：PlanSkeleton 不是平面几何图形，
- * 而是：一个带有拓扑、轴线、边界语义的 2D 骨架
+ * 🎯 核心定位（架构校准 2026-01-14）：
+ * PlanSkeleton 不是"建筑的真实几何平面"，而是一个"建筑活动允许发生的空间域（Domain）"。
  * <p>
- * 职责只有三件事：
- * 1. 把 zones + adjacency 转成可落地的平面关系
- * 2. 提供 "边 / 面 / 内部 / 外部" 等语义
- * 3. 为后续 Skeleton / SocketProvider 提供输入
+ * 它的作用只有三个：
+ * 1. 限制范围：建筑不越界，AI 不乱飞
+ * 2. 提供参考：朝向、主体位置、与环境的关系
+ * 3. 作为体量组合的"舞台"：几何体可以进、出、穿插、悬挑，但总体不脱离这个 domain
  * <p>
- * 在整个流水线中的位置：
+ * ⚠️ 重要说明：
+ * - PlanSkeleton 不是"真实楼板"或"真实外墙轮廓"
+ * - 它只是一个"Site Boundary / Build Domain"
+ * - 真正的建筑结构来自"体量组合（Building Mass Assembly）"后的实例化
+ * <p>
+ * 原始职责（保留，但理解已更新）：
+ * 1. 把 zones + adjacency 转成空间域约束
+ * 2. 提供 "边 / 面 / 内部 / 外部" 等语义（作为约束参考）
+ * 3. 为后续 Building Mass Assembly 提供 Domain 输入
+ * <p>
+ * 在整个流水线中的位置（校准后）：
  * <pre>
  * LLM
  *  ↓
  * PlanProgram.json        ← AI 擅长（功能关系）
  *  ↓
- * PlanSkeleton.json       ← 系统 + 半自动（几何语义）
+ * PlanSkeleton.json       ← Site Boundary / Domain（空间域约束）
+ *  ↓
+ * Building Mass Assembly  ← 体量组合（缺失的核心层，未来实现）
+ *  ↓
+ * StructuralSkeleton      ← 从体量组合派生（候选结构）
  *  ↓
  * Skeleton (3D)           ← 3D 骨架
  *  ↓
  * SocketProvider          ← Socket 生成
  *  ↓
- * Component / Assembly    ← 构件装配
+ * Component / Assembly    ← 构件装配（方块）
  * </pre>
  * <p>
  * PlanSkeleton 是人类 & AI 都可以理解和修改的一层。

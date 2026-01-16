@@ -12,21 +12,50 @@ import java.util.*;
 /**
  * PlanSkeleton → StructuralSkeleton 转换器
  * <p>
- * 核心职责：将 PlanSkeleton 的"几何语义"转换为 StructuralSkeleton 的"3D结构骨架"
+ * 🎯 架构校准后（2026-01-14）：
+ * 此转换器当前执行的是"简化流程"，将 PlanSkeleton（Domain）直接转换为 StructuralSkeleton（候选结构）。
  * <p>
- * 映射规则：
- * 1. outline → FLOOR_PLATE（唯一必定存在的元素）
- * 2. edges → WALL_SEGMENT
+ * ⚠️ 重要说明：
+ * 正确的架构应该是：
+ * ```
+ * PlanSkeleton (Domain)
+ *   ↓
+ * Building Mass Assembly (体量组合)
+ *   ↓
+ * StructuralSkeleton (从体量组合派生)
+ * ```
+ * <p>
+ * 当前流程（简化版本）：
+ * ```
+ * PlanSkeleton (Domain) → StructuralSkeleton (候选生成)
+ * ```
+ * <p>
+ * 这意味着：
+ * - ✅ 生成的 StructuralSkeleton 应该被视为"候选结构模板"
+ * - ✅ 不是"必然实例化"的结构
+ * - ✅ 真正的结构应该从"体量组合"后派生
+ * <p>
+ * 未来方向：
+ * - 将 StructuralSkeleton 的生成移到 Building Mass Assembly 之后
+ * - 让转换器成为"体量组合 → 结构派生"的工具
+ * <p>
+ * 当前职责（简化版本）：
+ * 将 PlanSkeleton（Domain）转换为 StructuralSkeleton（候选结构模板）
+ * <p>
+ * 映射规则（候选生成）：
+ * 1. outline → FLOOR_PLATE（候选地面板）
+ * 2. edges → WALL_SEGMENT（候选墙段）
  *    - external_wall → EXTERNAL
  *    - shared_wall → INTERNAL
  *    - courtyard_wall → COURTYARD
- * 3. courtyards → COURTYARD_VOID
- * 4. axes → AlignmentConstraint
+ * 3. courtyards → COURTYARD_VOID（候选庭院空洞）
+ * 4. axes → AlignmentConstraint（对齐约束）
  * <p>
  * 设计原则：
- * - 不关心风格、不关心构件，只关心结构
+ * - 不关心风格、不关心构件，只关心结构语义
  * - 保守转换：优先生成合理的默认值
  * - 可扩展：为未来更复杂的几何推断预留接口
+ * - ⚠️ 生成的都是"候选"，等待体量组合后的实例化
  */
 public final class PlanSkeletonToStructuralSkeletonConverter {
 

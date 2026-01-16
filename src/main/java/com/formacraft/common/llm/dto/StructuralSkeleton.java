@@ -6,22 +6,48 @@ import com.formacraft.common.llm.dto.structural.*;
 import java.util.List;
 
 /**
- * StructuralSkeleton（3D 结构骨架）v1
+ * StructuralSkeleton（3D 结构骨架）v1 - 架构校准后
  * <p>
- * 核心定义：StructuralSkeleton 是 PlanSkeleton → ArchitecturalSkeleton 的中间层。
+ * 🎯 核心定位（架构校准 2026-01-14）：
+ * StructuralSkeleton 不是"必然生成的几何"，而是"候选结构 / 可用语义"。
  * <p>
- * 职责：不关心风格、不关心构件，只关心：
- * - 墙在哪里
- * - 墙是内还是外
- * - 墙有多高
- * - 地面 / 屋顶是否存在
+ * 重要说明：
+ * - StructuralSkeleton 只在"体量组合（Building Mass Assembly）"后才被实例化
+ * - 它不是 PlanSkeleton 的"必然结果"
+ * - 它是"体量组合后的自然后果"
+ * <p>
+ * 正确的生成流程应该是：
+ * ```
+ * PlanSkeleton (Domain)
+ *   ↓
+ * Building Mass Assembly (体量组合)
+ *   ↓
+ * StructuralSkeleton (候选结构，从体量组合派生)
+ *   ↓
+ * 实例化到 Skeleton / Socket / Component
+ * ```
+ * <p>
+ * ⚠️ 当前状态（简化版本）：
+ * 为了保持系统可用，当前仍然支持从 PlanSkeleton 直接生成 StructuralSkeleton。
+ * 但这应该被视为"简化流程"或"候选生成"，而不是"必然生成"。
+ * <p>
+ * 未来方向：
+ * - 将 StructuralSkeleton 的生成移到 Building Mass Assembly 之后
+ * - 让 StructuralSkeleton 真正成为"从体量组合派生的候选结构"
+ * <p>
+ * 原始职责（保留，但理解已更新）：
+ * 不关心风格、不关心构件，只描述结构语义：
+ * - 墙在哪里（候选）
+ * - 墙是内还是外（候选）
+ * - 墙有多高（候选）
+ * - 地面 / 屋顶是否存在（候选）
  * <p>
  * 设计原则：
- * 1. 只描述"连续几何"，不描述 block
+ * 1. 只描述"连续几何"，不描述 block（用于预览/规划）
  * 2. XZ 是主维度，Y 只描述高度策略
  * 3. 所有元素必须能推导出：边、面、内外法向
- * 4. 必须能被可视化（debug overlay）
- * 5. 必须能一对一映射到 Skeleton
+ * 4. 必须能被可视化（debug overlay，预览工具）
+ * 5. 必须能一对一映射到 Skeleton（实例化时）
  */
 public class StructuralSkeleton {
     public final FloorPlate floorPlate;
