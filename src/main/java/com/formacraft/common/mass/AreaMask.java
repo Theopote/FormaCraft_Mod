@@ -1,9 +1,5 @@
 package com.formacraft.common.mass;
 
-import net.minecraft.util.math.BlockPos;
-
-import java.util.Set;
-
 /**
  * AreaMask（区域掩码）
  * <p>
@@ -19,6 +15,10 @@ import java.util.Set;
  * 核心思想：
  * BuildingMass 不是几何体，不是模型，不是 mesh。
  * BuildingMass 是"在某个空间域内，允许方块生成的一段体量规则集合"。
+ * <p>
+ * 实现：
+ * - {@link RectMask} - 矩形掩码
+ * - {@link PlanBoundedMask} - 基于 Plan Domain 的离散方块位置掩码
  */
 public interface AreaMask {
     /**
@@ -31,50 +31,4 @@ public interface AreaMask {
      * @return 是否属于体量范围
      */
     boolean contains(int x, int z);
-}
-
-/**
- * RectMask（矩形掩码）
- * <p>
- * v1 最小实现：简单的矩形区域
- */
-class RectMask implements AreaMask {
-    private final int minX;
-    private final int maxX;
-    private final int minZ;
-    private final int maxZ;
-
-    public RectMask(int minX, int maxX, int minZ, int maxZ) {
-        this.minX = minX;
-        this.maxX = maxX;
-        this.minZ = minZ;
-        this.maxZ = maxZ;
-    }
-
-    @Override
-    public boolean contains(int x, int z) {
-        return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
-    }
-}
-
-/**
- * PlanBoundedMask（基于 Plan Domain 的掩码）
- * <p>
- * 使用离散的方块位置集合
- * <p>
- * v1 最小实现：使用 BlockPos 集合
- */
-class PlanBoundedMask implements AreaMask {
-    private final Set<BlockPos> allowedXZ;
-
-    public PlanBoundedMask(Set<BlockPos> allowedXZ) {
-        this.allowedXZ = allowedXZ != null ? Set.copyOf(allowedXZ) : Set.of();
-    }
-
-    @Override
-    public boolean contains(int x, int z) {
-        // 检查是否有相同 XZ 的位置（忽略 Y）
-        return allowedXZ.stream()
-                .anyMatch(pos -> pos.getX() == x && pos.getZ() == z);
-    }
 }
