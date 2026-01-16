@@ -1,6 +1,7 @@
 package com.formacraft.common.llm.converter;
 
 import com.formacraft.common.geometry.*;
+import com.formacraft.common.geometry.boolean_.FloorCourtyardBooleanProcessor;
 import com.formacraft.common.llm.dto.PlanSkeleton;
 import com.formacraft.common.llm.dto.StructuralSkeleton;
 import com.formacraft.common.llm.dto.structural.*;
@@ -38,6 +39,12 @@ public final class PlanSkeletonToStructuralSkeletonConverter {
 
     /**
      * 转换 PlanSkeleton 为 StructuralSkeleton
+     * <p>
+     * 核心流程：
+     * 1. 生成 FloorPlate（主体实心体量）
+     * 2. 生成 CourtyardVoid（负体量）
+     * 3. 执行 Boolean 运算，从边界派生墙体
+     * 4. 生成 alignment constraints
      * 
      * @param planSkeleton PlanSkeleton（2D 几何语义）
      * @return StructuralSkeleton（3D 结构骨架）
@@ -50,16 +57,29 @@ public final class PlanSkeletonToStructuralSkeletonConverter {
         // 1. 生成 floor plate（从 outline 推断，v1 简化：使用默认矩形）
         StructuralSkeleton.FloorPlate floorPlate = generateFloorPlate(planSkeleton);
 
-        // 2. 生成 wall segments（从 edges）
-        List<StructuralSkeleton.WallSegment> walls = generateWallSegments(planSkeleton, floorPlate);
-
-        // 3. 生成 courtyard voids（从 courtyards）
+        // 2. 生成 courtyard voids（从 courtyards）
         List<StructuralSkeleton.CourtyardVoid> courtyards = generateCourtyardVoids(planSkeleton);
 
-        // 4. 生成 alignment constraints（从 axes）
+        // 3. 执行 Boolean 运算，从边界派生墙体（核心）
+        List<StructuralSkeleton.WallSegment> booleanWalls = 
+                FloorCourtyardBooleanProcessor.processBooleanAndGenerateWalls(
+                        floorPlate,
+                        courtyards,
+                        DEFAULT_WALL_HEIGHT,
+                        DEFAULT_WALL_THICKNESS
+                );
+
+        // 4. 从 edges 生成额外的墙（shared_wall 等，这些不从 Boolean 派生）
+        List<StructuralSkeleton.WallSegment> edgeWalls = generateWallSegmentsFromEdges(planSkeleton, floorPlate);
+
+        // 合并墙体
+        List<StructuralSkeleton.WallSegment> allWalls = new ArrayList<>(booleanWalls);
+        allWalls.addAll(edgeWalls);
+
+        // 5. 生成 alignment constraints（从 axes）
         List<StructuralSkeleton.AxisConstraint> axes = generateAlignmentConstraints(planSkeleton);
 
-        return new StructuralSkeleton(floorPlate, walls, courtyards, axes);
+        return new StructuralSkeleton(floorPlate, allWalls, courtyards, axes);
     }
 
     /**
@@ -85,14 +105,12 @@ public final class PlanSkeletonToStructuralSkeletonConverter {
     }
 
     /**
-     * 生成 wall segments（规则 2）
+     * 从 edges 生成墙段（shared_wall 等，不从 Boolean 派生）
      * <p>
-     * 映射：
-     * - external_wall → EXTERNAL
-     * - shared_wall → INTERNAL
-     * - courtyard_wall → COURTYARD
+     * 注意：external_wall 和 courtyard_wall 应该从 Boolean 运算派生，
+     * 这里只处理 shared_wall（内墙）
      */
-    private static List<StructuralSkeleton.WallSegment> generateWallSegments(
+    private static List<StructuralSkeleton.WallSegment> generateWallSegmentsFromEdges(
             PlanSkeleton planSkeleton,
             StructuralSkeleton.FloorPlate floorPlate
     ) {
@@ -110,15 +128,14 @@ public final class PlanSkeletonToStructuralSkeletonConverter {
             }
 
             // 决定 WallType
+            // 注意：external_wall 和 courtyard_wall 应该从 Boolean 运算派生
+            // 这里只处理 shared_wall（内墙）
             WallType wallType;
-            if ("external_wall".equalsIgnoreCase(edge.type())) {
-                wallType = WallType.EXTERNAL;
-            } else if ("courtyard_wall".equalsIgnoreCase(edge.type())) {
-                wallType = WallType.COURTYARD;
-            } else if ("shared_wall".equalsIgnoreCase(edge.type())) {
+            if ("shared_wall".equalsIgnoreCase(edge.type())) {
                 wallType = WallType.INTERNAL;
             } else {
-                // boundary_edge 等，v1 跳过
+                // external_wall 和 courtyard_wall 跳过（从 Boolean 派生）
+                // boundary_edge 等也跳过
                 continue;
             }
 
