@@ -109,9 +109,6 @@ public final class SocketHighlighter {
 
             // 获取 Socket 的边界框
             Box bounds = result.socket.bounds;
-            if (bounds == null) {
-                continue;
-            }
 
             // 计算颜色（根据是否合法）
             float r, g, b, a;

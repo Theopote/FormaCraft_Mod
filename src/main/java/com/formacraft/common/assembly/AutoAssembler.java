@@ -7,7 +7,6 @@ import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.query.ComponentRetriever;
 import com.formacraft.common.component.query.ComponentScore;
 import com.formacraft.common.component.socket.Socket;
-import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.component.socket.match.SocketMatchResult;
 import com.formacraft.common.component.socket.place.ComponentInstanceTransform;
 import com.formacraft.common.component.socket.place.PlacementContextAdapter;

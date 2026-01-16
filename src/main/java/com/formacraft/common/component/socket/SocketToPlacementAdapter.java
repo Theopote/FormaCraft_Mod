@@ -30,16 +30,6 @@ public final class SocketToPlacementAdapter {
 
         // 从 Socket 的中心点获取原点
         BlockPos origin = socket.centerBlockPos();
-        if (origin == null && socket.bounds != null) {
-            origin = BlockPos.ofFloored(
-                    socket.bounds.getCenter().x,
-                    socket.bounds.getCenter().y,
-                    socket.bounds.getCenter().z
-            );
-        }
-        if (origin == null) {
-            origin = BlockPos.ORIGIN;
-        }
 
         // 从 Socket 获取朝向（normal 可以作为朝向）
         Direction facing = socket.normal;
@@ -94,7 +84,7 @@ public final class SocketToPlacementAdapter {
 
         // 创建简化的 Socket（仅包含必要信息）
         BlockPos origin = placement.origin();
-        net.minecraft.util.math.Box bounds = null;
+        net.minecraft.util.math.Box bounds;
         if (placement.size() != null) {
             bounds = new net.minecraft.util.math.Box(
                     origin.getX(), origin.getY(), origin.getZ(),

@@ -44,6 +44,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -163,17 +165,7 @@ public final class ComponentTool implements FormacraftTool {
         if (loadedComponent == null) return;
 
         // 获取焦点位置（鼠标 hit 或 anchor）
-        net.minecraft.util.math.Vec3d focus = null;
-        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-        if (client != null && client.crosshairTarget instanceof net.minecraft.util.hit.BlockHitResult hit) {
-            focus = hit.getPos();
-        } else if (state.anchorWorld != null) {
-            focus = new net.minecraft.util.math.Vec3d(
-                    state.anchorWorld.getX() + 0.5,
-                    state.anchorWorld.getY() + 0.5,
-                    state.anchorWorld.getZ() + 0.5
-            );
-        }
+        Vec3d focus = getVec3d();
 
         if (focus == null) return;
 
@@ -182,13 +174,28 @@ public final class ComponentTool implements FormacraftTool {
 
         // 使用 SocketHighlighter 获取合法的 Socket
         List<SocketMatchResult> results = SocketHighlighter.getValidSockets(
-                loadedComponent, variant, focus
+                loadedComponent, null, focus
         );
 
         // 渲染高亮
         if (!results.isEmpty()) {
             SocketHighlighter.renderHighlights(ctx, results);
         }
+    }
+
+    private @Nullable Vec3d getVec3d() {
+        Vec3d focus = null;
+        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client != null && client.crosshairTarget instanceof BlockHitResult hit) {
+            focus = hit.getPos();
+        } else if (state.anchorWorld != null) {
+            focus = new Vec3d(
+                    state.anchorWorld.getX() + 0.5,
+                    state.anchorWorld.getY() + 0.5,
+                    state.anchorWorld.getZ() + 0.5
+            );
+        }
+        return focus;
     }
 
     /** 给 ToolPanel 用的 hover 反馈（不刷 toast）。 */

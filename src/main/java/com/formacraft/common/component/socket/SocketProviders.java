@@ -94,7 +94,7 @@ public final class SocketProviders {
 
         // 4. 使用 SocketFinder 排序
         List<SocketPlacement> sortedPlacements = SocketFinder.sortByScore(
-                placements, provider, consumer, referencePos
+                placements, null, consumer, referencePos
         );
 
         // 5. 转换回 Socket（保持顺序）

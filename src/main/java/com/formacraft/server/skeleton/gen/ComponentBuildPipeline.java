@@ -1,6 +1,5 @@
 package com.formacraft.server.skeleton.gen;
 
-import com.formacraft.FormacraftMod;
 import com.formacraft.common.assembly.AutoAssembler;
 import com.formacraft.common.assembly.SkeletonComponentRules;
 import com.formacraft.common.assembly.SkeletonSocketGenerator;

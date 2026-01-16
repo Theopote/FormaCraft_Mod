@@ -104,7 +104,6 @@ public final class WallOpeningSocketProvider implements ToolBasedSocketProvider 
                     out.add(new Socket(SocketType.WALL_OPENING, b, normal, (Direction) null));
 
                     // v1：避免重复识别同一洞口，粗略跳过区域
-                    dv += (h - 1);
                     break;
                 }
             }
