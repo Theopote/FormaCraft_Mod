@@ -1,6 +1,11 @@
 package com.formacraft.server.skeleton.gen;
 
+import com.formacraft.FormacraftMod;
+import com.formacraft.common.assembly.AutoAssembler;
+import com.formacraft.common.assembly.SkeletonComponentRules;
+import com.formacraft.common.assembly.SkeletonSocketGenerator;
 import com.formacraft.common.component.ComponentPlan;
+import com.formacraft.common.component.socket.Socket;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.semantic.SemanticPlacementOp;
 import com.formacraft.common.style.SemanticStyleProfile;
@@ -9,6 +14,7 @@ import com.formacraft.server.skeleton.gen.assembler.ComponentAssemblyPipeline;
 import com.formacraft.server.skeleton.gen.geometry.GeometryModifierPipeline;
 import com.formacraft.server.skeleton.gen.palette.SemanticBlockStateResolver;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -71,7 +77,76 @@ public final class ComponentBuildPipeline {
         List<SemanticPlacementOp> expandedOps = GeometryModifierPipeline.applyModifiers(baseOps, style);
 
         // 3. 解析为 BlockPatch（使用 BlockState 解析器）
-        return SemanticBlockStateResolver.resolveToPatches(patchOrigin, expandedOps, paletteId, ctx.random);
+        List<BlockPatch> skeletonPatches = SemanticBlockStateResolver.resolveToPatches(
+                patchOrigin, expandedOps, paletteId, ctx.random
+        );
+
+        // 4. 自动装配细节（使用 AutoAssembler）
+        // 从骨架生成 Socket，然后自动装配构件
+        List<BlockPatch> detailPatches = autoAssembleDetails(
+                ctx, skeleton, paletteId, patchOrigin
+        );
+
+        // 5. 合并所有 Patch
+        List<BlockPatch> allPatches = new ArrayList<>(skeletonPatches);
+        allPatches.addAll(detailPatches);
+
+        return allPatches;
+    }
+
+    /**
+     * 自动装配细节（使用 AutoAssembler）
+     * 
+     * @param ctx 生成上下文
+     * @param skeleton 骨架计划
+     * @param styleProfile 风格配置 ID
+     * @param origin 原点位置
+     * @return BlockPatch 列表（细节构件）
+     */
+    private static List<BlockPatch> autoAssembleDetails(
+            GenerationContext ctx,
+            ExecutableSkeletonPlan skeleton,
+            String styleProfile,
+            net.minecraft.util.math.BlockPos origin
+    ) {
+        List<BlockPatch> patches = new ArrayList<>();
+
+        if (ctx == null || skeleton == null || ctx.world == null) {
+            return patches;
+        }
+
+        try {
+            // 1. 从骨架生成 Socket
+            List<Socket> sockets = SkeletonSocketGenerator.generateSockets(
+                    skeleton, ctx.world, origin
+            );
+
+            if (sockets.isEmpty()) {
+                return patches;
+            }
+
+            // 2. 获取规则（默认中世纪规则）
+            SkeletonComponentRules rules = SkeletonComponentRules.defaultMedieval();
+
+            // 3. 推断骨架类型（从 SkeletonType 转换为字符串）
+            String skeletonKind = skeleton.type != null ? skeleton.type.name() : "GENERIC";
+
+            // 4. 自动装配并编译为 Patch
+            patches = AutoAssembler.assembleAndCompile(
+                    sockets,
+                    rules,
+                    skeletonKind,
+                    styleProfile,
+                    "default", // materialTone
+                    ctx.world,
+                    ctx.random
+            );
+        } catch (Exception e) {
+            // v1：如果自动装配失败，不影响主流程
+            // FormacraftMod.LOGGER.warn("AutoAssembler failed: " + e.getMessage());
+        }
+
+        return patches;
     }
 }
 

@@ -34,6 +34,9 @@ import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.client.preview.ComponentSocketPreviewState;
+import com.formacraft.client.tool.socket.SocketHighlighter;
+import com.formacraft.common.component.socket.match.SocketMatchResult;
+import com.formacraft.common.component.variant.ComponentVariant;
 import net.minecraft.block.BlockState;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
@@ -151,6 +154,41 @@ public final class ComponentTool implements FormacraftTool {
     public void tick() {
         // v1：当 useLibrary=true 且已加载构件时，启用“悬停合法性检测 + 绿/红预览”
         tryUpdatePlacementPreview(net.minecraft.client.MinecraftClient.getInstance());
+    }
+
+    @Override
+    public void renderWorld(ToolWorldRenderContext ctx) {
+        if (ctx == null) return;
+        if (!state.useLibrary) return; // 只在库模式下高亮 Socket
+        if (loadedComponent == null) return;
+
+        // 获取焦点位置（鼠标 hit 或 anchor）
+        net.minecraft.util.math.Vec3d focus = null;
+        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client != null && client.crosshairTarget instanceof net.minecraft.util.hit.BlockHitResult hit) {
+            focus = hit.getPos();
+        } else if (state.anchorWorld != null) {
+            focus = new net.minecraft.util.math.Vec3d(
+                    state.anchorWorld.getX() + 0.5,
+                    state.anchorWorld.getY() + 0.5,
+                    state.anchorWorld.getZ() + 0.5
+            );
+        }
+
+        if (focus == null) return;
+
+        // 获取构件变体（如果有）
+        ComponentVariant variant = null; // v1: 简化处理，暂时不使用变体
+
+        // 使用 SocketHighlighter 获取合法的 Socket
+        List<SocketMatchResult> results = SocketHighlighter.getValidSockets(
+                loadedComponent, variant, focus
+        );
+
+        // 渲染高亮
+        if (!results.isEmpty()) {
+            SocketHighlighter.renderHighlights(ctx, results);
+        }
     }
 
     /** 给 ToolPanel 用的 hover 反馈（不刷 toast）。 */

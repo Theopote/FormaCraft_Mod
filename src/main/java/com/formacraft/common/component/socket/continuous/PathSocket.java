@@ -2,7 +2,6 @@ package com.formacraft.common.component.socket.continuous;
 
 import com.formacraft.client.tool.PathTool;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
@@ -49,7 +48,8 @@ public final class PathSocket implements ContinuousSocket {
         if (polyline.isEmpty()) return List.of();
 
         List<BlockPos> points = new ArrayList<>();
-        if (step <= 0) step = 1;
+        if (step <= 0) {
+        }
 
         // 如果 polyline 已经是离散点，直接转换
         for (Vec3d v : polyline) {
@@ -78,8 +78,7 @@ public final class PathSocket implements ContinuousSocket {
 
         // 右法线 = tangent × UP
         Vec3d up = new Vec3d(0, 1, 0);
-        Vec3d right = tangent.crossProduct(up).normalize();
-        return right;
+        return tangent.crossProduct(up).normalize();
     }
 
     @Override
@@ -100,7 +99,7 @@ public final class PathSocket implements ContinuousSocket {
             );
             double len = dir.length();
             return len > 1e-6 ? dir.multiply(1.0 / len) : new Vec3d(0, 0, 1);
-        } else if (index > 0) {
+        } else {
             // 最后一个点：使用前一个方向
             BlockPos prev = points.get(index - 1);
             BlockPos cur = points.get(index);
@@ -113,7 +112,6 @@ public final class PathSocket implements ContinuousSocket {
             return len > 1e-6 ? dir.multiply(1.0 / len) : new Vec3d(0, 0, 1);
         }
 
-        return new Vec3d(0, 0, 1);
     }
 
     @Override

@@ -30,23 +30,15 @@ public final class CornerHandler {
 
         // v1 简化实现：根据 cornerMode 选择处理方式
         switch (policy.cornerMode()) {
-            case CUT -> {
-                // 切断（直角）：直接放置构件，不做特殊处理
-                patches.addAll(ComponentExpander.expand(component, segment, policy));
-            }
-            case MITER -> {
-                // 45° 斜接：放置斜接构件（v1：暂时用普通构件）
-                patches.addAll(ComponentExpander.expand(component, segment, policy));
-            }
-            case PILLAR -> {
-                // 转角插柱：在转角处放置柱子/角楼
+            case CUT -> // 切断（直角）：直接放置构件，不做特殊处理
+                    patches.addAll(ComponentExpander.expand(component, segment, policy));
+            case MITER -> // 45° 斜接：放置斜接构件（v1：暂时用普通构件）
+                    patches.addAll(ComponentExpander.expand(component, segment, policy));
+            case PILLAR -> // 转角插柱：在转角处放置柱子/角楼
                 // v1：暂时用普通构件，后续可以查询专门的转角构件
-                patches.addAll(ComponentExpander.expand(component, segment, policy));
-            }
-            case SMOOTH -> {
-                // 平滑过渡：放置平滑过渡构件（v1：暂时用普通构件）
-                patches.addAll(ComponentExpander.expand(component, segment, policy));
-            }
+                    patches.addAll(ComponentExpander.expand(component, segment, policy));
+            case SMOOTH -> // 平滑过渡：放置平滑过渡构件（v1：暂时用普通构件）
+                    patches.addAll(ComponentExpander.expand(component, segment, policy));
         }
 
         return patches;
@@ -76,9 +68,7 @@ public final class CornerHandler {
             double angle = Math.acos(Math.max(-1.0, Math.min(1.0, dot)));
 
             // 如果角度变化超过 30°，认为是转角
-            if (angle > Math.PI / 6) {
-                return true;
-            }
+            return angle > Math.PI / 6;
         }
 
         return false;

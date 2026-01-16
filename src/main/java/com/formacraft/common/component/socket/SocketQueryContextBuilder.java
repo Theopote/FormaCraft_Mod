@@ -69,14 +69,12 @@ public final class SocketQueryContextBuilder {
         if (pathTool != null && pathTool.getPathCount() > 0) {
             // 使用 PathTool 的 getNodes() 方法获取路径点
             List<BlockPos> nodes = pathTool.getNodes();
-            if (nodes != null && !nodes.isEmpty()) {
+            if (!nodes.isEmpty()) {
                 List<Vec3d> pathPoints = new ArrayList<>();
                 for (BlockPos node : nodes) {
                     pathPoints.add(new Vec3d(node.getX() + 0.5, node.getY(), node.getZ() + 0.5));
                 }
-                if (!pathPoints.isEmpty()) {
-                    ctx.paths.add(pathPoints);
-                }
+                ctx.paths.add(pathPoints);
             }
         }
 

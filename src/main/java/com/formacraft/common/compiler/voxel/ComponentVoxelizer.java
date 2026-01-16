@@ -5,7 +5,6 @@ import com.formacraft.common.component.model.ComponentVariant;
 import com.formacraft.client.tool.placement.PlacementContext;
 import net.minecraft.util.math.Direction;
 
-import java.util.List;
 
 /**
  * ComponentVoxelizer：将 ComponentDefinition 转换为 VoxelPlan。

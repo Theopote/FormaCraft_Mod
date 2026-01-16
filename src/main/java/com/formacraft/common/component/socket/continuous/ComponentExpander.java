@@ -40,31 +40,23 @@ public final class ComponentExpander {
         // 根据高度策略调整 Y 坐标
         int y = anchor.getY();
         switch (policy.heightPolicy()) {
-            case FOLLOW_TERRAIN -> {
-                // 贴地：使用段的最低点
-                y = segment.points().stream()
-                        .mapToInt(BlockPos::getY)
-                        .min()
-                        .orElse(anchor.getY());
-            }
-            case STEP_TERRACE -> {
-                // 台阶：使用段的平均高度
-                y = (int) segment.points().stream()
-                        .mapToInt(BlockPos::getY)
-                        .average()
-                        .orElse(anchor.getY());
-            }
-            case FIXED_BASE -> {
-                // 固定高度：使用锚点的 Y
-                y = anchor.getY();
-            }
-            case ADAPTIVE_FOUNDATION -> {
-                // 自适应底座：使用段的最低点（v1 简化）
-                y = segment.points().stream()
-                        .mapToInt(BlockPos::getY)
-                        .min()
-                        .orElse(anchor.getY());
-            }
+            case FOLLOW_TERRAIN -> // 贴地：使用段的最低点
+                    y = segment.points().stream()
+                            .mapToInt(BlockPos::getY)
+                            .min()
+                            .orElse(anchor.getY());
+            case STEP_TERRACE -> // 台阶：使用段的平均高度
+                    y = (int) segment.points().stream()
+                            .mapToInt(BlockPos::getY)
+                            .average()
+                            .orElse(anchor.getY());
+            case FIXED_BASE -> // 固定高度：使用锚点的 Y
+                    y = anchor.getY();
+            case ADAPTIVE_FOUNDATION -> // 自适应底座：使用段的最低点（v1 简化）
+                    y = segment.points().stream()
+                            .mapToInt(BlockPos::getY)
+                            .min()
+                            .orElse(anchor.getY());
         }
 
         BlockPos finalAnchor = new BlockPos(anchor.getX(), y, anchor.getZ());

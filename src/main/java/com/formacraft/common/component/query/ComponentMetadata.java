@@ -253,7 +253,7 @@ public class ComponentMetadata {
                 if (lower.contains("gothic")) {
                     metadata.styleAffinity.put("Gothic", 1.0);
                     metadata.styleAffinity.put("Medieval_Castle", 0.9);
-                } else if (lower.contains("chinese") || lower.contains("chinese")) {
+                } else if (lower.contains("chinese")) {
                     metadata.styleAffinity.put("Chinese_Traditional", 1.0);
                     metadata.styleAffinity.put("Medieval_Castle", 0.3);
                 } else if (lower.contains("medieval")) {

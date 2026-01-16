@@ -10,9 +10,15 @@ import com.formacraft.common.component.socket.Socket;
 import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.component.socket.match.SocketMatchResult;
 import com.formacraft.common.component.socket.place.ComponentInstanceTransform;
+import com.formacraft.common.component.socket.place.PlacementContextAdapter;
 import com.formacraft.common.component.socket.place.SocketAnchorResolver;
 import com.formacraft.common.component.variant.ComponentVariant;
 import com.formacraft.common.component.variant.VariantGenerator;
+import com.formacraft.common.compiler.component.ComponentPlanCompiler;
+import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.client.tool.placement.PlacementContext;
+
+import net.minecraft.world.WorldView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -110,6 +116,72 @@ public final class AutoAssembler {
         }
 
         return results;
+    }
+
+    /**
+     * 将装配结果编译为 BlockPatch 列表
+     * 
+     * @param results 装配结果列表
+     * @param world 世界视图（可选，用于生成差异）
+     * @param styleProfileId 风格配置 ID（可选）
+     * @return BlockPatch 列表
+     */
+    public static List<BlockPatch> compileToPatches(
+            List<AssemblyResult> results,
+            WorldView world,
+            String styleProfileId
+    ) {
+        List<BlockPatch> allPatches = new ArrayList<>();
+
+        for (AssemblyResult result : results) {
+            if (result == null || result.component == null) continue;
+
+            // 将 ComponentInstanceTransform 转换为 PlacementContext
+            PlacementContext ctx = PlacementContextAdapter.fromTransform(result.transform);
+
+            // 编译为 BlockPatch（使用新的 ComponentVariant）
+            List<BlockPatch> patches = ComponentPlanCompiler.compileWithNewVariant(
+                    result.component,
+                    result.variant,
+                    ctx,
+                    world,
+                    styleProfileId
+            );
+
+            allPatches.addAll(patches);
+        }
+
+        return allPatches;
+    }
+
+    /**
+     * 在 Socket 上自动装配构件并编译为 BlockPatch（完整流程）
+     * 
+     * @param sockets Socket 列表
+     * @param rules 构件规则
+     * @param skeletonKind 骨架类型
+     * @param styleProfile 风格配置
+     * @param materialTone 材质色调
+     * @param world 世界视图（可选）
+     * @param random 随机数生成器
+     * @return BlockPatch 列表
+     */
+    public static List<BlockPatch> assembleAndCompile(
+            List<Socket> sockets,
+            SkeletonComponentRules rules,
+            String skeletonKind,
+            String styleProfile,
+            String materialTone,
+            WorldView world,
+            Random random
+    ) {
+        // 1. 自动装配
+        List<AssemblyResult> results = assembleOnSockets(
+                sockets, rules, skeletonKind, styleProfile, materialTone, random
+        );
+
+        // 2. 编译为 BlockPatch
+        return compileToPatches(results, world, styleProfile);
     }
 
     /**

@@ -125,10 +125,6 @@ public final class SocketFinder {
                 
                 scoreB = scoreA; // 对于相同的 provider/consumer，分数相同
             }
-            
-            if (Math.abs(scoreA - scoreB) > 0.01) {
-                return Double.compare(scoreB, scoreA);
-            }
 
             // 2. 按距离排序（升序）
             if (referencePos != null) {
