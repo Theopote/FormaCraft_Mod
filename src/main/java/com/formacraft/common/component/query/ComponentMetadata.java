@@ -101,16 +101,11 @@ public class ComponentMetadata {
             }
             String policy = sidePolicy.toLowerCase();
             String sideLower = side.toLowerCase();
-            if (policy.equals("both")) {
-                return true;
-            }
-            if (policy.equals("exterior_only")) {
-                return sideLower.equals("exterior");
-            }
-            if (policy.equals("interior_only")) {
-                return sideLower.equals("interior");
-            }
-            return true; // 默认允许
+            return switch (policy) {
+                case "exterior_only" -> sideLower.equals("exterior");
+                case "interior_only" -> sideLower.equals("interior");
+                default -> true;
+            };
         }
     }
 
@@ -239,11 +234,11 @@ public class ComponentMetadata {
                 if (!variation.scaleY.locked) scalableAxes.add("height");
                 if (!variation.scaleZ.locked) scalableAxes.add("depth");
                 metadata.geometrySpec.scalableAxes = scalableAxes;
-                metadata.geometrySpec.maxScale = Math.max(
+                metadata.geometrySpec.maxScale = (double) Math.max(
                         variation.scaleX.max,
                         Math.max(variation.scaleY.max, variation.scaleZ.max)
                 );
-                metadata.geometrySpec.minScale = Math.min(
+                metadata.geometrySpec.minScale = (double) Math.min(
                         variation.scaleX.min,
                         Math.min(variation.scaleY.min, variation.scaleZ.min)
                 );

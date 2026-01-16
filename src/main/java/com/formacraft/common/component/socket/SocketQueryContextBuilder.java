@@ -7,6 +7,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * SocketQueryContextBuilder（Socket 查询上下文构建器）。
@@ -55,10 +56,10 @@ public final class SocketQueryContextBuilder {
         // OutlineTool
         if (outlineTool != null && outlineTool.hasShape()) {
             OutlineTool.OutlineShape shape = outlineTool.getShape();
-            if (shape != null && shape.points != null) {
-                for (BlockPos p : shape.points) {
-                    // 使用 shape 的 y 坐标，或 focus 的 y
-                    double y = focus != null ? focus.y : (shape.minY != 0 ? shape.minY : p.getY());
+            if (shape != null && shape.points() != null) {
+                for (BlockPos p : shape.points()) {
+                    // 使用点的 y 坐标，或 focus 的 y
+                    double y = focus != null ? focus.y : p.getY();
                     ctx.outlinePolygon.add(new Vec3d(p.getX(), y, p.getZ()));
                 }
             }
@@ -67,7 +68,7 @@ public final class SocketQueryContextBuilder {
         // PathTool
         if (pathTool != null && pathTool.getPathCount() > 0) {
             // 使用 PathTool 的 getNodes() 方法获取路径点
-            List<net.minecraft.util.math.BlockPos> nodes = pathTool.getNodes();
+            List<BlockPos> nodes = pathTool.getNodes();
             if (nodes != null && !nodes.isEmpty()) {
                 List<Vec3d> pathPoints = new ArrayList<>();
                 for (BlockPos node : nodes) {

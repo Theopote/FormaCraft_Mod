@@ -58,9 +58,9 @@ public final class SocketAnchorResolver {
 
         // 4️⃣ Patch 原点 = socketCenter - localOffset
         BlockPos origin = new BlockPos(
-                Math.floor(socketCenter.x) - localOffset.getX(),
-                Math.floor(socketCenter.y) - localOffset.getY(),
-                Math.floor(socketCenter.z) - localOffset.getZ()
+                (int) Math.floor(socketCenter.x) - localOffset.getX(),
+                (int) Math.floor(socketCenter.y) - localOffset.getY(),
+                (int) Math.floor(socketCenter.z) - localOffset.getZ()
         );
 
         // 5️⃣ 镜像（v1：默认不开，交给 SymmetryTool）

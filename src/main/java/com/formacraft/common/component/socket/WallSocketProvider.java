@@ -17,7 +17,6 @@ public final class WallSocketProvider implements SocketProvider {
 
     @Override
     public List<Socket> provideSockets(BuildContext ctx) {
-        List<Socket> sockets = new ArrayList<>();
 
         // TODO: 从 BuildContext 中获取墙体信息
         // 这里需要根据实际的建筑骨架 / Skeleton / Geometry 来实现
@@ -45,7 +44,7 @@ public final class WallSocketProvider implements SocketProvider {
         //     }
         // }
 
-        return sockets;
+        return new ArrayList<>();
     }
 
     /**

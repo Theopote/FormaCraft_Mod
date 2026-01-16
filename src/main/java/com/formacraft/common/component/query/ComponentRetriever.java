@@ -39,7 +39,7 @@ public final class ComponentRetriever {
 
         // 1. 从 ComponentCatalog 获取所有构件
         ComponentCatalog catalog = ComponentStorage.loadCatalog(null);
-        if (catalog == null || catalog.components == null || catalog.components.isEmpty()) {
+        if (catalog.components == null || catalog.components.isEmpty()) {
             return List.of();
         }
 
@@ -51,7 +51,7 @@ public final class ComponentRetriever {
             }
 
             // 加载构件定义和 Archetype
-            ComponentDefinition component = ComponentStorage.loadComponent(entry.id);
+            ComponentDefinition component = ComponentStorage.loadComponent(null, entry.id);
             if (component == null) {
                 continue;
             }
@@ -148,17 +148,10 @@ public final class ComponentRetriever {
         }
 
         // 4. requires_opening 与 geometry 是否满足
-        if (query.geometry != null && query.geometry.requiresOpening) {
-            if (metadata.placementSpec != null && Boolean.TRUE.equals(metadata.placementSpec.requiresOpening)) {
-                // 需要开口，且查询提供了开口信息 → 通过
-                // 如果查询没有提供开口信息，但构件需要开口 → 可能不匹配，但暂时通过（由评分阶段处理）
-            }
-        } else {
-            // 查询没有提供开口信息
-            if (metadata.placementSpec != null && Boolean.TRUE.equals(metadata.placementSpec.requiresOpening)) {
-                // 构件需要开口，但查询没有提供 → 可能不匹配，但暂时通过（由评分阶段处理）
-            }
-        }
+        if (metadata.placementSpec != null && Boolean.TRUE.equals(metadata.placementSpec.requiresOpening)) {
+            // 需要开口，且查询提供了开口信息 → 通过
+            // 如果查询没有提供开口信息，但构件需要开口 → 可能不匹配，但暂时通过（由评分阶段处理）
+        }// 构件需要开口，但查询没有提供 → 可能不匹配，但暂时通过（由评分阶段处理）
 
         // 5. forbidden_tags 不命中
         if (query.constraints != null && query.constraints.forbiddenTags != null) {
@@ -218,13 +211,13 @@ public final class ComponentRetriever {
             return null;
         }
 
-        ComponentScore best = results.get(0);
+        ComponentScore best = results.getFirst();
         if (best.totalScore < 0.5) {
             // 如果最佳匹配的分数太低，返回 null
             return null;
         }
 
-        return ComponentStorage.loadComponent(best.componentId);
+        return ComponentStorage.loadComponent(null, best.componentId);
     }
 
     /**

@@ -24,10 +24,10 @@ public final class PathSocket implements ContinuousSocket {
      * 从 PathTool.Path 创建 PathSocket
      */
     public static PathSocket fromPathTool(PathTool.Path path) {
-        if (path == null || path.polyline == null || path.polyline.isEmpty()) {
+        if (path == null || path.polyline() == null || path.polyline().isEmpty()) {
             return new PathSocket(List.of(), false);
         }
-        return new PathSocket(path.polyline, false);
+        return new PathSocket(path.polyline(), false);
     }
 
     /**

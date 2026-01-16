@@ -64,7 +64,7 @@ public final class AutoAssembler {
             if (queries.isEmpty()) continue;
 
             // v1：对每个 socket 只取第一个 query（后续可按 weight 抽样/多选）
-            ComponentQuery q = queries.get(0);
+            ComponentQuery q = queries.getFirst();
 
             // 获取所有候选构件（通过 ComponentRetriever）
             // 使用 ComponentRetriever.retrieve() 会先进行硬过滤和排序
@@ -75,10 +75,10 @@ public final class AutoAssembler {
             if (scoredResults.isEmpty()) continue;
             
             // 获取最佳匹配的构件 ID
-            String bestComponentId = scoredResults.get(0).componentId;
+            String bestComponentId = scoredResults.getFirst().componentId;
 
-            // 加载 ComponentDefinition
-            ComponentDefinition component = ComponentStorage.loadComponent(bestComponentId);
+            // 加载 ComponentDefinition（需要 worldDir，v1 使用 null 表示全局目录）
+            ComponentDefinition component = ComponentStorage.loadComponent(null, bestComponentId);
             if (component == null) continue;
 
             // 使用新的详细匹配逻辑验证 Socket
@@ -87,7 +87,7 @@ public final class AutoAssembler {
                         List.of(s), component.placementSpec, s.center()
                 );
 
-                if (matchResults.isEmpty() || !matchResults.get(0).valid) {
+                if (matchResults.isEmpty() || !matchResults.getFirst().valid) {
                     continue; // Socket 不匹配，跳过
                 }
             }

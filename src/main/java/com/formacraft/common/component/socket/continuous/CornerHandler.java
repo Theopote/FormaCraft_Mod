@@ -1,7 +1,8 @@
 package com.formacraft.common.component.socket.continuous;
 
 import com.formacraft.common.component.ComponentDefinition;
-import com.formacraft.server.build.BlockPatch;
+import com.formacraft.common.patch.BlockPatch;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.List;

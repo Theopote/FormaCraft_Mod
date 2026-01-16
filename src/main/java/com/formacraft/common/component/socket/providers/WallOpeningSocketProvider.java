@@ -79,18 +79,16 @@ public final class WallOpeningSocketProvider implements ToolBasedSocketProvider 
 
         int u0 = xFixed ? az0 : ax0; // u: 沿 z 或 x
         int u1 = xFixed ? az1 : ax1;
-        int v0 = ay0;
-        int v1 = ay1;
 
         int maxU = Math.min(u1 - u0 + 1, ctx.openingMaxScan);
-        int maxV = Math.min(v1 - v0 + 1, ctx.openingMaxScan);
+        int maxV = Math.min(ay1 - ay0 + 1, ctx.openingMaxScan);
 
         // 简单扫描：从低到高，从左到右找"左下角"
         for (int du = 0; du < maxU; du++) {
             for (int dv = 0; dv < maxV; dv++) {
 
                 int u = u0 + du;
-                int v = v0 + dv;
+                int v = ay0 + dv;
 
                 // 以 (u,v) 为潜在左下角
                 if (!isAir(world, xFixed, fixed, u, v, normal)) continue;
@@ -102,7 +100,8 @@ public final class WallOpeningSocketProvider implements ToolBasedSocketProvider 
                 if (w >= ctx.openingMinW && h >= ctx.openingMinH) {
                     // 生成 socket box
                     Box b = openingBox(xFixed, fixed, u, v, w, h, normal);
-                    out.add(new Socket(SocketType.WALL_OPENING, b, normal, null));
+                    // 明确使用带 tangent 的构造器（tangent 为 null）
+                    out.add(new Socket(SocketType.WALL_OPENING, b, normal, (Direction) null));
 
                     // v1：避免重复识别同一洞口，粗略跳过区域
                     dv += (h - 1);
@@ -153,24 +152,14 @@ public final class WallOpeningSocketProvider implements ToolBasedSocketProvider 
         double t = 0.15;
         if (xFixed) {
             // x 固定，u 是 z
-            int x = fixed;
-            int z0 = u;
             int z1 = u + w;
-            int y0 = v;
             int y1 = v + h;
-            if (normal == Direction.WEST) {
-                return new Box(x - t, y0, z0, x + t, y1, z1);
-            } else {
-                return new Box(x - t, y0, z0, x + t, y1, z1);
-            }
+            return new Box(fixed - t, v, u, fixed + t, y1, z1);
         } else {
             // z 固定，u 是 x
-            int z = fixed;
-            int x0 = u;
             int x1 = u + w;
-            int y0 = v;
             int y1 = v + h;
-            return new Box(x0, y0, z - t, x1, y1, z + t);
+            return new Box(u, v, fixed - t, x1, y1, fixed + t);
         }
     }
 }

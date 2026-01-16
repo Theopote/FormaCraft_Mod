@@ -85,23 +85,28 @@ public final class ComponentRanker {
         // 2. tags 命中率
         if (query.semantic.tags != null && !query.semantic.tags.isEmpty()) {
             if (metadata.semantic != null && metadata.semantic.tags != null && !metadata.semantic.tags.isEmpty()) {
-                int matches = 0;
-                for (String queryTag : query.semantic.tags) {
-                    if (queryTag == null || queryTag.isBlank()) continue;
-                    String lowerQuery = queryTag.toLowerCase();
-                    for (String componentTag : metadata.semantic.tags) {
-                        if (componentTag != null && componentTag.toLowerCase().contains(lowerQuery)) {
-                            matches++;
-                            break;
-                        }
-                    }
-                }
+                int matches = getMatches(metadata, query);
                 // tags 匹配占 40%
                 score += 0.4 * (double) matches / query.semantic.tags.size();
             }
         }
 
         return Math.min(1.0, score);
+    }
+
+    private static int getMatches(ComponentMetadata metadata, ComponentQuery query) {
+        int matches = 0;
+        for (String queryTag : query.semantic.tags) {
+            if (queryTag == null || queryTag.isBlank()) continue;
+            String lowerQuery = queryTag.toLowerCase();
+            for (String componentTag : metadata.semantic.tags) {
+                if (componentTag != null && componentTag.toLowerCase().contains(lowerQuery)) {
+                    matches++;
+                    break;
+                }
+            }
+        }
+        return matches;
     }
 
     /**
@@ -169,27 +174,25 @@ public final class ComponentRanker {
 
         double score = 0.0;
 
-        // 1. opening 尺寸差距
-        if (query.geometry.opening != null && metadata.geometrySpec != null) {
-            if (query.geometry.opening.width != null && query.geometry.opening.height != null) {
-                int[] baseSize = metadata.geometrySpec.baseSize;
-                if (baseSize != null && baseSize.length >= 2) {
-                    int widthDiff = Math.abs(query.geometry.opening.width - baseSize[0]);
-                    int heightDiff = Math.abs(query.geometry.opening.height - baseSize[1]);
-                    
-                    // 计算差距比例（越小越好）
-                    double widthRatio = (double) widthDiff / Math.max(1, query.geometry.opening.width);
-                    double heightRatio = (double) heightDiff / Math.max(1, query.geometry.opening.height);
-                    double avgRatio = (widthRatio + heightRatio) / 2.0;
-                    
-                    // 差距越小，分数越高
-                    score += 0.6 * Math.max(0.0, 1.0 - avgRatio);
-                }
+        // 1. opening 尺寸差距（使用扁平化的 openingWidth 和 openingHeight）
+        if (query.geometry.openingWidth != null && query.geometry.openingHeight != null && metadata.geometrySpec != null) {
+            int[] baseSize = metadata.geometrySpec.baseSize;
+            if (baseSize != null && baseSize.length >= 2) {
+                int widthDiff = Math.abs(query.geometry.openingWidth - baseSize[0]);
+                int heightDiff = Math.abs(query.geometry.openingHeight - baseSize[1]);
+                
+                // 计算差距比例（越小越好）
+                double widthRatio = (double) widthDiff / Math.max(1, query.geometry.openingWidth);
+                double heightRatio = (double) heightDiff / Math.max(1, query.geometry.openingHeight);
+                double avgRatio = (widthRatio + heightRatio) / 2.0;
+                
+                // 差距越小，分数越高
+                score += 0.6 * Math.max(0.0, 1.0 - avgRatio);
             }
         }
 
         // 2. 是否需要极端缩放（惩罚）
-        if (query.geometry != null && Boolean.TRUE.equals(query.geometry.scalable)) {
+        if (Boolean.TRUE.equals(query.geometry.scalable)) {
             if (metadata.geometrySpec != null) {
                 // 如果构件的可缩放轴支持查询的需求，给高分
                 if (metadata.geometrySpec.scalableAxes != null && !metadata.geometrySpec.scalableAxes.isEmpty()) {
@@ -292,6 +295,6 @@ public final class ComponentRanker {
             }
         }
 
-        return Math.max(0.0, Math.min(1.0, score));
+        return Math.min(1.0, score);
     }
 }

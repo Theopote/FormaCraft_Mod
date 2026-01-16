@@ -1,6 +1,7 @@
 package com.formacraft.common.component.socket.continuous;
 
 import com.formacraft.client.tool.OutlineTool;
+import com.formacraft.client.tool.OutlineMode;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
@@ -23,14 +24,15 @@ public final class OutlineEdgeSocket implements ContinuousSocket {
      * 从 OutlineTool.OutlineShape 创建 OutlineEdgeSocket
      */
     public static OutlineEdgeSocket fromOutlineTool(OutlineTool.OutlineShape shape) {
-        if (shape == null || shape.points == null || shape.points.isEmpty()) {
+        if (shape == null || shape.points() == null || shape.points().isEmpty()) {
             return new OutlineEdgeSocket(List.of(), false);
         }
 
         // Outline 通常是闭合的（polygon/rectangle/circle）
-        boolean isClosed = shape.mode != OutlineTool.OutlineMode.FREE_DRAW;
+        // 对于 record，使用 mode() 方法访问
+        boolean isClosed = shape.mode() != OutlineMode.FREE_DRAW;
 
-        return new OutlineEdgeSocket(shape.points, isClosed);
+        return new OutlineEdgeSocket(shape.points(), isClosed);
     }
 
     @Override
@@ -55,8 +57,7 @@ public final class OutlineEdgeSocket implements ContinuousSocket {
 
         // 右法线 = tangent × UP（指向外侧）
         Vec3d up = new Vec3d(0, 1, 0);
-        Vec3d right = tangent.crossProduct(up).normalize();
-        return right;
+        return tangent.crossProduct(up).normalize();
     }
 
     @Override

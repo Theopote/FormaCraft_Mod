@@ -87,7 +87,7 @@ public final class ComponentVoxelizer {
             }
             if (mirrorZ) {
                 // 镜像 Z 轴（需要知道组件深度）
-                int componentDepth = component.size != null ? component.d : 1;
+                int componentDepth = component.size != null ? component.size.d : 1;
                 dz = (componentDepth * scaleZ - 1) - dz;
             }
 
@@ -119,7 +119,6 @@ public final class ComponentVoxelizer {
             String facingStr = component.anchor.facing.toUpperCase();
             return switch (facingStr) {
                 case "NORTH" -> Direction.NORTH;
-                case "SOUTH" -> Direction.SOUTH;
                 case "EAST" -> Direction.EAST;
                 case "WEST" -> Direction.WEST;
                 default -> Direction.SOUTH;

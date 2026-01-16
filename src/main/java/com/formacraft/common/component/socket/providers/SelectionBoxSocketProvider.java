@@ -40,19 +40,19 @@ public final class SelectionBoxSocketProvider implements ToolBasedSocketProvider
         int x0 = min.getX(), y0 = min.getY(), z0 = min.getZ();
         int x1 = max.getX() + 1, y1 = max.getY() + 1, z1 = max.getZ() + 1;
 
-        // FLOOR_SURFACE：底面（y0）
+        // FLOOR_SURFACE：底面（y0）（明确使用带 tangent 的构造器，tangent 为 null）
         out.add(new Socket(
                 SocketType.FLOOR_SURFACE,
                 new Box(x0, y0, z0, x1, y0 + 0.1, z1),
                 Direction.UP,
-                null
+                (Direction) null
         ));
 
-        // WALL_SURFACE：四面
-        out.add(new Socket(SocketType.WALL_SURFACE, new Box(x0, y0, z0, x0 + 0.1, y1, z1), Direction.WEST, null));  // west face
-        out.add(new Socket(SocketType.WALL_SURFACE, new Box(x1 - 0.1, y0, z0, x1, y1, z1), Direction.EAST, null));  // east face
-        out.add(new Socket(SocketType.WALL_SURFACE, new Box(x0, y0, z0, x1, y1, z0 + 0.1), Direction.NORTH, null)); // north face
-        out.add(new Socket(SocketType.WALL_SURFACE, new Box(x0, y0, z1 - 0.1, x1, y1, z1), Direction.SOUTH, null)); // south face
+        // WALL_SURFACE：四面（明确使用带 tangent 的构造器，tangent 为 null）
+        out.add(new Socket(SocketType.WALL_SURFACE, new Box(x0, y0, z0, x0 + 0.1, y1, z1), Direction.WEST, (Direction) null));  // west face
+        out.add(new Socket(SocketType.WALL_SURFACE, new Box(x1 - 0.1, y0, z0, x1, y1, z1), Direction.EAST, (Direction) null));  // east face
+        out.add(new Socket(SocketType.WALL_SURFACE, new Box(x0, y0, z0, x1, y1, z0 + 0.1), Direction.NORTH, (Direction) null)); // north face
+        out.add(new Socket(SocketType.WALL_SURFACE, new Box(x0, y0, z1 - 0.1, x1, y1, z1), Direction.SOUTH, (Direction) null)); // south face
 
         // EDGE_OUTER：顶圈（y1）
         // v1：直接给一圈 thin box（后续可细分为段）
@@ -60,7 +60,7 @@ public final class SelectionBoxSocketProvider implements ToolBasedSocketProvider
                 SocketType.EDGE_OUTER,
                 new Box(x0, y1 - 0.1, z0, x1, y1 + 0.1, z1),
                 Direction.UP,
-                null
+                (Direction) null
         ));
 
         return out;
