@@ -54,7 +54,7 @@ public final class SkeletonGraphBuilder {
                 List<String> wallZones = extractStringList(wallZonesObj);
                 if (wallZones != null && !wallZones.isEmpty()) {
                     // 使用第一个 zone 作为主要 zone
-                    graph.setZone(skeleton, wallZones.get(0));
+                    graph.setZone(skeleton, wallZones.getFirst());
                 }
             }
         }
@@ -92,7 +92,7 @@ public final class SkeletonGraphBuilder {
     @SuppressWarnings("unchecked")
     private static List<String> extractStringList(Object obj) {
         if (obj instanceof List<?> list) {
-            if (!list.isEmpty() && list.get(0) instanceof String) {
+            if (!list.isEmpty() && list.getFirst() instanceof String) {
                 return (List<String>) list;
             }
         }

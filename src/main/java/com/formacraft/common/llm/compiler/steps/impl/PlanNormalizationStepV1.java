@@ -15,9 +15,6 @@ public class PlanNormalizationStepV1 implements PlanNormalizationStep {
 
     @Override
     public PlanSkeleton normalize(PlanSkeleton input) {
-        if (input == null) {
-            return null;
-        }
 
         // v1 简化：直接返回输入（不做复杂的规范化）
         // 未来可以添加：

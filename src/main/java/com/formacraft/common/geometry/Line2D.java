@@ -11,8 +11,7 @@ public record Line2D(Vec2 start, Vec2 end) {
      */
     public Vector2 direction() {
         Vec2 dir = end.subtract(start);
-        Vector2 normalized = Vector2.from(dir.normalize());
-        return normalized;
+        return Vector2.from(dir.normalize());
     }
 
     /**

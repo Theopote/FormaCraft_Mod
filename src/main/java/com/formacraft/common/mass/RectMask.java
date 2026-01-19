@@ -24,4 +24,32 @@ public class RectMask implements AreaMask {
     public boolean contains(int x, int z) {
         return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
     }
+
+    /**
+     * 获取最小 X 坐标
+     */
+    public int getMinX() {
+        return minX;
+    }
+
+    /**
+     * 获取最大 X 坐标
+     */
+    public int getMaxX() {
+        return maxX;
+    }
+
+    /**
+     * 获取最小 Z 坐标
+     */
+    public int getMinZ() {
+        return minZ;
+    }
+
+    /**
+     * 获取最大 Z 坐标
+     */
+    public int getMaxZ() {
+        return maxZ;
+    }
 }

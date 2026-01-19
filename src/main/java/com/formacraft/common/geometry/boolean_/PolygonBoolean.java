@@ -62,9 +62,7 @@ public final class PolygonBoolean {
         // 未来：实现完整的多边形裁剪算法
         Polygon2D effectiveFootprint = computeEffectiveFootprint(base, holes);
 
-        List<Polygon2D> outerBoundaries = effectiveFootprint != null
-                ? List.of(effectiveFootprint)
-                : List.of();
+        List<Polygon2D> outerBoundaries = List.of(effectiveFootprint);
 
         return new PolygonBooleanResult(outerBoundaries, holeBoundaries);
     }

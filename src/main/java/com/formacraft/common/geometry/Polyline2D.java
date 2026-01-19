@@ -48,14 +48,14 @@ public class Polyline2D {
      * 获取起始点
      */
     public Vec2 getStart() {
-        return points.isEmpty() ? null : points.get(0);
+        return points.isEmpty() ? null : points.getFirst();
     }
 
     /**
      * 获取结束点
      */
     public Vec2 getEnd() {
-        return points.isEmpty() ? null : points.get(points.size() - 1);
+        return points.isEmpty() ? null : points.getLast();
     }
 
     /**

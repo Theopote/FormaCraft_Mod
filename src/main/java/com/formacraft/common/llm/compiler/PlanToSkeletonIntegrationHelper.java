@@ -80,8 +80,7 @@ public final class PlanToSkeletonIntegrationHelper {
             }
 
             // 尝试获取多个 solids（折线墙）
-            @SuppressWarnings("unchecked")
-            List<ExtrudedSolid> multipleSolids = (List<ExtrudedSolid>) plan.get("extruded_solids", null);
+            List<ExtrudedSolid> multipleSolids = plan.get("extruded_solids", null);
             if (multipleSolids != null) {
                 solids.addAll(multipleSolids);
             }

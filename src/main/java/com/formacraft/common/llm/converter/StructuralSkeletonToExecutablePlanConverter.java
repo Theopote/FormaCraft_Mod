@@ -133,7 +133,7 @@ public final class StructuralSkeletonToExecutablePlanConverter {
         List<ExtrudedSolid> extrudedSolids = WallExtrusion.extrude(wall);
         if (!extrudedSolids.isEmpty()) {
             // v1：存储第一个 solid（折线墙可能产生多个，后续可以扩展）
-            plan.put("extruded_solid", extrudedSolids.get(0));
+            plan.put("extruded_solid", extrudedSolids.getFirst());
             // 存储所有 solids（如果是折线墙）
             if (extrudedSolids.size() > 1) {
                 plan.put("extruded_solids", extrudedSolids);
