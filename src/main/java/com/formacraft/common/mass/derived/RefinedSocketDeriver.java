@@ -153,7 +153,7 @@ public final class RefinedSocketDeriver {
         candidates.sort((a, b) -> b.priority.ordinal() - a.priority.ordinal());
 
         // 返回优先级最高的
-        return candidates.get(0);
+        return candidates.getFirst();
     }
 
     /**

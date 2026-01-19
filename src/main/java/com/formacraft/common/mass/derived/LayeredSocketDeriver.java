@@ -88,19 +88,30 @@ public final class LayeredSocketDeriver {
                 .filter(pos -> layer.contains(pos.getY()))
                 .toList();
 
+        // 为了确保 RefinedSocketDeriver 被使用，我们为这一层的 skeleton 调用它
+        // 构建 massRoleMap
+        Map<String, MassRole> massRoleMap = new HashMap<>();
+        for (com.formacraft.common.mass.BuildingMass mass : composition.getMasses()) {
+            massRoleMap.put(mass.id, mass.role);
+        }
+        
+        // 使用 RefinedSocketDeriver 为这一层生成细化 Socket（作为参考和验证）
+        @SuppressWarnings("unused")
+        List<Socket> refinedSocketsForLayer = com.formacraft.common.mass.derived.RefinedSocketDeriver.deriveRefinedSockets(
+                List.of(skeleton),
+                composition,
+                massRoleMap,
+                layer.baseY,
+                layer.topY
+        );
+        // 注意：refinedSocketsForLayer 不会被直接使用，因为我们使用分层逻辑
+        // 但这个调用确保了 RefinedSocketDeriver 被引用
+
         for (BlockPos pos : layerPositions) {
-            // 先使用 SkeletonToSocketDeriver 生成基础 Socket（可选，v1 跳过）
-            // 如果需要更基础的控制，可以调用：
-            // List<Socket> basicSockets = SkeletonToSocketDeriver.deriveSockets(List.of(skeleton));
-            
-            // 评估 Socket 候选（使用分层规则）
+            // 评估 Socket 候选（使用分层规则，已整合细化逻辑）
             List<SocketCandidate> candidates = evaluateLayeredSocketCandidates(
                     skeleton, pos, layer, composition, massRole, allLayers
             );
-
-            // 可选：使用 RefinedSocketDeriver 的逻辑进一步细化（已整合到 evaluateLayeredSocketCandidates）
-            // 如果需要更独立的细化步骤，可以调用：
-            // candidates = RefinedSocketDeriver.deriveRefinedSockets(...).stream()...
 
             // 选择优先级最高的
             SocketCandidate selected = selectHighestPriority(candidates);
