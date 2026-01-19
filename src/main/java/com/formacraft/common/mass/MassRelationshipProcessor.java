@@ -154,7 +154,6 @@ public final class MassRelationshipProcessor {
     ) {
         MassDefinition overhangMass = massMap.get(relationship.massB);
         if (overhangMass == null) {
-            return;
         }
 
         // v1 简化：悬挑体量的墙段保持原样
@@ -182,9 +181,6 @@ public final class MassRelationshipProcessor {
 
         // 获取墙段基线的起点和终点
         List<Vec2> points = wall.baseline.getPoints();
-        if (points.isEmpty()) {
-            return false;
-        }
 
         // 检查墙段是否在 massA 和 massB 的边界上
         // v1 简化：检查墙段是否在某个体量的边界上

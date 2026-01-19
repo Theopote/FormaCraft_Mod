@@ -81,7 +81,7 @@ public final class SkeletonMerger {
         }
 
         // 创建合并后的 Skeleton
-        MassDerivedSkeleton first = group.get(0);
+        MassDerivedSkeleton first = group.getFirst();
         return List.of(new MassDerivedSkeleton(
                 "merged_" + first.id + "_" + System.nanoTime(),
                 first.kind,

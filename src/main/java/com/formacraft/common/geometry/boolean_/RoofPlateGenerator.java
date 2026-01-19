@@ -122,9 +122,8 @@ public final class RoofPlateGenerator {
         }
         
         // 如果指定的 form 是 HIP 或 XIESHAN，使用 V3 生成器生成脊系统
-        if (form != null && 
-            (form == com.formacraft.common.llm.dto.structural.RoofForm.HIP || 
-             form == com.formacraft.common.llm.dto.structural.RoofForm.XIESHAN)) {
+        if ((form == com.formacraft.common.llm.dto.structural.RoofForm.HIP ||
+                form == com.formacraft.common.llm.dto.structural.RoofForm.XIESHAN)) {
             try {
                 // 使用 V2 构造函数创建包含 form 的临时 RoofPlate
                 StructuralSkeleton.RoofPlate tempRoof = new StructuralSkeleton.RoofPlate(

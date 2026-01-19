@@ -294,7 +294,7 @@ public final class LayeredSocketDeriver {
             return null;
         }
         candidates.sort((a, b) -> b.priority.ordinal() - a.priority.ordinal());
-        return candidates.get(0);
+        return candidates.getFirst();
     }
 
     /**

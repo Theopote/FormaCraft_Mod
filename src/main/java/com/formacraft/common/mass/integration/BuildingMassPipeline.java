@@ -4,9 +4,7 @@ import com.formacraft.common.component.socket.Socket;
 import com.formacraft.common.llm.dto.PlanSkeleton;
 import com.formacraft.common.mass.*;
 import com.formacraft.common.mass.derived.*;
-import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 import java.util.*;

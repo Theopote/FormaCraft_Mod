@@ -282,7 +282,7 @@ public final class FacadeRhythmProcessor {
         // 过滤出 Door Socket（不参与对称）
         List<Socket> doorSockets = sockets.stream()
                 .filter(s -> s.context != null && s.context.semanticTag != null && s.context.semanticTag.contains("door"))
-                .collect(Collectors.toList());
+                .toList();
 
         List<Socket> nonDoorSockets = sockets.stream()
                 .filter(s -> !doorSockets.contains(s))
@@ -334,10 +334,8 @@ public final class FacadeRhythmProcessor {
                 // v1 简化：暂不实际移动 Socket（需要修改 Socket 的位置）
                 // 未来：可以实现 socket.x += random(-1, +1)
             }
-            case SKIP_RANDOM -> {
-                // 随机跳过 10% 的 Socket
-                sockets.removeIf(s -> random.nextDouble() < 0.1);
-            }
+            case SKIP_RANDOM -> // 随机跳过 10% 的 Socket
+                    sockets.removeIf(s -> random.nextDouble() < 0.1);
             default -> {}
         }
     }

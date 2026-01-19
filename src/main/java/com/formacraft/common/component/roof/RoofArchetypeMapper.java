@@ -62,7 +62,7 @@ public final class RoofArchetypeMapper {
      */
     public static RoofArchetype getPrimaryArchetype(SocketType socketType) {
         List<RoofArchetype> archetypes = inferArchetypes(socketType);
-        return archetypes.isEmpty() ? null : archetypes.get(0);
+        return archetypes.isEmpty() ? null : archetypes.getFirst();
     }
 
     /**

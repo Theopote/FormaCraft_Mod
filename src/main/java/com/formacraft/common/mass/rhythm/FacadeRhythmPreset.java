@@ -65,11 +65,7 @@ public record FacadeRhythmPreset(
         }
 
         // 检查建筑类型标签
-        if (buildingType != null && !buildingTags().isEmpty() && !buildingTags().contains(buildingType)) {
-            return false;
-        }
-
-        return true;
+        return buildingType == null || buildingTags().isEmpty() || buildingTags().contains(buildingType);
     }
 
     /**
@@ -145,9 +141,7 @@ public record FacadeRhythmPreset(
 
             // 检查对齐模式
             if (tuning.alignmentMode() != null) {
-                if (!allowedAlignments.isEmpty() && !allowedAlignments.contains(tuning.alignmentMode())) {
-                    return false;
-                }
+                return allowedAlignments.isEmpty() || allowedAlignments.contains(tuning.alignmentMode());
             }
 
             return true;

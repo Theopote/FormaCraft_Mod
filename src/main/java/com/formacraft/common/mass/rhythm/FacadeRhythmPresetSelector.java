@@ -115,7 +115,7 @@ public final class FacadeRhythmPresetSelector {
                 .toList();
 
         // Step 4: 选择最佳预设
-        FacadeRhythmPreset primary = scored.get(0).preset;
+        FacadeRhythmPreset primary = scored.getFirst().preset;
 
         // Step 5: 根据对称性等信息决定是否需要微调
         FacadeRhythmPreset.FacadeRhythmTuning tuning = null;
@@ -135,9 +135,7 @@ public final class FacadeRhythmPresetSelector {
             // 如果要求"宏伟"，正面使用更正式的预设
             facadeOverrides = new HashMap<>();
             facadeOverrides.put("FRONT", primary.id());
-            if (scored.size() > 1) {
-                facadeOverrides.put("SIDE", scored.get(1).preset.id());
-            }
+            facadeOverrides.put("SIDE", scored.get(1).preset.id());
         }
 
         return new PresetSelection(
