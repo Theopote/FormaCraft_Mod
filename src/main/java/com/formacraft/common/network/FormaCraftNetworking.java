@@ -1053,6 +1053,9 @@ public class FormaCraftNetworking {
                                             );
                                         }
                                         
+                                        // 提取风格信息（用于传递给编译器）
+                                        String styleProfileId = llmPlan.styleProfile();
+                                        
                                         // 检查应该使用哪种编译路径
                                         List<BlockPatch> patches;
                                         
@@ -1062,17 +1065,33 @@ public class FormaCraftNetworking {
                                                 patches = com.formacraft.common.compiler.PlanProgramCompiler.compileFromPlanSkeleton(
                                                         llmPlan.planSkeleton(),
                                                         planOrigin,
-                                                        serverWorld
+                                                        serverWorld,
+                                                        styleProfileId
                                                 );
                                             } else if (llmPlan.planProgram() != null) {
                                                 patches = com.formacraft.common.compiler.PlanProgramCompiler.compile(
                                                         llmPlan.planProgram(),
                                                         planOrigin,
-                                                        serverWorld
+                                                        serverWorld,
+                                                        styleProfileId
                                                 );
                                             } else {
-                                                FormacraftMod.LOGGER.warn("LlmPlan usesPlanProgramMode but no planSkeleton or planProgram found");
-                                                patches = List.of();
+                                                // 回退机制：如果 PlanProgram 模式数据不完整，回退到 ComponentPlanCompiler
+                                                FormacraftMod.LOGGER.warn(
+                                                        "LlmPlan usesPlanProgramMode but no planSkeleton or planProgram found, " +
+                                                        "falling back to ComponentPlanCompiler"
+                                                );
+                                                
+                                                // 创建地形采样器并回退到 ComponentPlanCompiler
+                                                com.formacraft.common.terrain.TerrainStrategySampler terrainSampler = 
+                                                        new com.formacraft.common.terrain.TerrainStrategySampler();
+                                                patches = com.formacraft.common.compiler.ComponentPlanCompiler.compile(
+                                                        llmPlan,
+                                                        planOrigin,
+                                                        serverWorld,
+                                                        terrainSampler,
+                                                        true
+                                                );
                                             }
                                             
                                             // 可选：如果启用 BuildingMass 路径
@@ -1085,6 +1104,11 @@ public class FormaCraftNetworking {
                                                 // v1: BuildingMass 路径暂时作为补充，未来可以完全替代
                                                 if (!buildingMassPatches.isEmpty()) {
                                                     FormacraftMod.LOGGER.info("BuildingMass path generated {} patches (supplementary)", buildingMassPatches.size());
+                                                    // 合并 BuildingMass 生成的 patches
+                                                    List<BlockPatch> mergedPatches = new java.util.ArrayList<>(patches.size() + buildingMassPatches.size());
+                                                    mergedPatches.addAll(patches);
+                                                    mergedPatches.addAll(buildingMassPatches);
+                                                    patches = mergedPatches;
                                                 }
                                             }
                                         } else {

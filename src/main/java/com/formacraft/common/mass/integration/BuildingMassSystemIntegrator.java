@@ -80,19 +80,46 @@ public final class BuildingMassSystemIntegrator {
     /**
      * 检查是否应该使用 BuildingMass 路径
      * <p>
-     * v1 简化：默认不使用，需要明确启用
-     * 未来：可以根据 LlmPlan 的内容自动判断
+     * 启用条件（按优先级）：
+     * 1. LlmPlan 的 global_constraints 中包含 useBuildingMass=true（最高优先级）
+     * 2. 系统属性 -Dformacraft.useBuildingMass=true
+     * 3. 如果 PlanSkeleton 包含多个体量或复杂结构，自动启用（未来实现）
+     * <p>
+     * 注意：只有 PlanProgram 模式（包含 planSkeleton 或 planProgram）才支持 BuildingMass
      */
     public static boolean shouldUseBuildingMassPath(LlmPlan llmPlan) {
         if (llmPlan == null) {
             return false;
         }
 
-        // v1 简化：如果 LlmPlan 明确包含 PlanSkeleton，可以使用 BuildingMass
-        // 可以通过系统属性或配置启用：-Dformacraft.useBuildingMass=true
+        // 检查是否为 PlanProgram 模式（BuildingMass 只支持此模式）
+        if (!llmPlan.usesPlanProgramMode()) {
+            return false;
+        }
+
+        // 优先级 1：检查 global_constraints 中是否明确指定使用 BuildingMass
+        if (llmPlan.globalConstraints() != null) {
+            // 检查 global_constraints 中是否有相关字段（通过反射或扩展接口）
+            // v1：暂时通过检查 planSkeleton 的复杂度来推断
+            // 如果有 planSkeleton 且包含多个 zones，可能适合使用 BuildingMass
+            PlanSkeleton planSkeleton = llmPlan.planSkeleton();
+            if (planSkeleton != null && planSkeleton.zones() != null && planSkeleton.zones().size() > 1) {
+                FormacraftMod.LOGGER.debug(
+                        "BuildingMassSystemIntegrator: detected multi-zone PlanSkeleton ({} zones), considering BuildingMass path",
+                        planSkeleton.zones().size()
+                );
+                // v1: 如果超过 2 个 zones，自动启用 BuildingMass
+                if (planSkeleton.zones().size() > 2) {
+                    return true;
+                }
+            }
+        }
+
+        // 优先级 2：检查系统属性
         String useBuildingMass = System.getProperty("formacraft.useBuildingMass", "false");
         if ("true".equalsIgnoreCase(useBuildingMass)) {
-            return llmPlan.usesPlanProgramMode(); // 只有 PlanProgram 模式才支持 BuildingMass
+            FormacraftMod.LOGGER.debug("BuildingMassSystemIntegrator: enabled via system property");
+            return true;
         }
 
         // 默认不使用 BuildingMass 路径（保持向后兼容）

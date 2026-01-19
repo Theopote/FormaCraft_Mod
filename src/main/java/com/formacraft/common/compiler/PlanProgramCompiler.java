@@ -52,6 +52,24 @@ public final class PlanProgramCompiler {
             BlockPos globalAnchor,
             ServerWorld world
     ) {
+        return compile(planProgram, globalAnchor, world, null);
+    }
+
+    /**
+     * 从 PlanProgram 编译为 BlockPatch 列表（带风格支持）
+     * 
+     * @param planProgram PlanProgram
+     * @param globalAnchor 全局 anchor（世界坐标）
+     * @param world 服务器世界（可选）
+     * @param styleProfileId 风格配置文件 ID（可选）
+     * @return BlockPatch 列表
+     */
+    public static List<BlockPatch> compile(
+            PlanProgram planProgram,
+            BlockPos globalAnchor,
+            ServerWorld world,
+            String styleProfileId
+    ) {
         if (planProgram == null) {
             FormacraftMod.LOGGER.warn("PlanProgramCompiler: planProgram is null");
             return List.of();
@@ -62,7 +80,7 @@ public final class PlanProgramCompiler {
             PlanSkeleton planSkeleton = PlanProgramToPlanSkeletonConverter.convert(planProgram);
 
             // Step 2: PlanSkeleton → CompiledSkeleton（使用编译器）
-            return compileFromPlanSkeleton(planSkeleton, globalAnchor, world);
+            return compileFromPlanSkeleton(planSkeleton, globalAnchor, world, styleProfileId);
 
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("PlanProgramCompiler: compilation failed", e);
@@ -84,6 +102,24 @@ public final class PlanProgramCompiler {
             PlanSkeleton planSkeleton,
             BlockPos globalAnchor,
             ServerWorld world
+    ) {
+        return compileFromPlanSkeleton(planSkeleton, globalAnchor, world, null);
+    }
+
+    /**
+     * 从 PlanSkeleton 编译为 BlockPatch 列表（带风格支持）
+     * 
+     * @param planSkeleton PlanSkeleton
+     * @param globalAnchor 全局 anchor（世界坐标）
+     * @param world 服务器世界（可选）
+     * @param styleProfileId 风格配置文件 ID（可选）
+     * @return BlockPatch 列表
+     */
+    public static List<BlockPatch> compileFromPlanSkeleton(
+            PlanSkeleton planSkeleton,
+            BlockPos globalAnchor,
+            ServerWorld world,
+            String styleProfileId
     ) {
         if (planSkeleton == null) {
             FormacraftMod.LOGGER.warn("PlanProgramCompiler: planSkeleton is null");
@@ -112,7 +148,12 @@ public final class PlanProgramCompiler {
                 return List.of();
             }
 
-            return generateBlockPatchesFromSkeletons(compiled.getSkeletons(), globalAnchor, world);
+            // 使用传递的风格 ID，如果没有则使用默认值
+            String paletteId = (styleProfileId != null && !styleProfileId.isBlank()) 
+                    ? styleProfileId 
+                    : "DEFAULT";
+
+            return generateBlockPatchesFromSkeletons(compiled.getSkeletons(), globalAnchor, world, paletteId);
 
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("PlanProgramCompiler: compilation from PlanSkeleton failed", e);
@@ -168,16 +209,21 @@ public final class PlanProgramCompiler {
      * @param skeletons ExecutableSkeletonPlan 列表
      * @param origin 世界原点（BlockPatch 的相对坐标基准）
      * @param world 服务器世界
+     * @param paletteId 调色板 ID（风格配置文件 ID）
      * @return BlockPatch 列表（相对 origin 的偏移）
      */
     private static List<BlockPatch> generateBlockPatchesFromSkeletons(
             List<ExecutableSkeletonPlan> skeletons,
             BlockPos origin,
-            ServerWorld world
+            ServerWorld world,
+            String paletteId
     ) {
         if (skeletons == null || skeletons.isEmpty() || world == null || origin == null) {
             return List.of();
         }
+
+        // 确保 paletteId 不为空
+        String effectivePaletteId = (paletteId != null && !paletteId.isBlank()) ? paletteId : "DEFAULT";
 
         List<BlockPatch> allPatches = new ArrayList<>();
         SkeletonBuildService buildService = new SkeletonBuildService();
@@ -188,27 +234,30 @@ public final class PlanProgramCompiler {
             }
 
             try {
-                // 使用 SkeletonBuildService 生成 BlockPatch
+                // 使用 SkeletonBuildService 生成 BlockPatch，传递风格信息
                 // 注意：SkeletonBuildService 会优先使用新的语义系统，如果没有则回退到旧生成器
-                List<BlockPatch> patches = buildService.build(world, origin, skeleton, "DEFAULT");
+                List<BlockPatch> patches = buildService.build(world, origin, skeleton, effectivePaletteId);
 
                 if (patches != null && !patches.isEmpty()) {
                     allPatches.addAll(patches);
                     FormacraftMod.LOGGER.debug(
-                            "PlanProgramCompiler: generated {} patches for skeleton type {}",
+                            "PlanProgramCompiler: generated {} patches for skeleton type {} (palette: {})",
                             patches.size(),
-                            skeleton.type
+                            skeleton.type,
+                            effectivePaletteId
                     );
                 } else {
                     FormacraftMod.LOGGER.debug(
-                            "PlanProgramCompiler: no patches generated for skeleton type {}",
-                            skeleton.type
+                            "PlanProgramCompiler: no patches generated for skeleton type {} (palette: {})",
+                            skeleton.type,
+                            effectivePaletteId
                     );
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.warn(
-                        "PlanProgramCompiler: failed to generate patches for skeleton type {}: {}",
+                        "PlanProgramCompiler: failed to generate patches for skeleton type {} (palette: {}): {}",
                         skeleton.type,
+                        effectivePaletteId,
                         e.getMessage()
                 );
                 // 继续处理其他 skeleton，不中断整个流程
@@ -216,9 +265,10 @@ public final class PlanProgramCompiler {
         }
 
         FormacraftMod.LOGGER.info(
-                "PlanProgramCompiler: generated {} total patches from {} skeletons",
+                "PlanProgramCompiler: generated {} total patches from {} skeletons (palette: {})",
                 allPatches.size(),
-                skeletons.size()
+                skeletons.size(),
+                effectivePaletteId
         );
 
         return allPatches;
