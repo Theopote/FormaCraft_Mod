@@ -64,7 +64,7 @@ public final class MassToStructuralDeriver {
         // 未来：可能需要合并多个 FloorPlate 或选择主要的
         StructuralSkeleton.FloorPlate mainFloorPlate = floorPlates.isEmpty() 
                 ? null 
-                : floorPlates.get(0);
+                : floorPlates.getFirst();
 
         // 2. 派生 WallSegment（每个体量的边界）
         List<StructuralSkeleton.WallSegment> wallSegments = MassToWallSegmentDeriver.deriveAllWallSegments(massAssembly);
@@ -83,7 +83,7 @@ public final class MassToStructuralDeriver {
                 mainFloorPlate,
                 wallSegments,
                 courtyards,
-                roofPlate,
+                null,
                 axes
         );
     }

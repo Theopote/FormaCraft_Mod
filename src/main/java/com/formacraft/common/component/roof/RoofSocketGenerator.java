@@ -1,5 +1,6 @@
 package com.formacraft.common.component.roof;
 
+import com.formacraft.common.component.RoofArchetype;
 import com.formacraft.common.component.socket.Socket;
 import com.formacraft.common.component.socket.SocketType;
 import com.formacraft.common.geometry.Polygon2D;
@@ -95,10 +96,6 @@ public final class RoofSocketGenerator {
                 continue;
             }
 
-            // 计算脊线长度和方向
-            double length = ridge.lineXZ.length();
-            Vec2 midPoint = ridge.lineXZ.midpoint();
-
             // 创建 Socket bounds（从脊线创建一个细长的 Box）
             // v1 简化：创建一个沿脊线的 Box
             Box bounds = new Box(
@@ -106,15 +103,24 @@ public final class RoofSocketGenerator {
                     end.x(), ridge.heightY + 0.5, end.z()
             );
 
-            // TODO: 创建 Socket 对象（需要确定 Direction normal 和 tangent）
-            // Socket socket = new Socket(
-            //     SocketType.RIDGE_LINE,
-            //     bounds,
-            //     Direction.UP, // normal（向上）
-            //     null, // tangent（沿脊线方向，需要从 lineXZ 计算）
-            //     new Socket.SemanticContext(false, "roof_ridge")
-            // );
-            // sockets.add(socket);
+            // 创建 Socket 对象
+            // 使用 RoofArchetype 创建语义标签
+            RoofArchetype primaryArchetype = RoofArchetype.RIDGE_DECORATION;
+            String semanticTag = RoofArchetypeMapper.createSemanticTag(primaryArchetype);
+
+            // 计算切线方向（沿脊线方向）
+            Direction tangent = calculateTangentDirection(start, end);
+
+            // 使用完整构造函数（包含 tangent）
+            Socket socket = new Socket(
+                    null, // id（自动生成）
+                    SocketType.RIDGE_LINE,
+                    bounds,
+                    Direction.UP, // normal（向上）
+                    tangent,
+                    new Socket.SemanticContext(true, semanticTag)
+            );
+            sockets.add(socket);
         }
 
         return sockets;
@@ -166,15 +172,24 @@ public final class RoofSocketGenerator {
                         end.x(), slope.normal.y() + 0.5, end.z()
                 );
 
-                // TODO: 实际创建 Socket 对象
-                // Socket socket = new Socket(
-                //     SocketType.EAVE_LINE,
-                //     bounds,
-                //     Direction.DOWN, // normal（向下）
-                //     null, // tangent（沿边方向）
-                //     new Socket.SemanticContext(true, "roof_eave")
-                // );
-                // sockets.add(socket);
+                // 创建 Socket 对象
+                // 使用 RoofArchetype 创建语义标签（优先使用装饰类型）
+                RoofArchetype primaryArchetype = RoofArchetype.EAVE_DECORATION;
+                String semanticTag = RoofArchetypeMapper.createSemanticTag(primaryArchetype);
+
+                // 计算切线方向（沿边方向）
+                Direction tangent = calculateTangentDirection(start, end);
+
+                // 使用完整构造函数（包含 tangent）
+                Socket socket = new Socket(
+                        null, // id（自动生成）
+                        SocketType.EAVE_LINE,
+                        bounds,
+                        Direction.DOWN, // normal（向下）
+                        tangent,
+                        new Socket.SemanticContext(true, semanticTag)
+                );
+                sockets.add(socket);
             }
         }
 
@@ -213,18 +228,41 @@ public final class RoofSocketGenerator {
                     bounds2D.max().x(), estimatedY + 0.5, bounds2D.max().z()
             );
 
-            // TODO: 实际创建 Socket 对象
-            // 需要确定 normal Direction（从 slope.normal 转换为 Minecraft Direction）
-            // Socket socket = new Socket(
-            //     SocketType.ROOF_SURFACE,
-            //     bounds,
-            //     Direction.UP, // normal（根据 slope.normal 计算）
-            //     null, // tangent（无）
-            //     new Socket.SemanticContext(true, "roof_surface")
-            // );
-            // sockets.add(socket);
+            // 创建 Socket 对象
+            // 使用 RoofArchetype 创建语义标签
+            RoofArchetype primaryArchetype = RoofArchetype.ROOF_TILE;
+            String semanticTag = RoofArchetypeMapper.createSemanticTag(primaryArchetype);
+
+            // 从 slope.normal 转换为 Minecraft Direction（简化：向上）
+            Direction normal = Direction.UP; // v1 简化：默认向上
+
+            // 使用 4 参数构造函数（无 tangent）
+            Socket socket = new Socket(
+                    SocketType.ROOF_SURFACE,
+                    bounds,
+                    normal,
+                    new Socket.SemanticContext(true, semanticTag)
+            );
+            sockets.add(socket);
         }
 
         return sockets;
+    }
+
+    /**
+     * 计算切线方向（从起点到终点）
+     * <p>
+     * v1 简化：使用最近的 Cardinal 方向
+     */
+    private static Direction calculateTangentDirection(Vec2 start, Vec2 end) {
+        double dx = end.x() - start.x();
+        double dz = end.z() - start.z();
+
+        // 使用主要的坐标轴方向
+        if (Math.abs(dx) > Math.abs(dz)) {
+            return dx > 0 ? Direction.EAST : Direction.WEST;
+        } else {
+            return dz > 0 ? Direction.SOUTH : Direction.NORTH;
+        }
     }
 }
