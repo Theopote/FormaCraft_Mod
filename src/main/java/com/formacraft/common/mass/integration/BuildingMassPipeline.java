@@ -164,12 +164,63 @@ public final class BuildingMassPipeline {
                 }
             }
 
+            // Step 8: 应用立面层次处理（构件分级系统）
+            // 执行顺序（不可打乱）：
+            // 1️⃣ 计算 FacadeBay（柱距）✅
+            // 2️⃣ 在 Bay 内放 Window Socket ✅（已完成）
+            // 3️⃣ 给部分 Window 加 WindowSurround ✅
+            // 4️⃣ 在 FloorLayer 边界加 HorizontalBand ✅
+            // 5️⃣ 最后（可选）加 Decoration（未来）
+            Map<Direction, com.formacraft.common.mass.facade.FacadeHierarchyProcessor.FacadeHierarchyResult> facadeHierarchies = new HashMap<>();
+            com.formacraft.common.mass.facade.FacadeDetailLevel detailLevel = 
+                    com.formacraft.common.mass.facade.FacadeDetailLevel.MEDIUM; // v1 简化：使用默认级别
+            
+            for (Direction facing : facings) {
+                // 收集这个朝向的所有 Socket（跨所有楼层）
+                List<Socket> facingSockets = new ArrayList<>();
+                for (Map.Entry<FloorLayer, Map<Direction, List<Socket>>> layerEntry : rhythmProcessedSockets.entrySet()) {
+                    Map<Direction, List<Socket>> directionMap = layerEntry.getValue();
+                    if (directionMap.containsKey(facing)) {
+                        facingSockets.addAll(directionMap.get(facing));
+                    }
+                }
+                
+                if (!facingSockets.isEmpty()) {
+                    // 为这个立面获取对应的 Profile
+                    String facadeName = switch (facing) {
+                        case NORTH -> "NORTH";
+                        case SOUTH -> "SOUTH";
+                        case EAST -> "EAST";
+                        case WEST -> "WEST";
+                        default -> "FRONT";
+                    };
+                    FacadeRhythmProfile facadeProfile = com.formacraft.common.mass.rhythm.FacadeRhythmPresetResolver.resolve(
+                            presetSelection,
+                            composition,
+                            floorCount,
+                            facadeName
+                    );
+                    
+                    // 处理立面层次
+                    com.formacraft.common.mass.facade.FacadeHierarchyProcessor.FacadeHierarchyResult hierarchyResult = 
+                            com.formacraft.common.mass.facade.FacadeHierarchyProcessor.processHierarchy(
+                                    facingSockets,
+                                    facing,
+                                    layers,
+                                    facadeProfile,
+                                    detailLevel
+                            );
+                    facadeHierarchies.put(facing, hierarchyResult);
+                }
+            }
+
             return new BuildingMassPipelineResult(
                     composition,
                     mergedSkeletons,
                     layers,
                     layeredSockets,
-                    rhythmProcessedSockets
+                    rhythmProcessedSockets,
+                    facadeHierarchies
             );
 
         } catch (Exception e) {
@@ -241,19 +292,22 @@ public final class BuildingMassPipeline {
         public final List<FloorLayer> layers;
         public final Map<FloorLayer, List<Socket>> layeredSockets;
         public final Map<FloorLayer, Map<Direction, List<Socket>>> rhythmProcessedSockets;
+        public final Map<Direction, com.formacraft.common.mass.facade.FacadeHierarchyProcessor.FacadeHierarchyResult> facadeHierarchies;
 
         public BuildingMassPipelineResult(
                 BuildingMassComposition composition,
                 List<MassDerivedSkeleton> skeletons,
                 List<FloorLayer> layers,
                 Map<FloorLayer, List<Socket>> layeredSockets,
-                Map<FloorLayer, Map<Direction, List<Socket>>> rhythmProcessedSockets
+                Map<FloorLayer, Map<Direction, List<Socket>>> rhythmProcessedSockets,
+                Map<Direction, com.formacraft.common.mass.facade.FacadeHierarchyProcessor.FacadeHierarchyResult> facadeHierarchies
         ) {
             this.composition = composition;
             this.skeletons = skeletons != null ? List.copyOf(skeletons) : List.of();
             this.layers = layers != null ? List.copyOf(layers) : List.of();
             this.layeredSockets = layeredSockets != null ? new HashMap<>(layeredSockets) : new HashMap<>();
             this.rhythmProcessedSockets = rhythmProcessedSockets != null ? new HashMap<>(rhythmProcessedSockets) : new HashMap<>();
+            this.facadeHierarchies = facadeHierarchies != null ? new HashMap<>(facadeHierarchies) : new HashMap<>();
         }
 
         public static BuildingMassPipelineResult empty() {
@@ -261,6 +315,7 @@ public final class BuildingMassPipeline {
                     null,
                     List.of(),
                     List.of(),
+                    Map.of(),
                     Map.of(),
                     Map.of()
             );
