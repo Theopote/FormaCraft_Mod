@@ -47,24 +47,42 @@ async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec,
                     detail=f"Invalid request format. FormaRequestAdapter error: {e1}, BuildRequest error: {e2}"
                 )
         
-        # 检查应该生成什么类型的结构（优先级：LlmPlan > 城市 > 复合 > 单个）
+        # 检查应该生成什么类型的结构（优先级：outputFormat > 城市 > 复合 > 单个）
         try:
-            # 如果 promptMode 是 BUILD，且 requestText 包含 LlmPlan 格式的 prompt，使用 LlmPlan 处理
+            # 1. 如果明确指定了 outputFormat，使用指定的格式
+            if build_req.outputFormat == "llmplan":
+                return generate_llm_plan(build_req)
+            elif build_req.outputFormat == "buildingspec":
+                # 跳过城市和复合结构检查，直接生成 BuildingSpec
+                if _should_generate_city(build_req):
+                    return generate_city_spec(build_req)
+                if _should_generate_composite(build_req):
+                    return generate_composite_spec(build_req)
+                return generate_building_spec(build_req)
+            
+            # 2. 如果 outputFormat 是 "auto" 或未设置，使用智能路由
+            # 2.1 检查是否是 LlmPlan 格式（基于 promptMode 和 requestText）
             if build_req.promptMode == "BUILD":
                 request_text = build_req.requestText or ""
+                # 检查 requestText 是否包含 LlmPlan 格式的特征
+                # 因为 PromptAssembler 总是生成 LlmPlan 格式的 prompt，所以默认检查这些特征
                 llm_plan_indicators = [
-                    "LlmPlan", "component_type", "semantic components", 
-                    "ComponentObject", "SlotObject", "STRUCTURED JSON TEMPLATE",
+                    "STRUCTURED JSON TEMPLATE",  # PromptAssembler 明确包含这个
+                    "component_type", "semantic components",
+                    "ComponentObject", "SlotObject",
                     "mode", "style_profile", "components"
                 ]
-                # 检查是否包含 LlmPlan 格式的特征
+                # 如果包含 LlmPlan 格式的特征，使用 LlmPlan
                 if any(indicator in request_text for indicator in llm_plan_indicators):
                     return generate_llm_plan(build_req)
             
+            # 2.2 检查是否需要生成城市或复合结构
             if _should_generate_city(build_req):
                 return generate_city_spec(build_req)
             if _should_generate_composite(build_req):
                 return generate_composite_spec(build_req)
+            
+            # 2.3 默认生成 BuildingSpec
             return generate_building_spec(build_req)
         except Exception as e:
             # LLM 调用失败时给上游明确错误（由服务端回传到客户端聊天窗口）

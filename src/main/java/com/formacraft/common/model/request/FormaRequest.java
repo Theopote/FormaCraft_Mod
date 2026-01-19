@@ -14,6 +14,13 @@ public class FormaRequest {
     private String userMessage;
     /** 可选：BUILD/PATCH/MODIFY_REGION */
     private String promptMode;
+    /** 
+     * 可选：输出格式（"llmplan" | "buildingspec" | "auto"）
+     * - "llmplan": 强制使用 LlmPlan 格式
+     * - "buildingspec": 强制使用 BuildingSpec 格式
+     * - "auto": 自动决定（默认，基于 promptMode 和 requestText）
+     */
+    private String outputFormat;
     private BlockPos playerPos;
     private String facing;
     private String dimension;
@@ -216,6 +223,14 @@ public class FormaRequest {
 
     public void setLlmBaseUrl(String llmBaseUrl) {
         this.llmBaseUrl = llmBaseUrl;
+    }
+
+    public String getOutputFormat() {
+        return outputFormat;
+    }
+
+    public void setOutputFormat(String outputFormat) {
+        this.outputFormat = outputFormat;
     }
 }
 

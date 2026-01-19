@@ -29,6 +29,7 @@ class FormaRequestAdapter(BaseModel):
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
     promptMode: Optional[str] = None
+    outputFormat: Optional[str] = None
     userMessage: Optional[str] = None
 
     # Java 端可选的 LLM 覆盖配置（由客户端设置面板传入）
@@ -101,6 +102,7 @@ class FormaRequestAdapter(BaseModel):
                 protectedZones=self.protectedZones,
                 requestText=self.requestText or "",
                 promptMode=self.promptMode,
+                outputFormat=self.outputFormat,
                 userMessage=self.userMessage,
                 sessionId=self.sessionId,
                 chatHistory=self.chatHistory,
@@ -161,6 +163,7 @@ class FormaRequestAdapter(BaseModel):
                 protectedZones=self.protectedZones,
                 requestText=self.request,
                 promptMode=self.promptMode,
+                outputFormat=self.outputFormat,
                 userMessage=self.userMessage,
                 sessionId=self.sessionId,
                 chatHistory=self.chatHistory,

@@ -72,6 +72,11 @@ class BuildRequest(BaseModel):
     requestText: str
     # 可选：模式（BUILD/PATCH/MODIFY_REGION），用于后端决定生成/编辑策略
     promptMode: Optional[str] = None
+    # 可选：输出格式（"llmplan" | "buildingspec" | "auto"）
+    # - "llmplan": 强制使用 LlmPlan 格式
+    # - "buildingspec": 强制使用 BuildingSpec 格式
+    # - "auto": 自动决定（默认，基于 promptMode 和 requestText）
+    outputFormat: Optional[str] = None
     # 可选：玩家原始输入（不含系统拼接）
     userMessage: Optional[str] = None
     sessionId: Optional[str] = None

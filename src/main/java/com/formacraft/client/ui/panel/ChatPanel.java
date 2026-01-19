@@ -780,6 +780,9 @@ public class ChatPanel extends BasePanel {
         req.setRequestText(finalPrompt);
         req.setUserMessage(text);
         req.setPromptMode(promptMode.name());
+        // 因为 PromptAssembler 总是生成 LlmPlan 格式的 prompt，所以默认使用 LlmPlan
+        // 用户可以通过 outputFormat 字段覆盖这个行为
+        req.setOutputFormat("llmplan");
         req.setPlayerPos(origin);
         // 额外字段：给后端更多“结构化上下文”（避免只从 prompt 文本里解析）
         try {
