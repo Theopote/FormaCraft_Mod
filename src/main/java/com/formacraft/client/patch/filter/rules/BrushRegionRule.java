@@ -50,7 +50,6 @@ public final class BrushRegionRule implements PatchRule {
         // 简化处理：检查 (x, z) 是否在笔刷区域内的任意一个 y 层
         for (long packed : brushPositions) {
             BlockPos brushPos = BlockPos.fromLong(packed);
-            if (brushPos == null) continue;
 
             // 检查 XZ 平面是否重叠（允许 Y 方向扩展）
             if (brushPos.getX() == worldPos.getX() && brushPos.getZ() == worldPos.getZ()) {

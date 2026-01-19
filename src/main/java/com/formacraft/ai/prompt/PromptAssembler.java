@@ -290,7 +290,15 @@ ComponentParamsObject:
         // 6.6. 地形策略（新增）
         sb.append(terrainBlock(ctx));
 
-        // 7. 其他约束（从 ctx.constraints）
+        // 7. 区域语义标注（从 ctx.annotations，详细标签信息）
+        if (!ctx.annotations.isEmpty()) {
+            sb.append("\n=== SEMANTIC LABELS & ANNOTATIONS ===\n");
+            for (String annotation : ctx.annotations) {
+                sb.append(annotation).append("\n");
+            }
+        }
+
+        // 8. 其他约束（从 ctx.constraints）
         if (!ctx.constraints.isEmpty()) {
             sb.append("\nADDITIONAL CONSTRAINTS:\n");
             for (String c : ctx.constraints) {
@@ -298,7 +306,7 @@ ComponentParamsObject:
             }
         }
 
-        // 8. 硬规则（从 ctx.rules）
+        // 9. 硬规则（从 ctx.rules）
         if (!ctx.rules.isEmpty()) {
             sb.append("\nHARD RULES:\n");
             for (String r : ctx.rules) {
@@ -528,6 +536,9 @@ SYMMETRY CONSTRAINT:
 
     /**
      * 区域语义标注（Semantic Tags）
+     * 
+     * 注意：详细的语义标注信息已经通过 SemanticLabelContext.toPromptBlock() 添加到 ctx.annotations 中
+     * 这里只提供通用的语义区域说明
      */
     private static String semanticBlock(PromptContext ctx) {
         if (!com.formacraft.ai.context.SemanticLabelContext.hasLabels()) {
@@ -535,11 +546,13 @@ SYMMETRY CONSTRAINT:
         }
 
         return """
-SEMANTIC REGIONS:
-- courtyard: open, non-roofed, low height
-- sacred: central, dominant, vertical emphasis
-- circulation: paths, stairs, bridges only
-- residential: modular, repeatable units
+SEMANTIC REGIONS (CRITICAL):
+- Semantic labels bind natural language intent to spatial regions.
+- You MUST check if a component falls within a labeled region and generate accordingly.
+- Each label has specific architectural meaning - respect it.
+- The "range" value indicates how far the label's influence extends.
+- Multiple labels can be combined to form complex layouts.
+- See detailed label information in the constraints section above.
 
 """;
     }

@@ -114,7 +114,6 @@ public class PlanDebugRenderer implements DebugOverlayRenderer {
      */
     private void renderSecondaryAxes(PlanSkeleton plan, double y, double scale) {
         if (plan.axes() == null) {
-            return;
         }
 
         // TODO: 实际渲染逻辑（客户端实现）

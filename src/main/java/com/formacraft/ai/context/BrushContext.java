@@ -46,8 +46,7 @@ public final class BrushContext {
         boolean hasAny = false;
         for (long packed : selected) {
             BlockPos pos = BlockPos.fromLong(packed);
-            if (pos == null) continue;
-            
+
             minX = Math.min(minX, pos.getX());
             minY = Math.min(minY, pos.getY());
             minZ = Math.min(minZ, pos.getZ());
@@ -55,10 +54,6 @@ public final class BrushContext {
             maxY = Math.max(maxY, pos.getY());
             maxZ = Math.max(maxZ, pos.getZ());
             hasAny = true;
-        }
-
-        if (!hasAny) {
-            return null;
         }
 
         return new int[]{minX, minY, minZ, maxX, maxY, maxZ};
@@ -80,9 +75,7 @@ public final class BrushContext {
 
         for (long packed : selected) {
             BlockPos pos = BlockPos.fromLong(packed);
-            if (pos != null) {
-                result.add(pos);
-            }
+            result.add(pos);
         }
 
         return result;

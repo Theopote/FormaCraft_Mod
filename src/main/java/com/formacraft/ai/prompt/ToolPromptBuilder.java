@@ -24,38 +24,36 @@ public final class ToolPromptBuilder {
         // 空间语义（anchor/facing/mode 等）由 PromptAssembler 统一输出，避免重复与双源。
 
         // PathTool → PathSkeleton（新增：路径骨架）
-        if (PathTool.INSTANCE != null) {
-            PathSkeleton skeleton = PathTool.INSTANCE.toSkeleton();
-            if (skeleton != null && skeleton.isValid()) {
-                // 从用户输入中识别路径意图
-                PathSkeleton.PathIntent intent = resolvePathIntent(ctx.userMessage);
-                if (intent != PathSkeleton.PathIntent.GENERIC) {
-                    // 如果识别到明确意图，创建新的 PathSkeleton
-                    skeleton = new PathSkeleton(
-                        skeleton.nodes,
-                        skeleton.corridorRadius,
-                        skeleton.snapToGround,
-                        intent
-                    );
-                }
-                ctx.pathSkeleton = skeleton;
-                
-                // K2 新增：根据用户输入和工具状态确定 StreetProfile
-                ctx.streetProfile = resolveStreetProfile(ctx.userMessage);
-                
-                // 如果 SymmetryTool 启用，强制对称
-                if (SymmetryContext.enabled() && ctx.streetProfile != null) {
-                    ctx.streetProfile = ctx.streetProfile.withSymmetric(true);
-                }
-                
-                // K3 新增：根据用户输入确定 ZoningProfile
-                ctx.zoningProfile = resolveZoningProfile(ctx.userMessage, ctx.streetProfile);
-                
-                // K3.1 新增：生成 PathClusterLayout 和 ZonedSlot（如果可能）
-                // 注意：这里需要 ServerWorld，但 ToolPromptBuilder 是客户端代码
-                // 实际生成应该在服务端进行，这里只设置必要的参数
-                // clusterLayout 和 zonedSlots 将在服务端生成后设置到 ctx
+        PathSkeleton skeleton = PathTool.INSTANCE.toSkeleton();
+        if (skeleton.isValid()) {
+            // 从用户输入中识别路径意图
+            PathSkeleton.PathIntent intent = resolvePathIntent(ctx.userMessage);
+            if (intent != PathSkeleton.PathIntent.GENERIC) {
+                // 如果识别到明确意图，创建新的 PathSkeleton
+                skeleton = new PathSkeleton(
+                    skeleton.nodes,
+                    skeleton.corridorRadius,
+                    skeleton.snapToGround,
+                    intent
+                );
             }
+            ctx.pathSkeleton = skeleton;
+
+            // K2 新增：根据用户输入和工具状态确定 StreetProfile
+            ctx.streetProfile = resolveStreetProfile(ctx.userMessage);
+
+            // 如果 SymmetryTool 启用，强制对称
+            if (SymmetryContext.enabled() && ctx.streetProfile != null) {
+                ctx.streetProfile = ctx.streetProfile.withSymmetric(true);
+            }
+
+            // K3 新增：根据用户输入确定 ZoningProfile
+            ctx.zoningProfile = resolveZoningProfile(ctx.userMessage, ctx.streetProfile);
+
+            // K3.1 新增：生成 PathClusterLayout 和 ZonedSlot（如果可能）
+            // 注意：这里需要 ServerWorld，但 ToolPromptBuilder 是客户端代码
+            // 实际生成应该在服务端进行，这里只设置必要的参数
+            // clusterLayout 和 zonedSlots 将在服务端生成后设置到 ctx
         }
 
         // 笔刷选中区域（边界约束 - 优先级低于选区，但高于默认）
