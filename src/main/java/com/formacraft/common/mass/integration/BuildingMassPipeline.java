@@ -102,14 +102,39 @@ public final class BuildingMassPipeline {
             );
 
             // Step 7: 应用立面节奏（按楼层、按朝向）
-            // 使用 MultiLayerRhythmProcessor 处理多层节奏关联
-            FacadeRhythmProfile rhythmProfile = FacadeRhythmProfile.defaultProfile();
+            // 使用预设选择系统：AI 从预设库中选择，而不是生成
+            // v1 简化：使用默认建筑特征（未来：从 PlanSkeleton 或 LlmPlan 提取）
+            int floorCount = layers.size();
+            com.formacraft.common.mass.rhythm.FacadeRhythmPresetSelector.PresetSelection presetSelection = 
+                    com.formacraft.common.mass.rhythm.FacadeRhythmPresetSelector.selectPreset(
+                            new com.formacraft.common.mass.rhythm.FacadeRhythmPresetSelector.BuildingCharacteristics(
+                                    "residential",  // 默认建筑类型
+                                    "modern",       // 默认风格
+                                    floorCount,
+                                    List.of(),      // 默认体量
+                                    "none",         // 默认对称性
+                                    "simple"        // 默认表达
+                            )
+                    );
             
             // 为每个朝向分别处理多层节奏
+            // 注意：可以根据 presetSelection.facadeOverrides() 为不同立面选择不同预设
             Map<FloorLayer, Map<Direction, List<Socket>>> rhythmProcessedSockets = new HashMap<>();
             Direction[] facings = new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST};
+            String[] facadeNames = new String[]{"NORTH", "SOUTH", "EAST", "WEST"}; // 对应 facings
             
-            for (Direction facing : facings) {
+            for (int i = 0; i < facings.length; i++) {
+                Direction facing = facings[i];
+                String facadeName = facadeNames[i];
+                
+                // 为这个立面解析预设（如果有覆盖则使用覆盖，否则使用主要预设）
+                FacadeRhythmProfile facadeProfile = com.formacraft.common.mass.rhythm.FacadeRhythmPresetResolver.resolve(
+                        presetSelection,
+                        composition,
+                        floorCount,
+                        facadeName
+                );
+                
                 // 按朝向筛选 Socket，并组织成 MultiLayerRhythmProcessor 需要的格式
                 Map<FloorLayer, List<Socket>> facingLayeredSockets = new HashMap<>();
                 for (Map.Entry<FloorLayer, List<Socket>> entry : layeredSockets.entrySet()) {
@@ -127,7 +152,7 @@ public final class BuildingMassPipeline {
                             MultiLayerRhythmProcessor.processMultiLayerRhythm(
                                     facingLayeredSockets,
                                     facing,
-                                    rhythmProfile,
+                                    facadeProfile,  // 使用立面特定的 Profile
                                     planSkeleton
                             );
                     

@@ -33,6 +33,10 @@ public final class BuildingMassSystemInitializer {
         FormacraftMod.LOGGER.info("  ✓ FacadeRhythmProcessor ready");
         FormacraftMod.LOGGER.info("  ✓ MultiLayerRhythmProcessor ready");
 
+        // 初始化立面节奏预设库
+        com.formacraft.common.mass.rhythm.FacadeRhythmPresetLibrary.initialize();
+        FormacraftMod.LOGGER.info("  ✓ FacadeRhythmPresetLibrary ready");
+
         FormacraftMod.LOGGER.info("BuildingMass System initialization complete!");
     }
 }

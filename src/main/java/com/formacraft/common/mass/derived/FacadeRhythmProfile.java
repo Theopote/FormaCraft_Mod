@@ -59,6 +59,53 @@ public class FacadeRhythmProfile {
     }
 
     /**
+     * 创建 Builder
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder 用于创建 FacadeRhythmProfile
+     */
+    public static class Builder {
+        private RhythmMode mode = RhythmMode.REGULAR;
+        private int spacing = 3;
+        private AlignmentMode align = AlignmentMode.NONE;
+        private SymmetryMode symmetry = SymmetryMode.NONE;
+        private VariationMode variation = VariationMode.NONE;
+
+        public Builder rhythmMode(RhythmMode mode) {
+            this.mode = mode;
+            return this;
+        }
+
+        public Builder spacing(int spacing) {
+            this.spacing = spacing;
+            return this;
+        }
+
+        public Builder alignmentMode(AlignmentMode align) {
+            this.align = align;
+            return this;
+        }
+
+        public Builder symmetryMode(SymmetryMode symmetry) {
+            this.symmetry = symmetry;
+            return this;
+        }
+
+        public Builder variationMode(VariationMode variation) {
+            this.variation = variation;
+            return this;
+        }
+
+        public FacadeRhythmProfile build() {
+            return new FacadeRhythmProfile(mode, spacing, align, symmetry, variation);
+        }
+    }
+
+    /**
      * 节奏模式
      */
     public enum RhythmMode {
