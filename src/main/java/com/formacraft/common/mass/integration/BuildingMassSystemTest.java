@@ -2,7 +2,6 @@ package com.formacraft.common.mass.integration;
 
 import com.formacraft.common.llm.dto.PlanSkeleton;
 import com.formacraft.common.mass.*;
-import com.formacraft.common.mass.derived.MassToSkeletonDeriver;
 import com.formacraft.common.mass.integration.BuildingMassPipeline.BuildingMassPipelineResult;
 import com.formacraft.FormacraftMod;
 

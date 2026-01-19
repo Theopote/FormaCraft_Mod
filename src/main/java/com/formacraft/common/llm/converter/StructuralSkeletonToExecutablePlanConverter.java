@@ -6,6 +6,7 @@ import com.formacraft.common.geometry.extrusion.WallExtrusion;
 import com.formacraft.common.llm.dto.StructuralSkeleton;
 import com.formacraft.common.skeleton.SkeletonType;
 import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.FormacraftMod;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -57,7 +58,25 @@ public final class StructuralSkeletonToExecutablePlanConverter {
         // 2. FloorPlate → FLOOR Skeleton（可选，v1 可以先跳过）
         // 未来：如果系统需要独立的 FLOOR Skeleton，可以在这里生成
 
-        // 3. CourtyardVoid → 不直接生成 Skeleton（但影响周围 wall 的生成）
+        // 3. RoofPlate → ROOF Skeleton（使用 RoofSocketGenerator 生成 Socket）
+        if (structural.roofPlate != null) {
+            // 生成屋顶 Skeleton（已包含在 WallSegment 处理中）
+            // 如果需要额外的屋顶 Socket，可以使用 RoofSocketGenerator
+            try {
+                @SuppressWarnings("unused")
+                var roofSockets = com.formacraft.common.component.roof.RoofSocketGenerator.generateRoofSockets(
+                        structural.roofPlate,
+                        structural // 传递 structural 用于生成 EAVE_LINE Socket
+                );
+                // v1 简化：屋顶 Socket 暂时不转换为 ExecutableSkeletonPlan
+                // 未来：可以将 RoofSocket 转换为 ROOF_SLOPE / ROOF_RIDGE 类型的 Skeleton
+                // 这些 Socket 可以用于屋顶构件装配（屋瓦、脊兽、檐饰等）
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.warn("Failed to generate roof sockets", e);
+            }
+        }
+
+        // 4. CourtyardVoid → 不直接生成 Skeleton（但影响周围 wall 的生成）
 
         return plans;
     }

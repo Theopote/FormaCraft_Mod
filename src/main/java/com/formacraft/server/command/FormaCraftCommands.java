@@ -513,5 +513,30 @@ public class FormaCraftCommands {
                         return 0;
                     }
                 }));
+
+        // BuildingMass 系统测试命令
+        dispatcher.register(literal("formacraft_test_mass")
+                .requires(source -> source.hasPermissionLevel(2))
+                .executes(ctx -> {
+                    ServerPlayerEntity player = ctx.getSource().getPlayer();
+                    if (player == null) {
+                        ctx.getSource().sendError(Text.literal("Only players can use this command."));
+                        return 0;
+                    }
+
+                    // 运行 BuildingMass 系统测试
+                    try {
+                        com.formacraft.common.mass.integration.BuildingMassSystemTest.runBasicTest();
+                        ctx.getSource().sendFeedback(
+                                () -> Text.literal("BuildingMass System Test completed. Check server logs for details."),
+                                false
+                        );
+                        return 1;
+                    } catch (Exception e) {
+                        ctx.getSource().sendError(Text.literal("BuildingMass System Test failed: " + e.getMessage()));
+                        com.formacraft.FormacraftMod.LOGGER.error("BuildingMass System Test failed", e);
+                        return 0;
+                    }
+                }));
     }
 }

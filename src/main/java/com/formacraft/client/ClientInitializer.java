@@ -45,6 +45,9 @@ public class ClientInitializer implements ClientModInitializer {
         FormaCraftHudOverlay.initialize();
         // 注册输入事件处理器
         InputEventHandler.register();
+
+        // 初始化 Debug Overlay Renderers（PlanDebugRenderer, StructuralDebugRenderer）
+        com.formacraft.common.debug.DebugOverlayRegistry.initialize();
     }
 }
 

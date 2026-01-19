@@ -89,7 +89,13 @@ public final class BuildingMassSystemIntegrator {
         }
 
         // v1 简化：如果 LlmPlan 明确包含 PlanSkeleton，可以使用 BuildingMass
-        // 但默认仍使用传统路径
-        return false; // 暂时禁用，等待进一步测试
+        // 可以通过系统属性或配置启用：-Dformacraft.useBuildingMass=true
+        String useBuildingMass = System.getProperty("formacraft.useBuildingMass", "false");
+        if ("true".equalsIgnoreCase(useBuildingMass)) {
+            return llmPlan.usesPlanProgramMode(); // 只有 PlanProgram 模式才支持 BuildingMass
+        }
+
+        // 默认不使用 BuildingMass 路径（保持向后兼容）
+        return false;
     }
 }

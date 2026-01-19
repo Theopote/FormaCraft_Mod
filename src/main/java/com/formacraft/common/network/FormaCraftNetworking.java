@@ -1053,19 +1053,55 @@ public class FormaCraftNetworking {
                                             );
                                         }
                                         
-                                        // 编译 components 为 BlockPatch（包含后处理）
-                                        // 创建地形采样器
-                                        com.formacraft.common.terrain.TerrainStrategySampler terrainSampler = 
-                                                new com.formacraft.common.terrain.TerrainStrategySampler();
+                                        // 检查应该使用哪种编译路径
+                                        List<BlockPatch> patches;
                                         
-                                        // 启用地形适应（根据LLM Plan中的terrain_strategy自动处理地形）
-                                        List<BlockPatch> patches = ComponentPlanCompiler.compile(
-                                                llmPlan,
-                                                planOrigin,
-                                                serverWorld,
-                                                terrainSampler,
-                                                true  // 启用地形适应后处理
-                                        );
+                                        if (llmPlan.usesPlanProgramMode()) {
+                                            // 使用 PlanProgram → Skeleton 编译路径
+                                            if (llmPlan.planSkeleton() != null) {
+                                                patches = com.formacraft.common.compiler.PlanProgramCompiler.compileFromPlanSkeleton(
+                                                        llmPlan.planSkeleton(),
+                                                        planOrigin,
+                                                        serverWorld
+                                                );
+                                            } else if (llmPlan.planProgram() != null) {
+                                                patches = com.formacraft.common.compiler.PlanProgramCompiler.compile(
+                                                        llmPlan.planProgram(),
+                                                        planOrigin,
+                                                        serverWorld
+                                                );
+                                            } else {
+                                                FormacraftMod.LOGGER.warn("LlmPlan usesPlanProgramMode but no planSkeleton or planProgram found");
+                                                patches = List.of();
+                                            }
+                                            
+                                            // 可选：如果启用 BuildingMass 路径
+                                            if (com.formacraft.common.mass.integration.BuildingMassSystemIntegrator.shouldUseBuildingMassPath(llmPlan)) {
+                                                List<BlockPatch> buildingMassPatches = com.formacraft.common.mass.integration.BuildingMassSystemIntegrator.compileWithBuildingMass(
+                                                        llmPlan,
+                                                        planOrigin,
+                                                        serverWorld
+                                                );
+                                                // v1: BuildingMass 路径暂时作为补充，未来可以完全替代
+                                                if (!buildingMassPatches.isEmpty()) {
+                                                    FormacraftMod.LOGGER.info("BuildingMass path generated {} patches (supplementary)", buildingMassPatches.size());
+                                                }
+                                            }
+                                        } else {
+                                            // 使用传统 components[] 编译路径
+                                            // 创建地形采样器
+                                            com.formacraft.common.terrain.TerrainStrategySampler terrainSampler = 
+                                                    new com.formacraft.common.terrain.TerrainStrategySampler();
+                                            
+                                            // 启用地形适应（根据LLM Plan中的terrain_strategy自动处理地形）
+                                            patches = ComponentPlanCompiler.compile(
+                                                    llmPlan,
+                                                    planOrigin,
+                                                    serverWorld,
+                                                    terrainSampler,
+                                                    true  // 启用地形适应后处理
+                                            );
+                                        }
                                         
                                         // 将 BlockPatch 转换为 PlannedBlock
                                         List<PlannedBlock> plannedBlocks = new ArrayList<>();

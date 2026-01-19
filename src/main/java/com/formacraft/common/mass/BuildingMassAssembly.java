@@ -12,23 +12,20 @@ import java.util.List;
  * 🎯 核心定位（架构校准 2026-01-14）：
  * 这不是几何组合，而是"规则组合"。
  * <p>
- * 正确的生成层级：
- * ```
- * Plan (Domain / 范围限制)
- *   ↓
- * BuildingMassAssembly（体量规则组合）
- *   ↓
- * Derived Surfaces（由体量产生的真实结构面）
- *   ↓
- * Skeleton / Socket
- *   ↓
- * Component / Block Placement
- * ```
+ * ⚠️ 注意：
+ * 这个类已被 {@link BuildingMassComposition} 替代。
  * <p>
- * ⚠️ 关键：
- * - ❌ 没有任何一步是"生成连续几何模型"
- * - ✅ 所有东西最终都会回到：方块是否存在、在什么位置、以什么规则存在
+ * BuildingMassAssembly 是早期版本的体量组合系统，功能已被 BuildingMassComposition 完全覆盖。
+ * BuildingMassComposition 提供了更强大的功能：
+ * - 支持 WingAttachment（翼楼附着）
+ * - 支持 CantileverSupport（悬挑支撑）
+ * - 提供 getOrderedMasses() 方法（按优先级排序）
+ * <p>
+ * 建议：
+ * - 新代码应使用 {@link BuildingMassComposition}
+ * - 这个类保留仅供向后兼容，未来可能标记为 @Deprecated
  */
+@Deprecated(forRemoval = false) // 暂时不删除，保留向后兼容
 public class BuildingMassAssembly {
     /** Plan Domain（范围约束） */
     public final PlanSkeleton domain;
@@ -41,7 +38,7 @@ public class BuildingMassAssembly {
             List<BuildingMass> masses
     ) {
         this.domain = domain;
-        this.masses = masses != null ? Collections.unmodifiableList(new ArrayList<>(masses)) : Collections.emptyList();
+        this.masses = masses != null ? List.copyOf(masses) : Collections.emptyList();
     }
 
     /**
@@ -93,11 +90,9 @@ public class BuildingMassAssembly {
                     // 相减：直接返回 false
                     return false;
                 }
-                case INTERSECT -> {
-                    hasIntersect = true;
-                    // INTERSECT 需要所有 INTERSECT 体量都包含这个位置
+                case INTERSECT -> // INTERSECT 需要所有 INTERSECT 体量都包含这个位置
                     // 这里只标记，最后再判断
-                }
+                        hasIntersect = true;
             }
         }
 

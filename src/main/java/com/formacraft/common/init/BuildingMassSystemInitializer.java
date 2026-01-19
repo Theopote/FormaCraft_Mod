@@ -31,6 +31,7 @@ public final class BuildingMassSystemInitializer {
         FormacraftMod.LOGGER.info("  ✓ MassToSkeletonDeriver ready");
         FormacraftMod.LOGGER.info("  ✓ LayeredSocketDeriver ready");
         FormacraftMod.LOGGER.info("  ✓ FacadeRhythmProcessor ready");
+        FormacraftMod.LOGGER.info("  ✓ MultiLayerRhythmProcessor ready");
 
         FormacraftMod.LOGGER.info("BuildingMass System initialization complete!");
     }

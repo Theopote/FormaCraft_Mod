@@ -95,32 +95,41 @@ public final class BuildingMassPipeline {
             );
 
             // Step 7: 应用立面节奏（按楼层、按朝向）
+            // 使用 MultiLayerRhythmProcessor 处理多层节奏关联
             FacadeRhythmProfile rhythmProfile = FacadeRhythmProfile.defaultProfile();
+            
+            // 为每个朝向分别处理多层节奏
             Map<FloorLayer, Map<Direction, List<Socket>>> rhythmProcessedSockets = new HashMap<>();
-
-            for (FloorLayer layer : layeredSockets.keySet()) {
-                Map<Direction, List<Socket>> directionSockets = new HashMap<>();
-                List<Socket> layerSockets = layeredSockets.get(layer);
-
-                // 按朝向分组
-                for (Direction facing : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST}) {
-                    List<Socket> facingSockets = layerSockets.stream()
+            Direction[] facings = new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST};
+            
+            for (Direction facing : facings) {
+                // 按朝向筛选 Socket，并组织成 MultiLayerRhythmProcessor 需要的格式
+                Map<FloorLayer, List<Socket>> facingLayeredSockets = new HashMap<>();
+                for (Map.Entry<FloorLayer, List<Socket>> entry : layeredSockets.entrySet()) {
+                    List<Socket> facingSockets = entry.getValue().stream()
                             .filter(s -> s.normal == facing)
                             .toList();
-
                     if (!facingSockets.isEmpty()) {
-                        List<Socket> processed = FacadeRhythmProcessor.processRhythm(
-                                new ArrayList<>(facingSockets),
-                                layer,
-                                facing,
-                                rhythmProfile,
-                                planSkeleton
-                        );
-                        directionSockets.put(facing, processed);
+                        facingLayeredSockets.put(entry.getKey(), facingSockets);
                     }
                 }
-
-                rhythmProcessedSockets.put(layer, directionSockets);
+                
+                if (!facingLayeredSockets.isEmpty()) {
+                    // 使用 MultiLayerRhythmProcessor 处理这个朝向的多层节奏
+                    Map<FloorLayer, List<Socket>> processedForFacing = 
+                            MultiLayerRhythmProcessor.processMultiLayerRhythm(
+                                    facingLayeredSockets,
+                                    facing,
+                                    rhythmProfile,
+                                    planSkeleton
+                            );
+                    
+                    // 合并结果到最终结构
+                    for (Map.Entry<FloorLayer, List<Socket>> entry : processedForFacing.entrySet()) {
+                        rhythmProcessedSockets.computeIfAbsent(entry.getKey(), k -> new HashMap<>())
+                                .put(facing, entry.getValue());
+                    }
+                }
             }
 
             return new BuildingMassPipelineResult(

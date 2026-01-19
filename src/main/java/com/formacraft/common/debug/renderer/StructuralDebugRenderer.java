@@ -102,9 +102,6 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
             com.formacraft.common.llm.dto.structural.WallType targetType,
             java.awt.Color color
     ) {
-        if (structural.walls == null) {
-            return;
-        }
 
         for (StructuralSkeleton.WallSegment wall : structural.walls) {
             if (wall.type == targetType && wall.baseline != null) {
@@ -126,9 +123,6 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
      * - 转角是否爆炸
      */
     private void renderWallSolids(StructuralSkeleton structural, double y, double scale) {
-        if (structural.walls == null) {
-            return;
-        }
 
         for (StructuralSkeleton.WallSegment wall : structural.walls) {
             // 从 WallSegment 获取 ExtrudedSolid（存储在 ExecutableSkeletonPlan 中）
@@ -152,9 +146,6 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
      * 这是判断 Boolean 减法是否成功的关键
      */
     private void renderCourtyardVoids(StructuralSkeleton structural, double y, double scale) {
-        if (structural.courtyards == null) {
-            return;
-        }
 
         for (StructuralSkeleton.CourtyardVoid courtyard : structural.courtyards) {
             if (courtyard.footprint != null) {
@@ -178,7 +169,6 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
      */
     private void renderRoof(StructuralSkeleton structural, double y, double scale) {
         if (structural.roofPlate == null || structural.roofPlate.roofFootprints.isEmpty()) {
-            return;
         }
 
         // TODO: 实际渲染逻辑（客户端实现）
@@ -201,8 +191,7 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
      * - 脊线高度是否合理
      */
     private void renderRoofRidges(StructuralSkeleton structural, double y, double scale) {
-        if (structural.roofPlate == null || structural.roofPlate.ridges == null || structural.roofPlate.ridges.isEmpty()) {
-            return;
+        if (structural.roofPlate == null || structural.roofPlate.ridges.isEmpty()) {
         }
 
         // TODO: 实际渲染逻辑（客户端实现）
@@ -226,8 +215,7 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
      * - Courtyard 是否完全敞开
      */
     private void renderRoofSlopes(StructuralSkeleton structural, double y, double scale) {
-        if (structural.roofPlate == null || structural.roofPlate.slopes == null || structural.roofPlate.slopes.isEmpty()) {
-            return;
+        if (structural.roofPlate == null || structural.roofPlate.slopes.isEmpty()) {
         }
 
         // TODO: 实际渲染逻辑（客户端实现）
@@ -255,8 +243,7 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
             com.formacraft.common.llm.dto.structural.RidgeType targetType,
             java.awt.Color color
     ) {
-        if (structural.roofPlate == null || structural.roofPlate.ridges == null) {
-            return;
+        if (structural.roofPlate == null) {
         }
 
         // TODO: 实际渲染逻辑（客户端实现）
@@ -283,8 +270,7 @@ public class StructuralDebugRenderer implements DebugOverlayRenderer {
      * 怎么画：半透明分色
      */
     private void renderTriangularSlopes(StructuralSkeleton structural, double y, double scale) {
-        if (structural.roofPlate == null || structural.roofPlate.slopes == null) {
-            return;
+        if (structural.roofPlate == null) {
         }
 
         // TODO: 实际渲染逻辑（客户端实现）

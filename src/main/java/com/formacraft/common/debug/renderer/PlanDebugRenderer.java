@@ -73,7 +73,6 @@ public class PlanDebugRenderer implements DebugOverlayRenderer {
      */
     private void renderZones(PlanSkeleton plan, double y, double scale) {
         if (plan.zones() == null) {
-            return;
         }
 
         // v1 简化：PlanSkeleton 的 zones 没有直接存储 polygon
@@ -95,7 +94,6 @@ public class PlanDebugRenderer implements DebugOverlayRenderer {
      */
     private void renderPrimaryAxes(PlanSkeleton plan, double y, double scale) {
         if (plan.axes() == null) {
-            return;
         }
 
         // TODO: 实际渲染逻辑（客户端实现）

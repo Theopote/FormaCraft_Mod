@@ -94,4 +94,34 @@ public final class RoofPlateGenerator {
     ) {
         return generateRoofPlate(floorPlate, courtyards, wallHeight, null);
     }
+
+    /**
+     * 使用 V3 生成器生成屋顶（支持中式屋顶：歇山/庑殿/多脊系统）
+     * <p>
+     * v1 简化：暂时不使用 V3，保持向后兼容
+     * 未来：可以根据配置或 PlanSkeleton 选择使用 V3
+     * <p>
+     * 注意：这个方法目前未被使用，但保留作为未来扩展点
+     */
+    @SuppressWarnings("unused")
+    public static StructuralSkeleton.RoofPlate generateRoofPlateV3(
+            StructuralSkeleton.FloorPlate floorPlate,
+            List<StructuralSkeleton.CourtyardVoid> courtyards,
+            double wallHeight,
+            StructuralSkeleton structural // 用于获取 Axis 信息
+    ) {
+        // 先生成基础 RoofPlate
+        StructuralSkeleton.RoofPlate baseRoof = generateRoofPlate(floorPlate, courtyards, wallHeight, null);
+        
+        if (baseRoof == null) {
+            return null;
+        }
+        
+        // v1 简化：暂时不使用 V3 生成器
+        // 未来：调用 RoofRidgeGeneratorV3.generateRidgeSystem() 生成脊系统
+        // List<RidgeLine> ridges = RoofRidgeGeneratorV3.generateRidgeSystem(baseRoof, structural);
+        // baseRoof.ridges = ridges;
+        
+        return baseRoof;
+    }
 }
