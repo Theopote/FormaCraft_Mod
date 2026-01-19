@@ -98,29 +98,66 @@ public final class RoofPlateGenerator {
     /**
      * 使用 V3 生成器生成屋顶（支持中式屋顶：歇山/庑殿/多脊系统）
      * <p>
-     * v1 简化：暂时不使用 V3，保持向后兼容
-     * 未来：可以根据配置或 PlanSkeleton 选择使用 V3
-     * <p>
-     * 注意：这个方法目前未被使用，但保留作为未来扩展点
+     * 当指定了 HIP 或 XIESHAN 形式时，使用 RoofRidgeGeneratorV3 生成脊系统
+     *
+     * @param floorPlate FloorPlate
+     * @param courtyards CourtyardVoid 列表
+     * @param wallHeight 墙高
+     * @param form 屋顶形式（如果为 HIP 或 XIESHAN，则生成 V3 脊系统）
+     * @param structural StructuralSkeleton（用于获取 Axis 信息）
+     * @return RoofPlate（如果 form 是 HIP/XIESHAN，则包含 V3 脊系统）
      */
-    @SuppressWarnings("unused")
     public static StructuralSkeleton.RoofPlate generateRoofPlateV3(
             StructuralSkeleton.FloorPlate floorPlate,
             List<StructuralSkeleton.CourtyardVoid> courtyards,
             double wallHeight,
+            com.formacraft.common.llm.dto.structural.RoofForm form,
             StructuralSkeleton structural // 用于获取 Axis 信息
     ) {
         // 先生成基础 RoofPlate
         StructuralSkeleton.RoofPlate baseRoof = generateRoofPlate(floorPlate, courtyards, wallHeight, null);
         
-        if (baseRoof == null) {
-            return null;
+        if (baseRoof == null || structural == null) {
+            return baseRoof;
         }
         
-        // v1 简化：暂时不使用 V3 生成器
-        // 未来：调用 RoofRidgeGeneratorV3.generateRidgeSystem() 生成脊系统
-        // List<RidgeLine> ridges = RoofRidgeGeneratorV3.generateRidgeSystem(baseRoof, structural);
-        // baseRoof.ridges = ridges;
+        // 如果指定的 form 是 HIP 或 XIESHAN，使用 V3 生成器生成脊系统
+        if (form != null && 
+            (form == com.formacraft.common.llm.dto.structural.RoofForm.HIP || 
+             form == com.formacraft.common.llm.dto.structural.RoofForm.XIESHAN)) {
+            try {
+                // 使用 V2 构造函数创建包含 form 的临时 RoofPlate
+                StructuralSkeleton.RoofPlate tempRoof = new StructuralSkeleton.RoofPlate(
+                        baseRoof.roofFootprints,
+                        baseRoof.baseY,
+                        baseRoof.thickness,
+                        baseRoof.type,
+                        form,
+                        List.of(), // 暂时为空，待生成
+                        List.of()  // 暂时为空，待生成
+                );
+                
+                // 使用 RoofRidgeGeneratorV3 生成脊系统
+                var ridges = com.formacraft.common.geometry.boolean_.RoofRidgeGeneratorV3.generateRidgeSystem(
+                        tempRoof, structural
+                );
+                
+                // 使用 V2 构造函数创建包含 ridges 的最终 RoofPlate
+                return new StructuralSkeleton.RoofPlate(
+                        baseRoof.roofFootprints,
+                        baseRoof.baseY,
+                        baseRoof.thickness,
+                        baseRoof.type,
+                        form,
+                        ridges,
+                        List.of() // v3 简化：slopes 暂时为空
+                );
+            } catch (Exception e) {
+                // v1 简化：如果 V3 生成失败，返回基础 RoofPlate
+                com.formacraft.FormacraftMod.LOGGER.warn("Failed to generate V3 roof ridges, using base roof", e);
+                return baseRoof;
+            }
+        }
         
         return baseRoof;
     }

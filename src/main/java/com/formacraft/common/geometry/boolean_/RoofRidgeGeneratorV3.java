@@ -75,7 +75,7 @@ public final class RoofRidgeGeneratorV3 {
         }
 
         // v3 简化：使用第一个 footprint
-        Polygon2D footprint = roofPlate.roofFootprints.get(0);
+        Polygon2D footprint = roofPlate.roofFootprints.getFirst();
         Vec2 centroid = footprint.centroid();
 
         // 计算四角
@@ -133,7 +133,7 @@ public final class RoofRidgeGeneratorV3 {
             return ridges;
         }
 
-        Polygon2D footprint = roofPlate.roofFootprints.get(0);
+        Polygon2D footprint = roofPlate.roofFootprints.getFirst();
         Polygon2D.Bounds2D bounds = footprint.getBounds();
 
         // Step 1: 生成正脊（MAIN_RIDGE）
@@ -153,15 +153,13 @@ public final class RoofRidgeGeneratorV3 {
         double hipRidgeHeight = ridgeHeight - 1.5;
 
         // 垂脊起点（正脊两端）
-        Vec3 hipStart1 = mainRidgeStart;
-        Vec3 hipStart2 = mainRidgeEnd;
 
         // 垂脊终点（沿最陡方向向下，v3 简化：使用默认方向）
         Vec3 hipEnd1 = new Vec3(mainRidgeStart.x(), hipRidgeHeight, boundsCenter.z());
         Vec3 hipEnd2 = new Vec3(mainRidgeEnd.x(), hipRidgeHeight, boundsCenter.z());
 
-        RidgeLine hipRidge1 = new RidgeLine(new Line3D(hipStart1, hipEnd1), RidgeType.HIP_RIDGE, RidgeRole.MAIN);
-        RidgeLine hipRidge2 = new RidgeLine(new Line3D(hipStart2, hipEnd2), RidgeType.HIP_RIDGE, RidgeRole.MAIN);
+        RidgeLine hipRidge1 = new RidgeLine(new Line3D(mainRidgeStart, hipEnd1), RidgeType.HIP_RIDGE, RidgeRole.MAIN);
+        RidgeLine hipRidge2 = new RidgeLine(new Line3D(mainRidgeEnd, hipEnd2), RidgeType.HIP_RIDGE, RidgeRole.MAIN);
         ridges.add(hipRidge1);
         ridges.add(hipRidge2);
 

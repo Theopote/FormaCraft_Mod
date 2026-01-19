@@ -89,10 +89,18 @@ public final class LayeredSocketDeriver {
                 .toList();
 
         for (BlockPos pos : layerPositions) {
+            // 先使用 SkeletonToSocketDeriver 生成基础 Socket（可选，v1 跳过）
+            // 如果需要更基础的控制，可以调用：
+            // List<Socket> basicSockets = SkeletonToSocketDeriver.deriveSockets(List.of(skeleton));
+            
             // 评估 Socket 候选（使用分层规则）
             List<SocketCandidate> candidates = evaluateLayeredSocketCandidates(
                     skeleton, pos, layer, composition, massRole, allLayers
             );
+
+            // 可选：使用 RefinedSocketDeriver 的逻辑进一步细化（已整合到 evaluateLayeredSocketCandidates）
+            // 如果需要更独立的细化步骤，可以调用：
+            // candidates = RefinedSocketDeriver.deriveRefinedSockets(...).stream()...
 
             // 选择优先级最高的
             SocketCandidate selected = selectHighestPriority(candidates);

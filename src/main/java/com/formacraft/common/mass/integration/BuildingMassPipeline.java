@@ -78,6 +78,12 @@ public final class BuildingMassPipeline {
             // Step 4: 合并 Skeleton
             List<MassDerivedSkeleton> mergedSkeletons = SkeletonMerger.mergeSkeletons(skeletons);
 
+            // Step 4.5: 可选：使用 SkeletonToSocketDeriver 生成基础 Socket
+            // v1 简化：跳过这一步，直接使用 LayeredSocketDeriver（已包含所有功能）
+            // 如果需要更细粒度控制，可以先调用：
+            // List<Socket> basicSockets = com.formacraft.common.mass.derived.SkeletonToSocketDeriver.deriveSockets(mergedSkeletons);
+            // 然后再使用 RefinedSocketDeriver 或 LayeredSocketDeriver 进行细化
+
             // Step 5: 切分楼层（已在 Step 6 中提取）
             List<FloorLayer> layers = extractFloorLayers(composition, baseY);
 
