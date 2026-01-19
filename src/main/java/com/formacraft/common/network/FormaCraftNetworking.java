@@ -1161,6 +1161,83 @@ public class FormaCraftNetworking {
                                         FormacraftMod.LOGGER.info("LlmPlan: converted {} patches to {} planned blocks (origin: {})", 
                                                 patches.size(), plannedBlocks.size(), planOrigin);
 
+                                        // ========== 地形平整：在生成建筑之后平整地坪 ==========
+                                        // 获取地形策略
+                                        com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy terrainStrategy = 
+                                                (llmPlan.globalConstraints() != null && llmPlan.globalConstraints().terrainStrategy() != null)
+                                                ? llmPlan.globalConstraints().terrainStrategy()
+                                                : com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE;
+                                        
+                                        // 如果策略是 ADAPTIVE 或 FLATTEN，进行地坪平整
+                                        if (!plannedBlocks.isEmpty()
+                                                && (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE ||
+                                                    terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN)) {
+                                            // 从已生成的方块中计算边界
+                                            int minX = Integer.MAX_VALUE;
+                                            int minY = Integer.MAX_VALUE;
+                                            int minZ = Integer.MAX_VALUE;
+                                            int maxX = Integer.MIN_VALUE;
+                                            int maxY = Integer.MIN_VALUE;
+                                            int maxZ = Integer.MIN_VALUE;
+                                            for (PlannedBlock pb : plannedBlocks) {
+                                                if (pb == null || pb.getPos() == null) continue;
+                                                BlockPos p = pb.getPos();
+                                                minX = Math.min(minX, p.getX());
+                                                minY = Math.min(minY, p.getY());
+                                                minZ = Math.min(minZ, p.getZ());
+                                                maxX = Math.max(maxX, p.getX());
+                                                maxY = Math.max(maxY, p.getY());
+                                                maxZ = Math.max(maxZ, p.getZ());
+                                            }
+
+                                            int width = Math.max(10, maxX - minX + 1);
+                                            int depth = Math.max(10, maxZ - minZ + 1);
+                                            BlockPos center = new BlockPos((minX + maxX) / 2, planOrigin.getY(), (minZ + maxZ) / 2);
+
+                                            TerrainFit.FootprintAnalysis analysis = TerrainFit.analyze(serverWorld, center, width, depth);
+                                            
+                                            // 计算目标高度
+                                            int targetY = TerrainFit.averageFootprintHeight(serverWorld, center, width, depth) + 1;
+                                            
+                                            // 选择填充材料
+                                            net.minecraft.block.BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
+                                            if (llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null) {
+                                                String mat = llmPlan.styleAttributes().floorMaterial().trim();
+                                                if (!mat.isEmpty()) {
+                                                    String id = mat.startsWith("minecraft:") ? mat : "minecraft:" + mat;
+                                                    try {
+                                                        net.minecraft.util.Identifier bid = net.minecraft.util.Identifier.tryParse(id);
+                                                        if (bid != null) {
+                                                            fillMaterial = net.minecraft.registry.Registries.BLOCK.get(bid).getDefaultState();
+                                                        }
+                                                    } catch (Exception ignored) {}
+                                                }
+                                            }
+                                            
+                                            // 生成平整地坪的 PlannedBlock
+                                            List<PlannedBlock> terrainPadBlocks = new ArrayList<>();
+                                            if (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN) {
+                                                // FLATTEN 策略：使用 balancedPad 进行较大范围平整
+                                                terrainPadBlocks = TerrainFit.balancedPad(
+                                                        serverWorld, center, width, depth, targetY, fillMaterial, 4, 8, true, true);
+                                            } else if (analysis.range() > 1) {
+                                                // ADAPTIVE 策略：如果地形起伏较大（range > 1），使用 adaptivePad 轻微平整
+                                                terrainPadBlocks = TerrainFit.adaptivePad(
+                                                        serverWorld, center, width, depth, targetY, fillMaterial, 4, 8, true, true);
+                                            }
+                                            
+                                            // 将地坪平整的方块添加到结果的最前面
+                                            if (!terrainPadBlocks.isEmpty()) {
+                                                List<PlannedBlock> merged = new ArrayList<>(terrainPadBlocks.size() + plannedBlocks.size());
+                                                merged.addAll(terrainPadBlocks);
+                                                merged.addAll(plannedBlocks);
+                                                plannedBlocks = merged;
+                                                
+                                                FormacraftMod.LOGGER.info("LlmPlan: flattened terrain area {}x{} at Y={}, added {} pad blocks",
+                                                        width, depth, targetY, terrainPadBlocks.size());
+                                            }
+                                        }
+
                                         // 地形基础处理（仅 LlmPlan）：根据地形起伏决定台阶/支柱/覆土
                                         if (!plannedBlocks.isEmpty()
                                                 && llmPlan.globalConstraints() != null
