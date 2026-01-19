@@ -20,6 +20,9 @@ public class FormaRequest {
     private String biome;
     private BlockPos selectionMin;
     private BlockPos selectionMax;
+    /** 可选：笔刷选中区域边界（AABB），用于服务端生成阶段约束 */
+    private BlockPos brushMin;
+    private BlockPos brushMax;
     /** 可选：轮廓/Footprint（用于服务端生成阶段硬裁剪；与客户端 OutlineTool 同源） */
     private OutlineShape outline;
     /** 可选：禁区/保护区（用于服务端生成阶段硬裁剪；与客户端 ProtectedZoneTool 同源） */
@@ -125,6 +128,22 @@ public class FormaRequest {
 
     public void setSelectionMax(BlockPos selectionMax) {
         this.selectionMax = selectionMax;
+    }
+
+    public BlockPos getBrushMin() {
+        return brushMin;
+    }
+
+    public void setBrushMin(BlockPos brushMin) {
+        this.brushMin = brushMin;
+    }
+
+    public BlockPos getBrushMax() {
+        return brushMax;
+    }
+
+    public void setBrushMax(BlockPos brushMax) {
+        this.brushMax = brushMax;
     }
 
     public OutlineShape getOutline() {

@@ -1,6 +1,8 @@
 package com.formacraft.client.patch.filter;
 
 import com.formacraft.common.buildcontext.BuildContext;
+import com.formacraft.ai.context.BrushContext;
+import com.formacraft.client.patch.filter.rules.BrushRegionRule;
 import com.formacraft.client.patch.filter.rules.OutlineRule;
 import com.formacraft.client.patch.filter.rules.ProtectedZoneRule;
 import com.formacraft.client.patch.filter.rules.SelectionOnlyRule;
@@ -25,6 +27,11 @@ public final class ToolPatchFilter {
 
         // 禁区：永远叠加
         filter.addRule(new ProtectedZoneRule(bc));
+
+        // 笔刷区域：如果没有选区，则使用笔刷区域作为约束
+        if (BrushContext.hasBrushSelection() && (bc == null || bc.selection == null)) {
+            filter.addRule(new BrushRegionRule());
+        }
 
         // Outline/Selection：主约束来自 BuildContext
         if (bc != null && bc.outline != null) {

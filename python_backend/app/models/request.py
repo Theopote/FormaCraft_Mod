@@ -66,6 +66,7 @@ class BuildRequest(BaseModel):
     player: PlayerInfo
     world: WorldContext
     selection: Optional[Selection] = None
+    brushSelection: Optional[Selection] = None  # 笔刷选中区域边界（AABB）
     outline: Optional[OutlineShape] = None
     protectedZones: Optional[list[ProtectedZone]] = None
     requestText: str

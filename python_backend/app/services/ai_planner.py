@@ -534,6 +534,7 @@ def _build_system_prompt() -> str:
         "- Only use block IDs that exist in vanilla Minecraft.\n"
         "- Respect constraints: keep buildings reasonably sized unless user requests huge.\n"
         "- Footprint should be within the selection area if provided, otherwise use default sizes.\n"
+        "- If a brush selection is provided (without a regular selection), buildings should be generated within the brush-selected area on the ground surface.\n"
         "- If an outline is provided, you MUST build ONLY inside the outline.\n"
         "- If protected zones are provided, you MUST NOT place blocks inside any protected zone.\n"
         "- Choose reasonable defaults when player does not specify something.\n"
@@ -684,6 +685,14 @@ def _build_user_prompt(req: BuildRequest) -> str:
             f"Selection AABB: min=({req.selection.min.x}, {req.selection.min.y}, {req.selection.min.z}), "
             f"max=({req.selection.max.x}, {req.selection.max.y}, {req.selection.max.z})"
         )
+    
+    # 笔刷选中区域（如果没有选区，则使用笔刷区域）
+    if req.brushSelection and not req.selection:
+        parts.append(
+            f"Brush Selection AABB: min=({req.brushSelection.min.x}, {req.brushSelection.min.y}, {req.brushSelection.min.z}), "
+            f"max=({req.brushSelection.max.x}, {req.brushSelection.max.y}, {req.brushSelection.max.z})"
+        )
+        parts.append("Note: Buildings should be generated within the brush-selected area on the ground surface.")
 
     # Hard build constraints (preferred over model guesses).
     # NOTE: This is NOT the full geometry engine; it is a compact, deterministic constraint summary for the LLM.

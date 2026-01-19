@@ -81,6 +81,14 @@ public final class BrushTool implements FormacraftTool {
         return selected.size();
     }
 
+    /**
+     * 获取所有选中的方块位置（用于 AI 约束）
+     * @return 所有选中方块的 BlockPos 列表（以 LongOpenHashSet 形式，可以安全地迭代）
+     */
+    public LongOpenHashSet getSelectedSet() {
+        return selected;
+    }
+
     public void clearSelected() {
         selected.clear();
     }

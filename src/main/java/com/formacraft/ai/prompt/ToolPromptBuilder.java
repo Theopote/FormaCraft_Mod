@@ -1,5 +1,6 @@
 package com.formacraft.ai.prompt;
 
+import com.formacraft.ai.context.BrushContext;
 import com.formacraft.ai.context.OutlineContext;
 import com.formacraft.ai.context.OutlineAttachmentContext;
 import com.formacraft.ai.context.ProtectedZoneContext;
@@ -55,6 +56,15 @@ public final class ToolPromptBuilder {
                 // 实际生成应该在服务端进行，这里只设置必要的参数
                 // clusterLayout 和 zonedSlots 将在服务端生成后设置到 ctx
             }
+        }
+
+        // 笔刷选中区域（边界约束 - 优先级低于选区，但高于默认）
+        if (BrushContext.hasBrushSelection() && !SelectionContext.hasSelection()) {
+            // 如果已有选区，则选区优先级更高，不处理笔刷
+            // 如果没有选区，则使用笔刷区域作为约束
+            addMultiline(ctx.constraints, BrushContext.toPromptBlock());
+            ctx.rules.add("- 建筑应该优先生成在笔刷选中的地表区域内");
+            ctx.rules.add("- 建筑的基础部分应该与笔刷选中的方块对齐");
         }
 
         // 选区（边界约束）

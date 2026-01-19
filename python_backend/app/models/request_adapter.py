@@ -22,6 +22,8 @@ class FormaRequestAdapter(BaseModel):
     biome: Optional[str] = None
     selectionMin: Optional[dict] = None  # BlockPos 序列化
     selectionMax: Optional[dict] = None  # BlockPos 序列化
+    brushMin: Optional[dict] = None  # BlockPos 序列化（笔刷选中区域边界）
+    brushMax: Optional[dict] = None  # BlockPos 序列化
     outline: Optional[OutlineShape] = None
     protectedZones: Optional[list[ProtectedZone]] = None
     sessionId: Optional[str] = None
@@ -82,10 +84,19 @@ class FormaRequestAdapter(BaseModel):
                     max=Vec3i(**self.selectionMax)
                 )
             
+            # 笔刷选中区域（如果没有选区，则使用笔刷区域）
+            brush_selection_obj = None
+            if self.brushMin and self.brushMax and not selection_obj:
+                brush_selection_obj = Selection(
+                    min=Vec3i(**self.brushMin),
+                    max=Vec3i(**self.brushMax)
+                )
+            
             return BuildRequest(
                 player=player_info,
                 world=world_context,
                 selection=selection_obj,
+                brushSelection=brush_selection_obj,
                 outline=self.outline,
                 protectedZones=self.protectedZones,
                 requestText=self.requestText or "",

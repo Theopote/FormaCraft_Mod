@@ -2,6 +2,7 @@ package com.formacraft.client.ui.panel;
 
 import com.formacraft.ai.AIResult;
 import com.formacraft.ai.AICancelToken;
+import com.formacraft.ai.context.BrushContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.prompt.PromptAssembler;
 import com.formacraft.ai.prompt.PromptMode;
@@ -791,6 +792,18 @@ public class ChatPanel extends BasePanel {
         req.setDimension(dimensionId);
         req.setSelectionMin(SelectionContext.hasSelection() ? SelectionContext.min() : null);
         req.setSelectionMax(SelectionContext.hasSelection() ? SelectionContext.max() : null);
+        
+        // 笔刷选中区域（如果没有选区，则传递笔刷边界）
+        try {
+            if (BrushContext.hasBrushSelection() && !SelectionContext.hasSelection()) {
+                int[] bounds = BrushContext.getBounds();
+                if (bounds != null) {
+                    req.setBrushMin(new BlockPos(bounds[0], bounds[1], bounds[2]));
+                    req.setBrushMax(new BlockPos(bounds[3], bounds[4], bounds[5]));
+                }
+            }
+        } catch (Throwable ignored) {}
+        
         try {
             // 用于服务端“生成阶段硬裁剪”：禁区/轮廓不再只靠 AI 遵守
             if (bc != null) {
