@@ -10,9 +10,12 @@ import com.formacraft.common.llm.parser.PlanProgramParser;
 import com.formacraft.common.llm.parser.PlanSkeletonParser;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
+import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.server.skeleton.gen.SkeletonBuildService;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -96,20 +99,20 @@ public final class PlanProgramCompiler {
             // 编译 PlanSkeleton → CompiledSkeleton
             CompiledSkeleton compiled = PlanToSkeletonIntegrationHelper.compileFromPlanSkeleton(planSkeleton, context);
 
-            // Step 3: ExecutableSkeletonPlan → Generator → BlockPatch
-            // 注意：这里需要调用现有的 Generator 系统
-            // v1：暂时返回空列表，待 Generator 集成完成
-            // TODO: 集成 ExecutableSkeletonPlan → Generator → BlockPatch
-
             FormacraftMod.LOGGER.info(
                     "PlanProgramCompiler: compiled {} skeletons ({} extruded solids)",
                     compiled.getSkeletons().size(),
                     PlanToSkeletonIntegrationHelper.extractExtrudedSolids(compiled).size()
             );
 
-            // v1：返回空列表（等待 Generator 集成）
-            // 未来：从 ExecutableSkeletonPlan 生成 BlockPatch
-            return List.of();
+            // Step 3: ExecutableSkeletonPlan → Generator → BlockPatch
+            // 使用 SkeletonBuildService 将每个 ExecutableSkeletonPlan 转换为 BlockPatch
+            if (compiled.isEmpty() || world == null || globalAnchor == null) {
+                FormacraftMod.LOGGER.debug("PlanProgramCompiler: skipping generator step (empty skeletons or missing world/anchor)");
+                return List.of();
+            }
+
+            return generateBlockPatchesFromSkeletons(compiled.getSkeletons(), globalAnchor, world);
 
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("PlanProgramCompiler: compilation from PlanSkeleton failed", e);
@@ -150,5 +153,74 @@ public final class PlanProgramCompiler {
             FormacraftMod.LOGGER.error("PlanProgramCompiler: JSON compilation failed", e);
             return List.of();
         }
+    }
+
+    /**
+     * 从 ExecutableSkeletonPlan 列表生成 BlockPatch 列表
+     * <p>
+     * 使用 SkeletonBuildService 将每个 skeleton 转换为 BlockPatch
+     * <p>
+     * 处理逻辑：
+     * 1. 为每个 ExecutableSkeletonPlan 调用 Generator
+     * 2. 所有 BlockPatch 使用相同的 origin（globalAnchor）
+     * 3. 合并所有生成的 BlockPatch
+     *
+     * @param skeletons ExecutableSkeletonPlan 列表
+     * @param origin 世界原点（BlockPatch 的相对坐标基准）
+     * @param world 服务器世界
+     * @return BlockPatch 列表（相对 origin 的偏移）
+     */
+    private static List<BlockPatch> generateBlockPatchesFromSkeletons(
+            List<ExecutableSkeletonPlan> skeletons,
+            BlockPos origin,
+            ServerWorld world
+    ) {
+        if (skeletons == null || skeletons.isEmpty() || world == null || origin == null) {
+            return List.of();
+        }
+
+        List<BlockPatch> allPatches = new ArrayList<>();
+        SkeletonBuildService buildService = new SkeletonBuildService();
+
+        for (ExecutableSkeletonPlan skeleton : skeletons) {
+            if (skeleton == null) {
+                continue;
+            }
+
+            try {
+                // 使用 SkeletonBuildService 生成 BlockPatch
+                // 注意：SkeletonBuildService 会优先使用新的语义系统，如果没有则回退到旧生成器
+                List<BlockPatch> patches = buildService.build(world, origin, skeleton, "DEFAULT");
+
+                if (patches != null && !patches.isEmpty()) {
+                    allPatches.addAll(patches);
+                    FormacraftMod.LOGGER.debug(
+                            "PlanProgramCompiler: generated {} patches for skeleton type {}",
+                            patches.size(),
+                            skeleton.type
+                    );
+                } else {
+                    FormacraftMod.LOGGER.debug(
+                            "PlanProgramCompiler: no patches generated for skeleton type {}",
+                            skeleton.type
+                    );
+                }
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.warn(
+                        "PlanProgramCompiler: failed to generate patches for skeleton type {}: {}",
+                        skeleton.type,
+                        e.getMessage()
+                );
+                // 继续处理其他 skeleton，不中断整个流程
+            }
+        }
+
+        FormacraftMod.LOGGER.info(
+                "PlanProgramCompiler: generated {} total patches from {} skeletons",
+                allPatches.size(),
+                skeletons.size()
+        );
+
+        return allPatches;
     }
 }
