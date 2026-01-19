@@ -1163,9 +1163,42 @@ USER REQUEST:
             }
         }
 
-        // 3. 限制数量（防止 prompt 爆炸）
+        // 3. 增强检索：扩展搜索范围，查找更多相似建筑
+        // 扩大附近建筑的搜索范围（从 32.0 增加到 64.0）
+        try {
+            com.formacraft.common.buildcontext.BuildContext bc = 
+                com.formacraft.client.buildcontext.BuildContextResolver.resolve(false);
+            if (bc != null && bc.origin != null) {
+                // 查找更远的建筑
+                com.formacraft.server.memory.ProjectMemory farNearest = 
+                    memoryManager.findNearest(bc.origin, 64.0);
+                if (farNearest != null) {
+                    result.add(farNearest);
+                }
+                
+                // 如果用户输入包含建筑类型关键词，进行类型匹配搜索
+                String lowerMessage = (ctx.userMessage != null) ? ctx.userMessage.toLowerCase() : "";
+                if (lowerMessage.contains("house") || lowerMessage.contains("房子") || lowerMessage.contains("住宅")) {
+                    result.addAll(memoryManager.searchContains("house"));
+                    result.addAll(memoryManager.searchContains("residential"));
+                }
+                if (lowerMessage.contains("tower") || lowerMessage.contains("塔") || lowerMessage.contains("楼")) {
+                    result.addAll(memoryManager.searchContains("tower"));
+                }
+                if (lowerMessage.contains("castle") || lowerMessage.contains("城堡")) {
+                    result.addAll(memoryManager.searchContains("castle"));
+                }
+                if (lowerMessage.contains("temple") || lowerMessage.contains("庙") || lowerMessage.contains("寺")) {
+                    result.addAll(memoryManager.searchContains("temple"));
+                }
+            }
+        } catch (Exception e) {
+            // 忽略错误，继续处理
+        }
+
+        // 4. 限制数量（防止 prompt 爆炸），但增加到 5 个以提供更多参考
         java.util.List<com.formacraft.server.memory.ProjectMemory> top = 
-            result.stream().limit(3).toList();
+            result.stream().limit(5).toList();
 
         if (top.isEmpty()) {
             return null;
@@ -1211,8 +1244,10 @@ USER REQUEST:
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("=== WORLD MEMORY CONTEXT ===\n");
-        sb.append("The following buildings already exist in this world:\n\n");
+        sb.append("\n=== WORLD MEMORY CONTEXT (CRITICAL - USE FOR REFERENCE) ===\n");
+        sb.append("The following buildings already exist near the build location.\n");
+        sb.append("IMPORTANT: Use these as reference to ensure architectural consistency, style coherence, and spatial relationships.\n");
+        sb.append("Consider: similar materials, complementary styles, appropriate scale, and functional relationships.\n\n");
 
         for (com.formacraft.server.memory.ProjectMemory b : buildings) {
             sb.append("- Building: ").append(b.getName() != null ? b.getName() : "Unnamed").append("\n");
@@ -1403,10 +1438,40 @@ USER REQUEST:
             - decorative: visual detail
             
             -----------------------------------
-            IMPORTANT
+            CRITICAL REQUIREMENTS
             -----------------------------------
             
-            You must output a JSON array of ComponentQuery objects.
+            - When a building requires ANY architectural components (doors, windows, columns, balconies, railings, etc),
+              you MUST describe them using ComponentQuery objects in the component_query field.
+            
+            - DO NOT try to select specific component IDs - the system will automatically match ComponentQuery
+              to the best available components from the component library.
+            
+            - DO NOT omit components - if a building needs doors, windows, or other features, you MUST include
+              ComponentQuery objects for them.
+            
+            - ComponentQuery enables intelligent component selection based on context, style, and constraints,
+              which is much better than hardcoding specific component IDs.
+            
+            -----------------------------------
+            OUTPUT FORMAT
+            -----------------------------------
+            
+            You must output a JSON array of ComponentQuery objects in the component_query field.
+            
+            Example structure in LlmPlan:
+            {
+              "components": [...],
+              "component_query": [
+                {
+                  "semantic": { "role": "door", "tags": ["wooden", "arched"] },
+                  "context": { "placement": "wall", "side": "exterior", "heightLevel": "ground" },
+                  "geometry": { "requiresOpening": true, "openingWidth": 2, "openingHeight": 3 },
+                  "style": { "styleProfile": "Medieval_Castle" },
+                  "usageHint": { "frequency": "primary", "visibility": "high" }
+                }
+              ]
+            }
             
             If no components are needed, output an empty array: []
             

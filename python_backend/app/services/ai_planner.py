@@ -565,17 +565,52 @@ def _build_system_prompt() -> str:
         "- If you set extra.styleProfileId, you MAY omit extra.paletteId (it will fallback to the style profile default palette).\n"
         "- If you set extra.paletteId, it MUST be one of the palette IDs listed in PaletteCatalog.\n"
         "- NEVER invent unknown styleProfileId/paletteId. If unsure, omit them.\n"
-        "\nRAG context (optional):\n"
-        "- The user prompt may include RAG context blocks:\n"
-        "  - AssemblyDraft(JSON): A minimal assembly structure (especially macro.style) as a starting point.\n"
-        "    You SHOULD use macro.style.* fields as strong hints for extra.assembly.macro.style.\n"
-        "  - CultureRetrieval(JSON): Contains few-shot examples and hit metadata.\n"
-        "    Use fewShots as reference examples for generating extra.assembly structure.\n"
-        "  - BuildingKnowledge(JSON): Contains detailed architectural features for specific buildings.\n"
-        "    When present, you MUST analyze the building's features (shape, form, structuralType, materials, distinctiveElements)\n"
+        "\nRAG context (CRITICAL - MUST USE WHEN PROVIDED):\n"
+        "- The user prompt may include RAG context blocks that contain valuable architectural knowledge.\n"
+        "  When these blocks are present, you MUST actively use them to inform your generation decisions.\n"
+        "  Ignoring RAG context when available will result in lower-quality, less culturally accurate buildings.\n"
+        "\n"
+        "- AssemblyDraft(JSON): A minimal assembly structure (especially macro.style) as a starting point.\n"
+        "  * You MUST use macro.style.* fields as strong hints for extra.assembly.macro.style.\n"
+        "  * These values are pre-computed based on user intent and should guide your style choices.\n"
+        "  * Example: If AssemblyDraft suggests 'density=0.8', incorporate dense decorative elements.\n"
+        "\n"
+        "- CultureRetrieval(JSON): Contains few-shot examples and hit metadata from architectural knowledge base.\n"
+        "  * CRITICAL: You MUST analyze the fewShots array and use them as reference examples for generating extra.assembly structure.\n"
+        "  * Each fewShot is a validated architectural example that matches the user's intent - these are proven, working examples.\n"
+        "  * Study the structure, style patterns, material choices, and geometric forms in fewShots to generate similar quality output.\n"
+        "  * Pay attention to:\n"
+        "    - Component arrangements (how components are organized)\n"
+        "    - Style patterns (recurring design elements)\n"
+        "    - Material choices (block selections that create the desired aesthetic)\n"
+        "    - Geometric relationships (how parts relate spatially)\n"
+        "  * The hits array shows which cultural/architectural styles match the query - use this to refine styleProfileId.\n"
+        "  * Example: If fewShots show '徽派建筑' (Huizhou architecture), generate buildings with characteristic features like white walls, black tiles, and courtyard layouts.\n"
+        "  * IMPORTANT: When fewShots are provided, your output should reflect similar patterns and structures - these are your reference templates.\n"
+        "\n"
+        "- BuildingKnowledge(JSON): Contains detailed architectural features for specific landmark buildings.\n"
+        "  * When present, you MUST analyze the building's features (shape, form, structuralType, materials, distinctiveElements)\n"
         "    and use assemblyHints to generate appropriate extra.assembly structure.\n"
-        "    The description fields provide context about the building's key characteristics.\n"
-        "- Do NOT copy these blocks into output; only use them to decide extra.styleProfileId/extra.paletteId/extra.assembly.\n"
+        "  * The description fields provide context about the building's key characteristics - use them to ensure accuracy.\n"
+        "  * Example: If BuildingKnowledge describes '鸟巢体育馆' with elliptical shape and mesh facade, generate extra.assembly with curved geometry and surface patterns.\n"
+        "\n"
+        "- StyleProfileCatalog: A list of available style profiles filtered by relevance.\n"
+        "  * You MUST select a styleProfileId from this catalog when user requests a specific architectural style.\n"
+        "  * The catalog is pre-filtered based on user query - use it instead of inventing style IDs.\n"
+        "  * If no catalog is provided, you may omit styleProfileId or use a generic one.\n"
+        "\n"
+        "- PaletteCatalog: A list of available block palettes filtered by relevance.\n"
+        "  * You MUST select a paletteId from this catalog to ensure block choices are valid.\n"
+        "  * The catalog contains Minecraft-compatible block combinations optimized for specific styles.\n"
+        "  * If styleProfileId is set and has a default palette, you may omit paletteId.\n"
+        "\n"
+        "- ACTION REQUIRED: When any RAG block is present, explicitly reference it in your reasoning:\n"
+        "  * Use AssemblyDraft values → Set corresponding extra.assembly.macro.style fields\n"
+        "  * Use CultureRetrieval fewShots → Generate similar structural patterns\n"
+        "  * Use BuildingKnowledge features → Apply distinctive architectural elements\n"
+        "  * Use StyleProfileCatalog → Select appropriate styleProfileId\n"
+        "  * Use PaletteCatalog → Select appropriate paletteId\n"
+        "- Do NOT copy RAG blocks into output; only use them to inform your decisions.\n"
         "\nLayout IR (STRONGLY RECOMMENDED when user mentions layout concepts):\n"
         "- When user mentions: symmetry/对称, axis/轴线, courtyard/中庭/庭院, entrance direction/入口方向, corridor/回廊:\n"
         "  You SHOULD set extra.layout as a JSON object with:\n"
@@ -3967,8 +4002,39 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     if not client:
         return _generate_fallback_spec(req)
     
+    # I-layer: For complex buildings, generate SemanticSpatialPlan to improve spatial organization
+    # Complex building indicators: multiple zones, courtyards, functional divisions, large scale
+    request_text_lower = (req.requestText or "").lower()
+    is_complex_building = any(keyword in request_text_lower for keyword in [
+        "courtyard", "中庭", "庭院", "院落", "multiple rooms", "多个房间", "functional", "功能分区",
+        "large", "大型", "complex", "复杂", "multilevel", "多层", "wing", "翼楼", "corridor", "走廊",
+        "symmetric", "对称", "axis", "轴线", "layout", "布局", "plan", "平面"
+    ])
+    
+    # Also check selection size - large selections may benefit from semantic planning
+    if req.selection:
+        dx = abs(req.selection.max.x - req.selection.min.x) + 1
+        dz = abs(req.selection.max.z - req.selection.min.z) + 1
+        if max(dx, dz) > 48:  # Large footprint
+            is_complex_building = True
+    
+    semantic_plan = None
+    if is_complex_building:
+        # Generate semantic spatial plan for complex buildings
+        semantic_plan = generate_semantic_spatial_plan(req)
+    
     system_prompt = _build_system_prompt()
     user_prompt = _build_user_prompt(req)
+    
+    # If semantic plan was generated, add it to the prompt for better spatial organization
+    if semantic_plan is not None:
+        try:
+            import json
+            sp_json = json.dumps(semantic_plan.model_dump(by_alias=True), ensure_ascii=False)
+            user_prompt = user_prompt + "\n\nSemanticSpatialPlan(JSON):\n" + sp_json + "\n"
+            user_prompt = user_prompt + "\nNote: Use the SemanticSpatialPlan to inform zone layout, spatial relationships, and functional organization.\n"
+        except Exception:
+            pass
     
     try:
         # 使用 OpenAI Chat Completions API
