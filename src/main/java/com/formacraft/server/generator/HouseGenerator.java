@@ -18,6 +18,9 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.BlockPos;
 import com.formacraft.server.waterfront.WaterDetector;
 import com.formacraft.server.waterfront.WaterfrontPierGenerator;
+import com.formacraft.server.terrain.TerrainFit;
+import com.formacraft.server.terrain.TerrainPolicy;
+import com.formacraft.server.terrain.TerrainPolicyResolver;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -371,25 +374,79 @@ public class HouseGenerator implements StructureGenerator {
             }
         }
 
+        // -------------------------------------
+        // 0. 地坪平整（确保单体建筑的每层地板都是平的）
+        // -------------------------------------
+        int baseY = origin.getY();
+        java.util.Map<String, Object> extra = spec.getExtra() != null ? spec.getExtra() : java.util.Collections.emptyMap();
+        TerrainPolicy terrainPolicy = TerrainPolicyResolver.resolve(extra);
+        
+        // 获取平整参数（从 extra 或使用默认值）
+        int padDepth = 4; // 默认值
+        int clearHeight = 8; // 默认值
+        Object padDepthObj = extra.get("terrainPadDepth");
+        Object clearHeightObj = extra.get("terrainClearHeight");
+        if (padDepthObj instanceof Number) padDepth = ((Number) padDepthObj).intValue();
+        if (clearHeightObj instanceof Number) clearHeight = ((Number) clearHeightObj).intValue();
+        
+        // 如果地形策略是 ADAPTIVE 或 FLATTEN_AREA，进行地坪平整
+        if (terrainPolicy == TerrainPolicy.ADAPTIVE || terrainPolicy == TerrainPolicy.FLATTEN_AREA) {
+            // 首先调整 origin 的 Y 坐标（snap to terrain）
+            origin = TerrainFit.snapOrigin(world, origin, width, depth);
+            baseY = origin.getY();
+            
+            // 计算目标高度（平均地形高度 + 1）
+            int targetY = TerrainFit.averageFootprintHeight(world, origin, width, depth) + 1;
+            baseY = targetY;
+            
+            // 分析地形
+            TerrainFit.FootprintAnalysis analysis = TerrainFit.analyze(world, origin, width, depth);
+            
+            // 根据地形策略和地形情况决定平整方式
+            if (terrainPolicy == TerrainPolicy.FLATTEN_AREA) {
+                // FLATTEN_AREA 策略：使用 balancedPad 进行较大范围的平整
+                List<PlannedBlock> pad = TerrainFit.balancedPad(
+                        world, origin, width, depth, targetY, foundation,
+                        padDepth, clearHeight,
+                        true, true);
+                blocks.addAll(pad);
+            } else if (analysis.range() > 1) {
+                // ADAPTIVE 策略：如果地形起伏较大（range > 1），使用 adaptivePad 轻微平整
+                // 限制平整深度，避免大规模改动
+                int adaptivePadDepth = Math.min(padDepth, 4);
+                int adaptiveClearHeight = Math.min(clearHeight, 8);
+                List<PlannedBlock> pad = TerrainFit.adaptivePad(
+                        world, origin, width, depth, targetY, foundation,
+                        adaptivePadDepth, adaptiveClearHeight, true, true);
+                blocks.addAll(pad);
+                // 更新 baseY 为目标高度
+                baseY = targetY;
+            }
+            
+            // 更新 origin 的 Y 坐标
+            origin = new BlockPos(origin.getX(), baseY, origin.getZ());
+        }
+
         for (int f = 0; f < floors; f++) {
-            int y0 = f * floorHeight;
+            // 使用绝对高度确保每层地板都在同一水平面上
+            int floorY = baseY + f * floorHeight;
 
             for (int x = 1; x < width - 1; x++) {
                 for (int z = 1; z < depth - 1; z++) {
                     if (courtyard.enabled() && courtyard.containsInterior(x, z)) continue;
-                    BlockPos fp = origin.add(x, y0, z);
+                    BlockPos fp = new BlockPos(origin.getX() + x, floorY, origin.getZ() + z);
                     BlockState fl = floor;
                     if (paletteId != null && !paletteId.isBlank()) {
-                        long salt = (x * 31L) ^ (z * 17L) ^ (y0 * 13L);
+                        long salt = (x * 31L) ^ (z * 17L) ^ (floorY * 13L);
                         fl = PaletteResolver.pick(world, paletteId, "FLOORING", fp, salt, floor);
                     }
                     blocks.add(new PlannedBlock(fp, fl));
                 }
             }
 
-            // 天花（除了顶层）：用 trim 做“梁/檐线”，更有层次
+            // 天花（除了顶层）：用 trim 做"梁/檐线"，更有层次
             if (f < floors - 1) {
-                int cy = y0 + floorHeight;
+                int cy = floorY + floorHeight;
                 if (cy > 0 && cy < height) {
                     for (int x = 1; x < width - 1; x++) {
                         blocks.add(new PlannedBlock(origin.add(x, cy, 1), trim));
