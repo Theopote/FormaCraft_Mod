@@ -333,26 +333,33 @@ public final class ComponentPlanCompiler {
             GlobalConstraints.Facing facing = slot != null && slot.facing() != null
                     ? slot.facing()
                     : (plan.globalConstraints() != null ? plan.globalConstraints().facing() : GlobalConstraints.Facing.SOUTH);
+            boolean hasFacade = slotsWithFacade.contains(slotKey);
+            boolean hasEntrance = slotsWithEntrance.contains(slotKey);
             boolean useAssemblyFacade = allowAssemblyFacade
                     && shouldUseAssemblyFacade(plan, c)
-                    && !slotsWithFacade.contains(slotKey)
-                    && !slotsWithEntrance.contains(slotKey);
+                    && !hasFacade
+                    && !hasEntrance;
 
             if (useAssemblyFacade) {
                 assemblyFacadeSlots.add(slotKey);
                 c = markAssemblyFacade(c);
             } else {
-                if (!slotsWithFacade.contains(slotKey)) {
+                if (!hasFacade) {
                     inferred.add(makeFacadeComponent(c, slotId));
                     slotsWithFacade.add(slotKey);
+                    hasFacade = true;
                 }
-                if (!slotsWithEntrance.contains(slotKey)) {
+                if (!hasEntrance) {
                     Component entrance = makeEntranceComponent(plan, c, slotId, facing);
                     if (entrance != null) {
                         inferred.add(entrance);
                         slotsWithEntrance.add(slotKey);
+                        hasEntrance = true;
                     }
                 }
+            }
+            if (hasFacade || hasEntrance) {
+                c = suppressMassOpenings(c, hasFacade, hasEntrance);
             }
             if (!slotsWithRoof.contains(slotKey)) {
                 Component roof = makeRoofComponent(plan, c, slotId);
@@ -514,20 +521,45 @@ public final class ComponentPlanCompiler {
     }
 
     private static Component suppressMassRoof(Component base) {
-        Map<String, Object> params = base.params();
-        if (params != null) {
-            params.put("roof_type", "none");
+        if (base == null) {
             return base;
         }
-        Map<String, Object> next = new HashMap<>();
-        next.put("roof_type", "none");
+        Map<String, Object> params = new HashMap<>();
+        if (base.params() != null) {
+            params.putAll(base.params());
+        }
+        params.put("roof_type", "none");
         return new Component(
                 base.componentType(),
                 base.slotId(),
                 base.relativePosition(),
                 base.dimensions(),
                 base.features(),
-                next
+                params
+        );
+    }
+
+    private static Component suppressMassOpenings(Component base, boolean suppressWindows, boolean suppressDoors) {
+        if (base == null || (!suppressWindows && !suppressDoors)) {
+            return base;
+        }
+        Map<String, Object> params = new HashMap<>();
+        if (base.params() != null) {
+            params.putAll(base.params());
+        }
+        if (suppressWindows) {
+            params.put("suppress_windows", true);
+        }
+        if (suppressDoors) {
+            params.put("suppress_doors", true);
+        }
+        return new Component(
+                base.componentType(),
+                base.slotId(),
+                base.relativePosition(),
+                base.dimensions(),
+                base.features(),
+                params
         );
     }
 
@@ -578,7 +610,7 @@ public final class ComponentPlanCompiler {
             return type;
         }
         String fallback = inferFallbackType(type);
-        if (fallback != null && GeneratorRegistry.hasGenerator(fallback)) {
+        if (GeneratorRegistry.hasGenerator(fallback)) {
             FormacraftMod.LOGGER.debug("ComponentPlanCompiler: fallback component type {} -> {}", type, fallback);
             return fallback;
         }

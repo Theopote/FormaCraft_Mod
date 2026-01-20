@@ -180,6 +180,8 @@ public class MassMainGenerator implements ComponentGenerator {
         boolean hasSteppedFacade = hasFeature(c, "stepped_facade", "stepped", "setback", "setbacks", 
                                                "进退", "进退关系", "立面", "facade_setback", "tiered");
         boolean assemblyFacade = getParamBoolean(params, "assembly_facade", "assemblyFacade");
+        boolean suppressWindows = getParamBoolean(params, "suppress_windows", "suppressWindows");
+        boolean suppressDoors = getParamBoolean(params, "suppress_doors", "suppressDoors");
 
         Double voidRatio = resolveVoidRatio(params, semantic);
         Double windowRatio = resolveWindowRatio(params, semantic);
@@ -216,6 +218,12 @@ public class MassMainGenerator implements ComponentGenerator {
             hasWindows = false;
             hasDoors = false;
         }
+        if (suppressWindows) {
+            hasWindows = false;
+        }
+        if (suppressDoors) {
+            hasDoors = false;
+        }
 
         // 记录特征匹配结果（用于调试）
         FormacraftMod.LOGGER.debug("MassMainGenerator: features check - hasWindows: {}, hasDoors: {}, hasRoof: {}, hasDecor: {}, hasInterior: {}, assemblyFacade: {}", 
@@ -223,7 +231,8 @@ public class MassMainGenerator implements ComponentGenerator {
         
         // 默认生成基础细节（即使没有匹配的 features）
         // 对于大多数建筑类型，默认应该有门和窗（除非明确不需要）
-        boolean shouldGenerateDefaultDetails = !assemblyFacade && isShouldGenerateDefaultDetails(semantic, hasDoors, hasWindows);
+        boolean shouldGenerateDefaultDetails = !assemblyFacade && !suppressWindows && !suppressDoors
+                && isShouldGenerateDefaultDetails(semantic, hasDoors, hasWindows);
 
         // 如果应该生成默认细节，启用门和窗
         if (shouldGenerateDefaultDetails) {
@@ -234,16 +243,16 @@ public class MassMainGenerator implements ComponentGenerator {
                         semantic.slot().program());
             }
         }
-        if (!assemblyFacade && isBuilding && !hasWindows && width >= 5 && depth >= 5 && height >= 4) {
+        if (!assemblyFacade && !suppressWindows && isBuilding && !hasWindows && width >= 5 && depth >= 5 && height >= 4) {
             hasWindows = true;
             if (windowRatio == null) {
                 windowRatio = 0.25;
             }
         }
-        if (!assemblyFacade && isBuilding && !hasDoors && width >= 4 && depth >= 4 && height >= 3) {
+        if (!assemblyFacade && !suppressDoors && isBuilding && !hasDoors && width >= 4 && depth >= 4 && height >= 3) {
             hasDoors = true;
         }
-        if (!assemblyFacade && windowRatio != null) {
+        if (!assemblyFacade && !suppressWindows && windowRatio != null) {
             hasWindows = windowRatio > 0.05;
         }
 
