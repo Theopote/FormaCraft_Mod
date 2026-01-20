@@ -56,9 +56,9 @@ public class TowerGenerator implements StructureGenerator {
 
         // Semantic features (Blueprint-driven, optional)
         Map<String, Object> extra = spec.getExtra();
-        boolean battlements = getBool(extra, "battlements", false);
-        boolean flag = getBool(extra, "flag", false);
-        boolean banner = getBool(extra, "banner", false);
+        boolean battlements = getBool(extra, "battlements");
+        boolean flag = getBool(extra, "flag");
+        boolean banner = getBool(extra, "banner");
         String bannerColor = getStr(extra, "bannerColor", "red");
         String paletteId = getStr(extra, "paletteId", "");
 
@@ -385,13 +385,13 @@ public class TowerGenerator implements StructureGenerator {
         out.add(new PlannedBlock(pos, st));
     }
 
-    private static boolean getBool(Map<String, Object> extra, String key, boolean def) {
-        if (extra == null) return def;
+    private static boolean getBool(Map<String, Object> extra, String key) {
+        if (extra == null) return false;
         Object v = extra.get(key);
-        if (v == null) return def;
+        if (v == null) return false;
         if (v instanceof Boolean b) return b;
         String s = String.valueOf(v).trim().toLowerCase();
-        if (s.isEmpty()) return def;
+        if (s.isEmpty()) return false;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 

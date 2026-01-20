@@ -42,7 +42,7 @@ public class SteampunkFactoryGenerator implements StructureGenerator {
         int roofH = clamp(getIntExtra(spec, "roofHeight", 5), 3, 9);
         int bays = clamp(getIntExtra(spec, "bays", Math.max(3, depth / 10)), 2, 9);
         int chimneyCount = clamp(getIntExtra(spec, "chimneyCount", 3), 1, 7);
-        boolean interiorTruss = getBoolExtra(spec, "truss", true);
+        boolean interiorTruss = getBoolExtra(spec);
 
         // Style & palette
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
@@ -190,16 +190,15 @@ public class SteampunkFactoryGenerator implements StructureGenerator {
             for (int i = 1; i < bays; i++) {
                 int z = i * bayStep;
                 if (z <= 2 || z >= depth - 3) continue;
-                int y0 = roofBaseY;
                 for (int ry = 0; ry < Math.min(roofH, 6); ry++) {
                     int xl = 2 + ry;
                     int xr = (width - 3) - ry;
                     if (xl >= xr) break;
-                    blocks.add(new PlannedBlock(rotateLocal(origin, xl, y0 + ry, z, facing), beam));
-                    blocks.add(new PlannedBlock(rotateLocal(origin, xr, y0 + ry, z, facing), beam));
+                    blocks.add(new PlannedBlock(rotateLocal(origin, xl, roofBaseY + ry, z, facing), beam));
+                    blocks.add(new PlannedBlock(rotateLocal(origin, xr, roofBaseY + ry, z, facing), beam));
                     if ((ry & 1) == 1) {
-                        blocks.add(new PlannedBlock(rotateLocal(origin, xl + 1, y0 + ry, z, facing), decor));
-                        blocks.add(new PlannedBlock(rotateLocal(origin, xr - 1, y0 + ry, z, facing), decor));
+                        blocks.add(new PlannedBlock(rotateLocal(origin, xl + 1, roofBaseY + ry, z, facing), decor));
+                        blocks.add(new PlannedBlock(rotateLocal(origin, xr - 1, roofBaseY + ry, z, facing), decor));
                     }
                 }
                 // bottom tie
@@ -230,7 +229,6 @@ public class SteampunkFactoryGenerator implements StructureGenerator {
         if (facing == null) facing = Direction.SOUTH;
         // local: forward = +Z
         return switch (facing) {
-            case SOUTH -> origin.add(lx, ly, lz);
             case NORTH -> origin.add(-lx, ly, -lz);
             case EAST -> origin.add(lz, ly, -lx);
             case WEST -> origin.add(-lz, ly, lx);
@@ -248,7 +246,6 @@ public class SteampunkFactoryGenerator implements StructureGenerator {
                     String s = String.valueOf(ef).trim().toUpperCase();
                     return switch (s) {
                         case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-                        case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
                         case "E", "EAST", "东", "朝东" -> Direction.EAST;
                         case "W", "WEST", "西", "朝西" -> Direction.WEST;
                         default -> Direction.SOUTH;
@@ -259,15 +256,15 @@ public class SteampunkFactoryGenerator implements StructureGenerator {
         return Direction.SOUTH;
     }
 
-    private static boolean getBoolExtra(BuildingSpec spec, String key, boolean def) {
-        if (spec == null) return def;
+    private static boolean getBoolExtra(BuildingSpec spec) {
+        if (spec == null) return true;
         Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
+        if (extra == null) return true;
+        Object v = extra.get("truss");
+        if (v == null) return true;
         if (v instanceof Boolean b) return b;
         String s = String.valueOf(v).trim().toLowerCase();
-        if (s.isEmpty()) return def;
+        if (s.isEmpty()) return true;
         return s.equals("1") || s.equals("true") || s.equals("yes") || s.equals("y") || s.equals("on");
     }
 

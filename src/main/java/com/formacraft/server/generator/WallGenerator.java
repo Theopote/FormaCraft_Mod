@@ -252,7 +252,6 @@ public class WallGenerator implements StructureGenerator {
         if (s.isEmpty()) return Direction.SOUTH;
         return switch (s) {
             case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
             case "E", "EAST", "东", "朝东" -> Direction.EAST;
             case "W", "WEST", "西", "朝西" -> Direction.WEST;
             default -> Direction.SOUTH;

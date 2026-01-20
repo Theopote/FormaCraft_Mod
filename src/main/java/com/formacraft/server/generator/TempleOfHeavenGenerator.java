@@ -119,7 +119,7 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
 
         // Layout IR: front_back -> emphasize the main axis from entrance to center (best-effort).
         if ("front_back".equals(layoutPlan)) {
-            addAxialPath(blocks, origin, baseRadius, 0, trim, entranceSide);
+            addAxialPath(blocks, origin, baseRadius, trim, entranceSide);
         }
 
         // 3) 三层屋顶（简化：三段圆锥）
@@ -235,7 +235,6 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
     private static boolean isDoorOpeningCell(int x, int z, int r, int doorW, Direction doorSide) {
         // leave a rectangular opening at the ring boundary, centered on the axis for the chosen side
         return switch (doorSide) {
-            case SOUTH -> (z >= r - 1) && (Math.abs(x) <= doorW);
             case NORTH -> (z <= -r + 1) && (Math.abs(x) <= doorW);
             case EAST -> (x >= r - 1) && (Math.abs(z) <= doorW);
             case WEST -> (x <= -r + 1) && (Math.abs(z) <= doorW);
@@ -254,7 +253,6 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
                         String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
                         return switch (s) {
                             case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-                            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
                             case "E", "EAST", "东", "朝东" -> Direction.EAST;
                             case "W", "WEST", "西", "朝西" -> Direction.WEST;
                             default -> Direction.SOUTH;
@@ -275,20 +273,29 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
                     if (plan == null) return "none";
                     String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
                     if (p.isEmpty()) return "none";
-                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
-                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
-                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
-                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
-                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
-                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
-                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
+                    switch (p) {
+                        case "none", "no", "false", "0", "off" -> {
+                            return "none";
+                        }
+                        case "front_back", "frontback", "front-back", "front/back", "前后", "前后分区", "前后布局",
+                             "前厅后室" -> {
+                            return "front_back";
+                        }
+                        case "left_right", "leftright", "left-right", "left/right", "左右", "左右分区", "左右布局" -> {
+                            return "left_right";
+                        }
+                        case "ring_corridor", "ring", "courtyard_corridor", "gallery", "cloister", "回廊", "环廊",
+                             "环形走廊", "围绕中庭", "回字形", "回字布局", "回字走廊" -> {
+                            return "ring_corridor";
+                        }
+                    }
                 }
             }
         } catch (Throwable ignored) {}
         return "none";
     }
 
-    private static void addAxialPath(List<PlannedBlock> blocks, BlockPos origin, int r, int y, BlockState s, Direction entranceSide) {
+    private static void addAxialPath(List<PlannedBlock> blocks, BlockPos origin, int r, BlockState s, Direction entranceSide) {
         if (entranceSide == null) entranceSide = Direction.SOUTH;
         int fx = (entranceSide == Direction.EAST ? 1 : (entranceSide == Direction.WEST ? -1 : 0));
         int fz = (entranceSide == Direction.SOUTH ? 1 : (entranceSide == Direction.NORTH ? -1 : 0));
@@ -299,7 +306,7 @@ public class TempleOfHeavenGenerator implements StructureGenerator {
             for (int w = -1; w <= 1; w++) {
                 int ox = (entranceSide == Direction.NORTH || entranceSide == Direction.SOUTH) ? w : 0;
                 int oz = (entranceSide == Direction.EAST || entranceSide == Direction.WEST) ? w : 0;
-                blocks.add(new PlannedBlock(origin.add(x + ox, y, z + oz), s));
+                blocks.add(new PlannedBlock(origin.add(x + ox, 0, z + oz), s));
             }
         }
     }

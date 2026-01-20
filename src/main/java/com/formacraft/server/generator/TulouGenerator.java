@@ -696,13 +696,22 @@ public class TulouGenerator implements StructureGenerator {
                 if (plan != null) {
                     String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
                     if (p.isEmpty()) return "none";
-                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
-                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
-                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
-                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
-                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
-                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
-                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
+                    switch (p) {
+                        case "none", "no", "false", "0", "off" -> {
+                            return "none";
+                        }
+                        case "front_back", "frontback", "front-back", "front/back", "前后", "前后分区", "前后布局",
+                             "前厅后室" -> {
+                            return "front_back";
+                        }
+                        case "left_right", "leftright", "left-right", "left/right", "左右", "左右分区", "左右布局" -> {
+                            return "left_right";
+                        }
+                        case "ring_corridor", "ring", "courtyard_corridor", "gallery", "cloister", "回廊", "环廊",
+                             "环形走廊", "围绕中庭", "回字形", "回字布局", "回字走廊" -> {
+                            return "ring_corridor";
+                        }
+                    }
                 }
             }
         } catch (Throwable ignored) {}
@@ -727,7 +736,6 @@ public class TulouGenerator implements StructureGenerator {
                         String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
                         return switch (s) {
                             case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-                            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
                             case "E", "EAST", "东", "朝东" -> Direction.EAST;
                             case "W", "WEST", "西", "朝西" -> Direction.WEST;
                             default -> Direction.SOUTH;
@@ -745,8 +753,7 @@ public class TulouGenerator implements StructureGenerator {
         // N/S openings near x≈0, z≈±innerRadius
         if (Math.abs(x) <= tol && Math.abs(z) >= innerRadius - 1) return true;
         // E/W openings near z≈0, x≈±innerRadius
-        if (Math.abs(z) <= tol && Math.abs(x) >= innerRadius - 1) return true;
-        return false;
+        return Math.abs(z) <= tol && Math.abs(x) >= innerRadius - 1;
     }
 
     private static Direction parseFacing(String s) {
