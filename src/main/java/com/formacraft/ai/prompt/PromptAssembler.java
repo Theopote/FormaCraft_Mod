@@ -98,6 +98,10 @@ You ONLY output structured JSON following the schema below.
 Core rules:
 - Coordinate system: X/Z = horizontal plane, Y = vertical height.
 - All positions are relative to the provided anchor (0,0,0).
+- Component origins:
+  * MASS_* components: default to footprint center unless you set params.anchor_mode="min_corner".
+  * TOWER components: use footprint center.
+  * Facade/entrance/signage/roof/paving components: use the minimum corner (lowest x/z) of the component box.
 - Respect all spatial constraints: path, outline, forbidden zones, symmetry, terrain strategy.
 - Use semantic components (TOWER, WALL, ROOF, ENTRANCE, SIGNAGE, etc.), NOT blocks.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
@@ -228,6 +232,7 @@ StyleAttributesObject:
 
 ComponentParamsObject:
 {
+  "anchor_mode": "center|min_corner",
   "shape": "rectangle|circle|rounded_rect",
   "corner_radius": int,
   "plan_type": "none|cross|cut_corners|l_shape|courtyard",
@@ -813,6 +818,8 @@ SEMANTIC REGIONS (CRITICAL):
         sb.append("- Fill the \"components\" array with ComponentObject entries based on the component_preset for each slot.\n");
         sb.append("- Use semantic component types (MASS_MAIN, ENTRANCE, FACADE_WINDOWS, SIGNAGE, etc.), NOT block IDs.\n");
         sb.append("- All positions in components must be relative to the slot's anchor.\n");
+        sb.append("- Every component must include relative_position and dimensions (width/depth/height > 0).\n");
+        sb.append("- Origin conventions: MASS_* uses center unless params.anchor_mode=\"min_corner\"; TOWER uses center; facade/entrance/signage/roof/paving use min corner.\n");
         sb.append("- Respect the component_preset weights and densities when generating components.\n");
         sb.append("- Populate \"genome\" with topology/structure/form/material semantics to drive parameterized generation.\n");
         sb.append("- Use ComponentObject.params to express shape/plan/void/roof/setback/multi-mass intent instead of free-text features.\n");

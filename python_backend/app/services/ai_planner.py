@@ -253,7 +253,7 @@ def _default_component_params_for_spec(spec: BuildingSpec) -> Dict[str, Any]:
 
 def _ensure_genome_for_spec(spec: BuildingSpec, req: Optional[BuildRequest]) -> BuildingSpec:
     if spec is None:
-        return _ensure_genome_for_spec(spec, req)
+        return spec
     if spec.extra is None:
         spec.extra = {}
     if "genome" not in spec.extra or not isinstance(spec.extra.get("genome"), dict):
@@ -301,7 +301,7 @@ def _attach_archetype_genome(
 
 def _ensure_genome_for_composite_spec(spec: CompositeSpec, req: Optional[BuildRequest]) -> CompositeSpec:
     if spec is None:
-        return _ensure_genome_for_spec(spec, req)
+        return spec
     for entry in (spec.structures or []):
         if entry is None or getattr(entry, "spec", None) is None:
             continue
@@ -420,6 +420,288 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
             params["door_height"] = min(4, int(dims.get("height", 4)))
 
 
+_COMPONENT_TYPE_ALIASES = {
+    "MAIN_MASS": "MASS_MAIN",
+    "BUTTRESS": "WALL",
+}
+
+_MASS_COMPONENT_TYPES = {
+    "MASS_MAIN",
+    "MASS_SECONDARY",
+    "MASS_WING",
+    "SIDE_WING",
+    "MAIN_MASS",
+}
+
+_FACADE_COMPONENT_TYPES = {
+    "FACADE_WINDOWS",
+    "FACADE",
+    "WALL_FACADE",
+}
+
+_PLANAR_COMPONENT_TYPES = {
+    "COURTYARD",
+    "COURTYARD_SPACE",
+    "PATH",
+    "ROAD",
+    "PAVING",
+    "PLAZA",
+    "PLAZA_CORE",
+    "TERRACE",
+    "TERRACE_PLAZA",
+}
+
+_ROOF_COMPONENT_TYPES = {
+    "ROOF",
+    "ROOF_STRUCTURE",
+}
+
+
+def _normalize_component_type(value: Any) -> str:
+    if value is None:
+        return ""
+    upper = str(value).strip().upper()
+    return _COMPONENT_TYPE_ALIASES.get(upper, upper)
+
+
+def _normalize_features(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value if v is not None and str(v).strip() != ""]
+    if isinstance(value, str):
+        return [value]
+    return []
+
+
+def _coerce_int(value: Any, fallback: Optional[int]) -> Optional[int]:
+    try:
+        if value is None:
+            return fallback
+        return int(value)
+    except Exception:
+        return fallback
+
+
+def _normalize_vec3(value: Any) -> Dict[str, int]:
+    if isinstance(value, dict):
+        return {
+            "x": _coerce_int(value.get("x"), 0) or 0,
+            "y": _coerce_int(value.get("y"), 0) or 0,
+            "z": _coerce_int(value.get("z"), 0) or 0,
+        }
+    if isinstance(value, (list, tuple)) and len(value) >= 3:
+        return {
+            "x": _coerce_int(value[0], 0) or 0,
+            "y": _coerce_int(value[1], 0) or 0,
+            "z": _coerce_int(value[2], 0) or 0,
+        }
+    return {"x": 0, "y": 0, "z": 0}
+
+
+def _extract_mass_dims(components: List[Any]) -> Optional[Dict[str, int]]:
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        ctype = _normalize_component_type(comp.get("component_type"))
+        if ctype not in _MASS_COMPONENT_TYPES:
+            continue
+        dims = comp.get("dimensions")
+        if not isinstance(dims, dict):
+            continue
+        width = _coerce_int(dims.get("width"), None)
+        depth = _coerce_int(dims.get("depth"), None)
+        height = _coerce_int(dims.get("height"), None)
+        if width and width > 0 and depth and depth > 0 and height and height > 0:
+            return {"width": width, "depth": depth, "height": height}
+    return None
+
+
+def _param_int(params: Dict[str, Any], *keys: str) -> Optional[int]:
+    for key in keys:
+        if key in params:
+            value = _coerce_int(params.get(key), None)
+            if value is not None:
+                return value
+    return None
+
+
+def _param_string(params: Dict[str, Any], *keys: str) -> Optional[str]:
+    for key in keys:
+        if key in params:
+            value = params.get(key)
+            if value is None:
+                continue
+            text = str(value).strip()
+            if text:
+                return text
+    return None
+
+
+def _selection_dimensions(req: Optional[BuildRequest]) -> Optional[Dict[str, int]]:
+    if req is None:
+        return None
+    sel = req.selection or req.brushSelection
+    if sel is None:
+        return None
+    dx = abs(sel.max.x - sel.min.x) + 1
+    dy = abs(sel.max.y - sel.min.y) + 1
+    dz = abs(sel.max.z - sel.min.z) + 1
+    return {"width": max(1, dx), "height": max(1, dy), "depth": max(1, dz)}
+
+
+def _clamp_dimensions_to_selection(dims: Dict[str, int], selection_dims: Optional[Dict[str, int]]) -> Dict[str, int]:
+    if not selection_dims:
+        return dims
+    return {
+        "width": max(1, min(dims.get("width", 1), selection_dims["width"])),
+        "height": max(1, min(dims.get("height", 1), selection_dims["height"])),
+        "depth": max(1, min(dims.get("depth", 1), selection_dims["depth"])),
+    }
+
+
+def _selection_bounds_relative(req: Optional[BuildRequest], anchor: Optional[Dict[str, int]]) -> Optional[Dict[str, int]]:
+    if req is None:
+        return None
+    sel = req.selection or req.brushSelection
+    if sel is None:
+        return None
+    if anchor is None:
+        anchor = {"x": req.player.pos.x, "y": req.player.pos.y, "z": req.player.pos.z}
+    min_x = min(sel.min.x, sel.max.x) - anchor["x"]
+    max_x = max(sel.min.x, sel.max.x) - anchor["x"]
+    min_y = min(sel.min.y, sel.max.y) - anchor["y"]
+    max_y = max(sel.min.y, sel.max.y) - anchor["y"]
+    min_z = min(sel.min.z, sel.max.z) - anchor["z"]
+    max_z = max(sel.min.z, sel.max.z) - anchor["z"]
+    return {"min_x": min_x, "max_x": max_x, "min_y": min_y, "max_y": max_y, "min_z": min_z, "max_z": max_z}
+
+
+def _clamp_value(value: int, min_value: int, max_value: int) -> int:
+    return max(min_value, min(max_value, value))
+
+
+def _clamp_relative_position(
+    rp: Dict[str, int],
+    dims: Dict[str, int],
+    anchor_mode: str,
+    bounds: Optional[Dict[str, int]],
+) -> Dict[str, int]:
+    if not bounds:
+        return rp
+    width = max(1, dims.get("width", 1))
+    depth = max(1, dims.get("depth", 1))
+    height = max(1, dims.get("height", 1))
+    if anchor_mode == "min_corner":
+        min_x = bounds["min_x"]
+        max_x = bounds["max_x"] - (width - 1)
+        min_z = bounds["min_z"]
+        max_z = bounds["max_z"] - (depth - 1)
+    else:
+        half_x = width // 2
+        half_z = depth // 2
+        min_x = bounds["min_x"] + half_x
+        max_x = bounds["max_x"] - (width - 1 - half_x)
+        min_z = bounds["min_z"] + half_z
+        max_z = bounds["max_z"] - (depth - 1 - half_z)
+    if max_x < min_x:
+        max_x = min_x
+    if max_z < min_z:
+        max_z = min_z
+    min_y = bounds["min_y"]
+    max_y = bounds["max_y"] - (height - 1)
+    if max_y < min_y:
+        max_y = min_y
+    rp["x"] = _clamp_value(rp.get("x", 0), min_x, max_x)
+    rp["y"] = _clamp_value(rp.get("y", 0), min_y, max_y)
+    rp["z"] = _clamp_value(rp.get("z", 0), min_z, max_z)
+    return rp
+
+
+def _looks_like_min_corner_anchor(rp: Dict[str, int], dims: Dict[str, int]) -> bool:
+    hx = max(1, dims.get("width", 1)) // 2
+    hz = max(1, dims.get("depth", 1)) // 2
+    return abs((rp.get("x", 0) + hx)) <= 1 and abs((rp.get("z", 0) + hz)) <= 1
+
+
+def _infer_mass_height(params: Dict[str, Any], fallback: int) -> int:
+    floor_height = _param_int(params, "floor_height", "floorHeight")
+    floor_count = _param_int(params, "floor_count", "floorCount")
+    if floor_height and floor_count:
+        return max(3, floor_height * floor_count)
+    if floor_height:
+        return max(3, floor_height)
+    return fallback
+
+
+def _default_dimensions_for_component(
+    ctype: str,
+    params: Dict[str, Any],
+    mass_dims: Optional[Dict[str, int]],
+) -> Dict[str, int]:
+    if ctype in _MASS_COMPONENT_TYPES:
+        width = mass_dims["width"] if mass_dims else 8
+        depth = mass_dims["depth"] if mass_dims else 6
+        height = _infer_mass_height(params, mass_dims["height"] if mass_dims else 6)
+        return {"width": width, "depth": depth, "height": height}
+    if ctype.startswith("TOWER"):
+        width = mass_dims["width"] if mass_dims else 6
+        depth = mass_dims["depth"] if mass_dims else width
+        height = mass_dims["height"] if mass_dims else 12
+        return {"width": width, "depth": depth, "height": height}
+    if ctype in _ROOF_COMPONENT_TYPES:
+        width = mass_dims["width"] if mass_dims else 8
+        depth = mass_dims["depth"] if mass_dims else 6
+        height = _param_int(params, "roof_height", "roofHeight", "roofHeightBlocks") or 1
+        return {"width": width, "depth": depth, "height": max(1, height)}
+    if ctype in _FACADE_COMPONENT_TYPES:
+        width = mass_dims["width"] if mass_dims else 4
+        height = _param_int(params, "floor_height", "floorHeight") or 2
+        return {"width": width, "depth": 1, "height": max(1, height)}
+    if ctype in ("ENTRANCE", "ENTRANCE_CANOPY", "GATE", "GATE_STRUCTURE"):
+        base_width = mass_dims["width"] if mass_dims else 4
+        width = max(2, min(base_width, 4))
+        height = _param_int(params, "door_height", "doorHeight") or 3
+        return {"width": width, "depth": 1, "height": max(2, height)}
+    if ctype == "SIGNAGE":
+        base_width = mass_dims["width"] if mass_dims else 4
+        width = max(2, min(base_width, 6))
+        return {"width": width, "depth": 1, "height": 1}
+    if ctype in _PLANAR_COMPONENT_TYPES:
+        width = mass_dims["width"] if mass_dims else 6
+        depth = mass_dims["depth"] if mass_dims else 6
+        return {"width": width, "depth": depth, "height": 1}
+    width = mass_dims["width"] if mass_dims else 4
+    depth = mass_dims["depth"] if mass_dims else 4
+    height = mass_dims["height"] if mass_dims else 3
+    return {"width": width, "depth": depth, "height": height}
+
+
+def _normalize_dimensions(
+    dims: Any,
+    ctype: str,
+    params: Dict[str, Any],
+    mass_dims: Optional[Dict[str, int]],
+) -> Dict[str, int]:
+    if not isinstance(dims, dict):
+        dims = {}
+    defaults = _default_dimensions_for_component(ctype, params, mass_dims)
+    width = _coerce_int(dims.get("width"), defaults["width"]) or defaults["width"]
+    depth = _coerce_int(dims.get("depth"), defaults["depth"])
+    height = _coerce_int(dims.get("height"), defaults["height"])
+    if width <= 0:
+        width = defaults["width"]
+    if depth is None or depth <= 0:
+        depth = defaults["depth"]
+    if height is None or height <= 0:
+        height = defaults["height"]
+    if ctype in _FACADE_COMPONENT_TYPES and depth <= 0:
+        depth = 1
+    if ctype in _PLANAR_COMPONENT_TYPES and height <= 0:
+        height = 1
+    return {"width": int(width), "depth": int(depth), "height": int(height)}
+
+
 def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         return raw
@@ -444,10 +726,24 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
         explicit_courtyard = False
         explicit_roof = False
         is_chinese_style = False
+        selection_dims = _selection_dimensions(req)
+        selection_bounds = _selection_bounds_relative(req, plan.get("anchor") if isinstance(plan.get("anchor"), dict) else None)
+        slot_anchors = {}
+        layout = plan.get("layout")
+        if isinstance(layout, dict):
+            slots = layout.get("slots")
+            if isinstance(slots, list):
+                for slot in slots:
+                    if not isinstance(slot, dict):
+                        continue
+                    slot_id = str(slot.get("slot_id") or "").strip()
+                    if not slot_id:
+                        continue
+                    slot_anchors[slot_id] = _normalize_vec3(slot.get("anchor"))
         if req is not None:
-            text = (req.userMessage or "") + "\n" + (req.requestText or "")
-            floors_hint = _parse_levels_from_text(text)
-            t_lower = text.lower()
+            user_text = req.userMessage or ""
+            floors_hint = _parse_levels_from_text(user_text)
+            t_lower = user_text.lower()
             explicit_courtyard = any(k in t_lower for k in (
                 "courtyard", "中庭", "庭院", "四合院", "院落", "内院"
             ))
@@ -462,15 +758,31 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
                             or "chinese" in region or "hui" in region)
         skip_courtyard_components = is_chinese_style and not explicit_courtyard
         filtered_components = []
+        mass_dims = _extract_mass_dims(components)
         for comp in components:
             if not isinstance(comp, dict):
                 continue
+            ctype = _normalize_component_type(comp.get("component_type"))
+            if not ctype:
+                continue
+            comp["component_type"] = ctype
+            comp["features"] = _normalize_features(comp.get("features"))
             params = comp.get("params")
             if not isinstance(params, dict):
                 params = {}
             _fill_component_params(params, comp, plan.get("genome", {}))
-            ctype = str(comp.get("component_type", "")).upper()
+            comp["params"] = params
+            comp["relative_position"] = _normalize_vec3(comp.get("relative_position"))
+            dims = _normalize_dimensions(comp.get("dimensions"), ctype, params, mass_dims)
+            comp["dimensions"] = dims
             if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS"):
+                if ctype == "MASS_MAIN" and not _param_string(params, "anchor_mode", "anchorMode"):
+                    rp = comp.get("relative_position") or {}
+                    if _looks_like_min_corner_anchor(rp, dims):
+                        params["anchor_mode"] = "min_corner"
+                        rp["x"] = -(dims["width"] // 2)
+                        rp["z"] = -(dims["depth"] // 2)
+                        comp["relative_position"] = rp
                 if params.get("plan_type") == "courtyard" and is_chinese_style and not explicit_courtyard:
                     params["plan_type"] = "cut_corners"
                     params.pop("courtyard_ratio", None)
@@ -485,7 +797,6 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
                 rt = str(params.get("roof_type") or "").lower()
                 if rt in ("", "hip", "pyramid", "xieshan"):
                     params["roof_type"] = "xuanshan"
-            comp["params"] = params
             if floors_hint:
                 if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS"):
                     params.setdefault("floor_count", floors_hint)
@@ -499,6 +810,37 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
                     if height < min_height:
                         dims["height"] = min_height
                         comp["dimensions"] = dims
+            dims = _clamp_dimensions_to_selection(comp.get("dimensions") or dims, selection_dims)
+            comp["dimensions"] = dims
+            anchor_mode = _param_string(params, "anchor_mode", "anchorMode")
+            if not anchor_mode:
+                if ctype.startswith("TOWER"):
+                    anchor_mode = "center"
+                elif ctype in _MASS_COMPONENT_TYPES:
+                    anchor_mode = "center"
+                else:
+                    anchor_mode = "min_corner"
+            slot_anchor = slot_anchors.get(str(comp.get("slot_id") or ""), {"x": 0, "y": 0, "z": 0})
+            rp = comp.get("relative_position") or {"x": 0, "y": 0, "z": 0}
+            effective_rp = {
+                "x": int(rp.get("x", 0)) + int(slot_anchor.get("x", 0)),
+                "y": int(rp.get("y", 0)) + int(slot_anchor.get("y", 0)),
+                "z": int(rp.get("z", 0)) + int(slot_anchor.get("z", 0)),
+            }
+            effective_rp = _clamp_relative_position(effective_rp, dims, anchor_mode, selection_bounds)
+            comp["relative_position"] = {
+                "x": effective_rp["x"] - int(slot_anchor.get("x", 0)),
+                "y": effective_rp["y"] - int(slot_anchor.get("y", 0)),
+                "z": effective_rp["z"] - int(slot_anchor.get("z", 0)),
+            }
+            if mass_dims is None and ctype in _MASS_COMPONENT_TYPES:
+                dims = comp.get("dimensions") or dims
+                if isinstance(dims, dict):
+                    mass_dims = {
+                        "width": int(dims.get("width", 8)),
+                        "depth": int(dims.get("depth", 6)),
+                        "height": int(dims.get("height", 6)),
+                    }
             if skip_courtyard_components and ctype == "COURTYARD":
                 continue
             filtered_components.append(comp)

@@ -95,15 +95,13 @@ public class MassMainGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
         
-        // ========== 锚点处理：LLM返回的relativePosition通常是建筑底平面的中心点 ==========
-        // 但MassMainGenerator内部使用左下角作为原点，所以需要转换
-        // 中心点 -> 左下角：左下角 = 中心点 - (width/2, 0, depth/2)
-        // 注意：这里假设rp是中心点，因为LLM的prompt要求锚点是中心
+        // ========== 锚点处理：relativePosition 既可能是中心点，也可能是左下角 ==========
+        // 默认假设是中心点（LLM prompt），如果 params 指定 anchor_mode=min_corner，则视为左下角
         Vec3i actualRp = rp;
-        // 检查是否有明确标记（未来可以扩展）
-        // 目前默认假设是中心点（与LLM prompt保持一致）
-        if (rp != null) {
-            // 将中心点转换为左下角
+        String anchorMode = getParamString(c.params(), "anchor_mode", "anchorMode");
+        boolean useCornerAnchor = anchorMode != null && anchorMode.toLowerCase(Locale.ROOT).contains("corner");
+        if (rp != null && !useCornerAnchor) {
+            // 中心点 -> 左下角：左下角 = 中心点 - (width/2, 0, depth/2)
             int offsetX = -(width / 2);
             int offsetZ = -(depth / 2);
             actualRp = new Vec3i(rp.x() + offsetX, rp.y(), rp.z() + offsetZ);

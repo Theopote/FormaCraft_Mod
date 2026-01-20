@@ -3,6 +3,7 @@ package com.formacraft.common.compiler;
 import com.formacraft.common.compiler.postprocess.PostProcessContext;
 import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
+import com.formacraft.common.generator.GeneratorRegistry;
 import com.formacraft.common.generator.adaptor.SmartGeneratorRouter;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -55,6 +56,18 @@ public final class ComponentPlanCompiler {
     private ComponentPlanCompiler() {}
 
     private record PreparedComponents(List<Component> components, Set<String> assemblyFacadeSlots) {}
+
+    private static final Map<String, String> COMPONENT_TYPE_ALIASES = Map.of(
+            "MAIN_MASS", "MASS_MAIN",
+            "BUTTRESS", "WALL"
+    );
+
+    private static final Set<String> AUTO_INFERRED_TYPES = Set.of(
+            "FACADE_WINDOWS",
+            "ENTRANCE",
+            "ROOF",
+            "ROOF_STRUCTURE"
+    );
 
     /**
      * 编译 LLM Plan 为 BlockPatch 列表（基础版本，不包含后处理）
@@ -249,10 +262,41 @@ public final class ComponentPlanCompiler {
     }
 
     private static PreparedComponents prepareComponents(LlmPlan plan, Map<String, Slot> slotMap, boolean allowAssemblyFacade) {
-        List<Component> components = new ArrayList<>();
+        List<Component> normalized = new ArrayList<>();
         if (plan.components() != null) {
-            components.addAll(plan.components());
+            normalized.addAll(plan.components());
         }
+        if (normalized.isEmpty()) {
+            return new PreparedComponents(normalized, Set.of());
+        }
+
+        List<Component> components = new ArrayList<>();
+        Set<String> massSlots = new HashSet<>();
+        for (Component c : normalized) {
+            Component normalizedComponent = normalizeComponent(c);
+            if (normalizedComponent == null) {
+                continue;
+            }
+            String type = normalizeType(normalizedComponent.componentType());
+            String slotKey = slotKey(normalizedComponent);
+            if (isMassType(type)) {
+                massSlots.add(slotKey);
+            }
+            components.add(normalizedComponent);
+        }
+
+        if (!components.isEmpty() && !massSlots.isEmpty()) {
+            List<Component> filtered = new ArrayList<>(components.size());
+            for (Component c : components) {
+                String type = normalizeType(c.componentType());
+                if (massSlots.contains(slotKey(c)) && AUTO_INFERRED_TYPES.contains(type)) {
+                    continue;
+                }
+                filtered.add(c);
+            }
+            components = filtered;
+        }
+
         if (components.isEmpty()) {
             return new PreparedComponents(components, Set.of());
         }
@@ -330,6 +374,10 @@ public final class ComponentPlanCompiler {
     }
 
     private static Component makeFacadeComponent(Component base, String slotId) {
+        Vec3i origin = resolveMassOrigin(base);
+        if (origin == null) {
+            origin = base.relativePosition();
+        }
         Map<String, Object> params = new HashMap<>();
         if (base.params() != null) {
             params.putAll(base.params());
@@ -352,7 +400,7 @@ public final class ComponentPlanCompiler {
         return new Component(
                 "FACADE_WINDOWS",
                 slotId,
-                base.relativePosition(),
+                origin,
                 base.dimensions(),
                 features,
                 params
@@ -361,7 +409,7 @@ public final class ComponentPlanCompiler {
 
     private static Component makeEntranceComponent(LlmPlan plan, Component base, String slotId, GlobalConstraints.Facing facing) {
         Dimensions dims = base.dimensions();
-        Vec3i rp = base.relativePosition();
+        Vec3i rp = resolveMassOrigin(base);
         if (dims == null || rp == null) {
             return null;
         }
@@ -425,7 +473,7 @@ public final class ComponentPlanCompiler {
 
     private static Component makeRoofComponent(LlmPlan plan, Component base, String slotId) {
         Dimensions dims = base.dimensions();
-        Vec3i rp = base.relativePosition();
+        Vec3i rp = resolveMassOrigin(base);
         if (dims == null || rp == null) {
             return null;
         }
@@ -490,6 +538,105 @@ public final class ComponentPlanCompiler {
     private static String normalizeType(String value) {
         if (value == null) return "";
         return value.trim().toUpperCase();
+    }
+
+    private static Component normalizeComponent(Component component) {
+        if (component == null) {
+            return null;
+        }
+        boolean hasComponentRequest = hasComponentRequest(component.features());
+        String type = normalizeComponentType(component.componentType(), hasComponentRequest);
+        if (type.isBlank()) {
+            return null;
+        }
+        if (type.equals(component.componentType())) {
+            return component;
+        }
+        return new Component(
+                type,
+                component.slotId(),
+                component.relativePosition(),
+                component.dimensions(),
+                component.features(),
+                component.params()
+        );
+    }
+
+    private static String normalizeComponentType(String value, boolean allowUnknown) {
+        String type = normalizeType(value);
+        if (type.isBlank()) {
+            return "";
+        }
+        String alias = COMPONENT_TYPE_ALIASES.get(type);
+        if (alias != null) {
+            type = alias;
+        }
+        if (allowUnknown) {
+            return type;
+        }
+        if (GeneratorRegistry.hasGenerator(type)) {
+            return type;
+        }
+        String fallback = inferFallbackType(type);
+        if (fallback != null && GeneratorRegistry.hasGenerator(fallback)) {
+            FormacraftMod.LOGGER.debug("ComponentPlanCompiler: fallback component type {} -> {}", type, fallback);
+            return fallback;
+        }
+        FormacraftMod.LOGGER.debug("ComponentPlanCompiler: skipping unsupported component type {}", type);
+        return "";
+    }
+
+    private static boolean hasComponentRequest(List<String> features) {
+        if (features == null || features.isEmpty()) {
+            return false;
+        }
+        for (String feature : features) {
+            if (feature == null) {
+                continue;
+            }
+            String lower = feature.toLowerCase(Locale.ROOT);
+            if (lower.startsWith("component_request:") || lower.startsWith("group_request:")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String inferFallbackType(String type) {
+        if (type == null || type.isBlank()) {
+            return null;
+        }
+        if (type.contains("PLAZA") || type.contains("PAVING") || type.contains("FLOOR")
+                || type.contains("GROUND") || type.contains("PATH")) {
+            return "PAVING";
+        }
+        if (type.contains("BENCH") || type.contains("LIGHT") || type.contains("GREEN")
+                || type.contains("TREE") || type.contains("DECOR") || type.contains("ORNAMENT")
+                || type.contains("STATUE") || type.contains("GARGOYLE")) {
+            return "DECOR_DETAIL";
+        }
+        if (type.contains("ROOF")) {
+            return "ROOF";
+        }
+        if (type.contains("BALCONY")) {
+            return "BALCONY";
+        }
+        if (type.contains("CHIMNEY")) {
+            return "CHIMNEY";
+        }
+        if (type.contains("FOUNDATION") || type.contains("BASE")) {
+            return "FOUNDATION";
+        }
+        if (type.contains("GATE")) {
+            return "GATE";
+        }
+        if (type.contains("WALL") || type.contains("BUTTRESS")) {
+            return "WALL";
+        }
+        if (type.contains("TOWER") || type.contains("SPIRE")) {
+            return "TOWER";
+        }
+        return null;
     }
 
     private static boolean isMassType(String type) {
@@ -572,29 +719,7 @@ public final class ComponentPlanCompiler {
         if (override != null) {
             return override;
         }
-        Dimensions dims = c.dimensions();
-        if (dims.width() < 6 || dims.depth() < 6 || dims.height() < 4) {
-            return false;
-        }
-        String shape = getParamString(params, "shape");
-        if (shape != null && !shape.isBlank()) {
-            String s = shape.trim().toLowerCase(Locale.ROOT);
-            if (!(s.equals("rectangle") || s.equals("rounded_rect") || s.equals("rect") || s.equals("rounded"))) {
-                return false;
-            }
-        }
-        String planType = getParamString(params, "plan_type", "planType", "plan_pattern", "planPattern");
-        if (planType != null && !planType.isBlank()) {
-            String p = planType.trim().toLowerCase(Locale.ROOT);
-            if (p.equals("cut_corners") || p.equals("cutcorners")) {
-                return true;
-            }
-            if (p.equals("courtyard") || p.equals("court") || p.equals("ring") || p.equals("compound")) {
-                return isChineseStyle(plan, c);
-            }
-            return p.equals("none") || p.equals("rect") || p.equals("rectangle");
-        }
-        return true;
+        return false;
     }
 
     private static List<BlockPatch> generateAssemblyFacadePatches(
@@ -613,7 +738,7 @@ public final class ComponentPlanCompiler {
         }
 
         Dimensions dims = c.dimensions();
-        Vec3i rp = c.relativePosition();
+        Vec3i rp = resolveMassOrigin(c);
         Vec3i slotAnchor = slot.anchor();
 
         int width = Math.max(3, dims.width());
@@ -778,6 +903,29 @@ public final class ComponentPlanCompiler {
         style.put("structureExposure", clamp01(structureExposure));
 
         return style;
+    }
+
+    private static Vec3i resolveMassOrigin(Component base) {
+        if (base == null) {
+            return null;
+        }
+        Vec3i rp = base.relativePosition();
+        Dimensions dims = base.dimensions();
+        if (rp == null || dims == null) {
+            return rp;
+        }
+        if (isCornerAnchor(base)) {
+            return rp;
+        }
+        int offsetX = -(dims.width() / 2);
+        int offsetZ = -(dims.depth() / 2);
+        return new Vec3i(rp.x() + offsetX, rp.y(), rp.z() + offsetZ);
+    }
+
+    private static boolean isCornerAnchor(Component base) {
+        Map<String, Object> params = base.params();
+        String anchorMode = getParamString(params, "anchor_mode", "anchorMode");
+        return anchorMode != null && anchorMode.toLowerCase(Locale.ROOT).contains("corner");
     }
 
     private static String resolveAssemblyStyleId(LlmPlan plan, SemanticComponent semantic) {

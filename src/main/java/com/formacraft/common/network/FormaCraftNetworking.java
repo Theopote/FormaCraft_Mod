@@ -1095,7 +1095,7 @@ public class FormaCraftNetworking {
                                                         planOrigin,
                                                         serverWorld,
                                                         terrainSampler,
-                                                        true
+                                                        false
                                                 );
                                             }
                                             
@@ -1122,13 +1122,13 @@ public class FormaCraftNetworking {
                                             com.formacraft.common.terrain.TerrainStrategySampler terrainSampler = 
                                                     new com.formacraft.common.terrain.TerrainStrategySampler();
                                             
-                                            // 启用地形适应（根据LLM Plan中的terrain_strategy自动处理地形）
+                                            // LlmPlan 的地形处理在后续流程统一执行，避免组件级别逐列抬升导致错位
                                             patches = ComponentPlanCompiler.compile(
                                                     llmPlan,
                                                     planOrigin,
                                                     serverWorld,
                                                     terrainSampler,
-                                                    true  // 启用地形适应后处理
+                                                    false  // 关闭逐列地形适应
                                             );
                                         }
                                         
@@ -1201,8 +1201,8 @@ public class FormaCraftNetworking {
 
                                             TerrainFit.FootprintAnalysis analysis = TerrainFit.analyze(serverWorld, center, width, depth);
                                             
-                                            // 计算目标高度
-                                            int targetY = TerrainFit.averageFootprintHeight(serverWorld, center, width, depth) + 1;
+                                            // 计算目标高度：以 anchor 高度为准，确保建筑落在统一平台上
+                                            int targetY = planOrigin.getY();
                                             
                                             // 选择填充材料
                                             net.minecraft.block.BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
