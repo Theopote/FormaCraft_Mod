@@ -1,11 +1,26 @@
 package com.formacraft.mixin;
 
 import com.formacraft.client.interaction.CursorRaycastHelper;
+import com.formacraft.client.tool.ToolManager;
+import com.formacraft.client.tool.ToolWorldRenderContext;
+import com.formacraft.client.tool.PathTool;
+import com.formacraft.client.tool.BrushTool;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.input.InputRouter;
+import com.formacraft.client.preview.BuildingOutlineRenderer;
+import com.formacraft.client.preview.ComponentPreviewRenderer;
+import com.formacraft.client.preview.ComponentSocketPreviewRenderer;
+import com.formacraft.client.preview.PatchPreviewRenderer;
+import com.formacraft.client.preview.SkeletonPreviewRenderer;
+import com.formacraft.client.interaction.AnchorRenderer;
 import com.formacraft.config.SettingsConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -64,6 +79,63 @@ public class GameRendererMixin {
             return v;
         } catch (Throwable ignored) {
             return 80.0;
+        }
+    }
+
+    /**
+     * 每帧渲染注入点：确保选区框始终显示，即使鼠标不在方块上
+     * 这解决了当 crosshairTarget 为空时 renderTargetBlockOutline 不执行的问题
+     */
+    @Inject(
+            method = "render(Lnet/minecraft/client/render/RenderTickCounter;Z)V",
+            at = @At(value = "TAIL"),
+            require = 0
+    )
+    private void formacraft$renderSelectionBoxes(net.minecraft.client.render.RenderTickCounter tickCounter, boolean tick, CallbackInfo ci) {
+        if (!FormacraftUIState.isOpen) return;
+        
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.gameRenderer == null || client.world == null) return;
+        
+        // 检查是否有选区需要渲染
+        boolean hasSelection = com.formacraft.client.tool.SelectionTool.INSTANCE.hasSelection() || 
+                              com.formacraft.client.tool.SelectionTool.INSTANCE.isSelecting() ||
+                              com.formacraft.client.ui.FormaCraftHudOverlay.activePanel == com.formacraft.client.ui.panel.PanelType.COMPONENT_CAPTURE;
+        
+        if (!hasSelection) return;
+        
+        // 获取 Immediate 并创建 lines layer
+        VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
+        if (immediate == null) return;
+        
+        // 获取相机位置和矩阵
+        Vec3d cam = client.gameRenderer.getCamera().getPos();
+        MatrixStack matrices = new MatrixStack();
+        matrices.push();
+        
+        try {
+            VertexConsumer lines = immediate.getBuffer(RenderLayer.getLines());
+            ToolWorldRenderContext ctx = new ToolWorldRenderContext(matrices, lines, null, cam.x, cam.y, cam.z);
+            
+            // 渲染选区框和其他预览
+            ToolManager.renderWorld(ctx);
+            PathTool.renderGlobal(ctx);
+            BrushTool.renderGlobal(ctx);
+            
+            if (com.formacraft.client.ui.FormaCraftHudOverlay.activePanel == com.formacraft.client.ui.panel.PanelType.COMPONENT_CAPTURE) {
+                if (com.formacraft.client.ui.FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL != null) {
+                    com.formacraft.client.ui.FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL.renderWorldSelection(ctx);
+                }
+            }
+            
+            AnchorRenderer.render(ctx);
+            BuildingOutlineRenderer.render(ctx);
+            SkeletonPreviewRenderer.render(ctx);
+            PatchPreviewRenderer.render(ctx);
+            ComponentPreviewRenderer.render(ctx);
+            ComponentSocketPreviewRenderer.render(ctx);
+        } finally {
+            matrices.pop();
         }
     }
 }
