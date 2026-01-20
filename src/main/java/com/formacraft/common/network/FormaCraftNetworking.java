@@ -1044,6 +1044,7 @@ public class FormaCraftNetworking {
                                         LlmPlan llmPlan = LlmPlanParser.parseAndValidate(llmPlanJson);
                                         
                                         // 获取 anchor（全局或第一个 slot）
+                                        // 注意：LLM返回的anchor通常是建筑底平面的中心点
                                         BlockPos planOrigin = origin;
                                         if (llmPlan.anchor() != null) {
                                             planOrigin = new BlockPos(
@@ -1052,6 +1053,10 @@ public class FormaCraftNetworking {
                                                     llmPlan.anchor().z()
                                             );
                                         }
+                                        
+                                        // 对于使用BuildingSpec路径的情况，需要检查是否需要将锚点（中心）转换为左下角
+                                        // 但对于LlmPlan系统，ComponentPlanCompiler和PlanProgramCompiler已经处理了相对坐标
+                                        // 所以这里不需要额外转换（patches中的dx/dy/dz已经是相对于planOrigin的）
                                         
                                         // 提取风格信息（用于传递给编译器）
                                         String styleProfileId = llmPlan.styleProfile();

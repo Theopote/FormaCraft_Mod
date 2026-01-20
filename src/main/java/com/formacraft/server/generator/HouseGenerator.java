@@ -40,8 +40,28 @@ public class HouseGenerator implements StructureGenerator {
         List<PlannedBlock> blocks = new ArrayList<>();
         Set<BlockPos> fenceFramePositions = new HashSet<>();
 
+        // 0. 如果origin是锚点（建筑底平面中心），需要转换为左下角
+        // 锚点通常是建筑底平面的大致中心，而HouseGenerator使用左下角作为origin
+        int width = Math.max(6, spec.getFootprint() != null ? spec.getFootprint().getWidth() : 8);
+        int depth = Math.max(6, spec.getFootprint() != null ? spec.getFootprint().getDepth() : 6);
+        // 检查extra中是否有明确指示anchor是中心还是左下角
+        java.util.Map<String, Object> extra = spec.getExtra() != null ? spec.getExtra() : java.util.Collections.emptyMap();
+        Object anchorModeObj = extra.get("anchorMode");
+        boolean anchorIsCenter = true; // 默认假设锚点是中心
+        if (anchorModeObj != null) {
+            String anchorMode = String.valueOf(anchorModeObj).trim().toLowerCase();
+            anchorIsCenter = !anchorMode.contains("corner") && !anchorMode.contains("bottom_left");
+        }
+        // 如果锚点是中心，转换为左下角：左下角 = 中心 - (width/2, 0, depth/2)
+        BlockPos actualOrigin = origin;
+        if (anchorIsCenter) {
+            int offsetX = -(width / 2);
+            int offsetZ = -(depth / 2);
+            actualOrigin = origin.add(offsetX, 0, offsetZ);
+        }
+
         // 1. 初始化上下文
-        HouseGenerationContext ctx = initializeContext(spec, origin, world);
+        HouseGenerationContext ctx = initializeContext(spec, actualOrigin, world);
 
         // 2. 清空内部空间
         clearInteriorSpace(blocks, ctx);
@@ -79,6 +99,7 @@ public class HouseGenerator implements StructureGenerator {
         String description = String.format("House (%s, %dx%dx%d, floors=%d)", 
                 spec.getType(), ctx.width(), ctx.height(), ctx.depth(), ctx.floors());
 
+        // 返回的origin应该是调整后的origin（左下角），而不是原始的锚点
         return new GeneratedStructure(
                 null, // owner 将在 BuildExecutionService 中设置
                 adjustedOrigin,
