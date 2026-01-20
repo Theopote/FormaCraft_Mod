@@ -155,6 +155,16 @@ public final class TerrainFit {
                     }
                 }
 
+                // Ensure surface vegetation doesn't block the platform at targetY.
+                BlockPos surface = new BlockPos(x, targetY, z);
+                if (BuildConstraintContext.allow(surface)) {
+                    BlockState cur = world.getBlockState(surface);
+                    if (!cur.isAir() && isObstacle(cur)) {
+                        out.add(new PlannedBlock(surface, fillState));
+                        fillCount++;
+                    }
+                }
+
                 // Clear obstacles above pad (targetY+1..targetY+clearHeight)
                 for (int y = targetY + 1; y <= targetY + clear; y++) {
                     BlockPos p = new BlockPos(x, y, z);
@@ -233,6 +243,16 @@ public final class TerrainFit {
                             out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
                             clearCount++;
                         }
+                    }
+                }
+
+                // Ensure surface vegetation doesn't block the platform at targetY.
+                BlockPos surface = new BlockPos(x, targetY, z);
+                if (BuildConstraintContext.allow(surface)) {
+                    BlockState cur = world.getBlockState(surface);
+                    if (!cur.isAir() && isObstacle(cur)) {
+                        out.add(new PlannedBlock(surface, fillState));
+                        fillCount++;
                     }
                 }
 
