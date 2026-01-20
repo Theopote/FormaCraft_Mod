@@ -4,3 +4,5 @@ pydantic
 pydantic[email]
 openai
 python-dotenv
+requests
+duckduckgo-search
