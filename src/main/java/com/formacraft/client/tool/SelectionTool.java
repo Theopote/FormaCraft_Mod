@@ -33,11 +33,13 @@ public final class SelectionTool implements FormacraftTool {
     /** 锚点大小（世界单位） */
     private static final double ANCHOR_SIZE = 0.08;
     /** 鼠标悬停检测距离（世界单位，基础值） */
-    private static final double ANCHOR_HOVER_DISTANCE_BASE = 0.5;
+    private static final double ANCHOR_HOVER_DISTANCE_BASE = 0.4; // 适中的基础值
     /** 悬停检测的最大角度阈值（弧度） */
-    private static final double ANCHOR_HOVER_ANGLE_THRESHOLD = Math.toRadians(2.0); // 约2度
+    private static final double ANCHOR_HOVER_ANGLE_THRESHOLD = Math.toRadians(3.0); // 适中的角度阈值
     /** 锚点悬停时放大倍数 */
     private static final double ANCHOR_HOVER_SCALE = 1.5;
+    /** 锚点突出距离（防止被方块遮挡） */
+    private static final double ANCHOR_OFFSET = 0.05; // 锚点稍微突出于面
     /** 角点大小 */
     private static final double CORNER_SIZE = 0.12;
     /** 射线相交最大距离 */
@@ -120,10 +122,12 @@ public final class SelectionTool implements FormacraftTool {
             }
         }
 
-        // 如果正在拖拽或悬停在锚点上，阻止创建新选区
-        if (draggingFace != null || cachedHoveredFace != null) {
+        // 如果正在拖拽锚点，阻止创建新选区
+        if (draggingFace != null) {
             return true;
         }
+
+        // 只有在有完整选区时才检查锚点悬停（避免在选择过程中误判）
 
         BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
         if (hit == null) return true; // 工具吃掉点击，但没有命中方块
@@ -164,13 +168,15 @@ public final class SelectionTool implements FormacraftTool {
         // 更新光标样式
         updateCursor();
         
-        // 如果鼠标悬停在锚点上或正在拖拽，阻止选框功能
-        if (cachedHoveredFace != null || draggingFace != null) {
-            // 如果正在选择且鼠标移到锚点上，停止选择过程
-            if (selecting && cachedHoveredFace != null) {
-                selecting = false;
-            }
-            // 阻止选框更新
+        // 如果正在拖拽锚点，阻止选框功能
+        if (draggingFace != null) {
+            return;
+        }
+        
+        // 只有在有完整选区时才检查锚点悬停（避免在选择过程中误判）
+        // 如果正在选择过程中，允许继续选择，不阻止选框更新
+        if (hasSelection() && cachedHoveredFace != null) {
+            // 有完整选区且悬停在锚点上，阻止选框更新
             return;
         }
         
@@ -192,7 +198,7 @@ public final class SelectionTool implements FormacraftTool {
         Box worldBox = new Box(
                 min.getX(), min.getY(), min.getZ(),
                 max.getX() + 1, max.getY() + 1, max.getZ() + 1
-        ).expand(0.01);
+        ).expand(0.02);
 
         Box box = worldBox.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
         VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.35f, 0.85f, 1.00f, 0.65f);
@@ -214,7 +220,8 @@ public final class SelectionTool implements FormacraftTool {
     private void updateCaches() {
         cachedCameraPos = getCameraPos();
         cachedMouseRayDir = getMouseRayDirection();
-        cachedHoveredFace = computeHoveredFace();
+        // 只有在有完整选区时才计算悬停面（避免在选择过程中误判）
+        cachedHoveredFace = hasSelection() ? computeHoveredFace() : null;
     }
     
     /**
@@ -277,8 +284,11 @@ public final class SelectionTool implements FormacraftTool {
      */
     private void drawFaceAnchor(ToolWorldRenderContext ctx, Direction face, BlockPos min, BlockPos max) {
         Vec3d pos = getFaceCenter(min, max, face);
+        // 让锚点稍微突出于面，防止被方块遮挡
+        Vec3d offset = Vec3d.of(face.getVector()).multiply(ANCHOR_OFFSET);
+        Vec3d anchorPos = pos.add(offset);
         boolean isHovered = cachedHoveredFace == face;
-        drawAnchor(ctx, pos, isHovered);
+        drawAnchor(ctx, anchorPos, isHovered);
     }
     
     /**
@@ -302,7 +312,7 @@ public final class SelectionTool implements FormacraftTool {
     // ==================== 辅助方法：悬停检测 ====================
     
     /**
-     * 计算鼠标是否悬停在某个面的锚点上（内部实现）
+     * 计算鼠标是否悬停在某个面的锚点上（改进版：增强远距离检测）
      * 使用角度判断和动态距离阈值，确保远距离也能正常工作
      * @return 悬停的面，如果没有则返回null
      */
@@ -316,9 +326,24 @@ public final class SelectionTool implements FormacraftTool {
         double minScore = Double.MAX_VALUE;
         Direction closestFace = null;
         
+        // 获取FOV用于动态调整（高FOV/缩放时缩小阈值）
+        MinecraftClient client = MinecraftClient.getInstance();
+        double fovMultiplier = 1.0;
+        if (client != null && client.options != null) {
+            try {
+                double fov = client.options.getFov().getValue();
+                // FOV越大（缩放时），阈值越小
+                fovMultiplier = 70.0 / fov; // 70是默认FOV
+                fovMultiplier = Math.max(0.3, Math.min(3.0, fovMultiplier)); // 限制范围
+            } catch (Exception ignored) {}
+        }
+        
         // 遍历所有六个轴向面（WEST, EAST, DOWN, UP, NORTH, SOUTH）
         for (Direction face : Direction.values()) {
-            Vec3d anchorPos = getFaceCenter(min, max, face);
+            Vec3d faceCenter = getFaceCenter(min, max, face);
+            // 使用突出后的锚点位置进行检测（与实际渲染位置一致）
+            Vec3d offset = Vec3d.of(face.getVector()).multiply(ANCHOR_OFFSET);
+            Vec3d anchorPos = faceCenter.add(offset);
             Vec3d toAnchor = anchorPos.subtract(cachedCameraPos);
             double distToAnchor = toAnchor.length();
             
@@ -331,10 +356,13 @@ public final class SelectionTool implements FormacraftTool {
             double dotProduct = cachedMouseRayDir.dotProduct(toAnchorDir);
             
             // 如果角度太大（点积太小），说明鼠标没有指向锚点
-            // 使用角度阈值：约2度的圆锥内
+            // 使用角度阈值：约5度的圆锥内（增大以提高远距离检测）
             double angleToAnchor = Math.acos(Math.max(-1.0, Math.min(1.0, dotProduct)));
             
-            if (angleToAnchor > ANCHOR_HOVER_ANGLE_THRESHOLD) {
+            // 根据距离动态调整角度阈值：距离越远，允许的角度越大（但增长较慢）
+            double dynamicAngleThreshold = ANCHOR_HOVER_ANGLE_THRESHOLD * (1.0 + distToAnchor * 0.005) * fovMultiplier;
+            
+            if (angleToAnchor > dynamicAngleThreshold) {
                 continue; // 角度太大，跳过
             }
             
@@ -346,9 +374,8 @@ public final class SelectionTool implements FormacraftTool {
             Vec3d perpendicular = anchorPos.subtract(projectedPoint);
             double perpDist = perpendicular.length();
             
-            // 根据相机距离动态调整阈值：距离越远，阈值越大
-            // 使用线性缩放：每单位距离增加0.1的基础阈值
-            double dynamicThreshold = ANCHOR_HOVER_DISTANCE_BASE * (1.0 + distToAnchor * 0.2);
+            // 根据相机距离动态调整阈值：距离越远，阈值越大（但增长较慢，避免范围过大）
+            double dynamicThreshold = ANCHOR_HOVER_DISTANCE_BASE * (1.0 + distToAnchor * 0.15) * fovMultiplier;
             
             // 如果垂直距离在动态阈值内，记录最接近的锚点
             // 使用综合评分：角度越小且距离越近的优先级越高
@@ -555,7 +582,20 @@ public final class SelectionTool implements FormacraftTool {
         
         // 计算拖拽距离（沿着面的法向量方向）
         Vec3d dragDelta = currentPos.subtract(dragStartPos);
-        Vec3d faceNormal = Vec3d.of(draggingFace.getVector()).normalize();
+        
+        // 获取面的法向量（指向选区外部）
+        // 对于每个面，法向量指向外部的方向
+        Vec3d faceNormal = switch (draggingFace) {
+            case WEST -> new Vec3d(-1, 0, 0);   // 指向负X（向外）
+            case EAST -> new Vec3d(1, 0, 0);    // 指向正X（向外）
+            case DOWN -> new Vec3d(0, -1, 0);   // 指向负Y（向外）
+            case UP -> new Vec3d(0, 1, 0);      // 指向正Y（向外）
+            case NORTH -> new Vec3d(0, 0, -1); // 指向负Z（向外）
+            case SOUTH -> new Vec3d(0, 0, 1);   // 指向正Z（向外）
+            // 这不应该发生，但为了编译通过添加默认值
+        };
+
+        // 计算拖拽距离在法向量方向上的投影
         double dragDistance = dragDelta.dotProduct(faceNormal);
         
         // 更新对应的面
@@ -567,12 +607,18 @@ public final class SelectionTool implements FormacraftTool {
         double newCoord = startCoord + dragDistance;
         
         switch (draggingFace) {
-            case WEST -> newMin = new BlockPos((int) Math.round(newCoord), dragStartMin.getY(), dragStartMin.getZ());
-            case EAST -> newMax = new BlockPos((int) Math.round(newCoord), dragStartMax.getY(), dragStartMax.getZ());
-            case DOWN -> newMin = new BlockPos(dragStartMin.getX(), (int) Math.round(newCoord), dragStartMin.getZ());
-            case UP -> newMax = new BlockPos(dragStartMax.getX(), (int) Math.round(newCoord), dragStartMax.getZ());
-            case NORTH -> newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY(), (int) Math.round(newCoord));
-            case SOUTH -> newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY(), (int) Math.round(newCoord));
+            case WEST -> // WEST面（最小X面）：向外拖动（负X方向）→ 减少minX → 选区变大
+                    newMin = new BlockPos((int) Math.round(newCoord), dragStartMin.getY(), dragStartMin.getZ());
+            case EAST -> // EAST面（最大X面）：向外拖动（正X方向）→ 增加maxX → 选区变大
+                    newMax = new BlockPos((int) Math.round(newCoord), dragStartMax.getY(), dragStartMax.getZ());
+            case DOWN -> // DOWN面（最小Y面）：向外拖动（负Y方向）→ 减少minY → 选区变大
+                    newMin = new BlockPos(dragStartMin.getX(), (int) Math.round(newCoord), dragStartMin.getZ());
+            case UP -> // UP面（最大Y面）：向外拖动（正Y方向）→ 增加maxY → 选区变大
+                    newMax = new BlockPos(dragStartMax.getX(), (int) Math.round(newCoord), dragStartMax.getZ());
+            case NORTH -> // NORTH面（最小Z面）：向外拖动（负Z方向）→ 减少minZ → 选区变大
+                    newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY(), (int) Math.round(newCoord));
+            case SOUTH -> // SOUTH面（最大Z面）：向外拖动（正Z方向）→ 增加maxZ → 选区变大
+                    newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY(), (int) Math.round(newCoord));
         }
         
         // 确保min <= max（防止选区为空或反转）
