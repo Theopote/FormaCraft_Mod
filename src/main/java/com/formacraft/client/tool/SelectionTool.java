@@ -580,44 +580,39 @@ public final class SelectionTool implements FormacraftTool {
             currentPos = getRayIntersectionWithFace(draggingFace);
         }
         
-        // 计算拖拽距离（沿着面的法向量方向）
+        // 计算拖拽距离（直接使用对应轴上的原始位移，避免法向量投影的问题）
         Vec3d dragDelta = currentPos.subtract(dragStartPos);
-        
-        // 获取面的法向量（指向选区外部）
-        // 对于每个面，法向量指向外部的方向
-        Vec3d faceNormal = switch (draggingFace) {
-            case WEST -> new Vec3d(-1, 0, 0);   // 指向负X（向外）
-            case EAST -> new Vec3d(1, 0, 0);    // 指向正X（向外）
-            case DOWN -> new Vec3d(0, -1, 0);   // 指向负Y（向外）
-            case UP -> new Vec3d(0, 1, 0);      // 指向正Y（向外）
-            case NORTH -> new Vec3d(0, 0, -1); // 指向负Z（向外）
-            case SOUTH -> new Vec3d(0, 0, 1);   // 指向正Z（向外）
-            // 这不应该发生，但为了编译通过添加默认值
-        };
-
-        // 计算拖拽距离在法向量方向上的投影
-        double dragDistance = dragDelta.dotProduct(faceNormal);
         
         // 更新对应的面
         BlockPos newMin = dragStartMin;
         BlockPos newMax = dragStartMax;
         
-        // 根据面的方向更新坐标（使用getPlaneCoord获取起始坐标）
+        // 根据面的方向更新坐标（直接使用对应轴的位移）
         double startCoord = getPlaneCoord(draggingFace, dragStartMin, dragStartMax);
-        double newCoord = startCoord + dragDistance;
+        double axisDelta;
+        
+        // 获取对应轴上的位移
+        switch (draggingFace) {
+            case WEST, EAST -> axisDelta = dragDelta.x;   // X轴
+            case DOWN, UP -> axisDelta = dragDelta.y;    // Y轴
+            case NORTH, SOUTH -> axisDelta = dragDelta.z; // Z轴
+            default -> axisDelta = 0;
+        }
+        
+        double newCoord = startCoord + axisDelta;
         
         switch (draggingFace) {
-            case WEST -> // WEST面（最小X面）：向外拖动（负X方向）→ 减少minX → 选区变大
+            case WEST -> // WEST面（最小X面）：向外拖动（负X方向，axisDelta为负）→ newCoord变小 → 减少minX → 选区变大
                     newMin = new BlockPos((int) Math.round(newCoord), dragStartMin.getY(), dragStartMin.getZ());
-            case EAST -> // EAST面（最大X面）：向外拖动（正X方向）→ 增加maxX → 选区变大
+            case EAST -> // EAST面（最大X面）：向外拖动（正X方向，axisDelta为正）→ newCoord变大 → 增加maxX → 选区变大
                     newMax = new BlockPos((int) Math.round(newCoord), dragStartMax.getY(), dragStartMax.getZ());
-            case DOWN -> // DOWN面（最小Y面）：向外拖动（负Y方向）→ 减少minY → 选区变大
+            case DOWN -> // DOWN面（最小Y面）：向外拖动（负Y方向，axisDelta为负）→ newCoord变小 → 减少minY → 选区变大
                     newMin = new BlockPos(dragStartMin.getX(), (int) Math.round(newCoord), dragStartMin.getZ());
-            case UP -> // UP面（最大Y面）：向外拖动（正Y方向）→ 增加maxY → 选区变大
+            case UP -> // UP面（最大Y面）：向外拖动（正Y方向，axisDelta为正）→ newCoord变大 → 增加maxY → 选区变大
                     newMax = new BlockPos(dragStartMax.getX(), (int) Math.round(newCoord), dragStartMax.getZ());
-            case NORTH -> // NORTH面（最小Z面）：向外拖动（负Z方向）→ 减少minZ → 选区变大
+            case NORTH -> // NORTH面（最小Z面）：向外拖动（负Z方向，axisDelta为负）→ newCoord变小 → 减少minZ → 选区变大
                     newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY(), (int) Math.round(newCoord));
-            case SOUTH -> // SOUTH面（最大Z面）：向外拖动（正Z方向）→ 增加maxZ → 选区变大
+            case SOUTH -> // SOUTH面（最大Z面）：向外拖动（正Z方向，axisDelta为正）→ newCoord变大 → 增加maxZ → 选区变大
                     newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY(), (int) Math.round(newCoord));
         }
         
