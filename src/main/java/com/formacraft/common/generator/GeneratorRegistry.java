@@ -48,6 +48,11 @@ public final class GeneratorRegistry {
         register("FOUNDATION", new FoundationGenerator());
         register("DECOR_DETAIL", new DecorDetailGenerator());
         
+        // 塔楼相关组件类型（用于埃菲尔铁塔等）
+        register("TOWER_BASE", new TowerGenerator());
+        register("TOWER_MID", new TowerGenerator());
+        register("TOWER_TOP", new TowerGenerator());
+        
         // 侧翼生成器（复用 MassMainGenerator）
         register("SIDE_WING", new MassMainGenerator());
         register("MASS_WING", new MassMainGenerator()); // 扎哈风格侧翼

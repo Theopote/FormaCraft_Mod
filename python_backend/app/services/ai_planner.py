@@ -5,8 +5,11 @@ AI Planner Service
 import os
 import json
 import re
+import logging
 import concurrent.futures
 from typing import Any, Dict, List, Optional, Union
+
+logger = logging.getLogger(__name__)
 
 try:
     from openai import OpenAI
@@ -3813,6 +3816,8 @@ def generate_llm_plan(req: BuildRequest) -> dict:
     """
     处理 LlmPlan 格式的请求（Java 端的新格式）
     直接返回 LLM 的原始 JSON 输出，不做格式转换
+    
+    对于强类型建筑（如埃菲尔铁塔、中国古建筑等），会自动搜索参考资料
     """
     client = get_client(req)
     if not client:
@@ -3835,6 +3840,31 @@ def generate_llm_plan(req: BuildRequest) -> dict:
     # 如果没有 user prompt，使用 userMessage
     if not user_prompt:
         user_prompt = req.userMessage or request_text
+    
+    # ========== 网络搜索增强：为强类型建筑获取参考资料 ==========
+    try:
+        from .architecture_researcher import get_architecture_reference_context
+        
+        # 检查是否需要搜索参考资料
+        search_query = (req.userMessage or "").strip()
+        if not search_query:
+            # 从 requestText 中提取用户请求
+            if "USER REQUEST:" in request_text:
+                search_query = user_prompt
+            else:
+                search_query = user_prompt[:200]  # 使用前200个字符作为搜索关键词
+        
+        if search_query:
+            reference_context = get_architecture_reference_context(search_query)
+            if reference_context:
+                # 将参考资料添加到 user prompt 前面
+                user_prompt = reference_context + "\n\n" + user_prompt
+                logger.info("Added architecture reference context to LlmPlan prompt")
+    except ImportError:
+        logger.warning("architecture_researcher module not available, skipping reference search")
+    except Exception as e:
+        # 搜索失败不应该阻塞生成，只记录警告
+        logger.warning(f"Failed to get architecture reference: {e}")
     
     try:
         model = _resolve_model(req, "gpt-4o-mini")

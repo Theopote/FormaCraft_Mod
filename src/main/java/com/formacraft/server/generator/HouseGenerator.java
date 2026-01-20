@@ -21,6 +21,7 @@ import com.formacraft.server.waterfront.WaterfrontPierGenerator;
 import com.formacraft.server.terrain.TerrainFit;
 import com.formacraft.server.terrain.TerrainPolicy;
 import com.formacraft.server.terrain.TerrainPolicyResolver;
+import com.formacraft.FormacraftMod;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -40,24 +41,28 @@ public class HouseGenerator implements StructureGenerator {
         List<PlannedBlock> blocks = new ArrayList<>();
         Set<BlockPos> fenceFramePositions = new HashSet<>();
 
-        // 0. 如果origin是锚点（建筑底平面中心），需要转换为左下角
-        // 锚点通常是建筑底平面的大致中心，而HouseGenerator使用左下角作为origin
+        // 0. 锚点处理：锚点应该是建筑底平面的中心，而HouseGenerator使用左下角作为origin
+        // 因此需要将锚点（中心）转换为左下角：左下角 = 中心 - (width/2, 0, depth/2)
         int width = Math.max(6, spec.getFootprint() != null ? spec.getFootprint().getWidth() : 8);
         int depth = Math.max(6, spec.getFootprint() != null ? spec.getFootprint().getDepth() : 6);
-        // 检查extra中是否有明确指示anchor是中心还是左下角
+        
+        // 检查extra中是否有明确指示anchor是左下角（默认假设是中心）
         java.util.Map<String, Object> extra = spec.getExtra() != null ? spec.getExtra() : java.util.Collections.emptyMap();
         Object anchorModeObj = extra.get("anchorMode");
-        boolean anchorIsCenter = true; // 默认假设锚点是中心
+        boolean anchorIsCenter = true; // 默认假设锚点是中心（用户期望的行为）
         if (anchorModeObj != null) {
             String anchorMode = String.valueOf(anchorModeObj).trim().toLowerCase();
             anchorIsCenter = !anchorMode.contains("corner") && !anchorMode.contains("bottom_left");
         }
-        // 如果锚点是中心，转换为左下角：左下角 = 中心 - (width/2, 0, depth/2)
+        
+        // 如果锚点是中心，转换为左下角
         BlockPos actualOrigin = origin;
         if (anchorIsCenter) {
+            // 确保中心到左下角的转换是正确的（向下取整）
             int offsetX = -(width / 2);
             int offsetZ = -(depth / 2);
             actualOrigin = origin.add(offsetX, 0, offsetZ);
+            FormacraftMod.LOGGER.debug("HouseGenerator: converted anchor center {} to bottom-left origin {}", origin, actualOrigin);
         }
 
         // 1. 初始化上下文
@@ -227,24 +232,22 @@ public class HouseGenerator implements StructureGenerator {
      * 地坪平整（确保单体建筑的每层地板都是平的）
      */
     private BlockPos flattenTerrain(List<PlannedBlock> blocks, HouseGenerationContext ctx) {
-        ctx.origin().getY();
-        int baseY;
+        int baseY = ctx.origin().getY();
         java.util.Map<String, Object> extra = ctx.spec().getExtra() != null ? ctx.spec().getExtra() : java.util.Collections.emptyMap();
         TerrainPolicy terrainPolicy = TerrainPolicyResolver.resolve(extra);
         
         // 获取平整参数
         int padDepth = 4;
-        int clearHeight = 8;
+        int clearHeight = ctx.height() + 8; // 确保清理整个建筑高度范围内的地形方块
         Object padDepthObj = extra.get("terrainPadDepth");
         Object clearHeightObj = extra.get("terrainClearHeight");
         if (padDepthObj instanceof Number) padDepth = ((Number) padDepthObj).intValue();
-        if (clearHeightObj instanceof Number) clearHeight = ((Number) clearHeightObj).intValue();
+        if (clearHeightObj instanceof Number) clearHeight = Math.max(((Number) clearHeightObj).intValue(), ctx.height() + 4);
         
         // 如果地形策略是 ADAPTIVE 或 FLATTEN_AREA，进行地坪平整
         if (terrainPolicy == TerrainPolicy.ADAPTIVE || terrainPolicy == TerrainPolicy.FLATTEN_AREA) {
             // 调整 origin 高度
             BlockPos adjustedOrigin = TerrainFit.snapOrigin(ctx.world(), ctx.origin(), ctx.width(), ctx.depth());
-            adjustedOrigin.getY();
 
             // 计算目标高度
             int targetY = TerrainFit.averageFootprintHeight(ctx.world(), adjustedOrigin, ctx.width(), ctx.depth()) + 1;
@@ -261,11 +264,30 @@ public class HouseGenerator implements StructureGenerator {
                 blocks.addAll(pad);
             } else if (analysis.range() > 1) {
                 int adaptivePadDepth = Math.min(padDepth, 4);
-                int adaptiveClearHeight = Math.min(clearHeight, 8);
+                // 确保清理高度覆盖整个建筑高度 + 缓冲
+                int adaptiveClearHeight = Math.max(ctx.height() + 4, Math.min(clearHeight, ctx.height() + 8));
                 List<PlannedBlock> pad = TerrainFit.adaptivePad(
                         ctx.world(), adjustedOrigin, ctx.width(), ctx.depth(), targetY, ctx.materials().foundation(),
                         adaptivePadDepth, adaptiveClearHeight, true, true);
                 blocks.addAll(pad);
+            }
+            
+            // 额外清理：确保建筑占用空间内的所有地形方块都被清理
+            // 这是为了防止地形方块顶起建筑方块
+            int clearFromY = targetY + 1;
+            int clearToY = targetY + ctx.height() + 2; // 清理到建筑顶部 + 缓冲
+            for (int x = 0; x < ctx.width(); x++) {
+                for (int z = 0; z < ctx.depth(); z++) {
+                    for (int y = clearFromY; y <= clearToY; y++) {
+                        BlockPos clearPos = adjustedOrigin.add(x, y, z);
+                        if (!com.formacraft.server.build.BuildConstraintContext.allow(clearPos)) continue;
+                        net.minecraft.block.BlockState current = ctx.world().getBlockState(clearPos);
+                        // 清理所有非空气方块（包括地形方块）
+                        if (!current.isAir()) {
+                            blocks.add(new com.formacraft.server.build.PlannedBlock(clearPos, net.minecraft.block.Blocks.AIR.getDefaultState()));
+                        }
+                    }
+                }
             }
             
             // 返回调整后的 origin

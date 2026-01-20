@@ -1221,25 +1221,47 @@ public class FormaCraftNetworking {
                                             
                                             // 生成平整地坪的 PlannedBlock
                                             List<PlannedBlock> terrainPadBlocks = new ArrayList<>();
+                                            // 计算建筑高度范围，确保清理整个建筑占用空间
+                                            int buildingHeight = Math.max(1, maxY - minY + 1);
+                                            int clearHeight = buildingHeight + 8; // 清理高度 = 建筑高度 + 缓冲
+                                            
                                             if (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN) {
                                                 // FLATTEN 策略：使用 balancedPad 进行较大范围平整
                                                 terrainPadBlocks = TerrainFit.balancedPad(
-                                                        serverWorld, center, width, depth, targetY, fillMaterial, 4, 8, true, true);
+                                                        serverWorld, center, width, depth, targetY, fillMaterial, 4, clearHeight, true, true);
                                             } else if (analysis.range() > 1) {
                                                 // ADAPTIVE 策略：如果地形起伏较大（range > 1），使用 adaptivePad 轻微平整
                                                 terrainPadBlocks = TerrainFit.adaptivePad(
-                                                        serverWorld, center, width, depth, targetY, fillMaterial, 4, 8, true, true);
+                                                        serverWorld, center, width, depth, targetY, fillMaterial, 4, clearHeight, true, true);
                                             }
                                             
-                                            // 将地坪平整的方块添加到结果的最前面
+                                            // 额外清理：确保建筑占用空间内的所有地形方块都被清理
+                                            // 这是为了防止地形方块顶起建筑方块（关键修复）
+                                            int clearFromY = targetY + 1;
+                                            int clearToY = minY + buildingHeight + 2; // 清理到建筑顶部 + 缓冲
+                                            for (int x = minX; x <= maxX; x++) {
+                                                for (int z = minZ; z <= maxZ; z++) {
+                                                    for (int y = clearFromY; y <= clearToY; y++) {
+                                                        BlockPos clearPos = new BlockPos(x, y, z);
+                                                        if (!com.formacraft.server.build.BuildConstraintContext.allow(clearPos)) continue;
+                                                        net.minecraft.block.BlockState current = serverWorld.getBlockState(clearPos);
+                                                        // 清理所有非空气方块（包括地形方块）
+                                                        if (!current.isAir()) {
+                                                            terrainPadBlocks.add(new com.formacraft.server.build.PlannedBlock(clearPos, net.minecraft.block.Blocks.AIR.getDefaultState()));
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // 将地坪平整的方块添加到结果的最前面（确保先清理地形，再放置建筑）
                                             if (!terrainPadBlocks.isEmpty()) {
                                                 List<PlannedBlock> merged = new ArrayList<>(terrainPadBlocks.size() + plannedBlocks.size());
                                                 merged.addAll(terrainPadBlocks);
                                                 merged.addAll(plannedBlocks);
                                                 plannedBlocks = merged;
                                                 
-                                                FormacraftMod.LOGGER.info("LlmPlan: flattened terrain area {}x{} at Y={}, added {} pad blocks",
-                                                        width, depth, targetY, terrainPadBlocks.size());
+                                                FormacraftMod.LOGGER.info("LlmPlan: flattened terrain area {}x{} at Y={}, cleared building space up to Y={}, added {} pad blocks",
+                                                        width, depth, targetY, clearToY, terrainPadBlocks.size());
                                             }
                                         }
 
