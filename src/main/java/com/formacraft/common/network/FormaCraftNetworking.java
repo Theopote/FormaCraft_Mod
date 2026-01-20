@@ -1238,7 +1238,8 @@ public class FormaCraftNetworking {
                                             // 额外清理：确保建筑占用空间内的所有地形方块都被清理
                                             // 这是为了防止地形方块顶起建筑方块（关键修复）
                                             int clearFromY = targetY + 1;
-                                            int clearToY = minY + buildingHeight + 2; // 清理到建筑顶部 + 缓冲
+                                            // 修复：使用maxY而不是minY + buildingHeight，确保覆盖所有屋顶方块
+                                            int clearToY = Math.max(maxY + 5, minY + buildingHeight + 5); // 清理到建筑最高点 + 缓冲
                                             for (int x = minX; x <= maxX; x++) {
                                                 for (int z = minZ; z <= maxZ; z++) {
                                                     for (int y = clearFromY; y <= clearToY; y++) {

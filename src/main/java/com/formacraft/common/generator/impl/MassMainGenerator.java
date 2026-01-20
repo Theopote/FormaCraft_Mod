@@ -94,12 +94,34 @@ public class MassMainGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
+        
+        // ========== 锚点处理：LLM返回的relativePosition通常是建筑底平面的中心点 ==========
+        // 但MassMainGenerator内部使用左下角作为原点，所以需要转换
+        // 中心点 -> 左下角：左下角 = 中心点 - (width/2, 0, depth/2)
+        // 注意：这里假设rp是中心点，因为LLM的prompt要求锚点是中心
+        Vec3i actualRp = rp;
+        // 检查是否有明确标记（未来可以扩展）
+        // 目前默认假设是中心点（与LLM prompt保持一致）
+        if (rp != null) {
+            // 将中心点转换为左下角
+            int offsetX = -(width / 2);
+            int offsetZ = -(depth / 2);
+            actualRp = new Vec3i(rp.x() + offsetX, rp.y(), rp.z() + offsetZ);
+            if (rp.x() != actualRp.x() || rp.z() != actualRp.z()) {
+                FormacraftMod.LOGGER.debug("MassMainGenerator: converted center anchor {} to bottom-left origin {} (size: {}x{})",
+                        rp, actualRp, width, depth);
+            }
+        }
+        
         Map<String, Object> params = c.params();
 
         FootprintShape baseShape = resolveShape(c, semantic);
         int cornerRadius = resolveCornerRadius(params, width, depth, baseShape);
         PatternConfig basePattern = resolvePlanPattern(params, semantic, width, depth, baseShape);
         List<MassConfig> massConfigs = resolveMasses(params, semantic, width, depth, height, baseShape, cornerRadius, basePattern);
+        
+        // 使用转换后的实际原点
+        rp = actualRp;
         
         // 尺寸规范化：确保高度至少3米（3格）
         // 如果用户指定了具体高度，使用用户的要求
