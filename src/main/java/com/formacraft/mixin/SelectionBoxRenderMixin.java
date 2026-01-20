@@ -24,18 +24,24 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 在原版绘制“目标方块轮廓”的同一渲染阶段，额外绘制 SelectionTool 的区域框。
+ * 在原版绘制"目标方块轮廓"的同一渲染阶段，额外绘制 SelectionTool 的区域框。
  * <p>
  * 说明：我们不依赖 WorldRenderEvents（当前环境不可用），而复用现有管线里
  * 已经准备好的 MatrixStack / VertexConsumer。
+ * <p>
+ * 注意：renderTargetBlockOutline 只在有目标方块时调用，仰视天空时会消失。
+ * 因此添加了额外的注入点确保选区框始终可见。
  */
 @Mixin(WorldRenderer.class)
 public class SelectionBoxRenderMixin {
 
+    /**
+     * 主要的渲染注入点：在 renderTargetBlockOutline 中渲染（有目标方块时）
+     */
     @Inject(
             method = "renderTargetBlockOutline(Lnet/minecraft/client/render/VertexConsumerProvider$Immediate;Lnet/minecraft/client/util/math/MatrixStack;ZLnet/minecraft/client/render/state/WorldRenderState;)V",
             // IMPORTANT:
-            // 不能用 HEAD：太早时原版还没 begin 线框的 BufferBuilder，首次写顶点会 “Not building!” 崩溃。
+            // 不能用 HEAD：太早时原版还没 begin 线框的 BufferBuilder，首次写顶点会 "Not building!" 崩溃。
             // 也不能用 TAIL：太晚时原版可能已经 flush 了 immediate。
             // 因此我们选择在原版首次 getBuffer(...) 之后立刻绘制，保证 BufferBuilder 处于 building 状态。
             at = @At(
@@ -50,14 +56,22 @@ public class SelectionBoxRenderMixin {
                                            boolean renderBlockOutline,
                                            net.minecraft.client.render.state.WorldRenderState renderStates,
                                            CallbackInfo ci) {
+        renderFormacraftOverlays(immediate, matrices);
+    }
+
+
+    /**
+     * 统一的渲染逻辑
+     */
+    private void renderFormacraftOverlays(VertexConsumerProvider.Immediate immediate, MatrixStack matrices) {
         if (!FormacraftUIState.isOpen) return;
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.gameRenderer == null) return;
         Vec3d cam = client.gameRenderer.getCamera().getPos();
 
-        // 关键：在原版绘制目标方块轮廓的同一 Immediate 上，不要在此阶段渲染任何“文字/其他 RenderLayer”，
-        // 否则会触发 Immediate 切换 layer 并可能提前结束 lines 的 BufferBuilder，导致原版后续 “Not building!” 崩溃。
+        // 关键：在原版绘制目标方块轮廓的同一 Immediate 上，不要在此阶段渲染任何"文字/其他 RenderLayer"，
+        // 否则会触发 Immediate 切换 layer 并可能提前结束 lines 的 BufferBuilder，导致原版后续 "Not building!" 崩溃。
         // 因此这里把 ctx.immediate 置空，仅允许线框（lines layer）渲染。
         VertexConsumer lines = immediate.getBuffer(RenderLayer.getLines());
         ToolWorldRenderContext ctx = new ToolWorldRenderContext(matrices, lines, null, cam.x, cam.y, cam.z);
@@ -97,4 +111,3 @@ public class SelectionBoxRenderMixin {
         ComponentSocketPreviewRenderer.render(ctx);
     }
 }
-

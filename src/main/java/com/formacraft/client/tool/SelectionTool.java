@@ -200,9 +200,9 @@ public final class SelectionTool implements FormacraftTool {
                 max.getX() + 1, max.getY() + 1, max.getZ() + 1
         );
 
-        // 稍微放大一点防止和方块重面闪烁 (Z-Fighting)
-        // 使用较小的 expand 值避免过度突出，但仍能防止深度测试遮挡
-        Box box = worldBox.expand(0.005).offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+        // 增大 expand 值，确保选框在所有角度和位置下都可见
+        // 当鼠标在选框上方时，深度测试可能会遮挡选框，所以需要更大的 expand 值
+        Box box = worldBox.expand(0.02).offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
         
         // 如果你在仰视时消失，尝试更换渲染层或检查 ctx.vertexConsumer 是否是 Lines 类型
         // 很多时候是因为 VertexRendering.drawBox 默认使用了关闭了深度测试或背面裁剪的 Layer
