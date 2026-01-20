@@ -232,7 +232,7 @@ public class HouseGenerator implements StructureGenerator {
      * 地坪平整（确保单体建筑的每层地板都是平的）
      */
     private BlockPos flattenTerrain(List<PlannedBlock> blocks, HouseGenerationContext ctx) {
-        int baseY = ctx.origin().getY();
+        int baseY =  ctx.origin().getY();
         java.util.Map<String, Object> extra = ctx.spec().getExtra() != null ? ctx.spec().getExtra() : java.util.Collections.emptyMap();
         TerrainPolicy terrainPolicy = TerrainPolicyResolver.resolve(extra);
         

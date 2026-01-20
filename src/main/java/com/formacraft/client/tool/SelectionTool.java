@@ -194,13 +194,18 @@ public final class SelectionTool implements FormacraftTool {
         BlockPos max = getMax();
         if (min == null || max == null) return;
 
-        // 绘制选区框
+        // 重点：如果当前正在选择，end 可能会随鼠标移动，确保预览框始终合法
         Box worldBox = new Box(
                 min.getX(), min.getY(), min.getZ(),
                 max.getX() + 1, max.getY() + 1, max.getZ() + 1
-        ).expand(0.02);
+        );
 
-        Box box = worldBox.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+        // 稍微放大一点防止和方块重面闪烁 (Z-Fighting)
+        // 使用较小的 expand 值避免过度突出，但仍能防止深度测试遮挡
+        Box box = worldBox.expand(0.005).offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+        
+        // 如果你在仰视时消失，尝试更换渲染层或检查 ctx.vertexConsumer 是否是 Lines 类型
+        // 很多时候是因为 VertexRendering.drawBox 默认使用了关闭了深度测试或背面裁剪的 Layer
         VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.35f, 0.85f, 1.00f, 0.65f);
 
         // 绘制八个角点
@@ -580,55 +585,55 @@ public final class SelectionTool implements FormacraftTool {
             currentPos = getRayIntersectionWithFace(draggingFace);
         }
         
-        // 计算拖拽距离（直接使用对应轴上的原始位移，避免法向量投影的问题）
-        Vec3d dragDelta = currentPos.subtract(dragStartPos);
+        // 计算鼠标在世界坐标系下的总位移
+        Vec3d totalDelta = currentPos.subtract(dragStartPos);
         
-        // 更新对应的面
         BlockPos newMin = dragStartMin;
         BlockPos newMax = dragStartMax;
-        
-        // 根据面的方向更新坐标（直接使用对应轴的位移）
-        double startCoord = getPlaneCoord(draggingFace, dragStartMin, dragStartMax);
-        double axisDelta;
-        
-        // 获取对应轴上的位移
+
+        // 直接根据拖拽的面，取出对应轴的位移应用到坐标上
+        // 不再使用法向量投影，直接操作轴坐标
         switch (draggingFace) {
-            case WEST, EAST -> axisDelta = dragDelta.x;   // X轴
-            case DOWN, UP -> axisDelta = dragDelta.y;    // Y轴
-            case NORTH, SOUTH -> axisDelta = dragDelta.z; // Z轴
-            default -> axisDelta = 0;
+            case WEST -> {
+                int move = (int) Math.round(totalDelta.x);
+                newMin = new BlockPos(dragStartMin.getX() + move, dragStartMin.getY(), dragStartMin.getZ());
+            }
+            case EAST -> {
+                int move = (int) Math.round(totalDelta.x);
+                newMax = new BlockPos(dragStartMax.getX() + move, dragStartMax.getY(), dragStartMax.getZ());
+            }
+            case DOWN -> {
+                int move = (int) Math.round(totalDelta.y);
+                newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY() + move, dragStartMin.getZ());
+            }
+            case UP -> {
+                int move = (int) Math.round(totalDelta.y);
+                newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY() + move, dragStartMax.getZ());
+            }
+            case NORTH -> {
+                int move = (int) Math.round(totalDelta.z);
+                newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY(), dragStartMin.getZ() + move);
+            }
+            case SOUTH -> {
+                int move = (int) Math.round(totalDelta.z);
+                newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY(), dragStartMax.getZ() + move);
+            }
         }
-        
-        double newCoord = startCoord + axisDelta;
-        
-        switch (draggingFace) {
-            case WEST -> // WEST面（最小X面）：向外拖动（负X方向，axisDelta为负）→ newCoord变小 → 减少minX → 选区变大
-                    newMin = new BlockPos((int) Math.round(newCoord), dragStartMin.getY(), dragStartMin.getZ());
-            case EAST -> // EAST面（最大X面）：向外拖动（正X方向，axisDelta为正）→ newCoord变大 → 增加maxX → 选区变大
-                    newMax = new BlockPos((int) Math.round(newCoord), dragStartMax.getY(), dragStartMax.getZ());
-            case DOWN -> // DOWN面（最小Y面）：向外拖动（负Y方向，axisDelta为负）→ newCoord变小 → 减少minY → 选区变大
-                    newMin = new BlockPos(dragStartMin.getX(), (int) Math.round(newCoord), dragStartMin.getZ());
-            case UP -> // UP面（最大Y面）：向外拖动（正Y方向，axisDelta为正）→ newCoord变大 → 增加maxY → 选区变大
-                    newMax = new BlockPos(dragStartMax.getX(), (int) Math.round(newCoord), dragStartMax.getZ());
-            case NORTH -> // NORTH面（最小Z面）：向外拖动（负Z方向，axisDelta为负）→ newCoord变小 → 减少minZ → 选区变大
-                    newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY(), (int) Math.round(newCoord));
-            case SOUTH -> // SOUTH面（最大Z面）：向外拖动（正Z方向，axisDelta为正）→ newCoord变大 → 增加maxZ → 选区变大
-                    newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY(), (int) Math.round(newCoord));
-        }
-        
-        // 确保min <= max（防止选区为空或反转）
+
+        // 规范化：确保 Min 永远是最小点，Max 永远是最大点
         int finalMinX = Math.min(newMin.getX(), newMax.getX());
         int finalMinY = Math.min(newMin.getY(), newMax.getY());
         int finalMinZ = Math.min(newMin.getZ(), newMax.getZ());
         int finalMaxX = Math.max(newMin.getX(), newMax.getX());
         int finalMaxY = Math.max(newMin.getY(), newMax.getY());
         int finalMaxZ = Math.max(newMin.getZ(), newMax.getZ());
-        
-        // 确保选区至少为1x1x1
-        if (finalMaxX <= finalMinX || finalMaxY <= finalMinY || finalMaxZ <= finalMinZ) {
-            return; // 不更新，保持当前选区
-        }
-        
+
+        // 限制最小选区为 1x1x1（防止坍缩消失）
+        if (finalMaxX == finalMinX) finalMaxX++;
+        if (finalMaxY == finalMinY) finalMaxY++;
+        if (finalMaxZ == finalMinZ) finalMaxZ++;
+
+        // 重新映射回 start 和 end (注意 end 在你的逻辑中是包含在内的，所以要减1)
         start = new BlockPos(finalMinX, finalMinY, finalMinZ);
         end = new BlockPos(finalMaxX - 1, finalMaxY - 1, finalMaxZ - 1);
     }

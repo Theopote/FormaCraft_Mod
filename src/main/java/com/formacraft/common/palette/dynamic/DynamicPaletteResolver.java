@@ -4,6 +4,10 @@ import com.formacraft.common.llm.dto.StyleAttributes;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 /**
  * DynamicPaletteResolver（动态调色板解析器）
@@ -19,6 +23,8 @@ import java.util.List;
 public final class DynamicPaletteResolver {
     
     private DynamicPaletteResolver() {}
+
+    private static final Map<String, Boolean> VALID_BLOCK_CACHE = new ConcurrentHashMap<>();
     
     /**
      * 根据 style_attributes 解析方块 ID
@@ -207,7 +213,8 @@ public final class DynamicPaletteResolver {
         // 例如：white + terracotta → white_terracotta
         // 例如：black + concrete → black_concrete
         String blockId = normalizedColor + "_" + normalizedMaterial;
-        return "minecraft:" + blockId;
+        String fullId = "minecraft:" + blockId;
+        return isValidBlockId(fullId) ? fullId : null;
     }
     
     /**
@@ -218,7 +225,8 @@ public final class DynamicPaletteResolver {
         if (normalized == null) return null;
         
         // 默认使用 concrete（混凝土有完整的颜色系列）
-        return "minecraft:" + normalized + "_concrete";
+        String fullId = "minecraft:" + normalized + "_concrete";
+        return isValidBlockId(fullId) ? fullId : null;
     }
     
     /**
@@ -285,10 +293,27 @@ public final class DynamicPaletteResolver {
         
         String normalized = normalizeMaterial(material);
         if (normalized != null) {
-            return "minecraft:" + normalized;
+            String fullId = "minecraft:" + normalized;
+            return isValidBlockId(fullId) ? fullId : null;
         }
         
         return null;
+    }
+
+    private static boolean isValidBlockId(String blockId) {
+        if (blockId == null || blockId.isBlank()) {
+            return false;
+        }
+        return VALID_BLOCK_CACHE.computeIfAbsent(blockId, DynamicPaletteResolver::lookupBlockId);
+    }
+
+    private static boolean lookupBlockId(String blockId) {
+        String s = blockId.trim();
+        if (!s.contains(":")) {
+            s = "minecraft:" + s;
+        }
+        Identifier id = Identifier.tryParse(s);
+        return id != null && Registries.BLOCK.containsId(id);
     }
     
     /**
