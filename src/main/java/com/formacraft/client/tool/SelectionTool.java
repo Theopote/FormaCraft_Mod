@@ -15,25 +15,76 @@ import org.lwjgl.glfw.GLFW;
 /**
  * 两点框选工具：左键第一次设置起点，第二次设置终点。
  * 支持在选框六个面的中心使用锚点调整大小。
+ * 
+ * <p>功能特性：
+ * <ul>
+ *   <li>两点框选创建选区</li>
+ *   <li>六个面中心的锚点支持拖拽调整大小</li>
+ *   <li>悬停检测和视觉反馈</li>
+ *   <li>光标样式自动切换</li>
+ * </ul>
  */
 public final class SelectionTool implements FormacraftTool {
     public static final SelectionTool INSTANCE = new SelectionTool();
 
     private SelectionTool() {}
 
+    // ==================== 常量 ====================
+    /** 锚点大小（世界单位） */
+    private static final double ANCHOR_SIZE = 0.08;
+    /** 鼠标悬停检测距离（世界单位，基础值） */
+    private static final double ANCHOR_HOVER_DISTANCE_BASE = 0.5;
+    /** 悬停检测的最大角度阈值（弧度） */
+    private static final double ANCHOR_HOVER_ANGLE_THRESHOLD = Math.toRadians(2.0); // 约2度
+    /** 锚点悬停时放大倍数 */
+    private static final double ANCHOR_HOVER_SCALE = 1.5;
+    /** 角点大小 */
+    private static final double CORNER_SIZE = 0.12;
+    /** 射线相交最大距离 */
+    private static final double MAX_RAY_DISTANCE = 500.0;
+    /** 射线方向分量阈值（避免除零） */
+    private static final double RAY_DIR_EPSILON = 1e-6;
+    
+    // ==================== 选区状态 ====================
     private BlockPos start;
     private BlockPos end;
     private boolean selecting = false;
     
-    // 锚点拖拽状态
-    private Direction draggingFace = null; // 当前正在拖拽的面
-    private Vec3d dragStartPos = null; // 拖拽开始时的世界坐标
-    private BlockPos dragStartMin = null; // 拖拽开始时的min坐标
-    private BlockPos dragStartMax = null; // 拖拽开始时的max坐标
+    // ==================== 锚点拖拽状态 ====================
+    /** 当前正在拖拽的面 */
+    private Direction draggingFace = null;
+    /** 拖拽开始时的世界坐标 */
+    private Vec3d dragStartPos = null;
+    /** 拖拽开始时的min坐标 */
+    private BlockPos dragStartMin = null;
+    /** 拖拽开始时的max坐标 */
+    private BlockPos dragStartMax = null;
     
-    // 锚点大小
-    private static final double ANCHOR_SIZE = 0.08; // 缩小锚点
-    private static final double ANCHOR_HOVER_DISTANCE = 0.3; // 鼠标悬停检测距离（世界单位）
+    // ==================== 缓存数据（每帧更新） ====================
+    /** 缓存的悬停面（每帧在tick()中更新，避免重复计算） */
+    private Direction cachedHoveredFace = null;
+    /** 缓存的相机位置 */
+    private Vec3d cachedCameraPos = null;
+    /** 缓存的鼠标射线方向 */
+    private Vec3d cachedMouseRayDir = null;
+    
+    // ==================== 光标管理 ====================
+    /** 当前光标句柄（用于释放资源） */
+    private long currentCursorHandle = 0;
+    /** 预创建的垂直双向箭头光标 */
+    private static long resizeNsCursor = 0;
+    /** 预创建的水平双向箭头光标 */
+    private static long resizeEwCursor = 0;
+    
+    // 静态初始化：预创建光标
+    static {
+        try {
+            resizeNsCursor = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_NS_CURSOR);
+            resizeEwCursor = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_EW_CURSOR);
+        } catch (Exception e) {
+            // 如果GLFW未初始化，延迟到首次使用时创建
+        }
+    }
 
     @Override
     public String getId() {
@@ -51,21 +102,17 @@ public final class SelectionTool implements FormacraftTool {
             return false;
         }
 
-        // 如果正在拖拽，先停止拖拽（通过鼠标释放检测来处理）
-        // 这里只处理开始拖拽的逻辑
-
         // 如果已有选区，检查是否点击在锚点上
         if (hasSelection()) {
-            Direction hoveredFace = getHoveredFace();
-            if (hoveredFace != null) {
+            // 使用缓存的悬停面，避免重复计算
+            if (cachedHoveredFace != null) {
                 // 开始拖拽
-                draggingFace = hoveredFace;
+                draggingFace = cachedHoveredFace;
                 HitResult hit = CursorRaycastHelper.getLastHit();
                 if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
                     dragStartPos = hit.getPos();
                 } else {
-                    // 如果没有命中，使用射线与面的交点
-                    dragStartPos = getRayIntersectionWithFace(hoveredFace);
+                    dragStartPos = getRayIntersectionWithFace(cachedHoveredFace);
                 }
                 dragStartMin = getMin();
                 dragStartMax = getMax();
@@ -73,21 +120,9 @@ public final class SelectionTool implements FormacraftTool {
             }
         }
 
-        // 如果正在拖拽，则不应创建新选区
-        if (draggingFace != null) {
+        // 如果正在拖拽或悬停在锚点上，阻止创建新选区
+        if (draggingFace != null || cachedHoveredFace != null) {
             return true;
-        }
-
-        // 检查是否悬停在锚点上（即使没有选区也要检查，以阻止新选择）
-        Direction hoveredFace = getHoveredFace();
-        if (hoveredFace != null && hasSelection()) {
-            // 如果已经有选区且悬停在锚点上，点击时开始拖拽（已在上面处理）
-            return true;
-        }
-        
-        // 如果悬停在锚点上但没有选区，阻止创建新选区
-        if (hoveredFace != null) {
-            return true; // 阻止选框功能
         }
 
         BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
@@ -107,19 +142,16 @@ public final class SelectionTool implements FormacraftTool {
 
     @Override
     public void tick() {
+        // 更新缓存：每帧计算一次，避免重复计算
+        updateCaches();
+        
         // 检测鼠标是否释放（停止拖拽）
         if (draggingFace != null) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.getWindow() != null) {
-                long window = client.getWindow().getHandle();
-                // 检查左键是否已释放
-                int leftButtonState = org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            long window = getClientWindow();
+            if (window != 0) {
+                int leftButtonState = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT);
                 if (leftButtonState == GLFW.GLFW_RELEASE) {
-                    // 停止拖拽
-                    draggingFace = null;
-                    dragStartPos = null;
-                    dragStartMin = null;
-                    dragStartMax = null;
+                    stopDragging();
                 }
             }
         }
@@ -133,12 +165,10 @@ public final class SelectionTool implements FormacraftTool {
         updateCursor();
         
         // 如果鼠标悬停在锚点上或正在拖拽，阻止选框功能
-        Direction hoveredFace = getHoveredFace();
-        if (hoveredFace != null || draggingFace != null) {
+        if (cachedHoveredFace != null || draggingFace != null) {
             // 如果正在选择且鼠标移到锚点上，停止选择过程
-            if (selecting && hoveredFace != null) {
+            if (selecting && cachedHoveredFace != null) {
                 selecting = false;
-                // 保持当前的选区（不改变start和end）
             }
             // 阻止选框更新
             return;
@@ -158,6 +188,7 @@ public final class SelectionTool implements FormacraftTool {
         BlockPos max = getMax();
         if (min == null || max == null) return;
 
+        // 绘制选区框
         Box worldBox = new Box(
                 min.getX(), min.getY(), min.getZ(),
                 max.getX() + 1, max.getY() + 1, max.getZ() + 1
@@ -166,35 +197,42 @@ public final class SelectionTool implements FormacraftTool {
         Box box = worldBox.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
         VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.35f, 0.85f, 1.00f, 0.65f);
 
-        double s = 0.12;
-        drawCorner(ctx, min.getX(), min.getY(), min.getZ(), s);
-        drawCorner(ctx, max.getX() + 1, min.getY(), min.getZ(), s);
-        drawCorner(ctx, min.getX(), max.getY() + 1, min.getZ(), s);
-        drawCorner(ctx, max.getX() + 1, max.getY() + 1, min.getZ(), s);
-        drawCorner(ctx, min.getX(), min.getY(), max.getZ() + 1, s);
-        drawCorner(ctx, max.getX() + 1, min.getY(), max.getZ() + 1, s);
-        drawCorner(ctx, min.getX(), max.getY() + 1, max.getZ() + 1, s);
-        drawCorner(ctx, max.getX() + 1, max.getY() + 1, max.getZ() + 1, s);
+        // 绘制八个角点
+        drawCorners(ctx, min, max);
         
         // 只在有选区且不在选择过程中时绘制锚点
         if (hasSelection()) {
-            Direction hoveredFace = getHoveredFace();
-            drawFaceAnchors(ctx, min, max, hoveredFace);
+            drawFaceAnchors(ctx, min, max);
         }
     }
 
-    private void drawCorner(ToolWorldRenderContext ctx, double wx, double wy, double wz, double size) {
-        Box corner = new Box(
-                wx - size, wy - size, wz - size,
-                wx + size, wy + size, wz + size
-        ).offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
-        VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, corner, 0.85f, 0.95f, 1.00f, 0.95f);
+    // ==================== 辅助方法：缓存管理 ====================
+    
+    /**
+     * 更新每帧缓存的数据
+     */
+    private void updateCaches() {
+        cachedCameraPos = getCameraPos();
+        cachedMouseRayDir = getMouseRayDirection();
+        cachedHoveredFace = computeHoveredFace();
     }
     
     /**
-     * 绘制六个面的中心锚点
+     * 获取客户端窗口句柄（安全封装）
+     * @return 窗口句柄，失败返回0
      */
-    private void drawFaceAnchors(ToolWorldRenderContext ctx, BlockPos min, BlockPos max, Direction hoveredFace) {
+    private long getClientWindow() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) return 0;
+        return client.getWindow().getHandle();
+    }
+
+    // ==================== 辅助方法：渲染 ====================
+    
+    /**
+     * 绘制八个角点
+     */
+    private void drawCorners(ToolWorldRenderContext ctx, BlockPos min, BlockPos max) {
         double minX = min.getX();
         double minY = min.getY();
         double minZ = min.getZ();
@@ -202,34 +240,44 @@ public final class SelectionTool implements FormacraftTool {
         double maxY = max.getY() + 1;
         double maxZ = max.getZ() + 1;
         
-        // X- 面（最小X面）
-        Vec3d pos = new Vec3d(minX, (minY + maxY) / 2.0, (minZ + maxZ) / 2.0);
-        boolean isHovered = hoveredFace == Direction.WEST;
-        drawAnchor(ctx, pos, isHovered);
-        
-        // X+ 面（最大X面）
-        pos = new Vec3d(maxX, (minY + maxY) / 2.0, (minZ + maxZ) / 2.0);
-        isHovered = hoveredFace == Direction.EAST;
-        drawAnchor(ctx, pos, isHovered);
-        
-        // Y- 面（最小Y面）
-        pos = new Vec3d((minX + maxX) / 2.0, minY, (minZ + maxZ) / 2.0);
-        isHovered = hoveredFace == Direction.DOWN;
-        drawAnchor(ctx, pos, isHovered);
-        
-        // Y+ 面（最大Y面）
-        pos = new Vec3d((minX + maxX) / 2.0, maxY, (minZ + maxZ) / 2.0);
-        isHovered = hoveredFace == Direction.UP;
-        drawAnchor(ctx, pos, isHovered);
-        
-        // Z- 面（最小Z面）
-        pos = new Vec3d((minX + maxX) / 2.0, (minY + maxY) / 2.0, minZ);
-        isHovered = hoveredFace == Direction.NORTH;
-        drawAnchor(ctx, pos, isHovered);
-        
-        // Z+ 面（最大Z面）
-        pos = new Vec3d((minX + maxX) / 2.0, (minY + maxY) / 2.0, maxZ);
-        isHovered = hoveredFace == Direction.SOUTH;
+        drawCorner(ctx, minX, minY, minZ);
+        drawCorner(ctx, maxX, minY, minZ);
+        drawCorner(ctx, minX, maxY, minZ);
+        drawCorner(ctx, maxX, maxY, minZ);
+        drawCorner(ctx, minX, minY, maxZ);
+        drawCorner(ctx, maxX, minY, maxZ);
+        drawCorner(ctx, minX, maxY, maxZ);
+        drawCorner(ctx, maxX, maxY, maxZ);
+    }
+    
+    private void drawCorner(ToolWorldRenderContext ctx, double wx, double wy, double wz) {
+        Box corner = new Box(
+                wx - SelectionTool.CORNER_SIZE, wy - SelectionTool.CORNER_SIZE, wz - SelectionTool.CORNER_SIZE,
+                wx + SelectionTool.CORNER_SIZE, wy + SelectionTool.CORNER_SIZE, wz + SelectionTool.CORNER_SIZE
+        ).offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
+        VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, corner, 0.85f, 0.95f, 1.00f, 0.95f);
+    }
+    
+    /**
+     * 绘制六个面的中心锚点（优化版：减少重复代码）
+     */
+    private void drawFaceAnchors(ToolWorldRenderContext ctx, BlockPos min, BlockPos max) {
+        // 遍历所有六个轴向方向（WEST, EAST, DOWN, UP, NORTH, SOUTH）
+        for (Direction face : Direction.values()) {
+            drawFaceAnchor(ctx, face, min, max);
+        }
+    }
+    
+    /**
+     * 绘制单个面的锚点
+     * @param ctx 渲染上下文
+     * @param face 面的方向
+     * @param min 最小坐标
+     * @param max 最大坐标
+     */
+    private void drawFaceAnchor(ToolWorldRenderContext ctx, Direction face, BlockPos min, BlockPos max) {
+        Vec3d pos = getFaceCenter(min, max, face);
+        boolean isHovered = cachedHoveredFace == face;
         drawAnchor(ctx, pos, isHovered);
     }
     
@@ -237,7 +285,7 @@ public final class SelectionTool implements FormacraftTool {
      * 绘制单个锚点（小方块）
      */
     private void drawAnchor(ToolWorldRenderContext ctx, Vec3d pos, boolean isHovered) {
-        double s = isHovered ? ANCHOR_SIZE * 1.5 : ANCHOR_SIZE; // 悬停时稍微放大以提供视觉反馈
+        double s = isHovered ? ANCHOR_SIZE * ANCHOR_HOVER_SCALE : ANCHOR_SIZE;
         Box anchor = new Box(
                 pos.x - s, pos.y - s, pos.z - s,
                 pos.x + s, pos.y + s, pos.z + s
@@ -250,74 +298,80 @@ public final class SelectionTool implements FormacraftTool {
             VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, anchor, 0.9f, 0.5f, 0.1f, 0.95f); // 橙色
         }
     }
+
+    // ==================== 辅助方法：悬停检测 ====================
     
     /**
-     * 检测鼠标是否悬停在某个面的锚点上
+     * 计算鼠标是否悬停在某个面的锚点上（内部实现）
+     * 使用角度判断和动态距离阈值，确保远距离也能正常工作
+     * @return 悬停的面，如果没有则返回null
      */
-    private Direction getHoveredFace() {
+    private Direction computeHoveredFace() {
         BlockPos min = getMin();
         BlockPos max = getMax();
-        if (min == null || max == null) return null;
+        if (min == null || max == null || cachedCameraPos == null || cachedMouseRayDir == null) {
+            return null;
+        }
         
-        Vec3d cameraPos = getCameraPos();
-        Vec3d mouseRayDir = getMouseRayDirection();
-        
-        // 找到最接近鼠标射线的锚点
         double minScore = Double.MAX_VALUE;
         Direction closestFace = null;
         
-        double minX = min.getX();
-        double minY = min.getY();
-        double minZ = min.getZ();
-        double maxX = max.getX() + 1;
-        double maxY = max.getY() + 1;
-        double maxZ = max.getZ() + 1;
-        
-        Direction[] faces = {Direction.WEST, Direction.EAST, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH};
-        Vec3d[] centers = {
-            new Vec3d(minX, (minY + maxY) / 2.0, (minZ + maxZ) / 2.0), // X-
-            new Vec3d(maxX, (minY + maxY) / 2.0, (minZ + maxZ) / 2.0), // X+
-            new Vec3d((minX + maxX) / 2.0, minY, (minZ + maxZ) / 2.0), // Y-
-            new Vec3d((minX + maxX) / 2.0, maxY, (minZ + maxZ) / 2.0), // Y+
-            new Vec3d((minX + maxX) / 2.0, (minY + maxY) / 2.0, minZ), // Z-
-            new Vec3d((minX + maxX) / 2.0, (minY + maxY) / 2.0, maxZ)  // Z+
-        };
-        
-        // 计算每个锚点到鼠标射线的距离
-        for (int i = 0; i < faces.length; i++) {
-            Vec3d anchorPos = centers[i];
-            Vec3d toAnchor = anchorPos.subtract(cameraPos);
+        // 遍历所有六个轴向面（WEST, EAST, DOWN, UP, NORTH, SOUTH）
+        for (Direction face : Direction.values()) {
+            Vec3d anchorPos = getFaceCenter(min, max, face);
+            Vec3d toAnchor = anchorPos.subtract(cachedCameraPos);
             double distToAnchor = toAnchor.length();
             
             if (distToAnchor < 0.1) continue; // 锚点太近，跳过
             
-            // 计算锚点在鼠标射线上的投影
-            double projectionOnRay = toAnchor.dotProduct(mouseRayDir);
+            // 计算从相机到锚点的方向（归一化）
+            Vec3d toAnchorDir = toAnchor.normalize();
             
-            // 如果投影为负，说明锚点在射线后方，跳过
-            if (projectionOnRay < 0) continue;
+            // 计算鼠标射线方向与到锚点方向的夹角（使用点积）
+            double dotProduct = cachedMouseRayDir.dotProduct(toAnchorDir);
             
-            // 计算锚点到射线的垂直距离
-            Vec3d projectedPoint = cameraPos.add(mouseRayDir.multiply(projectionOnRay));
+            // 如果角度太大（点积太小），说明鼠标没有指向锚点
+            // 使用角度阈值：约2度的圆锥内
+            double angleToAnchor = Math.acos(Math.max(-1.0, Math.min(1.0, dotProduct)));
+            
+            if (angleToAnchor > ANCHOR_HOVER_ANGLE_THRESHOLD) {
+                continue; // 角度太大，跳过
+            }
+            
+            // 计算锚点到射线的垂直距离（用于进一步筛选）
+            double projectionOnRay = toAnchor.dotProduct(cachedMouseRayDir);
+            if (projectionOnRay < 0) continue; // 锚点在射线后方，跳过
+            
+            Vec3d projectedPoint = cachedCameraPos.add(cachedMouseRayDir.multiply(projectionOnRay));
             Vec3d perpendicular = anchorPos.subtract(projectedPoint);
             double perpDist = perpendicular.length();
             
-            // 使用距离作为评分（距离越近，分数越小，越容易被选中）
-            // 同时考虑投影距离，优先选择更靠近相机的
-            double score = perpDist * (1.0 + distToAnchor * 0.05);
+            // 根据相机距离动态调整阈值：距离越远，阈值越大
+            // 使用线性缩放：每单位距离增加0.1的基础阈值
+            double dynamicThreshold = ANCHOR_HOVER_DISTANCE_BASE * (1.0 + distToAnchor * 0.2);
             
-            // 如果距离在阈值内，记录最接近的锚点
-            if (perpDist < ANCHOR_HOVER_DISTANCE && score < minScore) {
-                minScore = score;
-                closestFace = faces[i];
+            // 如果垂直距离在动态阈值内，记录最接近的锚点
+            // 使用综合评分：角度越小且距离越近的优先级越高
+            if (perpDist < dynamicThreshold) {
+                // 评分：角度权重更大，距离作为次要因素
+                double angleScore = angleToAnchor * 100.0; // 角度权重
+                double distanceScore = perpDist * 0.1; // 距离权重
+                double score = angleScore + distanceScore;
+                
+                if (score < minScore) {
+                    minScore = score;
+                    closestFace = face;
+                }
             }
         }
         
         return closestFace;
     }
     
+    // ==================== 辅助方法：相机和射线 ====================
+    
     /**
-     * 获取相机位置
+     * 获取相机位置（带缓存）
      */
     private Vec3d getCameraPos() {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -326,7 +380,7 @@ public final class SelectionTool implements FormacraftTool {
     }
     
     /**
-     * 获取鼠标射线方向（从相机位置到鼠标指向的方向）
+     * 获取鼠标射线方向（从相机位置到鼠标指向的方向，带缓存）
      */
     private Vec3d getMouseRayDirection() {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -373,95 +427,95 @@ public final class SelectionTool implements FormacraftTool {
         Vec3d up = right.crossProduct(look).normalize();
         
         // 计算鼠标射线方向
-        Vec3d rayDir = look
+        return look
                 .add(right.multiply(ndcX * tan * aspect))
                 .add(up.multiply(ndcY * tan))
                 .normalize();
-        
-        return rayDir;
     }
     
     /**
      * 计算射线与面的交点
+     * @param face 面的方向
+     * @return 交点坐标，如果射线不与面相交则返回面的中心
      */
     private Vec3d getRayIntersectionWithFace(Direction face) {
         BlockPos min = getMin();
         BlockPos max = getMax();
-        if (min == null || max == null) return Vec3d.ZERO;
-        
-        Vec3d rayStart = getCameraPos();
-        Vec3d rayDir = getMouseRayDirection();
-        
-        double minX = min.getX();
-        double minY = min.getY();
-        double minZ = min.getZ();
-        double maxX = max.getX() + 1;
-        double maxY = max.getY() + 1;
-        double maxZ = max.getZ() + 1;
-        
-        double t = Double.MAX_VALUE;
-        double planeCoord = 0;
-        
-        // 根据面计算交点
-        switch (face) {
-            case WEST -> {
-                planeCoord = minX;
-                if (Math.abs(rayDir.x) > 1e-6) {
-                    t = (planeCoord - rayStart.x) / rayDir.x;
-                }
-            }
-            case EAST -> {
-                planeCoord = maxX;
-                if (Math.abs(rayDir.x) > 1e-6) {
-                    t = (planeCoord - rayStart.x) / rayDir.x;
-                }
-            }
-            case DOWN -> {
-                planeCoord = minY;
-                if (Math.abs(rayDir.y) > 1e-6) {
-                    t = (planeCoord - rayStart.y) / rayDir.y;
-                }
-            }
-            case UP -> {
-                planeCoord = maxY;
-                if (Math.abs(rayDir.y) > 1e-6) {
-                    t = (planeCoord - rayStart.y) / rayDir.y;
-                }
-            }
-            case NORTH -> {
-                planeCoord = minZ;
-                if (Math.abs(rayDir.z) > 1e-6) {
-                    t = (planeCoord - rayStart.z) / rayDir.z;
-                }
-            }
-            case SOUTH -> {
-                planeCoord = maxZ;
-                if (Math.abs(rayDir.z) > 1e-6) {
-                    t = (planeCoord - rayStart.z) / rayDir.z;
-                }
-            }
+        if (min == null || max == null || cachedCameraPos == null || cachedMouseRayDir == null) {
+            return Vec3d.ZERO;
         }
         
-        if (t > 0 && t < 1000) {
-            Vec3d intersection = rayStart.add(rayDir.multiply(t));
-            // 将交点投影到面的中心位置（保持在同一平面上）
+        double planeCoord = getPlaneCoord(face, min, max);
+        double t = getT(face, planeCoord);
+
+        // 检查交点是否有效
+        if (t > 0 && t < MAX_RAY_DISTANCE) {
+            Vec3d intersection = cachedCameraPos.add(cachedMouseRayDir.multiply(t));
             Vec3d faceCenter = getFaceCenter(min, max, face);
             Vec3d offset = intersection.subtract(faceCenter);
-            // 移除垂直于面的分量
-            switch (face) {
-                case WEST, EAST -> offset = new Vec3d(0, offset.y, offset.z);
-                case DOWN, UP -> offset = new Vec3d(offset.x, 0, offset.z);
-                case NORTH, SOUTH -> offset = new Vec3d(offset.x, offset.y, 0);
+            
+            // 移除垂直于面的分量（投影到面上）
+            switch (face.getAxis()) {
+                case X -> offset = new Vec3d(0, offset.y, offset.z);
+                case Y -> offset = new Vec3d(offset.x, 0, offset.z);
+                case Z -> offset = new Vec3d(offset.x, offset.y, 0);
             }
+            
             return faceCenter.add(offset);
         }
         
         // 如果射线没有与面相交，返回面的中心
         return getFaceCenter(min, max, face);
     }
+
+    private double getT(Direction face, double planeCoord) {
+        double t = Double.MAX_VALUE;
+
+        // 根据面计算交点参数t
+        switch (face.getAxis()) {
+            case X -> {
+                if (Math.abs(cachedMouseRayDir.x) > RAY_DIR_EPSILON) {
+                    t = (planeCoord - cachedCameraPos.x) / cachedMouseRayDir.x;
+                }
+            }
+            case Y -> {
+                if (Math.abs(cachedMouseRayDir.y) > RAY_DIR_EPSILON) {
+                    t = (planeCoord - cachedCameraPos.y) / cachedMouseRayDir.y;
+                }
+            }
+            case Z -> {
+                if (Math.abs(cachedMouseRayDir.z) > RAY_DIR_EPSILON) {
+                    t = (planeCoord - cachedCameraPos.z) / cachedMouseRayDir.z;
+                }
+            }
+        }
+        return t;
+    }
+
+    /**
+     * 获取面的平面坐标（沿轴的位置）
+     * @param face 面的方向
+     * @param min 最小坐标
+     * @param max 最大坐标
+     * @return 平面坐标值
+     */
+    private double getPlaneCoord(Direction face, BlockPos min, BlockPos max) {
+        return switch (face) {
+            case WEST -> min.getX();
+            case EAST -> max.getX() + 1;
+            case DOWN -> min.getY();
+            case UP -> max.getY() + 1;
+            case NORTH -> min.getZ();
+            case SOUTH -> max.getZ() + 1;
+        };
+    }
     
     /**
      * 获取面的中心位置
+     * @param min 最小坐标
+     * @param max 最大坐标
+     * @param face 面的方向
+     * @return 面的中心坐标
      */
     private Vec3d getFaceCenter(BlockPos min, BlockPos max, Direction face) {
         double minX = min.getX();
@@ -481,8 +535,10 @@ public final class SelectionTool implements FormacraftTool {
         };
     }
     
+    // ==================== 辅助方法：拖拽处理 ====================
+    
     /**
-     * 处理拖拽逻辑
+     * 处理拖拽逻辑：根据鼠标位置更新选区大小
      */
     private void handleDrag() {
         if (draggingFace == null || dragStartPos == null || dragStartMin == null || dragStartMax == null) {
@@ -506,34 +562,20 @@ public final class SelectionTool implements FormacraftTool {
         BlockPos newMin = dragStartMin;
         BlockPos newMax = dragStartMax;
         
+        // 根据面的方向更新坐标（使用getPlaneCoord获取起始坐标）
+        double startCoord = getPlaneCoord(draggingFace, dragStartMin, dragStartMax);
+        double newCoord = startCoord + dragDistance;
+        
         switch (draggingFace) {
-            case WEST -> {
-                int newX = (int) Math.round(dragStartMin.getX() + dragDistance);
-                newMin = new BlockPos(newX, newMin.getY(), newMin.getZ());
-            }
-            case EAST -> {
-                int newX = (int) Math.round(dragStartMax.getX() + dragDistance);
-                newMax = new BlockPos(newX, newMax.getY(), newMax.getZ());
-            }
-            case DOWN -> {
-                int newY = (int) Math.round(dragStartMin.getY() + dragDistance);
-                newMin = new BlockPos(newMin.getX(), newY, newMin.getZ());
-            }
-            case UP -> {
-                int newY = (int) Math.round(dragStartMax.getY() + dragDistance);
-                newMax = new BlockPos(newMax.getX(), newY, newMax.getZ());
-            }
-            case NORTH -> {
-                int newZ = (int) Math.round(dragStartMin.getZ() + dragDistance);
-                newMin = new BlockPos(newMin.getX(), newMin.getY(), newZ);
-            }
-            case SOUTH -> {
-                int newZ = (int) Math.round(dragStartMax.getZ() + dragDistance);
-                newMax = new BlockPos(newMax.getX(), newMax.getY(), newZ);
-            }
+            case WEST -> newMin = new BlockPos((int) Math.round(newCoord), dragStartMin.getY(), dragStartMin.getZ());
+            case EAST -> newMax = new BlockPos((int) Math.round(newCoord), dragStartMax.getY(), dragStartMax.getZ());
+            case DOWN -> newMin = new BlockPos(dragStartMin.getX(), (int) Math.round(newCoord), dragStartMin.getZ());
+            case UP -> newMax = new BlockPos(dragStartMax.getX(), (int) Math.round(newCoord), dragStartMax.getZ());
+            case NORTH -> newMin = new BlockPos(dragStartMin.getX(), dragStartMin.getY(), (int) Math.round(newCoord));
+            case SOUTH -> newMax = new BlockPos(dragStartMax.getX(), dragStartMax.getY(), (int) Math.round(newCoord));
         }
         
-        // 确保min <= max
+        // 确保min <= max（防止选区为空或反转）
         int finalMinX = Math.min(newMin.getX(), newMax.getX());
         int finalMinY = Math.min(newMin.getY(), newMax.getY());
         int finalMinZ = Math.min(newMin.getZ(), newMax.getZ());
@@ -541,62 +583,93 @@ public final class SelectionTool implements FormacraftTool {
         int finalMaxY = Math.max(newMin.getY(), newMax.getY());
         int finalMaxZ = Math.max(newMin.getZ(), newMax.getZ());
         
+        // 确保选区至少为1x1x1
+        if (finalMaxX <= finalMinX || finalMaxY <= finalMinY || finalMaxZ <= finalMinZ) {
+            return; // 不更新，保持当前选区
+        }
+        
         start = new BlockPos(finalMinX, finalMinY, finalMinZ);
         end = new BlockPos(finalMaxX - 1, finalMaxY - 1, finalMaxZ - 1);
     }
     
-    // 缓存的当前光标句柄（用于释放资源）
-    private long currentCursorHandle = 0;
+    /**
+     * 停止拖拽并清理状态
+     */
+    private void stopDragging() {
+        draggingFace = null;
+        dragStartPos = null;
+        dragStartMin = null;
+        dragStartMax = null;
+    }
+    
+    // ==================== 辅助方法：光标管理 ====================
     
     /**
-     * 更新光标样式
+     * 更新光标样式：根据悬停的面或拖拽状态切换光标
      */
     private void updateCursor() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.getWindow() == null) return;
+        long window = getClientWindow();
+        if (window == 0) return;
         
-        long window = client.getWindow().getHandle();
-        Direction hoveredFace = getHoveredFace();
+        // 确保光标已创建
+        ensureCursorsCreated();
         
-        if (hoveredFace != null || draggingFace != null) {
-            Direction face = draggingFace != null ? draggingFace : hoveredFace;
+        Direction face = draggingFace != null ? draggingFace : cachedHoveredFace;
+        
+        if (face != null) {
             // 根据面的方向设置相应的光标样式
-            int cursorShape;
-            if (face == Direction.UP || face == Direction.DOWN) {
-                // 垂直方向，使用垂直双向箭头
-                cursorShape = GLFW.GLFW_RESIZE_NS_CURSOR;
-            } else {
-                // 水平方向，使用水平双向箭头（对于X和Z轴，都使用水平箭头，实际方向会根据视图角度调整）
-                cursorShape = GLFW.GLFW_RESIZE_EW_CURSOR;
-            }
+            long cursorToUse = (face == Direction.UP || face == Direction.DOWN) 
+                    ? resizeNsCursor 
+                    : resizeEwCursor;
             
-            // 释放旧的光标句柄
-            if (currentCursorHandle != 0) {
-                GLFW.glfwDestroyCursor(currentCursorHandle);
-                currentCursorHandle = 0;
+            // 只有当光标改变时才设置（避免频繁调用）
+            if (currentCursorHandle != cursorToUse) {
+                GLFW.glfwSetCursor(window, cursorToUse);
+                currentCursorHandle = cursorToUse;
             }
-            
-            // 创建并设置新光标
-            currentCursorHandle = GLFW.glfwCreateStandardCursor(cursorShape);
-            GLFW.glfwSetCursor(window, currentCursorHandle);
         } else {
             // 没有悬停或拖拽，恢复默认光标
             if (currentCursorHandle != 0) {
-                GLFW.glfwDestroyCursor(currentCursorHandle);
-                currentCursorHandle = 0;
                 GLFW.glfwSetCursor(window, 0); // 0 表示默认光标
+                currentCursorHandle = 0;
             }
         }
     }
+    
+    /**
+     * 确保光标已创建（延迟初始化）
+     */
+    private void ensureCursorsCreated() {
+        if (resizeNsCursor == 0) {
+            resizeNsCursor = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_NS_CURSOR);
+        }
+        if (resizeEwCursor == 0) {
+            resizeEwCursor = GLFW.glfwCreateStandardCursor(GLFW.GLFW_RESIZE_EW_CURSOR);
+        }
+    }
 
+    // ==================== 公共方法 ====================
+    
+    /**
+     * 检查是否有选区
+     * @return 如果有有效的选区则返回true
+     */
     public boolean hasSelection() {
         return start != null && end != null && !selecting;
     }
 
+    /**
+     * 检查是否正在选择
+     * @return 如果正在选择过程中则返回true
+     */
     public boolean isSelecting() {
         return selecting;
     }
 
+    /**
+     * 获取选区的最小坐标
+     * @return 最小坐标，如果没有选区则返回null
+     */
     public BlockPos getMin() {
         if (start == null || end == null) return null;
         return new BlockPos(
@@ -606,6 +679,10 @@ public final class SelectionTool implements FormacraftTool {
         );
     }
 
+    /**
+     * 获取选区的最大坐标
+     * @return 最大坐标，如果没有选区则返回null
+     */
     public BlockPos getMax() {
         if (start == null || end == null) return null;
         return new BlockPos(
@@ -615,41 +692,60 @@ public final class SelectionTool implements FormacraftTool {
         );
     }
 
+    /**
+     * 清除选区并清理所有状态
+     */
     public void clear() {
         this.start = null;
         this.end = null;
         this.selecting = false;
-        // 停止拖拽并清理光标
-        this.draggingFace = null;
-        this.dragStartPos = null;
-        this.dragStartMin = null;
-        this.dragStartMax = null;
+        stopDragging();
+        
+        // 清理缓存
+        cachedHoveredFace = null;
+        cachedCameraPos = null;
+        cachedMouseRayDir = null;
         
         // 清理光标句柄
-        if (currentCursorHandle != 0) {
-            GLFW.glfwDestroyCursor(currentCursorHandle);
+        long window = getClientWindow();
+        if (window != 0 && currentCursorHandle != 0) {
+            GLFW.glfwSetCursor(window, 0);
             currentCursorHandle = 0;
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.getWindow() != null) {
-                GLFW.glfwSetCursor(client.getWindow().getHandle(), 0);
-            }
         }
     }
     
     /**
      * 直接设置选区（用于其他工具）
+     * @param start 起始坐标
+     * @param end 结束坐标
      */
     public void setSelection(BlockPos start, BlockPos end) {
-        this.start = start != null ? start.toImmutable() : null;
-        this.end = end != null ? end.toImmutable() : null;
+        if (start == null || end == null) {
+            clear();
+            return;
+        }
+        
+        // 验证并规范化坐标
+        BlockPos min = new BlockPos(
+                Math.min(start.getX(), end.getX()),
+                Math.min(start.getY(), end.getY()),
+                Math.min(start.getZ(), end.getZ())
+        );
+        BlockPos max = new BlockPos(
+                Math.max(start.getX(), end.getX()),
+                Math.max(start.getY(), end.getY()),
+                Math.max(start.getZ(), end.getZ())
+        );
+        
+        this.start = min.toImmutable();
+        this.end = max.toImmutable();
         this.selecting = false;
     }
     
     /**
-     * 清除选区
+     * 清除选区（公共API）
      */
     public void clearSelection() {
         clear();
     }
 }
-
