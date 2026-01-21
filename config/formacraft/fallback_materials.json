@@ -1,0 +1,68 @@
+{
+  "defaults": {
+    "column": "minecraft:oak_log",
+    "railing": "minecraft:oak_fence",
+    "ornament": "minecraft:oak_planks",
+    "bracket": "minecraft:oak_planks",
+    "canopy": "minecraft:oak_planks",
+    "door": "minecraft:oak_planks",
+    "window": "minecraft:glass_pane"
+  },
+  "tones": {
+    "vermilion": {
+      "column": "minecraft:red_concrete",
+      "railing": "minecraft:red_nether_brick_wall",
+      "ornament": "minecraft:red_concrete",
+      "bracket": "minecraft:red_concrete",
+      "canopy": "minecraft:red_concrete",
+      "door": "minecraft:red_concrete",
+      "window": "minecraft:red_stained_glass_pane"
+    },
+    "red": {
+      "column": "minecraft:red_concrete",
+      "railing": "minecraft:red_nether_brick_wall",
+      "ornament": "minecraft:red_concrete",
+      "bracket": "minecraft:red_concrete",
+      "canopy": "minecraft:red_concrete",
+      "door": "minecraft:red_concrete",
+      "window": "minecraft:red_stained_glass_pane"
+    },
+    "gold": {
+      "column": "minecraft:yellow_terracotta",
+      "railing": "minecraft:yellow_terracotta",
+      "ornament": "minecraft:yellow_terracotta",
+      "bracket": "minecraft:yellow_terracotta",
+      "canopy": "minecraft:yellow_terracotta",
+      "door": "minecraft:yellow_terracotta",
+      "window": "minecraft:yellow_stained_glass_pane"
+    },
+    "yellow": {
+      "column": "minecraft:yellow_terracotta",
+      "railing": "minecraft:yellow_terracotta",
+      "ornament": "minecraft:yellow_terracotta",
+      "bracket": "minecraft:yellow_terracotta",
+      "canopy": "minecraft:yellow_terracotta",
+      "door": "minecraft:yellow_terracotta",
+      "window": "minecraft:yellow_stained_glass_pane"
+    },
+    "white": {
+      "column": "minecraft:quartz_pillar",
+      "railing": "minecraft:quartz_pillar",
+      "ornament": "minecraft:quartz_block",
+      "bracket": "minecraft:quartz_block",
+      "canopy": "minecraft:quartz_block",
+      "door": "minecraft:quartz_block",
+      "window": "minecraft:white_stained_glass_pane"
+    },
+    "marble": {
+      "column": "minecraft:quartz_pillar",
+      "railing": "minecraft:quartz_pillar",
+      "ornament": "minecraft:quartz_block",
+      "bracket": "minecraft:quartz_block",
+      "canopy": "minecraft:quartz_block",
+      "door": "minecraft:quartz_block",
+      "window": "minecraft:white_stained_glass_pane"
+    }
+  },
+  "styles": {}
+}

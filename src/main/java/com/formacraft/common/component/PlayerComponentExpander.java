@@ -9,6 +9,7 @@ import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
 import com.formacraft.common.component.transform.FacingTransformUtil;
 import com.formacraft.common.component.transform.Mirror;
+import com.formacraft.common.component.fallback.FallbackMaterialConfig;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.component.socket.ComponentSocket;
@@ -20,6 +21,7 @@ import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.placement.FacingDeriver;
 import com.formacraft.common.component.placement.FacingPolicy;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
+import com.formacraft.common.component.query.ComponentQuery;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.WorldSavePath;
@@ -74,7 +76,17 @@ public final class PlayerComponentExpander {
 
         // 1) 确定要加载的构件（单构件）
         ComponentDefinition def = resolveComponent(worldDir, reqMap, null);
-        if (def == null || def.blocks == null || def.blocks.isEmpty()) return List.of();
+        if (def == null || def.blocks == null || def.blocks.isEmpty()) {
+            ComponentQuery query = parseComponentQuery(reqMap, null);
+            if (query != null) {
+                List<BlockPatch> fallback = generateFallbackPatches(semantic, query);
+                if (!fallback.isEmpty()) {
+                    FormacraftMod.LOGGER.debug("PlayerComponentExpander: fallback generated for component_request");
+                    return fallback;
+                }
+            }
+            return List.of();
+        }
 
         // 2) 解析变换参数（facing/mirror）
         Direction fromFacing = parseDir(def.anchor != null ? def.anchor.facing : null);
@@ -421,8 +433,222 @@ public final class PlayerComponentExpander {
         if (explicitId != null) {
             return ComponentStorage.loadComponent(worldDir, explicitId);
         }
+        ComponentQuery query = parseComponentQuery(reqMap, px);
+        if (query != null) {
+            ComponentDefinition def = com.formacraft.common.component.query.ComponentRetriever.retrieveBest(query);
+            if (def != null) return def;
+        }
         ComponentRequest req = parseRequestWithPrefix(reqMap, px);
         return ComponentLibrary.findBest(worldDir, req);
+    }
+
+    private static ComponentQuery parseComponentQuery(Map<String, Object> reqMap, String prefix) {
+        if (reqMap == null) return null;
+        String px = prefix == null ? "" : prefix;
+        Object cq = reqMap.get(px + "component_query");
+        if (cq == null) cq = reqMap.get(px + "componentQuery");
+        if (cq == null) return null;
+        try {
+            String qjson = JsonUtil.toJson(cq);
+            return JsonUtil.get().fromJson(qjson, ComponentQuery.class);
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.warn("PlayerComponentExpander: invalid component_query json: {}", cq);
+            return null;
+        }
+    }
+
+    private static List<BlockPatch> generateFallbackPatches(SemanticComponent semantic, ComponentQuery query) {
+        if (semantic == null || semantic.source() == null || query == null) return List.of();
+        String role = (query.semantic != null && query.semantic.role != null)
+                ? query.semantic.role.trim().toLowerCase(java.util.Locale.ROOT)
+                : "";
+        if (role.isEmpty()) return List.of();
+
+        int baseX = 0, baseY = 0, baseZ = 0;
+        if (semantic.source().relativePosition() != null) {
+            baseX = semantic.source().relativePosition().x();
+            baseY = semantic.source().relativePosition().y();
+            baseZ = semantic.source().relativePosition().z();
+        }
+        int w = 1, d = 1, h = 4;
+        if (semantic.source().dimensions() != null) {
+            w = Math.max(1, semantic.source().dimensions().width());
+            d = Math.max(1, semantic.source().dimensions().depth());
+            h = Math.max(1, semantic.source().dimensions().height());
+        }
+
+        BlockState block = resolveFallbackBlock(semantic, query, role);
+        String blockId = BlockStateStringUtil.fromState(block);
+
+        List<BlockPatch> out = new ArrayList<>();
+        if ("column".equals(role) || "pillar".equals(role)) {
+            int spacing = 3;
+            if (d <= 1) {
+                for (int x = 0; x < w; x += spacing) {
+                    addColumn(out, baseX + x, baseY, baseZ, h, blockId);
+                }
+                addColumn(out, baseX + w - 1, baseY, baseZ, h, blockId);
+            } else if (w <= 1) {
+                for (int z = 0; z < d; z += spacing) {
+                    addColumn(out, baseX, baseY, baseZ + z, h, blockId);
+                }
+                addColumn(out, baseX, baseY, baseZ + d - 1, h, blockId);
+            } else {
+                addColumn(out, baseX, baseY, baseZ, h, blockId);
+                addColumn(out, baseX + w - 1, baseY, baseZ, h, blockId);
+                addColumn(out, baseX, baseY, baseZ + d - 1, h, blockId);
+                addColumn(out, baseX + w - 1, baseY, baseZ + d - 1, h, blockId);
+                if (w > 4) {
+                    int midX = baseX + w / 2;
+                    addColumn(out, midX, baseY, baseZ, h, blockId);
+                    addColumn(out, midX, baseY, baseZ + d - 1, h, blockId);
+                }
+                if (d > 4) {
+                    int midZ = baseZ + d / 2;
+                    addColumn(out, baseX, baseY, midZ, h, blockId);
+                    addColumn(out, baseX + w - 1, baseY, midZ, h, blockId);
+                }
+            }
+            return out;
+        }
+
+        if ("railing".equals(role)) {
+            int y = baseY;
+            for (int x = 0; x < w; x++) {
+                out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ, blockId));
+                if (d > 1) out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ + d - 1, blockId));
+            }
+            for (int z = 0; z < d; z++) {
+                out.add(new BlockPatch(BlockPatch.PLACE, baseX, y, baseZ + z, blockId));
+                if (w > 1) out.add(new BlockPatch(BlockPatch.PLACE, baseX + w - 1, y, baseZ + z, blockId));
+            }
+            return out;
+        }
+
+        if ("door".equals(role)) {
+            return generateDoorFallback(out, query, baseX, baseY, baseZ, w, d, h);
+        }
+
+        if ("window".equals(role)) {
+            return generateWindowFallback(out, query, baseX, baseY, baseZ, w, d, h, blockId);
+        }
+
+        if ("ornament".equals(role) || "bracket".equals(role) || "canopy".equals(role)) {
+            int x = baseX + (w / 2);
+            int y = baseY + Math.max(0, h - 1);
+            int z = baseZ + (d / 2);
+            out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, blockId));
+            return out;
+        }
+
+        return List.of();
+    }
+
+    private static void addColumn(List<BlockPatch> out, int x, int y, int z, int h, String blockId) {
+        for (int dy = 0; dy < h; dy++) {
+            out.add(new BlockPatch(BlockPatch.PLACE, x, y + dy, z, blockId));
+        }
+    }
+
+    private static BlockState resolveFallbackBlock(SemanticComponent semantic, ComponentQuery query, String role) {
+        String tone = null;
+        if (query.style != null && query.style.materialTone != null) {
+            tone = query.style.materialTone;
+        }
+        if (tone == null && semantic.styleAttributes() != null) {
+            tone = semantic.styleAttributes().wallColor();
+        }
+        String styleProfile = null;
+        if (query.style != null && query.style.styleProfile != null) {
+            styleProfile = query.style.styleProfile;
+        }
+        if (styleProfile == null) {
+            styleProfile = semantic.styleProfile();
+        }
+        String blockId = FallbackMaterialConfig.get().resolveBlockId(role, tone, styleProfile);
+        return FallbackMaterialConfig.resolveBlockState(blockId);
+    }
+
+    private static List<BlockPatch> generateDoorFallback(List<BlockPatch> out,
+                                                         ComponentQuery query,
+                                                         int baseX, int baseY, int baseZ,
+                                                         int w, int d, int h) {
+        int openW = resolveOpeningWidth(query, 2, w);
+        int openH = resolveOpeningHeight(query, 3, h);
+        int x0 = baseX + Math.max(0, (w - openW) / 2);
+        int y0 = baseY;
+        int z0 = baseZ + Math.max(0, (d - 1) / 2);
+        for (int x = 0; x < openW; x++) {
+            for (int y = 0; y < openH; y++) {
+                out.add(new BlockPatch(BlockPatch.REMOVE, x0 + x, y0 + y, z0, "minecraft:air"));
+            }
+        }
+        return out;
+    }
+
+    private static List<BlockPatch> generateWindowFallback(List<BlockPatch> out,
+                                                           ComponentQuery query,
+                                                           int baseX, int baseY, int baseZ,
+                                                           int w, int d, int h,
+                                                           String blockId) {
+        int openW = resolveOpeningWidth(query, 2, w);
+        int openH = resolveOpeningHeight(query, 2, h);
+        int x0 = baseX + Math.max(0, (w - openW) / 2);
+        int y0 = resolveOpeningBaseY(query, baseY, h, openH);
+        int z0 = baseZ + Math.max(0, (d - 1) / 2);
+
+        boolean requiresOpening = query.geometry != null && query.geometry.requiresOpening;
+        if (requiresOpening) {
+            for (int x = 0; x < openW; x++) {
+                for (int y = 0; y < openH; y++) {
+                    out.add(new BlockPatch(BlockPatch.REMOVE, x0 + x, y0 + y, z0, "minecraft:air"));
+                }
+            }
+        }
+        for (int x = 0; x < openW; x++) {
+            for (int y = 0; y < openH; y++) {
+                out.add(new BlockPatch(BlockPatch.PLACE, x0 + x, y0 + y, z0, blockId));
+            }
+        }
+        return out;
+    }
+
+    private static int resolveOpeningWidth(ComponentQuery query, int fallback, int max) {
+        int v = fallback;
+        if (query.geometry != null && query.geometry.openingWidth != null && query.geometry.openingWidth > 0) {
+            v = query.geometry.openingWidth;
+        }
+        return clamp(v, 1, max);
+    }
+
+    private static int resolveOpeningHeight(ComponentQuery query, int fallback, int max) {
+        int v = fallback;
+        if (query.geometry != null && query.geometry.openingHeight != null && query.geometry.openingHeight > 0) {
+            v = query.geometry.openingHeight;
+        }
+        return clamp(v, 1, max);
+    }
+
+    private static int resolveOpeningBaseY(ComponentQuery query, int baseY, int h, int openH) {
+        if (query.context != null && query.context.heightLevel != null) {
+            String level = query.context.heightLevel.toLowerCase(java.util.Locale.ROOT);
+            if (level.contains("roof")) {
+                return baseY + Math.max(0, h - openH);
+            }
+            if (level.contains("mid")) {
+                return baseY + Math.max(0, (h - openH) / 2);
+            }
+            if (level.contains("ground")) {
+                return baseY;
+            }
+        }
+        return baseY + Math.max(0, (h - openH) / 2);
+    }
+
+    private static int clamp(int v, int min, int max) {
+        if (v < min) return min;
+        if (v > max) return max;
+        return v;
     }
 
     private static ComponentRequest parseRequestWithPrefix(Map<String, Object> reqMap, String prefix) {
