@@ -100,7 +100,7 @@ public class MassMainGenerator implements ComponentGenerator {
         Vec3i actualRp = rp;
         String anchorMode = getParamString(c.params(), "anchor_mode", "anchorMode");
         boolean useCornerAnchor = anchorMode != null && anchorMode.toLowerCase(Locale.ROOT).contains("corner");
-        if (rp != null && !useCornerAnchor) {
+        if (!useCornerAnchor) {
             // 中心点 -> 左下角：左下角 = 中心点 - (width/2, 0, depth/2)
             int offsetX = -(width / 2);
             int offsetZ = -(depth / 2);
@@ -745,10 +745,8 @@ public class MassMainGenerator implements ComponentGenerator {
         if (isCornerPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
             return SemanticPart.WALL_ACCENT;
         }
-        if (isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
-            return SemanticPart.WALL;
-        }
-        
+        isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern);
+
         // 内部（填充）
         return SemanticPart.WALL;
     }
@@ -1308,8 +1306,6 @@ public class MassMainGenerator implements ComponentGenerator {
             if (key == null) continue;
             Object v = params.get(key);
             switch (v) {
-                case null -> {
-                }
                 case Boolean b -> {
                     return b;
                 }
@@ -1318,7 +1314,7 @@ public class MassMainGenerator implements ComponentGenerator {
                     if (t.equals("true") || t.equals("1") || t.equals("yes")) return true;
                     if (t.equals("false") || t.equals("0") || t.equals("no")) return false;
                 }
-                default -> {
+                case null, default -> {
                 }
             }
         }

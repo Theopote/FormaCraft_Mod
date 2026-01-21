@@ -290,7 +290,8 @@ public final class DynamicPaletteResolver {
             case "stone", "stone_brick", "stone_bricks", "stonebrick", "stonebricks" -> "stone_bricks";
             case "polished_andesite" -> "polished_andesite";
             case "polished_blackstone", "blackstone" -> "polished_blackstone";
-            case "deepslate", "deepslate_tiles", "deepslate_tile" -> "deepslate_tiles";
+            case "deepslate", "deepslate_tiles", "deepslate_tile", "black_tile", "black_tiles", "black_tile_roof",
+                 "dark_tile", "dark_tiles" -> "deepslate_tiles";
             case "deepslate_bricks", "deepslate_brick" -> "deepslate_bricks";
             case "brick", "bricks" -> "bricks";
             case "wood", "planks", "oak" -> "oak_planks";
@@ -302,7 +303,6 @@ public final class DynamicPaletteResolver {
             case "glazed_tile", "glazed_tiles", "glazed_terracotta", "glazed" -> "glazed_terracotta";
             case "cobblestone" -> "cobblestone";
             case "shingle" -> "oak_planks"; // 瓦片用木板模拟
-            case "black_tile", "black_tiles", "black_tile_roof", "dark_tile", "dark_tiles" -> "deepslate_tiles";
             case "slate" -> "deepslate_tiles"; // 石板更接近深板岩瓦
             case "metal" -> "iron_block";
             case "dark_prismarine", "prismarine", "prismarine_bricks" -> "dark_prismarine";

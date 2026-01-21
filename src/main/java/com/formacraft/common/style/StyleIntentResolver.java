@@ -206,9 +206,8 @@ public final class StyleIntentResolver {
 
     private static String resolveRoofType(StyleFlavor flavor) {
         return switch (flavor) {
-            case GOTHIC -> "gable";
+            case GOTHIC, JAPANESE -> "gable";
             case HUI, CHINESE -> "xieshan";
-            case JAPANESE -> "gable";
             default -> null;
         };
     }
