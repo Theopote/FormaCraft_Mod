@@ -846,7 +846,6 @@ public class ComponentCapturePanel extends BasePanel {
             // 检查是否有选区
             if (!SelectionTool.INSTANCE.hasSelection() && selectedBlocks.isEmpty()) {
                 y = drawWrappedText(ctx, Text.literal("⚠ 尚未选择任何方块"), x, y, w, 0xFFFFAA00);
-                y += 4;
             } else {
 
         BlockPos min = SelectionTool.INSTANCE.getMin();
@@ -891,8 +890,8 @@ public class ComponentCapturePanel extends BasePanel {
 
                 // 分隔线
                 ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-                y += 4;
             }
+            y += 4;
         }
         
         // 获取状态（所有阶段都需要）
@@ -914,7 +913,7 @@ public class ComponentCapturePanel extends BasePanel {
         y = drawWrappedText(ctx, Text.literal(phase2Title), x, y, w, phase2TitleColor);
         y += 2;
         
-        if (!phase2Collapsed && isPhase1Complete) {
+        if (!phase2Collapsed) {
             // 锚点与朝向（阶段2内容）
             String anchorText = st.anchorWorld != null
                 ? "锚点: (" + st.anchorWorld.getX() + ", " + st.anchorWorld.getY() + ", " + st.anchorWorld.getZ() + ")"
@@ -983,7 +982,7 @@ public class ComponentCapturePanel extends BasePanel {
         y = drawWrappedText(ctx, Text.literal(phase3Title), x, y, w, phase3TitleColor);
         y += 2;
         
-        if (!phase3Collapsed && isPhase2Complete) {
+        if (!phase3Collapsed) {
             // 基础信息
             y = drawWrappedText(ctx, Text.literal("📝 基础信息"), x, y, w, 0xFFFFFFFF);
             y += 2;
@@ -1001,18 +1000,17 @@ public class ComponentCapturePanel extends BasePanel {
             y += FIELD_SPACING;
 
             // 分类按钮（语义声明按钮）
-            String categoryEmoji;
-            switch (st.category) {
-                case DOOR: categoryEmoji = "🚪"; break;
-                case WINDOW: categoryEmoji = "🪟"; break;
-                case COLUMN: categoryEmoji = "🏛️"; break;
-                case STAIRS: categoryEmoji = "🪜"; break;
-                case BRACKET: categoryEmoji = "🏗️"; break;
-                case ORNAMENT: categoryEmoji = "🧱"; break;
-                case ARCH: categoryEmoji = "⛩️"; break;
-                case ROOF_DETAIL: categoryEmoji = "🏠"; break;
-                default: categoryEmoji = "📦"; break;
-            }
+            String categoryEmoji = switch (st.category) {
+                case DOOR -> "🚪";
+                case WINDOW -> "🪟";
+                case COLUMN -> "🏛️";
+                case STAIRS -> "🪜";
+                case BRACKET -> "🏗️";
+                case ORNAMENT -> "🧱";
+                case ARCH -> "⛩️";
+                case ROOF_DETAIL -> "🏠";
+                default -> "📦";
+            };
             categoryButton.setMessage(Text.literal("你正在定义的是：" + categoryEmoji + " " + getCategoryDisplayName(st.category)));
             categoryButton.setPosition(x, y);
             categoryButton.setWidth(w);
@@ -1022,18 +1020,17 @@ public class ComponentCapturePanel extends BasePanel {
             y += LABEL_OFFSET;
             
             // 附着方式解释（自动）
-            String attachmentExplanation;
-            switch (attachmentMode) {
-                case WALL_OPENING: attachmentExplanation = "📌 这个构件会被\"嵌入到墙体中\""; break;
-                case WALL_SURFACE: attachmentExplanation = "📌 这个构件会\"附着在墙面上\""; break;
-                case FLOOR: attachmentExplanation = "📌 这个构件会\"放置在地面上\""; break;
-                case ROOF_SURFACE: attachmentExplanation = "📌 这个构件会\"附着在屋面上\""; break;
-                case ROOF_EDGE: attachmentExplanation = "📌 这个构件会\"附着在屋檐边缘\""; break;
-                case ROOF_RIDGE: attachmentExplanation = "📌 这个构件会\"附着在屋脊上\""; break;
-                case EDGE: attachmentExplanation = "📌 这个构件会\"沿边缘放置\""; break;
-                case CORNER: attachmentExplanation = "📌 这个构件会\"放置在转角\""; break;
-                default: attachmentExplanation = "📌 这个构件是\"独立放置\""; break;
-            }
+            String attachmentExplanation = switch (attachmentMode) {
+                case WALL_OPENING -> "📌 这个构件会被\"嵌入到墙体中\"";
+                case WALL_SURFACE -> "📌 这个构件会\"附着在墙面上\"";
+                case FLOOR -> "📌 这个构件会\"放置在地面上\"";
+                case ROOF_SURFACE -> "📌 这个构件会\"附着在屋面上\"";
+                case ROOF_EDGE -> "📌 这个构件会\"附着在屋檐边缘\"";
+                case ROOF_RIDGE -> "📌 这个构件会\"附着在屋脊上\"";
+                case EDGE -> "📌 这个构件会\"沿边缘放置\"";
+                case CORNER -> "📌 这个构件会\"放置在转角\"";
+                default -> "📌 这个构件是\"独立放置\"";
+            };
             y = drawWrappedText(ctx, Text.literal(attachmentExplanation + "（自动）"), x, y, w, 0xFFAAAAAA);
             y += 4;
             
@@ -1183,7 +1180,7 @@ public class ComponentCapturePanel extends BasePanel {
         y = drawWrappedText(ctx, Text.literal(phase4Title), x, y, w, phase4TitleColor);
         y += 2;
         
-        if (!phase4Collapsed && isPhase3Complete) {
+        if (!phase4Collapsed) {
             // Socket 配置
             y = drawWrappedText(ctx, Text.literal("🔌 Socket 配置"), x, y, w, 0xFFFFFFFF);
             y += 2;
@@ -1375,26 +1372,21 @@ public class ComponentCapturePanel extends BasePanel {
                     
                     // 图标和颜色（按建议规范）
                     String icon;
-                    int color;
-                    switch (item.level) {
-                        case OK:
-                            icon = "✅";
-                            color = 0xFF55FF55;
-                            break;
-                        case WARN:
+                    int color = switch (item.level) {
+                        case WARN -> {
                             icon = "⚠";
-                            color = 0xFFFFAA00;
-                            break;
-                        case ERROR:
+                            yield 0xFFFFAA00;
+                        }
+                        case ERROR -> {
                             icon = "⛔";
-                            color = 0xFFFF5555;
-                            break;
-                        default:
+                            yield 0xFFFF5555;
+                        }
+                        default -> {
                             icon = "ℹ";
-                            color = 0xFF55FFFF;
-                            break;
-                    }
-                    
+                            yield 0xFF55FFFF;
+                        }
+                    };
+
                     // 自动修复标记
                     if (item.fixAction == com.formacraft.common.component.health.HealthCheckResult.FixAction.AUTO) {
                         icon += "✨";
@@ -1640,11 +1632,7 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void applyCategoryDefaults(ComponentCategory category) {
         switch (category) {
-            case DOOR:
-                attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_OPENING;
-                directionalityMode = DirectionalityMode.INSIDE_OUTSIDE;
-                break;
-            case WINDOW:
+            case DOOR, WINDOW:
                 attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_OPENING;
                 directionalityMode = DirectionalityMode.INSIDE_OUTSIDE;
                 break;
@@ -1835,7 +1823,7 @@ public class ComponentCapturePanel extends BasePanel {
                 st.anchorWorld = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
                 System.out.println("[自动修复] 更新锚点: " + st.anchorWorld);
             }
-        } else if (def.anchor != null && st.anchorWorld == null) {
+        } else if (def.anchor != null) {
             // 如果之前没有锚点，现在创建了
             net.minecraft.util.math.BlockPos min = SelectionTool.INSTANCE.getMin();
             if (min != null) {
@@ -1868,11 +1856,9 @@ public class ComponentCapturePanel extends BasePanel {
         BlockPos max = SelectionTool.INSTANCE.getMax();
         if (min != null && max != null) {
             BlockPos anchor = st.anchorWorld;
-            if (anchor.getX() < min.getX() || anchor.getX() > max.getX() ||
-                anchor.getY() < min.getY() || anchor.getY() > max.getY() ||
-                anchor.getZ() < min.getZ() || anchor.getZ() > max.getZ()) {
-                return false;
-            }
+            return anchor.getX() >= min.getX() && anchor.getX() <= max.getX() &&
+                    anchor.getY() >= min.getY() && anchor.getY() <= max.getY() &&
+                    anchor.getZ() >= min.getZ() && anchor.getZ() <= max.getZ();
         }
         return true;
     }
@@ -2181,33 +2167,31 @@ public class ComponentCapturePanel extends BasePanel {
         var st = ComponentTool.INSTANCE.getState();
         
         // 类型
-        String categoryName;
-        switch (st.category) {
-            case DOOR: categoryName = "门（Door）"; break;
-            case WINDOW: categoryName = "窗（Window）"; break;
-            case COLUMN: categoryName = "柱子（Column）"; break;
-            case STAIRS: categoryName = "楼梯（Stairs）"; break;
-            case BRACKET: categoryName = "斗拱（Bracket）"; break;
-            case ORNAMENT: categoryName = "装饰（Ornament）"; break;
-            case ARCH: categoryName = "拱券（Arch）"; break;
-            case ROOF_DETAIL: categoryName = "屋顶细节（Roof Detail）"; break;
-            default: categoryName = "通用构件（Generic）"; break;
-        }
+        String categoryName = switch (st.category) {
+            case DOOR -> "门（Door）";
+            case WINDOW -> "窗（Window）";
+            case COLUMN -> "柱子（Column）";
+            case STAIRS -> "楼梯（Stairs）";
+            case BRACKET -> "斗拱（Bracket）";
+            case ORNAMENT -> "装饰（Ornament）";
+            case ARCH -> "拱券（Arch）";
+            case ROOF_DETAIL -> "屋顶细节（Roof Detail）";
+            default -> "通用构件（Generic）";
+        };
         explanations.add("类型：" + categoryName);
         
         // 使用场景
-        String usage;
-        switch (attachmentMode) {
-            case WALL_OPENING: usage = "墙体开口"; break;
-            case WALL_SURFACE: usage = "墙面附着"; break;
-            case FLOOR: usage = "地面放置"; break;
-            case ROOF_SURFACE: usage = "屋面附着"; break;
-            case ROOF_EDGE: usage = "屋檐边缘"; break;
-            case ROOF_RIDGE: usage = "屋脊"; break;
-            case EDGE: usage = "边缘放置"; break;
-            case CORNER: usage = "转角放置"; break;
-            default: usage = "独立放置"; break;
-        }
+        String usage = switch (attachmentMode) {
+            case WALL_OPENING -> "墙体开口";
+            case WALL_SURFACE -> "墙面附着";
+            case FLOOR -> "地面放置";
+            case ROOF_SURFACE -> "屋面附着";
+            case ROOF_EDGE -> "屋檐边缘";
+            case ROOF_RIDGE -> "屋脊";
+            case EDGE -> "边缘放置";
+            case CORNER -> "转角放置";
+            default -> "独立放置";
+        };
         explanations.add("使用场景：" + usage);
         
         // 朝向规则
