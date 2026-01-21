@@ -74,6 +74,7 @@ public class ComponentCapturePanel extends BasePanel {
     // 智能分析按钮
     private ButtonWidget autoAnalyzeButton;
     private ButtonWidget autoDetectSocketsButton;
+    private ButtonWidget autoFixButton;
 
     // 底部按钮
     private ButtonWidget cancelButton;
@@ -124,6 +125,17 @@ public class ComponentCapturePanel extends BasePanel {
     private BlockPos outsideMark = null;
     private BlockPos bottomMark = null;
     private BlockPos topMark = null;
+    
+    // 阶段感知状态
+    private CapturePhase currentPhase = CapturePhase.SELECTION;
+    private boolean[] phaseCollapsed = new boolean[CapturePhase.getTotalPhases()]; // 默认都展开
+    
+    // 健康检查抽屉状态
+    private boolean healthDrawerExpanded = false; // 健康检查抽屉是否展开
+    private long lastHealthCheckTime = 0; // 上次健康检查时间（用于防抖）
+    private static final long HEALTH_CHECK_DEBOUNCE_MS = 200; // 健康检查防抖时间
+    private int healthSummaryStartY = -1; // 健康摘要行的起始Y坐标（用于点击检测）
+    private int healthSummaryEndY = -1; // 健康摘要行的结束Y坐标（用于点击检测）
 
     public ComponentCapturePanel() {
         nameInput.setMaxLength(64);
@@ -381,6 +393,22 @@ public class ComponentCapturePanel extends BasePanel {
                         
                         节省手动配置时间！""")))
                 .build();
+        
+        // 自动修复按钮
+        autoFixButton = ButtonWidget.builder(Text.literal("🤖 自动修复"), b -> runAutoFix())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        自动修复构件问题
+                        ━━━━━━━━━━━━
+                        根据健康检查结果自动修复可修复的问题
+                        
+                        修复内容：
+                        • 自动设置锚点（如果缺失）
+                        • 调整锚点位置（如果不合理）
+                        • 其他可自动修复的问题
+                        
+                        注意：只修复标记为"可自动修复"的问题""")))
+                .build();
 
         autoDetectSocketsButton = ButtonWidget.builder(Text.literal("🔍 自动检测"), b -> autoDetectSockets())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -595,6 +623,23 @@ public class ComponentCapturePanel extends BasePanel {
     }
     
     /**
+     * 获取分类的显示名称
+     */
+    private String getCategoryDisplayName(ComponentCategory category) {
+        return switch (category) {
+            case DOOR -> "门";
+            case WINDOW -> "窗";
+            case COLUMN -> "柱子";
+            case STAIRS -> "楼梯";
+            case BRACKET -> "斗拱";
+            case ORNAMENT -> "装饰";
+            case ARCH -> "拱券";
+            case ROOF_DETAIL -> "屋顶细节";
+            default -> "通用构件";
+        };
+    }
+    
+    /**
      * 获取附着模式的显示名称
      */
     private String getAttachmentModeDisplay() {
@@ -724,12 +769,34 @@ public class ComponentCapturePanel extends BasePanel {
         ctx.enableScissor(panelX, getContentY(), panelX + panelWidth, panelY + panelHeight);
 
         // 标题
-        y = drawWrappedText(ctx, Text.literal("[ 🎯 构件拾取 ]"), x, y, w, 0xFFFFFFFF);
+        y = drawWrappedText(ctx, Text.literal("🎯 构件拾取  Component Capture"), x, y, w, 0xFFFFFFFF);
         y += 4;
         
-        // 选择工具区域
-        y = drawWrappedText(ctx, Text.literal("🔧 选择工具"), x, y, w, 0xFFFFFF00);
+        // 阶段提示（顶部弱引导）
+        currentPhase = computeCurrentPhase();
+        String phaseText = String.format("🟢 步骤 %d / %d  ── %s", 
+            currentPhase.getPhaseNumber(), 
+            CapturePhase.getTotalPhases(),
+            currentPhase.getDescription());
+        y = drawWrappedText(ctx, Text.literal(phaseText), x, y, w, 0xFF88FF88);
+        y += 6;
+        
+        // 分隔线
+        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+        y += 4;
+        
+        // ============ 阶段 1：选区定义 ============
+        boolean phase1Collapsed = phaseCollapsed[0];
+        boolean isPhase1Active = currentPhase == CapturePhase.SELECTION;
+        boolean isPhase1Complete = isPhaseComplete(CapturePhase.SELECTION);
+        
+        String phase1Title = (phase1Collapsed ? "▶ " : "▼ ") + 
+            "① 选区定义" + (isPhase1Complete ? "（已完成 ✓）" : (isPhase1Active ? "（当前步骤 ★）" : "（未开始）"));
+        int phase1TitleColor = isPhase1Active ? 0xFFFFFF00 : (isPhase1Complete ? 0xFF88FF88 : 0xFF888888);
+        y = drawWrappedText(ctx, Text.literal(phase1Title), x, y, w, phase1TitleColor);
         y += 2;
+        
+        if (!phase1Collapsed) {
         
         // 选择模式按钮组
         int buttonW = (w - 8) / 3; // 3个按钮平分宽度
@@ -776,14 +843,11 @@ public class ComponentCapturePanel extends BasePanel {
         ctx.fill(x, y, x + w, y + 1, 0xFF444444);
         y += 4;
 
-        // 检查是否有选区
-        if (!SelectionTool.INSTANCE.hasSelection() && selectedBlocks.isEmpty()) {
-            y = drawWrappedText(ctx, Text.literal("请使用上面的选择工具框选要拾取的构件"), x, y, w, 0xFFFFAA00);
-            y += 4;
-            y = drawWrappedText(ctx, Text.literal("提示：点击'框选'，然后在世界中拖拽鼠标"), x, y, w, 0xFFAAAAAA);
-            ctx.disableScissor();
-            return;
-        }
+            // 检查是否有选区
+            if (!SelectionTool.INSTANCE.hasSelection() && selectedBlocks.isEmpty()) {
+                y = drawWrappedText(ctx, Text.literal("⚠ 尚未选择任何方块"), x, y, w, 0xFFFFAA00);
+                y += 4;
+            } else {
 
         BlockPos min = SelectionTool.INSTANCE.getMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
@@ -825,308 +889,595 @@ public class ComponentCapturePanel extends BasePanel {
         drawThumbnailPreview(ctx, x + (w - THUMBNAIL_SIZE) / 2, y);
         y += THUMBNAIL_SIZE + 8;
 
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 4;
-
-        // 基础信息
-        y = drawWrappedText(ctx, Text.literal("📝 基础信息"), x, y, w, 0xFFFFFFFF);
-        y += 2;
-
+                // 分隔线
+                ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+                y += 4;
+            }
+        }
+        
+        // 获取状态（所有阶段都需要）
         var st = ComponentTool.INSTANCE.getState();
-
-        // 名称输入
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("名称:"), x, y, 0xFFAAAAAA);
-        int inputY = y + LABEL_OFFSET - 2;
-        if (!nameInput.isFocused() && !st.name.equals(nameInput.getText())) {
-            nameInput.setText(st.name);
-        }
-        nameInput.render(ctx, x, inputY, w, 14);
-        nameInputX = x; nameInputY = inputY; nameInputW = w; nameInputH = 14;
-        nameInputBoundsValid = true;
-        st.name = nameInput.getText() != null ? nameInput.getText() : "New Component";
-        y += FIELD_SPACING;
-
-        // 分类按钮
-        categoryButton.setMessage(Text.literal("分类：" + st.category.name()));
-        categoryButton.setPosition(x, y);
-        categoryButton.setWidth(w);
-        categoryButton.visible = true;
-        categoryButton.active = true;
-        categoryButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 标签输入
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("标签 (逗号分隔):"), x, y, 0xFFAAAAAA);
-        inputY = y + LABEL_OFFSET - 2;
-        String currentTags = String.join(", ", st.tags);
-        if (!tagsInput.isFocused() && !currentTags.equals(tagsInput.getText())) {
-            tagsInput.setText(currentTags);
-        }
-        tagsInput.render(ctx, x, inputY, w, 14);
-        tagsInputX = x; tagsInputY = inputY; tagsInputW = w; tagsInputH = 14;
-        tagsInputBoundsValid = true;
-        updateTagsFromInput();
-        y += FIELD_SPACING;
-
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 4;
         
-        // Phase 3: 语义配置
-        y = drawWrappedText(ctx, Text.literal("🔧 附着与方向性"), x, y, w, 0xFFFFFFFF);
+        // ============ 阶段 2：锚点与朝向 ============
+        boolean phase2Collapsed = phaseCollapsed[1];
+        boolean isPhase2Active = currentPhase == CapturePhase.ANCHOR_ORIENTATION;
+        boolean isPhase2Complete = isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION);
+        
+        // 如果阶段1未完成，阶段2应该折叠
+        if (!isPhase1Complete) {
+            phase2Collapsed = true;
+        }
+        
+        String phase2Title = (phase2Collapsed ? "▶ " : "▼ ") + 
+            "② 锚点 & 朝向" + (isPhase2Complete ? "（已完成 ✓）" : (isPhase2Active ? "（当前步骤 ★）" : "（未开始）"));
+        int phase2TitleColor = isPhase2Active ? 0xFFFFFF00 : (isPhase2Complete ? 0xFF88FF88 : 0xFF888888);
+        y = drawWrappedText(ctx, Text.literal(phase2Title), x, y, w, phase2TitleColor);
         y += 2;
         
-        // 附着模式和方向性
-        int halfW = (w - 4) / 2;
-        
-        attachmentModeButton.setMessage(Text.literal("附着: " + getAttachmentModeDisplay()));
-        attachmentModeButton.setPosition(x, y);
-        attachmentModeButton.setWidth(halfW);
-        attachmentModeButton.visible = true;
-        attachmentModeButton.active = true;
-        attachmentModeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        
-        directionalityButton.setMessage(Text.literal("方向: " + directionalityMode.getDisplayName()));
-        directionalityButton.setPosition(x + halfW + 4, y);
-        directionalityButton.setWidth(w - halfW - 4);
-        directionalityButton.visible = true;
-        directionalityButton.active = true;
-        directionalityButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-        
-        // 方向标记按钮（根据方向性模式显示）
-        if (directionalityMode.needsInsideOutside()) {
-            setInsideButton.setMessage(Text.literal(insideMark != null ? "🏠✓ 内侧" : "🏠 设内侧"));
-            setInsideButton.setPosition(x, y);
-            setInsideButton.setWidth(halfW);
-            setInsideButton.visible = true;
-            setInsideButton.active = true;
-            setInsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            
-            setOutsideButton.setMessage(Text.literal(outsideMark != null ? "🌍✓ 外侧" : "🌍 设外侧"));
-            setOutsideButton.setPosition(x + halfW + 4, y);
-            setOutsideButton.setWidth(w - halfW - 4);
-            setOutsideButton.visible = true;
-            setOutsideButton.active = true;
-            setOutsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+        if (!phase2Collapsed && isPhase1Complete) {
+            // 锚点与朝向（阶段2内容）
+            String anchorText = st.anchorWorld != null
+                ? "锚点: (" + st.anchorWorld.getX() + ", " + st.anchorWorld.getY() + ", " + st.anchorWorld.getZ() + ")"
+                : "锚点: (未设置，默认为选区最小角)";
+            y = drawWrappedText(ctx, Text.literal(anchorText), x, y, w, 
+                st.anchorWorld != null ? 0xFF66FF66 : 0xFFFFAA00);
+            y += 2;
+
+            int half = (w - 4) / 2;
+
+            pickAnchorButton.setMessage(Text.literal(st.pickingAnchor ? "⏹ 取消选择" : "📍 点击选择"));
+            pickAnchorButton.setPosition(x, y);
+            pickAnchorButton.setWidth(half);
+            pickAnchorButton.visible = true;
+            pickAnchorButton.active = true;
+            pickAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+
+            clearAnchorButton.setPosition(x + half + 4, y);
+            clearAnchorButton.setWidth(w - half - 4);
+            clearAnchorButton.visible = true;
+            clearAnchorButton.active = st.anchorWorld != null || st.pickingAnchor;
+            clearAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
-        }
-        
-        if (directionalityMode.needsBottomTop()) {
-            setBottomButton.setMessage(Text.literal(bottomMark != null ? "⬇️✓ 底端" : "⬇️ 设底端"));
-            setBottomButton.setPosition(x, y);
-            setBottomButton.setWidth(halfW);
-            setBottomButton.visible = true;
-            setBottomButton.active = true;
-            setBottomButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            
-            setTopButton.setMessage(Text.literal(topMark != null ? "⬆️✓ 顶端" : "⬆️ 设顶端"));
-            setTopButton.setPosition(x + halfW + 4, y);
-            setTopButton.setWidth(w - halfW - 4);
-            setTopButton.visible = true;
-            setTopButton.active = true;
-            setTopButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+
+            facingButton.setMessage(Text.literal("朝向：" + st.facing.name()));
+            facingButton.setPosition(x, y);
+            facingButton.setWidth(half);
+            facingButton.visible = true;
+            facingButton.active = true;
+            facingButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+
+            mirrorButton.setMessage(Text.literal("镜像：" + st.mirror.name()));
+            mirrorButton.setPosition(x + half + 4, y);
+            mirrorButton.setWidth(w - half - 4);
+            mirrorButton.visible = true;
+            mirrorButton.active = true;
+            mirrorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
-        }
-        
-        // 标记模式提示
-        if (markingMode != DirectionMarkingMode.NONE) {
-            y = drawWrappedText(ctx, Text.literal("⚡ " + markingMode.getHint()), x, y, w, 0xFFFFFF00);
+            
+            // 如果构件需要方向性（门/窗/阳台），显示提示
+            if (st.category == ComponentCategory.DOOR || st.category == ComponentCategory.WINDOW) {
+                y = drawWrappedText(ctx, Text.literal("⚠ 该构件需要\"内 / 外\"方向"), x, y, w, 0xFFFFAA00);
+                y += 2;
+                y = drawWrappedText(ctx, Text.literal("请分别标记："), x, y, w, 0xFFAAAAAA);
+                y += 2;
+            }
+
+            // 分隔线
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
             y += 4;
         }
         
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+        // ============ 阶段 3：构件语义确认 ============
+        boolean phase3Collapsed = phaseCollapsed[2];
+        boolean isPhase3Active = currentPhase == CapturePhase.SEMANTIC;
+        boolean isPhase3Complete = isPhaseComplete(CapturePhase.SEMANTIC);
+        
+        // 如果阶段2未完成，阶段3应该折叠
+        if (!isPhase2Complete) {
+            phase3Collapsed = true;
+        }
+        
+        String phase3Title = (phase3Collapsed ? "▶ " : "▼ ") + 
+            "③ 构件语义" + (isPhase3Complete ? "（已完成 ✓）" : (isPhase3Active ? "（当前步骤 ★）" : "（自动 + 可调整）"));
+        int phase3TitleColor = isPhase3Active ? 0xFFFFFF00 : (isPhase3Complete ? 0xFF88FF88 : 0xFF888888);
+        y = drawWrappedText(ctx, Text.literal(phase3Title), x, y, w, phase3TitleColor);
+        y += 2;
+        
+        if (!phase3Collapsed && isPhase2Complete) {
+            // 基础信息
+            y = drawWrappedText(ctx, Text.literal("📝 基础信息"), x, y, w, 0xFFFFFFFF);
+            y += 2;
+            
+            // 名称输入
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal("名称:"), x, y, 0xFFAAAAAA);
+            int inputY = y + LABEL_OFFSET - 2;
+            if (!nameInput.isFocused() && !st.name.equals(nameInput.getText())) {
+                nameInput.setText(st.name);
+            }
+            nameInput.render(ctx, x, inputY, w, 14);
+            nameInputX = x; nameInputY = inputY; nameInputW = w; nameInputH = 14;
+            nameInputBoundsValid = true;
+            st.name = nameInput.getText() != null ? nameInput.getText() : "New Component";
+            y += FIELD_SPACING;
+
+            // 分类按钮（语义声明按钮）
+            String categoryEmoji;
+            switch (st.category) {
+                case DOOR: categoryEmoji = "🚪"; break;
+                case WINDOW: categoryEmoji = "🪟"; break;
+                case COLUMN: categoryEmoji = "🏛️"; break;
+                case STAIRS: categoryEmoji = "🪜"; break;
+                case BRACKET: categoryEmoji = "🏗️"; break;
+                case ORNAMENT: categoryEmoji = "🧱"; break;
+                case ARCH: categoryEmoji = "⛩️"; break;
+                case ROOF_DETAIL: categoryEmoji = "🏠"; break;
+                default: categoryEmoji = "📦"; break;
+            }
+            categoryButton.setMessage(Text.literal("你正在定义的是：" + categoryEmoji + " " + getCategoryDisplayName(st.category)));
+            categoryButton.setPosition(x, y);
+            categoryButton.setWidth(w);
+            categoryButton.visible = true;
+            categoryButton.active = true;
+            categoryButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+            
+            // 附着方式解释（自动）
+            String attachmentExplanation;
+            switch (attachmentMode) {
+                case WALL_OPENING: attachmentExplanation = "📌 这个构件会被\"嵌入到墙体中\""; break;
+                case WALL_SURFACE: attachmentExplanation = "📌 这个构件会\"附着在墙面上\""; break;
+                case FLOOR: attachmentExplanation = "📌 这个构件会\"放置在地面上\""; break;
+                case ROOF_SURFACE: attachmentExplanation = "📌 这个构件会\"附着在屋面上\""; break;
+                case ROOF_EDGE: attachmentExplanation = "📌 这个构件会\"附着在屋檐边缘\""; break;
+                case ROOF_RIDGE: attachmentExplanation = "📌 这个构件会\"附着在屋脊上\""; break;
+                case EDGE: attachmentExplanation = "📌 这个构件会\"沿边缘放置\""; break;
+                case CORNER: attachmentExplanation = "📌 这个构件会\"放置在转角\""; break;
+                default: attachmentExplanation = "📌 这个构件是\"独立放置\""; break;
+            }
+            y = drawWrappedText(ctx, Text.literal(attachmentExplanation + "（自动）"), x, y, w, 0xFFAAAAAA);
+            y += 4;
+            
+            // 方向语义解释（自动）
+            if (directionalityMode == DirectionalityMode.INSIDE_OUTSIDE) {
+                y = drawWrappedText(ctx, Text.literal("方向语义：内 → 外（自动）"), x, y, w, 0xFFAAAAAA);
+            } else if (directionalityMode == DirectionalityMode.BOTTOM_TOP) {
+                y = drawWrappedText(ctx, Text.literal("方向语义：下 → 上（自动）"), x, y, w, 0xFFAAAAAA);
+            } else if (directionalityMode == DirectionalityMode.BOTH) {
+                y = drawWrappedText(ctx, Text.literal("方向语义：内 → 外，下 → 上（自动）"), x, y, w, 0xFFAAAAAA);
+            }
+            y += 4;
+
+            // 标签输入
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal("标签 (逗号分隔):"), x, y, 0xFFAAAAAA);
+            inputY = y + LABEL_OFFSET - 2;
+            String currentTags = String.join(", ", st.tags);
+            if (!tagsInput.isFocused() && !currentTags.equals(tagsInput.getText())) {
+                tagsInput.setText(currentTags);
+            }
+            tagsInput.render(ctx, x, inputY, w, 14);
+            tagsInputX = x; tagsInputY = inputY; tagsInputW = w; tagsInputH = 14;
+            tagsInputBoundsValid = true;
+            updateTagsFromInput();
+            y += FIELD_SPACING;
+            
+            // 附着模式和方向性（可调整）
+            y = drawWrappedText(ctx, Text.literal("🔧 附着与方向性（可调整）"), x, y, w, 0xFFFFFFFF);
+            y += 2;
+            
+            int halfW = (w - 4) / 2;
+            
+            attachmentModeButton.setMessage(Text.literal("附着: " + getAttachmentModeDisplay()));
+            attachmentModeButton.setPosition(x, y);
+            attachmentModeButton.setWidth(halfW);
+            attachmentModeButton.visible = true;
+            attachmentModeButton.active = true;
+            attachmentModeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            
+            directionalityButton.setMessage(Text.literal("方向: " + directionalityMode.getDisplayName()));
+            directionalityButton.setPosition(x + halfW + 4, y);
+            directionalityButton.setWidth(w - halfW - 4);
+            directionalityButton.visible = true;
+            directionalityButton.active = true;
+            directionalityButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+            
+            // 方向标记按钮（根据方向性模式显示）
+            if (directionalityMode.needsInsideOutside()) {
+                setInsideButton.setMessage(Text.literal(insideMark != null ? "🏠✓ 内侧" : "🏠 设内侧"));
+                setInsideButton.setPosition(x, y);
+                setInsideButton.setWidth(halfW);
+                setInsideButton.visible = true;
+                setInsideButton.active = true;
+                setInsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+                
+                setOutsideButton.setMessage(Text.literal(outsideMark != null ? "🌍✓ 外侧" : "🌍 设外侧"));
+                setOutsideButton.setPosition(x + halfW + 4, y);
+                setOutsideButton.setWidth(w - halfW - 4);
+                setOutsideButton.visible = true;
+                setOutsideButton.active = true;
+                setOutsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+                y += LABEL_OFFSET;
+            }
+            
+            if (directionalityMode.needsBottomTop()) {
+                setBottomButton.setMessage(Text.literal(bottomMark != null ? "⬇️✓ 底端" : "⬇️ 设底端"));
+                setBottomButton.setPosition(x, y);
+                setBottomButton.setWidth(halfW);
+                setBottomButton.visible = true;
+                setBottomButton.active = true;
+                setBottomButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+                
+                setTopButton.setMessage(Text.literal(topMark != null ? "⬆️✓ 顶端" : "⬆️ 设顶端"));
+                setTopButton.setPosition(x + halfW + 4, y);
+                setTopButton.setWidth(w - halfW - 4);
+                setTopButton.visible = true;
+                setTopButton.active = true;
+                setTopButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+                y += LABEL_OFFSET;
+            }
+            
+            // 标记模式提示
+            if (markingMode != DirectionMarkingMode.NONE) {
+                y = drawWrappedText(ctx, Text.literal("⚡ " + markingMode.getHint()), x, y, w, 0xFFFFFF00);
+                y += 4;
+            }
+            
+            // 分隔线
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+            
+            // 语义标注（高级，可折叠）
+            y = drawWrappedText(ctx, Text.literal("🎨 语义标注（高级）"), x, y, w, 0xFF888888);
+            y += 2;
+            
+            int half = (w - 4) / 2;
+            semanticSkinButton.setMessage(Text.literal(st.semanticSkin ? "材质：语义" : "材质：原样"));
+            semanticSkinButton.setPosition(x, y);
+            semanticSkinButton.setWidth(half);
+            semanticSkinButton.visible = true;
+            semanticSkinButton.active = true;
+            semanticSkinButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+
+            semanticTagOnSaveButton.setMessage(Text.literal(st.semanticTagOnSave ? "存语义：开" : "存语义：关"));
+            semanticTagOnSaveButton.setPosition(x + half + 4, y);
+            semanticTagOnSaveButton.setWidth(w - half - 4);
+            semanticTagOnSaveButton.visible = true;
+            semanticTagOnSaveButton.active = true;
+            semanticTagOnSaveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            semanticStyleButton.setMessage(Text.literal("风格：" + (st.semanticStyleId != null ? st.semanticStyleId : "DEFAULT")));
+            semanticStyleButton.setPosition(x, y);
+            semanticStyleButton.setWidth(w);
+            semanticStyleButton.visible = true;
+            semanticStyleButton.active = st.semanticSkin;
+            semanticStyleButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            semanticPartButton.setMessage(Text.literal("语义：" + (st.semanticPart != null ? st.semanticPart.name() : "AUTO")));
+            semanticPartButton.setPosition(x, y);
+            semanticPartButton.setWidth(w);
+            semanticPartButton.visible = true;
+            semanticPartButton.active = st.semanticSkin;
+            semanticPartButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            // 分隔线
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+        }
+        
+        // ============ 阶段 4：AI 使用保障 ============
+        boolean phase4Collapsed = phaseCollapsed[3];
+        boolean isPhase4Active = currentPhase == CapturePhase.AI_GUARANTEE;
+        boolean isPhase4Complete = isPhaseComplete(CapturePhase.AI_GUARANTEE);
+        
+        // 如果阶段3未完成，阶段4应该折叠
+        if (!isPhase3Complete) {
+            phase4Collapsed = true;
+        }
+        
+        String phase4Title = (phase4Collapsed ? "▶ " : "▼ ") + 
+            "④ AI 使用保障" + (isPhase4Complete ? "（已完成 ✓）" : (isPhase4Active ? "（当前步骤 ★）" : "（高级，可折叠）"));
+        int phase4TitleColor = isPhase4Active ? 0xFFFFFF00 : (isPhase4Complete ? 0xFF88FF88 : 0xFF888888);
+        y = drawWrappedText(ctx, Text.literal(phase4Title), x, y, w, phase4TitleColor);
+        y += 2;
+        
+        if (!phase4Collapsed && isPhase3Complete) {
+            // Socket 配置
+            y = drawWrappedText(ctx, Text.literal("🔌 Socket 配置"), x, y, w, 0xFFFFFFFF);
+            y += 2;
+            
+            String so = st.socketOriginLocal != null
+                    ? ("原点(local)=" + st.socketOriginLocal.getX() + "," + st.socketOriginLocal.getY() + "," + st.socketOriginLocal.getZ())
+                    : "原点(local)=未设置";
+            String ss = "尺寸=" + st.socketW + "×" + st.socketH + "×" + st.socketD;
+            y = drawWrappedText(ctx, Text.literal("已添加: " + st.socketCount + " 个  " + so + "  " + ss), x, y, w, 0xFFAAAAAA);
+            y += 2;
+
+            autoDetectSocketsButton.setPosition(x, y);
+            autoDetectSocketsButton.setWidth(w);
+            autoDetectSocketsButton.visible = true;
+            autoDetectSocketsButton.active = true;
+            autoDetectSocketsButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            socketContextButton.setMessage(Text.literal("Context: " + (st.socketContext != null ? st.socketContext.name() : "WALL")));
+            socketContextButton.setPosition(x, y);
+            socketContextButton.setWidth(w);
+            socketContextButton.visible = true;
+            socketContextButton.active = SelectionTool.INSTANCE.hasSelection();
+            socketContextButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            // Socket ID 输入
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal("Socket ID:"), x, y, 0xFFAAAAAA);
+            int inputY = y + LABEL_OFFSET - 2;
+            socketIdInput.render(ctx, x, inputY, w, 14);
+            socketIdInputX = x; socketIdInputY = inputY; socketIdInputW = w; socketIdInputH = 14;
+            socketIdInputBoundsValid = true;
+            String sid = socketIdInput.getText();
+            if (sid != null && !sid.isBlank()) {
+                st.socketIdDraft = sid.trim();
+            }
+            y += FIELD_SPACING;
+
+            int half = (w - 4) / 2;
+            socketPickOriginButton.setPosition(x, y);
+            socketPickOriginButton.setWidth(half);
+            socketPickOriginButton.visible = true;
+            socketPickOriginButton.active = SelectionTool.INSTANCE.hasSelection() && st.anchorWorld != null;
+            socketPickOriginButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+
+            socketFacingButton.setMessage(Text.literal("朝向: " + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH")));
+            socketFacingButton.setPosition(x + half + 4, y);
+            socketFacingButton.setWidth(w - half - 4);
+            socketFacingButton.visible = true;
+            socketFacingButton.active = true;
+            socketFacingButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            socketAddButton.setPosition(x, y);
+            socketAddButton.setWidth(half);
+            socketAddButton.visible = true;
+            socketAddButton.active = SelectionTool.INSTANCE.hasSelection() && st.socketOriginLocal != null;
+            socketAddButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+
+            socketPreviewButton.setPosition(x + half + 4, y);
+            socketPreviewButton.setWidth(w - half - 4);
+            socketPreviewButton.visible = true;
+            socketPreviewButton.active = st.anchorWorld != null && st.socketOriginLocal != null;
+            socketPreviewButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            socketClearButton.setPosition(x, y);
+            socketClearButton.setWidth(w);
+            socketClearButton.visible = true;
+            socketClearButton.active = st.socketCount > 0;
+            socketClearButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            // 分隔线
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+            
+            // 智能分析
+            y = drawWrappedText(ctx, Text.literal("🧠 智能分析"), x, y, w, 0xFFFFFFFF);
+            y += 2;
+            
+            autoAnalyzeButton.setPosition(x, y);
+            autoAnalyzeButton.setWidth(w);
+            autoAnalyzeButton.visible = true;
+            autoAnalyzeButton.active = st.anchorWorld != null;
+            autoAnalyzeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+            
+            // 分隔线
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+        }
+        
+        // ============ 构件健康状态检查（新设计：健康条 + 抽屉）============
+        if (isPhase2Complete) {
+            // 实时检查（防抖）
+            long now = System.currentTimeMillis();
+            if (now - lastHealthCheckTime > HEALTH_CHECK_DEBOUNCE_MS) {
+                // 触发检查（不显示，只更新状态）
+                lastHealthCheckTime = now;
+            }
+            
+            var healthResult = checkComponentHealth();
+            var items = healthResult.getItems();
+            
+            // 统计
+            int okCount = 0, warnCount = 0, errorCount = 0;
+            for (var item : items) {
+                switch (item.level) {
+                    case OK: okCount++; break;
+                    case WARN: warnCount++; break;
+                    case ERROR: errorCount++; break;
+                }
+            }
+            
+            // A. 1行摘要（永远可见，放在底部按钮上方）
+            y += 4;
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+            
+            // 构建摘要文本
+            String summaryText = "健康状态：";
+            if (okCount > 0) summaryText += "✅ " + okCount + "  ";
+            if (warnCount > 0) summaryText += "⚠ " + warnCount + "  ";
+            if (errorCount > 0) summaryText += "⛔ " + errorCount + "  ";
+            if (okCount == 0 && warnCount == 0 && errorCount == 0) {
+                summaryText += "✅ 全部通过";
+            }
+            summaryText += "  （点击查看）";
+            
+            // 摘要行颜色（有ERROR变红）
+            int summaryColor = errorCount > 0 ? 0xFFFF5555 : (warnCount > 0 ? 0xFFFFAA00 : 0xFF55FF55);
+            
+            // 可点击的摘要行（点击展开/折叠抽屉）
+            // 记录摘要行的Y坐标范围，用于点击检测
+            int summaryStartY = y;
+            y = drawWrappedText(ctx, Text.literal(summaryText), x, y, w, summaryColor);
+            int summaryEndY = y;
+            
+            // 存储摘要行位置（用于mouseClicked检测）
+            healthSummaryStartY = summaryStartY + scrollY;
+            healthSummaryEndY = summaryEndY + scrollY;
+            
+            // 如果有ERROR，摘要行轻量抖动提示（这里用颜色闪烁代替）
+            if (errorCount > 0) {
+                // 在摘要行下方画一条红色提示线
+                ctx.fill(x, y, x + w, y + 1, 0x44FF5555);
+                y += 2;
+            }
+            
+            // B. Chips（折叠态显示最重要的1-3条）
+            if (!healthDrawerExpanded) {
+                // 只显示ERROR和最重要的WARN（最多3条）
+                int chipCount = 0;
+                for (var item : items) {
+                    if (chipCount >= 3) break;
+                    if (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ||
+                        (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN && chipCount < 2)) {
+                        String chipIcon = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? "⛔" : "⚠";
+                        int chipColor = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? 0xFFFF5555 : 0xFFFFAA00;
+                        String chipText = chipIcon + " " + item.title;
+                        y = drawWrappedText(ctx, Text.literal(chipText), x, y, w, chipColor);
+                        chipCount++;
+                    }
+                }
+            } else {
+                // C. Detail 抽屉（展开态的可操作清单）
+                y += 2;
+                
+                // 快捷动作区
+                if (healthResult.hasAutoFixable() || errorCount > 0) {
+                    int buttonW = (w - 4) / 3;
+                    if (healthResult.hasAutoFixable()) {
+                        autoFixButton.setPosition(x, y);
+                        autoFixButton.setWidth(buttonW);
+                        autoFixButton.visible = true;
+                        autoFixButton.active = true;
+                        autoFixButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+                    }
+                    y += LABEL_OFFSET;
+                }
+                
+                // 详细列表
+                for (var item : items) {
+                    // 跳过OK项（只显示问题和警告）
+                    if (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.OK) {
+                        continue;
+                    }
+                    
+                    // 图标和颜色（按建议规范）
+                    String icon;
+                    int color;
+                    switch (item.level) {
+                        case OK:
+                            icon = "✅";
+                            color = 0xFF55FF55;
+                            break;
+                        case WARN:
+                            icon = "⚠";
+                            color = 0xFFFFAA00;
+                            break;
+                        case ERROR:
+                            icon = "⛔";
+                            color = 0xFFFF5555;
+                            break;
+                        default:
+                            icon = "ℹ";
+                            color = 0xFF55FFFF;
+                            break;
+                    }
+                    
+                    // 自动修复标记
+                    if (item.fixAction == com.formacraft.common.component.health.HealthCheckResult.FixAction.AUTO) {
+                        icon += "✨";
+                    }
+                    
+                    // 需要世界交互标记
+                    if (item.ruleId.startsWith("H2-") && item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR) {
+                        icon += "🎯";
+                    }
+                    
+                    // 标题行（可点击跳转）
+                    y = drawWrappedText(ctx, Text.literal("[" + icon + "] " + item.title), x, y, w, color);
+                    
+                    // 影响说明
+                    if (!item.impact.isEmpty()) {
+                        y = drawWrappedText(ctx, Text.literal("  影响：" + item.impact), x, y, w, 0xFFFFAA00);
+                    }
+                    
+                    // 建议说明
+                    if (!item.fixSuggestion.isEmpty()) {
+                        String suggestionIcon = item.fixAction == com.formacraft.common.component.health.HealthCheckResult.FixAction.AUTO 
+                            ? "🤖" : "💡";
+                        y = drawWrappedText(ctx, Text.literal("  建议：" + suggestionIcon + " " + item.fixSuggestion), x, y, w, 0xFF88CCFF);
+                    }
+                    
+                    y += 2; // 项之间间距
+                }
+            }
+            
+            y += 4;
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+        }
+        
+        // ============ AI 视角解释区 ============
+        if (isPhase3Complete) {
+            y = drawWrappedText(ctx, Text.literal("🤖 AI 将如何理解这个构件："), x, y, w, 0xFF88CCFF);
+            y += 2;
+            
+            var explanations = getAIViewExplanation();
+            for (String exp : explanations) {
+                y = drawWrappedText(ctx, Text.literal("- " + exp), x, y, w, 0xFFAAAAAA);
+            }
+            
+            y += 4;
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+        }
+        
+        // ============ 底部按钮 ============
         y += 4;
         
-        // 锚点与朝向
-        y = drawWrappedText(ctx, Text.literal("🎯 锚点与朝向"), x, y, w, 0xFFFFFFFF);
-        y += 2;
-
-        String anchorText = st.anchorWorld != null 
-            ? "锚点: (" + st.anchorWorld.getX() + ", " + st.anchorWorld.getY() + ", " + st.anchorWorld.getZ() + ")"
-            : "锚点: (未设置，默认为选区最小角)";
-        y = drawWrappedText(ctx, Text.literal(anchorText), x, y, w, 
-            st.anchorWorld != null ? 0xFF66FF66 : 0xFFFFAA00);
-        y += 2;
-
         int half = (w - 4) / 2;
-
-        pickAnchorButton.setMessage(Text.literal(st.pickingAnchor ? "⏹ 取消选择" : "📍 点击选择"));
-        pickAnchorButton.setPosition(x, y);
-        pickAnchorButton.setWidth(half);
-        pickAnchorButton.visible = true;
-        pickAnchorButton.active = true;
-        pickAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-        clearAnchorButton.setPosition(x + half + 4, y);
-        clearAnchorButton.setWidth(w - half - 4);
-        clearAnchorButton.visible = true;
-        clearAnchorButton.active = st.anchorWorld != null || st.pickingAnchor;
-        clearAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        facingButton.setMessage(Text.literal("朝向：" + st.facing.name()));
-        facingButton.setPosition(x, y);
-        facingButton.setWidth(half);
-        facingButton.visible = true;
-        facingButton.active = true;
-        facingButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-        mirrorButton.setMessage(Text.literal("镜像：" + st.mirror.name()));
-        mirrorButton.setPosition(x + half + 4, y);
-        mirrorButton.setWidth(w - half - 4);
-        mirrorButton.visible = true;
-        mirrorButton.active = true;
-        mirrorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 4;
-
-        // 语义标注
-        y = drawWrappedText(ctx, Text.literal("🎨 语义标注"), x, y, w, 0xFFFFFFFF);
-        y += 2;
-
-        semanticSkinButton.setMessage(Text.literal(st.semanticSkin ? "材质：语义" : "材质：原样"));
-        semanticSkinButton.setPosition(x, y);
-        semanticSkinButton.setWidth(half);
-        semanticSkinButton.visible = true;
-        semanticSkinButton.active = true;
-        semanticSkinButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-        semanticTagOnSaveButton.setMessage(Text.literal(st.semanticTagOnSave ? "存语义：开" : "存语义：关"));
-        semanticTagOnSaveButton.setPosition(x + half + 4, y);
-        semanticTagOnSaveButton.setWidth(w - half - 4);
-        semanticTagOnSaveButton.visible = true;
-        semanticTagOnSaveButton.active = true;
-        semanticTagOnSaveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        semanticStyleButton.setMessage(Text.literal("风格：" + (st.semanticStyleId != null ? st.semanticStyleId : "DEFAULT")));
-        semanticStyleButton.setPosition(x, y);
-        semanticStyleButton.setWidth(w);
-        semanticStyleButton.visible = true;
-        semanticStyleButton.active = st.semanticSkin;
-        semanticStyleButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        semanticPartButton.setMessage(Text.literal("语义：" + (st.semanticPart != null ? st.semanticPart.name() : "AUTO")));
-        semanticPartButton.setPosition(x, y);
-        semanticPartButton.setWidth(w);
-        semanticPartButton.visible = true;
-        semanticPartButton.active = st.semanticSkin;
-        semanticPartButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 4;
-
-        // Socket 配置
-        y = drawWrappedText(ctx, Text.literal("🔌 Socket 配置"), x, y, w, 0xFFFFFFFF);
-        y += 2;
-
-        String so = st.socketOriginLocal != null
-                ? ("原点(local)=" + st.socketOriginLocal.getX() + "," + st.socketOriginLocal.getY() + "," + st.socketOriginLocal.getZ())
-                : "原点(local)=未设置";
-        String ss = "尺寸=" + st.socketW + "×" + st.socketH + "×" + st.socketD;
-        y = drawWrappedText(ctx, Text.literal("已添加: " + st.socketCount + " 个  " + so + "  " + ss), x, y, w, 0xFFAAAAAA);
-        y += 2;
-
-        autoDetectSocketsButton.setPosition(x, y);
-        autoDetectSocketsButton.setWidth(w);
-        autoDetectSocketsButton.visible = true;
-        autoDetectSocketsButton.active = true;
-        autoDetectSocketsButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        socketContextButton.setMessage(Text.literal("Context: " + (st.socketContext != null ? st.socketContext.name() : "WALL")));
-        socketContextButton.setPosition(x, y);
-        socketContextButton.setWidth(w);
-        socketContextButton.visible = true;
-        socketContextButton.active = SelectionTool.INSTANCE.hasSelection();
-        socketContextButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // Socket ID 输入
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal("Socket ID:"), x, y, 0xFFAAAAAA);
-        inputY = y + LABEL_OFFSET - 2;
-        socketIdInput.render(ctx, x, inputY, w, 14);
-        socketIdInputX = x; socketIdInputY = inputY; socketIdInputW = w; socketIdInputH = 14;
-        socketIdInputBoundsValid = true;
-        String sid = socketIdInput.getText();
-        if (sid != null && !sid.isBlank()) {
-            st.socketIdDraft = sid.trim();
-        }
-        y += FIELD_SPACING;
-
-        socketPickOriginButton.setPosition(x, y);
-        socketPickOriginButton.setWidth(half);
-        socketPickOriginButton.visible = true;
-        socketPickOriginButton.active = SelectionTool.INSTANCE.hasSelection() && st.anchorWorld != null;
-        socketPickOriginButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-        socketFacingButton.setMessage(Text.literal("朝向: " + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH")));
-        socketFacingButton.setPosition(x + half + 4, y);
-        socketFacingButton.setWidth(w - half - 4);
-        socketFacingButton.visible = true;
-        socketFacingButton.active = true;
-        socketFacingButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        socketAddButton.setPosition(x, y);
-        socketAddButton.setWidth(half);
-        socketAddButton.visible = true;
-        socketAddButton.active = SelectionTool.INSTANCE.hasSelection() && st.socketOriginLocal != null;
-        socketAddButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-        socketPreviewButton.setPosition(x + half + 4, y);
-        socketPreviewButton.setWidth(w - half - 4);
-        socketPreviewButton.visible = true;
-        socketPreviewButton.active = st.anchorWorld != null && st.socketOriginLocal != null;
-        socketPreviewButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        socketClearButton.setPosition(x, y);
-        socketClearButton.setWidth(w);
-        socketClearButton.visible = true;
-        socketClearButton.active = st.socketCount > 0;
-        socketClearButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 4;
-
-        // 智能分析
-        y = drawWrappedText(ctx, Text.literal("🧠 智能分析"), x, y, w, 0xFFFFFFFF);
-        y += 2;
-
-        autoAnalyzeButton.setPosition(x, y);
-        autoAnalyzeButton.setWidth(w);
-        autoAnalyzeButton.visible = true;
-        autoAnalyzeButton.active = st.anchorWorld != null;
-        autoAnalyzeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 8;
-
-        // 底部按钮
         cancelButton.setPosition(x, y);
         cancelButton.setWidth(half);
         cancelButton.visible = true;
         cancelButton.active = true;
         cancelButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
+        // Save按钮策略（按建议：ERROR阻断，WARN提示）
+        var healthResult = checkComponentHealth();
+        boolean hasErrors = healthResult.hasErrors();
+        boolean hasWarnings = healthResult.hasWarnings();
+        boolean canSaveNow = canSave() && !hasErrors; // ERROR阻断保存
+        
         saveButton.setPosition(x + half + 4, y);
         saveButton.setWidth(w - half - 4);
         saveButton.visible = true;
-        saveButton.active = canSave();
+        saveButton.active = canSaveNow;
+        
+        // 更新按钮文本和Tooltip（如果有WARN）
+        if (hasWarnings && canSaveNow) {
+            saveButton.setMessage(Text.literal("💾 保存构件（建议先修复 " + healthResult.getItems().stream()
+                .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN)
+                .count() + " 个风险项）"));
+        } else if (hasErrors) {
+            saveButton.setMessage(Text.literal("💾 保存构件（需先解决 " + healthResult.getItems().stream()
+                .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR)
+                .count() + " 个阻断项）"));
+        } else {
+            saveButton.setMessage(Text.literal("💾 保存构件"));
+        }
+        
         saveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
@@ -1279,6 +1630,88 @@ public class ComponentCapturePanel extends BasePanel {
             }
         }
         st.category = values[(idx + 1) % values.length];
+        
+        // 分类驱动：根据分类自动设置附着模式和方向性
+        applyCategoryDefaults(st.category);
+    }
+    
+    /**
+     * 根据分类自动设置附着模式和方向性
+     */
+    private void applyCategoryDefaults(ComponentCategory category) {
+        switch (category) {
+            case DOOR:
+                attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_OPENING;
+                directionalityMode = DirectionalityMode.INSIDE_OUTSIDE;
+                break;
+            case WINDOW:
+                attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_OPENING;
+                directionalityMode = DirectionalityMode.INSIDE_OUTSIDE;
+                break;
+            case COLUMN:
+                attachmentMode = com.formacraft.common.component.placement.AttachmentType.FLOOR;
+                directionalityMode = DirectionalityMode.NONE;
+                break;
+            case STAIRS:
+                attachmentMode = com.formacraft.common.component.placement.AttachmentType.FLOOR;
+                directionalityMode = DirectionalityMode.BOTTOM_TOP;
+                break;
+            case BRACKET:
+            case ORNAMENT:
+            case ARCH:
+            case ROOF_DETAIL:
+                attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_SURFACE;
+                directionalityMode = DirectionalityMode.NONE;
+                break;
+            default:
+                // GENERIC 保持当前设置
+                break;
+        }
+    }
+    
+    /**
+     * 计算当前应该处于的阶段
+     */
+    private CapturePhase computeCurrentPhase() {
+        var st = ComponentTool.INSTANCE.getState();
+        boolean hasSelection = SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
+        boolean hasAnchor = st.anchorWorld != null;
+        boolean hasName = st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
+        boolean hasCategory = st.category != ComponentCategory.GENERIC;
+        
+        if (!hasSelection) {
+            return CapturePhase.SELECTION;
+        }
+        if (!hasAnchor) {
+            return CapturePhase.ANCHOR_ORIENTATION;
+        }
+        if (!hasName || !hasCategory) {
+            return CapturePhase.SEMANTIC;
+        }
+        // 阶段4是可选的，但如果有问题会提示
+        return CapturePhase.AI_GUARANTEE;
+    }
+    
+    /**
+     * 检查阶段是否完成
+     */
+    private boolean isPhaseComplete(CapturePhase phase) {
+        var st = ComponentTool.INSTANCE.getState();
+        switch (phase) {
+            case SELECTION:
+                return SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
+            case ANCHOR_ORIENTATION:
+                return st.anchorWorld != null;
+            case SEMANTIC:
+                boolean hasName = st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
+                boolean hasCategory = st.category != ComponentCategory.GENERIC;
+                return hasName && hasCategory;
+            case AI_GUARANTEE:
+                // 阶段4是可选的，总是返回true
+                return true;
+            default:
+                return false;
+        }
     }
 
     private void cycleFacing() {
@@ -1329,12 +1762,119 @@ public class ComponentCapturePanel extends BasePanel {
         // ComponentTool.INSTANCE.autoDetectSockets();
         HudToast.show("Socket 自动检测完成！（功能待实现）");
     }
+    
+    /**
+     * 执行自动修复
+     */
+    private void runAutoFix() {
+        if (client == null || client.world == null) {
+            HudToast.show("无法修复：世界未加载", true);
+            return;
+        }
+        
+        // 构建当前构件定义
+        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+        if (json == null || json.isBlank()) {
+            HudToast.show("无法修复：请先选择构件方块", true);
+            return;
+        }
+        
+        try {
+            // 解析构件定义
+            var def = com.formacraft.common.json.JsonUtil.fromJson(json, com.formacraft.common.component.ComponentDefinition.class);
+            if (def == null) {
+                HudToast.show("无法修复：构件定义无效", true);
+                return;
+            }
+            
+            // 执行健康检查
+            var healthResult = com.formacraft.common.component.health.ComponentHealthChecker.check(def);
+            
+            // 执行自动修复
+            var fixReport = com.formacraft.common.component.health.ComponentHealthAutoFix.apply(def, healthResult);
+            
+            if (fixReport.isEmpty()) {
+                HudToast.show("没有可自动修复的问题");
+                return;
+            }
+            
+            // 应用修复到 ComponentToolState
+            applyFixToState(def, fixReport);
+            
+            // 显示修复结果
+            String message = "已自动修复 " + fixReport.size() + " 个问题";
+            for (String fix : fixReport.getFixes()) {
+                System.out.println("[自动修复] " + fix);
+            }
+            HudToast.show("✓ " + message);
+            
+        } catch (Throwable t) {
+            System.err.println("[ComponentCapturePanel] 自动修复失败: " + t.getMessage());
+            t.printStackTrace();
+            HudToast.show("自动修复失败: " + t.getMessage(), true);
+        }
+    }
+    
+    /**
+     * 将修复后的 ComponentDefinition 应用到 ComponentToolState
+     */
+    private void applyFixToState(com.formacraft.common.component.ComponentDefinition def, 
+                                 com.formacraft.common.component.health.ComponentHealthAutoFix.FixReport fixReport) {
+        var st = ComponentTool.INSTANCE.getState();
+        
+        // 应用锚点修复（H2-1, H2-2）
+        if (def.anchor != null && st.anchorWorld != null) {
+            // 计算修复后的锚点世界坐标
+            // 锚点在 ComponentDefinition 中是相对坐标，需要转换为世界坐标
+            net.minecraft.util.math.BlockPos min = SelectionTool.INSTANCE.getMin();
+            if (min != null) {
+                // 锚点相对坐标 + 选区最小点 = 世界坐标
+                int worldX = min.getX() + def.anchor.dx;
+                int worldY = min.getY() + def.anchor.dy;
+                int worldZ = min.getZ() + def.anchor.dz;
+                st.anchorWorld = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
+                System.out.println("[自动修复] 更新锚点: " + st.anchorWorld);
+            }
+        } else if (def.anchor != null && st.anchorWorld == null) {
+            // 如果之前没有锚点，现在创建了
+            net.minecraft.util.math.BlockPos min = SelectionTool.INSTANCE.getMin();
+            if (min != null) {
+                int worldX = min.getX() + def.anchor.dx;
+                int worldY = min.getY() + def.anchor.dy;
+                int worldZ = min.getZ() + def.anchor.dz;
+                st.anchorWorld = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
+                System.out.println("[自动修复] 创建锚点: " + st.anchorWorld);
+            }
+        }
+        
+        // 其他修复可以在这里添加
+    }
 
     private boolean canSave() {
         var st = ComponentTool.INSTANCE.getState();
-        return SelectionTool.INSTANCE.hasSelection() 
-            && st.name != null 
-            && !st.name.isBlank();
+        // 检查基本条件
+        if (!SelectionTool.INSTANCE.hasSelection() && selectedBlocks.isEmpty()) {
+            return false;
+        }
+        if (st.name == null || st.name.isBlank()) {
+            return false;
+        }
+        // 检查锚点（buildCurrentComponentJson 需要锚点）
+        if (st.anchorWorld == null) {
+            return false;
+        }
+        // 检查锚点是否在选区内（buildCurrentComponentJson 会检查这个）
+        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min != null && max != null) {
+            BlockPos anchor = st.anchorWorld;
+            if (anchor.getX() < min.getX() || anchor.getX() > max.getX() ||
+                anchor.getY() < min.getY() || anchor.getY() > max.getY() ||
+                anchor.getZ() < min.getZ() || anchor.getZ() > max.getZ()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void saveComponent() {
@@ -1444,6 +1984,17 @@ public class ComponentCapturePanel extends BasePanel {
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
+        // 健康检查摘要行点击（展开/折叠抽屉）
+        if (healthSummaryStartY > 0 && healthSummaryEndY > 0) {
+            int panelY = getPanelY();
+            int actualSummaryStartY = panelY + healthSummaryStartY - scrollY;
+            int actualSummaryEndY = panelY + healthSummaryEndY - scrollY;
+            if (mouseY >= actualSummaryStartY && mouseY <= actualSummaryEndY) {
+                healthDrawerExpanded = !healthDrawerExpanded;
+                return true;
+            }
+        }
+        
         // 选择工具按钮点击
         if (boxSelectButton != null && boxSelectButton.visible && boxSelectButton.mouseClicked(click, false)) return true;
         if (pointSelectButton != null && pointSelectButton.visible && pointSelectButton.mouseClicked(click, false)) return true;
@@ -1478,6 +2029,7 @@ public class ComponentCapturePanel extends BasePanel {
         
         if (autoAnalyzeButton != null && autoAnalyzeButton.visible && autoAnalyzeButton.mouseClicked(click, false)) return true;
         if (autoDetectSocketsButton != null && autoDetectSocketsButton.visible && autoDetectSocketsButton.mouseClicked(click, false)) return true;
+        if (autoFixButton != null && autoFixButton.visible && autoFixButton.mouseClicked(click, false)) return true;
         
         if (cancelButton != null && cancelButton.visible && cancelButton.mouseClicked(click, false)) return true;
         if (saveButton != null && saveButton.visible && saveButton.mouseClicked(click, false)) return true;
@@ -1563,6 +2115,128 @@ public class ComponentCapturePanel extends BasePanel {
     }
 
     /**
+     * 跳转到指定规则对应的面板区域
+     */
+    private void jumpToRuleTarget(String ruleId) {
+        // 根据规则ID跳转到对应区域
+        if (ruleId.startsWith("H1-")) {
+            // 跳转到选区工具区
+            scrollY = 0; // 滚动到顶部
+            // TODO: 高亮选区工具按钮（闪烁2次）
+        } else if (ruleId.startsWith("H2-")) {
+            // 跳转到锚点&朝向区
+            // TODO: 计算锚点区域的Y坐标并滚动
+            // TODO: 高亮锚点按钮（闪烁2次）
+        } else if (ruleId.startsWith("H3-")) {
+            // 跳转到语义确认区
+            // TODO: 计算语义区域的Y坐标并滚动
+        } else if (ruleId.startsWith("H4-")) {
+            // 跳转到AI使用保障区
+            // TODO: 计算Socket区域的Y坐标并滚动
+        }
+    }
+    
+    /**
+     * 检查构件健康状态（使用新的健康检查系统）
+     */
+    private com.formacraft.common.component.health.HealthCheckResult checkComponentHealth() {
+        // 尝试构建 ComponentDefinition 进行检查
+        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+        if (json == null || json.isBlank()) {
+            // 如果无法构建，返回基础检查结果
+            var result = new com.formacraft.common.component.health.HealthCheckResult();
+            var st = ComponentTool.INSTANCE.getState();
+            boolean hasSelection = SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
+            if (!hasSelection) {
+                result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.error(
+                    "H1-1", "未选择有效方块", "请先选择构件方块", "无法保存",
+                    com.formacraft.common.component.health.HealthCheckResult.FixAction.NONE, ""));
+            }
+            if (st.anchorWorld == null) {
+                result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.error(
+                    "H2-1", "未设置构件锚点", "请右键点击方块设置锚点", "构件无法稳定放置",
+                    com.formacraft.common.component.health.HealthCheckResult.FixAction.AUTO, "自动推荐锚点（底部中心）"));
+            }
+            return result;
+        }
+        
+        try {
+            var def = com.formacraft.common.json.JsonUtil.fromJson(json, com.formacraft.common.component.ComponentDefinition.class);
+            if (def != null) {
+                return com.formacraft.common.component.health.ComponentHealthChecker.check(def);
+            }
+        } catch (Throwable t) {
+            System.err.println("[ComponentCapturePanel] 健康检查失败: " + t.getMessage());
+        }
+        
+        // 如果解析失败，返回空结果
+        return new com.formacraft.common.component.health.HealthCheckResult();
+    }
+    
+    /**
+     * 获取AI视角解释
+     */
+    private java.util.List<String> getAIViewExplanation() {
+        var explanations = new java.util.ArrayList<String>();
+        var st = ComponentTool.INSTANCE.getState();
+        
+        // 类型
+        String categoryName;
+        switch (st.category) {
+            case DOOR: categoryName = "门（Door）"; break;
+            case WINDOW: categoryName = "窗（Window）"; break;
+            case COLUMN: categoryName = "柱子（Column）"; break;
+            case STAIRS: categoryName = "楼梯（Stairs）"; break;
+            case BRACKET: categoryName = "斗拱（Bracket）"; break;
+            case ORNAMENT: categoryName = "装饰（Ornament）"; break;
+            case ARCH: categoryName = "拱券（Arch）"; break;
+            case ROOF_DETAIL: categoryName = "屋顶细节（Roof Detail）"; break;
+            default: categoryName = "通用构件（Generic）"; break;
+        }
+        explanations.add("类型：" + categoryName);
+        
+        // 使用场景
+        String usage;
+        switch (attachmentMode) {
+            case WALL_OPENING: usage = "墙体开口"; break;
+            case WALL_SURFACE: usage = "墙面附着"; break;
+            case FLOOR: usage = "地面放置"; break;
+            case ROOF_SURFACE: usage = "屋面附着"; break;
+            case ROOF_EDGE: usage = "屋檐边缘"; break;
+            case ROOF_RIDGE: usage = "屋脊"; break;
+            case EDGE: usage = "边缘放置"; break;
+            case CORNER: usage = "转角放置"; break;
+            default: usage = "独立放置"; break;
+        }
+        explanations.add("使用场景：" + usage);
+        
+        // 朝向规则
+        if (directionalityMode == DirectionalityMode.INSIDE_OUTSIDE) {
+            explanations.add("朝向规则：内 → 外");
+        } else if (directionalityMode == DirectionalityMode.BOTTOM_TOP) {
+            explanations.add("朝向规则：下 → 上");
+        } else if (directionalityMode == DirectionalityMode.BOTH) {
+            explanations.add("朝向规则：内 → 外，下 → 上");
+        } else {
+            explanations.add("朝向规则：任意方向");
+        }
+        
+        // 推荐使用高度
+        if (st.category == ComponentCategory.DOOR || st.category == ComponentCategory.WINDOW) {
+            explanations.add("推荐使用高度：首层");
+        }
+        
+        // 可重复性
+        if (st.category == ComponentCategory.COLUMN || st.category == ComponentCategory.ORNAMENT) {
+            explanations.add("可重复：是");
+        } else {
+            explanations.add("可重复：否");
+        }
+        
+        return explanations;
+    }
+    
+    /**
      * 绘制状态指示器
      */
     private int drawStatusIndicator(DrawContext ctx, int x, int y, int w) {
@@ -1580,7 +2254,6 @@ public class ComponentCapturePanel extends BasePanel {
         
         // 锚点状态
         boolean hasAnchor = st.anchorWorld != null;
-        String anchorStatus = hasAnchor ? "✓" : "⚠";
         int anchorColor = hasAnchor ? 0xFF00FF00 : 0xFFFFAA00;
         String anchorText = hasAnchor ? 
             String.format("✓ 锚点: (%d, %d, %d)", st.anchorWorld.getX(), st.anchorWorld.getY(), st.anchorWorld.getZ()) :
@@ -1595,7 +2268,6 @@ public class ComponentCapturePanel extends BasePanel {
         
         // 名称状态
         boolean hasName = st.name != null && !st.name.isEmpty() && !st.name.equals("New Component");
-        String nameStatus = hasName ? "✓" : "⚠";
         int nameColor = hasName ? 0xFF00FF00 : 0xFFFFAA00;
         String nameText = hasName ? "✓ 名称已填写" : "⚠ 名称: 请填写";
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(nameText), x, y, nameColor);
@@ -1825,8 +2497,6 @@ public class ComponentCapturePanel extends BasePanel {
      */
     public void clearSelection() {
         selectedBlocks.clear();
-        BlockPos boxStart = null;
-        BlockPos boxEnd = null;
         isDragging = false;
         SelectionTool.INSTANCE.clearSelection();
         System.out.println("[ComponentCapturePanel] 清除选区");

@@ -8,7 +8,9 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * SmartGeneratorRouter（智能生成器路由）
@@ -39,58 +41,67 @@ public final class SmartGeneratorRouter {
      */
     public static List<BlockPatch> generate(SemanticComponent semantic, ServerWorld world) {
         if (semantic == null || semantic.source() == null) {
-            return new java.util.ArrayList<>();
-        }
-
-        // Player Component Library：如果 features 中包含 component_request:{...}，优先走构件库展开
-        // Player Component Groups：如果 features 中包含 group_request:{...}，优先走 group 展开（复合构件）
-        try {
-            List<BlockPatch> expanded = com.formacraft.common.component.group.PlayerComponentGroupExpander.tryExpand(semantic, world);
-            if (expanded != null) {
-                return expanded;
-            }
-        } catch (Throwable t) {
-            FormacraftMod.LOGGER.warn("SmartGeneratorRouter: PlayerComponentGroupExpander failed, skipping", t);
-            return new java.util.ArrayList<>();
-        }
-
-        try {
-            List<BlockPatch> expanded = com.formacraft.common.component.PlayerComponentExpander.tryExpand(semantic, world);
-            if (expanded != null) {
-                return expanded;
-            }
-        } catch (Throwable t) {
-            FormacraftMod.LOGGER.warn("SmartGeneratorRouter: PlayerComponentExpander failed, skipping", t);
-            return new java.util.ArrayList<>();
+            return new ArrayList<>();
         }
 
         Component c = semantic.source();
         String componentType = c.componentType();
+        boolean hasGroupRequest = hasFeaturePrefix(c, "group_request:");
+        boolean hasComponentRequest = hasFeaturePrefix(c, "component_request:");
 
         // 只使用新系统（common.generator）的 ComponentGenerator
         ComponentGenerator newSystemGenerator = GeneratorRegistry.getGenerator(componentType);
+        List<BlockPatch> base = new ArrayList<>();
         if (newSystemGenerator != null) {
             try {
                 List<BlockPatch> patches = newSystemGenerator.generate(semantic);
                 if (patches != null && !patches.isEmpty()) {
                     FormacraftMod.LOGGER.debug("SmartGeneratorRouter: using new system generator for {}", componentType);
-                    return patches;
-                } else {
-                    // 生成器返回空结果，静默跳过（不记录警告，因为这是正常的）
-                    FormacraftMod.LOGGER.debug("SmartGeneratorRouter: generator {} returned empty patches for component {}, skipping", 
-                            componentType, componentType);
-                    return new java.util.ArrayList<>();
+                    base.addAll(patches);
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.warn("SmartGeneratorRouter: new system generator failed for {}, skipping component", 
                         componentType, e);
-                return new java.util.ArrayList<>();
             }
-        } else {
-            // 没有注册生成器，静默跳过（不记录警告，因为这是正常的）
-            FormacraftMod.LOGGER.debug("SmartGeneratorRouter: no generator registered for component type: {}, skipping", componentType);
-            return new java.util.ArrayList<>();
         }
+
+        if (hasGroupRequest) {
+            try {
+                List<BlockPatch> expanded = com.formacraft.common.component.group.PlayerComponentGroupExpander.tryExpand(semantic, world);
+                if (expanded != null) {
+                    if (base.isEmpty()) {
+                        return expanded;
+                    }
+                    // group_request 默认视为替换；若要叠加在主结构上，请改用 component_request
+                    return expanded;
+                }
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.warn("SmartGeneratorRouter: PlayerComponentGroupExpander failed, skipping", t);
+            }
+        }
+
+        if (hasComponentRequest) {
+            try {
+                List<BlockPatch> expanded = com.formacraft.common.component.PlayerComponentExpander.tryExpand(semantic, world);
+                if (expanded != null) {
+                    if (base.isEmpty()) {
+                        return expanded;
+                    }
+                    if (!expanded.isEmpty()) {
+                        base.addAll(expanded);
+                    }
+                }
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.warn("SmartGeneratorRouter: PlayerComponentExpander failed, skipping", t);
+            }
+        }
+
+        if (!base.isEmpty()) {
+            return base;
+        }
+
+        FormacraftMod.LOGGER.debug("SmartGeneratorRouter: no generator patches for component type: {}, skipping", componentType);
+        return new ArrayList<>();
     }
 
     /**
@@ -110,6 +121,20 @@ public final class SmartGeneratorRouter {
                type.equals("CASTLE") || 
                type.equals("KEEP") ||
                type.equals("COMPOUND");
+    }
+
+    private static boolean hasFeaturePrefix(Component component, String prefix) {
+        if (component == null || prefix == null) return false;
+        List<String> features = component.features();
+        if (features == null || features.isEmpty()) return false;
+        String p = prefix.toLowerCase(Locale.ROOT);
+        for (String feature : features) {
+            if (feature == null) continue;
+            if (feature.toLowerCase(Locale.ROOT).startsWith(p)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
