@@ -801,8 +801,7 @@ public final class ComponentTool implements FormacraftTool {
                         com.formacraft.client.ui.panel.PanelType.COMPONENT_LIBRARY;
                     
                     // 设置选中的构件（高亮显示）
-                    String componentId = makeId(state.category, componentName);
-                    state.librarySelectedId = componentId;
+                    state.librarySelectedId = makeId(state.category, componentName);
                     state.librarySelectedName = componentName;
                 });
             }
@@ -1108,7 +1107,7 @@ public final class ComponentTool implements FormacraftTool {
         if (anchor == null) return null;
         
         // 检查锚点是否在有效选区内
-        boolean anchorInSelection = false;
+        boolean anchorInSelection;
         if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
             anchorInSelection = state.explicitSelectedBlocks.contains(anchor);
         } else {

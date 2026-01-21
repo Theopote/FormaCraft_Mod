@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  * 构件健康检查结果
- * 
+ * <p>
  * 这是 Formacraft 信任系统的核心：不是"修复构件"，而是"告诉用户这个构件将来会不会被 AI 用错"
  */
 public final class HealthCheckResult {
@@ -129,18 +129,18 @@ public final class HealthCheckResult {
         private static String inferUITarget(String ruleId) {
             if (ruleId == null) return "";
             // H1: 选区相关
-            if ("H1-1".equals(ruleId)) return "section.selection";
-            if ("H1-2".equals(ruleId)) return "section.selection";
-            if ("H1-3".equals(ruleId)) return "section.selection";
-            // H2: 锚点相关
-            if ("H2-1".equals(ruleId)) return "button.pickAnchor";
-            if ("H2-2".equals(ruleId)) return "button.pickAnchor";
-            if ("H2-3".equals(ruleId)) return "button.setInside";
-            // H3: 语义相关
-            if ("H3-1".equals(ruleId)) return "button.category";
-            // H4: AI相关
-            if ("H4-1".equals(ruleId)) return "section.socket";
-            return "";
+            return switch (ruleId) {
+                case "H1-1", "H1-2", "H1-3" -> "section.selection";
+                // H2: 锚点相关
+                case "H2-1" -> "button.pickAnchor";
+                case "H2-2" -> "button.pickAnchor";
+                case "H2-3" -> "button.setInside";
+                // H3: 语义相关
+                case "H3-1" -> "button.category";
+                // H4: AI相关
+                case "H4-1" -> "section.socket";
+                default -> "";
+            };
         }
     }
     

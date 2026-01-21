@@ -22,6 +22,9 @@ import com.formacraft.common.component.placement.FacingDeriver;
 import com.formacraft.common.component.placement.FacingPolicy;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.common.component.query.ComponentQuery;
+import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Vec3i;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.WorldSavePath;
@@ -124,12 +127,10 @@ public final class PlayerComponentExpander {
         ComponentTransform transform = new ComponentTransform(targetFacing, mirror);
 
         // 3) 放置偏移（相对于 slot anchor）
-        int baseX = 0, baseY = 0, baseZ = 0;
-        if (semantic.source().relativePosition() != null) {
-            baseX = semantic.source().relativePosition().x();
-            baseY = semantic.source().relativePosition().y();
-            baseZ = semantic.source().relativePosition().z();
-        }
+        BlockPos baseOffset = resolveBaseOffset(semantic);
+        int baseX = baseOffset.getX();
+        int baseY = baseOffset.getY();
+        int baseZ = baseOffset.getZ();
 
         // 4) 是否启用语义换皮
         boolean semanticSkin = getBool(reqMap, "semantic_skin", "semanticSkin");
@@ -241,12 +242,10 @@ public final class PlayerComponentExpander {
         ComponentTransform hostTransform = new ComponentTransform(hostTargetFacing, hostMirror);
 
         // base offset（相对 slot anchor）
-        int baseX = 0, baseY = 0, baseZ = 0;
-        if (semantic != null && semantic.source() != null && semantic.source().relativePosition() != null) {
-            baseX = semantic.source().relativePosition().x();
-            baseY = semantic.source().relativePosition().y();
-            baseZ = semantic.source().relativePosition().z();
-        }
+        BlockPos baseOffset = resolveBaseOffset(semantic);
+        int baseX = baseOffset.getX();
+        int baseY = baseOffset.getY();
+        int baseZ = baseOffset.getZ();
 
         // style / semantic skin（可分别覆盖 host/mount）
         boolean semanticSkin = getBool(reqMap, "semantic_skin", "semanticSkin");
@@ -405,6 +404,43 @@ public final class PlayerComponentExpander {
             }
             out.add(new BlockPatch(BlockPatch.PLACE, dx, dy, dz, block));
         }
+    }
+
+    private static BlockPos resolveBaseOffset(SemanticComponent semantic) {
+        if (semantic == null || semantic.source() == null || semantic.source().relativePosition() == null) {
+            return BlockPos.ORIGIN;
+        }
+
+        Component component = semantic.source();
+        Vec3i rp = component.relativePosition();
+        int baseX = rp.x();
+        int baseY = rp.y();
+        int baseZ = rp.z();
+
+        if (shouldUseCenterAnchor(component)) {
+            Dimensions dims = component.dimensions();
+            if (dims != null) {
+                baseX -= dims.width() / 2;
+                baseZ -= dims.depth() / 2;
+            }
+        }
+
+        return new BlockPos(baseX, baseY, baseZ);
+    }
+
+    private static boolean shouldUseCenterAnchor(Component component) {
+        if (component == null) return false;
+        if (isCornerAnchor(component)) return false;
+        String type = component.componentType();
+        if (type == null || type.isBlank()) return false;
+        String upper = type.trim().toUpperCase(Locale.ROOT);
+        return upper.startsWith("MASS_") || upper.equals("TOWER");
+    }
+
+    private static boolean isCornerAnchor(Component component) {
+        Map<String, Object> params = component.params();
+        String anchorMode = getString(params, "anchor_mode", "anchorMode");
+        return anchorMode != null && anchorMode.toLowerCase(Locale.ROOT).contains("corner");
     }
 
     private static ComponentSocket findSocket(ComponentDefinition def, String socketId) {

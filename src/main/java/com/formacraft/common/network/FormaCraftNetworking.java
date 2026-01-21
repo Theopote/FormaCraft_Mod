@@ -20,7 +20,11 @@ import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.llm.dto.Slot;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.compiler.ComponentPlanCompiler;
@@ -33,6 +37,9 @@ import com.formacraft.server.terrain.TerrainFit;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -294,6 +301,178 @@ public class FormaCraftNetworking {
         }
         
         return null;
+    }
+
+    private record Bounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        int width() {
+            return Math.max(1, maxX - minX + 1);
+        }
+
+        int depth() {
+            return Math.max(1, maxZ - minZ + 1);
+        }
+
+        int height() {
+            return Math.max(1, maxY - minY + 1);
+        }
+
+        Bounds expand(int margin) {
+            if (margin <= 0) return this;
+            return new Bounds(minX - margin, minY, minZ - margin, maxX + margin, maxY, maxZ + margin);
+        }
+
+        Bounds union(Bounds other) {
+            if (other == null) return this;
+            return new Bounds(
+                    Math.min(minX, other.minX),
+                    Math.min(minY, other.minY),
+                    Math.min(minZ, other.minZ),
+                    Math.max(maxX, other.maxX),
+                    Math.max(maxY, other.maxY),
+                    Math.max(maxZ, other.maxZ)
+            );
+        }
+
+        BlockPos centerAtY(int y) {
+            return new BlockPos((minX + maxX) / 2, y, (minZ + maxZ) / 2);
+        }
+    }
+
+    private static Bounds computePlannedBlockBounds(List<PlannedBlock> plannedBlocks) {
+        if (plannedBlocks == null || plannedBlocks.isEmpty()) return null;
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (PlannedBlock pb : plannedBlocks) {
+            if (pb == null || pb.getPos() == null) continue;
+            BlockPos p = pb.getPos();
+            minX = Math.min(minX, p.getX());
+            minY = Math.min(minY, p.getY());
+            minZ = Math.min(minZ, p.getZ());
+            maxX = Math.max(maxX, p.getX());
+            maxY = Math.max(maxY, p.getY());
+            maxZ = Math.max(maxZ, p.getZ());
+        }
+        if (minX == Integer.MAX_VALUE) return null;
+        return new Bounds(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private static Bounds computeComponentBounds(LlmPlan plan, BlockPos planOrigin) {
+        if (plan == null || plan.components() == null || plan.components().isEmpty() || planOrigin == null) {
+            return null;
+        }
+
+        Map<String, Slot> slotMap = indexSlotsForBounds(plan);
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        boolean found = false;
+
+        for (Component c : plan.components()) {
+            if (c == null || c.dimensions() == null || c.relativePosition() == null) continue;
+            if (!isFootprintComponent(c)) continue;
+
+            Dimensions dims = c.dimensions();
+            int width = Math.max(1, dims.width());
+            int depth = Math.max(1, dims.depth());
+            int height = Math.max(1, dims.height());
+
+            Vec3i slotAnchor = null;
+            if (c.slotId() != null) {
+                Slot slot = slotMap.get(c.slotId());
+                if (slot != null) {
+                    slotAnchor = slot.anchor();
+                }
+            }
+
+            int baseX = c.relativePosition().x() + (slotAnchor != null ? slotAnchor.x() : 0);
+            int baseY = c.relativePosition().y() + (slotAnchor != null ? slotAnchor.y() : 0);
+            int baseZ = c.relativePosition().z() + (slotAnchor != null ? slotAnchor.z() : 0);
+
+            if (isCenterAnchorComponent(c)) {
+                baseX -= width / 2;
+                baseZ -= depth / 2;
+            }
+
+            int minXWorld = planOrigin.getX() + baseX;
+            int minYWorld = planOrigin.getY() + baseY;
+            int minZWorld = planOrigin.getZ() + baseZ;
+            int maxXWorld = minXWorld + width - 1;
+            int maxYWorld = minYWorld + height - 1;
+            int maxZWorld = minZWorld + depth - 1;
+
+            minX = Math.min(minX, minXWorld);
+            minY = Math.min(minY, minYWorld);
+            minZ = Math.min(minZ, minZWorld);
+            maxX = Math.max(maxX, maxXWorld);
+            maxY = Math.max(maxY, maxYWorld);
+            maxZ = Math.max(maxZ, maxZWorld);
+            found = true;
+        }
+
+        if (!found) return null;
+        return new Bounds(minX, minY, minZ, maxX, maxY, maxZ).expand(2);
+    }
+
+    private static Map<String, Slot> indexSlotsForBounds(LlmPlan plan) {
+        Map<String, Slot> map = new HashMap<>();
+        if (plan.layout() == null || plan.layout().slots() == null) return map;
+        for (Slot slot : plan.layout().slots()) {
+            if (slot != null && slot.slotId() != null) {
+                map.put(slot.slotId(), slot);
+            }
+        }
+        return map;
+    }
+
+    private static Bounds chooseTerrainPadBounds(Bounds componentBounds, Bounds blockBounds) {
+        if (componentBounds == null) return blockBounds;
+        if (blockBounds == null) return componentBounds;
+
+        long compArea = (long) componentBounds.width() * componentBounds.depth();
+        long blockArea = (long) blockBounds.width() * blockBounds.depth();
+        if (blockArea > compArea * 2L) {
+            FormacraftMod.LOGGER.warn(
+                    "LlmPlan: planned block bounds {}x{} exceed component footprint {}x{}, clamping terrain pad",
+                    blockBounds.width(), blockBounds.depth(), componentBounds.width(), componentBounds.depth());
+            return componentBounds;
+        }
+        return componentBounds.union(blockBounds);
+    }
+
+    private static boolean isFootprintComponent(Component component) {
+        if (component == null) return false;
+        String type = normalizeType(component.componentType());
+        if (type.isBlank()) return false;
+        if (type.startsWith("MASS_")) return true;
+        if ("TOWER".equals(type)) return true;
+        if ("PLATFORM".equals(type) || "COURTYARD".equals(type) || "FOUNDATION".equals(type)) return true;
+        return type.contains("ROOF");
+    }
+
+    private static boolean isCenterAnchorComponent(Component component) {
+        if (component == null) return false;
+        if (isCornerAnchor(component)) return false;
+        String type = normalizeType(component.componentType());
+        return type.startsWith("MASS_") || "TOWER".equals(type);
+    }
+
+    private static boolean isCornerAnchor(Component component) {
+        if (component == null || component.params() == null) return false;
+        Object anchorMode = component.params().get("anchor_mode");
+        if (anchorMode == null) anchorMode = component.params().get("anchorMode");
+        if (anchorMode == null) return false;
+        return anchorMode.toString().toLowerCase(Locale.ROOT).contains("corner");
+    }
+
+    private static String normalizeType(String type) {
+        return type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
     }
 
     // C2S 数据包定义
@@ -1177,92 +1356,91 @@ public class FormaCraftNetworking {
                                         if (!plannedBlocks.isEmpty()
                                                 && (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE ||
                                                     terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN)) {
-                                            // 从已生成的方块中计算边界
-                                            int minX = Integer.MAX_VALUE;
-                                            int minY = Integer.MAX_VALUE;
-                                            int minZ = Integer.MAX_VALUE;
-                                            int maxX = Integer.MIN_VALUE;
-                                            int maxY = Integer.MIN_VALUE;
-                                            int maxZ = Integer.MIN_VALUE;
-                                            for (PlannedBlock pb : plannedBlocks) {
-                                                if (pb == null || pb.getPos() == null) continue;
-                                                BlockPos p = pb.getPos();
-                                                minX = Math.min(minX, p.getX());
-                                                minY = Math.min(minY, p.getY());
-                                                minZ = Math.min(minZ, p.getZ());
-                                                maxX = Math.max(maxX, p.getX());
-                                                maxY = Math.max(maxY, p.getY());
-                                                maxZ = Math.max(maxZ, p.getZ());
+                                            Bounds blockBounds = computePlannedBlockBounds(plannedBlocks);
+                                            Bounds componentBounds = computeComponentBounds(llmPlan, planOrigin);
+                                            Bounds padBounds = chooseTerrainPadBounds(componentBounds, blockBounds);
+                                            if (padBounds == null) {
+                                                padBounds = blockBounds;
                                             }
+                                            if (padBounds == null) {
+                                                FormacraftMod.LOGGER.warn("LlmPlan: failed to compute terrain pad bounds, skipping terrain flattening");
+                                            } else {
+                                                int minX = padBounds.minX();
+                                                int minY = padBounds.minY();
+                                                int minZ = padBounds.minZ();
+                                                int maxX = padBounds.maxX();
+                                                int maxY = padBounds.maxY();
+                                                int maxZ = padBounds.maxZ();
 
-                                            int width = Math.max(10, maxX - minX + 1);
-                                            int depth = Math.max(10, maxZ - minZ + 1);
-                                            BlockPos center = new BlockPos((minX + maxX) / 2, planOrigin.getY(), (minZ + maxZ) / 2);
+                                                int width = Math.max(10, padBounds.width());
+                                                int depth = Math.max(10, padBounds.depth());
+                                                BlockPos center = padBounds.centerAtY(planOrigin.getY());
 
-                                            TerrainFit.FootprintAnalysis analysis = TerrainFit.analyze(serverWorld, center, width, depth);
+                                                TerrainFit.FootprintAnalysis analysis = TerrainFit.analyze(serverWorld, center, width, depth);
                                             
-                                            // 计算目标高度：以 anchor 高度为准，确保建筑落在统一平台上
-                                            int targetY = planOrigin.getY();
+                                                // 计算目标高度：以 anchor 高度为准，确保建筑落在统一平台上
+                                                int targetY = planOrigin.getY();
                                             
-                                            // 选择填充材料
-                                            net.minecraft.block.BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
-                                            if (llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null) {
-                                                String mat = llmPlan.styleAttributes().floorMaterial().trim();
-                                                if (!mat.isEmpty()) {
-                                                    String id = mat.startsWith("minecraft:") ? mat : "minecraft:" + mat;
-                                                    try {
-                                                        net.minecraft.util.Identifier bid = net.minecraft.util.Identifier.tryParse(id);
-                                                        if (bid != null) {
-                                                            fillMaterial = net.minecraft.registry.Registries.BLOCK.get(bid).getDefaultState();
-                                                        }
-                                                    } catch (Exception ignored) {}
+                                                // 选择填充材料
+                                                net.minecraft.block.BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
+                                                if (llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null) {
+                                                    String mat = llmPlan.styleAttributes().floorMaterial().trim();
+                                                    if (!mat.isEmpty()) {
+                                                        String id = mat.startsWith("minecraft:") ? mat : "minecraft:" + mat;
+                                                        try {
+                                                            net.minecraft.util.Identifier bid = net.minecraft.util.Identifier.tryParse(id);
+                                                            if (bid != null) {
+                                                                fillMaterial = net.minecraft.registry.Registries.BLOCK.get(bid).getDefaultState();
+                                                            }
+                                                        } catch (Exception ignored) {}
+                                                    }
                                                 }
-                                            }
                                             
-                                            // 生成平整地坪的 PlannedBlock
-                                            List<PlannedBlock> terrainPadBlocks = new ArrayList<>();
-                                            // 计算建筑高度范围，确保清理整个建筑占用空间
-                                            int buildingHeight = Math.max(1, maxY - minY + 1);
-                                            int clearHeight = buildingHeight + 8; // 清理高度 = 建筑高度 + 缓冲
+                                                // 生成平整地坪的 PlannedBlock
+                                                List<PlannedBlock> terrainPadBlocks = new ArrayList<>();
+                                                // 计算建筑高度范围，确保清理整个建筑占用空间
+                                                int buildingHeight = Math.max(1, maxY - minY + 1);
+                                                int clearHeight = buildingHeight + 8; // 清理高度 = 建筑高度 + 缓冲
                                             
-                                            if (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN) {
-                                                // FLATTEN 策略：使用 balancedPad 进行较大范围平整
-                                                terrainPadBlocks = TerrainFit.balancedPad(
-                                                        serverWorld, center, width, depth, targetY, fillMaterial, 4, clearHeight, true, true);
-                                            } else if (analysis.range() > 1) {
-                                                // ADAPTIVE 策略：如果地形起伏较大（range > 1），使用 adaptivePad 轻微平整
-                                                terrainPadBlocks = TerrainFit.adaptivePad(
-                                                        serverWorld, center, width, depth, targetY, fillMaterial, 4, clearHeight, true, true);
-                                            }
+                                                if (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN) {
+                                                    // FLATTEN 策略：使用 balancedPad 进行较大范围平整
+                                                    terrainPadBlocks = TerrainFit.balancedPad(
+                                                            serverWorld, center, width, depth, targetY, fillMaterial, 4, clearHeight, true, true);
+                                                } else if (analysis.range() > 1) {
+                                                    // ADAPTIVE 策略：如果地形起伏较大（range > 1），使用 adaptivePad 轻微平整
+                                                    terrainPadBlocks = TerrainFit.adaptivePad(
+                                                            serverWorld, center, width, depth, targetY, fillMaterial, 4, clearHeight, true, true);
+                                                }
                                             
-                                            // 额外清理：确保建筑占用空间内的所有地形方块都被清理
-                                            // 这是为了防止地形方块顶起建筑方块（关键修复）
-                                            int clearFromY = targetY + 1;
-                                            // 修复：使用maxY而不是minY + buildingHeight，确保覆盖所有屋顶方块
-                                            int clearToY = Math.max(maxY + 5, minY + buildingHeight + 5); // 清理到建筑最高点 + 缓冲
-                                            for (int x = minX; x <= maxX; x++) {
-                                                for (int z = minZ; z <= maxZ; z++) {
-                                                    for (int y = clearFromY; y <= clearToY; y++) {
-                                                        BlockPos clearPos = new BlockPos(x, y, z);
-                                                        if (!com.formacraft.server.build.BuildConstraintContext.allow(clearPos)) continue;
-                                                        net.minecraft.block.BlockState current = serverWorld.getBlockState(clearPos);
-                                                        // 清理所有非空气方块（包括地形方块）
-                                                        if (!current.isAir()) {
-                                                            terrainPadBlocks.add(new com.formacraft.server.build.PlannedBlock(clearPos, net.minecraft.block.Blocks.AIR.getDefaultState()));
+                                                // 额外清理：确保建筑占用空间内的所有地形方块都被清理
+                                                // 这是为了防止地形方块顶起建筑方块（关键修复）
+                                                int clearFromY = targetY + 1;
+                                                // 修复：使用maxY而不是minY + buildingHeight，确保覆盖所有屋顶方块
+                                                int clearToY = Math.max(maxY + 5, minY + buildingHeight + 5); // 清理到建筑最高点 + 缓冲
+                                                for (int x = minX; x <= maxX; x++) {
+                                                    for (int z = minZ; z <= maxZ; z++) {
+                                                        for (int y = clearFromY; y <= clearToY; y++) {
+                                                            BlockPos clearPos = new BlockPos(x, y, z);
+                                                            if (!com.formacraft.server.build.BuildConstraintContext.allow(clearPos)) continue;
+                                                            net.minecraft.block.BlockState current = serverWorld.getBlockState(clearPos);
+                                                            // 清理所有非空气方块（包括地形方块）
+                                                            if (!current.isAir()) {
+                                                                terrainPadBlocks.add(new com.formacraft.server.build.PlannedBlock(clearPos, net.minecraft.block.Blocks.AIR.getDefaultState()));
+                                                            }
                                                         }
                                                     }
                                                 }
-                                            }
                                             
-                                            // 将地坪平整的方块添加到结果的最前面（确保先清理地形，再放置建筑）
-                                            if (!terrainPadBlocks.isEmpty()) {
-                                                List<PlannedBlock> merged = new ArrayList<>(terrainPadBlocks.size() + plannedBlocks.size());
-                                                merged.addAll(terrainPadBlocks);
-                                                merged.addAll(plannedBlocks);
-                                                plannedBlocks = merged;
-                                                
-                                                FormacraftMod.LOGGER.info("LlmPlan: flattened terrain area {}x{} at Y={}, cleared building space up to Y={}, added {} pad blocks",
-                                                        width, depth, targetY, clearToY, terrainPadBlocks.size());
+                                                // 将地坪平整的方块添加到结果的最前面（确保先清理地形，再放置建筑）
+                                                if (!terrainPadBlocks.isEmpty()) {
+                                                    List<PlannedBlock> merged = new ArrayList<>(terrainPadBlocks.size() + plannedBlocks.size());
+                                                    merged.addAll(terrainPadBlocks);
+                                                    merged.addAll(plannedBlocks);
+                                                    plannedBlocks = merged;
+                                                    
+                                                    FormacraftMod.LOGGER.info("LlmPlan: flattened terrain area {}x{} at Y={}, cleared building space up to Y={}, added {} pad blocks",
+                                                            width, depth, targetY, clearToY, terrainPadBlocks.size());
+                                                }
                                             }
                                         }
 

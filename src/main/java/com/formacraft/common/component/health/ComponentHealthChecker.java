@@ -4,13 +4,12 @@ import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.socket.ComponentSocket;
-import net.minecraft.util.math.BlockPos;
 
 import java.util.*;
 
 /**
  * 构件健康检查器
- * 
+ * <p>
  * 实现4个层级的健康检查规则：
  * - H1: 几何完整性（Geometry Health）
  * - H2: 锚点与方向（Anchor & Orientation Health）
@@ -208,12 +207,9 @@ public final class ComponentHealthChecker {
         if (needsDirectionality) {
             // 检查是否有方向标记（这里简化处理，实际应该检查 directionalityMode 和 markers）
             // 由于 ComponentDefinition 可能没有直接的方向标记字段，我们检查 placementSpec
-            boolean hasDirectionality = false;
-            if (def.placementSpec != null && def.placementSpec.facingPolicy != null) {
-                // 如果有 facingPolicy，认为已定义方向
-                hasDirectionality = true;
-            }
-            
+            boolean hasDirectionality = def.placementSpec != null && def.placementSpec.facingPolicy != null;
+            // 如果有 facingPolicy，认为已定义方向
+
             if (!hasDirectionality) {
                 String categoryName = getCategoryDisplayName(cat);
                 result.add(HealthCheckResult.CheckItem.warn("H2-3", "该构件需要明确方向",
@@ -287,16 +283,16 @@ public final class ComponentHealthChecker {
     // ============ 辅助方法 ============
     
     private static String getCategoryDisplayName(ComponentCategory category) {
-        switch (category) {
-            case DOOR: return "门";
-            case WINDOW: return "窗";
-            case COLUMN: return "柱子";
-            case STAIRS: return "楼梯";
-            case BRACKET: return "斗拱";
-            case ORNAMENT: return "装饰";
-            case ARCH: return "拱券";
-            case ROOF_DETAIL: return "屋顶细节";
-            default: return "通用构件";
-        }
+        return switch (category) {
+            case DOOR -> "门";
+            case WINDOW -> "窗";
+            case COLUMN -> "柱子";
+            case STAIRS -> "楼梯";
+            case BRACKET -> "斗拱";
+            case ORNAMENT -> "装饰";
+            case ARCH -> "拱券";
+            case ROOF_DETAIL -> "屋顶细节";
+            default -> "通用构件";
+        };
     }
 }

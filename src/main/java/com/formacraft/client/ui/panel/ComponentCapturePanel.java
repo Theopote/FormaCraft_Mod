@@ -2186,45 +2186,6 @@ public class ComponentCapturePanel extends BasePanel {
     private int getScaledMouseY() {
         return (int) (client.mouse.getY() / client.getWindow().getScaleFactor());
     }
-
-    /**
-     * 跳转到指定规则对应的面板区域
-     * @param item 健康检查项（包含 phase 和 uiTargetId）
-     */
-    private void jumpToRuleTarget(com.formacraft.common.component.health.HealthCheckResult.CheckItem item) {
-        if (item == null) return;
-        
-        // 根据 phase 滚动到对应区域
-        String phase = item.phase;
-        if (phase != null && !phase.isEmpty()) {
-            // 根据阶段滚动到对应区域（简化实现：根据阶段折叠状态调整）
-            switch (phase) {
-                case "SELECTION":
-                    phaseCollapsed[0] = false; // 展开阶段1
-                    scrollY = 0; // 滚动到顶部
-                    break;
-                case "ANCHOR_ORIENTATION":
-                    phaseCollapsed[1] = false; // 展开阶段2
-                    // TODO: 计算锚点区域的Y坐标并滚动
-                    break;
-                case "SEMANTIC":
-                    phaseCollapsed[2] = false; // 展开阶段3
-                    // TODO: 计算语义区域的Y坐标并滚动
-                    break;
-                case "AI_GUARANTEE":
-                    phaseCollapsed[3] = false; // 展开阶段4
-                    // TODO: 计算Socket区域的Y坐标并滚动
-                    break;
-            }
-        }
-        
-        // 根据 uiTargetId 高亮对应控件（TODO: 实现控件高亮闪烁）
-        String uiTarget = item.uiTargetId;
-        if (uiTarget != null && !uiTarget.isEmpty()) {
-            // TODO: 实现控件高亮闪烁（例如：button.pickAnchor -> 高亮 pickAnchorButton）
-            // 这需要维护控件的屏幕坐标，并在下一帧渲染时闪烁
-        }
-    }
     
     /**
      * 检查构件健康状态（使用新的健康检查系统）
