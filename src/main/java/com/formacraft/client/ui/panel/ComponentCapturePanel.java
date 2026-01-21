@@ -136,6 +136,9 @@ public class ComponentCapturePanel extends BasePanel {
     private static final long HEALTH_CHECK_DEBOUNCE_MS = 200; // 健康检查防抖时间
     private int healthSummaryStartY = -1; // 健康摘要行的起始Y坐标（用于点击检测）
     private int healthSummaryEndY = -1; // 健康摘要行的结束Y坐标（用于点击检测）
+    
+    // 调试开关
+    private static final boolean DEBUG_CAPTURE = false; // 设置为 true 启用调试日志
 
     public ComponentCapturePanel() {
         nameInput.setMaxLength(64);
@@ -664,7 +667,9 @@ public class ComponentCapturePanel extends BasePanel {
             com.formacraft.common.component.placement.AttachmentType.values();
         int index = attachmentMode.ordinal();
         attachmentMode = values[(index + 1) % values.length];
-        System.out.println("[ComponentCapturePanel] 切换附着模式: " + attachmentMode);
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换附着模式: {}", attachmentMode);
+        }
     }
     
     /**
@@ -672,7 +677,9 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void cycleDirectionality() {
         directionalityMode = directionalityMode.next();
-        System.out.println("[ComponentCapturePanel] 切换方向性: " + directionalityMode.getDisplayName());
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换方向性: {}", directionalityMode.getDisplayName());
+        }
     }
     
     /**
@@ -680,7 +687,9 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void startMarkingInside() {
         markingMode = DirectionMarkingMode.MARKING_INSIDE;
-        System.out.println("[ComponentCapturePanel] 进入内侧标记模式");
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入内侧标记模式");
+        }
     }
     
     /**
@@ -688,7 +697,9 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void startMarkingOutside() {
         markingMode = DirectionMarkingMode.MARKING_OUTSIDE;
-        System.out.println("[ComponentCapturePanel] 进入外侧标记模式");
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入外侧标记模式");
+        }
     }
     
     /**
@@ -696,7 +707,9 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void startMarkingBottom() {
         markingMode = DirectionMarkingMode.MARKING_BOTTOM;
-        System.out.println("[ComponentCapturePanel] 进入底端标记模式");
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入底端标记模式");
+        }
     }
     
     /**
@@ -704,7 +717,9 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void startMarkingTop() {
         markingMode = DirectionMarkingMode.MARKING_TOP;
-        System.out.println("[ComponentCapturePanel] 进入顶端标记模式");
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入顶端标记模式");
+        }
     }
     
     /**
@@ -714,25 +729,33 @@ public class ComponentCapturePanel extends BasePanel {
         switch (markingMode) {
             case MARKING_INSIDE:
                 insideMark = pos.toImmutable();
-                System.out.println("[ComponentCapturePanel] 内侧标记: " + insideMark);
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 内侧标记: {}", insideMark);
+                }
                 markingMode = DirectionMarkingMode.NONE;
                 break;
                 
             case MARKING_OUTSIDE:
                 outsideMark = pos.toImmutable();
-                System.out.println("[ComponentCapturePanel] 外侧标记: " + outsideMark);
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 外侧标记: {}", outsideMark);
+                }
                 markingMode = DirectionMarkingMode.NONE;
                 break;
                 
             case MARKING_BOTTOM:
                 bottomMark = pos.toImmutable();
-                System.out.println("[ComponentCapturePanel] 底端标记: " + bottomMark);
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 底端标记: {}", bottomMark);
+                }
                 markingMode = DirectionMarkingMode.NONE;
                 break;
                 
             case MARKING_TOP:
                 topMark = pos.toImmutable();
-                System.out.println("[ComponentCapturePanel] 顶端标记: " + topMark);
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 顶端标记: {}", topMark);
+                }
                 markingMode = DirectionMarkingMode.NONE;
                 break;
                 
@@ -746,7 +769,9 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void setSelectionMode(ComponentSelectionMode mode) {
         this.selectionMode = mode;
-        System.out.println("[ComponentCapturePanel] 切换选择模式: " + mode.getDisplayName());
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换选择模式: {}", mode.getDisplayName());
+        }
     }
 
     @Override
@@ -1457,17 +1482,23 @@ public class ComponentCapturePanel extends BasePanel {
         saveButton.visible = true;
         saveButton.active = canSaveNow;
         
-        // 更新按钮文本和Tooltip（如果有WARN）
-        if (hasWarnings && canSaveNow) {
-            saveButton.setMessage(Text.literal("💾 保存构件（建议先修复 " + healthResult.getItems().stream()
-                .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN)
-                .count() + " 个风险项）"));
-        } else if (hasErrors) {
-            saveButton.setMessage(Text.literal("💾 保存构件（需先解决 " + healthResult.getItems().stream()
-                .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR)
-                .count() + " 个阻断项）"));
+        // 更新按钮文本和Tooltip（根据健康状态）
+        long warnCount = healthResult.getItems().stream()
+            .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN)
+            .count();
+        long errorCount = healthResult.getItems().stream()
+            .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR)
+            .count();
+        
+        if (hasErrors) {
+            saveButton.setMessage(Text.literal("💾 保存构件（需先解决 " + errorCount + " 个阻断项）"));
+            saveButton.setTooltip(Tooltip.of(Text.literal("存在阻断项（⛔），请先修复后才能保存")));
+        } else if (hasWarnings && canSaveNow) {
+            saveButton.setMessage(Text.literal("💾 保存构件（建议先修复 " + warnCount + " 个风险项）"));
+            saveButton.setTooltip(Tooltip.of(Text.literal("构件有 " + warnCount + " 个风险项，建议先修复但可以保存")));
         } else {
             saveButton.setMessage(Text.literal("💾 保存构件"));
+            saveButton.setTooltip(Tooltip.of(Text.literal("保存构件到库\n━━━━━━━━━━━━\n将构件保存到全局构件库\n\n保存内容：\n• 方块数据和结构\n• 锚点和朝向\n• 分类和标签\n• 缩略图预览\n• Socket 配置（如果有）\n\n保存后自动跳转到构件库")));
         }
         
         saveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
@@ -1519,7 +1550,9 @@ public class ComponentCapturePanel extends BasePanel {
     private void regenerateThumbnail() {
         // 防止重复生成
         if (isGeneratingThumbnail) {
-            System.out.println("[缩略图] 已有生成任务在进行，跳过");
+            if (DEBUG_CAPTURE) {
+                com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 已有生成任务在进行，跳过");
+            }
             return;
         }
         
@@ -1527,38 +1560,49 @@ public class ComponentCapturePanel extends BasePanel {
         cachedThumbnail = null;
         isGeneratingThumbnail = true;
         
-        System.out.println("[缩略图] 开始生成...");
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 开始生成...");
+        }
         
         // 异步生成缩略图
         new Thread(() -> {
             try {
                 // 检查前置条件
                 if (client == null || client.world == null) {
-                    System.err.println("✗ client 或 client.world 为 null");
+                    if (DEBUG_CAPTURE) {
+                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] client 或 client.world 为 null");
+                    }
                     return;
                 }
                 
                 if (!SelectionTool.INSTANCE.hasSelection()) {
-                    System.err.println("✗ 没有选区");
+                    if (DEBUG_CAPTURE) {
+                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 没有选区");
+                    }
                     return;
                 }
                 
                 BlockPos min = SelectionTool.INSTANCE.getMin();
                 BlockPos max = SelectionTool.INSTANCE.getMax();
                 if (min == null || max == null) {
-                    System.err.println("✗ 选区 min 或 max 为 null");
+                    if (DEBUG_CAPTURE) {
+                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 选区 min 或 max 为 null");
+                    }
                     return;
                 }
                 
                 // 检查锚点
                 var st = ComponentTool.INSTANCE.getState();
                 if (st.anchorWorld == null) {
-                    System.err.println("✗ 锚点未设置！请先设置锚点（右键点击方块）");
+                    if (DEBUG_CAPTURE) {
+                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 锚点未设置！请先设置锚点（右键点击方块）");
+                    }
                     return;
                 }
                 
-                System.out.println("[缩略图] 选区: " + min + " -> " + max);
-                System.out.println("[缩略图] 锚点: " + st.anchorWorld);
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 选区: {} -> {}, 锚点: {}", min, max, st.anchorWorld);
+                }
                 
                 String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
                 if (json != null) {
@@ -1566,48 +1610,78 @@ public class ComponentCapturePanel extends BasePanel {
                     if (def != null) {
                         java.awt.image.BufferedImage thumb = ComponentThumbnailGenerator.generateThumbnail(def);
                         if (thumb != null) {
-                            System.out.println("✓ 缩略图生成成功: " + thumb.getWidth() + "x" + thumb.getHeight());
+                            if (DEBUG_CAPTURE) {
+                                com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 生成成功: {}x{}", thumb.getWidth(), thumb.getHeight());
+                            }
                             cachedThumbnail = thumb;
                         } else {
-                            System.err.println("✗ 缩略图生成失败: generateThumbnail 返回 null");
+                            if (DEBUG_CAPTURE) {
+                                com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 生成失败: generateThumbnail 返回 null");
+                            }
                         }
                     } else {
-                        System.err.println("✗ 无法解析 ComponentDefinition");
+                        if (DEBUG_CAPTURE) {
+                            com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 无法解析 ComponentDefinition");
+                        }
                     }
                 } else {
-                    System.err.println("✗ buildCurrentComponentJson 返回 null（可能是锚点问题）");
+                    if (DEBUG_CAPTURE) {
+                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] buildCurrentComponentJson 返回 null（可能是锚点问题）");
+                    }
                 }
             } catch (Exception e) {
-                System.err.println("✗ 生成缩略图时出错: " + e.getMessage());
-                e.printStackTrace();
+                com.formacraft.FormacraftMod.LOGGER.error("[缩略图] 生成缩略图时出错", e);
             } finally {
                 isGeneratingThumbnail = false;
-                System.out.println("[缩略图] 生成任务结束");
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 生成任务结束");
+                }
             }
         }, "ThumbnailGenerator").start();
     }
 
+    /**
+     * 统一判断是否有有效选区（AABB 或显式方块集合）
+     */
+    private boolean hasValidSelection() {
+        // 优先检查显式方块集合（点选模式）
+        if (!selectedBlocks.isEmpty()) {
+            return true;
+        }
+        // 回退到 AABB（框选模式）
+        return SelectionTool.INSTANCE.hasSelection();
+    }
+
     private int countBlocksInSelection() {
         if (client == null || client.world == null) return 0;
+        
+        // 优先使用显式方块集合（点选模式）
+        if (!selectedBlocks.isEmpty()) {
+            int count = 0;
+            for (BlockPos pos : selectedBlocks) {
+                if (pos != null && !client.world.getBlockState(pos).isAir()) {
+                    count++;
+                }
+            }
+            return count;
+        }
+        
+        // 回退到 AABB 扫描（框选模式）
         if (!SelectionTool.INSTANCE.hasSelection()) return 0;
-
         BlockPos min = SelectionTool.INSTANCE.getMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
-        int count = 0;
+        if (min == null || max == null) return 0;
 
-        assert min != null;
-        if (max != null) {
-            for (int x = min.getX(); x <= max.getX(); x++) {
-                for (int y = min.getY(); y <= max.getY(); y++) {
-                    for (int z = min.getZ(); z <= max.getZ(); z++) {
-                        if (!client.world.getBlockState(new BlockPos(x, y, z)).isAir()) {
-                            count++;
-                        }
+        int count = 0;
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int y = min.getY(); y <= max.getY(); y++) {
+                for (int z = min.getZ(); z <= max.getZ(); z++) {
+                    if (!client.world.getBlockState(new BlockPos(x, y, z)).isAir()) {
+                        count++;
                     }
                 }
             }
         }
-
         return count;
     }
 
@@ -1792,13 +1866,14 @@ public class ComponentCapturePanel extends BasePanel {
             // 显示修复结果
             String message = "已自动修复 " + fixReport.size() + " 个问题";
             for (String fix : fixReport.getFixes()) {
-                System.out.println("[自动修复] " + fix);
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] {}", fix);
+                }
             }
             HudToast.show("✓ " + message);
             
         } catch (Throwable t) {
-            System.err.println("[ComponentCapturePanel] 自动修复失败: " + t.getMessage());
-            t.printStackTrace();
+            com.formacraft.FormacraftMod.LOGGER.error("[ComponentCapturePanel] 自动修复失败", t);
             HudToast.show("自动修复失败: " + t.getMessage(), true);
         }
     }
@@ -1821,7 +1896,9 @@ public class ComponentCapturePanel extends BasePanel {
                 int worldY = min.getY() + def.anchor.dy;
                 int worldZ = min.getZ() + def.anchor.dz;
                 st.anchorWorld = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
-                System.out.println("[自动修复] 更新锚点: " + st.anchorWorld);
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] 更新锚点: {}", st.anchorWorld);
+                }
             }
         } else if (def.anchor != null) {
             // 如果之前没有锚点，现在创建了
@@ -1831,7 +1908,9 @@ public class ComponentCapturePanel extends BasePanel {
                 int worldY = min.getY() + def.anchor.dy;
                 int worldZ = min.getZ() + def.anchor.dz;
                 st.anchorWorld = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
-                System.out.println("[自动修复] 创建锚点: " + st.anchorWorld);
+                if (DEBUG_CAPTURE) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] 创建锚点: {}", st.anchorWorld);
+                }
             }
         }
         
@@ -1841,7 +1920,7 @@ public class ComponentCapturePanel extends BasePanel {
     private boolean canSave() {
         var st = ComponentTool.INSTANCE.getState();
         // 检查基本条件
-        if (!SelectionTool.INSTANCE.hasSelection() && selectedBlocks.isEmpty()) {
+        if (!hasValidSelection()) {
             return false;
         }
         if (st.name == null || st.name.isBlank()) {
@@ -1851,16 +1930,22 @@ public class ComponentCapturePanel extends BasePanel {
         if (st.anchorWorld == null) {
             return false;
         }
-        // 检查锚点是否在选区内（buildCurrentComponentJson 会检查这个）
-        BlockPos min = SelectionTool.INSTANCE.getMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-        if (min != null && max != null) {
-            BlockPos anchor = st.anchorWorld;
-            return anchor.getX() >= min.getX() && anchor.getX() <= max.getX() &&
-                    anchor.getY() >= min.getY() && anchor.getY() <= max.getY() &&
-                    anchor.getZ() >= min.getZ() && anchor.getZ() <= max.getZ();
+        // 检查锚点是否在有效选区内
+        BlockPos anchor = st.anchorWorld;
+        if (!selectedBlocks.isEmpty()) {
+            // 点选模式：检查锚点是否在显式方块集合中
+            return selectedBlocks.contains(anchor);
+        } else {
+            // 框选模式：检查锚点是否在 AABB 内
+            BlockPos min = SelectionTool.INSTANCE.getMin();
+            BlockPos max = SelectionTool.INSTANCE.getMax();
+            if (min != null && max != null) {
+                return anchor.getX() >= min.getX() && anchor.getX() <= max.getX() &&
+                        anchor.getY() >= min.getY() && anchor.getY() <= max.getY() &&
+                        anchor.getZ() >= min.getZ() && anchor.getZ() <= max.getZ();
+            }
         }
-        return true;
+        return false;
     }
 
     private void saveComponent() {
@@ -1876,41 +1961,53 @@ public class ComponentCapturePanel extends BasePanel {
             return;
         }
         
-        // 解析、验证和自动修复（保存前）
+        // 解析、健康检查和自动修复（保存前）
         ComponentDefinition def = null;
         try {
             def = JsonUtil.fromJson(json, ComponentDefinition.class);
             if (def != null) {
-                // 自动修复
-                var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
-                if (!fixReport.empty()) {
-                    System.out.println("[ComponentCapturePanel] 保存前自动修复: " + fixReport.size() + " 项");
-                    for (var fix : fixReport.fixes()) {
-                        System.out.println("  " + fix);
+                // 使用新的健康检查系统
+                var healthResult = com.formacraft.common.component.health.ComponentHealthChecker.check(def);
+                
+                // 如果有 ERROR，阻止保存
+                if (healthResult.hasErrors()) {
+                    int errorCount = healthResult.getItems().stream()
+                        .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR)
+                        .mapToInt(item -> 1).sum();
+                    HudToast.show("保存失败：存在 " + errorCount + " 个阻断项，请先修复", true);
+                    return;
+                }
+                
+                // 执行自动修复（基于健康检查结果）
+                var fixReport = com.formacraft.common.component.health.ComponentHealthAutoFix.apply(def, healthResult);
+                if (!fixReport.isEmpty()) {
+                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 保存前自动修复: " + fixReport.size() + " 项");
+                    for (var fix : fixReport.getFixes()) {
+                        com.formacraft.FormacraftMod.LOGGER.debug("  " + fix);
                     }
                     // 重新生成 JSON（修复后）
                     json = JsonUtil.toJson(def);
+                    // 重新检查健康状态（修复后）
+                    healthResult = com.formacraft.common.component.health.ComponentHealthChecker.check(def);
                 }
                 
-                // 验证
+                // 如果有 WARN，提示但不阻止
+                if (healthResult.hasWarnings()) {
+                    int warnCount = healthResult.getItems().stream()
+                        .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN)
+                        .mapToInt(item -> 1).sum();
+                    HudToast.show("警告：构件有 " + warnCount + " 个风险项，但仍将保存");
+                }
+                
+                // 作为补充，运行结构性验证（ComponentValidator）
                 var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
                 if (validationResult.hasErrors()) {
-                    // 有错误，记录但不阻止保存（允许用户手动修复）
-                    System.err.println("[ComponentCapturePanel] 保存前验证发现错误:");
-                    for (var error : validationResult.errors()) {
-                        System.err.println("  " + error);
-                    }
-                    HudToast.show("警告：构件有 " + validationResult.errors().size() + " 个错误，但仍将保存", true);
-                } else if (validationResult.hasWarnings()) {
-                    System.out.println("[ComponentCapturePanel] 保存前验证发现警告: " + validationResult.warnings().size());
-                } else {
-                    System.out.println("[ComponentCapturePanel] 保存前验证通过");
+                    com.formacraft.FormacraftMod.LOGGER.warn("[ComponentCapturePanel] 保存前结构性验证发现错误: " + validationResult.errors().size());
                 }
             }
         } catch (Throwable t) {
-            System.err.println("[ComponentCapturePanel] 保存前验证/修复失败: " + t.getMessage());
-            t.printStackTrace();
-            // 继续保存，不阻止
+            com.formacraft.FormacraftMod.LOGGER.error("[ComponentCapturePanel] 保存前健康检查/修复失败", t);
+            // 继续保存，不阻止（容错）
         }
 
         // 生成缩略图（使用修复后的 def，如果 def 为 null 则重新解析）
@@ -1928,30 +2025,20 @@ public class ComponentCapturePanel extends BasePanel {
                 }
             }
         } catch (Throwable t) {
-            System.err.println("Failed to generate thumbnail: " + t.getMessage());
+            com.formacraft.FormacraftMod.LOGGER.warn("Failed to generate thumbnail", t);
         }
 
-        ComponentTool.INSTANCE.markSavePending(st.name);
-        HudToast.show("正在保存构件「" + st.name.trim() + "」…");
-        FormaCraftNetworking.sendSaveComponent(json, thumbnailPng);
-
-        // 记录新构件 ID，用于跳转后高亮
-        String newComponentId = makeId(st.category, st.name);
+        // 记录新构件 ID，用于跳转后高亮（已移至 ComponentTool.onCatalogUpdatedFromServer）
+        String componentName = st.name.trim();
         
-        // 延迟跳转（等待服务器响应）
-        new Thread(() -> {
-            try {
-                Thread.sleep(500); // 等待保存完成
-                client.execute(() -> {
-                    // 跳转到构件库面板
-                    FormaCraftHudOverlay.activePanel = PanelType.COMPONENT_LIBRARY;
-                    // 设置选中的构件（高亮显示）
-                    st.librarySelectedId = newComponentId;
-                    st.librarySelectedName = st.name;
-                    HudToast.show("✓ 构件已保存到库");
-                });
-            } catch (InterruptedException ignored) {}
-        }).start();
+        // 标记保存待确认（等待服务端 catalog 更新回调）
+        ComponentTool.INSTANCE.markSavePending(componentName);
+        HudToast.show("正在保存构件「" + componentName + "」…");
+        FormaCraftNetworking.sendSaveComponent(json, thumbnailPng);
+        
+        // 注意：跳转逻辑已移至 ComponentTool.onCatalogUpdatedFromServer()
+        // 当服务端保存成功并推送 catalog 更新时，会自动触发跳转
+        // 这样避免了 sleep(500) 的竞态问题
     }
 
     private String makeId(ComponentCategory cat, String name) {
@@ -2102,35 +2189,54 @@ public class ComponentCapturePanel extends BasePanel {
 
     /**
      * 跳转到指定规则对应的面板区域
+     * @param item 健康检查项（包含 phase 和 uiTargetId）
      */
-    private void jumpToRuleTarget(String ruleId) {
-        // 根据规则ID跳转到对应区域
-        if (ruleId.startsWith("H1-")) {
-            // 跳转到选区工具区
-            scrollY = 0; // 滚动到顶部
-            // TODO: 高亮选区工具按钮（闪烁2次）
-        } else if (ruleId.startsWith("H2-")) {
-            // 跳转到锚点&朝向区
-            // TODO: 计算锚点区域的Y坐标并滚动
-            // TODO: 高亮锚点按钮（闪烁2次）
-        } else if (ruleId.startsWith("H3-")) {
-            // 跳转到语义确认区
-            // TODO: 计算语义区域的Y坐标并滚动
-        } else if (ruleId.startsWith("H4-")) {
-            // 跳转到AI使用保障区
-            // TODO: 计算Socket区域的Y坐标并滚动
+    private void jumpToRuleTarget(com.formacraft.common.component.health.HealthCheckResult.CheckItem item) {
+        if (item == null) return;
+        
+        // 根据 phase 滚动到对应区域
+        String phase = item.phase;
+        if (phase != null && !phase.isEmpty()) {
+            // 根据阶段滚动到对应区域（简化实现：根据阶段折叠状态调整）
+            switch (phase) {
+                case "SELECTION":
+                    phaseCollapsed[0] = false; // 展开阶段1
+                    scrollY = 0; // 滚动到顶部
+                    break;
+                case "ANCHOR_ORIENTATION":
+                    phaseCollapsed[1] = false; // 展开阶段2
+                    // TODO: 计算锚点区域的Y坐标并滚动
+                    break;
+                case "SEMANTIC":
+                    phaseCollapsed[2] = false; // 展开阶段3
+                    // TODO: 计算语义区域的Y坐标并滚动
+                    break;
+                case "AI_GUARANTEE":
+                    phaseCollapsed[3] = false; // 展开阶段4
+                    // TODO: 计算Socket区域的Y坐标并滚动
+                    break;
+            }
+        }
+        
+        // 根据 uiTargetId 高亮对应控件（TODO: 实现控件高亮闪烁）
+        String uiTarget = item.uiTargetId;
+        if (uiTarget != null && !uiTarget.isEmpty()) {
+            // TODO: 实现控件高亮闪烁（例如：button.pickAnchor -> 高亮 pickAnchorButton）
+            // 这需要维护控件的屏幕坐标，并在下一帧渲染时闪烁
         }
     }
     
     /**
      * 检查构件健康状态（使用新的健康检查系统）
+     * 包括 ComponentDefinition 层面的检查和 UI 层面的检查（如方向标记）
      */
     private com.formacraft.common.component.health.HealthCheckResult checkComponentHealth() {
         // 尝试构建 ComponentDefinition 进行检查
         String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+        var result = new com.formacraft.common.component.health.HealthCheckResult();
+        
         if (json == null || json.isBlank()) {
             // 如果无法构建，返回基础检查结果
-            var result = new com.formacraft.common.component.health.HealthCheckResult();
             var st = ComponentTool.INSTANCE.getState();
             boolean hasSelection = SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
             if (!hasSelection) {
@@ -2149,14 +2255,52 @@ public class ComponentCapturePanel extends BasePanel {
         try {
             var def = com.formacraft.common.json.JsonUtil.fromJson(json, com.formacraft.common.component.ComponentDefinition.class);
             if (def != null) {
-                return com.formacraft.common.component.health.ComponentHealthChecker.check(def);
+                // ComponentDefinition 层面的检查
+                result = com.formacraft.common.component.health.ComponentHealthChecker.check(def);
+                
+                // UI 层面的额外检查：方向标记（H2-3 增强版）
+                var st = ComponentTool.INSTANCE.getState();
+                ComponentCategory cat = st.category != null ? st.category : ComponentCategory.GENERIC;
+                
+                // 检查门/窗是否需要内外标记
+                if ((cat == ComponentCategory.DOOR || cat == ComponentCategory.WINDOW) && 
+                    directionalityMode == DirectionalityMode.INSIDE_OUTSIDE) {
+                    if (insideMark == null || outsideMark == null) {
+                        // 移除原有的 H2-3 OK 结果（如果有）
+                        result.getItems().removeIf(item -> "H2-3".equals(item.ruleId) && 
+                            item.level == com.formacraft.common.component.health.HealthCheckResult.Level.OK);
+                        // 添加 UI 层面的警告
+                        result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.warn(
+                            "H2-3", "需要设置内外方向标记",
+                            (cat == ComponentCategory.DOOR ? "门" : "窗") + "需要标记内侧和外侧位置",
+                            "AI 可能反向放置（非常常见错误）",
+                            com.formacraft.common.component.health.HealthCheckResult.FixAction.SUGGEST,
+                            "点击「标记内侧」和「标记外侧」按钮在世界中标记"));
+                    }
+                }
+                
+                // 检查楼梯是否需要上下标记
+                if (cat == ComponentCategory.STAIRS && 
+                    directionalityMode == DirectionalityMode.BOTTOM_TOP) {
+                    if (bottomMark == null || topMark == null) {
+                        // 移除原有的 H2-3 OK 结果（如果有）
+                        result.getItems().removeIf(item -> "H2-3".equals(item.ruleId) && 
+                            item.level == com.formacraft.common.component.health.HealthCheckResult.Level.OK);
+                        // 添加 UI 层面的警告
+                        result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.warn(
+                            "H2-3", "需要设置上下方向标记",
+                            "楼梯需要标记底端和顶端位置",
+                            "AI 可能反向放置",
+                            com.formacraft.common.component.health.HealthCheckResult.FixAction.SUGGEST,
+                            "点击「标记底端」和「标记顶端」按钮在世界中标记"));
+                    }
+                }
             }
         } catch (Throwable t) {
-            System.err.println("[ComponentCapturePanel] 健康检查失败: " + t.getMessage());
+            com.formacraft.FormacraftMod.LOGGER.error("[ComponentCapturePanel] 健康检查失败", t);
         }
         
-        // 如果解析失败，返回空结果
-        return new com.formacraft.common.component.health.HealthCheckResult();
+        return result;
     }
     
     /**
@@ -2257,30 +2401,44 @@ public class ComponentCapturePanel extends BasePanel {
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(nameText), x, y, nameColor);
         y += client.textRenderer.fontHeight + 2;
         
-        // 验证状态（如果已构建构件定义）
-        String currentJson = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
-        if (currentJson != null) {
-            try {
-                var def = com.formacraft.common.json.JsonUtil.fromJson(currentJson, com.formacraft.common.component.ComponentDefinition.class);
-                if (def != null) {
-                    // 临时验证（不修改状态）
-                    var tempValidation = com.formacraft.common.component.validate.ComponentValidator.validate(def);
-                    if (tempValidation.hasErrors()) {
-                        String validationText = "❌ 验证: " + tempValidation.errors().size() + " 个错误";
-                        ctx.drawTextWithShadow(client.textRenderer, Text.literal(validationText), x, y, 0xFFFF5555);
-                        y += client.textRenderer.fontHeight + 2;
-                    } else if (tempValidation.hasWarnings()) {
-                        String validationText = "⚠️ 验证: " + tempValidation.warnings().size() + " 个警告";
-                        ctx.drawTextWithShadow(client.textRenderer, Text.literal(validationText), x, y, 0xFFFFAA00);
-                        y += client.textRenderer.fontHeight + 2;
-                    } else {
-                        String validationText = "✅ 验证通过";
-                        ctx.drawTextWithShadow(client.textRenderer, Text.literal(validationText), x, y, 0xFF55FF55);
-                        y += client.textRenderer.fontHeight + 2;
-                    }
-                }
-            } catch (Throwable ignored) {
-                // 忽略验证错误，不影响显示
+        // 健康检查状态（使用新的 HealthCheck 系统）
+        var healthResult = checkComponentHealth();
+        int okCount = 0, warnCount = 0, errorCount = 0;
+        for (var item : healthResult.getItems()) {
+            switch (item.level) {
+                case OK: okCount++; break;
+                case WARN: warnCount++; break;
+                case ERROR: errorCount++; break;
+            }
+        }
+        
+        // 显示健康状态摘要
+        String healthText;
+        int healthColor;
+        if (errorCount > 0) {
+            healthText = String.format("⛔ 健康: %d 个阻断项", errorCount);
+            healthColor = 0xFFFF5555;
+        } else if (warnCount > 0) {
+            healthText = String.format("⚠ 健康: %d 个风险项", warnCount);
+            healthColor = 0xFFFFAA00;
+        } else {
+            healthText = "✅ 健康检查通过";
+            healthColor = 0xFF55FF55;
+        }
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(healthText), x, y, healthColor);
+        y += client.textRenderer.fontHeight + 2;
+        
+        // 显示最关键的问题（最多2条：优先 ERROR，其次 WARN）
+        int shownCount = 0;
+        for (var item : healthResult.getItems()) {
+            if (shownCount >= 2) break;
+            if (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR || 
+                item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN) {
+                String icon = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? "⛔" : "⚠";
+                int color = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? 0xFFFF5555 : 0xFFFFAA00;
+                ctx.drawTextWithShadow(client.textRenderer, Text.literal("  " + icon + " " + item.title), x + 6, y, color);
+                y += client.textRenderer.fontHeight + 1;
+                shownCount++;
             }
         }
         
@@ -2299,7 +2457,10 @@ public class ComponentCapturePanel extends BasePanel {
     public boolean handleWorldClick(net.minecraft.util.math.BlockPos pos, int button) {
         if (pos == null) return false;
         
-        System.out.println("[ComponentCapturePanel] 世界点击: " + pos + ", 按钮: " + button + ", 模式: " + selectionMode + ", 标记模式: " + markingMode);
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 世界点击: {}, 按钮: {}, 模式: {}, 标记模式: {}", 
+                pos, button, selectionMode, markingMode);
+        }
         
         // Phase 3: 优先处理方向标记模式
         if (markingMode != DirectionMarkingMode.NONE && button == 0) {
@@ -2319,8 +2480,14 @@ public class ComponentCapturePanel extends BasePanel {
                 case BOX_SELECT:
                     // 框选模式：直接使用 SelectionTool 进行框选
                     // SelectionTool 会处理拖拽和渲染预览
-                    SelectionTool.INSTANCE.onMouseClick(0, 0, button);
-                    System.out.println("[ComponentCapturePanel] 框选: 交给 SelectionTool 处理");
+                    // 注意：SelectionTool.onMouseClick 需要屏幕坐标，但实际它内部会自己计算鼠标射线
+                    // 这里传入的坐标会被忽略，SelectionTool 会从 client.mouse 获取实际坐标
+                    double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
+                    double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
+                    SelectionTool.INSTANCE.onMouseClick(mouseX, mouseY, button);
+                    if (DEBUG_CAPTURE) {
+                        com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 框选: 交给 SelectionTool 处理");
+                    }
                     return true;
                     
                 case POINT_SELECT:
@@ -2336,17 +2503,23 @@ public class ComponentCapturePanel extends BasePanel {
                     if (isCtrlDown) {
                         // Ctrl+点击：强制加选
                         addBlockToSelection(pos);
-                        System.out.println("[ComponentCapturePanel] Ctrl+点击 强制加选: " + pos);
+                        if (DEBUG_CAPTURE) {
+                            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] Ctrl+点击 强制加选: {}", pos);
+                        }
                     } else {
                         // 普通点击：切换状态
                         if (selectedBlocks.contains(pos.toImmutable())) {
                             // 已选中 → 减选
                             removeBlockFromSelection(pos);
-                            System.out.println("[ComponentCapturePanel] 点击减选: " + pos + ", 总数: " + selectedBlocks.size());
+                            if (DEBUG_CAPTURE) {
+                                com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 点击减选: {}, 总数: {}", pos, selectedBlocks.size());
+                            }
                         } else {
                             // 未选中 → 加选
                             addBlockToSelection(pos);
-                            System.out.println("[ComponentCapturePanel] 点击加选: " + pos + ", 总数: " + selectedBlocks.size());
+                            if (DEBUG_CAPTURE) {
+                                com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 点击加选: {}, 总数: {}", pos, selectedBlocks.size());
+                            }
                         }
                     }
                     return true;
@@ -2376,7 +2549,9 @@ public class ComponentCapturePanel extends BasePanel {
                 net.minecraft.util.math.BlockPos max = SelectionTool.INSTANCE.getMax();
                 if (min != null && max != null) {
                     setBoxSelection(min, max);
-                    System.out.println("[ComponentCapturePanel] 从 SelectionTool 同步选区: " + min + " -> " + max + ", 方块数: " + selectedBlocks.size());
+                    if (DEBUG_CAPTURE) {
+                        com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 从 SelectionTool 同步选区: {} -> {}, 方块数: {}", min, max, selectedBlocks.size());
+                    }
                 }
             }
         }
@@ -2406,8 +2581,11 @@ public class ComponentCapturePanel extends BasePanel {
     private void setBoxSelection(net.minecraft.util.math.BlockPos start, net.minecraft.util.math.BlockPos end) {
         if (start == null || end == null) return;
         
+        var st = ComponentTool.INSTANCE.getState();
+        
         // 清空现有选区
         selectedBlocks.clear();
+        st.explicitSelectedBlocks = null; // 框选模式下不使用显式集合
         
         // 计算边界
         int minX = Math.min(start.getX(), end.getX());
@@ -2417,7 +2595,8 @@ public class ComponentCapturePanel extends BasePanel {
         int maxY = Math.max(start.getY(), end.getY());
         int maxZ = Math.max(start.getZ(), end.getZ());
         
-        // 添加所有方块
+        // 框选模式下，selectedBlocks 仅用于显示，实际导出时使用 AABB
+        // 但为了保持兼容，我们仍然填充 selectedBlocks（用于 countBlocksInSelection）
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
@@ -2434,11 +2613,14 @@ public class ComponentCapturePanel extends BasePanel {
     }
     
     /**
-     * 更新 SelectionTool 以匹配 selectedBlocks
+     * 更新 SelectionTool 以匹配 selectedBlocks，并同步到 ComponentToolState
      */
     private void updateSelectionToolFromBlocks() {
+        var st = ComponentTool.INSTANCE.getState();
+        
         if (selectedBlocks.isEmpty()) {
             SelectionTool.INSTANCE.clearSelection();
+            st.explicitSelectedBlocks = null; // 清空显式方块集合
             return;
         }
         
@@ -2455,11 +2637,19 @@ public class ComponentCapturePanel extends BasePanel {
             maxZ = Math.max(maxZ, pos.getZ());
         }
         
-        // 更新 SelectionTool
+        // 更新 SelectionTool（用于显示包围盒）
         SelectionTool.INSTANCE.setSelection(
             new net.minecraft.util.math.BlockPos(minX, minY, minZ),
             new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ)
         );
+        
+        // 同步到 ComponentToolState（用于 buildCurrentComponentJson）
+        // 点选模式：使用显式集合；框选模式：清空显式集合（使用 AABB）
+        if (selectionMode == ComponentSelectionMode.POINT_SELECT) {
+            st.explicitSelectedBlocks = new java.util.HashSet<>(selectedBlocks);
+        } else {
+            st.explicitSelectedBlocks = null; // 框选模式使用 AABB
+        }
     }
     
     /**
@@ -2472,7 +2662,9 @@ public class ComponentCapturePanel extends BasePanel {
         st.anchorWorld = pos.toImmutable();
         st.pickingAnchor = false;
         
-        System.out.println("[ComponentCapturePanel] 设置锚点: " + pos);
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 设置锚点: {}", pos);
+        }
         com.formacraft.client.ui.toast.HudToast.show("✓ 锚点已设置: " + pos.toShortString());
     }
     
@@ -2483,7 +2675,9 @@ public class ComponentCapturePanel extends BasePanel {
         selectedBlocks.clear();
         isDragging = false;
         SelectionTool.INSTANCE.clearSelection();
-        System.out.println("[ComponentCapturePanel] 清除选区");
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 清除选区");
+        }
     }
     
     /**
@@ -2511,10 +2705,18 @@ public class ComponentCapturePanel extends BasePanel {
         // 渲染 SelectionTool 的选区（框选和已完成的选区）
         SelectionTool.INSTANCE.renderWorld(ctx);
         
-        // 渲染点选模式下的单个方块高亮
+        // 渲染点选模式下的单个方块高亮（性能优化：超过阈值时只渲染采样点）
         if (selectionMode == ComponentSelectionMode.POINT_SELECT && !selectedBlocks.isEmpty()) {
+            int blockCount = selectedBlocks.size();
+            int renderThreshold = 400; // 超过 400 个方块时启用采样渲染
+            int sampleRate = blockCount > renderThreshold ? Math.max(1, blockCount / 200) : 1; // 采样率
+            
+            int rendered = 0;
             for (net.minecraft.util.math.BlockPos pos : selectedBlocks) {
-                renderBlockHighlight(ctx, pos, 0.0f, 1.0f, 0.0f, 0.3f); // 绿色高亮
+                if (rendered % sampleRate == 0) {
+                    renderBlockHighlight(ctx, pos, 0.0f, 1.0f, 0.0f, 0.3f); // 绿色高亮
+                }
+                rendered++;
             }
         }
         

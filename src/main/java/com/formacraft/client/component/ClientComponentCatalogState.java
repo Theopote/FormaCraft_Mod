@@ -41,6 +41,31 @@ public final class ClientComponentCatalogState {
         }
     }
 
+    /**
+     * 从当前 catalog 中移除指定构件（用于立即更新 UI，无需等待服务端响应）
+     * @param componentId 要移除的构件 ID
+     */
+    public static void removeComponent(String componentId) {
+        if (componentId == null || componentId.isBlank()) return;
+        
+        ComponentCatalog current = CATALOG.get();
+        if (current == null || current.components == null) return;
+        
+        // 创建新的 catalog，移除指定条目
+        ComponentCatalog updated = new ComponentCatalog();
+        updated.schema = current.schema;
+        updated.components = new java.util.ArrayList<>();
+        
+        for (ComponentCatalog.Entry e : current.components) {
+            if (e != null && e.id != null && !e.id.equals(componentId)) {
+                updated.components.add(e);
+            }
+        }
+        
+        CATALOG.set(updated);
+        lastSummary = buildSummary(updated);
+    }
+
     private static String buildSummary(ComponentCatalog cat) {
         if (cat == null || cat.components == null || cat.components.isEmpty()) {
             return "(no player components registered)";

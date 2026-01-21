@@ -20,6 +20,9 @@ public class ComponentToolState {
 
     /** 世界坐标 anchor（必须落在选区内）；null 则默认选区 min。 */
     public BlockPos anchorWorld = null;
+    
+    /** 显式选择的方块集合（点选模式使用）。如果非空，buildCurrentComponentJson 将仅导出这些方块，而不是整个 AABB。 */
+    public Set<BlockPos> explicitSelectedBlocks = null;
     /** 构件正面朝向（用于后续旋转/匹配）。 */
     public Direction facing = Direction.SOUTH;
     /** 构件镜像模式（v1）。 */

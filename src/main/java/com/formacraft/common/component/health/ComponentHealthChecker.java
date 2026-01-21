@@ -20,7 +20,7 @@ import java.util.*;
 public final class ComponentHealthChecker {
     private ComponentHealthChecker() {}
     
-    private static final int MIN_BLOCKS = 1; // 最小方块数
+    private static final int MIN_BLOCKS = 4; // 最小方块数（建议阈值，避免过小的构件）
     
     /**
      * 执行完整的健康检查
@@ -95,48 +95,71 @@ public final class ComponentHealthChecker {
     }
     
     /**
-     * 计算连通域数量（简单实现：基于相邻方块）
+     * 计算连通域数量（优化实现：O(n) BFS，使用 HashSet 快速查找，避免递归栈溢出）
      */
     private static int countConnectedComponents(ComponentDefinition def) {
         if (def.blocks == null || def.blocks.isEmpty()) return 0;
         
-        Set<String> visited = new HashSet<>();
+        // 将所有方块坐标打包为 Long（用于快速查找）
+        Map<Long, ComponentDefinition.BlockEntry> blockMap = new HashMap<>();
+        Set<Long> visited = new HashSet<>();
+        
+        for (ComponentDefinition.BlockEntry block : def.blocks) {
+            long key = packPos(block.dx, block.dy, block.dz);
+            blockMap.put(key, block);
+        }
+        
         int components = 0;
         
-        for (var block : def.blocks) {
-            String key = block.dx + "," + block.dy + "," + block.dz;
-            if (!visited.contains(key)) {
-                // 从当前方块开始DFS
-                dfsComponent(block, def.blocks, visited);
-                components++;
-            }
+        // BFS 遍历所有未访问的方块
+        for (ComponentDefinition.BlockEntry block : def.blocks) {
+            long key = packPos(block.dx, block.dy, block.dz);
+            if (visited.contains(key)) continue;
+            
+            components++;
+            bfsComponent(block, blockMap, visited);
         }
         
         return components;
     }
     
-    private static void dfsComponent(ComponentDefinition.BlockEntry start, 
-                                    List<ComponentDefinition.BlockEntry> allBlocks,
-                                    Set<String> visited) {
-        String key = start.dx + "," + start.dy + "," + start.dz;
-        if (visited.contains(key)) return;
-        visited.add(key);
+    /**
+     * 将坐标打包为 Long（用于快速查找，21位/坐标，足够覆盖 Minecraft 世界范围）
+     */
+    private static long packPos(int x, int y, int z) {
+        // 使用 21 位存储每个坐标（-1048576 到 1048575）
+        return ((long) x & 0x1FFFFF) | (((long) y & 0x1FFFFF) << 21) | (((long) z & 0x1FFFFF) << 42);
+    }
+    
+    /**
+     * BFS 遍历连通域（迭代实现，避免递归栈溢出）
+     */
+    private static void bfsComponent(ComponentDefinition.BlockEntry start,
+                                     Map<Long, ComponentDefinition.BlockEntry> blockMap,
+                                     Set<Long> visited) {
+        Queue<ComponentDefinition.BlockEntry> queue = new ArrayDeque<>();
+        long startKey = packPos(start.dx, start.dy, start.dz);
+        visited.add(startKey);
+        queue.offer(start);
         
-        // 检查6个方向的相邻方块
-        int[][] offsets = {{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}};
-        for (int[] offset : offsets) {
-            int nx = start.dx + offset[0];
-            int ny = start.dy + offset[1];
-            int nz = start.dz + offset[2];
-            String nkey = nx + "," + ny + "," + nz;
+        // 6个方向的偏移
+        int[] dx = {1, -1, 0, 0, 0, 0};
+        int[] dy = {0, 0, 1, -1, 0, 0};
+        int[] dz = {0, 0, 0, 0, 1, -1};
+        
+        while (!queue.isEmpty()) {
+            ComponentDefinition.BlockEntry current = queue.poll();
             
-            if (!visited.contains(nkey)) {
-                // 查找是否存在这个方块
-                for (var block : allBlocks) {
-                    if (block.dx == nx && block.dy == ny && block.dz == nz) {
-                        dfsComponent(block, allBlocks, visited);
-                        break;
-                    }
+            // 检查6个方向的邻居
+            for (int i = 0; i < 6; i++) {
+                int nx = current.dx + dx[i];
+                int ny = current.dy + dy[i];
+                int nz = current.dz + dz[i];
+                long neighborKey = packPos(nx, ny, nz);
+                
+                if (!visited.contains(neighborKey) && blockMap.containsKey(neighborKey)) {
+                    visited.add(neighborKey);
+                    queue.offer(blockMap.get(neighborKey));
                 }
             }
         }
@@ -153,7 +176,7 @@ public final class ComponentHealthChecker {
             return; // 没有锚点，其他检查无意义
         }
         
-        result.add(HealthCheckResult.CheckItem.ok("H2-1", "锚点位置合理"));
+        result.add(HealthCheckResult.CheckItem.ok("H2-1", "锚点已设置"));
         
         // H2-2: 锚点不在结构边界
         if (def.size != null && def.blocks != null && !def.blocks.isEmpty()) {

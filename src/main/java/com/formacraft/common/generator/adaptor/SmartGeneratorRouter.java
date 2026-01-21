@@ -111,6 +111,14 @@ public final class SmartGeneratorRouter {
      * - HOUSE, CASTLE 等复杂建筑
      * - 地标建筑（土楼、埃菲尔铁塔等）
      */
+    /**
+     * @deprecated Legacy policy 已弃用。当前流程不再回退到传统系统。
+     * 此方法仅保留用于未来扩展/调试目的，不在当前流程中启用。
+     * 
+     * @param componentType 组件类型
+     * @return 始终返回 false（不再使用传统系统）
+     */
+    @Deprecated
     public static boolean shouldUseTraditionalSystem(String componentType) {
         if (componentType == null) return false;
         

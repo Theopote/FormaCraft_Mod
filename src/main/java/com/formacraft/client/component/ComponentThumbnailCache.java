@@ -27,9 +27,13 @@ public final class ComponentThumbnailCache {
      * @param componentId 构件 id
      * @param maxSize 缩放到不超过该尺寸（建议 32）
      */
+    private static final boolean DEBUG_THUMBNAIL = false; // 调试开关
+
     public static Thumb getThumb(String componentId, int maxSize) {
         if (componentId == null || componentId.isBlank()) {
-            System.err.println("[ComponentThumbnailCache] componentId 为空");
+            if (DEBUG_THUMBNAIL) {
+                com.formacraft.FormacraftMod.LOGGER.debug("[ComponentThumbnailCache] componentId 为空");
+            }
             return null;
         }
         
@@ -37,7 +41,10 @@ public final class ComponentThumbnailCache {
         Path file = ComponentStorage.getGlobalComponentDir().resolve(id + ".png");
         
         if (!Files.exists(file)) {
-            System.err.println("[ComponentThumbnailCache] PNG 文件不存在: " + file.toAbsolutePath());
+            // 文件不存在是正常情况（构件可能没有缩略图），只在调试模式下打印
+            if (DEBUG_THUMBNAIL) {
+                com.formacraft.FormacraftMod.LOGGER.debug("[ComponentThumbnailCache] PNG 文件不存在: {}", file.toAbsolutePath());
+            }
             return null;
         }
 
@@ -46,29 +53,49 @@ public final class ComponentThumbnailCache {
 
         Cached c = CACHE.get(id);
         if (c != null && c.lastModifiedMs == lm) {
-            System.out.println("[ComponentThumbnailCache] 从缓存加载: " + id);
+            if (DEBUG_THUMBNAIL) {
+                com.formacraft.FormacraftMod.LOGGER.debug("[ComponentThumbnailCache] 从缓存加载: {}", id);
+            }
             return c.thumb;
         }
 
         try (InputStream in = Files.newInputStream(file)) {
             BufferedImage img = ImageIO.read(in);
             if (img == null) {
-                System.err.println("[ComponentThumbnailCache] ImageIO.read 返回 null: " + file);
+                com.formacraft.FormacraftMod.LOGGER.warn("[ComponentThumbnailCache] ImageIO.read 返回 null: {}", file);
                 return null;
             }
             Thumb t = downscale(img, Math.max(8, Math.min(128, maxSize)));
             if (t == null) {
-                System.err.println("[ComponentThumbnailCache] downscale 返回 null");
+                com.formacraft.FormacraftMod.LOGGER.warn("[ComponentThumbnailCache] downscale 返回 null");
                 return null;
             }
-            System.out.println("[ComponentThumbnailCache] ✓ 加载成功: " + id + " (" + t.w() + "x" + t.h() + ")");
+            if (DEBUG_THUMBNAIL) {
+                com.formacraft.FormacraftMod.LOGGER.debug("[ComponentThumbnailCache] ✓ 加载成功: {} ({}x{})", id, t.w(), t.h());
+            }
             CACHE.put(id, new Cached(t, lm));
             return t;
         } catch (Throwable e) {
-            System.err.println("[ComponentThumbnailCache] 读取失败: " + file);
-            e.printStackTrace();
+            com.formacraft.FormacraftMod.LOGGER.error("[ComponentThumbnailCache] 读取失败: {}", file, e);
             return null;
         }
+    }
+
+    /**
+     * 清除指定构件的缓存
+     * @param componentId 构件 id
+     */
+    public static void clearCache(String componentId) {
+        if (componentId == null || componentId.isBlank()) return;
+        String id = componentId.trim();
+        CACHE.remove(id);
+    }
+
+    /**
+     * 清除所有缓存
+     */
+    public static void clearAllCache() {
+        CACHE.clear();
     }
 
     private static Thumb downscale(BufferedImage img, int maxSize) {

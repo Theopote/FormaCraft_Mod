@@ -175,6 +175,12 @@ public final class ComponentLibraryPanel extends BasePanel {
         boolean success = ComponentStorage.deleteComponent(null, componentId);
         
         if (success) {
+            // 清除缩略图缓存（确保UI立即更新）
+            ComponentThumbnailCache.clearCache(componentId);
+            
+            // 立即从客户端 catalog 中移除该条目（UI 立即更新，无需等待服务端响应）
+            ClientComponentCatalogState.removeComponent(componentId);
+            
             // 清除选中状态
             st.librarySelectedId = null;
             st.librarySelectedName = null;
@@ -188,16 +194,12 @@ public final class ComponentLibraryPanel extends BasePanel {
                 // 这里先不处理，因为删除后用户通常不会继续使用已删除的构件
             }
             
-            // 刷新catalog（通过重新请求服务端同步）
-            // 清除客户端缓存
-            ClientComponentCatalogState.setFromJson(null);
-            
-            // 请求服务端重新发送catalog
+            // 请求服务端重新发送catalog（作为最终同步，确保服务端和客户端一致）
             if (client.getNetworkHandler() != null) {
                 FormaCraftNetworking.sendComponentCatalogRequest();
             }
             
-            HudToast.show("已删除构件: " + componentName);
+            HudToast.show("已删除构件: " + componentName + "（包括缩略图）");
             
             // 重置到第一页
             st.libraryPage = 0;

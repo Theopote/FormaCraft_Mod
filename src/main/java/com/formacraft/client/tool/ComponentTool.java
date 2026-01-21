@@ -777,13 +777,36 @@ public final class ComponentTool implements FormacraftTool {
         this.awaitingSaveName = (displayName == null || displayName.isBlank()) ? null : displayName.trim();
     }
 
-    /** 服务端回推 catalog 后调用：用于给 ToolPanel toast 强反馈。 */
+    /** 
+     * 服务端回推 catalog 后调用：用于给 ToolPanel toast 强反馈和 UI 跳转。
+     * 当保存成功时，会自动跳转到构件库面板并高亮新保存的构件。
+     */
     public void onCatalogUpdatedFromServer() {
         if (!awaitingSaveAck) return;
         awaitingSaveAck = false;
         String n = (awaitingSaveName == null || awaitingSaveName.isBlank()) ? "（未命名）" : awaitingSaveName;
+        String componentName = awaitingSaveName; // 保存名称用于跳转
         awaitingSaveName = null;
-        HudToast.show("构件「" + n + "」已保存");
+        
+        // 显示成功提示
+        HudToast.show("✓ 构件「" + n + "」已保存到库");
+        
+        // 跳转到构件库面板并高亮新保存的构件
+        if (componentName != null && !componentName.isBlank()) {
+            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+            if (client != null) {
+                client.execute(() -> {
+                    // 跳转到构件库面板
+                    com.formacraft.client.ui.FormaCraftHudOverlay.activePanel = 
+                        com.formacraft.client.ui.panel.PanelType.COMPONENT_LIBRARY;
+                    
+                    // 设置选中的构件（高亮显示）
+                    String componentId = makeId(state.category, componentName);
+                    state.librarySelectedId = componentId;
+                    state.librarySelectedName = componentName;
+                });
+            }
+        }
     }
 
     /**
@@ -1028,13 +1051,93 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     /** 构造 ComponentDefinition 并序列化为 JSON（供 C2S 发送）。 */
-    public String buildCurrentComponentJson(net.minecraft.client.MinecraftClient client) {
-        if (client == null || client.world == null) return null;
-        if (!SelectionTool.INSTANCE.hasSelection()) return null;
+    /**
+     * 检查是否有有效选区（AABB 或显式方块集合）
+     */
+    private boolean hasValidSelection() {
+        // 优先检查显式方块集合（点选模式）
+        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+            return true;
+        }
+        // 回退到 AABB（框选模式）
+        return SelectionTool.INSTANCE.hasSelection();
+    }
 
+    /**
+     * 获取有效选区的方块数量
+     */
+    private int getValidSelectionBlockCount(net.minecraft.client.MinecraftClient client) {
+        if (client == null || client.world == null) return 0;
+        
+        // 优先使用显式方块集合
+        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+            int count = 0;
+            for (BlockPos pos : state.explicitSelectedBlocks) {
+                if (pos != null && !client.world.getBlockState(pos).isAir()) {
+                    count++;
+                }
+            }
+            return count;
+        }
+        
+        // 回退到 AABB 扫描
+        if (!SelectionTool.INSTANCE.hasSelection()) return 0;
         BlockPos min = SelectionTool.INSTANCE.getMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
-        if (min == null || max == null) return null;
+        if (min == null || max == null) return 0;
+        
+        int count = 0;
+        for (int x = min.getX(); x <= max.getX(); x++) {
+            for (int y = min.getY(); y <= max.getY(); y++) {
+                for (int z = min.getZ(); z <= max.getZ(); z++) {
+                    if (!client.world.getBlockState(new BlockPos(x, y, z)).isAir()) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    public String buildCurrentComponentJson(net.minecraft.client.MinecraftClient client) {
+        if (client == null || client.world == null) return null;
+        if (!hasValidSelection()) return null;
+
+        // v1：Anchor 必须显式选择
+        BlockPos anchor = state.anchorWorld;
+        if (anchor == null) return null;
+        
+        // 检查锚点是否在有效选区内
+        boolean anchorInSelection = false;
+        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+            anchorInSelection = state.explicitSelectedBlocks.contains(anchor);
+        } else {
+            anchorInSelection = isInsideSelection(anchor);
+        }
+        if (!anchorInSelection) return null;
+
+        // 计算边界（用于 size 计算）
+        BlockPos min, max;
+        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+            // 从显式方块集合计算边界
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+            for (BlockPos pos : state.explicitSelectedBlocks) {
+                if (pos == null) continue;
+                minX = Math.min(minX, pos.getX());
+                minY = Math.min(minY, pos.getY());
+                minZ = Math.min(minZ, pos.getZ());
+                maxX = Math.max(maxX, pos.getX());
+                maxY = Math.max(maxY, pos.getY());
+                maxZ = Math.max(maxZ, pos.getZ());
+            }
+            min = new BlockPos(minX, minY, minZ);
+            max = new BlockPos(maxX, maxY, maxZ);
+        } else {
+            min = SelectionTool.INSTANCE.getMin();
+            max = SelectionTool.INSTANCE.getMax();
+            if (min == null || max == null) return null;
+        }
 
         int minX = min.getX();
         int minY = min.getY();
@@ -1042,10 +1145,6 @@ public final class ComponentTool implements FormacraftTool {
         int maxX = max.getX();
         int maxY = max.getY();
         int maxZ = max.getZ();
-
-        // v1：Anchor 必须显式选择（不再默认选区 min）
-        BlockPos anchor = state.anchorWorld;
-        if (!isInsideSelection(anchor)) return null;
 
         ComponentDefinition def = new ComponentDefinition();
         def.id = makeId(state.category, state.name);
@@ -1076,39 +1175,52 @@ public final class ComponentTool implements FormacraftTool {
 
         def.blocks = new ArrayList<>();
         int minDy = Integer.MAX_VALUE;
-        if (state.semanticTagOnSave || state.semanticSkin) {
+        
+        // 确定要扫描的方块集合
+        java.util.Set<BlockPos> blocksToScan;
+        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+            // 点选模式：仅扫描显式选择的方块
+            blocksToScan = state.explicitSelectedBlocks;
+        } else {
+            // 框选模式：扫描整个 AABB
+            blocksToScan = new java.util.HashSet<>();
             for (int x = minX; x <= maxX; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
-                        BlockPos p = new BlockPos(x, y, z);
-                        BlockState bs = client.world.getBlockState(p);
-                        if (bs == null || bs.isAir()) continue;
-                        minDy = Math.min(minDy, y - anchor.getY());
+                        blocksToScan.add(new BlockPos(x, y, z));
                     }
                 }
+            }
+        }
+        
+        // 第一遍：计算 minDy（用于语义标注）
+        if (state.semanticTagOnSave || state.semanticSkin) {
+            for (BlockPos p : blocksToScan) {
+                if (p == null) continue;
+                BlockState bs = client.world.getBlockState(p);
+                if (bs == null || bs.isAir()) continue;
+                minDy = Math.min(minDy, p.getY() - anchor.getY());
             }
             if (minDy == Integer.MAX_VALUE) minDy = 0;
         }
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    BlockPos p = new BlockPos(x, y, z);
-                    BlockState bs = client.world.getBlockState(p);
-                    if (bs == null || bs.isAir()) continue;
+        
+        // 第二遍：导出方块
+        for (BlockPos p : blocksToScan) {
+            if (p == null) continue;
+            BlockState bs = client.world.getBlockState(p);
+            if (bs == null || bs.isAir()) continue;
 
-                    ComponentDefinition.BlockEntry be = new ComponentDefinition.BlockEntry();
-                    be.dx = x - anchor.getX();
-                    be.dy = y - anchor.getY();
-                    be.dz = z - anchor.getZ();
-                    be.block = serializeBlockState(bs);
-                    if (state.semanticTagOnSave) {
-                        be.semantic = guessSemanticPart(bs, be.dy, minDy);
-                    } else if (state.semanticSkin) {
-                        be.semantic = (state.semanticPart != null) ? state.semanticPart : guessSemanticPart(bs, be.dy, minDy);
-                    }
-                    def.blocks.add(be);
-                }
+            ComponentDefinition.BlockEntry be = new ComponentDefinition.BlockEntry();
+            be.dx = p.getX() - anchor.getX();
+            be.dy = p.getY() - anchor.getY();
+            be.dz = p.getZ() - anchor.getZ();
+            be.block = serializeBlockState(bs);
+            if (state.semanticTagOnSave) {
+                be.semantic = guessSemanticPart(bs, be.dy, minDy);
+            } else if (state.semanticSkin) {
+                be.semantic = (state.semanticPart != null) ? state.semanticPart : guessSemanticPart(bs, be.dy, minDy);
             }
+            def.blocks.add(be);
         }
 
         return JsonUtil.toJson(def);

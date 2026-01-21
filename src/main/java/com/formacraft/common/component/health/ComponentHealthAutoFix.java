@@ -155,7 +155,9 @@ public final class ComponentHealthAutoFix {
         def.anchor.dx = (minX + maxX) / 2;
         def.anchor.dz = (minZ + maxZ) / 2;
         
-        report.add("H2-2", String.format("移动锚点从 Y=%d 到底部 Y=%d，中心 (%d,%d,%d)", 
-            oldY, def.anchor.dy, def.anchor.dx, def.anchor.dy, def.anchor.dz));
+        report.add("H2-2", String.format(
+            "移动锚点从 Y=%d 到底部 Y=%d，中心 (%d,%d,%d)",
+            oldY, def.anchor.dy, def.anchor.dx, def.anchor.dy, def.anchor.dz
+        ));
     }
 }
