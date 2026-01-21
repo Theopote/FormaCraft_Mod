@@ -193,6 +193,10 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             if (upper.contains("GOTHIC")) {
                 return "MEDIEVAL_CLASSIC"; // 哥特式使用中世纪风格
             }
+            if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
+                    || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
+                return "CHINESE_ROYAL";
+            }
             if (upper.contains("CHINESE") || upper.contains("HUI")) {
                 return "HUI_STYLE_VILLA";
             }
@@ -207,6 +211,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 String lower = feature.toLowerCase();
                 if (lower.contains("gothic") || lower.contains("stained_glass") || lower.contains("pointed")) {
                     return "MEDIEVAL_CLASSIC";
+                }
+                if (lower.contains("imperial") || lower.contains("royal") || lower.contains("palace")) {
+                    return "CHINESE_ROYAL";
                 }
                 if (lower.contains("chinese") || lower.contains("中式") || lower.contains("lattice")) {
                     return "HUI_STYLE_VILLA";
@@ -409,4 +416,3 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         return null;
     }
 }
-

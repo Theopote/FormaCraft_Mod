@@ -56,6 +56,10 @@ public class RoofGenerator implements ComponentGenerator {
         } else if (roofType == RoofType.XIESHAN && overhang <= 0) {
             overhang = 1;
         }
+        if (hasRoofFeature(c, semantic, "flying_eaves", "flying eaves", "飞檐")) {
+            int minOverhang = (roofType == RoofType.XIESHAN || roofType == RoofType.XUANSHAN) ? 3 : 2;
+            overhang = Math.max(overhang, minOverhang);
+        }
         int baseX = rp.x();
         int baseZ = rp.z();
         if (overhang > 0) {
@@ -79,6 +83,13 @@ public class RoofGenerator implements ComponentGenerator {
                 case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true);
                 default -> generateFlatRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
             }
+        }
+
+        boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱");
+        if (emphasizeEaves && roofType != RoofType.FLAT) {
+            int eaveOutset = hasRoofFeature(c, semantic, "dougong", "斗拱") ? 2 : 1;
+            int eaveY = rp.y() > 0 ? rp.y() - 1 : rp.y();
+            addEaveLayer(out, semantic, baseX, eaveY, baseZ, width, depth, palette, eaveOutset);
         }
 
         return out;
@@ -274,12 +285,36 @@ public class RoofGenerator implements ComponentGenerator {
         }
     }
 
+    private void addEaveLayer(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                              int width, int depth, Palette palette, int outset) {
+        if (width < 1 || depth < 1 || outset <= 0) {
+            return;
+        }
+        int startX = baseX - outset;
+        int startZ = baseZ - outset;
+        int endX = baseX + width - 1 + outset;
+        int endZ = baseZ + depth - 1 + outset;
+        String block = getBlockForPart(semantic, palette, SemanticPart.ROOF);
+        for (int x = startX; x <= endX; x++) {
+            out.add(new BlockPatch(BlockPatch.PLACE, x, baseY, startZ, block));
+            out.add(new BlockPatch(BlockPatch.PLACE, x, baseY, endZ, block));
+        }
+        for (int z = startZ; z <= endZ; z++) {
+            out.add(new BlockPatch(BlockPatch.PLACE, startX, baseY, z, block));
+            out.add(new BlockPatch(BlockPatch.PLACE, endX, baseY, z, block));
+        }
+    }
+
     private String getStyleProfile(SemanticComponent semantic) {
         if (semantic != null && semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
             String profile = semantic.styleProfile().trim();
             String upper = profile.toUpperCase();
             if (upper.contains("GOTHIC")) {
                 return "MEDIEVAL_CLASSIC";
+            }
+            if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
+                    || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
+                return "CHINESE_ROYAL";
             }
             if (upper.contains("CHINESE") || upper.contains("HUI")) {
                 return "HUI_STYLE_VILLA";
@@ -293,6 +328,10 @@ public class RoofGenerator implements ComponentGenerator {
                 String lower = feature.toLowerCase();
                 if (lower.contains("gothic") || lower.contains("pointed") || lower.contains("ribbed")) {
                     return "MEDIEVAL_CLASSIC";
+                }
+                if ((lower.contains("chinese") || lower.contains("imperial") || lower.contains("royal") || lower.contains("palace"))
+                        && (lower.contains("imperial") || lower.contains("royal") || lower.contains("palace"))) {
+                    return "CHINESE_ROYAL";
                 }
                 if (lower.contains("chinese") || lower.contains("中式")) {
                     return "HUI_STYLE_VILLA";
@@ -308,7 +347,12 @@ public class RoofGenerator implements ComponentGenerator {
             for (String feature : c.features()) {
                 if (feature == null) continue;
                 String lower = feature.toLowerCase();
-                if (lower.contains("xuanshan") || lower.contains("xuan_shan") || lower.contains("悬山")) type = "xuanshan";
+                if (lower.contains("yingshan") || lower.contains("ying_shan") || lower.contains("ying-shan")
+                        || lower.contains("hard_gable") || lower.contains("hard gable") || lower.contains("硬山")) {
+                    type = "yingshan";
+                } else if (lower.contains("xuanshan") || lower.contains("xuan_shan") || lower.contains("悬山")) {
+                    type = "xuanshan";
+                }
                 else if (lower.contains("xieshan") || lower.contains("xie_shan") || lower.contains("hip_and_gable") || lower.contains("歇山")) type = "xieshan";
                 else if (lower.contains("double_gable") || lower.contains("double gable") || lower.contains("shuangpo") || lower.contains("双坡")) type = "double_gable";
                 else if (lower.contains("gable")) type = "gable";
@@ -332,6 +376,10 @@ public class RoofGenerator implements ComponentGenerator {
         if (type == null) {
             String profile = getStyleProfile(semantic);
             String upper = profile.toUpperCase();
+            if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
+                    || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
+                return RoofType.XIESHAN;
+            }
             if (upper.contains("CHINESE") || upper.contains("HUI")) {
                 return RoofType.XUANSHAN;
             }
@@ -345,6 +393,7 @@ public class RoofGenerator implements ComponentGenerator {
         }
         return switch (type.trim().toLowerCase()) {
             case "gable", "gabled" -> RoofType.GABLE;
+            case "yingshan", "ying_shan", "ying-shan", "hard_gable", "hard gable", "硬山" -> RoofType.GABLE;
             case "double_gable", "doublegable", "shuangpo", "双坡" -> RoofType.DOUBLE_GABLE;
             case "hip", "hipped" -> RoofType.HIP;
             case "xieshan", "xie_shan", "xie-shan", "hip_and_gable", "hip-gable", "歇山" -> RoofType.XIESHAN;
@@ -371,6 +420,33 @@ public class RoofGenerator implements ComponentGenerator {
             if (lower.contains("double_eave") || lower.contains("double-eave")
                     || (lower.contains("double") && lower.contains("eave"))) {
                 return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasRoofFeature(Component component, SemanticComponent semantic, String... tokens) {
+        if (component != null && component.features() != null) {
+            for (String feature : component.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase();
+                for (String token : tokens) {
+                    if (token != null && lower.contains(token.toLowerCase())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        if (semantic != null && semantic.styleAttributes() != null
+                && semantic.styleAttributes().decorativeElements() != null) {
+            for (String element : semantic.styleAttributes().decorativeElements()) {
+                if (element == null) continue;
+                String lower = element.toLowerCase();
+                for (String token : tokens) {
+                    if (token != null && lower.contains(token.toLowerCase())) {
+                        return true;
+                    }
+                }
             }
         }
         return false;

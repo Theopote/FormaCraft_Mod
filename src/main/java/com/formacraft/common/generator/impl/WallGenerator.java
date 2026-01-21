@@ -214,6 +214,10 @@ public class WallGenerator implements ComponentGenerator {
             if (upper.contains("CHINESE") && (upper.contains("GREAT") || upper.contains("WALL"))) {
                 return "MEDIEVAL_CLASSIC"; // 长城风格使用中世纪石头风格
             }
+            if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
+                    || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
+                return "CHINESE_ROYAL";
+            }
             if (upper.contains("CHINESE") || upper.contains("HUI")) {
                 return "HUI_STYLE_VILLA";
             }
@@ -226,6 +230,9 @@ public class WallGenerator implements ComponentGenerator {
             for (String feature : c.features()) {
                 if (feature == null) continue;
                 String lower = feature.toLowerCase();
+                if (lower.contains("imperial") || lower.contains("royal") || lower.contains("palace")) {
+                    return "CHINESE_ROYAL";
+                }
                 if (lower.contains("chinese") || lower.contains("中式") || lower.contains("great_wall")) {
                     return "MEDIEVAL_CLASSIC";
                 }

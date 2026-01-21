@@ -17,6 +17,7 @@ public final class PaletteLibrary {
     private static final Palette CYBERPUNK = new Palette();
     private static final Palette ELVEN = new Palette();
     private static final Palette HUI_STYLE = new Palette(); // 徽派风格
+    private static final Palette CHINESE_ROYAL = new Palette(); // 中式皇家风格
 
     static {
         // ========== 中世纪石墙风格 ==========
@@ -172,6 +173,42 @@ public final class PaletteLibrary {
         // 柱子
         HUI_STYLE.add(SemanticPart.PILLAR, "minecraft:dark_oak_log", 70);
         HUI_STYLE.add(SemanticPart.PILLAR, "minecraft:spruce_log", 30);
+
+        // ========== 中式皇家风格（Chinese Royal / Imperial）==========
+        // 红墙金瓦，朱红柱
+        CHINESE_ROYAL.add(SemanticPart.WALL, "minecraft:red_bricks", 50);
+        CHINESE_ROYAL.add(SemanticPart.WALL, "minecraft:red_terracotta", 30);
+        CHINESE_ROYAL.add(SemanticPart.WALL, "minecraft:red_concrete", 20);
+
+        CHINESE_ROYAL.add(SemanticPart.WALL_BASE, "minecraft:stone_bricks", 60);
+        CHINESE_ROYAL.add(SemanticPart.WALL_BASE, "minecraft:polished_blackstone_bricks", 40);
+
+        CHINESE_ROYAL.add(SemanticPart.WALL_ACCENT, "minecraft:red_nether_bricks", 50);
+        CHINESE_ROYAL.add(SemanticPart.WALL_ACCENT, "minecraft:red_terracotta", 30);
+        CHINESE_ROYAL.add(SemanticPart.WALL_ACCENT, "minecraft:chiseled_stone_bricks", 20);
+
+        CHINESE_ROYAL.add(SemanticPart.ROOF, "minecraft:yellow_glazed_terracotta", 60);
+        CHINESE_ROYAL.add(SemanticPart.ROOF, "minecraft:yellow_terracotta", 30);
+        CHINESE_ROYAL.add(SemanticPart.ROOF, "minecraft:orange_terracotta", 10);
+
+        CHINESE_ROYAL.add(SemanticPart.ROOF_SURFACE, "minecraft:yellow_glazed_terracotta", 70);
+        CHINESE_ROYAL.add(SemanticPart.ROOF_SURFACE, "minecraft:yellow_terracotta", 30);
+
+        CHINESE_ROYAL.add(SemanticPart.FLOOR, "minecraft:smooth_stone", 60);
+        CHINESE_ROYAL.add(SemanticPart.FLOOR, "minecraft:stone_bricks", 40);
+
+        CHINESE_ROYAL.add(SemanticPart.COURTYARD_FLOOR, "minecraft:stone_bricks", 70);
+        CHINESE_ROYAL.add(SemanticPart.COURTYARD_FLOOR, "minecraft:smooth_stone", 30);
+
+        CHINESE_ROYAL.add(SemanticPart.DECOR, "minecraft:smooth_quartz", 40);
+        CHINESE_ROYAL.add(SemanticPart.DECOR, "minecraft:stone_brick_slab", 40);
+        CHINESE_ROYAL.add(SemanticPart.DECOR, "minecraft:gold_block", 20);
+
+        CHINESE_ROYAL.add(SemanticPart.WINDOW, "minecraft:glass", 70);
+        CHINESE_ROYAL.add(SemanticPart.WINDOW, "minecraft:iron_bars", 30);
+
+        CHINESE_ROYAL.add(SemanticPart.PILLAR, "minecraft:red_concrete", 70);
+        CHINESE_ROYAL.add(SemanticPart.PILLAR, "minecraft:red_terracotta", 30);
     }
 
     private PaletteLibrary() {}
@@ -194,6 +231,8 @@ public final class PaletteLibrary {
             case "ELVEN", "ELVISH", "NATURE" -> ELVEN;
             case "HUI_STYLE_VILLA", "HUI_VILLA", "CHINESE_VILLA", "CHINESE_HUI", "HUI", 
                  "CHINESE_TRADITIONAL", "CHINESE_TRAD" -> HUI_STYLE;
+            case "CHINESE_ROYAL", "CHINESE_IMPERIAL", "CHINESE_PALACE", "CHINESE_PALACE_HALL",
+                 "CHINESE_ROYAL_HALL", "ROYAL_CHINESE", "IMPERIAL_CHINESE" -> CHINESE_ROYAL;
             default -> MEDIEVAL_STONE; // 默认返回中世纪风格
         };
     }

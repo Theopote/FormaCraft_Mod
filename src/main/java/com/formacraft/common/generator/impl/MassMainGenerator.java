@@ -569,6 +569,10 @@ public class MassMainGenerator implements ComponentGenerator {
             if (upper.contains("GOTHIC")) {
                 return "MEDIEVAL_CLASSIC"; // 哥特式使用中世纪风格
             }
+            if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
+                    || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
+                return "CHINESE_ROYAL";
+            }
             if (upper.contains("CHINESE") && (upper.contains("TRADITIONAL") || upper.contains("TRAD"))) {
                 return "HUI_STYLE_VILLA"; // 映射到徽派风格
             }
@@ -587,6 +591,10 @@ public class MassMainGenerator implements ComponentGenerator {
                     if (lower.contains("gothic") || lower.contains("pointed_arches") || 
                         lower.contains("flying_buttresses") || lower.contains("ribbed_vaults")) {
                         return "MEDIEVAL_CLASSIC"; // 哥特式特征
+                    }
+                    if (lower.contains("imperial") || lower.contains("royal") || lower.contains("palace")
+                            || lower.contains("vermilion") || lower.contains("golden")) {
+                        return "CHINESE_ROYAL";
                     }
                     if (lower.contains("hui") || lower.contains("chinese") || 
                         lower.contains("white_walls") || lower.contains("black_tile")) {

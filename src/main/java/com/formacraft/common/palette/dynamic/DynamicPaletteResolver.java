@@ -11,10 +11,10 @@ import net.minecraft.util.Identifier;
 
 /**
  * DynamicPaletteResolver（动态调色板解析器）
- * 
+ * <p>
  * 根据 AI 分析的 style_attributes 动态选择方块
  * 不再依赖硬编码的预设，可以处理任何用户描述的风格
- * 
+ * <p>
  * 核心思想：
  * - AI 分析用户描述 → 提取风格特征（颜色、材质、装饰）
  * - 根据特征动态选择方块
@@ -205,6 +205,19 @@ public final class DynamicPaletteResolver {
                 return "minecraft:oak_log";
             }
         }
+
+        // 使用墙体颜色作为柱子的颜色（如果没有 accentColor，使用 wallColor）
+        String color = attrs.wallColor();
+        if (color != null && !color.isBlank()) {
+            String blockId = resolveBlock(color, "terracotta");
+            if (blockId != null) {
+                return blockId;
+            }
+            blockId = resolveBlock(color, "concrete");
+            if (blockId != null) {
+                return blockId;
+            }
+        }
         
         return "minecraft:spruce_log";
     }
@@ -262,7 +275,7 @@ public final class DynamicPaletteResolver {
             case "black" -> "black";
             case "gray", "grey", "dark_gray", "dark_grey" -> "gray";
             case "light_gray", "light_grey" -> "light_gray";
-            case "red" -> "red";
+            case "red", "vermilion", "vermillion" -> "red";
             case "brown" -> "brown";
             case "yellow", "gold", "golden", "golden_yellow", "golden-yellow" -> "yellow";
             case "blue" -> "blue";
