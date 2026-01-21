@@ -291,7 +291,7 @@ public final class ComponentPlanCompiler {
             List<Component> filtered = new ArrayList<>(components.size());
             for (Component c : components) {
                 String type = normalizeType(c.componentType());
-                if (massSlots.contains(slotKey(c)) && AUTO_INFERRED_TYPES.contains(type)) {
+                if (massSlots.contains(slotKey(c)) && AUTO_INFERRED_TYPES.contains(type) && isAutoInferred(c)) {
                     continue;
                 }
                 filtered.add(c);
@@ -418,6 +418,23 @@ public final class ComponentPlanCompiler {
                 features,
                 params
         );
+    }
+
+    private static boolean isAutoInferred(Component component) {
+        if (component == null || component.params() == null) {
+            return false;
+        }
+        Object v = component.params().get("auto_inferred");
+        if (v == null) {
+            v = component.params().get("autoInferred");
+        }
+        if (v instanceof Boolean b) {
+            return b;
+        }
+        if (v != null) {
+            return "true".equalsIgnoreCase(v.toString().trim());
+        }
+        return false;
     }
 
     private static Component makeEntranceComponent(LlmPlan plan, Component base, String slotId, GlobalConstraints.Facing facing) {

@@ -65,14 +65,20 @@ public class RoofGenerator implements ComponentGenerator {
             depth = Math.max(1, depth + overhang * 2);
         }
 
-        switch (roofType) {
-            case GABLE, DOUBLE_GABLE, XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
-            case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
-            case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
-            case PYRAMID -> generatePyramidRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
-            case CONE -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, false);
-            case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true);
-            default -> generateFlatRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+        boolean doubleEave = isDoubleEave(params, c.features());
+        if (doubleEave && (roofType == RoofType.XIESHAN || roofType == RoofType.XUANSHAN || roofType == RoofType.GABLE
+                || roofType == RoofType.DOUBLE_GABLE || roofType == RoofType.HIP)) {
+            generateDoubleEaveRoof(out, semantic, roofType, baseX, rp.y(), baseZ, width, depth, height, palette);
+        } else {
+            switch (roofType) {
+                case GABLE, DOUBLE_GABLE, XUANSHAN -> generateGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+                case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+                case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+                case PYRAMID -> generatePyramidRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+                case CONE -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, false);
+                case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true);
+                default -> generateFlatRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette);
+            }
         }
 
         return out;
@@ -172,6 +178,36 @@ public class RoofGenerator implements ComponentGenerator {
                         baseZ + z,
                         block
                 ));
+            }
+        }
+    }
+
+    private void generateDoubleEaveRoof(List<BlockPatch> out, SemanticComponent semantic, RoofType roofType, int baseX, int baseY,
+                                        int baseZ, int width, int depth, int height, Palette palette) {
+        int upperHeight = Math.max(2, height / 2);
+        int upperInset = Math.max(2, Math.min(width, depth) / 4);
+        int upperWidth = Math.max(2, width - (upperInset * 2));
+        int upperDepth = Math.max(2, depth - (upperInset * 2));
+        int upperBaseX = baseX + upperInset;
+        int upperBaseZ = baseZ + upperInset;
+        int upperBaseY = baseY + (height - upperHeight);
+
+        switch (roofType) {
+            case XIESHAN -> {
+                generateXieshanRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
+                generateXieshanRoof(out, semantic, upperBaseX, upperBaseY, upperBaseZ, upperWidth, upperDepth, upperHeight, palette);
+            }
+            case XUANSHAN, GABLE, DOUBLE_GABLE -> {
+                generateGableRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
+                generateGableRoof(out, semantic, upperBaseX, upperBaseY, upperBaseZ, upperWidth, upperDepth, upperHeight, palette);
+            }
+            case HIP -> {
+                generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
+                generateHipRoof(out, semantic, upperBaseX, upperBaseY, upperBaseZ, upperWidth, upperDepth, upperHeight, palette);
+            }
+            default -> {
+                generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette);
+                generateFlatRoof(out, semantic, upperBaseX, upperBaseY, upperBaseZ, upperWidth, upperDepth, upperHeight, palette);
             }
         }
     }
@@ -320,6 +356,26 @@ public class RoofGenerator implements ComponentGenerator {
         };
     }
 
+    private static boolean isDoubleEave(Map<String, Object> params, List<String> features) {
+        if (getParamBoolean(params, "double_eave", "doubleEave", "double_eaved", "double_eave_roof")) {
+            return true;
+        }
+        if (features == null) {
+            return false;
+        }
+        for (String feature : features) {
+            if (feature == null) {
+                continue;
+            }
+            String lower = feature.toLowerCase().trim();
+            if (lower.contains("double_eave") || lower.contains("double-eave")
+                    || (lower.contains("double") && lower.contains("eave"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String getParamString(Map<String, Object> params, String... keys) {
         if (params == null || keys == null) return null;
         for (String key : keys) {
@@ -354,6 +410,24 @@ public class RoofGenerator implements ComponentGenerator {
         return 0;
     }
 
+    private static boolean getParamBoolean(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return false;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v instanceof Boolean b) {
+                return b;
+            }
+            if (v != null) {
+                String s = String.valueOf(v).trim();
+                if ("true".equalsIgnoreCase(s)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static String getBlockForPart(SemanticComponent semantic, Palette palette, SemanticPart part) {
         if (semantic != null && semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
@@ -385,4 +459,3 @@ public class RoofGenerator implements ComponentGenerator {
         DOME
     }
 }
-
