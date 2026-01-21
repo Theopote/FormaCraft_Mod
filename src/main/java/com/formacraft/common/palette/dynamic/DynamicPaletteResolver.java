@@ -82,9 +82,7 @@ public final class DynamicPaletteResolver {
         }
         
         // 根据部位返回默认
-        return part == SemanticPart.WALL_BASE 
-            ? "minecraft:stone_bricks" 
-            : "minecraft:stone_bricks";
+        return "minecraft:stone_bricks";
     }
     
     /**
@@ -165,6 +163,27 @@ public final class DynamicPaletteResolver {
         if (decorative != null && decorative.contains("lattice_windows")) {
             return "minecraft:iron_bars"; // 格子窗
         }
+
+        if (decorative != null) {
+            for (String element : decorative) {
+                if (element == null) {
+                    continue;
+                }
+                String lower = element.toLowerCase().trim();
+                if (lower.contains("stained_glass") || lower.contains("rose_window") || lower.contains("rose_windows")) {
+                    // 使用墙体的强调颜色，如果没有则使用墙体主色
+                    String accent = attrs.wallColor();
+                    String normalized = normalizeColor(accent);
+                    if (normalized != null) {
+                        String id = "minecraft:" + normalized + "_stained_glass";
+                        if (isValidBlockId(id)) {
+                            return id;
+                        }
+                    }
+                    return "minecraft:red_stained_glass";
+                }
+            }
+        }
         
         return "minecraft:glass"; // 默认玻璃
     }
@@ -241,10 +260,11 @@ public final class DynamicPaletteResolver {
         return switch (lower) {
             case "white" -> "white";
             case "black" -> "black";
-            case "gray", "grey" -> "gray";
+            case "gray", "grey", "dark_gray", "dark_grey" -> "gray";
+            case "light_gray", "light_grey" -> "light_gray";
             case "red" -> "red";
             case "brown" -> "brown";
-            case "yellow" -> "yellow";
+            case "yellow", "gold", "golden" -> "yellow";
             case "blue" -> "blue";
             case "green" -> "green";
             case "orange" -> "orange";
@@ -264,10 +284,14 @@ public final class DynamicPaletteResolver {
         if (material == null || material.isBlank()) {
             return null;
         }
-        
+
         String lower = material.toLowerCase().trim();
         return switch (lower) {
-            case "stone", "stone_bricks" -> "stone_bricks";
+            case "stone", "stone_brick", "stone_bricks", "stonebrick", "stonebricks" -> "stone_bricks";
+            case "polished_andesite" -> "polished_andesite";
+            case "polished_blackstone", "blackstone" -> "polished_blackstone";
+            case "deepslate", "deepslate_tiles", "deepslate_tile" -> "deepslate_tiles";
+            case "deepslate_bricks", "deepslate_brick" -> "deepslate_bricks";
             case "brick", "bricks" -> "bricks";
             case "wood", "planks", "oak" -> "oak_planks";
             case "dark_oak", "dark_oak_wood" -> "dark_oak_planks";
@@ -277,8 +301,9 @@ public final class DynamicPaletteResolver {
             case "terracotta", "tile" -> "terracotta";
             case "cobblestone" -> "cobblestone";
             case "shingle" -> "oak_planks"; // 瓦片用木板模拟
-            case "slate" -> "stone_bricks"; // 石板用石砖模拟
+            case "slate" -> "deepslate_tiles"; // 石板更接近深板岩瓦
             case "metal" -> "iron_block";
+            case "dark_prismarine", "prismarine", "prismarine_bricks" -> "dark_prismarine";
             default -> null;
         };
     }
@@ -290,7 +315,12 @@ public final class DynamicPaletteResolver {
         if (material == null || material.isBlank()) {
             return null;
         }
-        
+
+        String direct = resolveDirectBlockId(material);
+        if (direct != null) {
+            return direct;
+        }
+
         String normalized = normalizeMaterial(material);
         if (normalized != null) {
             String fullId = "minecraft:" + normalized;
@@ -298,6 +328,15 @@ public final class DynamicPaletteResolver {
         }
         
         return null;
+    }
+
+    private static String resolveDirectBlockId(String material) {
+        String trimmed = material.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        String candidate = trimmed.contains(":") ? trimmed : "minecraft:" + trimmed;
+        return isValidBlockId(candidate) ? candidate : null;
     }
 
     private static boolean isValidBlockId(String blockId) {
@@ -321,9 +360,8 @@ public final class DynamicPaletteResolver {
      */
     private static String getDefaultBlock(SemanticPart part) {
         return switch (part) {
-            case WALL, WALL_BASE -> "minecraft:stone_bricks";
+            case WALL, WALL_BASE, FLOOR, COURTYARD_FLOOR -> "minecraft:stone_bricks";
             case ROOF, ROOF_SURFACE -> "minecraft:spruce_planks";
-            case FLOOR, COURTYARD_FLOOR -> "minecraft:stone_bricks";
             case DECOR -> "minecraft:stone_brick_slab";
             case WINDOW -> "minecraft:glass";
             case PILLAR -> "minecraft:spruce_log";

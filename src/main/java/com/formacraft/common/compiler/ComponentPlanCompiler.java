@@ -12,6 +12,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.style.StyleIntentResolver;
 import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -277,6 +278,7 @@ public final class ComponentPlanCompiler {
             if (normalizedComponent == null) {
                 continue;
             }
+            normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);
             String type = normalizeType(normalizedComponent.componentType());
             String slotKey = slotKey(normalizedComponent);
             if (isMassType(type)) {
@@ -345,13 +347,16 @@ public final class ComponentPlanCompiler {
                 c = markAssemblyFacade(c);
             } else {
                 if (!hasFacade) {
-                    inferred.add(makeFacadeComponent(c, slotId));
+                    Component facade = makeFacadeComponent(c, slotId);
+                    facade = StyleIntentResolver.apply(plan, facade);
+                    inferred.add(facade);
                     slotsWithFacade.add(slotKey);
                     hasFacade = true;
                 }
                 if (!hasEntrance) {
                     Component entrance = makeEntranceComponent(plan, c, slotId, facing);
                     if (entrance != null) {
+                        entrance = StyleIntentResolver.apply(plan, entrance);
                         inferred.add(entrance);
                         slotsWithEntrance.add(slotKey);
                         hasEntrance = true;
@@ -364,6 +369,7 @@ public final class ComponentPlanCompiler {
             if (!slotsWithRoof.contains(slotKey)) {
                 Component roof = makeRoofComponent(plan, c, slotId);
                 if (roof != null) {
+                    roof = StyleIntentResolver.apply(plan, roof);
                     inferred.add(roof);
                     slotsWithRoof.add(slotKey);
                     c = suppressMassRoof(c);
@@ -522,7 +528,7 @@ public final class ComponentPlanCompiler {
 
     private static Component suppressMassRoof(Component base) {
         if (base == null) {
-            return base;
+            return null;
         }
         Map<String, Object> params = new HashMap<>();
         if (base.params() != null) {
@@ -1089,7 +1095,6 @@ public final class ComponentPlanCompiler {
             case NORTH -> "NORTH";
             case EAST -> "EAST";
             case WEST -> "WEST";
-            case SOUTH -> "SOUTH";
             default -> "SOUTH";
         };
     }

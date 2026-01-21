@@ -119,9 +119,10 @@ public class ChatPanel extends BasePanel {
     public ChatPanel() {
         // 初始输入框，在第一次 render 时会根据当前面板尺寸重新 setBounds
         this.inputBox = new MultilineTextInput(0, 0, 10, 48);
-        // 聊天输入：限制总长度与最大行数，避免粘贴超大文本造成 UI 卡顿
-        this.inputBox.setMaxChars(2048);
-        this.inputBox.setMaxLines(12);
+        // 聊天输入：扩大总长度与最大行数限制，允许输入更多内容
+        // 之前是 2048 字符和 12 行，现在增加到 32768 字符和 100 行，支持大量文本输入
+        this.inputBox.setMaxChars(32768);
+        this.inputBox.setMaxLines(100);
         initWidgets();
     }
 

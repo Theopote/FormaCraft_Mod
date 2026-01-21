@@ -390,10 +390,10 @@ public class MassMainGenerator implements ComponentGenerator {
                     }
 
                     if (hasWindows && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape,
-                            mass.cornerRadius, mass.pattern, windowSpacing)) {
+                            mass.cornerRadius, mass.pattern, windowSpacing, userFloorHeight)) {
                         SemanticPart part = SemanticPart.WINDOW;
-                        String block = palette.pick(part);
-                        if (block == null || block.isEmpty()) {
+                        String block = getBlockForPart(part, semantic, palette);
+                        if (block.isEmpty()) {
                             block = "minecraft:glass";
                         }
                         out.add(new BlockPatch(
@@ -482,9 +482,10 @@ public class MassMainGenerator implements ComponentGenerator {
      * 检查是否是窗户位置
      */
     private boolean isWindowPosition(int x, int z, int width, int depth, int y, int height,
-                                     FootprintShape shape, int cornerRadius, PatternConfig pattern, int spacing) {
+                                     FootprintShape shape, int cornerRadius, PatternConfig pattern, int spacing,
+                                     int floorHeight) {
         boolean isMiddleHeight = (y > 0 && y < height - 1);
-        if (!isMiddleHeight) {
+        if (!isMiddleHeight || !isWindowBand(y, height, floorHeight)) {
             return false;
         }
         boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern);
@@ -495,6 +496,16 @@ public class MassMainGenerator implements ComponentGenerator {
             return false;
         }
         return isWindowSpacing(x, z, spacing);
+    }
+
+    private boolean isWindowBand(int y, int height, int floorHeight) {
+        if (y <= 0 || y >= height - 1) {
+            return false;
+        }
+        int bandHeight = floorHeight > 0 ? floorHeight : 3;
+        bandHeight = Math.max(3, bandHeight);
+        int localY = Math.floorMod(y, bandHeight);
+        return localY > 0 && localY < bandHeight - 1;
     }
 
     /**
@@ -731,8 +742,11 @@ public class MassMainGenerator implements ComponentGenerator {
             return SemanticPart.WALL_ACCENT;
         }
         
-        if (isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
+        if (isCornerPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
             return SemanticPart.WALL_ACCENT;
+        }
+        if (isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern)) {
+            return SemanticPart.WALL;
         }
         
         // 内部（填充）
@@ -783,6 +797,13 @@ public class MassMainGenerator implements ComponentGenerator {
                 "footprint_pattern", "footprintPattern", "plan_pattern", "planPattern");
         Component c = semantic != null ? semantic.source() : null;
 
+        if (planType != null) {
+            String normalized = planType.trim().toLowerCase(Locale.ROOT);
+            if (normalized.isEmpty() || normalized.equals("none") || normalized.equals("default")) {
+                planType = null;
+            }
+        }
+
         if (planType == null && c != null) {
             if (hasFeature(c, "gothic", "cathedral", "church", "basilica", "cruciform", "cross")) {
                 planType = "cross";
@@ -816,6 +837,8 @@ public class MassMainGenerator implements ComponentGenerator {
             String upper = profile.toUpperCase();
             if (upper.contains("HUI") || upper.contains("CHINESE")) {
                 planType = "cut_corners";
+            } else if (upper.contains("GOTHIC") || upper.contains("CATHEDRAL") || upper.contains("CHURCH")) {
+                planType = "cross";
             }
         }
 
