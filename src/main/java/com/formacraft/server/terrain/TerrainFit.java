@@ -16,11 +16,11 @@ import java.util.List;
 /**
  * TerrainFit:
  * Local, per-building terrain adaptation utilities.
- *
+ * <p>
  * Philosophy:
  * - Default to "顺地而建": do not flatten a whole area.
  * - Each unit may choose a local placement Y based on its own footprint sampling.
- *
+ * <p>
  * v1:
  * - Snap origin Y towards median terrain height within footprint bounds (clamped delta).
  */
@@ -112,7 +112,7 @@ public final class TerrainFit {
     public static BlockPos snapOrigin(ServerWorld world, BlockPos origin, BuildingSpec spec) {
         if (spec == null || spec.getFootprint() == null) return origin;
         List<BlockPos> footprint = TerrainAdaptationEngine.resolveFootprintPositions(spec, origin, true);
-        if (footprint != null && !footprint.isEmpty()) {
+        if (!footprint.isEmpty()) {
             FootprintAnalysis a = analyze(world, footprint);
             int desired = (a.minY == a.maxY) ? (a.medianY + 1) : (averageFootprintHeight(world, footprint) + 1);
 
@@ -131,7 +131,7 @@ public final class TerrainFit {
      * - local, small modifications within footprint:
      *   - fill air/water/lava up to targetY using fill material
      *   - clear obvious obstacles above targetY (logs/leaves/vines/plants) to keep the placement clean
-     *
+     * <p>
      * This intentionally avoids "整片平整" and only touches the unit area.
      */
     public static List<PlannedBlock> adaptivePad(ServerWorld world,

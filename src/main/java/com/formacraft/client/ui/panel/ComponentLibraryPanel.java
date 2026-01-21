@@ -265,7 +265,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         // catalog
         ComponentCatalog cat = ClientComponentCatalogState.getCatalog();
         if (cat == null || cat.components == null || cat.components.isEmpty()) {
-            y = drawWrappedText(ctx, Text.literal("构件库为空：请先保存构件或等待 catalog 同步。"), x, y, w, 0xFFAAAAAA);
+            drawWrappedText(ctx, Text.literal("构件库为空：请先保存构件或等待 catalog 同步。"), x, y, w, 0xFFAAAAAA);
             return;
         }
 
@@ -497,7 +497,7 @@ public final class ComponentLibraryPanel extends BasePanel {
                     int fixCount = 0;
                     for (var fix : autoFixReport.fixes()) {
                         if (fixCount >= 3) { // 最多显示3个修复
-                            y = drawWrappedText(ctx, Text.literal("  ... 还有 " + (autoFixReport.size() - 3) + " 个修复"), 
+                            drawWrappedText(ctx, Text.literal("  ... 还有 " + (autoFixReport.size() - 3) + " 个修复"),
                                     x + 6, y, w - 6, 0xFF99CCFF);
                             break;
                         }

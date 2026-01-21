@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * EntranceGenerator（入口生成器）
- * 
+ * <p>
  * 生成门廊/入口结构
  */
 public class EntranceGenerator implements ComponentGenerator {
@@ -307,14 +307,18 @@ public class EntranceGenerator implements ComponentGenerator {
         for (String key : keys) {
             if (key == null) continue;
             Object v = params.get(key);
-            if (v == null) continue;
-            if (v instanceof Number n) {
-                return n.intValue();
-            }
-            if (v instanceof String s) {
-                try {
-                    return Integer.parseInt(s.trim());
-                } catch (NumberFormatException ignored) {}
+            switch (v) {
+                case Number n -> {
+                    return n.intValue();
+                }
+                case String s -> {
+                    try {
+                        return Integer.parseInt(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                case null, default -> {
+                }
             }
         }
         return fallback;
