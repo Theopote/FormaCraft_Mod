@@ -65,13 +65,13 @@ public final class FallbackMaterialConfig {
         Identifier ident = Identifier.tryParse(id.trim());
         if (ident == null) return Blocks.OAK_LOG.getDefaultState();
         Block block = Registries.BLOCK.get(ident);
-        if (block == null || block == Blocks.AIR) return Blocks.OAK_LOG.getDefaultState();
+        if (block == Blocks.AIR) return Blocks.OAK_LOG.getDefaultState();
         return block.getDefaultState();
     }
 
     private static FallbackMaterialConfig load() {
         Path file = resolveConfigFile();
-        if (file != null && Files.exists(file)) {
+        if (Files.exists(file)) {
             try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
                 FallbackMaterialConfig cfg = JsonUtil.get().fromJson(r, FallbackMaterialConfig.class);
                 if (cfg != null) {
@@ -162,7 +162,7 @@ public final class FallbackMaterialConfig {
         }
         if ("pillar".equals(role)) {
             v = map.get("column");
-            if (v != null) return v;
+            return v;
         }
         return null;
     }

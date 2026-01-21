@@ -64,5 +64,12 @@
       "window": "minecraft:white_stained_glass_pane"
     }
   },
-  "styles": {}
+  "styles": {
+    "Chinese_Imperial": {
+      "door": "minecraft:dark_oak_door",
+      "window": "minecraft:red_stained_glass_pane",
+      "column": "minecraft:red_concrete",
+      "railing": "minecraft:quartz_pillar"
+    }
+  }
 }
