@@ -893,6 +893,8 @@ def _build_system_prompt() -> str:
         "- Building styles: MEDIEVAL, MODERN, ASIAN, FUTURISTIC, RUSTIC, DEFAULT\n"
         "- For circular buildings (towers), use footprint.shape='circle' and set radius\n"
         "- For rectangular buildings, use footprint.shape='rectangle' and set width/depth\n"
+        "- For L/U/courtyard/cross plans, keep footprint.shape='rectangle' and add footprint.shapeSpec with type+params\n"
+        "- Example shapeSpec: {\"type\":\"COURTYARD\",\"params\":{\"width\":20,\"depth\":20,\"wall_thickness\":4},\"rotation\":0}\n"
         "- For elliptical or organic shapes, use footprint.shape='rectangle' with appropriate width/depth,\n"
         "  then use extra.assembly.macro to define the actual shape (e.g., using twist, curvature, verticalProfile)\n\n"
         "Field names are STRICT and must match exactly:\n"

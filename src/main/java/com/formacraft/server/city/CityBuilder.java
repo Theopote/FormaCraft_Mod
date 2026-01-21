@@ -384,6 +384,25 @@ public class CityBuilder {
 
                     int fpW = (sp.getSpec().getFootprint() != null && sp.getSpec().getFootprint().getWidth() > 0) ? sp.getSpec().getFootprint().getWidth() : 8;
                     int fpD = (sp.getSpec().getFootprint() != null && sp.getSpec().getFootprint().getDepth() > 0) ? sp.getSpec().getFootprint().getDepth() : 6;
+                    List<BlockPos> footprintMask = TerrainAdaptationEngine.resolveFootprintPositions(sp.getSpec(), buildingOrigin, true);
+                    boolean useFootprintMask = footprintMask != null && !footprintMask.isEmpty();
+                    if (useFootprintMask) {
+                        int minX = Integer.MAX_VALUE;
+                        int minZ = Integer.MAX_VALUE;
+                        int maxX = Integer.MIN_VALUE;
+                        int maxZ = Integer.MIN_VALUE;
+                        for (BlockPos p : footprintMask) {
+                            if (p == null) continue;
+                            minX = Math.min(minX, p.getX());
+                            maxX = Math.max(maxX, p.getX());
+                            minZ = Math.min(minZ, p.getZ());
+                            maxZ = Math.max(maxZ, p.getZ());
+                        }
+                        if (minX != Integer.MAX_VALUE && minZ != Integer.MAX_VALUE) {
+                            fpW = Math.max(1, maxX - minX + 1);
+                            fpD = Math.max(1, maxZ - minZ + 1);
+                        }
+                    }
 
                     // Zone override first (if any), then cluster fallback.
                     CitySpec.Zone zone;
@@ -411,7 +430,9 @@ public class CityBuilder {
                     }
 
                     TerrainAdaptationEngine.Bounds b = TerrainAdaptationEngine.boundsForCenteredFootprint(sp.getSpec(), buildingOrigin);
-                    int baseY = TerrainAdaptationEngine.computeBaseY(world, b, ta, buildingOrigin.getY());
+                    int baseY = useFootprintMask
+                            ? TerrainAdaptationEngine.computeBaseY(world, footprintMask, ta, buildingOrigin.getY())
+                            : TerrainAdaptationEngine.computeBaseY(world, b, ta, buildingOrigin.getY());
                     int platformY = baseY + 1;
 
                     BlockPos buildingOrigin2;
@@ -429,20 +450,32 @@ public class CityBuilder {
                     } else {
                         buildingOrigin2 = new BlockPos(buildingOrigin.getX(), platformY, buildingOrigin.getZ());
                         if (mode == TerrainAdaptationMode.ANCHOR) {
-                            pad = TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, platformY, fillMaterial,
-                                    Math.max(0, Math.min(6, ta.padDepth())),
-                                    Math.max(0, Math.min(16, ta.clearHeight())),
-                                    allowWater,
-                                    allowLava);
+                            pad = useFootprintMask
+                                    ? TerrainFit.adaptivePad(world, footprintMask, platformY, fillMaterial,
+                                            Math.max(0, Math.min(6, ta.padDepth())),
+                                            Math.max(0, Math.min(16, ta.clearHeight())),
+                                            allowWater,
+                                            allowLava)
+                                    : TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, platformY, fillMaterial,
+                                            Math.max(0, Math.min(6, ta.padDepth())),
+                                            Math.max(0, Math.min(16, ta.clearHeight())),
+                                            allowWater,
+                                            allowLava);
                             if (ta.anchorExtendDown()) {
                                 pre = TerrainAdaptationEngine.anchorPillars(world, b, platformY, fillMaterial, ta.anchorMaxDepth(), allowWater, allowLava);
                             }
                         } else if (mode == TerrainAdaptationMode.DRAPE) {
-                            pad = TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, platformY, fillMaterial,
-                                    Math.max(0, Math.min(2, ta.padDepth())),
-                                    Math.max(0, Math.min(6, ta.clearHeight())),
-                                    allowWater,
-                                    allowLava);
+                            pad = useFootprintMask
+                                    ? TerrainFit.adaptivePad(world, footprintMask, platformY, fillMaterial,
+                                            Math.max(0, Math.min(2, ta.padDepth())),
+                                            Math.max(0, Math.min(6, ta.clearHeight())),
+                                            allowWater,
+                                            allowLava)
+                                    : TerrainFit.adaptivePad(world, buildingOrigin2, fpW, fpD, platformY, fillMaterial,
+                                            Math.max(0, Math.min(2, ta.padDepth())),
+                                            Math.max(0, Math.min(6, ta.clearHeight())),
+                                            allowWater,
+                                            allowLava);
                             postDrape = true;
                             drapeBaseY = platformY;
                             pre = TerrainAdaptationEngine.drapeFoundationColumns(world, b, ta.foundationDepth(), fillMaterial, allowWater, allowLava);

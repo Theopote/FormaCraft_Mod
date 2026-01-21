@@ -51,6 +51,25 @@ public final class TerrainFit {
         return new FootprintAnalysis(minY, maxY, median, Math.max(0, maxY - minY));
     }
 
+    public static FootprintAnalysis analyze(ServerWorld world, List<BlockPos> footprint) {
+        if (world == null || footprint == null || footprint.isEmpty()) return new FootprintAnalysis(64, 64, 64, 0);
+        List<Integer> heights = new ArrayList<>(footprint.size());
+        for (BlockPos p : footprint) {
+            if (p == null) continue;
+            heights.add(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ()));
+        }
+        if (heights.isEmpty()) return new FootprintAnalysis(64, 64, 64, 0);
+
+        int minY = Integer.MAX_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        for (int y : heights) {
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+        }
+        int median = TerrainSampling.medianHeight(heights);
+        return new FootprintAnalysis(minY, maxY, median, Math.max(0, maxY - minY));
+    }
+
     public static int averageFootprintHeight(ServerWorld world, BlockPos center, int width, int depth) {
         if (world == null || center == null) return 64;
         int w = Math.max(3, width);
@@ -60,6 +79,16 @@ public final class TerrainFit {
         BlockPos min = new BlockPos(center.getX() - halfW, 0, center.getZ() - halfD);
         BlockPos max = new BlockPos(center.getX() + halfW, 0, center.getZ() + halfD);
         List<Integer> heights = TerrainSampling.sampleHeights(world, min, max);
+        return TerrainSampling.averageHeight(heights);
+    }
+
+    public static int averageFootprintHeight(ServerWorld world, List<BlockPos> footprint) {
+        if (world == null || footprint == null || footprint.isEmpty()) return 64;
+        List<Integer> heights = new ArrayList<>(footprint.size());
+        for (BlockPos p : footprint) {
+            if (p == null) continue;
+            heights.add(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ()));
+        }
         return TerrainSampling.averageHeight(heights);
     }
 
@@ -82,6 +111,17 @@ public final class TerrainFit {
 
     public static BlockPos snapOrigin(ServerWorld world, BlockPos origin, BuildingSpec spec) {
         if (spec == null || spec.getFootprint() == null) return origin;
+        List<BlockPos> footprint = TerrainAdaptationEngine.resolveFootprintPositions(spec, origin, true);
+        if (footprint != null && !footprint.isEmpty()) {
+            FootprintAnalysis a = analyze(world, footprint);
+            int desired = (a.minY == a.maxY) ? (a.medianY + 1) : (averageFootprintHeight(world, footprint) + 1);
+
+            int dy = desired - origin.getY();
+            int clamped = Math.max(-4, Math.min(8, dy));
+            if (clamped == 0) return origin;
+            BuildReportContext.addTerrainSnapDy(clamped);
+            return origin.add(0, clamped, 0);
+        }
         Footprint fp = spec.getFootprint();
         return snapOrigin(world, origin, fp.getWidth(), fp.getDepth());
     }
@@ -174,6 +214,68 @@ public final class TerrainFit {
                         out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
                         clearCount++;
                     }
+                }
+            }
+        }
+
+        if (fillCount > 0 || clearCount > 0) {
+            BuildReportContext.addTerrainPad(fillCount, clearCount);
+        }
+        return out;
+    }
+
+    public static List<PlannedBlock> adaptivePad(ServerWorld world,
+                                                 List<BlockPos> footprint,
+                                                 int targetY,
+                                                 BlockState fill,
+                                                 int padDepth,
+                                                 int clearHeight,
+                                                 boolean allowWaterEdit,
+                                                 boolean allowLavaEdit) {
+        if (world == null || footprint == null || footprint.isEmpty()) return List.of();
+        BlockState fillState = (fill != null) ? fill : Blocks.COBBLESTONE.getDefaultState();
+        int pad = Math.max(0, Math.min(6, padDepth));
+        int clear = Math.max(0, Math.min(16, clearHeight));
+
+        List<PlannedBlock> out = new ArrayList<>(Math.max(256, footprint.size() * 4));
+        int fillCount = 0;
+        int clearCount = 0;
+
+        for (BlockPos base : footprint) {
+            if (base == null) continue;
+            int x = base.getX();
+            int z = base.getZ();
+            for (int y = targetY - pad; y <= targetY; y++) {
+                BlockPos p = new BlockPos(x, y, z);
+                if (!BuildConstraintContext.allow(p)) continue;
+                BlockState cur = world.getBlockState(p);
+                boolean isAir = cur.isAir();
+                boolean isWater = cur.getBlock() == Blocks.WATER;
+                boolean isLava = cur.getBlock() == Blocks.LAVA;
+                if (isAir
+                        || (allowWaterEdit && isWater)
+                        || (allowLavaEdit && isLava)) {
+                    out.add(new PlannedBlock(p, fillState));
+                    fillCount++;
+                }
+            }
+
+            BlockPos surface = new BlockPos(x, targetY, z);
+            if (BuildConstraintContext.allow(surface)) {
+                BlockState cur = world.getBlockState(surface);
+                if (!cur.isAir() && isObstacle(cur)) {
+                    out.add(new PlannedBlock(surface, fillState));
+                    fillCount++;
+                }
+            }
+
+            for (int y = targetY + 1; y <= targetY + clear; y++) {
+                BlockPos p = new BlockPos(x, y, z);
+                if (!BuildConstraintContext.allow(p)) continue;
+                BlockState cur = world.getBlockState(p);
+                if (!cur.isAir() && isObstacle(cur)) {
+                    out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                    clearCount++;
                 }
             }
         }

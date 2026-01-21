@@ -5,9 +5,12 @@ import com.formacraft.client.component.ComponentThumbnailCache;
 import com.formacraft.client.component.ComponentLibraryUsage;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.ComponentToolState;
+import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentCategory;
+import com.formacraft.common.component.ComponentStorage;
+import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
@@ -43,14 +46,16 @@ public final class ComponentLibraryPanel extends BasePanel {
     // 验证和修复按钮（当有加载的构件时显示）
     private ButtonWidget validateButton;
     private ButtonWidget autoFixButton;
+    
+    // 删除按钮（当选中构件时显示）
+    private ButtonWidget deleteButton;
 
     // grid hitboxes
     private static final class GridItem {
-        final String id;
-        final String name;
+        final ComponentCatalog.Entry entry;
         final int x, y, w, h;
-        GridItem(String id, String name, int x, int y, int w, int h) {
-            this.id = id; this.name = name; this.x = x; this.y = y; this.w = w; this.h = h;
+        GridItem(ComponentCatalog.Entry entry, int x, int y, int w, int h) {
+            this.entry = entry; this.x = x; this.y = y; this.w = w; this.h = h;
         }
         boolean hit(double mx, double my) {
             return mx >= x && mx <= (x + w) && my >= y && my <= (y + h);
@@ -112,6 +117,14 @@ public final class ComponentLibraryPanel extends BasePanel {
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("自动修复构件的明显错误")))
                 .build();
+        
+        deleteButton = ButtonWidget.builder(
+                Text.literal("删除构件"),
+                b -> deleteSelectedComponent()
+        )
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("删除选中的构件（不可恢复）")))
+                .build();
     }
 
     private void cycleSort() {
@@ -148,6 +161,51 @@ public final class ComponentLibraryPanel extends BasePanel {
         st.libraryPage = 0;
     }
 
+    private void deleteSelectedComponent() {
+        var st = ComponentTool.INSTANCE.getState();
+        if (st.librarySelectedId == null || st.librarySelectedId.isBlank()) {
+            HudToast.show("请先选择一个构件", true);
+            return;
+        }
+        
+        String componentId = st.librarySelectedId;
+        String componentName = st.librarySelectedName != null ? st.librarySelectedName : componentId;
+        
+        // 删除构件（worldDir传null，因为全局目录不依赖worldDir）
+        boolean success = ComponentStorage.deleteComponent(null, componentId);
+        
+        if (success) {
+            // 清除选中状态
+            st.librarySelectedId = null;
+            st.librarySelectedName = null;
+            
+            // 如果当前加载的构件是被删除的构件，需要清除加载状态
+            // 注意：ComponentTool没有公共的clearLoadedComponent方法，但可以通过重新加载来清除
+            var loadedComponent = ComponentTool.INSTANCE.getLoadedComponent();
+            if (loadedComponent != null && componentId.equals(loadedComponent.id)) {
+                // 通过请求加载一个不存在的构件来清除当前加载的构件
+                // 或者直接通过反射/内部方法清除，但更安全的方式是让用户手动重新加载
+                // 这里先不处理，因为删除后用户通常不会继续使用已删除的构件
+            }
+            
+            // 刷新catalog（通过重新请求服务端同步）
+            // 清除客户端缓存
+            ClientComponentCatalogState.setFromJson(null);
+            
+            // 请求服务端重新发送catalog
+            if (client.getNetworkHandler() != null) {
+                FormaCraftNetworking.sendComponentCatalogRequest();
+            }
+            
+            HudToast.show("已删除构件: " + componentName);
+            
+            // 重置到第一页
+            st.libraryPage = 0;
+        } else {
+            HudToast.show("删除构件失败: " + componentName, true);
+        }
+    }
+
     @Override
     protected void drawContents(DrawContext ctx) {
         ensureWidgets();
@@ -163,9 +221,6 @@ public final class ComponentLibraryPanel extends BasePanel {
 
         // background
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
-
-        y = drawWrappedText(ctx, Text.literal("[ 构件库 ]"), x, y, w, 0xFFFFFFFF);
-        y += 2;
 
         // search input (bind to ComponentToolState)
         var st = ComponentTool.INSTANCE.getState();
@@ -240,8 +295,8 @@ public final class ComponentLibraryPanel extends BasePanel {
         filtered.sort(cmp);
 
         // paging
-        int cell = 56;
-        int cols = Math.max(2, Math.min(4, w / cell));
+        int cols = 4; // 固定每行4个
+        int cell = (w - 12) / cols; // 计算每个单元格大小，留出12像素总间距
         int rowsPerPage = 6;
         int pageSize = Math.max(1, cols * rowsPerPage);
         int total = filtered.size();
@@ -272,17 +327,16 @@ public final class ComponentLibraryPanel extends BasePanel {
         y += 2;
 
         // grid draw
-        int pad = 4;
+        int pad = 2; // 减小间距
         int bw = cell - pad;
         int bh = cell - pad;
-        int thumbSz = 42;
+        int thumbSz = 32; // 减小缩略图大小
         int row = 0, col = 0;
 
         for (int i = start; i < end; i++) {
             var e = filtered.get(i);
             if (e == null) continue;
             String id = e.id;
-            String nm0 = displayName(e);
 
             int bx = x + col * cell;
             int by = y + row * cell;
@@ -318,10 +372,8 @@ public final class ComponentLibraryPanel extends BasePanel {
                 ctx.fill(bx + 6, by + 6, bx + bw - 6, by + 6 + thumbSz, 0x55222222);
             }
 
-            String shortName = nm0.length() > 6 ? nm0.substring(0, 6) : nm0;
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal(shortName), bx + 4, by + bh - client.textRenderer.fontHeight - 2, 0xFFDDDDDD);
-
-            grid.add(new GridItem(id, nm0, bx, by, bw, bh));
+            // 不再显示名称，改为在 tooltip 中显示
+            grid.add(new GridItem(e, bx, by, bw, bh));
             col++;
             if (col >= cols) { col = 0; row++; }
         }
@@ -332,6 +384,23 @@ public final class ComponentLibraryPanel extends BasePanel {
         y += Math.max(1, (int) Math.ceil((end - start) / (double) cols)) * cell;
         y += 4;
         y = drawWrappedText(ctx, Text.literal("提示：单击选中；双击加载构件到鼠标（可右键放置）。"), x, y, w, 0xFF888888);
+        
+        // 删除按钮（如果选中了构件）
+        if (st.librarySelectedId != null && !st.librarySelectedId.isBlank()) {
+            y += 8;
+            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+            y += 4;
+            String selectedName = st.librarySelectedName != null ? st.librarySelectedName : st.librarySelectedId;
+            y = drawWrappedText(ctx, Text.literal("已选中: " + selectedName), x, y, w, 0xFFFFFFFF);
+            y += 2;
+            deleteButton.setPosition(x, y);
+            deleteButton.setWidth(w);
+            deleteButton.visible = true;
+            deleteButton.active = true;
+            deleteButton.render(ctx, (int) (client.mouse.getX() / client.getWindow().getScaleFactor()),
+                    (int) (client.mouse.getY() / client.getWindow().getScaleFactor()), 0f);
+            y += LABEL_OFFSET;
+        }
         
         // 验证和修复区域（如果有加载的构件）
         var loadedComponent = ComponentTool.INSTANCE.getLoadedComponent();
@@ -361,12 +430,11 @@ public final class ComponentLibraryPanel extends BasePanel {
                     statusColor = 0xFF55FF55;
                 }
                 y = drawWrappedText(ctx, Text.literal(statusText), x, y, w, statusColor);
-                y += 2;
             } else {
                 y = drawWrappedText(ctx, Text.literal("⏳ 未验证"), x, y, w, 0xFFAAAAAA);
-                y += 2;
             }
-            
+            y += 2;
+
             // 修复状态
             var autoFixReport = ComponentTool.INSTANCE.getState().getAutoFixReport();
             if (autoFixReport != null && !autoFixReport.empty()) {
@@ -537,6 +605,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (nextPageButton != null && nextPageButton.visible && nextPageButton.mouseClicked(click, false)) return true;
         if (validateButton != null && validateButton.visible && validateButton.mouseClicked(click, false)) return true;
         if (autoFixButton != null && autoFixButton.visible && autoFixButton.mouseClicked(click, false)) return true;
+        if (deleteButton != null && deleteButton.visible && deleteButton.mouseClicked(click, false)) return true;
 
         if (searchBoundsValid) {
             if (searchInput.mouseClicked(mouseX, mouseY, searchX, searchY, searchW, searchH)) {
@@ -548,12 +617,12 @@ public final class ComponentLibraryPanel extends BasePanel {
             for (GridItem it : grid) {
                 if (it != null && it.hit(mouseX, mouseY)) {
                     var st = ComponentTool.INSTANCE.getState();
-                    st.librarySelectedId = it.id;
-                    st.librarySelectedName = it.name;
+                    st.librarySelectedId = it.entry.id;
+                    st.librarySelectedName = displayName(it.entry);
 
                     long now = System.currentTimeMillis();
-                    boolean dbl = (lastClickId != null && lastClickId.equals(it.id) && (now - lastClickMs) <= DOUBLE_CLICK_MS);
-                    lastClickId = it.id;
+                    boolean dbl = (lastClickId != null && lastClickId.equals(it.entry.id) && (now - lastClickMs) <= DOUBLE_CLICK_MS);
+                    lastClickId = it.entry.id;
                     lastClickMs = now;
                     if (dbl) {
                         ComponentTool.INSTANCE.requestLoadSelectedComponent();
@@ -588,5 +657,91 @@ public final class ComponentLibraryPanel extends BasePanel {
     public boolean wantsKeyboardInput() {
         return searchInput.isFocused();
     }
+
+    @Override
+    protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
+        // 检查鼠标是否悬停在构件上
+        if (gridValid) {
+            ComponentCatalog.Entry hoveredEntry = null;
+            for (GridItem it : grid) {
+                if (it != null && it.hit(mouseX, mouseY)) {
+                    hoveredEntry = it.entry;
+                    break;
+                }
+            }
+            
+            if (hoveredEntry != null) {
+                List<Text> tooltipLines = buildComponentTooltip(hoveredEntry);
+                if (!tooltipLines.isEmpty()) {
+                    drawTooltipCompat(ctx, tooltipLines, (int) mouseX, (int) mouseY);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * 构建构件的 tooltip 内容
+     */
+    private List<Text> buildComponentTooltip(ComponentCatalog.Entry entry) {
+        List<Text> lines = new ArrayList<>();
+        
+        if (entry == null) return lines;
+        
+        // 名称（如果有）
+        String name = displayName(entry);
+        if (name != null && !name.isBlank()) {
+            lines.add(Text.literal("§6" + name)); // 金色标题
+        }
+        
+        // ID
+        if (entry.id != null && !entry.id.isBlank()) {
+            lines.add(Text.literal("§7ID: §f" + entry.id)); // 灰色标签 + 白色值
+        }
+        
+        // 分类
+        if (entry.category != null) {
+            lines.add(Text.literal("§7分类: §f" + entry.category.name()));
+        }
+        
+        // 标签
+        if (entry.tags != null && !entry.tags.isEmpty()) {
+            String tagsStr = String.join(", ", entry.tags);
+            lines.add(Text.literal("§7标签: §f" + tagsStr));
+        }
+        
+        // 尺寸（如果有）
+        if (entry.size != null) {
+            lines.add(Text.literal("§7尺寸: §f" + entry.size.w + "×" + entry.size.h + "×" + entry.size.d));
+        }
+        
+        // 最后更新时间（如果有）
+        if (entry.updatedAtMs != null && entry.updatedAtMs > 0) {
+            long ageMs = System.currentTimeMillis() - entry.updatedAtMs;
+            String ageStr = formatAge(ageMs);
+            lines.add(Text.literal("§7更新: §f" + ageStr + "前"));
+        }
+        
+        return lines;
+    }
+    
+    /**
+     * 格式化时间差（毫秒 -> 人类可读）
+     */
+    private String formatAge(long ageMs) {
+        long ageSec = ageMs / 1000;
+        if (ageSec < 60) return ageSec + "秒";
+        long ageMin = ageSec / 60;
+        if (ageMin < 60) return ageMin + "分钟";
+        long ageHour = ageMin / 60;
+        if (ageHour < 24) return ageHour + "小时";
+        long ageDay = ageHour / 24;
+        if (ageDay < 30) return ageDay + "天";
+        long ageMonth = ageDay / 30;
+        if (ageMonth < 12) return ageMonth + "个月";
+        return (ageDay / 365) + "年";
+    }
+
 }
 

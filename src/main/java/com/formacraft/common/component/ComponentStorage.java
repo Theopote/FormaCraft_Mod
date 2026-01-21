@@ -311,6 +311,60 @@ public final class ComponentStorage {
         }
     }
 
+    /**
+     * 删除构件（从全局目录和legacy目录删除文件，并从catalog中移除）
+     */
+    public static boolean deleteComponent(Path worldDir, String componentId) {
+        if (componentId == null || componentId.isBlank()) return false;
+        
+        try {
+            Path globalDir = getGlobalComponentDir();
+            String fileName = componentId + ".json";
+            String thumbName = componentId + ".png";
+            
+            // 删除全局目录中的文件
+            try {
+                Path jsonFile = globalDir.resolve(fileName);
+                if (Files.exists(jsonFile)) {
+                    Files.delete(jsonFile);
+                }
+            } catch (Exception ignored) {}
+            
+            try {
+                Path thumbFile = globalDir.resolve(thumbName);
+                if (Files.exists(thumbFile)) {
+                    Files.delete(thumbFile);
+                }
+            } catch (Exception ignored) {}
+            
+            // 从catalog中移除
+            ComponentCatalog cat = loadCatalog(worldDir);
+            if (cat.components != null) {
+                cat.components.removeIf(e -> e != null && componentId.equals(e.id));
+                saveCatalog(worldDir, cat);
+            }
+            
+            // 删除legacy目录中的文件（如果存在）
+            if (worldDir != null) {
+                try {
+                    Path legacyDir = getWorldComponentDir(worldDir);
+                    Path legacyJson = legacyDir.resolve(fileName);
+                    if (Files.exists(legacyJson)) {
+                        Files.delete(legacyJson);
+                    }
+                    Path legacyThumb = legacyDir.resolve(thumbName);
+                    if (Files.exists(legacyThumb)) {
+                        Files.delete(legacyThumb);
+                    }
+                } catch (Exception ignored) {}
+            }
+            
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static String buildCatalogSummary(Path worldDir) {
         ComponentCatalog cat = loadCatalog(worldDir);
         if (cat.components == null || cat.components.isEmpty()) {

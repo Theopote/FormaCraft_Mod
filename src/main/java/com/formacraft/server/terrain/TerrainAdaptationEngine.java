@@ -2,8 +2,10 @@ package com.formacraft.server.terrain;
 
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.Footprint;
+import com.formacraft.common.model.build.ShapeSpec;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.build.shape.FootprintGenerator;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -39,6 +41,19 @@ public final class TerrainAdaptationEngine {
         int height = (spec != null && spec.getHeight() > 0) ? spec.getHeight() : 8;
 
         Footprint fp = spec != null ? spec.getFootprint() : null;
+        if (fp != null && fp.getShapeSpec() != null) {
+            ShapeSpec ss = fp.getShapeSpec();
+            FootprintGenerator.Result res = FootprintGenerator.generate(ss);
+            ShapeSpec.ShapeType type = ss.type() != null ? ss.type() : ShapeSpec.ShapeType.RECTANGLE;
+            if (type == ShapeSpec.ShapeType.CIRCLE) {
+                int r = Math.max(1, (Math.min(res.width(), res.depth()) - 1) / 2);
+                BlockPos min = origin.add(-r, 0, -r);
+                BlockPos max = origin.add(r, height, r);
+                return new Bounds(min, max, true);
+            }
+            BlockPos max = origin.add(Math.max(1, res.width()), height, Math.max(1, res.depth()));
+            return new Bounds(origin, max, false);
+        }
         if (fp != null && "circle".equalsIgnoreCase(fp.getShape()) && fp.getRadius() > 0) {
             int r = fp.getRadius();
             BlockPos min = origin.add(-r, 0, -r);
@@ -63,6 +78,22 @@ public final class TerrainAdaptationEngine {
         int height = (spec != null && spec.getHeight() > 0) ? spec.getHeight() : 8;
 
         Footprint fp = spec != null ? spec.getFootprint() : null;
+        if (fp != null && fp.getShapeSpec() != null) {
+            ShapeSpec ss = fp.getShapeSpec();
+            FootprintGenerator.Result res = FootprintGenerator.generate(ss);
+            ShapeSpec.ShapeType type = ss.type() != null ? ss.type() : ShapeSpec.ShapeType.RECTANGLE;
+            if (type == ShapeSpec.ShapeType.CIRCLE) {
+                int r = Math.max(1, (Math.min(res.width(), res.depth()) - 1) / 2);
+                BlockPos min = center.add(-r, 0, -r);
+                BlockPos max = center.add(r, height, r);
+                return new Bounds(min, max, true);
+            }
+            int halfW = Math.max(1, res.width()) / 2;
+            int halfD = Math.max(1, res.depth()) / 2;
+            BlockPos min = center.add(-halfW, 0, -halfD);
+            BlockPos max = center.add(halfW, height, halfD);
+            return new Bounds(min, max, false);
+        }
         if (fp != null && "circle".equalsIgnoreCase(fp.getShape()) && fp.getRadius() > 0) {
             int r = fp.getRadius();
             BlockPos min = center.add(-r, 0, -r);
@@ -106,6 +137,82 @@ public final class TerrainAdaptationEngine {
             case MODE -> TerrainSampling.modeHeight(heights);
             case MEDIAN, FIXED -> TerrainSampling.medianHeight(heights);
         };
+    }
+
+    public static int computeBaseY(ServerWorld world, List<BlockPos> footprint, TerrainAdaptationSpec spec, int fallbackY) {
+        if (world == null || footprint == null || footprint.isEmpty()) return fallbackY;
+        TerrainBaseLevel bl = spec != null ? spec.baseLevel() : TerrainBaseLevel.MEDIAN;
+        if (bl == TerrainBaseLevel.FIXED && spec.fixedY() != null) return spec.fixedY();
+
+        List<Integer> heights = new ArrayList<>(footprint.size());
+        for (BlockPos p : footprint) {
+            if (p == null) continue;
+            int y = world.getTopY(Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ());
+            heights.add(y);
+        }
+        if (heights.isEmpty()) return fallbackY;
+
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        long sum = 0L;
+        for (int h : heights) {
+            min = Math.min(min, h);
+            max = Math.max(max, h);
+            sum += h;
+        }
+        return switch (bl) {
+            case LOWEST -> min;
+            case HIGHEST -> max;
+            case AVERAGE -> (int) Math.round(sum / (double) heights.size());
+            case MODE -> TerrainSampling.modeHeight(heights);
+            case MEDIAN, FIXED -> TerrainSampling.medianHeight(heights);
+        };
+    }
+
+    /**
+     * Resolve an absolute footprint mask when a shape spec or circle is provided.
+     * Returns empty when no non-rectangular footprint is defined.
+     */
+    public static List<BlockPos> resolveFootprintPositions(BuildingSpec spec, BlockPos origin, boolean centered) {
+        if (spec == null || origin == null) return List.of();
+        Footprint fp = spec.getFootprint();
+        if (fp == null) return List.of();
+        if (fp.getShapeSpec() != null) {
+            FootprintGenerator.Result res = FootprintGenerator.generate(fp.getShapeSpec());
+            int offsetX = centered ? -(Math.max(1, res.width()) / 2) : 0;
+            int offsetZ = centered ? -(Math.max(1, res.depth()) / 2) : 0;
+            List<BlockPos> out = new ArrayList<>(res.points().size());
+            for (BlockPos rel : res.points()) {
+                out.add(origin.add(rel.getX() + offsetX, 0, rel.getZ() + offsetZ));
+            }
+            return out;
+        }
+        if ("circle".equalsIgnoreCase(fp.getShape()) && fp.getRadius() > 0) {
+            int r = fp.getRadius();
+            int rSq = r * r;
+            List<BlockPos> out = new ArrayList<>(Math.max(1, r * r));
+            if (centered) {
+                for (int x = -r; x <= r; x++) {
+                    for (int z = -r; z <= r; z++) {
+                        if (x * x + z * z <= rSq) {
+                            out.add(origin.add(x, 0, z));
+                        }
+                    }
+                }
+            } else {
+                for (int x = 0; x <= r * 2; x++) {
+                    for (int z = 0; z <= r * 2; z++) {
+                        int dx = x - r;
+                        int dz = z - r;
+                        if (dx * dx + dz * dz <= rSq) {
+                            out.add(origin.add(x, 0, z));
+                        }
+                    }
+                }
+            }
+            return out;
+        }
+        return List.of();
     }
 
     /**

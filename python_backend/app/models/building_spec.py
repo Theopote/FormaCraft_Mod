@@ -21,11 +21,18 @@ class BuildingStyle(str, Enum):
     DEFAULT = "DEFAULT"
 
 
+class ShapeSpec(BaseModel):
+    type: str
+    params: Optional[Dict[str, int]] = None
+    rotation: int = 0
+
+
 class Footprint(BaseModel):
     shape: str = "rectangle"  # rectangle / circle / polygon
     width: Optional[int] = None
     depth: Optional[int] = None
     radius: Optional[int] = None
+    shapeSpec: Optional[ShapeSpec] = None
 
 
 class Materials(BaseModel):
