@@ -1354,6 +1354,7 @@ public class FormaCraftNetworking {
                                                 : com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE;
                                         
                                         // 如果策略是 ADAPTIVE 或 FLATTEN，进行地坪平整
+                                        boolean b = llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null;
                                         if (!plannedBlocks.isEmpty()
                                                 && (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE ||
                                                     terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN)) {
@@ -1389,7 +1390,7 @@ public class FormaCraftNetworking {
                                             
                                                 // 选择填充材料
                                                 net.minecraft.block.BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
-                                                if (llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null) {
+                                                if (b) {
                                                     String mat = llmPlan.styleAttributes().floorMaterial().trim();
                                                     if (!mat.isEmpty()) {
                                                         String id = mat.startsWith("minecraft:") ? mat : "minecraft:" + mat;
@@ -1494,7 +1495,7 @@ public class FormaCraftNetworking {
                                             BlockPos center = new BlockPos((minX + maxX) / 2, planOrigin.getY(), (minZ + maxZ) / 2);
 
                                             TerrainFit.FootprintAnalysis analysis = TerrainFit.analyze(serverWorld, center, width, depth);
-                                            FoundationType foundationType = FoundationPlanner.chooseType(analysis.range(), blockHeight, spec != null ? spec.getExtra() : null);
+                                            FoundationType foundationType = FoundationPlanner.chooseType(analysis.range(), blockHeight, spec.getExtra());
                                             com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy strategy =
                                                     llmPlan.globalConstraints().terrainStrategy();
                                             if (strategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.TERRACE) {
@@ -1512,7 +1513,7 @@ public class FormaCraftNetworking {
                                             );
 
                                             BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
-                                            if (llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null) {
+                                            if (b) {
                                                 String mat = llmPlan.styleAttributes().floorMaterial().trim();
                                                 if (!mat.isEmpty()) {
                                                     String id = mat.startsWith("minecraft:") ? mat : "minecraft:" + mat;
