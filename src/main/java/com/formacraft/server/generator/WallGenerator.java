@@ -84,7 +84,7 @@ public class WallGenerator implements StructureGenerator {
         if (drape) {
             for (int i = 0; i < length; i++) {
                 BlockPos p = origin.offset(forward, i);
-                int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ());
+                int top = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, p.getX(), p.getZ());
                 int gy = top - 1;
                 ground[i] = gy;
                 baseY[i] = Math.max(origin.getY(), gy);

@@ -25,8 +25,8 @@ public class TerrainSampling {
         
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int z = min.getZ(); z <= max.getZ(); z++) {
-                // 使用 Heightmap 获取地表高度
-                int y = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
+                // 使用 Heightmap 获取地表高度（忽略树叶，避免把树冠当作地面）
+                int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
                 
                 // 如果 Heightmap 返回无效值，手动查找
                 int bottomY = world.getBottomY();

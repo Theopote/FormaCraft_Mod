@@ -49,7 +49,7 @@ public final class LinearPathSkeleton implements Skeleton<LinearPathPlan> {
             int y = origin.getY();
             if (followTerrain) {
                 BlockPos sample = origin.add(dx, 0, dz);
-                int top = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, sample.getX(), sample.getZ());
+                int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, sample.getX(), sample.getZ());
                 int gy = top - 1;
                 ground[i] = gy;
                 y = Math.max(y, gy);

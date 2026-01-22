@@ -49,7 +49,7 @@ public final class SpanSuspensionSkeleton implements Skeleton<SpanSuspensionPlan
         int baseY0 = origin.getY();
         if (followTerrain) {
             BlockPos mid = origin.add(facing.getOffsetX() * (span / 2), 0, facing.getOffsetZ() * (span / 2));
-            int top = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, mid.getX(), mid.getZ());
+            int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, mid.getX(), mid.getZ());
             baseY0 = Math.max(origin.getY(), top + 1);
         }
 
@@ -67,7 +67,7 @@ public final class SpanSuspensionSkeleton implements Skeleton<SpanSuspensionPlan
             int deckY = baseY0;
             if (followTerrain) {
                 BlockPos sample = origin.add(dx, 0, dz);
-                int top = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, sample.getX(), sample.getZ());
+                int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, sample.getX(), sample.getZ());
                 deckY = Math.max(baseY0, top + 1);
             }
             BlockPos center = new BlockPos(origin.getX() + dx, deckY, origin.getZ() + dz);

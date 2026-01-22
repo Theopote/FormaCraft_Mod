@@ -28,9 +28,9 @@ public class TerrainStrategySampler {
     public int sampleGroundY(World world, int x, int z) {
         if (world == null) return 64;
         
-        // 使用 Heightmap 获取最高非空气方块
+        // 使用 Heightmap 获取最高可行走方块（忽略树叶）
         BlockPos pos = new BlockPos(x, 0, z);
-        int topY = world.getTopY(Heightmap.Type.WORLD_SURFACE, pos);
+        int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, pos);
         
         // 向下找第一个非空气（作为备用）
         BlockPos.Mutable m = new BlockPos.Mutable(x, topY, z);
