@@ -1479,6 +1479,14 @@ USER REQUEST:
             
             You must embed ComponentQuery objects inside components[].features as:
             component_request:{"component_query":{...}}
+
+            Preferred (avoid JSON escaping issues): use object entries in features:
+            "features": [
+              { "component_request": { "component_query": { ... } } }
+            ]
+
+            If you use string form, you MUST escape quotes:
+            "component_request:{\"component_query\":{...}}"
             
             Example structure in LlmPlan:
             {
@@ -1489,7 +1497,7 @@ USER REQUEST:
                   "relative_position": { "x": 0, "y": 0, "z": 0 },
                   "dimensions": { "width": 2, "depth": 1, "height": 3 },
                   "features": [
-                    "component_request:{\"component_query\":{\"semantic\":{\"role\":\"door\",\"tags\":[\"wooden\",\"arched\"]},\"context\":{\"placement\":\"wall\",\"side\":\"exterior\",\"heightLevel\":\"ground\"},\"geometry\":{\"requiresOpening\":true,\"openingWidth\":2,\"openingHeight\":3,\"tolerance\":1,\"scalable\":true},\"style\":{\"styleProfile\":\"Medieval_Castle\"},\"usageHint\":{\"frequency\":\"primary\",\"visibility\":\"high\"}}}"
+                    { "component_request": { "component_query": { "semantic": { "role": "door", "tags": ["wooden", "arched"] }, "context": { "placement": "wall", "side": "exterior", "heightLevel": "ground" }, "geometry": { "requiresOpening": true, "openingWidth": 2, "openingHeight": 3, "tolerance": 1, "scalable": true }, "style": { "styleProfile": "Medieval_Castle" }, "usageHint": { "frequency": "primary", "visibility": "high" } } } }
                   ]
                 }
               ]

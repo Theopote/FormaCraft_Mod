@@ -32,6 +32,18 @@ public final class ClientComponentCatalogState {
                 return;
             }
             ComponentCatalog cat = JsonUtil.fromJson(json, ComponentCatalog.class);
+            
+            // 清理已删除的构件（文件不存在的条目）
+            // 这可以防止服务端响应覆盖本地删除操作
+            if (cat != null && cat.components != null) {
+                java.nio.file.Path globalDir = com.formacraft.common.component.ComponentStorage.getGlobalComponentDir();
+                cat.components.removeIf(e -> {
+                    if (e == null || e.id == null || e.id.isBlank()) return true;
+                    java.nio.file.Path componentFile = globalDir.resolve(e.id + ".json");
+                    return !java.nio.file.Files.exists(componentFile);
+                });
+            }
+            
             CATALOG.set(cat);
             lastSummary = buildSummary(cat);
         } catch (Throwable t) {

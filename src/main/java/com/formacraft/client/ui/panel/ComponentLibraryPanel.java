@@ -19,6 +19,7 @@ import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -274,8 +275,18 @@ public final class ComponentLibraryPanel extends BasePanel {
         // filter
         String q = (st.librarySearch == null) ? "" : st.librarySearch.trim().toLowerCase(Locale.ROOT);
         List<ComponentCatalog.Entry> filtered = new ArrayList<>();
+        Path globalDir = com.formacraft.common.component.ComponentStorage.getGlobalComponentDir();
         for (var e : cat.components) {
             if (e == null || e.id == null || e.id.isBlank()) continue;
+            
+            // 额外验证：确保构件文件确实存在（防止已删除的构件仍显示）
+            // 这可以处理 catalog 更新延迟的情况
+            Path componentFile = globalDir.resolve(e.id + ".json");
+            if (!java.nio.file.Files.exists(componentFile)) {
+                // 文件不存在，跳过这个条目（可能已被删除但 catalog 还没更新）
+                continue;
+            }
+            
             if (st.libraryFilterCategory != null && e.category != st.libraryFilterCategory) continue;
             if (q.isEmpty()) {
                 filtered.add(e);

@@ -126,6 +126,25 @@ public class FormaCraftNetworking {
         return "当前 LLM：" + provider + "/" + model + base;
     }
 
+    private static boolean wantsStiltFoundation(FormaRequest req) {
+        if (req == null) return false;
+        String text = req.getUserMessage();
+        if (text == null || text.isBlank()) {
+            text = req.getRequestText();
+        }
+        if (text == null || text.isBlank()) return false;
+        String s = text.toLowerCase(Locale.ROOT);
+        String[] keywords = new String[] {
+                "floating", "cliffside", "cliff", "suspended", "stilt", "stilts",
+                "pillar", "pillars", "hover", "airborne", "sky",
+                "悬空", "架空", "浮空", "凌空", "吊脚", "高架", "悬崖", "峭壁", "崖边"
+        };
+        for (String k : keywords) {
+            if (s.contains(k)) return true;
+        }
+        return false;
+    }
+
     private static final long STATUS_HEARTBEAT_SEC = 15;
 
     /**
@@ -1319,7 +1338,12 @@ public class FormaCraftNetworking {
                                             String blockId = patch.targetBlock();
                                             if (blockId != null && !blockId.isEmpty()) {
                                                 try {
-                                                    net.minecraft.util.Identifier blockIdentifier = net.minecraft.util.Identifier.tryParse(blockId);
+                                                    String baseId = blockId;
+                                                    int propsStart = baseId.indexOf('[');
+                                                    if (propsStart > 0) {
+                                                        baseId = baseId.substring(0, propsStart);
+                                                    }
+                                                    net.minecraft.util.Identifier blockIdentifier = net.minecraft.util.Identifier.tryParse(baseId);
                                                     if (blockIdentifier == null) {
                                                         invalidBlockCount++;
                                                         if (invalidBlockCount <= 5) {
@@ -1347,6 +1371,7 @@ public class FormaCraftNetworking {
 
                                         // ========== 地形平整：在生成建筑之后平整地坪 ==========
                                         boolean terrainPadApplied = false;
+                                        boolean wantsStiltFoundation = wantsStiltFoundation(req);
                                         // 获取地形策略
                                         com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy terrainStrategy = 
                                                 (llmPlan.globalConstraints() != null && llmPlan.globalConstraints().terrainStrategy() != null)
@@ -1357,7 +1382,8 @@ public class FormaCraftNetworking {
                                         boolean b = llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null;
                                         if (!plannedBlocks.isEmpty()
                                                 && (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE ||
-                                                    terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN)) {
+                                                    terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN)
+                                                && !wantsStiltFoundation) {
                                             Bounds blockBounds = computePlannedBlockBounds(plannedBlocks);
                                             Bounds componentBounds = computeComponentBounds(llmPlan, planOrigin);
                                             Bounds padBounds = chooseTerrainPadBounds(componentBounds, blockBounds);
@@ -1419,16 +1445,19 @@ public class FormaCraftNetworking {
                                                     List<PlannedBlock> out = new ArrayList<>();
                                                     // 计算建筑高度范围，确保清理整个建筑占用空间
                                                     int buildingHeight = Math.max(1, finalMaxY - finalMinY + 1);
-                                                    int clearHeight = buildingHeight + 8; // 清理高度 = 建筑高度 + 缓冲
+                                                    int padDepth = terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN ? 4 : 1;
+                                                    int clearHeight = terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN
+                                                            ? buildingHeight + 8
+                                                            : Math.min(6, buildingHeight + 2);
 
                                                     if (terrainStrategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN) {
                                                         // FLATTEN 策略：使用 balancedPad 进行较大范围平整
                                                         out.addAll(TerrainFit.balancedPad(
-                                                                serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, 4, clearHeight, true, true));
+                                                                serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, padDepth, clearHeight, true, true));
                                                     } else if (analysis.range() > 1) {
                                                         // ADAPTIVE 策略：如果地形起伏较大（range > 1），使用 adaptivePad 轻微平整
                                                         out.addAll(TerrainFit.adaptivePad(
-                                                                serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, 4, clearHeight, true, true));
+                                                                serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, padDepth, clearHeight, true, true));
                                                     }
 
                                                     // 额外清理：确保建筑占用空间内的所有地形方块都被清理
@@ -1498,7 +1527,9 @@ public class FormaCraftNetworking {
                                             FoundationType foundationType = FoundationPlanner.chooseType(analysis.range(), blockHeight, spec.getExtra());
                                             com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy strategy =
                                                     llmPlan.globalConstraints().terrainStrategy();
-                                            if (strategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.TERRACE) {
+                                            if (wantsStiltFoundation) {
+                                                foundationType = FoundationType.STILT;
+                                            } else if (strategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.TERRACE) {
                                                 foundationType = FoundationType.STEPPED;
                                             } else if (strategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN) {
                                                 foundationType = FoundationType.FLAT_PAD;
@@ -1511,6 +1542,12 @@ public class FormaCraftNetworking {
                                                     2,
                                                     6
                                             );
+                                            if (!wantsStiltFoundation
+                                                    && strategy == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE
+                                                    && (fd.type() == FoundationType.FLAT_PAD || fd.type() == FoundationType.STEPPED)
+                                                    && fd.padDepth() > 1) {
+                                                fd = new FoundationPlanner.Decision(fd.type(), 1, fd.clearHeight(), fd.stilt());
+                                            }
 
                                             BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
                                             if (b) {
@@ -1532,6 +1569,7 @@ public class FormaCraftNetworking {
                                             final int finalMaxY = Math.max(maxY, analysis.maxY());
                                             final int finalBaseY = baseY;
                                             final BlockState finalFillMaterial = fillMaterial;
+                                            final FoundationPlanner.Decision finalFd = fd;
                                             
                                             TerrainAdaptationEngine.Bounds bounds = new TerrainAdaptationEngine.Bounds(
                                                     new BlockPos(minX, finalMinY, minZ),
@@ -1540,23 +1578,23 @@ public class FormaCraftNetworking {
                                             );
 
                                             boolean skipPadFoundation = terrainPadApplied
-                                                    && (fd.type() == FoundationType.FLAT_PAD || fd.type() == FoundationType.STEPPED);
+                                                    && (finalFd.type() == FoundationType.FLAT_PAD || finalFd.type() == FoundationType.STEPPED);
                                             List<PlannedBlock> terrainPrep = skipPadFoundation ? List.of()
-                                                    : BuildConstraintContext.withRequest(req, () -> switch (fd.type()) {
+                                                    : BuildConstraintContext.withRequest(req, () -> switch (finalFd.type()) {
                                                         case STILT -> TerrainAdaptationEngine.anchorPillars(
                                                                 serverWorld,
                                                                 bounds,
                                                                 finalBaseY,
                                                                 finalFillMaterial,
-                                                                Math.max(6, fd.clearHeight() + 4),
+                                                                Math.max(6, finalFd.clearHeight() + 4),
                                                                 true,
                                                                 true
                                                         );
                                                         case EMBEDDED -> TerrainAdaptationEngine.carve(
                                                                 serverWorld,
                                                                 bounds,
-                                                                finalBaseY - Math.max(0, fd.padDepth()),
-                                                                fd.clearHeight()
+                                                                finalBaseY - Math.max(0, finalFd.padDepth()),
+                                                                finalFd.clearHeight()
                                                         );
                                                         case STEPPED, FLAT_PAD -> TerrainFit.balancedPad(
                                                                 serverWorld,
@@ -1565,8 +1603,8 @@ public class FormaCraftNetworking {
                                                                 depth,
                                                                 finalBaseY,
                                                                 finalFillMaterial,
-                                                                fd.padDepth(),
-                                                                fd.clearHeight(),
+                                                                finalFd.padDepth(),
+                                                                finalFd.clearHeight(),
                                                                 true,
                                                                 true
                                                         );
