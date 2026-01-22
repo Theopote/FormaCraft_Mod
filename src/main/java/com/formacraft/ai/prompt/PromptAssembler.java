@@ -1486,7 +1486,7 @@ USER REQUEST:
             ]
 
             If you use string form, you MUST escape quotes:
-            "component_request:{\"component_query\":{...}}"
+            "component_request:{"component_query":{...}}"
             
             Example structure in LlmPlan:
             {
