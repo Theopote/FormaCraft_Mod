@@ -126,7 +126,8 @@ public final class ComponentTool implements FormacraftTool {
 
         BlockPos pos = hit.getBlockPos();
         if (!state.useLibrary) {
-            if (!isInsideSelection(pos)) return true;
+            if (state.pickingAnchor && !isAnchorAllowed(pos)) return true;
+            if (state.pickingSocket && !isInSelectionBlocks(pos)) return true;
         }
 
         if (state.pickingAnchor) {
@@ -135,12 +136,12 @@ public final class ComponentTool implements FormacraftTool {
         } else if (state.pickingSocket) {
             BlockPos anchor = state.anchorWorld;
             if (anchor == null) {
-                HudToast.show("请先选择 Anchor（再点选 Socket 原点）", true);
+                HudToast.show("请先选择 Anchor（再点选连接位原点）", true);
                 return true;
             }
             state.socketOriginLocal = new BlockPos(pos.getX() - anchor.getX(), pos.getY() - anchor.getY(), pos.getZ() - anchor.getZ());
             state.pickingSocket = false;
-            HudToast.show("已设置 Socket 原点（local=" + state.socketOriginLocal.getX() + "," + state.socketOriginLocal.getY() + "," + state.socketOriginLocal.getZ() + "）");
+            HudToast.show("已设置连接位原点（local=" + state.socketOriginLocal.getX() + "," + state.socketOriginLocal.getY() + "," + state.socketOriginLocal.getZ() + "）");
             if (ComponentSocketPreviewState.isActive()) {
                 showSocketPreview(true);
             }
@@ -205,9 +206,9 @@ public final class ComponentTool implements FormacraftTool {
         Direction f = lastHoverFace;
         if (pr == null || p == null || f == null) return null;
         String s = switch (pr.status) {
-            case VALID -> "✅ 合法";
-            case WARN -> "🟡 可能需要条件";
-            case INVALID -> "❌ 非法";
+            case VALID -> "OK 合法";
+            case WARN -> "WARN 可能需要条件";
+            case INVALID -> "ERR 非法";
         };
         String why = (pr.reason != null && !pr.reason.isBlank()) ? ("： " + pr.reason) : "";
         return "Hover@" + p.getX() + "," + p.getY() + "," + p.getZ() + " face=" + f.name() + "  " + s + why;
@@ -653,7 +654,7 @@ public final class ComponentTool implements FormacraftTool {
 
     public void addSocket() {
         if (state.socketOriginLocal == null) {
-            HudToast.show("请先点选 Socket 原点", true);
+            HudToast.show("请先点选连接位原点", true);
             return;
         }
         state.socketCount++;
@@ -683,29 +684,29 @@ public final class ComponentTool implements FormacraftTool {
         sockets.add(s);
         int w = s.size.min.length > 0 ? s.size.min[0] : 0;
         int h = s.size.min.length > 1 ? s.size.min[1] : 0;
-        HudToast.show("已添加 Socket：" + id + " (" + s.context + ") " + w + "x" + h);
+        HudToast.show("已添加连接位：" + id + " (" + s.context + ") " + w + "x" + h);
     }
 
     public void toggleSocketPreview(net.minecraft.client.MinecraftClient client) {
         if (ComponentSocketPreviewState.isActive()) {
             ComponentSocketPreviewState.clear();
-            HudToast.show("已关闭 Socket 预览");
+            HudToast.show("已关闭连接位预览");
             return;
         }
         if (client == null || client.world == null) {
-            HudToast.show("Socket 预览失败：世界未就绪", true);
+            HudToast.show("连接位预览失败：世界未就绪", true);
             return;
         }
         if (state.anchorWorld == null) {
-            HudToast.show("Socket 预览失败：请先选择 Anchor", true);
+            HudToast.show("连接位预览失败：请先选择 Anchor", true);
             return;
         }
         if (!SelectionTool.INSTANCE.hasSelection()) {
-            HudToast.show("Socket 预览失败：请先完成选区", true);
+            HudToast.show("连接位预览失败：请先完成选区", true);
             return;
         }
         if (state.socketOriginLocal == null) {
-            HudToast.show("Socket 预览失败：请先点选 Socket 原点", true);
+            HudToast.show("连接位预览失败：请先点选连接位原点", true);
             return;
         }
         showSocketPreview(false);
@@ -724,7 +725,7 @@ public final class ComponentTool implements FormacraftTool {
                 currentTransform()
         );
         if (!silent) {
-            HudToast.show("已开启 Socket 预览（" + (state.socketContext != null ? state.socketContext.name() : "SOCKET") + "）");
+            HudToast.show("已开启连接位预览（" + (state.socketContext != null ? state.socketContext.name() : "连接位") + "）");
         }
     }
 
@@ -752,7 +753,7 @@ public final class ComponentTool implements FormacraftTool {
     public void clearSockets() {
         sockets.clear();
         state.socketCount = 0;
-        HudToast.show("已清空 Sockets");
+        HudToast.show("已清空连接位");
     }
 
     public void clearAnchor() {
@@ -762,14 +763,56 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     private boolean isAnchorValid() {
-        if (state.anchorWorld == null) return false;
-        if (state.useLibrary) return true;
-        return isInsideSelection(state.anchorWorld);
+        return isAnchorAllowed(state.anchorWorld);
     }
 
     public boolean canSave() {
         // v1：强制显式 Anchor（避免后续旋转/放置语义混乱）
-        return SelectionTool.INSTANCE.hasSelection() && isInsideSelection(state.anchorWorld);
+        return SelectionTool.INSTANCE.hasSelection() && isAnchorAllowed(state.anchorWorld);
+    }
+
+    private boolean isAnchorAllowed(BlockPos pos) {
+        if (pos == null) return false;
+        if (state.useLibrary) return true;
+        if (!SelectionTool.INSTANCE.hasSelection()) return false;
+
+        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+            if (state.explicitSelectedBlocks.contains(pos)) return true;
+            if (!state.allowAnchorOutsideSelection) return false;
+            return isAnchorAdjacentToExplicitSelection(pos);
+        }
+
+        if (isInsideSelection(pos)) return true;
+        if (!state.allowAnchorOutsideSelection) return false;
+        return isInsideExpandedSelection(pos, 1);
+    }
+
+    private boolean isInSelectionBlocks(BlockPos pos) {
+        if (pos == null) return false;
+        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+            return state.explicitSelectedBlocks.contains(pos);
+        }
+        return isInsideSelection(pos);
+    }
+
+    private boolean isAnchorAdjacentToExplicitSelection(BlockPos pos) {
+        if (pos == null || state.explicitSelectedBlocks == null || state.explicitSelectedBlocks.isEmpty()) return false;
+        for (Direction d : Direction.values()) {
+            if (state.explicitSelectedBlocks.contains(pos.offset(d))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isInsideExpandedSelection(BlockPos pos, int pad) {
+        if (pos == null) return false;
+        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) return false;
+        return pos.getX() >= (min.getX() - pad) && pos.getX() <= (max.getX() + pad)
+                && pos.getY() >= (min.getY() - pad) && pos.getY() <= (max.getY() + pad)
+                && pos.getZ() >= (min.getZ() - pad) && pos.getZ() <= (max.getZ() + pad);
     }
 
     public void markSavePending(String displayName) {
@@ -1105,15 +1148,7 @@ public final class ComponentTool implements FormacraftTool {
         // v1：Anchor 必须显式选择
         BlockPos anchor = state.anchorWorld;
         if (anchor == null) return null;
-        
-        // 检查锚点是否在有效选区内
-        boolean anchorInSelection;
-        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
-            anchorInSelection = state.explicitSelectedBlocks.contains(anchor);
-        } else {
-            anchorInSelection = isInsideSelection(anchor);
-        }
-        if (!anchorInSelection) return null;
+        if (!isAnchorAllowed(anchor)) return null;
 
         // 计算边界（用于 size 计算）
         BlockPos min, max;
@@ -1171,6 +1206,7 @@ public final class ComponentTool implements FormacraftTool {
         }
         // v1：自动生成语义放置规格（Attachment / Context / FacingPolicy）
         def.placementSpec = defaultPlacementSpec(def.category, def.tags);
+        applyPlacementOverrides(def.placementSpec);
 
         def.blocks = new ArrayList<>();
         int minDy = Integer.MAX_VALUE;
@@ -1223,6 +1259,26 @@ public final class ComponentTool implements FormacraftTool {
         }
 
         return JsonUtil.toJson(def);
+    }
+
+    private void applyPlacementOverrides(ComponentPlacementSpec spec) {
+        if (spec == null) return;
+
+        if (state.attachmentMode != null) {
+            spec.attachment = state.attachmentMode;
+        }
+        spec.hasInteriorExterior = state.hasInteriorExterior;
+
+        if (spec.hasInteriorExterior && spec.facingPolicy == FacingPolicy.NONE) {
+            switch (spec.attachment) {
+                case WALL_OPENING, WALL_SURFACE, ROOF_SURFACE, ROOF_EDGE, ROOF_RIDGE, EDGE, CORNER ->
+                        spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
+                default -> {
+                }
+            }
+        }
+
+        spec.inferAllowedSockets();
     }
 
     private static ComponentPlacementSpec defaultPlacementSpec(ComponentCategory category, java.util.List<String> tags) {

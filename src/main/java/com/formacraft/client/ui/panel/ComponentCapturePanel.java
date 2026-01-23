@@ -3,6 +3,7 @@ package com.formacraft.client.ui.panel;
 import com.formacraft.client.component.ComponentThumbnailGenerator;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
+import com.formacraft.client.tool.ToolRenderUtil;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.ui.widget.HudTextInput;
@@ -16,7 +17,9 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -27,7 +30,7 @@ import java.io.ByteArrayOutputStream;
  * <p>
  * 职责：
  * - 显示当前选区预览
- * - 配置构件的所有参数（基础信息、锚点朝向、语义标注、Socket）
+ * - 配置构件的所有参数（基础信息、锚点朝向、语义标注、连接位）
  * - 智能分析构件特征
  * - 保存构件到库
  * <p>
@@ -54,6 +57,9 @@ public class ComponentCapturePanel extends BasePanel {
     private ButtonWidget categoryButton;
     private ButtonWidget pickAnchorButton;
     private ButtonWidget clearAnchorButton;
+    private ButtonWidget hostFaceButton;
+    private ButtonWidget anchorOutsideButton;
+    private ButtonWidget autoAnchorButton;
     private ButtonWidget facingButton;
     private ButtonWidget mirrorButton;
 
@@ -63,7 +69,7 @@ public class ComponentCapturePanel extends BasePanel {
     private ButtonWidget semanticStyleButton;
     private ButtonWidget semanticPartButton;
 
-    // Socket 配置按钮
+    // 连接位配置按钮
     private ButtonWidget socketContextButton;
     private ButtonWidget socketPickOriginButton;
     private ButtonWidget socketFacingButton;
@@ -148,7 +154,7 @@ public class ComponentCapturePanel extends BasePanel {
         tagsInput.setPlaceholder("输入标签，用逗号分隔（如：wood, modern）");
         
         socketIdInput.setMaxLength(64);
-        socketIdInput.setPlaceholder("输入 Socket ID（如：door_frame）");
+        socketIdInput.setPlaceholder("输入连接位 ID（如：door_frame）");
     }
 
     private void ensureWidgets() {
@@ -200,6 +206,46 @@ public class ComponentCapturePanel extends BasePanel {
                         
                         清除后需要重新设置锚点
                         才能保存构件""")))
+                .build();
+
+        hostFaceButton = ButtonWidget.builder(Text.literal("选择宿主面"), b -> startMarkingHostFace())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        选择宿主面（外墙表面）
+                        ━━━━━━━━━━━━
+                        宿主面是构件与墙体对齐的参考面
+                        
+                        使用方法：
+                        1. 点击此按钮
+                        2. 在世界中点击外墙表面
+                        3. 系统自动记录外法线
+                        
+                        用于：窗、门、雨棚、阳台等需要对齐墙面的构件""")))
+                .build();
+
+        anchorOutsideButton = ButtonWidget.builder(Text.literal("外侧锚点：关"), b -> {
+                    st.allowAnchorOutsideSelection = !st.allowAnchorOutsideSelection;
+                })
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        允许外侧锚点（空气宿主面）
+                        ━━━━━━━━━━━━
+                        开启后可将锚点放在选区外侧的空气方块
+                        
+                        使用场景：
+                        ? 完全外凸的窗/装饰
+                        ? 需要以外墙面为零面的构件""")))
+                .build();
+
+        autoAnchorButton = ButtonWidget.builder(Text.literal("自动锚点（底部中心）"), b -> setAutoAnchor())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        自动设置锚点
+                        ━━━━━━━━━━━━
+                        将锚点放置在构件底部中心
+                        
+                        对偶数宽度构件更友好
+                        适合门窗/柱子等构件""")))
                 .build();
 
         facingButton = ButtonWidget.builder(Text.literal("朝向：SOUTH"), b -> cycleFacing())
@@ -296,13 +342,13 @@ public class ComponentCapturePanel extends BasePanel {
                         用于智能材质替换""")))
                 .build();
 
-        // Socket 配置按钮
-        socketContextButton = ButtonWidget.builder(Text.literal("Context: WALL"), b -> ComponentTool.INSTANCE.cycleSocketType())
+        // 连接位配置按钮
+        socketContextButton = ButtonWidget.builder(Text.literal("连接位上下文: WALL"), b -> ComponentTool.INSTANCE.cycleSocketType())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        Socket 上下文（高级）
+                        连接位上下文（高级）
                         ━━━━━━━━━━━━
-                        定义 Socket 的附着类型
+                        定义连接位的附着类型
                         
                         类型：
                         • WALL：墙面（门窗）
@@ -316,14 +362,14 @@ public class ComponentCapturePanel extends BasePanel {
         socketPickOriginButton = ButtonWidget.builder(Text.literal("点选原点"), b -> ComponentTool.INSTANCE.startPickSocketOrigin())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        设置 Socket 原点（高级）
+                        设置连接位原点（高级）
                         ━━━━━━━━━━━━
-                        Socket 是构件的嵌入位置
+                        连接位是构件的嵌入位置
                         
                         使用方法：
                         1. 点击此按钮
                         2. 在世界中右键点击
-                        3. 设置 Socket 的参考点
+                        3. 设置连接位的参考点
                         
                         例如：门框的底部中心""")))
                 .build();
@@ -331,26 +377,26 @@ public class ComponentCapturePanel extends BasePanel {
         socketFacingButton = ButtonWidget.builder(Text.literal("朝向: SOUTH"), b -> ComponentTool.INSTANCE.cycleSocketFacing())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        Socket 朝向（高级）
+                        连接位朝向（高级）
                         ━━━━━━━━━━━━
-                        定义 Socket 的放置方向
+                        定义连接位的放置方向
                         
                         确保：
                         • 门窗朝向正确
                         • 附着面对齐
-                        • 多个 Socket 协调一致
+                        • 多个连接位协调一致
                         
                         点击循环切换方向""")))
                 .build();
 
-        socketAddButton = ButtonWidget.builder(Text.literal("添加 Socket"), b -> ComponentTool.INSTANCE.addSocket())
+        socketAddButton = ButtonWidget.builder(Text.literal("添加连接位"), b -> ComponentTool.INSTANCE.addSocket())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        添加 Socket（高级）
+                        添加连接位（高级）
                         ━━━━━━━━━━━━
-                        将当前配置的 Socket 添加到构件
+                        将当前配置的连接位添加到构件
                         
-                        一个构件可以有多个 Socket
+                        一个构件可以有多个连接位
                         例如：墙体可以有多个门窗位置
                         
                         添加后在列表中显示""")))
@@ -359,22 +405,22 @@ public class ComponentCapturePanel extends BasePanel {
         socketPreviewButton = ButtonWidget.builder(Text.literal("预览"), b -> ComponentTool.INSTANCE.toggleSocketPreview(client))
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        预览 Socket（高级）
+                        预览连接位（高级）
                         ━━━━━━━━━━━━
-                        在世界中显示 Socket 的：
+                        在世界中显示连接位的：
                         • 位置标记
                         • 朝向箭头
                         • 大小区域
                         
-                        帮助验证 Socket 配置正确""")))
+                        帮助验证连接位配置正确""")))
                 .build();
 
-        socketClearButton = ButtonWidget.builder(Text.literal("清空 Sockets"), b -> ComponentTool.INSTANCE.clearSockets())
+        socketClearButton = ButtonWidget.builder(Text.literal("清空连接位"), b -> ComponentTool.INSTANCE.clearSockets())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        清空所有 Socket（高级）
+                        清空所有连接位（高级）
                         ━━━━━━━━━━━━
-                        移除所有已添加的 Socket
+                        移除所有已添加的连接位
                         
                         注意：此操作不可撤销
                         清空后需要重新配置""")))
@@ -413,10 +459,10 @@ public class ComponentCapturePanel extends BasePanel {
                         注意：只修复标记为"可自动修复"的问题""")))
                 .build();
 
-        autoDetectSocketsButton = ButtonWidget.builder(Text.literal("🔍 自动检测"), b -> autoDetectSockets())
+        autoDetectSocketsButton = ButtonWidget.builder(Text.literal("自动检测"), b -> autoDetectSockets())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        自动检测 Socket（高级）
+                        自动检测连接位（高级）
                         ━━━━━━━━━━━━
                         智能识别构件中的嵌入位置
                         
@@ -426,7 +472,7 @@ public class ComponentCapturePanel extends BasePanel {
                         • 栏杆连接点
                         • 装饰附着点
                         
-                        自动创建 Socket 列表""")))
+                        自动创建连接位列表""")))
                 .build();
 
         // 底部按钮
@@ -456,7 +502,7 @@ public class ComponentCapturePanel extends BasePanel {
                         • 锚点和朝向
                         • 分类和标签
                         • 缩略图预览
-                        • Socket 配置（如果有）
+                        • 连接位配置（如果有）
                         
                         保存后自动跳转到构件库""")))
                 .build();
@@ -667,6 +713,7 @@ public class ComponentCapturePanel extends BasePanel {
             com.formacraft.common.component.placement.AttachmentType.values();
         int index = attachmentMode.ordinal();
         attachmentMode = values[(index + 1) % values.length];
+        syncPlacementHintsToState();
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换附着模式: {}", attachmentMode);
         }
@@ -677,9 +724,22 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void cycleDirectionality() {
         directionalityMode = directionalityMode.next();
+        syncPlacementHintsToState();
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换方向性: {}", directionalityMode.getDisplayName());
         }
+    }
+
+    /**
+     * 同步 UI 的附着/方向性提示到 ComponentToolState
+     */
+    private void syncPlacementHintsToState() {
+        var st = ComponentTool.INSTANCE.getState();
+        st.attachmentMode = attachmentMode;
+        st.hasInteriorExterior = directionalityMode == DirectionalityMode.INSIDE_OUTSIDE
+                || directionalityMode == DirectionalityMode.BOTH;
+        st.hasBottomTop = directionalityMode == DirectionalityMode.BOTTOM_TOP
+                || directionalityMode == DirectionalityMode.BOTH;
     }
     
     /**
@@ -721,11 +781,23 @@ public class ComponentCapturePanel extends BasePanel {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入顶端标记模式");
         }
     }
+
+    /**
+     * 开始标记宿主面
+     */
+    private void startMarkingHostFace() {
+        markingMode = DirectionMarkingMode.MARKING_HOST_FACE;
+        if (DEBUG_CAPTURE) {
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入宿主面标记模式");
+        }
+    }
     
     /**
      * 处理方向标记（在世界点击时调用）
      */
-    private void handleDirectionMarking(net.minecraft.util.math.BlockPos pos) {
+    private void handleDirectionMarking(BlockHitResult hit) {
+        if (hit == null) return;
+        BlockPos pos = hit.getBlockPos();
         switch (markingMode) {
             case MARKING_INSIDE:
                 insideMark = pos.toImmutable();
@@ -733,6 +805,7 @@ public class ComponentCapturePanel extends BasePanel {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 内侧标记: {}", insideMark);
                 }
                 markingMode = DirectionMarkingMode.NONE;
+                applyFacingFromMarks();
                 break;
                 
             case MARKING_OUTSIDE:
@@ -741,6 +814,7 @@ public class ComponentCapturePanel extends BasePanel {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 外侧标记: {}", outsideMark);
                 }
                 markingMode = DirectionMarkingMode.NONE;
+                applyFacingFromMarks();
                 break;
                 
             case MARKING_BOTTOM:
@@ -756,6 +830,11 @@ public class ComponentCapturePanel extends BasePanel {
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 顶端标记: {}", topMark);
                 }
+                markingMode = DirectionMarkingMode.NONE;
+                break;
+
+            case MARKING_HOST_FACE:
+                setHostFace(hit);
                 markingMode = DirectionMarkingMode.NONE;
                 break;
                 
@@ -921,6 +1000,7 @@ public class ComponentCapturePanel extends BasePanel {
         
         // 获取状态（所有阶段都需要）
         var st = ComponentTool.INSTANCE.getState();
+        syncPlacementHintsToState();
         
         // ============ 阶段 2：锚点与朝向 ============
         boolean phase2Collapsed = phaseCollapsed[1];
@@ -961,6 +1041,35 @@ public class ComponentCapturePanel extends BasePanel {
             clearAnchorButton.visible = true;
             clearAnchorButton.active = st.anchorWorld != null || st.pickingAnchor;
             clearAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            String hostFaceText = (st.hostFaceBlock != null && st.hostFaceNormal != null)
+                    ? ("宿主面: (" + st.hostFaceBlock.getX() + ", " + st.hostFaceBlock.getY() + ", " + st.hostFaceBlock.getZ() + ") " + st.hostFaceNormal.name())
+                    : "宿主面: (未设置)";
+            y = drawWrappedText(ctx, Text.literal(hostFaceText), x, y, w,
+                    st.hostFaceNormal != null ? 0xFF66CCFF : 0xFF888888);
+            y += 2;
+
+            hostFaceButton.setMessage(Text.literal(st.hostFaceNormal != null ? "宿主面：重选" : "选择宿主面"));
+            hostFaceButton.setPosition(x, y);
+            hostFaceButton.setWidth(half);
+            hostFaceButton.visible = true;
+            hostFaceButton.active = hasValidSelection();
+            hostFaceButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+
+            anchorOutsideButton.setMessage(Text.literal(st.allowAnchorOutsideSelection ? "外侧锚点：开" : "外侧锚点：关"));
+            anchorOutsideButton.setPosition(x + half + 4, y);
+            anchorOutsideButton.setWidth(w - half - 4);
+            anchorOutsideButton.visible = true;
+            anchorOutsideButton.active = true;
+            anchorOutsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+            y += LABEL_OFFSET;
+
+            autoAnchorButton.setPosition(x, y);
+            autoAnchorButton.setWidth(w);
+            autoAnchorButton.visible = true;
+            autoAnchorButton.active = hasValidSelection();
+            autoAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
 
             facingButton.setMessage(Text.literal("朝向：" + st.facing.name()));
@@ -1206,8 +1315,8 @@ public class ComponentCapturePanel extends BasePanel {
         y += 2;
         
         if (!phase4Collapsed) {
-            // Socket 配置
-            y = drawWrappedText(ctx, Text.literal("🔌 Socket 配置"), x, y, w, 0xFFFFFFFF);
+            // 连接位配置
+            y = drawWrappedText(ctx, Text.literal("连接位配置"), x, y, w, 0xFFFFFFFF);
             y += 2;
             
             String so = st.socketOriginLocal != null
@@ -1224,7 +1333,7 @@ public class ComponentCapturePanel extends BasePanel {
             autoDetectSocketsButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
 
-            socketContextButton.setMessage(Text.literal("Context: " + (st.socketContext != null ? st.socketContext.name() : "WALL")));
+            socketContextButton.setMessage(Text.literal("连接位上下文: " + (st.socketContext != null ? st.socketContext.name() : "WALL")));
             socketContextButton.setPosition(x, y);
             socketContextButton.setWidth(w);
             socketContextButton.visible = true;
@@ -1232,8 +1341,8 @@ public class ComponentCapturePanel extends BasePanel {
             socketContextButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
 
-            // Socket ID 输入
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal("Socket ID:"), x, y, 0xFFAAAAAA);
+            // 连接位 ID 输入
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal("连接位 ID:"), x, y, 0xFFAAAAAA);
             int inputY = y + LABEL_OFFSET - 2;
             socketIdInput.render(ctx, x, inputY, w, 14);
             socketIdInputX = x; socketIdInputY = inputY; socketIdInputW = w; socketIdInputH = 14;
@@ -1498,7 +1607,7 @@ public class ComponentCapturePanel extends BasePanel {
             saveButton.setTooltip(Tooltip.of(Text.literal("构件有 " + warnCount + " 个风险项，建议先修复但可以保存")));
         } else {
             saveButton.setMessage(Text.literal("💾 保存构件"));
-            saveButton.setTooltip(Tooltip.of(Text.literal("保存构件到库\n━━━━━━━━━━━━\n将构件保存到全局构件库\n\n保存内容：\n• 方块数据和结构\n• 锚点和朝向\n• 分类和标签\n• 缩略图预览\n• Socket 配置（如果有）\n\n保存后自动跳转到构件库")));
+            saveButton.setTooltip(Tooltip.of(Text.literal("保存构件到库\n━━━━━━━━━━━━\n将构件保存到全局构件库\n\n保存内容：\n• 方块数据和结构\n• 锚点和朝向\n• 分类和标签\n• 缩略图预览\n• 连接位配置（如果有）\n\n保存后自动跳转到构件库")));
         }
         
         saveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
@@ -1729,6 +1838,7 @@ public class ComponentCapturePanel extends BasePanel {
                 // GENERIC 保持当前设置
                 break;
         }
+        syncPlacementHintsToState();
     }
     
     /**
@@ -1819,10 +1929,10 @@ public class ComponentCapturePanel extends BasePanel {
     }
 
     private void autoDetectSockets() {
-        HudToast.show("正在自动检测 Socket...");
+        HudToast.show("正在自动检测连接位...");
         // TODO: 调用自动检测逻辑
         // ComponentTool.INSTANCE.autoDetectSockets();
-        HudToast.show("Socket 自动检测完成！（功能待实现）");
+        HudToast.show("连接位自动检测完成！（功能待实现）");
     }
     
     /**
@@ -1870,7 +1980,7 @@ public class ComponentCapturePanel extends BasePanel {
                     com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] {}", fix);
                 }
             }
-            HudToast.show("✓ " + message);
+            HudToast.show("完成: " + message);
             
         } catch (Throwable t) {
             com.formacraft.FormacraftMod.LOGGER.error("[ComponentCapturePanel] 自动修复失败", t);
@@ -1930,22 +2040,9 @@ public class ComponentCapturePanel extends BasePanel {
         if (st.anchorWorld == null) {
             return false;
         }
-        // 检查锚点是否在有效选区内
+        // 检查锚点是否在有效选区内（或允许外侧锚点）
         BlockPos anchor = st.anchorWorld;
-        if (!selectedBlocks.isEmpty()) {
-            // 点选模式：检查锚点是否在显式方块集合中
-            return selectedBlocks.contains(anchor);
-        } else {
-            // 框选模式：检查锚点是否在 AABB 内
-            BlockPos min = SelectionTool.INSTANCE.getMin();
-            BlockPos max = SelectionTool.INSTANCE.getMax();
-            if (min != null && max != null) {
-                return anchor.getX() >= min.getX() && anchor.getX() <= max.getX() &&
-                        anchor.getY() >= min.getY() && anchor.getY() <= max.getY() &&
-                        anchor.getZ() >= min.getZ() && anchor.getZ() <= max.getZ();
-            }
-        }
-        return false;
+        return isAnchorLocationAllowed(anchor);
     }
 
     private void saveComponent() {
@@ -2085,6 +2182,9 @@ public class ComponentCapturePanel extends BasePanel {
         if (categoryButton != null && categoryButton.visible && categoryButton.mouseClicked(click, false)) return true;
         if (pickAnchorButton != null && pickAnchorButton.visible && pickAnchorButton.mouseClicked(click, false)) return true;
         if (clearAnchorButton != null && clearAnchorButton.visible && clearAnchorButton.mouseClicked(click, false)) return true;
+        if (hostFaceButton != null && hostFaceButton.visible && hostFaceButton.mouseClicked(click, false)) return true;
+        if (anchorOutsideButton != null && anchorOutsideButton.visible && anchorOutsideButton.mouseClicked(click, false)) return true;
+        if (autoAnchorButton != null && autoAnchorButton.visible && autoAnchorButton.mouseClicked(click, false)) return true;
         if (facingButton != null && facingButton.visible && facingButton.mouseClicked(click, false)) return true;
         if (mirrorButton != null && mirrorButton.visible && mirrorButton.mouseClicked(click, false)) return true;
         
@@ -2239,6 +2339,18 @@ public class ComponentCapturePanel extends BasePanel {
                             "点击「标记内侧」和「标记外侧」按钮在世界中标记"));
                     }
                 }
+
+                // 检查宿主面（墙面类构件建议设置）
+                if ((attachmentMode == com.formacraft.common.component.placement.AttachmentType.WALL_OPENING
+                        || attachmentMode == com.formacraft.common.component.placement.AttachmentType.WALL_SURFACE)
+                        && st.hostFaceNormal == null) {
+                    result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.warn(
+                            "H2-4", "建议设置宿主面",
+                            "墙面类构件建议选择外墙表面作为参考面",
+                            "可能导致内外方向不稳定",
+                            com.formacraft.common.component.health.HealthCheckResult.FixAction.SUGGEST,
+                            "点击「选择宿主面」并在世界中选一个外墙面"));
+                }
                 
                 // 检查楼梯是否需要上下标记
                 if (cat == ComponentCategory.STAIRS && 
@@ -2336,29 +2448,42 @@ public class ComponentCapturePanel extends BasePanel {
         y += 2;
         
         // 选区状态
-        String selectionStatus = SelectionTool.INSTANCE.hasSelection() ? "✓" : "⚠";
-        int selectionColor = SelectionTool.INSTANCE.hasSelection() ? 0xFF00FF00 : 0xFFFFAA00;
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(selectionStatus + " 选区已设置"), x, y, selectionColor);
+        boolean hasSelection = SelectionTool.INSTANCE.hasSelection();
+        String selectionText = hasSelection ? "OK 选区已设置" : "WARN 选区未设置";
+        int selectionColor = hasSelection ? 0xFF00FF00 : 0xFFFFAA00;
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(selectionText), x, y, selectionColor);
         y += client.textRenderer.fontHeight + 2;
         
         // 锚点状态
         boolean hasAnchor = st.anchorWorld != null;
         int anchorColor = hasAnchor ? 0xFF00FF00 : 0xFFFFAA00;
-        String anchorText = hasAnchor ? 
-            String.format("✓ 锚点: (%d, %d, %d)", st.anchorWorld.getX(), st.anchorWorld.getY(), st.anchorWorld.getZ()) :
-            "⚠ 锚点: 未设置";
+        String anchorText = hasAnchor
+                ? String.format("OK 锚点: (%d, %d, %d)", st.anchorWorld.getX(), st.anchorWorld.getY(), st.anchorWorld.getZ())
+                : "WARN 锚点: 未设置";
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(anchorText), x, y, anchorColor);
         y += client.textRenderer.fontHeight + 2;
+
+        String hostText = (st.hostFaceBlock != null && st.hostFaceNormal != null)
+                ? ("INFO 宿主面: " + st.hostFaceNormal.name() + " @ " + st.hostFaceBlock.toShortString())
+                : "INFO 宿主面: 未设置";
+        int hostColor = st.hostFaceNormal != null ? 0xFF66CCFF : 0xFF888888;
+        ctx.drawTextWithShadow(client.textRenderer, Text.literal(hostText), x, y, hostColor);
+        y += client.textRenderer.fontHeight + 2;
+
+        if (st.allowAnchorOutsideSelection) {
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal("INFO 外侧锚点: 开启"), x, y, 0xFF88CCFF);
+            y += client.textRenderer.fontHeight + 2;
+        }
         
         // 朝向状态
-        String facingText = "➡ 朝向: " + st.facing.name();
+        String facingText = "INFO 朝向: " + st.facing.name();
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(facingText), x, y, 0xFF88CCFF);
         y += client.textRenderer.fontHeight + 2;
-        
+
         // 名称状态
         boolean hasName = st.name != null && !st.name.isEmpty() && !st.name.equals("New Component");
         int nameColor = hasName ? 0xFF00FF00 : 0xFFFFAA00;
-        String nameText = hasName ? "✓ 名称已填写" : "⚠ 名称: 请填写";
+        String nameText = hasName ? "OK 名称已填写" : "WARN 名称: 请填写";
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(nameText), x, y, nameColor);
         y += client.textRenderer.fontHeight + 2;
         
@@ -2377,13 +2502,13 @@ public class ComponentCapturePanel extends BasePanel {
         String healthText;
         int healthColor;
         if (errorCount > 0) {
-            healthText = String.format("⛔ 健康: %d 个阻断项", errorCount);
+            healthText = String.format("ERR 健康: %d 个阻断项", errorCount);
             healthColor = 0xFFFF5555;
         } else if (warnCount > 0) {
-            healthText = String.format("⚠ 健康: %d 个风险项", warnCount);
+            healthText = String.format("WARN 健康: %d 个风险项", warnCount);
             healthColor = 0xFFFFAA00;
         } else {
-            healthText = "✅ 健康检查通过";
+            healthText = "OK 健康检查通过";
             healthColor = 0xFF55FF55;
         }
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(healthText), x, y, healthColor);
@@ -2395,7 +2520,7 @@ public class ComponentCapturePanel extends BasePanel {
             if (shownCount >= 2) break;
             if (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR || 
                 item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN) {
-                String icon = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? "⛔" : "⚠";
+                String icon = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? "ERR" : "WARN";
                 int color = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? 0xFFFF5555 : 0xFFFFAA00;
                 ctx.drawTextWithShadow(client.textRenderer, Text.literal("  " + icon + " " + item.title), x + 6, y, color);
                 y += client.textRenderer.fontHeight + 1;
@@ -2415,7 +2540,9 @@ public class ComponentCapturePanel extends BasePanel {
      * 处理世界点击（从 InputRouter 调用）
      * @return true 如果事件被处理
      */
-    public boolean handleWorldClick(net.minecraft.util.math.BlockPos pos, int button) {
+    public boolean handleWorldClick(BlockHitResult hit, int button) {
+        if (hit == null) return false;
+        BlockPos pos = hit.getBlockPos();
         if (pos == null) return false;
         
         if (DEBUG_CAPTURE) {
@@ -2425,7 +2552,7 @@ public class ComponentCapturePanel extends BasePanel {
         
         // Phase 3: 优先处理方向标记模式
         if (markingMode != DirectionMarkingMode.NONE && button == 0) {
-            handleDirectionMarking(pos);
+            handleDirectionMarking(hit);
             return true;
         }
         
@@ -2620,15 +2747,105 @@ public class ComponentCapturePanel extends BasePanel {
         if (pos == null) return;
         
         var st = ComponentTool.INSTANCE.getState();
+        if (!isAnchorLocationAllowed(pos)) {
+            HudToast.show("锚点需落在选区内或紧邻选区", true);
+            return;
+        }
         st.anchorWorld = pos.toImmutable();
         st.pickingAnchor = false;
         
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 设置锚点: {}", pos);
         }
-        com.formacraft.client.ui.toast.HudToast.show("✓ 锚点已设置: " + pos.toShortString());
+        com.formacraft.client.ui.toast.HudToast.show("锚点已设置: " + pos.toShortString());
     }
     
+    private void setHostFace(BlockHitResult hit) {
+        if (hit == null) return;
+        var st = ComponentTool.INSTANCE.getState();
+        BlockPos base = hit.getBlockPos().toImmutable();
+        Direction normal = hit.getSide();
+
+        st.hostFaceBlock = base;
+        st.hostFaceNormal = normal;
+
+        BlockPos anchor = st.allowAnchorOutsideSelection ? base.offset(normal) : base;
+        if (!isAnchorLocationAllowed(anchor)) {
+            HudToast.show("宿主面已记录，但锚点不在选区附近", true);
+        } else {
+            st.anchorWorld = anchor;
+        }
+        st.facing = normal;
+        com.formacraft.client.ui.toast.HudToast.show("已设置宿主面: " + normal.name());
+    }
+
+    private void setAutoAnchor() {
+        if (!hasValidSelection()) {
+            HudToast.show("请先选择构件方块", true);
+            return;
+        }
+        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) {
+            HudToast.show("选区无效，无法自动设置锚点", true);
+            return;
+        }
+        int cx = (min.getX() + max.getX()) / 2;
+        int cz = (min.getZ() + max.getZ()) / 2;
+        BlockPos anchor = new BlockPos(cx, min.getY(), cz);
+        setAnchor(anchor);
+    }
+
+    private void applyFacingFromMarks() {
+        var st = ComponentTool.INSTANCE.getState();
+        Direction derived = deriveHorizontalFacing(insideMark, outsideMark);
+        if (derived != null) {
+            st.facing = derived;
+        }
+    }
+
+    private Direction deriveHorizontalFacing(BlockPos inside, BlockPos outside) {
+        if (inside == null || outside == null) return null;
+        int dx = outside.getX() - inside.getX();
+        int dz = outside.getZ() - inside.getZ();
+        if (dx == 0 && dz == 0) return null;
+        if (Math.abs(dx) >= Math.abs(dz)) {
+            return dx >= 0 ? Direction.EAST : Direction.WEST;
+        }
+        return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
+    }
+
+    private boolean isAnchorLocationAllowed(BlockPos pos) {
+        if (pos == null) return false;
+        if (!selectedBlocks.isEmpty()) {
+            if (selectedBlocks.contains(pos)) return true;
+            if (!ComponentTool.INSTANCE.getState().allowAnchorOutsideSelection) return false;
+            return isAnchorAdjacentToSelection(pos);
+        }
+        if (!SelectionTool.INSTANCE.hasSelection()) return false;
+        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) return false;
+        boolean inside = pos.getX() >= min.getX() && pos.getX() <= max.getX()
+                && pos.getY() >= min.getY() && pos.getY() <= max.getY()
+                && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
+        if (inside) return true;
+        if (!ComponentTool.INSTANCE.getState().allowAnchorOutsideSelection) return false;
+        return pos.getX() >= (min.getX() - 1) && pos.getX() <= (max.getX() + 1)
+                && pos.getY() >= (min.getY() - 1) && pos.getY() <= (max.getY() + 1)
+                && pos.getZ() >= (min.getZ() - 1) && pos.getZ() <= (max.getZ() + 1);
+    }
+
+    private boolean isAnchorAdjacentToSelection(BlockPos pos) {
+        if (pos == null || selectedBlocks.isEmpty()) return false;
+        for (Direction d : Direction.values()) {
+            if (selectedBlocks.contains(pos.offset(d))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * 清除选区
      */
@@ -2681,6 +2898,8 @@ public class ComponentCapturePanel extends BasePanel {
             }
         }
         
+        renderHostFace(ctx);
+
         // Phase 3: 渲染方向标记
         renderDirectionMarkers(ctx);
     }
@@ -2709,9 +2928,68 @@ public class ComponentCapturePanel extends BasePanel {
         if (topMark != null) {
             renderBlockHighlight(ctx, topMark, 0.8f, 0.2f, 1.0f, 0.6f); // 紫色
         }
+
+        // 内外方向线
+        if (insideMark != null && outsideMark != null) {
+            renderDirectionLine(ctx, insideMark, outsideMark, 255, 170, 0, 220);
+        }
+
+        // 上下方向线
+        if (bottomMark != null && topMark != null) {
+            renderDirectionLine(ctx, bottomMark, topMark, 120, 220, 120, 220);
+        }
         
         // TODO: 方向箭头渲染（需要更复杂的顶点格式处理）
         // 当前彩色方块高亮已经足够清晰地标识不同的方向标记
+    }
+
+    /**
+     * 渲染宿主面（外墙表面）的高亮
+     */
+    private void renderHostFace(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
+        var st = ComponentTool.INSTANCE.getState();
+        if (st.hostFaceBlock == null || st.hostFaceNormal == null) return;
+
+        double x0 = st.hostFaceBlock.getX();
+        double y0 = st.hostFaceBlock.getY();
+        double z0 = st.hostFaceBlock.getZ();
+        double x1 = x0 + 1;
+        double y1 = y0 + 1;
+        double z1 = z0 + 1;
+        double t = 0.02;
+
+        net.minecraft.util.math.Box world = switch (st.hostFaceNormal) {
+            case NORTH -> new net.minecraft.util.math.Box(x0, y0, z0 - t, x1, y1, z0 + t);
+            case SOUTH -> new net.minecraft.util.math.Box(x0, y0, z1 - t, x1, y1, z1 + t);
+            case WEST -> new net.minecraft.util.math.Box(x0 - t, y0, z0, x0 + t, y1, z1);
+            case EAST -> new net.minecraft.util.math.Box(x1 - t, y0, z0, x1 + t, y1, z1);
+            case UP -> new net.minecraft.util.math.Box(x0, y1 - t, z0, x1, y1 + t, z1);
+            case DOWN -> new net.minecraft.util.math.Box(x0, y0 - t, z0, x1, y0 + t, z1);
+        };
+
+        net.minecraft.util.math.Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ).expand(0.001);
+        net.minecraft.client.render.VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.25f, 0.7f, 1.0f, 0.7f);
+
+        double cx = x0 + 0.5 + st.hostFaceNormal.getOffsetX() * 0.5;
+        double cy = y0 + 0.5 + st.hostFaceNormal.getOffsetY() * 0.5;
+        double cz = z0 + 0.5 + st.hostFaceNormal.getOffsetZ() * 0.5;
+        double ex = cx + st.hostFaceNormal.getOffsetX() * 0.6;
+        double ey = cy + st.hostFaceNormal.getOffsetY() * 0.6;
+        double ez = cz + st.hostFaceNormal.getOffsetZ() * 0.6;
+        ToolRenderUtil.line(ctx, cx, cy, cz, ex, ey, ez, 80, 200, 255, 220);
+    }
+
+    private void renderDirectionLine(com.formacraft.client.tool.ToolWorldRenderContext ctx,
+                                     BlockPos from, BlockPos to,
+                                     int r, int g, int b, int a) {
+        if (from == null || to == null) return;
+        double x1 = from.getX() + 0.5;
+        double y1 = from.getY() + 0.5;
+        double z1 = from.getZ() + 0.5;
+        double x2 = to.getX() + 0.5;
+        double y2 = to.getY() + 0.5;
+        double z2 = to.getZ() + 0.5;
+        ToolRenderUtil.line(ctx, x1, y1, z1, x2, y2, z2, r, g, b, a);
     }
     
     /**

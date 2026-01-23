@@ -1,6 +1,7 @@
 package com.formacraft.client.tool;
 
 import com.formacraft.common.component.ComponentCategory;
+import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.component.socket.SocketContext;
@@ -20,6 +21,19 @@ public class ComponentToolState {
 
     /** 世界坐标 anchor（必须落在选区内）；null 则默认选区 min。 */
     public BlockPos anchorWorld = null;
+
+    /** 捕获阶段的附着模式（与 UI 同步，用于生成 placementSpec）。 */
+    public AttachmentType attachmentMode = AttachmentType.NONE;
+    /** 是否要求内外方向（门/窗等）。 */
+    public boolean hasInteriorExterior = false;
+    /** 是否要求上下方向（楼梯等）。 */
+    public boolean hasBottomTop = false;
+    /** 宿主面（外墙表面）所在方块。 */
+    public BlockPos hostFaceBlock = null;
+    /** 宿主面法向（外法线）。 */
+    public Direction hostFaceNormal = null;
+    /** 允许锚点在选区外侧（用于“空气宿主面”）。 */
+    public boolean allowAnchorOutsideSelection = false;
     
     /** 显式选择的方块集合（点选模式使用）。如果非空，buildCurrentComponentJson 将仅导出这些方块，而不是整个 AABB。 */
     public Set<BlockPos> explicitSelectedBlocks = null;

@@ -184,7 +184,7 @@ public class InputRouter {
             if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE) {
                 var hit = CursorRaycastHelper.getLastBlockHit();
                 if (hit != null && FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL != null) {
-                    if (FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL.handleWorldClick(hit.getBlockPos(), button)) {
+                    if (FormaCraftHudOverlay.COMPONENT_CAPTURE_PANEL.handleWorldClick(hit, button)) {
                         lastClickHandledByUI = true;
                         return true;
                     }

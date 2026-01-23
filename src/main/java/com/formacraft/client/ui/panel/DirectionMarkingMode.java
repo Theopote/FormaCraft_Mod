@@ -28,7 +28,12 @@ public enum DirectionMarkingMode {
     /**
      * 正在标记顶端
      */
-    MARKING_TOP;
+    MARKING_TOP,
+
+    /**
+     * 正在标记宿主面（外墙面/参考面）
+     */
+    MARKING_HOST_FACE;
     
     /**
      * 获取用户提示文本
@@ -39,6 +44,7 @@ public enum DirectionMarkingMode {
             case MARKING_OUTSIDE -> "请在世界中点击构件的外侧方块";
             case MARKING_BOTTOM -> "请在世界中点击构件的底端方块";
             case MARKING_TOP -> "请在世界中点击构件的顶端方块";
+            case MARKING_HOST_FACE -> "请在世界中点击宿主面（外墙表面）";
             default -> "";
         };
     }
