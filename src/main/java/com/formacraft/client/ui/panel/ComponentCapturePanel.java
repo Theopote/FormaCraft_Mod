@@ -223,9 +223,7 @@ public class ComponentCapturePanel extends BasePanel {
                         用于：窗、门、雨棚、阳台等需要对齐墙面的构件""")))
                 .build();
 
-        anchorOutsideButton = ButtonWidget.builder(Text.literal("外侧锚点：关"), b -> {
-                    st.allowAnchorOutsideSelection = !st.allowAnchorOutsideSelection;
-                })
+        anchorOutsideButton = ButtonWidget.builder(Text.literal("外侧锚点：关"), b -> st.allowAnchorOutsideSelection = !st.allowAnchorOutsideSelection)
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
                         允许外侧锚点（空气宿主面）
@@ -2078,9 +2076,9 @@ public class ComponentCapturePanel extends BasePanel {
                 // 执行自动修复（基于健康检查结果）
                 var fixReport = com.formacraft.common.component.health.ComponentHealthAutoFix.apply(def, healthResult);
                 if (!fixReport.isEmpty()) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 保存前自动修复: " + fixReport.size() + " 项");
+                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 保存前自动修复: {} 项", fixReport.size());
                     for (var fix : fixReport.getFixes()) {
-                        com.formacraft.FormacraftMod.LOGGER.debug("  " + fix);
+                        com.formacraft.FormacraftMod.LOGGER.debug("  {}", fix);
                     }
                     // 重新生成 JSON（修复后）
                     json = JsonUtil.toJson(def);
@@ -2099,7 +2097,7 @@ public class ComponentCapturePanel extends BasePanel {
                 // 作为补充，运行结构性验证（ComponentValidator）
                 var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
                 if (validationResult.hasErrors()) {
-                    com.formacraft.FormacraftMod.LOGGER.warn("[ComponentCapturePanel] 保存前结构性验证发现错误: " + validationResult.errors().size());
+                    com.formacraft.FormacraftMod.LOGGER.warn("[ComponentCapturePanel] 保存前结构性验证发现错误: {}", validationResult.errors().size());
                 }
             }
         } catch (Throwable t) {
