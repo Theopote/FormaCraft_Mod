@@ -78,8 +78,16 @@ public final class ComponentTool implements FormacraftTool {
     private volatile Direction lastHoverFace = null;
 
     private final List<ComponentSocket> sockets = new ArrayList<>();
+    private final ComponentCaptureDraft scratchDraft = new ComponentCaptureDraft();
 
     private ComponentTool() {}
+
+    private ComponentCaptureDraft effectiveDraft() {
+        if (state.captureActive) return state.captureDraft;
+        scratchDraft.loadFrom(state);
+        scratchDraft.updatePhase();
+        return scratchDraft;
+    }
 
     public ComponentToolState getState() {
         return state;
@@ -131,10 +139,15 @@ public final class ComponentTool implements FormacraftTool {
         }
 
         if (state.pickingAnchor) {
-            state.anchorWorld = pos.toImmutable();
+            if (state.captureActive) {
+                state.captureDraft.anchor.worldPos = pos.toImmutable();
+                state.syncDraftToState();
+            } else {
+                state.anchorWorld = pos.toImmutable();
+            }
             state.pickingAnchor = false;
         } else if (state.pickingSocket) {
-            BlockPos anchor = state.anchorWorld;
+            BlockPos anchor = effectiveDraft().anchor.worldPos;
             if (anchor == null) {
                 HudToast.show("请先选择 Anchor（再点选连接位原点）", true);
                 return true;
@@ -189,11 +202,12 @@ public final class ComponentTool implements FormacraftTool {
         net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
         if (client != null && client.crosshairTarget instanceof BlockHitResult hit) {
             focus = hit.getPos();
-        } else if (state.anchorWorld != null) {
+        } else if (effectiveDraft().anchor.worldPos != null) {
+            BlockPos anchor = effectiveDraft().anchor.worldPos;
             focus = new Vec3d(
-                    state.anchorWorld.getX() + 0.5,
-                    state.anchorWorld.getY() + 0.5,
-                    state.anchorWorld.getZ() + 0.5
+                    anchor.getX() + 0.5,
+                    anchor.getY() + 0.5,
+                    anchor.getZ() + 0.5
             );
         }
         return focus;
@@ -391,23 +405,39 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public void cycleFacing() {
-        state.facing = switch (state.facing) {
+        Direction base = state.captureActive ? state.captureDraft.orientation.facing : state.facing;
+        if (base == null) base = Direction.SOUTH;
+        Direction next = switch (base) {
             case NORTH -> Direction.EAST;
             case SOUTH -> Direction.WEST;
             case WEST -> Direction.NORTH;
             default -> Direction.SOUTH;
         };
+        if (state.captureActive) {
+            state.captureDraft.orientation.facing = next;
+            state.syncDraftToState();
+        } else {
+            state.facing = next;
+        }
         if (ComponentPreviewState.isActive()) {
             ComponentPreviewState.setTransform(currentTransform());
         }
     }
 
     public void cycleMirror() {
-        state.mirror = switch (state.mirror) {
+        Mirror base = state.captureActive ? state.captureDraft.orientation.mirror : state.mirror;
+        if (base == null) base = Mirror.NONE;
+        Mirror next = switch (base) {
             case NONE -> Mirror.X;
             case X -> Mirror.Z;
             case Z -> Mirror.NONE;
         };
+        if (state.captureActive) {
+            state.captureDraft.orientation.mirror = next;
+            state.syncDraftToState();
+        } else {
+            state.mirror = next;
+        }
         if (ComponentPreviewState.isActive()) {
             ComponentPreviewState.setTransform(currentTransform());
         }
@@ -697,7 +727,7 @@ public final class ComponentTool implements FormacraftTool {
             HudToast.show("连接位预览失败：世界未就绪", true);
             return;
         }
-        if (state.anchorWorld == null) {
+        if (effectiveDraft().anchor.worldPos == null) {
             HudToast.show("连接位预览失败：请先选择 Anchor", true);
             return;
         }
@@ -715,7 +745,7 @@ public final class ComponentTool implements FormacraftTool {
     private void showSocketPreview(boolean silent) {
         Direction fromFacing = Direction.SOUTH; // capture local forward
         ComponentSocketPreviewState.show(
-                state.anchorWorld,
+                effectiveDraft().anchor.worldPos,
                 state.socketOriginLocal,
                 Math.max(1, state.socketW),
                 Math.max(1, state.socketH),
@@ -757,58 +787,73 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public void clearAnchor() {
-        state.anchorWorld = null;
+        if (state.captureActive) {
+            state.captureDraft.anchor.worldPos = null;
+            state.syncDraftToState();
+        } else {
+            state.anchorWorld = null;
+        }
         state.pickingAnchor = false;
         ComponentPreviewState.clear();
     }
 
     private boolean isAnchorValid() {
-        return isAnchorAllowed(state.anchorWorld);
+        return isAnchorAllowed(effectiveDraft().anchor.worldPos, effectiveDraft());
     }
 
     public boolean canSave() {
         // v1：强制显式 Anchor（避免后续旋转/放置语义混乱）
-        return SelectionTool.INSTANCE.hasSelection() && isAnchorAllowed(state.anchorWorld);
+        return hasValidSelection(effectiveDraft()) && isAnchorAllowed(effectiveDraft().anchor.worldPos, effectiveDraft());
     }
 
     private boolean isAnchorAllowed(BlockPos pos) {
+        return isAnchorAllowed(pos, effectiveDraft());
+    }
+
+    private boolean isAnchorAllowed(BlockPos pos, ComponentCaptureDraft draft) {
         if (pos == null) return false;
         if (state.useLibrary) return true;
-        if (!SelectionTool.INSTANCE.hasSelection()) return false;
+        if (!SelectionTool.INSTANCE.hasSelection() && !draft.hasExplicitSelection()
+                && draft.selection.aabbMin == null && draft.selection.aabbMax == null) return false;
 
-        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
-            if (state.explicitSelectedBlocks.contains(pos)) return true;
-            if (!state.allowAnchorOutsideSelection) return false;
-            return isAnchorAdjacentToExplicitSelection(pos);
+        if (draft.hasExplicitSelection()) {
+            if (draft.selection.blocks.contains(pos)) return true;
+            if (!draft.anchor.allowOutsideSelection) return false;
+            return isAnchorAdjacentToExplicitSelection(pos, draft);
         }
 
-        if (isInsideSelection(pos)) return true;
-        if (!state.allowAnchorOutsideSelection) return false;
-        return isInsideExpandedSelection(pos, 1);
+        if (isInsideSelection(pos, draft)) return true;
+        if (!draft.anchor.allowOutsideSelection) return false;
+        return isInsideExpandedSelection(pos, 1, draft);
     }
 
     private boolean isInSelectionBlocks(BlockPos pos) {
         if (pos == null) return false;
-        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
-            return state.explicitSelectedBlocks.contains(pos);
+        ComponentCaptureDraft draft = effectiveDraft();
+        if (draft.hasExplicitSelection()) {
+            return draft.selection.blocks.contains(pos);
         }
-        return isInsideSelection(pos);
+        return isInsideSelection(pos, draft);
     }
 
-    private boolean isAnchorAdjacentToExplicitSelection(BlockPos pos) {
-        if (pos == null || state.explicitSelectedBlocks == null || state.explicitSelectedBlocks.isEmpty()) return false;
+    private boolean isAnchorAdjacentToExplicitSelection(BlockPos pos, ComponentCaptureDraft draft) {
+        if (pos == null || !draft.hasExplicitSelection()) return false;
         for (Direction d : Direction.values()) {
-            if (state.explicitSelectedBlocks.contains(pos.offset(d))) {
+            if (draft.selection.blocks.contains(pos.offset(d))) {
                 return true;
             }
         }
         return false;
     }
 
-    private boolean isInsideExpandedSelection(BlockPos pos, int pad) {
+    private boolean isInsideExpandedSelection(BlockPos pos, int pad, ComponentCaptureDraft draft) {
         if (pos == null) return false;
         BlockPos min = SelectionTool.INSTANCE.getMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) {
+            min = draft.selection.aabbMin;
+            max = draft.selection.aabbMax;
+        }
         if (min == null || max == null) return false;
         return pos.getX() >= (min.getX() - pad) && pos.getX() <= (max.getX() + pad)
                 && pos.getY() >= (min.getY() - pad) && pos.getY() <= (max.getY() + pad)
@@ -881,7 +926,7 @@ public final class ComponentTool implements FormacraftTool {
                 return;
             }
             // v1：选区捕获的局部坐标以 SOUTH 为“前方”
-            ComponentPreviewState.show(local, state.anchorWorld, Direction.SOUTH, currentTransform());
+            ComponentPreviewState.show(local, effectiveDraft().anchor.worldPos, Direction.SOUTH, currentTransform());
         } else {
             ComponentDefinition def = loadedComponent;
             if (def == null || def.blocks == null || def.blocks.isEmpty()) {
@@ -900,7 +945,7 @@ public final class ComponentTool implements FormacraftTool {
                     if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
                 }
             } catch (Throwable ignored) {}
-            ComponentPreviewState.show(local, state.anchorWorld, fromFacing, currentTransform());
+            ComponentPreviewState.show(local, effectiveDraft().anchor.worldPos, fromFacing, currentTransform());
         }
         if (!force) {
             HudToast.show("已开启构件预览");
@@ -981,7 +1026,7 @@ public final class ComponentTool implements FormacraftTool {
                     part = guessSemanticPartFromString(be.block, be.dy, minDy);
                 }
                 // 语义换皮：shape(坐标/朝向) 来自构件，material 来自 SemanticStyleProfile
-                long seed = mixSeed(state.anchorWorld, off, part);
+                long seed = mixSeed(effectiveDraft().anchor.worldPos, off, part);
                 BlockState picked = SemanticBlockStatePicker.pick(state.semanticStyleId, part, seed);
 
                 // 若原始 blockstate 带有 facing，则尽力把 facing 传递到“换皮后”的方块上
@@ -1003,7 +1048,7 @@ public final class ComponentTool implements FormacraftTool {
         // 避免 overlay 叠太多：进入 patch preview 时关闭 component 预览
         ComponentPreviewState.clear();
 
-        BuildConfirmPanel.INSTANCE.showPatchPreview(state.anchorWorld, patches);
+        BuildConfirmPanel.INSTANCE.showPatchPreview(effectiveDraft().anchor.worldPos, patches);
         HudToast.show("已进入 Patch 预览（可 Apply / Undo / Redo）");
     }
 
@@ -1013,7 +1058,7 @@ public final class ComponentTool implements FormacraftTool {
         BlockPos max = SelectionTool.INSTANCE.getMax();
         if (min == null || max == null) return out;
 
-        BlockPos anchor = state.anchorWorld;
+        BlockPos anchor = effectiveDraft().anchor.worldPos;
         if (anchor == null) return out;
 
         for (int x = min.getX(); x <= max.getX(); x++) {
@@ -1038,7 +1083,7 @@ public final class ComponentTool implements FormacraftTool {
         BlockPos max = SelectionTool.INSTANCE.getMax();
         if (min == null || max == null) return out;
 
-        BlockPos anchor = state.anchorWorld;
+        BlockPos anchor = effectiveDraft().anchor.worldPos;
         if (anchor == null) return out;
 
         int minDy = Integer.MAX_VALUE;
@@ -1087,8 +1132,9 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     private ComponentTransform currentTransform() {
-        Direction f = state.facing != null ? state.facing : Direction.SOUTH;
-        Mirror m = state.mirror != null ? state.mirror : Mirror.NONE;
+        ComponentCaptureDraft draft = effectiveDraft();
+        Direction f = draft.orientation.facing != null ? draft.orientation.facing : Direction.SOUTH;
+        Mirror m = draft.orientation.mirror != null ? draft.orientation.mirror : Mirror.NONE;
         return new ComponentTransform(f, m);
     }
 
@@ -1097,12 +1143,15 @@ public final class ComponentTool implements FormacraftTool {
      * 检查是否有有效选区（AABB 或显式方块集合）
      */
     private boolean hasValidSelection() {
+        return hasValidSelection(effectiveDraft());
+    }
+
+    private boolean hasValidSelection(ComponentCaptureDraft draft) {
         // 优先检查显式方块集合（点选模式）
-        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
-            return true;
-        }
+        if (draft.hasExplicitSelection()) return true;
         // 回退到 AABB（框选模式）
-        return SelectionTool.INSTANCE.hasSelection();
+        if (SelectionTool.INSTANCE.hasSelection()) return true;
+        return draft.selection.aabbMin != null && draft.selection.aabbMax != null;
     }
 
     /**
@@ -1112,9 +1161,10 @@ public final class ComponentTool implements FormacraftTool {
         if (client == null || client.world == null) return 0;
         
         // 优先使用显式方块集合
-        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+        ComponentCaptureDraft draft = effectiveDraft();
+        if (draft.hasExplicitSelection()) {
             int count = 0;
-            for (BlockPos pos : state.explicitSelectedBlocks) {
+            for (BlockPos pos : draft.selection.blocks) {
                 if (pos != null && !client.world.getBlockState(pos).isAir()) {
                     count++;
                 }
@@ -1142,21 +1192,25 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public String buildCurrentComponentJson(net.minecraft.client.MinecraftClient client) {
+        return buildCurrentComponentJson(client, effectiveDraft());
+    }
+
+    public String buildCurrentComponentJson(net.minecraft.client.MinecraftClient client, ComponentCaptureDraft draft) {
         if (client == null || client.world == null) return null;
-        if (!hasValidSelection()) return null;
+        if (!hasValidSelection(draft)) return null;
 
         // v1：Anchor 必须显式选择
-        BlockPos anchor = state.anchorWorld;
+        BlockPos anchor = draft.anchor.worldPos;
         if (anchor == null) return null;
-        if (!isAnchorAllowed(anchor)) return null;
+        if (!isAnchorAllowed(anchor, draft)) return null;
 
         // 计算边界（用于 size 计算）
         BlockPos min, max;
-        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+        if (draft.hasExplicitSelection()) {
             // 从显式方块集合计算边界
             int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-            for (BlockPos pos : state.explicitSelectedBlocks) {
+            for (BlockPos pos : draft.selection.blocks) {
                 if (pos == null) continue;
                 minX = Math.min(minX, pos.getX());
                 minY = Math.min(minY, pos.getY());
@@ -1170,6 +1224,10 @@ public final class ComponentTool implements FormacraftTool {
         } else {
             min = SelectionTool.INSTANCE.getMin();
             max = SelectionTool.INSTANCE.getMax();
+            if (min == null || max == null) {
+                min = draft.selection.aabbMin;
+                max = draft.selection.aabbMax;
+            }
             if (min == null || max == null) return null;
         }
 
@@ -1196,8 +1254,31 @@ public final class ComponentTool implements FormacraftTool {
         a.dx = 0;
         a.dy = 0;
         a.dz = 0;
-        a.facing = (state.facing != null ? state.facing : Direction.SOUTH).name();
+        a.facing = (draft.orientation.facing != null ? draft.orientation.facing : Direction.SOUTH).name();
         def.anchor = a;
+
+        // v1.1：锚点归一化提示（用于变体/拉伸时的语义稳定）
+        if (anchor != null && size.w > 0 && size.h > 0 && size.d > 0) {
+            ComponentDefinition.AnchorHint hint = new ComponentDefinition.AnchorHint();
+            hint.u = (float) ((anchor.getX() - minX + 0.5) / (double) size.w);
+            hint.v = (float) ((anchor.getY() - minY) / (double) size.h);
+            hint.w = (float) ((anchor.getZ() - minZ + 0.5) / (double) size.d);
+            def.anchorHint = hint;
+        }
+
+        // v1.1：放置提示（用于语义→几何的桥接）
+        ComponentDefinition.PlacementHints placementHints = new ComponentDefinition.PlacementHints();
+        if (draft.host.attachment != null) {
+            placementHints.attachment = draft.host.attachment.name();
+        }
+        if (draft.orientation.hasBottomTop) {
+            placementHints.primaryAxis = "V";
+        } else if (draft.orientation.hasInteriorExterior) {
+            placementHints.primaryAxis = "W";
+        }
+        placementHints.needsHostFace = draft.host.attachment == AttachmentType.WALL_OPENING
+                || draft.host.attachment == AttachmentType.WALL_SURFACE;
+        def.placementHints = placementHints;
 
         def.allowed_facing = java.util.Set.of("NORTH", "SOUTH", "EAST", "WEST");
         def.placement_rules = new ComponentDefinition.PlacementRules();
@@ -1206,9 +1287,9 @@ public final class ComponentTool implements FormacraftTool {
         }
         // v1：自动生成语义放置规格（Attachment / Context / FacingPolicy）
         def.placementSpec = defaultPlacementSpec(def.category, def.tags);
-        applyPlacementOverrides(def.placementSpec);
+        applyPlacementOverrides(def.placementSpec, draft);
 
-        ComponentDefinition.DirectionHints hints = buildDirectionHints(anchor);
+        ComponentDefinition.DirectionHints hints = buildDirectionHints(anchor, draft);
         if (hints != null) {
             def.directionHints = hints;
         }
@@ -1218,9 +1299,9 @@ public final class ComponentTool implements FormacraftTool {
         
         // 确定要扫描的方块集合
         java.util.Set<BlockPos> blocksToScan;
-        if (state.explicitSelectedBlocks != null && !state.explicitSelectedBlocks.isEmpty()) {
+        if (draft.hasExplicitSelection()) {
             // 点选模式：仅扫描显式选择的方块
-            blocksToScan = state.explicitSelectedBlocks;
+            blocksToScan = draft.selection.blocks;
         } else {
             // 框选模式：扫描整个 AABB
             blocksToScan = new java.util.HashSet<>();
@@ -1266,13 +1347,13 @@ public final class ComponentTool implements FormacraftTool {
         return JsonUtil.toJson(def);
     }
 
-    private void applyPlacementOverrides(ComponentPlacementSpec spec) {
+    private void applyPlacementOverrides(ComponentPlacementSpec spec, ComponentCaptureDraft draft) {
         if (spec == null) return;
 
-        if (state.attachmentMode != null) {
-            spec.attachment = state.attachmentMode;
+        if (draft.host.attachment != null) {
+            spec.attachment = draft.host.attachment;
         }
-        spec.hasInteriorExterior = state.hasInteriorExterior;
+        spec.hasInteriorExterior = draft.orientation.hasInteriorExterior;
 
         if (spec.hasInteriorExterior && spec.facingPolicy == FacingPolicy.NONE) {
             switch (spec.attachment) {
@@ -1286,47 +1367,47 @@ public final class ComponentTool implements FormacraftTool {
         spec.inferAllowedSockets();
     }
 
-    private ComponentDefinition.DirectionHints buildDirectionHints(BlockPos anchor) {
+    private ComponentDefinition.DirectionHints buildDirectionHints(BlockPos anchor, ComponentCaptureDraft draft) {
         ComponentDefinition.DirectionHints hints = new ComponentDefinition.DirectionHints();
         boolean hasAny = false;
 
-        if (state.attachmentMode != null) {
-            hints.attachmentMode = state.attachmentMode.name();
+        if (draft.host.attachment != null) {
+            hints.attachmentMode = draft.host.attachment.name();
             hasAny = true;
         }
-        if (state.hasInteriorExterior) {
+        if (draft.orientation.hasInteriorExterior) {
             hints.hasInteriorExterior = true;
             hasAny = true;
         }
-        if (state.hasBottomTop) {
+        if (draft.orientation.hasBottomTop) {
             hints.hasBottomTop = true;
             hasAny = true;
         }
 
-        if (state.insideMarkWorld != null && anchor != null) {
-            hints.inside = toMark(state.insideMarkWorld, anchor);
+        if (draft.orientation.insideMarkWorld != null && anchor != null) {
+            hints.inside = toMark(draft.orientation.insideMarkWorld, anchor);
             hasAny = true;
         }
-        if (state.outsideMarkWorld != null && anchor != null) {
-            hints.outside = toMark(state.outsideMarkWorld, anchor);
+        if (draft.orientation.outsideMarkWorld != null && anchor != null) {
+            hints.outside = toMark(draft.orientation.outsideMarkWorld, anchor);
             hasAny = true;
         }
-        if (state.bottomMarkWorld != null && anchor != null) {
-            hints.bottom = toMark(state.bottomMarkWorld, anchor);
+        if (draft.orientation.bottomMarkWorld != null && anchor != null) {
+            hints.bottom = toMark(draft.orientation.bottomMarkWorld, anchor);
             hasAny = true;
         }
-        if (state.topMarkWorld != null && anchor != null) {
-            hints.top = toMark(state.topMarkWorld, anchor);
+        if (draft.orientation.topMarkWorld != null && anchor != null) {
+            hints.top = toMark(draft.orientation.topMarkWorld, anchor);
             hasAny = true;
         }
 
-        if (state.hostFaceBlock != null && state.hostFaceNormal != null && anchor != null) {
+        if (draft.host.referenceBlock != null && draft.host.normal != null && anchor != null) {
             ComponentDefinition.DirectionHints.HostFace host = new ComponentDefinition.DirectionHints.HostFace();
-            host.dx = state.hostFaceBlock.getX() - anchor.getX();
-            host.dy = state.hostFaceBlock.getY() - anchor.getY();
-            host.dz = state.hostFaceBlock.getZ() - anchor.getZ();
-            host.normal = state.hostFaceNormal.name();
-            host.allowAir = state.allowAnchorOutsideSelection;
+            host.dx = draft.host.referenceBlock.getX() - anchor.getX();
+            host.dy = draft.host.referenceBlock.getY() - anchor.getY();
+            host.dz = draft.host.referenceBlock.getZ() - anchor.getZ();
+            host.normal = draft.host.normal.name();
+            host.allowAir = draft.anchor.allowOutsideSelection;
             hints.hostFace = host;
             hasAny = true;
         }
@@ -1562,9 +1643,17 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     private boolean isInsideSelection(BlockPos pos) {
+        return isInsideSelection(pos, effectiveDraft());
+    }
+
+    private boolean isInsideSelection(BlockPos pos, ComponentCaptureDraft draft) {
         if (pos == null) return false;
         BlockPos min = SelectionTool.INSTANCE.getMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) {
+            min = draft.selection.aabbMin;
+            max = draft.selection.aabbMax;
+        }
         if (min == null || max == null) return false;
         return pos.getX() >= min.getX() && pos.getX() <= max.getX()
                 && pos.getY() >= min.getY() && pos.getY() <= max.getY()

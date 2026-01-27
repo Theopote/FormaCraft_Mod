@@ -205,10 +205,19 @@ public final class ComponentHealthChecker {
                                       cat == ComponentCategory.STAIRS);
         
         if (needsDirectionality) {
-            // 检查是否有方向标记（这里简化处理，实际应该检查 directionalityMode 和 markers）
-            // 由于 ComponentDefinition 可能没有直接的方向标记字段，我们检查 placementSpec
-            boolean hasDirectionality = def.placementSpec != null && def.placementSpec.facingPolicy != null;
-            // 如果有 facingPolicy，认为已定义方向
+            boolean hasDirectionality = def.placementSpec != null
+                    && def.placementSpec.facingPolicy != null
+                    && def.placementSpec.facingPolicy != com.formacraft.common.component.placement.FacingPolicy.NONE;
+
+            if (!hasDirectionality && def.directionHints != null) {
+                if (cat == ComponentCategory.STAIRS) {
+                    hasDirectionality = def.directionHints.hasBottomTop
+                            || (def.directionHints.bottom != null && def.directionHints.top != null);
+                } else {
+                    hasDirectionality = def.directionHints.hasInteriorExterior
+                            || (def.directionHints.inside != null && def.directionHints.outside != null);
+                }
+            }
 
             if (!hasDirectionality) {
                 String categoryName = getCategoryDisplayName(cat);
@@ -220,6 +229,55 @@ public final class ComponentHealthChecker {
             }
         } else {
             result.add(HealthCheckResult.CheckItem.ok("H2-3", "方向性检查通过"));
+        }
+
+        // H2-4: 宿主面缺失（墙面类构件）
+        AttachmentType attachment = def.placementSpec != null && def.placementSpec.attachment != null
+                ? def.placementSpec.attachment : AttachmentType.NONE;
+        boolean needsHostFace = attachment == AttachmentType.WALL_OPENING || attachment == AttachmentType.WALL_SURFACE;
+        if (!needsHostFace && def.placementHints != null) {
+            needsHostFace = def.placementHints.needsHostFace;
+        }
+        if (needsHostFace) {
+            boolean hasHostFace = def.directionHints != null && def.directionHints.hostFace != null
+                    && def.directionHints.hostFace.normal != null;
+            if (!hasHostFace) {
+                if (attachment == AttachmentType.WALL_OPENING) {
+                    result.add(HealthCheckResult.CheckItem.error("H2-4", "宿主面缺失",
+                        "门/窗等墙体开口构件必须定义宿主面",
+                        "无法可靠判断外墙面，放置方向容易错误",
+                        HealthCheckResult.FixAction.SUGGEST, "设置宿主面并标记外墙方向"));
+                } else {
+                    result.add(HealthCheckResult.CheckItem.warn("H2-4", "建议设置宿主面",
+                        "墙面类构件建议选择外墙表面作为参考面",
+                        "可能导致内外方向不稳定",
+                        HealthCheckResult.FixAction.SUGGEST, "设置宿主面并标记外墙方向"));
+                }
+            } else {
+                result.add(HealthCheckResult.CheckItem.ok("H2-4", "宿主面已设置"));
+            }
+        }
+
+        // H2-5: 偶数宽度锚点对称性提示
+        if (def.size != null && def.anchorHint != null) {
+            if (def.size.w % 2 == 0) {
+                float du = Math.abs(def.anchorHint.u - 0.5f);
+                if (du > 0.01f) {
+                    result.add(HealthCheckResult.CheckItem.warn("H2-5", "锚点不在对称中心",
+                        "构件宽度为偶数，锚点不在中心线",
+                        "对称放置时可能产生偏移",
+                        HealthCheckResult.FixAction.NONE, "建议将锚点移动到中心线"));
+                }
+            }
+            if (def.size.d % 2 == 0) {
+                float dw = Math.abs(def.anchorHint.w - 0.5f);
+                if (dw > 0.01f) {
+                    result.add(HealthCheckResult.CheckItem.warn("H2-5", "锚点不在对称中心",
+                        "构件深度为偶数，锚点不在中心线",
+                        "对称放置时可能产生偏移",
+                        HealthCheckResult.FixAction.NONE, "建议将锚点移动到中心线"));
+                }
+            }
         }
     }
     
@@ -249,7 +307,7 @@ public final class ComponentHealthChecker {
     // ============ H4: AI 使用可靠性规则 ============
     
     private static void checkAIReliabilityHealth(ComponentDefinition def, HealthCheckResult result) {
-        // H4-1: 构件缺少 Socket
+        // H4-1: 构件缺少连接位
         List<ComponentSocket> sockets = def.sockets != null ? def.sockets : Collections.emptyList();
         ComponentCategory cat = def.category != null ? def.category : ComponentCategory.GENERIC;
         
@@ -257,14 +315,14 @@ public final class ComponentHealthChecker {
                               cat == ComponentCategory.WINDOW);
         
         if (needsSocket && sockets.isEmpty()) {
-            result.add(HealthCheckResult.CheckItem.warn("H4-1", "未定义 Socket",
-                "门/窗类构件缺少 Socket 定义", "AI 只能\"猜位置\"，复杂建筑中失败率高",
-                HealthCheckResult.FixAction.SUGGEST, "自动生成墙体开口 Socket（推荐）"));
+            result.add(HealthCheckResult.CheckItem.warn("H4-1", "未定义连接位",
+                "门/窗类构件缺少连接位定义", "AI 只能\"猜位置\"，复杂建筑中失败率高",
+                HealthCheckResult.FixAction.SUGGEST, "自动生成墙体开口连接位（推荐）"));
         } else if (sockets.isEmpty()) {
             // 非门/窗类，Socket 是可选的
-            result.add(HealthCheckResult.CheckItem.ok("H4-1", "Socket 检查通过"));
+            result.add(HealthCheckResult.CheckItem.ok("H4-1", "连接位检查通过"));
         } else {
-            result.add(HealthCheckResult.CheckItem.ok("H4-1", "Socket 已配置"));
+            result.add(HealthCheckResult.CheckItem.ok("H4-1", "连接位已配置"));
         }
         
         // H4-2: PlacementSpec 过宽

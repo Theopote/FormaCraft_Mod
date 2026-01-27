@@ -1,5 +1,8 @@
 package com.formacraft.client.ui;
 
+import com.formacraft.client.tool.ComponentTool;
+import com.formacraft.client.ui.panel.PanelType;
+import com.formacraft.client.ui.FormaCraftHudOverlay;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import org.lwjgl.glfw.GLFW;
@@ -17,6 +20,9 @@ public class FormacraftUIState {
         updateCursor();
         updatePauseOnLostFocus();
         if (!isOpen) {
+            if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE) {
+                ComponentTool.INSTANCE.getState().cancelCapture();
+            }
             // UI关闭时，清除所有按键状态，防止残留状态导致玩家继续移动
             clearAllKeyBindings();
         }
@@ -32,6 +38,9 @@ public class FormacraftUIState {
         isOpen = false;
         updateCursor();
         updatePauseOnLostFocus();
+        if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE) {
+            ComponentTool.INSTANCE.getState().cancelCapture();
+        }
         // UI关闭时，清除所有按键状态，防止残留状态导致玩家继续移动
         clearAllKeyBindings();
     }

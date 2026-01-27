@@ -15,6 +15,12 @@ import java.util.Set;
  * ComponentTool（v1）状态：面板字段 + anchor/facing。
  */
 public class ComponentToolState {
+    /** 捕获草案（用于拾取过程中的临时状态）。 */
+    public final ComponentCaptureDraft captureDraft = new ComponentCaptureDraft();
+    /** 捕获确认快照（用于取消/恢复）。 */
+    public final ComponentCaptureDraft confirmedDraft = new ComponentCaptureDraft();
+    /** 是否处于捕获态。 */
+    public boolean captureActive = false;
     public ComponentCategory category = ComponentCategory.GENERIC;
     public String name = "New Component";
     public Set<String> tags = new HashSet<>();
@@ -43,8 +49,10 @@ public class ComponentToolState {
     /** 允许锚点在选区外侧（用于“空气宿主面”）。 */
     public boolean allowAnchorOutsideSelection = false;
     
-    /** 显式选择的方块集合（点选模式使用）。如果非空，buildCurrentComponentJson 将仅导出这些方块，而不是整个 AABB。 */
+    /** 显式选择的方块集合（点选模式使用）。如果非空且 useExplicitSelection=true，buildCurrentComponentJson 将仅导出这些方块。 */
     public Set<BlockPos> explicitSelectedBlocks = null;
+    /** 是否使用显式选区（true=点选模式）。 */
+    public boolean useExplicitSelection = false;
     /** 构件正面朝向（用于后续旋转/匹配）。 */
     public Direction facing = Direction.SOUTH;
     /** 构件镜像模式（v1）。 */
@@ -200,6 +208,46 @@ public class ComponentToolState {
         componentDirty = !autoFixReport.empty();
         // 修复后自动重新验证
         validateComponent();
+    }
+
+    /**
+     * 进入捕获态：初始化草案与快照。
+     */
+    public void beginCapture() {
+        if (captureActive) return;
+        confirmedDraft.loadFrom(this);
+        captureDraft.loadFrom(this);
+        captureDraft.updatePhase();
+        captureActive = true;
+    }
+
+    /**
+     * 将草案同步到当前状态（用于实时预览）。
+     */
+    public void syncDraftToState() {
+        if (!captureActive) return;
+        captureDraft.updatePhase();
+        captureDraft.applyTo(this);
+    }
+
+    /**
+     * 提交草案为最终状态。
+     */
+    public void commitCapture() {
+        if (!captureActive) return;
+        captureDraft.updatePhase();
+        captureDraft.applyTo(this);
+        confirmedDraft.loadFrom(this);
+        captureActive = false;
+    }
+
+    /**
+     * 取消捕获，恢复到进入捕获态前的快照。
+     */
+    public void cancelCapture() {
+        if (!captureActive) return;
+        confirmedDraft.applyTo(this);
+        captureActive = false;
     }
 }
 

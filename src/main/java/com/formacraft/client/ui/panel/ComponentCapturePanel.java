@@ -81,6 +81,7 @@ public class ComponentCapturePanel extends BasePanel {
     private ButtonWidget autoAnalyzeButton;
     private ButtonWidget autoDetectSocketsButton;
     private ButtonWidget autoFixButton;
+    private ButtonWidget undoAutoFixButton;
 
     // 底部按钮
     private ButtonWidget cancelButton;
@@ -223,7 +224,10 @@ public class ComponentCapturePanel extends BasePanel {
                         用于：窗、门、雨棚、阳台等需要对齐墙面的构件""")))
                 .build();
 
-        anchorOutsideButton = ButtonWidget.builder(Text.literal("外侧锚点：关"), b -> st.allowAnchorOutsideSelection = !st.allowAnchorOutsideSelection)
+        anchorOutsideButton = ButtonWidget.builder(Text.literal("外侧锚点：关"), b -> {
+                    st.captureDraft.anchor.allowOutsideSelection = !st.captureDraft.anchor.allowOutsideSelection;
+                    st.syncDraftToState();
+                })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
                         允许外侧锚点（空气宿主面）
@@ -457,6 +461,15 @@ public class ComponentCapturePanel extends BasePanel {
                         注意：只修复标记为"可自动修复"的问题""")))
                 .build();
 
+        undoAutoFixButton = ButtonWidget.builder(Text.literal("↩ 撤销修复"), b -> undoAutoFix())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("""
+                        撤销上一次自动修复
+                        ━━━━━━━━━━━━
+                        恢复到修复前的状态
+                        """)))
+                .build();
+
         autoDetectSocketsButton = ButtonWidget.builder(Text.literal("自动检测"), b -> autoDetectSockets())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
@@ -475,7 +488,8 @@ public class ComponentCapturePanel extends BasePanel {
 
         // 底部按钮
         cancelButton = ButtonWidget.builder(Text.literal("取消"), b -> {
-                    ComponentTool.INSTANCE.getState().pickingAnchor = false;
+                    st.pickingAnchor = false;
+                    st.cancelCapture();
                     FormaCraftHudOverlay.activePanel = PanelType.TOOLS;
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -733,11 +747,14 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void syncPlacementHintsToState() {
         var st = ComponentTool.INSTANCE.getState();
-        st.attachmentMode = attachmentMode;
-        st.hasInteriorExterior = directionalityMode == DirectionalityMode.INSIDE_OUTSIDE
+        var draft = st.captureDraft;
+        draft.host.attachment = attachmentMode;
+        draft.orientation.mode = directionalityMode;
+        draft.orientation.hasInteriorExterior = directionalityMode == DirectionalityMode.INSIDE_OUTSIDE
                 || directionalityMode == DirectionalityMode.BOTH;
-        st.hasBottomTop = directionalityMode == DirectionalityMode.BOTTOM_TOP
+        draft.orientation.hasBottomTop = directionalityMode == DirectionalityMode.BOTTOM_TOP
                 || directionalityMode == DirectionalityMode.BOTH;
+        st.syncDraftToState();
     }
     
     /**
@@ -797,10 +814,12 @@ public class ComponentCapturePanel extends BasePanel {
         if (hit == null) return;
         BlockPos pos = hit.getBlockPos();
         var st = ComponentTool.INSTANCE.getState();
+        var draft = st.captureDraft;
         switch (markingMode) {
             case MARKING_INSIDE:
                 insideMark = pos.toImmutable();
-                st.insideMarkWorld = insideMark;
+                draft.orientation.insideMarkWorld = insideMark;
+                st.syncDraftToState();
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 内侧标记: {}", insideMark);
                 }
@@ -810,7 +829,8 @@ public class ComponentCapturePanel extends BasePanel {
                 
             case MARKING_OUTSIDE:
                 outsideMark = pos.toImmutable();
-                st.outsideMarkWorld = outsideMark;
+                draft.orientation.outsideMarkWorld = outsideMark;
+                st.syncDraftToState();
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 外侧标记: {}", outsideMark);
                 }
@@ -820,7 +840,8 @@ public class ComponentCapturePanel extends BasePanel {
                 
             case MARKING_BOTTOM:
                 bottomMark = pos.toImmutable();
-                st.bottomMarkWorld = bottomMark;
+                draft.orientation.bottomMarkWorld = bottomMark;
+                st.syncDraftToState();
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 底端标记: {}", bottomMark);
                 }
@@ -829,7 +850,8 @@ public class ComponentCapturePanel extends BasePanel {
                 
             case MARKING_TOP:
                 topMark = pos.toImmutable();
-                st.topMarkWorld = topMark;
+                draft.orientation.topMarkWorld = topMark;
+                st.syncDraftToState();
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 顶端标记: {}", topMark);
                 }
@@ -1023,11 +1045,11 @@ public class ComponentCapturePanel extends BasePanel {
         
         if (!phase2Collapsed) {
             // 锚点与朝向（阶段2内容）
-            String anchorText = st.anchorWorld != null
-                ? "锚点: (" + st.anchorWorld.getX() + ", " + st.anchorWorld.getY() + ", " + st.anchorWorld.getZ() + ")"
+            String anchorText = st.captureDraft.anchor.worldPos != null
+                ? "锚点: (" + st.captureDraft.anchor.worldPos.getX() + ", " + st.captureDraft.anchor.worldPos.getY() + ", " + st.captureDraft.anchor.worldPos.getZ() + ")"
                 : "锚点: (未设置，默认为选区最小角)";
             y = drawWrappedText(ctx, Text.literal(anchorText), x, y, w, 
-                st.anchorWorld != null ? 0xFF66FF66 : 0xFFFFAA00);
+                st.captureDraft.anchor.worldPos != null ? 0xFF66FF66 : 0xFFFFAA00);
             y += 2;
 
             int half = (w - 4) / 2;
@@ -1042,25 +1064,25 @@ public class ComponentCapturePanel extends BasePanel {
             clearAnchorButton.setPosition(x + half + 4, y);
             clearAnchorButton.setWidth(w - half - 4);
             clearAnchorButton.visible = true;
-            clearAnchorButton.active = st.anchorWorld != null || st.pickingAnchor;
+            clearAnchorButton.active = st.captureDraft.anchor.worldPos != null || st.pickingAnchor;
             clearAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
 
-            String hostFaceText = (st.hostFaceBlock != null && st.hostFaceNormal != null)
-                    ? ("宿主面: (" + st.hostFaceBlock.getX() + ", " + st.hostFaceBlock.getY() + ", " + st.hostFaceBlock.getZ() + ") " + st.hostFaceNormal.name())
+            String hostFaceText = (st.captureDraft.host.referenceBlock != null && st.captureDraft.host.normal != null)
+                    ? ("宿主面: (" + st.captureDraft.host.referenceBlock.getX() + ", " + st.captureDraft.host.referenceBlock.getY() + ", " + st.captureDraft.host.referenceBlock.getZ() + ") " + st.captureDraft.host.normal.name())
                     : "宿主面: (未设置)";
             y = drawWrappedText(ctx, Text.literal(hostFaceText), x, y, w,
-                    st.hostFaceNormal != null ? 0xFF66CCFF : 0xFF888888);
+                    st.captureDraft.host.normal != null ? 0xFF66CCFF : 0xFF888888);
             y += 2;
 
-            hostFaceButton.setMessage(Text.literal(st.hostFaceNormal != null ? "宿主面：重选" : "选择宿主面"));
+            hostFaceButton.setMessage(Text.literal(st.captureDraft.host.normal != null ? "宿主面：重选" : "选择宿主面"));
             hostFaceButton.setPosition(x, y);
             hostFaceButton.setWidth(half);
             hostFaceButton.visible = true;
             hostFaceButton.active = hasValidSelection();
             hostFaceButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
-            anchorOutsideButton.setMessage(Text.literal(st.allowAnchorOutsideSelection ? "外侧锚点：开" : "外侧锚点：关"));
+            anchorOutsideButton.setMessage(Text.literal(st.captureDraft.anchor.allowOutsideSelection ? "外侧锚点：开" : "外侧锚点：关"));
             anchorOutsideButton.setPosition(x + half + 4, y);
             anchorOutsideButton.setWidth(w - half - 4);
             anchorOutsideButton.visible = true;
@@ -1075,14 +1097,14 @@ public class ComponentCapturePanel extends BasePanel {
             autoAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
 
-            facingButton.setMessage(Text.literal("朝向：" + st.facing.name()));
+            facingButton.setMessage(Text.literal("朝向：" + st.captureDraft.orientation.facing.name()));
             facingButton.setPosition(x, y);
             facingButton.setWidth(half);
             facingButton.visible = true;
             facingButton.active = true;
             facingButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
-            mirrorButton.setMessage(Text.literal("镜像：" + st.mirror.name()));
+            mirrorButton.setMessage(Text.literal("镜像：" + st.captureDraft.orientation.mirror.name()));
             mirrorButton.setPosition(x + half + 4, y);
             mirrorButton.setWidth(w - half - 4);
             mirrorButton.visible = true;
@@ -1216,15 +1238,16 @@ public class ComponentCapturePanel extends BasePanel {
             y += LABEL_OFFSET;
             
             // 方向标记按钮（根据方向性模式显示）
+            var draft = ComponentTool.INSTANCE.getState().captureDraft;
             if (directionalityMode.needsInsideOutside()) {
-                setInsideButton.setMessage(Text.literal(insideMark != null ? "🏠✓ 内侧" : "🏠 设内侧"));
+                setInsideButton.setMessage(Text.literal(draft.orientation.insideMarkWorld != null ? "🏠✓ 内侧" : "🏠 设内侧"));
                 setInsideButton.setPosition(x, y);
                 setInsideButton.setWidth(halfW);
                 setInsideButton.visible = true;
                 setInsideButton.active = true;
                 setInsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
                 
-                setOutsideButton.setMessage(Text.literal(outsideMark != null ? "🌍✓ 外侧" : "🌍 设外侧"));
+                setOutsideButton.setMessage(Text.literal(draft.orientation.outsideMarkWorld != null ? "🌍✓ 外侧" : "🌍 设外侧"));
                 setOutsideButton.setPosition(x + halfW + 4, y);
                 setOutsideButton.setWidth(w - halfW - 4);
                 setOutsideButton.visible = true;
@@ -1234,14 +1257,14 @@ public class ComponentCapturePanel extends BasePanel {
             }
             
             if (directionalityMode.needsBottomTop()) {
-                setBottomButton.setMessage(Text.literal(bottomMark != null ? "⬇️✓ 底端" : "⬇️ 设底端"));
+                setBottomButton.setMessage(Text.literal(draft.orientation.bottomMarkWorld != null ? "⬇️✓ 底端" : "⬇️ 设底端"));
                 setBottomButton.setPosition(x, y);
                 setBottomButton.setWidth(halfW);
                 setBottomButton.visible = true;
                 setBottomButton.active = true;
                 setBottomButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
                 
-                setTopButton.setMessage(Text.literal(topMark != null ? "⬆️✓ 顶端" : "⬆️ 设顶端"));
+                setTopButton.setMessage(Text.literal(draft.orientation.topMarkWorld != null ? "⬆️✓ 顶端" : "⬆️ 设顶端"));
                 setTopButton.setPosition(x + halfW + 4, y);
                 setTopButton.setWidth(w - halfW - 4);
                 setTopButton.visible = true;
@@ -1360,7 +1383,7 @@ public class ComponentCapturePanel extends BasePanel {
             socketPickOriginButton.setPosition(x, y);
             socketPickOriginButton.setWidth(half);
             socketPickOriginButton.visible = true;
-            socketPickOriginButton.active = SelectionTool.INSTANCE.hasSelection() && st.anchorWorld != null;
+            socketPickOriginButton.active = SelectionTool.INSTANCE.hasSelection() && st.captureDraft.anchor.worldPos != null;
             socketPickOriginButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
             socketFacingButton.setMessage(Text.literal("朝向: " + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH")));
@@ -1380,7 +1403,7 @@ public class ComponentCapturePanel extends BasePanel {
             socketPreviewButton.setPosition(x + half + 4, y);
             socketPreviewButton.setWidth(w - half - 4);
             socketPreviewButton.visible = true;
-            socketPreviewButton.active = st.anchorWorld != null && st.socketOriginLocal != null;
+            socketPreviewButton.active = st.captureDraft.anchor.worldPos != null && st.socketOriginLocal != null;
             socketPreviewButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
 
@@ -1402,7 +1425,7 @@ public class ComponentCapturePanel extends BasePanel {
             autoAnalyzeButton.setPosition(x, y);
             autoAnalyzeButton.setWidth(w);
             autoAnalyzeButton.visible = true;
-            autoAnalyzeButton.active = st.anchorWorld != null;
+            autoAnalyzeButton.active = st.captureDraft.anchor.worldPos != null;
             autoAnalyzeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
             
@@ -1489,15 +1512,33 @@ public class ComponentCapturePanel extends BasePanel {
                 
                 // 快捷动作区
                 if (healthResult.hasAutoFixable() || errorCount > 0) {
-                    int buttonW = (w - 4) / 3;
+                    int buttonW = (w - 4) / 2;
                     if (healthResult.hasAutoFixable()) {
                         autoFixButton.setPosition(x, y);
                         autoFixButton.setWidth(buttonW);
                         autoFixButton.visible = true;
                         autoFixButton.active = true;
                         autoFixButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
+
+                        undoAutoFixButton.setPosition(x + buttonW + 4, y);
+                        undoAutoFixButton.setWidth(w - buttonW - 4);
+                        undoAutoFixButton.visible = true;
+                        undoAutoFixButton.active = st.captureDraft.snapshotBeforeAutoFix != null;
+                        undoAutoFixButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
                     }
                     y += LABEL_OFFSET;
+                }
+
+                if (st.captureDraft.lastAutoFixReport != null && !st.captureDraft.lastAutoFixReport.isEmpty()) {
+                    y = drawWrappedText(ctx, Text.literal("最近自动修复："), x, y, w, 0xFF88CCFF);
+                    y += 2;
+                    int count = 0;
+                    for (String fix : st.captureDraft.lastAutoFixReport) {
+                        if (fix == null || fix.isBlank()) continue;
+                        y = drawWrappedText(ctx, Text.literal("- " + fix), x, y, w, 0xFFAAAAAA);
+                        if (++count >= 6) break;
+                    }
+                    y += 2;
                 }
                 
                 // 详细列表
@@ -1705,7 +1746,7 @@ public class ComponentCapturePanel extends BasePanel {
                 
                 // 检查锚点
                 var st = ComponentTool.INSTANCE.getState();
-                if (st.anchorWorld == null) {
+                if (st.captureDraft.anchor.worldPos == null) {
                     if (DEBUG_CAPTURE) {
                         com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 锚点未设置！请先设置锚点（右键点击方块）");
                     }
@@ -1713,10 +1754,10 @@ public class ComponentCapturePanel extends BasePanel {
                 }
                 
                 if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 选区: {} -> {}, 锚点: {}", min, max, st.anchorWorld);
+                    com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 选区: {} -> {}, 锚点: {}", min, max, st.captureDraft.anchor.worldPos);
                 }
                 
-                String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+                String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client, ComponentTool.INSTANCE.getState().captureDraft);
                 if (json != null) {
                     ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
                     if (def != null) {
@@ -1768,9 +1809,10 @@ public class ComponentCapturePanel extends BasePanel {
         if (client == null || client.world == null) return 0;
         
         // 优先使用显式方块集合（点选模式）
-        if (!selectedBlocks.isEmpty()) {
+        var st = ComponentTool.INSTANCE.getState();
+        if (st.captureDraft.selection.explicit && st.captureDraft.selection.blocks != null && !st.captureDraft.selection.blocks.isEmpty()) {
             int count = 0;
-            for (BlockPos pos : selectedBlocks) {
+            for (BlockPos pos : st.captureDraft.selection.blocks) {
                 if (pos != null && !client.world.getBlockState(pos).isAir()) {
                     count++;
                 }
@@ -1850,7 +1892,7 @@ public class ComponentCapturePanel extends BasePanel {
     private CapturePhase computeCurrentPhase() {
         var st = ComponentTool.INSTANCE.getState();
         boolean hasSelection = SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
-        boolean hasAnchor = st.anchorWorld != null;
+        boolean hasAnchor = st.captureDraft.anchor.worldPos != null;
         boolean hasName = st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
         boolean hasCategory = st.category != ComponentCategory.GENERIC;
         
@@ -1876,7 +1918,7 @@ public class ComponentCapturePanel extends BasePanel {
             case SELECTION:
                 return SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
             case ANCHOR_ORIENTATION:
-                return st.anchorWorld != null;
+                return st.captureDraft.anchor.worldPos != null;
             case SEMANTIC:
                 boolean hasName = st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
                 boolean hasCategory = st.category != ComponentCategory.GENERIC;
@@ -1891,7 +1933,9 @@ public class ComponentCapturePanel extends BasePanel {
 
     private void cycleFacing() {
         var st = ComponentTool.INSTANCE.getState();
-        st.facing = st.facing.rotateYClockwise();
+        Direction base = st.captureDraft.orientation.facing != null ? st.captureDraft.orientation.facing : Direction.SOUTH;
+        st.captureDraft.orientation.facing = base.rotateYClockwise();
+        st.syncDraftToState();
     }
 
     private void cycleMirror() {
@@ -1899,12 +1943,13 @@ public class ComponentCapturePanel extends BasePanel {
         var values = com.formacraft.common.component.transform.Mirror.values();
         int idx = 0;
         for (int i = 0; i < values.length; i++) {
-            if (values[i] == st.mirror) {
+            if (values[i] == st.captureDraft.orientation.mirror) {
                 idx = i;
                 break;
             }
         }
-        st.mirror = values[(idx + 1) % values.length];
+        st.captureDraft.orientation.mirror = values[(idx + 1) % values.length];
+        st.syncDraftToState();
     }
 
     private void updateTagsFromInput() {
@@ -1946,9 +1991,28 @@ public class ComponentCapturePanel extends BasePanel {
             HudToast.show("无法修复：世界未加载", true);
             return;
         }
+
+        // Draft 级自动修复（不依赖 JSON）
+        var st = ComponentTool.INSTANCE.getState();
+        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos max = SelectionTool.INSTANCE.getMax();
+        st.captureDraft.snapshotBeforeAutoFix = st.captureDraft.copy();
+        var draftFix = com.formacraft.client.tool.ComponentDraftAutoFix.apply(
+                st.captureDraft, st, min, max
+        );
+        if (!draftFix.isEmpty()) {
+            st.captureDraft.lastAutoFixReport = draftFix.getFixes();
+            st.captureDraft.dirty = true;
+            st.captureDraft.updatePhase();
+            st.syncDraftToState();
+            HudToast.show("完成: 已自动修复 " + draftFix.size() + " 个问题");
+            return;
+        }
+        st.captureDraft.snapshotBeforeAutoFix = null;
+        st.captureDraft.lastAutoFixReport = null;
         
         // 构建当前构件定义
-        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client, ComponentTool.INSTANCE.getState().captureDraft);
         if (json == null || json.isBlank()) {
             HudToast.show("无法修复：请先选择构件方块", true);
             return;
@@ -1972,9 +2036,14 @@ public class ComponentCapturePanel extends BasePanel {
                 HudToast.show("没有可自动修复的问题");
                 return;
             }
-            
+
             // 应用修复到 ComponentToolState
+            st.captureDraft.snapshotBeforeAutoFix = st.captureDraft.copy();
             applyFixToState(def, fixReport);
+            st.captureDraft.lastAutoFixReport = fixReport.getFixes();
+            st.captureDraft.dirty = true;
+            st.captureDraft.updatePhase();
+            st.syncDraftToState();
             
             // 显示修复结果
             String message = "已自动修复 " + fixReport.size() + " 个问题";
@@ -1990,6 +2059,21 @@ public class ComponentCapturePanel extends BasePanel {
             HudToast.show("自动修复失败: " + t.getMessage(), true);
         }
     }
+
+    private void undoAutoFix() {
+        var st = ComponentTool.INSTANCE.getState();
+        if (st.captureDraft.snapshotBeforeAutoFix == null) {
+            HudToast.show("没有可撤销的修复", true);
+            return;
+        }
+        st.captureDraft.copyFrom(st.captureDraft.snapshotBeforeAutoFix);
+        st.captureDraft.snapshotBeforeAutoFix = null;
+        st.captureDraft.lastAutoFixReport = null;
+        st.captureDraft.dirty = true;
+        st.captureDraft.updatePhase();
+        st.syncDraftToState();
+        HudToast.show("已撤销自动修复");
+    }
     
     /**
      * 将修复后的 ComponentDefinition 应用到 ComponentToolState
@@ -1999,35 +2083,52 @@ public class ComponentCapturePanel extends BasePanel {
         var st = ComponentTool.INSTANCE.getState();
         
         // 应用锚点修复（H2-1, H2-2）
-        if (def.anchor != null && st.anchorWorld != null) {
+        if (def.anchor != null && st.captureDraft.anchor.worldPos != null) {
             // 计算修复后的锚点世界坐标
             // 锚点在 ComponentDefinition 中是相对坐标，需要转换为世界坐标
-            net.minecraft.util.math.BlockPos min = SelectionTool.INSTANCE.getMin();
+            net.minecraft.util.math.BlockPos min = getSelectionMinForFix();
             if (min != null) {
                 // 锚点相对坐标 + 选区最小点 = 世界坐标
                 int worldX = min.getX() + def.anchor.dx;
                 int worldY = min.getY() + def.anchor.dy;
                 int worldZ = min.getZ() + def.anchor.dz;
-                st.anchorWorld = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
+                st.captureDraft.anchor.worldPos = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
+                st.syncDraftToState();
                 if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] 更新锚点: {}", st.anchorWorld);
+                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] 更新锚点: {}", st.captureDraft.anchor.worldPos);
                 }
             }
         } else if (def.anchor != null) {
             // 如果之前没有锚点，现在创建了
-            net.minecraft.util.math.BlockPos min = SelectionTool.INSTANCE.getMin();
+            net.minecraft.util.math.BlockPos min = getSelectionMinForFix();
             if (min != null) {
                 int worldX = min.getX() + def.anchor.dx;
                 int worldY = min.getY() + def.anchor.dy;
                 int worldZ = min.getZ() + def.anchor.dz;
-                st.anchorWorld = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
+                st.captureDraft.anchor.worldPos = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
+                st.syncDraftToState();
                 if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] 创建锚点: {}", st.anchorWorld);
+                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] 创建锚点: {}", st.captureDraft.anchor.worldPos);
                 }
             }
         }
         
         // 其他修复可以在这里添加
+    }
+
+    private net.minecraft.util.math.BlockPos getSelectionMinForFix() {
+        var st = ComponentTool.INSTANCE.getState();
+        if (st.captureDraft.hasExplicitSelection()) {
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+            for (net.minecraft.util.math.BlockPos pos : st.captureDraft.selection.blocks) {
+                if (pos == null) continue;
+                minX = Math.min(minX, pos.getX());
+                minY = Math.min(minY, pos.getY());
+                minZ = Math.min(minZ, pos.getZ());
+            }
+            return new net.minecraft.util.math.BlockPos(minX, minY, minZ);
+        }
+        return SelectionTool.INSTANCE.getMin();
     }
 
     private boolean canSave() {
@@ -2040,12 +2141,17 @@ public class ComponentCapturePanel extends BasePanel {
             return false;
         }
         // 检查锚点（buildCurrentComponentJson 需要锚点）
-        if (st.anchorWorld == null) {
+        if (st.captureDraft.anchor.worldPos == null) {
             return false;
         }
         // 检查锚点是否在有效选区内（或允许外侧锚点）
-        BlockPos anchor = st.anchorWorld;
-        return isAnchorLocationAllowed(anchor);
+        BlockPos anchor = st.captureDraft.anchor.worldPos;
+        if (!isAnchorLocationAllowed(anchor)) {
+            return false;
+        }
+        // ERROR 阻断保存（Draft HealthCheck）
+        var health = checkComponentHealth();
+        return !health.hasErrors();
     }
 
     private void saveComponent() {
@@ -2055,7 +2161,16 @@ public class ComponentCapturePanel extends BasePanel {
         }
 
         var st = ComponentTool.INSTANCE.getState();
-        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
+        var health = checkComponentHealth();
+        if (health.hasErrors()) {
+            HudToast.show("保存失败：存在错误项（请先修复）", true);
+            return;
+        }
+        if (health.hasWarnings()) {
+            HudToast.show("存在警告：仍可保存，但可能影响放置效果");
+        }
+        st.commitCapture();
+        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client, ComponentTool.INSTANCE.getState().captureDraft);
         if (json == null || json.isBlank()) {
             HudToast.show("保存失败：请检查选区", true);
             return;
@@ -2141,13 +2256,6 @@ public class ComponentCapturePanel extends BasePanel {
         // 这样避免了 sleep(500) 的竞态问题
     }
 
-    private String makeId(ComponentCategory cat, String name) {
-        String n = (name == null ? "" : name).toLowerCase(java.util.Locale.ROOT)
-            .replaceAll("[^a-z0-9]+", "_");
-        if (n.isBlank()) n = "component";
-        return n;
-    }
-
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (super.mouseClicked(mouseX, mouseY, button)) return true;
@@ -2206,6 +2314,7 @@ public class ComponentCapturePanel extends BasePanel {
         if (autoAnalyzeButton != null && autoAnalyzeButton.visible && autoAnalyzeButton.mouseClicked(click, false)) return true;
         if (autoDetectSocketsButton != null && autoDetectSocketsButton.visible && autoDetectSocketsButton.mouseClicked(click, false)) return true;
         if (autoFixButton != null && autoFixButton.visible && autoFixButton.mouseClicked(click, false)) return true;
+        if (undoAutoFixButton != null && undoAutoFixButton.visible && undoAutoFixButton.mouseClicked(click, false)) return true;
         
         if (cancelButton != null && cancelButton.visible && cancelButton.mouseClicked(click, false)) return true;
         if (saveButton != null && saveButton.visible && saveButton.mouseClicked(click, false)) return true;
@@ -2295,87 +2404,13 @@ public class ComponentCapturePanel extends BasePanel {
      * 包括 ComponentDefinition 层面的检查和 UI 层面的检查（如方向标记）
      */
     private com.formacraft.common.component.health.HealthCheckResult checkComponentHealth() {
-        // 尝试构建 ComponentDefinition 进行检查
-        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client);
-        var result = new com.formacraft.common.component.health.HealthCheckResult();
-        
-        if (json == null || json.isBlank()) {
-            // 如果无法构建，返回基础检查结果
-            var st = ComponentTool.INSTANCE.getState();
-            boolean hasSelection = SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
-            if (!hasSelection) {
-                result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.error(
-                    "H1-1", "未选择有效方块", "请先选择构件方块", "无法保存",
-                    com.formacraft.common.component.health.HealthCheckResult.FixAction.NONE, ""));
-            }
-            if (st.anchorWorld == null) {
-                result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.error(
-                    "H2-1", "未设置构件锚点", "请右键点击方块设置锚点", "构件无法稳定放置",
-                    com.formacraft.common.component.health.HealthCheckResult.FixAction.AUTO, "自动推荐锚点（底部中心）"));
-            }
-            return result;
-        }
-        
-        try {
-            var def = com.formacraft.common.json.JsonUtil.fromJson(json, com.formacraft.common.component.ComponentDefinition.class);
-            if (def != null) {
-                // ComponentDefinition 层面的检查
-                result = com.formacraft.common.component.health.ComponentHealthChecker.check(def);
-                
-                // UI 层面的额外检查：方向标记（H2-3 增强版）
-                var st = ComponentTool.INSTANCE.getState();
-                ComponentCategory cat = st.category != null ? st.category : ComponentCategory.GENERIC;
-                
-                // 检查门/窗是否需要内外标记
-                if ((cat == ComponentCategory.DOOR || cat == ComponentCategory.WINDOW) && 
-                    directionalityMode == DirectionalityMode.INSIDE_OUTSIDE) {
-                    if (insideMark == null || outsideMark == null) {
-                        // 移除原有的 H2-3 OK 结果（如果有）
-                        result.getItems().removeIf(item -> "H2-3".equals(item.ruleId) && 
-                            item.level == com.formacraft.common.component.health.HealthCheckResult.Level.OK);
-                        // 添加 UI 层面的警告
-                        result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.warn(
-                            "H2-3", "需要设置内外方向标记",
-                            (cat == ComponentCategory.DOOR ? "门" : "窗") + "需要标记内侧和外侧位置",
-                            "AI 可能反向放置（非常常见错误）",
-                            com.formacraft.common.component.health.HealthCheckResult.FixAction.SUGGEST,
-                            "点击「标记内侧」和「标记外侧」按钮在世界中标记"));
-                    }
-                }
-
-                // 检查宿主面（墙面类构件建议设置）
-                if ((attachmentMode == com.formacraft.common.component.placement.AttachmentType.WALL_OPENING
-                        || attachmentMode == com.formacraft.common.component.placement.AttachmentType.WALL_SURFACE)
-                        && st.hostFaceNormal == null) {
-                    result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.warn(
-                            "H2-4", "建议设置宿主面",
-                            "墙面类构件建议选择外墙表面作为参考面",
-                            "可能导致内外方向不稳定",
-                            com.formacraft.common.component.health.HealthCheckResult.FixAction.SUGGEST,
-                            "点击「选择宿主面」并在世界中选一个外墙面"));
-                }
-                
-                // 检查楼梯是否需要上下标记
-                if (cat == ComponentCategory.STAIRS && 
-                    directionalityMode == DirectionalityMode.BOTTOM_TOP) {
-                    if (bottomMark == null || topMark == null) {
-                        // 移除原有的 H2-3 OK 结果（如果有）
-                        result.getItems().removeIf(item -> "H2-3".equals(item.ruleId) && 
-                            item.level == com.formacraft.common.component.health.HealthCheckResult.Level.OK);
-                        // 添加 UI 层面的警告
-                        result.add(com.formacraft.common.component.health.HealthCheckResult.CheckItem.warn(
-                            "H2-3", "需要设置上下方向标记",
-                            "楼梯需要标记底端和顶端位置",
-                            "AI 可能反向放置",
-                            com.formacraft.common.component.health.HealthCheckResult.FixAction.SUGGEST,
-                            "点击「标记底端」和「标记顶端」按钮在世界中标记"));
-                    }
-                }
-            }
-        } catch (Throwable t) {
-            com.formacraft.FormacraftMod.LOGGER.error("[ComponentCapturePanel] 健康检查失败", t);
-        }
-        
+        var st = ComponentTool.INSTANCE.getState();
+        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos max = SelectionTool.INSTANCE.getMax();
+        var result = com.formacraft.client.tool.ComponentDraftHealthChecker.check(
+                st.captureDraft, st, min, max
+        );
+        st.captureDraft.lastHealth = result;
         return result;
     }
     
@@ -2385,6 +2420,7 @@ public class ComponentCapturePanel extends BasePanel {
     private java.util.List<String> getAIViewExplanation() {
         var explanations = new java.util.ArrayList<String>();
         var st = ComponentTool.INSTANCE.getState();
+        var draft = st.captureDraft;
         
         // 类型
         String categoryName = switch (st.category) {
@@ -2414,6 +2450,11 @@ public class ComponentCapturePanel extends BasePanel {
         };
         explanations.add("使用场景：" + usage);
         
+        // 宿主面
+        if (draft.host.referenceBlock != null && draft.host.normal != null) {
+            explanations.add("宿主面：" + draft.host.normal.name() + " @ " + draft.host.referenceBlock.toShortString());
+        }
+
         // 朝向规则
         if (directionalityMode == DirectionalityMode.INSIDE_OUTSIDE) {
             explanations.add("朝向规则：内 → 外");
@@ -2423,6 +2464,15 @@ public class ComponentCapturePanel extends BasePanel {
             explanations.add("朝向规则：内 → 外，下 → 上");
         } else {
             explanations.add("朝向规则：任意方向");
+        }
+
+        if (draft.orientation.hasInteriorExterior) {
+            explanations.add(draft.orientation.insideMarkWorld != null && draft.orientation.outsideMarkWorld != null
+                ? "内外标记：已设置" : "内外标记：未设置");
+        }
+        if (draft.orientation.hasBottomTop) {
+            explanations.add(draft.orientation.bottomMarkWorld != null && draft.orientation.topMarkWorld != null
+                ? "上下标记：已设置" : "上下标记：未设置");
         }
         
         // 推荐使用高度
@@ -2445,6 +2495,7 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private int drawStatusIndicator(DrawContext ctx, int x, int y, int w) {
         var st = ComponentTool.INSTANCE.getState();
+        var draft = st.captureDraft;
         
         // 边框
         ctx.fill(x, y, x + w, y + 1, 0xFF444444);
@@ -2458,28 +2509,44 @@ public class ComponentCapturePanel extends BasePanel {
         y += client.textRenderer.fontHeight + 2;
         
         // 锚点状态
-        boolean hasAnchor = st.anchorWorld != null;
+        boolean hasAnchor = draft.anchor.worldPos != null;
         int anchorColor = hasAnchor ? 0xFF00FF00 : 0xFFFFAA00;
         String anchorText = hasAnchor
-                ? String.format("OK 锚点: (%d, %d, %d)", st.anchorWorld.getX(), st.anchorWorld.getY(), st.anchorWorld.getZ())
+                ? String.format("OK 锚点: (%d, %d, %d)", draft.anchor.worldPos.getX(), draft.anchor.worldPos.getY(), draft.anchor.worldPos.getZ())
                 : "WARN 锚点: 未设置";
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(anchorText), x, y, anchorColor);
         y += client.textRenderer.fontHeight + 2;
 
-        String hostText = (st.hostFaceBlock != null && st.hostFaceNormal != null)
-                ? ("INFO 宿主面: " + st.hostFaceNormal.name() + " @ " + st.hostFaceBlock.toShortString())
+        String hostText = (draft.host.referenceBlock != null && draft.host.normal != null)
+                ? ("INFO 宿主面: " + draft.host.normal.name() + " @ " + draft.host.referenceBlock.toShortString())
                 : "INFO 宿主面: 未设置";
-        int hostColor = st.hostFaceNormal != null ? 0xFF66CCFF : 0xFF888888;
+        int hostColor = draft.host.normal != null ? 0xFF66CCFF : 0xFF888888;
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(hostText), x, y, hostColor);
         y += client.textRenderer.fontHeight + 2;
 
-        if (st.allowAnchorOutsideSelection) {
+        if (draft.orientation.hasInteriorExterior) {
+            boolean hasInOut = draft.orientation.insideMarkWorld != null && draft.orientation.outsideMarkWorld != null;
+            int inOutColor = hasInOut ? 0xFF00FF00 : 0xFFFFAA00;
+            String inOutText = hasInOut ? "OK 内外方向: 已设置" : "WARN 内外方向: 未设置";
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal(inOutText), x, y, inOutColor);
+            y += client.textRenderer.fontHeight + 2;
+        }
+
+        if (draft.orientation.hasBottomTop) {
+            boolean hasBottomTop = draft.orientation.bottomMarkWorld != null && draft.orientation.topMarkWorld != null;
+            int bottomTopColor = hasBottomTop ? 0xFF00FF00 : 0xFFFFAA00;
+            String bottomTopText = hasBottomTop ? "OK 上下方向: 已设置" : "WARN 上下方向: 未设置";
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal(bottomTopText), x, y, bottomTopColor);
+            y += client.textRenderer.fontHeight + 2;
+        }
+
+        if (draft.anchor.allowOutsideSelection) {
             ctx.drawTextWithShadow(client.textRenderer, Text.literal("INFO 外侧锚点: 开启"), x, y, 0xFF88CCFF);
             y += client.textRenderer.fontHeight + 2;
         }
         
         // 朝向状态
-        String facingText = "INFO 朝向: " + st.facing.name();
+        String facingText = "INFO 朝向: " + draft.orientation.facing.name();
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(facingText), x, y, 0xFF88CCFF);
         y += client.textRenderer.fontHeight + 2;
 
@@ -2676,7 +2743,11 @@ public class ComponentCapturePanel extends BasePanel {
         
         // 清空现有选区
         selectedBlocks.clear();
-        st.explicitSelectedBlocks = null; // 框选模式下不使用显式集合
+        st.captureDraft.selection.blocks = null; // 框选模式下不使用显式集合
+        st.captureDraft.selection.explicit = false;
+        st.captureDraft.selection.aabbMin = null;
+        st.captureDraft.selection.aabbMax = null;
+        st.syncDraftToState();
         
         // 计算边界
         int minX = Math.min(start.getX(), end.getX());
@@ -2701,6 +2772,9 @@ public class ComponentCapturePanel extends BasePanel {
             new net.minecraft.util.math.BlockPos(minX, minY, minZ),
             new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ)
         );
+        st.captureDraft.selection.aabbMin = new net.minecraft.util.math.BlockPos(minX, minY, minZ);
+        st.captureDraft.selection.aabbMax = new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ);
+        st.syncDraftToState();
     }
     
     /**
@@ -2708,10 +2782,15 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void updateSelectionToolFromBlocks() {
         var st = ComponentTool.INSTANCE.getState();
+        var draft = st.captureDraft;
         
         if (selectedBlocks.isEmpty()) {
             SelectionTool.INSTANCE.clearSelection();
-            st.explicitSelectedBlocks = null; // 清空显式方块集合
+            draft.selection.blocks = null; // 清空显式方块集合
+            draft.selection.explicit = false;
+            draft.selection.aabbMin = null;
+            draft.selection.aabbMax = null;
+            st.syncDraftToState();
             return;
         }
         
@@ -2733,14 +2812,19 @@ public class ComponentCapturePanel extends BasePanel {
             new net.minecraft.util.math.BlockPos(minX, minY, minZ),
             new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ)
         );
+        draft.selection.aabbMin = new net.minecraft.util.math.BlockPos(minX, minY, minZ);
+        draft.selection.aabbMax = new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ);
         
         // 同步到 ComponentToolState（用于 buildCurrentComponentJson）
         // 点选模式：使用显式集合；框选模式：清空显式集合（使用 AABB）
         if (selectionMode == ComponentSelectionMode.POINT_SELECT) {
-            st.explicitSelectedBlocks = new java.util.HashSet<>(selectedBlocks);
+            draft.selection.blocks = new java.util.HashSet<>(selectedBlocks);
+            draft.selection.explicit = true;
         } else {
-            st.explicitSelectedBlocks = null; // 框选模式使用 AABB
+            draft.selection.blocks = null; // 框选模式使用 AABB
+            draft.selection.explicit = false;
         }
+        st.syncDraftToState();
     }
     
     /**
@@ -2754,7 +2838,9 @@ public class ComponentCapturePanel extends BasePanel {
             HudToast.show("锚点需落在选区内或紧邻选区", true);
             return;
         }
-        st.anchorWorld = pos.toImmutable();
+        var draft = st.captureDraft;
+        draft.anchor.worldPos = pos.toImmutable();
+        st.syncDraftToState();
         st.pickingAnchor = false;
         
         if (DEBUG_CAPTURE) {
@@ -2766,19 +2852,22 @@ public class ComponentCapturePanel extends BasePanel {
     private void setHostFace(BlockHitResult hit) {
         if (hit == null) return;
         var st = ComponentTool.INSTANCE.getState();
+        var draft = st.captureDraft;
         BlockPos base = hit.getBlockPos().toImmutable();
         Direction normal = hit.getSide();
 
-        st.hostFaceBlock = base;
-        st.hostFaceNormal = normal;
+        draft.host.referenceBlock = base;
+        draft.host.normal = normal;
 
-        BlockPos anchor = st.allowAnchorOutsideSelection ? base.offset(normal) : base;
+        BlockPos anchor = draft.anchor.allowOutsideSelection ? base.offset(normal) : base;
         if (!isAnchorLocationAllowed(anchor)) {
             HudToast.show("宿主面已记录，但锚点不在选区附近", true);
         } else {
-            st.anchorWorld = anchor;
+            draft.anchor.worldPos = anchor;
+            st.syncDraftToState();
         }
-        st.facing = normal;
+        draft.orientation.facing = normal;
+        st.syncDraftToState();
         com.formacraft.client.ui.toast.HudToast.show("已设置宿主面: " + normal.name());
     }
 
@@ -2801,10 +2890,11 @@ public class ComponentCapturePanel extends BasePanel {
 
     private void applyFacingFromMarks() {
         var st = ComponentTool.INSTANCE.getState();
-        Direction derived = deriveHorizontalFacing(insideMark, outsideMark);
-        if (derived != null) {
-            st.facing = derived;
-        }
+            Direction derived = deriveHorizontalFacing(st.captureDraft.orientation.insideMarkWorld, st.captureDraft.orientation.outsideMarkWorld);
+            if (derived != null) {
+                st.captureDraft.orientation.facing = derived;
+                st.syncDraftToState();
+            }
     }
 
     private Direction deriveHorizontalFacing(BlockPos inside, BlockPos outside) {
@@ -2822,7 +2912,7 @@ public class ComponentCapturePanel extends BasePanel {
         if (pos == null) return false;
         if (!selectedBlocks.isEmpty()) {
             if (selectedBlocks.contains(pos)) return true;
-            if (!ComponentTool.INSTANCE.getState().allowAnchorOutsideSelection) return false;
+            if (!ComponentTool.INSTANCE.getState().captureDraft.anchor.allowOutsideSelection) return false;
             return isAnchorAdjacentToSelection(pos);
         }
         if (!SelectionTool.INSTANCE.hasSelection()) return false;
@@ -2833,7 +2923,7 @@ public class ComponentCapturePanel extends BasePanel {
                 && pos.getY() >= min.getY() && pos.getY() <= max.getY()
                 && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
         if (inside) return true;
-        if (!ComponentTool.INSTANCE.getState().allowAnchorOutsideSelection) return false;
+        if (!ComponentTool.INSTANCE.getState().captureDraft.anchor.allowOutsideSelection) return false;
         return pos.getX() >= (min.getX() - 1) && pos.getX() <= (max.getX() + 1)
                 && pos.getY() >= (min.getY() - 1) && pos.getY() <= (max.getY() + 1)
                 && pos.getZ() >= (min.getZ() - 1) && pos.getZ() <= (max.getZ() + 1);
@@ -2861,13 +2951,18 @@ public class ComponentCapturePanel extends BasePanel {
         bottomMark = null;
         topMark = null;
         var st = ComponentTool.INSTANCE.getState();
-        st.explicitSelectedBlocks = null;
-        st.insideMarkWorld = null;
-        st.outsideMarkWorld = null;
-        st.bottomMarkWorld = null;
-        st.topMarkWorld = null;
-        st.hostFaceBlock = null;
-        st.hostFaceNormal = null;
+        var draft = st.captureDraft;
+        draft.selection.blocks = null;
+        draft.selection.explicit = false;
+        draft.selection.aabbMin = null;
+        draft.selection.aabbMax = null;
+        draft.orientation.insideMarkWorld = null;
+        draft.orientation.outsideMarkWorld = null;
+        draft.orientation.bottomMarkWorld = null;
+        draft.orientation.topMarkWorld = null;
+        draft.host.referenceBlock = null;
+        draft.host.normal = null;
+        st.syncDraftToState();
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 清除选区");
         }
@@ -2884,6 +2979,13 @@ public class ComponentCapturePanel extends BasePanel {
      * Tick 方法 - 更新 SelectionTool
      */
     public void tick() {
+        var st = ComponentTool.INSTANCE.getState();
+        boolean wasActive = st.captureActive;
+        st.beginCapture();
+        if (!wasActive && st.captureActive) {
+            syncLocalFromState();
+        }
+        st.syncDraftToState();
         // 框选模式：让 SelectionTool 处理拖拽
         if (selectionMode == ComponentSelectionMode.BOX_SELECT && SelectionTool.INSTANCE.isSelecting()) {
             SelectionTool.INSTANCE.tick();
@@ -2899,13 +3001,18 @@ public class ComponentCapturePanel extends BasePanel {
         SelectionTool.INSTANCE.renderWorld(ctx);
         
         // 渲染点选模式下的单个方块高亮（性能优化：超过阈值时只渲染采样点）
-        if (selectionMode == ComponentSelectionMode.POINT_SELECT && !selectedBlocks.isEmpty()) {
-            int blockCount = selectedBlocks.size();
+        var draft = ComponentTool.INSTANCE.getState().captureDraft;
+        java.util.Set<net.minecraft.util.math.BlockPos> highlightBlocks = selectedBlocks;
+        if (draft.selection.explicit && draft.selection.blocks != null && !draft.selection.blocks.isEmpty()) {
+            highlightBlocks = draft.selection.blocks;
+        }
+        if (selectionMode == ComponentSelectionMode.POINT_SELECT && highlightBlocks != null && !highlightBlocks.isEmpty()) {
+            int blockCount = highlightBlocks.size();
             int renderThreshold = 400; // 超过 400 个方块时启用采样渲染
             int sampleRate = blockCount > renderThreshold ? Math.max(1, blockCount / 200) : 1; // 采样率
             
             int rendered = 0;
-            for (net.minecraft.util.math.BlockPos pos : selectedBlocks) {
+            for (net.minecraft.util.math.BlockPos pos : highlightBlocks) {
                 if (rendered % sampleRate == 0) {
                     renderBlockHighlight(ctx, pos, 0.0f, 1.0f, 0.0f, 0.3f); // 绿色高亮
                 }
@@ -2924,34 +3031,35 @@ public class ComponentCapturePanel extends BasePanel {
      * 使用彩色方块高亮来标识不同的方向标记
      */
     private void renderDirectionMarkers(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
+        var draft = ComponentTool.INSTANCE.getState().captureDraft;
         // 渲染内侧标记（蓝色）
-        if (insideMark != null) {
-            renderBlockHighlight(ctx, insideMark, 0.2f, 0.5f, 1.0f, 0.6f); // 蓝色
+        if (draft.orientation.insideMarkWorld != null) {
+            renderBlockHighlight(ctx, draft.orientation.insideMarkWorld, 0.2f, 0.5f, 1.0f, 0.6f); // 蓝色
         }
         
         // 渲染外侧标记（橙色）
-        if (outsideMark != null) {
-            renderBlockHighlight(ctx, outsideMark, 1.0f, 0.5f, 0.0f, 0.6f); // 橙色
+        if (draft.orientation.outsideMarkWorld != null) {
+            renderBlockHighlight(ctx, draft.orientation.outsideMarkWorld, 1.0f, 0.5f, 0.0f, 0.6f); // 橙色
         }
         
         // 渲染底端标记（绿色）
-        if (bottomMark != null) {
-            renderBlockHighlight(ctx, bottomMark, 0.0f, 1.0f, 0.3f, 0.6f); // 绿色
+        if (draft.orientation.bottomMarkWorld != null) {
+            renderBlockHighlight(ctx, draft.orientation.bottomMarkWorld, 0.0f, 1.0f, 0.3f, 0.6f); // 绿色
         }
         
         // 渲染顶端标记（紫色）
-        if (topMark != null) {
-            renderBlockHighlight(ctx, topMark, 0.8f, 0.2f, 1.0f, 0.6f); // 紫色
+        if (draft.orientation.topMarkWorld != null) {
+            renderBlockHighlight(ctx, draft.orientation.topMarkWorld, 0.8f, 0.2f, 1.0f, 0.6f); // 紫色
         }
 
         // 内外方向线
-        if (insideMark != null && outsideMark != null) {
-            renderDirectionLine(ctx, insideMark, outsideMark, 255, 170, 0, 220);
+        if (draft.orientation.insideMarkWorld != null && draft.orientation.outsideMarkWorld != null) {
+            renderDirectionLine(ctx, draft.orientation.insideMarkWorld, draft.orientation.outsideMarkWorld, 255, 170, 0, 220);
         }
 
         // 上下方向线
-        if (bottomMark != null && topMark != null) {
-            renderDirectionLine(ctx, bottomMark, topMark, 120, 220, 120, 220);
+        if (draft.orientation.bottomMarkWorld != null && draft.orientation.topMarkWorld != null) {
+            renderDirectionLine(ctx, draft.orientation.bottomMarkWorld, draft.orientation.topMarkWorld, 120, 220, 120, 220);
         }
         
         // TODO: 方向箭头渲染（需要更复杂的顶点格式处理）
@@ -2959,21 +3067,43 @@ public class ComponentCapturePanel extends BasePanel {
     }
 
     /**
+     * 将当前 state 同步到面板本地缓存（用于进入捕获态时回填）。
+     */
+    private void syncLocalFromState() {
+        var st = ComponentTool.INSTANCE.getState();
+        selectedBlocks.clear();
+        if (st.captureDraft.selection.explicit && st.captureDraft.selection.blocks != null) {
+            selectedBlocks.addAll(st.captureDraft.selection.blocks);
+        }
+        if (!st.captureDraft.selection.explicit) {
+            st.captureDraft.selection.aabbMin = SelectionTool.INSTANCE.getMin();
+            st.captureDraft.selection.aabbMax = SelectionTool.INSTANCE.getMax();
+        }
+        attachmentMode = st.captureDraft.host.attachment;
+        directionalityMode = st.captureDraft.orientation.mode;
+        selectionMode = st.captureDraft.selection.explicit ? ComponentSelectionMode.POINT_SELECT : ComponentSelectionMode.BOX_SELECT;
+        insideMark = st.captureDraft.orientation.insideMarkWorld;
+        outsideMark = st.captureDraft.orientation.outsideMarkWorld;
+        bottomMark = st.captureDraft.orientation.bottomMarkWorld;
+        topMark = st.captureDraft.orientation.topMarkWorld;
+    }
+
+    /**
      * 渲染宿主面（外墙表面）的高亮
      */
     private void renderHostFace(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
-        var st = ComponentTool.INSTANCE.getState();
-        if (st.hostFaceBlock == null || st.hostFaceNormal == null) return;
+        var draft = ComponentTool.INSTANCE.getState().captureDraft;
+        if (draft.host.referenceBlock == null || draft.host.normal == null) return;
 
-        double x0 = st.hostFaceBlock.getX();
-        double y0 = st.hostFaceBlock.getY();
-        double z0 = st.hostFaceBlock.getZ();
+        double x0 = draft.host.referenceBlock.getX();
+        double y0 = draft.host.referenceBlock.getY();
+        double z0 = draft.host.referenceBlock.getZ();
         double x1 = x0 + 1;
         double y1 = y0 + 1;
         double z1 = z0 + 1;
         double t = 0.02;
 
-        net.minecraft.util.math.Box world = switch (st.hostFaceNormal) {
+        net.minecraft.util.math.Box world = switch (draft.host.normal) {
             case NORTH -> new net.minecraft.util.math.Box(x0, y0, z0 - t, x1, y1, z0 + t);
             case SOUTH -> new net.minecraft.util.math.Box(x0, y0, z1 - t, x1, y1, z1 + t);
             case WEST -> new net.minecraft.util.math.Box(x0 - t, y0, z0, x0 + t, y1, z1);
@@ -2985,12 +3115,12 @@ public class ComponentCapturePanel extends BasePanel {
         net.minecraft.util.math.Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ).expand(0.001);
         net.minecraft.client.render.VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.25f, 0.7f, 1.0f, 0.7f);
 
-        double cx = x0 + 0.5 + st.hostFaceNormal.getOffsetX() * 0.5;
-        double cy = y0 + 0.5 + st.hostFaceNormal.getOffsetY() * 0.5;
-        double cz = z0 + 0.5 + st.hostFaceNormal.getOffsetZ() * 0.5;
-        double ex = cx + st.hostFaceNormal.getOffsetX() * 0.6;
-        double ey = cy + st.hostFaceNormal.getOffsetY() * 0.6;
-        double ez = cz + st.hostFaceNormal.getOffsetZ() * 0.6;
+        double cx = x0 + 0.5 + draft.host.normal.getOffsetX() * 0.5;
+        double cy = y0 + 0.5 + draft.host.normal.getOffsetY() * 0.5;
+        double cz = z0 + 0.5 + draft.host.normal.getOffsetZ() * 0.5;
+        double ex = cx + draft.host.normal.getOffsetX() * 0.6;
+        double ey = cy + draft.host.normal.getOffsetY() * 0.6;
+        double ez = cz + draft.host.normal.getOffsetZ() * 0.6;
         ToolRenderUtil.line(ctx, cx, cy, cz, ex, ey, ez, 80, 200, 255, 220);
     }
 

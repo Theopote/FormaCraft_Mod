@@ -13,6 +13,7 @@ import java.util.Set;
  */
 public class ComponentDefinition {
     public String schema = "formacraft.component.v1";
+    public int version = 1;
 
     public String id;
     public String name;
@@ -38,6 +39,12 @@ public class ComponentDefinition {
      * v1.1：方向/宿主面提示（拾取阶段导出，用于后续语义化放置）。
      */
     public DirectionHints directionHints;
+
+    /** v1.1：锚点归一化提示（用于变体/拉伸时的语义稳定）。 */
+    public AnchorHint anchorHint;
+
+    /** v1.1：放置提示（用于从语义到几何的桥接）。 */
+    public PlacementHints placementHints;
 
     public List<BlockEntry> blocks;
 
@@ -82,6 +89,24 @@ public class ComponentDefinition {
             public String normal;
             public boolean allowAir = false;
         }
+    }
+
+    public static class AnchorHint {
+        /** 0..1 相对 bounds 宽度 */
+        public float u;
+        /** 0..1 相对 bounds 高度 */
+        public float v;
+        /** 0..1 相对 bounds 深度 */
+        public float w;
+    }
+
+    public static class PlacementHints {
+        /** AttachmentType.name() */
+        public String attachment;
+        /** 主轴：U/V/W */
+        public String primaryAxis;
+        /** 是否需要宿主面 */
+        public boolean needsHostFace = false;
     }
 
     public static class BlockEntry {

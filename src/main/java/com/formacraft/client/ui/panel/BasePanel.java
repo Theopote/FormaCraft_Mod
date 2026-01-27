@@ -1,5 +1,6 @@
 package com.formacraft.client.ui.panel;
 
+import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.widget.TabBar;
@@ -514,6 +515,10 @@ public abstract class BasePanel {
         // Tab 区域（使用 TabBar 处理）
         PanelType clickedTab = tabBar.handleMouseClick(mouseX, mouseY, button);
         if (clickedTab != null) {
+            if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE
+                    && clickedTab != PanelType.COMPONENT_CAPTURE) {
+                ComponentTool.INSTANCE.getState().cancelCapture();
+            }
             FormaCraftHudOverlay.activePanel = clickedTab;
             return true;
         }
