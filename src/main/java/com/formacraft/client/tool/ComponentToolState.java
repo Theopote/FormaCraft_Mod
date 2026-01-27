@@ -32,6 +32,14 @@ public class ComponentToolState {
     public BlockPos hostFaceBlock = null;
     /** 宿主面法向（外法线）。 */
     public Direction hostFaceNormal = null;
+    /** 内侧标记（世界坐标）。 */
+    public BlockPos insideMarkWorld = null;
+    /** 外侧标记（世界坐标）。 */
+    public BlockPos outsideMarkWorld = null;
+    /** 底端标记（世界坐标）。 */
+    public BlockPos bottomMarkWorld = null;
+    /** 顶端标记（世界坐标）。 */
+    public BlockPos topMarkWorld = null;
     /** 允许锚点在选区外侧（用于“空气宿主面”）。 */
     public boolean allowAnchorOutsideSelection = false;
     

@@ -232,26 +232,26 @@ public class InputRouter {
         lastClickHandledByUI = false;
     }
 
-    /** 滚轮事件 */
-    public static boolean onMouseScroll(double x, double y, double amount) {
+    /**
+     * 滚轮事件
+     */
+    public static void onMouseScroll(double x, double y, double amount) {
         if (isPreviewLocked()) {
             if (FormacraftUIState.isOpen
                     && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
                 BasePanel panel = getPanel();
                 if (panel != null) panel.mouseScrolled(x, y, amount);
             }
-            return true;
+            return;
         }
-        if (!FormacraftUIState.isOpen) return false;
+        if (!FormacraftUIState.isOpen) return;
         boolean inside = isMouseInsideUI(x, y);
 
         if (inside) {
             BasePanel panel = getPanel();
             if (panel != null) panel.mouseScrolled(x, y, amount);
-            return true;
         }
 
-        return false;
     }
 
     /** 键盘事件 */

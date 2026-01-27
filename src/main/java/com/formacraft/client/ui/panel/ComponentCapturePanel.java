@@ -796,9 +796,11 @@ public class ComponentCapturePanel extends BasePanel {
     private void handleDirectionMarking(BlockHitResult hit) {
         if (hit == null) return;
         BlockPos pos = hit.getBlockPos();
+        var st = ComponentTool.INSTANCE.getState();
         switch (markingMode) {
             case MARKING_INSIDE:
                 insideMark = pos.toImmutable();
+                st.insideMarkWorld = insideMark;
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 内侧标记: {}", insideMark);
                 }
@@ -808,6 +810,7 @@ public class ComponentCapturePanel extends BasePanel {
                 
             case MARKING_OUTSIDE:
                 outsideMark = pos.toImmutable();
+                st.outsideMarkWorld = outsideMark;
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 外侧标记: {}", outsideMark);
                 }
@@ -817,6 +820,7 @@ public class ComponentCapturePanel extends BasePanel {
                 
             case MARKING_BOTTOM:
                 bottomMark = pos.toImmutable();
+                st.bottomMarkWorld = bottomMark;
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 底端标记: {}", bottomMark);
                 }
@@ -825,6 +829,7 @@ public class ComponentCapturePanel extends BasePanel {
                 
             case MARKING_TOP:
                 topMark = pos.toImmutable();
+                st.topMarkWorld = topMark;
                 if (DEBUG_CAPTURE) {
                     com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 顶端标记: {}", topMark);
                 }
@@ -2851,6 +2856,18 @@ public class ComponentCapturePanel extends BasePanel {
         selectedBlocks.clear();
         isDragging = false;
         SelectionTool.INSTANCE.clearSelection();
+        insideMark = null;
+        outsideMark = null;
+        bottomMark = null;
+        topMark = null;
+        var st = ComponentTool.INSTANCE.getState();
+        st.explicitSelectedBlocks = null;
+        st.insideMarkWorld = null;
+        st.outsideMarkWorld = null;
+        st.bottomMarkWorld = null;
+        st.topMarkWorld = null;
+        st.hostFaceBlock = null;
+        st.hostFaceNormal = null;
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 清除选区");
         }

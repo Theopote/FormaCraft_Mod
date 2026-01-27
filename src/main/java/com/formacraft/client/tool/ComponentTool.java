@@ -1208,6 +1208,11 @@ public final class ComponentTool implements FormacraftTool {
         def.placementSpec = defaultPlacementSpec(def.category, def.tags);
         applyPlacementOverrides(def.placementSpec);
 
+        ComponentDefinition.DirectionHints hints = buildDirectionHints(anchor);
+        if (hints != null) {
+            def.directionHints = hints;
+        }
+
         def.blocks = new ArrayList<>();
         int minDy = Integer.MAX_VALUE;
         
@@ -1279,6 +1284,62 @@ public final class ComponentTool implements FormacraftTool {
         }
 
         spec.inferAllowedSockets();
+    }
+
+    private ComponentDefinition.DirectionHints buildDirectionHints(BlockPos anchor) {
+        ComponentDefinition.DirectionHints hints = new ComponentDefinition.DirectionHints();
+        boolean hasAny = false;
+
+        if (state.attachmentMode != null) {
+            hints.attachmentMode = state.attachmentMode.name();
+            hasAny = true;
+        }
+        if (state.hasInteriorExterior) {
+            hints.hasInteriorExterior = true;
+            hasAny = true;
+        }
+        if (state.hasBottomTop) {
+            hints.hasBottomTop = true;
+            hasAny = true;
+        }
+
+        if (state.insideMarkWorld != null && anchor != null) {
+            hints.inside = toMark(state.insideMarkWorld, anchor);
+            hasAny = true;
+        }
+        if (state.outsideMarkWorld != null && anchor != null) {
+            hints.outside = toMark(state.outsideMarkWorld, anchor);
+            hasAny = true;
+        }
+        if (state.bottomMarkWorld != null && anchor != null) {
+            hints.bottom = toMark(state.bottomMarkWorld, anchor);
+            hasAny = true;
+        }
+        if (state.topMarkWorld != null && anchor != null) {
+            hints.top = toMark(state.topMarkWorld, anchor);
+            hasAny = true;
+        }
+
+        if (state.hostFaceBlock != null && state.hostFaceNormal != null && anchor != null) {
+            ComponentDefinition.DirectionHints.HostFace host = new ComponentDefinition.DirectionHints.HostFace();
+            host.dx = state.hostFaceBlock.getX() - anchor.getX();
+            host.dy = state.hostFaceBlock.getY() - anchor.getY();
+            host.dz = state.hostFaceBlock.getZ() - anchor.getZ();
+            host.normal = state.hostFaceNormal.name();
+            host.allowAir = state.allowAnchorOutsideSelection;
+            hints.hostFace = host;
+            hasAny = true;
+        }
+
+        return hasAny ? hints : null;
+    }
+
+    private static ComponentDefinition.DirectionHints.Mark toMark(BlockPos pos, BlockPos anchor) {
+        ComponentDefinition.DirectionHints.Mark m = new ComponentDefinition.DirectionHints.Mark();
+        m.dx = pos.getX() - anchor.getX();
+        m.dy = pos.getY() - anchor.getY();
+        m.dz = pos.getZ() - anchor.getZ();
+        return m;
     }
 
     private static ComponentPlacementSpec defaultPlacementSpec(ComponentCategory category, java.util.List<String> tags) {

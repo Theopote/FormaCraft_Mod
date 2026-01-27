@@ -34,6 +34,11 @@ public class ComponentDefinition {
      */
     public ComponentPlacementSpec placementSpec;
 
+    /**
+     * v1.1：方向/宿主面提示（拾取阶段导出，用于后续语义化放置）。
+     */
+    public DirectionHints directionHints;
+
     public List<BlockEntry> blocks;
 
     /** 可选：构件插槽（用于“安装/开洞”）。 */
@@ -54,6 +59,29 @@ public class ComponentDefinition {
         public boolean requires_ground = true;
         public boolean requires_wall = false;
         public boolean allow_mirror = true;
+    }
+
+    public static class DirectionHints {
+        public String attachmentMode;
+        public boolean hasInteriorExterior = false;
+        public boolean hasBottomTop = false;
+
+        public Mark inside;
+        public Mark outside;
+        public Mark bottom;
+        public Mark top;
+
+        public HostFace hostFace;
+
+        public static class Mark {
+            public int dx, dy, dz;
+        }
+
+        public static class HostFace {
+            public int dx, dy, dz;
+            public String normal;
+            public boolean allowAir = false;
+        }
     }
 
     public static class BlockEntry {
