@@ -1,14 +1,16 @@
 package com.formacraft.client.ui.panel;
 
-import com.formacraft.client.component.ComponentThumbnailGenerator;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.tool.ToolRenderUtil;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureSelectionController;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureThumbnailService;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.placement.ComponentPlacementAnalyzer;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.gui.Click;
@@ -155,6 +157,8 @@ public class ComponentCapturePanel extends BasePanel {
     private String previewCulturalStyle;
     private String previewGeometryArchetype;
     private String previewArchetypeRef;
+    private String previewPlacementSummary;
+    private String previewPlacementHint;
     private long lastSemanticPreviewMs = 0;
     private static final long SEMANTIC_PREVIEW_DEBOUNCE_MS = 250;
     
@@ -763,6 +767,7 @@ public class ComponentCapturePanel extends BasePanel {
         var draft = ComponentTool.INSTANCE.getState().captureDraft;
         draft.host.manualAttachment = true;
         syncPlacementHintsToState();
+        lastSemanticPreviewMs = 0;
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换附着模式: {}", attachmentMode);
         }
@@ -774,6 +779,7 @@ public class ComponentCapturePanel extends BasePanel {
     private void cycleDirectionality() {
         directionalityMode = directionalityMode.next();
         syncPlacementHintsToState();
+        lastSemanticPreviewMs = 0;
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换方向性: {}", directionalityMode.getDisplayName());
         }
@@ -1279,13 +1285,24 @@ public class ComponentCapturePanel extends BasePanel {
             String archetypePreview = previewArchetypeRef != null ? previewArchetypeRef : "（保存时生成）";
             y = drawWrappedText(ctx, Text.literal("预览 → 风格: " + culturalPreview + "  |  形态: " + geometryPreview), x, y, w, 0xFF88CCFF);
             y = drawWrappedText(ctx, Text.literal("原型引用: " + archetypePreview), x, y, w, 0xFFAAAAAA);
+
+            String placementSummary = previewPlacementSummary != null ? previewPlacementSummary : "（待分析）";
+            y = drawWrappedText(ctx, Text.literal("放置分析 → " + placementSummary), x, y, w, 0xFFAAFFAA);
+            if (previewPlacementHint != null && !previewPlacementHint.isBlank()) {
+                y = drawWrappedText(ctx, Text.literal(previewPlacementHint), x, y, w, 0xFF99BB99);
+            }
             y += 4;
             
             // 附着模式和方向性（可调整）
             y = drawWrappedText(ctx, Text.literal("🔧 附着与方向性（可调整）"), x, y, w, 0xFFFFFFFF);
             y += 2;
             
-            attachmentModeButton.setMessage(Text.literal("附着: " + getAttachmentModeDisplay()));
+            var draft = ComponentTool.INSTANCE.getState().captureDraft;
+            boolean manualAttach = draft.host.manualAttachment || draft.host.confirmed;
+            String attachLabel = manualAttach
+                    ? "附着覆盖: " + getAttachmentModeDisplay()
+                    : "附着: 自动（见上方分析）";
+            attachmentModeButton.setMessage(Text.literal(attachLabel));
             attachmentModeButton.setPosition(x, y);
             attachmentModeButton.setWidth(halfW);
             attachmentModeButton.visible = true;
@@ -1301,7 +1318,6 @@ public class ComponentCapturePanel extends BasePanel {
             y += LABEL_OFFSET;
             
             // 方向标记按钮（根据方向性模式显示）
-            var draft = ComponentTool.INSTANCE.getState().captureDraft;
             if (directionalityMode.needsInsideOutside()) {
                 setInsideButton.setMessage(Text.literal(draft.orientation.insideMarkWorld != null ? "🏠✓ 内侧" : "🏠 设内侧"));
                 setInsideButton.setPosition(x, y);
@@ -1986,6 +2002,8 @@ public class ComponentCapturePanel extends BasePanel {
         previewCulturalStyle = null;
         previewGeometryArchetype = null;
         previewArchetypeRef = null;
+        previewPlacementSummary = null;
+        previewPlacementHint = null;
 
         if (client == null || client.world == null) {
             return;
@@ -2002,6 +2020,10 @@ public class ComponentCapturePanel extends BasePanel {
             previewCulturalStyle = def.culturalStyle;
             previewGeometryArchetype = def.geometryArchetype;
             previewArchetypeRef = def.archetypeRef;
+            if (def.placementSpec != null) {
+                previewPlacementSummary = ComponentPlacementAnalyzer.formatSummary(def.placementSpec);
+                previewPlacementHint = def.placementSpec.aiHint;
+            }
         } catch (Throwable ignored) {
         }
     }
@@ -2598,6 +2620,12 @@ public class ComponentCapturePanel extends BasePanel {
         }
         if (previewArchetypeRef != null && !previewArchetypeRef.isBlank()) {
             explanations.add("原型引用：" + previewArchetypeRef);
+        }
+        if (previewPlacementSummary != null && !previewPlacementSummary.isBlank()) {
+            explanations.add("放置分析：" + previewPlacementSummary);
+        }
+        if (previewPlacementHint != null && !previewPlacementHint.isBlank()) {
+            explanations.add("放置提示：" + previewPlacementHint);
         }
         
         // 使用场景

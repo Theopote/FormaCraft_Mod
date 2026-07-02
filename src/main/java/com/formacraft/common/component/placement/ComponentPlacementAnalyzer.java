@@ -2,6 +2,7 @@ package com.formacraft.common.component.placement;
 
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +34,34 @@ public final class ComponentPlacementAnalyzer {
     applyManualAttachment(spec, context);
     spec.inferAllowedSockets();
     return spec;
+  }
+
+  /** 供 UI / Prompt 展示的简短放置分析摘要 */
+  public static String formatSummary(ComponentPlacementSpec spec) {
+    if (spec == null) {
+      return "（待分析）";
+    }
+    StringBuilder sb = new StringBuilder();
+    sb.append(spec.attachment != null ? spec.attachment.name() : "NONE");
+    if (spec.spatialContext != null && spec.spatialContext != SpatialContext.ANY) {
+      sb.append(" | ").append(spec.spatialContext.name());
+    }
+    if (spec.facingPolicy != null && spec.facingPolicy != FacingPolicy.NONE) {
+      sb.append(" | ").append(spec.facingPolicy.name());
+    }
+    if (spec.hasInteriorExterior) {
+      sb.append(" | 内外");
+    }
+    if (spec.requireExterior) {
+      sb.append(" | 需外侧");
+    }
+    if (spec.requireEdge) {
+      sb.append(" | 需边缘");
+    }
+    if (spec.constraints != null && spec.constraints.requiresSupportBelow) {
+      sb.append(" | 需下部支撑");
+    }
+    return sb.toString();
   }
 
   private static void applyGeometryInference(ComponentPlacementSpec spec, GeometryProfile geo, ComponentDefinition def) {
@@ -113,8 +142,14 @@ public final class ComponentPlacementAnalyzer {
     if (hasTag(def, "railing", "guard", "balustrade", "栏杆", "护栏")) {
       score += 35;
     }
+    if (geo.railingSemanticCount >= 3 && !geo.suggestsBalconyComposite()) {
+      score += 20;
+    }
     if (geo.height <= 3 && geo.aspectRatioXZ >= 2.5) {
       score += 20;
+    }
+    if (geo.suggestsBalconyComposite()) {
+      score -= 45;
     }
     return score;
   }
@@ -124,8 +159,14 @@ public final class ComponentPlacementAnalyzer {
     if (geo.suggestsBalcony()) {
       score += 50;
     }
+    if (geo.suggestsBalconyComposite()) {
+      score += 30;
+    }
     if (geo.dominantFaceDensity >= 0.30) {
       score += 30;
+    }
+    if (geo.wallSemanticCount >= 4) {
+      score += 15;
     }
     if (hasTag(def, "balcony", "terrace", "awning", "canopy", "阳台", "雨棚")) {
       score += 35;
@@ -217,6 +258,12 @@ public final class ComponentPlacementAnalyzer {
       spec.semanticTags.add("balcony");
       spec.semanticTags.add("outdoor");
       spec.aiHint = "Geometry: balcony/terrace — wall-backed exterior volume with partial floor.";
+      if (geo.suggestsBalconyComposite()) {
+        spec.semanticTags.add("railing");
+        spec.semanticTags.add("composite");
+        spec.constraints.prefersContinuity = true;
+        spec.aiHint += " Composite with outer edge guard/railing.";
+      }
     } else {
       spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
       spec.semanticTags.add("surface_mount");
@@ -380,6 +427,15 @@ public final class ComponentPlacementAnalyzer {
     boolean hasDoorWindowBlocks;
     boolean hollowCenter;
     boolean projectsBeyondDominantFace;
+    int wallSemanticCount;
+    int floorSemanticCount;
+    int railingSemanticCount;
+    int perimeterElevatedGuardCount;
+    int boundsMinX;
+    int boundsMinY;
+    int boundsMaxX;
+    int boundsMaxZ;
+    int dominantFaceIndex;
 
     static GeometryProfile from(ComponentDefinition def) {
       if (def == null || def.blocks == null || def.blocks.isEmpty()) {
@@ -402,6 +458,14 @@ public final class ComponentPlacementAnalyzer {
         maxY = Math.max(maxY, block.dy);
         maxZ = Math.max(maxZ, block.dz);
         occupied.add(pack(block.dx, block.dy, block.dz));
+        SemanticPart part = block.semantic != null ? block.semantic : inferSemanticFromBlock(block.block);
+        switch (part) {
+          case WALL, TOWER_WALL, WALL_BASE, WALL_ACCENT, PILLAR, BEAM -> g.wallSemanticCount++;
+          case FLOOR, WALKWAY_FLOOR, COURTYARD_FLOOR, FOUNDATION -> g.floorSemanticCount++;
+          case RAILING, PATH_EDGE, ROAD_EDGE -> g.railingSemanticCount++;
+          default -> {
+          }
+        }
         if (block.block != null) {
           String lower = block.block.toLowerCase(Locale.ROOT);
           if (lower.contains("door") || lower.contains("window") || lower.contains("glass_pane")) {
@@ -412,6 +476,25 @@ public final class ComponentPlacementAnalyzer {
 
       if (occupied.isEmpty()) {
         return null;
+      }
+
+      g.boundsMinX = minX;
+      g.boundsMinY = minY;
+      g.boundsMaxX = maxX;
+      g.boundsMaxZ = maxZ;
+
+      for (long packed : occupied) {
+        int dx = unpackX(packed);
+        int dy = unpackY(packed);
+        int dz = unpackZ(packed);
+        if (dy <= minY) {
+          continue;
+        }
+        boolean onOuterEdge = dx == maxX || dz == maxZ || dz == minZ;
+        boolean onBackPlane = dx == minX;
+        if (onOuterEdge && !onBackPlane) {
+          g.perimeterElevatedGuardCount++;
+        }
       }
 
       if (def.size != null && def.size.w > 0 && def.size.h > 0 && def.size.d > 0) {
@@ -478,6 +561,7 @@ public final class ComponentPlacementAnalyzer {
         }
       }
       g.dominantFaceDensity = maxFace;
+      g.dominantFaceIndex = dominantFaceIndex;
 
       int minHoriz = Math.min(g.width, g.depth);
       int maxHoriz = Math.max(g.width, g.depth);
@@ -518,8 +602,41 @@ public final class ComponentPlacementAnalyzer {
           && height >= 2;
     }
 
+    boolean suggestsBalconyComposite() {
+      return suggestsBalcony()
+          && (railingSemanticCount >= 2
+              || perimeterElevatedGuardCount >= 2
+              || (floorSemanticCount >= 4 && wallSemanticCount >= 4 && perimeterElevatedGuardCount >= 1));
+    }
+
     boolean suggestsFloorMount() {
       return bottomCoverage >= 0.45 && dominantFaceDensity < 0.22 && aspectRatioXZ < 2.5;
+    }
+
+    private static SemanticPart inferSemanticFromBlock(String blockState) {
+      if (blockState == null || blockState.isBlank()) {
+        return SemanticPart.WALL;
+      }
+      String lower = blockState.toLowerCase(Locale.ROOT);
+      if (lower.contains("fence") || lower.contains("iron_bars") || lower.contains("bars")) {
+        return SemanticPart.RAILING;
+      }
+      if (lower.contains("slab") || lower.contains("planks")) {
+        return SemanticPart.FLOOR;
+      }
+      if (lower.contains("stairs")) {
+        return SemanticPart.STAIR_STEP;
+      }
+      if (lower.contains("door") || lower.contains("trapdoor")) {
+        return SemanticPart.DOORWAY;
+      }
+      if (lower.contains("glass")) {
+        return SemanticPart.WINDOW;
+      }
+      if (lower.contains("log") || lower.contains("pillar")) {
+        return SemanticPart.PILLAR;
+      }
+      return SemanticPart.WALL;
     }
 
     private static long pack(int x, int y, int z) {

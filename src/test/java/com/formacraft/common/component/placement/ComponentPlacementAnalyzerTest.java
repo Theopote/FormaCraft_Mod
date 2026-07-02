@@ -26,6 +26,31 @@ class ComponentPlacementAnalyzerTest {
     assertEquals(SpatialContext.EXTERIOR, spec.spatialContext);
     assertTrue(spec.requireExterior);
     assertTrue(spec.constraints.forbidInterior);
+    assertTrue(spec.semanticTags.contains("railing"));
+    assertTrue(spec.semanticTags.contains("composite"));
+  }
+
+  @Test
+  void semanticRailingPartsBoostCompositeBalcony() {
+    ComponentDefinition def = new ComponentDefinition();
+    def.category = ComponentCategory.GENERIC;
+    def.size = size(5, 3, 4);
+    List<ComponentDefinition.BlockEntry> blocks = new ArrayList<>();
+    for (ComponentDefinition.BlockEntry base : balconyBlocks()) {
+      ComponentDefinition.BlockEntry copy = block(base.dx, base.dy, base.dz);
+      copy.block = base.block;
+      if (base.dy == 1 && base.dz == 3 && base.dx > 0) {
+        copy.block = "minecraft:oak_fence";
+        copy.semantic = com.formacraft.common.semantic.SemanticPart.RAILING;
+      }
+      blocks.add(copy);
+    }
+    def.blocks = blocks;
+
+    ComponentPlacementSpec spec = ComponentPlacementAnalyzer.analyze(def, PlacementCaptureContext.createDefault());
+    assertEquals(AttachmentType.WALL_SURFACE, spec.attachment);
+    assertTrue(spec.semanticTags.contains("composite"));
+    assertTrue(spec.semanticTags.contains("railing"));
   }
 
   @Test
