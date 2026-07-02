@@ -74,6 +74,46 @@ public final class LlmPlanPreviewBuilder {
 
             LlmPlan llmPlan = LlmPlanParser.parseAndValidate(llmPlanJson);
 
+            // patch.blocks 专用：走 PreviewTicket（增量 Patch 预览 + ticket 确认）
+            if (llmPlan.mode() == LlmPlan.Mode.patch
+                    && llmPlan.patch() != null
+                    && llmPlan.patch().blocks() != null
+                    && !llmPlan.patch().blocks().isEmpty()
+                    && !llmPlan.usesPlanProgramMode()
+                    && (llmPlan.components() == null || llmPlan.components().isEmpty())) {
+                com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
+
+                BlockPos patchOrigin = com.formacraft.common.llm.bridge.BlockPatchBridge.toOrigin(llmPlan.patch());
+                List<com.formacraft.common.patch.BlockPatch> patchList =
+                        com.formacraft.common.llm.bridge.BlockPatchBridge.toBlockPatches(llmPlan.patch());
+                if (patchList.isEmpty()) {
+                    LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+                    return false;
+                }
+
+                boolean restrict = req.getPromptMode() != null
+                        && "MODIFY_REGION".equalsIgnoreCase(req.getPromptMode().trim());
+                var ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
+                        player,
+                        patchOrigin,
+                        patchList,
+                        com.formacraft.server.state.PlayerProtectedZoneStorage.get(player),
+                        restrict,
+                        req.getSelectionMin(),
+                        req.getSelectionMax()
+                );
+                if (ticket == null) {
+                    LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+                    return false;
+                }
+
+                hbAlive.set(false);
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                        "Patch 预览已就绪：检查改动后点击「应用」（可 Undo/Redo）"));
+                LlmPlanRoutingMetrics.recordSuccess(player, req, patchList.size(), patchList.size());
+                return true;
+            }
+
             // 获取 anchor（全局或第一个 slot）
             // 注意：LLM返回的anchor通常是建筑底平面的中心点
             BlockPos planOrigin = origin;

@@ -13,7 +13,6 @@ import com.formacraft.client.preview.PatchPreviewState;
 import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.client.preview.PreviewModalState;
 import com.formacraft.client.preview.SkeletonPreviewState;
-import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.client.patch.filter.ToolPatchFilter;
 import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.common.patch.filter.PatchFilterResult;

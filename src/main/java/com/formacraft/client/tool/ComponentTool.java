@@ -396,9 +396,10 @@ public final class ComponentTool implements FormacraftTool {
                 restrict,
                 selMin,
                 selMax,
-                ProtectedZoneTool.INSTANCE.getZones(),
+                List.of(),
                 autoConfirm
         ));
+        FormaCraftNetworking.sendProtectedZoneSync(ProtectedZoneTool.INSTANCE.getZones());
     }
 
     public void cycleFacing() {

@@ -80,6 +80,7 @@ public class FormaCraftNetworking {
     public static final Identifier PATCH_CONFIRM = Identifier.of("formacraft", "patch_confirm");
     public static final Identifier PATCH_PREVIEW = Identifier.of("formacraft", "patch_preview");
     public static final Identifier PATCH_PREVIEW_REQUEST = Identifier.of("formacraft", "patch_preview_request");
+    public static final Identifier PROTECTED_ZONE_SYNC = Identifier.of("formacraft", "protected_zone_sync");
 
     // Component Library（v1）
     public static final Identifier COMPONENT_SAVE = Identifier.of("formacraft", "component_save");
@@ -353,7 +354,18 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** C2S：保存一个构件（payload 为 ComponentDefinition 的 JSON 字符串 + 可选的缩略图 PNG 数据） */
+    /** C2S：同步客户端禁区/保护区到服务端（Patch 过滤的权威数据源）。 */
+    public record ProtectedZoneSyncPayload(List<ProtectedZone> zones) implements CustomPayload {
+        public static final CustomPayload.Id<ProtectedZoneSyncPayload> ID = new CustomPayload.Id<>(PROTECTED_ZONE_SYNC);
+        public static final PacketCodec<PacketByteBuf, ProtectedZoneSyncPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> BlockPatchPacket.writeProtectedZones(buf, payload.zones()),
+                buf -> new ProtectedZoneSyncPayload(BlockPatchPacket.readProtectedZones(buf))
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record ComponentSavePayload(String json, byte[] thumbnailPng) implements CustomPayload {
         public static final CustomPayload.Id<ComponentSavePayload> ID = new CustomPayload.Id<>(COMPONENT_SAVE);
         public static final PacketCodec<PacketByteBuf, ComponentSavePayload> CODEC = PacketCodec.of(
@@ -550,6 +562,12 @@ public class FormaCraftNetworking {
             com.formacraft.server.patch.PatchPreviewService.confirm(player, payload.previewTicketId());
         }));
 
+        ServerPlayNetworking.registerGlobalReceiver(ProtectedZoneSyncPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            com.formacraft.server.state.PlayerProtectedZoneStorage.set(player, payload.zones());
+        }));
+
         ServerPlayNetworking.registerGlobalReceiver(RequestPatchPreviewPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
@@ -583,11 +601,17 @@ public class FormaCraftNetworking {
 
             if (rawPatches == null || rawPatches.isEmpty()) return;
 
+            List<ProtectedZone> zones = com.formacraft.server.state.PlayerProtectedZoneStorage.get(player);
+            if (zones.isEmpty() && payload.protectedZones() != null && !payload.protectedZones().isEmpty()) {
+                com.formacraft.server.state.PlayerProtectedZoneStorage.set(player, payload.protectedZones());
+                zones = com.formacraft.server.state.PlayerProtectedZoneStorage.get(player);
+            }
+
             com.formacraft.server.preview.PreviewTicket ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
                     player,
                     origin,
                     rawPatches,
-                    payload.protectedZones(),
+                    zones,
                     payload.restrictToSelection(),
                     payload.selectionMin(),
                     payload.selectionMax(),
@@ -911,6 +935,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchConfirmPayload.ID, PatchConfirmPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(RequestPatchPreviewPayload.ID, RequestPatchPreviewPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ProtectedZoneSyncPayload.ID, ProtectedZoneSyncPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PreviewAdjustPayload.ID, PreviewAdjustPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ComponentSavePayload.ID, ComponentSavePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ComponentCatalogRequestPayload.ID, ComponentCatalogRequestPayload.CODEC);
@@ -1039,6 +1064,17 @@ public class FormaCraftNetworking {
     public static void sendRequestPatchPreview(RequestPatchPreviewPayload payload) {
         if (payload == null) return;
         MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
+            return;
+        }
+        ClientPlayNetworking.send(payload);
+    }
+
+    /** 客户端同步禁区/保护区到服务端。 */
+    public static void sendProtectedZoneSync(List<ProtectedZone> zones) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        ProtectedZoneSyncPayload payload = new ProtectedZoneSyncPayload(zones != null ? zones : List.of());
         if (mc != null && mc.getNetworkHandler() != null) {
             mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
             return;
