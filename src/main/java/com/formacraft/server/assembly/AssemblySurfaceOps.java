@@ -87,6 +87,148 @@ public final class AssemblySurfaceOps {
         }
     }
 
+    public static void applyRevolveSurface(List<PlannedBlock> out,
+                                           MetaAssemblyEngine.Context ctx,
+                                           BlockPos origin,
+                                           Map<String, Object> op,
+                                           Adapter adapter) {
+        Object profObj = op.get("profileRings");
+        if (profObj == null) profObj = op.get("rings");
+        if (profObj == null) profObj = op.get("profilePoints");
+        if (profObj == null) profObj = op.get("points");
+        List<int[]> profile = read2DProfilePoints(profObj, adapter);
+        if (profile == null || profile.size() < 2) return;
+
+        int seg = adapter.clamp(adapter.i(op.get("segments"), 48), 8, 512);
+        double angleDeg = adapter.d(op.get("angleDeg"), adapter.d(op.get("angle"), 360.0));
+        if (Double.isNaN(angleDeg) || angleDeg <= 0.0) angleDeg = 360.0;
+        if (angleDeg > 360.0) angleDeg = 360.0;
+        int thick = adapter.clamp(adapter.i(op.get("thickness"), 1), 1, 9);
+        boolean connect = adapter.bool(op.get("connectSamples"), true);
+        BlockState mat = adapter.pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x93F3B1L, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+        int nTheta = (int) Math.round(seg * (angleDeg / 360.0));
+        nTheta = adapter.clamp(nTheta, 3, 512);
+        int nP = profile.size();
+        int[][][] grid = new int[nTheta + 1][nP][3];
+
+        for (int it = 0; it <= nTheta; it++) {
+            double t = it / (double) nTheta;
+            double theta = Math.toRadians(angleDeg * t);
+            double cs = Math.cos(theta);
+            double sn = Math.sin(theta);
+            for (int ip = 0; ip < nP; ip++) {
+                int[] pr = profile.get(ip);
+                double r = pr[0];
+                double y = pr[1];
+                int x = (int) Math.round(r * cs);
+                int z = (int) Math.round(r * sn);
+                int yy = (int) Math.round(y);
+                grid[it][ip][0] = x;
+                grid[it][ip][1] = yy;
+                grid[it][ip][2] = z;
+                adapter.placePrism(out, ctx, origin, x, yy, z, thick, 1, mat);
+            }
+        }
+        if (connect) {
+            for (int it = 0; it <= nTheta; it++) {
+                for (int ip = 0; ip < nP; ip++) {
+                    int x = grid[it][ip][0], y = grid[it][ip][1], z = grid[it][ip][2];
+                    if (it + 1 <= nTheta) {
+                        int[] b = grid[it + 1][ip];
+                        adapter.placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                    }
+                    if (ip + 1 < nP) {
+                        int[] b = grid[it][ip + 1];
+                        adapter.placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                    }
+                }
+            }
+        }
+    }
+
+    public static void applyLoftSurface(List<PlannedBlock> out,
+                                        MetaAssemblyEngine.Context ctx,
+                                        BlockPos origin,
+                                        Map<String, Object> op,
+                                        Adapter adapter) {
+        Object secObj = op.get("sections");
+        if (!(secObj instanceof List<?> secs) || secs.size() < 2) return;
+
+        List<LoftSection> sections = new java.util.ArrayList<>();
+        for (Object sObj : secs) {
+            if (!(sObj instanceof Map<?, ?> sm)) continue;
+            Object atObj = sm.get("at");
+            int ax, ay, az;
+            if (atObj instanceof Map<?, ?> am) {
+                ax = adapter.i(am.get("x"), 0);
+                ay = adapter.i(am.get("y"), 0);
+                az = adapter.i(am.get("z"), 0);
+            } else {
+                ax = adapter.i(sm.get("x"), 0);
+                ay = adapter.i(sm.get("y"), 0);
+                az = adapter.i(sm.get("z"), 0);
+            }
+            Object profObj = sm.get("profileRings");
+            if (profObj == null) profObj = sm.get("rings");
+            if (profObj == null) profObj = sm.get("profilePoints");
+            List<int[]> prof = read2DProfilePoints(profObj, adapter);
+            if (prof == null || prof.size() < 2) continue;
+            sections.add(new LoftSection(ax, ay, az, prof));
+        }
+        if (sections.size() < 2) return;
+
+        int nP = sections.getFirst().profile.size();
+        boolean ok = true;
+        for (LoftSection s : sections) if (s.profile.size() != nP) { ok = false; break; }
+        if (!ok) return;
+
+        int uN = adapter.clamp(adapter.i(op.get("uSamples"), adapter.i(op.get("u"), 24)), 2, 512);
+        int thick = adapter.clamp(adapter.i(op.get("thickness"), 1), 1, 9);
+        boolean connect = adapter.bool(op.get("connectSamples"), true);
+        BlockState mat = adapter.pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x0E11F3L, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+        for (int si = 0; si < sections.size() - 1; si++) {
+            LoftSection a = sections.get(si);
+            LoftSection b = sections.get(si + 1);
+            int[][][] grid = new int[uN + 1][nP][3];
+            for (int iu = 0; iu <= uN; iu++) {
+                double t = iu / (double) uN;
+                double ox = AssemblyBezierOps.lerp(a.x, b.x, t);
+                double oy = AssemblyBezierOps.lerp(a.y, b.y, t);
+                double oz = AssemblyBezierOps.lerp(a.z, b.z, t);
+                for (int ip = 0; ip < nP; ip++) {
+                    int[] pa = a.profile.get(ip);
+                    int[] pb = b.profile.get(ip);
+                    double px = AssemblyBezierOps.lerp(pa[0], pb[0], t);
+                    double py = AssemblyBezierOps.lerp(pa[1], pb[1], t);
+                    int x = (int) Math.round(ox + px);
+                    int y = (int) Math.round(oy + py);
+                    int z = (int) Math.round(oz);
+                    grid[iu][ip][0] = x;
+                    grid[iu][ip][1] = y;
+                    grid[iu][ip][2] = z;
+                    adapter.placePrism(out, ctx, origin, x, y, z, thick, 1, mat);
+                }
+            }
+            if (connect) {
+                for (int iu = 0; iu <= uN; iu++) {
+                    for (int ip = 0; ip < nP; ip++) {
+                        int x = grid[iu][ip][0], y = grid[iu][ip][1], z = grid[iu][ip][2];
+                        if (iu + 1 <= uN) {
+                            int[] bb = grid[iu + 1][ip];
+                            adapter.placeBeamLine(out, ctx, origin, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
+                        }
+                        if (ip + 1 < nP) {
+                            int[] bb = grid[iu][ip + 1];
+                            adapter.placeBeamLine(out, ctx, origin, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public static void applyBezierSurfaceSet(List<PlannedBlock> out,
                                              MetaAssemblyEngine.Context ctx,
                                              BlockPos origin,
@@ -300,6 +442,41 @@ public final class AssemblySurfaceOps {
     }
 
     private enum Edge { U0, U1, V0, V1 }
+
+    private static final class LoftSection {
+        final int x, y, z;
+        final List<int[]> profile;
+        LoftSection(int x, int y, int z, List<int[]> profile) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.profile = profile;
+        }
+    }
+
+    private static List<int[]> read2DProfilePoints(Object profObj, Adapter adapter) {
+        if (profObj == null) return null;
+        if (!(profObj instanceof List<?> list)) return null;
+        if (!list.isEmpty() && list.getFirst() instanceof List<?>) {
+            Object ring0 = list.getFirst();
+            if (!(ring0 instanceof List<?> ring)) return null;
+            List<int[]> out = new java.util.ArrayList<>();
+            for (Object p : ring) {
+                if (p instanceof Map<?, ?> pm) {
+                    out.add(new int[]{adapter.i(pm.get("x"), 0), adapter.i(pm.get("y"), 0)});
+                }
+            }
+            return out.isEmpty() ? null : out;
+        } else {
+            List<int[]> out = new java.util.ArrayList<>();
+            for (Object p : list) {
+                if (p instanceof Map<?, ?> pm) {
+                    out.add(new int[]{adapter.i(pm.get("x"), 0), adapter.i(pm.get("y"), 0)});
+                }
+            }
+            return out.isEmpty() ? null : out;
+        }
+    }
 
     private static final class PatchData {
         @SuppressWarnings("unused")
