@@ -1,4 +1,4 @@
-package com.formacraft.common.generator;
+package com.formacraft.common.generation.component;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.patch.BlockPatch;

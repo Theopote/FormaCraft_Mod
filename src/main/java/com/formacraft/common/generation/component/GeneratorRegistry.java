@@ -1,4 +1,4 @@
-package com.formacraft.common.generator;
+package com.formacraft.common.generation.component;
 
 /**
  * @deprecated 使用 {@link ComponentGeneratorRegistry}。保留为兼容门面。

@@ -1,7 +1,7 @@
 package com.formacraft.server.generation;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.adaptor.UnifiedGeneratorRouter;
+import com.formacraft.common.generation.component.adaptor.UnifiedGeneratorRouter;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;

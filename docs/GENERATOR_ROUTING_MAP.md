@@ -8,7 +8,7 @@
 | 包路径 | 文件数 | 接口 | 注册表 / 门面 | 入口 | 状态 |
 |--------|--------|------|---------------|------|------|
 | `common/generation/structure` | 65 | `StructureGenerator` | `GeneratorRouter` → `StructureGeneratorRegistry` + `StructureRouteCatalog` | `GenerationHub.routeStructure()` | **活跃** |
-| `common/generator` | 23 | `ComponentGenerator` | `ComponentGeneratorRegistry` | `ComponentPlanCompiler` → `UnifiedGeneratorRouter` | **活跃（Phase 6 重命名）** |
+| `common/generation/component` | 25 | `ComponentGenerator` | `ComponentGeneratorRegistry` | `ComponentPlanCompiler` → `UnifiedGeneratorRouter` | **活跃（Phase 6b 迁入）** |
 | `common/skeleton` | +4 | `SkeletonExecutor` | `SkeletonExecutors` | `PlanProgramCompiler` | **契约层（Phase 1）** |
 | `server/skeleton/gen` | 53 | `ISkeletonGenerator` | `SkeletonGeneratorRegistry` | `SkeletonBuildService`（实现 `SkeletonExecutor`） | **活跃** |
 | ~~`common/gen`~~ | ~~8~~ | — | — | — | **已删除（Phase 0）** |
@@ -29,9 +29,9 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 
 ---
 
-## 1. Component Type → `common.generator`（LlmPlan 构件流）
+## 1. Component Type → `common.generation.component`（LlmPlan 构件流）
 
-注册表：`com.formacraft.common.generator.ComponentGeneratorRegistry`  
+注册表：`com.formacraft.common.generation.component.ComponentGeneratorRegistry`  
 （`GeneratorRegistry` 已弃用，委托至 `ComponentGeneratorRegistry`）  
 路由：`UnifiedGeneratorRouter.generate()` — 构件层统一门面（Phase 2）
 
@@ -250,7 +250,7 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 
 ## 6. 已知缺口（后续待修）
 
-1. `common/generator` 包尚未迁至 `common/generation/component`（Phase 6 仅完成注册表与同名类消歧）
+1. ~~`common/generator` 包尚未迁至 `common/generation/component`~~ ✅ Phase 6b 完成
 2. `GeneratorRegistry` 已弃用，待调用方全部迁移后可删除
 
 ---
@@ -276,4 +276,4 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 | **4** ✅ | `birds_nest_stadium` 实现 + 主路径接入 `GenerationHub` | 低 |
 | **5** ✅ | `server/generator` → `common/generation/structure` 包迁移 | 中 |
 | **6** ✅ | `ComponentGeneratorRegistry` + 构件层 `*ComponentGenerator` 消歧 | 低 |
-| **6b** | `common/generator` → `common/generation/component` 包迁移 | 低 |
+| **6b** ✅ | `common/generator` → `common/generation/component` 包迁移 | 低 |

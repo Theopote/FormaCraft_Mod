@@ -1,7 +1,7 @@
-package com.formacraft.common.generator.impl;
+package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.ComponentGenerator;
+import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -14,12 +14,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * BalconyGenerator（阳台生成器）
+ * TerraceGenerator（露台生成器）
  * 
- * 生成阳台/挑檐平台
- * 包括平台、栏杆、支撑结构
+ * 生成露台/平台
+ * 包括平台地板、边缘护栏（可选）
+ * 
+ * 与 Balcony 的区别：
+ * - Balcony：突出于建筑外部的挑台，通常有栏杆
+ * - Terrace：建筑顶部的平台，通常更大，可能没有栏杆
  */
-public class BalconyGenerator implements ComponentGenerator {
+public class TerraceGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
@@ -35,18 +39,22 @@ public class BalconyGenerator implements ComponentGenerator {
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
-        int height = Math.max(1, Math.min(2, d.height())); // 阳台通常只有 1-2 格高
+        int height = Math.max(0, d.height()); // 露台可以是平面（height=0）
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 生成阳台平台（底部）
+        // 检查是否有栏杆特征
+        boolean hasRailing = hasFeature(c, "railing", "fence", "barrier", "guard");
+        
+        // 生成露台平台（地板）
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 SemanticPart part = SemanticPart.FLOOR;
                 String block = palette.pick(part);
                 if (block == null || block.isEmpty()) {
-                    block = "minecraft:oak_planks";
+                    // 默认使用石头或木板
+                    block = "minecraft:stone_bricks";
                 }
                 
                 out.add(new BlockPatch(
@@ -59,8 +67,8 @@ public class BalconyGenerator implements ComponentGenerator {
             }
         }
 
-        // 生成栏杆（边缘）
-        if (height >= 2) {
+        // 生成边缘护栏（如果指定了栏杆特征）
+        if (hasRailing && height >= 1) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     // 只在边缘放置栏杆

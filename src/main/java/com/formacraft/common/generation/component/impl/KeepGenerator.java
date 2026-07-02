@@ -1,7 +1,7 @@
-package com.formacraft.common.generator.impl;
+package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.ComponentGenerator;
+import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;

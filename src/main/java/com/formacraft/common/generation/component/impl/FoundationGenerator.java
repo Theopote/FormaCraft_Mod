@@ -1,7 +1,7 @@
-package com.formacraft.common.generator.impl;
+package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.ComponentGenerator;
+import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -14,15 +14,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * RoadGenerator（道路生成器 v2）
+ * FoundationGenerator（基础生成器）
  * 
- * 使用 Palette 权重随机生成平面道路
- * 
- * 核心提升：
- * - ✅ 使用 PaletteResolver（gravel / cobblestone / stone）
- * - ✅ 支持道路边缘（ROAD_EDGE）
+ * 生成建筑基础/地基
+ * 通常是埋在地下的结构
  */
-public class RoadGenerator implements ComponentGenerator {
+public class FoundationGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
@@ -38,24 +35,21 @@ public class RoadGenerator implements ComponentGenerator {
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
-        int height = Math.max(1, d.height());
+        int height = Math.max(1, Math.min(5, d.height())); // 基础通常只有 1-5 格高
 
-        // 获取风格
-        String styleProfile = "MEDIEVAL_CLASSIC"; // 默认
+        String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 生成平面道路（使用 Palette 权重随机）
+        // 生成基础（通常是实心的）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 判断是否为边缘
-                    boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
-                    SemanticPart part = (isEdge && width >= 3 && depth >= 3) 
-                            ? SemanticPart.ROAD_EDGE 
-                            : SemanticPart.ROAD_SURFACE;
-                    
+                    SemanticPart part = SemanticPart.FOUNDATION;
                     String block = palette.pick(part);
-
+                    if (block == null || block.isEmpty()) {
+                        block = "minecraft:stone_bricks";
+                    }
+                    
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,
@@ -68,6 +62,10 @@ public class RoadGenerator implements ComponentGenerator {
         }
 
         return out;
+    }
+
+    private String getStyleProfile(SemanticComponent semantic) {
+        return "MEDIEVAL_CLASSIC";
     }
 }
 

@@ -1,9 +1,9 @@
-package com.formacraft.common.generator.adaptor;
+package com.formacraft.common.generation.component.adaptor;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.ComponentGenerator;
-import com.formacraft.common.generator.ComponentGeneratorRegistry;
+import com.formacraft.common.generation.component.ComponentGenerator;
+import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;

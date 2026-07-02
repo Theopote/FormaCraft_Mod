@@ -1,7 +1,7 @@
-package com.formacraft.common.generator.impl;
+package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.ComponentGenerator;
+import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -14,12 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * ChimneyGenerator（烟囱生成器）
- * 
- * 生成烟囱/排风结构
- * 通常是细长的垂直结构
+ * PathComponentGenerator（构件层路径生成器）
+ *
+ * 生成路径/道路（铺装地面）
  */
-public class ChimneyGenerator implements ComponentGenerator {
+public class PathComponentGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
@@ -33,24 +32,29 @@ public class ChimneyGenerator implements ComponentGenerator {
         Dimensions d = c.dimensions();
         Vec3i rp = c.relativePosition();
 
-        int width = Math.max(1, Math.min(3, d.width())); // 烟囱通常很窄（1-3 格）
-        int depth = Math.max(1, Math.min(3, d.depth()));
-        int height = Math.max(3, d.height()); // 烟囱通常较高
+        int width = Math.max(1, d.width());
+        int depth = Math.max(1, d.depth());
+        int height = Math.max(1, Math.min(2, d.height()));
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 生成烟囱（细长的垂直结构）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 根据位置确定语义部位
-                    SemanticPart part = determinePart(y, height, width, depth, x, z);
+                    SemanticPart part;
+                    if (x == 0 || x == width - 1 || z == 0 || z == depth - 1) {
+                        part = SemanticPart.ROAD_EDGE;
+                    } else {
+                        part = SemanticPart.ROAD_SURFACE;
+                    }
+
                     String block = palette.pick(part);
                     if (block == null || block.isEmpty()) {
-                        block = "minecraft:bricks";
+                        part = SemanticPart.ROAD_SURFACE;
+                        block = palette.pick(part);
                     }
-                    
+
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,
@@ -65,26 +69,7 @@ public class ChimneyGenerator implements ComponentGenerator {
         return out;
     }
 
-    /**
-     * 确定烟囱的语义部位
-     */
-    private SemanticPart determinePart(int y, int height, int width, int depth, int x, int z) {
-        // 顶部使用装饰
-        if (y >= height - 1) {
-            return SemanticPart.DECOR;
-        }
-        
-        // 底部使用基础
-        if (y == 0) {
-            return SemanticPart.WALL_BASE;
-        }
-        
-        // 中间使用墙体
-        return SemanticPart.WALL;
-    }
-
     private String getStyleProfile(SemanticComponent semantic) {
         return "MEDIEVAL_CLASSIC";
     }
 }
-

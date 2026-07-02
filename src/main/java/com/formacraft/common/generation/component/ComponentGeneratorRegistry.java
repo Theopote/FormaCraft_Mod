@@ -1,6 +1,6 @@
-package com.formacraft.common.generator;
+package com.formacraft.common.generation.component;
 
-import com.formacraft.common.generator.impl.*;
+import com.formacraft.common.generation.component.impl.*;
 
 import java.util.HashMap;
 import java.util.Map;

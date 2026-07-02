@@ -1,4 +1,4 @@
-package com.formacraft.common.generator.util;
+package com.formacraft.common.generation.component.util;
 
 /**
  * ProportionalFacadeCalculator（比例化立面计算器）

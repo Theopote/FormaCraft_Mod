@@ -1,7 +1,7 @@
-package com.formacraft.common.generator.impl;
+package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.ComponentGenerator;
+import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -125,7 +125,7 @@ public class MassMainGenerator implements ComponentGenerator {
         // 如果用户指定了具体高度，使用用户的要求
         int userFloorHeight = getParamInt(params, 0, "floor_height", "floorHeight");
         if (userFloorHeight <= 0) {
-            userFloorHeight = com.formacraft.common.generator.util.ProportionalFacadeCalculator
+            userFloorHeight = com.formacraft.common.generation.component.util.ProportionalFacadeCalculator
                     .extractFloorHeightFromFeatures(c.features());
         }
         if (userFloorHeight > 0) {
@@ -143,7 +143,7 @@ public class MassMainGenerator implements ComponentGenerator {
         }
         
         // 验证尺寸合理性
-        if (!com.formacraft.common.generator.util.ProportionalFacadeCalculator.validateDimensions(width, depth, height)) {
+        if (!com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.validateDimensions(width, depth, height)) {
             FormacraftMod.LOGGER.warn("MassMainGenerator: invalid dimensions {}x{}x{}, using defaults", width, depth, height);
             width = Math.max(3, width);
             depth = Math.max(3, depth);
@@ -312,11 +312,11 @@ public class MassMainGenerator implements ComponentGenerator {
 
         if (hasSteppedFacade && height >= 3) {
             double userSetbackRatio = setbackRatioOverride != null ? setbackRatioOverride
-                    : com.formacraft.common.generator.util.ProportionalFacadeCalculator
+                    : com.formacraft.common.generation.component.util.ProportionalFacadeCalculator
                     .extractSetbackRatioFromFeatures(semantic.source().features());
 
-            com.formacraft.common.generator.util.ProportionalFacadeCalculator.LayerConfig[] layerConfigs =
-                    com.formacraft.common.generator.util.ProportionalFacadeCalculator.calculateSteppedFacade(
+            com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.LayerConfig[] layerConfigs =
+                    com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.calculateSteppedFacade(
                             width, depth, height, userFloorHeight, userSetbackRatio
                     );
 
