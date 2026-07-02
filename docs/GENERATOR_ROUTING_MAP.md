@@ -26,6 +26,8 @@ Blueprint              →  SkeletonPlan            →  Interpreter（不变）
 Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeletonPlan  →  SkeletonExecutor（Phase 2 可选接入）
 ```
 
+> **收敛追踪**：契约层已统一（Phase 1）；Blueprint 路径仍未经 `SkeletonPlanConverter` 接入执行层。  
+> **下次检查**：**2026-10-02** — 若仍未推进 Blueprint → `SkeletonExecutor` 桥接，评估是否启动 Phase 2 接入或记录为长期双路径。
 
 ---
 
@@ -267,6 +269,8 @@ CityBuilder → RuleBasedGeneratorSelector.apply()
 
 迁移进度追踪：`docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md` §7。
 
+**Phase 8 待办（低优先级）**：`RuleBasedGeneratorSelector` 内 187–216 行硬编码启发式（tulou / office_block）与 `generator_selector_rules_v1.json` 重复；迁入 JSON 后删除，**不合并**三文件（Catalog / Registry / Selector 职责已分离）。
+
 ---
 
 ## 7. 已知缺口（后续待修）
@@ -298,3 +302,4 @@ CityBuilder → RuleBasedGeneratorSelector.apply()
 | **6** ✅ | `ComponentGeneratorRegistry` + 构件层 `*ComponentGenerator` 消歧 | 低 |
 | **6b** ✅ | `common/generator` → `common/generation/component` 包迁移 | 低 |
 | **7** ✅ | `MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md` + selector 文档化 + 删除弃用路由壳 | 低 |
+| **8** | selector 去重：硬编码启发式 → JSON；`RuleBasedGeneratorSelector` 瘦身 | 低 |

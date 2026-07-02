@@ -64,6 +64,8 @@ LlmPlanPreviewBuilder   StructureGeneratorFactory
 Select-String "\[LlmPlanMetrics\]" logs/latest.log
 ```
 
+**解读**（见 §9）：`ROUTING_POLICY` 回退为策略性放弃，不计入「LlmPlan 质量不达标」；评估退役候选时看 **可行动回退率** 与 `success_rate`。
+
 ---
 
 ## 2. 基础类型对照（同名不同实现）
@@ -187,10 +189,48 @@ generator_selector_rules_v1.json
 
 ## 9. 下一步（可勾选）
 
+**当前唯一 P0**：积累 `[LlmPlanMetrics]` 数据，再评估 §2–§6 中的「退役候选」。
+
 - [ ] 按用户场景统计 LlmPlan 预览成功率 vs BuildingSpec 回退率（见 `LlmPlanRoutingMetrics`，日志前缀 `[LlmPlanMetrics]`）
 - [ ] 对 §2「质量：中」项制定构件增强计划（不合并类）
 - [x] 四合院等场景：在 `BuildingSpecRoutingPolicy` 中显式化「强制 BuildingSpec」（替代仅注释）
 - [ ] 某 template 构件化达标后：从 selector / 默认路由降低命中，**而非**删除整栋生成器
+
+### `fallback_rate` 评估指南
+
+| 阶段 | 条件 | 动作 |
+|------|------|------|
+| 观察 | `tagged` < 50 | 只收集日志，不做路由/退役决策 |
+| 初评 | `tagged` ≥ 50 | 按 `detail` 拆分 fallback 原因 |
+| 决策 | `tagged` ≥ 200 且连续两周趋势稳定 | 可勾选具体 template / 类型的退役候选 |
+
+**拆分 fallback 原因**（`event=fallback` 的 `detail`）：
+
+| detail | 含义 | 是否反映 LlmPlan 质量 |
+|--------|------|------------------------|
+| `ROUTING_POLICY` | `BuildingSpecRoutingPolicy` 主动跳过（四合院、地标整栋等） | 否 — 预期行为 |
+| `MISSING_LLM_PLAN_JSON` | orchestrator 未产出 `llmPlan` JSON | 否 — 上游/编排问题 |
+| `EMPTY_OUTPUT` | LlmPlan 解析成功但构件编译无块 | **是** — 构件层缺口 |
+
+**建议派生指标**（从日志或 `Snapshot` 手算）：
+
+- **可行动回退率** = `(MISSING_LLM_PLAN_JSON + EMPTY_OUTPUT) / tagged` — 驱动构件增强与编译器修复
+- **策略回退占比** = `ROUTING_POLICY / fallback` — 高占比说明总 `fallback_rate` 被策略抬高，不宜单独作为退役依据
+- **有效成功率** = `success / tagged` — 与 `success_rate` 相同；目标是在非策略路径上稳步上升
+
+**退役候选门槛**（须同时满足，见文首「退役原则」）：
+
+1. 该建筑类型 / template 的 LlmPlan 请求在样本中 `EMPTY_OUTPUT` 占比 < 5%
+2. `success_rate` 对该类型 ≥ 80%（且 `tagged` 对该类型 ≥ 30）
+3. 构件输出质量经人工抽检不低于整栋 fallback 结果
+4. 操作仅为降低 selector / 默认路由命中或缩小 adaptor 回退面 — **不删除**整栋生成器类
+
+```powershell
+# 按原因统计 fallback（PowerShell 示例）
+Select-String "\[LlmPlanMetrics\].*event=fallback" logs/latest.log |
+  ForEach-Object { if ($_ -match 'detail=(\w+)') { $matches[1] } } |
+  Group-Object | Sort-Object Count -Descending
+```
 
 ---
 
