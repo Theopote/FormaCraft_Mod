@@ -56,7 +56,7 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
         BlockState concrete = Blocks.GRAY_CONCRETE.getDefaultState();
         BlockState slab = Blocks.SMOOTH_STONE_SLAB.getDefaultState();
         BlockState meshBlock = Blocks.IRON_BARS.getDefaultState();
-        BlockState accent = Blocks.CHAIN.getDefaultState();
+        BlockState accent = Blocks.IRON_CHAIN.getDefaultState();
         BlockState floor = Blocks.SMOOTH_STONE.getDefaultState();
 
         if (paletteId != null && !paletteId.isBlank()) {
