@@ -3,6 +3,7 @@ package com.formacraft.client.ui.panel;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureAiExplanation;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthCoordinator;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthDrawer;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureOrientationController;
@@ -116,6 +117,7 @@ public class ComponentCapturePanel extends BasePanel {
     private final ComponentCaptureOrientationController orientationController = new ComponentCaptureOrientationController();
     private final ComponentCaptureHealthCoordinator healthCoordinator;
     private final ComponentCaptureSemanticPreview semanticPreview = new ComponentCaptureSemanticPreview();
+    private final ComponentCaptureAiExplanation aiExplanation;
     private final ComponentCaptureWorldOverlay worldOverlay;
 
     // 滚动
@@ -145,6 +147,7 @@ public class ComponentCapturePanel extends BasePanel {
 
         selectionController.setOnSelectionChanged(thumbnailService::invalidate);
         healthCoordinator = new ComponentCaptureHealthCoordinator(selectionController);
+        aiExplanation = new ComponentCaptureAiExplanation(semanticPreview, orientationController);
         worldOverlay = new ComponentCaptureWorldOverlay(selectionController);
     }
 
@@ -1366,17 +1369,7 @@ public class ComponentCapturePanel extends BasePanel {
         
         // ============ AI 视角解释区 ============
         if (isPhase3Complete) {
-            y = drawWrappedText(ctx, Text.literal("🤖 AI 将如何理解这个构件："), x, y, w, 0xFF88CCFF);
-            y += 2;
-            
-            var explanations = getAIViewExplanation();
-            for (String exp : explanations) {
-                y = drawWrappedText(ctx, Text.literal("- " + exp), x, y, w, 0xFFAAAAAA);
-            }
-            
-            y += 4;
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
+            y = aiExplanation.renderSection(ctx, client, this::drawWrappedText, x, y, w);
         }
         
         // ============ 底部按钮 ============
@@ -1773,81 +1766,6 @@ public class ComponentCapturePanel extends BasePanel {
 
     private int getScaledMouseY() {
         return (int) (client.mouse.getY() / client.getWindow().getScaleFactor());
-    }
-    
-    private java.util.List<String> getAIViewExplanation() {
-        var explanations = new java.util.ArrayList<String>();
-        var st = ComponentTool.INSTANCE.getState();
-        var draft = st.captureDraft;
-        
-        // 类型
-        String categoryName = switch (st.category) {
-            case DOOR -> "门（Door）";
-            case WINDOW -> "窗（Window）";
-            case COLUMN -> "柱子（Column）";
-            case STAIRS -> "楼梯（Stairs）";
-            case BRACKET -> "斗拱（Bracket）";
-            case ORNAMENT -> "装饰（Ornament）";
-            case ARCH -> "拱券（Arch）";
-            case ROOF_DETAIL -> "屋顶细节（Roof Detail）";
-            default -> "通用构件（Generic）";
-        };
-        explanations.add("类型：" + categoryName);
-
-        semanticPreview.appendToExplanations(explanations, client);
-        
-        // 使用场景
-        String usage = switch (attachmentMode) {
-            case WALL_OPENING -> "墙体开口";
-            case WALL_SURFACE -> "墙面附着";
-            case FLOOR -> "地面放置";
-            case ROOF_SURFACE -> "屋面附着";
-            case ROOF_EDGE -> "屋檐边缘";
-            case ROOF_RIDGE -> "屋脊";
-            case EDGE -> "边缘放置";
-            case CORNER -> "转角放置";
-            default -> "独立放置";
-        };
-        explanations.add("使用场景：" + usage);
-        
-        // 宿主面
-        if (draft.host.referenceBlock != null && draft.host.normal != null) {
-            explanations.add("宿主面：" + draft.host.normal.name() + " @ " + draft.host.referenceBlock.toShortString());
-        }
-
-        // 朝向规则
-        if (orientationController.getDirectionalityMode() == DirectionalityMode.INSIDE_OUTSIDE) {
-            explanations.add("朝向规则：内 → 外");
-        } else if (orientationController.getDirectionalityMode() == DirectionalityMode.BOTTOM_TOP) {
-            explanations.add("朝向规则：下 → 上");
-        } else if (orientationController.getDirectionalityMode() == DirectionalityMode.BOTH) {
-            explanations.add("朝向规则：内 → 外，下 → 上");
-        } else {
-            explanations.add("朝向规则：任意方向");
-        }
-
-        if (draft.orientation.hasInteriorExterior) {
-            explanations.add(draft.orientation.insideMarkWorld != null && draft.orientation.outsideMarkWorld != null
-                ? "内外标记：已设置" : "内外标记：未设置");
-        }
-        if (draft.orientation.hasBottomTop) {
-            explanations.add(draft.orientation.bottomMarkWorld != null && draft.orientation.topMarkWorld != null
-                ? "上下标记：已设置" : "上下标记：未设置");
-        }
-        
-        // 推荐使用高度
-        if (st.category == ComponentCategory.DOOR || st.category == ComponentCategory.WINDOW) {
-            explanations.add("推荐使用高度：首层");
-        }
-        
-        // 可重复性
-        if (st.category == ComponentCategory.COLUMN || st.category == ComponentCategory.ORNAMENT) {
-            explanations.add("可重复：是");
-        } else {
-            explanations.add("可重复：否");
-        }
-        
-        return explanations;
     }
     
     /**
