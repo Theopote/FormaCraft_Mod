@@ -45,6 +45,7 @@ public class BuildConfirmPanel {
     private java.util.List<BlockPatch> patchList;
     private java.util.List<BlockPatch> rejectedPatchList;
     private java.util.List<String> patchWarnings;
+    private UUID previewTicketId;
     @SuppressWarnings("unused")
     private UUID buildId; // 可选：用于区分不同建造请求（以后拓展）
     
@@ -124,6 +125,7 @@ public class BuildConfirmPanel {
         this.mode = Mode.BUILD;
         this.spec = spec;
         this.patchOrigin = null;
+        this.previewTicketId = null;
         this.patchList = null;
         this.buildId = UUID.randomUUID();
         this.visible = true;
@@ -141,13 +143,37 @@ public class BuildConfirmPanel {
         this.mode = Mode.PREVIEW;
         this.spec = null;
         this.patchOrigin = null;
+        this.previewTicketId = null;
         this.patchList = null;
         this.buildId = UUID.randomUUID();
         this.visible = true;
         PreviewModalState.lockBuild();
     }
 
-    /** Patch 预览：显示 Apply/Undo/Redo/Cancel，并开启 PatchPreview 渲染 */
+    /** Patch 预览（服务端签发 PreviewTicket）：显示 Apply/Undo/Redo/Cancel */
+    public void showPatchPreviewFromServer(
+            UUID ticketId,
+            BlockPos origin,
+            java.util.List<BlockPatch> accepted,
+            java.util.List<BlockPatch> rejected
+    ) {
+        this.mode = Mode.PATCH;
+        this.spec = null;
+        this.buildId = UUID.randomUUID();
+        this.visible = true;
+        this.previewTicketId = ticketId;
+
+        this.patchOrigin = origin != null ? origin : BlockPos.ORIGIN;
+        this.patchList = (accepted != null) ? new java.util.ArrayList<>(accepted) : new java.util.ArrayList<>();
+        this.rejectedPatchList = (rejected != null) ? new java.util.ArrayList<>(rejected) : new java.util.ArrayList<>();
+        this.patchWarnings = new java.util.ArrayList<>();
+
+        PatchPreviewState.setPreview(this.patchOrigin, this.patchList, this.rejectedPatchList);
+        PreviewModalState.lockPatch();
+    }
+
+    /** @deprecated 客户端本地生成预览已废弃，请走服务端 PreviewTicket 流程 */
+    @Deprecated
     public void showPatchPreview(BlockPos origin, java.util.List<BlockPatch> patches) {
         this.mode = Mode.PATCH;
         this.spec = null;
@@ -176,6 +202,7 @@ public class BuildConfirmPanel {
         this.spec = null;
         this.buildId = null;
         this.patchOrigin = null;
+        this.previewTicketId = null;
         if (this.patchList != null) this.patchList.clear();
         this.patchList = null;
         if (this.rejectedPatchList != null) this.rejectedPatchList.clear();
@@ -220,13 +247,12 @@ public class BuildConfirmPanel {
 
     private void applyPatch() {
         if (mode != Mode.PATCH) return;
-        if (patchOrigin == null || patchList == null || patchList.isEmpty()) {
+        if (previewTicketId == null) {
             hide();
             return;
         }
-        // 关闭本地预览，再发包执行
         PatchPreviewState.clear();
-        FormaCraftNetworking.sendPatchApply(patchOrigin, patchList, ProtectedZoneTool.INSTANCE.getZones());
+        FormaCraftNetworking.sendPatchConfirm(previewTicketId);
         hide();
     }
     

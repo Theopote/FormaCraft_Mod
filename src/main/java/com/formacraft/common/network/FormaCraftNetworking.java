@@ -2,6 +2,7 @@ package com.formacraft.common.network;
 
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
+import com.formacraft.common.network.packet.BlockPatchPacket;
 import com.formacraft.common.network.packet.PreviewOutlinePacket;
 import com.formacraft.common.network.packet.PreviewSkeletonPacket;
 import com.formacraft.common.network.packet.RequestBuildPacket;
@@ -40,6 +41,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -75,7 +77,9 @@ public class FormaCraftNetworking {
     public static final Identifier CLEAR_OUTLINE = Identifier.of("formacraft", "clear_outline");
     public static final Identifier PATCH_UNDO = Identifier.of("formacraft", "patch_undo");
     public static final Identifier PATCH_REDO = Identifier.of("formacraft", "patch_redo");
-    public static final Identifier PATCH_APPLY = Identifier.of("formacraft", "patch_apply");
+    public static final Identifier PATCH_CONFIRM = Identifier.of("formacraft", "patch_confirm");
+    public static final Identifier PATCH_PREVIEW = Identifier.of("formacraft", "patch_preview");
+    public static final Identifier PATCH_PREVIEW_REQUEST = Identifier.of("formacraft", "patch_preview_request");
 
     // Component Library（v1）
     public static final Identifier COMPONENT_SAVE = Identifier.of("formacraft", "component_save");
@@ -249,61 +253,99 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Patch Apply：origin + patches（dx/dy/dz/action/targetBlock） + protectedZones（强制过滤） */
-    public record PatchApplyPayload(BlockPos origin, List<BlockPatch> patches, List<ProtectedZone> protectedZones) implements CustomPayload {
-        public static final CustomPayload.Id<PatchApplyPayload> ID = new CustomPayload.Id<>(PATCH_APPLY);
-        public static final PacketCodec<PacketByteBuf, PatchApplyPayload> CODEC = PacketCodec.of(
-                (payload, buf) -> {
-                    buf.writeBlockPos(payload.origin);
-                    List<BlockPatch> ps = payload.patches != null ? payload.patches : java.util.Collections.emptyList();
-                    buf.writeVarInt(ps.size());
-                    for (BlockPatch p : ps) {
-                        buf.writeVarInt(p.dx());
-                        buf.writeVarInt(p.dy());
-                        buf.writeVarInt(p.dz());
-                        buf.writeString(p.action() == null ? "" : p.action());
-                        buf.writeString(p.targetBlock() == null ? "" : p.targetBlock());
-                    }
+    /** Patch 确认：客户端仅发送 preview ticketId，服务端从 PreviewTicket 取 patches 并应用。 */
+    public record PatchConfirmPayload(UUID previewTicketId) implements CustomPayload {
+        public static final CustomPayload.Id<PatchConfirmPayload> ID = new CustomPayload.Id<>(PATCH_CONFIRM);
+        public static final PacketCodec<PacketByteBuf, PatchConfirmPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> buf.writeUuid(payload.previewTicketId()),
+                buf -> new PatchConfirmPayload(buf.readUuid())
+        );
 
-                    // protected zones
-                    List<ProtectedZone> zs = payload.protectedZones != null ? payload.protectedZones : java.util.Collections.emptyList();
-                    buf.writeVarInt(zs.size());
-                    for (ProtectedZone z : zs) {
-                        if (z == null || z.min() == null || z.max() == null) {
-                            buf.writeBoolean(false);
-                            continue;
-                        }
-                        buf.writeBoolean(true);
-                        ProtectedZone n = z.normalized();
-                        buf.writeBlockPos(n.min());
-                        buf.writeBlockPos(n.max());
-                    }
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** S2C：Patch 预览（含 ticketId；确认时只回传 ticketId）。 */
+    public record PatchPreviewPayload(
+            UUID ticketId,
+            BlockPos origin,
+            List<BlockPatch> accepted,
+            List<BlockPatch> rejected
+    ) implements CustomPayload {
+        public static final CustomPayload.Id<PatchPreviewPayload> ID = new CustomPayload.Id<>(PATCH_PREVIEW);
+        public static final PacketCodec<PacketByteBuf, PatchPreviewPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {
+                    buf.writeUuid(payload.ticketId());
+                    buf.writeBlockPos(payload.origin());
+                    BlockPatchPacket.writePatches(buf, payload.accepted());
+                    BlockPatchPacket.writePatches(buf, payload.rejected());
+                },
+                buf -> new PatchPreviewPayload(
+                        buf.readUuid(),
+                        buf.readBlockPos(),
+                        BlockPatchPacket.readPatches(buf),
+                        BlockPatchPacket.readPatches(buf)
+                )
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /**
+     * C2S：请求服务端生成 Patch 预览（服务端生成 patches、过滤、签发 PreviewTicket）。
+     * componentId 非空时从构件库加载；否则按 selectionMin/Max 扫描世界选区。
+     */
+    public record RequestPatchPreviewPayload(
+            BlockPos origin,
+            String componentId,
+            String facing,
+            String mirror,
+            boolean semanticSkin,
+            String semanticStyleId,
+            boolean restrictToSelection,
+            BlockPos selectionMin,
+            BlockPos selectionMax,
+            List<ProtectedZone> protectedZones,
+            boolean autoConfirm
+    ) implements CustomPayload {
+        public static final CustomPayload.Id<RequestPatchPreviewPayload> ID = new CustomPayload.Id<>(PATCH_PREVIEW_REQUEST);
+        public static final PacketCodec<PacketByteBuf, RequestPatchPreviewPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {
+                    buf.writeBlockPos(payload.origin());
+                    buf.writeString(payload.componentId() == null ? "" : payload.componentId());
+                    buf.writeString(payload.facing() == null ? "" : payload.facing());
+                    buf.writeString(payload.mirror() == null ? "" : payload.mirror());
+                    buf.writeBoolean(payload.semanticSkin());
+                    buf.writeString(payload.semanticStyleId() == null ? "" : payload.semanticStyleId());
+                    buf.writeBoolean(payload.restrictToSelection());
+                    buf.writeBoolean(payload.selectionMin() != null);
+                    if (payload.selectionMin() != null) buf.writeBlockPos(payload.selectionMin());
+                    buf.writeBoolean(payload.selectionMax() != null);
+                    if (payload.selectionMax() != null) buf.writeBlockPos(payload.selectionMax());
+                    BlockPatchPacket.writeProtectedZones(buf, payload.protectedZones());
+                    buf.writeBoolean(payload.autoConfirm());
                 },
                 buf -> {
                     BlockPos origin = buf.readBlockPos();
-                    int n = buf.readVarInt();
-                    List<BlockPatch> ps = new ArrayList<>(Math.max(0, n));
-                    for (int i = 0; i < n; i++) {
-                        int dx = buf.readVarInt();
-                        int dy = buf.readVarInt();
-                        int dz = buf.readVarInt();
-                        String action = buf.readString();
-                        String target = buf.readString();
-                        if (target != null && target.isEmpty()) target = null;
-                        ps.add(new BlockPatch(action, dx, dy, dz, target));
-                    }
-
-                    int zn = buf.readVarInt();
-                    List<ProtectedZone> zs = new ArrayList<>(Math.max(0, zn));
-                    for (int i = 0; i < zn; i++) {
-                        boolean present = buf.readBoolean();
-                        if (!present) continue;
-                        BlockPos min = buf.readBlockPos();
-                        BlockPos max = buf.readBlockPos();
-                        zs.add(new ProtectedZone(min, max).normalized());
-                    }
-
-                    return new PatchApplyPayload(origin, ps, zs);
+                    String componentId = buf.readString();
+                    String facing = buf.readString();
+                    String mirror = buf.readString();
+                    boolean semanticSkin = buf.readBoolean();
+                    String semanticStyleId = buf.readString();
+                    boolean restrictToSelection = buf.readBoolean();
+                    BlockPos selectionMin = buf.readBoolean() ? buf.readBlockPos() : null;
+                    BlockPos selectionMax = buf.readBoolean() ? buf.readBlockPos() : null;
+                    List<ProtectedZone> zones = BlockPatchPacket.readProtectedZones(buf);
+                    boolean autoConfirm = buf.readBoolean();
+                    if (componentId != null && componentId.isEmpty()) componentId = null;
+                    if (facing != null && facing.isEmpty()) facing = null;
+                    if (mirror != null && mirror.isEmpty()) mirror = null;
+                    if (semanticStyleId != null && semanticStyleId.isEmpty()) semanticStyleId = null;
+                    return new RequestPatchPreviewPayload(
+                            origin, componentId, facing, mirror, semanticSkin, semanticStyleId,
+                            restrictToSelection, selectionMin, selectionMax, zones, autoConfirm
+                    );
                 }
         );
 
@@ -502,40 +544,59 @@ public class FormaCraftNetworking {
             }
         }));
 
-        ServerPlayNetworking.registerGlobalReceiver(PatchApplyPayload.ID, (payload, context) -> context.server().execute(() -> {
+        ServerPlayNetworking.registerGlobalReceiver(PatchConfirmPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            com.formacraft.server.patch.PatchPreviewService.confirm(player, payload.previewTicketId());
+        }));
+
+        ServerPlayNetworking.registerGlobalReceiver(RequestPatchPreviewPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
             if (!(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw)) return;
 
             BlockPos origin = payload.origin();
-            List<BlockPatch> patches = payload.patches();
-            List<ProtectedZone> zones = payload.protectedZones();
-            if (origin == null || patches == null || patches.isEmpty()) return;
+            if (origin == null) return;
 
-            // 简单距离保护（避免恶意改图）
-            double d2 = player.squaredDistanceTo(origin.getX() + 0.5, origin.getY() + 0.5, origin.getZ() + 0.5);
-            double max = 96.0;
-            if (d2 > max * max) return;
-
-            // 强制过滤：禁区/保护区内的 patch 一律跳过
-            List<BlockPatch> filtered = patches;
-            if (zones != null && !zones.isEmpty()) {
-                filtered = new ArrayList<>(patches.size());
-                outer:
-                for (BlockPatch p : patches) {
-                    if (p == null) continue;
-                    BlockPos abs = origin.add(p.dx(), p.dy(), p.dz());
-                    for (ProtectedZone z : zones) {
-                        if (z != null && z.contains(abs)) {
-                            continue outer;
-                        }
-                    }
-                    filtered.add(p);
+            List<BlockPatch> rawPatches;
+            String componentId = payload.componentId();
+            if (componentId != null && !componentId.isBlank()) {
+                java.nio.file.Path worldDir = context.server().getSavePath(WorldSavePath.ROOT);
+                ComponentDefinition def = ComponentStorage.loadComponent(worldDir, componentId.trim());
+                if (def == null) {
+                    FormacraftMod.LOGGER.warn("Patch preview request: unknown component {}", componentId);
+                    return;
                 }
+                long seed = origin.asLong();
+                rawPatches = com.formacraft.server.patch.ComponentPatchPreviewBuilder.fromComponentDefinition(
+                        def,
+                        com.formacraft.server.patch.ComponentPatchPreviewBuilder.parseFacing(payload.facing()),
+                        com.formacraft.server.patch.ComponentPatchPreviewBuilder.parseMirror(payload.mirror()),
+                        payload.semanticSkin(),
+                        payload.semanticStyleId(),
+                        seed
+                );
+            } else {
+                rawPatches = com.formacraft.server.patch.ComponentPatchPreviewBuilder.fromWorldSelection(
+                        sw, origin, payload.selectionMin(), payload.selectionMax());
             }
 
-            if (filtered.isEmpty()) return;
-            com.formacraft.common.patch.history.PatchHistoryManager.applyWithHistory(sw, player.getUuid(), origin, filtered);
+            if (rawPatches == null || rawPatches.isEmpty()) return;
+
+            com.formacraft.server.preview.PreviewTicket ticket = com.formacraft.server.patch.PatchPreviewService.issuePreview(
+                    player,
+                    origin,
+                    rawPatches,
+                    payload.protectedZones(),
+                    payload.restrictToSelection(),
+                    payload.selectionMin(),
+                    payload.selectionMax(),
+                    !payload.autoConfirm()
+            );
+
+            if (ticket != null && payload.autoConfirm()) {
+                com.formacraft.server.patch.PatchPreviewService.confirm(player, ticket.id());
+            }
         }));
 
         // Component Library: 保存构件（客户端 -> 服务端）
@@ -824,6 +885,19 @@ public class FormaCraftNetworking {
             String json = payload.json();
             try { com.formacraft.client.tool.ComponentTool.INSTANCE.onComponentDefinitionFromServer(json); } catch (Throwable ignored) {}
         }));
+
+        // Patch 预览（服务端签发 PreviewTicket）
+        ClientPlayNetworking.registerGlobalReceiver(PatchPreviewPayload.ID, (payload, context) -> context.client().execute(() -> {
+            try {
+                com.formacraft.client.preview.PatchPreviewClientState.onPatchPreviewFromServer(
+                        payload.ticketId(),
+                        payload.origin(),
+                        payload.accepted(),
+                        payload.rejected()
+                );
+            } catch (Throwable ignored) {
+            }
+        }));
     }
 
     /** 注册所有 C2S PayloadType（客户端编码 & 服务端解码都需要）。 */
@@ -835,7 +909,8 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playC2S().register(ConfirmBuildPacket.ID, ConfirmBuildPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(PatchApplyPayload.ID, PatchApplyPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PatchConfirmPayload.ID, PatchConfirmPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RequestPatchPreviewPayload.ID, RequestPatchPreviewPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PreviewAdjustPayload.ID, PreviewAdjustPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ComponentSavePayload.ID, ComponentSavePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ComponentCatalogRequestPayload.ID, ComponentCatalogRequestPayload.CODEC);
@@ -854,6 +929,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playS2C().register(PreviewSkeletonPayload.ID, PreviewSkeletonPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewOriginPayload.ID, PreviewOriginPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(PatchPreviewPayload.ID, PatchPreviewPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentCatalogPayload.ID, ComponentCatalogPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentSaveAckPayload.ID, ComponentSaveAckPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentDefinitionPayload.ID, ComponentDefinitionPayload.CODEC);
@@ -930,10 +1006,39 @@ public class FormaCraftNetworking {
         ClientPlayNetworking.send(new PatchRedoPayload());
     }
 
-    /** 客户端请求 Patch Apply（携带 protectedZones 以强制过滤） */
-    public static void sendPatchApply(BlockPos origin, List<BlockPatch> patches, List<ProtectedZone> protectedZones) {
+    /** 服务端下发 Patch 预览（含 PreviewTicket id）。 */
+    public static void sendPatchPreview(
+            ServerPlayerEntity player,
+            UUID ticketId,
+            BlockPos origin,
+            List<BlockPatch> accepted,
+            List<BlockPatch> rejected
+    ) {
+        if (player == null || ticketId == null || origin == null) return;
+        ServerPlayNetworking.send(player, new PatchPreviewPayload(
+                ticketId,
+                origin,
+                accepted != null ? accepted : List.of(),
+                rejected != null ? rejected : List.of()
+        ));
+    }
+
+    /** 客户端确认 Patch 预览（仅发送 ticketId）。 */
+    public static void sendPatchConfirm(UUID previewTicketId) {
+        if (previewTicketId == null) return;
         MinecraftClient mc = MinecraftClient.getInstance();
-        PatchApplyPayload payload = new PatchApplyPayload(origin, patches, protectedZones);
+        PatchConfirmPayload payload = new PatchConfirmPayload(previewTicketId);
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
+            return;
+        }
+        ClientPlayNetworking.send(payload);
+    }
+
+    /** 客户端请求服务端生成 Patch 预览。 */
+    public static void sendRequestPatchPreview(RequestPatchPreviewPayload payload) {
+        if (payload == null) return;
+        MinecraftClient mc = MinecraftClient.getInstance();
         if (mc != null && mc.getNetworkHandler() != null) {
             mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
             return;

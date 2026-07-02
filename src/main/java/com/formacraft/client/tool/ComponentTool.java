@@ -365,41 +365,45 @@ public final class ComponentTool implements FormacraftTool {
             }
         }
         Mirror m = state.mirror != null ? state.mirror : Mirror.NONE;
-        ComponentTransform t = new ComponentTransform(placeFacing, m);
 
-        // build patches (relative to origin)
-        List<BlockPatch> patches = new ArrayList<>(def.blocks.size());
-        for (ComponentDefinition.BlockEntry be : def.blocks) {
-            if (be == null) continue;
-            BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
-            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, t);
-            String block = be.block;
-            block = BlockStateStringUtil.withTransformedFacing(block, fromFacing, t);
-            patches.add(new BlockPatch(BlockPatch.PLACE, off.getX(), off.getY(), off.getZ(), block));
-        }
-
-        // 直接应用 Patch，不显示预览确认界面
-        // 应用 PatchFilter 过滤（禁区、选区等约束）
-        boolean restrict = PromptModeState.restrictToSelection();
-        var bc = BuildContextResolver.resolve(restrict);
-        if (bc != null) bc = bc.withOrigin(anchor);
-        PatchFilterResult r = ToolPatchFilter.filter(bc, anchor, patches);
-        
-        if (r.accepted.isEmpty()) {
-            HudToast.show("放置失败：所有方块都被过滤（可能因为禁区或选区约束）", true);
-            return true;
-        }
-        
-        // 直接发送 Patch 应用请求
-        FormaCraftNetworking.sendPatchApply(anchor, r.accepted, com.formacraft.client.tool.ProtectedZoneTool.INSTANCE.getZones());
+        requestServerPatchPreview(anchor, def.id, placeFacing, m, true);
         HudToast.show(pr.status == PlacementResult.Status.WARN ? ("已放置构件（警告：" + pr.reason + "）") : "已放置构件");
-        
-        // 放置完成后，退出库模式，清除状态
+
         state.useLibrary = false;
         loadedComponent = null;
         ComponentPreviewState.clear();
-        
+
         return true;
+    }
+
+    private void requestServerPatchPreview(
+            BlockPos anchor,
+            String componentId,
+            Direction facing,
+            Mirror mirror,
+            boolean autoConfirm
+    ) {
+        if (anchor == null) return;
+        boolean restrict = PromptModeState.restrictToSelection();
+        BlockPos selMin = null;
+        BlockPos selMax = null;
+        if ((componentId == null || componentId.isBlank()) && SelectionTool.INSTANCE.hasSelection()) {
+            selMin = SelectionTool.INSTANCE.getMin();
+            selMax = SelectionTool.INSTANCE.getMax();
+        }
+        FormaCraftNetworking.sendRequestPatchPreview(new FormaCraftNetworking.RequestPatchPreviewPayload(
+                anchor,
+                componentId,
+                facing != null ? facing.name() : null,
+                mirror != null ? mirror.name() : null,
+                state.semanticSkin,
+                state.semanticStyleId,
+                restrict,
+                selMin,
+                selMax,
+                ProtectedZoneTool.INSTANCE.getZones(),
+                autoConfirm
+        ));
     }
 
     public void cycleFacing() {
