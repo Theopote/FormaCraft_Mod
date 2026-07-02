@@ -4240,43 +4240,27 @@ public final class MetaAssemblyEngine {
     }
 
     private static int i(Object v, int def) {
-        try {
-            if (v instanceof Number n) return n.intValue();
-            if (v != null) return Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
-        return def;
+        return AssemblyValueParser.i(v, def);
     }
 
     private static double d(Object v, double def) {
-        try {
-            if (v instanceof Number n) return n.doubleValue();
-            if (v != null) return Double.parseDouble(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
-        return def;
+        return AssemblyValueParser.d(v, def);
     }
 
     private static double clamp(double v, double min, double max) {
-        if (v < min) return min;
-        if (v > max) return max;
-        return v;
+        return AssemblyValueParser.clamp(v, min, max);
     }
 
     private static boolean bool(Object v, boolean def) {
-        if (v == null) return def;
-        if (v instanceof Boolean b) return b;
-        String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
-        if (s.isEmpty()) return def;
-        return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y");
+        return AssemblyValueParser.bool(v, def);
     }
 
     private static String str(Object v, String def) {
-        if (v == null) return def;
-        String s = String.valueOf(v).trim();
-        return s.isEmpty() ? def : s;
+        return AssemblyValueParser.str(v, def);
     }
 
     private static int clamp(int v, int min, int max) {
-        return Math.max(min, Math.min(max, v));
+        return AssemblyValueParser.clamp(v, min, max);
     }
 }
 
