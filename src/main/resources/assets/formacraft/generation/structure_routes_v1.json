@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "styleProfiles": [
+    { "styleProfileId": "Chinese_Vernacular_Jiangnan_WaterTown", "generatorKey": "jiangnan_water_town" },
+    { "styleProfileId": "Gothic_Cathedral", "generatorKey": "gothic_cathedral" },
+    { "styleProfileId": "Brutalism", "generatorKey": "brutalist_megastructure" },
+    { "styleProfileId": "Deconstructivism_Zaha", "generatorKey": "parametric_deconstructivism" }
+  ],
+  "templateRoutes": [
+    { "id": "mingqing_courtyard", "keywords": ["mingqing_courtyard", "mingqing"], "generatorKey": "mingqing_courtyard" },
+    { "id": "castle_compound", "keywords": ["castle_compound", "castle"], "generatorKey": "castle_compound" },
+    { "id": "office_block", "keywords": ["office_block"], "generatorKey": "office_block" },
+    { "id": "office_district", "keywords": ["office_district", "office_park", "office"], "generatorKey": "office_district" },
+    { "id": "cyberpunk_megablock", "keywords": ["cyberpunk_megablock", "cyber_megablock", "cyber_slum_tower", "夜城", "赛博巨构", "贫民窟塔"], "generatorKey": "cyberpunk_megablock" },
+    { "id": "elven_treehouse", "keywords": ["elven_treehouse", "treehouse", "elf_treehouse", "精灵树屋", "树屋", "树上小屋"], "generatorKey": "elven_treehouse" },
+    { "id": "elven_mushroom_house", "keywords": ["mushroom_house", "mushroom_hut", "mushroomhouse", "蘑菇屋", "蘑菇房", "蘑菇小屋"], "generatorKey": "elven_mushroom_house" },
+    { "id": "elven_flower_house", "keywords": ["flower_house", "flower_hut", "flowerhome", "花朵屋", "花屋", "花房", "花朵小屋"], "generatorKey": "elven_flower_house" },
+    { "id": "jiangnan_water_town", "keywords": ["jiangnan_water_town", "water_town", "watertown"], "generatorKey": "jiangnan_water_town" },
+    { "id": "steampunk_airship", "keywords": ["steampunk_airship", "airship", "zeppelin", "飞艇", "飞船"], "generatorKey": "steampunk_airship" },
+    { "id": "steampunk_factory", "keywords": ["steampunk_factory", "factory_steampunk", "steam_factory", "蒸汽工厂", "工厂"], "generatorKey": "steampunk_factory" },
+    { "id": "steampunk_airship_dock", "keywords": ["airship_dock", "steampunk_dock", "airship_port", "dock", "空港", "码头", "飞艇码头"], "generatorKey": "steampunk_airship_dock" },
+    { "id": "japanese_shrine", "keywords": ["japanese_shrine", "shrine", "jinja", "torii"], "generatorKey": "japanese_shrine" },
+    { "id": "japanese_castle_keep", "keywords": ["japanese_castle_keep", "castle_keep", "tenshu", "天守"], "generatorKey": "japanese_castle_keep" },
+    { "id": "japanese_tea_house", "keywords": ["japanese_tea_house", "tea_house", "teahouse", "chashitsu", "茶室"], "generatorKey": "japanese_tea_house" },
+    { "id": "pantheon", "keywords": ["pantheon", "万神殿", "dome_temple"], "generatorKey": "pantheon" },
+    { "id": "parthenon", "keywords": ["parthenon", "帕特农", "classical_temple", "greco_roman_temple"], "generatorKey": "parthenon" },
+    { "id": "gothic_cathedral", "keywords": ["gothic_cathedral", "cathedral", "notre_dame", "cologne", "哥特"], "generatorKey": "gothic_cathedral" },
+    { "id": "modern_skyscraper", "keywords": ["modern_skyscraper", "highrise", "skyscraper", "摩天", "摩天楼"], "generatorKey": "modern_skyscraper" },
+    { "id": "modern_office_campus", "keywords": ["modern_office_campus", "office_campus", "campus", "园区"], "generatorKey": "modern_office_campus" },
+    { "id": "modern_bauhaus_rowhouse", "keywords": ["bauhaus_rowhouse", "bauhaus", "rowhouse", "townhouse", "terrace", "联排", "包豪斯"], "generatorKey": "modern_bauhaus_rowhouse" },
+    { "id": "brutalist_megastructure", "keywords": ["brutalism_megastructure", "soviet_megastructure", "brutalism", "粗野", "巨构"], "generatorKey": "brutalist_megastructure" },
+    { "id": "parametric_deconstructivism", "keywords": ["deconstructivism", "parametric", "zaha", "gehry", "guggenheim", "解构", "参数化"], "generatorKey": "parametric_deconstructivism" }
+  ],
+  "buildingTypeFallback": [
+    { "buildingType": "TOWER", "generatorKey": "tower" },
+    { "buildingType": "HOUSE", "generatorKey": "house" },
+    { "buildingType": "CASTLE", "generatorKey": "house" },
+    { "buildingType": "BRIDGE", "generatorKey": "bridge" },
+    { "buildingType": "WALL", "generatorKey": "wall" },
+    { "buildingType": "CUSTOM", "generatorKey": "house" }
+  ]
+}

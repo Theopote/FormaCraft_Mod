@@ -7,7 +7,7 @@
 
 | 包路径 | 文件数 | 接口 | 注册表 / 门面 | 入口 | 状态 |
 |--------|--------|------|---------------|------|------|
-| `server/generator` | 63 | `StructureGenerator` | `GeneratorRouter` | `BuildRequestProcessor`, `CityBuilder`, commands | **活跃** |
+| `server/generator` | 63 | `StructureGenerator` | `GeneratorRouter` → `StructureGeneratorRegistry` + `StructureRouteCatalog` | `GenerationHub.routeStructure()` | **活跃** |
 | `common/generator` | 23 | `ComponentGenerator` | `GeneratorRegistry` | `ComponentPlanCompiler` → `UnifiedGeneratorRouter` | **活跃** |
 | `common/skeleton` | +4 | `SkeletonExecutor` | `SkeletonExecutors` | `PlanProgramCompiler` | **契约层（Phase 1）** |
 | `server/skeleton/gen` | 53 | `ISkeletonGenerator` | `SkeletonGeneratorRegistry` | `SkeletonBuildService`（实现 `SkeletonExecutor`） | **活跃** |
@@ -129,72 +129,55 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 注册表/路由：`com.formacraft.server.generator.router.GeneratorRouter`  
 入口：`StructureGeneratorFactory.getGenerator(spec)`
 
+注册表/路由：`GeneratorRouter` → `StructureRouteCatalog`（JSON）+ `StructureGeneratorRegistry`（实例化）  
+统一入口：`com.formacraft.server.generation.GenerationHub.routeStructure(spec)`
+
 ### 3.1 路由优先级（按顺序）
 
-| 优先级 | 触发条件 (`spec.extra`) | 目标 |
-|--------|-------------------------|------|
-| 1 | `styleProfileId` 匹配 | 见 §3.2 |
-| 2 | `assembly` 非空 | `MetaAssemblyGenerator` |
-| 3 | `blueprint` + compiler 可解析 | `BlueprintStructureGenerator` |
-| 4 | `template` 关键词匹配 | 见 §3.3 |
-| 5 | `landmark` / archetype 别名 | 见 §3.4 |
-| 6 | `genome.archetype.confidence >= 0.85` | 见 §3.4 |
-| 7 | `spec.type` fallback | 见 §3.5 |
+| 优先级 | 触发条件 (`spec.extra`) | 解析方式 |
+|--------|-------------------------|----------|
+| 1 | `styleProfileId` | `structure_routes_v1.json` → `styleProfiles` |
+| 2 | `assembly` 非空 | `StructureGeneratorRegistry` → `meta_assembly` |
+| 3 | `blueprint` + compiler 可解析 | `blueprint_structure` |
+| 4 | `template` 关键词 | `structure_routes_v1.json` → `templateRoutes`（有序匹配） |
+| 5 | `landmark` / archetype 别名 | `ArchetypeRegistry` → `generatorKey` |
+| 6 | `genome.archetype.confidence >= 0.85` | 同上 |
+| 7 | `spec.type` fallback | `structure_routes_v1.json` → `buildingTypeFallback` |
 
-### 3.2 styleProfileId
+Template / styleProfile 路由数据文件：`assets/formacraft/generation/structure_routes_v1.json`  
+新增模板只需编辑 JSON + 在 `StructureGeneratorRegistry` 注册 `generatorKey`（若有新实现类）。
+
+### 3.2 styleProfileId（数据驱动，原硬编码已移除）
 
 | styleProfileId | Generator |
 |----------------|-----------|
-| `Chinese_Vernacular_Jiangnan_WaterTown` | `JiangnanWaterTownGenerator` |
-| `Gothic_Cathedral` | `GothicCathedralGenerator` |
-| `Brutalism` | `BrutalistMegastructureGenerator` |
-| `Deconstructivism_Zaha` | `ParametricDeconstructivismGenerator` |
+| `Chinese_Vernacular_Jiangnan_WaterTown` | `jiangnan_water_town` |
+| `Gothic_Cathedral` | `gothic_cathedral` |
+| `Brutalism` | `brutalist_megastructure` |
+| `Deconstructivism_Zaha` | `parametric_deconstructivism` |
 
-### 3.3 template 关键词（`extra.template`）
+### 3.3 template 关键词（`structure_routes_v1.json`，有序匹配）
 
-| 关键词（任一匹配） | Generator |
-|--------------------|-----------|
-| `mingqing_courtyard`, `mingqing` | `MingQingCourtyardGenerator` |
-| `castle_compound`, `castle` | `CastleCompoundGenerator` |
-| `office_district`, `office_park`, `office` | `OfficeDistrictGenerator` |
-| `office_block` | `OfficeBlockGenerator` |
-| `cyberpunk_megablock`, `cyber_megablock`, `cyber_slum_tower`, `夜城`, `赛博巨构`, `贫民窟塔` | `CyberpunkMegaBlockGenerator` |
-| `elven_treehouse`, `treehouse`, `elf_treehouse`, `精灵树屋`, `树屋`, `树上小屋` | `ElvenTreehouseGenerator` |
-| `mushroom_house`, `mushroom_hut`, `mushroomhouse`, `蘑菇屋`, `蘑菇房`, `蘑菇小屋` | `ElvenMushroomHouseGenerator` |
-| `flower_house`, `flower_hut`, `flowerhome`, `花朵屋`, `花屋`, `花房`, `花朵小屋` | `ElvenFlowerHouseGenerator` |
-| `jiangnan_water_town`, `water_town`, `watertown` | `JiangnanWaterTownGenerator` |
-| `steampunk_airship`, `airship`, `zeppelin`, `飞艇`, `飞船` | `SteampunkAirshipGenerator` |
-| `steampunk_factory`, `factory_steampunk`, `steam_factory`, `蒸汽工厂`, `工厂` | `SteampunkFactoryGenerator` |
-| `airship_dock`, `steampunk_dock`, `airship_port`, `dock`, `空港`, `码头`, `飞艇码头` | `SteampunkAirshipDockGenerator` |
-| `japanese_shrine`, `shrine`, `jinja`, `torii` | `JapaneseShrineGenerator` |
-| `japanese_castle_keep`, `castle_keep`, `tenshu`, `天守` | `JapaneseCastleKeepGenerator` |
-| `japanese_tea_house`, `tea_house`, `teahouse`, `chashitsu`, `茶室` | `JapaneseTeaHouseGenerator` |
-| `pantheon`, `万神殿`, `dome_temple` | `PantheonGenerator` |
-| `parthenon`, `帕特农`, `classical_temple`, `greco_roman_temple` | `ParthenonTempleGenerator` |
-| `gothic_cathedral`, `cathedral`, `notre_dame`, `cologne`, `哥特` | `GothicCathedralGenerator` |
-| `modern_skyscraper`, `highrise`, `skyscraper`, `摩天`, `摩天楼` | `ModernSkyscraperGenerator` |
-| `modern_office_campus`, `office_campus`, `office_park`, `campus`, `园区` | `ModernOfficeCampusGenerator` |
-| `bauhaus_rowhouse`, `bauhaus`, `rowhouse`, `townhouse`, `terrace`, `联排`, `包豪斯` | `ModernBauhausRowhouseGenerator` |
-| `brutalism_megastructure`, `soviet_megastructure`, `brutalism`, `粗野`, `巨构` | `BrutalistMegastructureGenerator` |
-| `deconstructivism`, `parametric`, `zaha`, `gehry`, `guggenheim`, `解构`, `参数化` | `ParametricDeconstructivismGenerator` |
+见 JSON 文件 `assets/formacraft/generation/structure_routes_v1.json`。  
+**修复**：`office_block` 现排在 `office` 之前，避免误路由到 `office_district`。
 
-### 3.4 Landmark / Archetype（`archetypes_v1.json` → `ArchetypeGeneratorFactory`）
+### 3.4 Landmark / Archetype（`archetypes_v1.json` → `StructureGeneratorRegistry`）
 
 数据源：`assets/formacraft/archetypes/archetypes_v1.json`  
 工厂：`ArchetypeGeneratorFactory.fromGeneratorId()`
 
-| archetype id | generatorId | Generator | 备注 |
-|--------------|-------------|-----------|------|
-| `tulou` | `tulou` | `TulouGenerator` | |
-| `eiffel_tower` | `eiffel_tower` | `EiffelTowerGenerator` | |
-| `temple_of_heaven` | `temple_of_heaven` | `TempleOfHeavenGenerator` | |
-| `great_wall` | `great_wall` | `GreatWallGenerator` | |
-| `golden_gate_bridge` | `golden_gate_bridge` | `GoldenGateBridgeGenerator` | |
-| `giant_wild_goose_pagoda` | `giant_wild_goose_pagoda` | `GiantWildGoosePagodaGenerator` | |
-| `castle_compound` | `castle_compound` | `CastleCompoundGenerator` | 亦可通过 template 路由 |
-| `office_district` | `office_district` | `OfficeDistrictGenerator` | 亦可通过 template 路由 |
-| `mingqing_courtyard` | `mingqing_courtyard` | — | **缺口**：JSON 有定义，Factory 未映射；走 template 路由 |
-| `birds_nest_stadium` | `birds_nest_stadium` | — | **缺口**：JSON 有定义，无 Generator 实现 |
+| archetype id | generatorKey | 备注 |
+|--------------|--------------|------|
+| `tulou` | `tulou` | |
+| `eiffel_tower` | `eiffel_tower` | |
+| `temple_of_heaven` | `temple_of_heaven` | |
+| `great_wall` | `great_wall` | |
+| `golden_gate_bridge` | `golden_gate_bridge` | |
+| `giant_wild_goose_pagoda` | `giant_wild_goose_pagoda` | |
+| `castle_compound` | `castle_compound` | 亦可通过 template 路由 |
+| `office_district` | `office_district` | 亦可通过 template 路由 |
+| `mingqing_courtyard` | `mingqing_courtyard` | **Phase 3 已修复** Factory 映射 |
+| `birds_nest_stadium` | — | **缺口**：JSON 有定义，无 Generator 实现 |
 
 触发方式：
 - `extra.landmark` → `ArchetypeRegistry.matchByKeyword()` → Factory
@@ -280,4 +263,5 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 | **0** ✅ | 删 `common/gen`、产出对照表、标记 adaptor | 低 |
 | **1** ✅ | `ExecutableSkeletonPlan` 迁至 common、`SkeletonExecutor` 门面、`SkeletonPlanConverter` | 低 |
 | **2** ✅ | `UnifiedGeneratorRouter` + `StructureGeneratorAdaptor` 受控回退 | 中 |
-| **3** | `server/generator` 归位 + `GeneratorRouter` 与 `GeneratorRegistry` 合并 | 高 |
+| **3** ✅ | 数据驱动整栋路由 + `GenerationHub` 统一入口 | 中 |
+| **4** | 物理迁移 `server/generator` → `common/generation/structure`（可选） | 高 |
