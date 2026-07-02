@@ -2,10 +2,11 @@ package com.formacraft.client.ui.panel;
 
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
-import com.formacraft.client.tool.ToolRenderUtil;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureOrientationController;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSelectionController;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureThumbnailService;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureWorldOverlay;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCategory;
@@ -110,6 +111,8 @@ public class ComponentCapturePanel extends BasePanel {
 
     private final ComponentCaptureSelectionController selectionController = new ComponentCaptureSelectionController();
     private final ComponentCaptureThumbnailService thumbnailService = new ComponentCaptureThumbnailService();
+    private final ComponentCaptureOrientationController orientationController = new ComponentCaptureOrientationController();
+    private final ComponentCaptureWorldOverlay worldOverlay;
 
     // 滚动
     private int scrollY = 0;
@@ -118,12 +121,6 @@ public class ComponentCapturePanel extends BasePanel {
     // Phase 3: 语义配置状态
     private com.formacraft.common.component.placement.AttachmentType attachmentMode = 
         com.formacraft.common.component.placement.AttachmentType.NONE;
-    private DirectionalityMode directionalityMode = DirectionalityMode.NONE;
-    private DirectionMarkingMode markingMode = DirectionMarkingMode.NONE;
-    private BlockPos insideMark = null;
-    private BlockPos outsideMark = null;
-    private BlockPos bottomMark = null;
-    private BlockPos topMark = null;
     
     // 阶段感知状态
     private CapturePhase currentPhase = CapturePhase.SELECTION;
@@ -164,6 +161,7 @@ public class ComponentCapturePanel extends BasePanel {
         socketIdInput.setPlaceholder("输入连接位 ID（如：door_frame）");
 
         selectionController.setOnSelectionChanged(thumbnailService::invalidate);
+        worldOverlay = new ComponentCaptureWorldOverlay(selectionController);
     }
 
     private void ensureWidgets() {
@@ -217,7 +215,7 @@ public class ComponentCapturePanel extends BasePanel {
                         才能保存构件""")))
                 .build();
 
-        hostFaceButton = ButtonWidget.builder(Text.literal("选择宿主面"), b -> startMarkingHostFace())
+        hostFaceButton = ButtonWidget.builder(Text.literal("选择宿主面"), b -> orientationController.startMarkingHostFace())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
                         选择宿主面（外墙表面）
@@ -600,7 +598,7 @@ public class ComponentCapturePanel extends BasePanel {
                 .build();
         
         directionalityButton = ButtonWidget.builder(
-                Text.literal("方向: " + directionalityMode.getDisplayName()), 
+                Text.literal("方向: " + orientationController.getDirectionalityMode().getDisplayName()), 
                 b -> cycleDirectionality()
         )
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -620,7 +618,7 @@ public class ComponentCapturePanel extends BasePanel {
         
         setInsideButton = ButtonWidget.builder(
                 Text.literal("🏠 设内侧"), 
-                b -> startMarkingInside()
+                b -> orientationController.startMarkingInside()
         )
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
@@ -638,7 +636,7 @@ public class ComponentCapturePanel extends BasePanel {
         
         setOutsideButton = ButtonWidget.builder(
                 Text.literal("🌍 设外侧"), 
-                b -> startMarkingOutside()
+                b -> orientationController.startMarkingOutside()
         )
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
@@ -656,7 +654,7 @@ public class ComponentCapturePanel extends BasePanel {
         
         setBottomButton = ButtonWidget.builder(
                 Text.literal("⬇️ 设底端"), 
-                b -> startMarkingBottom()
+                b -> orientationController.startMarkingBottom()
         )
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
@@ -674,7 +672,7 @@ public class ComponentCapturePanel extends BasePanel {
         
         setTopButton = ButtonWidget.builder(
                 Text.literal("⬆️ 设顶端"), 
-                b -> startMarkingTop()
+                b -> orientationController.startMarkingTop()
         )
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
@@ -767,11 +765,11 @@ public class ComponentCapturePanel extends BasePanel {
      * 循环切换方向性模式
      */
     private void cycleDirectionality() {
-        directionalityMode = directionalityMode.next();
-        syncPlacementHintsToState();
+        orientationController.cycleDirectionality();
         lastSemanticPreviewMs = 0;
         if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换方向性: {}", directionalityMode.getDisplayName());
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换方向性: {}",
+                    orientationController.getDirectionalityMode().getDisplayName());
         }
     }
 
@@ -782,125 +780,9 @@ public class ComponentCapturePanel extends BasePanel {
         var st = ComponentTool.INSTANCE.getState();
         var draft = st.captureDraft;
         draft.host.attachment = attachmentMode;
-        draft.orientation.mode = directionalityMode;
-        draft.orientation.hasInteriorExterior = directionalityMode == DirectionalityMode.INSIDE_OUTSIDE
-                || directionalityMode == DirectionalityMode.BOTH;
-        draft.orientation.hasBottomTop = directionalityMode == DirectionalityMode.BOTTOM_TOP
-                || directionalityMode == DirectionalityMode.BOTH;
-        st.syncDraftToState();
-    }
-    
-    /**
-     * 开始标记内侧
-     */
-    private void startMarkingInside() {
-        markingMode = DirectionMarkingMode.MARKING_INSIDE;
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入内侧标记模式");
-        }
-    }
-    
-    /**
-     * 开始标记外侧
-     */
-    private void startMarkingOutside() {
-        markingMode = DirectionMarkingMode.MARKING_OUTSIDE;
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入外侧标记模式");
-        }
-    }
-    
-    /**
-     * 开始标记底端
-     */
-    private void startMarkingBottom() {
-        markingMode = DirectionMarkingMode.MARKING_BOTTOM;
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入底端标记模式");
-        }
-    }
-    
-    /**
-     * 开始标记顶端
-     */
-    private void startMarkingTop() {
-        markingMode = DirectionMarkingMode.MARKING_TOP;
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入顶端标记模式");
-        }
+        orientationController.applyDirectionalityToDraft();
     }
 
-    /**
-     * 开始标记宿主面
-     */
-    private void startMarkingHostFace() {
-        markingMode = DirectionMarkingMode.MARKING_HOST_FACE;
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 进入宿主面标记模式");
-        }
-    }
-    
-    /**
-     * 处理方向标记（在世界点击时调用）
-     */
-    private void handleDirectionMarking(BlockHitResult hit) {
-        if (hit == null) return;
-        BlockPos pos = hit.getBlockPos();
-        var st = ComponentTool.INSTANCE.getState();
-        var draft = st.captureDraft;
-        switch (markingMode) {
-            case MARKING_INSIDE:
-                insideMark = pos.toImmutable();
-                draft.orientation.insideMarkWorld = insideMark;
-                st.syncDraftToState();
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 内侧标记: {}", insideMark);
-                }
-                markingMode = DirectionMarkingMode.NONE;
-                applyFacingFromMarks();
-                break;
-                
-            case MARKING_OUTSIDE:
-                outsideMark = pos.toImmutable();
-                draft.orientation.outsideMarkWorld = outsideMark;
-                st.syncDraftToState();
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 外侧标记: {}", outsideMark);
-                }
-                markingMode = DirectionMarkingMode.NONE;
-                applyFacingFromMarks();
-                break;
-                
-            case MARKING_BOTTOM:
-                bottomMark = pos.toImmutable();
-                draft.orientation.bottomMarkWorld = bottomMark;
-                st.syncDraftToState();
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 底端标记: {}", bottomMark);
-                }
-                markingMode = DirectionMarkingMode.NONE;
-                break;
-                
-            case MARKING_TOP:
-                topMark = pos.toImmutable();
-                draft.orientation.topMarkWorld = topMark;
-                st.syncDraftToState();
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 顶端标记: {}", topMark);
-                }
-                markingMode = DirectionMarkingMode.NONE;
-                break;
-
-            case MARKING_HOST_FACE:
-                setHostFace(hit);
-                markingMode = DirectionMarkingMode.NONE;
-                break;
-                
-            default:
-                break;
-        }
-    }
-    
     /**
      * 设置选择模式
      */
@@ -1224,11 +1106,11 @@ public class ComponentCapturePanel extends BasePanel {
             y += 4;
             
             // 方向语义解释（自动）
-            if (directionalityMode == DirectionalityMode.INSIDE_OUTSIDE) {
+            if (orientationController.getDirectionalityMode() == DirectionalityMode.INSIDE_OUTSIDE) {
                 y = drawWrappedText(ctx, Text.literal("方向语义：内 → 外（自动）"), x, y, w, 0xFFAAAAAA);
-            } else if (directionalityMode == DirectionalityMode.BOTTOM_TOP) {
+            } else if (orientationController.getDirectionalityMode() == DirectionalityMode.BOTTOM_TOP) {
                 y = drawWrappedText(ctx, Text.literal("方向语义：下 → 上（自动）"), x, y, w, 0xFFAAAAAA);
-            } else if (directionalityMode == DirectionalityMode.BOTH) {
+            } else if (orientationController.getDirectionalityMode() == DirectionalityMode.BOTH) {
                 y = drawWrappedText(ctx, Text.literal("方向语义：内 → 外，下 → 上（自动）"), x, y, w, 0xFFAAAAAA);
             }
             y += 4;
@@ -1296,7 +1178,7 @@ public class ComponentCapturePanel extends BasePanel {
             attachmentModeButton.active = true;
             attachmentModeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             
-            directionalityButton.setMessage(Text.literal("方向: " + directionalityMode.getDisplayName()));
+            directionalityButton.setMessage(Text.literal("方向: " + orientationController.getDirectionalityMode().getDisplayName()));
             directionalityButton.setPosition(x + halfW + 4, y);
             directionalityButton.setWidth(w - halfW - 4);
             directionalityButton.visible = true;
@@ -1305,7 +1187,7 @@ public class ComponentCapturePanel extends BasePanel {
             y += LABEL_OFFSET;
             
             // 方向标记按钮（根据方向性模式显示）
-            if (directionalityMode.needsInsideOutside()) {
+            if (orientationController.getDirectionalityMode().needsInsideOutside()) {
                 setInsideButton.setMessage(Text.literal(draft.orientation.insideMarkWorld != null ? "🏠✓ 内侧" : "🏠 设内侧"));
                 setInsideButton.setPosition(x, y);
                 setInsideButton.setWidth(halfW);
@@ -1322,7 +1204,7 @@ public class ComponentCapturePanel extends BasePanel {
                 y += LABEL_OFFSET;
             }
             
-            if (directionalityMode.needsBottomTop()) {
+            if (orientationController.getDirectionalityMode().needsBottomTop()) {
                 setBottomButton.setMessage(Text.literal(draft.orientation.bottomMarkWorld != null ? "⬇️✓ 底端" : "⬇️ 设底端"));
                 setBottomButton.setPosition(x, y);
                 setBottomButton.setWidth(halfW);
@@ -1340,8 +1222,8 @@ public class ComponentCapturePanel extends BasePanel {
             }
             
             // 标记模式提示
-            if (markingMode != DirectionMarkingMode.NONE) {
-                y = drawWrappedText(ctx, Text.literal("⚡ " + markingMode.getHint()), x, y, w, 0xFFFFFF00);
+            if (orientationController.getMarkingMode() != DirectionMarkingMode.NONE) {
+                y = drawWrappedText(ctx, Text.literal("⚡ " + orientationController.getMarkingMode().getHint()), x, y, w, 0xFFFFFF00);
                 y += 4;
             }
             
@@ -1856,22 +1738,22 @@ public class ComponentCapturePanel extends BasePanel {
         switch (category) {
             case DOOR, WINDOW:
                 attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_OPENING;
-                directionalityMode = DirectionalityMode.INSIDE_OUTSIDE;
+                orientationController.setDirectionalityMode(DirectionalityMode.INSIDE_OUTSIDE);
                 break;
             case COLUMN:
                 attachmentMode = com.formacraft.common.component.placement.AttachmentType.FLOOR;
-                directionalityMode = DirectionalityMode.NONE;
+                orientationController.setDirectionalityMode(DirectionalityMode.NONE);
                 break;
             case STAIRS:
                 attachmentMode = com.formacraft.common.component.placement.AttachmentType.FLOOR;
-                directionalityMode = DirectionalityMode.BOTTOM_TOP;
+                orientationController.setDirectionalityMode(DirectionalityMode.BOTTOM_TOP);
                 break;
             case BRACKET:
             case ORNAMENT:
             case ARCH:
             case ROOF_DETAIL:
                 attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_SURFACE;
-                directionalityMode = DirectionalityMode.NONE;
+                orientationController.setDirectionalityMode(DirectionalityMode.NONE);
                 break;
             default:
                 // GENERIC 保持当前设置
@@ -2460,11 +2342,11 @@ public class ComponentCapturePanel extends BasePanel {
         }
 
         // 朝向规则
-        if (directionalityMode == DirectionalityMode.INSIDE_OUTSIDE) {
+        if (orientationController.getDirectionalityMode() == DirectionalityMode.INSIDE_OUTSIDE) {
             explanations.add("朝向规则：内 → 外");
-        } else if (directionalityMode == DirectionalityMode.BOTTOM_TOP) {
+        } else if (orientationController.getDirectionalityMode() == DirectionalityMode.BOTTOM_TOP) {
             explanations.add("朝向规则：下 → 上");
-        } else if (directionalityMode == DirectionalityMode.BOTH) {
+        } else if (orientationController.getDirectionalityMode() == DirectionalityMode.BOTH) {
             explanations.add("朝向规则：内 → 外，下 → 上");
         } else {
             explanations.add("朝向规则：任意方向");
@@ -2621,13 +2503,12 @@ public class ComponentCapturePanel extends BasePanel {
 
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 世界点击: {}, 按钮: {}, 模式: {}, 标记模式: {}",
-                pos, button, selectionController.getMode(), markingMode);
+                pos, button, selectionController.getMode(), orientationController.getMarkingMode());
         }
 
         // Phase 3: 优先处理方向标记模式
-        if (markingMode != DirectionMarkingMode.NONE && button == 0) {
-            handleDirectionMarking(hit);
-            return true;
+        if (orientationController.isMarkingActive() && button == 0) {
+            return orientationController.handleMarkingClick(hit, selectionController::isAnchorLocationAllowed);
         }
 
         // 右键设置锚点
@@ -2676,29 +2557,6 @@ public class ComponentCapturePanel extends BasePanel {
         }
         com.formacraft.client.ui.toast.HudToast.show("锚点已设置: " + pos.toShortString());
     }
-    
-    private void setHostFace(BlockHitResult hit) {
-        if (hit == null) return;
-        var st = ComponentTool.INSTANCE.getState();
-        var draft = st.captureDraft;
-        BlockPos base = hit.getBlockPos().toImmutable();
-        Direction normal = hit.getSide();
-
-        draft.host.referenceBlock = base;
-        draft.host.normal = normal;
-        draft.host.confirmed = true;
-
-        BlockPos anchor = draft.anchor.allowOutsideSelection ? base.offset(normal) : base;
-        if (!selectionController.isAnchorLocationAllowed(anchor)) {
-            HudToast.show("宿主面已记录，但锚点不在选区附近", true);
-        } else {
-            draft.anchor.worldPos = anchor;
-            st.syncDraftToState();
-        }
-        draft.orientation.facing = normal;
-        st.syncDraftToState();
-        com.formacraft.client.ui.toast.HudToast.show("已设置宿主面: " + normal.name());
-    }
 
     private void setAutoAnchor() {
         if (!selectionController.hasValidSelection()) {
@@ -2716,43 +2574,11 @@ public class ComponentCapturePanel extends BasePanel {
         BlockPos anchor = new BlockPos(cx, min.getY(), cz);
         setAnchor(anchor);
     }
-
-    private void applyFacingFromMarks() {
-        var st = ComponentTool.INSTANCE.getState();
-            Direction derived = deriveHorizontalFacing(st.captureDraft.orientation.insideMarkWorld, st.captureDraft.orientation.outsideMarkWorld);
-            if (derived != null) {
-                st.captureDraft.orientation.facing = derived;
-                st.syncDraftToState();
-            }
-    }
-
-    private Direction deriveHorizontalFacing(BlockPos inside, BlockPos outside) {
-        if (inside == null || outside == null) return null;
-        int dx = outside.getX() - inside.getX();
-        int dz = outside.getZ() - inside.getZ();
-        if (dx == 0 && dz == 0) return null;
-        if (Math.abs(dx) >= Math.abs(dz)) {
-            return dx >= 0 ? Direction.EAST : Direction.WEST;
-        }
-        return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
-    }
-
+    
     public void clearSelection() {
         selectionController.clearSelection();
         thumbnailService.invalidate();
-        insideMark = null;
-        outsideMark = null;
-        bottomMark = null;
-        topMark = null;
-        var st = ComponentTool.INSTANCE.getState();
-        var draft = st.captureDraft;
-        draft.orientation.insideMarkWorld = null;
-        draft.orientation.outsideMarkWorld = null;
-        draft.orientation.bottomMarkWorld = null;
-        draft.orientation.topMarkWorld = null;
-        draft.host.referenceBlock = null;
-        draft.host.normal = null;
-        st.syncDraftToState();
+        orientationController.clearMarks();
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 清除选区");
         }
@@ -2774,50 +2600,7 @@ public class ComponentCapturePanel extends BasePanel {
     }
 
     public void renderWorldSelection(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
-        SelectionTool.INSTANCE.renderWorld(ctx);
-        selectionController.renderPointSelectHighlights(ctx);
-        renderHostFace(ctx);
-        renderDirectionMarkers(ctx);
-    }
-    
-    /**
-     * 渲染方向标记（内外、上下）
-     * 使用彩色方块高亮来标识不同的方向标记
-     */
-    private void renderDirectionMarkers(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
-        var draft = ComponentTool.INSTANCE.getState().captureDraft;
-        // 渲染内侧标记（蓝色）
-        if (draft.orientation.insideMarkWorld != null) {
-            renderBlockHighlight(ctx, draft.orientation.insideMarkWorld, 0.2f, 0.5f, 1.0f, 0.6f); // 蓝色
-        }
-        
-        // 渲染外侧标记（橙色）
-        if (draft.orientation.outsideMarkWorld != null) {
-            renderBlockHighlight(ctx, draft.orientation.outsideMarkWorld, 1.0f, 0.5f, 0.0f, 0.6f); // 橙色
-        }
-        
-        // 渲染底端标记（绿色）
-        if (draft.orientation.bottomMarkWorld != null) {
-            renderBlockHighlight(ctx, draft.orientation.bottomMarkWorld, 0.0f, 1.0f, 0.3f, 0.6f); // 绿色
-        }
-        
-        // 渲染顶端标记（紫色）
-        if (draft.orientation.topMarkWorld != null) {
-            renderBlockHighlight(ctx, draft.orientation.topMarkWorld, 0.8f, 0.2f, 1.0f, 0.6f); // 紫色
-        }
-
-        // 内外方向线
-        if (draft.orientation.insideMarkWorld != null && draft.orientation.outsideMarkWorld != null) {
-            renderDirectionLine(ctx, draft.orientation.insideMarkWorld, draft.orientation.outsideMarkWorld, 255, 170, 0, 220);
-        }
-
-        // 上下方向线
-        if (draft.orientation.bottomMarkWorld != null && draft.orientation.topMarkWorld != null) {
-            renderDirectionLine(ctx, draft.orientation.bottomMarkWorld, draft.orientation.topMarkWorld, 120, 220, 120, 220);
-        }
-        
-        // TODO: 方向箭头渲染（需要更复杂的顶点格式处理）
-        // 当前彩色方块高亮已经足够清晰地标识不同的方向标记
+        worldOverlay.render(ctx);
     }
 
     /**
@@ -2826,79 +2609,11 @@ public class ComponentCapturePanel extends BasePanel {
     private void syncLocalFromState() {
         var st = ComponentTool.INSTANCE.getState();
         selectionController.loadFromDraft(st.captureDraft);
+        orientationController.loadFromDraft(st.captureDraft);
         if (!st.captureDraft.selection.explicit) {
             st.captureDraft.selection.aabbMin = SelectionTool.INSTANCE.getMin();
             st.captureDraft.selection.aabbMax = SelectionTool.INSTANCE.getMax();
         }
         attachmentMode = st.captureDraft.host.attachment;
-        directionalityMode = st.captureDraft.orientation.mode;
-        insideMark = st.captureDraft.orientation.insideMarkWorld;
-        outsideMark = st.captureDraft.orientation.outsideMarkWorld;
-        bottomMark = st.captureDraft.orientation.bottomMarkWorld;
-        topMark = st.captureDraft.orientation.topMarkWorld;
-    }
-
-    /**
-     * 渲染宿主面（外墙表面）的高亮
-     */
-    private void renderHostFace(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
-        var draft = ComponentTool.INSTANCE.getState().captureDraft;
-        if (draft.host.referenceBlock == null || draft.host.normal == null) return;
-
-        double x0 = draft.host.referenceBlock.getX();
-        double y0 = draft.host.referenceBlock.getY();
-        double z0 = draft.host.referenceBlock.getZ();
-        double x1 = x0 + 1;
-        double y1 = y0 + 1;
-        double z1 = z0 + 1;
-        double t = 0.02;
-
-        net.minecraft.util.math.Box world = switch (draft.host.normal) {
-            case NORTH -> new net.minecraft.util.math.Box(x0, y0, z0 - t, x1, y1, z0 + t);
-            case SOUTH -> new net.minecraft.util.math.Box(x0, y0, z1 - t, x1, y1, z1 + t);
-            case WEST -> new net.minecraft.util.math.Box(x0 - t, y0, z0, x0 + t, y1, z1);
-            case EAST -> new net.minecraft.util.math.Box(x1 - t, y0, z0, x1 + t, y1, z1);
-            case UP -> new net.minecraft.util.math.Box(x0, y1 - t, z0, x1, y1 + t, z1);
-            case DOWN -> new net.minecraft.util.math.Box(x0, y0 - t, z0, x1, y0 + t, z1);
-        };
-
-        net.minecraft.util.math.Box box = world.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ).expand(0.001);
-        net.minecraft.client.render.VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, 0.25f, 0.7f, 1.0f, 0.7f);
-
-        double cx = x0 + 0.5 + draft.host.normal.getOffsetX() * 0.5;
-        double cy = y0 + 0.5 + draft.host.normal.getOffsetY() * 0.5;
-        double cz = z0 + 0.5 + draft.host.normal.getOffsetZ() * 0.5;
-        double ex = cx + draft.host.normal.getOffsetX() * 0.6;
-        double ey = cy + draft.host.normal.getOffsetY() * 0.6;
-        double ez = cz + draft.host.normal.getOffsetZ() * 0.6;
-        ToolRenderUtil.line(ctx, cx, cy, cz, ex, ey, ez, 80, 200, 255, 220);
-    }
-
-    private void renderDirectionLine(com.formacraft.client.tool.ToolWorldRenderContext ctx,
-                                     BlockPos from, BlockPos to,
-                                     int r, int g, int b, int a) {
-        if (from == null || to == null) return;
-        double x1 = from.getX() + 0.5;
-        double y1 = from.getY() + 0.5;
-        double z1 = from.getZ() + 0.5;
-        double x2 = to.getX() + 0.5;
-        double y2 = to.getY() + 0.5;
-        double z2 = to.getZ() + 0.5;
-        ToolRenderUtil.line(ctx, x1, y1, z1, x2, y2, z2, r, g, b, a);
-    }
-    
-    /**
-     * 渲染单个方块的高亮边框
-     */
-    private void renderBlockHighlight(com.formacraft.client.tool.ToolWorldRenderContext ctx, 
-                                      net.minecraft.util.math.BlockPos pos,
-                                      float r, float g, float b, float a) {
-        net.minecraft.util.math.Box worldBox = new net.minecraft.util.math.Box(
-                pos.getX(), pos.getY(), pos.getZ(),
-                pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1
-        ).expand(0.01);
-        
-        net.minecraft.util.math.Box box = worldBox.offset(-ctx.cameraX, -ctx.cameraY, -ctx.cameraZ);
-        net.minecraft.client.render.VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, a);
     }
 }
