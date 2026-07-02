@@ -7,6 +7,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.llm.parser.PlanParseException;
+import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.network.LlmPlanTerrainBounds.Bounds;
@@ -52,6 +53,13 @@ public final class LlmPlanPreviewBuilder {
                 Boolean.TRUE.equals(spec.getExtra().get("isLlmPlan"));
 
         if (!isLlmPlan) {
+            return false;
+        }
+
+        if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(spec, req)) {
+            FormacraftMod.LOGGER.info(
+                    "BuildingSpecRoutingPolicy: skip LlmPlan preview, fall through to structure generator"
+            );
             return false;
         }
 

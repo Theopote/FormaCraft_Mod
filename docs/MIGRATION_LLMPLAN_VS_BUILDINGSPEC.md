@@ -37,13 +37,13 @@ LlmPlanPreviewBuilder   StructureGeneratorFactory
   → BlockPatch                → GeneratedStructure
 ```
 
-**仍有意保留双路径的场景**（见 `BuildRequestProcessor` 注释）：
+**仍有意保留双路径的场景**（`BuildingSpecRoutingPolicy` 集中策略）：
 
-- 明清四合院 / 官式院落：Composite 易产生重复默认房，**优先单体 BuildingSpec**
+- 明清官式四合院：`BuildingSpecRoutingPolicy` 禁用 Composite、跳过 LlmPlan，并默认 `extra.template=mingqing_courtyard`
 - 地标、城市、复合结构：`CitySpec` / `CompositeSpec` 走整栋层
-- LlmPlan 预览失败时：回退传统 `BuildingSpec` 生成
+- LlmPlan 预览失败时：回退 `GenerationHub.routeStructure()`
 
-相关代码：`com.formacraft.common.network.BuildRequestProcessor`（约 443–449 行）。
+实现：`com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy`
 
 ---
 
@@ -170,7 +170,7 @@ generator_selector_rules_v1.json
 
 - [ ] 按用户场景统计 LlmPlan 预览成功率 vs BuildingSpec 回退率（日志指标）
 - [ ] 对 §2「质量：中」项制定构件增强计划（不合并类）
-- [ ] 四合院等场景：在配置或策略类中显式化「强制 BuildingSpec」（替代仅注释）
+- [x] 四合院等场景：在 `BuildingSpecRoutingPolicy` 中显式化「强制 BuildingSpec」（替代仅注释）
 - [ ] 某 template 构件化达标后：从 selector / 默认路由降低命中，**而非**删除整栋生成器
 
 ---
