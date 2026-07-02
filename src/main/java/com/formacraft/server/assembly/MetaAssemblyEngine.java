@@ -15,7 +15,6 @@ import com.formacraft.server.interior.FloorPlanConfig;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.block.StairsBlock;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -157,6 +156,48 @@ public final class MetaAssemblyEngine {
         @Override
         public double d(Object v, double def) {
             return MetaAssemblyEngine.d(v, def);
+        }
+
+        @Override
+        public String str(Object v, String def) {
+            return MetaAssemblyEngine.str(v, def);
+        }
+
+        @Override
+        public int clamp(int v, int min, int max) {
+            return MetaAssemblyEngine.clamp(v, min, max);
+        }
+    };
+
+    private static final AssemblySolidOps.Adapter SOLID_OPS_ADAPTER = new AssemblySolidOps.Adapter() {
+        @Override
+        public void put(List<PlannedBlock> out, Context ctx, BlockPos origin, int x, int y, int z, BlockState state) {
+            MetaAssemblyEngine.put(out, ctx, origin, x, y, z, state);
+        }
+
+        @Override
+        public BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
+            return MetaAssemblyEngine.pick(ctx, op, overrideKey, semanticKey, salt, fallback);
+        }
+
+        @Override
+        public int i(Object v, int def) {
+            return MetaAssemblyEngine.i(v, def);
+        }
+
+        @Override
+        public double d(Object v, double def) {
+            return MetaAssemblyEngine.d(v, def);
+        }
+
+        @Override
+        public double clamp(double v, double min, double max) {
+            return MetaAssemblyEngine.clamp(v, min, max);
+        }
+
+        @Override
+        public boolean bool(Object v, boolean def) {
+            return MetaAssemblyEngine.bool(v, def);
         }
 
         @Override
@@ -1217,157 +1258,8 @@ public final class MetaAssemblyEngine {
                     }
                 }
             }
-            case "EXTRUDE_POLYGON" -> {
-                // Extrude a 2D polygon (x,z) into a prism.
-                // Supported:
-                // - shape: "RECT" with w,d (centered)
-                // - points: [{x,z}, ...] (local)
-                int h = clamp(i(op.get("h"), i(op.get("height"), 12)), 1, 255);
-                boolean hollow = bool(op.get("hollow"), false);
-                int thickness = clamp(i(op.get("thickness"), 1), 1, 16);
-
-                List<int[]> pts = new ArrayList<>();
-                String shape = str(op.get("shape"), "RECT").trim().toUpperCase(Locale.ROOT);
-                if ("RECT".equals(shape)) {
-                    int w = clamp(i(op.get("w"), 11), 1, 255);
-                    int d = clamp(i(op.get("d"), 11), 1, 255);
-                    int hx = w / 2;
-                    int hz = d / 2;
-                    pts.add(new int[]{-hx, -hz});
-                    pts.add(new int[]{hx, -hz});
-                    pts.add(new int[]{hx, hz});
-                    pts.add(new int[]{-hx, hz});
-                } else {
-                    Object pointsObj = op.get("points");
-                    if (pointsObj instanceof List<?> list) {
-                        for (Object p : list) {
-                            if (p instanceof Map<?, ?> pm) {
-                                int px = i(pm.get("x"), 0);
-                                int pz = i(pm.get("z"), 0);
-                                pts.add(new int[]{px, pz});
-                            }
-                        }
-                    }
-                    if (pts.size() < 3) return curOrigin;
-                }
-
-                BlockState solid = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0xA55401L, Blocks.STONE_BRICKS.getDefaultState());
-                BlockState wall = pick(ctx, op, "wall", "WALL_BASE", 0xA55402L, solid);
-
-                int[] bb = bounds(pts);
-                int xMin = bb[0], xMax = bb[1], zMin = bb[2], zMax = bb[3];
-
-                for (int x = xMin; x <= xMax; x++) {
-                    for (int z = zMin; z <= zMax; z++) {
-                        boolean inside = AssemblyProfilePolygonOps.pointInPolyXZ(x, z, pts);
-                        if (!inside) continue;
-                        for (int y = 0; y < h; y++) {
-                            if (!hollow) {
-                                put(out, ctx, curOrigin, x, y, z, solid);
-                            } else {
-                                // Keep a wall band by checking if any neighbor is outside within thickness.
-                                boolean boundary = false;
-                                for (int k = 1; k <= thickness && !boundary; k++) {
-                                    if (!AssemblyProfilePolygonOps.pointInPolyXZ(x + k, z, pts)
-                                            || !AssemblyProfilePolygonOps.pointInPolyXZ(x - k, z, pts)
-                                            || !AssemblyProfilePolygonOps.pointInPolyXZ(x, z + k, pts)
-                                            || !AssemblyProfilePolygonOps.pointInPolyXZ(x, z - k, pts)) {
-                                        boundary = true;
-                                    }
-                                }
-                                if (boundary) put(out, ctx, curOrigin, x, y, z, wall);
-                                else put(out, ctx, curOrigin, x, y, z, Blocks.AIR.getDefaultState());
-                            }
-                        }
-                    }
-                }
-            }
-            case "ROOF_COVER" -> {
-                // Simple roof cover placed above a footprint (centered around current origin).
-                // type: FLAT / GABLE
-                String type = str(op.get("type"), "FLAT").trim().toUpperCase(Locale.ROOT);
-                int w = clamp(i(op.get("w"), 11), 3, 255);
-                int d = clamp(i(op.get("d"), 11), 3, 255);
-                int yBase = i(op.get("y"), 0);
-                int overhang = clamp(i(op.get("overhang"), 0), 0, 8);
-                int rise = clamp(i(op.get("rise"), Math.max(2, Math.min(6, Math.max(w, d) / 6))), 1, 32);
-                // Forma-Gene integration: curvature power (0.0=linear, >0=concave curve, <0=convex curve)
-                double curvaturePower = clamp(d(op.get("curvaturePower"), d(op.get("curvature_power"), 1.0)), 0.1, 3.0);
-                // Forma-Gene integration: corner lift factor (0.0=none, >0=lift corners for Chinese/Japanese eaves)
-                double cornerLift = clamp(d(op.get("cornerLift"), d(op.get("corner_lift"), 0.0)), 0.0, 2.0);
-
-                BlockState roof = pick(ctx, op, "roof", "ROOF_TILE", 0xA55501L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
-                BlockState slab = pick(ctx, op, "slab", "FLOOR_SLAB", 0xA55502L, Blocks.SMOOTH_STONE_SLAB.getDefaultState());
-
-                int hx = w / 2;
-                int hz = d / 2;
-                int x0 = -hx - overhang, x1 = hx + overhang;
-                int z0 = -hz - overhang, z1 = hz + overhang;
-
-                if (type.contains("FLAT")) {
-                    for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) put(out, ctx, curOrigin, x, yBase, z, slab);
-                    break;
-                }
-
-                // GABLE: ridge runs along the longer axis; roof slopes down to both sides.
-                boolean ridgeAlongX = w >= d;
-                if (!(roof.getBlock() instanceof StairsBlock)) {
-                    // If roof isn't stairs, still place it as solid-ish cover.
-                    for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) put(out, ctx, curOrigin, x, yBase, z, roof);
-                    break;
-                }
-
-                if (ridgeAlongX) {
-                    // slope along Z with curvature power
-                    int spanZ = z1 - z0;
-                    for (int step = 0; step < rise; step++) {
-                        double t = (double) step / Math.max(1, rise - 1); // 0..1
-                        // Apply curvature power: t^power (concave curve for power>1, linear for power=1)
-                        double curvedT = Math.pow(t, curvaturePower);
-                        int y = yBase + (int) Math.round(curvedT * rise);
-                        int zz0 = z0 + (int) Math.round(curvedT * spanZ / 2);
-                        int zz1 = z1 - (int) Math.round(curvedT * spanZ / 2);
-                        if (zz0 > zz1) break;
-                        
-                        // Corner lift: add extra height at corners (x0/x1 positions) - max at mid-rise
-                        int cornerLiftY = (int) Math.round(cornerLift * (1.0 - Math.abs(t - 0.5) * 2.0));
-                        
-                        Direction faceNorth = Direction.NORTH;
-                        Direction faceSouth = Direction.SOUTH;
-                        BlockState sN = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, faceNorth) : roof;
-                        BlockState sS = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, faceSouth) : roof;
-                        for (int x = x0; x <= x1; x++) {
-                            int finalY = y + (cornerLiftY > 0 && (x == x0 || x == x1) ? cornerLiftY : 0);
-                            put(out, ctx, curOrigin, x, finalY, zz0, sS);
-                            put(out, ctx, curOrigin, x, finalY, zz1, sN);
-                        }
-                    }
-                } else {
-                    // slope along X with curvature power
-                    int spanX = x1 - x0;
-                    for (int step = 0; step < rise; step++) {
-                        double t = (double) step / Math.max(1, rise - 1);
-                        double curvedT = Math.pow(t, curvaturePower);
-                        int y = yBase + (int) Math.round(curvedT * rise);
-                        int xx0 = x0 + (int) Math.round(curvedT * spanX / 2);
-                        int xx1 = x1 - (int) Math.round(curvedT * spanX / 2);
-                        if (xx0 > xx1) break;
-                        
-                        // Corner lift
-                        int cornerLiftY = (int) Math.round(cornerLift * (1.0 - Math.abs(t - 0.5) * 2.0));
-                        
-                        Direction faceWest = Direction.WEST;
-                        Direction faceEast = Direction.EAST;
-                        BlockState sW = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, faceWest) : roof;
-                        BlockState sE = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, faceEast) : roof;
-                        for (int z = z0; z <= z1; z++) {
-                            int finalY = y + (cornerLiftY > 0 && (z == z0 || z == z1) ? cornerLiftY : 0);
-                            put(out, ctx, curOrigin, xx0, finalY, z, sE);
-                            put(out, ctx, curOrigin, xx1, finalY, z, sW);
-                        }
-                    }
-                }
-            }
+            case "EXTRUDE_POLYGON" -> AssemblySolidOps.applyExtrudePolygon(out, ctx, curOrigin, op, SOLID_OPS_ADAPTER);
+            case "ROOF_COVER" -> AssemblySolidOps.applyRoofCover(out, ctx, curOrigin, op, SOLID_OPS_ADAPTER);
             case "BSP_FLOOR_PLAN" -> {
                 // expected fields:
                 // - footprint: {w,d} or direct w/d
@@ -1539,17 +1431,6 @@ public final class MetaAssemblyEngine {
                 (x, y, z, state) -> put(out, ctx, origin, x, y, z, state),
                 grid, uN, vN, thick, mat
         );
-    }
-
-    private static int[] bounds(List<int[]> pts) {
-        int xMin = Integer.MAX_VALUE, xMax = Integer.MIN_VALUE, zMin = Integer.MAX_VALUE, zMax = Integer.MIN_VALUE;
-        for (int[] p : pts) {
-            xMin = Math.min(xMin, p[0]);
-            xMax = Math.max(xMax, p[0]);
-            zMin = Math.min(zMin, p[1]);
-            zMax = Math.max(zMax, p[1]);
-        }
-        return new int[]{xMin, xMax, zMin, zMax};
     }
 
     // Ray casting point-in-polygon test (works for simple polygons; points on edge treated as inside-ish)
