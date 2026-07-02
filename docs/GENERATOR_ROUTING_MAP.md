@@ -49,7 +49,7 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 - `genome.archetype.confidence >= 0.85`
 - 未注册且类型为 `HOUSE` / `CASTLE` / `COMPOUND` / `LANDMARK` / `BUILDING`
 
-`SmartGeneratorRouter` 已弃用，委托至 `UnifiedGeneratorRouter`。
+`SmartGeneratorRouter` 已移除；请使用 `UnifiedGeneratorRouter`。
 
 | component_type | 实现类 | 备注 |
 |----------------|--------|------|
@@ -164,7 +164,7 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 ### 3.4 Landmark / Archetype（`archetypes_v1.json` → `StructureGeneratorRegistry`）
 
 数据源：`assets/formacraft/archetypes/archetypes_v1.json`  
-工厂：`ArchetypeGeneratorFactory.fromGeneratorId()`
+实例化：`StructureGeneratorRegistry.create(generatorKey)`
 
 | archetype id | generatorKey | 备注 |
 |--------------|--------------|------|
@@ -241,21 +241,41 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 | `RadialRingCourtyardGenerator` | `RadialRingGenerator`（功能较弱，server 侧已覆盖） |
 | `SimplePaletteResolver` | `SemanticPaletteResolver` |
 
-### 保留待定：`StructureGeneratorAdaptor`
+### 保留：`StructureGeneratorAdaptor`
 
-- **决策**：保留，Phase 2 接入 `UnifiedGeneratorRouter`
-- **原因**：`SmartGeneratorRouter` 已切断回退（避免整栋生成覆盖组件）；适配器是合并桥梁，不是死代码
-- **当前**：无调用方
-
----
-
-## 6. 已知缺口（后续待修）
-
-（当前无阻塞性缺口；历史文档见 `docs/archive/`，路径已同步至 Phase 6b。）
+- **决策**：保留，由 `UnifiedGeneratorRouter` 在受控条件下调用
+- **原因**：构件层显式请求整栋回退时的桥梁（`landmark:` / `structure_generator:` 等）
+- **调用方**：`UnifiedGeneratorRouter.tryGenerate` → `StructureGeneratorAdaptor.tryGenerate`
 
 ---
 
-## 7. GenerationHub（Phase 3 统一入口）
+## 6. 城市 Selector 三件套（`structure/selector`）
+
+仅 **CityBuilder** 使用，与 LlmPlan 主链独立：
+
+| 类 | 职责 |
+|----|------|
+| `GeneratorSelectorCatalog` | `generator_selector_rules_v1.json` 的 POJO（`Rule` / `When` / `Then`） |
+| `GeneratorSelectorRegistry` | 加载 JSON + `match(cityStyle, zone, shape, …)` |
+| `RuleBasedGeneratorSelector` | 将匹配结果写入 `BuildingSpec.extra`（template/landmark/type 等） |
+
+```
+CityBuilder → RuleBasedGeneratorSelector.apply()
+           → GeneratorSelectorRegistry.match()
+           → GeneratorRouter（与单体 BuildingSpec 相同）
+```
+
+迁移进度追踪：`docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md` §7。
+
+---
+
+## 7. 已知缺口（后续待修）
+
+见 `docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md` §9（LlmPlan 成功率指标、四合院强制 BuildingSpec 策略化等）。
+
+---
+
+## 8. GenerationHub（Phase 3 统一入口）
 
 | 方法 | 粒度 | 委托 |
 |------|------|------|
@@ -265,7 +285,7 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 
 ---
 
-## 8. 合并路线图
+## 9. 合并路线图
 
 | Phase | 内容 | 风险 |
 |-------|------|------|
@@ -274,6 +294,7 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 | **2** ✅ | `UnifiedGeneratorRouter` + `StructureGeneratorAdaptor` 受控回退 | 中 |
 | **3** ✅ | 数据驱动整栋路由 + `GenerationHub` 统一入口 | 中 |
 | **4** ✅ | `birds_nest_stadium` 实现 + 主路径接入 `GenerationHub` | 低 |
-| **5** ✅ | `common/generation/structure` → `common/generation/structure` 包迁移 | 中 |
+| **5** ✅ | `server/generator` → `common/generation/structure` 包迁移 | 中 |
 | **6** ✅ | `ComponentGeneratorRegistry` + 构件层 `*ComponentGenerator` 消歧 | 低 |
-| **6b** ✅ | `common/generation/component` → `common/generation/component` 包迁移 | 低 |
+| **6b** ✅ | `common/generator` → `common/generation/component` 包迁移 | 低 |
+| **7** ✅ | `MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md` + selector 文档化 + 删除弃用路由壳 | 低 |

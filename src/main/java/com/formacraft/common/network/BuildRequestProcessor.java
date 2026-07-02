@@ -22,6 +22,10 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <p>Intentionally keeps behavior identical to {@code FormaCraftNetworking.registerC2S()}
  * (RequestBuildPayload receiver), but lives in a dedicated class for easier maintenance.
+ *
+ * <p><b>生成双链路</b>：收到 {@code BuildingSpec} 后优先 {@code LlmPlanPreviewBuilder}（构件层），
+ * 失败则回退整栋 {@code GenerationHub.routeStructure()}。路由策略与覆盖度见
+ * {@code docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md}。
  */
 public final class BuildRequestProcessor {
     private BuildRequestProcessor() {}
