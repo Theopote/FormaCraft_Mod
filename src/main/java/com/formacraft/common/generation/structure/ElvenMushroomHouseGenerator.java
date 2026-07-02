@@ -190,7 +190,7 @@ public class ElvenMushroomHouseGenerator implements StructureGenerator {
                     };
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 

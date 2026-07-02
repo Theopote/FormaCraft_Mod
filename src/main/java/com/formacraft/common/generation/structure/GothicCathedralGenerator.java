@@ -372,7 +372,7 @@ public class GothicCathedralGenerator implements StructureGenerator {
                     else if (axis == Direction.Axis.Z) out = out.with(Properties.AXIS, Direction.Axis.X);
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return out;
     }
 
@@ -381,7 +381,7 @@ public class GothicCathedralGenerator implements StructureGenerator {
         try {
             if (s.contains(Properties.HORIZONTAL_FACING) && facing.getAxis().isHorizontal()) return s.with(Properties.HORIZONTAL_FACING, facing);
             if (s.contains(Properties.FACING)) return s.with(Properties.FACING, facing);
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return s;
     }
 
@@ -402,7 +402,7 @@ public class GothicCathedralGenerator implements StructureGenerator {
                     };
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 

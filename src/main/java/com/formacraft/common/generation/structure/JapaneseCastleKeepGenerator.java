@@ -309,7 +309,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
                 // fallback: just place lower as solid
                 blocks.add(new PlannedBlock(local(origin, entrance, x, y, z), door));
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
     }
 
     private static void fillRect(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
@@ -412,7 +412,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
                     else if (axis == Direction.Axis.Z) out = out.with(Properties.AXIS, Direction.Axis.X);
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return out;
     }
 
@@ -425,7 +425,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
             if (s.contains(Properties.FACING)) {
                 return s.with(Properties.FACING, facing);
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return s;
     }
 
@@ -446,7 +446,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
                     };
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 
@@ -487,7 +487,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
             Object spid = spec.getExtra().get("styleProfileId");
             if (spid == null) return false;
             return String.valueOf(spid).trim().equals("Japanese_Traditional");
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return false;
     }
 }

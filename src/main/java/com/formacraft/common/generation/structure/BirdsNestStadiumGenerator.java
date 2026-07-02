@@ -196,7 +196,7 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
                     return Direction.valueOf(String.valueOf(v).trim().toUpperCase(Locale.ROOT));
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 

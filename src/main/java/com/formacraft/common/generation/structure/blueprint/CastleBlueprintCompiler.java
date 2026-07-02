@@ -1,6 +1,7 @@
 package com.formacraft.common.generation.structure.blueprint;
 
 import com.formacraft.common.logging.FcaLog;
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingType;
 import com.formacraft.common.model.build.BuildingStyle;
@@ -63,15 +64,7 @@ public final class CastleBlueprintCompiler {
         if (gate != null) {
             String side = asUpper(gate.get("side"));
             if (!side.isBlank()) {
-                try {
-                    gateSide = Direction.valueOf(side);
-                } catch (Exception ignored) {
-                    // tolerate common words
-                    if (side.contains("SOUTH")) gateSide = Direction.SOUTH;
-                    else if (side.contains("NORTH")) gateSide = Direction.NORTH;
-                    else if (side.contains("EAST")) gateSide = Direction.EAST;
-                    else if (side.contains("WEST")) gateSide = Direction.WEST;
-                }
+                gateSide = StructureSpecParsers.horizontalFacing(side, gateSide);
             }
             gateWidth = clampInt(gate.get("width"), gateWidth, 0, 31);
         }

@@ -386,7 +386,7 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                     }
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 
@@ -408,7 +408,7 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                             || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return "none";
     }
 

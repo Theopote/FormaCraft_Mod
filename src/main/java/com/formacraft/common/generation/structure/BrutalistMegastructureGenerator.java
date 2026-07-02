@@ -264,7 +264,7 @@ public class BrutalistMegastructureGenerator implements StructureGenerator {
                     else if (axis == Direction.Axis.Z) out = out.with(Properties.AXIS, Direction.Axis.X);
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return out;
     }
 
@@ -285,7 +285,7 @@ public class BrutalistMegastructureGenerator implements StructureGenerator {
                     };
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 
