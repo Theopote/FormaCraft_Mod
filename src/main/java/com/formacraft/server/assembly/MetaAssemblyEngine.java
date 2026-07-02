@@ -3042,15 +3042,11 @@ public final class MetaAssemblyEngine {
     }
 
     private static long packXYZ(int x, int y, int z) {
-        // pack 3 signed ints into one long (range-limited; good enough for local coords)
-        long xx = (x & 0x1FFFFF); // 21 bits
-        long yy = (y & 0x3FFFF);  // 18 bits
-        long zz = (z & 0x1FFFFF); // 21 bits
-        return (xx << 42) | (yy << 24) | zz;
+        return AssemblySeamMathOps.packXYZ(x, y, z);
     }
 
     private static long packUV(int u, int v) {
-        return (((long) u) << 32) ^ (v & 0xffffffffL);
+        return AssemblySeamMathOps.packUV(u, v);
     }
 
     private static void connectToLast(List<PlannedBlock> out,
@@ -3399,21 +3395,12 @@ public final class MetaAssemblyEngine {
     }
 
     private static long dist2(int[] a, int[] b) {
-        long dx = (long) a[0] - b[0];
-        long dy = (long) a[1] - b[1];
-        long dz = (long) a[2] - b[2];
-        return dx * dx + dy * dy + dz * dz;
+        return AssemblySeamMathOps.dist2(a, b);
     }
 
     private static String edgeSignature(PatchData p, Edge e, boolean reverse) {
         int n = edgeCount(p, e);
-        StringBuilder sb = new StringBuilder(n * 12);
-        if (!reverse) {
-            for (int i = 0; i < n; i++) sb.append(packXYZ(edgePoint(p, e, i)[0], edgePoint(p, e, i)[1], edgePoint(p, e, i)[2])).append(';');
-        } else {
-            for (int i = n - 1; i >= 0; i--) sb.append(packXYZ(edgePoint(p, e, i)[0], edgePoint(p, e, i)[1], edgePoint(p, e, i)[2])).append(';');
-        }
-        return sb.toString();
+        return AssemblySeamMathOps.edgeSignature(n, reverse, i -> edgePoint(p, e, i));
     }
 
     private static void stitchEdge(List<PlannedBlock> out, Context ctx, BlockPos origin,
