@@ -2525,7 +2525,7 @@ public final class MetaAssemblyEngine {
         int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
         for (int y = ay0; y <= ay1; y++) {
             for (int u = au0; u <= au1; u++) {
-                boolean place = false;
+                boolean place;
                 BlockState mat = accent;
                 
                 switch (pattern) {
@@ -2535,7 +2535,7 @@ public final class MetaAssemblyEngine {
                     case "RIBS_H", "RIBS_HORIZONTAL" -> place = (Math.floorMod(y, step) < thick);
                     case "NOISE" -> {
                         // Forma-Gene integration: noise overlay
-                        double noiseValue = 0.0;
+                        double noiseValue;
                         int x = uIsX ? u : fixed;
                         int z = uIsX ? fixed : u;
                         long seed = (long) x * 73856093L ^ (long) y * 19349663L ^ (long) z * 83492791L;
