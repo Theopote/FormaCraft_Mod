@@ -239,6 +239,33 @@ public final class MetaAssemblyEngine {
         }
     };
 
+    private static final AssemblyCirculationOps.Adapter CIRCULATION_OPS_ADAPTER = new AssemblyCirculationOps.Adapter() {
+        @Override
+        public void put(List<PlannedBlock> out, Context ctx, BlockPos origin, int x, int y, int z, BlockState state) {
+            MetaAssemblyEngine.put(out, ctx, origin, x, y, z, state);
+        }
+
+        @Override
+        public BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
+            return MetaAssemblyEngine.pick(ctx, op, overrideKey, semanticKey, salt, fallback);
+        }
+
+        @Override
+        public int i(Object v, int def) {
+            return MetaAssemblyEngine.i(v, def);
+        }
+
+        @Override
+        public boolean bool(Object v, boolean def) {
+            return MetaAssemblyEngine.bool(v, def);
+        }
+
+        @Override
+        public int clamp(int v, int min, int max) {
+            return MetaAssemblyEngine.clamp(v, min, max);
+        }
+    };
+
     public List<PlannedBlock> execute(AssemblySpec spec, Context ctx) {
         List<PlannedBlock> out = new ArrayList<>();
         if (spec == null || ctx == null || ctx.world == null || ctx.origin == null) return out;
@@ -1040,101 +1067,7 @@ public final class MetaAssemblyEngine {
                     }
                 }
             }
-            case "STAIR_SYSTEM" -> {
-                // Stair system (P0): straight run staircase between from/to with optional carving for headroom.
-                //
-                // Required:
-                // - from/to: {x,y,z} local points
-                // Optional:
-                // - width: stair width (default 2)
-                // - clearHeight: carve clearance above each step (default 3)
-                // - carve: whether to clear headroom (default true)
-                // - support: place solid support blocks under each step (default true)
-                // - stairs: block override for stairs (semantic STAIR)
-                // - floor: landing/fill material for flat segments (semantic FLOORING)
-                // - supportMaterial: semantic FOUNDATION (fallback floor)
-                int[] a = AssemblyRasterOps.parsePoint(op.get("from"));
-                int[] b = AssemblyRasterOps.parsePoint(op.get("to"));
-
-                int width = clamp(i(op.get("width"), 2), 1, 15);
-                boolean carve = bool(op.get("carve"), true);
-                int clearH = clamp(i(op.get("clearHeight"), i(op.get("clear_h"), 3)), 0, 16);
-                boolean support = bool(op.get("support"), true);
-
-                BlockState stairMat = pick(ctx, op, "stairs", "STAIR", 0xA57470L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
-                BlockState floorMat = pick(ctx, op, "floor", "FLOORING", 0xA57471L, Blocks.SMOOTH_STONE.getDefaultState());
-                BlockState supportMat = pick(ctx, op, "supportMaterial", "FOUNDATION", 0xA57472L, floorMat);
-
-                int dx = b[0] - a[0];
-                int dy = b[1] - a[1];
-                int dz = b[2] - a[2];
-                int run = Math.max(Math.max(Math.abs(dx), Math.abs(dz)), Math.abs(dy));
-                run = Math.max(run, 1);
-
-                // Determine main horizontal direction for stair facing (dominant axis)
-                Direction horizDir;
-                if (Math.abs(dx) >= Math.abs(dz)) horizDir = (dx >= 0) ? Direction.EAST : Direction.WEST;
-                else horizDir = (dz >= 0) ? Direction.SOUTH : Direction.NORTH;
-
-                int prevX = a[0], prevY = a[1], prevZ = a[2];
-                for (int i = 0; i <= run; i++) {
-                    double t = i / (double) run;
-                    int x = (int) Math.round(a[0] + dx * t);
-                    int z = (int) Math.round(a[2] + dz * t);
-                    int y = (int) Math.round(a[1] + dy * t);
-
-                    // clamp to avoid >1 jumps (best-effort)
-                    int deltaY = y - prevY;
-                    if (deltaY > 1) y = prevY + 1;
-                    if (deltaY < -1) y = prevY - 1;
-
-                    // compute lateral axis for width
-                    Direction lateral = (horizDir == Direction.EAST || horizDir == Direction.WEST) ? Direction.SOUTH : Direction.EAST;
-                    int half = width / 2;
-
-                    // place step/landing across width
-                    for (int wOff = -half; wOff <= half; wOff++) {
-                        int wx = x + lateral.getOffsetX() * wOff;
-                        int wz = z + lateral.getOffsetZ() * wOff;
-
-                        if (y > prevY) {
-                            // ascending: stair placed at lower position (prev), facing toward direction
-                            int sx = prevX + lateral.getOffsetX() * wOff;
-                            int sz = prevZ + lateral.getOffsetZ() * wOff;
-                            BlockState s = stairMat;
-                            if (s.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
-                                s = s.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, horizDir);
-                            }
-                            put(out, ctx, curOrigin, sx, prevY, sz, s);
-                        } else if (y < prevY) {
-                            // descending: stair at current position, facing opposite
-                            BlockState s = stairMat;
-                            Direction f = horizDir.getOpposite();
-                            if (s.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
-                                s = s.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, f);
-                            }
-                            put(out, ctx, curOrigin, wx, y, wz, s);
-                        } else {
-                            // flat: floor
-                            put(out, ctx, curOrigin, wx, y, wz, floorMat);
-                        }
-
-                        // support column (simple fill down one block; P0)
-                        if (support) {
-                            put(out, ctx, curOrigin, wx, y - 1, wz, supportMat);
-                        }
-
-                        // carve headroom
-                        if (carve && clearH > 0) {
-                            for (int yy = 1; yy <= clearH; yy++) {
-                                put(out, ctx, curOrigin, wx, y + yy, wz, Blocks.AIR.getDefaultState());
-                            }
-                        }
-                    }
-
-                    prevX = x; prevY = y; prevZ = z;
-                }
-            }
+            case "STAIR_SYSTEM" -> AssemblyCirculationOps.applyStairSystem(out, ctx, curOrigin, op, CIRCULATION_OPS_ADAPTER);
             case "BEZIER_SURFACE" -> AssemblySurfaceOps.applyBezierSurface(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
             case "BEZIER_SURFACE_SET" -> AssemblySurfaceOps.applyBezierSurfaceSet(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
             case "SURFACE_OFFSET" -> AssemblySurfaceOps.applySurfaceOffset(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
