@@ -1,6 +1,7 @@
 package com.formacraft.common.component.model;
 
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.logging.FcaLog;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -18,6 +19,8 @@ import java.util.List;
 public final class ComponentInstanceStorage {
     private ComponentInstanceStorage() {}
 
+    private static final FcaLog LOG = FcaLog.of("ComponentInstanceStorage");
+
     public static Path getWorldInstanceDir(Path worldDir) {
         return worldDir.resolve("formacraft").resolve("instances");
     }
@@ -32,7 +35,9 @@ public final class ComponentInstanceStorage {
             try (Writer w = Files.newBufferedWriter(f, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(inst, w);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("save instance failed uuid={}", inst.uuid, t);
+        }
     }
 
     public static ComponentInstance loadInstance(Path worldDir, String uuid) {
@@ -41,7 +46,8 @@ public final class ComponentInstanceStorage {
         if (!Files.exists(f)) return null;
         try (Reader r = Files.newBufferedReader(f, StandardCharsets.UTF_8)) {
             return JsonUtil.get().fromJson(r, ComponentInstance.class);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.warn("load instance failed uuid={} path={}", uuid, f, t);
             return null;
         }
     }
@@ -60,8 +66,9 @@ public final class ComponentInstanceStorage {
                 String fn = p.getFileName().toString();
                 if (fn.endsWith(".json")) out.add(fn.substring(0, fn.length() - 5));
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("list instances failed path={}", dir, t);
+        }
         return out;
     }
 }
-

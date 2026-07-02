@@ -3,6 +3,7 @@ package com.formacraft.common.network;
 import com.formacraft.FormacraftMod;
 import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.model.build.BuildingSpec;
@@ -32,6 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class BuildRequestProcessor {
     private BuildRequestProcessor() {}
 
+    private static final FcaLog LOG = FcaLog.of("BuildRequestProcessor");
+
     public static void register() {
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.RequestBuildPayload.ID, (payload, context) ->
                 context.server().execute(() -> {
@@ -49,7 +52,9 @@ public final class BuildRequestProcessor {
                     // 注意：客户端可能已填充这些字段；这里仅在缺失时兜底。
                     try {
                         enrichRequestFromPlayer(req, player);
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable t) {
+                        LOG.player(player).warn("enrichRequestFromPlayer failed", t);
+                    }
                     com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
                     com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
 
@@ -152,7 +157,9 @@ public final class BuildRequestProcessor {
                                                         FormaCraftNetworking.sendPreviewSkeleton(player, origin, sp0.getSpec().getExtra());
                                                     }
                                                 }
-                                            } catch (Throwable ignored) {}
+                                            } catch (Throwable t) {
+                                                LOG.player(player).warn("send preview skeleton failed", t);
+                                            }
                                             com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
                                             // 保存 CitySpec 到 PlayerSpecRepository
@@ -266,7 +273,9 @@ public final class BuildRequestProcessor {
                                                         FormaCraftNetworking.sendPreviewSkeleton(player, origin, s0.getSpec().getExtra());
                                                     }
                                                 }
-                                            } catch (Throwable ignored) {}
+                                            } catch (Throwable t) {
+                                                LOG.player(player).warn("send preview skeleton failed", t);
+                                            }
                                             com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
                                             player.sendMessage(net.minecraft.text.Text.translatable(
@@ -379,7 +388,9 @@ public final class BuildRequestProcessor {
                                                     if (updated.getExtra() != null) {
                                                         FormaCraftNetworking.sendPreviewSkeleton(player, origin, updated.getExtra());
                                                     }
-                                                } catch (Throwable ignored) {}
+                                                } catch (Throwable t) {
+                                                LOG.player(player).warn("send preview skeleton failed", t);
+                                            }
                                                 com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
                                                 player.sendMessage(net.minecraft.text.Text.translatable(
@@ -510,7 +521,9 @@ public final class BuildRequestProcessor {
                                                 if (spec.getExtra() != null) {
                                                     FormaCraftNetworking.sendPreviewSkeleton(player, origin, spec.getExtra());
                                                 }
-                                            } catch (Throwable ignored) {}
+                                            } catch (Throwable t) {
+                                                LOG.player(player).warn("send preview skeleton failed", t);
+                                            }
                                             com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
 
                                             player.sendMessage(net.minecraft.text.Text.translatable(

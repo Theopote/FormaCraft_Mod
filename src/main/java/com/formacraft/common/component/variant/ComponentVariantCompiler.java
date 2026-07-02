@@ -3,6 +3,7 @@ package com.formacraft.common.component.variant;
 import com.formacraft.common.component.model.ComponentPrototype;
 import com.formacraft.common.component.model.ComponentVariant;
 import com.formacraft.common.component.transform.Mirror;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.profile.StyleProfile;
 import net.minecraft.util.math.Direction;
@@ -27,6 +28,8 @@ import java.util.List;
  */
 public final class ComponentVariantCompiler {
     private ComponentVariantCompiler() {}
+
+    private static final FcaLog LOG = FcaLog.of("ComponentVariantCompiler");
 
     /**
      * 编译变体（核心入口）。
@@ -88,7 +91,8 @@ public final class ComponentVariantCompiler {
         try {
             Direction d = Direction.valueOf(proto.structure.default_facing.trim().toUpperCase());
             return d.getAxis().isHorizontal() ? d : Direction.SOUTH;
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("parse default_facing failed componentId={} value={}", proto.id, proto.structure.default_facing, t);
             return Direction.SOUTH;
         }
     }
@@ -100,7 +104,8 @@ public final class ComponentVariantCompiler {
         if (mirror == null || mirror.isBlank()) return Mirror.NONE;
         try {
             return Mirror.valueOf(mirror.trim().toUpperCase());
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("parse mirror failed value={}", mirror, t);
             return Mirror.NONE;
         }
     }

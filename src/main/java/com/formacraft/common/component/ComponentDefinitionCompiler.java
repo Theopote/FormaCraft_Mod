@@ -6,6 +6,7 @@ import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
 import com.formacraft.common.component.transform.FacingTransformUtil;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
@@ -23,6 +24,8 @@ import java.util.List;
  */
 public final class ComponentDefinitionCompiler {
     private ComponentDefinitionCompiler() {}
+
+    private static final FcaLog LOG = FcaLog.of("ComponentDefinitionCompiler");
 
     public static List<BlockPatch> compile(ComponentDefinition def,
                                           int baseX, int baseY, int baseZ,
@@ -85,7 +88,8 @@ public final class ComponentDefinitionCompiler {
         try {
             Direction d = Direction.valueOf(s.trim().toUpperCase());
             return d.getAxis().isHorizontal() ? d : Direction.SOUTH;
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("parse facing failed value={}", s, t);
             return Direction.SOUTH;
         }
     }

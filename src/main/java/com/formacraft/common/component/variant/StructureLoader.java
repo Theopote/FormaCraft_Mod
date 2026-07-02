@@ -4,6 +4,7 @@ import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.model.ComponentPrototype;
 import com.formacraft.common.component.model.ComponentPrototypeStorage;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.io.Reader;
@@ -23,6 +24,8 @@ import java.util.List;
  */
 public final class StructureLoader {
     private StructureLoader() {}
+
+    private static final FcaLog LOG = FcaLog.of("StructureLoader");
 
     /**
      * 从 prototype 加载结构模板。
@@ -51,7 +54,8 @@ public final class StructureLoader {
             ComponentDefinition def = JsonUtil.get().fromJson(r, ComponentDefinition.class);
             if (def == null) return emptyTemplate();
             return fromComponentDefinition(def);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.warn("load structure failed componentId={} path={}", proto.id, file, t);
             return emptyTemplate();
         }
     }

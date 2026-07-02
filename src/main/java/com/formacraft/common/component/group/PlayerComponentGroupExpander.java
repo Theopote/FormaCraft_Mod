@@ -13,8 +13,8 @@ import com.formacraft.common.component.socket.SocketMask;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
-import com.formacraft.common.component.transform.FacingTransformUtil;
 import com.formacraft.common.component.transform.Mirror;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.component.semantic.BlockStatePropertyUtil;
 import com.formacraft.common.component.semantic.SemanticBlockStatePicker;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
@@ -42,6 +42,8 @@ import java.util.Map;
  */
 public final class PlayerComponentGroupExpander {
     private PlayerComponentGroupExpander() {}
+
+    private static final FcaLog LOG = FcaLog.of("PlayerComponentGroupExpander");
 
     private static final String PREFIX = "group_request:";
 
@@ -355,7 +357,9 @@ public final class PlayerComponentGroupExpander {
                             me.nestedReq // mounts 内的 hints（可塞 edge endpoints 等）；没有则 null
                     );
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                LOG.debug("FacingDeriver failed mountId={}", me.mountId, t);
+            }
             // PlacementSpec v1：若不需要方向且未显式给 mount_facing，则保持构件自身朝向
             try {
                 if ((me.mountFacing == null || me.mountFacing.isBlank())
@@ -363,7 +367,9 @@ public final class PlayerComponentGroupExpander {
                         && mount.placementSpec.facingPolicy == FacingPolicy.NONE) {
                     mountFacing = mountFromFacing;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                LOG.debug("facing policy NONE fallback failed mountId={}", me.mountId, t);
+            }
             Mirror mountMirror = parseMirror(me.mountMirror);
             ComponentTransform mountTransform = new ComponentTransform(mountFacing, mountMirror);
 
@@ -524,7 +530,8 @@ public final class PlayerComponentGroupExpander {
         if (s == null || s.isBlank()) return null;
         try {
             return Direction.valueOf(s.trim().toUpperCase(Locale.ROOT));
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("parse direction failed value={}", s, t);
             return null;
         }
     }
@@ -533,7 +540,8 @@ public final class PlayerComponentGroupExpander {
         if (s == null || s.isBlank()) return Mirror.NONE;
         try {
             return Mirror.valueOf(s.trim().toUpperCase(Locale.ROOT));
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("parse mirror failed value={}", s, t);
             return Mirror.NONE;
         }
     }
@@ -730,7 +738,8 @@ public final class PlayerComponentGroupExpander {
             if (v instanceof Number n) return n.intValue();
             try {
                 return Integer.parseInt(String.valueOf(v).trim());
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                LOG.debug("parse int hint failed key={} value={}", k, v);
             }
         }
         return def;

@@ -1,5 +1,7 @@
 package com.formacraft.common.component.validate;
 
+import com.formacraft.FormacraftMod;
+
 /**
  * 枚举解析工具（安全解析，避免 NPE）。
  */
@@ -13,7 +15,8 @@ public final class EnumUtil {
         if (raw == null) return null;
         try {
             return Enum.valueOf(type, raw.trim().toUpperCase());
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.debug("[EnumUtil] parseEnum failed type={} raw={}", type.getSimpleName(), raw);
             return null;
         }
     }

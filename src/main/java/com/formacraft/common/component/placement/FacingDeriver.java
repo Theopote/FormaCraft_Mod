@@ -1,5 +1,6 @@
 package com.formacraft.common.component.placement;
 
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.util.math.Direction;
 
 import java.util.Locale;
@@ -12,6 +13,8 @@ import java.util.Map;
  */
 public final class FacingDeriver {
     private FacingDeriver() {}
+
+    private static final FcaLog LOG = FcaLog.of("FacingDeriver");
 
     /**
      * 根据 placementSpec.facingPolicy 推导朝向。
@@ -106,7 +109,9 @@ public final class FacingDeriver {
             if (v instanceof Number n) return n.intValue();
             try {
                 return Integer.parseInt(String.valueOf(v).trim());
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                LOG.debug("parse int hint failed key={} value={}", k, v);
+            }
         }
         return null;
     }
@@ -132,7 +137,8 @@ public final class FacingDeriver {
         if (s == null || s.isBlank()) return FacingPolicy.NONE;
         try {
             return FacingPolicy.valueOf(s.trim().toUpperCase(Locale.ROOT));
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("parse FacingPolicy failed value={}", s, t);
             String u = s.trim().toUpperCase(Locale.ROOT);
             if (u.contains("HOST")) return FacingPolicy.DERIVED_FROM_HOST;
             if (u.contains("OUT")) return FacingPolicy.OUTWARD_NORMAL;

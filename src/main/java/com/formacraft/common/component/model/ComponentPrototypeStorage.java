@@ -5,6 +5,7 @@ import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.logging.FcaLog;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.Reader;
@@ -39,6 +40,8 @@ import java.util.List;
 public final class ComponentPrototypeStorage {
     private ComponentPrototypeStorage() {}
 
+    private static final FcaLog LOG = FcaLog.of("ComponentPrototypeStorage");
+
     /**
      * Prototype 库根目录（推荐）：<gameDir>/formacraft/components
      * <p>
@@ -50,11 +53,13 @@ public final class ComponentPrototypeStorage {
             if (override != null && !override.isBlank()) {
                 return Path.of(override.trim());
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("prototypeLibraryDir override invalid", t);
+        }
         try {
             return FabricLoader.getInstance().getGameDir().resolve("formacraft").resolve("components");
         } catch (Throwable t) {
-            // 极少数环境 fallback
+            LOG.warn("FabricLoader game dir unavailable, using fallback path", t);
             return Path.of("formacraft").resolve("components");
         }
     }
@@ -108,7 +113,9 @@ public final class ComponentPrototypeStorage {
                 if (c == null) c = new ComponentPrototypeCatalog();
                 if (c.prototypes == null) c.prototypes = new ArrayList<>();
                 return c;
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                LOG.warn("load prototype catalog failed path={}", preferred, t);
+            }
         }
 
         // fallback: legacy file name/location
@@ -119,7 +126,9 @@ public final class ComponentPrototypeStorage {
                 if (c == null) c = new ComponentPrototypeCatalog();
                 if (c.prototypes == null) c.prototypes = new ArrayList<>();
                 return c;
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                LOG.warn("load legacy prototype catalog failed path={}", legacy, t);
+            }
         }
 
         ComponentPrototypeCatalog c = new ComponentPrototypeCatalog();
@@ -135,7 +144,9 @@ public final class ComponentPrototypeStorage {
             try (Writer w = Files.newBufferedWriter(f, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(catalog, w);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("save prototype catalog failed path={}", getPrototypeCatalogFile(), t);
+        }
         // best-effort：也写一份旧文件名，避免某些旧工具/脚本只认识 prototype_catalog.json
         try {
             Files.createDirectories(ComponentStorage.getGlobalComponentDir());
@@ -143,7 +154,9 @@ public final class ComponentPrototypeStorage {
             try (Writer w = Files.newBufferedWriter(f, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(catalog, w);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("save legacy prototype catalog failed path={}", getLegacyPrototypeCatalogFile(), t);
+        }
     }
 
     /**
@@ -188,7 +201,8 @@ public final class ComponentPrototypeStorage {
         if (!Files.exists(pj)) return null;
         try (Reader r = Files.newBufferedReader(pj, StandardCharsets.UTF_8)) {
             return JsonUtil.get().fromJson(r, ComponentPrototype.class);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.warn("load prototype failed componentId={} path={}", pid, pj, t);
             return null;
         }
     }
@@ -203,7 +217,8 @@ public final class ComponentPrototypeStorage {
             try (Writer w = Files.newBufferedWriter(pj, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(proto, w);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.warn("save prototype failed componentId={} path={}", proto.id, pj, t);
             return;
         }
 
@@ -274,7 +289,9 @@ public final class ComponentPrototypeStorage {
             try (Writer w = Files.newBufferedWriter(f, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(def, w);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("save component.json failed componentId={}", proto.id, t);
+        }
 
         return proto;
     }
@@ -290,7 +307,9 @@ public final class ComponentPrototypeStorage {
             try (Writer w = Files.newBufferedWriter(vf, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(variant, w);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("save variant failed prototypeId={} variantId={}", variant.prototype_id, variant.variant_id, t);
+        }
     }
 
     public static ComponentVariant loadVariant(String prototypeId, String variantId, ComponentCategory prototypeCategory) {
@@ -309,7 +328,8 @@ public final class ComponentPrototypeStorage {
         if (!Files.exists(vf)) return null;
         try (Reader r = Files.newBufferedReader(vf, StandardCharsets.UTF_8)) {
             return JsonUtil.get().fromJson(r, ComponentVariant.class);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.warn("load variant failed prototypeId={} variantId={} path={}", prototypeId, variantId, vf, t);
             return null;
         }
     }
@@ -338,14 +358,17 @@ public final class ComponentPrototypeStorage {
             if (box != null && box.variants != null && !box.variants.isEmpty()) {
                 return box.variants;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("load preset variants (object form) failed componentId={} path={}", prototypeId, f, t);
+        }
 
         // fallback: array form
         try (Reader r = Files.newBufferedReader(f, StandardCharsets.UTF_8)) {
             ComponentVariant[] arr = JsonUtil.get().fromJson(r, ComponentVariant[].class);
             if (arr == null || arr.length == 0) return List.of();
             return Arrays.asList(arr);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.warn("load preset variants (array form) failed componentId={} path={}", prototypeId, f, t);
             return List.of();
         }
     }
@@ -362,9 +385,9 @@ public final class ComponentPrototypeStorage {
     private static ComponentPrototype.Placement placementFromSpec(ComponentPlacementSpec spec) {
         if (spec == null) return null;
         ComponentPrototype.Placement p = new ComponentPrototype.Placement();
-        try { p.attachment = spec.attachment != null ? spec.attachment.name() : null; } catch (Throwable ignored) {}
-        try { p.spatial_context = spec.spatialContext != null ? spec.spatialContext.name() : null; } catch (Throwable ignored) {}
-        try { p.facing_policy = spec.facingPolicy != null ? spec.facingPolicy.name() : null; } catch (Throwable ignored) {}
+        p.attachment = spec.attachment != null ? spec.attachment.name() : null;
+        p.spatial_context = spec.spatialContext != null ? spec.spatialContext.name() : null;
+        p.facing_policy = spec.facingPolicy != null ? spec.facingPolicy.name() : null;
         p.has_interior_exterior = spec.hasInteriorExterior;
 
         ComponentPrototype.Placement.Constraints c = new ComponentPrototype.Placement.Constraints();
@@ -441,13 +464,23 @@ public final class ComponentPrototypeStorage {
                             e.name = p.name;
                             e.category = p.category != null ? p.category : ComponentCategory.GENERIC;
                             e.tags = p.tags;
-                            try { e.updatedAtMs = Files.getLastModifiedTime(pj).toMillis(); } catch (Throwable ignored) {}
+                            try {
+                                e.updatedAtMs = Files.getLastModifiedTime(pj).toMillis();
+                            } catch (Throwable t) {
+                                LOG.debug("read prototype mtime failed path={}", pj, t);
+                            }
                             out.prototypes.add(e);
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable t) {
+                            LOG.debug("scan prototype entry failed path={}", pj, t);
+                        }
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable t) {
+                    LOG.debug("scan prototype category dir failed path={}", catDir, t);
+                }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("scan prototype root failed path={}", root, t);
+        }
     }
 }
 

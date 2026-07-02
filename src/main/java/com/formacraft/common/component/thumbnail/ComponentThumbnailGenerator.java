@@ -1,6 +1,7 @@
 package com.formacraft.common.component.thumbnail;
 
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.logging.FcaLog;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
@@ -20,6 +21,8 @@ import java.util.Map;
  */
 public final class ComponentThumbnailGenerator {
     private ComponentThumbnailGenerator() {}
+
+    private static final FcaLog LOG = FcaLog.of("ComponentThumbnailGenerator");
 
     public static void generate(ComponentDefinition def, Path outPng, int sizePx) {
         if (def == null || def.blocks == null || def.blocks.isEmpty()) return;
@@ -119,7 +122,8 @@ public final class ComponentThumbnailGenerator {
             try (OutputStream os = Files.newOutputStream(outPng)) {
                 ImageIO.write(img, "PNG", os);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.warn("write thumbnail failed path={}", outPng, t);
         }
     }
 

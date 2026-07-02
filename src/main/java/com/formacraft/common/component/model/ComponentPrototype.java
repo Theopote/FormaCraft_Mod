@@ -7,6 +7,7 @@ import com.formacraft.common.component.placement.FacingPolicy;
 import com.formacraft.common.component.placement.PlacementConstraints;
 import com.formacraft.common.component.placement.SpatialContext;
 import com.formacraft.common.component.socket.ComponentSocket;
+import com.formacraft.common.logging.FcaLog;
 
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,8 @@ import java.util.Map;
  * - 面向后续 Variant/Instance 扩展（分段缩放、材质语义映射等）
  */
 public class ComponentPrototype {
+    private static final FcaLog LOG = FcaLog.of("ComponentPrototype");
+
     public String schema = "formacraft.component.prototype.v1";
 
     public String id;
@@ -133,13 +136,19 @@ public class ComponentPrototype {
         ComponentPlacementSpec out = new ComponentPlacementSpec();
         try {
             if (placement.attachment != null) out.attachment = AttachmentType.valueOf(placement.attachment.trim());
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("invalid attachment componentId={} value={}", id, placement.attachment, t);
+        }
         try {
             if (placement.spatial_context != null) out.spatialContext = SpatialContext.valueOf(placement.spatial_context.trim());
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("invalid spatial_context componentId={} value={}", id, placement.spatial_context, t);
+        }
         try {
             if (placement.facing_policy != null) out.facingPolicy = FacingPolicy.valueOf(placement.facing_policy.trim());
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("invalid facing_policy componentId={} value={}", id, placement.facing_policy, t);
+        }
         out.hasInteriorExterior = placement.has_interior_exterior;
 
         // constraints（字段命名不同，做一次拷贝）
