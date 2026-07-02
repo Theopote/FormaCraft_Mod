@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure.blueprint;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.build.BuildingSpec;
@@ -40,6 +41,8 @@ import java.util.Map;
  * This is the generic bridge that lets LLM output semantic blueprints instead of block placements.
  */
 public final class BlueprintStructureGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("BlueprintStructureGenerator");
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         if (spec == null) return new GeneratedStructure(null, origin, "Empty Blueprint", new ArrayList<>());
@@ -175,8 +178,7 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
                 if (json.isEmpty() || "{}".equals(json)) return null;
                 try {
                     return JsonUtil.fromJson(json, Map.class);
-                } catch (Throwable ignored) {
-                }
+                } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
             }
             default -> {
             }
@@ -186,7 +188,7 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
             String json = JsonUtil.toJson(raw);
             if (json == null || json.isBlank()) return null;
             return JsonUtil.fromJson(json, Map.class);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return null;
     }
 
@@ -220,7 +222,7 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
             Block b = Registries.BLOCK.get(id);
             BlockState st = b.getDefaultState();
             return st != null ? st : fallback;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return fallback;
     }
 }

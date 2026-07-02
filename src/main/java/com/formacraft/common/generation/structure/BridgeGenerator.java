@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
@@ -30,6 +31,8 @@ import java.util.Map;
  * 自动生成桥面、护栏、桥墩、主塔和拉索结构
  */
 public class BridgeGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("BridgeGenerator");
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -480,7 +483,7 @@ public class BridgeGenerator implements StructureGenerator {
                 Object v = spec.getExtra().get("facing");
                 if (v != null) return parseFacing(String.valueOf(v));
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 
@@ -497,7 +500,7 @@ public class BridgeGenerator implements StructureGenerator {
                             || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return "none";
     }
 

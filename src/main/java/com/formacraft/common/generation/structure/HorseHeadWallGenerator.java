@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.block.BlockState;
@@ -21,6 +22,8 @@ import java.util.Map;
  * 2. 未来可扩展为独立的 StructureGenerator（如果需要独立生成马头墙结构）
  */
 public class HorseHeadWallGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("HorseHeadWallGenerator");
     
     /**
      * 生成马头墙（动态参数化）
@@ -194,7 +197,7 @@ public class HorseHeadWallGenerator {
                     if (s.contains("Jiangnan") || s.contains("Huizhou")) return true;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         if (paletteId == null) return false;
         String pid = paletteId.trim();
         return pid.equalsIgnoreCase("PALETTE_HUIZHOU_WHITE_BLACK_A") 

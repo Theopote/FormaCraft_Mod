@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.*;
 import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.compound.GeneratorBackedPlan;
@@ -359,16 +360,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
     }
 
     private static int getInt(Map<String, Object> extra, String key, int def) {
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
-        try {
-            if (v instanceof Number n) return n.intValue();
-            String s = String.valueOf(v).trim();
-            return s.isEmpty() ? def : Integer.parseInt(s);
-        } catch (Exception e) {
-            return def;
-        }
+        return StructureSpecParsers.mapInt(extra, key, def);
     }
 
     private static int clamp(int v, int max) {

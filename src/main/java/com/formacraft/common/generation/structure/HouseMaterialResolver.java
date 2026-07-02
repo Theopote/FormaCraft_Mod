@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.StyleGenome;
@@ -23,6 +24,8 @@ import net.minecraft.util.Identifier;
  * 从 HouseGenerator 中拆分出来，以提高代码可维护性。
  */
 public class HouseMaterialResolver {
+
+    private static final FcaLog LOG = FcaLog.of("HouseMaterialResolver");
 
     private HouseMaterialResolver() {} // Utility class
 
@@ -279,7 +282,7 @@ public class HouseMaterialResolver {
                     if (fallback != null && fallback.getBlock() == Blocks.TINTED_GLASS) {
                         return Blocks.TINTED_GLASS.getDefaultState();
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
                 return Blocks.GLASS_PANE.getDefaultState();
             }
             default -> {
@@ -288,7 +291,7 @@ public class HouseMaterialResolver {
                     if (fallback != null && fallback.getBlock() == Blocks.GLASS) {
                         return Blocks.GLASS_PANE.getDefaultState();
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
                 return fallback != null ? fallback : Blocks.GLASS_PANE.getDefaultState();
             }
         }
@@ -311,7 +314,7 @@ public class HouseMaterialResolver {
                 if (profile != null && profile.details() != null) {
                     windowStyle = profile.details().windowStyle;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         }
         if (windowStyle == null || windowStyle.isBlank()) {
             windowStyle = switch (style) {
@@ -361,7 +364,8 @@ public class HouseMaterialResolver {
         if (id == null || id.isBlank()) return defaultState;
         try {
             return getState(world, id);
-        } catch (Throwable ignored) {
+        } catch (Throwable ex) {
+            LOG.debug("resolve block state failed id={}", id, ex);
             return defaultState;
         }
     }

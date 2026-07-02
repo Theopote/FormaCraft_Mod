@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
@@ -164,18 +165,7 @@ public class GreatWallGenerator implements StructureGenerator {
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {
-        if (spec == null) return def;
-        Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
-        try {
-            if (v instanceof Number n) return n.intValue();
-            String s = String.valueOf(v).trim();
-            return s.isEmpty() ? def : Integer.parseInt(s);
-        } catch (Exception e) {
-            return def;
-        }
+        return StructureSpecParsers.extraInt(spec, key, def);
     }
 
     private static String getStringExtra(BuildingSpec spec, String key, String def) {

@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.structure.blueprint;
 
+import com.formacraft.common.logging.FcaLog;
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.skeleton.SkeletonPlan;
 import net.minecraft.util.math.Direction;
@@ -14,6 +16,8 @@ import java.util.Map;
  * - Provides best-effort selection based on blueprint "blueprint_type"/"type" and heuristic tags.
  */
 public final class BlueprintCompilerRegistry {
+
+    private static final FcaLog LOG = FcaLog.of("BlueprintCompilerRegistry");
     private BlueprintCompilerRegistry() {}
 
     // v1: keep static list; can be made data-driven later.
@@ -89,23 +93,14 @@ public final class BlueprintCompilerRegistry {
                 Object tpl = extra != null ? extra.get("template") : null;
                 String ts = tpl == null ? "" : String.valueOf(tpl).trim().toLowerCase(Locale.ROOT);
                 return ts.contains("castle");
-            } catch (Throwable ignored) {}
+            } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
             return false;
         }
 
         @Override
         public SkeletonPlan compile(BuildingSpec parentSpec, Map<String, Object> blueprint) {
             // gate side fallback comes from parent spec if present; otherwise SOUTH.
-            Direction gateSide = Direction.SOUTH;
-            try {
-                Map<String, Object> extra = parentSpec != null ? parentSpec.getExtra() : null;
-                Object v = extra != null ? extra.get("gateSide") : null;
-                if (v == null) v = extra != null ? extra.get("facing") : null;
-                if (v != null) {
-                    String s = String.valueOf(v).trim().toUpperCase(Locale.ROOT);
-                    gateSide = Direction.valueOf(s);
-                }
-            } catch (Throwable ignored) {}
+            Direction gateSide = StructureSpecParsers.resolveEntranceFacing(parentSpec, Direction.SOUTH);
             return CastleBlueprintCompiler.tryCompile(blueprint, parentSpec, gateSide);
         }
     }

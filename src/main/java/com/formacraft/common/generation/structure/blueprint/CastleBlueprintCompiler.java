@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure.blueprint;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingType;
 import com.formacraft.common.model.build.BuildingStyle;
@@ -27,6 +28,8 @@ import java.util.Map;
  * - Optional: blueprint.coordinate_system="CENTER" (then coordinates are already centered; see below in code).
  */
 public final class CastleBlueprintCompiler {
+
+    private static final FcaLog LOG = FcaLog.of("CastleBlueprintCompiler");
     private CastleBlueprintCompiler() {}
 
     public static CompoundPlan tryCompile(Map<String, Object> blueprint, BuildingSpec parentSpec, Direction gateSideFallback) {
@@ -229,8 +232,7 @@ public final class CastleBlueprintCompiler {
                             try {
                                 int v = (sp instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(sp).trim());
                                 battlementSpacing = Math.max(1, Math.min(6, v));
-                            } catch (Exception ignored) {
-                            }
+                            } catch (Exception e) { LOG.debug("best-effort step failed", e); }
                         }
 
                         Object bn = feat.get("banner");
@@ -265,7 +267,7 @@ public final class CastleBlueprintCompiler {
                                 bannerColor = det.bannerColor.trim().toLowerCase(Locale.ROOT);
                             }
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
 
                     RectEnclosurePlan rep = new RectEnclosurePlan(w, d, h, wallThickness, gateSide, gw,
                             battlements, battlementSpacing, banner, bannerColor);
@@ -320,7 +322,7 @@ public final class CastleBlueprintCompiler {
         try {
             if (v instanceof Number n) out = n.intValue();
             else if (v != null) out = Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) { LOG.debug("best-effort step failed", e); }
         if (out < min) out = min;
         if (out > max) out = max;
         return out;

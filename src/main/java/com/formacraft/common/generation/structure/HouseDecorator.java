@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.server.build.PlannedBlock;
@@ -24,6 +25,8 @@ import java.util.List;
  * 从 HouseGenerator 中拆分出来，以提高代码可维护性。
  */
 public class HouseDecorator {
+
+    private static final FcaLog LOG = FcaLog.of("HouseDecorator");
     
     private HouseDecorator() {} // Utility class
     
@@ -189,7 +192,7 @@ public class HouseDecorator {
                     };
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         
         // Legacy: extra.doorSide
         try {
@@ -204,7 +207,7 @@ public class HouseDecorator {
                     default -> Direction.NORTH;
                 };
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         
         return Direction.NORTH;
     }
@@ -220,7 +223,7 @@ public class HouseDecorator {
                     return String.valueOf(sym).trim().toUpperCase(java.util.Locale.ROOT);
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         
         return "NONE";
     }
@@ -231,7 +234,7 @@ public class HouseDecorator {
             if (state.contains(Properties.HORIZONTAL_FACING)) {
                 return state.with(Properties.HORIZONTAL_FACING, facing);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return state;
     }
     

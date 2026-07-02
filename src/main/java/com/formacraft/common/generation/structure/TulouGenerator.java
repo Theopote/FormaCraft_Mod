@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.skeleton.radial.RadialPlan;
@@ -38,6 +40,8 @@ import java.util.Map;
  * - floors 控制层数（默认 3）
  */
 public class TulouGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("TulouGenerator");
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -498,31 +502,11 @@ public class TulouGenerator implements StructureGenerator {
     }
 
     private static int getIntExtra(BuildingSpec spec, String key) {
-        if (spec == null) return -1;
-        Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return -1;
-        Object v = extra.get(key);
-        if (v == null) return -1;
-        if (v instanceof Number n) return n.intValue();
-        try {
-            return Integer.parseInt(String.valueOf(v));
-        } catch (Exception ignored) {
-            return -1;
-        }
+        return StructureSpecParsers.extraIntOrAbsent(spec, key, -1);
     }
 
     private static double getDoubleExtra(BuildingSpec spec) {
-        if (spec == null) return Double.NaN;
-        Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return Double.NaN;
-        Object v = extra.get("courtyardRatio");
-        if (v == null) return Double.NaN;
-        if (v instanceof Number n) return n.doubleValue();
-        try {
-            return Double.parseDouble(String.valueOf(v));
-        } catch (Exception ignored) {
-            return Double.NaN;
-        }
+        return StructureSpecParsers.extraDouble(spec, "courtyardRatio", Double.NaN);
     }
 
     private static boolean getBoolExtra(BuildingSpec spec, String key, boolean def) {
@@ -714,7 +698,7 @@ public class TulouGenerator implements StructureGenerator {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return "none";
     }
 
@@ -724,7 +708,7 @@ public class TulouGenerator implements StructureGenerator {
             if (spec != null && spec.getExtra() != null && spec.getExtra().containsKey("doorFacing")) {
                 return parseFacing(getStringExtra(spec, "doorFacing", "SOUTH"));
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
 
         // fallback to extra.layout.entranceFacing
         try {
@@ -743,7 +727,7 @@ public class TulouGenerator implements StructureGenerator {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
 
         return Direction.SOUTH;
     }

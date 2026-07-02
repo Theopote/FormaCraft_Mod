@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.assembly.AssemblySpec;
 import com.formacraft.server.assembly.MetaAssemblyCompiler;
@@ -26,6 +27,8 @@ import java.util.Map;
  * This is the "creator engine" entrypoint: topology + geometry + material semantics -> blocks.
  */
 public class MetaAssemblyGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("MetaAssemblyGenerator");
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         if (spec == null || world == null || origin == null) {
@@ -94,7 +97,7 @@ public class MetaAssemblyGenerator implements StructureGenerator {
         if (as.entranceFacing != null && !as.entranceFacing.isBlank()) {
             try {
                 entrance = Direction.valueOf(as.entranceFacing.trim().toUpperCase(java.util.Locale.ROOT));
-            } catch (Exception ignored) {}
+            } catch (Exception e) { LOG.debug("best-effort step failed", e); }
         }
 
         MetaAssemblyEngine engine = new MetaAssemblyEngine();
@@ -132,7 +135,7 @@ public class MetaAssemblyGenerator implements StructureGenerator {
                     };
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 }

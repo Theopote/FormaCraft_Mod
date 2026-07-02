@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
@@ -32,6 +34,8 @@ import java.util.Map;
  * 触发建议：extra.template = "japanese_castle_keep" 或 "tenshu"
  */
 public class JapaneseCastleKeepGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("JapaneseCastleKeepGenerator");
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -305,7 +309,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
                 // fallback: just place lower as solid
                 blocks.add(new PlannedBlock(local(origin, entrance, x, y, z), door));
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
     }
 
     private static void fillRect(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
@@ -408,7 +412,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
                     else if (axis == Direction.Axis.Z) out = out.with(Properties.AXIS, Direction.Axis.X);
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
         return out;
     }
 
@@ -421,7 +425,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
             if (s.contains(Properties.FACING)) {
                 return s.with(Properties.FACING, facing);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
         return s;
     }
 
@@ -442,7 +446,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
                     };
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
         return Direction.SOUTH;
     }
 
@@ -455,16 +459,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {
-        if (spec == null || spec.getExtra() == null) return def;
-        Object v = spec.getExtra().get(key);
-        if (v == null) return def;
-        try {
-            if (v instanceof Number n) return n.intValue();
-            String s = String.valueOf(v).trim();
-            return s.isEmpty() ? def : Integer.parseInt(s);
-        } catch (Exception e) {
-            return def;
-        }
+        return StructureSpecParsers.extraInt(spec, key, def);
     }
 
     private static int clamp(int v, int min, int max) {
@@ -492,7 +487,7 @@ public class JapaneseCastleKeepGenerator implements StructureGenerator {
             Object spid = spec.getExtra().get("styleProfileId");
             if (spid == null) return false;
             return String.valueOf(spid).trim().equals("Japanese_Traditional");
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
         return false;
     }
 }

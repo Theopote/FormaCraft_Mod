@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.StyleProfile;
@@ -25,6 +26,8 @@ import java.util.List;
  * 从 HouseGenerator 中拆分出来，以提高代码可维护性。
  */
 public class HouseRoofGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("HouseRoofGenerator");
     
     private HouseRoofGenerator() {} // Utility class
     
@@ -106,7 +109,7 @@ public class HouseRoofGenerator {
             if (profile != null && profile.details() != null) {
                 eavesProfile = profile.details().eavesProfile;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         if (eavesProfile != null && !eavesProfile.isBlank()) {
             applyEavesProfile(blocks, origin, width, depth, height, style, eavesProfile, trim, roof, roofSlab);
         }
@@ -243,7 +246,7 @@ public class HouseRoofGenerator {
             if (state.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
                 return state.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, facing);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return state;
     }
     
@@ -256,7 +259,7 @@ public class HouseRoofGenerator {
                     if (s.equals("Japanese_Traditional")) return true;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         if (paletteId == null) return false;
         String p = paletteId.trim().toUpperCase(java.util.Locale.ROOT);
         return p.contains("JAPAN") || p.contains("JAPANESE");

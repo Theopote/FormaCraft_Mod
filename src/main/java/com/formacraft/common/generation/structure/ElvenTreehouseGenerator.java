@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
@@ -32,6 +34,8 @@ import java.util.Map;
  * - 只做 90° 旋转：extra.layout.entranceFacing。
  */
 public class ElvenTreehouseGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("ElvenTreehouseGenerator");
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -259,7 +263,7 @@ public class ElvenTreehouseGenerator implements StructureGenerator {
                     };
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
         return Direction.SOUTH;
     }
 
@@ -276,18 +280,7 @@ public class ElvenTreehouseGenerator implements StructureGenerator {
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {
-        if (spec == null) return def;
-        Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
-        try {
-            if (v instanceof Number n) return n.intValue();
-            String s = String.valueOf(v).trim();
-            return s.isEmpty() ? def : Integer.parseInt(s);
-        } catch (Exception e) {
-            return def;
-        }
+        return StructureSpecParsers.extraInt(spec, key, def);
     }
 
     private static int clamp(int v, int min, int max) {

@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure.blueprint;
 
+import com.formacraft.common.logging.FcaLog;
 import java.util.Locale;
 import java.util.Map;
 
@@ -13,6 +14,8 @@ import java.util.Map;
  * - Keep validation lightweight (no hard dependency on a full JSON schema engine).
  */
 public final class BlueprintSchema {
+
+    private static final FcaLog LOG = FcaLog.of("BlueprintSchema");
     private BlueprintSchema() {}
 
     public static final int SUPPORTED_VERSION = 1;
@@ -82,7 +85,7 @@ public final class BlueprintSchema {
             try {
                 String s = String.valueOf(v).trim();
                 if (!s.isBlank()) return Integer.parseInt(s);
-            } catch (Exception ignored) {}
+            } catch (Exception e) { LOG.debug("best-effort step failed", e); }
         }
         return BlueprintSchema.SUPPORTED_VERSION;
     }

@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.build.BuildingType;
@@ -31,6 +32,8 @@ import java.util.Map;
  * 触发建议：BuildingSpec.extra.template = "japanese_shrine"
  */
 public class JapaneseShrineGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("JapaneseShrineGenerator");
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -153,7 +156,7 @@ public class JapaneseShrineGenerator implements StructureGenerator {
                     };
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
     }
 

@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure.blueprint;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.build.BuildingType;
@@ -122,13 +123,7 @@ public final class GoldenGateBridgeBlueprintCompiler implements BlueprintCompile
     }
 
     private static int getInt(Object v, int def) {
-        if (v == null) return def;
-        if (v instanceof Number n) return n.intValue();
-        try {
-            return Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {
-            return def;
-        }
+        return StructureSpecParsers.intValue(v, def);
     }
 
     private static Boolean asBool(Object v) {

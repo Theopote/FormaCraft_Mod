@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
@@ -29,6 +30,8 @@ import java.util.Map;
  * Triggered by template routing: spec.extra.template == "office_block".
  */
 public class OfficeBlockGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("OfficeBlockGenerator");
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         int w = (spec != null && spec.getFootprint() != null) ? Math.max(7, spec.getFootprint().getWidth()) : 9;
@@ -145,7 +148,7 @@ public class OfficeBlockGenerator implements StructureGenerator {
                 if (cr != null) {
                     try {
                         courtyardRatio = Double.parseDouble(String.valueOf(cr).trim());
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) { LOG.debug("best-effort step failed", e); }
                 }
             }
         }

@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.*;
 import com.formacraft.common.skeleton.compound.CompoundPlan;
 import com.formacraft.common.skeleton.compound.GeneratorBackedPlan;
@@ -48,6 +50,8 @@ import java.util.Set;
  * Anchor convention: origin is the center of the whole castle footprint.
  */
 public class CastleCompoundGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("CastleCompoundGenerator");
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -150,7 +154,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
                 try {
                     int v = (sp instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(sp).trim());
                     wallBattlementSpacing = Math.max(1, Math.min(6, v));
-                } catch (Exception ignored) {}
+                } catch (Exception e) { LOG.debug("best-effort step failed", e); }
             }
 
             boolean bannerExplicit = extra.containsKey("wallBanner");
@@ -536,18 +540,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {
-        if (spec == null) return def;
-        Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
-        try {
-            if (v instanceof Number n) return n.intValue();
-            String s = String.valueOf(v).trim();
-            return s.isEmpty() ? def : Integer.parseInt(s);
-        } catch (Exception e) {
-            return def;
-        }
+        return StructureSpecParsers.extraInt(spec, key, def);
     }
 
     private static String getStringExtra(BuildingSpec spec) {
@@ -579,7 +572,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
         return parseFacing(getStringExtra(spec));
     }
 
@@ -601,7 +594,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
                             || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
         return "none";
     }
 
@@ -643,15 +636,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
     }
 
     private static int getInt(Map<String, Object> extra, String key, int def) {
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
-        if (v instanceof Number n) return n.intValue();
-        try {
-            return Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception e) {
-            return def;
-        }
+        return StructureSpecParsers.mapInt(extra, key, def);
     }
 
     private static boolean getBool(Map<String, Object> extra) {

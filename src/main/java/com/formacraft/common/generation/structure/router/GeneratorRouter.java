@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure.router;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.archetype.ArchetypeCatalog;
 import com.formacraft.common.archetype.ArchetypeRegistry;
@@ -21,6 +22,8 @@ import java.util.Map;
  * landmark / archetype 仍走 {@link ArchetypeRegistry}。
  */
 public final class GeneratorRouter {
+
+    private static final FcaLog LOG = FcaLog.of("GeneratorRouter");
     private GeneratorRouter() {}
 
     private static final double ARCHETYPE_STRONG_THRESHOLD = 0.85;
@@ -76,7 +79,7 @@ public final class GeneratorRouter {
                     return StructureGeneratorRegistry.create("meta_assembly");
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return null;
     }
 
@@ -100,7 +103,7 @@ public final class GeneratorRouter {
             if (m != null && BlueprintCompilerRegistry.resolve(spec, m) != null) {
                 return StructureGeneratorRegistry.create("blueprint_structure");
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return null;
     }
 

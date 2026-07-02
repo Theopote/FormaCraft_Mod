@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure.selector;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.build.BuildingType;
@@ -28,6 +29,8 @@ import java.util.Map;
  *   - extra.landmark -> legacy landmark routing (tulou/temple_of_heaven/eiffel_tower/...)
  */
 public final class RuleBasedGeneratorSelector {
+
+    private static final FcaLog LOG = FcaLog.of("RuleBasedGeneratorSelector");
     private RuleBasedGeneratorSelector() {}
 
     /**
@@ -73,7 +76,7 @@ public final class RuleBasedGeneratorSelector {
                 try {
                     spec.getFeatures().setHasDoor(false);
                     spec.getFeatures().setHasWindows(false);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
                 changed = true;
             }
             // no further intent selection
@@ -151,7 +154,7 @@ public final class RuleBasedGeneratorSelector {
                             spec.setType(bt);
                             changed = true;
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) { LOG.debug("best-effort step failed", e); }
                 }
 
                 if (t.floors != null && spec.getFloors() <= 0) { spec.setFloors(Math.max(1, t.floors)); changed = true; }
@@ -184,10 +187,10 @@ public final class RuleBasedGeneratorSelector {
                             extra.put("baseRadius", fp.getRadius());
                             changed = true;
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
 
         // --- StyleProfile-driven defaults (do not override explicit user/LLM values) ---
         try {
@@ -219,7 +222,7 @@ public final class RuleBasedGeneratorSelector {
                     changed = true;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
 
         return changed;
     }

@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.BuildStrategy;
@@ -34,6 +35,8 @@ import java.util.Set;
  * 可扩展 features（如阳台、柱子、装饰）
  */
 public class HouseGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("HouseGenerator");
 
 
     @Override
@@ -520,7 +523,7 @@ public class HouseGenerator implements StructureGenerator {
             if (ctx.profile() != null && ctx.profile().details() != null) {
                 facadeProfile = ctx.profile().details().facadeProfile;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         if (facadeProfile != null && !facadeProfile.isBlank()) {
             wallToUse = HouseGeneratorUtils.applyFacadeProfileToWallCell(
                     wallToUse, ctx.materials().wall(), ctx.materials().trim(), ctx.materials().foundation(),
@@ -712,7 +715,7 @@ public class HouseGenerator implements StructureGenerator {
                 try {
                     int v = (ls instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(ls).trim());
                     lightingSpacing = Math.max(2, Math.min(12, v));
-                } catch (Exception ignored) {}
+                } catch (Exception e) { LOG.debug("best-effort step failed", e); }
             }
             if (bn instanceof Boolean b) banner = b;
             else if (bn != null) {
@@ -741,7 +744,7 @@ public class HouseGenerator implements StructureGenerator {
                         ctx.materials().roof(), ctx.materials().roofStairs(), ctx.materials().roofSlab(), 
                         ctx.materials().windowBlock(), ctx.paletteId(), ctx.profile().details(), ctx.layoutInfo());
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
     }
 
     /**

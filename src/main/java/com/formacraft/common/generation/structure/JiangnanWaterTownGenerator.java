@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.build.BuildingType;
@@ -39,6 +41,8 @@ import java.util.Map;
  * Anchor: origin is the center of the canal + bridge.
  */
 public class JiangnanWaterTownGenerator implements StructureGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("JiangnanWaterTownGenerator");
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         List<PlannedBlock> blocks = new ArrayList<>();
@@ -260,20 +264,12 @@ public class JiangnanWaterTownGenerator implements StructureGenerator {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", t); }
         return Direction.SOUTH;
     }
 
     private static int getInt(Map<String, Object> extra, String key, int def) {
-        if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
-        if (v instanceof Number n) return n.intValue();
-        try {
-            return Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception e) {
-            return def;
-        }
+        return StructureSpecParsers.mapInt(extra, key, def);
     }
 
     private static int clamp(int v, int min, int max) {

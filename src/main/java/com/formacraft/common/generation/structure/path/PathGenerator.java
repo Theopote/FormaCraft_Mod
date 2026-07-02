@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure.path;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.path.PathSpec;
 import com.formacraft.common.style.profile.StyleProfile;
@@ -36,6 +37,8 @@ import java.util.Random;
  * 支持直线、折线、平滑曲线（未来扩展）
  */
 public class PathGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("PathGenerator");
 
     /**
      * 生成路径
@@ -76,7 +79,7 @@ public class PathGenerator {
         if (extra.get("buildingStyle") != null) {
             try {
                 defaultStyle = BuildingStyle.valueOf(String.valueOf(extra.get("buildingStyle")).trim().toUpperCase(Locale.ROOT));
-            } catch (Exception ignored) {}
+            } catch (Exception e) { LOG.debug("best-effort step failed", e); }
         }
         StyleProfile profile = StyleProfileRegistry.resolveByExtra(extra, defaultStyle);
         String paletteId = null;
@@ -107,7 +110,7 @@ public class PathGenerator {
         if (extra.get("lampInterval") != null) {
             try {
                 lampInterval = Integer.parseInt(String.valueOf(extra.get("lampInterval")).trim());
-            } catch (Exception ignored) {}
+            } catch (Exception e) { LOG.debug("best-effort step failed", e); }
         }
         lampInterval = Math.max(6, lampInterval);
 

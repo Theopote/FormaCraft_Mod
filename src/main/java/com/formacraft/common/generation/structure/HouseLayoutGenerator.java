@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.block.BlockState;
@@ -19,6 +20,8 @@ import java.util.List;
  * 从 HouseGenerator 中拆分出来，以提高代码可维护性。
  */
 public class HouseLayoutGenerator {
+
+    private static final FcaLog LOG = FcaLog.of("HouseLayoutGenerator");
 
     private HouseLayoutGenerator() {} // Utility class
 
@@ -122,10 +125,10 @@ public class HouseLayoutGenerator {
                 if (cr != null) {
                     try {
                         ratio = Double.parseDouble(String.valueOf(cr).trim());
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) { LOG.debug("best-effort step failed", e); }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
 
         if (!enabled) return new LayoutCourtyard(false, 0, -1, 0, -1);
 
@@ -176,7 +179,7 @@ public class HouseLayoutGenerator {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return "none";
     }
 
@@ -191,7 +194,7 @@ public class HouseLayoutGenerator {
                     if (s.equals("NONE") || s.equals("X") || s.equals("Z") || s.equals("BOTH")) return s;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return "NONE";
     }
 
