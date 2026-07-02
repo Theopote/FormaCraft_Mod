@@ -421,21 +421,18 @@ public class ComponentCapturePanel extends BasePanel {
                         清空后需要重新配置""")))
                 .build();
 
-        // 智能分析按钮
-        autoAnalyzeButton = ButtonWidget.builder(Text.literal("🔍 智能分析"), b -> runAutoAnalysis())
+        // 智能分析按钮（尚未实现 — 保持禁用，避免假“完成”反馈）
+        autoAnalyzeButton = ButtonWidget.builder(Text.literal("🔍 智能分析（尚未开放）"), b -> runAutoAnalysis())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        智能分析构件（推荐）
+                        智能分析（开发中）
                         ━━━━━━━━━━━━
-                        自动分析构件特征并设置参数
+                        此功能尚未实现，暂不可用。
                         
-                        分析内容：
-                        • 构件类型（门/窗/柱子等）
-                        • 附着模式（底面/竖边等）
-                        • 建筑风格（现代/中世纪等）
-                        • 建筑原型（民居/宫殿等）
-                        
-                        节省手动配置时间！""")))
+                        请手动配置：
+                        • 分类与标签
+                        • 文化风格 / 几何原型
+                        • 附着与方向标记""")))
                 .build();
         
         // 自动修复按钮
@@ -463,20 +460,14 @@ public class ComponentCapturePanel extends BasePanel {
                         """)))
                 .build();
 
-        autoDetectSocketsButton = ButtonWidget.builder(Text.literal("自动检测"), b -> autoDetectSockets())
+        autoDetectSocketsButton = ButtonWidget.builder(Text.literal("自动检测（尚未开放）"), b -> autoDetectSockets())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        自动检测连接位（高级）
+                        自动检测连接位（开发中）
                         ━━━━━━━━━━━━
-                        智能识别构件中的嵌入位置
+                        此功能尚未实现，暂不可用。
                         
-                        可检测：
-                        • 门框开口
-                        • 窗户位置
-                        • 栏杆连接点
-                        • 装饰附着点
-                        
-                        自动创建连接位列表""")))
+                        请使用下方表单手动添加连接位。""")))
                 .build();
 
         // 底部按钮
@@ -1271,7 +1262,7 @@ public class ComponentCapturePanel extends BasePanel {
             autoDetectSocketsButton.setPosition(x, y);
             autoDetectSocketsButton.setWidth(w);
             autoDetectSocketsButton.visible = true;
-            autoDetectSocketsButton.active = true;
+            autoDetectSocketsButton.active = false;
             autoDetectSocketsButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
 
@@ -1341,7 +1332,7 @@ public class ComponentCapturePanel extends BasePanel {
             autoAnalyzeButton.setPosition(x, y);
             autoAnalyzeButton.setWidth(w);
             autoAnalyzeButton.visible = true;
-            autoAnalyzeButton.active = st.captureDraft.anchor.worldPos != null;
+            autoAnalyzeButton.active = false;
             autoAnalyzeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
             
@@ -1541,17 +1532,11 @@ public class ComponentCapturePanel extends BasePanel {
     }
 
     private void runAutoAnalysis() {
-        HudToast.show("正在智能分析构件特征...");
-        // TODO: 调用智能分析逻辑
-        // ComponentTool.INSTANCE.runAutoAnalysis();
-        HudToast.show("智能分析完成！（功能待实现）");
+        HudToast.show("智能分析尚未实现，请手动配置分类、标签与语义字段", true);
     }
 
     private void autoDetectSockets() {
-        HudToast.show("正在自动检测连接位...");
-        // TODO: 调用自动检测逻辑
-        // ComponentTool.INSTANCE.autoDetectSockets();
-        HudToast.show("连接位自动检测完成！（功能待实现）");
+        HudToast.show("自动检测 Socket 尚未实现，请手动添加连接位", true);
     }
     
     private boolean canSaveWithoutHealthCheck() {
