@@ -1154,6 +1154,7 @@ public class CityBuilder {
             Object sid = extra.get("styleProfileId");
             if (sid != null) styleProfileId = String.valueOf(sid).trim();
         } catch (Throwable ex) { LOG.debug("read road palette ids failed", ex); }
+        if ((paletteId == null || paletteId.isBlank()) && paletteIdHint != null && !paletteIdHint.isBlank()) {
             paletteId = paletteIdHint.trim();
         }
         java.util.Map<String, Object> roadExtra = null;
