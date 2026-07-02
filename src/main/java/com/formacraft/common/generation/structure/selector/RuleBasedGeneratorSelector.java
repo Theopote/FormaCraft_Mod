@@ -14,9 +14,11 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * RuleBasedGeneratorSelector (K+ v0):
+ * RuleBasedGeneratorSelector (K+ v1):
  * Deterministically selects generator intent (template/landmark) and fills minimal spec defaults
  * based on (semanticRole + skeleton shape/size + city style).
+ * Generator intent is fully driven by {@code generator_selector_rules_v1.json} via
+ * {@link GeneratorSelectorRegistry}; this class handles footprint/type defaults and StyleProfile extras.
  *
  * Design goals:
  * - AI may omit spec/type/footprint fields; program keeps plans stable.
@@ -183,37 +185,6 @@ public final class RuleBasedGeneratorSelector {
                 }
             }
         } catch (Throwable ignored) {}
-
-        // --- Generator intent selection (template / landmark) ---
-        // Do not override explicit intent.
-        boolean hasTemplate = extra.get("template") != null && !String.valueOf(extra.get("template")).trim().isEmpty();
-        boolean hasLandmark = extra.get("landmark") != null && !String.valueOf(extra.get("landmark")).trim().isEmpty();
-
-        if (!hasTemplate && !hasLandmark) {
-            // 1) Strong circular core in ASIAN cities often means tulou or temple-like.
-            if (role.equals("CORE") && "CIRCLE".equals(shape) && style == BuildingStyle.ASIAN) {
-                int r = 0;
-                if (fp != null) {
-                    r = fp.getRadius() > 0 ? fp.getRadius() : skRadius;
-                }
-                if (r <= 0) r = 10;
-                // Heuristic: medium radius => tulou
-                if (r >= 8 && r <= 24) {
-                    extra.put("landmark", "tulou");
-                    // TulouGenerator expects: footprint.circle + extra.landmark + floors
-                    if (spec.getType() != BuildingType.HOUSE) { spec.setType(BuildingType.HOUSE); }
-                    if (spec.getFloors() <= 0) spec.setFloors(3);
-                    changed = true;
-                }
-            }
-
-            // 2) SEMI_PUBLIC in MODERN: office block
-            if (role.equals("SEMI_PUBLIC") && style == BuildingStyle.MODERN) {
-                extra.put("template", "office_block");
-                if (spec.getType() != BuildingType.HOUSE) spec.setType(BuildingType.HOUSE);
-                changed = true;
-            }
-        }
 
         // --- StyleProfile-driven defaults (do not override explicit user/LLM values) ---
         try {

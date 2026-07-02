@@ -169,7 +169,7 @@ generator_selector_rules_v1.json
 |----|------|
 | `GeneratorSelectorCatalog` | JSON POJO（`Rule` / `When` / `Then`），**不是** Registry 的薄封装 |
 | `GeneratorSelectorRegistry` | 加载资源 + 按城市风格/分区/形状匹配规则 |
-| `RuleBasedGeneratorSelector` | 将匹配结果合并进 `BuildingSpec`（不覆盖用户/LLM 显式字段） |
+| `RuleBasedGeneratorSelector` | 将匹配结果合并进 `BuildingSpec`（不覆盖用户/LLM 显式字段）；generator intent 全部由 `generator_selector_rules_v1.json` 驱动（Phase 8 ✅） |
 
 ---
 

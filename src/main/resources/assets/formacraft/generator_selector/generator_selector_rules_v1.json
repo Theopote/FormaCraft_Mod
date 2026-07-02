@@ -35,6 +35,17 @@
       }
     },
     {
+      "id": "modern_semi_public_office_block_fallback",
+      "when": { "cityStyle": "MODERN", "zoneType": "SEMI_PUBLIC" },
+      "then": {
+        "template": "office_block",
+        "buildingType": "HOUSE",
+        "extraDefaults": {
+          "paletteId": "PALETTE_MODERN_GLASS_B"
+        }
+      }
+    },
+    {
       "id": "medieval_core_rectangle_keep_small",
       "when": { "cityStyle": "MEDIEVAL", "zoneType": "CORE", "shape": "RECTANGLE", "minArea": 180, "maxArea": 559 },
       "then": {

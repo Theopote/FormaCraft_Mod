@@ -259,7 +259,7 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 |----|------|
 | `GeneratorSelectorCatalog` | `generator_selector_rules_v1.json` 的 POJO（`Rule` / `When` / `Then`） |
 | `GeneratorSelectorRegistry` | 加载 JSON + `match(cityStyle, zone, shape, …)` |
-| `RuleBasedGeneratorSelector` | 将匹配结果写入 `BuildingSpec.extra`（template/landmark/type 等） |
+| `RuleBasedGeneratorSelector` | 将匹配结果写入 `BuildingSpec.extra`（template/landmark/type 等）；intent 规则见 `generator_selector_rules_v1.json` |
 
 ```
 CityBuilder → RuleBasedGeneratorSelector.apply()
@@ -268,8 +268,6 @@ CityBuilder → RuleBasedGeneratorSelector.apply()
 ```
 
 迁移进度追踪：`docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md` §7。
-
-**Phase 8 待办（低优先级）**：`RuleBasedGeneratorSelector` 内 187–216 行硬编码启发式（tulou / office_block）与 `generator_selector_rules_v1.json` 重复；迁入 JSON 后删除，**不合并**三文件（Catalog / Registry / Selector 职责已分离）。
 
 ---
 
@@ -302,4 +300,4 @@ CityBuilder → RuleBasedGeneratorSelector.apply()
 | **6** ✅ | `ComponentGeneratorRegistry` + 构件层 `*ComponentGenerator` 消歧 | 低 |
 | **6b** ✅ | `common/generator` → `common/generation/component` 包迁移 | 低 |
 | **7** ✅ | `MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md` + selector 文档化 + 删除弃用路由壳 | 低 |
-| **8** | selector 去重：硬编码启发式 → JSON；`RuleBasedGeneratorSelector` 瘦身 | 低 |
+| **8** ✅ | selector 去重：硬编码启发式 → JSON；`RuleBasedGeneratorSelector` 瘦身 | 低 |
