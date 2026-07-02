@@ -152,23 +152,23 @@ public final class MetaAssemblyEngine {
 
                 int halfW = w / 2;
                 int halfD = d / 2;
-                int x0 = -halfW, x1 = halfW;
-                int z0 = -halfD, z1 = halfD;
-                int y0 = yBase, y1 = yBase + h;
+                int x0 = -halfW;
+                int z0 = -halfD;
+                int y1 = yBase + h;
 
                 if (carve) {
-                    fillBox(out, ctx, curOrigin, x0, y0, z0, x1, y1, z1, Blocks.AIR.getDefaultState());
+                    fillBox(out, ctx, curOrigin, x0, yBase, z0, halfW, y1, halfD, Blocks.AIR.getDefaultState());
                 }
-                fillBox(out, ctx, curOrigin, x0, y0, z0, x1, y1, z1, solid);
+                fillBox(out, ctx, curOrigin, x0, yBase, z0, halfW, y1, halfD, solid);
 
                 // Top bevel (stepped chamfer)
                 int topBevel = clamp(i(op.get("topBevel"), i(op.get("top_bevel"), i(op.get("bevel"), 0))), 0, 32);
                 for (int k = 0; k < topBevel; k++) {
                     int yy = y1 - k;
                     int inset = k + 1;
-                    for (int x = x0; x <= x1; x++) {
-                        for (int z = z0; z <= z1; z++) {
-                            boolean keep = (x >= x0 + inset && x <= x1 - inset && z >= z0 + inset && z <= z1 - inset);
+                    for (int x = x0; x <= halfW; x++) {
+                        for (int z = z0; z <= halfD; z++) {
+                            boolean keep = (x >= x0 + inset && x <= halfW - inset && z >= z0 + inset && z <= halfD - inset);
                             if (!keep) put(out, ctx, curOrigin, x, yy, z, Blocks.AIR.getDefaultState());
                         }
                     }
@@ -189,29 +189,29 @@ public final class MetaAssemblyEngine {
                         int len = clamp(i(hm.get("len"), i(hm.get("length"), Math.max(4, Math.min(w, d) / 2))), 1, 128);
 
                         if (face.equals("WEST") || face.equals("EAST")) {
-                            int sx = face.equals("WEST") ? x0 : x1;
+                            int sx = face.equals("WEST") ? x0 : halfW;
                             int step = face.equals("WEST") ? 1 : -1;
                             for (int t = 0; t <= len; t++) {
                                 int x = sx + step * t;
-                                if (x < x0 || x > x1) break;
+                                if (x < x0 || x > halfW) break;
                                 for (int yy = hy - r; yy <= hy + r; yy++) {
-                                    if (yy < y0 || yy > y1) continue;
+                                    if (yy < yBase || yy > y1) continue;
                                     for (int zz = hz - r; zz <= hz + r; zz++) {
-                                        if (zz < z0 || zz > z1) continue;
+                                        if (zz < z0 || zz > halfD) continue;
                                         put(out, ctx, curOrigin, x, yy, zz, Blocks.AIR.getDefaultState());
                                     }
                                 }
                             }
                         } else if (face.equals("NORTH") || face.equals("SOUTH")) {
-                            int sz = face.equals("NORTH") ? z0 : z1;
+                            int sz = face.equals("NORTH") ? z0 : halfD;
                             int step = face.equals("NORTH") ? 1 : -1;
                             for (int t = 0; t <= len; t++) {
                                 int z = sz + step * t;
-                                if (z < z0 || z > z1) break;
+                                if (z < z0 || z > halfD) break;
                                 for (int yy = hy - r; yy <= hy + r; yy++) {
-                                    if (yy < y0 || yy > y1) continue;
+                                    if (yy < yBase || yy > y1) continue;
                                     for (int xx = hx - r; xx <= hx + r; xx++) {
-                                        if (xx < x0 || xx > x1) continue;
+                                        if (xx < x0 || xx > halfW) continue;
                                         put(out, ctx, curOrigin, xx, yy, z, Blocks.AIR.getDefaultState());
                                     }
                                 }
@@ -227,8 +227,8 @@ public final class MetaAssemblyEngine {
                 BlockState guardWall = pick(ctx, op, "guardWallMaterial", "WALL_DETAIL", 0xA57443L,
                         pick(ctx, op, "guardWall", "WALL_DETAIL", 0xA57444L, Blocks.STONE_BRICK_WALL.getDefaultState()));
                 if (guardH > 0) {
-                    int gx0 = x0 + guardInset, gx1 = x1 - guardInset;
-                    int gz0 = z0 + guardInset, gz1 = z1 - guardInset;
+                    int gx0 = x0 + guardInset, gx1 = halfW - guardInset;
+                    int gz0 = z0 + guardInset, gz1 = halfD - guardInset;
                     if (gx0 <= gx1 && gz0 <= gz1) {
                         for (int yy = 1; yy <= guardH; yy++) {
                             int y = y1 + yy;
@@ -247,8 +247,8 @@ public final class MetaAssemblyEngine {
 
                 if (maxDepth > 0) {
                     int minY = Math.max(ctx.world.getBottomY(), yBase - maxDepth);
-                    for (int x = x0; x <= x1; x++) {
-                        for (int z = z0; z <= z1; z++) {
+                    for (int x = x0; x <= halfW; x++) {
+                        for (int z = z0; z <= halfD; z++) {
                             for (int y = yBase - 1; y >= minY; y--) {
                                 BlockPos wp = PlacementUtil.local(curOrigin, ctx.entranceFacing, x, y, z);
                                 BlockState cur = ctx.world.getBlockState(wp);
@@ -3389,7 +3389,6 @@ public final class MetaAssemblyEngine {
      */
     private static Direction parseFaceDirection(String face, Direction entranceFacing) {
         Direction localDir = switch (face) {
-            case "NORTH" -> Direction.NORTH;
             case "SOUTH" -> Direction.SOUTH;
             case "EAST" -> Direction.EAST;
             case "WEST" -> Direction.WEST;
@@ -4029,10 +4028,6 @@ public final class MetaAssemblyEngine {
                                     java.util.ArrayList<double[]> metaballs) {
         String k = (kind == null) ? "SPHERE" : kind.trim().toUpperCase(Locale.ROOT);
         return switch (k) {
-            case "SPHERE" -> {
-                double dx = x - cx, dy = y - cy, dz = z - cz;
-                yield Math.sqrt(dx * dx + dy * dy + dz * dz) - r;
-            }
             case "TORUS" -> {
                 // Torus around Y axis. R=major radius, rr=minor radius.
                 double dx = x - cx, dy = y - cy, dz = z - cz;
