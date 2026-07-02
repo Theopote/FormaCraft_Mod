@@ -1,5 +1,7 @@
 # 生成器系统冲突分析报告
 
+> **2026-07-02**：同名类已通过 `*ComponentGenerator` 消歧；`GeneratorRegistry` 已删除，构件注册表为 `ComponentGeneratorRegistry`。
+
 ## 📋 当前状态
 
 ### 两个独立的生成器系统
@@ -24,15 +26,15 @@
 
 ### 1. 包名不同，不会冲突 ✅
 
-虽然类名相同，但包名不同：
+构件层与整栋层曾存在同名类，Phase 6 已通过 `*ComponentGenerator` 后缀消歧：
 
-| 类名 | 新系统（common） | 传统系统（server） |
-|------|-----------------|-------------------|
-| `TowerGenerator` | `com.formacraft.common.generation.component.impl.TowerComponentGenerator` | `com.formacraft.common.generation.structure.TowerGenerator` |
-| `WallGenerator` | `com.formacraft.common.generation.component.impl.WallComponentGenerator` | `com.formacraft.common.generation.structure.WallGenerator` |
-| `PathGenerator` | `com.formacraft.common.generation.component.impl.PathComponentGenerator` | `com.formacraft.common.generation.structure.path.PathGenerator` |
+| 语义 | 构件层（component） | 整栋层（structure） |
+|------|---------------------|---------------------|
+| 塔楼 | `...component.impl.TowerComponentGenerator` | `...structure.TowerGenerator` |
+| 墙体 | `...component.impl.WallComponentGenerator` | `...structure.WallGenerator` |
+| 路径 | `...component.impl.PathComponentGenerator` | `...structure.path.PathGenerator` |
 
-**结论**：Java 包系统确保它们不会冲突。
+**结论**：包路径与类名均已区分，无编译期冲突。
 
 ### 2. 接口不同，用途不同 ✅
 

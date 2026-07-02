@@ -1,5 +1,7 @@
 # Formacraft 统一系统架构文档
 
+> **2026-07-02**：生成器已统一为 `common.generation.structure`（整栋）+ `common.generation.component`（构件）；入口 `GenerationHub`。
+
 ## 🎯 目标
 
 **明确各个系统的作用和职责，避免混乱，确保系统架构清晰、易于维护和扩展**

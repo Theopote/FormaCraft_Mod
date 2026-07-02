@@ -33,7 +33,7 @@
 
 ### 2. 基础 Generator 实现
 
-#### TowerGenerator（塔楼生成器）
+#### TowerComponentGenerator（塔楼生成器）
 - **位置**：`src/main/java/com/formacraft/common/generation/component/impl/TowerComponentGenerator.java`
 - **功能**：生成圆形塔楼
 - **后续升级方向**：
@@ -41,7 +41,7 @@
   - 使用 GeometryModifier 做 taper / battlement
   - 使用 ToolModifier 裁剪禁区 / 对称
 
-#### WallGenerator（墙体生成器）
+#### WallComponentGenerator（墙体生成器）
 - **位置**：`src/main/java/com/formacraft/common/generation/component/impl/WallComponentGenerator.java`
 - **功能**：生成矩形墙体
 - **后续升级方向**：

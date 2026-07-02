@@ -1,8 +1,10 @@
 # 生成器系统使用情况分析
 
+> **2026-07-02 更新**：`server/generator` 已迁至 `common/generation/structure`；整栋路径经 `GenerationHub.routeStructure()` 接入（BuildRequestProcessor、命令、CityBuilder 等）。
+
 ## 🔍 问题
 
-用户问：`src\main\java\com\formacraft\server\generator` 文件夹下的生成器是否没有被使用？
+（历史）`server\generator` 下的生成器是否没有被使用？—— **现已迁移并接入统一入口。**
 
 ## 📊 分析结果
 
@@ -31,28 +33,25 @@ ComponentGeneratorRegistry.getGenerator() → 获取 ComponentGenerator
 
 **当前状态**：✅ **正在使用**（用户当前走的就是这个路径）
 
-#### 2. 传统系统（`common.generation.structure`）- BuildingSpec 路径 ⚠️ **可能未被使用**
+#### 2. 整栋系统（`common.generation.structure`）- BuildingSpec 路径 ✅ **已接入 GenerationHub**
 
 **触发条件**：
 - Python 后端返回 `BuildingSpec` 格式（不是 LlmPlan）
 - `FormaCraftNetworking.java` 检测到 `isLlmPlan == false` 或 `null`
+- 地标 / 城市 / 复合结构等经 `GenerationHub.routeStructure()`
 
 **调用链**：
 ```
-Python 后端 → 返回 BuildingSpec
+BuildingSpec
   ↓
-OrchestratorClient → 直接返回 BuildingSpec
+GenerationHub.routeStructure()
   ↓
-FormaCraftNetworking.handleBuildRequest() → 检测到 isLlmPlan == false
+StructureGeneratorFactory → GeneratorRouter → StructureGeneratorRegistry
   ↓
-StructureGeneratorFactory.getGenerator() → 使用 common.generation.structure 系统
-  ↓
-GeneratorRouter.route() → 路由到 StructureGenerator
-  ↓
-生成 GeneratedStructure
+GeneratedStructure
 ```
 
-**当前状态**：⚠️ **可能未被使用**（取决于 Python 后端是否返回 BuildingSpec）
+**当前状态**：✅ **活跃**（Phase 4 主路径已切换至 GenerationHub）
 
 ## 🔍 代码证据
 
@@ -110,21 +109,18 @@ return generate_building_spec(build_req)  # 返回 BuildingSpec
 [18:06:39] [ForkJoinPool.commonPool-worker-1/INFO] (formacraft) Received LlmPlan from orchestrator, mode: build
 ```
 
-**结论**：用户当前走的是 **LlmPlan 路径**，使用的是 **新系统（`common.generation.component`）**。
+**结论**：用户当前走的是 **LlmPlan 路径**，使用的是 **构件层（`common.generation.component`）**。
 
-**传统系统（`common.generation.structure`）只有在以下情况才会被使用**：
+**整栋层（`common.generation.structure`）** 在以下情况使用（经 `GenerationHub.routeStructure()`）：
 1. Python 后端返回 `BuildingSpec` 格式（不是 LlmPlan）
-2. Python 后端返回 `CompositeSpec` 或 `CitySpec`（这些也会使用传统系统）
+2. `CompositeSpec` / `CitySpec`、Blueprint、地标 archetype 等整栋路径
 
-### 为什么传统系统可能未被使用
+### 历史备注：为何曾认为整栋层「未充分使用」
 
-1. **PromptAssembler 总是生成 LlmPlan 格式的 prompt**
-   - `PromptAssembler` 生成的 prompt 包含 `"STRUCTURED JSON TEMPLATE"`、`"ComponentObject"` 等关键词
-   - Python 后端检测到这些关键词，就会返回 LlmPlan 格式
+1. **PromptAssembler 倾向输出 LlmPlan 格式**
+2. **LlmPlan 路径在 networking 层优先级较高**
 
-2. **LlmPlan 路径优先级更高**
-   - Python 后端优先检查 LlmPlan 格式
-   - 如果检测到 LlmPlan 特征，就直接返回 LlmPlan，不会走到 BuildingSpec 路径
+上述情况仍成立，但 Phase 4 已将 BuildRequestProcessor、命令、CityBuilder 等切换至 `GenerationHub`，整栋层现为活跃子系统。
 
 ## 📋 传统系统（common.generation.structure）的使用场景
 

@@ -1,5 +1,7 @@
 # Formacraft 模组中两个 Generator 系统的区别
 
+> **2026-07-02**：两系统均已归入 `common.generation.*`；统一入口为 `GenerationHub`（`routeStructure` / `generateComponent` / `buildSkeleton`）。
+
 ## 概述
 
 Formacraft 模组中有两个不同的 generator 文件夹，它们服务于不同的生成场景和架构层次：
@@ -32,10 +34,10 @@ src/main/java/com/formacraft/common/generation/component/
 - **输入**：`SemanticComponent`（来自 LLM 的 JSON 输出）
 - **输出**：`List<BlockPatch>`（相对坐标的方块补丁）
 
-### 已实现的生成器
-- `TowerGenerator` - 塔楼
+### 已实现的生成器（示例）
+- `TowerComponentGenerator` - 塔楼（构件层）
 - `KeepGenerator` - 要塞
-- `WallGenerator` - 墙体
+- `WallComponentGenerator` - 墙体（构件层）
 - `GateGenerator` - 门/门楼
 - `RoadGenerator` - 道路
 

@@ -1,5 +1,7 @@
 # 智能生成器路由解决方案
 
+> **当前实现（Phase 2+）**：`UnifiedGeneratorRouter` 为构件层统一门面；`SmartGeneratorRouter` 已弃用并委托至前者。整栋回退经 `StructureGeneratorAdaptor` → `GenerationHub.routeStructure()`。
+
 ## 🎯 问题
 
 用户不知道后台有两套系统，输入建造要求时不会考虑如何启用哪套系统。系统应该自动选择最适合的生成器。
@@ -19,7 +21,7 @@ LlmPlan（LLM 输出）
   ↓
 ComponentPlanCompiler
   ↓
-SmartGeneratorRouter（智能路由）
+UnifiedGeneratorRouter（统一路由，SmartGeneratorRouter 已弃用）
   ↓
 ┌─────────────────┬─────────────────┐
 │  新系统优先     │  传统系统回退   │
@@ -32,14 +34,14 @@ List<BlockPatch>
 
 ### 实现方案
 
-#### 1. SmartGeneratorRouter（智能路由器）
+#### 1. UnifiedGeneratorRouter（统一路由器）
 
-**位置**：`src/main/java/com/formacraft/common/generation/component/adaptor/SmartGeneratorRouter.java`
+**位置**：`src/main/java/com/formacraft/common/generation/component/adaptor/UnifiedGeneratorRouter.java`
 
 **功能**：
-- 优先使用新系统（`common.generation.component`）的 `ComponentGenerator`
-- 如果新系统没有生成器或生成失败，自动回退到传统系统（`common.generation.structure`）
-- 用户完全透明，不需要知道有两套系统
+- 优先使用构件层（`common.generation.component`）的 `ComponentGenerator`
+- 受控回退到整栋层（`common.generation.structure`），仅显式请求或未注册整栋类型时触发
+- `SmartGeneratorRouter` 保留为弃用委托，不再单独维护路由逻辑
 
 **路由逻辑**：
 ```java
