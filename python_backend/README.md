@@ -30,6 +30,12 @@ cd python_backend
 pip install -r requirements.txt
 ```
 
+可复现安装（锁定版本）：
+
+```bash
+pip install -r requirements.lock
+```
+
 ## 配置环境变量
 
 创建 `.env` 文件（可选）：
