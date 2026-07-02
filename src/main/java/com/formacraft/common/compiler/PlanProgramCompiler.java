@@ -11,7 +11,7 @@ import com.formacraft.common.llm.parser.PlanSkeletonParser;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
-import com.formacraft.server.skeleton.gen.SkeletonBuildService;
+import com.formacraft.common.skeleton.SkeletonExecutors;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -142,7 +142,7 @@ public final class PlanProgramCompiler {
             );
 
             // Step 3: ExecutableSkeletonPlan → Generator → BlockPatch
-            // 使用 SkeletonBuildService 将每个 ExecutableSkeletonPlan 转换为 BlockPatch
+            // 使用 SkeletonExecutor 将每个 ExecutableSkeletonPlan 转换为 BlockPatch
             if (compiled.isEmpty() || world == null || globalAnchor == null) {
                 FormacraftMod.LOGGER.debug("PlanProgramCompiler: skipping generator step (empty skeletons or missing world/anchor)");
                 return List.of();
@@ -199,7 +199,7 @@ public final class PlanProgramCompiler {
     /**
      * 从 ExecutableSkeletonPlan 列表生成 BlockPatch 列表
      * <p>
-     * 使用 SkeletonBuildService 将每个 skeleton 转换为 BlockPatch
+     * 使用 SkeletonExecutor 将每个 skeleton 转换为 BlockPatch
      * <p>
      * 处理逻辑：
      * 1. 为每个 ExecutableSkeletonPlan 调用 Generator
@@ -226,7 +226,6 @@ public final class PlanProgramCompiler {
         String effectivePaletteId = (paletteId != null && !paletteId.isBlank()) ? paletteId : "DEFAULT";
 
         List<BlockPatch> allPatches = new ArrayList<>();
-        SkeletonBuildService buildService = new SkeletonBuildService();
 
         for (ExecutableSkeletonPlan skeleton : skeletons) {
             if (skeleton == null) {
@@ -234,9 +233,9 @@ public final class PlanProgramCompiler {
             }
 
             try {
-                // 使用 SkeletonBuildService 生成 BlockPatch，传递风格信息
-                // 注意：SkeletonBuildService 会优先使用新的语义系统，如果没有则回退到旧生成器
-                List<BlockPatch> patches = buildService.build(world, origin, skeleton, effectivePaletteId);
+                // 使用 SkeletonExecutor 生成 BlockPatch，传递风格信息
+                List<BlockPatch> patches = SkeletonExecutors.get()
+                        .build(world, origin, skeleton, effectivePaletteId);
 
                 if (patches != null && !patches.isEmpty()) {
                     allPatches.addAll(patches);

@@ -1,7 +1,7 @@
 package com.formacraft.server.skeleton.gen;
 
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
-
+import com.formacraft.common.skeleton.SkeletonExecutor;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;
@@ -18,7 +18,7 @@ import java.util.Random;
  * 注意：此服务使用新的语义系统（Semantic → Geometry → Palette → BlockPatch）
  * 如果某个 SkeletonType 没有语义生成器，会回退到旧的直接生成器
  */
-public class SkeletonBuildService {
+public class SkeletonBuildService implements SkeletonExecutor {
 
     private final SkeletonGeneratorRegistry registry;
 
@@ -41,6 +41,7 @@ public class SkeletonBuildService {
      * @param plan 可执行的骨架计划
      * @return BlockPatch 列表（相对 origin 的偏移）
      */
+    @Override
     public List<BlockPatch> build(ServerWorld world, BlockPos origin, ExecutableSkeletonPlan plan) {
         return build(world, origin, plan, "DEFAULT");
     }
@@ -54,6 +55,7 @@ public class SkeletonBuildService {
      * @param paletteId 调色板 ID（也用作 styleProfileId）
      * @return BlockPatch 列表（相对 origin 的偏移）
      */
+    @Override
     public List<BlockPatch> build(ServerWorld world, BlockPos origin, ExecutableSkeletonPlan plan, String paletteId) {
         if (world == null || origin == null || plan == null) {
             FormacraftMod.LOGGER.warn("SkeletonBuildService.build: invalid parameters");

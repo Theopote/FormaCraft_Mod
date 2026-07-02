@@ -3,20 +3,29 @@
 > 生成器合并 Phase 0 产出。记录当前三套活跃体系的完整路由映射，以及已清理的死代码。
 > 最后更新：2026-07-02
 
-## 体系总览（Phase 0 后）
+## 体系总览（Phase 1 后）
 
-| 包路径 | 文件数 | 接口 | 注册表 | 入口 | 状态 |
-|--------|--------|------|--------|------|------|
+| 包路径 | 文件数 | 接口 | 注册表 / 门面 | 入口 | 状态 |
+|--------|--------|------|---------------|------|------|
 | `server/generator` | 63 | `StructureGenerator` | `GeneratorRouter` | `BuildRequestProcessor`, `CityBuilder`, commands | **活跃** |
 | `common/generator` | 23 | `ComponentGenerator` | `GeneratorRegistry` | `ComponentPlanCompiler` → `SmartGeneratorRouter` | **活跃** |
-| `server/skeleton/gen` | 54 | `ISkeletonGenerator` | `SkeletonGeneratorRegistry` | `SkeletonBuildService`, `PlanProgramCompiler` | **活跃** |
-| ~~`common/gen`~~ | ~~8~~ | ~~`SkeletonGenerator`~~ | ~~`SkeletonAssemblyRegistry`~~ | — | **已删除（Phase 0）** |
+| `common/skeleton` | +4 | `SkeletonExecutor` | `SkeletonExecutors` | `PlanProgramCompiler` | **契约层（Phase 1）** |
+| `server/skeleton/gen` | 53 | `ISkeletonGenerator` | `SkeletonGeneratorRegistry` | `SkeletonBuildService`（实现 `SkeletonExecutor`） | **活跃** |
+| ~~`common/gen`~~ | ~~8~~ | — | — | — | **已删除（Phase 0）** |
+
+### 骨架层双模型（Phase 1 统一契约，执行仍分路径）
+
+| 模型 | 包 | 用途 | 转换 |
+|------|-----|------|------|
+| `SkeletonPlan` | `common/skeleton/*Plan` | Blueprint / Interpreter 路径 | `SkeletonPlanConverter.toExecutable()` |
+| `ExecutableSkeletonPlan` | `common/skeleton` | LLM / Generator 路径 | 直接输入 `SkeletonExecutor` |
 
 ```
-BuildingSpec 请求  →  StructureGeneratorFactory  →  GeneratorRouter           →  server.generator.*
-LlmPlan 组件       →  ComponentPlanCompiler      →  SmartGeneratorRouter      →  common.generator.*
-Skeleton/Plan      →  PlanProgramCompiler        →  SkeletonBuildService      →  server.skeleton.gen.*
+LlmPlan / PlanProgram  →  ExecutableSkeletonPlan  →  SkeletonExecutors.get()  →  SkeletonBuildService  →  ISkeletonGenerator
+Blueprint              →  SkeletonPlan            →  Interpreter（不变）     →  PlannedBlock
+Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeletonPlan  →  SkeletonExecutor（Phase 2 可选接入）
 ```
+
 
 ---
 
@@ -75,7 +84,7 @@ Skeleton/Plan      →  PlanProgramCompiler        →  SkeletonBuildService    
 ## 2. SkeletonType → `server.skeleton.gen`（骨架流）
 
 注册表：`com.formacraft.server.skeleton.gen.SkeletonGeneratorRegistry.createDefault()`  
-入口：`SkeletonBuildService.build()`
+入口：`SkeletonExecutors.get().build()` → `SkeletonBuildService`（`server/skeleton/gen`）
 
 | SkeletonType | 实现类 |
 |--------------|--------|
@@ -252,6 +261,6 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 | Phase | 内容 | 风险 |
 |-------|------|------|
 | **0** ✅ | 删 `common/gen`、产出对照表、标记 adaptor | 低 |
-| **1** | 统一骨架层到 `server/skeleton/gen`（或迁到 `common/generation/skeleton`） | 中 |
+| **1** ✅ | `ExecutableSkeletonPlan` 迁至 common、`SkeletonExecutor` 门面、`SkeletonPlanConverter` | 低 |
 | **2** | `SmartGeneratorRouter` + `StructureGeneratorAdaptor` → 单一 facade | 中 |
 | **3** | `server/generator` 归位 + `GeneratorRouter` 与 `GeneratorRegistry` 合并 | 高 |

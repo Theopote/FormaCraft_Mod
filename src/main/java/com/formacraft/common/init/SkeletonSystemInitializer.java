@@ -1,7 +1,9 @@
 package com.formacraft.common.init;
 
 import com.formacraft.common.palette.DefaultPalettes;
+import com.formacraft.common.skeleton.SkeletonExecutors;
 import com.formacraft.common.style.presets.DefaultStyleProfiles;
+import com.formacraft.server.skeleton.gen.SkeletonBuildService;
 import com.formacraft.server.skeleton.gen.SkeletonSemanticRegistry;
 import com.formacraft.server.skeleton.gen.assembler.ComponentAssemblerRegistry;
 import com.formacraft.FormacraftMod;
@@ -38,6 +40,10 @@ public final class SkeletonSystemInitializer {
         // 4. 注册默认组件装配器（ComponentAssemblerRegistry）
         ComponentAssemblerRegistry.registerDefaults();
         FormacraftMod.LOGGER.info("  ✓ ComponentAssemblerRegistry initialized");
+
+        // 5. 注册骨架执行门面（Phase 1：common 编译器通过 SkeletonExecutors 调用）
+        SkeletonExecutors.register(new SkeletonBuildService());
+        FormacraftMod.LOGGER.info("  ✓ SkeletonExecutor registered");
 
         FormacraftMod.LOGGER.info("Skeleton System initialization complete!");
     }
