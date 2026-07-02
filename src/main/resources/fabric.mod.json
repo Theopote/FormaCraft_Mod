@@ -12,7 +12,7 @@
     "sources": "https://github.com/Theopote/FormaCraft_Mod",
     "issues": "https://github.com/Theopote/FormaCraft_Mod/issues"
   },
-  "license": "CC0-1.0",
+  "license": "MIT",
   "icon": "assets/formacraft/icon.png",
   "environment": "*",
   "entrypoints": {

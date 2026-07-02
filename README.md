@@ -1,7 +1,7 @@
 # Formacraft
 
 [![Build](https://github.com/Theopote/FormaCraft_Mod/actions/workflows/build.yml/badge.svg)](https://github.com/Theopote/FormaCraft_Mod/actions/workflows/build.yml)
-[![License: CC0-1.0](https://img.shields.io/badge/License-CC0%201.0-lightgrey.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.21.10-green.svg)](https://fabricmc.net/)
 [![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://adoptium.net/)
 
@@ -179,9 +179,9 @@ Areas where help is especially valuable:
 
 ## License
 
-This project is released under **[CC0 1.0 Universal](LICENSE)** (public domain dedication).
+This project is released under the **[MIT License](LICENSE)**.
 
-You may use, modify, and distribute this software for any purpose without attribution. See the [LICENSE](LICENSE) file for the full legal text.
+You may use, modify, and distribute this software for any purpose, including commercial use, as long as you include the copyright notice and license text in copies or substantial portions.
 
 ---
 
