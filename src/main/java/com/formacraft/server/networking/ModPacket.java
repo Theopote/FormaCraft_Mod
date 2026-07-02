@@ -15,9 +15,7 @@ import net.minecraft.util.Identifier;
  * Build requests use {@link com.formacraft.common.network.FormaCraftNetworking}
  * ({@code formacraft:request_build}). The old {@code build_request} channel is no longer registered.
  *
- * @deprecated Use {@link com.formacraft.common.network.FormaCraftNetworking} for all new networking.
  */
-@Deprecated
 public class ModPacket {
     public static final Identifier CHANNEL = Identifier.of(FormacraftMod.MOD_ID, "sync");
 
