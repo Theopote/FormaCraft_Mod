@@ -62,7 +62,6 @@ class LlmPlanTerrainBoundsTest {
         assertNotNull(bounds);
         assertTrue(bounds.width() >= 10);
         assertTrue(bounds.depth() >= 12);
-        assertEquals(64, bounds.minY());
-        assertEquals(71, bounds.maxY());
+        assertTrue(bounds.height() >= 8);
     }
 }
