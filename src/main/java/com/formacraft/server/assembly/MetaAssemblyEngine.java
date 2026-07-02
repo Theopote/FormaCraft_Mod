@@ -1,17 +1,6 @@
 package com.formacraft.server.assembly;
 
 import com.formacraft.server.build.PlannedBlock;
-import com.formacraft.server.build.GeneratedStructure;
-import com.formacraft.server.generator.BridgeGenerator;
-import com.formacraft.server.generator.path.PathGenerator;
-import com.formacraft.common.model.path.PathSpec;
-import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.common.model.build.BuildingType;
-import com.formacraft.common.model.build.Footprint;
-import com.formacraft.server.skeleton.linear.LinearWallInterpreter;
-import com.formacraft.common.skeleton.linear.LinearPathPlan;
-import com.formacraft.server.interior.BspFloorPlanGenerator;
-import com.formacraft.server.interior.FloorPlanConfig;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -203,6 +192,45 @@ public final class MetaAssemblyEngine {
         @Override
         public String str(Object v, String def) {
             return MetaAssemblyEngine.str(v, def);
+        }
+
+        @Override
+        public int clamp(int v, int min, int max) {
+            return MetaAssemblyEngine.clamp(v, min, max);
+        }
+    };
+
+    private static final AssemblyRouteOps.Adapter ROUTE_OPS_ADAPTER = new AssemblyRouteOps.Adapter() {
+        @Override
+        public BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
+            return MetaAssemblyEngine.pick(ctx, op, overrideKey, semanticKey, salt, fallback);
+        }
+
+        @Override
+        public int i(Object v, int def) {
+            return MetaAssemblyEngine.i(v, def);
+        }
+
+        @Override
+        public boolean bool(Object v, boolean def) {
+            return MetaAssemblyEngine.bool(v, def);
+        }
+
+        @Override
+        public int clamp(int v, int min, int max) {
+            return MetaAssemblyEngine.clamp(v, min, max);
+        }
+    };
+
+    private static final AssemblyInteriorOps.Adapter INTERIOR_OPS_ADAPTER = new AssemblyInteriorOps.Adapter() {
+        @Override
+        public BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
+            return MetaAssemblyEngine.pick(ctx, op, overrideKey, semanticKey, salt, fallback);
+        }
+
+        @Override
+        public int i(Object v, int def) {
+            return MetaAssemblyEngine.i(v, def);
         }
 
         @Override
@@ -1114,187 +1142,12 @@ public final class MetaAssemblyEngine {
             case "MARCHING_CUBES" -> AssemblyIsoSurfaceOps.applyMarchingCubes(out, ctx, curOrigin, op, ISO_SURFACE_OPS_ADAPTER);
             case "REVOLVE_SURFACE" -> AssemblySurfaceOps.applyRevolveSurface(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
             case "LOFT_SURFACE" -> AssemblySurfaceOps.applyLoftSurface(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
-            case "PATH_ROUTE" -> {
-                // Reuse PathGenerator (supports DRAPE etc via terrainAdaptation in extra).
-                int width = clamp(i(op.get("width"), i(op.get("thickness"), 3)), 1, 15);
-                String style = str(op.get("style"), "default");
-
-                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
-                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
-                PathSpec ps = new PathSpec();
-                ps.setFrom(new PathSpec.Point(p0[0], p0[1], p0[2]));
-                ps.setTo(new PathSpec.Point(p1[0], p1[1], p1[2]));
-                ps.setWidth(width);
-                ps.setStyle(style);
-
-                java.util.Map<String, Object> extra = new java.util.HashMap<>();
-                if (ctx.paletteId != null && !ctx.paletteId.isBlank()) extra.put("paletteId", ctx.paletteId);
-                // passthrough terrainAdaptation for DRAPE config
-                if (op.get("terrainAdaptation") != null) extra.put("terrainAdaptation", op.get("terrainAdaptation"));
-                ps.setExtra(extra);
-
-                GeneratedStructure gs = new PathGenerator().generate(ps, curOrigin, ctx.world);
-                out.addAll(gs.getBlocks());
-            }
-            case "WALL_ROUTE" -> {
-                // Build a wall along a line between two points using LinearWallInterpreter.
-                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
-                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
-                int height = clamp(i(op.get("wallHeight"), i(op.get("height"), 10)), 4, 120);
-                int thickness = clamp(i(op.get("wallThickness"), i(op.get("thickness"), 5)), 3, 31);
-                int towerSpacing = clamp(i(op.get("towerSpacing"), 48), 8, 512);
-                int foundationDepth = clamp(i(op.get("foundationDepth"), 3), 0, 16);
-                int maxStep = clamp(i(op.get("maxStep"), 1), 0, 8);
-                boolean followTerrain = bool(op.get("followTerrain"), true);
-                boolean crenels = bool(op.get("crenels"), true);
-
-                // If terrainAdaptation is provided (DRAPE), borrow its key parameters when explicit values are absent.
-                Object ta = op.get("terrainAdaptation");
-                if (ta instanceof Map<?, ?> tm) {
-                    String mode = String.valueOf(tm.get("mode") == null ? "" : tm.get("mode")).trim().toUpperCase(Locale.ROOT);
-                    if (mode.contains("DRAPE")) {
-                        followTerrain = true;
-                        if (!op.containsKey("maxStep") && tm.get("max_step_height") != null) {
-                            maxStep = clamp(i(tm.get("max_step_height"), maxStep), 0, 8);
-                        }
-                        if (!op.containsKey("foundationDepth") && tm.get("foundation_depth") != null) {
-                            foundationDepth = clamp(i(tm.get("foundation_depth"), foundationDepth), 0, 16);
-                        }
-                    }
-                }
-
-                BlockState wall = pick(ctx, op, "wall", "WALL_BASE", 0xA56001L, Blocks.STONE_BRICKS.getDefaultState());
-                BlockState accent = pick(ctx, op, "accent", "DECOR_DETAIL", 0xA56002L, Blocks.MOSSY_STONE_BRICKS.getDefaultState());
-                BlockState walkway = pick(ctx, op, "walkway", "FLOORING", 0xA56003L, wall);
-                BlockState walkwayStairs = pick(ctx, op, "walkwayStairs", "STAIRS", 0xA56004L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
-                BlockState crenel = pick(ctx, op, "crenel", "DECOR_DETAIL", 0xA56005L, Blocks.STONE_BRICK_WALL.getDefaultState());
-                BlockState tower = pick(ctx, op, "tower", "WALL_BASE", 0xA56006L, wall);
-                BlockState foundation = pick(ctx, op, "foundation", "WALL_FOUNDATION", 0xA56007L, wall);
-
-                // World positions for endpoints
-                BlockPos a = curOrigin.add(p0[0], p0[1], p0[2]);
-                BlockPos b = curOrigin.add(p1[0], p1[1], p1[2]);
-                List<BlockPos> pts = AssemblyRasterOps.rasterizeLine2D(a, b, ctx.world, followTerrain, maxStep);
-                LinearPathPlan plan = new LinearPathPlan(pts, thickness, height, towerSpacing, crenels);
-                List<PlannedBlock> wblocks = new LinearWallInterpreter(
-                        wall, accent, false, walkway, walkwayStairs, crenel, tower, ctx.paletteId,
-                        foundationDepth, foundation, true, true
-                ).interpret(plan, curOrigin, ctx.world);
-                out.addAll(wblocks);
-            }
-            case "BRIDGE_ROUTE" -> {
-                // Axis-aligned: reuse BridgeGenerator (better aesthetics + anchor mode support).
-                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
-                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
-                int width = clamp(i(op.get("width"), 5), 3, 25);
-
-                int dx = p1[0] - p0[0];
-                int dz = p1[2] - p0[2];
-                boolean axisAligned = (dx == 0) ^ (dz == 0);
-                if (axisAligned) {
-                    int length = Math.max(Math.abs(dx), Math.abs(dz));
-                    Direction forward = dx > 0 ? Direction.EAST : dx < 0 ? Direction.WEST : dz > 0 ? Direction.SOUTH : Direction.NORTH;
-
-                    BuildingSpec bs = new BuildingSpec();
-                    bs.setType(BuildingType.BRIDGE);
-                    Footprint fp = new Footprint();
-                    fp.setShape("rectangle");
-                    fp.setWidth(width);
-                    fp.setDepth(length);
-                    bs.setFootprint(fp);
-                    bs.setHeight(12);
-                    java.util.Map<String, Object> extra = new java.util.HashMap<>();
-                    extra.put("paletteId", ctx.paletteId);
-                    extra.put("layout", java.util.Map.of("entranceFacing", forward.asString().toUpperCase(Locale.ROOT)));
-                    // enable anchor if requested
-                    if (op.get("terrainAdaptation") != null) extra.put("terrainAdaptation", op.get("terrainAdaptation"));
-                    bs.setExtra(extra);
-
-                    List<PlannedBlock> bBlocks = new BridgeGenerator().generate(bs, curOrigin.add(p0[0], p0[1], p0[2]), ctx.world).getBlocks();
-                    out.addAll(bBlocks);
-                } else {
-                    // fallback: simple deck beam + pillars down (still respects "anchor" aesthetic roughly)
-                    BlockState deck = pick(ctx, op, "deck", "BRIDGE_DECK", 0xA56101L, Blocks.OAK_PLANKS.getDefaultState());
-                    BlockState rail = pick(ctx, op, "rail", "BRIDGE_RAIL", 0xA56102L, Blocks.OAK_FENCE.getDefaultState());
-                    BlockState pier = pick(ctx, op, "pier", "WALL_FOUNDATION", 0xA56103L, Blocks.COBBLESTONE.getDefaultState());
-                    BlockPos a = curOrigin.add(p0[0], p0[1], p0[2]);
-                    BlockPos b = curOrigin.add(p1[0], p1[1], p1[2]);
-
-                    List<BlockPos> center = AssemblyRasterOps.rasterizeLine2D(a, b, ctx.world, false, 0);
-                    int deckY = Math.max(a.getY(), b.getY());
-                    // if y not provided, choose above highest ground along line
-                    if (p0[1] == 0 && p1[1] == 0) {
-                        int max = deckY;
-                        for (BlockPos p : center) {
-                            int top = ctx.world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ());
-                            max = Math.max(max, top + 2);
-                        }
-                        deckY = max;
-                    }
-                    int absDx = Math.abs(b.getX() - a.getX());
-                    int absDz = Math.abs(b.getZ() - a.getZ());
-                    boolean widthAlongZ = absDx >= absDz; // mostly X => widen along Z; mostly Z => widen along X
-
-                    for (BlockPos p : center) {
-                        // deck width
-                        for (int wOff = -width / 2; wOff <= width / 2; wOff++) {
-                            BlockPos dp = widthAlongZ
-                                    ? p.add(0, deckY - p.getY(), wOff)
-                                    : p.add(wOff, deckY - p.getY(), 0);
-                            out.add(new PlannedBlock(dp, deck));
-                            // rail edges
-                            if (Math.abs(wOff) == width / 2) out.add(new PlannedBlock(dp.up(), rail));
-                            // pier down every 5 blocks
-                            if ((p.getManhattanDistance(a) % 5) == 0 && wOff == 0) {
-                                int y = deckY - 1;
-                                for (int k = 0; k < 128; k++) {
-                                    BlockPos pp = new BlockPos(dp.getX(), y - k, dp.getZ());
-                                    BlockState cur = ctx.world.getBlockState(pp);
-                                    if (!cur.isAir()) break;
-                                    out.add(new PlannedBlock(pp, pier));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            case "PATH_ROUTE" -> AssemblyRouteOps.applyPathRoute(out, ctx, curOrigin, op, ROUTE_OPS_ADAPTER);
+            case "WALL_ROUTE" -> AssemblyRouteOps.applyWallRoute(out, ctx, curOrigin, op, ROUTE_OPS_ADAPTER);
+            case "BRIDGE_ROUTE" -> AssemblyRouteOps.applyBridgeRoute(out, ctx, curOrigin, op, ROUTE_OPS_ADAPTER);
             case "EXTRUDE_POLYGON" -> AssemblySolidOps.applyExtrudePolygon(out, ctx, curOrigin, op, SOLID_OPS_ADAPTER);
             case "ROOF_COVER" -> AssemblySolidOps.applyRoofCover(out, ctx, curOrigin, op, SOLID_OPS_ADAPTER);
-            case "BSP_FLOOR_PLAN" -> {
-                // expected fields:
-                // - footprint: {w,d} or direct w/d
-                // - height: h
-                // - floor_plan_logic: { ... } or config: { ... }
-                int w = clamp(i(op.get("w"), 19), 7, 129);
-                int d = clamp(i(op.get("d"), 19), 7, 129);
-                int h = clamp(i(op.get("h"), 30), 8, 255);
-
-                Object cfgObj = op.get("floor_plan_logic");
-                if (cfgObj == null) cfgObj = op.get("config");
-                if (cfgObj == null) cfgObj = op.get("floorPlanLogic");
-                FloorPlanConfig fpc = FloorPlanConfig.fromExtra(cfgObj);
-                if (fpc == null) return curOrigin;
-
-                BlockState coreWall = pick(ctx, op, "coreWall", "FRAME", 0xA55101L, Blocks.STONE_BRICKS.getDefaultState());
-                BlockState roomWall;
-                if (fpc.partitionStyle != null && fpc.partitionStyle.contains("OPEN")) {
-                    roomWall = pick(ctx, op, "roomWallOpen", "PARTITION_WALL", 0xA55102L, Blocks.GLASS_PANE.getDefaultState());
-                } else {
-                    roomWall = pick(ctx, op, "roomWall", "PARTITION_WALL", 0xA55103L, coreWall);
-                }
-                BlockState stairs = pick(ctx, op, "stairs", "STAIRS", 0xA55104L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
-
-                BspFloorPlanGenerator.apply(
-                        out,
-                        curOrigin,
-                        ctx.world,
-                        w,
-                        d,
-                        h,
-                        fpc,
-                        BspFloorPlanGenerator.Materials.of(coreWall, roomWall, stairs)
-                );
-            }
+            case "BSP_FLOOR_PLAN" -> AssemblyInteriorOps.applyBspFloorPlan(out, ctx, curOrigin, op, INTERIOR_OPS_ADAPTER);
             case "SPLINE_SWEEP", "SPLINE_TUBE" -> AssemblySurfaceOps.applySplineSweep(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
             case "SURFACE_PATTERN" -> AssemblyFacadeOps.applySurfacePattern(out, ctx, curOrigin, op, FACADE_OPS_ADAPTER);
             case "FACADE_GRID" -> AssemblyFacadeOps.applyFacadeGrid(out, ctx, curOrigin, op, FACADE_OPS_ADAPTER);
