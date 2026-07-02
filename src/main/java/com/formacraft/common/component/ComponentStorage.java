@@ -37,6 +37,7 @@ public final class ComponentStorage {
             Path cfg = FabricLoader.getInstance().getConfigDir();
             return cfg.resolve("formacraft").resolve("components");
         } catch (Throwable t) {
+            FormacraftMod.LOGGER.warn("[ComponentStorage] FabricLoader config dir unavailable, using fallback path", t);
             // fallback：退化到当前进程目录下（极少数环境）
             return Path.of("config").resolve("formacraft").resolve("components");
         }
@@ -96,16 +97,21 @@ public final class ComponentStorage {
                     if (Files.exists(defFile)) {
                         e.updatedAtMs = Files.getLastModifiedTime(defFile).toMillis();
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable t) {
+                    FormacraftMod.LOGGER.debug("[ComponentStorage] catalog backfill updatedAtMs failed componentId={}", e.id, t);
+                }
                 if (e.thumbnail == null || e.thumbnail.isBlank()) {
                     String tn = e.id + ".png";
                     try {
                         if (Files.exists(dir.resolve(tn))) e.thumbnail = tn;
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable t) {
+                        FormacraftMod.LOGGER.debug("[ComponentStorage] catalog backfill thumbnail failed componentId={}", e.id, t);
+                    }
                 }
             }
             return c;
         } catch (Exception e) {
+            FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to load catalog from {}", file, e);
             ComponentCatalog c = new ComponentCatalog();
             c.components = new ArrayList<>();
             return c;
@@ -157,7 +163,9 @@ public final class ComponentStorage {
             try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(catalog, w);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.error("[ComponentStorage] Failed to save catalog to {}", dir, e);
+        }
     }
 
     public static void saveComponent(Path worldDir, ComponentDefinition def) {
@@ -206,7 +214,9 @@ public final class ComponentStorage {
             // v1 thumbnail（best-effort）
             try {
                 com.formacraft.common.component.thumbnail.ComponentThumbnailGenerator.generate(def, globalDir.resolve(thumbName), 128);
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.debug("[ComponentStorage] Thumbnail generation skipped componentId={}", def.id, t);
+            }
 
             // update catalog
             ComponentCatalog cat = loadCatalog(worldDir);
@@ -245,10 +255,15 @@ public final class ComponentStorage {
                         if (!Files.exists(lf)) {
                             com.formacraft.common.component.thumbnail.ComponentThumbnailGenerator.generate(def, lf, 128);
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable t) {
+                        FormacraftMod.LOGGER.debug("[ComponentStorage] Legacy thumbnail generation skipped componentId={}", def.id, t);
+                    }
                 }
-            } catch (Throwable ignored) {}
-        } catch (Exception ignored) {
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.warn("[ComponentStorage] Legacy world copy failed componentId={}", def.id, t);
+            }
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.error("[ComponentStorage] Failed to save component componentId={}", def.id, e);
         }
     }
 
@@ -265,7 +280,9 @@ public final class ComponentStorage {
                     validateLoadedComponent(def, id);
                 }
                 return def;
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to load component componentId={} from global dir", id, e);
+            }
         }
         if (worldDir != null) {
             Path w = getWorldComponentDir(worldDir).resolve(fileName);
@@ -277,7 +294,9 @@ public final class ComponentStorage {
                         validateLoadedComponent(def, id);
                     }
                     return def;
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to load component componentId={} from world dir", id, e);
+                }
             }
         }
         return null;
@@ -329,14 +348,18 @@ public final class ComponentStorage {
                 if (Files.exists(jsonFile)) {
                     Files.delete(jsonFile);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to delete json componentId={}", componentId, e);
+            }
             
             try {
                 Path thumbFile = globalDir.resolve(thumbName);
                 if (Files.exists(thumbFile)) {
                     Files.delete(thumbFile);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to delete thumbnail componentId={}", componentId, e);
+            }
             
             // 从catalog中移除
             ComponentCatalog cat = loadCatalog(worldDir);
@@ -357,11 +380,14 @@ public final class ComponentStorage {
                     if (Files.exists(legacyThumb)) {
                         Files.delete(legacyThumb);
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to delete legacy files componentId={}", componentId, e);
+                }
             }
             
             return true;
         } catch (Exception e) {
+            FormacraftMod.LOGGER.error("[ComponentStorage] Failed to delete component componentId={}", componentId, e);
             return false;
         }
     }

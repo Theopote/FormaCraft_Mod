@@ -112,7 +112,9 @@ public final class PlayerComponentExpander {
                         reqMap        // 支持 edge hint（ALONG_EDGE）
                 );
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.debug("[PlayerComponentExpander] FacingDeriver failed componentId={}", def.id, t);
+        }
 
         // PlacementSpec v1：当构件不需要方向（FacingPolicy.NONE）且用户未显式指定 facing 时，保持原朝向（不做旋转）
         try {
@@ -121,7 +123,9 @@ public final class PlayerComponentExpander {
                     && def.placementSpec.facingPolicy == FacingPolicy.NONE) {
                 targetFacing = fromFacing;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.debug("[PlayerComponentExpander] FacingPolicy.NONE handling failed componentId={}", def.id, t);
+        }
 
         Mirror mirror = parseMirror(getString(reqMap, "mirror", "mirror_mode", "mirrorMode"));
         ComponentTransform transform = new ComponentTransform(targetFacing, mirror);
@@ -308,7 +312,9 @@ public final class PlayerComponentExpander {
                         reqMap
                 );
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.debug("[PlayerComponentExpander] mount FacingDeriver failed mountId={}", mount.id, t);
+        }
         // PlacementSpec v1：mount 若不需要方向且未显式给 mount_facing，则保持构件自身朝向（只做平移/镜像）
         try {
             if ((explicitMountFacingStr == null || explicitMountFacingStr.isBlank())
@@ -316,7 +322,9 @@ public final class PlayerComponentExpander {
                     && mount.placementSpec.facingPolicy == FacingPolicy.NONE) {
                 mountTargetFacing = mountFromFacing;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.debug("[PlayerComponentExpander] mount FacingPolicy.NONE handling failed mountId={}", mount.id, t);
+        }
         Mirror mountMirror = parseMirror(getString(reqMap, "mount_mirror", "mountMirror"));
         ComponentTransform mountTransform = new ComponentTransform(mountTargetFacing, mountMirror);
 
@@ -694,7 +702,8 @@ public final class PlayerComponentExpander {
         if (cat != null) {
             try {
                 req.category = ComponentCategory.valueOf(cat.trim().toUpperCase(Locale.ROOT));
-            } catch (Throwable ignored) {
+            } catch (IllegalArgumentException e) {
+                FormacraftMod.LOGGER.debug("[PlayerComponentExpander] invalid category: {}", cat);
                 req.category = null;
             }
         }
@@ -882,7 +891,8 @@ public final class PlayerComponentExpander {
         if (s == null || s.isBlank()) return null;
         try {
             return Direction.valueOf(s.trim().toUpperCase(Locale.ROOT));
-        } catch (Throwable ignored) {
+        } catch (IllegalArgumentException e) {
+            FormacraftMod.LOGGER.debug("[PlayerComponentExpander] invalid direction: {}", s);
             return null;
         }
     }
@@ -891,7 +901,8 @@ public final class PlayerComponentExpander {
         if (s == null || s.isBlank()) return Mirror.NONE;
         try {
             return Mirror.valueOf(s.trim().toUpperCase(Locale.ROOT));
-        } catch (Throwable ignored) {
+        } catch (IllegalArgumentException e) {
+            FormacraftMod.LOGGER.debug("[PlayerComponentExpander] invalid mirror: {}", s);
             return Mirror.NONE;
         }
     }
@@ -945,7 +956,8 @@ public final class PlayerComponentExpander {
             if (v instanceof Number n) return n.intValue();
             try {
                 return Integer.parseInt(String.valueOf(v).trim());
-            } catch (Throwable ignored) {
+            } catch (NumberFormatException e) {
+                FormacraftMod.LOGGER.debug("[PlayerComponentExpander] invalid int for keys {}", java.util.Arrays.toString(keys));
             }
         }
         return def;

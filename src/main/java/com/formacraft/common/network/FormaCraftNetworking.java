@@ -516,14 +516,18 @@ public class FormaCraftNetworking {
                                 player.getName().getString());
                         // 继续执行回退逻辑
                     } else {
-                        try { sendClearOutline(player); } catch (Throwable ignored) {}
+                        try { sendClearOutline(player); } catch (Throwable t) {
+                            FormacraftMod.LOGGER.warn("[FormaCraftNetworking] Failed to clear outline for player {}", player.getName().getString(), t);
+                        }
                         com.formacraft.server.preview.PreviewStorage.setPreview(player, false);
                         BuildExecutionService.getInstance().enqueueBuild(serverWorld, preview);
                         try {
                             ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
                                     String.format("已确认建造：开始放置方块…（按预览结果执行，共 %d 个方块）", 
                                             preview.getBlocks() != null ? preview.getBlocks().size() : 0)));
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable t) {
+                            FormacraftMod.LOGGER.warn("[FormaCraftNetworking] Failed to send build status to player {}", player.getName().getString(), t);
+                        }
                         FormacraftMod.LOGGER.info("Player {} confirmed build (from preview) at {} with {} blocks",
                                 player.getName().getString(), preview.getOrigin(),
                                 preview.getBlocks() != null ? preview.getBlocks().size() : 0);
@@ -542,12 +546,16 @@ public class FormaCraftNetworking {
                                 serverWorld.getRegistryKey().getValue();
                         String buildingJson = JsonUtil.toJson(spec);
                         com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, buildingJson);
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable t) {
+                        FormacraftMod.LOGGER.warn("[FormaCraftNetworking] Failed to persist building spec for player {}", player.getName().getString(), t);
+                    }
 
                     BuildExecutionService.getInstance().queueBuild(serverWorld, origin, spec, player.getUuid());
                     try {
                         ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已确认建造：开始放置方块…（重新生成）"));
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable t) {
+                        FormacraftMod.LOGGER.warn("[FormaCraftNetworking] Failed to send regenerate status to player {}", player.getName().getString(), t);
+                    }
                     FormacraftMod.LOGGER.info("Player {} confirmed build at {}",
                             player.getName().getString(), origin);
                 }
@@ -744,14 +752,18 @@ public class FormaCraftNetworking {
             if (!PreviewStorage.hasPreview(player)) {
                 try {
                     ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("当前没有可调整的预览。"));
-                } catch (Throwable ignored) {}
+                } catch (Throwable t) {
+                    FormacraftMod.LOGGER.warn("[FormaCraftNetworking] Failed to send preview-adjust status to player {}", player.getName().getString(), t);
+                }
                 return;
             }
             com.formacraft.server.build.GeneratedStructure structure = PreviewStorage.getStructure(player);
             if (structure == null || structure.getBlocks() == null || structure.getBlocks().isEmpty()) {
                 try {
                     ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("预览结构为空，无法调整。"));
-                } catch (Throwable ignored) {}
+                } catch (Throwable t) {
+                    FormacraftMod.LOGGER.warn("[FormaCraftNetworking] Failed to send empty-preview status to player {}", player.getName().getString(), t);
+                }
                 return;
             }
 
@@ -783,7 +795,9 @@ public class FormaCraftNetworking {
             try {
                 ServerPlayNetworking.send(player, new ResponseBuildStatusPayload(
                         "预览已调整：dx=" + dx + " dy=" + dy + " dz=" + dz));
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.warn("[FormaCraftNetworking] Failed to send preview-adjusted status to player {}", player.getName().getString(), t);
+            }
         }));
     }
 
@@ -852,7 +866,9 @@ public class FormaCraftNetworking {
                     }
                     aiResponse += sb.toString().trim();
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.debug("[FormaCraftNetworking] Failed to append debugWarnings to build spec response", t);
+            }
             com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIMessage(aiResponse, spec);
 
             // 显示确认面板（替代 BuildPreviewScreen）
@@ -922,14 +938,19 @@ public class FormaCraftNetworking {
             try {
                 com.formacraft.client.tool.ComponentTool.INSTANCE.onSaveAckFromServer(
                         payload.id(), payload.name(), payload.success(), payload.message());
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.warn("[FormaCraftNetworking] ComponentSaveAck handler failed componentId={}", payload.id(), t);
             }
         }));
 
         // Component Library: 单个构件定义下发（服务端 -> 客户端）
         ClientPlayNetworking.registerGlobalReceiver(ComponentDefinitionPayload.ID, (payload, context) -> context.client().execute(() -> {
             String json = payload.json();
-            try { com.formacraft.client.tool.ComponentTool.INSTANCE.onComponentDefinitionFromServer(json); } catch (Throwable ignored) {}
+            try {
+                com.formacraft.client.tool.ComponentTool.INSTANCE.onComponentDefinitionFromServer(json);
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.warn("[FormaCraftNetworking] ComponentDefinition handler failed", t);
+            }
         }));
 
         // Patch 预览（服务端签发 PreviewTicket）
@@ -941,7 +962,8 @@ public class FormaCraftNetworking {
                         payload.accepted(),
                         payload.rejected()
                 );
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.warn("[FormaCraftNetworking] PatchPreview handler failed ticketId={}", payload.ticketId(), t);
             }
         }));
     }
@@ -1000,7 +1022,9 @@ public class FormaCraftNetworking {
                     success,
                     message == null ? "" : message
             ));
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.warn("[FormaCraftNetworking] Failed to send ComponentSaveAck componentId={} player={}",
+                    id, player.getName().getString(), t);
         }
     }
 

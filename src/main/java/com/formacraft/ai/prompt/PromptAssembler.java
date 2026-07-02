@@ -1,5 +1,6 @@
 package com.formacraft.ai.prompt;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.common.skeleton.PathSkeleton;
 import com.formacraft.common.terrain.TerrainPolicy;
@@ -361,8 +362,8 @@ ComponentParamsObject:
                     }
                 }
             }
-        } catch (Throwable ignored) {
-            // 忽略检查错误，不影响 Prompt 生成
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.debug("[PromptAssembler] loaded component validation check skipped", t);
         }
 
         return "PLAYER COMPONENT LIBRARY (Prefab Library):\n" +

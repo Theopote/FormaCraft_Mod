@@ -1,5 +1,6 @@
 package com.formacraft.client.tool;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.preview.ComponentPreviewState;
@@ -258,12 +259,10 @@ public final class ComponentTool implements FormacraftTool {
 
         // fromFacing：读取构件自身 anchor.facing（默认 SOUTH）
         Direction fromFacing = Direction.SOUTH;
-        try {
-            if (def.anchor != null && def.anchor.facing != null) {
-                Direction d = parseDir(def.anchor.facing);
-                if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
-            }
-        } catch (Throwable ignored) {}
+        if (def.anchor != null && def.anchor.facing != null) {
+            Direction d = parseDir(def.anchor.facing);
+            if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
+        }
 
         // preview transform：尽量不用“手动 facing”，让 policy/上下文决定
         Direction previewFacing = fromFacing;
@@ -331,12 +330,10 @@ public final class ComponentTool implements FormacraftTool {
 
         // fromFacing
         Direction fromFacing = Direction.SOUTH;
-        try {
-            if (def.anchor != null && def.anchor.facing != null) {
-                Direction d = parseDir(def.anchor.facing);
-                if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
-            }
-        } catch (Throwable ignored) {}
+        if (def.anchor != null && def.anchor.facing != null) {
+            Direction d = parseDir(def.anchor.facing);
+            if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
+        }
 
         // transform 同预览逻辑
         Direction placeFacing = fromFacing;
@@ -571,8 +568,13 @@ public final class ComponentTool implements FormacraftTool {
                 HudToast.show("已加载构件：「" + (def.name != null ? def.name : def.id) + "」 blocks=" + def.blocks.size());
             }
             
-            try { com.formacraft.client.component.ComponentLibraryUsage.markLoaded(def.id); } catch (Throwable ignored) {}
+            try {
+                com.formacraft.client.component.ComponentLibraryUsage.markLoaded(def.id);
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.debug("[ComponentTool] markLoaded failed componentId={}", def.id, t);
+            }
         } catch (Throwable t) {
+            FormacraftMod.LOGGER.warn("[ComponentTool] Failed to load component from server json", t);
             HudToast.show("加载构件失败：JSON 解析失败", true);
         }
     }
@@ -948,12 +950,10 @@ public final class ComponentTool implements FormacraftTool {
                 local.add(new BlockPos(be.dx, be.dy, be.dz));
             }
             Direction fromFacing = Direction.SOUTH;
-            try {
-                if (def.anchor != null && def.anchor.facing != null) {
-                    Direction d = parseDir(def.anchor.facing);
-                    if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
-                }
-            } catch (Throwable ignored) {}
+            if (def.anchor != null && def.anchor.facing != null) {
+                Direction d = parseDir(def.anchor.facing);
+                if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
+            }
             ComponentPreviewState.show(local, effectiveDraft().anchor.worldPos, fromFacing, currentTransform());
         }
         if (!force) {
@@ -1406,7 +1406,8 @@ public final class ComponentTool implements FormacraftTool {
         try {
             var bid = Registries.BLOCK.getId(b);
             id = bid.toString();
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.debug("[ComponentTool] resolve block id for semantic guess failed", t);
         }
         if ((id != null && id.contains("glass_pane")) || b == net.minecraft.block.Blocks.GLASS) {
             return SemanticPart.WINDOW;
@@ -1434,7 +1435,8 @@ public final class ComponentTool implements FormacraftTool {
                     return axis == net.minecraft.util.math.Direction.Axis.Y ? SemanticPart.PILLAR : SemanticPart.BEAM;
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            FormacraftMod.LOGGER.debug("[ComponentTool] read axis property for semantic guess failed", t);
         }
 
         return SemanticPart.WALL;
@@ -1496,7 +1498,8 @@ public final class ComponentTool implements FormacraftTool {
         if (s == null || s.isBlank()) return null;
         try {
             return Direction.valueOf(s.trim().toUpperCase(Locale.ROOT));
-        } catch (Throwable ignored) {
+        } catch (IllegalArgumentException e) {
+            FormacraftMod.LOGGER.debug("[ComponentTool] invalid direction string: {}", s);
             return null;
         }
     }
