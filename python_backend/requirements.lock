@@ -1,0 +1,36 @@
+# Pinned versions for reproducible installs (generated 2026-07-02).
+# Install with: pip install -r requirements.lock
+annotated-doc==0.0.4
+annotated-types==0.7.0
+anyio==4.14.1
+certifi==2026.6.17
+charset-normalizer==3.4.7
+click==8.4.2
+colorama==0.4.6
+distro==1.9.0
+dnspython==2.7.0
+duckduckgo_search==8.1.1
+email-validator==2.3.0
+fastapi==0.138.2
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.8.0
+httpx==0.28.1
+idna==3.18
+jiter==0.9.0
+lxml==5.4.0
+openai==2.44.0
+primp==0.15.0
+pydantic==2.13.4
+pydantic_core==2.46.4
+python-dotenv==1.2.2
+PyYAML==6.0.2
+requests==2.34.2
+sniffio==1.3.1
+starlette==0.46.2
+tqdm==4.67.1
+typing_extensions==4.14.0
+urllib3==2.4.0
+uvicorn==0.49.0
+watchfiles==1.0.5
+websockets==15.0.1

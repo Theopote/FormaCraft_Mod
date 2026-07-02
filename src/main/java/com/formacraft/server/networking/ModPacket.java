@@ -9,16 +9,22 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
+/**
+ * Legacy networking stub (sync channel only).
+ * <p>
+ * Build requests use {@link com.formacraft.common.network.FormaCraftNetworking}
+ * ({@code formacraft:request_build}). The old {@code build_request} channel is no longer registered.
+ *
+ * @deprecated Use {@link com.formacraft.common.network.FormaCraftNetworking} for all new networking.
+ */
+@Deprecated
 public class ModPacket {
     public static final Identifier CHANNEL = Identifier.of(FormacraftMod.MOD_ID, "sync");
 
-    // 简单的数据包实现 - 直接传递字节数组
     public record SyncPayload(byte[] data) implements CustomPayload {
         public static final CustomPayload.Id<SyncPayload> ID = new CustomPayload.Id<>(CHANNEL);
         public static final PacketCodec<PacketByteBuf, SyncPayload> CODEC = PacketCodec.of(
-                // ValueFirstEncoder: (SyncPayload, PacketByteBuf) -> void
                 (payload, buf) -> buf.writeByteArray(payload.data()),
-                // PacketDecoder: PacketByteBuf -> SyncPayload
                 buf -> new SyncPayload(buf.readByteArray())
         );
 
@@ -29,30 +35,14 @@ public class ModPacket {
     }
 
     public static void registerServer() {
-        // 注册旧的数据包类型（保持兼容）
         PayloadTypeRegistry.playC2S().register(SyncPayload.ID, SyncPayload.CODEC);
-        
-        // 注册新的建筑请求数据包
-        PayloadTypeRegistry.playC2S().register(BuildRequestPacket.ID, BuildRequestPacket.CODEC);
-        PayloadTypeRegistry.playS2C().register(BuildResponsePacket.ID, BuildResponsePacket.CODEC);
-        
-        // 注册全局接收器
         ServerPlayNetworking.registerGlobalReceiver(SyncPayload.ID, (payload, context) -> {
-            // handle packet (stub)
-            // context.player() 获取玩家
-            // context.server() 获取服务器
+            // legacy stub — no-op
         });
-        
-        // 注册建筑请求数据包接收器
-        ServerPlayNetworking.registerGlobalReceiver(BuildRequestPacket.ID, 
-                (payload, context) -> {
-                    // 在 BuildRequestHandler 中处理
-                    BuildRequestHandler.handle(payload, context.player(), context.responseSender());
-                });
     }
 
+    @Deprecated
     public static void sendToServer(PacketByteBuf buf) {
-        // 将 PacketByteBuf 转换为字节数组
         byte[] data = new byte[buf.readableBytes()];
         buf.getBytes(buf.readerIndex(), data);
         ClientPlayNetworking.send(new SyncPayload(data));

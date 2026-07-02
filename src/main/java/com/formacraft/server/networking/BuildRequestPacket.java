@@ -9,9 +9,11 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
 /**
- * C2S 数据包：客户端 → 服务端
- * 发送玩家的建筑请求
+ * C2S 数据包：客户端 → 服务端（遗留，未使用）。
+ *
+ * @deprecated 使用 {@link com.formacraft.common.network.FormaCraftNetworking.RequestBuildPayload} 代替。
  */
+@Deprecated(forRemoval = true)
 public record BuildRequestPacket(FormaRequest request) implements CustomPayload {
     public static final CustomPayload.Id<BuildRequestPacket> ID = 
             new CustomPayload.Id<>(Identifier.of(FormacraftMod.MOD_ID, "build_request"));

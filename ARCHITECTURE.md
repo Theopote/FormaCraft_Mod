@@ -462,9 +462,36 @@ FormaCraftNetworking.sendToServer(applyPayload);
 
 ## 15. Related Documentation
 
-- **[FORMACRAFT_DEVELOPER_DOCUMENTATION.md](docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md)** - 详细开发文档（1400+ 行）
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - 贡献指南
-- **[README.md](README.md)** - 项目概览
+### Authoritative (maintained)
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — this document; system overview and data flow
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — contribution guide
+- **[README.md](README.md)** — project overview
+- **[docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md](docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md)** — detailed developer reference
+
+### Module indexes
+
+| Area | Location |
+|------|----------|
+| Assembly / Forma-Gene | [docs/assembly/](docs/assembly/) |
+| Landmarks | [docs/landmarks/](docs/landmarks/) |
+| Examples | [docs/examples/](docs/examples/) |
+| Python backend | [python_backend/README.md](python_backend/README.md) |
+| Historical snapshots | [docs/archive/](docs/archive/) (not maintained) |
+
+### Project scale (2026-07)
+
+| Metric | Count |
+|--------|-------|
+| Java source files | ~822 |
+| Python backend files | ~33 |
+| Active markdown (excl. archive) | ~170 |
+
+### Generation system target state
+
+- **Primary:** LlmPlan → `common.compiler` → `common.generator` → `BlockPatch`
+- **Legacy (landmarks / city / composite):** `BuildingSpec` → `server.generator`
+- **Routing:** `FormaRequest.outputFormat` — client defaults to `"llmplan"`; Python `build.py` mirrors this
 
 ---
 

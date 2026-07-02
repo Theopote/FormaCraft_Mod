@@ -1,5 +1,6 @@
 package com.formacraft.common.component;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.json.JsonUtil;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -165,27 +166,24 @@ public final class ComponentStorage {
         // 自动修复明显错误
         var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
         if (!fixReport.empty()) {
-            System.out.println("[ComponentStorage] 保存构件 " + def.id + " 时应用了自动修复：");
+            FormacraftMod.LOGGER.info("[ComponentStorage] 保存构件 {} 时应用了自动修复：", def.id);
             for (var fix : fixReport.fixes()) {
-                System.out.println("  " + fix);
+                FormacraftMod.LOGGER.info("  {}", fix);
             }
         }
         
         // 验证构件定义（修复后）
         var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
         if (!validationResult.ok()) {
-            // 记录错误但不阻止保存（允许用户修复）
-            System.err.println("[ComponentStorage] 保存构件 " + def.id + " 时发现验证错误：");
+            FormacraftMod.LOGGER.warn("[ComponentStorage] 保存构件 {} 时发现验证错误：", def.id);
             for (var issue : validationResult.errors()) {
-                System.err.println("  " + issue);
+                FormacraftMod.LOGGER.warn("  {}", issue);
             }
-            // 可以选择抛出异常阻止保存，或仅记录警告
-            // throw new IllegalArgumentException("Invalid component: " + def.id + " - " + validationResult.errors().get(0).message);
         }
         if (!validationResult.warnings().isEmpty()) {
-            System.out.println("[ComponentStorage] 保存构件 " + def.id + " 时发现验证警告：");
+            FormacraftMod.LOGGER.info("[ComponentStorage] 保存构件 {} 时发现验证警告：", def.id);
             for (var issue : validationResult.warnings()) {
-                System.out.println("  " + issue);
+                FormacraftMod.LOGGER.info("  {}", issue);
             }
         }
         
@@ -289,24 +287,24 @@ public final class ComponentStorage {
         // 自动修复明显错误
         var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
         if (!fixReport.empty()) {
-            System.out.println("[ComponentStorage] 加载构件 " + id + " 时应用了自动修复：");
+            FormacraftMod.LOGGER.info("[ComponentStorage] 加载构件 {} 时应用了自动修复：", id);
             for (var fix : fixReport.fixes()) {
-                System.out.println("  " + fix);
+                FormacraftMod.LOGGER.info("  {}", fix);
             }
         }
         
         // 验证构件定义（修复后）
         var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
         if (!validationResult.ok()) {
-            System.err.println("[ComponentStorage] 加载构件 " + id + " 时发现验证错误：");
+            FormacraftMod.LOGGER.warn("[ComponentStorage] 加载构件 {} 时发现验证错误：", id);
             for (var issue : validationResult.errors()) {
-                System.err.println("  " + issue);
+                FormacraftMod.LOGGER.warn("  {}", issue);
             }
         }
         if (!validationResult.warnings().isEmpty()) {
-            System.out.println("[ComponentStorage] 加载构件 " + id + " 时发现验证警告：");
+            FormacraftMod.LOGGER.info("[ComponentStorage] 加载构件 {} 时发现验证警告：", id);
             for (var issue : validationResult.warnings()) {
-                System.out.println("  " + issue);
+                FormacraftMod.LOGGER.info("  {}", issue);
             }
         }
     }

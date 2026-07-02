@@ -1,8 +1,10 @@
-fastapi
-uvicorn[standard]
-pydantic
-pydantic[email]
-openai
-python-dotenv
-requests
-duckduckgo-search
+# Direct dependencies with compatible version ranges.
+# For reproducible installs use: pip install -r requirements.lock
+fastapi>=0.138.0,<0.139.0
+uvicorn[standard]>=0.49.0,<0.50.0
+pydantic>=2.13.0,<3.0.0
+pydantic[email]>=2.13.0,<3.0.0
+openai>=2.44.0,<3.0.0
+python-dotenv>=1.2.0,<2.0.0
+requests>=2.34.0,<3.0.0
+duckduckgo-search>=8.1.0,<9.0.0

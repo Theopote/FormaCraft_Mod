@@ -60,29 +60,17 @@ async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec,
                     return generate_composite_spec(build_req)
                 return generate_building_spec(build_req)
             
-            # 2. 如果 outputFormat 是 "auto" 或未设置，使用智能路由
-            # 2.1 检查是否是 LlmPlan 格式（基于 promptMode 和 requestText）
+            # 2. outputFormat 为 "auto" 或未设置：BUILD 模式默认走 LlmPlan（与 Java ChatPanel 一致）
             if build_req.promptMode == "BUILD":
-                request_text = build_req.requestText or ""
-                # 检查 requestText 是否包含 LlmPlan 格式的特征
-                # 因为 PromptAssembler 总是生成 LlmPlan 格式的 prompt，所以默认检查这些特征
-                llm_plan_indicators = [
-                    "STRUCTURED JSON TEMPLATE",  # PromptAssembler 明确包含这个
-                    "component_type", "semantic components",
-                    "ComponentObject", "SlotObject",
-                    "mode", "style_profile", "components"
-                ]
-                # 如果包含 LlmPlan 格式的特征，使用 LlmPlan
-                if any(indicator in request_text for indicator in llm_plan_indicators):
-                    return generate_llm_plan(build_req)
-            
-            # 2.2 检查是否需要生成城市或复合结构
+                return generate_llm_plan(build_req)
+
+            # 2.1 非 BUILD 模式：检查是否需要生成城市或复合结构
             if _should_generate_city(build_req):
                 return generate_city_spec(build_req)
             if _should_generate_composite(build_req):
                 return generate_composite_spec(build_req)
             
-            # 2.3 默认生成 BuildingSpec
+            # 2.2 默认生成 BuildingSpec（地标 / 复合 / 城市等非 BUILD 模式）
             return generate_building_spec(build_req)
         except Exception as e:
             # LLM 调用失败时给上游明确错误（由服务端回传到客户端聊天窗口）

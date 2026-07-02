@@ -15,7 +15,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 public class ServerInitializer implements DedicatedServerModInitializer {
     @Override
     public void onInitializeServer() {
-        // 注册旧的网络数据包（保持兼容）
+        // 注册遗留 sync 通道（build_request 已移除，统一走 FormaCraftNetworking）
         ModPacket.registerServer();
         
         // 注册新的 FormaCraft 网络系统

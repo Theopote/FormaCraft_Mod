@@ -11,8 +11,14 @@ import net.minecraft.util.math.BlockPos;
 import com.formacraft.FormacraftMod;
 
 /**
- * 处理客户端发送的建筑请求数据包
+ * 处理客户端发送的建筑请求数据包（遗留路径）。
+ * <p>
+ * 当前客户端通过 {@link com.formacraft.common.network.FormaCraftNetworking#sendBuildRequest}
+ * 发送请求，不再使用此类。保留仅供参考，将在未来版本移除。
+ *
+ * @deprecated 使用 {@link com.formacraft.common.network.FormaCraftNetworking} 代替。
  */
+@Deprecated(forRemoval = true)
 public class BuildRequestHandler {
     // 使用延迟初始化的客户端（从配置读取）
     private static volatile OrchestratorClient orchestratorClient = null;

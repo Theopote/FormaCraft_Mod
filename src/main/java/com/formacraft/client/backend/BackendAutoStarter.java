@@ -1,5 +1,6 @@
 package com.formacraft.client.backend;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.config.SettingsConfig;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -43,23 +44,39 @@ public final class BackendAutoStarter {
             .build();
 
     private static void log(String msg) {
-        String line = "[FormaCraft][BackendAutoStarter] " + msg;
-        System.out.println(line);
+        FormacraftMod.LOGGER.info("[BackendAutoStarter] {}", msg);
         try {
             File logsDir = new File("logs");
             logsDir.mkdirs();
             File logFile = new File(logsDir, "formacraft_backend_autostart.log");
             try (java.io.FileWriter fw = new java.io.FileWriter(logFile, true)) {
-                fw.write(line + System.lineSeparator());
+                fw.write("[FormaCraft][BackendAutoStarter] " + msg + System.lineSeparator());
             }
         } catch (Exception ignored) {
         }
     }
 
     private static void logErr(String msg, Throwable t) {
-        StringWriter sw = new StringWriter();
-        if (t != null) t.printStackTrace(new PrintWriter(sw));
-        log(msg + (t != null ? ("\n" + sw) : ""));
+        if (t != null) {
+            FormacraftMod.LOGGER.warn("[BackendAutoStarter] {}", msg, t);
+        } else {
+            FormacraftMod.LOGGER.warn("[BackendAutoStarter] {}", msg);
+        }
+        try {
+            File logsDir = new File("logs");
+            logsDir.mkdirs();
+            File logFile = new File(logsDir, "formacraft_backend_autostart.log");
+            try (java.io.FileWriter fw = new java.io.FileWriter(logFile, true)) {
+                fw.write("[FormaCraft][BackendAutoStarter] " + msg);
+                if (t != null) {
+                    StringWriter sw = new StringWriter();
+                    t.printStackTrace(new PrintWriter(sw));
+                    fw.write(System.lineSeparator() + sw);
+                }
+                fw.write(System.lineSeparator());
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     public static void ensureStartedAsync() {

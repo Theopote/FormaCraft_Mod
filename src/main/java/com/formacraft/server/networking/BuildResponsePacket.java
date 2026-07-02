@@ -9,9 +9,11 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
 /**
- * S2C 数据包：服务端 → 客户端
- * 发送 AI 生成的建筑规格
+ * S2C 数据包：服务端 → 客户端（遗留，未使用）。
+ *
+ * @deprecated 使用 {@link com.formacraft.common.network.FormaCraftNetworking} 的 S2C 数据包代替。
  */
+@Deprecated(forRemoval = true)
 public record BuildResponsePacket(BuildingSpec spec) implements CustomPayload {
     public static final CustomPayload.Id<BuildResponsePacket> ID = 
             new CustomPayload.Id<>(Identifier.of(FormacraftMod.MOD_ID, "build_response"));
