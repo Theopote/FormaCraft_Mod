@@ -502,7 +502,7 @@ FormaCraftNetworking.sendToServer(applyPayload);
 ### Generation system target state
 
 - **Primary:** LlmPlan → `common.compiler` → `common.generator` → `BlockPatch`
-- **Legacy (landmarks / city / composite):** `BuildingSpec` → `server.generator`
+- **Structure (landmarks / city / composite):** `BuildingSpec` → `GenerationHub.routeStructure()` → `common.generation.structure`
 - **Routing:** `FormaRequest.outputFormat` — client defaults to `"llmplan"`; Python `build.py` mirrors this
 
 ---

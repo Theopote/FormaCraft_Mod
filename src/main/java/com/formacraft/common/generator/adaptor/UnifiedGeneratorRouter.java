@@ -3,7 +3,7 @@ package com.formacraft.common.generator.adaptor;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generator.ComponentGenerator;
-import com.formacraft.common.generator.GeneratorRegistry;
+import com.formacraft.common.generator.ComponentGeneratorRegistry;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;
@@ -24,7 +24,7 @@ import java.util.Set;
  * 按优先级选择生成路径：
  * <ol>
  *   <li>组件内嵌骨架（{@code params.skeleton} / {@code skeleton:} feature）→ {@link SkeletonExecutors}</li>
- *   <li>已注册的 {@link ComponentGenerator}（{@link GeneratorRegistry}）</li>
+ *   <li>已注册的 {@link ComponentGenerator}（{@link ComponentGeneratorRegistry}）</li>
  *   <li>玩家组件扩展（{@code group_request:} / {@code component_request:}）</li>
  *   <li>整栋生成器回退（{@link StructureGeneratorAdaptor}）— 仅显式请求或未注册整栋类型</li>
  * </ol>
@@ -85,7 +85,7 @@ public final class UnifiedGeneratorRouter {
     }
 
     private static List<BlockPatch> tryComponentGenerator(SemanticComponent semantic, String componentType) {
-        ComponentGenerator generator = GeneratorRegistry.getGenerator(componentType);
+        ComponentGenerator generator = ComponentGeneratorRegistry.getGenerator(componentType);
         if (generator == null) {
             return new ArrayList<>();
         }
@@ -230,7 +230,7 @@ public final class UnifiedGeneratorRouter {
         }
 
         String type = normalizeType(c.componentType());
-        return !GeneratorRegistry.hasGenerator(type) && WHOLE_BUILDING_TYPES.contains(type);
+        return !ComponentGeneratorRegistry.hasGenerator(type) && WHOLE_BUILDING_TYPES.contains(type);
     }
 
     private static SlotAnchor resolveSlotAnchor(SemanticComponent semantic) {

@@ -14,11 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * PathGenerator（路径生成器）
- * 
+ * PathComponentGenerator（构件层路径生成器）
+ *
  * 生成路径/道路（铺装地面）
  */
-public class PathGenerator implements ComponentGenerator {
+public class PathComponentGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
@@ -34,30 +34,27 @@ public class PathGenerator implements ComponentGenerator {
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
-        int height = Math.max(1, Math.min(2, d.height())); // 路径通常只有 1-2 格高
+        int height = Math.max(1, Math.min(2, d.height()));
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 生成路径表面
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     SemanticPart part;
-                    // 边缘使用不同的材质
                     if (x == 0 || x == width - 1 || z == 0 || z == depth - 1) {
                         part = SemanticPart.ROAD_EDGE;
                     } else {
                         part = SemanticPart.ROAD_SURFACE;
                     }
-                    
+
                     String block = palette.pick(part);
                     if (block == null || block.isEmpty()) {
-                        // 如果没有 ROAD_EDGE，使用 ROAD_SURFACE
                         part = SemanticPart.ROAD_SURFACE;
                         block = palette.pick(part);
                     }
-                    
+
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,
@@ -76,4 +73,3 @@ public class PathGenerator implements ComponentGenerator {
         return "MEDIEVAL_CLASSIC";
     }
 }
-

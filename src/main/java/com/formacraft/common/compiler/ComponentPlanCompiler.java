@@ -3,7 +3,7 @@ package com.formacraft.common.compiler;
 import com.formacraft.common.compiler.postprocess.PostProcessContext;
 import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.generator.GeneratorRegistry;
+import com.formacraft.common.generator.ComponentGeneratorRegistry;
 import com.formacraft.common.generator.adaptor.UnifiedGeneratorRouter;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -628,11 +628,11 @@ public final class ComponentPlanCompiler {
         if (allowUnknown) {
             return type;
         }
-        if (GeneratorRegistry.hasGenerator(type)) {
+        if (ComponentGeneratorRegistry.hasGenerator(type)) {
             return type;
         }
         String fallback = inferFallbackType(type);
-        if (GeneratorRegistry.hasGenerator(fallback)) {
+        if (ComponentGeneratorRegistry.hasGenerator(fallback)) {
             FormacraftMod.LOGGER.debug("ComponentPlanCompiler: fallback component type {} -> {}", type, fallback);
             return fallback;
         }

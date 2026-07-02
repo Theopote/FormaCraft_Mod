@@ -14,15 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * WallGenerator（墙体生成器 v2）
- * 
+ * WallComponentGenerator（构件层墙体生成器 v2）
+ *
  * 使用 Palette 权重随机生成矩形墙体
- * 
- * 核心提升：
- * - ✅ 使用 PaletteResolver 替换硬编码方块
- * - ✅ 墙体自然老化、有苔藓、有裂纹、有变化
  */
-public class WallGenerator implements ComponentGenerator {
+public class WallComponentGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
@@ -40,20 +36,16 @@ public class WallGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
 
-        // 获取风格
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
-        // 检查 features
         boolean hasWindows = hasFeature(c, "windows", "window", "arrow_slits");
         boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved");
         boolean hasBattlements = hasFeature(c, "battlements", "battlement", "crenelation");
 
-        // 生成矩形墙体（使用 Palette 权重随机）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 检查是否是窗户位置
                     if (hasWindows && isWindowPosition(x, z, width, depth, y, height)) {
                         SemanticPart part = SemanticPart.WINDOW;
                         String block = palette.pick(part);
@@ -70,7 +62,6 @@ public class WallGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    // 检查是否是装饰位置
                     if (hasDecor && isDecorPosition(x, z, width, depth, y, height)) {
                         SemanticPart part = SemanticPart.DECOR;
                         String block = palette.pick(part);
@@ -88,7 +79,6 @@ public class WallGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    // 检查是否是垛口位置
                     if (hasBattlements && isBattlementPosition(x, z, width, depth, y, height)) {
                         SemanticPart part = SemanticPart.BATTLEMENT;
                         String block = palette.pick(part);
@@ -106,10 +96,9 @@ public class WallGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    // 默认：根据位置确定 SemanticPart
                     SemanticPart part = determinePart(y, height, width, depth, x, z);
                     String block = palette.pick(part);
-                    
+
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,
@@ -124,47 +113,29 @@ public class WallGenerator implements ComponentGenerator {
         return out;
     }
 
-    /**
-     * 检查是否是窗户位置
-     */
     private boolean isWindowPosition(int x, int z, int width, int depth, int y, int height) {
-        // 窗户通常在立面（z=0 或 z=depth-1），不在底部和顶部
         boolean isFacade = (z == 0 || z == depth - 1);
         boolean isMiddleHeight = (y > 0 && y < height - 1);
-        // 窗户通常不在角落，间隔放置
         boolean isNotCorner = (x > 0 && x < width - 1);
         boolean isWindowSpacing = (x % 4 == 2 || x % 4 == 3);
         return isFacade && isMiddleHeight && isNotCorner && isWindowSpacing;
     }
 
-    /**
-     * 检查是否是装饰位置
-     */
     private boolean isDecorPosition(int x, int z, int width, int depth, int y, int height) {
-        // 装饰通常在边缘、顶部、角落
         boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
         boolean isTop = (y >= height - 2);
         boolean isCorner = ((x == 0 || x == width - 1) && (z == 0 || z == depth - 1));
-        // 装饰间隔放置
         boolean isDecorSpacing = (x % 3 == 0 || z % 3 == 0);
         return (isEdge || isTop || isCorner) && isDecorSpacing && (y > 0);
     }
 
-    /**
-     * 检查是否是垛口位置
-     */
     private boolean isBattlementPosition(int x, int z, int width, int depth, int y, int height) {
-        // 垛口通常在顶部边缘
         boolean isTop = (y >= height - 1);
         boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
-        // 垛口间隔放置
         boolean isBattlementSpacing = (x % 2 == 0 || z % 2 == 0);
         return isTop && isEdge && isBattlementSpacing;
     }
 
-    /**
-     * 检查是否有特定特征
-     */
     private boolean hasFeature(Component c, String... keywords) {
         if (c.features() == null) return false;
         for (String feature : c.features()) {
@@ -179,40 +150,25 @@ public class WallGenerator implements ComponentGenerator {
         return false;
     }
 
-    /**
-     * 根据位置确定 SemanticPart
-     */
     private SemanticPart determinePart(int y, int height, int width, int depth, int x, int z) {
-        // 基础部分
         if (y == 0) {
             return SemanticPart.WALL_BASE;
         }
-        
-        // 顶部装饰
         if (y >= height - 1) {
             return SemanticPart.WALL_ACCENT;
         }
-        
-        // 边缘装饰
         if (x == 0 || x == width - 1 || z == 0 || z == depth - 1) {
             return SemanticPart.WALL_ACCENT;
         }
-        
-        // 默认墙体
         return SemanticPart.WALL;
     }
-    
-    /**
-     * 获取风格配置
-     */
+
     private String getStyleProfile(SemanticComponent semantic) {
-        // 1. 优先使用 SemanticComponent 中的 styleProfile
         if (semantic != null && semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
             String profile = semantic.styleProfile().trim();
-            // 映射 LLM 返回的风格名称到系统支持的风格
             String upper = profile.toUpperCase();
             if (upper.contains("CHINESE") && (upper.contains("GREAT") || upper.contains("WALL"))) {
-                return "MEDIEVAL_CLASSIC"; // 长城风格使用中世纪石头风格
+                return "MEDIEVAL_CLASSIC";
             }
             if (upper.contains("CHINESE_ROYAL") || upper.contains("CHINESE_IMPERIAL") || upper.contains("CHINESE_PALACE")
                     || (upper.contains("CHINESE") && (upper.contains("ROYAL") || upper.contains("IMPERIAL") || upper.contains("PALACE")))) {
@@ -224,7 +180,6 @@ public class WallGenerator implements ComponentGenerator {
             return profile;
         }
 
-        // 2. 尝试从 Component 的 features 推断风格
         Component c = semantic != null ? semantic.source() : null;
         if (c != null && c.features() != null) {
             for (String feature : c.features()) {
@@ -245,8 +200,6 @@ public class WallGenerator implements ComponentGenerator {
             }
         }
 
-        // 3. 默认
         return "MEDIEVAL_CLASSIC";
     }
 }
-
