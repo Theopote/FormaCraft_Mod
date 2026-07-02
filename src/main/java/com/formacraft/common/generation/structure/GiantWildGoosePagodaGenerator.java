@@ -116,37 +116,7 @@ public class GiantWildGoosePagodaGenerator implements StructureGenerator {
     // ringSquare / carveDoor moved to VerticalStackInterpreter
 
     private static Direction resolveFacing(BuildingSpec spec) {
-        // Priority: extra.layout.entranceFacing > extra.facing > SOUTH
-        try {
-            if (spec != null && spec.getExtra() != null) {
-                Object layoutObj = spec.getExtra().get("layout");
-                if (layoutObj instanceof Map<?, ?> m) {
-                    Object ef = m.get("entranceFacing");
-                    if (ef != null) {
-                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
-                        switch (s) {
-                            case "N", "NORTH", "北", "朝北" -> { return Direction.NORTH; }
-                            case "S", "SOUTH", "南", "朝南" -> { return Direction.SOUTH; }
-                            case "E", "EAST", "东", "朝东" -> { return Direction.EAST; }
-                            case "W", "WEST", "西", "朝西" -> { return Direction.WEST; }
-                            default -> {}
-                        }
-                    }
-                }
-            }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
-        return parseFacing(getStringExtra(spec, "facing", "SOUTH"));
-    }
-
-    private static Direction parseFacing(String s) {
-        String v = (s == null ? "" : s).trim().toUpperCase();
-        return switch (v) {
-            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-            default -> Direction.SOUTH;
-        };
+        return StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {

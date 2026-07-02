@@ -703,33 +703,10 @@ public class TulouGenerator implements StructureGenerator {
     }
 
     private static Direction resolveDoorFacing(BuildingSpec spec) {
-        // explicit extra.doorFacing has highest priority
-        try {
-            if (spec != null && spec.getExtra() != null && spec.getExtra().containsKey("doorFacing")) {
-                return parseFacing(getStringExtra(spec, "doorFacing", "SOUTH"));
-            }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
-
-        // fallback to extra.layout.entranceFacing
-        try {
-            if (spec != null && spec.getExtra() != null) {
-                Object layoutObj = spec.getExtra().get("layout");
-                if (layoutObj instanceof Map<?, ?> m) {
-                    Object ef = m.get("entranceFacing");
-                    if (ef != null) {
-                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
-                        return switch (s) {
-                            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-                            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-                            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-                            default -> Direction.SOUTH;
-                        };
-                    }
-                }
-            }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
-
-        return Direction.SOUTH;
+        if (spec != null && spec.getExtra() != null && spec.getExtra().containsKey("doorFacing")) {
+            return StructureSpecParsers.horizontalFacing(spec.getExtra().get("doorFacing"), Direction.SOUTH);
+        }
+        return StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
     }
 
     private static boolean isInnerRingOpening(int x, int z, int innerRadius, int openWidth) {
@@ -738,16 +715,6 @@ public class TulouGenerator implements StructureGenerator {
         if (Math.abs(x) <= tol && Math.abs(z) >= innerRadius - 1) return true;
         // E/W openings near z≈0, x≈±innerRadius
         return Math.abs(z) <= tol && Math.abs(x) >= innerRadius - 1;
-    }
-
-    private static Direction parseFacing(String s) {
-        String v = (s == null ? "" : s).trim().toUpperCase();
-        return switch (v) {
-            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-            default -> Direction.SOUTH;
-        };
     }
 
     private BlockState getStateOrDefault(ServerWorld world, String id, BlockState defaultState) {

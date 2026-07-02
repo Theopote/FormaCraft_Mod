@@ -1,5 +1,6 @@
 package com.formacraft.server.skeleton.grid;
 
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.skeleton.Skeleton;
 import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.SkeletonType;
@@ -24,10 +25,10 @@ public final class GridSkeleton implements Skeleton<GridPlan> {
 
     @Override
     public GridPlan generate(SkeletonParams params) {
-        int rows = getInt(params, "rows", 3, 1, 32);
-        int cols = getInt(params, "cols", 4, 1, 32);
-        int spacingX = getInt(params, "spacingX", 14, 6, 128);
-        int spacingZ = getInt(params, "spacingZ", 14, 6, 128);
+        int rows = SkeletonParamParsers.boundedInt(params, "rows", 3, 1, 32);
+        int cols = SkeletonParamParsers.boundedInt(params, "cols", 4, 1, 32);
+        int spacingX = SkeletonParamParsers.boundedInt(params, "spacingX", 14, 6, 128);
+        int spacingZ = SkeletonParamParsers.boundedInt(params, "spacingZ", 14, 6, 128);
 
         // center the grid around origin
         int x0 = -((cols - 1) * spacingX) / 2;
@@ -42,18 +43,6 @@ public final class GridSkeleton implements Skeleton<GridPlan> {
             }
         }
         return plan;
-    }
-
-    private static int getInt(SkeletonParams p, String key, int def, int min, int max) {
-        Object v = p.get(key);
-        int n = def;
-        try {
-            if (v instanceof Number num) n = num.intValue();
-            else if (v != null) n = Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
-        if (n < min) n = min;
-        if (n > max) n = max;
-        return n;
     }
 }
 

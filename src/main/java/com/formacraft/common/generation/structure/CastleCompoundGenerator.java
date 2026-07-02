@@ -543,7 +543,11 @@ public class CastleCompoundGenerator implements StructureGenerator {
         return StructureSpecParsers.extraInt(spec, key, def);
     }
 
-    private static int getIntExtra(BuildingSpec spec, String key, int def) {
+    private static Direction resolveGateSide(BuildingSpec spec) {
+        return StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
+    }
+
+    private static String resolveLayoutPlan(BuildingSpec spec) {
         try {
             if (spec != null && spec.getExtra() != null) {
                 Object layoutObj = spec.getExtra().get("layout");
@@ -586,16 +590,6 @@ public class CastleCompoundGenerator implements StructureGenerator {
         ex.put("layout", layout);
 
         gateHouse.setExtra(ex);
-    }
-
-    private static Direction parseFacing(String s) {
-        String v = (s == null ? "" : s).trim().toUpperCase();
-        return switch (v) {
-            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-            default -> Direction.SOUTH;
-        };
     }
 
     private static int clamp(int v, int min, int max) {
