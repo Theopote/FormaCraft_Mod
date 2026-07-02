@@ -18,6 +18,7 @@ public final class AssemblySurfaceOps {
         void put(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin, int x, int y, int z, BlockState state);
         void placePrism(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin, int cx, int cy, int cz, int thickness, int h, BlockState state);
         void placeBeamLine(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin, int x0, int y0, int z0, int x1, int y1, int z1, int thickness, int beamH, BlockState state);
+        void connectSurfaceGrid(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin, int[][][] grid, int uN, int vN, int thick, BlockState mat);
         BlockState pick(MetaAssemblyEngine.Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback);
         int i(Object v, int def);
         double d(Object v, double def);
