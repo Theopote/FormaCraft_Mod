@@ -4,6 +4,7 @@ import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.model.constraint.ProtectedZone;
+import com.formacraft.server.state.PlayerOutlineStorage;
 import com.formacraft.server.state.PlayerProtectedZoneStorage;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -46,7 +47,7 @@ public final class SkeletonPreviewHelper {
         // 签发 PreviewTicket 并下发客户端预览
         List<ProtectedZone> zones = PlayerProtectedZoneStorage.get(player);
         com.formacraft.server.patch.PatchPreviewService.issuePreview(
-                player, origin, patches, zones, false, null, null);
+                player, origin, patches, zones, PlayerOutlineStorage.get(player), false, null, null);
     }
 
     /**

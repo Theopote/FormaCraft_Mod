@@ -1,6 +1,7 @@
 package com.formacraft.server.patch;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.patch.BlockPatch;
@@ -28,11 +29,12 @@ public final class PatchPreviewService {
             BlockPos origin,
             List<BlockPatch> rawPatches,
             List<ProtectedZone> protectedZones,
+            OutlineShape outline,
             boolean restrictToSelection,
             BlockPos selectionMin,
             BlockPos selectionMax
     ) {
-        return issuePreview(player, origin, rawPatches, protectedZones,
+        return issuePreview(player, origin, rawPatches, protectedZones, outline,
                 restrictToSelection, selectionMin, selectionMax, true);
     }
 
@@ -41,6 +43,7 @@ public final class PatchPreviewService {
             BlockPos origin,
             List<BlockPatch> rawPatches,
             List<ProtectedZone> protectedZones,
+            OutlineShape outline,
             boolean restrictToSelection,
             BlockPos selectionMin,
             BlockPos selectionMax,
@@ -54,7 +57,8 @@ public final class PatchPreviewService {
         }
 
         PatchFilterResult filtered = ServerPatchFilter.filter(
-                origin, rawPatches, protectedZones, restrictToSelection, selectionMin, selectionMax);
+                origin, rawPatches, protectedZones, outline,
+                restrictToSelection, selectionMin, selectionMax);
         if (filtered.accepted.isEmpty()) {
             return null;
         }

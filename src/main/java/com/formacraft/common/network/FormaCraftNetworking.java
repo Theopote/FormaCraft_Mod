@@ -2,7 +2,9 @@ package com.formacraft.common.network;
 
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
+import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.network.packet.BlockPatchPacket;
+import com.formacraft.common.network.packet.OutlineShapePacket;
 import com.formacraft.common.network.packet.PreviewOutlinePacket;
 import com.formacraft.common.network.packet.PreviewSkeletonPacket;
 import com.formacraft.common.network.packet.RequestBuildPacket;
@@ -81,6 +83,7 @@ public class FormaCraftNetworking {
     public static final Identifier PATCH_PREVIEW = Identifier.of("formacraft", "patch_preview");
     public static final Identifier PATCH_PREVIEW_REQUEST = Identifier.of("formacraft", "patch_preview_request");
     public static final Identifier PROTECTED_ZONE_SYNC = Identifier.of("formacraft", "protected_zone_sync");
+    public static final Identifier OUTLINE_SYNC = Identifier.of("formacraft", "outline_sync");
 
     // Component Library（v1）
     public static final Identifier COMPONENT_SAVE = Identifier.of("formacraft", "component_save");
@@ -366,6 +369,18 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** C2S：同步客户端轮廓/Footprint 到服务端（Patch 过滤的权威数据源）。 */
+    public record OutlineSyncPayload(OutlineShape outline) implements CustomPayload {
+        public static final CustomPayload.Id<OutlineSyncPayload> ID = new CustomPayload.Id<>(OUTLINE_SYNC);
+        public static final PacketCodec<PacketByteBuf, OutlineSyncPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> OutlineShapePacket.writeOutline(buf, payload.outline()),
+                buf -> new OutlineSyncPayload(OutlineShapePacket.readOutline(buf))
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record ComponentSavePayload(String json, byte[] thumbnailPng) implements CustomPayload {
         public static final CustomPayload.Id<ComponentSavePayload> ID = new CustomPayload.Id<>(COMPONENT_SAVE);
         public static final PacketCodec<PacketByteBuf, ComponentSavePayload> CODEC = PacketCodec.of(
@@ -562,6 +577,12 @@ public class FormaCraftNetworking {
             com.formacraft.server.patch.PatchPreviewService.confirm(player, payload.previewTicketId());
         }));
 
+        ServerPlayNetworking.registerGlobalReceiver(OutlineSyncPayload.ID, (payload, context) -> context.server().execute(() -> {
+            ServerPlayerEntity player = context.player();
+            if (player == null) return;
+            com.formacraft.server.state.PlayerOutlineStorage.set(player, payload.outline());
+        }));
+
         ServerPlayNetworking.registerGlobalReceiver(ProtectedZoneSyncPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
@@ -612,6 +633,7 @@ public class FormaCraftNetworking {
                     origin,
                     rawPatches,
                     zones,
+                    com.formacraft.server.state.PlayerOutlineStorage.get(player),
                     payload.restrictToSelection(),
                     payload.selectionMin(),
                     payload.selectionMax(),
@@ -936,6 +958,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playC2S().register(PatchConfirmPayload.ID, PatchConfirmPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(RequestPatchPreviewPayload.ID, RequestPatchPreviewPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ProtectedZoneSyncPayload.ID, ProtectedZoneSyncPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(OutlineSyncPayload.ID, OutlineSyncPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PreviewAdjustPayload.ID, PreviewAdjustPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ComponentSavePayload.ID, ComponentSavePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ComponentCatalogRequestPayload.ID, ComponentCatalogRequestPayload.CODEC);
@@ -1064,6 +1087,17 @@ public class FormaCraftNetworking {
     public static void sendRequestPatchPreview(RequestPatchPreviewPayload payload) {
         if (payload == null) return;
         MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && mc.getNetworkHandler() != null) {
+            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
+            return;
+        }
+        ClientPlayNetworking.send(payload);
+    }
+
+    /** 客户端同步轮廓/Footprint 到服务端。 */
+    public static void sendOutlineSync(OutlineShape outline) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        OutlineSyncPayload payload = new OutlineSyncPayload(outline);
         if (mc != null && mc.getNetworkHandler() != null) {
             mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
             return;

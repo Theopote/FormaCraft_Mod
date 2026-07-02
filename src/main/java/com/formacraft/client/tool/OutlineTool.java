@@ -1,6 +1,8 @@
 package com.formacraft.client.tool;
 
+import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.interaction.CursorRaycastHelper;
+import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -193,6 +195,7 @@ public final class OutlineTool implements FormacraftTool {
 
         int[] yr = defaultYRange(center.getY());
         this.shape = new OutlineShape(OutlineMode.CIRCLE, List.of(), center, r, yr[0], yr[1]);
+        syncToServer();
     }
 
     private void finishPolygon() {
@@ -210,6 +213,7 @@ public final class OutlineTool implements FormacraftTool {
         int baseY = pts.get(0).getY();
         int[] yr = defaultYRange(baseY);
         this.shape = new OutlineShape(m, List.copyOf(pts), null, 0, yr[0], yr[1]);
+        syncToServer();
     }
 
     private int[] defaultYRange(int baseY) {
@@ -235,6 +239,11 @@ public final class OutlineTool implements FormacraftTool {
     public void clearShape() {
         shape = null;
         cancelDraft();
+        syncToServer();
+    }
+
+    private void syncToServer() {
+        FormaCraftNetworking.sendOutlineSync(BuildContextResolver.currentOutlineShape());
     }
 
     public boolean isDrafting() {

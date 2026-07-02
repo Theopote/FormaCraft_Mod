@@ -1,15 +1,19 @@
 package com.formacraft.server.patch;
 
+import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.filter.PatchFilterResult;
+import com.formacraft.server.build.BuildConstraints;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 服务端 Patch 过滤：在签发 PreviewTicket 前应用禁区与选区约束。
+ * 服务端 Patch 过滤：在签发 PreviewTicket 前应用禁区、选区与轮廓约束。
+ * <p>
+ * 与客户端 {@link com.formacraft.client.patch.filter.ToolPatchFilter} 对齐：
+ * MODIFY_REGION 时仅限制选区，不叠加轮廓；否则轮廓与禁区同时生效。
  */
 public final class ServerPatchFilter {
     private ServerPatchFilter() {}
@@ -18,6 +22,7 @@ public final class ServerPatchFilter {
             BlockPos origin,
             List<BlockPatch> patches,
             List<ProtectedZone> protectedZones,
+            OutlineShape outline,
             boolean restrictToSelection,
             BlockPos selectionMin,
             BlockPos selectionMax
@@ -42,32 +47,19 @@ public final class ServerPatchFilter {
             );
         }
 
+        // 与 BuildContextResolver 一致：MODIFY_REGION 时不使用轮廓主约束
+        OutlineShape effectiveOutline = restrictToSelection ? null : outline;
         List<ProtectedZone> zones = protectedZones != null ? protectedZones : List.of();
+        BuildConstraints constraints = new BuildConstraints(selMin, selMax, effectiveOutline, zones);
 
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
             BlockPos abs = origin.add(patch.dx(), patch.dy(), patch.dz());
-
-            boolean allowed = true;
-            for (ProtectedZone z : zones) {
-                if (z != null && z.contains(abs)) {
-                    allowed = false;
-                    result.rejected.add(patch);
-                    break;
-                }
+            if (constraints.allow(abs)) {
+                result.accepted.add(patch);
+            } else {
+                result.rejected.add(patch);
             }
-            if (!allowed) continue;
-
-            if (selMin != null && selMax != null) {
-                if (abs.getX() < selMin.getX() || abs.getX() > selMax.getX()
-                        || abs.getY() < selMin.getY() || abs.getY() > selMax.getY()
-                        || abs.getZ() < selMin.getZ() || abs.getZ() > selMax.getZ()) {
-                    result.rejected.add(patch);
-                    continue;
-                }
-            }
-
-            result.accepted.add(patch);
         }
 
         if (restrictToSelection && selMin == null) {

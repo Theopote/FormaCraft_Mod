@@ -51,6 +51,7 @@ public final class BuildRequestProcessor {
                         enrichRequestFromPlayer(req, player);
                     } catch (Throwable ignored) {}
                     com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
+                    com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
 
                     // 状态：服务端已收到请求
                     context.server().execute(() -> ServerPlayNetworking.send(player,

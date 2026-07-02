@@ -82,6 +82,7 @@ public final class LlmPlanPreviewBuilder {
                     && !llmPlan.usesPlanProgramMode()
                     && (llmPlan.components() == null || llmPlan.components().isEmpty())) {
                 com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
+                com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
 
                 BlockPos patchOrigin = com.formacraft.common.llm.bridge.BlockPatchBridge.toOrigin(llmPlan.patch());
                 List<com.formacraft.common.patch.BlockPatch> patchList =
@@ -98,6 +99,7 @@ public final class LlmPlanPreviewBuilder {
                         patchOrigin,
                         patchList,
                         com.formacraft.server.state.PlayerProtectedZoneStorage.get(player),
+                        com.formacraft.server.state.PlayerOutlineStorage.get(player),
                         restrict,
                         req.getSelectionMin(),
                         req.getSelectionMax()

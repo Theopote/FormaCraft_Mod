@@ -31,6 +31,12 @@ public final class BuildContextResolver {
         return resolve(false);
     }
 
+    /** 当前 OutlineTool 形状（用于同步到服务端 Patch 过滤）。 */
+    public static OutlineShape currentOutlineShape() {
+        if (!OutlineTool.INSTANCE.hasShape()) return null;
+        return toOutlineShape(OutlineTool.INSTANCE.getShape());
+    }
+
     /**
      * @param restrictToSelection 当为 true（MODIFY_REGION）时，如果存在选区则强制以选区为主约束
      */

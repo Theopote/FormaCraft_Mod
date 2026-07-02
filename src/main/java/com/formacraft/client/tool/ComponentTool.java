@@ -21,6 +21,7 @@ import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.placement.ComponentPlacementAnalyzer;
 import com.formacraft.common.component.placement.PlacementCaptureContext;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.semantic.SemanticPart;
@@ -400,6 +401,7 @@ public final class ComponentTool implements FormacraftTool {
                 autoConfirm
         ));
         FormaCraftNetworking.sendProtectedZoneSync(ProtectedZoneTool.INSTANCE.getZones());
+        FormaCraftNetworking.sendOutlineSync(BuildContextResolver.currentOutlineShape());
     }
 
     public void cycleFacing() {
