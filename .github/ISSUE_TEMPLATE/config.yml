@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Architecture & developer docs
+    url: https://github.com/formacraft/formacraft/blob/main/ARCHITECTURE.md
+    about: Read the system architecture before opening a design question
+  - name: Contributing guide
+    url: https://github.com/formacraft/formacraft/blob/main/CONTRIBUTING.md
+    about: How to set up the project and submit changes
