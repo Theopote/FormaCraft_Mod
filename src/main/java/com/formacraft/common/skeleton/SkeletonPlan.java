@@ -42,24 +42,14 @@ public abstract class SkeletonPlan {
      * 获取整数参数
      */
     public int intParam(String key, int def) {
-        Object v = params != null ? params.get(key) : null;
-        if (v instanceof Number n) return n.intValue();
-        if (v instanceof String s) {
-            try { return Integer.parseInt(s); } catch (Exception ignored) {}
-        }
-        return def;
+        return SkeletonParamParsers.intParam(params, key, def);
     }
 
     /**
      * 获取浮点数参数
      */
     public double doubleParam(String key, double def) {
-        Object v = params != null ? params.get(key) : null;
-        if (v instanceof Number n) return n.doubleValue();
-        if (v instanceof String s) {
-            try { return Double.parseDouble(s); } catch (Exception ignored) {}
-        }
-        return def;
+        return SkeletonParamParsers.doubleParam(params, key, def);
     }
 
     /**

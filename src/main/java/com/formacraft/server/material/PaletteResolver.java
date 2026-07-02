@@ -1,5 +1,6 @@
 package com.formacraft.server.material;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.palette.PaletteCatalog;
 import com.formacraft.common.palette.PaletteRegistry;
 import net.minecraft.block.BlockState;
@@ -18,6 +19,8 @@ import java.util.Locale;
  * - Selection is deterministic per (paletteId, part, position, salt) so previews stay stable.
  */
 public final class PaletteResolver {
+    private static final FcaLog LOG = FcaLog.of("PaletteResolver");
+
     private PaletteResolver() {}
 
     public static BlockState pick(ServerWorld world, String paletteId, String part, BlockPos pos, long salt, BlockState fallback) {
@@ -73,7 +76,8 @@ public final class PaletteResolver {
             if (key == null) return null;
             var block = Registries.BLOCK.get(key);
             return block.getDefaultState();
-        } catch (Throwable ignored) {
+        } catch (Throwable ex) {
+            LOG.debug("stateFromId failed id={}", s, ex);
             return null;
         }
     }

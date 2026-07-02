@@ -50,7 +50,8 @@ public final class BackendAutoStarter {
             try (java.io.FileWriter fw = new java.io.FileWriter(logFile, true)) {
                 fw.write("[FormaCraft][BackendAutoStarter] " + msg + System.lineSeparator());
             }
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            FormacraftMod.LOGGER.debug("[BackendAutoStarter] failed to append autostart log file", ex);
         }
     }
 
@@ -80,7 +81,8 @@ public final class BackendAutoStarter {
                 }
                 fw.write(System.lineSeparator());
             }
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            FormacraftMod.LOGGER.debug("[BackendAutoStarter] failed to append autostart error log file", ex);
         }
     }
 
@@ -239,7 +241,8 @@ public final class BackendAutoStarter {
                 File f3 = new File(parent, wd0);
                 if (f3.exists()) return f3;
             }
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            FormacraftMod.LOGGER.debug("[BackendAutoStarter] resolve backend workdir failed", ex);
         }
 
         return f0; // 不存在，返回原值用于日志
@@ -450,7 +453,9 @@ public final class BackendAutoStarter {
                     if (bp != null && bp.isAlive()) {
                         bp.destroy();
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ex) {
+                    FormacraftMod.LOGGER.debug("[BackendAutoStarter] shutdown hook destroy failed", ex);
+                }
             }));
         } catch (Exception e) {
             lastError = "failed to start backend: " + e.getMessage();

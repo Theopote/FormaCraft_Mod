@@ -1,5 +1,6 @@
 package com.formacraft.common.skeleton;
 
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.util.math.Direction;
 
 import java.util.*;
@@ -13,6 +14,8 @@ import java.util.*;
  * 作为骨架层统一 DTO，解除 common 编译器对 server 包的依赖。
  */
 public class ExecutableSkeletonPlan {
+    private static final FcaLog LOG = FcaLog.of("ExecutableSkeletonPlan");
+
     public final SkeletonType type;
 
     /** 参数表：例如 width, height, radius, points 等 */
@@ -80,7 +83,9 @@ public class ExecutableSkeletonPlan {
             } else if (v instanceof String s) {
                 try {
                     this.facing = Direction.valueOf(s.toUpperCase());
-                } catch (IllegalArgumentException ignored) {}
+                } catch (IllegalArgumentException ex) {
+                    LOG.debug("parse facing failed value={}", s, ex);
+                }
             }
         }
 
@@ -100,7 +105,9 @@ public class ExecutableSkeletonPlan {
             } else if (v instanceof String s) {
                 try {
                     this.heightPolicy = HeightPolicy.valueOf(s.toUpperCase());
-                } catch (IllegalArgumentException ignored) {}
+                } catch (IllegalArgumentException ex) {
+                    LOG.debug("parse heightPolicy failed value={}", s, ex);
+                }
             }
         }
 

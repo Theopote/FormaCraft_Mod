@@ -1,5 +1,6 @@
 package com.formacraft.server.asset;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
 import com.google.gson.Gson;
@@ -30,6 +31,7 @@ import java.util.*;
  * 4. 支持朝向转换
  */
 public final class AssetLibrary {
+    private static final FcaLog LOG = FcaLog.of("AssetLibrary");
     private static final String MOD_ID = "formacraft";
     private static final Gson GSON = new GsonBuilder().create();
     private static final Map<String, AssetDefinition> ASSETS = new HashMap<>();
@@ -88,13 +90,13 @@ public final class AssetLibrary {
                     return p.get();
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("find asset library via Fabric failed", ex); }
         
         // 2) Build-tool fallback (gradle JavaExec)
         try {
             Path p = Path.of("src/main/resources/assets/" + MOD_ID + "/asset_library");
             if (Files.exists(p) && Files.isDirectory(p)) return p;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("find asset library via filesystem failed", ex); }
         
         return null;
     }
@@ -329,7 +331,7 @@ public final class AssetLibrary {
                 try {
                     net.minecraft.util.math.Direction.Axis axis = net.minecraft.util.math.Direction.Axis.valueOf(axisStr);
                     result = result.with(Properties.AXIS, axis);
-                } catch (IllegalArgumentException ignored) {}
+                } catch (IllegalArgumentException ex) { LOG.debug("parse block axis failed value={}", axisStr, ex); }
             }
             
             // half 属性（楼梯、台阶的半边）
@@ -339,7 +341,7 @@ public final class AssetLibrary {
                 try {
                     BlockHalf half = BlockHalf.valueOf(halfStr);
                     result = result.with(Properties.BLOCK_HALF, half);
-                } catch (IllegalArgumentException ignored) {}
+                } catch (IllegalArgumentException ex) { LOG.debug("parse block half failed value={}", halfStr, ex); }
             }
             
             // type 属性（台阶的类型）
@@ -349,7 +351,7 @@ public final class AssetLibrary {
                 try {
                     net.minecraft.block.enums.SlabType type = net.minecraft.block.enums.SlabType.valueOf(typeStr);
                     result = result.with(Properties.SLAB_TYPE, type);
-                } catch (IllegalArgumentException ignored) {}
+                } catch (IllegalArgumentException ex) { LOG.debug("parse slab type failed value={}", typeStr, ex); }
             }
         } catch (Exception e) {
             // 如果应用属性失败，返回原状态
