@@ -23,10 +23,6 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-
 /**
  * 构件拾取面板（独立面板）
  * <p>
@@ -112,20 +108,12 @@ public class ComponentCapturePanel extends BasePanel {
     private boolean tagsInputBoundsValid = false;
     private boolean socketIdInputBoundsValid = false;
 
-    // 缩略图缓存
-    private BufferedImage cachedThumbnail = null;
-    private BlockPos lastSelectionMin = null;
-    private BlockPos lastSelectionMax = null;
-    private volatile boolean isGeneratingThumbnail = false;
+    private final ComponentCaptureSelectionController selectionController = new ComponentCaptureSelectionController();
+    private final ComponentCaptureThumbnailService thumbnailService = new ComponentCaptureThumbnailService();
 
     // 滚动
     private int scrollY = 0;
     private int maxScrollY = 0;
-    
-    // 选择工具状态
-    private ComponentSelectionMode selectionMode = ComponentSelectionMode.BOX_SELECT;
-    private java.util.Set<BlockPos> selectedBlocks = new java.util.HashSet<>();
-    private boolean isDragging = false;
     
     // Phase 3: 语义配置状态
     private com.formacraft.common.component.placement.AttachmentType attachmentMode = 
@@ -174,6 +162,8 @@ public class ComponentCapturePanel extends BasePanel {
         
         socketIdInput.setMaxLength(64);
         socketIdInput.setPlaceholder("输入连接位 ID（如：door_frame）");
+
+        selectionController.setOnSelectionChanged(thumbnailService::invalidate);
     }
 
     private void ensureWidgets() {
@@ -915,10 +905,7 @@ public class ComponentCapturePanel extends BasePanel {
      * 设置选择模式
      */
     private void setSelectionMode(ComponentSelectionMode mode) {
-        this.selectionMode = mode;
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换选择模式: {}", mode.getDisplayName());
-        }
+        selectionController.setMode(mode);
     }
 
     @Override
@@ -974,7 +961,7 @@ public class ComponentCapturePanel extends BasePanel {
         int buttonW = (w - 8) / 3; // 3个按钮平分宽度
         
         // 框选按钮
-        boxSelectButton.setMessage(Text.literal(selectionMode == ComponentSelectionMode.BOX_SELECT ? "📦 [框选]" : "📦 框选"));
+        boxSelectButton.setMessage(Text.literal(selectionController.getMode() == ComponentSelectionMode.BOX_SELECT ? "📦 [框选]" : "📦 框选"));
         boxSelectButton.setPosition(x, y);
         boxSelectButton.setWidth(buttonW);
         boxSelectButton.visible = true;
@@ -982,7 +969,7 @@ public class ComponentCapturePanel extends BasePanel {
         boxSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
         
         // 点选按钮
-        pointSelectButton.setMessage(Text.literal(selectionMode == ComponentSelectionMode.POINT_SELECT ? "👆 [点选]" : "👆 点选"));
+        pointSelectButton.setMessage(Text.literal(selectionController.getMode() == ComponentSelectionMode.POINT_SELECT ? "👆 [点选]" : "👆 点选"));
         pointSelectButton.setPosition(x + buttonW + 4, y);
         pointSelectButton.setWidth(buttonW);
         pointSelectButton.visible = true;
@@ -994,18 +981,18 @@ public class ComponentCapturePanel extends BasePanel {
         clearSelectionButton.setPosition(x + buttonW * 2 + 8, y);
         clearSelectionButton.setWidth(buttonW);
         clearSelectionButton.visible = true;
-        clearSelectionButton.active = !selectedBlocks.isEmpty() || SelectionTool.INSTANCE.hasSelection();
+        clearSelectionButton.active = selectionController.hasAnySelection();
         clearSelectionButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
         
         y += LABEL_OFFSET;
         
         // 当前模式提示
-        String modeText = "当前模式: " + selectionMode.getDisplayName() + " - " + selectionMode.getHint();
+        String modeText = "当前模式: " + selectionController.getMode().getDisplayName() + " - " + selectionController.getMode().getHint();
         y = drawWrappedText(ctx, Text.literal(modeText), x, y, w, 0xFF88CCFF);
         y += 4;
         
         // 快捷键说明
-        String hint = selectionMode == ComponentSelectionMode.POINT_SELECT 
+        String hint = selectionController.getMode() == ComponentSelectionMode.POINT_SELECT 
             ? "提示: 点击方块切换选择 | Ctrl+点击强制加选 | 右键设锚点"
             : "提示: 拖拽可见预览框 | 右键设锚点";
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), x, y, 0xFF666666);
@@ -1016,7 +1003,7 @@ public class ComponentCapturePanel extends BasePanel {
         y += 4;
 
             // 检查是否有选区
-            if (!SelectionTool.INSTANCE.hasSelection() && selectedBlocks.isEmpty()) {
+            if (!selectionController.hasAnySelection()) {
                 y = drawWrappedText(ctx, Text.literal("⚠ 尚未选择任何方块"), x, y, w, 0xFFFFAA00);
             } else {
 
@@ -1045,7 +1032,7 @@ public class ComponentCapturePanel extends BasePanel {
                 sizeZ = max.getZ() - min.getZ() + 1;
             }
         }
-        int blockCount = countBlocksInSelection();
+        int blockCount = selectionController.countBlocks(client);
 
         y = drawWrappedText(ctx, Text.literal("尺寸: " + sizeX + "×" + sizeY + "×" + sizeZ), x, y, w, 0xFFAAAAAA);
         y += client.textRenderer.fontHeight;
@@ -1057,7 +1044,7 @@ public class ComponentCapturePanel extends BasePanel {
         y += 4;
 
         // 缩略图预览
-        drawThumbnailPreview(ctx, x + (w - THUMBNAIL_SIZE) / 2, y);
+        thumbnailService.drawPreview(ctx, client, x + (w - THUMBNAIL_SIZE) / 2, y, THUMBNAIL_SIZE);
         y += THUMBNAIL_SIZE + 8;
 
                 // 分隔线
@@ -1122,7 +1109,7 @@ public class ComponentCapturePanel extends BasePanel {
             hostFaceButton.setPosition(x, y);
             hostFaceButton.setWidth(half);
             hostFaceButton.visible = true;
-            hostFaceButton.active = hasValidSelection();
+            hostFaceButton.active = selectionController.hasValidSelection();
             hostFaceButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
             anchorOutsideButton.setMessage(Text.literal(st.captureDraft.anchor.allowOutsideSelection ? "外侧锚点：开" : "外侧锚点：关"));
@@ -1136,7 +1123,7 @@ public class ComponentCapturePanel extends BasePanel {
             autoAnchorButton.setPosition(x, y);
             autoAnchorButton.setWidth(w);
             autoAnchorButton.visible = true;
-            autoAnchorButton.active = hasValidSelection();
+            autoAnchorButton.active = selectionController.hasValidSelection();
             autoAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
             y += LABEL_OFFSET;
 
@@ -1750,174 +1737,6 @@ public class ComponentCapturePanel extends BasePanel {
         ctx.disableScissor();
     }
 
-    private void drawThumbnailPreview(DrawContext ctx, int x, int y) {
-        // 绘制边框
-        ctx.fill(x - 1, y - 1, x + THUMBNAIL_SIZE + 1, y + THUMBNAIL_SIZE + 1, 0xFF444444);
-        ctx.fill(x, y, x + THUMBNAIL_SIZE, y + THUMBNAIL_SIZE, 0xFF1A1A1A);
-
-        // 检查是否需要重新生成缩略图
-        BlockPos min = SelectionTool.INSTANCE.getMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-
-        // 防止重复触发生成（防抖）
-        if (max != null && min != null && 
-            (cachedThumbnail == null || !min.equals(lastSelectionMin) || !max.equals(lastSelectionMax))) {
-            // 只有在没有正在生成时才触发新的生成
-            if (!isGeneratingThumbnail) {
-                regenerateThumbnail();
-                lastSelectionMin = min;
-                lastSelectionMax = max;
-            }
-        }
-
-        // 绘制缩略图
-        if (cachedThumbnail != null) {
-            com.formacraft.client.ui.render.ImageRenderer.renderCentered(ctx, cachedThumbnail, x, y, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
-        } else {
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal("生成中..."), 
-                x + THUMBNAIL_SIZE / 2 - 20, y + THUMBNAIL_SIZE / 2, 0xFFAAAAAA);
-        }
-    }
-
-    private void regenerateThumbnail() {
-        // 防止重复生成
-        if (isGeneratingThumbnail) {
-            if (DEBUG_CAPTURE) {
-                com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 已有生成任务在进行，跳过");
-            }
-            return;
-        }
-        
-        // 清空旧缩略图
-        cachedThumbnail = null;
-        isGeneratingThumbnail = true;
-        
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 开始生成...");
-        }
-        
-        // 异步生成缩略图
-        new Thread(() -> {
-            try {
-                // 检查前置条件
-                if (client == null || client.world == null) {
-                    if (DEBUG_CAPTURE) {
-                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] client 或 client.world 为 null");
-                    }
-                    return;
-                }
-                
-                if (!SelectionTool.INSTANCE.hasSelection()) {
-                    if (DEBUG_CAPTURE) {
-                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 没有选区");
-                    }
-                    return;
-                }
-                
-                BlockPos min = SelectionTool.INSTANCE.getMin();
-                BlockPos max = SelectionTool.INSTANCE.getMax();
-                if (min == null || max == null) {
-                    if (DEBUG_CAPTURE) {
-                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 选区 min 或 max 为 null");
-                    }
-                    return;
-                }
-                
-                // 检查锚点
-                var st = ComponentTool.INSTANCE.getState();
-                if (st.captureDraft.anchor.worldPos == null) {
-                    if (DEBUG_CAPTURE) {
-                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 锚点未设置！请先设置锚点（右键点击方块）");
-                    }
-                    return;
-                }
-                
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 选区: {} -> {}, 锚点: {}", min, max, st.captureDraft.anchor.worldPos);
-                }
-                
-                String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client, ComponentTool.INSTANCE.getState().captureDraft);
-                if (json != null) {
-                    ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
-                    if (def != null) {
-                        java.awt.image.BufferedImage thumb = ComponentThumbnailGenerator.generateThumbnail(def);
-                        if (thumb != null) {
-                            if (DEBUG_CAPTURE) {
-                                com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 生成成功: {}x{}", thumb.getWidth(), thumb.getHeight());
-                            }
-                            cachedThumbnail = thumb;
-                        } else {
-                            if (DEBUG_CAPTURE) {
-                                com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 生成失败: generateThumbnail 返回 null");
-                            }
-                        }
-                    } else {
-                        if (DEBUG_CAPTURE) {
-                            com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] 无法解析 ComponentDefinition");
-                        }
-                    }
-                } else {
-                    if (DEBUG_CAPTURE) {
-                        com.formacraft.FormacraftMod.LOGGER.warn("[缩略图] buildCurrentComponentJson 返回 null（可能是锚点问题）");
-                    }
-                }
-            } catch (Exception e) {
-                com.formacraft.FormacraftMod.LOGGER.error("[缩略图] 生成缩略图时出错", e);
-            } finally {
-                isGeneratingThumbnail = false;
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[缩略图] 生成任务结束");
-                }
-            }
-        }, "ThumbnailGenerator").start();
-    }
-
-    /**
-     * 统一判断是否有有效选区（AABB 或显式方块集合）
-     */
-    private boolean hasValidSelection() {
-        // 优先检查显式方块集合（点选模式）
-        if (!selectedBlocks.isEmpty()) {
-            return true;
-        }
-        // 回退到 AABB（框选模式）
-        return SelectionTool.INSTANCE.hasSelection();
-    }
-
-    private int countBlocksInSelection() {
-        if (client == null || client.world == null) return 0;
-        
-        // 优先使用显式方块集合（点选模式）
-        var st = ComponentTool.INSTANCE.getState();
-        if (st.captureDraft.selection.explicit && st.captureDraft.selection.blocks != null && !st.captureDraft.selection.blocks.isEmpty()) {
-            int count = 0;
-            for (BlockPos pos : st.captureDraft.selection.blocks) {
-                if (pos != null && !client.world.getBlockState(pos).isAir()) {
-                    count++;
-                }
-            }
-            return count;
-        }
-        
-        // 回退到 AABB 扫描（框选模式）
-        if (!SelectionTool.INSTANCE.hasSelection()) return 0;
-        BlockPos min = SelectionTool.INSTANCE.getMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-        if (min == null || max == null) return 0;
-
-        int count = 0;
-        for (int x = min.getX(); x <= max.getX(); x++) {
-            for (int y = min.getY(); y <= max.getY(); y++) {
-                for (int z = min.getZ(); z <= max.getZ(); z++) {
-                    if (!client.world.getBlockState(new BlockPos(x, y, z)).isAir()) {
-                        count++;
-                    }
-                }
-            }
-        }
-        return count;
-    }
-
     private void cycleCategory() {
         var st = ComponentTool.INSTANCE.getState();
         ComponentCategory[] values = ComponentCategory.values();
@@ -2066,7 +1885,7 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private CapturePhase computeCurrentPhase() {
         var st = ComponentTool.INSTANCE.getState();
-        boolean hasSelection = SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
+        boolean hasSelection = selectionController.hasAnySelection();
         boolean hasAnchor = st.captureDraft.anchor.worldPos != null;
         boolean hasName = st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
         boolean hasCategory = st.category != ComponentCategory.GENERIC;
@@ -2091,7 +1910,7 @@ public class ComponentCapturePanel extends BasePanel {
         var st = ComponentTool.INSTANCE.getState();
         switch (phase) {
             case SELECTION:
-                return SelectionTool.INSTANCE.hasSelection() || !selectedBlocks.isEmpty();
+                return selectionController.hasAnySelection();
             case ANCHOR_ORIENTATION:
                 return st.captureDraft.anchor.worldPos != null;
             case SEMANTIC:
@@ -2309,7 +2128,7 @@ public class ComponentCapturePanel extends BasePanel {
     private boolean canSave() {
         var st = ComponentTool.INSTANCE.getState();
         // 检查基本条件
-        if (!hasValidSelection()) {
+        if (!selectionController.hasValidSelection()) {
             return false;
         }
         if (st.name == null || st.name.isBlank()) {
@@ -2321,7 +2140,7 @@ public class ComponentCapturePanel extends BasePanel {
         }
         // 检查锚点是否在有效选区内（或允许外侧锚点）
         BlockPos anchor = st.captureDraft.anchor.worldPos;
-        if (!isAnchorLocationAllowed(anchor)) {
+        if (!selectionController.isAnchorLocationAllowed(anchor)) {
             return false;
         }
         // ERROR 阻断保存（Draft HealthCheck）
@@ -2406,14 +2225,7 @@ public class ComponentCapturePanel extends BasePanel {
             if (def == null) {
                 def = JsonUtil.fromJson(json, ComponentDefinition.class);
             }
-            if (def != null) {
-                BufferedImage thumb = ComponentThumbnailGenerator.generateThumbnail(def);
-                if (thumb != null) {
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ImageIO.write(thumb, "PNG", baos);
-                    thumbnailPng = baos.toByteArray();
-                }
-            }
+            thumbnailPng = thumbnailService.encodePng(def);
         } catch (Throwable t) {
             com.formacraft.FormacraftMod.LOGGER.warn("Failed to generate thumbnail", t);
         }
@@ -2806,77 +2618,25 @@ public class ComponentCapturePanel extends BasePanel {
         if (hit == null) return false;
         BlockPos pos = hit.getBlockPos();
         if (pos == null) return false;
-        
+
         if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 世界点击: {}, 按钮: {}, 模式: {}, 标记模式: {}", 
-                pos, button, selectionMode, markingMode);
+            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 世界点击: {}, 按钮: {}, 模式: {}, 标记模式: {}",
+                pos, button, selectionController.getMode(), markingMode);
         }
-        
+
         // Phase 3: 优先处理方向标记模式
         if (markingMode != DirectionMarkingMode.NONE && button == 0) {
             handleDirectionMarking(hit);
             return true;
         }
-        
+
         // 右键设置锚点
         if (button == 1) {
             setAnchor(pos);
             return true;
         }
-        
-        // 左键根据模式处理
-        if (button == 0) {
-            switch (selectionMode) {
-                case BOX_SELECT:
-                    // 框选模式：直接使用 SelectionTool 进行框选
-                    // SelectionTool 会处理拖拽和渲染预览
-                    // 注意：SelectionTool.onMouseClick 需要屏幕坐标，但实际它内部会自己计算鼠标射线
-                    // 这里传入的坐标会被忽略，SelectionTool 会从 client.mouse 获取实际坐标
-                    double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
-                    double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-                    SelectionTool.INSTANCE.onMouseClick(mouseX, mouseY, button);
-                    if (DEBUG_CAPTURE) {
-                        com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 框选: 交给 SelectionTool 处理");
-                    }
-                    return true;
-                    
-                case POINT_SELECT:
-                    // 点选模式：切换方块选择状态
-                    boolean isCtrlDown = org.lwjgl.glfw.GLFW.glfwGetKey(
-                        client.getWindow().getHandle(), 
-                        org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL
-                    ) == org.lwjgl.glfw.GLFW.GLFW_PRESS || org.lwjgl.glfw.GLFW.glfwGetKey(
-                        client.getWindow().getHandle(), 
-                        org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_CONTROL
-                    ) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-                    
-                    if (isCtrlDown) {
-                        // Ctrl+点击：强制加选
-                        addBlockToSelection(pos);
-                        if (DEBUG_CAPTURE) {
-                            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] Ctrl+点击 强制加选: {}", pos);
-                        }
-                    } else {
-                        // 普通点击：切换状态
-                        if (selectedBlocks.contains(pos.toImmutable())) {
-                            // 已选中 → 减选
-                            removeBlockFromSelection(pos);
-                            if (DEBUG_CAPTURE) {
-                                com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 点击减选: {}, 总数: {}", pos, selectedBlocks.size());
-                            }
-                        } else {
-                            // 未选中 → 加选
-                            addBlockToSelection(pos);
-                            if (DEBUG_CAPTURE) {
-                                com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 点击加选: {}, 总数: {}", pos, selectedBlocks.size());
-                            }
-                        }
-                    }
-                    return true;
-            }
-        }
-        
-        return false;
+
+        return selectionController.handleWorldClick(client, hit, button);
     }
     
     /**
@@ -2892,133 +2652,9 @@ public class ComponentCapturePanel extends BasePanel {
      * 处理鼠标释放（从 InputRouter 调用）
      */
     public void handleWorldRelease(int button) {
-        if (button == 0 && selectionMode == ComponentSelectionMode.BOX_SELECT) {
-            // 框选模式完成：从 SelectionTool 同步选区
-            if (SelectionTool.INSTANCE.hasSelection()) {
-                net.minecraft.util.math.BlockPos min = SelectionTool.INSTANCE.getMin();
-                net.minecraft.util.math.BlockPos max = SelectionTool.INSTANCE.getMax();
-                if (min != null && max != null) {
-                    setBoxSelection(min, max);
-                    if (DEBUG_CAPTURE) {
-                        com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 从 SelectionTool 同步选区: {} -> {}, 方块数: {}", min, max, selectedBlocks.size());
-                    }
-                }
-            }
-        }
+        selectionController.handleWorldRelease(button);
     }
-    
-    /**
-     * 添加单个方块到选区
-     */
-    private void addBlockToSelection(net.minecraft.util.math.BlockPos pos) {
-        if (pos == null) return;
-        selectedBlocks.add(pos.toImmutable());
-        updateSelectionToolFromBlocks();
-    }
-    
-    /**
-     * 从选区移除单个方块
-     */
-    private void removeBlockFromSelection(net.minecraft.util.math.BlockPos pos) {
-        if (pos == null) return;
-        selectedBlocks.remove(pos.toImmutable());
-        updateSelectionToolFromBlocks();
-    }
-    
-    /**
-     * 设置框选区域
-     */
-    private void setBoxSelection(net.minecraft.util.math.BlockPos start, net.minecraft.util.math.BlockPos end) {
-        if (start == null || end == null) return;
-        
-        var st = ComponentTool.INSTANCE.getState();
-        
-        // 清空现有选区
-        selectedBlocks.clear();
-        st.captureDraft.selection.blocks = null; // 框选模式下不使用显式集合
-        st.captureDraft.selection.explicit = false;
-        st.captureDraft.selection.aabbMin = null;
-        st.captureDraft.selection.aabbMax = null;
-        st.syncDraftToState();
-        
-        // 计算边界
-        int minX = Math.min(start.getX(), end.getX());
-        int minY = Math.min(start.getY(), end.getY());
-        int minZ = Math.min(start.getZ(), end.getZ());
-        int maxX = Math.max(start.getX(), end.getX());
-        int maxY = Math.max(start.getY(), end.getY());
-        int maxZ = Math.max(start.getZ(), end.getZ());
-        
-        // 框选模式下，selectedBlocks 仅用于显示，实际导出时使用 AABB
-        // 但为了保持兼容，我们仍然填充 selectedBlocks（用于 countBlocksInSelection）
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    selectedBlocks.add(new net.minecraft.util.math.BlockPos(x, y, z));
-                }
-            }
-        }
-        
-        // 同步到 SelectionTool（保持兼容）
-        SelectionTool.INSTANCE.setSelection(
-            new net.minecraft.util.math.BlockPos(minX, minY, minZ),
-            new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ)
-        );
-        st.captureDraft.selection.aabbMin = new net.minecraft.util.math.BlockPos(minX, minY, minZ);
-        st.captureDraft.selection.aabbMax = new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ);
-        st.syncDraftToState();
-    }
-    
-    /**
-     * 更新 SelectionTool 以匹配 selectedBlocks，并同步到 ComponentToolState
-     */
-    private void updateSelectionToolFromBlocks() {
-        var st = ComponentTool.INSTANCE.getState();
-        var draft = st.captureDraft;
-        
-        if (selectedBlocks.isEmpty()) {
-            SelectionTool.INSTANCE.clearSelection();
-            draft.selection.blocks = null; // 清空显式方块集合
-            draft.selection.explicit = false;
-            draft.selection.aabbMin = null;
-            draft.selection.aabbMax = null;
-            st.syncDraftToState();
-            return;
-        }
-        
-        // 计算边界
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        
-        for (net.minecraft.util.math.BlockPos pos : selectedBlocks) {
-            minX = Math.min(minX, pos.getX());
-            minY = Math.min(minY, pos.getY());
-            minZ = Math.min(minZ, pos.getZ());
-            maxX = Math.max(maxX, pos.getX());
-            maxY = Math.max(maxY, pos.getY());
-            maxZ = Math.max(maxZ, pos.getZ());
-        }
-        
-        // 更新 SelectionTool（用于显示包围盒）
-        SelectionTool.INSTANCE.setSelection(
-            new net.minecraft.util.math.BlockPos(minX, minY, minZ),
-            new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ)
-        );
-        draft.selection.aabbMin = new net.minecraft.util.math.BlockPos(minX, minY, minZ);
-        draft.selection.aabbMax = new net.minecraft.util.math.BlockPos(maxX, maxY, maxZ);
-        
-        // 同步到 ComponentToolState（用于 buildCurrentComponentJson）
-        // 点选模式：使用显式集合；框选模式：清空显式集合（使用 AABB）
-        if (selectionMode == ComponentSelectionMode.POINT_SELECT) {
-            draft.selection.blocks = new java.util.HashSet<>(selectedBlocks);
-            draft.selection.explicit = true;
-        } else {
-            draft.selection.blocks = null; // 框选模式使用 AABB
-            draft.selection.explicit = false;
-        }
-        st.syncDraftToState();
-    }
-    
+
     /**
      * 设置锚点
      */
@@ -3026,7 +2662,7 @@ public class ComponentCapturePanel extends BasePanel {
         if (pos == null) return;
         
         var st = ComponentTool.INSTANCE.getState();
-        if (!isAnchorLocationAllowed(pos)) {
+        if (!selectionController.isAnchorLocationAllowed(pos)) {
             HudToast.show("锚点需落在选区内或紧邻选区", true);
             return;
         }
@@ -3053,7 +2689,7 @@ public class ComponentCapturePanel extends BasePanel {
         draft.host.confirmed = true;
 
         BlockPos anchor = draft.anchor.allowOutsideSelection ? base.offset(normal) : base;
-        if (!isAnchorLocationAllowed(anchor)) {
+        if (!selectionController.isAnchorLocationAllowed(anchor)) {
             HudToast.show("宿主面已记录，但锚点不在选区附近", true);
         } else {
             draft.anchor.worldPos = anchor;
@@ -3065,11 +2701,11 @@ public class ComponentCapturePanel extends BasePanel {
     }
 
     private void setAutoAnchor() {
-        if (!hasValidSelection()) {
+        if (!selectionController.hasValidSelection()) {
             HudToast.show("请先选择构件方块", true);
             return;
         }
-        BlockPos min = SelectionTool.INSTANCE.getMin();
+        BlockPos min = selectionController.getSelectionMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
         if (min == null || max == null) {
             HudToast.show("选区无效，无法自动设置锚点", true);
@@ -3101,54 +2737,15 @@ public class ComponentCapturePanel extends BasePanel {
         return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
     }
 
-    private boolean isAnchorLocationAllowed(BlockPos pos) {
-        if (pos == null) return false;
-        if (!selectedBlocks.isEmpty()) {
-            if (selectedBlocks.contains(pos)) return true;
-            if (!ComponentTool.INSTANCE.getState().captureDraft.anchor.allowOutsideSelection) return false;
-            return isAnchorAdjacentToSelection(pos);
-        }
-        if (!SelectionTool.INSTANCE.hasSelection()) return false;
-        BlockPos min = SelectionTool.INSTANCE.getMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-        if (min == null || max == null) return false;
-        boolean inside = pos.getX() >= min.getX() && pos.getX() <= max.getX()
-                && pos.getY() >= min.getY() && pos.getY() <= max.getY()
-                && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
-        if (inside) return true;
-        if (!ComponentTool.INSTANCE.getState().captureDraft.anchor.allowOutsideSelection) return false;
-        return pos.getX() >= (min.getX() - 1) && pos.getX() <= (max.getX() + 1)
-                && pos.getY() >= (min.getY() - 1) && pos.getY() <= (max.getY() + 1)
-                && pos.getZ() >= (min.getZ() - 1) && pos.getZ() <= (max.getZ() + 1);
-    }
-
-    private boolean isAnchorAdjacentToSelection(BlockPos pos) {
-        if (pos == null || selectedBlocks.isEmpty()) return false;
-        for (Direction d : Direction.values()) {
-            if (selectedBlocks.contains(pos.offset(d))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 清除选区
-     */
     public void clearSelection() {
-        selectedBlocks.clear();
-        isDragging = false;
-        SelectionTool.INSTANCE.clearSelection();
+        selectionController.clearSelection();
+        thumbnailService.invalidate();
         insideMark = null;
         outsideMark = null;
         bottomMark = null;
         topMark = null;
         var st = ComponentTool.INSTANCE.getState();
         var draft = st.captureDraft;
-        draft.selection.blocks = null;
-        draft.selection.explicit = false;
-        draft.selection.aabbMin = null;
-        draft.selection.aabbMax = null;
         draft.orientation.insideMarkWorld = null;
         draft.orientation.outsideMarkWorld = null;
         draft.orientation.bottomMarkWorld = null;
@@ -3160,17 +2757,11 @@ public class ComponentCapturePanel extends BasePanel {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 清除选区");
         }
     }
-    
-    /**
-     * 是否正在选择
-     */
+
     public boolean isSelecting() {
-        return isDragging || selectionMode != ComponentSelectionMode.BOX_SELECT;
+        return selectionController.isSelecting();
     }
-    
-    /**
-     * Tick 方法 - 更新 SelectionTool
-     */
+
     public void tick() {
         var st = ComponentTool.INSTANCE.getState();
         boolean wasActive = st.captureActive;
@@ -3179,43 +2770,13 @@ public class ComponentCapturePanel extends BasePanel {
             syncLocalFromState();
         }
         st.syncDraftToState();
-        // 框选模式：让 SelectionTool 处理拖拽
-        if (selectionMode == ComponentSelectionMode.BOX_SELECT && SelectionTool.INSTANCE.isSelecting()) {
-            SelectionTool.INSTANCE.tick();
-        }
+        selectionController.tick(client);
     }
-    
-    /**
-     * 渲染世界中的选区预览
-     * 从 SelectionBoxRenderMixin 调用
-     */
-    public void renderWorldSelection(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
-        // 渲染 SelectionTool 的选区（框选和已完成的选区）
-        SelectionTool.INSTANCE.renderWorld(ctx);
-        
-        // 渲染点选模式下的单个方块高亮（性能优化：超过阈值时只渲染采样点）
-        var draft = ComponentTool.INSTANCE.getState().captureDraft;
-        java.util.Set<net.minecraft.util.math.BlockPos> highlightBlocks = selectedBlocks;
-        if (draft.selection.explicit && draft.selection.blocks != null && !draft.selection.blocks.isEmpty()) {
-            highlightBlocks = draft.selection.blocks;
-        }
-        if (selectionMode == ComponentSelectionMode.POINT_SELECT && highlightBlocks != null && !highlightBlocks.isEmpty()) {
-            int blockCount = highlightBlocks.size();
-            int renderThreshold = 400; // 超过 400 个方块时启用采样渲染
-            int sampleRate = blockCount > renderThreshold ? Math.max(1, blockCount / 200) : 1; // 采样率
-            
-            int rendered = 0;
-            for (net.minecraft.util.math.BlockPos pos : highlightBlocks) {
-                if (rendered % sampleRate == 0) {
-                    renderBlockHighlight(ctx, pos, 0.0f, 1.0f, 0.0f, 0.3f); // 绿色高亮
-                }
-                rendered++;
-            }
-        }
-        
-        renderHostFace(ctx);
 
-        // Phase 3: 渲染方向标记
+    public void renderWorldSelection(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
+        SelectionTool.INSTANCE.renderWorld(ctx);
+        selectionController.renderPointSelectHighlights(ctx);
+        renderHostFace(ctx);
         renderDirectionMarkers(ctx);
     }
     
@@ -3264,17 +2825,13 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void syncLocalFromState() {
         var st = ComponentTool.INSTANCE.getState();
-        selectedBlocks.clear();
-        if (st.captureDraft.selection.explicit && st.captureDraft.selection.blocks != null) {
-            selectedBlocks.addAll(st.captureDraft.selection.blocks);
-        }
+        selectionController.loadFromDraft(st.captureDraft);
         if (!st.captureDraft.selection.explicit) {
             st.captureDraft.selection.aabbMin = SelectionTool.INSTANCE.getMin();
             st.captureDraft.selection.aabbMax = SelectionTool.INSTANCE.getMax();
         }
         attachmentMode = st.captureDraft.host.attachment;
         directionalityMode = st.captureDraft.orientation.mode;
-        selectionMode = st.captureDraft.selection.explicit ? ComponentSelectionMode.POINT_SELECT : ComponentSelectionMode.BOX_SELECT;
         insideMark = st.captureDraft.orientation.insideMarkWorld;
         outsideMark = st.captureDraft.orientation.outsideMarkWorld;
         bottomMark = st.captureDraft.orientation.bottomMarkWorld;
