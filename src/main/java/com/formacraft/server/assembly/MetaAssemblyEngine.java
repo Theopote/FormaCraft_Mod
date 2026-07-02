@@ -3409,25 +3409,20 @@ public final class MetaAssemblyEngine {
                                    int capWidth, BlockState capMat) {
         int nA = edgeCount(a, ea);
         int nB = edgeCount(b, eb);
-        int n = Math.min(nA, nB);
-        if (n < 2) return;
-        int[] a0 = edgePoint(a, ea, 0);
-        int[] a1 = edgePoint(a, ea, n - 1);
-        int[] b0 = edgePoint(b, eb, 0);
-        int[] b1 = edgePoint(b, eb, n - 1);
-        boolean reverse = (dist2(a0, b1) + dist2(a1, b0)) < (dist2(a0, b0) + dist2(a1, b1));
-        for (int i = 0; i < n; i++) {
-            int j = reverse ? (n - 1 - i) : i;
-            int[] pa = edgePoint(a, ea, i);
-            int[] pb = edgePoint(b, eb, j);
-            placeBeamLine(out, ctx, origin, pa[0], pa[1], pa[2], pb[0], pb[1], pb[2], thick, 1, mat);
-            if (capWidth > 0 && capMat != null) {
-                int mx = (int) Math.round((pa[0] + pb[0]) / 2.0);
-                int my = (int) Math.round((pa[1] + pb[1]) / 2.0);
-                int mz = (int) Math.round((pa[2] + pb[2]) / 2.0);
-                placePrism(out, ctx, origin, mx, my, mz, capWidth, 1, capMat);
-            }
-        }
+        AssemblyStitchOps.stitchEdge(
+                nA,
+                i -> edgePoint(a, ea, i),
+                nB,
+                i -> edgePoint(b, eb, i),
+                thick,
+                mat,
+                capWidth,
+                capMat,
+                (x0, y0, z0, x1, y1, z1, thickness, beamH, state) ->
+                        placeBeamLine(out, ctx, origin, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
+                (cx, cy, cz, thickness, h, state) ->
+                        placePrism(out, ctx, origin, cx, cy, cz, thickness, h, state)
+        );
     }
 
     private static double edgeMse(PatchData a, Edge ea, PatchData b, Edge eb, boolean reverse, int n, boolean resample) {
@@ -3480,22 +3475,25 @@ public final class MetaAssemblyEngine {
                                            int capWidth, BlockState capMat) {
         int nA = edgeCount(a, ea);
         int nB = edgeCount(b, eb);
-        int n = (stitchSamples > 0) ? stitchSamples : Math.max(8, Math.min(128, Math.max(nA, nB)));
-        if (!resample) n = Math.min(n, Math.min(nA, nB));
-        if (n < 2) return;
-        for (int i = 0; i < n; i++) {
-            double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
-            int[] pa = resample ? edgePointAt(a, ea, t) : edgePoint(a, ea, i);
-            double tt = reverse ? (1.0 - t) : t;
-            int[] pb = resample ? edgePointAt(b, eb, tt) : edgePoint(b, eb, i);
-            placeBeamLine(out, ctx, origin, pa[0], pa[1], pa[2], pb[0], pb[1], pb[2], thick, 1, mat);
-            if (capWidth > 0 && capMat != null) {
-                int mx = (int) Math.round((pa[0] + pb[0]) / 2.0);
-                int my = (int) Math.round((pa[1] + pb[1]) / 2.0);
-                int mz = (int) Math.round((pa[2] + pb[2]) / 2.0);
-                placePrism(out, ctx, origin, mx, my, mz, capWidth, 1, capMat);
-            }
-        }
+        AssemblyStitchOps.stitchEdgeResampled(
+                nA,
+                i -> edgePoint(a, ea, i),
+                t -> edgePointAt(a, ea, t),
+                nB,
+                i -> edgePoint(b, eb, i),
+                t -> edgePointAt(b, eb, t),
+                reverse,
+                thick,
+                mat,
+                stitchSamples,
+                resample,
+                capWidth,
+                capMat,
+                (x0, y0, z0, x1, y1, z1, thickness, beamH, state) ->
+                        placeBeamLine(out, ctx, origin, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
+                (cx, cy, cz, thickness, h, state) ->
+                        placePrism(out, ctx, origin, cx, cy, cz, thickness, h, state)
+        );
     }
 
     private static void stitchEdgeResampledRange(List<PlannedBlock> out, Context ctx, BlockPos origin,
@@ -3506,25 +3504,25 @@ public final class MetaAssemblyEngine {
                                                  int capWidth, BlockState capMat) {
         int nA = edgeCount(a, ea);
         int nB = edgeCount(b, eb);
-        int n = (stitchSamples > 0) ? stitchSamples : Math.max(8, Math.min(128, Math.max(nA, nB)));
-        if (n < 2) return;
-        for (int i = 0; i < n; i++) {
-            double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
-            int[] pa = edgePointAtRange(a, ea, t, a0, a1);
-            double tt = reverse ? (1.0 - t) : t;
-            int[] pb = edgePointAtRange(b, eb, tt, b0, b1);
-            if (!resample) {
-                pa = edgePoint(a, ea, clamp((int) Math.round(t * (edgeCount(a, ea) - 1)), 0, edgeCount(a, ea) - 1));
-                pb = edgePoint(b, eb, clamp((int) Math.round(tt * (edgeCount(b, eb) - 1)), 0, edgeCount(b, eb) - 1));
-            }
-            placeBeamLine(out, ctx, origin, pa[0], pa[1], pa[2], pb[0], pb[1], pb[2], thick, 1, mat);
-            if (capWidth > 0 && capMat != null) {
-                int mx = (int) Math.round((pa[0] + pb[0]) / 2.0);
-                int my = (int) Math.round((pa[1] + pb[1]) / 2.0);
-                int mz = (int) Math.round((pa[2] + pb[2]) / 2.0);
-                placePrism(out, ctx, origin, mx, my, mz, capWidth, 1, capMat);
-            }
-        }
+        AssemblyStitchOps.stitchEdgeResampledRange(
+                nA,
+                i -> edgePoint(a, ea, i),
+                t -> edgePointAtRange(a, ea, t, a0, a1),
+                nB,
+                i -> edgePoint(b, eb, i),
+                t -> edgePointAtRange(b, eb, t, b0, b1),
+                reverse,
+                thick,
+                mat,
+                stitchSamples,
+                resample,
+                capWidth,
+                capMat,
+                (x0, y0, z0, x1, y1, z1, thickness, beamH, state) ->
+                        placeBeamLine(out, ctx, origin, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
+                (cx, cy, cz, thickness, h, state) ->
+                        placePrism(out, ctx, origin, cx, cy, cz, thickness, h, state)
+        );
     }
 
     private static Edge parseEdge(String s) {
