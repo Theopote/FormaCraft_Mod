@@ -87,6 +87,53 @@ public final class MetaAssemblyEngine {
         }
     };
 
+    private static final AssemblySurfaceOps.Adapter SURFACE_OPS_ADAPTER = new AssemblySurfaceOps.Adapter() {
+        @Override
+        public void put(List<PlannedBlock> out, Context ctx, BlockPos origin, int x, int y, int z, BlockState state) {
+            MetaAssemblyEngine.put(out, ctx, origin, x, y, z, state);
+        }
+
+        @Override
+        public void placePrism(List<PlannedBlock> out, Context ctx, BlockPos origin, int cx, int cy, int cz, int thickness, int h, BlockState state) {
+            MetaAssemblyEngine.placePrism(out, ctx, origin, cx, cy, cz, thickness, h, state);
+        }
+
+        @Override
+        public void placeBeamLine(List<PlannedBlock> out, Context ctx, BlockPos origin, int x0, int y0, int z0, int x1, int y1, int z1, int thickness, int beamH, BlockState state) {
+            MetaAssemblyEngine.placeBeamLine(out, ctx, origin, x0, y0, z0, x1, y1, z1, thickness, beamH, state);
+        }
+
+        @Override
+        public BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
+            return MetaAssemblyEngine.pick(ctx, op, overrideKey, semanticKey, salt, fallback);
+        }
+
+        @Override
+        public int i(Object v, int def) {
+            return MetaAssemblyEngine.i(v, def);
+        }
+
+        @Override
+        public double d(Object v, double def) {
+            return MetaAssemblyEngine.d(v, def);
+        }
+
+        @Override
+        public boolean bool(Object v, boolean def) {
+            return MetaAssemblyEngine.bool(v, def);
+        }
+
+        @Override
+        public String str(Object v, String def) {
+            return MetaAssemblyEngine.str(v, def);
+        }
+
+        @Override
+        public int clamp(int v, int min, int max) {
+            return MetaAssemblyEngine.clamp(v, min, max);
+        }
+    };
+
     private static final int[][] DIR6 = new int[][]{
             {1, 0, 0}, {-1, 0, 0},
             {0, 1, 0}, {0, -1, 0},
@@ -989,74 +1036,7 @@ public final class MetaAssemblyEngine {
                     prevX = x; prevY = y; prevZ = z;
                 }
             }
-            case "BEZIER_SURFACE" -> {
-                // Bezier surface patch (P0): 4x4 cubic Bezier surface, voxelized as a shell.
-                //
-                // Required:
-                // - points: either 16 control points [{x,y,z}...] or 4 rows of 4 points [[{x,y,z}..]..]
-                // Optional:
-                // - uSamples/vSamples: sampling density (default 24/24)
-                // - thickness: voxel thickness (default 1)
-                // - connectSamples: connect adjacent samples with beams (default true)
-                // - connectMaxStep: reserved (currently unused; default 2)
-                // - material: semantic PRIMARY_STRUCTURE (fallback quartz)
-                Object ptsObj = op.get("points");
-                List<int[]> ctrl = AssemblyBezierSurfaceOps.readBezierControlPoints(ptsObj);
-                if (ctrl == null || ctrl.size() != 16) break;
-
-                int uN = clamp(i(op.get("uSamples"), i(op.get("u"), 24)), 2, 512);
-                int vN = clamp(i(op.get("vSamples"), i(op.get("v"), 24)), 2, 512);
-                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
-                boolean connect = bool(op.get("connectSamples"), true);
-
-                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0xA57480L, Blocks.QUARTZ_BLOCK.getDefaultState());
-
-                // Sample grid and place points; optionally connect adjacent samples to reduce gaps.
-                int[][][] grid = new int[uN + 1][vN + 1][3];
-                for (int iu = 0; iu <= uN; iu++) {
-                    double u = iu / (double) uN;
-                    double[] Bu = AssemblyBezierSurfaceOps.bezierBasis3(u);
-                    for (int iv = 0; iv <= vN; iv++) {
-                        double v = iv / (double) vN;
-                        double[] Bv = AssemblyBezierSurfaceOps.bezierBasis3(v);
-                        double x = 0, y = 0, z = 0;
-                        for (int i = 0; i < 4; i++) {
-                            for (int j = 0; j < 4; j++) {
-                                double w = Bu[i] * Bv[j];
-                                int[] p = ctrl.get(i * 4 + j);
-                                x += p[0] * w;
-                                y += p[1] * w;
-                                z += p[2] * w;
-                            }
-                        }
-                        int xi = (int) Math.round(x);
-                        int yi = (int) Math.round(y);
-                        int zi = (int) Math.round(z);
-                        grid[iu][iv][0] = xi;
-                        grid[iu][iv][1] = yi;
-                        grid[iu][iv][2] = zi;
-                        AssemblyVoxelBridgeOps.placePrism(
-                                (px, py, pz, state) -> put(out, ctx, curOrigin, px, py, pz, state),
-                                xi, yi, zi, thick, 1, mat
-                        );
-                    }
-                }
-                if (connect) {
-                    for (int iu = 0; iu <= uN; iu++) {
-                        for (int iv = 0; iv <= vN; iv++) {
-                            int x = grid[iu][iv][0], y = grid[iu][iv][1], z = grid[iu][iv][2];
-                            if (iu + 1 <= uN) {
-                                int[] b = grid[iu + 1][iv];
-                                placeBeamLine(out, ctx, curOrigin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
-                            }
-                            if (iv + 1 <= vN) {
-                                int[] b = grid[iu][iv + 1];
-                                placeBeamLine(out, ctx, curOrigin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
-                            }
-                        }
-                    }
-                }
-            }
+            case "BEZIER_SURFACE" -> AssemblySurfaceOps.applyBezierSurface(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
             case "BEZIER_SURFACE_SET" -> {
                 // Bezier surface set (P0): multiple patches with grid topology and auto-stitching on shared edges.
                 //
@@ -1283,63 +1263,7 @@ public final class MetaAssemblyEngine {
                     }
                 }
             }
-            case "SURFACE_OFFSET" -> {
-                // Surface offset thick shell (P0): approximate normals from a sampled surface grid and offset voxels along normal.
-                //
-                // Required:
-                // - source: { kind:"BEZIER_SURFACE", points:[...] } or { kind:"BEZIER_SURFACE_SET", patches:[...] }
-                // Optional:
-                // - uSamples/vSamples: sampling density for source (default 24/24)
-                // - offset: steps along normal (default 0)
-                // - shellThickness: thickness along normal (default 2)
-                // - mode: OUT/IN/BOTH (default BOTH)
-                // - material: semantic PRIMARY_STRUCTURE (fallback quartz)
-                Object srcObj = op.get("source");
-                if (!(srcObj instanceof Map<?, ?> sm)) break;
-                String kind = String.valueOf(sm.get("kind") == null ? "" : sm.get("kind")).trim().toUpperCase(Locale.ROOT);
-                int uN = clamp(i(op.get("uSamples"), i(op.get("u"), i(sm.get("uSamples"), i(sm.get("u"), 24)))), 2, 512);
-                int vN = clamp(i(op.get("vSamples"), i(op.get("v"), i(sm.get("vSamples"), i(sm.get("v"), 24)))), 2, 512);
-                int offset = clamp(i(op.get("offset"), i(op.get("distance"), 0)), -32, 32);
-                int shellT = clamp(i(op.get("shellThickness"), i(op.get("thickness"), 2)), 1, 16);
-                String mode = str(op.get("mode"), "BOTH").trim().toUpperCase(Locale.ROOT);
-                String normalMode = str(op.get("normalMode"), str(op.get("normal_mode"), "DDA")).trim().toUpperCase(Locale.ROOT);
-                double stepLen = Math.max(0.25, Math.min(4.0, d(op.get("stepLen"), d(op.get("step_len"), d(op.get("step"), 1.0)))));
-                boolean dedupe = bool(op.get("dedupe"), bool(op.get("deDupe"), true));
-                boolean connect = bool(op.get("connectSamples"), bool(op.get("connect_samples"), false));
-                int connectMaxStep = clamp(i(op.get("connectMaxStep"), i(op.get("connect_max_step"), 2)), 1, 16);
-                BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x51AFC0L, Blocks.QUARTZ_BLOCK.getDefaultState());
-
-                if (kind.equals("BEZIER_SURFACE")) {
-                    List<int[]> ctrl = AssemblyBezierSurfaceOps.readBezierControlPoints(sm.get("points"));
-                    if (ctrl == null || ctrl.size() != 16) break;
-                    int[][][] grid = AssemblyBezierSurfaceOps.sampleBezierSurface(ctrl, uN, vN);
-                    surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, normalMode, stepLen, dedupe, connect, connectMaxStep, mat);
-                } else if (kind.equals("BEZIER_SURFACE_SET")) {
-                    Object patchesObj = sm.get("patches");
-                    if (!(patchesObj instanceof List<?> pl) || pl.isEmpty()) break;
-                    for (Object po : pl) {
-                        if (!(po instanceof Map<?, ?> pm)) continue;
-                        // apply patch at offset if present
-                        int ox, oy, oz;
-                        Object at = pm.get("at");
-                        if (at instanceof Map<?, ?> am) {
-                            ox = i(am.get("x"), 0);
-                            oy = i(am.get("y"), 0);
-                            oz = i(am.get("z"), 0);
-                        } else {
-                            ox = i(pm.get("x"), 0);
-                            oy = i(pm.get("y"), 0);
-                            oz = i(pm.get("z"), 0);
-                        }
-                        List<int[]> ctrl0 = AssemblyBezierSurfaceOps.readBezierControlPoints(pm.get("points"));
-                        if (ctrl0 == null || ctrl0.size() != 16) continue;
-                        java.util.ArrayList<int[]> ctrl = new java.util.ArrayList<>(16);
-                        for (int[] p : ctrl0) ctrl.add(new int[]{p[0] + ox, p[1] + oy, p[2] + oz});
-                        int[][][] grid = AssemblyBezierSurfaceOps.sampleBezierSurface(ctrl, uN, vN);
-                        surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, normalMode, stepLen, dedupe, connect, connectMaxStep, mat);
-                    }
-                }
-            }
+            case "SURFACE_OFFSET" -> AssemblySurfaceOps.applySurfaceOffset(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
             case "IMPLICIT_FIELD" -> {
                 // Implicit field isosurface (P0): voxel isosurface extraction by sign change across 6-neighbors.
                 //
@@ -2597,170 +2521,6 @@ public final class MetaAssemblyEngine {
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
         } catch (Exception ignored) {}
         return null;
-    }
-
-    private static void surfaceOffsetFromGrid(List<PlannedBlock> out,
-                                              Context ctx,
-                                              BlockPos origin,
-                                              int[][][] grid,
-                                              int uN,
-                                              int vN,
-                                              int offset,
-                                              int shellT,
-                                              String mode,
-                                              String normalMode,
-                                              double stepLen,
-                                              boolean dedupe,
-                                              boolean connect,
-                                              int connectMaxStep,
-                                              BlockState mat) {
-        if (grid == null) return;
-        boolean outSide = mode.isBlank() || mode.equals("BOTH") || mode.equals("OUT") || mode.equals("OUTWARD");
-        boolean inSide = mode.equals("BOTH") || mode.equals("IN") || mode.equals("INWARD");
-        String nm = (normalMode == null) ? "DDA" : normalMode.trim().toUpperCase(Locale.ROOT);
-        double st = (stepLen <= 0) ? 1.0 : stepLen;
-
-        for (int iu = 0; iu <= uN; iu++) {
-            for (int iv = 0; iv <= vN; iv++) {
-                int[] p = grid[iu][iv];
-                if (p == null) continue;
-                // Difference tangents (clamped)
-                int[] pu0 = grid[Math.max(0, iu - 1)][iv];
-                int[] pu1 = grid[Math.min(uN, iu + 1)][iv];
-                int[] pv0 = grid[iu][Math.max(0, iv - 1)];
-                int[] pv1 = grid[iu][Math.min(vN, iv + 1)];
-                int dux = (pu1[0] - pu0[0]);
-                int duy = (pu1[1] - pu0[1]);
-                int duz = (pu1[2] - pu0[2]);
-                int dvx = (pv1[0] - pv0[0]);
-                int dvy = (pv1[1] - pv0[1]);
-                int dvz = (pv1[2] - pv0[2]);
-
-                // normal = du x dv
-                long nx = (long) duy * dvz - (long) duz * dvy;
-                long ny = (long) duz * dvx - (long) dux * dvz;
-                long nz = (long) dux * dvy - (long) duy * dvx;
-                if (nx == 0 && ny == 0 && nz == 0) continue;
-
-                if (nm.equals("AXIS")) {
-                    // Legacy: choose dominant axis as voxel normal direction
-                    int ax = (int) Math.signum(nx);
-                    int ay = (int) Math.signum(ny);
-                    int az = (int) Math.signum(nz);
-                    long anx = Math.abs(nx), any = Math.abs(ny), anz = Math.abs(nz);
-                    int dx = 0, dy = 0, dz = 0;
-                    if (anx >= any && anx >= anz) { dx = ax; dy = 0; dz = 0; }
-                    else if (any >= anz) { dx = 0; dy = ay; dz = 0; }
-                    else { dx = 0; dy = 0; dz = az; }
-                    if (dx == 0 && dy == 0 && dz == 0) continue;
-
-                    if (outSide) {
-                        int base = offset;
-                        for (int t = 0; t < shellT; t++) {
-                            int k = base + t;
-                            put(out, ctx, origin, p[0] + dx * k, p[1] + dy * k, p[2] + dz * k, mat);
-                        }
-                    }
-                    if (inSide) {
-                        int base = -offset;
-                        for (int t = 0; t < shellT; t++) {
-                            int k = base + t;
-                            put(out, ctx, origin, p[0] - dx * k, p[1] - dy * k, p[2] - dz * k, mat);
-                        }
-                    }
-                } else {
-                    // DDA: continuous unit normal, multi-step discrete walk (rounding each step)
-                    double len = Math.sqrt((double) nx * nx + (double) ny * ny + (double) nz * nz);
-                    if (len < 1e-6) continue;
-                    double ux = nx / len;
-                    double uy = ny / len;
-                    double uz = nz / len;
-
-                    if (outSide) {
-                        ddaWalkPut(out, ctx, origin, p[0], p[1], p[2], ux, uy, uz, offset, shellT, st, dedupe, connect, connectMaxStep, mat);
-                    }
-                    if (inSide) {
-                        ddaWalkPut(out, ctx, origin, p[0], p[1], p[2], -ux, -uy, -uz, offset, shellT, st, dedupe, connect, connectMaxStep, mat);
-                    }
-                }
-            }
-        }
-    }
-
-    private static void ddaWalkPut(List<PlannedBlock> out,
-                                   Context ctx,
-                                   BlockPos origin,
-                                   int x0, int y0, int z0,
-                                   double ux, double uy, double uz,
-                                   int offset,
-                                   int shellT,
-                                   double stepLen,
-                                   boolean dedupe,
-                                   boolean connect,
-                                   int connectMaxStep,
-                                   BlockState mat) {
-        double fx = x0 + ux * offset;
-        double fy = y0 + uy * offset;
-        double fz = z0 + uz * offset;
-
-        int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
-        for (int t = 0; t < shellT; t++) {
-            int xi = (int) Math.round(fx);
-            int yi = (int) Math.round(fy);
-            int zi = (int) Math.round(fz);
-
-            if (!dedupe || xi != lastX || yi != lastY || zi != lastZ) {
-                if (connect && lastX != Integer.MIN_VALUE) {
-                    int dx = Math.abs(xi - lastX);
-                    int dy = Math.abs(yi - lastY);
-                    int dz = Math.abs(zi - lastZ);
-                    int cheb = Math.max(dx, Math.max(dy, dz));
-                    if (cheb > 1 && cheb <= connectMaxStep) {
-                        drawVoxelLine(out, ctx, origin, lastX, lastY, lastZ, xi, yi, zi, mat);
-                    } else {
-                        put(out, ctx, origin, xi, yi, zi, mat);
-                    }
-                } else {
-                    put(out, ctx, origin, xi, yi, zi, mat);
-                }
-                lastX = xi; lastY = yi; lastZ = zi;
-            }
-
-            fx += ux * stepLen;
-            fy += uy * stepLen;
-            fz += uz * stepLen;
-        }
-    }
-
-    private static void drawVoxelLine(List<PlannedBlock> out,
-                                      Context ctx,
-                                      BlockPos origin,
-                                      int x0, int y0, int z0,
-                                      int x1, int y1, int z1,
-                                      BlockState mat) {
-        int dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
-        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
-        if (steps <= 0) {
-            put(out, ctx, origin, x0, y0, z0, mat);
-            return;
-        }
-        double sx = dx / (double) steps;
-        double sy = dy / (double) steps;
-        double sz = dz / (double) steps;
-        double fx = x0, fy = y0, fz = z0;
-        int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
-        for (int i = 0; i <= steps; i++) {
-            int xi = (int) Math.round(fx);
-            int yi = (int) Math.round(fy);
-            int zi = (int) Math.round(fz);
-            if (xi != lastX || yi != lastY || zi != lastZ) {
-                put(out, ctx, origin, xi, yi, zi, mat);
-                lastX = xi; lastY = yi; lastZ = zi;
-            }
-            fx += sx;
-            fy += sy;
-            fz += sz;
-        }
     }
 
     private static java.util.ArrayList<double[]> readMetaballs(Object obj) {
