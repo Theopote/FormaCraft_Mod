@@ -168,11 +168,6 @@ public class ExecutableSkeletonPlan {
     }
 
     private static int toInt(Object v, int def) {
-        if (v instanceof Number n) return n.intValue();
-        try {
-            return Integer.parseInt(String.valueOf(v));
-        } catch (Exception e) {
-            return def;
-        }
+        return SkeletonParamParsers.intValue(v, def);
     }
 }

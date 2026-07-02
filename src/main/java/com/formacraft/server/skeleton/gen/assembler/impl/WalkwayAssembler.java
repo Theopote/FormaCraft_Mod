@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.gen.assembler.impl;
 
 import com.formacraft.common.component.ComponentSpec;
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.component.ComponentType;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.semantic.SemanticPlacementOp;
@@ -45,7 +46,7 @@ public class WalkwayAssembler implements ComponentAssembler {
         if (component.type != ComponentType.WALKWAY) return ops;
 
         // 从 params 获取参数
-        int width = getIntParam(component, "width", 2);
+        int width = SkeletonParamParsers.componentInt(component, "width", 2);
         String connect = getStringParam(component, "connect", "custom");
 
         // 获取步道路径
@@ -131,14 +132,6 @@ public class WalkwayAssembler implements ComponentAssembler {
         return path;
     }
 
-    private static int getIntParam(ComponentSpec component, String key, int defaultValue) {
-        Object v = component.params.get(key);
-        if (v instanceof Number n) return n.intValue();
-        if (v instanceof String s) {
-            try { return Integer.parseInt(s); } catch (Exception e) { return defaultValue; }
-        }
-        return defaultValue;
-    }
 
     private static String getStringParam(ComponentSpec component, String key, String defaultValue) {
         Object v = component.params.get(key);

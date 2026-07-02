@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.gen.assembler.impl;
 
 import com.formacraft.common.component.ComponentSpec;
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.component.ComponentType;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.semantic.SemanticPlacementOp;
@@ -47,8 +48,8 @@ public class GateAssembler implements ComponentAssembler {
         if (component.type != ComponentType.GATE) return ops;
 
         // 从 params 获取参数
-        int width = getIntParam(component, "width", 3);
-        int height = getIntParam(component, "height", 4);
+        int width = SkeletonParamParsers.componentInt(component, "width", 3);
+        int height = SkeletonParamParsers.componentInt(component, "height", 4);
         String position = getStringParam(component, "position", "auto");
 
         // Skeleton 决定门的位置（例如城墙中点）
@@ -79,14 +80,6 @@ public class GateAssembler implements ComponentAssembler {
         return ops;
     }
 
-    private static int getIntParam(ComponentSpec component, String key, int defaultValue) {
-        Object v = component.params.get(key);
-        if (v instanceof Number n) return n.intValue();
-        if (v instanceof String s) {
-            try { return Integer.parseInt(s); } catch (Exception e) { return defaultValue; }
-        }
-        return defaultValue;
-    }
 
     private static String getStringParam(ComponentSpec component, String key, String defaultValue) {
         Object v = component.params.get(key);

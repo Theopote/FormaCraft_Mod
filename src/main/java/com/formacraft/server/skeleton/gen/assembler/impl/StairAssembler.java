@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.gen.assembler.impl;
 
 import com.formacraft.common.component.ComponentSpec;
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.component.ComponentType;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.semantic.SemanticPlacementOp;
@@ -48,7 +49,7 @@ public class StairAssembler implements ComponentAssembler {
         if (component.type != ComponentType.STAIR) return ops;
 
         // 从 params 获取参数
-        int steps = getIntParam(component, "steps", 5);
+        int steps = SkeletonParamParsers.componentInt(component, "steps", 5);
         String dirStr = getStringParam(component, "direction", "north");
 
         Direction dir = parseDirection(dirStr);
@@ -81,14 +82,6 @@ public class StairAssembler implements ComponentAssembler {
         return ops;
     }
 
-    private static int getIntParam(ComponentSpec component, String key, int defaultValue) {
-        Object v = component.params.get(key);
-        if (v instanceof Number n) return n.intValue();
-        if (v instanceof String s) {
-            try { return Integer.parseInt(s); } catch (Exception e) { return defaultValue; }
-        }
-        return defaultValue;
-    }
 
     private static String getStringParam(ComponentSpec component, String key, String defaultValue) {
         Object v = component.params.get(key);

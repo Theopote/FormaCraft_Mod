@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.gen.assembler.impl;
 
 import com.formacraft.common.component.ComponentSpec;
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.component.ComponentType;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.semantic.SemanticPlacementOp;
@@ -44,9 +45,9 @@ public class RoofRingAssembler implements ComponentAssembler {
         if (component.type != ComponentType.ROOF_RING) return ops;
 
         // 从 params 获取参数
-        int innerRadius = getIntParam(component, "inner_radius", 6);
-        int outerRadius = getIntParam(component, "outer_radius", 8);
-        int height = getIntParam(component, "height", 1);
+        int innerRadius = SkeletonParamParsers.componentInt(component, "inner_radius", 6);
+        int outerRadius = SkeletonParamParsers.componentInt(component, "outer_radius", 8);
+        int height = SkeletonParamParsers.componentInt(component, "height", 1);
         boolean eaves = getBoolParam(component, "eaves", true);
 
         // 如果 outerRadius 为 0，尝试从 skeleton 的 radius 计算
@@ -97,14 +98,6 @@ public class RoofRingAssembler implements ComponentAssembler {
         return ops;
     }
 
-    private static int getIntParam(ComponentSpec component, String key, int defaultValue) {
-        Object v = component.params.get(key);
-        if (v instanceof Number n) return n.intValue();
-        if (v instanceof String s) {
-            try { return Integer.parseInt(s); } catch (Exception e) { return defaultValue; }
-        }
-        return defaultValue;
-    }
 
     private static boolean getBoolParam(ComponentSpec component, String key, boolean defaultValue) {
         Object v = component.params.get(key);

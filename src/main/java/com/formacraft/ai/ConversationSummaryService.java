@@ -1,5 +1,6 @@
 package com.formacraft.ai;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.config.SettingsConfig;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -15,6 +16,8 @@ import java.time.Duration;
  * 对话历史总结服务：调用 python_backend 的 /summarize
  */
 public class ConversationSummaryService {
+
+    private static final FcaLog LOG = FcaLog.of("ConversationSummary");
 
     public static class Summary {
         public final String title;
@@ -51,7 +54,8 @@ public class ConversationSummaryService {
             if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                 return parseSummary(resp.body());
             }
-        } catch (IOException | InterruptedException ignored) {
+        } catch (IOException | InterruptedException ex) {
+            LOG.debug("summarize request failed, using local fallback", ex);
         }
 
         // fallback
@@ -84,7 +88,8 @@ public class ConversationSummaryService {
             String title = obj.has("title") ? obj.get("title").getAsString() : "新对话";
             String summary = obj.has("summary") ? obj.get("summary").getAsString() : "";
             return new Summary(title, summary);
-        } catch (Exception e) {
+        } catch (Exception ex) {
+            LOG.debug("parse summarize response failed", ex);
             return new Summary("新对话", "");
         }
     }

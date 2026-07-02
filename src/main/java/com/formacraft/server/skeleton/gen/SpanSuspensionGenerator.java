@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.gen;
 
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.skeleton.gen.util.GenMath;
@@ -31,9 +32,9 @@ public class SpanSuspensionGenerator implements ISkeletonGenerator {
         Object endObj = plan.params.get("end");
         if (!(endObj instanceof Map<?,?> m)) return List.of();
 
-        int dx = toInt(m.get("dx"), 0);
-        int dy = toInt(m.get("dy"), 0);
-        int dz = toInt(m.get("dz"), 24);
+        int dx = SkeletonParamParsers.intValue(m.get("dx"), 0);
+        int dy = SkeletonParamParsers.intValue(m.get("dy"), 0);
+        int dz = SkeletonParamParsers.intValue(m.get("dz"), 24);
 
         BlockPos a = ctx.origin;
         BlockPos b = ctx.origin.add(dx, dy, dz);
@@ -60,9 +61,5 @@ public class SpanSuspensionGenerator implements ISkeletonGenerator {
         return patches;
     }
 
-    private static int toInt(Object v, int def) {
-        if (v instanceof Number n) return n.intValue();
-        try { return Integer.parseInt(String.valueOf(v)); } catch (Exception e) { return def; }
-    }
 }
 

@@ -14,6 +14,7 @@ import com.formacraft.client.preview.PatchPreviewRenderer;
 import com.formacraft.client.preview.SkeletonPreviewRenderer;
 import com.formacraft.client.interaction.AnchorRenderer;
 import com.formacraft.config.SettingsConfig;
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderLayer;
@@ -35,6 +36,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
+
+    @Unique
+    private static final FcaLog LOG = FcaLog.of("GameRendererMixin");
 
     @Inject(method = "updateCrosshairTarget(F)V", at = @At("HEAD"), cancellable = true)
     private void formacraft$overrideCrosshairTarget(float tickDelta, CallbackInfo ci) {
@@ -63,7 +67,8 @@ public class GameRendererMixin {
         double fov = 70.0;
         try {
             fov = ((GameRendererAccessor) this).formacraft$invokeGetFov(client.gameRenderer.getCamera(), tickDelta, true);
-        } catch (Throwable ignored) {
+        } catch (Throwable ex) {
+            LOG.debug("read camera fov failed, using default", ex);
         }
         client.crosshairTarget = CursorRaycastHelper.raycastFromCursor(tickDelta, getReachDistance(), fov);
         ci.cancel();
@@ -77,7 +82,8 @@ public class GameRendererMixin {
             if (v < 5) v = 5;
             if (v > 100) v = 100;
             return v;
-        } catch (Throwable ignored) {
+        } catch (Throwable ex) {
+            LOG.debug("read interaction reach failed, using default", ex);
             return 80.0;
         }
     }

@@ -6,6 +6,7 @@ import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.semantic.SemanticPlacementOp;
 import com.formacraft.common.skeleton.SkeletonType;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.server.skeleton.gen.GenerationContext;
 import com.formacraft.server.skeleton.gen.assembler.ComponentAssembler;
 import net.minecraft.util.math.BlockPos;
@@ -126,9 +127,9 @@ public class EnclosingWallAssembler implements ComponentAssembler {
         List<BlockPos> perimeter = new ArrayList<>();
         for (Object o : pts) {
             if (!(o instanceof java.util.Map<?, ?> m)) continue;
-            int dx = toInt(m.get("dx"), 0);
-            int dy = toInt(m.get("dy"), 0);
-            int dz = toInt(m.get("dz"), 0);
+            int dx = SkeletonParamParsers.intValue(m.get("dx"), 0);
+            int dy = SkeletonParamParsers.intValue(m.get("dy"), 0);
+            int dz = SkeletonParamParsers.intValue(m.get("dz"), 0);
             BlockPos pos = origin.add(dx, dy, dz);
             perimeter.add(pos);
         }
@@ -223,9 +224,5 @@ public class EnclosingWallAssembler implements ComponentAssembler {
         return ops;
     }
 
-    private static int toInt(Object v, int def) {
-        if (v instanceof Number n) return n.intValue();
-        try { return Integer.parseInt(String.valueOf(v)); } catch (Exception e) { return def; }
-    }
 }
 

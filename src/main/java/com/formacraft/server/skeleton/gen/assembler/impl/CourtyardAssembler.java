@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.gen.assembler.impl;
 
 import com.formacraft.common.component.ComponentSpec;
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.component.ComponentType;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.semantic.SemanticPlacementOp;
@@ -45,7 +46,7 @@ public class CourtyardAssembler implements ComponentAssembler {
         if (component.type != ComponentType.COURTYARD) return ops;
 
         // 从 params 获取参数
-        int radius = getIntParam(component, "radius", 0);
+        int radius = SkeletonParamParsers.componentInt(component, "radius", 0);
         String shape = getStringParam(component, "shape", "rectangle");
         String floor = getStringParam(component, "floor", "stone");
 
@@ -102,14 +103,6 @@ public class CourtyardAssembler implements ComponentAssembler {
         return ops;
     }
 
-    private static int getIntParam(ComponentSpec component, String key, int defaultValue) {
-        Object v = component.params.get(key);
-        if (v instanceof Number n) return n.intValue();
-        if (v instanceof String s) {
-            try { return Integer.parseInt(s); } catch (Exception e) { return defaultValue; }
-        }
-        return defaultValue;
-    }
 
     private static String getStringParam(ComponentSpec component, String key, String defaultValue) {
         Object v = component.params.get(key);

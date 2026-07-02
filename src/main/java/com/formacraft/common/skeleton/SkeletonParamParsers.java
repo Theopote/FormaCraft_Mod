@@ -1,5 +1,6 @@
 package com.formacraft.common.skeleton;
 
+import com.formacraft.common.component.ComponentSpec;
 import com.formacraft.common.logging.FcaLog;
 
 import java.util.Map;
@@ -18,6 +19,15 @@ public final class SkeletonParamParsers {
         if (n < min) n = min;
         if (n > max) n = max;
         return n;
+    }
+
+    public static int intValue(Object raw, int defaultValue) {
+        return intValue(raw, defaultValue, null);
+    }
+
+    public static int componentInt(ComponentSpec component, String key, int defaultValue) {
+        if (component == null || component.params == null) return defaultValue;
+        return intValue(component.params.get(key), defaultValue, key);
     }
 
     public static int intParam(Map<String, Object> params, String key, int defaultValue) {
@@ -41,11 +51,16 @@ public final class SkeletonParamParsers {
 
     private static int intValue(Object raw, int defaultValue, String key) {
         if (raw instanceof Number n) return n.intValue();
-        if (raw instanceof String s) {
-            try {
-                return Integer.parseInt(s.trim());
-            } catch (Exception e) {
+        if (raw == null) return defaultValue;
+        try {
+            String s = String.valueOf(raw).trim();
+            if (s.isEmpty()) return defaultValue;
+            return Integer.parseInt(s);
+        } catch (Exception e) {
+            if (key != null) {
                 LOG.debug("parse int failed key={} value={} def={}", key, raw, defaultValue);
+            } else {
+                LOG.debug("parse int failed value={} def={}", raw, defaultValue);
             }
         }
         return defaultValue;

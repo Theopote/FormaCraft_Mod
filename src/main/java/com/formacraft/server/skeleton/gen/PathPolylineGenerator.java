@@ -1,5 +1,6 @@
 package com.formacraft.server.skeleton.gen;
 
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 
 import com.formacraft.common.patch.BlockPatch;
@@ -48,8 +49,7 @@ public class PathPolylineGenerator implements ISkeletonGenerator {
     }
 
     private static int toInt(Object v, int def) {
-        if (v instanceof Number n) return n.intValue();
-        try { return Integer.parseInt(String.valueOf(v)); } catch (Exception e) { return def; }
+        return SkeletonParamParsers.intValue(v, def);
     }
 }
 

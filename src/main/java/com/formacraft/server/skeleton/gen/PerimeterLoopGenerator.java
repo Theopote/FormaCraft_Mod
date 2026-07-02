@@ -1,6 +1,7 @@
 package com.formacraft.server.skeleton.gen;
 
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.skeleton.gen.util.GenMath;
@@ -28,9 +29,9 @@ public class PerimeterLoopGenerator implements ISkeletonGenerator {
         List<BlockPos> abs = new ArrayList<>();
         for (Object o : pts) {
             if (!(o instanceof Map<?, ?> m)) continue;
-            int dx = toInt(m.get("dx"), 0);
-            int dy = toInt(m.get("dy"), 0);
-            int dz = toInt(m.get("dz"), 0);
+            int dx = SkeletonParamParsers.intValue(m.get("dx"), 0);
+            int dy = SkeletonParamParsers.intValue(m.get("dy"), 0);
+            int dz = SkeletonParamParsers.intValue(m.get("dz"), 0);
             abs.add(ctx.origin.add(dx, dy, dz));
         }
         if (abs.size() < 3) return List.of();
@@ -51,9 +52,5 @@ public class PerimeterLoopGenerator implements ISkeletonGenerator {
         return patches;
     }
 
-    private static int toInt(Object v, int def) {
-        if (v instanceof Number n) return n.intValue();
-        try { return Integer.parseInt(String.valueOf(v)); } catch (Exception e) { return def; }
-    }
 }
 
