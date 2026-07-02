@@ -1,5 +1,7 @@
 package com.formacraft.server.interior;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
+
 import java.util.Locale;
 import java.util.Map;
 
@@ -63,11 +65,7 @@ public final class FloorPlanConfig {
     }
 
     private static int clampInt(Object v, int def, int min, int max) {
-        int n = def;
-        try {
-            if (v instanceof Number nn) n = nn.intValue();
-            else if (v != null) n = Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        int n = StructureSpecParsers.intValue(v, def);
         return clamp(n, min, max);
     }
 

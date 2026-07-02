@@ -1,5 +1,6 @@
 package com.formacraft.server.rag;
 
+import com.formacraft.common.logging.FcaLog;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
@@ -17,6 +18,7 @@ import java.util.*;
  * P0: uses FabricLoader ModContainer.findPath so it works both in-dev and in-jar.
  */
 public final class CultureCardRepository {
+    private static final FcaLog LOG = FcaLog.of("CultureCardRepository");
     private static final Gson GSON = new GsonBuilder().create();
     private static final String MOD_ID = "formacraft";
 
@@ -91,6 +93,7 @@ public final class CultureCardRepository {
             exampleCache.put(key, json);
             return json;
         } catch (Exception e) {
+            LOG.debug("load assembly example failed file={}", key, e);
             exampleCache.put(key, null);
             return null;
         }
@@ -108,13 +111,13 @@ public final class CultureCardRepository {
                 Path p = mod.findPath("assets/" + MOD_ID + "/" + subdir).orElse(null);
                 if (p != null && Files.exists(p) && Files.isDirectory(p)) return p;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("find assets dir via Fabric failed subdir={}", subdir, ex); }
 
         // 2) Build-tool fallback (gradle JavaExec)
         try {
             Path p = Path.of("src/main/resources/assets/" + MOD_ID + "/" + subdir);
             if (Files.exists(p) && Files.isDirectory(p)) return p;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("find assets dir via filesystem failed subdir={}", subdir, ex); }
 
         return null;
     }
@@ -150,7 +153,7 @@ public final class CultureCardRepository {
                 Map<String, Object> macroHint = null;
                 Object mh = am.get("macroHint");
                 if (mh instanceof Map<?, ?> mh0) {
-                    try { macroHint = (Map<String, Object>) mh0; } catch (Exception ignored) {}
+                    macroHint = (Map<String, Object>) mh0;
                 }
                 List<String> constraints = strList(am.get("constraints"));
                 if (name != null) {
@@ -206,11 +209,16 @@ public final class CultureCardRepository {
     }
 
     private static Double doubleOrNull(Object v) {
+        if (v == null) return null;
+        if (v instanceof Number n) return n.doubleValue();
+        String s = String.valueOf(v).trim();
+        if (s.isEmpty()) return null;
         try {
-            if (v instanceof Number n) return n.doubleValue();
-            if (v != null) return Double.parseDouble(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
-        return null;
+            return Double.parseDouble(s);
+        } catch (Exception ex) {
+            LOG.debug("parse double failed value={}", v, ex);
+            return null;
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 package com.formacraft.server.cluster.layout;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
+
 import java.util.Locale;
 import java.util.Map;
 
@@ -190,30 +192,12 @@ public final class ClusterLayoutConfig {
 
     private static int getInt(Map<String, Object> extra, String key, int def) {
         if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
-        try {
-            if (v instanceof Number n) return n.intValue();
-            String s = String.valueOf(v).trim();
-            if (s.isEmpty()) return def;
-            return Integer.parseInt(s);
-        } catch (Exception ignored) {
-            return def;
-        }
+        return StructureSpecParsers.intValue(extra.get(key), def);
     }
 
     private static double getDouble(Map<String, Object> extra, String key, double def) {
         if (extra == null) return def;
-        Object v = extra.get(key);
-        if (v == null) return def;
-        try {
-            if (v instanceof Number n) return n.doubleValue();
-            String s = String.valueOf(v).trim();
-            if (s.isEmpty()) return def;
-            return Double.parseDouble(s);
-        } catch (Exception ignored) {
-            return def;
-        }
+        return StructureSpecParsers.doubleValue(extra.get(key), def);
     }
 
     private static String getString(Map<String, Object> extra, String key, String def) {
@@ -229,11 +213,7 @@ public final class ClusterLayoutConfig {
         if (extra == null) return null;
         Object v = extra.get("scoreWeights");
         if (v instanceof Map<?, ?> m) {
-            try {
-                return (Map<String, Object>) m;
-            } catch (Exception ignored) {
-                return null;
-            }
+            return (Map<String, Object>) m;
         }
         return null;
     }

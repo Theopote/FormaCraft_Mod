@@ -1,5 +1,6 @@
 package com.formacraft.server.cluster.layout;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.server.cluster.TerrainFields;
 import com.formacraft.server.build.BuildConstraintContext;
 import net.minecraft.server.world.ServerWorld;
@@ -15,6 +16,8 @@ import java.util.Random;
  * Generates a sorted candidate list for a unit using TerrainFields metrics.
  */
 public final class CandidateGenerator {
+    private static final FcaLog LOG = FcaLog.of("CandidateGenerator");
+
     private CandidateGenerator() {}
 
     public static List<Candidate> generate(BuildingUnit unit,
@@ -63,7 +66,7 @@ public final class CandidateGenerator {
             if (c != null && c.outline != null) {
                 area2 = new OutlineBuildArea(c.outline, clusterOrigin, area.halfX, area.halfZ);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("apply outline build area failed", ex); }
 
         List<Candidate> out = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
