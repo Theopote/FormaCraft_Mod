@@ -1603,17 +1603,11 @@ public class ComponentCapturePanel extends BasePanel {
             com.formacraft.FormacraftMod.LOGGER.warn("Failed to generate thumbnail", t);
         }
 
-        // 记录新构件 ID，用于跳转后高亮（已移至 ComponentTool.onCatalogUpdatedFromServer）
+        // 等待服务端 ComponentSaveAck；catalog 仅刷新目录数据
         String componentName = st.name.trim();
-        
-        // 标记保存待确认（等待服务端 catalog 更新回调）
         ComponentTool.INSTANCE.markSavePending(componentName);
         HudToast.show("正在保存构件「" + componentName + "」…");
         FormaCraftNetworking.sendSaveComponent(json, thumbnailPng);
-        
-        // 注意：跳转逻辑已移至 ComponentTool.onCatalogUpdatedFromServer()
-        // 当服务端保存成功并推送 catalog 更新时，会自动触发跳转
-        // 这样避免了 sleep(500) 的竞态问题
     }
 
     @Override

@@ -864,34 +864,43 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     /** 
-     * 服务端回推 catalog 后调用：用于给 ToolPanel toast 强反馈和 UI 跳转。
-     * 当保存成功时，会自动跳转到构件库面板并高亮新保存的构件。
+     * 服务端保存确认：用于 toast、跳转与高亮；catalog 刷新不再承担此职责。
      */
-    public void onCatalogUpdatedFromServer() {
-        if (!awaitingSaveAck) return;
-        awaitingSaveAck = false;
-        String n = (awaitingSaveName == null || awaitingSaveName.isBlank()) ? "（未命名）" : awaitingSaveName;
-        String componentName = awaitingSaveName; // 保存名称用于跳转
-        awaitingSaveName = null;
-        
-        // 显示成功提示
-        HudToast.show("✓ 构件「" + n + "」已保存到库");
-        
-        // 跳转到构件库面板并高亮新保存的构件
-        if (componentName != null && !componentName.isBlank()) {
-            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-            if (client != null) {
-                client.execute(() -> {
-                    // 跳转到构件库面板
-                    com.formacraft.client.ui.FormaCraftHudOverlay.activePanel = 
-                        com.formacraft.client.ui.panel.PanelType.COMPONENT_LIBRARY;
-                    
-                    // 设置选中的构件（高亮显示）
-                    state.librarySelectedId = makeId(state.category, componentName);
-                    state.librarySelectedName = componentName;
-                });
-            }
+    public void onSaveAckFromServer(String id, String name, boolean success, String message) {
+        if (!awaitingSaveAck) {
+            return;
         }
+        awaitingSaveAck = false;
+        String pendingName = awaitingSaveName;
+        awaitingSaveName = null;
+
+        if (!success) {
+            String error = (message == null || message.isBlank()) ? "保存构件失败" : message;
+            HudToast.show(error, true);
+            return;
+        }
+
+        String displayName = (name != null && !name.isBlank())
+                ? name
+                : ((pendingName == null || pendingName.isBlank()) ? "（未命名）" : pendingName);
+        String toast = (message == null || message.isBlank())
+                ? ("✓ 构件「" + displayName + "」已保存到库")
+                : message;
+        HudToast.show(toast);
+
+        String componentId = (id != null && !id.isBlank())
+                ? id
+                : makeId(state.category, displayName);
+        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+        client.execute(() -> {
+            com.formacraft.client.ui.FormaCraftHudOverlay.activePanel =
+                    com.formacraft.client.ui.panel.PanelType.COMPONENT_LIBRARY;
+            state.librarySelectedId = componentId;
+            state.librarySelectedName = displayName;
+        });
     }
 
     /**

@@ -81,6 +81,7 @@ public class FormaCraftNetworking {
     public static final Identifier COMPONENT_SAVE = Identifier.of("formacraft", "component_save");
     public static final Identifier COMPONENT_CATALOG_REQUEST = Identifier.of("formacraft", "component_catalog_request");
     public static final Identifier COMPONENT_CATALOG = Identifier.of("formacraft", "component_catalog");
+    public static final Identifier COMPONENT_SAVE_ACK = Identifier.of("formacraft", "component_save_ack");
     public static final Identifier COMPONENT_GET_REQUEST = Identifier.of("formacraft", "component_get_request");
     public static final Identifier COMPONENT_DEFINITION = Identifier.of("formacraft", "component_definition");
 
@@ -364,6 +365,33 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** S2C：构件保存结果确认（与 catalog 刷新解耦） */
+    public record ComponentSaveAckPayload(
+            String id,
+            String name,
+            boolean success,
+            String message
+    ) implements CustomPayload {
+        public static final CustomPayload.Id<ComponentSaveAckPayload> ID = new CustomPayload.Id<>(COMPONENT_SAVE_ACK);
+        public static final PacketCodec<PacketByteBuf, ComponentSaveAckPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {
+                    buf.writeString(payload.id == null ? "" : payload.id);
+                    buf.writeString(payload.name == null ? "" : payload.name);
+                    buf.writeBoolean(payload.success);
+                    buf.writeString(payload.message == null ? "" : payload.message);
+                },
+                buf -> new ComponentSaveAckPayload(
+                        buf.readString(),
+                        buf.readString(),
+                        buf.readBoolean(),
+                        buf.readString()
+                )
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** C2S：请求服务端下发某个构件定义（payload 为 component id） */
     public record ComponentGetRequestPayload(String id) implements CustomPayload {
         public static final CustomPayload.Id<ComponentGetRequestPayload> ID = new CustomPayload.Id<>(COMPONENT_GET_REQUEST);
@@ -519,7 +547,7 @@ public class FormaCraftNetworking {
 
             String json = payload.json();
             if (json == null || json.isBlank()) {
-                try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("保存构件失败：空数据")); } catch (Throwable ignored) {}
+                sendComponentSaveAck(player, "", "", false, "保存构件失败：空数据");
                 return;
             }
 
@@ -527,16 +555,22 @@ public class FormaCraftNetworking {
             try {
                 def = JsonUtil.fromJson(json, ComponentDefinition.class);
             } catch (Throwable t) {
-                try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("保存构件失败：JSON 解析失败")); } catch (Throwable ignored) {}
+                sendComponentSaveAck(player, "", "", false, "保存构件失败：JSON 解析失败");
                 return;
             }
             if (def == null || def.id == null || def.id.isBlank()) {
-                try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("保存构件失败：缺少 id")); } catch (Throwable ignored) {}
+                sendComponentSaveAck(player, "", "", false, "保存构件失败：缺少 id");
                 return;
             }
 
             java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
-            ComponentStorage.saveComponent(worldDir, def);
+            try {
+                ComponentStorage.saveComponent(worldDir, def);
+            } catch (Throwable t) {
+                FormacraftMod.LOGGER.error("Failed to save component {}", def.id, t);
+                sendComponentSaveAck(player, def.id, def.name, false, "保存构件失败：" + t.getMessage());
+                return;
+            }
 
             // 保存缩略图（如果有）
             byte[] thumbnailPng = payload.thumbnailPng();
@@ -547,16 +581,17 @@ public class FormaCraftNetworking {
                     java.nio.file.Path thumbFile = globalDir.resolve(def.id + ".png");
                     java.nio.file.Files.write(thumbFile, thumbnailPng);
                 } catch (Throwable t) {
-                    // 缩略图保存失败不影响构件保存
-                    System.err.println("Failed to save thumbnail for component " + def.id + ": " + t.getMessage());
+                    FormacraftMod.LOGGER.warn("Failed to save thumbnail for component {}: {}", def.id, t.getMessage());
                 }
             }
 
-            // 回推最新 catalog 给该玩家（用于 Prompt 注入/工具 UI）
+            String ackMessage = "已保存构件：" + def.name + "（" + def.id + "）";
+            sendComponentSaveAck(player, def.id, def.name, true, ackMessage);
+
+            // 刷新 catalog（仅数据同步，不驱动保存 UI 反馈）
             ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir);
             String catJson = JsonUtil.toJson(cat);
             ServerPlayNetworking.send(player, new ComponentCatalogPayload(catJson));
-            try { ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("已保存构件：" + def.name + "（" + def.id + "）")); } catch (Throwable ignored) {}
         }));
 
         // Component Library: 请求 catalog（客户端 -> 服务端）
@@ -773,8 +808,15 @@ public class FormaCraftNetworking {
         ClientPlayNetworking.registerGlobalReceiver(ComponentCatalogPayload.ID, (payload, context) -> context.client().execute(() -> {
             String json = payload.json();
             com.formacraft.client.component.ClientComponentCatalogState.setFromJson(json);
-            // 如果这是一次“保存构件”后的回推，则在 ToolPanel 内做强反馈 toast
-            try { com.formacraft.client.tool.ComponentTool.INSTANCE.onCatalogUpdatedFromServer(); } catch (Throwable ignored) {}
+        }));
+
+        // Component Library: 保存结果确认（服务端 -> 客户端）
+        ClientPlayNetworking.registerGlobalReceiver(ComponentSaveAckPayload.ID, (payload, context) -> context.client().execute(() -> {
+            try {
+                com.formacraft.client.tool.ComponentTool.INSTANCE.onSaveAckFromServer(
+                        payload.id(), payload.name(), payload.success(), payload.message());
+            } catch (Throwable ignored) {
+            }
         }));
 
         // Component Library: 单个构件定义下发（服务端 -> 客户端）
@@ -813,7 +855,29 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playS2C().register(PreviewOriginPayload.ID, PreviewOriginPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentCatalogPayload.ID, ComponentCatalogPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ComponentSaveAckPayload.ID, ComponentSaveAckPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentDefinitionPayload.ID, ComponentDefinitionPayload.CODEC);
+    }
+
+    private static void sendComponentSaveAck(
+            ServerPlayerEntity player,
+            String id,
+            String name,
+            boolean success,
+            String message
+    ) {
+        if (player == null) {
+            return;
+        }
+        try {
+            ServerPlayNetworking.send(player, new ComponentSaveAckPayload(
+                    id == null ? "" : id,
+                    name == null ? "" : name,
+                    success,
+                    message == null ? "" : message
+            ));
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
