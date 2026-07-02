@@ -266,6 +266,38 @@ public final class MetaAssemblyEngine {
         }
     };
 
+    private static final AssemblyStructuralOps.Adapter STRUCTURAL_OPS_ADAPTER = new AssemblyStructuralOps.Adapter() {
+        @Override
+        public void placePrism(List<PlannedBlock> out, Context ctx, BlockPos origin, int cx, int cy, int cz, int thickness, int h, BlockState state) {
+            MetaAssemblyEngine.placePrism(out, ctx, origin, cx, cy, cz, thickness, h, state);
+        }
+
+        @Override
+        public void placeBeamLine(List<PlannedBlock> out, Context ctx, BlockPos origin, int x0, int y0, int z0, int x1, int y1, int z1, int thickness, int beamH, BlockState state) {
+            MetaAssemblyEngine.placeBeamLine(out, ctx, origin, x0, y0, z0, x1, y1, z1, thickness, beamH, state);
+        }
+
+        @Override
+        public BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
+            return MetaAssemblyEngine.pick(ctx, op, overrideKey, semanticKey, salt, fallback);
+        }
+
+        @Override
+        public int i(Object v, int def) {
+            return MetaAssemblyEngine.i(v, def);
+        }
+
+        @Override
+        public String str(Object v, String def) {
+            return MetaAssemblyEngine.str(v, def);
+        }
+
+        @Override
+        public int clamp(int v, int min, int max) {
+            return MetaAssemblyEngine.clamp(v, min, max);
+        }
+    };
+
     public List<PlannedBlock> execute(AssemblySpec spec, Context ctx) {
         List<PlannedBlock> out = new ArrayList<>();
         if (spec == null || ctx == null || ctx.world == null || ctx.origin == null) return out;
@@ -650,423 +682,11 @@ public final class MetaAssemblyEngine {
                     placePrism(out, ctx, curOrigin, x, y, z, thickness, beamH, mat);
                 }
             }
-            case "TRUSS_2D" -> {
-                // 2D truss skeleton (in XZ with height in Y).
-                //
-                // Required:
-                // - from/to: {x,y,z} local points
-                // Optional:
-                // - height: truss height (default 6)
-                // - module: spacing in steps along the centerline (default 4)
-                // - pattern: WARREN (default) / PRATT / HOWE (P0: WARREN best-effort)
-                // - thickness: beam thickness (default 1)
-                // - chord: material for top/bottom chords (semantic STRUCTURAL_BEAM)
-                // - web: material for diagonals/verticals (semantic STRUCTURAL_BEAM)
-                // - joint: joint material (semantic STRUCTURAL_BEAM)
-                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
-                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
-                int baseY = Math.min(p0[1], p1[1]);
-                int height = clamp(i(op.get("height"), i(op.get("h"), 6)), 1, 64);
-                int topY = baseY + height;
-                int module = clamp(i(op.get("module"), i(op.get("step"), 4)), 1, 64);
-                String pattern = str(op.get("pattern"), "WARREN").trim().toUpperCase(Locale.ROOT);
-                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
-
-                BlockState chord = pick(ctx, op, "chord", "STRUCTURAL_BEAM", 0xA57401L, Blocks.IRON_BARS.getDefaultState());
-                BlockState web = pick(ctx, op, "web", "STRUCTURAL_BEAM", 0xA57402L, chord);
-                BlockState joint = pick(ctx, op, "joint", "STRUCTURAL_BEAM", 0xA57403L, chord);
-
-                // Work in local coordinates; rasterize XZ line at baseY
-                BlockPos a = new BlockPos(p0[0], baseY, p0[2]);
-                BlockPos b = new BlockPos(p1[0], baseY, p1[2]);
-                List<BlockPos> line = AssemblyRasterOps.rasterizeLine2D(a, b, null, false, 0);
-                if (line.size() < 2) break;
-
-                // Place chords (bottom + top)
-                for (BlockPos lp : line) {
-                    placePrism(out, ctx, curOrigin, lp.getX(), baseY, lp.getZ(), thick, 1, chord);
-                    placePrism(out, ctx, curOrigin, lp.getX(), topY, lp.getZ(), thick, 1, chord);
-                }
-
-                // Place joints + webs on module nodes
-                int n = line.size();
-                int lastNode = 0;
-                boolean flip = false;
-                for (int i = 0; i < n; i += module) {
-                    int idx = Math.min(i, n - 1);
-                    BlockPos p = line.get(idx);
-                    // joints
-                    placePrism(out, ctx, curOrigin, p.getX(), baseY, p.getZ(), thick, 1, joint);
-                    placePrism(out, ctx, curOrigin, p.getX(), topY, p.getZ(), thick, 1, joint);
-
-                    // vertical at node
-                    placeBeamLine(out, ctx, curOrigin, p.getX(), baseY, p.getZ(), p.getX(), topY, p.getZ(), thick, 1, web);
-
-                    // diagonal from previous node to current node (Warren-ish)
-                    if (idx > 0) {
-                        BlockPos prev = line.get(lastNode);
-                        if (pattern.contains("PRATT") || pattern.contains("HOWE")) {
-                            // P0: treat as WARREN (diagonals alternate)
-                        }
-                        if (!flip) {
-                            // bottom(prev) -> top(cur)
-                            placeBeamLine(out, ctx, curOrigin, prev.getX(), baseY, prev.getZ(), p.getX(), topY, p.getZ(), thick, 1, web);
-                        } else {
-                            // top(prev) -> bottom(cur)
-                            placeBeamLine(out, ctx, curOrigin, prev.getX(), topY, prev.getZ(), p.getX(), baseY, p.getZ(), thick, 1, web);
-                        }
-                        flip = !flip;
-                        lastNode = idx;
-                    }
-                }
-            }
-            case "ARCH_RIB" -> {
-                // Curved arch rib in a vertical plane that contains the (from->to) direction and Y axis.
-                //
-                // Required:
-                // - from/to: {x,y,z} local points
-                // Optional:
-                // - rise: arch rise (sagitta) above the straight chord (default auto)
-                // - thickness: beam thickness (default 1)
-                // - samples: number of samples along arch (default auto by distance)
-                // - material: block/material semantic (default STRUCTURAL_BEAM)
-                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
-                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
-                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
-
-                int dx = p1[0] - p0[0];
-                int dz = p1[2] - p0[2];
-                int dist2d = Math.max(Math.abs(dx), Math.abs(dz));
-                int rise = i(op.get("rise"), i(op.get("sagitta"), -1));
-                if (rise <= 0) rise = clamp(Math.max(2, dist2d / 6), 2, 48);
-
-                int samples = i(op.get("samples"), i(op.get("steps"), -1));
-                if (samples <= 0) samples = clamp(dist2d * 3, 12, 4096);
-
-                BlockState mat = pick(ctx, op, "material", "STRUCTURAL_BEAM", 0xA57410L, Blocks.IRON_BARS.getDefaultState());
-
-                int lastX = p0[0], lastY = p0[1], lastZ = p0[2];
-                boolean first = true;
-                for (int si = 0; si <= samples; si++) {
-                    double t = si / (double) samples;
-                    double x = p0[0] + (p1[0] - p0[0]) * t;
-                    double yLine = p0[1] + (p1[1] - p0[1]) * t;
-                    double z = p0[2] + (p1[2] - p0[2]) * t;
-                    // Parabolic arch offset: 0 at ends, rise at mid
-                    double y = yLine + (4.0 * rise * t * (1.0 - t));
-
-                    int xi = (int) Math.round(x);
-                    int yi = (int) Math.round(y);
-                    int zi = (int) Math.round(z);
-
-                    if (first) {
-                        placePrism(out, ctx, curOrigin, xi, yi, zi, thick, 1, mat);
-                        first = false;
-                    } else {
-                        placeBeamLine(out, ctx, curOrigin, lastX, lastY, lastZ, xi, yi, zi, thick, 1, mat);
-                    }
-                    lastX = xi; lastY = yi; lastZ = zi;
-                }
-            }
-            case "BUTTRESS" -> {
-                // Flying buttress (P0): an arch rib from wall attachment to an outer pier point,
-                // plus an optional vertical pier-down support.
-                //
-                // Required:
-                // - from/to: {x,y,z} local points
-                // Optional:
-                // - rise: arch rise above chord (default auto)
-                // - thickness: beam thickness (default 1)
-                // - samples: arch samples (default auto)
-                // - pierDown: extend a vertical pier down from 'to' by N blocks (default 6)
-                // - rib/pier/joint: materials (semantic STRUCTURAL_BEAM)
-                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
-                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
-
-                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
-                int dx = p1[0] - p0[0];
-                int dz = p1[2] - p0[2];
-                int dist2d = Math.max(Math.abs(dx), Math.abs(dz));
-                int rise = i(op.get("rise"), i(op.get("sagitta"), -1));
-                if (rise <= 0) rise = clamp(Math.max(2, dist2d / 6), 2, 48);
-                int samples = i(op.get("samples"), i(op.get("steps"), -1));
-                if (samples <= 0) samples = clamp(dist2d * 3, 12, 4096);
-                int pierDown = i(op.get("pierDown"), i(op.get("pier_down"), 6));
-                pierDown = clamp(pierDown, 0, 256);
-
-                BlockState rib = pick(ctx, op, "rib", "STRUCTURAL_BEAM", 0xA57420L, Blocks.IRON_BARS.getDefaultState());
-                BlockState pier = pick(ctx, op, "pier", "STRUCTURAL_BEAM", 0xA57421L, rib);
-                BlockState joint = pick(ctx, op, "joint", "STRUCTURAL_BEAM", 0xA57422L, rib);
-
-                // joints at endpoints
-                placePrism(out, ctx, curOrigin, p0[0], p0[1], p0[2], thick, 1, joint);
-                placePrism(out, ctx, curOrigin, p1[0], p1[1], p1[2], thick, 1, joint);
-
-                // main flying arch rib
-                int lastX = p0[0], lastY = p0[1], lastZ = p0[2];
-                boolean first = true;
-                for (int si = 0; si <= samples; si++) {
-                    double t = si / (double) samples;
-                    double x = p0[0] + (p1[0] - p0[0]) * t;
-                    double yLine = p0[1] + (p1[1] - p0[1]) * t;
-                    double z = p0[2] + (p1[2] - p0[2]) * t;
-                    double y = yLine + (4.0 * rise * t * (1.0 - t));
-
-                    int xi = (int) Math.round(x);
-                    int yi = (int) Math.round(y);
-                    int zi = (int) Math.round(z);
-
-                    if (first) {
-                        placePrism(out, ctx, curOrigin, xi, yi, zi, thick, 1, rib);
-                        first = false;
-                    } else {
-                        placeBeamLine(out, ctx, curOrigin, lastX, lastY, lastZ, xi, yi, zi, thick, 1, rib);
-                    }
-                    lastX = xi; lastY = yi; lastZ = zi;
-                }
-
-                // outer pier support (simple vertical)
-                if (pierDown > 0) {
-                    placeBeamLine(out, ctx, curOrigin, p1[0], p1[1], p1[2], p1[0], p1[1] - pierDown, p1[2], thick, 1, pier);
-                }
-            }
-            case "TENSION_CABLE" -> {
-                // Tension cable / hanger cable (P0): a sagging curve between endpoints.
-                // We approximate a catenary with a parabola in world-space: y = yLine - sag * 4 t(1-t).
-                //
-                // Required:
-                // - from/to: {x,y,z} local points
-                // Optional:
-                // - sag: positive number; larger means more droop (default auto)
-                // - samples: points along curve (default auto)
-                // - thickness: beam thickness (default 1)
-                // - material: semantic STRUCTURAL_CABLE (fallback STRUCTURAL_BEAM)
-                // - hangersEvery: place vertical hangers every N samples (default 0 = off)
-                // - hangersToY: bottom Y of hangers (required if hangersEvery>0)
-                // - hangersMaterial: semantic STRUCTURAL_CABLE (fallback to material)
-                // - cableCount: number of parallel main cables (default 1)
-                // - cableSpacing: spacing between parallel cables (default 3)
-                // - cableAxis: AUTO/X/Z (offset direction in XZ; AUTO picks perpendicular-ish axis)
-                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
-                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
-
-                int thick = clamp(i(op.get("thickness"), 1), 1, 5);
-                int dx = p1[0] - p0[0];
-                int dy = p1[1] - p0[1];
-                int dz = p1[2] - p0[2];
-                int dist = Math.max(Math.max(Math.abs(dx), Math.abs(dy)), Math.abs(dz));
-
-                int sag = i(op.get("sag"), i(op.get("droop"), -1));
-                if (sag <= 0) sag = clamp(Math.max(1, dist / 12), 1, 48);
-
-                int samples = i(op.get("samples"), i(op.get("steps"), -1));
-                if (samples <= 0) samples = clamp(dist * 4, 12, 8192);
-
-                BlockState mat = pick(ctx, op, "material", "STRUCTURAL_CABLE", 0xA57430L,
-                        pick(ctx, op, "material", "STRUCTURAL_BEAM", 0xA57431L, Blocks.IRON_BARS.getDefaultState()));
-
-                int hangersEvery = i(op.get("hangersEvery"), i(op.get("hangerEvery"), 0));
-                int hangersToY = i(op.get("hangersToY"), i(op.get("hangerToY"), Integer.MIN_VALUE));
-                BlockState hangMat = pick(ctx, op, "hangersMaterial", "STRUCTURAL_CABLE", 0xA57432L, mat);
-                boolean doHangers = hangersEvery > 0 && hangersToY != Integer.MIN_VALUE;
-
-                int cableCount = clamp(i(op.get("cableCount"), i(op.get("count"), 1)), 1, 32);
-                int cableSpacing = clamp(i(op.get("cableSpacing"), i(op.get("spacing"), 3)), 1, 64);
-                String cableAxis = str(op.get("cableAxis"), "AUTO").trim().toUpperCase(Locale.ROOT);
-
-                // Offset direction in XZ: choose axis perpendicular-ish to cable direction.
-                // If cable is mostly along X, offset in Z; if mostly along Z, offset in X.
-                boolean offsetX;
-                if ("X".equals(cableAxis)) offsetX = true;
-                else if ("Z".equals(cableAxis)) offsetX = false;
-                else offsetX = Math.abs(dz) >= Math.abs(dx); // along Z => offset X, else offset Z
-
-                for (int ci = 0; ci < cableCount; ci++) {
-                    int center = (cableCount - 1);
-                    // symmetric offsets: -k..+k
-                    int off = (ci * 2 - center);
-                    // keep even spacing when count is even by allowing half-step; here we scale then /2.
-                    // ex: count=2 => off=-1,+1 => +/-spacing/2 in effect
-                    double offAmt = off * (cableSpacing / 2.0);
-                    int ox = offsetX ? (int) Math.round(offAmt) : 0;
-                    int oz = offsetX ? 0 : (int) Math.round(offAmt);
-
-                    int ax = p0[0] + ox, ay = p0[1], az = p0[2] + oz;
-                    int bx = p1[0] + ox, by = p1[1], bz = p1[2] + oz;
-
-                    int lastX = ax, lastY = ay, lastZ = az;
-                    boolean first = true;
-                    for (int si = 0; si <= samples; si++) {
-                        double t = si / (double) samples;
-                        double x = ax + (bx - ax) * t;
-                        double yLine = ay + (by - ay) * t;
-                        double z = az + (bz - az) * t;
-                        double y = yLine - (4.0 * sag * t * (1.0 - t));
-
-                        int xi = (int) Math.round(x);
-                        int yi = (int) Math.round(y);
-                        int zi = (int) Math.round(z);
-
-                        if (first) {
-                            placePrism(out, ctx, curOrigin, xi, yi, zi, thick, 1, mat);
-                            first = false;
-                        } else {
-                            placeBeamLine(out, ctx, curOrigin, lastX, lastY, lastZ, xi, yi, zi, thick, 1, mat);
-                        }
-
-                        // vertical hangers (down to fixed Y)
-                        if (doHangers && si % hangersEvery == 0) {
-                            if (yi > hangersToY) {
-                                placeBeamLine(out, ctx, curOrigin, xi, yi, zi, xi, hangersToY, zi, 1, 1, hangMat);
-                            }
-                        }
-                        lastX = xi; lastY = yi; lastZ = zi;
-                    }
-                }
-            }
-            case "FRAME_GRID_3D" -> {
-                // 3D frame/grid skeleton (space frame / exoskeleton).
-                //
-                // Required:
-                // - x0,x1,y0,y1,z0,z1: local bounds (inclusive)
-                // Optional:
-                // - stepX/stepY/stepZ: grid spacing (default 4)
-                // - thickness: beam thickness (default 1)
-                // - mode: SURFACE (default) / ALL
-                // - diagonal: NONE (default) / FACE / SPACE
-                // - material: semantic STRUCTURAL_BEAM
-                int x0 = i(op.get("x0"), 0), x1 = i(op.get("x1"), 0);
-                int y0 = i(op.get("y0"), 0), y1 = i(op.get("y1"), 0);
-                int z0 = i(op.get("z0"), 0), z1 = i(op.get("z1"), 0);
-                if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
-                if (y0 > y1) { int t = y0; y0 = y1; y1 = t; }
-                if (z0 > z1) { int t = z0; z0 = z1; z1 = t; }
-
-                int stepX = clamp(i(op.get("stepX"), i(op.get("sx"), i(op.get("step"), 4))), 1, 64);
-                int stepY = clamp(i(op.get("stepY"), i(op.get("sy"), i(op.get("step"), 4))), 1, 64);
-                int stepZ = clamp(i(op.get("stepZ"), i(op.get("sz"), i(op.get("step"), 4))), 1, 64);
-                int thick = clamp(i(op.get("thickness"), 1), 1, 9);
-                String mode = str(op.get("mode"), "SURFACE").trim().toUpperCase(Locale.ROOT);
-                String diagonal = str(op.get("diagonal"), "NONE").trim().toUpperCase(Locale.ROOT);
-
-                BlockState mat = pick(ctx, op, "material", "STRUCTURAL_BEAM", 0xA57460L, Blocks.IRON_BARS.getDefaultState());
-
-                // Build snap lists for grid coordinates (always include bounds)
-                List<Integer> xs = new ArrayList<>();
-                List<Integer> ys = new ArrayList<>();
-                List<Integer> zs = new ArrayList<>();
-                for (int x = x0; x <= x1; x += stepX) xs.add(x);
-                if (xs.isEmpty() || xs.getLast() != x1) xs.add(x1);
-                for (int y = y0; y <= y1; y += stepY) ys.add(y);
-                if (ys.isEmpty() || ys.getLast() != y1) ys.add(y1);
-                for (int z = z0; z <= z1; z += stepZ) zs.add(z);
-                if (zs.isEmpty() || zs.getLast() != z1) zs.add(z1);
-
-                boolean all = mode.contains("ALL");
-
-                // Draw axis-aligned beams along grid lines
-                for (int yi : ys) {
-                    for (int zi : zs) {
-                        for (int xiIdx = 0; xiIdx + 1 < xs.size(); xiIdx++) {
-                            int xa = xs.get(xiIdx), xb = xs.get(xiIdx + 1);
-                            if (!all) {
-                                boolean onSurface = (yi == y0 || yi == y1) || (zi == z0 || zi == z1);
-                                if (!onSurface) continue;
-                            }
-                            placeBeamLine(out, ctx, curOrigin, xa, yi, zi, xb, yi, zi, thick, 1, mat);
-                        }
-                    }
-                }
-                for (int yi : ys) {
-                    for (int xi : xs) {
-                        for (int ziIdx = 0; ziIdx + 1 < zs.size(); ziIdx++) {
-                            int za = zs.get(ziIdx), zb = zs.get(ziIdx + 1);
-                            if (!all) {
-                                boolean onSurface = (yi == y0 || yi == y1) || (xi == x0 || xi == x1);
-                                if (!onSurface) continue;
-                            }
-                            placeBeamLine(out, ctx, curOrigin, xi, yi, za, xi, yi, zb, thick, 1, mat);
-                        }
-                    }
-                }
-                for (int zi : zs) {
-                    for (int xi : xs) {
-                        for (int yiIdx = 0; yiIdx + 1 < ys.size(); yiIdx++) {
-                            int ya = ys.get(yiIdx), yb = ys.get(yiIdx + 1);
-                            if (!all) {
-                                boolean onSurface = (xi == x0 || xi == x1) || (zi == z0 || zi == z1);
-                                if (!onSurface) continue;
-                            }
-                            placeBeamLine(out, ctx, curOrigin, xi, ya, zi, xi, yb, zi, thick, 1, mat);
-                        }
-                    }
-                }
-
-                // Diagonals
-                if (!diagonal.contains("NONE")) {
-                    boolean faceOnly = diagonal.contains("FACE");
-                    boolean space = diagonal.contains("SPACE") || diagonal.contains("ALL");
-
-                    // FACE diagonals: on each boundary face cell, add an alternating diagonal.
-                    if (faceOnly || (!space && !diagonal.contains("SPACE"))) {
-                        // XY faces (z = z0 / z1)
-                        for (int zFace : new int[]{z0, z1}) {
-                            for (int yiIdx = 0; yiIdx + 1 < ys.size(); yiIdx++) {
-                                int ya = ys.get(yiIdx), yb = ys.get(yiIdx + 1);
-                                for (int xiIdx = 0; xiIdx + 1 < xs.size(); xiIdx++) {
-                                    int xa = xs.get(xiIdx), xb = xs.get(xiIdx + 1);
-                                    if (((xiIdx + yiIdx) & 1) == 0) placeBeamLine(out, ctx, curOrigin, xa, ya, zFace, xb, yb, zFace, thick, 1, mat);
-                                    else placeBeamLine(out, ctx, curOrigin, xb, ya, zFace, xa, yb, zFace, thick, 1, mat);
-                                }
-                            }
-                        }
-                        // YZ faces (x = x0 / x1)
-                        for (int xFace : new int[]{x0, x1}) {
-                            for (int yiIdx = 0; yiIdx + 1 < ys.size(); yiIdx++) {
-                                int ya = ys.get(yiIdx), yb = ys.get(yiIdx + 1);
-                                for (int ziIdx = 0; ziIdx + 1 < zs.size(); ziIdx++) {
-                                    int za = zs.get(ziIdx), zb = zs.get(ziIdx + 1);
-                                    if (((ziIdx + yiIdx) & 1) == 0) placeBeamLine(out, ctx, curOrigin, xFace, ya, za, xFace, yb, zb, thick, 1, mat);
-                                    else placeBeamLine(out, ctx, curOrigin, xFace, ya, zb, xFace, yb, za, thick, 1, mat);
-                                }
-                            }
-                        }
-                        // XZ faces (y = y0 / y1)
-                        for (int yFace : new int[]{y0, y1}) {
-                            for (int ziIdx = 0; ziIdx + 1 < zs.size(); ziIdx++) {
-                                int za = zs.get(ziIdx), zb = zs.get(ziIdx + 1);
-                                for (int xiIdx = 0; xiIdx + 1 < xs.size(); xiIdx++) {
-                                    int xa = xs.get(xiIdx), xb = xs.get(xiIdx + 1);
-                                    if (((xiIdx + ziIdx) & 1) == 0) placeBeamLine(out, ctx, curOrigin, xa, yFace, za, xb, yFace, zb, thick, 1, mat);
-                                    else placeBeamLine(out, ctx, curOrigin, xb, yFace, za, xa, yFace, zb, thick, 1, mat);
-                                }
-                            }
-                        }
-                    }
-
-                    // SPACE diagonals: add a body diagonal within each grid cell (alternating).
-                    if (space) {
-                        for (int xiIdx = 0; xiIdx + 1 < xs.size(); xiIdx++) {
-                            int xa = xs.get(xiIdx), xb = xs.get(xiIdx + 1);
-                            for (int yiIdx = 0; yiIdx + 1 < ys.size(); yiIdx++) {
-                                int ya = ys.get(yiIdx), yb = ys.get(yiIdx + 1);
-                                for (int ziIdx = 0; ziIdx + 1 < zs.size(); ziIdx++) {
-                                    int za = zs.get(ziIdx), zb = zs.get(ziIdx + 1);
-                                    if (!all) {
-                                        // For SURFACE mode, only interior body diagonals don't help; skip.
-                                        continue;
-                                    }
-                                    if (((xiIdx + yiIdx + ziIdx) & 1) == 0) {
-                                        placeBeamLine(out, ctx, curOrigin, xa, ya, za, xb, yb, zb, thick, 1, mat);
-                                    } else {
-                                        placeBeamLine(out, ctx, curOrigin, xb, ya, za, xa, yb, zb, thick, 1, mat);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            case "TRUSS_2D" -> AssemblyStructuralOps.applyTruss2D(out, ctx, curOrigin, op, STRUCTURAL_OPS_ADAPTER);
+            case "ARCH_RIB" -> AssemblyStructuralOps.applyArchRib(out, ctx, curOrigin, op, STRUCTURAL_OPS_ADAPTER);
+            case "BUTTRESS" -> AssemblyStructuralOps.applyButtress(out, ctx, curOrigin, op, STRUCTURAL_OPS_ADAPTER);
+            case "TENSION_CABLE" -> AssemblyStructuralOps.applyTensionCable(out, ctx, curOrigin, op, STRUCTURAL_OPS_ADAPTER);
+            case "FRAME_GRID_3D" -> AssemblyStructuralOps.applyFrameGrid3D(out, ctx, curOrigin, op, STRUCTURAL_OPS_ADAPTER);
             case "STAIR_SYSTEM" -> AssemblyCirculationOps.applyStairSystem(out, ctx, curOrigin, op, CIRCULATION_OPS_ADAPTER);
             case "BEZIER_SURFACE" -> AssemblySurfaceOps.applyBezierSurface(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
             case "BEZIER_SURFACE_SET" -> AssemblySurfaceOps.applyBezierSurfaceSet(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
