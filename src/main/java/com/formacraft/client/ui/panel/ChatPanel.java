@@ -1081,7 +1081,7 @@ public class ChatPanel extends BasePanel {
             HttpResponse<String> resp = healthHttp.send(req, HttpResponse.BodyHandlers.ofString());
             return resp.statusCode() >= 200 && resp.statusCode() < 300;
         } catch (Exception e) {
-            LOG.debug("backend health check failed url={}", v, e);
+            LOG.debug("backend health check failed url={}", healthUrl, e);
             return false;
         }
     }

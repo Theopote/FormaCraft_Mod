@@ -1550,6 +1550,7 @@ public class SettingsPanel extends BasePanel {
         } catch (Exception e) {
             LOG.debug("build models query URL failed", e);
         }
+        final String finalUrl = computedUrl;
 
         // 记录关键信息到日志（避免 toast 过长看不清）
         FormacraftMod.LOGGER.debug(

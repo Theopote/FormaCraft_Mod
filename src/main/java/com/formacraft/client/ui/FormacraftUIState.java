@@ -83,7 +83,7 @@ public class FormacraftUIState {
                                     field.setBoolean(keyBinding, false);
                                     break;
                                 }
-                            } catch (Exception e) {
+                            } catch (Exception probeEx) {
                                 LOG.debug("KeyBinding pressed field probe failed field={}", fieldName);
                             }
                         }
