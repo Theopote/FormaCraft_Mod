@@ -15,7 +15,7 @@ Security fixes are applied to the latest release on the default branch (`main`).
 
 Instead, use one of the following:
 
-1. **GitHub Security Advisories** (preferred): open a [private vulnerability report](https://github.com/formacraft/formacraft/security/advisories/new) on this repository.
+1. **GitHub Security Advisories** (preferred): open a [private vulnerability report](https://github.com/Theopote/FormaCraft_Mod/security/advisories/new) on this repository.
 2. **Email**: contact the maintainers directly if private advisories are unavailable.
 
 Include as much detail as possible:

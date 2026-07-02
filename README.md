@@ -1,6 +1,6 @@
 # Formacraft
 
-[![Build](https://github.com/formacraft/formacraft/actions/workflows/build.yml/badge.svg)](https://github.com/formacraft/formacraft/actions/workflows/build.yml)
+[![Build](https://github.com/Theopote/FormaCraft_Mod/actions/workflows/build.yml/badge.svg)](https://github.com/Theopote/FormaCraft_Mod/actions/workflows/build.yml)
 [![License: CC0-1.0](https://img.shields.io/badge/License-CC0%201.0-lightgrey.svg)](LICENSE)
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.21.10-green.svg)](https://fabricmc.net/)
 [![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://adoptium.net/)
@@ -44,11 +44,9 @@ Formacraft 是一个基于 [Fabric](https://fabricmc.net/)（Minecraft 1.21.10�
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/formacraft/formacraft.git
-cd formacraft
+git clone https://github.com/Theopote/FormaCraft_Mod.git
+cd FormaCraft_Mod
 ```
-
-> 将 `formacraft/formacraft` 替换为你实际的 GitHub 组织/用户名与仓库名。
 
 ### 2. Configure the Python backend (optional but recommended)
 
@@ -195,5 +193,5 @@ Formacraft is an independent open-source project. It is **not** affiliated with,
 
 ## Support
 
-- [Open an issue](https://github.com/formacraft/formacraft/issues) for bugs or feature requests
+- [Open an issue](https://github.com/Theopote/FormaCraft_Mod/issues) for bugs or feature requests
 - See [SECURITY.md](SECURITY.md) for reporting security vulnerabilities
