@@ -1,5 +1,7 @@
 package com.formacraft.server.assembly;
 
+import com.formacraft.common.logging.FcaLog;
+
 import java.util.Locale;
 
 /**
@@ -8,11 +10,15 @@ import java.util.Locale;
 public final class AssemblyValueParser {
     private AssemblyValueParser() {}
 
+    private static final FcaLog LOG = FcaLog.of("AssemblyValueParser");
+
     public static int i(Object v, int def) {
         try {
             if (v instanceof Number n) return n.intValue();
             if (v != null) return Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("parse int failed value={} def={}", v, def);
+        }
         return def;
     }
 
@@ -20,7 +26,9 @@ public final class AssemblyValueParser {
         try {
             if (v instanceof Number n) return n.doubleValue();
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("parse double failed value={} def={}", v, def);
+        }
         return def;
     }
 
@@ -61,7 +69,8 @@ public final class AssemblyValueParser {
             if (s.isEmpty()) return null;
             if (!s.matches("[-+]?\\d+")) return null;
             return Integer.parseInt(s);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("asInt failed value={}", v);
             return null;
         }
     }

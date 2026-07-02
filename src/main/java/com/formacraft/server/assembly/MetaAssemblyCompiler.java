@@ -1,5 +1,7 @@
 package com.formacraft.server.assembly;
 
+import com.formacraft.common.logging.FcaLog;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.Map;
  */
 public final class MetaAssemblyCompiler {
     private static final int[][] DIR4 = new int[][]{{1,0},{-1,0},{0,1},{0,-1}};
+    private static final FcaLog LOG = FcaLog.of("MetaAssemblyCompiler");
     private MetaAssemblyCompiler() {}
 
     /**
@@ -43,7 +46,9 @@ public final class MetaAssemblyCompiler {
         Object graphObj = m.get("graph");
         Map<String, Object> graph = null;
         if (graphObj instanceof Map<?, ?> gm) {
-            try { graph = (Map<String, Object>) gm; } catch (Exception ignored) {}
+            try { graph = (Map<String, Object>) gm; } catch (Exception e) {
+                LOG.debug("assembly graph is not a string map", e);
+            }
         }
 
         Object compsObj = (graph != null) ? graph.get("components") : m.get("components");
@@ -2234,7 +2239,9 @@ public final class MetaAssemblyCompiler {
         try {
             if (v instanceof Number n) return n.intValue();
             if (v != null) return Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("parse int failed value={} def={}", v, def);
+        }
         return def;
     }
 
@@ -2242,7 +2249,9 @@ public final class MetaAssemblyCompiler {
         try {
             if (v instanceof Number n) return n.doubleValue();
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("parse double failed value={}", v);
+        }
         return Double.NaN;
     }
 

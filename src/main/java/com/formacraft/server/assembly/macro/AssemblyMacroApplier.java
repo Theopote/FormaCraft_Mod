@@ -1,5 +1,6 @@
 package com.formacraft.server.assembly.macro;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
 
 import java.util.ArrayList;
@@ -18,6 +19,8 @@ import java.util.Map;
  */
 public final class AssemblyMacroApplier {
     private AssemblyMacroApplier() {}
+
+    private static final FcaLog LOG = FcaLog.of("AssemblyMacroApplier");
 
     public static AssemblyMacroApplyResult apply(Object assemblyObj) {
         List<AssemblyValidationIssue> issues = new ArrayList<>();
@@ -411,7 +414,9 @@ public final class AssemblyMacroApplier {
         try {
             if (v instanceof Number n) return n.doubleValue();
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("parse double failed value={} def={}", v, def);
+        }
         return def;
     }
 
@@ -1061,7 +1066,8 @@ public final class AssemblyMacroApplier {
                 default -> {
                     try {
                         scale = Double.parseDouble(s);
-                    } catch (Exception ignored) {
+                    } catch (Exception e) {
+                        LOG.debug("parse heightScale failed value={}", s);
                     }
                 }
             }
@@ -1155,9 +1161,9 @@ public final class AssemblyMacroApplier {
                 try {
                     double cp = (cpObj instanceof Number n) ? n.doubleValue() : Double.parseDouble(String.valueOf(cpObj));
                     if (cp >= 0.1 && cp <= 3.0) roof.put("curvaturePower", cp);
-                } catch (Exception ignored) {}
-            }
-            Object clObj = macro.get("roofCornerLift");
+                } catch (Exception e) {
+                    LOG.debug("parse roofCurvaturePower failed value={}", cpObj);
+                }
             if (clObj == null) clObj = macro.get("roof_corner_lift");
             if (clObj != null) {
                 try {
@@ -1165,7 +1171,8 @@ public final class AssemblyMacroApplier {
                     if (cl >= 0.0 && cl <= 2.0) roof.put("cornerLift", cl);
                 } catch (Exception ignored) {}
             }
-            
+
+            Object clObj = macro.get("roofCornerLift");            
             comps.add(roof);
             issues.add(warn("$.macro.roofType", "W_MACRO_ROOF_ADD", "auto-added ROOF_COVER (roofType=" + rt + ")"));
         }
@@ -1305,7 +1312,9 @@ public final class AssemblyMacroApplier {
         try {
             if (v instanceof Number n) return n.intValue();
             if (v != null) return Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("parse double failed value={} def={}", v, def);
+        }
         return def;
     }
 

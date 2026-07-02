@@ -1,5 +1,7 @@
 package com.formacraft.server.assembly;
 
+import com.formacraft.common.logging.FcaLog;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -19,6 +21,8 @@ import java.util.Map;
  * }
  */
 public final class AssemblySpec {
+    private static final FcaLog LOG = FcaLog.of("AssemblySpec");
+
     public final String paletteId;
     public final String entranceFacing;
     public final List<Map<String, Object>> ops;
@@ -37,7 +41,10 @@ public final class AssemblySpec {
     public static AssemblySpec fromExtra(Object assemblyObj) {
         if (!(assemblyObj instanceof Map<?, ?> mm)) return null;
         Map<String, Object> m;
-        try { m = (Map<String, Object>) mm; } catch (Exception e) { return null; }
+        try { m = (Map<String, Object>) mm; } catch (Exception e) {
+            LOG.debug("assembly extra is not a string map", e);
+            return null;
+        }
         if (m == null || m.isEmpty()) return null;
 
         String paletteId = str(m.get("paletteId"), null);
@@ -48,7 +55,9 @@ public final class AssemblySpec {
         if (opsObj instanceof List<?> list) {
             for (Object it : list) {
                 if (it instanceof Map<?, ?> opMap) {
-                    try { ops.add((Map<String, Object>) opMap); } catch (Exception ignored) {}
+                    try { ops.add((Map<String, Object>) opMap); } catch (Exception e) {
+                        LOG.debug("skip non-map assembly op entry", e);
+                    }
                 }
             }
         }

@@ -13,6 +13,7 @@ import com.formacraft.common.component.socket.SocketMask;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
+import com.formacraft.common.component.transform.FacingTransformUtil;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.component.semantic.BlockStatePropertyUtil;

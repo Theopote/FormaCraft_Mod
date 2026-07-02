@@ -1,5 +1,6 @@
 package com.formacraft.server.assembly;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -15,6 +16,8 @@ import java.util.Map;
  */
 public final class AssemblyFacadeOps {
     private AssemblyFacadeOps() {}
+
+    private static final FcaLog LOG = FcaLog.of("AssemblyFacadeOps");
 
     public interface Adapter {
         void put(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin, int x, int y, int z, BlockState state);
@@ -67,7 +70,9 @@ public final class AssemblyFacadeOps {
                 try {
                     double v = (npObj instanceof Number n) ? n.doubleValue() : Double.parseDouble(String.valueOf(npObj));
                     noiseProb = adapter.clamp(v, 0.0, 1.0);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    LOG.debug("parse noise_probability failed value={}", npObj);
+                }
             }
         }
 

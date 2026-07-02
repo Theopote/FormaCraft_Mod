@@ -1,5 +1,6 @@
 package com.formacraft.server.assembly;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -14,6 +15,8 @@ import java.util.Map;
  */
 public final class AssemblySurfaceOps {
     private AssemblySurfaceOps() {}
+
+    private static final FcaLog LOG = FcaLog.of("AssemblySurfaceOps");
 
     public interface Adapter {
         void put(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin, int x, int y, int z, BlockState state);
@@ -799,7 +802,9 @@ public final class AssemblySurfaceOps {
         try {
             int idx = Integer.parseInt(k);
             if (idx >= 0 && idx < patches.size()) return patches.get(idx);
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("patch index lookup failed key={}", k);
+        }
         return null;
     }
 
@@ -969,7 +974,9 @@ public final class AssemblySurfaceOps {
         try {
             if (v instanceof Number n) return n.doubleValue();
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("doubleOrNull failed value={}", v);
+        }
         return null;
     }
 
