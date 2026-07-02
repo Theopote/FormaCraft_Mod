@@ -2,11 +2,11 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest release on the default branch (`main`).
+Security fixes are applied to the latest release on the default branch (`master`).
 
 | Version | Supported |
 |---------|-----------|
-| latest on `main` | yes |
+| latest on `master` | yes |
 | older releases | best effort |
 
 ## Reporting a vulnerability
