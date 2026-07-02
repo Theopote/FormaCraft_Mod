@@ -1130,7 +1130,7 @@ public class CityBuilder {
             var fp = bs.getFootprint();
             fp.setShape("circle");
             if (fp.getRadius() <= 0) fp.setRadius(Math.max(3, radius));
-        } catch (Throwable ex) { LOG.debug("ensureRectFootprint failed", ex); }
+        } catch (Throwable ex) { LOG.debug("ensureCircleFootprint failed", ex); }
     }
 
     /**
@@ -1153,8 +1153,7 @@ public class CityBuilder {
             if (pid != null) paletteId = String.valueOf(pid).trim();
             Object sid = extra.get("styleProfileId");
             if (sid != null) styleProfileId = String.valueOf(sid).trim();
-        } catch (Throwable ex) { LOG.debug("ensureRectFootprint failed", ex); }
-        if ((paletteId == null || paletteId.isBlank()) && paletteIdHint != null && !paletteIdHint.isBlank()) {
+        } catch (Throwable ex) { LOG.debug("read road palette ids failed", ex); }
             paletteId = paletteIdHint.trim();
         }
         java.util.Map<String, Object> roadExtra = null;
@@ -1206,7 +1205,8 @@ public class CityBuilder {
             String s = String.valueOf(v).trim();
             if (s.isEmpty()) return 0;
             return Integer.parseInt(s);
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            LOG.debug("parseIntOrDef failed value={}", v, ex);
             return 0;
         }
     }

@@ -274,8 +274,11 @@ public final class EvalAssemblyCasesMain {
         try {
             if (v instanceof Number n) return n.intValue();
             if (v != null) return Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
-        return null;
+            return null;
+        } catch (Exception e) {
+            System.err.println("[evalAssemblyCases] parse int failed value=" + v);
+            return null;
+        }
     }
 
     private static String str(Object v, String def) {

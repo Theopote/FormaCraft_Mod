@@ -24,7 +24,10 @@ public final class DemoCultureRetrieveMain {
     }
 
     private static int tryInt(String s, int def) {
-        try { return Integer.parseInt(s.trim()); } catch (Exception ignored) { return def; }
+        try { return Integer.parseInt(s.trim()); } catch (Exception e) {
+            System.err.println("[demoCultureRetrieve] invalid int value=" + s + ", using default " + def);
+            return def;
+        }
     }
 }
 
