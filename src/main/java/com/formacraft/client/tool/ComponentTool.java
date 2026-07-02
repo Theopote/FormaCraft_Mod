@@ -21,16 +21,11 @@ import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.placement.ComponentPlacementAnalyzer;
 import com.formacraft.common.component.placement.PlacementCaptureContext;
 import com.formacraft.common.json.JsonUtil;
-import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.client.ui.panel.BuildConfirmPanel;
-import com.formacraft.client.patch.filter.ToolPatchFilter;
-import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.preview.PromptModeState;
-import com.formacraft.common.patch.filter.PatchFilterResult;
+import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.common.component.ComponentCatalog;
-import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.client.preview.ComponentSocketPreviewState;
 import com.formacraft.client.tool.socket.SocketHighlighter;
 import com.formacraft.common.component.socket.match.SocketMatchResult;
@@ -983,84 +978,27 @@ public final class ComponentTool implements FormacraftTool {
             return;
         }
 
-        List<ComponentDefinition.BlockEntry> entries;
-        Direction fromFacing = Direction.SOUTH;
-        if (!state.useLibrary) {
-            if (!SelectionTool.INSTANCE.hasSelection()) {
-                HudToast.show("放置失败：请先完成选区", true);
-                return;
-            }
-            entries = buildLocalBlockEntries(client);
-            if (entries.isEmpty()) {
-                HudToast.show("放置失败：选区内没有非空气方块", true);
-                return;
-            }
-        } else {
+        BlockPos anchor = effectiveDraft().anchor.worldPos;
+        String componentId = null;
+        ComponentTransform t = currentTransform();
+        Direction facing = t.facing();
+        Mirror mirror = t.mirror();
+
+        if (state.useLibrary) {
             ComponentDefinition def = loadedComponent;
             if (def == null || def.blocks == null || def.blocks.isEmpty()) {
                 HudToast.show("放置失败：请先从构件库加载一个构件", true);
                 return;
             }
-            entries = def.blocks;
-            try {
-                if (def.anchor != null && def.anchor.facing != null) {
-                    Direction d = parseDir(def.anchor.facing);
-                    if (d != null && d.getAxis().isHorizontal()) fromFacing = d;
-                }
-            } catch (Throwable ignored) {}
+            componentId = def.id;
+        } else if (!SelectionTool.INSTANCE.hasSelection()) {
+            HudToast.show("放置失败：请先完成选区", true);
+            return;
         }
 
-        ComponentTransform t = currentTransform();
-
-        List<BlockPatch> patches = new ArrayList<>(entries.size());
-        int minDy = Integer.MAX_VALUE;
-        if (state.semanticSkin && state.semanticPart == null) {
-            for (ComponentDefinition.BlockEntry be : entries) {
-                if (be == null) continue;
-                minDy = Math.min(minDy, be.dy);
-            }
-            if (minDy == Integer.MAX_VALUE) minDy = 0;
-        }
-        for (ComponentDefinition.BlockEntry be : entries) {
-            if (be == null) continue;
-            BlockPos local = new BlockPos(be.dx, be.dy, be.dz);
-            BlockPos off = ComponentTransformUtil.transformOffset(local, fromFacing, t);
-
-            String block;
-            if (state.semanticSkin) {
-                SemanticPart part;
-                if (state.semanticPart != null) {
-                    part = state.semanticPart;
-                } else if (be.semantic != null) {
-                    part = be.semantic;
-                } else {
-                    part = guessSemanticPartFromString(be.block, be.dy, minDy);
-                }
-                // 语义换皮：shape(坐标/朝向) 来自构件，material 来自 SemanticStyleProfile
-                long seed = mixSeed(effectiveDraft().anchor.worldPos, off, part);
-                BlockState picked = SemanticBlockStatePicker.pick(state.semanticStyleId, part, seed);
-
-                // 若原始 blockstate 带有 facing，则尽力把 facing 传递到“换皮后”的方块上
-                Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
-                if (capturedFacing != null) {
-                    Direction tf = FacingTransformUtil.transformFacing(capturedFacing, fromFacing, t);
-                    picked = BlockStatePropertyUtil.applyFacing(picked, tf);
-                }
-                block = BlockStateStringUtil.fromState(picked);
-            } else {
-                block = be.block;
-                // 尽力修正 facing/horizontal_facing
-                block = BlockStateStringUtil.withTransformedFacing(block, fromFacing, t);
-            }
-
-            patches.add(new BlockPatch(BlockPatch.PLACE, off.getX(), off.getY(), off.getZ(), block));
-        }
-
-        // 避免 overlay 叠太多：进入 patch preview 时关闭 component 预览
         ComponentPreviewState.clear();
-
-        BuildConfirmPanel.INSTANCE.showPatchPreview(effectiveDraft().anchor.worldPos, patches);
-        HudToast.show("已进入 Patch 预览（可 Apply / Undo / Redo）");
+        requestServerPatchPreview(anchor, componentId, facing, mirror, false);
+        HudToast.show("正在请求 Patch 预览…");
     }
 
     private List<BlockPos> buildLocalBlocks(net.minecraft.client.MinecraftClient client) {

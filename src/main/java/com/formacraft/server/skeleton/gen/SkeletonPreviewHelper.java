@@ -42,14 +42,9 @@ public final class SkeletonPreviewHelper {
             return;
         }
 
-        // 发送到客户端预览
-        // 注意：这里需要检查是否有 PatchPreviewPayload，如果没有，可以使用现有的方式
-        // 或者直接调用 BuildConfirmPanel.showPatchPreview（但这需要在客户端）
-        // 暂时先记录日志，实际集成时需要根据网络协议调整
-        FormacraftMod.LOGGER.info("Generated {} patches for skeleton preview", patches.size());
-        
-        // TODO: 发送 PatchPreviewPayload 到客户端
-        // FormaCraftNetworking.sendPatchPreview(player, origin, patches);
+        // 签发 PreviewTicket 并下发客户端预览
+        com.formacraft.server.patch.PatchPreviewService.issuePreview(
+                player, origin, patches, List.of(), false, null, null);
     }
 
     /**
