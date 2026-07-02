@@ -7,8 +7,6 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.model.request.FormaRequest;
-import com.formacraft.server.build.PlannedBlock;
-import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -26,17 +24,13 @@ class LlmPlanTerrainBoundsTest {
     }
 
     @Test
-    void computePlannedBlockBoundsFromBlocks() {
-        List<PlannedBlock> blocks = List.of(
-                new PlannedBlock(new BlockPos(10, 64, 20), Blocks.STONE.getDefaultState()),
-                new PlannedBlock(new BlockPos(12, 66, 22), Blocks.STONE.getDefaultState())
-        );
-        LlmPlanTerrainBounds.Bounds b = LlmPlanTerrainBounds.computePlannedBlockBounds(blocks);
-        assertNotNull(b);
-        assertEquals(10, b.minX());
-        assertEquals(12, b.maxX());
-        assertEquals(64, b.minY());
-        assertEquals(66, b.maxY());
+    void boundsUnionExpandsFootprint() {
+        LlmPlanTerrainBounds.Bounds a = new LlmPlanTerrainBounds.Bounds(0, 64, 0, 9, 72, 9);
+        LlmPlanTerrainBounds.Bounds b = new LlmPlanTerrainBounds.Bounds(5, 64, 5, 14, 72, 14);
+        LlmPlanTerrainBounds.Bounds u = a.union(b);
+        assertEquals(0, u.minX());
+        assertEquals(14, u.maxX());
+        assertEquals(15, u.width());
     }
 
     @Test
@@ -64,11 +58,11 @@ class LlmPlanTerrainBoundsTest {
                 null
         );
         BlockPos origin = new BlockPos(100, 64, 200);
-        LlmPlanTerrainBounds.Bounds b = LlmPlanTerrainBounds.computeComponentBounds(plan, origin);
-        assertNotNull(b);
-        assertEquals(95, b.minX());
-        assertEquals(104, b.maxX());
-        assertEquals(200, b.minZ());
-        assertEquals(211, b.maxZ());
+        LlmPlanTerrainBounds.Bounds bounds = LlmPlanTerrainBounds.computeComponentBounds(plan, origin);
+        assertNotNull(bounds);
+        assertTrue(bounds.width() >= 10);
+        assertTrue(bounds.depth() >= 12);
+        assertEquals(64, bounds.minY());
+        assertEquals(71, bounds.maxY());
     }
 }

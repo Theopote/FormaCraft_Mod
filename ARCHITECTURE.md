@@ -487,6 +487,18 @@ FormaCraftNetworking.sendToServer(applyPayload);
 | Python backend files | ~33 |
 | Active markdown (excl. archive) | ~170 |
 
+### Network layer (2026-07 refactor)
+
+| Class | Responsibility |
+|-------|----------------|
+| `FormaCraftNetworking` | Payload definitions, registration, client send helpers |
+| `BuildRequestProcessor` | C2S build request routing (city / composite / LlmPlan / BuildingSpec) |
+| `LlmPlanPreviewBuilder` | LlmPlan → preview pipeline |
+| `OrchestratorErrorHumanizer` | User-facing orchestrator error messages |
+| `BuildStatusHeartbeat` | Long-running request progress heartbeats |
+| `LlmPlanTerrainBounds` | Terrain pad footprint math |
+| `NetworkOrchestratorProvider` | Lazy `OrchestratorClient` singleton |
+
 ### Generation system target state
 
 - **Primary:** LlmPlan → `common.compiler` → `common.generator` → `BlockPatch`
