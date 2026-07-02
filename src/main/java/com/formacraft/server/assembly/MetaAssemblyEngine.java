@@ -1967,7 +1967,7 @@ public final class MetaAssemblyEngine {
                                     int x = cx + ox;
                                     int y = cy + oy;
                                     int z = cz + oz;
-                                    long key = packXYZ(x, y, z);
+                                    long key = AssemblySeamMathOps.packXYZ(x, y, z);
                                     if (!seen.add(key)) continue;
                                     put(out, ctx, curOrigin, x, y, z, hollow ? shell : mat);
                                 }
@@ -2079,9 +2079,9 @@ public final class MetaAssemblyEngine {
                                 int z = cz + snap(off.z, snapMode);
                                 if (connectSamples && lastSection != null) {
                                     BlockState s = (!hollow) ? mat : (border ? shell : Blocks.AIR.getDefaultState());
-                                    connectToLast(out, ctx, curOrigin, lastSection, packUV(uu, vv), x, y, z, s, seen, connectMaxStep);
+                                    connectToLast(out, ctx, curOrigin, lastSection, AssemblySeamMathOps.packUV(uu, vv), x, y, z, s, seen, connectMaxStep);
                                 }
-                                long key = packXYZ(x, y, z);
+                                long key = AssemblySeamMathOps.packXYZ(x, y, z);
                                 if (!seen.add(key)) continue;
                                 if (!hollow) put(out, ctx, curOrigin, x, y, z, mat);
                                 else put(out, ctx, curOrigin, x, y, z, border ? shell : Blocks.AIR.getDefaultState());
@@ -2100,9 +2100,9 @@ public final class MetaAssemblyEngine {
                                     int y = cy + snap(off.y, snapMode);
                                     int z = cz + snap(off.z, snapMode);
                                     if (connectSamples && lastSection != null) {
-                                        connectToLast(out, ctx, curOrigin, lastSection, packUV(uu, vv), x, y, z, shell, seen, connectMaxStep);
+                                        connectToLast(out, ctx, curOrigin, lastSection, AssemblySeamMathOps.packUV(uu, vv), x, y, z, shell, seen, connectMaxStep);
                                     }
-                                    long key = packXYZ(x, y, z);
+                                    long key = AssemblySeamMathOps.packXYZ(x, y, z);
                                     if (!seen.add(key)) continue;
                                     put(out, ctx, curOrigin, x, y, z, shell);
                                 }
@@ -2124,9 +2124,9 @@ public final class MetaAssemblyEngine {
                             int z = cz + snap(off.z, snapMode);
                             if (connectSamples && lastSection != null) {
                                 BlockState s = (!hollow) ? mat : (border ? shell : Blocks.AIR.getDefaultState());
-                                connectToLast(out, ctx, curOrigin, lastSection, packUV(uu, vv), x, y, z, s, seen, connectMaxStep);
+                                connectToLast(out, ctx, curOrigin, lastSection, AssemblySeamMathOps.packUV(uu, vv), x, y, z, s, seen, connectMaxStep);
                             }
-                            long key = packXYZ(x, y, z);
+                            long key = AssemblySeamMathOps.packXYZ(x, y, z);
                             if (!seen.add(key)) continue;
                             if (!hollow) {
                                 put(out, ctx, curOrigin, x, y, z, mat);
@@ -2147,9 +2147,9 @@ public final class MetaAssemblyEngine {
                                 int y = cy + snap(off.y, snapMode);
                                 int z = cz + snap(off.z, snapMode);
                                 if (connectSamples && lastSection != null) {
-                                    connectToLast(out, ctx, curOrigin, lastSection, packUV(uu, vv), x, y, z, shell, seen, connectMaxStep);
+                                    connectToLast(out, ctx, curOrigin, lastSection, AssemblySeamMathOps.packUV(uu, vv), x, y, z, shell, seen, connectMaxStep);
                                 }
-                                long key = packXYZ(x, y, z);
+                                long key = AssemblySeamMathOps.packXYZ(x, y, z);
                                 if (!seen.add(key)) continue;
                                 put(out, ctx, curOrigin, x, y, z, shell);
                             }
@@ -2493,7 +2493,9 @@ public final class MetaAssemblyEngine {
                             int foilRadius = i(op.get("traceryFoilRadius"), i(op.get("foilRadius"), 0));
                             int foilCount = resolveFoilCount(op, winH);
                             int foilStepY = i(op.get("traceryFoilStepY"), i(op.get("foilStepY"), i(op.get("foilGapY"), 0)));
-                            boolean foilStepAuto = isAuto(op.get("foilStepY")) || isAuto(op.get("foilGapY")) || isAuto(op.get("traceryFoilStepY"));
+                            boolean foilStepAuto = AssemblyValueParser.isAuto(op.get("foilStepY"))
+                                    || AssemblyValueParser.isAuto(op.get("foilGapY"))
+                                    || AssemblyValueParser.isAuto(op.get("traceryFoilStepY"));
                             BlockState traceryMat = pick(ctx, op, "traceryMaterial", "FACADE_TRIM", 0xA57122L, frame);
                             int foilCenterY = resolveFoilCenterY(op, yBase, winH);
                             carveArchOnFace(out, ctx, curOrigin, face, centerX, centerZ, yBase, winW, winH, archType, fill, frame, frameT, mullionStep,
@@ -2996,15 +2998,15 @@ public final class MetaAssemblyEngine {
         Object rawA = op == null ? null : op.get("foilCount");
         Object rawB = op == null ? null : op.get("traceryFoilCount");
 
-        if (isAuto(rawA) || isAuto(rawB)) {
+        if (AssemblyValueParser.isAuto(rawA) || AssemblyValueParser.isAuto(rawB)) {
             // Heuristic by window height: taller windows get more layers.
             int h = Math.max(0, winH);
             int n = (h >= 11) ? 3 : (h >= 8) ? 2 : 1;
             return clamp(n, 1, 8);
         }
 
-        Integer v = asInt(rawA);
-        if (v == null) v = asInt(rawB);
+        Integer v = AssemblyValueParser.asInt(rawA);
+        if (v == null) v = AssemblyValueParser.asInt(rawB);
         if (v == null) v = i(op == null ? null : op.get("traceryFoilCount"), i(op == null ? null : op.get("foilCount"), 1));
         return clamp(v, 1, 8);
     }
@@ -3016,25 +3018,17 @@ public final class MetaAssemblyEngine {
         Object rawA = op == null ? null : op.get("foilCenterY");
         Object rawB = op == null ? null : op.get("traceryFoilCenterY");
 
-        if (isAuto(rawA) || isAuto(rawB)) {
+        if (AssemblyValueParser.isAuto(rawA) || AssemblyValueParser.isAuto(rawB)) {
             // Place the foil cluster in the upper half of the window by default.
             int h = Math.max(0, winH);
             return yBase + Math.max(2, (h * 2) / 3);
         }
 
-        Integer v = asInt(rawA);
-        if (v == null) v = asInt(rawB);
+        Integer v = AssemblyValueParser.asInt(rawA);
+        if (v == null) v = AssemblyValueParser.asInt(rawB);
         if (v != null) return v;
 
         return i(op == null ? null : op.get("traceryFoilCenterY"), i(op == null ? null : op.get("foilCenterY"), Integer.MIN_VALUE));
-    }
-
-    private static long packXYZ(int x, int y, int z) {
-        return AssemblySeamMathOps.packXYZ(x, y, z);
-    }
-
-    private static long packUV(int u, int v) {
-        return AssemblySeamMathOps.packUV(u, v);
     }
 
     private static void connectToLast(List<PlannedBlock> out,
@@ -3064,7 +3058,7 @@ public final class MetaAssemblyEngine {
                     int xi = (int) Math.round(x0 + dx * t);
                     int yi = (int) Math.round(y0 + dy * t);
                     int zi = (int) Math.round(z0 + dz * t);
-                    long key = packXYZ(xi, yi, zi);
+                    long key = AssemblySeamMathOps.packXYZ(xi, yi, zi);
                     if (seen != null && !seen.add(key)) continue;
                     put(out, ctx, origin, xi, yi, zi, s);
                 }
@@ -3081,15 +3075,6 @@ public final class MetaAssemblyEngine {
             case "CEIL" -> (int) Math.ceil(v);
             default -> (int) Math.round(v);
         };
-    }
-
-    // ----- 2D polygon helpers for profile=POLYGON -----
-    private static boolean isAuto(Object v) {
-        return AssemblyValueParser.isAuto(v);
-    }
-
-    private static Integer asInt(Object v) {
-        return AssemblyValueParser.asInt(v);
     }
 
     private static void carveRoseOnFace(List<PlannedBlock> out,
