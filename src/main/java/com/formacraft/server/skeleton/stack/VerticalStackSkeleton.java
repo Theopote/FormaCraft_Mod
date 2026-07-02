@@ -1,5 +1,6 @@
 package com.formacraft.server.skeleton.stack;
 
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.skeleton.Skeleton;
 import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.SkeletonType;
@@ -21,9 +22,9 @@ public final class VerticalStackSkeleton implements Skeleton<VerticalStackPlan> 
 
     @Override
     public VerticalStackPlan generate(SkeletonParams params) {
-        int levels = getInt(params, "levels", 7, 2, 20);
-        int height = getInt(params, "height", levels * 6, 10, 260);
-        int baseWidth = getInt(params, "baseWidth", 17, 7, 81);
+        int levels = SkeletonParamParsers.boundedInt(params, "levels", 7, 2, 20);
+        int height = SkeletonParamParsers.boundedInt(params, "height", levels * 6, 10, 260);
+        int baseWidth = SkeletonParamParsers.boundedInt(params, "baseWidth", 17, 7, 81);
         if (baseWidth % 2 == 0) baseWidth += 1;
 
         boolean refined = getBool(params, "refined", false);
@@ -53,16 +54,6 @@ public final class VerticalStackSkeleton implements Skeleton<VerticalStackPlan> 
         }
 
         return new VerticalStackPlan(out, facing, refined);
-    }
-
-    private static int getInt(SkeletonParams p, String key, int def, int min, int max) {
-        Object v = p.get(key);
-        int n = def;
-        try {
-            if (v instanceof Number num) n = num.intValue();
-            else if (v != null) n = Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
-        return clamp(n, min, max);
     }
 
     private static boolean getBool(SkeletonParams p, String key, boolean def) {

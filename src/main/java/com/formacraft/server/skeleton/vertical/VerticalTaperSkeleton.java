@@ -1,5 +1,6 @@
 package com.formacraft.server.skeleton.vertical;
 
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.skeleton.Skeleton;
 import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.SkeletonType;
@@ -20,14 +21,14 @@ public final class VerticalTaperSkeleton implements Skeleton<VerticalTaperPlan> 
 
     @Override
     public VerticalTaperPlan generate(SkeletonParams params) {
-        int height = getInt(params, "height", 60, 16, 260);
-        int baseWidth = getInt(params, "baseWidth", 27, 9, 101);
+        int height = SkeletonParamParsers.boundedInt(params, "height", 60, 16, 260);
+        int baseWidth = SkeletonParamParsers.boundedInt(params, "baseWidth", 27, 9, 101);
         if (baseWidth % 2 == 0) baseWidth += 1;
         int baseHalf = baseWidth / 2;
 
-        int topHalf = getInt(params, "topHalf", 2, 1, Math.max(2, baseHalf));
+        int topHalf = SkeletonParamParsers.boundedInt(params, "topHalf", 2, 1, Math.max(2, baseHalf));
         boolean refined = getBool(params, "refined", false);
-        int platformCount = getInt(params, "platformCount", 2, 0, 4);
+        int platformCount = SkeletonParamParsers.boundedInt(params, "platformCount", 2, 0, 4);
 
         int[] halfByY = new int[height + 1];
         for (int y = 0; y <= height; y++) {
@@ -48,18 +49,6 @@ public final class VerticalTaperSkeleton implements Skeleton<VerticalTaperPlan> 
         int spireEnd = height + (refined ? 6 : 4);
 
         return new VerticalTaperPlan(height, baseHalf, topHalf, halfByY, platforms, refined, spireStart, spireEnd);
-    }
-
-    private static int getInt(SkeletonParams p, String key, int def, int min, int max) {
-        Object v = p.get(key);
-        int n = def;
-        try {
-            if (v instanceof Number num) n = num.intValue();
-            else if (v != null) n = Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
-        if (n < min) n = min;
-        if (n > max) n = max;
-        return n;
     }
 
     private static boolean getBool(SkeletonParams p, String key, boolean def) {

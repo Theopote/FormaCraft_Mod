@@ -1,5 +1,6 @@
 package com.formacraft.server.skeleton.span;
 
+import com.formacraft.common.skeleton.SkeletonParamParsers;
 import com.formacraft.common.skeleton.Skeleton;
 import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.SkeletonType;
@@ -31,11 +32,11 @@ public final class SpanSuspensionSkeleton implements Skeleton<SpanSuspensionPlan
 
     @Override
     public SpanSuspensionPlan generate(SkeletonParams params) {
-        int span = getInt(params, "span", 180, 40, 2000);
-        int deckWidth = getInt(params, "deckWidth", 9, 5, 63);
+        int span = SkeletonParamParsers.boundedInt(params, "span", 180, 40, 2000);
+        int deckWidth = SkeletonParamParsers.boundedInt(params, "deckWidth", 9, 5, 63);
         if (deckWidth % 2 == 0) deckWidth += 1;
         int halfW = deckWidth / 2;
-        int towerH = getInt(params, "towerHeight", 44, 18, 200);
+        int towerH = SkeletonParamParsers.boundedInt(params, "towerHeight", 44, 18, 200);
         boolean followTerrain = getBool(params, "followTerrain", true);
         boolean refined = getBool(params, "refined", false);
 
@@ -85,18 +86,6 @@ public final class SpanSuspensionSkeleton implements Skeleton<SpanSuspensionPlan
         }
 
         return new SpanSuspensionPlan(deckCenters, halfW, z1, z2, towerH, cableY, refined);
-    }
-
-    private static int getInt(SkeletonParams p, String key, int def, int min, int max) {
-        Object v = p.get(key);
-        int n = def;
-        try {
-            if (v instanceof Number num) n = num.intValue();
-            else if (v != null) n = Integer.parseInt(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
-        if (n < min) n = min;
-        if (n > max) n = max;
-        return n;
     }
 
     private static boolean getBool(SkeletonParams p, String key, boolean def) {
