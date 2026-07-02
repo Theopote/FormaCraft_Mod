@@ -4,6 +4,7 @@ import com.formacraft.server.build.PlannedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
 import java.util.Map;
@@ -223,6 +224,246 @@ public final class AssemblySurfaceOps {
                             int[] bb = grid[iu][ip + 1];
                             adapter.placeBeamLine(out, ctx, origin, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    public static void applySplineSweep(List<PlannedBlock> out,
+                                        MetaAssemblyEngine.Context ctx,
+                                        BlockPos origin,
+                                        Map<String, Object> op,
+                                        Adapter adapter) {
+        List<Vec3d> pts = AssemblyBezierOps.parseVecPoints(op.get("points"));
+        if (pts.size() < 2) return;
+
+        int samplesPerBlock = adapter.clamp(adapter.i(op.get("samplesPerBlock"), 10), 2, 40);
+        List<Vec3d> poly = AssemblyBezierOps.sampleBezierSpline(pts, samplesPerBlock);
+        if (poly.size() < 2) return;
+
+        String profile = adapter.str(op.get("profile"), "SPHERE").trim().toUpperCase(java.util.Locale.ROOT);
+        String profileFrame = adapter.str(op.get("profileFrame"), adapter.str(op.get("frame"), "PATH")).trim().toUpperCase(java.util.Locale.ROOT);
+        String snapMode = adapter.str(op.get("profileSnap"), adapter.str(op.get("snap"), "ROUND")).trim().toUpperCase(java.util.Locale.ROOT);
+        int r = adapter.clamp(adapter.i(op.get("r"), adapter.i(op.get("radius"), 3)), 1, 24);
+        int r0 = adapter.i(op.get("r0"), adapter.i(op.get("radius0"), Integer.MIN_VALUE));
+        int r1 = adapter.i(op.get("r1"), adapter.i(op.get("radius1"), Integer.MIN_VALUE));
+        boolean taper = (r0 != Integer.MIN_VALUE && r1 != Integer.MIN_VALUE);
+        if (!taper) {
+            r0 = r;
+            r1 = r;
+        }
+
+        boolean hollow = adapter.bool(op.get("hollow"), false);
+        int thickness = adapter.clamp(adapter.i(op.get("thickness"), 1), 1, 8);
+        double twistTurns = adapter.d(op.get("twistTurns"), 0.0);
+        double twistPhase = adapter.d(op.get("twistPhase"), 0.0);
+
+        BlockState mat = adapter.pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0xA58001L, Blocks.WHITE_CONCRETE.getDefaultState());
+        BlockState shell = adapter.pick(ctx, op, "wall", "WALL_BASE", 0xA58002L, mat);
+
+        java.util.HashSet<Long> seen = new java.util.HashSet<>();
+        boolean connectSamples = adapter.bool(op.get("connectSamples"), false);
+        int connectMaxStep = adapter.clamp(adapter.i(op.get("connectMaxStep"), 2), 1, 8);
+        java.util.HashMap<Long, long[]> lastSection = connectSamples ? new java.util.HashMap<>() : null;
+        int n = poly.size();
+        for (int i = 0; i < n; i++) {
+            double tt = (n <= 1) ? 0.0 : (i / (double) (n - 1));
+            double rad = AssemblyBezierOps.lerp(r0, r1, tt);
+            Vec3d p = poly.get(i);
+            int cx = (int) Math.round(p.x);
+            int cy = (int) Math.round(p.y);
+            int cz = (int) Math.round(p.z);
+
+            if (!profile.contains("RECT") && !profile.contains("POLY")) {
+                int rr = Math.max(1, (int) Math.round(rad));
+                int rr2 = rr * rr;
+                int inner = Math.max(0, rr - thickness);
+                int inner2 = inner * inner;
+                for (int ox = -rr; ox <= rr; ox++) {
+                    for (int oy = -rr; oy <= rr; oy++) {
+                        for (int oz = -rr; oz <= rr; oz++) {
+                            int d2 = ox * ox + oy * oy + oz * oz;
+                            if (d2 > rr2) continue;
+                            if (hollow && d2 < inner2) continue;
+                            int x = cx + ox;
+                            int y = cy + oy;
+                            int z = cz + oz;
+                            long key = AssemblySeamMathOps.packXYZ(x, y, z);
+                            if (!seen.add(key)) continue;
+                            adapter.put(out, ctx, origin, x, y, z, hollow ? shell : mat);
+                        }
+                    }
+                }
+                continue;
+            }
+
+            int pwConst = adapter.clamp(adapter.i(op.get("profileW"), adapter.i(op.get("w"), 5)), 1, 64);
+            int phConst = adapter.clamp(adapter.i(op.get("profileH"), adapter.i(op.get("h"), 3)), 1, 64);
+            int pw0 = adapter.i(op.get("profileW0"), adapter.i(op.get("w0"), Integer.MIN_VALUE));
+            int pw1 = adapter.i(op.get("profileW1"), adapter.i(op.get("w1"), Integer.MIN_VALUE));
+            int ph0 = adapter.i(op.get("profileH0"), adapter.i(op.get("h0"), Integer.MIN_VALUE));
+            int ph1 = adapter.i(op.get("profileH1"), adapter.i(op.get("h1"), Integer.MIN_VALUE));
+            boolean rectTaper = (pw0 != Integer.MIN_VALUE && pw1 != Integer.MIN_VALUE) || (ph0 != Integer.MIN_VALUE && ph1 != Integer.MIN_VALUE);
+            if (!rectTaper) {
+                pw0 = pwConst;
+                pw1 = pwConst;
+                ph0 = phConst;
+                ph1 = phConst;
+            } else {
+                if (pw0 == Integer.MIN_VALUE) pw0 = pwConst;
+                if (pw1 == Integer.MIN_VALUE) pw1 = pwConst;
+                if (ph0 == Integer.MIN_VALUE) ph0 = phConst;
+                if (ph1 == Integer.MIN_VALUE) ph1 = phConst;
+            }
+            int pw = adapter.clamp((int) Math.round(AssemblyBezierOps.lerp(pw0, pw1, tt)), 1, 64);
+            int ph = adapter.clamp((int) Math.round(AssemblyBezierOps.lerp(ph0, ph1, tt)), 1, 64);
+            int halfW = Math.max(0, pw / 2);
+            int halfH = Math.max(0, ph / 2);
+            int t = Math.max(1, thickness);
+            boolean capEnds = adapter.bool(op.get("capEnds"), hollow);
+            boolean carveInterior = adapter.bool(op.get("carveInterior"), false);
+            int capThickness = adapter.clamp(adapter.i(op.get("capThickness"), t), 1, 8);
+
+            Vec3d prev = (i > 0) ? poly.get(i - 1) : poly.get(i);
+            Vec3d next = (i + 1 < n) ? poly.get(i + 1) : poly.get(i);
+            Vec3d tan = next.subtract(prev);
+            if (tan.lengthSquared() < 1e-6) tan = new Vec3d(0, 0, 1);
+            tan = tan.normalize();
+
+            Vec3d nrm;
+            Vec3d bin;
+            switch (profileFrame) {
+                case "WORLD_XY" -> {
+                    nrm = new Vec3d(1, 0, 0);
+                    bin = new Vec3d(0, 1, 0);
+                }
+                case "WORLD_XZ" -> {
+                    nrm = new Vec3d(1, 0, 0);
+                    bin = new Vec3d(0, 0, 1);
+                }
+                case "WORLD_YZ" -> {
+                    nrm = new Vec3d(0, 1, 0);
+                    bin = new Vec3d(0, 0, 1);
+                }
+                case null, default -> {
+                    Vec3d up = new Vec3d(0, 1, 0);
+                    if (Math.abs(tan.dotProduct(up)) > 0.95) up = new Vec3d(1, 0, 0);
+                    nrm = up.crossProduct(tan).normalize();
+                    bin = tan.crossProduct(nrm).normalize();
+                }
+            }
+
+            double ang = (twistTurns * Math.PI * 2.0) * tt + (twistPhase * Math.PI * 2.0);
+            double ca = Math.cos(ang);
+            double sa = Math.sin(ang);
+            Vec3d nrm2 = nrm.multiply(ca).add(bin.multiply(sa));
+            Vec3d bin2 = bin.multiply(ca).subtract(nrm.multiply(sa));
+
+            if (profile.contains("POLY")) {
+                List<List<int[]>> rings2 = AssemblyProfilePolygonOps.parseProfileRings(op);
+                if (rings2.isEmpty() || rings2.getFirst().size() < 3) return;
+                double s0 = adapter.d(op.get("profileScale0"), adapter.d(op.get("scale0"), 1.0));
+                double s1 = adapter.d(op.get("profileScale1"), adapter.d(op.get("scale1"), 1.0));
+                double sc = AssemblyBezierOps.lerp(s0, s1, tt);
+                if (sc <= 0.05) sc = 0.05;
+                int[] bb = AssemblyProfilePolygonOps.boundsRings2D(rings2);
+                int uMin = (int) Math.floor(bb[0] * sc);
+                int uMax = (int) Math.ceil(bb[1] * sc);
+                int vMin = (int) Math.floor(bb[2] * sc);
+                int vMax = (int) Math.ceil(bb[3] * sc);
+                int area2d = (uMax - uMin + 1) * (vMax - vMin + 1);
+                if (area2d > 20000) return;
+
+                List<List<int[]>> sr = AssemblyProfilePolygonOps.scaleRings(rings2, sc);
+
+                for (int uu = uMin; uu <= uMax; uu++) {
+                    for (int vv = vMin; vv <= vMax; vv++) {
+                        boolean inside = AssemblyProfilePolygonOps.pointInRings2D(uu, vv, sr);
+                        if (!inside) continue;
+                        boolean border = true;
+                        if (hollow) {
+                            border = AssemblyProfilePolygonOps.isRingsBorder(uu, vv, sr, t);
+                            if (!border && !carveInterior) continue;
+                        }
+                        Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
+                        int x = cx + snap(off.x, snapMode);
+                        int y = cy + snap(off.y, snapMode);
+                        int z = cz + snap(off.z, snapMode);
+                        if (connectSamples && lastSection != null) {
+                            BlockState s = (!hollow) ? mat : (border ? shell : Blocks.AIR.getDefaultState());
+                            connectToLast(out, ctx, origin, adapter, lastSection, AssemblySeamMathOps.packUV(uu, vv), x, y, z, s, seen, connectMaxStep);
+                        }
+                        long key = AssemblySeamMathOps.packXYZ(x, y, z);
+                        if (!seen.add(key)) continue;
+                        if (!hollow) adapter.put(out, ctx, origin, x, y, z, mat);
+                        else adapter.put(out, ctx, origin, x, y, z, border ? shell : Blocks.AIR.getDefaultState());
+                    }
+                }
+
+                if (hollow && capEnds && (i == 0 || i == n - 1)) {
+                    for (int uu = uMin; uu <= uMax; uu++) {
+                        for (int vv = vMin; vv <= vMax; vv++) {
+                            boolean inside = AssemblyProfilePolygonOps.pointInRings2D(uu, vv, sr);
+                            if (!inside) continue;
+                            boolean border = AssemblyProfilePolygonOps.isRingsBorder(uu, vv, sr, capThickness);
+                            if (!border) continue;
+                            Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
+                            int x = cx + snap(off.x, snapMode);
+                            int y = cy + snap(off.y, snapMode);
+                            int z = cz + snap(off.z, snapMode);
+                            if (connectSamples && lastSection != null) {
+                                connectToLast(out, ctx, origin, adapter, lastSection, AssemblySeamMathOps.packUV(uu, vv), x, y, z, shell, seen, connectMaxStep);
+                            }
+                            long key = AssemblySeamMathOps.packXYZ(x, y, z);
+                            if (!seen.add(key)) continue;
+                            adapter.put(out, ctx, origin, x, y, z, shell);
+                        }
+                    }
+                }
+                continue;
+            }
+
+            for (int uu = -halfW; uu <= halfW; uu++) {
+                for (int vv = -halfH; vv <= halfH; vv++) {
+                    boolean border = true;
+                    if (hollow) {
+                        border = (uu - (-halfW) < t) || (halfW - uu < t) || (vv - (-halfH) < t) || (halfH - vv < t);
+                        if (!border && !carveInterior) continue;
+                    }
+                    Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
+                    int x = cx + snap(off.x, snapMode);
+                    int y = cy + snap(off.y, snapMode);
+                    int z = cz + snap(off.z, snapMode);
+                    if (connectSamples && lastSection != null) {
+                        BlockState s = (!hollow) ? mat : (border ? shell : Blocks.AIR.getDefaultState());
+                        connectToLast(out, ctx, origin, adapter, lastSection, AssemblySeamMathOps.packUV(uu, vv), x, y, z, s, seen, connectMaxStep);
+                    }
+                    long key = AssemblySeamMathOps.packXYZ(x, y, z);
+                    if (!seen.add(key)) continue;
+                    if (!hollow) {
+                        adapter.put(out, ctx, origin, x, y, z, mat);
+                    } else {
+                        adapter.put(out, ctx, origin, x, y, z, border ? shell : Blocks.AIR.getDefaultState());
+                    }
+                }
+            }
+
+            if (hollow && capEnds && (i == 0 || i == n - 1)) {
+                for (int uu = -halfW; uu <= halfW; uu++) {
+                    for (int vv = -halfH; vv <= halfH; vv++) {
+                        boolean border = (uu - (-halfW) < capThickness) || (halfW - uu < capThickness) || (vv - (-halfH) < capThickness) || (halfH - vv < capThickness);
+                        if (!border) continue;
+                        Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
+                        int x = cx + snap(off.x, snapMode);
+                        int y = cy + snap(off.y, snapMode);
+                        int z = cz + snap(off.z, snapMode);
+                        if (connectSamples && lastSection != null) {
+                            connectToLast(out, ctx, origin, adapter, lastSection, AssemblySeamMathOps.packUV(uu, vv), x, y, z, shell, seen, connectMaxStep);
+                        }
+                        long key = AssemblySeamMathOps.packXYZ(x, y, z);
+                        if (!seen.add(key)) continue;
+                        adapter.put(out, ctx, origin, x, y, z, shell);
                     }
                 }
             }
@@ -476,6 +717,53 @@ public final class AssemblySurfaceOps {
             }
             return out.isEmpty() ? null : out;
         }
+    }
+
+    private static void connectToLast(List<PlannedBlock> out,
+                                      MetaAssemblyEngine.Context ctx,
+                                      BlockPos origin,
+                                      Adapter adapter,
+                                      java.util.HashMap<Long, long[]> lastSection,
+                                      long uvKey,
+                                      int x,
+                                      int y,
+                                      int z,
+                                      BlockState s,
+                                      java.util.HashSet<Long> seen,
+                                      int connectMaxStep) {
+        if (lastSection == null) return;
+        if (s == null || s.isAir()) return;
+
+        long[] prev = lastSection.get(uvKey);
+        if (prev != null && prev.length >= 3) {
+            int x0 = (int) prev[0], y0 = (int) prev[1], z0 = (int) prev[2];
+            int dx = x - x0;
+            int dy = y - y0;
+            int dz = z - z0;
+            int dist = Math.max(Math.max(Math.abs(dx), Math.abs(dy)), Math.abs(dz));
+            if (dist > 1 && dist <= connectMaxStep) {
+                for (int i = 1; i < dist; i++) {
+                    double t = i / (double) dist;
+                    int xi = (int) Math.round(x0 + dx * t);
+                    int yi = (int) Math.round(y0 + dy * t);
+                    int zi = (int) Math.round(z0 + dz * t);
+                    long key = AssemblySeamMathOps.packXYZ(xi, yi, zi);
+                    if (seen != null && !seen.add(key)) continue;
+                    adapter.put(out, ctx, origin, xi, yi, zi, s);
+                }
+            }
+        }
+
+        lastSection.put(uvKey, new long[]{x, y, z});
+    }
+
+    private static int snap(double v, String mode) {
+        String m = (mode == null) ? "ROUND" : mode.trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (m) {
+            case "FLOOR" -> (int) Math.floor(v);
+            case "CEIL" -> (int) Math.ceil(v);
+            default -> (int) Math.round(v);
+        };
     }
 
     private static final class PatchData {
