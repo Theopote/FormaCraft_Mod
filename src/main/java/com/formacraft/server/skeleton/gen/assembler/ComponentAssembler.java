@@ -2,7 +2,7 @@ package com.formacraft.server.skeleton.gen.assembler;
 
 import com.formacraft.common.component.ComponentSpec;
 import com.formacraft.common.semantic.SemanticPlacementOp;
-import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 import com.formacraft.server.skeleton.gen.GenerationContext;
 
 import java.util.List;

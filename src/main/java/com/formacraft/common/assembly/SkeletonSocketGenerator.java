@@ -9,7 +9,7 @@ import com.formacraft.client.tool.PathTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.common.skeleton.socket.SkeletonSocketProfile;
 import com.formacraft.common.skeleton.SkeletonType;
-import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;

@@ -1,7 +1,7 @@
 package com.formacraft.server.skeleton.gen.assembler.util;
 
 import com.formacraft.common.skeleton.SkeletonType;
-import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 import com.formacraft.server.skeleton.gen.GenerationContext;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;

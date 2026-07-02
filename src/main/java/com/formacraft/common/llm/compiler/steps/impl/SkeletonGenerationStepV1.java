@@ -4,7 +4,7 @@ import com.formacraft.common.llm.compiler.PlanCompileContext;
 import com.formacraft.common.llm.compiler.steps.SkeletonGenerationStep;
 import com.formacraft.common.llm.dto.StructuralSkeleton;
 import com.formacraft.common.llm.converter.StructuralSkeletonToExecutablePlanConverter;
-import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 
 import java.util.List;
 

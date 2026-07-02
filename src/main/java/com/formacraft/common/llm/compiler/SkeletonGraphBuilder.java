@@ -1,7 +1,7 @@
 package com.formacraft.common.llm.compiler;
 
 import com.formacraft.common.llm.dto.StructuralSkeleton;
-import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 
 import java.util.*;
 

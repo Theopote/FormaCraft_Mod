@@ -1,5 +1,7 @@
 package com.formacraft.server.skeleton.gen;
 
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
+
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;

@@ -5,7 +5,7 @@ import com.formacraft.common.geometry.extrusion.ExtrudedSolid;
 import com.formacraft.common.geometry.extrusion.WallExtrusion;
 import com.formacraft.common.llm.dto.StructuralSkeleton;
 import com.formacraft.common.skeleton.SkeletonType;
-import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 import com.formacraft.FormacraftMod;
 import net.minecraft.util.math.BlockPos;
 

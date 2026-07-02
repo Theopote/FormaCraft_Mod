@@ -1,23 +1,16 @@
-package com.formacraft.server.skeleton.gen;
+package com.formacraft.common.skeleton;
 
-import com.formacraft.common.skeleton.SkeletonType;
 import net.minecraft.util.math.Direction;
 
 import java.util.*;
-import java.util.Objects;
 
 /**
  * 可执行的 SkeletonPlan（用于 Generator 输入）
- * 
- * 这是从 LLM 输出或工具推导出来的 skeleton 计划。
- * 
- * 核心设计原则：
- * - Skeleton 只决定"结构拓扑"（朝向、中心线、宽度、高度趋势）
- * - ❌ 不决定具体方块
- * - ❌ 不关心风格
- * - ❌ 不关心装饰
- * 
- * 这些都应该在 Generator + Palette + Tool 约束层完成。
+ * <p>
+ * 从 LLM 输出、{@link SkeletonPlan} 桥接或工具推导出来的 skeleton 计划。
+ * <p>
+ * Phase 1：从 {@code server.skeleton.gen} 迁至 {@code common.skeleton}，
+ * 作为骨架层统一 DTO，解除 common 编译器对 server 包的依赖。
  */
 public class ExecutableSkeletonPlan {
     public final SkeletonType type;
@@ -28,37 +21,17 @@ public class ExecutableSkeletonPlan {
     /** COMPOUND：子 skeleton 列表 */
     public final List<ExecutableSkeletonPlan> children = new ArrayList<>();
 
-    // ========== 核心增强字段 ==========
-    
-    /** 基础几何：长度 */
     public int length = 10;
-    
-    /** 基础几何：高度 */
     public int height = 5;
-    
-    /** 横向宽度（单位：block） */
     public int width = 1;
-    
-    /** 朝向 */
     public Direction facing = Direction.NORTH;
-    
-    /** 是否贴地/顺地形 */
     public boolean conformTerrain = true;
-    
-    /** 高度策略 */
     public HeightPolicy heightPolicy = HeightPolicy.FLAT;
-    
-    /**
-     * 高度策略枚举
-     */
+
     public enum HeightPolicy {
-        /** 完全平 */
         FLAT,
-        /** 顺地形 */
         FOLLOW_TERRAIN,
-        /** 台阶 */
         STEP_UP,
-        /** 坡道 */
         SLOPE
     }
 
@@ -75,10 +48,10 @@ public class ExecutableSkeletonPlan {
     public <T> T get(String key, T defaultValue) {
         Object v = params.get(key);
         if (v == null) return defaultValue;
-        try { 
-            return (T) v; 
-        } catch (ClassCastException e) { 
-            return defaultValue; 
+        try {
+            return (T) v;
+        } catch (ClassCastException e) {
+            return defaultValue;
         }
     }
 
@@ -88,28 +61,18 @@ public class ExecutableSkeletonPlan {
         }
         return this;
     }
-    
-    // ========== 便捷方法：从 params 读取并设置字段 ==========
-    
-    /**
-     * 从 params 中读取并设置所有字段（用于从 LLM 输出解析）
-     */
+
     public ExecutableSkeletonPlan applyParams() {
-        // 基础几何
         if (params.containsKey("length")) {
-            Object v = params.get("length");
-            this.length = toInt(v, this.length);
+            this.length = toInt(params.get("length"), this.length);
         }
         if (params.containsKey("height")) {
-            Object v = params.get("height");
-            this.height = toInt(v, this.height);
+            this.height = toInt(params.get("height"), this.height);
         }
         if (params.containsKey("width")) {
-            Object v = params.get("width");
-            this.width = toInt(v, this.width);
+            this.width = toInt(params.get("width"), this.width);
         }
-        
-        // 朝向
+
         if (params.containsKey("facing")) {
             Object v = params.get("facing");
             if (v instanceof Direction d) {
@@ -117,13 +80,10 @@ public class ExecutableSkeletonPlan {
             } else if (v instanceof String s) {
                 try {
                     this.facing = Direction.valueOf(s.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    // 保持默认值
-                }
+                } catch (IllegalArgumentException ignored) {}
             }
         }
-        
-        // 地形适应
+
         if (params.containsKey("conformTerrain")) {
             Object v = params.get("conformTerrain");
             if (v instanceof Boolean b) {
@@ -132,8 +92,7 @@ public class ExecutableSkeletonPlan {
                 this.conformTerrain = Boolean.parseBoolean(s);
             }
         }
-        
-        // 高度策略
+
         if (params.containsKey("heightPolicy")) {
             Object v = params.get("heightPolicy");
             if (v instanceof HeightPolicy hp) {
@@ -141,18 +100,19 @@ public class ExecutableSkeletonPlan {
             } else if (v instanceof String s) {
                 try {
                     this.heightPolicy = HeightPolicy.valueOf(s.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    // 保持默认值
-                }
+                } catch (IllegalArgumentException ignored) {}
             }
         }
-        
+
         return this;
     }
-    
+
     private static int toInt(Object v, int def) {
         if (v instanceof Number n) return n.intValue();
-        try { return Integer.parseInt(String.valueOf(v)); } catch (Exception e) { return def; }
+        try {
+            return Integer.parseInt(String.valueOf(v));
+        } catch (Exception e) {
+            return def;
+        }
     }
 }
-

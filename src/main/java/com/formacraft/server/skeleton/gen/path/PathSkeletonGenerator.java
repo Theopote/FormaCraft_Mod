@@ -6,7 +6,7 @@ import com.formacraft.common.terrain.TerrainPolicy;
 import com.formacraft.common.terrain.TerrainStrategy;
 import com.formacraft.server.skeleton.gen.GenerationContext;
 import com.formacraft.server.skeleton.gen.ISkeletonGenerator;
-import com.formacraft.server.skeleton.gen.ExecutableSkeletonPlan;
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 
 import java.util.List;
 
