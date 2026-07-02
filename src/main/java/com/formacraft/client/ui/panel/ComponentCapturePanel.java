@@ -1874,15 +1874,6 @@ public class ComponentCapturePanel extends BasePanel {
     }
     
     /**
-     * 处理世界拖拽（从 tick 调用）
-     * 框选模式下由 SelectionTool 自动处理
-     */
-    public void handleWorldDrag(net.minecraft.util.math.BlockPos currentPos) {
-        // 框选模式：SelectionTool 自动更新
-        // 点选模式：无需拖拽处理
-    }
-    
-    /**
      * 处理鼠标释放（从 InputRouter 调用）
      */
     public void handleWorldRelease(int button) {
@@ -1935,10 +1926,6 @@ public class ComponentCapturePanel extends BasePanel {
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 清除选区");
         }
-    }
-
-    public boolean isSelecting() {
-        return selectionController.isSelecting();
     }
 
     public void tick() {
