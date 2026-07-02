@@ -88,12 +88,22 @@ public class ComponentRanker {
             return 0.0;
         }
 
+        double score = 1.0;
+
+        if (q.semantic.geometryArchetype != null && !q.semantic.geometryArchetype.isBlank()) {
+            if (m.semantic.geometryArchetype == null) {
+                score *= 0.5;
+            } else if (!safeEquals(q.semantic.geometryArchetype, m.semantic.geometryArchetype)) {
+                return 0.0;
+            }
+        }
+
         if (q.semantic.tags == null || q.semantic.tags.isEmpty()) {
-            return 1.0;
+            return score;
         }
 
         if (m.semantic.tags == null || m.semantic.tags.isEmpty()) {
-            return 0.5; // 角色匹配但无标签，给部分分
+            return score * 0.5;
         }
 
         int hit = 0;
@@ -103,7 +113,7 @@ public class ComponentRanker {
             }
         }
 
-        return (double) hit / q.semantic.tags.size();
+        return score * ((double) hit / q.semantic.tags.size());
     }
 
     private static double placementScore(ComponentQuery q, ComponentMetadata m) {

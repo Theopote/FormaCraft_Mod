@@ -12,6 +12,7 @@ public final class ComponentSystemInitializer {
     public static void initialize() {
         FormacraftMod.LOGGER.info("Initializing Component System...");
         DefaultArchetypes.initialize();
+        com.formacraft.common.component.archetype.ComponentArchetypeStorage.loadAllFromDisk();
         FormacraftMod.LOGGER.info("  ✓ Component archetypes initialized");
     }
 }

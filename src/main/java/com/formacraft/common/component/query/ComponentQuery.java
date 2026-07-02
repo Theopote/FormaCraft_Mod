@@ -46,6 +46,9 @@ public class ComponentQuery {
         /** 语义标签：gothic / arched / heavy / modern */
         public Set<String> tags = new HashSet<>();
 
+        /** 几何原型：ORNAMENT / FRAME / LINEAR ... */
+        public String geometryArchetype;
+
         /**
          * 重要性提示：
          * role / placement / style / geometry

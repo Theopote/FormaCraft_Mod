@@ -21,7 +21,7 @@ public final class ComponentArchetypeBridge {
         ComponentSemanticInference.ensureSemanticFields(def);
         ComponentArchetype archetype = fromDefinition(def);
         if (archetype != null) {
-            ComponentArchetypeStorage.register(archetype);
+            ComponentArchetypeStorage.saveArchetype(archetype);
         }
     }
 
@@ -117,6 +117,13 @@ public final class ComponentArchetypeBridge {
         if (!isBlank(def.culturalStyle)) {
             String identity = hint.visualIdentity != null ? hint.visualIdentity : "architectural component";
             hint.visualIdentity = def.culturalStyle.toLowerCase() + " " + identity;
+        }
+        if (!isBlank(def.geometryArchetype)) {
+            try {
+                hint.archetype = GeometryArchetype.valueOf(def.geometryArchetype.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // keep category-derived default
+            }
         }
         return hint;
     }

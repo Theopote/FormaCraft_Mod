@@ -68,6 +68,11 @@ public class ComponentMetadata {
          * 标签（例如：["gothic", "arched", "stone", "heavy"]）
          */
         public List<String> tags;
+
+        /**
+         * 几何原型（例如：ORNAMENT / FRAME / LINEAR）
+         */
+        public String geometryArchetype;
     }
 
     /**
@@ -198,6 +203,11 @@ public class ComponentMetadata {
             metadata.semantic.role = "unknown";
         }
         metadata.semantic.tags = component.tags != null ? component.tags : List.of();
+        metadata.semantic.geometryArchetype = component.geometryArchetype;
+        if (isBlank(metadata.semantic.geometryArchetype) && archetype != null && archetype.geometryHint != null
+                && archetype.geometryHint.archetype != null) {
+            metadata.semantic.geometryArchetype = archetype.geometryHint.archetype.name();
+        }
 
         // 放置规格（从 Archetype 获取）
         if (archetype != null && archetype.attachment != null) {

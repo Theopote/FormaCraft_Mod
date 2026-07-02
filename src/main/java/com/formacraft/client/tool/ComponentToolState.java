@@ -25,6 +25,11 @@ public class ComponentToolState {
     public String name = "New Component";
     public Set<String> tags = new HashSet<>();
 
+    /** null = 自动推断 */
+    public String culturalStyleOverride = null;
+    /** null = 自动推断，{@link com.formacraft.common.component.archetype.GeometryArchetype} 名称 */
+    public String geometryArchetypeOverride = null;
+
     /** 世界坐标 anchor（必须落在选区内）；null 则默认选区 min。 */
     public BlockPos anchorWorld = null;
 

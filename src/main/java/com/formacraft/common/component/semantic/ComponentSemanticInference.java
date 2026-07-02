@@ -2,6 +2,7 @@ package com.formacraft.common.component.semantic;
 
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.archetype.GeometryArchetype;
 
 import java.util.HashMap;
 import java.util.List;
@@ -23,6 +24,9 @@ public final class ComponentSemanticInference {
         }
         if (isBlank(def.archetypeRef) && !isBlank(def.id)) {
             def.archetypeRef = def.id;
+        }
+        if (isBlank(def.geometryArchetype)) {
+            def.geometryArchetype = inferGeometryArchetype(def);
         }
     }
 
@@ -65,6 +69,56 @@ public final class ComponentSemanticInference {
             return "CHINESE";
         }
 
+        return null;
+    }
+
+    public static String inferGeometryArchetype(ComponentDefinition def) {
+        if (def == null) {
+            return null;
+        }
+
+        if (def.tags != null) {
+            for (String tag : def.tags) {
+                String geometry = geometryFromTag(tag);
+                if (geometry != null) {
+                    return geometry;
+                }
+            }
+        }
+
+        ComponentCategory category = def.category != null ? def.category : ComponentCategory.GENERIC;
+        return switch (category) {
+            case DOOR, WINDOW -> GeometryArchetype.FRAME.name();
+            case COLUMN -> GeometryArchetype.COLUMN.name();
+            case BRACKET, ORNAMENT, ROOF_DETAIL, ARCH -> GeometryArchetype.ORNAMENT.name();
+            case STAIRS -> GeometryArchetype.LINEAR.name();
+            default -> GeometryArchetype.VOLUME.name();
+        };
+    }
+
+    private static String geometryFromTag(String tag) {
+        if (tag == null) {
+            return null;
+        }
+        String lower = tag.toLowerCase(Locale.ROOT);
+        if (lower.contains("arch") || lower.contains("拱")) {
+            return GeometryArchetype.ARCH.name();
+        }
+        if (lower.contains("column") || lower.contains("柱")) {
+            return GeometryArchetype.COLUMN.name();
+        }
+        if (lower.contains("railing") || lower.contains("栏杆") || lower.contains("栏杆")) {
+            return GeometryArchetype.LINEAR.name();
+        }
+        if (lower.contains("dougong") || lower.contains("斗拱") || lower.contains("ornament") || lower.contains("装饰")) {
+            return GeometryArchetype.ORNAMENT.name();
+        }
+        if (lower.contains("frame") || lower.contains("窗套") || lower.contains("门框")) {
+            return GeometryArchetype.FRAME.name();
+        }
+        if (lower.contains("panel") || lower.contains("板")) {
+            return GeometryArchetype.FLAT_PANEL.name();
+        }
         return null;
     }
 
