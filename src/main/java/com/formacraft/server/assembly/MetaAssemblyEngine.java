@@ -3431,60 +3431,47 @@ public final class MetaAssemblyEngine {
     }
 
     private static double edgeMse(PatchData a, Edge ea, PatchData b, Edge eb, boolean reverse, int n, boolean resample) {
-        if (n < 2) n = 2;
-        double sum = 0.0;
-        for (int i = 0; i < n; i++) {
-            double t = i / (double) (n - 1);
-            int[] pa = resample ? edgePointAt(a, ea, t) : edgePoint(a, ea, clamp((int) Math.round(t * (edgeCount(a, ea) - 1)), 0, edgeCount(a, ea) - 1));
-            double tt = reverse ? (1.0 - t) : t;
-            int[] pb = resample ? edgePointAt(b, eb, tt) : edgePoint(b, eb, clamp((int) Math.round(tt * (edgeCount(b, eb) - 1)), 0, edgeCount(b, eb) - 1));
-            sum += dist2(pa, pb);
-        }
-        return sum / n;
+        int countA = edgeCount(a, ea);
+        int countB = edgeCount(b, eb);
+        return AssemblyEdgeSamplingOps.edgeMse(
+                countA,
+                i -> edgePoint(a, ea, i),
+                t -> edgePointAt(a, ea, t),
+                countB,
+                i -> edgePoint(b, eb, i),
+                t -> edgePointAt(b, eb, t),
+                reverse,
+                n,
+                resample
+        );
     }
 
     private static double edgeMseRange(PatchData a, Edge ea, double a0, double a1,
                                        PatchData b, Edge eb, double b0, double b1,
                                        boolean reverse, int n, boolean resample) {
-        if (n < 2) n = 2;
-        double sum = 0.0;
-        for (int i = 0; i < n; i++) {
-            double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
-            int[] pa = edgePointAtRange(a, ea, t, a0, a1);
-            double tt = reverse ? (1.0 - t) : t;
-            int[] pb = edgePointAtRange(b, eb, tt, b0, b1);
-            if (!resample) {
-                // if not resampling, snap to nearest discrete sample on each edge
-                pa = edgePoint(a, ea, clamp((int) Math.round(t * (edgeCount(a, ea) - 1)), 0, edgeCount(a, ea) - 1));
-                pb = edgePoint(b, eb, clamp((int) Math.round(tt * (edgeCount(b, eb) - 1)), 0, edgeCount(b, eb) - 1));
-            }
-            sum += dist2(pa, pb);
-        }
-        return sum / n;
+        int countA = edgeCount(a, ea);
+        int countB = edgeCount(b, eb);
+        return AssemblyEdgeSamplingOps.edgeMseRange(
+                i -> edgePoint(a, ea, i),
+                t -> edgePointAtRange(a, ea, t, a0, a1),
+                countA,
+                i -> edgePoint(b, eb, i),
+                t -> edgePointAtRange(b, eb, t, b0, b1),
+                countB,
+                reverse,
+                n,
+                resample
+        );
     }
 
     private static int[] edgePointAt(PatchData p, Edge e, double t) {
         int n = edgeCount(p, e);
-        if (n <= 1) return edgePoint(p, e, 0);
-        double idx = t * (n - 1);
-        int i0 = clamp((int) Math.floor(idx), 0, n - 1);
-        int i1 = clamp(i0 + 1, 0, n - 1);
-        double a = idx - i0;
-        int[] p0 = edgePoint(p, e, i0);
-        int[] p1 = edgePoint(p, e, i1);
-        int x = (int) Math.round(lerp(p0[0], p1[0], a));
-        int y = (int) Math.round(lerp(p0[1], p1[1], a));
-        int z = (int) Math.round(lerp(p0[2], p1[2], a));
-        return new int[]{x, y, z};
+        return AssemblyEdgeSamplingOps.edgePointAt(n, i -> edgePoint(p, e, i), t);
     }
 
     private static int[] edgePointAtRange(PatchData p, Edge e, double t, double t0, double t1) {
-        double a = Math.min(t0, t1);
-        double b = Math.max(t0, t1);
-        a = Math.max(0.0, Math.min(1.0, a));
-        b = Math.max(0.0, Math.min(1.0, b));
-        double tt = a + (b - a) * t;
-        return edgePointAt(p, e, tt);
+        int n = edgeCount(p, e);
+        return AssemblyEdgeSamplingOps.edgePointAtRange(n, i -> edgePoint(p, e, i), t, t0, t1);
     }
 
     private static void stitchEdgeResampled(List<PlannedBlock> out, Context ctx, BlockPos origin,
