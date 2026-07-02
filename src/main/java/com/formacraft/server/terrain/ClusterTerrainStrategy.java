@@ -1,5 +1,7 @@
 package com.formacraft.server.terrain;
 
+import com.formacraft.common.logging.FcaLog;
+
 import java.util.Locale;
 import java.util.Map;
 
@@ -18,6 +20,8 @@ public record ClusterTerrainStrategy(
         boolean allowWaterEdit,
         boolean allowLavaEdit
 ) {
+    private static final FcaLog LOG = FcaLog.of("ClusterTerrainStrategy");
+
     public static ClusterTerrainStrategy fromExtra(Map<String, Object> extra) {
         ClusterTerrainPolicy p = parsePolicy(extra != null ? extra.get("clusterTerrainPolicy") : null);
         if (p == null) p = ClusterTerrainPolicy.BALANCED;
@@ -62,7 +66,8 @@ public record ClusterTerrainStrategy(
             String s = String.valueOf(v).trim();
             if (s.isEmpty()) return def;
             return Integer.parseInt(s);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("getInt failed key={} value={}", key, v);
             return def;
         }
     }

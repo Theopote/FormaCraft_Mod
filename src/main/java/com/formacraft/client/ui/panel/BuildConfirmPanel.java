@@ -7,6 +7,7 @@ import com.formacraft.common.model.build.Materials;
 import com.formacraft.common.model.build.Features;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.preview.OutlinePreviewState;
 import com.formacraft.client.preview.PatchPreviewState;
@@ -31,6 +32,8 @@ import java.util.UUID;
 public class BuildConfirmPanel {
     
     public static final BuildConfirmPanel INSTANCE = new BuildConfirmPanel();
+
+    private static final FcaLog LOG = FcaLog.of("BuildConfirmPanel");
     
     private final MinecraftClient client = MinecraftClient.getInstance();
     
@@ -664,11 +667,15 @@ public class BuildConfirmPanel {
             java.lang.reflect.Method m = nh.getClass().getMethod("sendChatCommand", String.class);
             m.invoke(nh, cmd);
             return;
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("sendChatCommand failed cmd={}", cmd, t);
+        }
 
         try {
             java.lang.reflect.Method m2 = nh.getClass().getMethod("sendChatMessage", String.class);
             m2.invoke(nh, "/" + cmd);
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.warn("sendChatMessage fallback failed cmd={}", cmd, t);
+        }
     }
 }

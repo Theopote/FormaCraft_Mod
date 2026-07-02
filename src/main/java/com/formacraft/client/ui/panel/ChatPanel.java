@@ -18,6 +18,7 @@ import com.formacraft.client.ui.text.SelectableTextBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.config.SettingsConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -49,6 +50,8 @@ import java.time.Duration;
  * 支持动态字体大小调整
  */
 public class ChatPanel extends BasePanel {
+
+    private static final FcaLog LOG = FcaLog.of("ChatPanel");
 
     private final MinecraftClient client = MinecraftClient.getInstance();
 
@@ -792,8 +795,9 @@ public class ChatPanel extends BasePanel {
             } else if (client.player != null) {
                 req.setFacing(client.player.getHorizontalFacing().name());
             }
-        } catch (Throwable ignored) {}
-        req.setDimension(dimensionId);
+        } catch (Throwable t) {
+            LOG.debug("enrich build request facing failed", t);
+        }
         req.setSelectionMin(SelectionContext.hasSelection() ? SelectionContext.min() : null);
         req.setSelectionMax(SelectionContext.hasSelection() ? SelectionContext.max() : null);
         
@@ -806,15 +810,19 @@ public class ChatPanel extends BasePanel {
                     req.setBrushMax(new BlockPos(bounds[3], bounds[4], bounds[5]));
                 }
             }
-        } catch (Throwable ignored) {}
-        
+        } catch (Throwable t) {
+            LOG.debug("enrich build request brush bounds failed", t);
+        }
+
         try {
             // 用于服务端“生成阶段硬裁剪”：禁区/轮廓不再只靠 AI 遵守
             if (bc != null) {
                 req.setOutline(bc.outline);
                 req.setProtectedZones(bc.protectedZones);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("enrich build request outline/zones failed", t);
+        }
         req.setSessionId(sessionId);
         req.setChatHistory(history);
 
@@ -1000,7 +1008,9 @@ public class ChatPanel extends BasePanel {
                 try {
                     int v = Integer.parseInt(m.group(1));
                     return Math.max(1, Math.min(32, v));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException e) {
+                    LOG.debug("parseStep number failed text={}", text);
+                }
             }
             if (text.contains("多一点") || text.contains("再多") || text.contains("再往")) {
                 return 2;
@@ -1070,7 +1080,8 @@ public class ChatPanel extends BasePanel {
                     .build();
             HttpResponse<String> resp = healthHttp.send(req, HttpResponse.BodyHandlers.ofString());
             return resp.statusCode() >= 200 && resp.statusCode() < 300;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("backend health check failed url={}", v, e);
             return false;
         }
     }

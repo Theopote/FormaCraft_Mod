@@ -1,5 +1,7 @@
 package com.formacraft.server.terrain;
 
+import com.formacraft.common.logging.FcaLog;
+
 import java.util.Locale;
 import java.util.Map;
 
@@ -13,6 +15,8 @@ import java.util.Map;
 public final class TerrainPolicyResolver {
     private TerrainPolicyResolver() {}
 
+    private static final FcaLog LOG = FcaLog.of("TerrainPolicyResolver");
+
     public static TerrainPolicy resolve(Map<String, Object> extra) {
         if (extra == null) return TerrainPolicy.ADAPTIVE;
 
@@ -22,7 +26,9 @@ public final class TerrainPolicyResolver {
             if (!s.isEmpty()) {
                 try {
                     return TerrainPolicy.valueOf(s);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    LOG.debug("parse terrainPolicy failed value={}", tp);
+                }
                 // friendly aliases
                 if (s.contains("FOLLOW")) return TerrainPolicy.FOLLOW;
                 if (s.contains("ADAPT")) return TerrainPolicy.ADAPTIVE;
@@ -46,5 +52,3 @@ public final class TerrainPolicyResolver {
         return TerrainPolicy.ADAPTIVE;
     }
 }
-
-

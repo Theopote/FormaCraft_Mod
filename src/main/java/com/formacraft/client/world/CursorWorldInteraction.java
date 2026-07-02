@@ -2,6 +2,7 @@ package com.formacraft.client.world;
 
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.input.InputRouter;
+import com.formacraft.common.logging.FcaLog;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -30,6 +31,8 @@ import java.util.Objects;
 @Environment(EnvType.CLIENT)
 public final class CursorWorldInteraction {
     private CursorWorldInteraction() {}
+
+    private static final FcaLog LOG = FcaLog.of("CursorWorldInteraction");
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(CursorWorldInteraction::tick);
@@ -64,7 +67,9 @@ public final class CursorWorldInteraction {
             if (client.player != null) {
                 return client.player.getBlockInteractionRange();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("getBlockInteractionRange failed", t);
+        }
         return 4.5;
     }
 
@@ -89,7 +94,8 @@ public final class CursorWorldInteraction {
         double fov = 70.0;
         try {
             fov = client.options.getFov().getValue();
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("read FOV failed", t);
         }
         double tan = Math.tan(Math.toRadians(fov) / 2.0);
         double aspect = sw / (double) sh;

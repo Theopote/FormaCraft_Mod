@@ -1,6 +1,7 @@
 package com.formacraft.server.terrain;
 
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.logging.FcaLog;
 
 import java.util.Locale;
 import java.util.Map;
@@ -16,6 +17,8 @@ import java.util.Map;
  */
 public final class TerrainAdaptationResolver {
     private TerrainAdaptationResolver() {}
+
+    private static final FcaLog LOG = FcaLog.of("TerrainAdaptationResolver");
 
     public static TerrainAdaptationSpec resolve(Map<String, Object> extra) {
         TerrainAdaptationSpec def = TerrainAdaptationSpec.defaults();
@@ -95,7 +98,9 @@ public final class TerrainAdaptationResolver {
         s = s.toUpperCase(Locale.ROOT);
         try {
             return TerrainAdaptationMode.valueOf(s);
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("parse TerrainAdaptationMode failed value={}", v);
+        }
         if (s.contains("FLAT") || s.contains("CUT")) return TerrainAdaptationMode.FLATTEN;
         if (s.contains("DRAPE") || s.contains("FOLLOW_GROUND")) return TerrainAdaptationMode.DRAPE;
         if (s.contains("ANCHOR") || s.contains("PILE") || s.contains("FOUNDATION")) return TerrainAdaptationMode.ANCHOR;
@@ -113,7 +118,8 @@ public final class TerrainAdaptationResolver {
             case Map<?, ?> mm -> {
                 try {
                     return (Map<String, Object>) mm;
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    LOG.debug("terrainAdaptation map cast failed", e);
                     return null;
                 }
             }
@@ -122,7 +128,8 @@ public final class TerrainAdaptationResolver {
                 if (json.isEmpty() || "{}".equals(json)) return null;
                 try {
                     return JsonUtil.fromJson(json, Map.class);
-                } catch (Throwable ignored) {
+                } catch (Throwable t) {
+                    LOG.debug("parse terrainAdaptation JSON failed value={}", json, t);
                     return null;
                 }
             }
@@ -134,7 +141,8 @@ public final class TerrainAdaptationResolver {
             String json = JsonUtil.toJson(v);
             if (json == null || json.isBlank() || "{}".equals(json.trim())) return null;
             return JsonUtil.fromJson(json, Map.class);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("serialize terrainAdaptation to map failed", t);
             return null;
         }
     }
@@ -166,6 +174,7 @@ public final class TerrainAdaptationResolver {
         try {
             return Integer.parseInt(s);
         } catch (Exception e) {
+            LOG.debug("parseInt failed value={}", v);
             return null;
         }
     }

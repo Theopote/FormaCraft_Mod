@@ -1,6 +1,7 @@
 package com.formacraft.client.ui;
 
 import com.formacraft.client.tool.ComponentTool;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.client.ui.panel.PanelType;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import net.minecraft.client.MinecraftClient;
@@ -8,6 +9,8 @@ import net.minecraft.client.option.KeyBinding;
 import org.lwjgl.glfw.GLFW;
 
 public class FormacraftUIState {
+
+    private static final FcaLog LOG = FcaLog.of("FormacraftUIState");
 
     public static boolean isOpen = false;
 
@@ -80,13 +83,15 @@ public class FormacraftUIState {
                                     field.setBoolean(keyBinding, false);
                                     break;
                                 }
-                            } catch (Exception ignored) {}
+                            } catch (Exception e) {
+                                LOG.debug("KeyBinding pressed field probe failed field={}", fieldName);
+                            }
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            // 反射失败，静默处理（不影响游戏）
+            LOG.debug("reset key bindings failed", e);
         }
     }
 

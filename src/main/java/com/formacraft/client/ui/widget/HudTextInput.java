@@ -1,5 +1,6 @@
 package com.formacraft.client.ui.widget;
 
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import org.lwjgl.glfw.GLFW;
@@ -16,6 +17,7 @@ import org.lwjgl.glfw.GLFW;
  * - 由 InputRouter / BasePanel 驱动：鼠标/键盘事件由面板转发
  */
 public class HudTextInput {
+    private static final FcaLog LOG = FcaLog.of("HudTextInput");
 
     private final MinecraftClient client = MinecraftClient.getInstance();
 
@@ -369,7 +371,8 @@ public class HudTextInput {
             if (clip != null && !clip.isEmpty()) {
                 insert(clip.replaceAll("[\\r\\n]", ""));
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("paste from clipboard failed", e);
         }
     }
 

@@ -1,6 +1,7 @@
 package com.formacraft.client.ui.panel;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.config.SettingsConfig;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.gui.Click;
@@ -41,6 +42,8 @@ import java.util.regex.Pattern;
  * Handles configuration for API keys, model selection, temperature, and font size.
  */
 public class SettingsPanel extends BasePanel {
+
+    private static final FcaLog LOG = FcaLog.of("SettingsPanel");
 
     // ======================= 常量定义 =======================
     private static final int CONTENT_PADDING = 10;
@@ -1544,9 +1547,9 @@ public class SettingsPanel extends BasePanel {
                 }
                 computedUrl = url + "?" + q;
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("build models query URL failed", e);
         }
-        final String finalUrl = computedUrl;
 
         // 记录关键信息到日志（避免 toast 过长看不清）
         FormacraftMod.LOGGER.debug(
@@ -1627,7 +1630,9 @@ public class SettingsPanel extends BasePanel {
                         modelsSource = obj.get("models_source").getAsString();
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                LOG.debug("parse models health response failed", e);
+            }
 
             // 同步草稿态（以输入框为准；留空=自动）
             draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
@@ -1678,7 +1683,9 @@ public class SettingsPanel extends BasePanel {
                     return getStrings(obj.getAsJsonArray("data"));
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("parse models list JSON failed", e);
+        }
 
         // 2) 兜底：正则抓取 id
         List<String> out = new ArrayList<>();
@@ -1765,7 +1772,8 @@ public class SettingsPanel extends BasePanel {
                     if (picked != null && !picked.isBlank()) return picked;
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("pick preferred model from response failed", e);
         }
 
         // 2) 兜底：正则抓取（允许 body 不是纯 JSON）

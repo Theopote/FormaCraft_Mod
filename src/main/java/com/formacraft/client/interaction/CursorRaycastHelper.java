@@ -1,6 +1,7 @@
 package com.formacraft.client.interaction;
 
 import com.formacraft.client.ui.FormacraftUIState;
+import com.formacraft.common.logging.FcaLog;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -16,6 +17,8 @@ import net.minecraft.world.RaycastContext;
 @Environment(EnvType.CLIENT)
 public final class CursorRaycastHelper {
     private CursorRaycastHelper() {}
+
+    private static final FcaLog LOG = FcaLog.of("CursorRaycastHelper");
 
     private static final MinecraftClient client = MinecraftClient.getInstance();
 
@@ -57,7 +60,9 @@ public final class CursorRaycastHelper {
             if (client.player != null) {
                 return client.player.getBlockInteractionRange();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("getBlockInteractionRange failed", t);
+        }
         return 4.5;
     }
 
@@ -73,7 +78,9 @@ public final class CursorRaycastHelper {
         double fov = 70.0;
         try {
             fov = client.options.getFov().getValue();
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("read FOV failed", t);
+        }
         return raycastFromCursor(tickDelta, distance, fov);
     }
 

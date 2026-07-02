@@ -4,6 +4,7 @@ import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.placement.ComponentPlacementAnalyzer;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -15,6 +16,8 @@ import java.util.List;
  * 构件捕获面板的 AI 语义预览：文化风格、几何原型、放置分析推断与 UI 展示。
  */
 public final class ComponentCaptureSemanticPreview {
+    private static final FcaLog LOG = FcaLog.of("ComponentCaptureSemanticPreview");
+
     private static final long DEBOUNCE_MS = 250;
     private static final int LABEL_OFFSET = 18;
 
@@ -72,7 +75,8 @@ public final class ComponentCaptureSemanticPreview {
                     placementSummary,
                     placementHint
             );
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("semantic preview snapshot failed", t);
         }
         return snapshot;
     }

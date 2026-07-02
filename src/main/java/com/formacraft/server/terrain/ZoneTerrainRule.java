@@ -1,5 +1,7 @@
 package com.formacraft.server.terrain;
 
+import com.formacraft.common.logging.FcaLog;
+
 import java.util.Locale;
 import java.util.Map;
 
@@ -20,6 +22,8 @@ public record ZoneTerrainRule(
         Boolean allowWaterEdit,
         Boolean allowLavaEdit
 ) {
+    private static final FcaLog LOG = FcaLog.of("ZoneTerrainRule");
+
     public static java.util.Map<String, ZoneTerrainRule> fromExtra(Map<String, Object> extra) {
         if (extra == null) return java.util.Map.of();
         Object v = extra.get("zoneTerrainRules");
@@ -73,7 +77,8 @@ public record ZoneTerrainRule(
             String s = String.valueOf(v).trim();
             if (s.isEmpty()) return null;
             return Integer.parseInt(s);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("parseInt failed value={}", v);
             return null;
         }
     }

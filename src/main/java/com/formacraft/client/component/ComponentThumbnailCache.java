@@ -1,6 +1,7 @@
 package com.formacraft.client.component;
 
 import com.formacraft.common.component.ComponentStorage;
+import com.formacraft.common.logging.FcaLog;
 
 import javax.imageio.ImageIO;
 import java.io.InputStream;
@@ -17,6 +18,8 @@ import java.awt.image.BufferedImage;
  */
 public final class ComponentThumbnailCache {
     private ComponentThumbnailCache() {}
+
+    private static final FcaLog LOG = FcaLog.of("ComponentThumbnailCache");
 
     private static final Map<String, Cached> CACHE = new ConcurrentHashMap<>();
 
@@ -49,7 +52,11 @@ public final class ComponentThumbnailCache {
         }
 
         long lm = 0L;
-        try { lm = Files.getLastModifiedTime(file).toMillis(); } catch (Throwable ignored) {}
+        try {
+            lm = Files.getLastModifiedTime(file).toMillis();
+        } catch (Throwable t) {
+            LOG.debug("read thumbnail mtime failed componentId={}", id, t);
+        }
 
         Cached c = CACHE.get(id);
         if (c != null && c.lastModifiedMs == lm) {

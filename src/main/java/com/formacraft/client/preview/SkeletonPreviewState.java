@@ -1,6 +1,7 @@
 package com.formacraft.client.preview;
 
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 
@@ -18,6 +19,8 @@ import java.util.Map;
  */
 public final class SkeletonPreviewState {
     private SkeletonPreviewState() {}
+
+    private static final FcaLog LOG = FcaLog.of("SkeletonPreviewState");
 
     public static final class Visual {
         public final Box box;          // world coords
@@ -138,7 +141,8 @@ public final class SkeletonPreviewState {
 
             visuals = out;
             active = !out.isEmpty();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.warn("apply skeleton layout preview failed", e);
             clear();
         }
     }
@@ -211,7 +215,8 @@ public final class SkeletonPreviewState {
             String s = String.valueOf(v).trim();
             if (s.isEmpty()) return def;
             return Integer.parseInt(s);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("intOr failed value={} def={}", v, def);
             return def;
         }
     }
