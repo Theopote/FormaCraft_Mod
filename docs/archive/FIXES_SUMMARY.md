@@ -163,8 +163,8 @@ PlanProgramCompiler（正确传递 styleProfile）
 
 ### 未修改但已验证的文件
 
-- `src/main/java/com/formacraft/common/generator/impl/*.java`（所有 Generator 实现）
-- `src/main/java/com/formacraft/common/generator/adaptor/SmartGeneratorRouter.java`
+- `src/main/java/com/formacraft/common/generation/component/impl/*.java`（所有 Generator 实现）
+- `src/main/java/com/formacraft/common/generation/component/adaptor/SmartGeneratorRouter.java`
 - `src/main/java/com/formacraft/common/compiler/semantic/SemanticComponent.java`
 
 ---

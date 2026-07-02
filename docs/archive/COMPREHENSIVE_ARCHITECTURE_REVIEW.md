@@ -54,14 +54,14 @@
 
 #### 两个独立的生成器系统
 
-1. **`com.formacraft.common.generator`**（新系统）
+1. **`com.formacraft.common.generation.component`**（新系统）
    - 接口：`ComponentGenerator`
    - 输入：`SemanticComponent`
    - 输出：`List<BlockPatch>`
    - 用途：LLM 语义组件生成
    - **状态**：✅ **正在使用**
 
-2. **`com.formacraft.server.generator`**（传统系统）
+2. **`com.formacraft.common.generation.structure`**（传统系统）
    - 接口：`StructureGenerator`
    - 输入：`BuildingSpec`
    - 输出：`GeneratedStructure`
@@ -118,7 +118,7 @@
 
 ### 2.1 未充分使用的模块 ⚠️
 
-#### 1. 传统生成器系统 (`server.generator`) ⚠️
+#### 1. 传统生成器系统 (`common.generation.structure`) ⚠️
 
 **问题**：
 - Python 后端主要返回 `LlmPlan` 格式

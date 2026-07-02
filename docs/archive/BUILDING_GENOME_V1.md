@@ -114,7 +114,7 @@ v1 只描述语义，不指定方块：
 一句话：**BuildingGenome 是不可变中间语言（IR）**，路由层只负责把 genome 映射到合适的 generator 家族。
 
 当前实现（v1 骨架）：
-- Java：`com.formacraft.server.generator.router.GeneratorRouter`
+- Java：`com.formacraft.common.generation.structure.router.GeneratorRouter`
 - 入口：`StructureGeneratorFactory.getGenerator(spec)` 统一委托给 Router
 - 兼容：若 `extra.genome` 不存在或解析失败，则回退到旧的 `type` 路由（保持行为不变）
 

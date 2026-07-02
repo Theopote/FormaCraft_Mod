@@ -14,7 +14,7 @@
 - 可以被其他生成器复用
 - 提高可读性
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseGenerationContext.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseGenerationContext.java`
 
 ---
 
@@ -32,7 +32,7 @@
 - 可以被其他生成器复用
 - 逻辑相对独立
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseStyleOptionsResolver.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseStyleOptionsResolver.java`
 
 **包含的方法**:
 ```java
@@ -56,7 +56,7 @@ public static String resolvePaletteId(BuildingSpec spec, StyleProfile profile)
 - 纯计算逻辑，无副作用
 - 可以被其他生成器复用
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseCalculationHelper.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseCalculationHelper.java`
 
 ---
 
@@ -69,7 +69,7 @@ public static String resolvePaletteId(BuildingSpec spec, StyleProfile profile)
 - 逻辑独立，不依赖其他生成步骤
 - 可以被其他生成器复用
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseFoundationGenerator.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseFoundationGenerator.java`
 
 **包含的方法**:
 ```java
@@ -88,7 +88,7 @@ public static void generateCornerPillars(List<PlannedBlock> blocks, BlockPos ori
 - 可以被其他生成器复用
 - 便于单独测试和维护
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseDoorGenerator.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseDoorGenerator.java`
 
 **包含的方法**:
 ```java
@@ -110,7 +110,7 @@ private static void placeDoorBlock(List<PlannedBlock> blocks, BlockPos pos, int 
 - 已经有一部分逻辑在 `HouseGeneratorUtils` 中，可以统一管理
 - 便于单独测试和维护
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseWindowGenerator.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseWindowGenerator.java`
 
 **包含的方法**:
 ```java
@@ -134,7 +134,7 @@ private static void placeWindowFrame(List<PlannedBlock> blocks, BlockPos origin,
 - 墙体生成逻辑相对独立
 - 包含墙体花纹、调色板、立面组合等逻辑
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseWallGenerator.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseWallGenerator.java`
 
 **包含的方法**:
 ```java
@@ -154,7 +154,7 @@ private static void processWallCell(List<PlannedBlock> blocks, BlockPos pos, int
 - 地板和天花生成逻辑独立
 - 可以被其他生成器复用
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseFloorGenerator.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseFloorGenerator.java`
 
 **包含的方法**:
 ```java
@@ -174,7 +174,7 @@ public static void generateCeilings(List<PlannedBlock> blocks, BlockPos origin, 
 - 临水码头逻辑独立
 - 可能被其他生成器复用（如 `JiangnanWaterTownGenerator`）
 
-**建议文件路径**: `src/main/java/com/formacraft/server/generator/HouseWaterfrontHelper.java`
+**建议文件路径**: `src/main/java/com/formacraft/common/generation/structure/HouseWaterfrontHelper.java`
 
 **包含的方法**:
 ```java

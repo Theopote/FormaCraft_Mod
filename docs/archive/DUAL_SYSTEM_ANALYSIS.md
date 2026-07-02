@@ -38,7 +38,7 @@ if (isLlmPlan) {
 
 2. **Component 模式**（如果 `llmPlan.usesComponentMode() == true`）：
    - `ComponentPlanCompiler.compile()`
-   - 使用 `ComponentGenerator`（在 `common.generator` 包中）
+   - 使用 `ComponentGenerator`（在 `common.generation.component` 包中）
 
 **生成器**：
 - `TowerGenerator` - 塔楼

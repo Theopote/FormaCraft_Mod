@@ -16,7 +16,7 @@
 
 ### 2. 创建 WallGenerator
 
-**路径：** `com.formacraft.server.generator.WallGenerator`
+**路径：** `com.formacraft.common.generation.structure.WallGenerator`
 
 **功能：**
 - 生成矩形直线城墙
@@ -25,7 +25,7 @@
 
 ### 3. 创建 CompositeStructureGenerator
 
-**路径：** `com.formacraft.server.generator.composite.CompositeStructureGenerator`
+**路径：** `com.formacraft.common.generation.structure.composite.CompositeStructureGenerator`
 
 **功能：**
 - 注册所有生成器（House, Tower, Bridge, Wall）

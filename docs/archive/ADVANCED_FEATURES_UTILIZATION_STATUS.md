@@ -54,9 +54,9 @@
    - GiantWildGoosePagoda（大雁塔）
 
 **代码位置**：
-- `src/main/java/com/formacraft/server/generator/router/GeneratorRouter.java:50` - 路由
-- `src/main/java/com/formacraft/server/generator/router/GeneratorRouter.java:108-130` - 蓝图路由逻辑
-- `src/main/java/com/formacraft/server/generator/blueprint/BlueprintCompilerRegistry.java` - 编译器注册
+- `src/main/java/com/formacraft/common/generation/structure/router/GeneratorRouter.java:50` - 路由
+- `src/main/java/com/formacraft/common/generation/structure/router/GeneratorRouter.java:108-130` - 蓝图路由逻辑
+- `src/main/java/com/formacraft/common/generation/structure/blueprint/BlueprintCompilerRegistry.java` - 编译器注册
 
 **触发条件**：
 - Python 后端生成 `extra.blueprint` 字段

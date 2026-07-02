@@ -32,7 +32,6 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 ## 1. Component Type → `common.generation.component`（LlmPlan 构件流）
 
 注册表：`com.formacraft.common.generation.component.ComponentGeneratorRegistry`  
-（`GeneratorRegistry` 已弃用，委托至 `ComponentGeneratorRegistry`）  
 路由：`UnifiedGeneratorRouter.generate()` — 构件层统一门面（Phase 2）
 
 ### 路由优先级
@@ -250,8 +249,7 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 
 ## 6. 已知缺口（后续待修）
 
-1. ~~`common/generator` 包尚未迁至 `common/generation/component`~~ ✅ Phase 6b 完成
-2. `GeneratorRegistry` 已弃用，待调用方全部迁移后可删除
+（当前无阻塞性缺口；历史文档见 `docs/archive/`，路径已同步至 Phase 6b。）
 
 ---
 

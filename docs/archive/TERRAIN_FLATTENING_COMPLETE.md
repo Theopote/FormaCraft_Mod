@@ -10,7 +10,7 @@
 
 ### 1. ✅ 地形平整逻辑
 
-**文件**：`src/main/java/com/formacraft/server/generator/HouseGenerator.java`
+**文件**：`src/main/java/com/formacraft/common/generation/structure/HouseGenerator.java`
 
 **功能**：
 - 在建筑生成前，自动检测地形策略

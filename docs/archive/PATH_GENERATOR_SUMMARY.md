@@ -23,7 +23,7 @@
 
 ### 3. 实现 PathGenerator
 
-**路径：** `com.formacraft.server.generator.path.PathGenerator`
+**路径：** `com.formacraft.common.generation.structure.path.PathGenerator`
 
 **功能：**
 - ✅ 直线路径（3D Bresenham 算法）
