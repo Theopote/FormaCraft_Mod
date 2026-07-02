@@ -4,6 +4,7 @@ import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.semantic.ComponentSemanticInference;
+import com.formacraft.common.logging.FcaLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,8 @@ import java.util.List;
  * 从 {@link ComponentDefinition} 生成或同步 {@link ComponentArchetype} 侧车数据。
  */
 public final class ComponentArchetypeBridge {
+    private static final FcaLog LOG = FcaLog.of("ComponentArchetypeBridge");
+
     private ComponentArchetypeBridge() {}
 
     public static void sync(ComponentDefinition def) {
@@ -121,8 +124,8 @@ public final class ComponentArchetypeBridge {
         if (!isBlank(def.geometryArchetype)) {
             try {
                 hint.archetype = GeometryArchetype.valueOf(def.geometryArchetype.trim().toUpperCase());
-            } catch (IllegalArgumentException ignored) {
-                // keep category-derived default
+            } catch (IllegalArgumentException ex) {
+                LOG.debug("parse geometry archetype failed value={}", def.geometryArchetype, ex);
             }
         }
         return hint;

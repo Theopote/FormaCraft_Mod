@@ -1,12 +1,15 @@
 package com.formacraft.common.network;
 
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.request.FormaRequest;
 
 /**
  * Turns orchestrator / LLM failures into user-facing chat messages.
  */
 public final class OrchestratorErrorHumanizer {
+    private static final FcaLog LOG = FcaLog.of("OrchestratorErrorHumanizer");
+
     private OrchestratorErrorHumanizer() {}
 
     public static Throwable rootCause(Throwable t) {
@@ -86,7 +89,8 @@ public final class OrchestratorErrorHumanizer {
             if (m == null) return null;
             Object d = m.get("detail");
             return d == null ? null : String.valueOf(d);
-        } catch (Throwable ignored) {
+        } catch (Throwable ex) {
+            LOG.debug("extract orchestrator error detail failed", ex);
             return null;
         }
     }
