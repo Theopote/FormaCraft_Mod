@@ -1,108 +1,104 @@
 package com.formacraft.common.component.archetype;
 
-import com.formacraft.common.json.JsonUtil;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.json.JsonUtil;
+import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 /**
  * ComponentArchetypeStorage（构件原型存储）：管理 Archetype 的加载、保存和注册。
  * <p>
- * 存储结构：
- * .minecraft/formacraft/archetypes/
- *     doors/
- *     windows/
- *     columns/
- *     roofs/
- *     decorations/
- * <p>
- * 每个构件：
- * - archetype.json（ComponentArchetype）
- * - 可选：voxel_template.dat / json
- * - 可选：preview.png
+ * 目录结构（与构件库并列）：
+ * <config>/formacraft/archetypes/&lt;id&gt;.json
  */
 public final class ComponentArchetypeStorage {
     private ComponentArchetypeStorage() {}
 
-    // 内存注册表（id -> ComponentArchetype）
     private static final Map<String, ComponentArchetype> registry = new ConcurrentHashMap<>();
 
-    // 默认存储路径
-    private static final String DEFAULT_BASE_PATH = "formacraft/archetypes";
+    /** 兼容旧版相对路径 */
+    private static final String LEGACY_BASE_PATH = "formacraft/archetypes";
 
-    /**
-     * 获取存储基础路径
-     */
+    public static Path getGlobalArchetypeDir() {
+        try {
+            return FabricLoader.getInstance().getConfigDir()
+                    .resolve("formacraft")
+                    .resolve("archetypes");
+        } catch (Throwable t) {
+            return Path.of("config").resolve("formacraft").resolve("archetypes");
+        }
+    }
+
+    /** @deprecated 使用 {@link #getGlobalArchetypeDir()} */
     public static Path getBasePath() {
-        // 这里需要根据实际环境获取 .minecraft 目录
-        // 暂时返回相对路径
-        return Paths.get(DEFAULT_BASE_PATH);
+        return getGlobalArchetypeDir();
     }
 
-    /**
-     * 获取指定分类的存储路径
-     */
     public static Path getCategoryPath(String category) {
-        return getBasePath().resolve(category.toLowerCase());
+        return Paths.get(LEGACY_BASE_PATH).resolve(category.toLowerCase());
     }
 
-    /**
-     * 获取指定 Archetype 的文件路径
-     */
     public static Path getArchetypePath(String id) {
-        // 从 id 推断分类（例如：door.basic -> doors/）
-        String category = id.split("\\.")[0];
-        String filename = id + ".json";
-        return getCategoryPath(category).resolve(filename);
+        if (id == null || id.isBlank()) {
+            return getGlobalArchetypeDir().resolve("invalid.json");
+        }
+        return getGlobalArchetypeDir().resolve(id + ".json");
     }
 
-    /**
-     * 加载 Archetype（从文件）
-     */
+    private static Path getLegacyArchetypePath(String id) {
+        String category = id.split("\\.")[0];
+        return getCategoryPath(category).resolve(id + ".json");
+    }
+
     public static ComponentArchetype loadArchetype(String id) {
         if (id == null || id.isBlank()) {
             return null;
         }
 
-        // 先检查内存注册表
         ComponentArchetype cached = registry.get(id);
         if (cached != null) {
             return cached;
         }
 
-        // 从文件加载
-        Path path = getArchetypePath(id);
-        if (!Files.exists(path)) {
-            FormacraftMod.LOGGER.warn("ComponentArchetype not found: {}", id);
-            return null;
-        }
-
-        try {
-            String json = Files.readString(path);
-            ComponentArchetype archetype = JsonUtil.fromJson(json, ComponentArchetype.class);
-            if (archetype != null) {
-                // 注册到内存
-                registry.put(id, archetype);
-                FormacraftMod.LOGGER.info("Loaded ComponentArchetype: {}", id);
-                return archetype;
+        for (Path path : new Path[]{getArchetypePath(id), getLegacyArchetypePath(id)}) {
+            ComponentArchetype loaded = readArchetypeFile(path, id);
+            if (loaded != null) {
+                return loaded;
             }
-        } catch (IOException e) {
-            FormacraftMod.LOGGER.error("Failed to load ComponentArchetype {}: {}", id, e.getMessage());
         }
 
+        FormacraftMod.LOGGER.debug("ComponentArchetype not found on disk: {}", id);
         return null;
     }
 
-    /**
-     * 保存 Archetype（到文件）
-     */
+    private static ComponentArchetype readArchetypeFile(Path path, String expectedId) {
+        if (path == null || !Files.exists(path)) {
+            return null;
+        }
+        try {
+            String json = Files.readString(path, StandardCharsets.UTF_8);
+            ComponentArchetype archetype = JsonUtil.fromJson(json, ComponentArchetype.class);
+            if (archetype != null && archetype.id != null && !archetype.id.isBlank()) {
+                registry.put(archetype.id, archetype);
+                FormacraftMod.LOGGER.debug("Loaded ComponentArchetype: {} from {}", archetype.id, path);
+                return archetype;
+            }
+        } catch (IOException e) {
+            FormacraftMod.LOGGER.warn("Failed to load ComponentArchetype {} from {}: {}", expectedId, path, e.getMessage());
+        }
+        return null;
+    }
+
     public static boolean saveArchetype(ComponentArchetype archetype) {
         if (archetype == null || archetype.id == null || archetype.id.isBlank()) {
             return false;
@@ -110,17 +106,9 @@ public final class ComponentArchetypeStorage {
 
         try {
             Path path = getArchetypePath(archetype.id);
-            Path parent = path.getParent();
-            if (parent != null && !Files.exists(parent)) {
-                Files.createDirectories(parent);
-            }
-
-            String json = JsonUtil.toJson(archetype);
-            Files.writeString(path, json);
-
-            // 注册到内存
+            Files.createDirectories(path.getParent());
+            Files.writeString(path, JsonUtil.toJson(archetype), StandardCharsets.UTF_8);
             registry.put(archetype.id, archetype);
-
             FormacraftMod.LOGGER.info("Saved ComponentArchetype: {}", archetype.id);
             return true;
         } catch (IOException e) {
@@ -129,18 +117,12 @@ public final class ComponentArchetypeStorage {
         }
     }
 
-    /**
-     * 注册 Archetype（仅内存，不保存到文件）
-     */
     public static void register(ComponentArchetype archetype) {
         if (archetype != null && archetype.id != null && !archetype.id.isBlank()) {
             registry.put(archetype.id, archetype);
         }
     }
 
-    /**
-     * 获取已注册的 Archetype
-     */
     public static ComponentArchetype get(String id) {
         if (id == null || id.isBlank()) {
             return null;
@@ -148,9 +130,6 @@ public final class ComponentArchetypeStorage {
         return registry.get(id);
     }
 
-    /**
-     * 解析构件关联的 Archetype：内存注册表 → 磁盘 → 分类默认 → 从构件定义生成。
-     */
     public static ComponentArchetype resolve(ComponentDefinition component) {
         if (component == null) {
             return null;
@@ -192,15 +171,39 @@ public final class ComponentArchetypeStorage {
     }
 
     /**
-     * 获取所有已注册的 Archetype
+     * 启动时从全局目录加载已持久化的 archetype 侧车。
      */
+    public static void loadAllFromDisk() {
+        Path dir = getGlobalArchetypeDir();
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        int loaded = 0;
+        try (Stream<Path> files = Files.list(dir)) {
+            for (Path path : files.toList()) {
+                if (!Files.isRegularFile(path) || !path.getFileName().toString().endsWith(".json")) {
+                    continue;
+                }
+                String id = path.getFileName().toString().replace(".json", "");
+                if (registry.containsKey(id)) {
+                    continue;
+                }
+                if (readArchetypeFile(path, id) != null) {
+                    loaded++;
+                }
+            }
+        } catch (IOException e) {
+            FormacraftMod.LOGGER.warn("Failed to scan archetype directory {}: {}", dir, e.getMessage());
+        }
+        if (loaded > 0) {
+            FormacraftMod.LOGGER.info("Loaded {} persisted ComponentArchetypes from {}", loaded, dir);
+        }
+    }
+
     public static Map<String, ComponentArchetype> getAll() {
         return Map.copyOf(registry);
     }
 
-    /**
-     * 根据分类获取 Archetype 列表
-     */
     public static Map<String, ComponentArchetype> getByCategory(String category) {
         Map<String, ComponentArchetype> result = new HashMap<>();
         for (var entry : registry.entrySet()) {
@@ -211,9 +214,6 @@ public final class ComponentArchetypeStorage {
         return result;
     }
 
-    /**
-     * 根据语义标签搜索 Archetype
-     */
     public static Map<String, ComponentArchetype> searchByTag(String tag) {
         Map<String, ComponentArchetype> result = new HashMap<>();
         for (var entry : registry.entrySet()) {
@@ -230,9 +230,6 @@ public final class ComponentArchetypeStorage {
         return result;
     }
 
-    /**
-     * 清除注册表（用于重新加载）
-     */
     public static void clear() {
         registry.clear();
     }

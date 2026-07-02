@@ -33,6 +33,12 @@ public class ComponentDefinition {
      */
     public String archetypeRef;
 
+    /**
+     * 几何原型（可空，{@link com.formacraft.common.component.archetype.GeometryArchetype} 名称）。
+     * 例如 ORNAMENT / FRAME / LINEAR，供 AI 形态族匹配。
+     */
+    public String geometryArchetype;
+
     public Size size;
     public Anchor anchor;
     /** "NORTH"/"SOUTH"/"EAST"/"WEST" */
