@@ -954,7 +954,7 @@ public final class MetaAssemblyEngine {
                 // - connectMaxStep: reserved (currently unused; default 2)
                 // - material: semantic PRIMARY_STRUCTURE (fallback quartz)
                 Object ptsObj = op.get("points");
-                List<int[]> ctrl = readBezierControlPoints(ptsObj);
+                List<int[]> ctrl = AssemblyBezierSurfaceOps.readBezierControlPoints(ptsObj);
                 if (ctrl == null || ctrl.size() != 16) break;
 
                 int uN = clamp(i(op.get("uSamples"), i(op.get("u"), 24)), 2, 512);
@@ -968,10 +968,10 @@ public final class MetaAssemblyEngine {
                 int[][][] grid = new int[uN + 1][vN + 1][3];
                 for (int iu = 0; iu <= uN; iu++) {
                     double u = iu / (double) uN;
-                    double[] Bu = bezierBasis3(u);
+                    double[] Bu = AssemblyBezierSurfaceOps.bezierBasis3(u);
                     for (int iv = 0; iv <= vN; iv++) {
                         double v = iv / (double) vN;
-                        double[] Bv = bezierBasis3(v);
+                        double[] Bv = AssemblyBezierSurfaceOps.bezierBasis3(v);
                         double x = 0, y = 0, z = 0;
                         for (int i = 0; i < 4; i++) {
                             for (int j = 0; j < 4; j++) {
@@ -988,7 +988,10 @@ public final class MetaAssemblyEngine {
                         grid[iu][iv][0] = xi;
                         grid[iu][iv][1] = yi;
                         grid[iu][iv][2] = zi;
-                        placePrism(out, ctx, curOrigin, xi, yi, zi, thick, 1, mat);
+                        AssemblyVoxelBridgeOps.placePrism(
+                                (px, py, pz, state) -> put(out, ctx, curOrigin, px, py, pz, state),
+                                xi, yi, zi, thick, 1, mat
+                        );
                     }
                 }
                 if (connect) {
