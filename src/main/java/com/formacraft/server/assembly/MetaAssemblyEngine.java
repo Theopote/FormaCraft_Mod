@@ -443,8 +443,8 @@ public final class MetaAssemblyEngine {
                 // - chord: material for top/bottom chords (semantic STRUCTURAL_BEAM)
                 // - web: material for diagonals/verticals (semantic STRUCTURAL_BEAM)
                 // - joint: joint material (semantic STRUCTURAL_BEAM)
-                int[] p0 = parsePoint(op.get("from"));
-                int[] p1 = parsePoint(op.get("to"));
+                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
+                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
                 int baseY = Math.min(p0[1], p1[1]);
                 int height = clamp(i(op.get("height"), i(op.get("h"), 6)), 1, 64);
                 int topY = baseY + height;
@@ -459,7 +459,7 @@ public final class MetaAssemblyEngine {
                 // Work in local coordinates; rasterize XZ line at baseY
                 BlockPos a = new BlockPos(p0[0], baseY, p0[2]);
                 BlockPos b = new BlockPos(p1[0], baseY, p1[2]);
-                List<BlockPos> line = rasterizeLine2D(a, b, null, false, 0);
+                List<BlockPos> line = AssemblyRasterOps.rasterizeLine2D(a, b, null, false, 0);
                 if (line.size() < 2) break;
 
                 // Place chords (bottom + top)
@@ -510,8 +510,8 @@ public final class MetaAssemblyEngine {
                 // - thickness: beam thickness (default 1)
                 // - samples: number of samples along arch (default auto by distance)
                 // - material: block/material semantic (default STRUCTURAL_BEAM)
-                int[] p0 = parsePoint(op.get("from"));
-                int[] p1 = parsePoint(op.get("to"));
+                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
+                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
                 int thick = clamp(i(op.get("thickness"), 1), 1, 9);
 
                 int dx = p1[0] - p0[0];
@@ -560,8 +560,8 @@ public final class MetaAssemblyEngine {
                 // - samples: arch samples (default auto)
                 // - pierDown: extend a vertical pier down from 'to' by N blocks (default 6)
                 // - rib/pier/joint: materials (semantic STRUCTURAL_BEAM)
-                int[] p0 = parsePoint(op.get("from"));
-                int[] p1 = parsePoint(op.get("to"));
+                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
+                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
 
                 int thick = clamp(i(op.get("thickness"), 1), 1, 9);
                 int dx = p1[0] - p0[0];
@@ -627,8 +627,8 @@ public final class MetaAssemblyEngine {
                 // - cableCount: number of parallel main cables (default 1)
                 // - cableSpacing: spacing between parallel cables (default 3)
                 // - cableAxis: AUTO/X/Z (offset direction in XZ; AUTO picks perpendicular-ish axis)
-                int[] p0 = parsePoint(op.get("from"));
-                int[] p1 = parsePoint(op.get("to"));
+                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
+                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
 
                 int thick = clamp(i(op.get("thickness"), 1), 1, 5);
                 int dx = p1[0] - p0[0];
@@ -860,8 +860,8 @@ public final class MetaAssemblyEngine {
                 // - stairs: block override for stairs (semantic STAIR)
                 // - floor: landing/fill material for flat segments (semantic FLOORING)
                 // - supportMaterial: semantic FOUNDATION (fallback floor)
-                int[] a = parsePoint(op.get("from"));
-                int[] b = parsePoint(op.get("to"));
+                int[] a = AssemblyRasterOps.parsePoint(op.get("from"));
+                int[] b = AssemblyRasterOps.parsePoint(op.get("to"));
 
                 int width = clamp(i(op.get("width"), 2), 1, 15);
                 boolean carve = bool(op.get("carve"), true);
@@ -1124,8 +1124,8 @@ public final class MetaAssemblyEngine {
                             int[] b0 = edgePoint(b.patch, b.edge, 0);
                             int[] b1 = edgePoint(b.patch, b.edge, edgeCount(b.patch, b.edge) - 1);
                             long eps2 = (long) stitchEps * stitchEps;
-                            long d00 = dist2(a0, b0) + dist2(a1, b1);
-                            long d01 = dist2(a0, b1) + dist2(a1, b0);
+                            long d00 = AssemblySeamMathOps.dist2(a0, b0) + AssemblySeamMathOps.dist2(a1, b1);
+                            long d01 = AssemblySeamMathOps.dist2(a0, b1) + AssemblySeamMathOps.dist2(a1, b0);
                             boolean rev = d01 < d00;
                             long dGate = Math.min(d00, d01);
                             if (dGate > eps2 * 4L) continue;
@@ -1192,7 +1192,8 @@ public final class MetaAssemblyEngine {
                         int[] a1 = edgePointAtRange(a, ea, 1.0, a0t, a1t);
                         int[] b0 = edgePointAtRange(b, eb, 0.0, b0t, b1t);
                         int[] b1 = edgePointAtRange(b, eb, 1.0, b0t, b1t);
-                        boolean reverse = (dist2(a0, b1) + dist2(a1, b0)) < (dist2(a0, b0) + dist2(a1, b1));
+                        boolean reverse = (AssemblySeamMathOps.dist2(a0, b1) + AssemblySeamMathOps.dist2(a1, b0))
+                                < (AssemblySeamMathOps.dist2(a0, b0) + AssemblySeamMathOps.dist2(a1, b1));
                         if (linkEps > 0) {
                             double n = (linkSamples > 0) ? linkSamples : 64;
                             double mse = edgeMseRange(a, ea, a0t, a1t, b, eb, b0t, b1t, reverse, (int) n, linkResample);
@@ -1539,14 +1540,14 @@ public final class MetaAssemblyEngine {
                     int[][][] grid = new int[uN + 1][nP][3];
                     for (int iu = 0; iu <= uN; iu++) {
                         double t = iu / (double) uN;
-                        double ox = lerp(a.x, b.x, t);
-                        double oy = lerp(a.y, b.y, t);
-                        double oz = lerp(a.z, b.z, t);
+                        double ox = AssemblyBezierOps.lerp(a.x, b.x, t);
+                        double oy = AssemblyBezierOps.lerp(a.y, b.y, t);
+                        double oz = AssemblyBezierOps.lerp(a.z, b.z, t);
                         for (int ip = 0; ip < nP; ip++) {
                             int[] pa = a.profile.get(ip);
                             int[] pb = b.profile.get(ip);
-                            double px = lerp(pa[0], pb[0], t);
-                            double py = lerp(pa[1], pb[1], t);
+                            double px = AssemblyBezierOps.lerp(pa[0], pb[0], t);
+                            double py = AssemblyBezierOps.lerp(pa[1], pb[1], t);
                             int x = (int) Math.round(ox + px);
                             int y = (int) Math.round(oy + py);
                             int z = (int) Math.round(oz);
@@ -1578,8 +1579,8 @@ public final class MetaAssemblyEngine {
                 int width = clamp(i(op.get("width"), i(op.get("thickness"), 3)), 1, 15);
                 String style = str(op.get("style"), "default");
 
-                int[] p0 = parsePoint(op.get("from"));
-                int[] p1 = parsePoint(op.get("to"));
+                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
+                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
                 PathSpec ps = new PathSpec();
                 ps.setFrom(new PathSpec.Point(p0[0], p0[1], p0[2]));
                 ps.setTo(new PathSpec.Point(p1[0], p1[1], p1[2]));
@@ -1597,8 +1598,8 @@ public final class MetaAssemblyEngine {
             }
             case "WALL_ROUTE" -> {
                 // Build a wall along a line between two points using LinearWallInterpreter.
-                int[] p0 = parsePoint(op.get("from"));
-                int[] p1 = parsePoint(op.get("to"));
+                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
+                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
                 int height = clamp(i(op.get("wallHeight"), i(op.get("height"), 10)), 4, 120);
                 int thickness = clamp(i(op.get("wallThickness"), i(op.get("thickness"), 5)), 3, 31);
                 int towerSpacing = clamp(i(op.get("towerSpacing"), 48), 8, 512);
@@ -1633,7 +1634,7 @@ public final class MetaAssemblyEngine {
                 // World positions for endpoints
                 BlockPos a = curOrigin.add(p0[0], p0[1], p0[2]);
                 BlockPos b = curOrigin.add(p1[0], p1[1], p1[2]);
-                List<BlockPos> pts = rasterizeLine2D(a, b, ctx.world, followTerrain, maxStep);
+                List<BlockPos> pts = AssemblyRasterOps.rasterizeLine2D(a, b, ctx.world, followTerrain, maxStep);
                 LinearPathPlan plan = new LinearPathPlan(pts, thickness, height, towerSpacing, crenels);
                 List<PlannedBlock> wblocks = new LinearWallInterpreter(
                         wall, accent, false, walkway, walkwayStairs, crenel, tower, ctx.paletteId,
@@ -1643,8 +1644,8 @@ public final class MetaAssemblyEngine {
             }
             case "BRIDGE_ROUTE" -> {
                 // Axis-aligned: reuse BridgeGenerator (better aesthetics + anchor mode support).
-                int[] p0 = parsePoint(op.get("from"));
-                int[] p1 = parsePoint(op.get("to"));
+                int[] p0 = AssemblyRasterOps.parsePoint(op.get("from"));
+                int[] p1 = AssemblyRasterOps.parsePoint(op.get("to"));
                 int width = clamp(i(op.get("width"), 5), 3, 25);
 
                 int dx = p1[0] - p0[0];
@@ -1679,7 +1680,7 @@ public final class MetaAssemblyEngine {
                     BlockPos a = curOrigin.add(p0[0], p0[1], p0[2]);
                     BlockPos b = curOrigin.add(p1[0], p1[1], p1[2]);
 
-                    List<BlockPos> center = rasterizeLine2D(a, b, ctx.world, false, 0);
+                    List<BlockPos> center = AssemblyRasterOps.rasterizeLine2D(a, b, ctx.world, false, 0);
                     int deckY = Math.max(a.getY(), b.getY());
                     // if y not provided, choose above highest ground along line
                     if (p0[1] == 0 && p1[1] == 0) {
@@ -1912,11 +1913,11 @@ public final class MetaAssemblyEngine {
                 // - hollow: bool
                 // - thickness: shell thickness if hollow
                 // - samplesPerBlock: density factor (default 10)
-                List<Vec3d> pts = parseVecPoints(op.get("points"));
+                List<Vec3d> pts = AssemblyBezierOps.parseVecPoints(op.get("points"));
                 if (pts.size() < 2) break;
 
                 int samplesPerBlock = clamp(i(op.get("samplesPerBlock"), 10), 2, 40);
-                List<Vec3d> poly = sampleBezierSpline(pts, samplesPerBlock);
+                List<Vec3d> poly = AssemblyBezierOps.sampleBezierSpline(pts, samplesPerBlock);
                 if (poly.size() < 2) break;
 
                 String profile = str(op.get("profile"), "SPHERE").trim().toUpperCase(Locale.ROOT);
@@ -1943,7 +1944,7 @@ public final class MetaAssemblyEngine {
                 int n = poly.size();
                 for (int i = 0; i < n; i++) {
                     double tt = (n <= 1) ? 0.0 : (i / (double) (n - 1));
-                    double rad = lerp(r0, r1, tt);
+                    double rad = AssemblyBezierOps.lerp(r0, r1, tt);
                     Vec3d p = poly.get(i);
                     int cx = (int) Math.round(p.x);
                     int cy = (int) Math.round(p.y);
@@ -1990,8 +1991,8 @@ public final class MetaAssemblyEngine {
                         if (ph0 == Integer.MIN_VALUE) ph0 = phConst;
                         if (ph1 == Integer.MIN_VALUE) ph1 = phConst;
                     }
-                    int pw = clamp((int) Math.round(lerp(pw0, pw1, tt)), 1, 64);
-                    int ph = clamp((int) Math.round(lerp(ph0, ph1, tt)), 1, 64);
+                    int pw = clamp((int) Math.round(AssemblyBezierOps.lerp(pw0, pw1, tt)), 1, 64);
+                    int ph = clamp((int) Math.round(AssemblyBezierOps.lerp(ph0, ph1, tt)), 1, 64);
                     int halfW = Math.max(0, pw / 2);
                     int halfH = Math.max(0, ph / 2);
                     // For hollow rect, thickness means border thickness in grid cells.
@@ -2045,7 +2046,7 @@ public final class MetaAssemblyEngine {
                         if (rings2.isEmpty() || rings2.getFirst().size() < 3) break;
                         double s0 = d(op.get("profileScale0"), d(op.get("scale0"), 1.0));
                         double s1 = d(op.get("profileScale1"), d(op.get("scale1"), 1.0));
-                        double sc = lerp(s0, s1, tt);
+                        double sc = AssemblyBezierOps.lerp(s0, s1, tt);
                         if (sc <= 0.05) sc = 0.05;
                         // bounds in profile space
                         int[] bb = boundsRings2D(rings2);
@@ -2611,13 +2612,13 @@ public final class MetaAssemblyEngine {
         double n111 = hashNoise(ix + 1, iy + 1, iz + 1, seed);
         
         // Trilinear interpolation
-        double nx00 = lerp(n000, n100, ux);
-        double nx10 = lerp(n010, n110, ux);
-        double nx01 = lerp(n001, n101, ux);
-        double nx11 = lerp(n011, n111, ux);
-        double nxy0 = lerp(nx00, nx10, uy);
-        double nxy1 = lerp(nx01, nx11, uy);
-        return lerp(nxy0, nxy1, uz);
+        double nx00 = AssemblyBezierOps.lerp(n000, n100, ux);
+        double nx10 = AssemblyBezierOps.lerp(n010, n110, ux);
+        double nx01 = AssemblyBezierOps.lerp(n001, n101, ux);
+        double nx11 = AssemblyBezierOps.lerp(n011, n111, ux);
+        double nxy0 = AssemblyBezierOps.lerp(nx00, nx10, uy);
+        double nxy1 = AssemblyBezierOps.lerp(nx01, nx11, uy);
+        return AssemblyBezierOps.lerp(nxy0, nxy1, uz);
     }
 
     private static void applyFacadeGridPlane(List<PlannedBlock> out,
@@ -3025,25 +3026,6 @@ public final class MetaAssemblyEngine {
         return i(op == null ? null : op.get("traceryFoilCenterY"), i(op == null ? null : op.get("foilCenterY"), Integer.MIN_VALUE));
     }
 
-    private static List<Vec3d> parseVecPoints(Object v) {
-        return AssemblyBezierOps.parseVecPoints(v);
-    }
-
-    /**
-     * Catmull-Rom -> cubic Bezier conversion and sampling (server-side copy of PathTool logic).
-     */
-    private static List<Vec3d> sampleBezierSpline(List<Vec3d> waypoints, int samplesPerBlock) {
-        return AssemblyBezierOps.sampleBezierSpline(waypoints, samplesPerBlock);
-    }
-
-    private static Vec3d bezier(Vec3d p0, Vec3d c1, Vec3d c2, Vec3d p3, double t) {
-        return AssemblyBezierOps.bezier(p0, c1, c2, p3, t);
-    }
-
-    private static double lerp(double a, double b, double t) {
-        return AssemblyBezierOps.lerp(a, b, t);
-    }
-
     private static long packXYZ(int x, int y, int z) {
         return AssemblySeamMathOps.packXYZ(x, y, z);
     }
@@ -3295,14 +3277,6 @@ public final class MetaAssemblyEngine {
         };
     }
     
-    private static int[] parsePoint(Object v) {
-        return AssemblyRasterOps.parsePoint(v);
-    }
-
-    private static List<BlockPos> rasterizeLine2D(BlockPos a, BlockPos b, ServerWorld world, boolean followTerrain, int maxStep) {
-        return AssemblyRasterOps.rasterizeLine2D(a, b, world, followTerrain, maxStep);
-    }
-
     private static void placePrism(List<PlannedBlock> out, Context ctx, BlockPos origin, int cx, int cy, int cz, int thickness, int h, BlockState s) {
         AssemblyVoxelBridgeOps.placePrism(
                 (x, y, z, state) -> put(out, ctx, origin, x, y, z, state),
@@ -3383,10 +3357,6 @@ public final class MetaAssemblyEngine {
 
     private static int edgeCount(PatchData p, Edge e) {
         return (e == Edge.U0 || e == Edge.U1) ? (p.vN + 1) : (p.uN + 1);
-    }
-
-    private static long dist2(int[] a, int[] b) {
-        return AssemblySeamMathOps.dist2(a, b);
     }
 
     private static String edgeSignature(PatchData p, Edge e, boolean reverse) {
@@ -3844,9 +3814,9 @@ public final class MetaAssemblyEngine {
         else t = (0.0 - v0) / dv;
         t = Math.max(0.0, Math.min(1.0, t));
         return new double[]{
-                lerp(p0[0], p1[0], t),
-                lerp(p0[1], p1[1], t),
-                lerp(p0[2], p1[2], t)
+                AssemblyBezierOps.lerp(p0[0], p1[0], t),
+                AssemblyBezierOps.lerp(p0[1], p1[1], t),
+                AssemblyBezierOps.lerp(p0[2], p1[2], t)
         };
     }
 
