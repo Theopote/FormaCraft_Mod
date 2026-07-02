@@ -27,7 +27,7 @@
 
 ### ProportionalFacadeCalculator（比例化立面计算器）
 
-**位置**：`src/main/java/com/formacraft/common/generator/util/ProportionalFacadeCalculator.java`
+**位置**：`src/main/java/com/formacraft/common/generation/component/util/ProportionalFacadeCalculator.java`
 
 #### 核心方法
 

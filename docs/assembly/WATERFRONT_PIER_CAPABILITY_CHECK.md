@@ -27,7 +27,7 @@
 ### ✅ 部分实现：水体生成和检测
 
 #### 1. JiangnanWaterTownGenerator
-- **位置**：`src/main/java/com/formacraft/server/generator/JiangnanWaterTownGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/structure/JiangnanWaterTownGenerator.java`
 - **能力**：
   - ✅ 生成运河（canal）
   - ✅ 生成石堤（embankments）

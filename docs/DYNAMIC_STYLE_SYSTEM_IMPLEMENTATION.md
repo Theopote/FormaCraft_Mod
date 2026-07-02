@@ -88,7 +88,7 @@ StyleAttributes styleAttributes
 
 ### 7. MassMainGenerator 更新
 
-**修改**：`src/main/java/com/formacraft/common/generator/impl/MassMainGenerator.java`
+**修改**：`src/main/java/com/formacraft/common/generation/component/impl/MassMainGenerator.java`
 
 **新增方法**：
 - `getBlockForPart()`: 优先使用动态解析，回退到传统 Palette

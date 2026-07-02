@@ -12,7 +12,7 @@
 - ✅ Java 端：`ComponentPlanCompiler` 编译 components 为 BlockPatch
 
 #### 组件生成器系统
-- ✅ `GeneratorRegistry` 已注册：
+- ✅ `ComponentGeneratorRegistry` 已注册：
   - TOWER, KEEP, WALL, GATE, ROAD（原有）
   - MASS_MAIN, MASS_SECONDARY, ENTRANCE, SIGNAGE, FACADE_WINDOWS, PAVING, FENCE_OR_WALL（新增）
 - ✅ 新增生成器：
@@ -129,7 +129,7 @@ for (BuildingSlot slot : slots) {
 ### ✅ 已充分利用
 1. **LLM 输出解析**：LlmPlan 格式完整支持 ✅
 2. **组件编译**：ComponentPlanCompiler 完整工作 ✅
-3. **生成器系统**：GeneratorRegistry 包含主要组件类型 ✅
+3. **生成器系统**：ComponentGeneratorRegistry 包含主要组件类型 ✅
 4. **预设系统**：ProgramPresetResolver 在 Prompt 中使用 ✅
 
 ### ⚠️ 部分利用

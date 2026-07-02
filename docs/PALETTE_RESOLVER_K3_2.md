@@ -70,7 +70,7 @@
 ### Generator 升级
 
 #### TowerGenerator v2
-- **位置**：`src/main/java/com/formacraft/common/generator/impl/TowerGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/impl/TowerComponentGenerator.java`
 - **升级内容**：
   - ✅ 使用 `PaletteLibrary.forStyle()` 获取风格
   - ✅ 根据位置确定 `SemanticPart`（基础/装饰/边缘）
@@ -81,7 +81,7 @@
   - 风格可以被系统性扩展
 
 #### WallGenerator v2
-- **位置**：`src/main/java/com/formacraft/common/generator/impl/WallGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/impl/WallComponentGenerator.java`
 - **升级内容**：
   - ✅ 使用 `Palette` 权重随机
   - ✅ 根据位置确定 `SemanticPart`（基础/装饰/边缘）
@@ -89,7 +89,7 @@
   - 墙体自然老化、有苔藓、有裂纹、有变化
 
 #### RoadGenerator v2
-- **位置**：`src/main/java/com/formacraft/common/generator/impl/RoadGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/impl/RoadGenerator.java`
 - **升级内容**：
   - ✅ 使用 `Palette` 权重随机
   - ✅ 区分 `ROAD_SURFACE` 和 `ROAD_EDGE`

@@ -7,7 +7,7 @@
 在 `HouseGenerator.java` 中有一个**私有的动态马头墙生成方法**：
 
 - **方法名**：`addHuizhouHorseHeadWalls()`
-- **位置**：`src/main/java/com/formacraft/server/generator/HouseGenerator.java` (第2795行)
+- **位置**：`src/main/java/com/formacraft/common/generation/structure/HouseGenerator.java` (第2795行)
 - **调用条件**：当检测到徽派风格（通过 `isHuizhouStyle()` 检查）时自动调用
 - **触发位置**：在屋顶生成过程中（第550行）
 

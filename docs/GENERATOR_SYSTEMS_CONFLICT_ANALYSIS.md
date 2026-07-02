@@ -4,16 +4,16 @@
 
 ### 两个独立的生成器系统
 
-#### 1. `com.formacraft.common.generator` - 组件生成器系统（新系统，K3）
-- **包路径**：`com.formacraft.common.generator.impl.*`
+#### 1. `com.formacraft.common.generation.component` - 组件生成器系统（新系统，K3）
+- **包路径**：`com.formacraft.common.generation.component.impl.*`
 - **接口**：`ComponentGenerator`
 - **输入**：`SemanticComponent`（来自 LLM JSON）
 - **输出**：`List<BlockPatch>`（相对坐标）
 - **使用场景**：LLM 语义组件生成
-- **调用链**：`ComponentPlanCompiler` → `GeneratorRegistry` → `ComponentGenerator`
+- **调用链**：`ComponentPlanCompiler` → `ComponentGeneratorRegistry` → `ComponentGenerator`
 
-#### 2. `com.formacraft.server.generator` - 结构生成器系统（传统系统）
-- **包路径**：`com.formacraft.server.generator.*`
+#### 2. `com.formacraft.common.generation.structure` - 结构生成器系统（传统系统）
+- **包路径**：`com.formacraft.common.generation.structure.*`
 - **接口**：`StructureGenerator`
 - **输入**：`BuildingSpec`（完整建筑规格）
 - **输出**：`GeneratedStructure`（绝对坐标）
@@ -28,9 +28,9 @@
 
 | 类名 | 新系统（common） | 传统系统（server） |
 |------|-----------------|-------------------|
-| `TowerGenerator` | `com.formacraft.common.generator.impl.TowerGenerator` | `com.formacraft.server.generator.TowerGenerator` |
-| `WallGenerator` | `com.formacraft.common.generator.impl.WallGenerator` | `com.formacraft.server.generator.WallGenerator` |
-| `PathGenerator` | `com.formacraft.common.generator.impl.PathGenerator` | `com.formacraft.server.generator.path.PathGenerator` |
+| `TowerGenerator` | `com.formacraft.common.generation.component.impl.TowerComponentGenerator` | `com.formacraft.common.generation.structure.TowerGenerator` |
+| `WallGenerator` | `com.formacraft.common.generation.component.impl.WallComponentGenerator` | `com.formacraft.common.generation.structure.WallGenerator` |
+| `PathGenerator` | `com.formacraft.common.generation.component.impl.PathComponentGenerator` | `com.formacraft.common.generation.structure.path.PathGenerator` |
 
 **结论**：Java 包系统确保它们不会冲突。
 
@@ -45,7 +45,7 @@
 
 **新系统调用链**：
 ```
-LlmPlan → ComponentPlanCompiler → GeneratorRegistry → ComponentGenerator
+LlmPlan → ComponentPlanCompiler → ComponentGeneratorRegistry → ComponentGenerator
 ```
 
 **传统系统调用链**：
@@ -152,7 +152,7 @@ public class StructureGeneratorAdapter implements ComponentGenerator {
 1. 创建 `StructureGeneratorAdapter` 类
 2. 实现 `SemanticComponent` → `BuildingSpec` 转换
 3. 实现 `GeneratedStructure` → `List<BlockPatch>` 转换
-4. 在 `GeneratorRegistry` 中注册适配器
+4. 在 `ComponentGeneratorRegistry` 中注册适配器
 
 ### 方案 C：统一接口（长期目标）
 

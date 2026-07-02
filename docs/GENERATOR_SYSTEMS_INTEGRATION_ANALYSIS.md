@@ -4,15 +4,15 @@
 
 ### 两个独立的生成器系统
 
-#### 1. `com.formacraft.common.generator` - 组件生成器系统（新系统）
+#### 1. `com.formacraft.common.generation.component` - 组件生成器系统（新系统）
 - **接口**：`ComponentGenerator`
 - **输入**：`SemanticComponent`（来自 LLM JSON）
 - **输出**：`List<BlockPatch>`（相对坐标）
 - **用途**：LLM 语义组件生成（K3 系统）
-- **注册表**：`GeneratorRegistry`（字符串键）
+- **注册表**：`ComponentGeneratorRegistry`（字符串键）
 - **数量**：~14 个生成器
 
-#### 2. `com.formacraft.server.generator` - 结构生成器系统（传统系统）
+#### 2. `com.formacraft.common.generation.structure` - 结构生成器系统（传统系统）
 - **接口**：`StructureGenerator`
 - **输入**：`BuildingSpec`（完整建筑规格）
 - **输出**：`GeneratedStructure`（绝对坐标）
@@ -26,8 +26,8 @@
 
 虽然类名相同（如 `TowerGenerator`、`WallGenerator`），但它们在不同的包下：
 
-- `com.formacraft.common.generator.impl.TowerGenerator` ✅
-- `com.formacraft.server.generator.TowerGenerator` ✅
+- `com.formacraft.common.generation.component.impl.TowerComponentGenerator` ✅
+- `com.formacraft.common.generation.structure.TowerGenerator` ✅
 
 **结论**：Java 包系统确保它们不会冲突。
 

@@ -8,7 +8,7 @@
 | 包路径 | 文件数 | 接口 | 注册表 / 门面 | 入口 | 状态 |
 |--------|--------|------|---------------|------|------|
 | `common/generation/structure` | 65 | `StructureGenerator` | `GeneratorRouter` → `StructureGeneratorRegistry` + `StructureRouteCatalog` | `GenerationHub.routeStructure()` | **活跃** |
-| `common/generation/component` | 25 | `ComponentGenerator` | `ComponentGeneratorRegistry` | `ComponentPlanCompiler` → `UnifiedGeneratorRouter` | **活跃（Phase 6b 迁入）** |
+| `common/generation/component` | 25 | `ComponentGenerator` | `ComponentComponentGeneratorRegistry` | `ComponentPlanCompiler` → `UnifiedGeneratorRouter` | **活跃（Phase 6b 迁入）** |
 | `common/skeleton` | +4 | `SkeletonExecutor` | `SkeletonExecutors` | `PlanProgramCompiler` | **契约层（Phase 1）** |
 | `server/skeleton/gen` | 53 | `ISkeletonGenerator` | `SkeletonGeneratorRegistry` | `SkeletonBuildService`（实现 `SkeletonExecutor`） | **活跃** |
 | ~~`common/gen`~~ | ~~8~~ | — | — | — | **已删除（Phase 0）** |
@@ -31,7 +31,7 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 
 ## 1. Component Type → `common.generation.component`（LlmPlan 构件流）
 
-注册表：`com.formacraft.common.generation.component.ComponentGeneratorRegistry`  
+注册表：`com.formacraft.common.generation.component.ComponentComponentGeneratorRegistry`  
 路由：`UnifiedGeneratorRouter.generate()` — 构件层统一门面（Phase 2）
 
 ### 路由优先级
@@ -39,7 +39,7 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 | 优先级 | 条件 | 目标 |
 |--------|------|------|
 | 1 | `params.skeleton` 或 `skeleton:` feature | `SkeletonExecutors` → `SkeletonBuildService` |
-| 2 | `ComponentGeneratorRegistry` 有注册 | `ComponentGenerator` |
+| 2 | `ComponentComponentGeneratorRegistry` 有注册 | `ComponentGenerator` |
 | 3 | `group_request:` / `component_request:` feature | `PlayerComponentGroupExpander` / `PlayerComponentExpander` |
 | 4 | 显式整栋回退（见下）且上一步无结果 | `StructureGeneratorAdaptor` → `GeneratorRouter` |
 
@@ -89,7 +89,7 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 | `FOUNDATION` | `FoundationGenerator` | |
 | `DECOR_DETAIL` | `DecorDetailGenerator` | |
 
-**扩展路径**（非 ComponentGeneratorRegistry，由 UnifiedGeneratorRouter 附加处理）：
+**扩展路径**（非 ComponentComponentGeneratorRegistry，由 UnifiedGeneratorRouter 附加处理）：
 
 | feature 前缀 | 处理器 |
 |--------------|--------|
@@ -214,7 +214,7 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 
 ## 4. 同名类冲突（平行演化，非继承）
 
-| 类名 | common.generator | server.generator | 关系 |
+| 类名 | common.generation.component | common.generation.structure | 关系 |
 |------|------------------|------------------|------|
 | `TowerGenerator` | 组件级，Palette 驱动，`BlockPatch` | 整栋级，`BuildingSpec` 驱动，`GeneratedStructure` | **独立实现** |
 | `WallGenerator` | 组件级 | 整栋级 | **独立实现** |
@@ -272,6 +272,6 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 | **2** ✅ | `UnifiedGeneratorRouter` + `StructureGeneratorAdaptor` 受控回退 | 中 |
 | **3** ✅ | 数据驱动整栋路由 + `GenerationHub` 统一入口 | 中 |
 | **4** ✅ | `birds_nest_stadium` 实现 + 主路径接入 `GenerationHub` | 低 |
-| **5** ✅ | `server/generator` → `common/generation/structure` 包迁移 | 中 |
-| **6** ✅ | `ComponentGeneratorRegistry` + 构件层 `*ComponentGenerator` 消歧 | 低 |
-| **6b** ✅ | `common/generator` → `common/generation/component` 包迁移 | 低 |
+| **5** ✅ | `common/generation/structure` → `common/generation/structure` 包迁移 | 中 |
+| **6** ✅ | `ComponentComponentGeneratorRegistry` + 构件层 `*ComponentGenerator` 消歧 | 低 |
+| **6b** ✅ | `common/generation/component` → `common/generation/component` 包迁移 | 低 |

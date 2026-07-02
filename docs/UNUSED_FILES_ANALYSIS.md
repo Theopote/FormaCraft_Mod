@@ -49,8 +49,8 @@
 - **状态**：✅ 已在 `FormaCraftNetworking` 中使用
 - **引用**：`FormaCraftNetworking.java:917`
 
-#### 2. GeneratorRegistry
-- **位置**：`src/main/java/com/formacraft/common/generator/GeneratorRegistry.java`
+#### 2. ComponentGeneratorRegistry
+- **位置**：`src/main/java/com/formacraft/common/generation/component/ComponentGeneratorRegistry.java`
 - **状态**：✅ 已注册所有生成器
 - **引用**：`ComponentPlanCompiler.java:78`
 
@@ -68,7 +68,7 @@
 
 ### 优先级 1：核心 AI 能力（已完成 ✅）
 - ✅ ComponentPlanCompiler → BlockPatch 编译
-- ✅ GeneratorRegistry 组件生成器
+- ✅ ComponentGeneratorRegistry 组件生成器
 - ✅ LlmPlan 格式处理
 
 ### 优先级 2：路径布局系统（待完善 ⚠️）

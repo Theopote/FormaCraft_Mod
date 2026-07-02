@@ -42,14 +42,14 @@ AI 细节装饰（装饰元素、材质变化、细节处理）
 ### 问题 2：生成器功能过于简化
 
 **现状**：
-- 新系统的生成器（`common.generator`）功能较简单
+- 新系统的生成器（`common.generation.component`）功能较简单
 - 只生成基础结构，缺少细节装饰
 - 例如：`TowerGenerator` 只生成圆形塔楼的基础结构，没有窗户、楼梯、内部结构
 
 ### 问题 3：系统架构混乱
 
 **现状**：
-- 有两个生成器系统（`common.generator` 和 `server.generator`）
+- 有两个生成器系统（`common.generation.component` 和 `common.generation.structure`）
 - 它们服务于不同场景，但可能导致混乱
 - 用户不清楚应该使用哪个系统
 
@@ -133,8 +133,8 @@ AI 细节装饰（装饰元素、材质变化、细节处理）
 **目标**：明确各个系统的作用，避免混乱
 
 **系统分工**：
-- **`common.generator`**：用于 LLM 语义组件生成（新系统）
-- **`server.generator`**：用于传统 BuildingSpec 生成（传统系统）
+- **`common.generation.component`**：用于 LLM 语义组件生成（新系统）
+- **`common.generation.structure`**：用于传统 BuildingSpec 生成（传统系统）
 - **未来**：创建适配器，让传统生成器可以被新系统调用
 
 ## 📋 实施计划
@@ -178,7 +178,7 @@ AI 细节装饰（装饰元素、材质变化、细节处理）
 
 **任务**：
 1. 创建 `StructureGeneratorAdapter`（将传统生成器包装为新系统生成器）
-2. 在 `GeneratorRegistry` 中注册适配器
+2. 在 `ComponentGeneratorRegistry` 中注册适配器
 3. 文档说明各个系统的作用
 
 ## 🎯 成功标准

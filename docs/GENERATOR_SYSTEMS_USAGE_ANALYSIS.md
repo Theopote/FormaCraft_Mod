@@ -8,7 +8,7 @@
 
 ### 两个生成器系统的使用场景
 
-#### 1. 新系统（`common.generator`）- LlmPlan 路径 ✅ **当前在使用**
+#### 1. 新系统（`common.generation.component`）- LlmPlan 路径 ✅ **当前在使用**
 
 **触发条件**：
 - Python 后端返回 `LlmPlan` 格式（JSON 包含 `"mode"`, `"components"` 等字段）
@@ -22,16 +22,16 @@ OrchestratorClient → 检测到 LlmPlan，存储在 BuildingSpec.extra 中
   ↓
 FormaCraftNetworking.handleBuildRequest() → 检测到 isLlmPlan == true
   ↓
-ComponentPlanCompiler.compile() → 使用 common.generator 系统
+ComponentPlanCompiler.compile() → 使用 common.generation.component 系统
   ↓
-GeneratorRegistry.getGenerator() → 获取 ComponentGenerator
+ComponentGeneratorRegistry.getGenerator() → 获取 ComponentGenerator
   ↓
 生成 List<BlockPatch>
 ```
 
 **当前状态**：✅ **正在使用**（用户当前走的就是这个路径）
 
-#### 2. 传统系统（`server.generator`）- BuildingSpec 路径 ⚠️ **可能未被使用**
+#### 2. 传统系统（`common.generation.structure`）- BuildingSpec 路径 ⚠️ **可能未被使用**
 
 **触发条件**：
 - Python 后端返回 `BuildingSpec` 格式（不是 LlmPlan）
@@ -45,7 +45,7 @@ OrchestratorClient → 直接返回 BuildingSpec
   ↓
 FormaCraftNetworking.handleBuildRequest() → 检测到 isLlmPlan == false
   ↓
-StructureGeneratorFactory.getGenerator() → 使用 server.generator 系统
+StructureGeneratorFactory.getGenerator() → 使用 common.generation.structure 系统
   ↓
 GeneratorRouter.route() → 路由到 StructureGenerator
   ↓
@@ -110,9 +110,9 @@ return generate_building_spec(build_req)  # 返回 BuildingSpec
 [18:06:39] [ForkJoinPool.commonPool-worker-1/INFO] (formacraft) Received LlmPlan from orchestrator, mode: build
 ```
 
-**结论**：用户当前走的是 **LlmPlan 路径**，使用的是 **新系统（`common.generator`）**。
+**结论**：用户当前走的是 **LlmPlan 路径**，使用的是 **新系统（`common.generation.component`）**。
 
-**传统系统（`server.generator`）只有在以下情况才会被使用**：
+**传统系统（`common.generation.structure`）只有在以下情况才会被使用**：
 1. Python 后端返回 `BuildingSpec` 格式（不是 LlmPlan）
 2. Python 后端返回 `CompositeSpec` 或 `CitySpec`（这些也会使用传统系统）
 
@@ -126,7 +126,7 @@ return generate_building_spec(build_req)  # 返回 BuildingSpec
    - Python 后端优先检查 LlmPlan 格式
    - 如果检测到 LlmPlan 特征，就直接返回 LlmPlan，不会走到 BuildingSpec 路径
 
-## 📋 传统系统（server.generator）的使用场景
+## 📋 传统系统（common.generation.structure）的使用场景
 
 传统系统在以下情况下**会被使用**：
 
@@ -154,11 +154,11 @@ return generate_building_spec(build_req)  # 返回 BuildingSpec
 
 ### 当前状态
 
-1. **新系统（`common.generator`）**：✅ **正在使用**
+1. **新系统（`common.generation.component`）**：✅ **正在使用**
    - 用户当前走的是 LlmPlan 路径
    - 使用 `ComponentPlanCompiler` + `ComponentGenerator`
 
-2. **传统系统（`server.generator`）**：⚠️ **可能未被使用**
+2. **传统系统（`common.generation.structure`）**：⚠️ **可能未被使用**
    - 只有当 Python 后端返回 BuildingSpec/CompositeSpec/CitySpec 时才会使用
    - 如果 PromptAssembler 总是生成 LlmPlan 格式的 prompt，传统系统就不会被触发
 
@@ -179,7 +179,7 @@ return generate_building_spec(build_req)  # 返回 BuildingSpec
 ## 📝 总结
 
 **回答用户的问题**：
-- `server.generator` 文件夹下的生成器**不是完全没有被使用**
+- `common.generation.structure` 文件夹下的生成器**不是完全没有被使用**
 - 但它们**在当前场景下（LlmPlan 路径）确实没有被使用**
 - 传统系统会在以下场景被使用：
   - BuildingSpec 格式

@@ -69,7 +69,7 @@ boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved", "c
 
 ### 3. 注册 SIDE_WING 生成器
 
-**在 `GeneratorRegistry` 中注册**：
+**在 `ComponentGeneratorRegistry` 中注册**：
 ```java
 // 侧翼生成器（复用 MassMainGenerator）
 register("SIDE_WING", new MassMainGenerator());

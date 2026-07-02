@@ -12,7 +12,7 @@
   - `source` - 原始 LLM component
 
 #### ComponentGenerator（生成器接口）
-- **位置**：`src/main/java/com/formacraft/common/generator/ComponentGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/ComponentGenerator.java`
 - **方法**：`generate(SemanticComponent)` - 生成 BlockPatch 列表（相对 slot.anchor）
 
 #### ComponentPlanCompiler（编译器）
@@ -25,8 +25,8 @@
   4. 获取对应的 Generator
   5. 生成 BlockPatch 列表
 
-#### GeneratorRegistry（注册表）
-- **位置**：`src/main/java/com/formacraft/common/generator/GeneratorRegistry.java`
+#### ComponentGeneratorRegistry（注册表）
+- **位置**：`src/main/java/com/formacraft/common/generation/component/ComponentGeneratorRegistry.java`
 - **功能**：component_type → Generator 映射
 - **已注册**：TOWER, KEEP, WALL, GATE, ROAD
 - **扩展性**：后续可以不断添加新的 Generator
@@ -34,7 +34,7 @@
 ### 2. 基础 Generator 实现
 
 #### TowerGenerator（塔楼生成器）
-- **位置**：`src/main/java/com/formacraft/common/generator/impl/TowerGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/impl/TowerComponentGenerator.java`
 - **功能**：生成圆形塔楼
 - **后续升级方向**：
   - 使用 PaletteResolver 替换硬编码方块
@@ -42,7 +42,7 @@
   - 使用 ToolModifier 裁剪禁区 / 对称
 
 #### WallGenerator（墙体生成器）
-- **位置**：`src/main/java/com/formacraft/common/generator/impl/WallGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/impl/WallComponentGenerator.java`
 - **功能**：生成矩形墙体
 - **后续升级方向**：
   - 支持 facing 方向
@@ -50,7 +50,7 @@
   - 使用 GeometryModifier（厚度、垛口等）
 
 #### GateGenerator（门楼生成器）
-- **位置**：`src/main/java/com/formacraft/common/generator/impl/GateGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/impl/GateGenerator.java`
 - **功能**：生成门洞和门楣
 - **后续升级方向**：
   - 支持 facing 方向
@@ -58,7 +58,7 @@
   - 门洞自动识别（中间留空）
 
 #### RoadGenerator（道路生成器）
-- **位置**：`src/main/java/com/formacraft/common/generator/impl/RoadGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/impl/RoadGenerator.java`
 - **功能**：生成平面道路（带边缘）
 - **后续升级方向**：
   - 支持 facing 方向
@@ -66,7 +66,7 @@
   - 支持道路边缘（PATH_EDGE）
 
 #### KeepGenerator（主堡生成器）
-- **位置**：`src/main/java/com/formacraft/common/generator/impl/KeepGenerator.java`
+- **位置**：`src/main/java/com/formacraft/common/generation/component/impl/KeepGenerator.java`
 - **功能**：生成矩形主堡（类似 Tower，但更大）
 - **后续升级方向**：
   - 使用 PaletteResolver
@@ -161,7 +161,7 @@ public void onLlmResponse(String json) {
 - SemanticComponent（语义构件）✅
 - ComponentGenerator（生成器接口）✅
 - ComponentPlanCompiler（编译器）✅
-- GeneratorRegistry（注册表）✅
+- ComponentGeneratorRegistry（注册表）✅
 - 基础 Generator 实现（5 个）✅
 
 **系统现在可以完整地将 LLM 输出的 JSON 编译为 BlockPatch 列表！**

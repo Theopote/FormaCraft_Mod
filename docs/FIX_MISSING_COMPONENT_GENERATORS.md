@@ -12,7 +12,7 @@
    - 第一个请求：`WALL_SEGMENT`（长城）
    - 第二个请求：`MASS_MAIN`, `ENTRANCE`, `MASS_SECONDARY`, `CONNECTOR`（扎哈风格建筑）
 
-2. **但是 GeneratorRegistry 中缺少注册**：
+2. **但是 ComponentGeneratorRegistry 中缺少注册**：
    - `WALL_SEGMENT` 未注册
    - `CONNECTOR` 未注册
 
@@ -27,7 +27,7 @@
 
 ### 1. 注册缺失的组件类型
 
-在 `GeneratorRegistry` 中添加：
+在 `ComponentGeneratorRegistry` 中添加：
 
 ```java
 // 注册 WALL_SEGMENT（复用 WallGenerator）
@@ -93,7 +93,7 @@ if (newSystemGenerator == null) {
 
 ## 已注册的组件类型
 
-当前 `GeneratorRegistry` 中已注册的组件类型：
+当前 `ComponentGeneratorRegistry` 中已注册的组件类型：
 
 ### 核心构件
 - `TOWER` → `TowerGenerator`

@@ -92,7 +92,7 @@ private String extractBlockFromFeatures(SemanticPart part, List<String> features
 
 ### 2. 注册缺失的组件类型
 
-**修改文件**：`GeneratorRegistry.java`
+**修改文件**：`ComponentGeneratorRegistry.java`
 
 **新增注册**：
 ```java

@@ -34,11 +34,11 @@ List<BlockPatch>
 
 #### 1. SmartGeneratorRouter（智能路由器）
 
-**位置**：`src/main/java/com/formacraft/common/generator/adaptor/SmartGeneratorRouter.java`
+**位置**：`src/main/java/com/formacraft/common/generation/component/adaptor/SmartGeneratorRouter.java`
 
 **功能**：
-- 优先使用新系统（`common.generator`）的 `ComponentGenerator`
-- 如果新系统没有生成器或生成失败，自动回退到传统系统（`server.generator`）
+- 优先使用新系统（`common.generation.component`）的 `ComponentGenerator`
+- 如果新系统没有生成器或生成失败，自动回退到传统系统（`common.generation.structure`）
 - 用户完全透明，不需要知道有两套系统
 
 **路由逻辑**：
@@ -54,7 +54,7 @@ List<BlockPatch>
 
 #### 2. StructureGeneratorAdaptor（适配器）
 
-**位置**：`src/main/java/com/formacraft/common/generator/adaptor/StructureGeneratorAdaptor.java`
+**位置**：`src/main/java/com/formacraft/common/generation/component/adaptor/StructureGeneratorAdaptor.java`
 
 **功能**：
 - 将传统系统的 `StructureGenerator` 适配为新系统的 `ComponentGenerator`
@@ -74,7 +74,7 @@ List<BlockPatch>
 **修改**：`src/main/java/com/formacraft/common/compiler/ComponentPlanCompiler.java`
 
 **变更**：
-- 不再直接调用 `GeneratorRegistry.getGenerator()`
+- 不再直接调用 `ComponentGeneratorRegistry.getGenerator()`
 - 改为调用 `SmartGeneratorRouter.generate()`
 - 自动获得智能路由能力
 
@@ -85,7 +85,7 @@ List<BlockPatch>
 ```
 用户输入 → LlmPlan → ComponentPlanCompiler
   ↓
-只能使用新系统（common.generator）
+只能使用新系统（common.generation.component）
   ↓
 如果新系统没有生成器 → 报错或跳过
 ```
@@ -137,7 +137,7 @@ ComponentType: "TOWER"
   ↓
 SmartGeneratorRouter.generate()
   ↓
-1. 尝试新系统：GeneratorRegistry.getGenerator("TOWER")
+1. 尝试新系统：ComponentGeneratorRegistry.getGenerator("TOWER")
    - 找到 TowerGenerator ✅
    - 生成成功 ✅
   ↓
@@ -151,7 +151,7 @@ ComponentType: "COMPLEX_HOUSE"
   ↓
 SmartGeneratorRouter.generate()
   ↓
-1. 尝试新系统：GeneratorRegistry.getGenerator("COMPLEX_HOUSE")
+1. 尝试新系统：ComponentGeneratorRegistry.getGenerator("COMPLEX_HOUSE")
    - 没有找到生成器 ❌
   ↓
 2. 回退到传统系统：StructureGeneratorAdaptor.createFor("COMPLEX_HOUSE")
@@ -169,7 +169,7 @@ ComponentType: "MASS_MAIN"
   ↓
 SmartGeneratorRouter.generate()
   ↓
-1. 尝试新系统：GeneratorRegistry.getGenerator("MASS_MAIN")
+1. 尝试新系统：ComponentGeneratorRegistry.getGenerator("MASS_MAIN")
    - 找到 MassMainGenerator ✅
    - 生成时抛出异常 ❌
   ↓
@@ -195,8 +195,8 @@ CASTLE, KEEP → CASTLE
 
 ### 2. 回退策略
 
-- **优先级 1**：新系统（`common.generator`）
-- **优先级 2**：传统系统（`server.generator`）
+- **优先级 1**：新系统（`common.generation.component`）
+- **优先级 2**：传统系统（`common.generation.structure`）
 - **优先级 3**：返回空列表（记录警告）
 
 ### 3. 错误处理

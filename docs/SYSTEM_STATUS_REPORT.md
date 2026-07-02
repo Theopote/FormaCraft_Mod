@@ -32,8 +32,8 @@
 
 **解决方案**：
 - ✅ 已明确两个系统的作用：
-  - `common.generator`：用于 LLM 语义组件生成（新系统，K3）
-  - `server.generator`：用于传统 BuildingSpec 生成（传统系统）
+  - `common.generation.component`：用于 LLM 语义组件生成（新系统，K3）
+  - `common.generation.structure`：用于传统 BuildingSpec 生成（传统系统）
 - ✅ 已创建文档说明两个系统的区别
 - ✅ 已确认两个系统不会冲突（包名不同、接口不同、使用场景分离）
 

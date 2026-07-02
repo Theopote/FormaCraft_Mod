@@ -4,16 +4,16 @@
 
 Formacraft 模组中有两个不同的 generator 文件夹，它们服务于不同的生成场景和架构层次：
 
-1. **`com.formacraft.common.generator`** - **组件生成器系统**（新系统，K3）
-2. **`com.formacraft.server.generator`** - **结构生成器系统**（传统系统）
+1. **`com.formacraft.common.generation.component`** - **组件生成器系统**（新系统，K3）
+2. **`com.formacraft.common.generation.structure`** - **结构生成器系统**（传统系统）
 
 ---
 
-## 1. `com.formacraft.common.generator` - 组件生成器系统
+## 1. `com.formacraft.common.generation.component` - 组件生成器系统
 
 ### 位置
 ```
-src/main/java/com/formacraft/common/generator/
+src/main/java/com/formacraft/common/generation/component/
 ```
 
 ### 核心接口
@@ -45,7 +45,7 @@ src/main/java/com/formacraft/common/generator/
 - **K3 系统**：与 `ComponentPlanCompiler`、`SemanticComponent` 配合使用
 
 ### 注册表
-- **`GeneratorRegistry`** - 按 `componentType` 字符串注册和查找生成器
+- **`ComponentGeneratorRegistry`** - 按 `componentType` 字符串注册和查找生成器
 
 ### 特点
 - ✅ **轻量级**：只负责单个组件的生成
@@ -55,11 +55,11 @@ src/main/java/com/formacraft/common/generator/
 
 ---
 
-## 2. `com.formacraft.server.generator` - 结构生成器系统
+## 2. `com.formacraft.common.generation.structure` - 结构生成器系统
 
 ### 位置
 ```
-src/main/java/com/formacraft/server/generator/
+src/main/java/com/formacraft/common/generation/structure/
 ```
 
 ### 核心接口
@@ -116,14 +116,14 @@ src/main/java/com/formacraft/server/generator/
 
 ## 对比总结
 
-| 特性 | `common.generator` | `server.generator` |
+| 特性 | `common.generation.component` | `common.generation.structure` |
 |------|-------------------|-------------------|
 | **系统类型** | 组件生成器（新系统） | 结构生成器（传统系统） |
 | **输入** | `SemanticComponent` | `BuildingSpec` |
 | **输出** | `List<BlockPatch>`（相对坐标） | `GeneratedStructure`（绝对坐标） |
 | **粒度** | 组件级别（TOWER, WALL, GATE） | 建筑级别（完整建筑） |
 | **使用场景** | LLM 语义组件生成 | 传统建筑生成、地标建筑 |
-| **注册方式** | `GeneratorRegistry`（字符串键） | `GeneratorRouter`（多级路由） |
+| **注册方式** | `ComponentGeneratorRegistry`（字符串键） | `GeneratorRouter`（多级路由） |
 | **数量** | ~5 个基础组件生成器 | ~50+ 个专用生成器 |
 | **架构层次** | K3 系统的一部分 | 传统 BuildingSpec 系统 |
 
@@ -131,7 +131,7 @@ src/main/java/com/formacraft/server/generator/
 
 ## 使用流程对比
 
-### `common.generator` 流程（新系统）
+### `common.generation.component` 流程（新系统）
 ```
 LLM JSON
   ↓
@@ -148,7 +148,7 @@ List<BlockPatch> (相对坐标)
 Preview / Apply
 ```
 
-### `server.generator` 流程（传统系统）
+### `common.generation.structure` 流程（传统系统）
 ```
 BuildingSpec
   ↓
@@ -167,12 +167,12 @@ BuildExecutionService
 
 **两个系统可以共存**：
 
-1. **新系统**（`common.generator`）用于：
+1. **新系统**（`common.generation.component`）用于：
    - LLM 输出的语义组件生成
    - 组件级别的灵活组合
    - K3 流水线
 
-2. **传统系统**（`server.generator`）用于：
+2. **传统系统**（`common.generation.structure`）用于：
    - 传统 BuildingSpec 生成
    - 地标建筑的专用生成器
    - Blueprint 和 Assembly 系统
@@ -186,8 +186,8 @@ BuildExecutionService
 
 ## 总结
 
-- **`common.generator`** = **组件生成器**（新系统，K3，语义驱动，相对坐标）
-- **`server.generator`** = **结构生成器**（传统系统，完整建筑，绝对坐标）
+- **`common.generation.component`** = **组件生成器**（新系统，K3，语义驱动，相对坐标）
+- **`common.generation.structure`** = **结构生成器**（传统系统，完整建筑，绝对坐标）
 
 两者服务于不同的场景和架构层次，可以共存并互相补充。
 

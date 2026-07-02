@@ -73,8 +73,8 @@ PatchFilterPipeline 过滤（禁区、轮廓、选区）
 
 **解决方案**：
 - ✅ 已明确两个系统的作用：
-  - `common.generator`：用于 LLM 语义组件生成（新系统）
-  - `server.generator`：用于传统 BuildingSpec 生成（传统系统）
+  - `common.generation.component`：用于 LLM 语义组件生成（新系统）
+  - `common.generation.structure`：用于传统 BuildingSpec 生成（传统系统）
 - ✅ 已创建文档说明两个系统的区别
 
 ## 🚀 实施计划
@@ -83,7 +83,7 @@ PatchFilterPipeline 过滤（禁区、轮廓、选区）
 
 **任务**：
 1. ✅ 创建所有缺失的组件生成器
-2. ✅ 在 `GeneratorRegistry` 中注册所有生成器
+2. ✅ 在 `ComponentGeneratorRegistry` 中注册所有生成器
 3. ✅ 确保不再出现 "No generator for component" 警告
 
 **结果**：

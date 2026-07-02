@@ -9,7 +9,7 @@
 - ✅ `EntranceGenerator` - 入口生成器（ENTRANCE, FACADE_WINDOWS）
 - ✅ `SignageGenerator` - 招牌生成器（SIGNAGE）
 
-**已注册到 GeneratorRegistry**：
+**已注册到 ComponentGeneratorRegistry**：
 - ✅ TOWER, KEEP, WALL, GATE, ROAD（原有）
 - ✅ MASS_MAIN, MASS_SECONDARY, ENTRANCE, SIGNAGE, FACADE_WINDOWS, PAVING, FENCE_OR_WALL（新增）
 
@@ -96,7 +96,7 @@
 
 ### ✅ 已工作
 - ComponentPlanCompiler → BlockPatch 编译 ✅
-- GeneratorRegistry 组件生成器 ✅
+- ComponentGeneratorRegistry 组件生成器 ✅
 - LlmPlan 格式处理 ✅
 - ProgramPresetResolver 预设解析 ✅
 - LayoutSiteHudOverlay HUD 显示 ✅

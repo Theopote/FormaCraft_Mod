@@ -130,7 +130,7 @@ SemanticComponent → SmartGeneratorRouter.generate()
   ↓
 ┌─────────────────────────────────────────────────────┐
 │ 1. 尝试新系统（ComponentGenerator）                │
-│    - GeneratorRegistry.getGenerator("MASS_MAIN")   │
+│    - ComponentGeneratorRegistry.getGenerator("MASS_MAIN")   │
 │    - MassMainGenerator.generate(semantic)          │
 │    - 输出：List<BlockPatch>                        │
 └─────────────────────────────────────────────────────┘
