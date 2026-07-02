@@ -3,6 +3,8 @@ package com.formacraft.client.ui.panel;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthCoordinator;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthDrawer;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureOrientationController;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSelectionController;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureThumbnailService;
@@ -112,6 +114,7 @@ public class ComponentCapturePanel extends BasePanel {
     private final ComponentCaptureSelectionController selectionController = new ComponentCaptureSelectionController();
     private final ComponentCaptureThumbnailService thumbnailService = new ComponentCaptureThumbnailService();
     private final ComponentCaptureOrientationController orientationController = new ComponentCaptureOrientationController();
+    private final ComponentCaptureHealthCoordinator healthCoordinator;
     private final ComponentCaptureWorldOverlay worldOverlay;
 
     // 滚动
@@ -126,13 +129,6 @@ public class ComponentCapturePanel extends BasePanel {
     private CapturePhase currentPhase = CapturePhase.SELECTION;
     private boolean[] phaseCollapsed = new boolean[CapturePhase.getTotalPhases()]; // 默认都展开
     
-    // 健康检查抽屉状态
-    private boolean healthDrawerExpanded = false; // 健康检查抽屉是否展开
-    private long lastHealthCheckTime = 0; // 上次健康检查时间（用于防抖）
-    private static final long HEALTH_CHECK_DEBOUNCE_MS = 200; // 健康检查防抖时间
-    private int healthSummaryStartY = -1; // 健康摘要行的起始Y坐标（用于点击检测）
-    private int healthSummaryEndY = -1; // 健康摘要行的结束Y坐标（用于点击检测）
-
     private static final String[] CULTURAL_STYLE_OPTIONS = {
             null, "CHINESE", "JAPANESE", "GOTHIC", "MEDIEVAL", "MODERN", "EUROPEAN", "ISLAMIC", "INDUSTRIAL"
     };
@@ -161,6 +157,7 @@ public class ComponentCapturePanel extends BasePanel {
         socketIdInput.setPlaceholder("输入连接位 ID（如：door_frame）");
 
         selectionController.setOnSelectionChanged(thumbnailService::invalidate);
+        healthCoordinator = new ComponentCaptureHealthCoordinator(selectionController);
         worldOverlay = new ComponentCaptureWorldOverlay(selectionController);
     }
 
@@ -452,7 +449,7 @@ public class ComponentCapturePanel extends BasePanel {
                 .build();
         
         // 自动修复按钮
-        autoFixButton = ButtonWidget.builder(Text.literal("🤖 自动修复"), b -> runAutoFix())
+        autoFixButton = ButtonWidget.builder(Text.literal("🤖 自动修复"), b -> healthCoordinator.runAutoFix(client))
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
                         自动修复构件问题
@@ -467,7 +464,7 @@ public class ComponentCapturePanel extends BasePanel {
                         注意：只修复标记为"可自动修复"的问题""")))
                 .build();
 
-        undoAutoFixButton = ButtonWidget.builder(Text.literal("↩ 撤销修复"), b -> undoAutoFix())
+        undoAutoFixButton = ButtonWidget.builder(Text.literal("↩ 撤销修复"), b -> healthCoordinator.undoAutoFix())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
                         撤销上一次自动修复
@@ -1384,167 +1381,19 @@ public class ComponentCapturePanel extends BasePanel {
         
         // ============ 构件健康状态检查（新设计：健康条 + 抽屉）============
         if (isPhase2Complete) {
-            // 实时检查（防抖）
-            long now = System.currentTimeMillis();
-            if (now - lastHealthCheckTime > HEALTH_CHECK_DEBOUNCE_MS) {
-                // 触发检查（不显示，只更新状态）
-                lastHealthCheckTime = now;
-            }
-            
-            var healthResult = checkComponentHealth();
-            var items = healthResult.getItems();
-            
-            // 统计
-            int okCount = 0, warnCount = 0, errorCount = 0;
-            for (var item : items) {
-                switch (item.level) {
-                    case OK: okCount++; break;
-                    case WARN: warnCount++; break;
-                    case ERROR: errorCount++; break;
-                }
-            }
-            
-            // A. 1行摘要（永远可见，放在底部按钮上方）
-            y += 4;
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
-            
-            // 构建摘要文本
-            String summaryText = "健康状态：";
-            if (okCount > 0) summaryText += "✅ " + okCount + "  ";
-            if (warnCount > 0) summaryText += "⚠ " + warnCount + "  ";
-            if (errorCount > 0) summaryText += "⛔ " + errorCount + "  ";
-            if (okCount == 0 && warnCount == 0 && errorCount == 0) {
-                summaryText += "✅ 全部通过";
-            }
-            summaryText += "  （点击查看）";
-            
-            // 摘要行颜色（有ERROR变红）
-            int summaryColor = errorCount > 0 ? 0xFFFF5555 : (warnCount > 0 ? 0xFFFFAA00 : 0xFF55FF55);
-            
-            // 可点击的摘要行（点击展开/折叠抽屉）
-            // 记录摘要行的Y坐标范围，用于点击检测
-            int summaryStartY = y;
-            y = drawWrappedText(ctx, Text.literal(summaryText), x, y, w, summaryColor);
-            int summaryEndY = y;
-            
-            // 存储摘要行位置（用于mouseClicked检测）
-            healthSummaryStartY = summaryStartY + scrollY;
-            healthSummaryEndY = summaryEndY + scrollY;
-            
-            // 如果有ERROR，摘要行轻量抖动提示（这里用颜色闪烁代替）
-            if (errorCount > 0) {
-                // 在摘要行下方画一条红色提示线
-                ctx.fill(x, y, x + w, y + 1, 0x44FF5555);
-                y += 2;
-            }
-            
-            // B. Chips（折叠态显示最重要的1-3条）
-            if (!healthDrawerExpanded) {
-                // 只显示ERROR和最重要的WARN（最多3条）
-                int chipCount = 0;
-                for (var item : items) {
-                    if (chipCount >= 3) break;
-                    if (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ||
-                        (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN && chipCount < 2)) {
-                        String chipIcon = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? "⛔" : "⚠";
-                        int chipColor = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? 0xFFFF5555 : 0xFFFFAA00;
-                        String chipText = chipIcon + " " + item.title;
-                        y = drawWrappedText(ctx, Text.literal(chipText), x, y, w, chipColor);
-                        chipCount++;
-                    }
-                }
-            } else {
-                // C. Detail 抽屉（展开态的可操作清单）
-                y += 2;
-                
-                // 快捷动作区
-                if (healthResult.hasAutoFixable() || errorCount > 0) {
-                    int buttonW = (w - 4) / 2;
-                    if (healthResult.hasAutoFixable()) {
-                        autoFixButton.setPosition(x, y);
-                        autoFixButton.setWidth(buttonW);
-                        autoFixButton.visible = true;
-                        autoFixButton.active = true;
-                        autoFixButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-                        undoAutoFixButton.setPosition(x + buttonW + 4, y);
-                        undoAutoFixButton.setWidth(w - buttonW - 4);
-                        undoAutoFixButton.visible = true;
-                        undoAutoFixButton.active = st.captureDraft.snapshotBeforeAutoFix != null;
-                        undoAutoFixButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-                    }
-                    y += LABEL_OFFSET;
-                }
-
-                if (st.captureDraft.lastAutoFixReport != null && !st.captureDraft.lastAutoFixReport.isEmpty()) {
-                    y = drawWrappedText(ctx, Text.literal("最近自动修复："), x, y, w, 0xFF88CCFF);
-                    y += 2;
-                    int count = 0;
-                    for (String fix : st.captureDraft.lastAutoFixReport) {
-                        if (fix == null || fix.isBlank()) continue;
-                        y = drawWrappedText(ctx, Text.literal("- " + fix), x, y, w, 0xFFAAAAAA);
-                        if (++count >= 6) break;
-                    }
-                    y += 2;
-                }
-                
-                // 详细列表
-                for (var item : items) {
-                    // 跳过OK项（只显示问题和警告）
-                    if (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.OK) {
-                        continue;
-                    }
-                    
-                    // 图标和颜色（按建议规范）
-                    String icon;
-                    int color = switch (item.level) {
-                        case WARN -> {
-                            icon = "⚠";
-                            yield 0xFFFFAA00;
-                        }
-                        case ERROR -> {
-                            icon = "⛔";
-                            yield 0xFFFF5555;
-                        }
-                        default -> {
-                            icon = "ℹ";
-                            yield 0xFF55FFFF;
-                        }
-                    };
-
-                    // 自动修复标记
-                    if (item.fixAction == com.formacraft.common.component.health.HealthCheckResult.FixAction.AUTO) {
-                        icon += "✨";
-                    }
-                    
-                    // 需要世界交互标记
-                    if (item.ruleId.startsWith("H2-") && item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR) {
-                        icon += "🎯";
-                    }
-                    
-                    // 标题行（可点击跳转）
-                    y = drawWrappedText(ctx, Text.literal("[" + icon + "] " + item.title), x, y, w, color);
-                    
-                    // 影响说明
-                    if (!item.impact.isEmpty()) {
-                        y = drawWrappedText(ctx, Text.literal("  影响：" + item.impact), x, y, w, 0xFFFFAA00);
-                    }
-                    
-                    // 建议说明
-                    if (!item.fixSuggestion.isEmpty()) {
-                        String suggestionIcon = item.fixAction == com.formacraft.common.component.health.HealthCheckResult.FixAction.AUTO 
-                            ? "🤖" : "💡";
-                        y = drawWrappedText(ctx, Text.literal("  建议：" + suggestionIcon + " " + item.fixSuggestion), x, y, w, 0xFF88CCFF);
-                    }
-                    
-                    y += 2; // 项之间间距
-                }
-            }
-            
-            y += 4;
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
+            y = ComponentCaptureHealthDrawer.drawSection(
+                    ctx,
+                    healthCoordinator,
+                    this::drawWrappedText,
+                    scrollY,
+                    x,
+                    y,
+                    w,
+                    getScaledMouseX(),
+                    getScaledMouseY(),
+                    autoFixButton,
+                    undoAutoFixButton
+            );
         }
         
         // ============ AI 视角解释区 ============
@@ -1573,35 +1422,13 @@ public class ComponentCapturePanel extends BasePanel {
         cancelButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
         // Save按钮策略（按建议：ERROR阻断，WARN提示）
-        var healthResult = checkComponentHealth();
-        boolean hasErrors = healthResult.hasErrors();
-        boolean hasWarnings = healthResult.hasWarnings();
-        boolean canSaveNow = canSave() && !hasErrors; // ERROR阻断保存
-        
+        var healthResult = healthCoordinator.check();
+        boolean canSaveBase = canSaveWithoutHealthCheck();
+        ComponentCaptureHealthDrawer.configureSaveButton(saveButton, healthResult, canSaveBase);
+
         saveButton.setPosition(x + half + 4, y);
         saveButton.setWidth(w - half - 4);
         saveButton.visible = true;
-        saveButton.active = canSaveNow;
-        
-        // 更新按钮文本和Tooltip（根据健康状态）
-        long warnCount = healthResult.getItems().stream()
-            .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN)
-            .count();
-        long errorCount = healthResult.getItems().stream()
-            .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR)
-            .count();
-        
-        if (hasErrors) {
-            saveButton.setMessage(Text.literal("💾 保存构件（需先解决 " + errorCount + " 个阻断项）"));
-            saveButton.setTooltip(Tooltip.of(Text.literal("存在阻断项（⛔），请先修复后才能保存")));
-        } else if (hasWarnings && canSaveNow) {
-            saveButton.setMessage(Text.literal("💾 保存构件（建议先修复 " + warnCount + " 个风险项）"));
-            saveButton.setTooltip(Tooltip.of(Text.literal("构件有 " + warnCount + " 个风险项，建议先修复但可以保存")));
-        } else {
-            saveButton.setMessage(Text.literal("💾 保存构件"));
-            saveButton.setTooltip(Tooltip.of(Text.literal("保存构件到库\n━━━━━━━━━━━━\n将构件保存到全局构件库\n\n保存内容：\n• 方块数据和结构\n• 锚点和朝向\n• 分类和标签\n• 缩略图预览\n• 连接位配置（如果有）\n\n保存后自动跳转到构件库")));
-        }
-        
         saveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
         y += LABEL_OFFSET;
 
@@ -1859,175 +1686,23 @@ public class ComponentCapturePanel extends BasePanel {
         HudToast.show("连接位自动检测完成！（功能待实现）");
     }
     
-    /**
-     * 执行自动修复
-     */
-    private void runAutoFix() {
-        if (client == null || client.world == null) {
-            HudToast.show("无法修复：世界未加载", true);
-            return;
-        }
-
-        // Draft 级自动修复（不依赖 JSON）
+    private boolean canSaveWithoutHealthCheck() {
         var st = ComponentTool.INSTANCE.getState();
-        BlockPos min = SelectionTool.INSTANCE.getMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-        st.captureDraft.snapshotBeforeAutoFix = st.captureDraft.copy();
-        var draftFix = com.formacraft.client.tool.ComponentDraftAutoFix.apply(
-                st.captureDraft, st, min, max
-        );
-        if (!draftFix.isEmpty()) {
-            st.captureDraft.lastAutoFixReport = draftFix.getFixes();
-            st.captureDraft.dirty = true;
-            st.captureDraft.updatePhase();
-            st.syncDraftToState();
-            HudToast.show("完成: 已自动修复 " + draftFix.size() + " 个问题");
-            return;
-        }
-        st.captureDraft.snapshotBeforeAutoFix = null;
-        st.captureDraft.lastAutoFixReport = null;
-        
-        // 构建当前构件定义
-        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client, ComponentTool.INSTANCE.getState().captureDraft);
-        if (json == null || json.isBlank()) {
-            HudToast.show("无法修复：请先选择构件方块", true);
-            return;
-        }
-        
-        try {
-            // 解析构件定义
-            var def = com.formacraft.common.json.JsonUtil.fromJson(json, com.formacraft.common.component.ComponentDefinition.class);
-            if (def == null) {
-                HudToast.show("无法修复：构件定义无效", true);
-                return;
-            }
-            
-            // 执行健康检查
-            var healthResult = com.formacraft.common.component.health.ComponentHealthChecker.check(def);
-            
-            // 执行自动修复
-            var fixReport = com.formacraft.common.component.health.ComponentHealthAutoFix.apply(def, healthResult);
-            
-            if (fixReport.isEmpty()) {
-                HudToast.show("没有可自动修复的问题");
-                return;
-            }
-
-            // 应用修复到 ComponentToolState
-            st.captureDraft.snapshotBeforeAutoFix = st.captureDraft.copy();
-            applyFixToState(def, fixReport);
-            st.captureDraft.lastAutoFixReport = fixReport.getFixes();
-            st.captureDraft.dirty = true;
-            st.captureDraft.updatePhase();
-            st.syncDraftToState();
-            
-            // 显示修复结果
-            String message = "已自动修复 " + fixReport.size() + " 个问题";
-            for (String fix : fixReport.getFixes()) {
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] {}", fix);
-                }
-            }
-            HudToast.show("完成: " + message);
-            
-        } catch (Throwable t) {
-            com.formacraft.FormacraftMod.LOGGER.error("[ComponentCapturePanel] 自动修复失败", t);
-            HudToast.show("自动修复失败: " + t.getMessage(), true);
-        }
-    }
-
-    private void undoAutoFix() {
-        var st = ComponentTool.INSTANCE.getState();
-        if (st.captureDraft.snapshotBeforeAutoFix == null) {
-            HudToast.show("没有可撤销的修复", true);
-            return;
-        }
-        st.captureDraft.copyFrom(st.captureDraft.snapshotBeforeAutoFix);
-        st.captureDraft.snapshotBeforeAutoFix = null;
-        st.captureDraft.lastAutoFixReport = null;
-        st.captureDraft.dirty = true;
-        st.captureDraft.updatePhase();
-        st.syncDraftToState();
-        HudToast.show("已撤销自动修复");
-    }
-    
-    /**
-     * 将修复后的 ComponentDefinition 应用到 ComponentToolState
-     */
-    private void applyFixToState(com.formacraft.common.component.ComponentDefinition def, 
-                                 com.formacraft.common.component.health.ComponentHealthAutoFix.FixReport fixReport) {
-        var st = ComponentTool.INSTANCE.getState();
-        
-        // 应用锚点修复（H2-1, H2-2）
-        if (def.anchor != null && st.captureDraft.anchor.worldPos != null) {
-            // 计算修复后的锚点世界坐标
-            // 锚点在 ComponentDefinition 中是相对坐标，需要转换为世界坐标
-            net.minecraft.util.math.BlockPos min = getSelectionMinForFix();
-            if (min != null) {
-                // 锚点相对坐标 + 选区最小点 = 世界坐标
-                int worldX = min.getX() + def.anchor.dx;
-                int worldY = min.getY() + def.anchor.dy;
-                int worldZ = min.getZ() + def.anchor.dz;
-                st.captureDraft.anchor.worldPos = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
-                st.syncDraftToState();
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] 更新锚点: {}", st.captureDraft.anchor.worldPos);
-                }
-            }
-        } else if (def.anchor != null) {
-            // 如果之前没有锚点，现在创建了
-            net.minecraft.util.math.BlockPos min = getSelectionMinForFix();
-            if (min != null) {
-                int worldX = min.getX() + def.anchor.dx;
-                int worldY = min.getY() + def.anchor.dy;
-                int worldZ = min.getZ() + def.anchor.dz;
-                st.captureDraft.anchor.worldPos = new net.minecraft.util.math.BlockPos(worldX, worldY, worldZ);
-                st.syncDraftToState();
-                if (DEBUG_CAPTURE) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[自动修复] 创建锚点: {}", st.captureDraft.anchor.worldPos);
-                }
-            }
-        }
-        
-        // 其他修复可以在这里添加
-    }
-
-    private net.minecraft.util.math.BlockPos getSelectionMinForFix() {
-        var st = ComponentTool.INSTANCE.getState();
-        if (st.captureDraft.hasExplicitSelection()) {
-            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-            for (net.minecraft.util.math.BlockPos pos : st.captureDraft.selection.blocks) {
-                if (pos == null) continue;
-                minX = Math.min(minX, pos.getX());
-                minY = Math.min(minY, pos.getY());
-                minZ = Math.min(minZ, pos.getZ());
-            }
-            return new net.minecraft.util.math.BlockPos(minX, minY, minZ);
-        }
-        return SelectionTool.INSTANCE.getMin();
-    }
-
-    private boolean canSave() {
-        var st = ComponentTool.INSTANCE.getState();
-        // 检查基本条件
         if (!selectionController.hasValidSelection()) {
             return false;
         }
         if (st.name == null || st.name.isBlank()) {
             return false;
         }
-        // 检查锚点（buildCurrentComponentJson 需要锚点）
         if (st.captureDraft.anchor.worldPos == null) {
             return false;
         }
-        // 检查锚点是否在有效选区内（或允许外侧锚点）
         BlockPos anchor = st.captureDraft.anchor.worldPos;
-        if (!selectionController.isAnchorLocationAllowed(anchor)) {
-            return false;
-        }
-        // ERROR 阻断保存（Draft HealthCheck）
-        var health = checkComponentHealth();
-        return !health.hasErrors();
+        return selectionController.isAnchorLocationAllowed(anchor);
+    }
+
+    private boolean canSave() {
+        return canSaveWithoutHealthCheck() && !healthCoordinator.blocksSave();
     }
 
     private void saveComponent() {
@@ -2037,7 +1712,7 @@ public class ComponentCapturePanel extends BasePanel {
         }
 
         var st = ComponentTool.INSTANCE.getState();
-        var health = checkComponentHealth();
+        var health = healthCoordinator.check();
         if (health.hasErrors()) {
             HudToast.show("保存失败：存在错误项（请先修复）", true);
             return;
@@ -2051,54 +1726,17 @@ public class ComponentCapturePanel extends BasePanel {
             HudToast.show("保存失败：请检查选区", true);
             return;
         }
-        
-        // 解析、健康检查和自动修复（保存前）
+
         ComponentDefinition def = null;
-        try {
-            def = JsonUtil.fromJson(json, ComponentDefinition.class);
-            if (def != null) {
-                // 使用新的健康检查系统
-                var healthResult = com.formacraft.common.component.health.ComponentHealthChecker.check(def);
-                
-                // 如果有 ERROR，阻止保存
-                if (healthResult.hasErrors()) {
-                    int errorCount = healthResult.getItems().stream()
-                        .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR)
-                        .mapToInt(item -> 1).sum();
-                    HudToast.show("保存失败：存在 " + errorCount + " 个阻断项，请先修复", true);
-                    return;
-                }
-                
-                // 执行自动修复（基于健康检查结果）
-                var fixReport = com.formacraft.common.component.health.ComponentHealthAutoFix.apply(def, healthResult);
-                if (!fixReport.isEmpty()) {
-                    com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 保存前自动修复: {} 项", fixReport.size());
-                    for (var fix : fixReport.getFixes()) {
-                        com.formacraft.FormacraftMod.LOGGER.debug("  {}", fix);
-                    }
-                    // 重新生成 JSON（修复后）
-                    json = JsonUtil.toJson(def);
-                    // 重新检查健康状态（修复后）
-                    healthResult = com.formacraft.common.component.health.ComponentHealthChecker.check(def);
-                }
-                
-                // 如果有 WARN，提示但不阻止
-                if (healthResult.hasWarnings()) {
-                    int warnCount = healthResult.getItems().stream()
-                        .filter(item -> item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN)
-                        .mapToInt(item -> 1).sum();
-                    HudToast.show("警告：构件有 " + warnCount + " 个风险项，但仍将保存");
-                }
-                
-                // 作为补充，运行结构性验证（ComponentValidator）
-                var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
-                if (validationResult.hasErrors()) {
-                    com.formacraft.FormacraftMod.LOGGER.warn("[ComponentCapturePanel] 保存前结构性验证发现错误: {}", validationResult.errors().size());
-                }
-            }
-        } catch (Throwable t) {
-            com.formacraft.FormacraftMod.LOGGER.error("[ComponentCapturePanel] 保存前健康检查/修复失败", t);
-            // 继续保存，不阻止（容错）
+        var saveOutcome = healthCoordinator.prepareForSave(client, json);
+        if (saveOutcome.blocked()) {
+            HudToast.show(saveOutcome.blockToast(), true);
+            return;
+        }
+        json = saveOutcome.json();
+        def = saveOutcome.definition();
+        if (saveOutcome.warnToast() != null) {
+            HudToast.show(saveOutcome.warnToast());
         }
 
         // 生成缩略图（使用修复后的 def，如果 def 为 null 则重新解析）
@@ -2135,14 +1773,8 @@ public class ComponentCapturePanel extends BasePanel {
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
         // 健康检查摘要行点击（展开/折叠抽屉）
-        if (healthSummaryStartY > 0 && healthSummaryEndY > 0) {
-            int panelY = getPanelY();
-            int actualSummaryStartY = panelY + healthSummaryStartY - scrollY;
-            int actualSummaryEndY = panelY + healthSummaryEndY - scrollY;
-            if (mouseY >= actualSummaryStartY && mouseY <= actualSummaryEndY) {
-                healthDrawerExpanded = !healthDrawerExpanded;
-                return true;
-            }
+        if (healthCoordinator.handleSummaryClick(mouseY, getPanelY(), scrollY)) {
+            return true;
         }
         
         // 选择工具按钮点击
@@ -2268,24 +1900,6 @@ public class ComponentCapturePanel extends BasePanel {
         return (int) (client.mouse.getY() / client.getWindow().getScaleFactor());
     }
     
-    /**
-     * 检查构件健康状态（使用新的健康检查系统）
-     * 包括 ComponentDefinition 层面的检查和 UI 层面的检查（如方向标记）
-     */
-    private com.formacraft.common.component.health.HealthCheckResult checkComponentHealth() {
-        var st = ComponentTool.INSTANCE.getState();
-        BlockPos min = SelectionTool.INSTANCE.getMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-        var result = com.formacraft.client.tool.ComponentDraftHealthChecker.check(
-                st.captureDraft, st, min, max
-        );
-        st.captureDraft.lastHealth = result;
-        return result;
-    }
-    
-    /**
-     * 获取AI视角解释
-     */
     private java.util.List<String> getAIViewExplanation() {
         var explanations = new java.util.ArrayList<String>();
         var st = ComponentTool.INSTANCE.getState();
@@ -2442,47 +2056,8 @@ public class ComponentCapturePanel extends BasePanel {
         String nameText = hasName ? "OK 名称已填写" : "WARN 名称: 请填写";
         ctx.drawTextWithShadow(client.textRenderer, Text.literal(nameText), x, y, nameColor);
         y += client.textRenderer.fontHeight + 2;
-        
-        // 健康检查状态（使用新的 HealthCheck 系统）
-        var healthResult = checkComponentHealth();
-        int okCount = 0, warnCount = 0, errorCount = 0;
-        for (var item : healthResult.getItems()) {
-            switch (item.level) {
-                case OK: okCount++; break;
-                case WARN: warnCount++; break;
-                case ERROR: errorCount++; break;
-            }
-        }
-        
-        // 显示健康状态摘要
-        String healthText;
-        int healthColor;
-        if (errorCount > 0) {
-            healthText = String.format("ERR 健康: %d 个阻断项", errorCount);
-            healthColor = 0xFFFF5555;
-        } else if (warnCount > 0) {
-            healthText = String.format("WARN 健康: %d 个风险项", warnCount);
-            healthColor = 0xFFFFAA00;
-        } else {
-            healthText = "OK 健康检查通过";
-            healthColor = 0xFF55FF55;
-        }
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(healthText), x, y, healthColor);
-        y += client.textRenderer.fontHeight + 2;
-        
-        // 显示最关键的问题（最多2条：优先 ERROR，其次 WARN）
-        int shownCount = 0;
-        for (var item : healthResult.getItems()) {
-            if (shownCount >= 2) break;
-            if (item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR || 
-                item.level == com.formacraft.common.component.health.HealthCheckResult.Level.WARN) {
-                String icon = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? "ERR" : "WARN";
-                int color = item.level == com.formacraft.common.component.health.HealthCheckResult.Level.ERROR ? 0xFFFF5555 : 0xFFFFAA00;
-                ctx.drawTextWithShadow(client.textRenderer, Text.literal("  " + icon + " " + item.title), x + 6, y, color);
-                y += client.textRenderer.fontHeight + 1;
-                shownCount++;
-            }
-        }
+
+        y = ComponentCaptureHealthDrawer.drawStatusHealth(ctx, client, healthCoordinator, x, y);
         
         ctx.fill(x, y, x + w, y + 1, 0xFF444444);
         y += 2;
