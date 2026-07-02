@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.style.profile.BuildStrategy;
 import net.minecraft.block.Block;
@@ -35,11 +36,9 @@ public class HouseGeneratorUtils {
      */
     public static BlockState withFacingIfPossible(BlockState state, Direction facing) {
         if (state == null) return null;
-        try {
-            if (state.contains(Properties.HORIZONTAL_FACING)) {
-                return state.with(Properties.HORIZONTAL_FACING, facing);
-            }
-        } catch (Throwable ignored) {}
+        if (state.contains(Properties.HORIZONTAL_FACING)) {
+            return state.with(Properties.HORIZONTAL_FACING, facing);
+        }
         return state;
     }
 
@@ -48,18 +47,15 @@ public class HouseGeneratorUtils {
      */
     public static BlockState withDoorState(BlockState door, DoubleBlockHalf half, boolean leftSide, Direction facing) {
         BlockState s = door;
-        try {
-            if (s.contains(Properties.HORIZONTAL_FACING)) s = s.with(Properties.HORIZONTAL_FACING, facing != null ? facing : Direction.NORTH);
-        } catch (Throwable ignored) {}
-        try {
-            if (s.contains(Properties.DOUBLE_BLOCK_HALF)) s = s.with(Properties.DOUBLE_BLOCK_HALF, half);
-        } catch (Throwable ignored) {}
-        // 双门时用相反铰链，避免都向同一侧开（即便不完美，也比默认好）
-        try {
-            if (s.contains(Properties.DOOR_HINGE)) {
-                s = s.with(Properties.DOOR_HINGE, leftSide ? net.minecraft.block.enums.DoorHinge.LEFT : net.minecraft.block.enums.DoorHinge.RIGHT);
-            }
-        } catch (Throwable ignored) {}
+        if (s.contains(Properties.HORIZONTAL_FACING)) {
+            s = s.with(Properties.HORIZONTAL_FACING, facing != null ? facing : Direction.NORTH);
+        }
+        if (s.contains(Properties.DOUBLE_BLOCK_HALF)) {
+            s = s.with(Properties.DOUBLE_BLOCK_HALF, half);
+        }
+        if (s.contains(Properties.DOOR_HINGE)) {
+            s = s.with(Properties.DOOR_HINGE, leftSide ? net.minecraft.block.enums.DoorHinge.LEFT : net.minecraft.block.enums.DoorHinge.RIGHT);
+        }
         return s;
     }
 
@@ -100,36 +96,7 @@ public class HouseGeneratorUtils {
      * 优先级：extra.layout.entranceFacing > extra.doorSide > extra.facing > 默认 NORTH
      */
     public static Direction resolveDoorSide(BuildingSpec spec) {
-        if (spec == null || spec.getExtra() == null) return Direction.NORTH;
-
-        // Layout IR: extra.layout.entranceFacing overrides legacy doorSide/facing
-        try {
-            Object layoutObj = spec.getExtra().get("layout");
-            if (layoutObj instanceof java.util.Map<?, ?> m) {
-                Object ef = m.get("entranceFacing");
-                if (ef != null) {
-                    String s = String.valueOf(ef).trim().toUpperCase();
-                    switch (s) {
-                        case "N", "NORTH", "北", "朝北" -> { return Direction.NORTH; }
-                        case "S", "SOUTH", "南", "朝南" -> { return Direction.SOUTH; }
-                        case "E", "EAST", "东", "朝东" -> { return Direction.EAST; }
-                        case "W", "WEST", "西", "朝西" -> { return Direction.WEST; }
-                        default -> {}
-                    }
-                }
-            }
-        } catch (Throwable ignored) {}
-        Object v = spec.getExtra().get("doorSide");
-        if (v == null) v = spec.getExtra().get("facing"); // tolerate reuse of facing as "front side"
-        if (v == null) return Direction.NORTH;
-        String s = String.valueOf(v).trim().toUpperCase();
-        return switch (s) {
-            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-            default -> Direction.NORTH;
-        };
+        return StructureSpecParsers.resolveEntranceFacing(spec, Direction.NORTH);
     }
 
     /**
