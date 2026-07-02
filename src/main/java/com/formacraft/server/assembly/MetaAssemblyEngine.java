@@ -1057,7 +1057,7 @@ public final class MetaAssemblyEngine {
                         oz = i(pm.get("z"), 0);
                     }
 
-                    List<int[]> ctrl0 = readBezierControlPoints(pm.get("points"));
+                    List<int[]> ctrl0 = AssemblyBezierSurfaceOps.readBezierControlPoints(pm.get("points"));
                     if (ctrl0 == null || ctrl0.size() != 16) continue;
                     java.util.ArrayList<int[]> ctrl = new java.util.ArrayList<>(16);
                     for (int[] p : ctrl0) ctrl.add(new int[]{p[0] + ox, p[1] + oy, p[2] + oz});
@@ -1070,7 +1070,7 @@ public final class MetaAssemblyEngine {
                             ? pick(ctx, pm, "material", "PRIMARY_STRUCTURE", 0xBEEF1101L ^ id.hashCode(), matDef)
                             : matDef;
 
-                    int[][][] grid = sampleBezierSurface(ctrl, uN, vN);
+                    int[][][] grid = AssemblyBezierSurfaceOps.sampleBezierSurface(ctrl, uN, vN);
                     PatchData pd = new PatchData(id, uN, vN, thick, mat, grid);
                     patches.add(pd);
                     byId.put(id, pd);
@@ -1262,9 +1262,9 @@ public final class MetaAssemblyEngine {
                 BlockState mat = pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x51AFC0L, Blocks.QUARTZ_BLOCK.getDefaultState());
 
                 if (kind.equals("BEZIER_SURFACE")) {
-                    List<int[]> ctrl = readBezierControlPoints(sm.get("points"));
+                    List<int[]> ctrl = AssemblyBezierSurfaceOps.readBezierControlPoints(sm.get("points"));
                     if (ctrl == null || ctrl.size() != 16) break;
-                    int[][][] grid = sampleBezierSurface(ctrl, uN, vN);
+                    int[][][] grid = AssemblyBezierSurfaceOps.sampleBezierSurface(ctrl, uN, vN);
                     surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, normalMode, stepLen, dedupe, connect, connectMaxStep, mat);
                 } else if (kind.equals("BEZIER_SURFACE_SET")) {
                     Object patchesObj = sm.get("patches");
@@ -1283,11 +1283,11 @@ public final class MetaAssemblyEngine {
                             oy = i(pm.get("y"), 0);
                             oz = i(pm.get("z"), 0);
                         }
-                        List<int[]> ctrl0 = readBezierControlPoints(pm.get("points"));
+                        List<int[]> ctrl0 = AssemblyBezierSurfaceOps.readBezierControlPoints(pm.get("points"));
                         if (ctrl0 == null || ctrl0.size() != 16) continue;
                         java.util.ArrayList<int[]> ctrl = new java.util.ArrayList<>(16);
                         for (int[] p : ctrl0) ctrl.add(new int[]{p[0] + ox, p[1] + oy, p[2] + oz});
-                        int[][][] grid = sampleBezierSurface(ctrl, uN, vN);
+                        int[][][] grid = AssemblyBezierSurfaceOps.sampleBezierSurface(ctrl, uN, vN);
                         surfaceOffsetFromGrid(out, ctx, curOrigin, grid, uN, vN, offset, shellT, mode, normalMode, stepLen, dedupe, connect, connectMaxStep, mat);
                     }
                 }
@@ -3324,24 +3324,12 @@ public final class MetaAssemblyEngine {
         );
     }
 
-    private static double[] bezierBasis3(double t) {
-        return AssemblyBezierSurfaceOps.bezierBasis3(t);
-    }
-
-    private static int[][][] sampleBezierSurface(List<int[]> ctrl, int uN, int vN) {
-        return AssemblyBezierSurfaceOps.sampleBezierSurface(ctrl, uN, vN);
-    }
-
     private static void connectSurfaceGrid(List<PlannedBlock> out, Context ctx, BlockPos origin,
                                            int[][][] grid, int uN, int vN, int thick, BlockState mat) {
         AssemblyVoxelBridgeOps.connectSurfaceGrid(
                 (x, y, z, state) -> put(out, ctx, origin, x, y, z, state),
                 grid, uN, vN, thick, mat
         );
-    }
-
-    private static List<int[]> readBezierControlPoints(Object ptsObj) {
-        return AssemblyBezierSurfaceOps.readBezierControlPoints(ptsObj);
     }
 
     private enum Edge { U0, U1, V0, V1 }
