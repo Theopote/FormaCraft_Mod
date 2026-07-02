@@ -1760,7 +1760,7 @@ public final class MetaAssemblyEngine {
 
                 for (int x = xMin; x <= xMax; x++) {
                     for (int z = zMin; z <= zMax; z++) {
-                        boolean inside = pointInPoly(x, z, pts);
+                        boolean inside = AssemblyProfilePolygonOps.pointInPolyXZ(x, z, pts);
                         if (!inside) continue;
                         for (int y = 0; y < h; y++) {
                             if (!hollow) {
@@ -1769,7 +1769,10 @@ public final class MetaAssemblyEngine {
                                 // Keep a wall band by checking if any neighbor is outside within thickness.
                                 boolean boundary = false;
                                 for (int k = 1; k <= thickness && !boundary; k++) {
-                                    if (!pointInPoly(x + k, z, pts) || !pointInPoly(x - k, z, pts) || !pointInPoly(x, z + k, pts) || !pointInPoly(x, z - k, pts)) {
+                                    if (!AssemblyProfilePolygonOps.pointInPolyXZ(x + k, z, pts)
+                                            || !AssemblyProfilePolygonOps.pointInPolyXZ(x - k, z, pts)
+                                            || !AssemblyProfilePolygonOps.pointInPolyXZ(x, z + k, pts)
+                                            || !AssemblyProfilePolygonOps.pointInPolyXZ(x, z - k, pts)) {
                                         boundary = true;
                                     }
                                 }
@@ -2042,14 +2045,14 @@ public final class MetaAssemblyEngine {
                         // profile can be:
                         // - profilePoints: single ring
                         // - profileRings: [ring0, ring1, ...] where ring0 is outer, others are holes
-                        List<List<int[]>> rings2 = parseProfileRings(op);
+                        List<List<int[]>> rings2 = AssemblyProfilePolygonOps.parseProfileRings(op);
                         if (rings2.isEmpty() || rings2.getFirst().size() < 3) break;
                         double s0 = d(op.get("profileScale0"), d(op.get("scale0"), 1.0));
                         double s1 = d(op.get("profileScale1"), d(op.get("scale1"), 1.0));
                         double sc = AssemblyBezierOps.lerp(s0, s1, tt);
                         if (sc <= 0.05) sc = 0.05;
                         // bounds in profile space
-                        int[] bb = boundsRings2D(rings2);
+                        int[] bb = AssemblyProfilePolygonOps.boundsRings2D(rings2);
                         int uMin = (int) Math.floor(bb[0] * sc);
                         int uMax = (int) Math.ceil(bb[1] * sc);
                         int vMin = (int) Math.floor(bb[2] * sc);
@@ -2059,15 +2062,15 @@ public final class MetaAssemblyEngine {
                         if (area2d > 20000) break;
 
                         // scaled rings for point tests
-                        List<List<int[]>> sr = scaleRings(rings2, sc);
+                        List<List<int[]>> sr = AssemblyProfilePolygonOps.scaleRings(rings2, sc);
 
                         for (int uu = uMin; uu <= uMax; uu++) {
                             for (int vv = vMin; vv <= vMax; vv++) {
-                                boolean inside = pointInRings2D(uu, vv, sr);
+                                boolean inside = AssemblyProfilePolygonOps.pointInRings2D(uu, vv, sr);
                                 if (!inside) continue;
                                 boolean border = true;
                                 if (hollow) {
-                                    border = isRingsBorder(uu, vv, sr, t);
+                                    border = AssemblyProfilePolygonOps.isRingsBorder(uu, vv, sr, t);
                                     if (!border && !carveInterior) continue;
                                 }
                                 Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
@@ -2088,9 +2091,9 @@ public final class MetaAssemblyEngine {
                         if (hollow && capEnds && (i == 0 || i == n - 1)) {
                             for (int uu = uMin; uu <= uMax; uu++) {
                                 for (int vv = vMin; vv <= vMax; vv++) {
-                                    boolean inside = pointInRings2D(uu, vv, sr);
+                                    boolean inside = AssemblyProfilePolygonOps.pointInRings2D(uu, vv, sr);
                                     if (!inside) continue;
-                                    boolean border = isRingsBorder(uu, vv, sr, capThickness);
+                                    boolean border = AssemblyProfilePolygonOps.isRingsBorder(uu, vv, sr, capThickness);
                                     if (!border) continue;
                                     Vec3d off = nrm2.multiply(uu).add(bin2.multiply(vv));
                                     int x = cx + snap(off.x, snapMode);
@@ -3081,42 +3084,6 @@ public final class MetaAssemblyEngine {
     }
 
     // ----- 2D polygon helpers for profile=POLYGON -----
-    private static List<List<int[]>> parseProfileRings(Map<String, Object> op) {
-        return AssemblyProfilePolygonOps.parseProfileRings(op);
-    }
-
-    private static List<int[]> parseProfile2D(Object v) {
-        return AssemblyProfilePolygonOps.parseProfile2D(v);
-    }
-
-    private static int[] bounds2D(List<int[]> pts) {
-        return AssemblyProfilePolygonOps.bounds2D(pts);
-    }
-
-    private static int[] boundsRings2D(List<List<int[]>> rings) {
-        return AssemblyProfilePolygonOps.boundsRings2D(rings);
-    }
-
-    private static List<int[]> scalePoly(List<int[]> pts, double s) {
-        return AssemblyProfilePolygonOps.scalePoly(pts, s);
-    }
-
-    private static List<List<int[]>> scaleRings(List<List<int[]>> rings, double s) {
-        return AssemblyProfilePolygonOps.scaleRings(rings, s);
-    }
-
-    private static boolean pointInPoly2D(int u, int v, List<int[]> poly) {
-        return AssemblyProfilePolygonOps.pointInPoly2D(u, v, poly);
-    }
-
-    private static boolean pointInRings2D(int u, int v, List<List<int[]>> rings) {
-        return AssemblyProfilePolygonOps.pointInRings2D(u, v, rings);
-    }
-
-    private static boolean isRingsBorder(int u, int v, List<List<int[]>> rings, int t) {
-        return AssemblyProfilePolygonOps.isRingsBorder(u, v, rings, t);
-    }
-
     private static boolean isAuto(Object v) {
         return AssemblyValueParser.isAuto(v);
     }
@@ -3900,10 +3867,6 @@ public final class MetaAssemblyEngine {
     }
 
     // Ray casting point-in-polygon test (works for simple polygons; points on edge treated as inside-ish)
-    private static boolean pointInPoly(int x, int z, List<int[]> poly) {
-        return AssemblyProfilePolygonOps.pointInPolyXZ(x, z, poly);
-    }
-
     private static int i(Object v, int def) {
         return AssemblyValueParser.i(v, def);
     }
