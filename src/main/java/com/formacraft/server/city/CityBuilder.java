@@ -1,5 +1,6 @@
 package com.formacraft.server.city;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.build.BuildingType;
@@ -54,6 +55,8 @@ import java.util.List;
  * 将 CitySpec 转换为实际的方块结构
  */
 public class CityBuilder {
+
+    private static final FcaLog LOG = FcaLog.of("CityBuilder");
     
     private final PathGenerator pathGenerator = new PathGenerator();
     private final BridgeGenerator bridgeGenerator = new BridgeGenerator();
@@ -152,7 +155,7 @@ public class CityBuilder {
                             if (city.getStyle() != null && !city.getStyle().isBlank()) {
                                 cityStyle = BuildingStyle.valueOf(city.getStyle().trim().toUpperCase(java.util.Locale.ROOT));
                             }
-                        } catch (Exception ignored) {}
+                        } catch (Exception ex) { LOG.debug("resolve city style failed", ex); }
                         if (cityStyle == null) cityStyle = (bs != null && bs.getStyle() != null) ? bs.getStyle() : BuildingStyle.DEFAULT;
 
                         SkeletonNodeInfo sk = (skeletonNodeByZoneType != null && role != null) ? skeletonNodeByZoneType.get(role) : null;
@@ -161,9 +164,7 @@ public class CityBuilder {
                         int skD = (sk != null) ? sk.depth : 0;
                         int skR = (sk != null) ? sk.radius : 0;
                         RuleBasedGeneratorSelector.apply(bs, cityStyle, role, skShape, skW, skD, skR);
-                    } catch (Throwable ignored) {}
-
-                    // Prefer explicit footprint; if missing/invalid, fall back to skeleton node dimensions (J-layer).
+                    } catch (Throwable ex) { LOG.debug("resolve skeleton anchor failed", ex); }; if missing/invalid, fall back to skeleton node dimensions (J-layer).
                     int w = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 0;
                     int d = (bs.getFootprint() != null && bs.getFootprint().getDepth() > 0) ? bs.getFootprint().getDepth() : 0;
                     if ((w <= 0 || d <= 0) && skeletonNodeByZoneType != null && role != null) {
@@ -198,7 +199,7 @@ public class CityBuilder {
                             int sampleHalf = Math.max(10, Math.min(cfg.halfX, spacing));
                             areaForUnit = new AnchoredBuildArea(centerRel, cfg.halfX, cfg.halfZ, sampleHalf, sampleHalf);
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ex) { LOG.debug("apply generator selector failed", ex); }
 
                     List<Candidate> cands = CandidateGenerator.generate(u, areaForUnit, fields, world, origin, cfg);
                     candidatesById.put(id, cands);
@@ -296,7 +297,8 @@ public class CityBuilder {
             if (city.getStyle() != null) {
                 try {
                     cityStyle = BuildingStyle.valueOf(city.getStyle().trim().toUpperCase());
-                } catch (Exception ignored) {
+                } catch (Exception ex) {
+                    LOG.debug("resolve city style failed", ex);
                     cityStyle = BuildingStyle.DEFAULT;
                 }
             }
@@ -346,7 +348,7 @@ public class CityBuilder {
                         city.setRoads(skRoads);
                         hasRoads = true;
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ex) { LOG.debug("parse skeleton roads failed", ex); }
             }
             BlockState roadMat = stateFromIdOrDefault(roadId, net.minecraft.block.Blocks.GRAVEL.getDefaultState());
             BlockState borderMat = stateFromIdOrDefault(borderId, net.minecraft.block.Blocks.COBBLESTONE.getDefaultState());
@@ -426,7 +428,7 @@ public class CityBuilder {
                             net.minecraft.util.Identifier id = net.minecraft.util.Identifier.of(sp.getSpec().getMaterials().getFoundation());
                             net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(id);
                             fillMaterial = block.getDefaultState();
-                        } catch (Exception ignored) {}
+                        } catch (Exception ex) { LOG.debug("resolve foundation fill material failed", ex); }
                     }
 
                     TerrainAdaptationEngine.Bounds b = TerrainAdaptationEngine.boundsForCenteredFootprint(sp.getSpec(), buildingOrigin);
@@ -594,7 +596,7 @@ public class CityBuilder {
                             net.minecraft.util.Identifier id = net.minecraft.util.Identifier.of(sp.getSpec().getMaterials().getFoundation());
                             net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(id);
                             fillMaterial = block.getDefaultState();
-                        } catch (Exception ignored) {}
+                        } catch (Exception ex) { LOG.debug("resolve foundation fill material failed", ex); }
                     }
 
                     // Minimal FootingPlan (v1):
@@ -690,7 +692,7 @@ public class CityBuilder {
                             net.minecraft.util.Identifier id = net.minecraft.util.Identifier.of(sp.getSpec().getMaterials().getFoundation());
                             net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(id);
                             fillMaterial = block.getDefaultState();
-                        } catch (Exception ignored) {}
+                        } catch (Exception ex) { LOG.debug("resolve foundation fill material failed", ex); }
                     }
                     building = com.formacraft.server.terrain.TerrainShaper.preprocessStructure(
                         world, building, buildingMin, buildingMax, fillMaterial);
@@ -882,7 +884,7 @@ public class CityBuilder {
                 String s = String.valueOf(v).trim();
                 if (!s.isEmpty()) n = Integer.parseInt(s);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ex) { LOG.debug("clampInt parse failed value={} def={}", v, def, ex); }
         return Math.max(min, Math.min(max, n));
     }
 
@@ -902,7 +904,8 @@ public class CityBuilder {
             Identifier identifier = s.contains(":") ? Identifier.of(s) : Identifier.of("minecraft", s);
             Block b = Registries.BLOCK.get(identifier);
             return b.getDefaultState();
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            LOG.debug("stateFromIdOrDefault failed id={}", id, ex);
             return def;
         }
     }
@@ -984,7 +987,8 @@ public class CityBuilder {
             String s = String.valueOf(v).trim();
             if (s.isEmpty()) return null;
             return Integer.parseInt(s);
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            LOG.debug("intOrNull parse failed value={}", v, ex);
             return null;
         }
     }
@@ -1116,7 +1120,7 @@ public class CityBuilder {
             if (!"rectangle".equalsIgnoreCase(fp.getShape())) fp.setShape("rectangle");
             if (fp.getWidth() <= 0) fp.setWidth(Math.max(3, w));
             if (fp.getDepth() <= 0) fp.setDepth(Math.max(3, d));
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("ensureRectFootprint failed", ex); }
     }
 
     private static void tryEnsureCircleFootprint(BuildingSpec bs, int radius) {
@@ -1126,7 +1130,7 @@ public class CityBuilder {
             var fp = bs.getFootprint();
             fp.setShape("circle");
             if (fp.getRadius() <= 0) fp.setRadius(Math.max(3, radius));
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("ensureRectFootprint failed", ex); }
     }
 
     /**
@@ -1149,7 +1153,7 @@ public class CityBuilder {
             if (pid != null) paletteId = String.valueOf(pid).trim();
             Object sid = extra.get("styleProfileId");
             if (sid != null) styleProfileId = String.valueOf(sid).trim();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ex) { LOG.debug("ensureRectFootprint failed", ex); }
         if ((paletteId == null || paletteId.isBlank()) && paletteIdHint != null && !paletteIdHint.isBlank()) {
             paletteId = paletteIdHint.trim();
         }
