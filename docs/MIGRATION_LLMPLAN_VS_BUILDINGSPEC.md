@@ -64,6 +64,12 @@ LlmPlanPreviewBuilder   StructureGeneratorFactory
 Select-String "\[LlmPlanMetrics\]" logs/latest.log
 ```
 
+或运行汇总脚本（fallback 按 `detail` 分布 + 最新 snapshot）：
+
+```powershell
+python scripts/analyze_llmplan_metrics.py run/logs/latest.log
+```
+
 **解读**（见 §9）：`ROUTING_POLICY` 回退为策略性放弃，不计入「LlmPlan 质量不达标」；评估退役候选时看 **可行动回退率** 与 `success_rate`。
 
 ---
@@ -226,10 +232,13 @@ generator_selector_rules_v1.json
 4. 操作仅为降低 selector / 默认路由命中或缩小 adaptor 回退面 — **不删除**整栋生成器类
 
 ```powershell
-# 按原因统计 fallback（PowerShell 示例）
+# 按原因统计 fallback（PowerShell 一行版）
 Select-String "\[LlmPlanMetrics\].*event=fallback" logs/latest.log |
   ForEach-Object { if ($_ -match 'detail=(\w+)') { $matches[1] } } |
   Group-Object | Sort-Object Count -Descending
+
+# 推荐：完整汇总（含 snapshot、可行动回退率提示）
+python scripts/analyze_llmplan_metrics.py run/logs/latest.log
 ```
 
 ---
