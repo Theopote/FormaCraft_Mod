@@ -1,0 +1,71 @@
+name: Bug Report
+description: Report something that isn't working as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please include as much detail as you can.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Minecraft mod (client)
+        - Minecraft mod (server)
+        - Python backend
+        - Build / CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Formacraft / mod version
+      placeholder: e.g. 1.0.0, commit SHA, or branch name
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start backend with ...
+        2. Run client with ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        - OS:
+        - Java version:
+        - Python version:
+        - LLM provider (if relevant):
+        - Minecraft / Fabric Loader version:
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste relevant log output or attach screenshots.
+    validations:
+      required: false
