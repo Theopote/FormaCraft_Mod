@@ -162,6 +162,9 @@ public final class ComponentStorage {
 
     public static void saveComponent(Path worldDir, ComponentDefinition def) {
         if (def == null || def.id == null || def.id.isBlank()) return;
+
+        com.formacraft.common.component.semantic.ComponentSemanticInference.ensureSemanticFields(def);
+        com.formacraft.common.component.archetype.ComponentArchetypeBridge.sync(def);
         
         // 自动修复明显错误
         var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);

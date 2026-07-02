@@ -61,11 +61,9 @@ public final class ComponentRetriever {
                 continue;
             }
 
-            // 获取 Archetype（如果有）
-            com.formacraft.common.component.archetype.ComponentArchetype archetype = null;
-            if (component.id != null) {
-                archetype = com.formacraft.common.component.archetype.ComponentArchetypeStorage.get(component.id);
-            }
+            // 获取 Archetype（内存 / 磁盘 / 自动生成）
+            com.formacraft.common.component.archetype.ComponentArchetype archetype =
+                    com.formacraft.common.component.archetype.ComponentArchetypeStorage.resolve(component);
 
             // 创建元数据
             ComponentMetadata metadata = ComponentMetadata.fromComponent(component, archetype);

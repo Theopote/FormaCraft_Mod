@@ -1344,6 +1344,7 @@ public final class ComponentTool implements FormacraftTool {
             def.blocks.add(be);
         }
 
+        com.formacraft.common.component.semantic.ComponentSemanticInference.ensureSemanticFields(def);
         return JsonUtil.toJson(def);
     }
 

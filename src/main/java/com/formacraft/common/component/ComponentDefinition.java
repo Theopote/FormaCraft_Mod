@@ -21,6 +21,18 @@ public class ComponentDefinition {
 
     public List<String> tags;
 
+    /**
+     * 文化风格（可空，例如 CHINESE / GOTHIC / MODERN）。
+     * 用于 AI 检索与风格亲和度匹配；旧 JSON 无此字段时保持 null。
+     */
+    public String culturalStyle;
+
+    /**
+     * 指向 {@link com.formacraft.common.component.archetype.ComponentArchetype#id} 的引用（可空）。
+     * 未设置时默认与 {@link #id} 相同，由保存流程自动生成侧车原型。
+     */
+    public String archetypeRef;
+
     public Size size;
     public Anchor anchor;
     /** "NORTH"/"SOUTH"/"EAST"/"WEST" */

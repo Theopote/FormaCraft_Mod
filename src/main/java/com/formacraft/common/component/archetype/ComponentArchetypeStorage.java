@@ -2,6 +2,7 @@ package com.formacraft.common.component.archetype;
 
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.component.ComponentDefinition;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -145,6 +146,49 @@ public final class ComponentArchetypeStorage {
             return null;
         }
         return registry.get(id);
+    }
+
+    /**
+     * 解析构件关联的 Archetype：内存注册表 → 磁盘 → 分类默认 → 从构件定义生成。
+     */
+    public static ComponentArchetype resolve(ComponentDefinition component) {
+        if (component == null) {
+            return null;
+        }
+
+        String ref = component.archetypeRef;
+        if (ref == null || ref.isBlank()) {
+            ref = component.id;
+        }
+        if (ref == null || ref.isBlank()) {
+            return null;
+        }
+
+        ComponentArchetype archetype = get(ref);
+        if (archetype == null) {
+            archetype = loadArchetype(ref);
+        }
+        if (archetype == null) {
+            archetype = resolveCategoryDefault(component);
+        }
+        if (archetype == null) {
+            archetype = ComponentArchetypeBridge.fromDefinition(component);
+            if (archetype != null) {
+                register(archetype);
+            }
+        }
+        return archetype;
+    }
+
+    private static ComponentArchetype resolveCategoryDefault(ComponentDefinition component) {
+        if (component.category == null) {
+            return null;
+        }
+        return switch (component.category) {
+            case DOOR -> get("door.basic");
+            case WINDOW -> get("window.basic");
+            default -> null;
+        };
     }
 
     /**

@@ -296,12 +296,23 @@ public final class ComponentHealthChecker {
             result.add(HealthCheckResult.CheckItem.ok("H3-1", "构件语义明确"));
         }
         
-        // H3-2: 文化风格未识别（如果项目有 culturalStyle 字段）
-        // 注意：ComponentDefinition 可能没有 culturalStyle 字段，这里先跳过
-        // 如果将来添加了该字段，可以在这里检查
-        
-        // H3-3: Archetype 未识别（如果项目有 archetype 字段）
-        // 同样，如果将来添加了该字段，可以在这里检查
+        // H3-2: 文化风格未识别
+        if (def.culturalStyle == null || def.culturalStyle.isBlank()) {
+            result.add(HealthCheckResult.CheckItem.warn("H3-2", "文化风格未识别",
+                "构件未标注文化风格", "AI 风格匹配准确度下降，可能与其他风格构件混用",
+                HealthCheckResult.FixAction.AUTO, "将根据标签与材质自动推断"));
+        } else {
+            result.add(HealthCheckResult.CheckItem.ok("H3-2", "文化风格已标注"));
+        }
+
+        // H3-3: Archetype 引用缺失
+        if (def.archetypeRef == null || def.archetypeRef.isBlank()) {
+            result.add(HealthCheckResult.CheckItem.warn("H3-3", "原型引用缺失",
+                "构件未关联 ComponentArchetype", "变体规则与放置语义可能不完整",
+                HealthCheckResult.FixAction.AUTO, "将使用构件 id 作为 archetypeRef 并生成侧车"));
+        } else {
+            result.add(HealthCheckResult.CheckItem.ok("H3-3", "原型引用已设置"));
+        }
     }
     
     // ============ H4: AI 使用可靠性规则 ============

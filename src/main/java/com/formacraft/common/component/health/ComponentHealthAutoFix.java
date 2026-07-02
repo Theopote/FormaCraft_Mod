@@ -1,6 +1,8 @@
 package com.formacraft.common.component.health;
 
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.archetype.ComponentArchetypeBridge;
+import com.formacraft.common.component.semantic.ComponentSemanticInference;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,6 +77,19 @@ public final class ComponentHealthAutoFix {
             case "H2-2":
                 // 移动锚点到底部中心
                 fixAnchorPosition(def, report);
+                break;
+
+            case "H3-2":
+                def.culturalStyle = ComponentSemanticInference.inferCulturalStyle(def);
+                if (def.culturalStyle != null) {
+                    report.add("H3-2", "推断文化风格: " + def.culturalStyle);
+                }
+                break;
+
+            case "H3-3":
+                ComponentSemanticInference.ensureSemanticFields(def);
+                ComponentArchetypeBridge.sync(def);
+                report.add("H3-3", "设置 archetypeRef=" + def.archetypeRef);
                 break;
                 
             // 其他规则可以在这里添加

@@ -41,11 +41,8 @@ public final class VariantGenerator {
             return null;
         }
 
-        // 获取 Archetype（如果有）
-        ComponentArchetype archetype = null;
-        if (base.id != null) {
-            archetype = ComponentArchetypeStorage.get(base.id);
-        }
+        // 获取 Archetype（内存 / 磁盘 / 自动生成）
+        ComponentArchetype archetype = ComponentArchetypeStorage.resolve(base);
 
         // 创建变体规格
         ComponentVariantSpec spec;

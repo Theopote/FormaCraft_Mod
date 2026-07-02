@@ -1,5 +1,7 @@
 package com.formacraft.common.component.query;
 
+import com.formacraft.common.component.semantic.ComponentSemanticInference;
+
 import java.util.List;
 import java.util.Map;
 
@@ -245,8 +247,11 @@ public class ComponentMetadata {
             }
         }
 
-        // 风格亲和度（简化处理，从标签推断）
+        // 风格亲和度（优先 culturalStyle，其次从标签推断）
         metadata.styleAffinity = new java.util.HashMap<>();
+        if (!isBlank(component.culturalStyle)) {
+            ComponentSemanticInference.applyCulturalStyleAffinity(metadata.styleAffinity, component.culturalStyle);
+        }
         if (component.tags != null) {
             for (String tag : component.tags) {
                 String lower = tag.toLowerCase();
@@ -270,5 +275,9 @@ public class ComponentMetadata {
         }
 
         return metadata;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

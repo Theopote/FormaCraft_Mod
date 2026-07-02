@@ -52,6 +52,9 @@ public class FormacraftMod implements ModInitializer {
 		// 初始化 Component Group 系统（复合构件：tower/gatehouse/wall segment 等）
 		com.formacraft.common.init.ComponentGroupSystemInitializer.initialize();
 
+		// 初始化 Component 语义系统（默认 archetype 等）
+		com.formacraft.common.init.ComponentSystemInitializer.initialize();
+
 		// 初始化 BuildingMass 系统（建筑体量规则系统）
 		com.formacraft.common.init.BuildingMassSystemInitializer.initialize();
 
