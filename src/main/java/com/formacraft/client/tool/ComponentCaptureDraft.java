@@ -88,6 +88,8 @@ public class ComponentCaptureDraft {
         public boolean allowAirHost = false;
         public float planeOffset = 0.0f;
         public boolean confirmed = false;
+        /** 用户是否手动切换过附着模式（区别于分类自动填充） */
+        public boolean manualAttachment = false;
     }
 
     public static class AnchorDraft {
@@ -216,6 +218,7 @@ public class ComponentCaptureDraft {
         out.host.allowAirHost = this.host.allowAirHost;
         out.host.planeOffset = this.host.planeOffset;
         out.host.confirmed = this.host.confirmed;
+        out.host.manualAttachment = this.host.manualAttachment;
 
         out.anchor.worldPos = this.anchor.worldPos;
         out.anchor.localNormalized = this.anchor.localNormalized;
@@ -260,6 +263,7 @@ public class ComponentCaptureDraft {
         this.host.allowAirHost = tmp.host.allowAirHost;
         this.host.planeOffset = tmp.host.planeOffset;
         this.host.confirmed = tmp.host.confirmed;
+        this.host.manualAttachment = tmp.host.manualAttachment;
 
         this.anchor.worldPos = tmp.anchor.worldPos;
         this.anchor.localNormalized = tmp.anchor.localNormalized;

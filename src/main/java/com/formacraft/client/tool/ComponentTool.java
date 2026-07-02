@@ -18,10 +18,8 @@ import com.formacraft.common.component.semantic.SemanticBlockStatePicker;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.placement.AttachmentType;
-import com.formacraft.common.component.placement.ComponentPlacementSpec;
-import com.formacraft.common.component.placement.FacingPolicy;
-import com.formacraft.common.component.placement.PlacementConstraints;
-import com.formacraft.common.component.placement.SpatialContext;
+import com.formacraft.common.component.placement.ComponentPlacementAnalyzer;
+import com.formacraft.common.component.placement.PlacementCaptureContext;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.client.ui.panel.BuildConfirmPanel;
@@ -1266,28 +1264,13 @@ public final class ComponentTool implements FormacraftTool {
             def.anchorHint = hint;
         }
 
-        // v1.1：放置提示（用于语义→几何的桥接）
-        ComponentDefinition.PlacementHints placementHints = new ComponentDefinition.PlacementHints();
-        if (draft.host.attachment != null) {
-            placementHints.attachment = draft.host.attachment.name();
-        }
-        if (draft.orientation.hasBottomTop) {
-            placementHints.primaryAxis = "V";
-        } else if (draft.orientation.hasInteriorExterior) {
-            placementHints.primaryAxis = "W";
-        }
-        placementHints.needsHostFace = draft.host.attachment == AttachmentType.WALL_OPENING
-                || draft.host.attachment == AttachmentType.WALL_SURFACE;
-        def.placementHints = placementHints;
+        // v1.1：放置提示在几何分析后写入（见 blocks 扫描之后）
 
         def.allowed_facing = java.util.Set.of("NORTH", "SOUTH", "EAST", "WEST");
         def.placement_rules = new ComponentDefinition.PlacementRules();
         if (!sockets.isEmpty()) {
             def.sockets = new ArrayList<>(sockets);
         }
-        // v1：自动生成语义放置规格（Attachment / Context / FacingPolicy）
-        def.placementSpec = defaultPlacementSpec(def.category, def.tags);
-        applyPlacementOverrides(def.placementSpec, draft);
 
         ComponentDefinition.DirectionHints hints = buildDirectionHints(anchor, draft);
         if (hints != null) {
@@ -1344,6 +1327,9 @@ public final class ComponentTool implements FormacraftTool {
             def.blocks.add(be);
         }
 
+        def.placementSpec = ComponentPlacementAnalyzer.analyze(def, toPlacementContext(draft));
+        applyPlacementHints(def, draft);
+
         com.formacraft.common.component.semantic.ComponentSemanticInference.ensureSemanticFields(def);
         if (state.culturalStyleOverride != null && !state.culturalStyleOverride.isBlank()) {
             def.culturalStyle = state.culturalStyleOverride;
@@ -1356,24 +1342,40 @@ public final class ComponentTool implements FormacraftTool {
         return JsonUtil.toJson(def);
     }
 
-    private void applyPlacementOverrides(ComponentPlacementSpec spec, ComponentCaptureDraft draft) {
-        if (spec == null) return;
-
-        if (draft.host.attachment != null) {
-            spec.attachment = draft.host.attachment;
+    private static PlacementCaptureContext toPlacementContext(ComponentCaptureDraft draft) {
+        PlacementCaptureContext ctx = PlacementCaptureContext.createDefault();
+        if (draft == null) {
+            return ctx;
         }
-        spec.hasInteriorExterior = draft.orientation.hasInteriorExterior;
+        ctx.userAttachment = draft.host.attachment != null ? draft.host.attachment : AttachmentType.NONE;
+        ctx.userAttachmentManual = draft.host.manualAttachment || draft.host.confirmed;
+        ctx.hasInteriorExterior = draft.orientation.hasInteriorExterior;
+        ctx.hasBottomTop = draft.orientation.hasBottomTop;
+        ctx.hasInsideOutsideMarks = draft.orientation.insideMarkWorld != null && draft.orientation.outsideMarkWorld != null;
+        ctx.hasBottomTopMarks = draft.orientation.bottomMarkWorld != null && draft.orientation.topMarkWorld != null;
+        ctx.hasHostFace = draft.host.referenceBlock != null && draft.host.normal != null;
+        return ctx;
+    }
 
-        if (spec.hasInteriorExterior && spec.facingPolicy == FacingPolicy.NONE) {
-            switch (spec.attachment) {
-                case WALL_OPENING, WALL_SURFACE, ROOF_SURFACE, ROOF_EDGE, ROOF_RIDGE, EDGE, CORNER ->
-                        spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
-                default -> {
-                }
-            }
+    private static void applyPlacementHints(ComponentDefinition def, ComponentCaptureDraft draft) {
+        if (def == null || draft == null) {
+            return;
         }
-
-        spec.inferAllowedSockets();
+        ComponentDefinition.PlacementHints hints = new ComponentDefinition.PlacementHints();
+        if (def.placementSpec != null) {
+            hints.attachment = def.placementSpec.attachment.name();
+            hints.needsHostFace = def.placementSpec.attachment == AttachmentType.WALL_OPENING
+                    || def.placementSpec.attachment == AttachmentType.WALL_SURFACE
+                    || def.placementSpec.attachment == AttachmentType.ROOF_SURFACE;
+        } else if (draft.host.attachment != null) {
+            hints.attachment = draft.host.attachment.name();
+        }
+        if (draft.orientation.hasBottomTop || draft.orientation.bottomMarkWorld != null) {
+            hints.primaryAxis = "V";
+        } else if (draft.orientation.hasInteriorExterior || draft.orientation.insideMarkWorld != null) {
+            hints.primaryAxis = "W";
+        }
+        def.placementHints = hints;
     }
 
     private ComponentDefinition.DirectionHints buildDirectionHints(BlockPos anchor, ComponentCaptureDraft draft) {
@@ -1430,139 +1432,6 @@ public final class ComponentTool implements FormacraftTool {
         m.dy = pos.getY() - anchor.getY();
         m.dz = pos.getZ() - anchor.getZ();
         return m;
-    }
-
-    private static ComponentPlacementSpec defaultPlacementSpec(ComponentCategory category, java.util.List<String> tags) {
-        ComponentCategory c = (category != null) ? category : ComponentCategory.GENERIC;
-        ComponentPlacementSpec spec = new ComponentPlacementSpec();
-
-        // defaults
-        spec.attachment = AttachmentType.NONE;
-        spec.spatialContext = SpatialContext.ANY;
-        spec.facingPolicy = FacingPolicy.NONE;
-        spec.constraints = new PlacementConstraints();
-
-        switch (c) {
-            case DOOR -> {
-                spec.attachment = AttachmentType.WALL_OPENING;
-                spec.spatialContext = SpatialContext.ANY;
-                spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
-                spec.hasInteriorExterior = true;
-                spec.constraints.requiresAttachment = true;
-                spec.constraints.minAttachments = 1;
-                spec.constraints.maxAttachments = 1;
-                spec.semanticTags.add("entry");
-                spec.semanticTags.add("circulation");
-                spec.aiHint = "WALL_OPENING: derive facing from host wall; keep inside/outside semantics.";
-            }
-            case WINDOW -> {
-                spec.attachment = AttachmentType.WALL_OPENING;
-                spec.spatialContext = SpatialContext.ANY;
-                spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
-                spec.hasInteriorExterior = true;
-                spec.constraints.requiresAttachment = true;
-                spec.constraints.minAttachments = 1;
-                spec.constraints.maxAttachments = 1;
-                spec.semanticTags.add("light");
-                spec.semanticTags.add("ventilation");
-                spec.aiHint = "WALL_OPENING: derive facing from host wall.";
-            }
-            case COLUMN -> {
-                spec.attachment = AttachmentType.FLOOR;
-                spec.spatialContext = SpatialContext.ANY;
-                spec.facingPolicy = FacingPolicy.NONE;
-                spec.constraints.requiresSupportBelow = true;
-                spec.semanticTags.add("structure");
-                spec.semanticTags.add("support");
-                spec.aiHint = "Structural support: no facing; requires support below.";
-            }
-            case BRACKET -> {
-                // 斗拱：通常位于柱顶/梁下，面向不重要
-                spec.attachment = AttachmentType.NONE;
-                spec.spatialContext = SpatialContext.ANY;
-                spec.facingPolicy = FacingPolicy.NONE;
-                spec.constraints.requiresSupportBelow = true;
-                spec.semanticTags.add("structure");
-                spec.semanticTags.add("transition");
-                spec.aiHint = "Bracket: no facing; attach near structural joints.";
-            }
-            case ROOF_DETAIL -> {
-                spec.attachment = AttachmentType.ROOF_EDGE;
-                spec.spatialContext = SpatialContext.EXTERIOR;
-                spec.facingPolicy = FacingPolicy.ALONG_EDGE;
-                spec.constraints.requiresAttachment = true;
-                spec.constraints.requiresEdge = true;
-                spec.semanticTags.add("roof");
-                spec.semanticTags.add("detail");
-                spec.aiHint = "Roof detail: attach to roof edge; align along edge.";
-            }
-            case ORNAMENT -> {
-                spec.attachment = AttachmentType.WALL_SURFACE;
-                spec.spatialContext = SpatialContext.ANY;
-                spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
-                spec.constraints.requiresAttachment = true;
-                spec.semanticTags.add("ornament");
-                spec.aiHint = "Ornament: attach to surfaces; facing derived from host.";
-            }
-            case ARCH -> {
-                spec.attachment = AttachmentType.WALL_OPENING;
-                spec.spatialContext = SpatialContext.ANY;
-                spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
-                spec.constraints.requiresAttachment = true;
-                spec.semanticTags.add("arch");
-                spec.aiHint = "Arch: treat as opening; derive facing from host.";
-            }
-            case STAIRS -> {
-                spec.attachment = AttachmentType.FLOOR;
-                spec.spatialContext = SpatialContext.ANY;
-                spec.facingPolicy = FacingPolicy.USER_DEFINED;
-                spec.constraints.requiresAttachment = true;
-                spec.semanticTags.add("circulation");
-                spec.aiHint = "Stairs: direction may be user-defined; ensure continuity.";
-            }
-            case GENERIC -> spec.aiHint = "Generic component: placement is unconstrained unless tags imply otherwise.";
-        }
-
-        // tag hints（best-effort，避免引入新 UI）
-        if (tags != null) {
-            for (String t : tags) {
-                if (t == null) continue;
-                String u = t.trim().toLowerCase(Locale.ROOT);
-                if (u.contains("balcony") || u.contains("terrace") || u.contains("awning") || u.contains("canopy")) {
-                    spec.attachment = AttachmentType.WALL_SURFACE;
-                    spec.spatialContext = SpatialContext.EXTERIOR;
-                    spec.facingPolicy = FacingPolicy.OUTWARD_NORMAL;
-                    spec.constraints.requiresAttachment = true;
-                    spec.constraints.minAttachments = 1;
-                    spec.constraints.maxAttachments = 2;
-                    spec.constraints.forbidInterior = true;
-                    spec.semanticTags.add("outdoor");
-                }
-                if (u.contains("railing") || u.contains("guard") || u.contains("balustrade")) {
-                    spec.attachment = AttachmentType.EDGE;
-                    spec.facingPolicy = FacingPolicy.ALONG_EDGE;
-                    spec.constraints.requiresEdge = true;
-                    spec.constraints.prefersContinuity = true;
-                    spec.semanticTags.add("safety");
-                }
-                if (u.contains("chimney")) {
-                    spec.attachment = AttachmentType.ROOF_SURFACE;
-                    spec.spatialContext = SpatialContext.EXTERIOR;
-                    spec.facingPolicy = FacingPolicy.NONE;
-                    spec.constraints.requiresAttachment = true;
-                    spec.semanticTags.add("roof");
-                    spec.semanticTags.add("ornament");
-                }
-                if (u.contains("dormer")) {
-                    spec.attachment = AttachmentType.ROOF_SURFACE;
-                    spec.spatialContext = SpatialContext.EXTERIOR;
-                    spec.facingPolicy = FacingPolicy.DERIVED_FROM_HOST;
-                    spec.constraints.requiresAttachment = true;
-                    spec.semanticTags.add("roof");
-                }
-            }
-        }
-        return spec;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

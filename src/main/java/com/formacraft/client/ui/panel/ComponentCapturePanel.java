@@ -760,6 +760,8 @@ public class ComponentCapturePanel extends BasePanel {
             com.formacraft.common.component.placement.AttachmentType.values();
         int index = attachmentMode.ordinal();
         attachmentMode = values[(index + 1) % values.length];
+        var draft = ComponentTool.INSTANCE.getState().captureDraft;
+        draft.host.manualAttachment = true;
         syncPlacementHintsToState();
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换附着模式: {}", attachmentMode);
@@ -2008,6 +2010,8 @@ public class ComponentCapturePanel extends BasePanel {
      * 根据分类自动设置附着模式和方向性
      */
     private void applyCategoryDefaults(ComponentCategory category) {
+        var draft = ComponentTool.INSTANCE.getState().captureDraft;
+        draft.host.manualAttachment = false;
         switch (category) {
             case DOOR, WINDOW:
                 attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_OPENING;
@@ -3018,6 +3022,7 @@ public class ComponentCapturePanel extends BasePanel {
 
         draft.host.referenceBlock = base;
         draft.host.normal = normal;
+        draft.host.confirmed = true;
 
         BlockPos anchor = draft.anchor.allowOutsideSelection ? base.offset(normal) : base;
         if (!isAnchorLocationAllowed(anchor)) {
