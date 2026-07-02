@@ -3,12 +3,8 @@ package com.formacraft.server.skeleton.gen;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.server.skeleton.gen.util.GenMath;
-import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * CONTOUR_FOLLOW 生成器

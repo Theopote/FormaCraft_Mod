@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * Skeleton -> BlockPatch 的生成器接口
- * 
+ * <p>
  * 每个 SkeletonType 对应一个 Generator 实现，
  * 负责将 ExecutableSkeletonPlan 转换为 BlockPatch 列表。
  */

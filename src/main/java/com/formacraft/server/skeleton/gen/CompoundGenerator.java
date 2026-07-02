@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * COMPOUND 生成器：递归组合
- * 
+ * <p>
  * 递归调用子 skeleton 的 generator
  */
 public class CompoundGenerator implements ISkeletonGenerator {
@@ -24,7 +24,7 @@ public class CompoundGenerator implements ISkeletonGenerator {
     public List<BlockPatch> generate(GenerationContext ctx, ExecutableSkeletonPlan plan) {
         List<BlockPatch> patches = new ArrayList<>();
         for (ExecutableSkeletonPlan child : plan.children) {
-            if (child == null || child.type == null) continue;
+            if (child == null) continue;
             ISkeletonGenerator g = registry.get(child.type);
             List<BlockPatch> part = g.generate(ctx, child);
             for (BlockPatch patch : part) {
