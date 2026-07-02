@@ -7,13 +7,13 @@ import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthCoordinator;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthDrawer;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureOrientationController;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSelectionController;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticPreview;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureThumbnailService;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureWorldOverlay;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
-import com.formacraft.common.component.placement.ComponentPlacementAnalyzer;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.gui.Click;
@@ -115,6 +115,7 @@ public class ComponentCapturePanel extends BasePanel {
     private final ComponentCaptureThumbnailService thumbnailService = new ComponentCaptureThumbnailService();
     private final ComponentCaptureOrientationController orientationController = new ComponentCaptureOrientationController();
     private final ComponentCaptureHealthCoordinator healthCoordinator;
+    private final ComponentCaptureSemanticPreview semanticPreview = new ComponentCaptureSemanticPreview();
     private final ComponentCaptureWorldOverlay worldOverlay;
 
     // 滚动
@@ -128,20 +129,6 @@ public class ComponentCapturePanel extends BasePanel {
     // 阶段感知状态
     private CapturePhase currentPhase = CapturePhase.SELECTION;
     private boolean[] phaseCollapsed = new boolean[CapturePhase.getTotalPhases()]; // 默认都展开
-    
-    private static final String[] CULTURAL_STYLE_OPTIONS = {
-            null, "CHINESE", "JAPANESE", "GOTHIC", "MEDIEVAL", "MODERN", "EUROPEAN", "ISLAMIC", "INDUSTRIAL"
-    };
-    private static final String[] GEOMETRY_ARCHETYPE_OPTIONS = {
-            null, "FLAT_PANEL", "ARCH", "COLUMN", "FRAME", "ORNAMENT", "LINEAR", "VOLUME"
-    };
-    private String previewCulturalStyle;
-    private String previewGeometryArchetype;
-    private String previewArchetypeRef;
-    private String previewPlacementSummary;
-    private String previewPlacementHint;
-    private long lastSemanticPreviewMs = 0;
-    private static final long SEMANTIC_PREVIEW_DEBOUNCE_MS = 250;
     
     // 调试开关
     private static final boolean DEBUG_CAPTURE = false; // 设置为 true 启用调试日志
@@ -685,7 +672,7 @@ public class ComponentCapturePanel extends BasePanel {
                         用于：楼梯、梯子等有上下之分的构件""")))
                 .build();
 
-        culturalStyleButton = ButtonWidget.builder(Text.literal("文化风格: 自动"), b -> cycleCulturalStyle())
+        culturalStyleButton = ButtonWidget.builder(Text.literal("文化风格: 自动"), b -> semanticPreview.cycleCulturalStyle())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
                         文化风格（AI 检索用）
@@ -696,7 +683,7 @@ public class ComponentCapturePanel extends BasePanel {
                         影响 AI 选择构件时的风格匹配""")))
                 .build();
 
-        geometryArchetypeButton = ButtonWidget.builder(Text.literal("几何原型: 自动"), b -> cycleGeometryArchetype())
+        geometryArchetypeButton = ButtonWidget.builder(Text.literal("几何原型: 自动"), b -> semanticPreview.cycleGeometryArchetype())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
                         几何原型（形态族）
@@ -752,7 +739,7 @@ public class ComponentCapturePanel extends BasePanel {
         var draft = ComponentTool.INSTANCE.getState().captureDraft;
         draft.host.manualAttachment = true;
         syncPlacementHintsToState();
-        lastSemanticPreviewMs = 0;
+        semanticPreview.invalidate();
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换附着模式: {}", attachmentMode);
         }
@@ -763,7 +750,7 @@ public class ComponentCapturePanel extends BasePanel {
      */
     private void cycleDirectionality() {
         orientationController.cycleDirectionality();
-        lastSemanticPreviewMs = 0;
+        semanticPreview.invalidate();
         if (DEBUG_CAPTURE) {
             com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换方向性: {}",
                     orientationController.getDirectionalityMode().getDisplayName());
@@ -1126,44 +1113,25 @@ public class ComponentCapturePanel extends BasePanel {
             y += FIELD_SPACING;
 
             // AI 语义预览与覆盖
-            y = drawWrappedText(ctx, Text.literal("🤖 AI 语义（保存后供检索）"), x, y, w, 0xFFFFFFFF);
-            y += 2;
-            refreshSemanticPreviewIfNeeded();
-
-            int halfW = (w - 4) / 2;
-            culturalStyleButton.setMessage(Text.literal("文化风格: " + formatCulturalStyleLabel(st.culturalStyleOverride)));
-            culturalStyleButton.setPosition(x, y);
-            culturalStyleButton.setWidth(halfW);
-            culturalStyleButton.visible = true;
-            culturalStyleButton.active = true;
-            culturalStyleButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-            geometryArchetypeButton.setMessage(Text.literal("几何原型: " + formatGeometryArchetypeLabel(st.geometryArchetypeOverride)));
-            geometryArchetypeButton.setPosition(x + halfW + 4, y);
-            geometryArchetypeButton.setWidth(w - halfW - 4);
-            geometryArchetypeButton.visible = true;
-            geometryArchetypeButton.active = true;
-            geometryArchetypeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            String culturalPreview = previewCulturalStyle != null ? previewCulturalStyle : "（待推断）";
-            String geometryPreview = previewGeometryArchetype != null ? previewGeometryArchetype : "（待推断）";
-            String archetypePreview = previewArchetypeRef != null ? previewArchetypeRef : "（保存时生成）";
-            y = drawWrappedText(ctx, Text.literal("预览 → 风格: " + culturalPreview + "  |  形态: " + geometryPreview), x, y, w, 0xFF88CCFF);
-            y = drawWrappedText(ctx, Text.literal("原型引用: " + archetypePreview), x, y, w, 0xFFAAAAAA);
-
-            String placementSummary = previewPlacementSummary != null ? previewPlacementSummary : "（待分析）";
-            y = drawWrappedText(ctx, Text.literal("放置分析 → " + placementSummary), x, y, w, 0xFFAAFFAA);
-            if (previewPlacementHint != null && !previewPlacementHint.isBlank()) {
-                y = drawWrappedText(ctx, Text.literal(previewPlacementHint), x, y, w, 0xFF99BB99);
-            }
-            y += 4;
+            y = semanticPreview.renderSection(
+                    ctx,
+                    client,
+                    this::drawWrappedText,
+                    x,
+                    y,
+                    w,
+                    getScaledMouseX(),
+                    getScaledMouseY(),
+                    culturalStyleButton,
+                    geometryArchetypeButton
+            );
             
             // 附着模式和方向性（可调整）
             y = drawWrappedText(ctx, Text.literal("🔧 附着与方向性（可调整）"), x, y, w, 0xFFFFFFFF);
             y += 2;
             
             var draft = ComponentTool.INSTANCE.getState().captureDraft;
+            int halfW = (w - 4) / 2;
             boolean manualAttach = draft.host.manualAttachment || draft.host.confirmed;
             String attachLabel = manualAttach
                     ? "附着覆盖: " + getAttachmentModeDisplay()
@@ -1460,102 +1428,9 @@ public class ComponentCapturePanel extends BasePanel {
         
         // 分类驱动：根据分类自动设置附着模式和方向性
         applyCategoryDefaults(st.category);
-        lastSemanticPreviewMs = 0;
+        semanticPreview.invalidate();
     }
 
-    private void cycleCulturalStyle() {
-        var st = ComponentTool.INSTANCE.getState();
-        st.culturalStyleOverride = nextRingOption(CULTURAL_STYLE_OPTIONS, st.culturalStyleOverride);
-        lastSemanticPreviewMs = 0;
-    }
-
-    private void cycleGeometryArchetype() {
-        var st = ComponentTool.INSTANCE.getState();
-        st.geometryArchetypeOverride = nextRingOption(GEOMETRY_ARCHETYPE_OPTIONS, st.geometryArchetypeOverride);
-        lastSemanticPreviewMs = 0;
-    }
-
-    private static String nextRingOption(String[] options, String current) {
-        int idx = 0;
-        for (int i = 0; i < options.length; i++) {
-            if ((options[i] == null && (current == null || current.isBlank()))
-                    || (options[i] != null && options[i].equals(current))) {
-                idx = i;
-                break;
-            }
-        }
-        return options[(idx + 1) % options.length];
-    }
-
-    private static String formatCulturalStyleLabel(String value) {
-        if (value == null || value.isBlank()) {
-            return "自动";
-        }
-        return switch (value) {
-            case "CHINESE" -> "中式";
-            case "JAPANESE" -> "日式";
-            case "GOTHIC" -> "哥特";
-            case "MEDIEVAL" -> "中世纪";
-            case "MODERN" -> "现代";
-            case "EUROPEAN" -> "欧式";
-            case "ISLAMIC" -> "伊斯兰";
-            case "INDUSTRIAL" -> "工业";
-            default -> value;
-        };
-    }
-
-    private static String formatGeometryArchetypeLabel(String value) {
-        if (value == null || value.isBlank()) {
-            return "自动";
-        }
-        return switch (value) {
-            case "FLAT_PANEL" -> "平面板";
-            case "ARCH" -> "拱形";
-            case "COLUMN" -> "柱形";
-            case "FRAME" -> "框架";
-            case "ORNAMENT" -> "装饰件";
-            case "LINEAR" -> "线性";
-            case "VOLUME" -> "体块";
-            default -> value;
-        };
-    }
-
-    private void refreshSemanticPreviewIfNeeded() {
-        long now = System.currentTimeMillis();
-        if (now - lastSemanticPreviewMs < SEMANTIC_PREVIEW_DEBOUNCE_MS) {
-            return;
-        }
-        lastSemanticPreviewMs = now;
-
-        previewCulturalStyle = null;
-        previewGeometryArchetype = null;
-        previewArchetypeRef = null;
-        previewPlacementSummary = null;
-        previewPlacementHint = null;
-
-        if (client == null || client.world == null) {
-            return;
-        }
-        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client, ComponentTool.INSTANCE.getState().captureDraft);
-        if (json == null || json.isBlank()) {
-            return;
-        }
-        try {
-            ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
-            if (def == null) {
-                return;
-            }
-            previewCulturalStyle = def.culturalStyle;
-            previewGeometryArchetype = def.geometryArchetype;
-            previewArchetypeRef = def.archetypeRef;
-            if (def.placementSpec != null) {
-                previewPlacementSummary = ComponentPlacementAnalyzer.formatSummary(def.placementSpec);
-                previewPlacementHint = def.placementSpec.aiHint;
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-    
     /**
      * 根据分类自动设置附着模式和方向性
      */
@@ -1727,7 +1602,7 @@ public class ComponentCapturePanel extends BasePanel {
             return;
         }
 
-        ComponentDefinition def = null;
+        ComponentDefinition def;
         var saveOutcome = healthCoordinator.prepareForSave(client, json);
         if (saveOutcome.blocked()) {
             HudToast.show(saveOutcome.blockToast(), true);
@@ -1919,22 +1794,7 @@ public class ComponentCapturePanel extends BasePanel {
         };
         explanations.add("类型：" + categoryName);
 
-        refreshSemanticPreviewIfNeeded();
-        if (previewCulturalStyle != null && !previewCulturalStyle.isBlank()) {
-            explanations.add("文化风格：" + formatCulturalStyleLabel(previewCulturalStyle) + " (" + previewCulturalStyle + ")");
-        }
-        if (previewGeometryArchetype != null && !previewGeometryArchetype.isBlank()) {
-            explanations.add("几何原型：" + formatGeometryArchetypeLabel(previewGeometryArchetype) + " (" + previewGeometryArchetype + ")");
-        }
-        if (previewArchetypeRef != null && !previewArchetypeRef.isBlank()) {
-            explanations.add("原型引用：" + previewArchetypeRef);
-        }
-        if (previewPlacementSummary != null && !previewPlacementSummary.isBlank()) {
-            explanations.add("放置分析：" + previewPlacementSummary);
-        }
-        if (previewPlacementHint != null && !previewPlacementHint.isBlank()) {
-            explanations.add("放置提示：" + previewPlacementHint);
-        }
+        semanticPreview.appendToExplanations(explanations, client);
         
         // 使用场景
         String usage = switch (attachmentMode) {
