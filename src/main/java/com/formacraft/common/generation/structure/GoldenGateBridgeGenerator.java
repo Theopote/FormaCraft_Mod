@@ -43,7 +43,7 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
         String detail = getStringExtra(spec, "detailLevel", "aesthetic").toLowerCase();
         boolean refined = detail.contains("refined") || detail.contains("ornate");
 
-        Direction facing = parseFacing(getStringExtra(spec, "facing", "EAST"));
+        Direction facing = StructureSpecParsers.horizontalFacing(getStringExtra(spec, "facing", "EAST"), Direction.EAST);
 
         // Style-driven defaults (best-effort)
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
@@ -155,16 +155,6 @@ public class GoldenGateBridgeGenerator implements StructureGenerator {
                 span, deckWidth, towerH, facing.asString(), overall, shapeScore, ratioScore, signatureScore
         );
         return new GeneratedStructure(null, origin, desc, blocks);
-    }
-
-    private static Direction parseFacing(String s) {
-        String v = (s == null ? "" : s).trim().toUpperCase();
-        return switch (v) {
-            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-            default -> Direction.EAST;
-        };
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {

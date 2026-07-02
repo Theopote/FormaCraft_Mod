@@ -47,7 +47,7 @@ public class GreatWallGenerator implements StructureGenerator {
         boolean mixBlocks = getBoolExtra(spec, "mixWallBlocks");
         String paletteId = getStringExtra(spec, "paletteId", null);
 
-        Direction facing = parseFacing(getStringExtra(spec, "facing", "EAST"));
+        Direction facing = StructureSpecParsers.horizontalFacing(getStringExtra(spec, "facing", "EAST"), Direction.EAST);
 
         // Terrain adaptation (GreatWall): if explicitly requested, treat as DRAPE wall with smoothing + foundation.
         Map<String, Object> extra = spec != null ? spec.getExtra() : null;
@@ -139,16 +139,6 @@ public class GreatWallGenerator implements StructureGenerator {
                 length, height, thickness, facing.asString(), towerSpacing, overall, shapeScore, ratioScore, signatureScore
         );
         return new GeneratedStructure(null, origin, desc, blocks);
-    }
-
-    private static Direction parseFacing(String s) {
-        String v = (s == null ? "" : s).trim().toUpperCase();
-        return switch (v) {
-            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-            default -> Direction.EAST;
-        };
     }
 
     private static boolean getBoolExtra(BuildingSpec spec, String key) {

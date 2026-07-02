@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.style.profile.DetailPreferences;
@@ -463,28 +464,7 @@ public class BridgeGenerator implements StructureGenerator {
     }
 
     private static Direction resolveEntranceFacing(BuildingSpec spec) {
-        // Priority: extra.layout.entranceFacing > extra.facing > default SOUTH
-        try {
-            if (spec != null && spec.getExtra() != null) {
-                Object layoutObj = spec.getExtra().get("layout");
-                if (layoutObj instanceof Map<?, ?> m) {
-                    Object ef = m.get("entranceFacing");
-                    if (ef != null) {
-                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
-                        switch (s) {
-                            case "N", "NORTH", "北", "朝北" -> { return Direction.NORTH; }
-                            case "S", "SOUTH", "南", "朝南" -> { return Direction.SOUTH; }
-                            case "E", "EAST", "东", "朝东" -> { return Direction.EAST; }
-                            case "W", "WEST", "西", "朝西" -> { return Direction.WEST; }
-                            default -> {}
-                        }
-                    }
-                }
-                Object v = spec.getExtra().get("facing");
-                if (v != null) return parseFacing(String.valueOf(v));
-            }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
-        return Direction.SOUTH;
+        return StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
     }
 
     private static String resolveLayoutPlan(BuildingSpec spec) {
@@ -502,16 +482,6 @@ public class BridgeGenerator implements StructureGenerator {
             }
         } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return "none";
-    }
-
-    private static Direction parseFacing(String s) {
-        String v = (s == null ? "" : s).trim().toUpperCase(java.util.Locale.ROOT);
-        return switch (v) {
-            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-            default -> Direction.SOUTH;
-        };
     }
 
     // =============================================================================

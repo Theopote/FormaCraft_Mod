@@ -543,40 +543,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
         return StructureSpecParsers.extraInt(spec, key, def);
     }
 
-    private static String getStringExtra(BuildingSpec spec) {
-        if (spec == null) return "SOUTH";
-        Map<String, Object> extra = spec.getExtra();
-        if (extra == null) return "SOUTH";
-        Object v = extra.get("facing");
-        if (v == null) return "SOUTH";
-        String s = String.valueOf(v).trim();
-        return s.isEmpty() ? "SOUTH" : s;
-    }
-
-    private static Direction resolveGateSide(BuildingSpec spec) {
-        // Layout IR: extra.layout.entranceFacing overrides legacy extra.facing (best-effort).
-        try {
-            if (spec != null && spec.getExtra() != null) {
-                Object layoutObj = spec.getExtra().get("layout");
-                if (layoutObj instanceof Map<?, ?> m) {
-                    Object ef = m.get("entranceFacing");
-                    if (ef != null) {
-                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
-                        return switch (s) {
-                            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-                            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-                            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-                            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-                            default -> Direction.SOUTH;
-                        };
-                    }
-                }
-            }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
-        return parseFacing(getStringExtra(spec));
-    }
-
-    private static String resolveLayoutPlan(BuildingSpec spec) {
+    private static int getIntExtra(BuildingSpec spec, String key, int def) {
         try {
             if (spec != null && spec.getExtra() != null) {
                 Object layoutObj = spec.getExtra().get("layout");

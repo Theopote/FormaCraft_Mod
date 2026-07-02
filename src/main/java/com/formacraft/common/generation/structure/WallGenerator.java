@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.structure;
 
+import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
@@ -69,7 +70,7 @@ public class WallGenerator implements StructureGenerator {
         boolean allowLava = ta.allowLavaEdit();
 
         // Allow orientation: forward direction (defaults to SOUTH = +Z)
-        Direction forward = parseFacing(extra != null ? extra.get("facing") : null);
+        Direction forward = StructureSpecParsers.horizontalFacing(extra != null ? extra.get("facing") : null, Direction.SOUTH);
         Direction right = forward.rotateYClockwise();
 
         boolean battlements = getBool(extra);
@@ -245,17 +246,6 @@ public class WallGenerator implements StructureGenerator {
         String s = String.valueOf(v).trim().toLowerCase(java.util.Locale.ROOT);
         if (s.isEmpty()) return false;
         return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on");
-    }
-
-    private static Direction parseFacing(Object v) {
-        String s = v == null ? "" : String.valueOf(v).trim().toUpperCase(java.util.Locale.ROOT);
-        if (s.isEmpty()) return Direction.SOUTH;
-        return switch (s) {
-            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-            default -> Direction.SOUTH;
-        };
     }
 
     private static BlockState resolveWallBannerState(String color, Direction facing) {
