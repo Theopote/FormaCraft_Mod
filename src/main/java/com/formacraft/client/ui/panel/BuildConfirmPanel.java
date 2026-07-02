@@ -13,9 +13,6 @@ import com.formacraft.client.preview.PatchPreviewState;
 import com.formacraft.client.preview.PromptModeState;
 import com.formacraft.client.preview.PreviewModalState;
 import com.formacraft.client.preview.SkeletonPreviewState;
-import com.formacraft.client.patch.filter.ToolPatchFilter;
-import com.formacraft.client.buildcontext.BuildContextResolver;
-import com.formacraft.common.patch.filter.PatchFilterResult;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -166,30 +163,6 @@ public class BuildConfirmPanel {
         this.patchList = (accepted != null) ? new java.util.ArrayList<>(accepted) : new java.util.ArrayList<>();
         this.rejectedPatchList = (rejected != null) ? new java.util.ArrayList<>(rejected) : new java.util.ArrayList<>();
         this.patchWarnings = new java.util.ArrayList<>();
-
-        PatchPreviewState.setPreview(this.patchOrigin, this.patchList, this.rejectedPatchList);
-        PreviewModalState.lockPatch();
-    }
-
-    /** @deprecated 客户端本地生成预览已废弃，请走服务端 PreviewTicket 流程 */
-    @Deprecated
-    public void showPatchPreview(BlockPos origin, java.util.List<BlockPatch> patches) {
-        this.mode = Mode.PATCH;
-        this.spec = null;
-        this.buildId = UUID.randomUUID();
-        this.visible = true;
-
-        this.patchOrigin = origin != null ? origin : BlockPos.ORIGIN;
-        java.util.List<BlockPatch> raw = (patches != null) ? new java.util.ArrayList<>(patches) : new java.util.ArrayList<>();
-
-        // PatchFilter：只读 BuildContext（含主约束+禁区+restrictToSelection）
-        boolean restrict = PromptModeState.restrictToSelection();
-        var bc = BuildContextResolver.resolve(restrict);
-        if (bc != null) bc = bc.withOrigin(this.patchOrigin);
-        PatchFilterResult r = ToolPatchFilter.filter(bc, this.patchOrigin, raw);
-        this.patchList = new java.util.ArrayList<>(r.accepted);
-        this.rejectedPatchList = new java.util.ArrayList<>(r.rejected);
-        this.patchWarnings = new java.util.ArrayList<>(r.warnings);
 
         PatchPreviewState.setPreview(this.patchOrigin, this.patchList, this.rejectedPatchList);
         PreviewModalState.lockPatch();
