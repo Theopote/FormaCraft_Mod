@@ -1,5 +1,6 @@
 package com.formacraft.client.tool.placement;
 
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.component.placement.PlacementConstraints;
@@ -12,6 +13,8 @@ import net.minecraft.util.math.BlockPos;
  */
 public final class PlacementValidator {
     private PlacementValidator() {}
+
+    private static final FcaLog LOG = FcaLog.of("PlacementValidator");
 
     public static PlacementResult validate(ComponentPlacementSpec spec, PlacementContext ctx, MinecraftClient client) {
         if (spec == null || ctx == null) return PlacementResult.valid();
@@ -36,7 +39,9 @@ public final class PlacementValidator {
                         return PlacementResult.invalid("Avoid corners for openings");
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                LOG.debug("footprint edge check failed pos={}", ctx.targetPos, t);
+            }
         }
 
         // 2) 室内/室外
@@ -83,7 +88,8 @@ public final class PlacementValidator {
         if (client == null || client.world == null || pos == null) return false;
         try {
             return !client.world.getBlockState(pos.down()).isAir();
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("hasSupportBelow failed pos={}", pos, t);
             return false;
         }
     }

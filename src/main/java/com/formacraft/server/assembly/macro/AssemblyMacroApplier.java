@@ -1164,15 +1164,18 @@ public final class AssemblyMacroApplier {
                 } catch (Exception e) {
                     LOG.debug("parse roofCurvaturePower failed value={}", cpObj);
                 }
+            }
+            Object clObj = macro.get("roofCornerLift");
             if (clObj == null) clObj = macro.get("roof_corner_lift");
             if (clObj != null) {
                 try {
                     double cl = (clObj instanceof Number n) ? n.doubleValue() : Double.parseDouble(String.valueOf(clObj));
                     if (cl >= 0.0 && cl <= 2.0) roof.put("cornerLift", cl);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    LOG.debug("parse roofCornerLift failed value={}", clObj);
+                }
             }
 
-            Object clObj = macro.get("roofCornerLift");            
             comps.add(roof);
             issues.add(warn("$.macro.roofType", "W_MACRO_ROOF_ADD", "auto-added ROOF_COVER (roofType=" + rt + ")"));
         }
@@ -1192,7 +1195,9 @@ public final class AssemblyMacroApplier {
             else if (s.contains("FLAT") || s.contains("平")) t = 0.0;
             else if (s.contains("STEEP") || s.contains("陡")) t = 1.0;
             else {
-                try { t = Double.parseDouble(s); } catch (Exception ignored) {}
+                try { t = Double.parseDouble(s); } catch (Exception e) {
+                    LOG.debug("parse roof pitch failed value={}", s);
+                }
             }
         }
         if (Double.isNaN(t)) return null;
@@ -1247,7 +1252,9 @@ public final class AssemblyMacroApplier {
         else {
             String s = String.valueOf(ov).trim();
             if (s.isEmpty()) return;
-            try { o = Double.parseDouble(s); } catch (Exception ignored) {}
+            try { o = Double.parseDouble(s); } catch (Exception e) {
+                LOG.debug("parse roof overhang failed value={}", s);
+            }
         }
         if (Double.isNaN(o)) return;
         if (o < 0.0) o = 0.0;
@@ -1313,7 +1320,7 @@ public final class AssemblyMacroApplier {
             if (v instanceof Number n) return n.intValue();
             if (v != null) return Integer.parseInt(String.valueOf(v).trim());
         } catch (Exception e) {
-            LOG.debug("parse double failed value={} def={}", v, def);
+            LOG.debug("parse int failed value={} def={}", v, def);
         }
         return def;
     }
@@ -1322,7 +1329,8 @@ public final class AssemblyMacroApplier {
     private static Map<String, Object> safeMap(Map<?, ?> mm) {
         try {
             return (Map<String, Object>) mm;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOG.debug("safeMap cast failed", e);
             return null;
         }
     }
@@ -1331,7 +1339,9 @@ public final class AssemblyMacroApplier {
         try {
             if (v instanceof Number n) return n.intValue();
             if (v instanceof String s) return Integer.parseInt(s.trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("intOrNull failed value={}", v);
+        }
         return null;
     }
 

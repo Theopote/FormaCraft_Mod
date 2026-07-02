@@ -1,5 +1,6 @@
 package com.formacraft.client.tool;
 
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.client.MinecraftClient;
 
 import java.util.LinkedHashMap;
@@ -10,6 +11,8 @@ import java.util.Map;
  */
 public final class ToolManager {
     private ToolManager() {}
+
+    private static final FcaLog LOG = FcaLog.of("ToolManager");
 
     private static final Map<String, FormacraftTool> tools = new LinkedHashMap<>();
 
@@ -43,13 +46,17 @@ public final class ToolManager {
         if (next == activeTool) return;
 
         if (activeTool != null) {
-            try { activeTool.onDeactivate(); } catch (Throwable ignored) {}
+            try { activeTool.onDeactivate(); } catch (Throwable t) {
+                LOG.warn("tool onDeactivate failed toolId={}", activeTool.getId(), t);
+            }
         }
 
         activeTool = next;
 
         if (activeTool != null) {
-            try { activeTool.onActivate(); } catch (Throwable ignored) {}
+            try { activeTool.onActivate(); } catch (Throwable t) {
+                LOG.warn("tool onActivate failed toolId={}", activeTool.getId(), t);
+            }
         }
     }
 

@@ -4,6 +4,7 @@ import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentDefinitionCompiler;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.Mirror;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
@@ -18,6 +19,8 @@ import java.util.List;
  */
 public final class ComponentPatchPreviewBuilder {
     private ComponentPatchPreviewBuilder() {}
+
+    private static final FcaLog LOG = FcaLog.of("ComponentPatchPreviewBuilder");
 
     public static List<BlockPatch> fromComponentDefinition(
             ComponentDefinition def,
@@ -67,7 +70,8 @@ public final class ComponentPatchPreviewBuilder {
         if (raw == null || raw.isBlank()) return Mirror.NONE;
         try {
             return Mirror.valueOf(raw.trim().toUpperCase());
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("parse mirror failed value={}", raw, t);
             return Mirror.NONE;
         }
     }
@@ -77,7 +81,8 @@ public final class ComponentPatchPreviewBuilder {
         try {
             Direction d = Direction.valueOf(raw.trim().toUpperCase());
             return d.getAxis().isHorizontal() ? d : Direction.SOUTH;
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("parse facing failed value={}", raw, t);
             return Direction.SOUTH;
         }
     }

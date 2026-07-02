@@ -2,6 +2,7 @@ package com.formacraft.client.tool;
 
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.ui.input.InputRouter;
+import com.formacraft.common.logging.FcaLog;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.MinecraftClient;
@@ -23,6 +24,8 @@ import net.minecraft.world.World;
  */
 public final class BrushTool implements FormacraftTool {
     public static final BrushTool INSTANCE = new BrushTool();
+
+    private static final FcaLog LOG = FcaLog.of("BrushTool");
 
     private BrushTool() {}
 
@@ -160,8 +163,8 @@ public final class BrushTool implements FormacraftTool {
                     // （y 是由 topY 推出来的，本身不可能大于该列的 topY）
                     if (y < world.getBottomY()) continue;
                     hover.add(BlockPos.asLong(x, y, z));
-                } catch (Throwable ignored) {
-                    // 静默跳过（客户端世界/映射差异等）
+                } catch (Throwable t) {
+                    LOG.debug("brush topY sample failed x={} z={}", x, z, t);
                 }
             }
         }

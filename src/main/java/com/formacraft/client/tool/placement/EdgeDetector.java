@@ -1,5 +1,6 @@
 package com.formacraft.client.tool.placement;
 
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -13,6 +14,8 @@ import net.minecraft.world.World;
 public final class EdgeDetector {
     private EdgeDetector() {}
 
+    private static final FcaLog LOG = FcaLog.of("EdgeDetector");
+
     public static boolean isEdge(MinecraftClient client, BlockPos pos) {
         if (pos == null) return false;
         // 优先使用 OutlineFootprint（真实建筑边界）
@@ -20,7 +23,9 @@ public final class EdgeDetector {
             if (OutlineFootprintIndex.hasShape()) {
                 return OutlineFootprintIndex.isNearEdge(pos);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("footprint isNearEdge failed pos={}", pos, t);
+        }
         // fallback：空气邻居（简化）
         if (client == null || client.world == null) return false;
         World w = client.world;
@@ -38,7 +43,9 @@ public final class EdgeDetector {
             if (OutlineFootprintIndex.hasShape()) {
                 return OutlineFootprintIndex.isNearCorner(pos);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("footprint isNearCorner failed pos={}", pos, t);
+        }
         // fallback：空气邻居（简化）
         if (client == null || client.world == null) return false;
         World w = client.world;
@@ -61,7 +68,9 @@ public final class EdgeDetector {
                 Direction d = OutlineFootprintIndex.edgeTangentDirection(pos);
                 if (d != null && d.getAxis().isHorizontal()) return d;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("footprint edgeTangentDirection failed pos={}", pos, t);
+        }
         // fallback：空气邻居（简化）
         if (client == null || client.world == null) return Direction.SOUTH;
         World w = client.world;
@@ -73,4 +82,3 @@ public final class EdgeDetector {
         return outward.rotateYClockwise();
     }
 }
-

@@ -1,5 +1,6 @@
 package com.formacraft.client.tool.placement;
 
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -9,6 +10,8 @@ import net.minecraft.util.math.Direction;
  */
 public final class PlacementAnalyzer {
     private PlacementAnalyzer() {}
+
+    private static final FcaLog LOG = FcaLog.of("PlacementAnalyzer");
 
     public static PlacementContext analyze(MinecraftClient client, BlockPos hitPos, Direction hitFace) {
         PlacementContext ctx = new PlacementContext(hitPos, hitFace);
@@ -26,7 +29,9 @@ public final class PlacementAnalyzer {
         boolean hasFootprint = false;
         try {
             hasFootprint = OutlineFootprintIndex.hasShape();
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("OutlineFootprintIndex.hasShape failed", t);
+        }
 
         if (hasFootprint && ctx.isWall) {
             Boolean exterior = OutlineFootprintIndex.isWallFaceExterior(hitPos, hitFace);
@@ -52,7 +57,9 @@ public final class PlacementAnalyzer {
             Direction out = null;
             try {
                 out = OutlineFootprintIndex.inferWallOutwardNormal(hitPos, hitFace);
-            } catch (Throwable ignored) {}
+            } catch (Throwable t) {
+                LOG.debug("inferWallOutwardNormal failed pos={} face={}", hitPos, hitFace, t);
+            }
             ctx.outwardNormal = (out != null) ? out : hitFace;
         }
 
@@ -70,7 +77,8 @@ public final class PlacementAnalyzer {
         if (client == null || client.world == null || pos == null) return false;
         try {
             return client.world.isSkyVisible(pos.up());
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            LOG.debug("isSkyVisible failed pos={}", pos, t);
             return false;
         }
     }

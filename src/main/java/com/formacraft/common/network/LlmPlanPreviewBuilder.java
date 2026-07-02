@@ -3,6 +3,7 @@ package com.formacraft.common.network;
 import com.formacraft.FormacraftMod;
 import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.common.compiler.ComponentPlanCompiler;
+import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.parser.LlmPlanParser;
@@ -37,6 +38,8 @@ import net.minecraft.util.math.BlockPos;
  * Extracted LlmPlan preview pipeline for the building-spec flow.
  */
 public final class LlmPlanPreviewBuilder {
+
+    private static final FcaLog LOG = FcaLog.of("LlmPlanPreviewBuilder");
 
     private LlmPlanPreviewBuilder() {}
 
@@ -306,7 +309,9 @@ public final class LlmPlanPreviewBuilder {
                                 if (bid != null) {
                                     fillMaterial = net.minecraft.registry.Registries.BLOCK.get(bid).getDefaultState();
                                 }
-                            } catch (Exception ignored) {}
+                            } catch (Exception e) {
+                                LOG.debug("resolve fill material failed mat={}", mat, e);
+                            }
                         }
                     }
 
@@ -440,7 +445,9 @@ public final class LlmPlanPreviewBuilder {
                             if (bid != null) {
                                 fillMaterial = net.minecraft.registry.Registries.BLOCK.get(bid).getDefaultState();
                             }
-                        } catch (Exception ignored) {}
+                        } catch (Exception e) {
+                            LOG.debug("resolve floor fill material failed mat={}", mat, e);
+                        }
                     }
                 }
 

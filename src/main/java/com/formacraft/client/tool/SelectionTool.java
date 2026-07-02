@@ -1,6 +1,7 @@
 package com.formacraft.client.tool;
 
 import com.formacraft.client.interaction.CursorRaycastHelper;
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexRendering;
 import net.minecraft.text.Text;
@@ -26,6 +27,8 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class SelectionTool implements FormacraftTool {
     public static final SelectionTool INSTANCE = new SelectionTool();
+
+    private static final FcaLog LOG = FcaLog.of("SelectionTool");
 
     private SelectionTool() {}
 
@@ -340,7 +343,9 @@ public final class SelectionTool implements FormacraftTool {
                 // FOV越大（缩放时），阈值越小
                 fovMultiplier = 70.0 / fov; // 70是默认FOV
                 fovMultiplier = Math.max(0.3, Math.min(3.0, fovMultiplier)); // 限制范围
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                LOG.debug("read FOV for anchor hover failed", e);
+            }
         }
         
         // 遍历所有六个轴向面（WEST, EAST, DOWN, UP, NORTH, SOUTH）
@@ -438,7 +443,9 @@ public final class SelectionTool implements FormacraftTool {
         double fov = 70.0;
         try {
             fov = client.options.getFov().getValue();
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            LOG.debug("read FOV for mouse ray failed", t);
+        }
         
         double aspect = w / h;
         double tan = Math.tan(Math.toRadians(fov) / 2.0);

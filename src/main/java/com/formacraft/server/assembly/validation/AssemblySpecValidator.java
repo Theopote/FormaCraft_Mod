@@ -1,5 +1,6 @@
 package com.formacraft.server.assembly.validation;
 
+import com.formacraft.common.logging.FcaLog;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -22,6 +23,8 @@ import java.util.Set;
  */
 public final class AssemblySpecValidator {
     private AssemblySpecValidator() {}
+
+    private static final FcaLog LOG = FcaLog.of("AssemblySpecValidator");
 
     public static List<AssemblyValidationIssue> validate(Object assemblyObj) {
         List<AssemblyValidationIssue> out = new ArrayList<>();
@@ -873,7 +876,9 @@ public final class AssemblySpecValidator {
         try {
             if (v instanceof Number n) return n.doubleValue();
             if (v != null) return Double.parseDouble(String.valueOf(v).trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("doubleOrNull failed value={}", v);
+        }
         return null;
     }
 
@@ -1714,7 +1719,9 @@ public final class AssemblySpecValidator {
         try {
             if (v instanceof Number n) return n.intValue();
             if (v instanceof String s) return Integer.parseInt(s.trim());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            LOG.debug("intOrNull failed value={}", v);
+        }
         return null;
     }
 

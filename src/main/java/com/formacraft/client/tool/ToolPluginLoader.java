@@ -1,5 +1,6 @@
 package com.formacraft.client.tool;
 
+import com.formacraft.common.logging.FcaLog;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.util.List;
@@ -9,6 +10,8 @@ import java.util.List;
  */
 public final class ToolPluginLoader {
     private ToolPluginLoader() {}
+
+    private static final FcaLog LOG = FcaLog.of("ToolPluginLoader");
 
     private static boolean loaded = false;
 
@@ -23,13 +26,12 @@ public final class ToolPluginLoader {
                 if (ep == null) continue;
                 try {
                     ep.registerTools(registry);
-                } catch (Throwable ignored) {
+                } catch (Throwable t) {
+                    LOG.warn("tool entrypoint registerTools failed", t);
                 }
             }
-        } catch (Throwable ignored) {
-            // 在极端环境下（例如类加载早期）可能不可用；保持静默不影响游戏
+        } catch (Throwable t) {
+            LOG.warn("load formacraft_tools entrypoints failed", t);
         }
     }
 }
-
-
