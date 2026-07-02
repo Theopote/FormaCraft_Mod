@@ -8,6 +8,8 @@ import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
+import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
+import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics.FallbackReason;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.network.LlmPlanTerrainBounds.Bounds;
@@ -56,17 +58,17 @@ public final class LlmPlanPreviewBuilder {
             return false;
         }
 
+        LlmPlanRoutingMetrics.recordTaggedAttempt(player, req);
+
         if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(spec, req)) {
-            FormacraftMod.LOGGER.info(
-                    "BuildingSpecRoutingPolicy: skip LlmPlan preview, fall through to structure generator"
-            );
+            LlmPlanRoutingMetrics.recordFallback(FallbackReason.ROUTING_POLICY, player, req);
             return false;
         }
 
         try {
             String llmPlanJson = (String) spec.getExtra().get("llmPlanJson");
             if (llmPlanJson == null) {
-                // behave like the inlined version: fall back to non-LLM path
+                LlmPlanRoutingMetrics.recordFallback(FallbackReason.MISSING_LLM_PLAN_JSON, player, req);
                 return false;
             }
 
@@ -197,6 +199,12 @@ public final class LlmPlanPreviewBuilder {
             if (invalidBlockCount > 0) {
                 FormacraftMod.LOGGER.warn("LlmPlan: {} invalid blocks out of {} total patches", invalidBlockCount, patches.size());
             }
+
+            if (plannedBlocks.isEmpty()) {
+                LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+                return false;
+            }
+
             FormacraftMod.LOGGER.info("LlmPlan: converted {} patches to {} planned blocks (origin: {})",
                     patches.size(), plannedBlocks.size(), planOrigin);
 
@@ -488,15 +496,18 @@ public final class LlmPlanPreviewBuilder {
             // 也发送 BuildingSpec 给客户端（用于 UI 显示）
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));
 
+            LlmPlanRoutingMetrics.recordSuccess(player, req, patches.size(), plannedBlocks.size());
             return true;
         } catch (PlanParseException e) {
             FormacraftMod.LOGGER.error("Failed to parse LlmPlan from extra", e);
+            LlmPlanRoutingMetrics.recordError(player, req, "parse:" + e.getClass().getSimpleName());
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "Failed to parse LlmPlan: " + e.getMessage()
             ));
             return true;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to process LlmPlan", e);
+            LlmPlanRoutingMetrics.recordError(player, req, "process:" + e.getClass().getSimpleName());
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "Failed to process LlmPlan: " + e.getMessage()
             ));

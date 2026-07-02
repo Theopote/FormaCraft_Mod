@@ -45,6 +45,25 @@ LlmPlanPreviewBuilder   StructureGeneratorFactory
 
 实现：`com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy`
 
+### 指标日志（`LlmPlanRoutingMetrics`）
+
+前缀 **`[LlmPlanMetrics]`**，每条日志附带进程内累计快照。
+
+| event | 含义 |
+|-------|------|
+| `attempt` | `isLlmPlan=true`，进入 LlmPlan 分支 |
+| `success` | LlmPlan 预览成功 |
+| `error` | 解析/处理失败（已向玩家报错，**不算**整栋回退） |
+| `fallback` | 放弃 LlmPlan，原因见 `detail`（`ROUTING_POLICY` / `MISSING_LLM_PLAN_JSON` / `EMPTY_OUTPUT`） |
+| `structure_after_fallback` | 回退后实际执行整栋预览 |
+| `structure_direct` | 从未标记 LlmPlan，直接整栋预览 |
+
+**回退率** = `fallback / tagged`（见日志尾部 `fallback_rate=…%`）。
+
+```powershell
+Select-String "\[LlmPlanMetrics\]" logs/latest.log
+```
+
 ---
 
 ## 2. 基础类型对照（同名不同实现）
@@ -168,7 +187,7 @@ generator_selector_rules_v1.json
 
 ## 9. 下一步（可勾选）
 
-- [ ] 按用户场景统计 LlmPlan 预览成功率 vs BuildingSpec 回退率（日志指标）
+- [ ] 按用户场景统计 LlmPlan 预览成功率 vs BuildingSpec 回退率（见 `LlmPlanRoutingMetrics`，日志前缀 `[LlmPlanMetrics]`）
 - [ ] 对 §2「质量：中」项制定构件增强计划（不合并类）
 - [x] 四合院等场景：在 `BuildingSpecRoutingPolicy` 中显式化「强制 BuildingSpec」（替代仅注释）
 - [ ] 某 template 构件化达标后：从 selector / 默认路由降低命中，**而非**删除整栋生成器

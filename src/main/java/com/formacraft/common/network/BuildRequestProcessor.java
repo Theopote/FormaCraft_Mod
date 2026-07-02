@@ -4,6 +4,7 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.client.preview.OutlineBlock;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
+import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.server.build.BuildConstraintClipper;
@@ -446,6 +447,12 @@ public final class BuildRequestProcessor {
                                             BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);
                                             if (LlmPlanPreviewBuilder.tryBuildPreview(player, req, spec, origin, serverWorld, hbAlive)) {
                                                 return;
+                                            }
+
+                                            if (LlmPlanRoutingMetrics.isLlmPlanTagged(spec)) {
+                                                LlmPlanRoutingMetrics.recordStructureAfterFallback(player, req);
+                                            } else {
+                                                LlmPlanRoutingMetrics.recordDirectStructurePreview(player, req);
                                             }
 
                                             // 传统的 BuildingSpec 处理流程
