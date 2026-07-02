@@ -20,15 +20,21 @@ import java.util.List;
 
 /**
  * StructureGeneratorAdaptor（传统生成器适配器）
- * 
- * 将传统系统的 StructureGenerator 适配为新系统的 ComponentGenerator
- * 让新系统可以调用传统系统的完整功能
- * 
- * 使用场景：
- * - 当新系统的生成器功能不够完整时
- * - 当需要生成复杂建筑（如房屋、城堡等）时
- * - 当检测到特定建筑类型（如土楼、埃菲尔铁塔）时
+ * <p>
+ * 将 {@code server.generator.StructureGenerator} 适配为 {@code ComponentGenerator}，
+ * 供统一路由层在 Phase 2 中按需回退到整栋建筑生成器。
+ * <p>
+ * <b>Phase 0 决策：保留，暂不接入活跃路径。</b>
+ * {@link SmartGeneratorRouter} 已明确不回退到传统系统（避免整栋生成覆盖其他组件）。
+ * 本类在 Phase 2（构件层统一）时由 {@code UnifiedGeneratorRouter} 按需调用：
+ * 有专用 {@code ComponentGenerator} 则直接用，否则通过本适配器包装 {@code StructureGenerator}。
+ * <p>
+ * 当前状态：无调用方（死代码，但属于计划内基础设施，勿删）。
+ *
+ * @see SmartGeneratorRouter
+ * @see com.formacraft.server.generator.router.GeneratorRouter
  */
+@SuppressWarnings("unused")
 public class StructureGeneratorAdaptor implements ComponentGenerator {
 
     private final StructureGenerator delegate;
