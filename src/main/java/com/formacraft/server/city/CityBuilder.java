@@ -164,7 +164,9 @@ public class CityBuilder {
                         int skD = (sk != null) ? sk.depth : 0;
                         int skR = (sk != null) ? sk.radius : 0;
                         RuleBasedGeneratorSelector.apply(bs, cityStyle, role, skShape, skW, skD, skR);
-                    } catch (Throwable ex) { LOG.debug("resolve skeleton anchor failed", ex); }; if missing/invalid, fall back to skeleton node dimensions (J-layer).
+                    } catch (Throwable ex) { LOG.debug("apply generator selector failed", ex); }
+
+                    // Prefer explicit footprint; if missing/invalid, fall back to skeleton node dimensions (J-layer).
                     int w = (bs.getFootprint() != null && bs.getFootprint().getWidth() > 0) ? bs.getFootprint().getWidth() : 0;
                     int d = (bs.getFootprint() != null && bs.getFootprint().getDepth() > 0) ? bs.getFootprint().getDepth() : 0;
                     if ((w <= 0 || d <= 0) && skeletonNodeByZoneType != null && role != null) {
@@ -199,7 +201,7 @@ public class CityBuilder {
                             int sampleHalf = Math.max(10, Math.min(cfg.halfX, spacing));
                             areaForUnit = new AnchoredBuildArea(centerRel, cfg.halfX, cfg.halfZ, sampleHalf, sampleHalf);
                         }
-                    } catch (Throwable ex) { LOG.debug("apply generator selector failed", ex); }
+                    } catch (Throwable ex) { LOG.debug("resolve skeleton anchor failed", ex); }
 
                     List<Candidate> cands = CandidateGenerator.generate(u, areaForUnit, fields, world, origin, cfg);
                     candidatesById.put(id, cands);
