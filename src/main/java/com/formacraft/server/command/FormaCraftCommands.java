@@ -10,8 +10,8 @@ import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.city.CityBuilder;
+import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.generator.StructureGenerator;
-import com.formacraft.server.generator.StructureGeneratorFactory;
 import com.formacraft.server.generator.composite.CompositeStructureGenerator;
 import com.formacraft.server.orchestrator.OrchestratorClient;
 import com.formacraft.server.preview.OutlineGenerator;
@@ -287,7 +287,7 @@ public class FormaCraftCommands {
 
                                 // 生成新的结构
                                 BlockPos origin = player.getBlockPos();
-                                StructureGenerator generator = StructureGeneratorFactory.getGenerator(updated);
+                                StructureGenerator generator = GenerationHub.routeStructure(updated);
                                 GeneratedStructure gs = generator.generate(updated, origin, finalServerWorld);
 
                                 // 设置玩家 UUID
@@ -431,7 +431,7 @@ public class FormaCraftCommands {
                                 PlayerSpecRepository.setBuildingSpec(player, name, dataJson);
 
                                 // 生成结构
-                                StructureGenerator generator = StructureGeneratorFactory.getGenerator(spec);
+                                StructureGenerator generator = GenerationHub.routeStructure(spec);
                                 gs = generator.generate(spec, origin, serverWorld);
                             }
                             case null, default -> {

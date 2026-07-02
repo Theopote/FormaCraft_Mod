@@ -29,7 +29,8 @@
     { "id": "modern_office_campus", "keywords": ["modern_office_campus", "office_campus", "campus", "园区"], "generatorKey": "modern_office_campus" },
     { "id": "modern_bauhaus_rowhouse", "keywords": ["bauhaus_rowhouse", "bauhaus", "rowhouse", "townhouse", "terrace", "联排", "包豪斯"], "generatorKey": "modern_bauhaus_rowhouse" },
     { "id": "brutalist_megastructure", "keywords": ["brutalism_megastructure", "soviet_megastructure", "brutalism", "粗野", "巨构"], "generatorKey": "brutalist_megastructure" },
-    { "id": "parametric_deconstructivism", "keywords": ["deconstructivism", "parametric", "zaha", "gehry", "guggenheim", "解构", "参数化"], "generatorKey": "parametric_deconstructivism" }
+    { "id": "parametric_deconstructivism", "keywords": ["deconstructivism", "parametric", "zaha", "gehry", "guggenheim", "解构", "参数化"], "generatorKey": "parametric_deconstructivism" },
+    { "id": "birds_nest_stadium", "keywords": ["birds_nest_stadium", "birds_nest", "birds nest", "鸟巢", "鸟巢体育馆", "国家体育场", "national stadium"], "generatorKey": "birds_nest_stadium" }
   ],
   "buildingTypeFallback": [
     { "buildingType": "TOWER", "generatorKey": "tower" },

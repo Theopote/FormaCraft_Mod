@@ -12,8 +12,8 @@ import com.formacraft.common.model.build.BuildingType;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.build.GeneratedStructure;
+import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.generator.StructureGenerator;
-import com.formacraft.server.generator.StructureGeneratorFactory;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -52,7 +52,7 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
             return List.of();
         }
 
-        StructureGenerator generator = StructureGeneratorFactory.getGenerator(spec);
+        StructureGenerator generator = GenerationHub.routeStructure(spec);
         if (generator == null) {
             return List.of();
         }

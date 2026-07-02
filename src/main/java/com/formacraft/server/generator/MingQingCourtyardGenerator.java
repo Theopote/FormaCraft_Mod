@@ -8,6 +8,7 @@ import com.formacraft.common.skeleton.rect.RectEnclosurePlan;
 import com.formacraft.common.skeleton.transform.BlockTransform;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.skeleton.compound.CompoundInterpreter;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
 import com.formacraft.server.skeleton.path.PathPlanner;
@@ -262,7 +263,7 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
                     }
                     BuildReportContext.addFoundationExecution(fd.type(), analysis.range(), plannedPad, plannedClear, usedPad, usedClear, degradeSteps);
                 }
-                List<PlannedBlock> building = StructureGeneratorFactory.getGenerator(gbp.spec).generate(gbp.spec, origin2, wld).getBlocks();
+                List<PlannedBlock> building = GenerationHub.routeStructure(gbp.spec).generate(gbp.spec, origin2, wld).getBlocks();
                 if (pad.isEmpty()) return building;
                 List<PlannedBlock> merged = new java.util.ArrayList<>(pad.size() + building.size());
                 merged.addAll(pad);

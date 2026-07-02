@@ -11,7 +11,7 @@ import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.generator.BridgeGenerator;
 import com.formacraft.server.generator.StructureGenerator;
-import com.formacraft.server.generator.StructureGeneratorFactory;
+import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.generator.path.PathGenerator;
 import com.formacraft.server.terrain.TerrainAdaptationEngine;
 import com.formacraft.server.terrain.TerrainAdaptationMode;
@@ -364,7 +364,7 @@ public class CityBuilder {
                 }
 
                 // 获取对应的生成器
-                StructureGenerator generator = StructureGeneratorFactory.getGenerator(sp.getSpec());
+                StructureGenerator generator = GenerationHub.routeStructure(sp.getSpec());
 
                 // 计算建筑的绝对坐标
                 BlockPos buildingOrigin;

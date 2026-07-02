@@ -4,6 +4,7 @@ import com.formacraft.common.model.composite.CompositeSpec;
 import com.formacraft.common.model.path.PathSpec;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.generator.*;
 import com.formacraft.server.generator.path.PathGenerator;
 import net.minecraft.server.world.ServerWorld;
@@ -52,9 +53,9 @@ public class CompositeStructureGenerator {
                 continue;
             }
 
-            // IMPORTANT: 统一走 StructureGeneratorFactory，支持按 spec.extra 做地标/特殊结构路由（如土楼）
+            // IMPORTANT: 统一走 GenerationHub.routeStructure，支持按 spec.extra 做地标/特殊结构路由
             // registry 仅作为 legacy fallback（理论上不会走到）
-            StructureGenerator gen = StructureGeneratorFactory.getGenerator(sub.getSpec());
+            StructureGenerator gen = GenerationHub.routeStructure(sub.getSpec());
             if (gen == null) gen = registry.get(sub.getType().toUpperCase());
 
             // 计算子结构的绝对坐标

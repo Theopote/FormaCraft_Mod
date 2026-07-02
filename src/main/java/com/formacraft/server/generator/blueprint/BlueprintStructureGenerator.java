@@ -14,7 +14,7 @@ import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
 import com.formacraft.server.generator.StructureGenerator;
-import com.formacraft.server.generator.StructureGeneratorFactory;
+import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.skeleton.compound.CompoundInterpreter;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
 import com.formacraft.server.skeleton.path.PathRoadInterpreter;
@@ -106,7 +106,7 @@ public final class BlueprintStructureGenerator implements StructureGenerator {
             // 1) Delegate to concrete generators
             case GeneratorBackedPlan gbp -> {
                 if (gbp.spec == null) return List.of();
-                StructureGenerator g = StructureGeneratorFactory.getGenerator(gbp.spec);
+                StructureGenerator g = GenerationHub.routeStructure(gbp.spec);
                 GeneratedStructure out = g.generate(gbp.spec, origin, world);
                 return out != null ? out.getBlocks() : List.of();
             }

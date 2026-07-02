@@ -6,6 +6,7 @@ import com.formacraft.common.skeleton.compound.GeneratorBackedPlan;
 import com.formacraft.common.skeleton.grid.GridPlan;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.common.skeleton.path.PolylinePathPlan;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
 import com.formacraft.server.skeleton.grid.GridInterpreter;
@@ -222,7 +223,7 @@ public class OfficeDistrictGenerator implements StructureGenerator {
                 } else if (terrainPolicy == TerrainPolicy.FOLLOW) {
                     // no pad, no snap
                 }
-                List<PlannedBlock> building = StructureGeneratorFactory.getGenerator(gbp.spec).generate(gbp.spec, origin2, wld).getBlocks();
+                List<PlannedBlock> building = GenerationHub.routeStructure(gbp.spec).generate(gbp.spec, origin2, wld).getBlocks();
                 if (pad.isEmpty()) return building;
                 List<PlannedBlock> merged = new ArrayList<>(pad.size() + building.size());
                 merged.addAll(pad);

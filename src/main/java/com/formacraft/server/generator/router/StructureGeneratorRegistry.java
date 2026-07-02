@@ -60,9 +60,7 @@ public final class StructureGeneratorRegistry {
         register("modern_bauhaus_rowhouse", ModernBauhausRowhouseGenerator::new);
         register("brutalist_megastructure", BrutalistMegastructureGenerator::new);
         register("parametric_deconstructivism", ParametricDeconstructivismGenerator::new);
-
-        // archetypes_v1.json 已声明但尚未实现
-        // register("birds_nest_stadium", ...);
+        register("birds_nest_stadium", BirdsNestStadiumGenerator::new);
     }
 
     private StructureGeneratorRegistry() {}

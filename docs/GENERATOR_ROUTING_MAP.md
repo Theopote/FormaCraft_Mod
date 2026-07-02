@@ -177,7 +177,7 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 | `castle_compound` | `castle_compound` | 亦可通过 template 路由 |
 | `office_district` | `office_district` | 亦可通过 template 路由 |
 | `mingqing_courtyard` | `mingqing_courtyard` | **Phase 3 已修复** Factory 映射 |
-| `birds_nest_stadium` | — | **缺口**：JSON 有定义，无 Generator 实现 |
+| `birds_nest_stadium` | `birds_nest_stadium` | **Phase 4 已实现** |
 
 触发方式：
 - `extra.landmark` → `ArchetypeRegistry.matchByKeyword()` → Factory
@@ -247,16 +247,25 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 
 ---
 
-## 6. 已知缺口（Phase 1+ 待修）
+## 6. 已知缺口（后续待修）
 
-1. `ArchetypeGeneratorFactory` 缺少 `mingqing_courtyard`、`birds_nest_stadium` 映射
-2. `GeneratorRouter.routeByTemplate()` 30+ 硬编码 if，与 `ArchetypeRegistry` 重复
-3. `SmartGeneratorRouter` 与 `GeneratorRouter` 无统一 facade
-4. `common/generator` 与 `server/generator` 同名类 3 组，维护成本高
+1. `server/generator` 63 文件尚未物理迁移到 `common/generation/structure`
+2. `common/generator.GeneratorRegistry` 与 `StructureGeneratorRegistry` 命名并存（职责已分离）
+3. 构件/整栋同名类（`TowerGenerator` × 2）尚未合并
 
 ---
 
-## 7. 合并路线图（后续 Phase）
+## 7. GenerationHub（Phase 3 统一入口）
+
+| 方法 | 粒度 | 委托 |
+|------|------|------|
+| `GenerationHub.routeStructure(spec)` | 整栋 | `StructureGeneratorFactory` |
+| `GenerationHub.generateComponent(semantic, world)` | 构件 | `UnifiedGeneratorRouter` |
+| `GenerationHub.buildSkeleton(world, origin, plan, palette)` | 骨架 | `SkeletonExecutors` |
+
+---
+
+## 8. 合并路线图
 
 | Phase | 内容 | 风险 |
 |-------|------|------|
@@ -264,4 +273,4 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 | **1** ✅ | `ExecutableSkeletonPlan` 迁至 common、`SkeletonExecutor` 门面、`SkeletonPlanConverter` | 低 |
 | **2** ✅ | `UnifiedGeneratorRouter` + `StructureGeneratorAdaptor` 受控回退 | 中 |
 | **3** ✅ | 数据驱动整栋路由 + `GenerationHub` 统一入口 | 中 |
-| **4** | 物理迁移 `server/generator` → `common/generation/structure`（可选） | 高 |
+| **4** ✅ | `birds_nest_stadium` 实现 + 主路径接入 `GenerationHub` | 低 |
