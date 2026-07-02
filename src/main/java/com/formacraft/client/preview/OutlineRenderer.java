@@ -1,5 +1,6 @@
 package com.formacraft.client.preview;
 
+import com.formacraft.FormacraftMod;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
@@ -30,9 +31,10 @@ public class OutlineRenderer {
                 renderOutlines(context);
             });
         } catch (NoClassDefFoundError | Exception e) {
-            System.err.println("[FormaCraft] WorldRenderEvents not available, outline preview disabled.");
+            FormacraftMod.LOGGER.warn("[FormaCraft] WorldRenderEvents not available, outline preview disabled.");
         }
         */
-        System.out.println("[FormaCraft] Outline preview is temporarily disabled. Please update Fabric API to a version that supports WorldRenderEvents.");
+        FormacraftMod.LOGGER.debug(
+                "Outline preview is temporarily disabled; update Fabric API to a version that supports WorldRenderEvents.");
     }
 }

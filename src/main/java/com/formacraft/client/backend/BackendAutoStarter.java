@@ -6,8 +6,6 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -56,6 +54,15 @@ public final class BackendAutoStarter {
         }
     }
 
+    private static String stackTraceString(Throwable t) {
+        if (t == null) return "";
+        StringBuilder sb = new StringBuilder().append(t);
+        for (StackTraceElement frame : t.getStackTrace()) {
+            sb.append(System.lineSeparator()).append("\tat ").append(frame);
+        }
+        return sb.toString();
+    }
+
     private static void logErr(String msg, Throwable t) {
         if (t != null) {
             FormacraftMod.LOGGER.warn("[BackendAutoStarter] {}", msg, t);
@@ -69,9 +76,7 @@ public final class BackendAutoStarter {
             try (java.io.FileWriter fw = new java.io.FileWriter(logFile, true)) {
                 fw.write("[FormaCraft][BackendAutoStarter] " + msg);
                 if (t != null) {
-                    StringWriter sw = new StringWriter();
-                    t.printStackTrace(new PrintWriter(sw));
-                    fw.write(System.lineSeparator() + sw);
+                    fw.write(System.lineSeparator() + stackTraceString(t));
                 }
                 fw.write(System.lineSeparator());
             }

@@ -53,8 +53,6 @@ public final class ImageRenderer {
         
         if (srcWidth <= 0 || srcHeight <= 0) return;
         
-        int pixelsRendered = 0;
-        
         // 使用最近邻插值进行缩放
         for (int py = 0; py < height; py++) {
             int srcY = (int) ((py / (double) height) * srcHeight);
@@ -68,12 +66,9 @@ public final class ImageRenderer {
                 // 只绘制不透明的像素
                 if ((argb & 0xFF000000) != 0) {
                     ctx.fill(x + px, y + py, x + px + 1, y + py + 1, argb);
-                    pixelsRendered++;
                 }
             }
         }
-        
-        System.out.println("[ImageRenderer] renderScaled 完成: 渲染了 " + pixelsRendered + " 个像素");
     }
 
     /**

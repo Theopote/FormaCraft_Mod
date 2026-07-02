@@ -1,5 +1,6 @@
 package com.formacraft.client.ui.panel;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.config.SettingsConfig;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.gui.Click;
@@ -1548,10 +1549,9 @@ public class SettingsPanel extends BasePanel {
         final String finalUrl = computedUrl;
 
         // 记录关键信息到日志（避免 toast 过长看不清）
-        System.out.println("[FormaCraft][DetectModel] backend=" + base
-                + " provider=" + provider
-                + " base_url=" + llmBaseUrl
-                + " url=" + finalUrl);
+        FormacraftMod.LOGGER.debug(
+                "[DetectModel] backend={} provider={} base_url={} url={}",
+                base, provider, llmBaseUrl, finalUrl);
 
         CompletableFuture.supplyAsync(() -> {
             try {
