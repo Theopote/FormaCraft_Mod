@@ -44,6 +44,7 @@ public final class RuleBasedGeneratorSelector {
         if (spec == null) return false;
 
         boolean changed = false;
+        BuildingType typeAtEntry = spec.getType();
         String role = (semanticRoleUpper != null ? semanticRoleUpper : "").trim().toUpperCase(Locale.ROOT);
         String shape = (skeletonShapeUpper != null ? skeletonShapeUpper : "").trim().toUpperCase(Locale.ROOT);
         BuildingStyle style = (spec.getStyle() != null) ? spec.getStyle() : (cityStyle != null ? cityStyle : BuildingStyle.DEFAULT);
@@ -80,10 +81,12 @@ public final class RuleBasedGeneratorSelector {
         }
 
         // Default building type if missing
+        boolean typeInferredHere = false;
         if (spec.getType() == null) {
             BuildingType t = BuildingType.HOUSE;
             if (role.equals("CORE") && shape.equals("CIRCLE")) t = BuildingType.TOWER;
             spec.setType(t);
+            typeInferredHere = true;
             changed = true;
         }
 
@@ -140,11 +143,11 @@ public final class RuleBasedGeneratorSelector {
                     changed = true;
                 }
 
-                // building type override (only if missing or CUSTOM)
+                // building type override (only if missing, CUSTOM, or inferred default above)
                 if (t.buildingType != null && !t.buildingType.isBlank()) {
                     try {
                         BuildingType bt = BuildingType.valueOf(t.buildingType.trim().toUpperCase(Locale.ROOT));
-                        if (spec.getType() == null || spec.getType() == BuildingType.CUSTOM) {
+                        if (typeAtEntry == null || typeAtEntry == BuildingType.CUSTOM || typeInferredHere) {
                             spec.setType(bt);
                             changed = true;
                         }
