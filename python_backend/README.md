@@ -38,14 +38,15 @@ pip install -r requirements.lock
 
 ## 配置环境变量
 
-创建 `.env` 文件（可选）：
+复制示例配置并编辑：
 
-```env
-OPENAI_API_KEY=your-api-key-here
-OPENAI_MODEL=gpt-4o-mini
+```bash
+cp .env.example .env
 ```
 
-如果没有配置 `OPENAI_API_KEY`，系统会使用规则基础的回退方案。
+主要变量见 `.env.example`（`OPENAI_API_KEY`、`LLM_PROVIDER`、`LLM_BASE_URL` 等）。
+
+如果没有配置 API Key，系统会使用规则基础的回退方案。
 
 ## 运行服务
 

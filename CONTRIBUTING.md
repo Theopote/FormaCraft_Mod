@@ -2,6 +2,8 @@
 
 感谢你对 Formacraft 项目的兴趣！
 
+请先阅读 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。安全问题请遵循 [SECURITY.md](SECURITY.md)，不要通过公开 Issue 报告。
+
 ---
 
 ## 1. Project Goals (Read First)
@@ -283,26 +285,7 @@ PatchExecutor.apply(world, origin, patches);
 - ✅ **通过基本生成测试** - 至少测试一种建筑类型
 - ✅ **文档同步更新** - 如有架构变更，更新相关文档
 
-### PR 模板
-
-```markdown
-## 变更类型
-- [ ] 新功能
-- [ ] Bug 修复
-- [ ] 文档更新
-- [ ] 重构
-
-## 描述
-简要描述变更内容
-
-## 测试
-- [ ] 已测试基本功能
-- [ ] 已测试边界情况
-- [ ] 已测试 Undo/Redo
-
-## 相关 Issue
-Closes #xxx
-```
+提交 PR 时会自动加载 [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)，请按清单填写。
 
 ---
 

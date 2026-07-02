@@ -3,13 +3,14 @@
   "id": "formacraft",
   "version": "${version}",
   "name": "Formacraft",
-  "description": "A Minecraft mod for Formacraft",
+  "description": "Semantic architecture compiler for Minecraft — AI-assisted building via natural language and spatial tools.",
   "authors": [
-    "Your Name"
+    "Formacraft Contributors"
   ],
   "contact": {
-    "homepage": "https://your-website.com/",
-    "sources": "https://github.com/yourusername/formacraft"
+    "homepage": "https://github.com/formacraft/formacraft",
+    "sources": "https://github.com/formacraft/formacraft",
+    "issues": "https://github.com/formacraft/formacraft/issues"
   },
   "license": "CC0-1.0",
   "icon": "assets/formacraft/icon.png",

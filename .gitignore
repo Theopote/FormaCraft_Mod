@@ -39,3 +39,18 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# python
+
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.venv/
+venv/
+.env
+
+# local config (may contain API keys)
+
+config/formacraft_settings.json
