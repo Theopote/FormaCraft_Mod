@@ -4,7 +4,7 @@ import com.formacraft.common.compiler.postprocess.PostProcessContext;
 import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generator.GeneratorRegistry;
-import com.formacraft.common.generator.adaptor.SmartGeneratorRouter;
+import com.formacraft.common.generator.adaptor.UnifiedGeneratorRouter;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -154,11 +154,10 @@ public final class ComponentPlanCompiler {
                     genome
             );
 
-            // 使用智能路由：自动选择最适合的生成器
-            // 优先使用新系统，如果失败或不存在，自动回退到传统系统
+            // 统一路由：ComponentGenerator → 扩展器 → 受控 StructureGenerator 回退
             List<BlockPatch> patches;
             try {
-                patches = SmartGeneratorRouter.generate(semantic, world);
+                patches = UnifiedGeneratorRouter.generate(semantic, world);
                 if (!patches.isEmpty()) {
                     if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
                             && assemblyFacadeSlots.contains(slotKey)) {

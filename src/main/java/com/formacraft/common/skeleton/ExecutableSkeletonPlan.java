@@ -107,6 +107,59 @@ public class ExecutableSkeletonPlan {
         return this;
     }
 
+    /**
+     * 从 LLM component.params 或 feature JSON 解析可执行骨架计划。
+     */
+    @SuppressWarnings("unchecked")
+    public static ExecutableSkeletonPlan fromMap(Map<String, Object> map) {
+        if (map == null || map.isEmpty()) {
+            return null;
+        }
+        Object typeObj = map.get("type");
+        if (typeObj == null) {
+            typeObj = map.get("skeleton_type");
+        }
+        if (typeObj == null) {
+            return null;
+        }
+        SkeletonType type;
+        try {
+            type = SkeletonType.valueOf(String.valueOf(typeObj).trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+
+        ExecutableSkeletonPlan plan = new ExecutableSkeletonPlan(type);
+        Object nestedParams = map.get("params");
+        if (nestedParams instanceof Map<?, ?> pm) {
+            for (Map.Entry<?, ?> e : pm.entrySet()) {
+                if (e.getKey() != null) {
+                    plan.put(String.valueOf(e.getKey()), e.getValue());
+                }
+            }
+        }
+        for (Map.Entry<String, Object> e : map.entrySet()) {
+            String key = e.getKey();
+            if (key == null) continue;
+            if (key.equals("type") || key.equals("skeleton_type") || key.equals("params") || key.equals("children")) {
+                continue;
+            }
+            plan.put(key, e.getValue());
+        }
+        Object children = map.get("children");
+        if (children instanceof List<?> list) {
+            for (Object child : list) {
+                if (child instanceof Map<?, ?> cm) {
+                    ExecutableSkeletonPlan childPlan = fromMap((Map<String, Object>) cm);
+                    if (childPlan != null) {
+                        plan.addChild(childPlan);
+                    }
+                }
+            }
+        }
+        return plan.applyParams();
+    }
+
     private static int toInt(Object v, int def) {
         if (v instanceof Number n) return n.intValue();
         try {

@@ -8,7 +8,7 @@
 | 包路径 | 文件数 | 接口 | 注册表 / 门面 | 入口 | 状态 |
 |--------|--------|------|---------------|------|------|
 | `server/generator` | 63 | `StructureGenerator` | `GeneratorRouter` | `BuildRequestProcessor`, `CityBuilder`, commands | **活跃** |
-| `common/generator` | 23 | `ComponentGenerator` | `GeneratorRegistry` | `ComponentPlanCompiler` → `SmartGeneratorRouter` | **活跃** |
+| `common/generator` | 23 | `ComponentGenerator` | `GeneratorRegistry` | `ComponentPlanCompiler` → `UnifiedGeneratorRouter` | **活跃** |
 | `common/skeleton` | +4 | `SkeletonExecutor` | `SkeletonExecutors` | `PlanProgramCompiler` | **契约层（Phase 1）** |
 | `server/skeleton/gen` | 53 | `ISkeletonGenerator` | `SkeletonGeneratorRegistry` | `SkeletonBuildService`（实现 `SkeletonExecutor`） | **活跃** |
 | ~~`common/gen`~~ | ~~8~~ | — | — | — | **已删除（Phase 0）** |
@@ -32,7 +32,24 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 ## 1. Component Type → `common.generator`（LlmPlan 构件流）
 
 注册表：`com.formacraft.common.generator.GeneratorRegistry`  
-路由：`SmartGeneratorRouter.generate()` — **仅查此表，不回退到 server.generator**
+路由：`UnifiedGeneratorRouter.generate()` — 构件层统一门面（Phase 2）
+
+### 路由优先级
+
+| 优先级 | 条件 | 目标 |
+|--------|------|------|
+| 1 | `params.skeleton` 或 `skeleton:` feature | `SkeletonExecutors` → `SkeletonBuildService` |
+| 2 | `GeneratorRegistry` 有注册 | `ComponentGenerator` |
+| 3 | `group_request:` / `component_request:` feature | `PlayerComponentGroupExpander` / `PlayerComponentExpander` |
+| 4 | 显式整栋回退（见下）且上一步无结果 | `StructureGeneratorAdaptor` → `GeneratorRouter` |
+
+**整栋回退触发条件**（已注册组件返回空时不会自动回退）：
+- feature：`landmark:`、`structure_generator:`
+- params：`landmark`、`template`、`blueprint`、`assembly`、`useStructureGenerator=true`
+- `genome.archetype.confidence >= 0.85`
+- 未注册且类型为 `HOUSE` / `CASTLE` / `COMPOUND` / `LANDMARK` / `BUILDING`
+
+`SmartGeneratorRouter` 已弃用，委托至 `UnifiedGeneratorRouter`。
 
 | component_type | 实现类 | 备注 |
 |----------------|--------|------|
@@ -262,5 +279,5 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 |-------|------|------|
 | **0** ✅ | 删 `common/gen`、产出对照表、标记 adaptor | 低 |
 | **1** ✅ | `ExecutableSkeletonPlan` 迁至 common、`SkeletonExecutor` 门面、`SkeletonPlanConverter` | 低 |
-| **2** | `SmartGeneratorRouter` + `StructureGeneratorAdaptor` → 单一 facade | 中 |
+| **2** ✅ | `UnifiedGeneratorRouter` + `StructureGeneratorAdaptor` 受控回退 | 中 |
 | **3** | `server/generator` 归位 + `GeneratorRouter` 与 `GeneratorRegistry` 合并 | 高 |

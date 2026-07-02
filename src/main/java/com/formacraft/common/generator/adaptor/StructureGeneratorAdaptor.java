@@ -1,7 +1,10 @@
 package com.formacraft.common.generator.adaptor;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generator.ComponentGenerator;
+import com.formacraft.common.genome.BuildingGenome;
+import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.model.build.BuildingSpec;
@@ -11,82 +14,59 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.generator.StructureGenerator;
 import com.formacraft.server.generator.StructureGeneratorFactory;
-import com.formacraft.FormacraftMod;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
- * StructureGeneratorAdaptor（传统生成器适配器）
+ * 将 {@code server.generator.StructureGenerator} 适配为构件级 {@link BlockPatch} 输出。
  * <p>
- * 将 {@code server.generator.StructureGenerator} 适配为 {@code ComponentGenerator}，
- * 供统一路由层在 Phase 2 中按需回退到整栋建筑生成器。
- * <p>
- * <b>Phase 0 决策：保留，暂不接入活跃路径。</b>
- * {@link SmartGeneratorRouter} 已明确不回退到传统系统（避免整栋生成覆盖其他组件）。
- * 本类在 Phase 2（构件层统一）时由 {@code UnifiedGeneratorRouter} 按需调用：
- * 有专用 {@code ComponentGenerator} 则直接用，否则通过本适配器包装 {@code StructureGenerator}。
- * <p>
- * 当前状态：无调用方（死代码，但属于计划内基础设施，勿删）。
- *
- * @see SmartGeneratorRouter
- * @see com.formacraft.server.generator.router.GeneratorRouter
+ * Phase 2：由 {@link UnifiedGeneratorRouter} 在受控条件下调用（显式 landmark / 未注册整栋类型）。
  */
-@SuppressWarnings("unused")
 public class StructureGeneratorAdaptor implements ComponentGenerator {
 
     private final StructureGenerator delegate;
     private final BuildingType buildingType;
 
-    /**
-     * 创建适配器
-     * 
-     * @param delegate 传统系统的生成器
-     * @param buildingType 建筑类型（用于创建 BuildingSpec）
-     */
     public StructureGeneratorAdaptor(StructureGenerator delegate, BuildingType buildingType) {
         this.delegate = delegate;
         this.buildingType = buildingType;
     }
 
     /**
-     * 根据 componentType 自动创建适配器
-     * 
-     * @param componentType 组件类型（如 "MASS_MAIN", "TOWER", "HOUSE" 等）
-     * @return 适配器实例，如果无法创建则返回 null
+     * 受控回退入口：根据语义构件构建 {@link BuildingSpec} 并路由到整栋生成器。
      */
-    public static StructureGeneratorAdaptor createFor(String componentType) {
-        if (componentType == null) return null;
+    public static List<BlockPatch> tryGenerate(SemanticComponent semantic, ServerWorld world) {
+        if (semantic == null || world == null) {
+            return List.of();
+        }
 
-        String type = componentType.toUpperCase();
-        
-        // 映射 componentType 到 BuildingType
-        BuildingType buildingType = mapComponentTypeToBuildingType(type);
-        if (buildingType == null) return null;
+        BuildingSpec spec = buildSpecFromSemantic(semantic);
+        if (spec == null) {
+            return List.of();
+        }
 
-        // 创建 BuildingSpec（简化版，只设置必要的字段）
-        BuildingSpec spec = createBuildingSpec(buildingType);
-        
-        // 使用 StructureGeneratorFactory 获取生成器
         StructureGenerator generator = StructureGeneratorFactory.getGenerator(spec);
-        if (generator == null) return null;
+        if (generator == null) {
+            return List.of();
+        }
 
-        return new StructureGeneratorAdaptor(generator, buildingType);
+        StructureGeneratorAdaptor adaptor = new StructureGeneratorAdaptor(generator, spec.getType());
+        return adaptor.generate(semantic, world);
     }
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
-        // ComponentGenerator 接口没有提供 ServerWorld
-        // 这个方法不会被直接调用，应该使用 generate(SemanticComponent, ServerWorld)
         FormacraftMod.LOGGER.warn("StructureGeneratorAdaptor: generate() called without ServerWorld, returning empty list");
         return new ArrayList<>();
     }
 
-    /**
-     * 生成（需要 ServerWorld）
-     */
     public List<BlockPatch> generate(SemanticComponent semantic, ServerWorld world) {
         if (delegate == null || world == null) {
             return new ArrayList<>();
@@ -102,40 +82,30 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
             return new ArrayList<>();
         }
 
-        // 创建 BuildingSpec
-        BuildingSpec spec = createBuildingSpecFromComponent(c, slot, buildingType);
-        
-        // 计算世界坐标 anchor
-        BlockPos worldAnchor = new BlockPos(
-                slot.anchor().x(),
-                slot.anchor().y(),
-                slot.anchor().z()
-        );
+        BuildingSpec spec = buildSpecFromSemantic(semantic);
+        BlockPos worldAnchor = new BlockPos(slot.anchor().x(), slot.anchor().y(), slot.anchor().z());
 
         try {
-            // 调用传统生成器
             GeneratedStructure structure = delegate.generate(spec, worldAnchor, world);
             if (structure == null || structure.getBlocks() == null) {
                 return new ArrayList<>();
             }
 
-            // 转换为 BlockPatch（相对坐标）
             List<BlockPatch> patches = new ArrayList<>();
             for (var block : structure.getBlocks()) {
                 BlockPos worldPos = block.getPos();
                 BlockPos relativePos = worldPos.subtract(worldAnchor);
-                
-                // 获取方块 ID（使用新的 API）
-                String blockId = "minecraft:stone"; // 默认值
+
+                String blockId = "minecraft:stone";
                 try {
-                    var registryKeyOpt = net.minecraft.registry.Registries.BLOCK.getKey(block.getTargetState().getBlock());
+                    var registryKeyOpt = Registries.BLOCK.getKey(block.getTargetState().getBlock());
                     if (registryKeyOpt.isPresent()) {
                         blockId = registryKeyOpt.get().getValue().toString();
                     }
                 } catch (Exception e) {
                     FormacraftMod.LOGGER.warn("Failed to get block ID from BlockState", e);
                 }
-                
+
                 patches.add(new BlockPatch(
                         BlockPatch.PLACE,
                         relativePos.getX(),
@@ -145,8 +115,8 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
                 ));
             }
 
-            FormacraftMod.LOGGER.debug("StructureGeneratorAdaptor: generated {} patches from {}", 
-                    patches.size(), buildingType);
+            FormacraftMod.LOGGER.debug("StructureGeneratorAdaptor: generated {} patches (type={})",
+                    patches.size(), spec.getType());
             return patches;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("StructureGeneratorAdaptor: error generating structure", e);
@@ -154,62 +124,110 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
         }
     }
 
-    /**
-     * 映射 componentType 到 BuildingType
-     */
+    private static BuildingSpec buildSpecFromSemantic(SemanticComponent semantic) {
+        Component c = semantic.source();
+        Slot slot = semantic.slot();
+        if (c == null) {
+            return null;
+        }
+
+        String componentType = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
+        BuildingType type = mapComponentTypeToBuildingType(componentType);
+        BuildingSpec spec = createBuildingSpecFromComponent(c, slot, type);
+
+        if (semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
+            spec.getExtra().putIfAbsent("styleProfileId", semantic.styleProfile());
+        }
+
+        BuildingGenome genome = semantic.genome();
+        if (genome != null) {
+            spec.getExtra().put("genome", JsonUtil.toJson(genome));
+        }
+
+        applyRoutingHints(c, spec);
+        return spec;
+    }
+
+    private static void applyRoutingHints(Component c, BuildingSpec spec) {
+        Map<String, Object> extra = spec.getExtra();
+        if (extra == null) {
+            extra = new HashMap<>();
+            spec.setExtra(extra);
+        }
+
+        Map<String, Object> params = c.params();
+        if (params != null) {
+            copyIfPresent(params, extra, "landmark");
+            copyIfPresent(params, extra, "template");
+            copyIfPresent(params, extra, "blueprint");
+            copyIfPresent(params, extra, "assembly");
+            copyIfPresent(params, extra, "styleProfileId");
+        }
+
+        List<String> features = c.features();
+        if (features != null) {
+            for (String feature : features) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase(Locale.ROOT);
+                if (lower.startsWith("landmark:")) {
+                    extra.put("landmark", feature.substring("landmark:".length()).trim());
+                } else if (lower.startsWith("structure_generator:")) {
+                    String value = feature.substring("structure_generator:".length()).trim();
+                    if (!value.isEmpty()) {
+                        extra.put("landmark", value);
+                    } else {
+                        extra.put("useStructureGenerator", true);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void copyIfPresent(Map<String, Object> from, Map<String, Object> to, String key) {
+        if (from.containsKey(key)) {
+            to.put(key, from.get(key));
+        }
+    }
+
     private static BuildingType mapComponentTypeToBuildingType(String componentType) {
         return switch (componentType) {
-            case "TOWER" -> BuildingType.TOWER;
-            case "HOUSE", "MASS_MAIN", "MASS_SECONDARY" -> BuildingType.HOUSE;
-            case "WALL", "WALL_SEGMENT" -> BuildingType.WALL;
-            case "BRIDGE", "CONNECTOR" -> BuildingType.BRIDGE;
+            case "TOWER", "TOWER_BASE", "TOWER_MID", "TOWER_TOP" -> BuildingType.TOWER;
+            case "HOUSE", "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING" -> BuildingType.HOUSE;
+            case "WALL", "WALL_SEGMENT", "FENCE_OR_WALL" -> BuildingType.WALL;
+            case "BRIDGE", "CONNECTOR", "BRIDGE_CONNECTOR" -> BuildingType.BRIDGE;
             case "CASTLE", "KEEP" -> BuildingType.CASTLE;
             default -> BuildingType.CUSTOM;
         };
     }
 
-    /**
-     * 创建 BuildingSpec（简化版）
-     */
     private static BuildingSpec createBuildingSpec(BuildingType type) {
         BuildingSpec spec = new BuildingSpec();
         spec.setType(type);
         spec.setStyle(com.formacraft.common.model.build.BuildingStyle.DEFAULT);
         spec.setHeight(10);
         spec.setFloors(1);
-        
+
         Footprint footprint = new Footprint();
         footprint.setShape("rectangle");
         footprint.setWidth(10);
         footprint.setDepth(10);
         spec.setFootprint(footprint);
-        
+
         spec.setMaterials(new com.formacraft.common.model.build.Materials());
         spec.setFeatures(new com.formacraft.common.model.build.Features());
-        
+        spec.setExtra(new HashMap<>());
         return spec;
     }
 
-    /**
-     * 从 Component 创建 BuildingSpec
-     */
-    private static BuildingSpec createBuildingSpecFromComponent(
-            Component c, Slot slot, BuildingType type) {
+    private static BuildingSpec createBuildingSpecFromComponent(Component c, Slot slot, BuildingType type) {
         BuildingSpec spec = createBuildingSpec(type);
-        
-        // 设置尺寸
+
         if (c.dimensions() != null) {
             spec.setHeight(c.dimensions().height());
             spec.getFootprint().setWidth(c.dimensions().width());
             spec.getFootprint().setDepth(c.dimensions().depth());
         }
-        
-        // 设置风格
-        if (slot.program() != null) {
-            // 可以根据 program 设置风格
-        }
-        
+
         return spec;
     }
 }
-
