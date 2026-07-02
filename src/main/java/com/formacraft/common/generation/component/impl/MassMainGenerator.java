@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
@@ -123,7 +124,7 @@ public class MassMainGenerator implements ComponentGenerator {
         
         // 尺寸规范化：确保高度至少3米（3格）
         // 如果用户指定了具体高度，使用用户的要求
-        int userFloorHeight = getParamInt(params, 0, "floor_height", "floorHeight");
+        int userFloorHeight = ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight");
         if (userFloorHeight <= 0) {
             userFloorHeight = com.formacraft.common.generation.component.util.ProportionalFacadeCalculator
                     .extractFloorHeightFromFeatures(c.features());
@@ -862,26 +863,26 @@ public class MassMainGenerator implements ComponentGenerator {
 
         switch (pattern) {
             case CROSS -> {
-                size = getParamInt(params, 0, "arm_width", "cross_arm", "cross_arm_width", "armWidth", "crossArmWidth");
+                size = ComponentParamParsers.intParam(params, 0, "arm_width", "cross_arm", "cross_arm_width", "armWidth", "crossArmWidth");
                 if (size <= 0) {
                     size = Math.max(3, Math.min(width, depth) / 3);
                 }
             }
             case CUT_CORNERS -> {
-                size = getParamInt(params, 0, "corner_cut", "cornerCut", "cut_corner", "cutCorner", "cut_size");
+                size = ComponentParamParsers.intParam(params, 0, "corner_cut", "cornerCut", "cut_corner", "cutCorner", "cut_size");
                 if (size <= 0) {
                     size = Math.max(2, Math.min(width, depth) / 5);
                 }
             }
             case L_SHAPE -> {
-                size = getParamInt(params, 0, "l_cut", "lCut", "cut_size", "corner_cut", "cornerCut");
+                size = ComponentParamParsers.intParam(params, 0, "l_cut", "lCut", "cut_size", "corner_cut", "cornerCut");
                 if (size <= 0) {
                     size = Math.max(3, Math.min(width, depth) / 3);
                 }
                 corner = normalizeCorner(getParamString(params, "l_corner", "lCorner", "cut_corner", "cutCorner", "corner"));
             }
             case COURTYARD -> {
-                Double ratioValue = getParamDouble(params, "courtyard_ratio", "courtyardRatio",
+                Double ratioValue = ComponentParamParsers.doubleOrNull(params, "courtyard_ratio", "courtyardRatio",
                         "court_ratio", "void_ratio", "voidRatio");
                 if (ratioValue != null && ratioValue > 0.0) {
                     ratio = ratioValue;
@@ -1008,7 +1009,7 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     private int resolveCornerRadius(Map<String, Object> params, int width, int depth, FootprintShape shape) {
-        int radius = getParamInt(params, 0, "corner_radius", "cornerRadius");
+        int radius = ComponentParamParsers.intParam(params, 0, "corner_radius", "cornerRadius");
         if (radius <= 0 && shape == FootprintShape.ROUNDED_RECT) {
             radius = Math.max(1, Math.min(width, depth) / 6);
         }
@@ -1035,14 +1036,14 @@ public class MassMainGenerator implements ComponentGenerator {
             Map<String, Object> dims = asMap(m.get("dimensions"));
             if (dims == null) continue;
 
-            int mw = getParamInt(dims, width, "width");
-            int md = getParamInt(dims, depth, "depth");
-            int mh = getParamInt(dims, height, "height");
+            int mw = ComponentParamParsers.intParam(dims, width, "width");
+            int md = ComponentParamParsers.intParam(dims, depth, "depth");
+            int mh = ComponentParamParsers.intParam(dims, height, "height");
             if (mw <= 0 || md <= 0 || mh <= 0) continue;
 
-            int ox = offset != null ? getParamInt(offset, 0, "x") : 0;
-            int oy = offset != null ? getParamInt(offset, 0, "y") : 0;
-            int oz = offset != null ? getParamInt(offset, 0, "z") : 0;
+            int ox = offset != null ? ComponentParamParsers.intParam(offset, 0, "x") : 0;
+            int oy = offset != null ? ComponentParamParsers.intParam(offset, 0, "y") : 0;
+            int oz = offset != null ? ComponentParamParsers.intParam(offset, 0, "z") : 0;
 
             FootprintShape shape = baseShape;
             String massShape = getParamString(m, "shape");
@@ -1086,7 +1087,7 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     private Double resolveVoidRatio(Map<String, Object> params, SemanticComponent semantic) {
-        Double ratio = getParamDouble(params, "void_ratio", "voidRatio");
+        Double ratio = ComponentParamParsers.doubleOrNull(params, "void_ratio", "voidRatio");
         if (ratio != null) return clamp01(ratio);
         if (semantic != null && semantic.genome() != null && semantic.genome().structure != null) {
             Double v = semantic.genome().structure.voidRatio;
@@ -1096,13 +1097,13 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     private Double resolveWindowRatio(Map<String, Object> params, SemanticComponent semantic) {
-        Double ratio = getParamDouble(params, "window_ratio", "windowRatio");
+        Double ratio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
         if (ratio != null) return clamp01(ratio);
         return null;
     }
 
     private Double resolveSetbackRatio(Map<String, Object> params, SemanticComponent semantic) {
-        Double ratio = getParamDouble(params, "setback_ratio", "setbackRatio");
+        Double ratio = ComponentParamParsers.doubleOrNull(params, "setback_ratio", "setbackRatio");
         if (ratio != null) return clamp01(ratio);
         if (semantic != null && semantic.genome() != null && semantic.genome().form != null) {
             String progression = semantic.genome().form.progression;
@@ -1117,11 +1118,11 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     private int resolveWallThickness(Map<String, Object> params, SemanticComponent semantic) {
-        int override = getParamInt(params, -1, "wall_thickness", "wallThickness");
+        int override = ComponentParamParsers.intParam(params, -1, "wall_thickness", "wallThickness");
         if (override > 0) {
             return Math.min(4, override);
         }
-        Double massiveness = getParamDouble(params, "massiveness");
+        Double massiveness = ComponentParamParsers.doubleOrNull(params, "massiveness");
         if (massiveness == null && semantic != null && semantic.genome() != null
                 && semantic.genome().structure != null) {
             massiveness = semantic.genome().structure.massiveness;
@@ -1286,28 +1287,6 @@ public class MassMainGenerator implements ComponentGenerator {
         return 5;
     }
 
-    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
-        if (params == null || keys == null) return fallback;
-        for (String key : keys) {
-            if (key == null) continue;
-            Object v = params.get(key);
-            switch (v) {
-                case Number n -> {
-                    return n.intValue();
-                }
-                case String s -> {
-                    try {
-                        return Integer.parseInt(s.trim());
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                case null, default -> {
-                }
-            }
-        }
-        return fallback;
-    }
-
     private static boolean getParamBoolean(Map<String, Object> params, String... keys) {
         if (params == null || keys == null) return false;
         for (String key : keys) {
@@ -1327,28 +1306,6 @@ public class MassMainGenerator implements ComponentGenerator {
             }
         }
         return false;
-    }
-
-    private static Double getParamDouble(Map<String, Object> params, String... keys) {
-        if (params == null || keys == null) return null;
-        for (String key : keys) {
-            if (key == null) continue;
-            Object v = params.get(key);
-            switch (v) {
-                case Number n -> {
-                    return n.doubleValue();
-                }
-                case String s -> {
-                    try {
-                        return Double.parseDouble(s.trim());
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                case null, default -> {
-                }
-            }
-        }
-        return null;
     }
 
     private static String getParamString(Map<String, Object> params, String... keys) {

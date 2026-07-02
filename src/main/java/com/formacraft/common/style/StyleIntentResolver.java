@@ -1,5 +1,6 @@
 package com.formacraft.common.style;
 
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -74,7 +75,7 @@ public final class StyleIntentResolver {
                 }
             }
 
-            Double windowRatio = getParamDouble(params, "window_ratio", "windowRatio");
+            Double windowRatio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
             if (windowRatio == null) {
                 Double fallback = resolveWindowRatio(flavor);
                 if (fallback != null) {
@@ -83,7 +84,7 @@ public final class StyleIntentResolver {
                 }
             }
 
-            Integer wallThickness = getParamInt(params, "wall_thickness", "wallThickness");
+            Integer wallThickness = ComponentParamParsers.intOrNull(params, "wall_thickness", "wallThickness");
             if (wallThickness == null) {
                 Integer fallback = resolveWallThickness(flavor);
                 if (fallback != null) {
@@ -335,40 +336,6 @@ public final class StyleIntentResolver {
             String s = v.toString().trim();
             if (!s.isEmpty()) {
                 return s;
-            }
-        }
-        return null;
-    }
-
-    private static Double getParamDouble(Map<String, Object> params, String... keys) {
-        if (params == null || keys == null) return null;
-        for (String key : keys) {
-            Object v = params.get(key);
-            if (v instanceof Number num) {
-                return num.doubleValue();
-            }
-            if (v != null) {
-                try {
-                    return Double.parseDouble(v.toString());
-                } catch (NumberFormatException ignored) {
-                }
-            }
-        }
-        return null;
-    }
-
-    private static Integer getParamInt(Map<String, Object> params, String... keys) {
-        if (params == null || keys == null) return null;
-        for (String key : keys) {
-            Object v = params.get(key);
-            if (v instanceof Number num) {
-                return num.intValue();
-            }
-            if (v != null) {
-                try {
-                    return Integer.parseInt(v.toString());
-                } catch (NumberFormatException ignored) {
-                }
             }
         }
         return null;

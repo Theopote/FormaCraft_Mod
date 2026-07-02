@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
@@ -43,14 +44,14 @@ public class RoofGenerator implements ComponentGenerator {
         Palette palette = PaletteLibrary.forStyle(styleProfile);
 
         RoofType roofType = resolveRoofType(c, semantic, params);
-        int roofHeight = getParamInt(params, "roof_height", "roofHeight", "roofHeightBlocks");
+        int roofHeight = ComponentParamParsers.intParam(params, "roof_height", "roofHeight", "roofHeightBlocks");
         if (roofHeight <= 0) {
             int span = Math.max(2, Math.min(width, depth));
             roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
         }
         height = roofHeight;
 
-        int overhang = getParamInt(params, "overhang", "overhang_blocks", "eave_overhang");
+        int overhang = ComponentParamParsers.intParam(params, "overhang", "overhang_blocks", "eave_overhang");
         if (roofType == RoofType.XUANSHAN && overhang <= 0) {
             overhang = 2;
         } else if (roofType == RoofType.XIESHAN && overhang <= 0) {
@@ -462,28 +463,6 @@ public class RoofGenerator implements ComponentGenerator {
             if (!s.isEmpty()) return s;
         }
         return null;
-    }
-
-    private static int getParamInt(Map<String, Object> params, String... keys) {
-        if (params == null || keys == null) return 0;
-        for (String key : keys) {
-            if (key == null) continue;
-            Object v = params.get(key);
-            switch (v) {
-                case Number n -> {
-                    return n.intValue();
-                }
-                case String s -> {
-                    try {
-                        return Integer.parseInt(s.trim());
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                case null, default -> {
-                }
-            }
-        }
-        return 0;
     }
 
     private static boolean getParamBoolean(Map<String, Object> params, String... keys) {

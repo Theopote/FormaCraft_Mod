@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
@@ -47,11 +48,11 @@ public class EntranceGenerator implements ComponentGenerator {
         boolean hasDecorativeLintel = hasFeature(c, "decorative_lintel", "lintel", "carving", "ornament", "decorative");
         boolean hasArch = hasFeature(c, "arched", "arch", "archway");
 
-        int doorWidth = getParamInt(params, Math.max(2, width - 2), "door_width", "doorWidth");
-        int doorHeight = getParamInt(params, Math.max(2, height - 1), "door_height", "doorHeight");
+        int doorWidth = ComponentParamParsers.intParam(params, Math.max(2, width - 2), "door_width", "doorWidth");
+        int doorHeight = ComponentParamParsers.intParam(params, Math.max(2, height - 1), "door_height", "doorHeight");
         doorWidth = Math.max(1, Math.min(doorWidth, Math.max(1, width - 1)));
         doorHeight = Math.max(2, Math.min(doorHeight, height));
-        int canopyDepth = getParamInt(params, 0, "canopy_depth", "canopyDepth");
+        int canopyDepth = ComponentParamParsers.intParam(params, 0, "canopy_depth", "canopyDepth");
         if (canopyDepth > 0) {
             hasOverhang = true;
         }
@@ -300,28 +301,6 @@ public class EntranceGenerator implements ComponentGenerator {
             case WEST -> x >= width - Math.min(canopyDepth, width);
             case SOUTH -> z < Math.min(canopyDepth, depth);
         };
-    }
-
-    private static int getParamInt(Map<String, Object> params, int fallback, String... keys) {
-        if (params == null || keys == null) return fallback;
-        for (String key : keys) {
-            if (key == null) continue;
-            Object v = params.get(key);
-            switch (v) {
-                case Number n -> {
-                    return n.intValue();
-                }
-                case String s -> {
-                    try {
-                        return Integer.parseInt(s.trim());
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                case null, default -> {
-                }
-            }
-        }
-        return fallback;
     }
 }
 

@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
@@ -47,7 +48,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         boolean isLattice = hasFeature(c, "lattice", "lattice_pattern") || hasLatticeStyle(semantic);
         boolean isLarge = hasFeature(c, "large", "big", "wide");
         boolean wrapFacade = hasFeature(c, "wrap", "all_sides", "around", "perimeter");
-        Double windowRatio = getParamDouble(params, "window_ratio", "windowRatio");
+        Double windowRatio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
         String rhythm = getParamString(params, "rhythm");
         if (rhythm == null && semantic.genome() != null && semantic.genome().form != null) {
             rhythm = semantic.genome().form.rhythm;
@@ -56,8 +57,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         if (windowStyle == null && isLattice) {
             windowStyle = "lattice";
         }
-        int floorHeight = getParamInt(params, "floor_height", "floorHeight");
-        int floorCount = getParamInt(params, "floor_count", "floorCount");
+        int floorHeight = ComponentParamParsers.intParam(params, "floor_height", "floorHeight");
+        int floorCount = ComponentParamParsers.intParam(params, "floor_count", "floorCount");
         if (floorHeight <= 0 && floorCount > 0) {
             floorHeight = Math.max(3, height / floorCount);
         }
@@ -358,50 +359,6 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         h ^= (h >>> 11);
         h *= 1103515245;
         return h;
-    }
-
-    private static int getParamInt(Map<String, Object> params, String... keys) {
-        if (params == null || keys == null) return 0;
-        for (String key : keys) {
-            if (key == null) continue;
-            Object v = params.get(key);
-            switch (v) {
-                case Number n -> {
-                    return n.intValue();
-                }
-                case String s -> {
-                    try {
-                        return Integer.parseInt(s.trim());
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                case null, default -> {
-                }
-            }
-        }
-        return 0;
-    }
-
-    private static Double getParamDouble(Map<String, Object> params, String... keys) {
-        if (params == null || keys == null) return null;
-        for (String key : keys) {
-            if (key == null) continue;
-            Object v = params.get(key);
-            switch (v) {
-                case Number n -> {
-                    return n.doubleValue();
-                }
-                case String s -> {
-                    try {
-                        return Double.parseDouble(s.trim());
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                case null, default -> {
-                }
-            }
-        }
-        return null;
     }
 
     private static String getParamString(Map<String, Object> params, String... keys) {

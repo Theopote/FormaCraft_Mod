@@ -1,5 +1,6 @@
 package com.formacraft.common.compiler;
 
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.postprocess.PostProcessContext;
 import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
@@ -394,7 +395,7 @@ public final class ComponentPlanCompiler {
         if (base.params() != null) {
             params.putAll(base.params());
         }
-        Double ratio = getParamDouble(params, "window_ratio", "windowRatio");
+        Double ratio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
         if (ratio == null) {
             params.put("window_ratio", 0.25);
         }
@@ -826,7 +827,7 @@ public final class ComponentPlanCompiler {
         if (!style.isEmpty()) {
             macro.put("style", style);
         }
-        Double windowRatio = getParamDouble(c.params(), "window_ratio", "windowRatio");
+        Double windowRatio = ComponentParamParsers.doubleOrNull(c.params(), "window_ratio", "windowRatio");
         if (windowRatio != null) {
             macro.put("openness", clamp01(windowRatio));
         }
@@ -931,7 +932,7 @@ public final class ComponentPlanCompiler {
         style.put("verticality", verticality);
 
         double density = 0.55;
-        Double windowRatio = getParamDouble(semantic.source().params(), "window_ratio", "windowRatio");
+        Double windowRatio = ComponentParamParsers.doubleOrNull(semantic.source().params(), "window_ratio", "windowRatio");
         if (windowRatio != null) {
             density = clamp01(0.3 + windowRatio * 0.8);
             style.put("transparency", clamp01(windowRatio));
@@ -1148,8 +1149,8 @@ public final class ComponentPlanCompiler {
     ) {
         Component c = semantic != null ? semantic.source() : null;
         Map<String, Object> params = c != null ? c.params() : null;
-        int doorW = getParamInt(params, "door_width", "doorWidth");
-        int doorH = getParamInt(params, "door_height", "doorHeight");
+        int doorW = ComponentParamParsers.intParam(params, "door_width", "doorWidth");
+        int doorH = ComponentParamParsers.intParam(params, "door_height", "doorHeight");
         if (doorW <= 0) {
             doorW = Math.max(2, Math.min(5, width / 4));
         }
@@ -1201,50 +1202,6 @@ public final class ComponentPlanCompiler {
             String s = String.valueOf(v).trim();
             if (!s.isEmpty()) {
                 return s;
-            }
-        }
-        return null;
-    }
-
-    private static int getParamInt(Map<String, Object> params, String... keys) {
-        if (params == null || keys == null) return 0;
-        for (String key : keys) {
-            if (key == null) continue;
-            Object v = params.get(key);
-            switch (v) {
-                case Number n -> {
-                    return n.intValue();
-                }
-                case String s -> {
-                    try {
-                        return Integer.parseInt(s.trim());
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                case null, default -> {
-                }
-            }
-        }
-        return 0;
-    }
-
-    private static Double getParamDouble(Map<String, Object> params, String... keys) {
-        if (params == null || keys == null) return null;
-        for (String key : keys) {
-            if (key == null) continue;
-            Object v = params.get(key);
-            switch (v) {
-                case Number n -> {
-                    return n.doubleValue();
-                }
-                case String s -> {
-                    try {
-                        return Double.parseDouble(s.trim());
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                case null, default -> {
-                }
             }
         }
         return null;

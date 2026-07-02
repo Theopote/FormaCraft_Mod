@@ -1,5 +1,6 @@
 package com.formacraft.common.patch;
 
+import com.formacraft.common.logging.FcaLog;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -22,6 +23,8 @@ import java.util.Optional;
  * - remove：setBlockState(AIR)
  */
 public final class PatchExecutor {
+    private static final FcaLog LOG = FcaLog.of("PatchExecutor");
+
     private PatchExecutor() {}
 
     public static void apply(ServerWorld world, BlockPos origin, List<BlockPatch> patches) {
@@ -90,7 +93,8 @@ public final class PatchExecutor {
             }
 
             return state;
-        } catch (Throwable ignored) {
+        } catch (Throwable ex) {
+            LOG.debug("resolve block state failed blockId={}", id, ex);
             return Blocks.AIR.getDefaultState();
         }
     }
