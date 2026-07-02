@@ -46,4 +46,23 @@ public final class AssemblyValueParser {
         if (v < min) return min;
         return Math.min(v, max);
     }
+
+    public static boolean isAuto(Object v) {
+        if (v == null) return false;
+        String s = String.valueOf(v).trim().toUpperCase(Locale.ROOT);
+        return s.equals("AUTO") || s.equals("A") || s.equals("AUTOMATIC");
+    }
+
+    public static Integer asInt(Object v) {
+        try {
+            if (v instanceof Number n) return n.intValue();
+            if (v == null) return null;
+            String s = String.valueOf(v).trim();
+            if (s.isEmpty()) return null;
+            if (!s.matches("[-+]?\\d+")) return null;
+            return Integer.parseInt(s);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
 }

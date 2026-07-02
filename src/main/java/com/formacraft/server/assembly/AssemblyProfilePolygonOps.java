@@ -129,5 +129,18 @@ public final class AssemblyProfilePolygonOps {
         }
         return false;
     }
+
+    // Ray casting point-in-polygon test (x/z plane).
+    public static boolean pointInPolyXZ(int x, int z, List<int[]> poly) {
+        boolean inside = false;
+        for (int i = 0, j = poly.size() - 1; i < poly.size(); j = i++) {
+            int xi = poly.get(i)[0], zi = poly.get(i)[1];
+            int xj = poly.get(j)[0], zj = poly.get(j)[1];
+            boolean intersect = ((zi > z) != (zj > z))
+                    && (x < (long) (xj - xi) * (z - zi) / (long) (zj - zi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
 }
 

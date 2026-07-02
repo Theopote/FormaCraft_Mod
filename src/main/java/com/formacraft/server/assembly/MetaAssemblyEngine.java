@@ -3137,23 +3137,11 @@ public final class MetaAssemblyEngine {
     }
 
     private static boolean isAuto(Object v) {
-        if (v == null) return false;
-        String s = String.valueOf(v).trim().toUpperCase(Locale.ROOT);
-        return s.equals("AUTO") || s.equals("A") || s.equals("AUTOMATIC");
+        return AssemblyValueParser.isAuto(v);
     }
 
     private static Integer asInt(Object v) {
-        try {
-            if (v instanceof Number n) return n.intValue();
-            if (v == null) return null;
-            String s = String.valueOf(v).trim();
-            if (s.isEmpty()) return null;
-            // Don't parse non-numeric like "AUTO"
-            if (!s.matches("[-+]?\\d+")) return null;
-            return Integer.parseInt(s);
-        } catch (Exception ignored) {
-            return null;
-        }
+        return AssemblyValueParser.asInt(v);
     }
 
     private static void carveRoseOnFace(List<PlannedBlock> out,
@@ -3317,14 +3305,10 @@ public final class MetaAssemblyEngine {
     }
 
     private static void placePrism(List<PlannedBlock> out, Context ctx, BlockPos origin, int cx, int cy, int cz, int thickness, int h, BlockState s) {
-        int half = thickness / 2;
-        for (int x = -half; x <= half; x++) {
-            for (int z = -half; z <= half; z++) {
-                for (int y = 0; y < h; y++) {
-                    put(out, ctx, origin, cx + x, cy + y, cz + z, s);
-                }
-            }
-        }
+        AssemblyVoxelBridgeOps.placePrism(
+                (x, y, z, state) -> put(out, ctx, origin, x, y, z, state),
+                cx, cy, cz, thickness, h, s
+        );
     }
 
     private static void placeBeamLine(List<PlannedBlock> out,
@@ -3335,97 +3319,30 @@ public final class MetaAssemblyEngine {
                                       int thickness,
                                       int beamH,
                                       BlockState s) {
-        int dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
-        int steps = Math.max(Math.max(Math.abs(dx), Math.abs(dy)), Math.abs(dz));
-        if (steps <= 0) {
-            placePrism(out, ctx, origin, x0, y0, z0, thickness, beamH, s);
-            return;
-        }
-        for (int i = 0; i <= steps; i++) {
-            double t = i / (double) steps;
-            int x = (int) Math.round(x0 + dx * t);
-            int y = (int) Math.round(y0 + dy * t);
-            int z = (int) Math.round(z0 + dz * t);
-            placePrism(out, ctx, origin, x, y, z, thickness, beamH, s);
-        }
+        AssemblyVoxelBridgeOps.placeBeamLine(
+                (x, y, z, state) -> put(out, ctx, origin, x, y, z, state),
+                x0, y0, z0, x1, y1, z1, thickness, beamH, s
+        );
     }
 
     private static double[] bezierBasis3(double t) {
-        double u = 1.0 - t;
-        double b0 = u * u * u;
-        double b1 = 3.0 * u * u * t;
-        double b2 = 3.0 * u * t * t;
-        double b3 = t * t * t;
-        return new double[]{b0, b1, b2, b3};
+        return AssemblyBezierSurfaceOps.bezierBasis3(t);
     }
 
     private static int[][][] sampleBezierSurface(List<int[]> ctrl, int uN, int vN) {
-        int[][][] grid = new int[uN + 1][vN + 1][3];
-        for (int iu = 0; iu <= uN; iu++) {
-            double u = iu / (double) uN;
-            double[] Bu = bezierBasis3(u);
-            for (int iv = 0; iv <= vN; iv++) {
-                double v = iv / (double) vN;
-                double[] Bv = bezierBasis3(v);
-                double x = 0, y = 0, z = 0;
-                for (int i = 0; i < 4; i++) {
-                    for (int j = 0; j < 4; j++) {
-                        double w = Bu[i] * Bv[j];
-                        int[] p = ctrl.get(i * 4 + j);
-                        x += p[0] * w;
-                        y += p[1] * w;
-                        z += p[2] * w;
-                    }
-                }
-                grid[iu][iv][0] = (int) Math.round(x);
-                grid[iu][iv][1] = (int) Math.round(y);
-                grid[iu][iv][2] = (int) Math.round(z);
-            }
-        }
-        return grid;
+        return AssemblyBezierSurfaceOps.sampleBezierSurface(ctrl, uN, vN);
     }
 
     private static void connectSurfaceGrid(List<PlannedBlock> out, Context ctx, BlockPos origin,
                                            int[][][] grid, int uN, int vN, int thick, BlockState mat) {
-        for (int iu = 0; iu <= uN; iu++) {
-            for (int iv = 0; iv <= vN; iv++) {
-                int x = grid[iu][iv][0], y = grid[iu][iv][1], z = grid[iu][iv][2];
-                if (iu + 1 <= uN) {
-                    int[] b = grid[iu + 1][iv];
-                    placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
-                }
-                if (iv + 1 <= vN) {
-                    int[] b = grid[iu][iv + 1];
-                    placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
-                }
-            }
-        }
+        AssemblyVoxelBridgeOps.connectSurfaceGrid(
+                (x, y, z, state) -> put(out, ctx, origin, x, y, z, state),
+                grid, uN, vN, thick, mat
+        );
     }
 
     private static List<int[]> readBezierControlPoints(Object ptsObj) {
-        // Accept:
-        // - flat list of 16 point maps: [{x,y,z}...]
-        // - nested 4 rows: [[{x,y,z}..4]..4]
-        if (!(ptsObj instanceof List<?> list)) return null;
-        List<int[]> out = new ArrayList<>();
-        if (!list.isEmpty() && list.getFirst() instanceof List<?>) {
-            for (Object rowObj : list) {
-                if (!(rowObj instanceof List<?> row)) continue;
-                for (Object p : row) {
-                    if (p instanceof Map<?, ?> pm) {
-                        out.add(new int[]{i(pm.get("x"), 0), i(pm.get("y"), 0), i(pm.get("z"), 0)});
-                    }
-                }
-            }
-        } else {
-            for (Object p : list) {
-                if (p instanceof Map<?, ?> pm) {
-                    out.add(new int[]{i(pm.get("x"), 0), i(pm.get("y"), 0), i(pm.get("z"), 0)});
-                }
-            }
-        }
-        if (out.size() != 16) return null;
-        return out;
+        return AssemblyBezierSurfaceOps.readBezierControlPoints(ptsObj);
     }
 
     private enum Edge { U0, U1, V0, V1 }
@@ -4051,14 +3968,7 @@ public final class MetaAssemblyEngine {
 
     // Ray casting point-in-polygon test (works for simple polygons; points on edge treated as inside-ish)
     private static boolean pointInPoly(int x, int z, List<int[]> poly) {
-        boolean inside = false;
-        for (int i = 0, j = poly.size() - 1; i < poly.size(); j = i++) {
-            int xi = poly.get(i)[0], zi = poly.get(i)[1];
-            int xj = poly.get(j)[0], zj = poly.get(j)[1];
-            boolean intersect = ((zi > z) != (zj > z)) && (x < (long) (xj - xi) * (z - zi) / (long) (zj - zi) + xi);
-            if (intersect) inside = !inside;
-        }
-        return inside;
+        return AssemblyProfilePolygonOps.pointInPolyXZ(x, z, poly);
     }
 
     private static int i(Object v, int def) {
