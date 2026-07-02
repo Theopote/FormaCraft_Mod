@@ -91,6 +91,13 @@ public final class ComponentHealthAutoFix {
                 ComponentArchetypeBridge.sync(def);
                 report.add("H3-3", "设置 archetypeRef=" + def.archetypeRef);
                 break;
+
+            case "H3-4":
+                def.geometryArchetype = ComponentSemanticInference.inferGeometryArchetype(def);
+                if (def.geometryArchetype != null) {
+                    report.add("H3-4", "推断几何原型: " + def.geometryArchetype);
+                }
+                break;
                 
             // 其他规则可以在这里添加
             default:

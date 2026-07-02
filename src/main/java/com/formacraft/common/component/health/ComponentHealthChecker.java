@@ -313,6 +313,15 @@ public final class ComponentHealthChecker {
         } else {
             result.add(HealthCheckResult.CheckItem.ok("H3-3", "原型引用已设置"));
         }
+
+        // H3-4: 几何原型未识别
+        if (def.geometryArchetype == null || def.geometryArchetype.isBlank()) {
+            result.add(HealthCheckResult.CheckItem.warn("H3-4", "几何原型未识别",
+                "构件未标注几何形态族", "AI 难以区分斗拱/窗套/栏杆等形态",
+                HealthCheckResult.FixAction.AUTO, "将根据分类与标签自动推断"));
+        } else {
+            result.add(HealthCheckResult.CheckItem.ok("H3-4", "几何原型已标注"));
+        }
     }
     
     // ============ H4: AI 使用可靠性规则 ============

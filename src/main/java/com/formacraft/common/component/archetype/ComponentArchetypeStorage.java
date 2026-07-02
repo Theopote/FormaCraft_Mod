@@ -40,6 +40,7 @@ public final class ComponentArchetypeStorage {
     }
 
     /** @deprecated 使用 {@link #getGlobalArchetypeDir()} */
+    @Deprecated
     public static Path getBasePath() {
         return getGlobalArchetypeDir();
     }

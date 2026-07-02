@@ -1345,6 +1345,14 @@ public final class ComponentTool implements FormacraftTool {
         }
 
         com.formacraft.common.component.semantic.ComponentSemanticInference.ensureSemanticFields(def);
+        if (state.culturalStyleOverride != null && !state.culturalStyleOverride.isBlank()) {
+            def.culturalStyle = state.culturalStyleOverride;
+        }
+        if (state.geometryArchetypeOverride != null && !state.geometryArchetypeOverride.isBlank()) {
+            def.geometryArchetype = state.geometryArchetypeOverride;
+        } else if (def.geometryArchetype == null || def.geometryArchetype.isBlank()) {
+            def.geometryArchetype = com.formacraft.common.component.semantic.ComponentSemanticInference.inferGeometryArchetype(def);
+        }
         return JsonUtil.toJson(def);
     }
 
