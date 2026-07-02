@@ -379,6 +379,7 @@ public final class ComponentPlacementAnalyzer {
     double aspectRatioXZ;
     boolean hasDoorWindowBlocks;
     boolean hollowCenter;
+    boolean projectsBeyondDominantFace;
 
     static GeometryProfile from(ComponentDefinition def) {
       if (def == null || def.blocks == null || def.blocks.isEmpty()) {
@@ -468,10 +469,12 @@ public final class ComponentPlacementAnalyzer {
       g.topCoverage = (double) topCount / topArea;
 
       double maxFace = 0;
+      int dominantFaceIndex = 0;
       for (int i = 0; i < 4; i++) {
         faceDensity[i] = (double) faceCount[i] / faceArea[i];
         if (faceDensity[i] > maxFace) {
           maxFace = faceDensity[i];
+          dominantFaceIndex = i;
         }
       }
       g.dominantFaceDensity = maxFace;
@@ -479,6 +482,9 @@ public final class ComponentPlacementAnalyzer {
       int minHoriz = Math.min(g.width, g.depth);
       int maxHoriz = Math.max(g.width, g.depth);
       g.aspectRatioXZ = minHoriz == 0 ? 1.0 : (double) maxHoriz / minHoriz;
+
+      g.projectsBeyondDominantFace = hasProjectionBeyondDominantFace(
+              occupied, minX, maxX, minZ, maxZ, dominantFaceIndex);
 
       int interiorVolume = Math.max(0, (g.width - 2) * Math.max(0, g.height - 2) * Math.max(0, g.depth - 2));
       int interiorBlocks = 0;
@@ -505,11 +511,10 @@ public final class ComponentPlacementAnalyzer {
     }
 
     boolean suggestsBalcony() {
-      return bottomCoverage >= 0.12
-          && bottomCoverage <= 0.75
-          && dominantFaceDensity >= 0.22
+      return dominantFaceDensity >= 0.22
+          && projectsBeyondDominantFace
           && fillRatio >= 0.12
-          && fillRatio <= 0.70
+          && fillRatio <= 0.75
           && height >= 2;
     }
 
@@ -531,6 +536,31 @@ public final class ComponentPlacementAnalyzer {
 
     private static int unpackZ(long packed) {
       return (int) ((packed >> 40) & 0xFFFFF);
+    }
+
+    private static boolean hasProjectionBeyondDominantFace(
+            Set<Long> occupied, int minX, int maxX, int minZ, int maxZ, int dominantFaceIndex) {
+      for (long packed : occupied) {
+        int dx = unpackX(packed);
+        int dz = unpackZ(packed);
+        switch (dominantFaceIndex) {
+          case 0 -> {
+            if (dx > minX) return true;
+          }
+          case 1 -> {
+            if (dx < maxX) return true;
+          }
+          case 2 -> {
+            if (dz > minZ) return true;
+          }
+          case 3 -> {
+            if (dz < maxZ) return true;
+          }
+          default -> {
+          }
+        }
+      }
+      return false;
     }
   }
 }
