@@ -6,8 +6,8 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 import com.formacraft.common.skeleton.SkeletonExecutors;
-import com.formacraft.server.generator.StructureGenerator;
-import com.formacraft.server.generator.StructureGeneratorFactory;
+import com.formacraft.common.generation.structure.StructureGenerator;
+import com.formacraft.common.generation.structure.StructureGeneratorFactory;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 

@@ -7,7 +7,7 @@
 
 | 包路径 | 文件数 | 接口 | 注册表 / 门面 | 入口 | 状态 |
 |--------|--------|------|---------------|------|------|
-| `server/generator` | 63 | `StructureGenerator` | `GeneratorRouter` → `StructureGeneratorRegistry` + `StructureRouteCatalog` | `GenerationHub.routeStructure()` | **活跃** |
+| `common/generation/structure` | 65 | `StructureGenerator` | `GeneratorRouter` → `StructureGeneratorRegistry` + `StructureRouteCatalog` | `GenerationHub.routeStructure()` | **活跃** |
 | `common/generator` | 23 | `ComponentGenerator` | `GeneratorRegistry` | `ComponentPlanCompiler` → `UnifiedGeneratorRouter` | **活跃** |
 | `common/skeleton` | +4 | `SkeletonExecutor` | `SkeletonExecutors` | `PlanProgramCompiler` | **契约层（Phase 1）** |
 | `server/skeleton/gen` | 53 | `ISkeletonGenerator` | `SkeletonGeneratorRegistry` | `SkeletonBuildService`（实现 `SkeletonExecutor`） | **活跃** |
@@ -124,9 +124,9 @@ Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeleton
 
 ---
 
-## 3. BuildingSpec 路由 → `server.generator`（整栋建筑流）
+## 3. BuildingSpec 路由 → `common.generation.structure`（整栋建筑流）
 
-注册表/路由：`com.formacraft.server.generator.router.GeneratorRouter`  
+注册表/路由：`com.formacraft.common.generation.structure.router.GeneratorRouter`  
 入口：`StructureGeneratorFactory.getGenerator(spec)`
 
 注册表/路由：`GeneratorRouter` → `StructureRouteCatalog`（JSON）+ `StructureGeneratorRegistry`（实例化）  
@@ -218,7 +218,7 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 |------|------------------|------------------|------|
 | `TowerGenerator` | 组件级，Palette 驱动，`BlockPatch` | 整栋级，`BuildingSpec` 驱动，`GeneratedStructure` | **独立实现** |
 | `WallGenerator` | 组件级 | 整栋级 | **独立实现** |
-| `PathGenerator` | 组件级 | `server.generator.path.PathGenerator` | **独立实现** |
+| `PathGenerator` | 组件级 | `common.generation.structure.path.PathGenerator` | **独立实现** |
 
 Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGeneratorAdaptor` 暴露，最终合并命名空间。
 
@@ -249,9 +249,8 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 
 ## 6. 已知缺口（后续待修）
 
-1. `server/generator` 63 文件尚未物理迁移到 `common/generation/structure`
-2. `common/generator.GeneratorRegistry` 与 `StructureGeneratorRegistry` 命名并存（职责已分离）
-3. 构件/整栋同名类（`TowerGenerator` × 2）尚未合并
+1. `common/generator.GeneratorRegistry` 与 `StructureGeneratorRegistry` 命名并存（职责已分离）
+2. 构件/整栋同名类（`TowerGenerator` × 2）尚未合并
 
 ---
 
@@ -274,3 +273,4 @@ Phase 2 目标：common 侧保留组件实现，server 侧通过 `StructureGener
 | **2** ✅ | `UnifiedGeneratorRouter` + `StructureGeneratorAdaptor` 受控回退 | 中 |
 | **3** ✅ | 数据驱动整栋路由 + `GenerationHub` 统一入口 | 中 |
 | **4** ✅ | `birds_nest_stadium` 实现 + 主路径接入 `GenerationHub` | 低 |
+| **5** ✅ | `server/generator` → `common/generation/structure` 包迁移 | 中 |

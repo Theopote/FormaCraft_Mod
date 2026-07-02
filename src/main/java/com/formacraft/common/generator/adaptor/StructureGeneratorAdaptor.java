@@ -13,7 +13,7 @@ import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.server.build.GeneratedStructure;
 import com.formacraft.server.generation.GenerationHub;
-import com.formacraft.server.generator.StructureGenerator;
+import com.formacraft.common.generation.structure.StructureGenerator;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -25,7 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 将 {@code server.generator.StructureGenerator} 适配为构件级 {@link BlockPatch} 输出。
+ * 将 {@code common.generation.structure.StructureGenerator} 适配为构件级 {@link BlockPatch} 输出。
  * <p>
  * Phase 2：由 {@link UnifiedGeneratorRouter} 在受控条件下调用（显式 landmark / 未注册整栋类型）。
  */

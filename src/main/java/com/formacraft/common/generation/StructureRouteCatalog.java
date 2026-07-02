@@ -14,7 +14,7 @@ import java.util.Locale;
  * <p>
  * 从 {@code assets/formacraft/generation/structure_routes_v1.json} 加载
  * styleProfile / template / buildingType 到 generatorKey 的映射。
- * 具体实例化由服务端 {@code StructureGeneratorRegistry} 完成。
+ * 具体实例化由 {@code com.formacraft.common.generation.structure.router.StructureGeneratorRegistry} 完成。
  */
 public final class StructureRouteCatalog {
 

@@ -205,8 +205,8 @@ public final class BuildRequestProcessor {
                                         BlockPos origin = req.getPlayerPos();
                                         if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
                                             // 生成结构
-                                            com.formacraft.server.generator.composite.CompositeStructureGenerator generator =
-                                                    new com.formacraft.server.generator.composite.CompositeStructureGenerator();
+                                            com.formacraft.common.generation.structure.composite.CompositeStructureGenerator generator =
+                                                    new com.formacraft.common.generation.structure.composite.CompositeStructureGenerator();
                                             final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
                                                     com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
                                                             BuildConstraintContext.withRequest(req, () -> generator.generate(compositeSpec, origin, serverWorld))
@@ -325,7 +325,7 @@ public final class BuildRequestProcessor {
 
                                             BlockPos origin = req.getPlayerPos();
                                             if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                                com.formacraft.server.generator.StructureGenerator generator =
+                                                com.formacraft.common.generation.structure.StructureGenerator generator =
                                                         com.formacraft.server.generation.GenerationHub.routeStructure(updated);
                                                 final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
                                                         com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
@@ -446,7 +446,7 @@ public final class BuildRequestProcessor {
 
                                             // 传统的 BuildingSpec 处理流程
                                             // 生成结构用于预览
-                                                    com.formacraft.server.generator.StructureGenerator generator =
+                                                    com.formacraft.common.generation.structure.StructureGenerator generator =
                                                     com.formacraft.server.generation.GenerationHub.routeStructure(spec);
                                             final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
                                                     com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
