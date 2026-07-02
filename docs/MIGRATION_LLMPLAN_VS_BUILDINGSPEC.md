@@ -67,6 +67,8 @@ Select-String "\[LlmPlanMetrics\]" logs/latest.log
 或运行汇总脚本（fallback 按 `detail` 分布 + 最新 snapshot）：
 
 ```powershell
+.\scripts\analyze-llmplan-metrics.ps1 run\logs\latest.log
+# 或（需 Python 3）：
 python scripts/analyze_llmplan_metrics.py run/logs/latest.log
 ```
 
@@ -238,7 +240,8 @@ Select-String "\[LlmPlanMetrics\].*event=fallback" logs/latest.log |
   Group-Object | Sort-Object Count -Descending
 
 # 推荐：完整汇总（含 snapshot、可行动回退率提示）
-python scripts/analyze_llmplan_metrics.py run/logs/latest.log
+.\scripts\analyze-llmplan-metrics.ps1 run\logs\latest.log
+# python scripts/analyze_llmplan_metrics.py run/logs/latest.log
 ```
 
 ---
