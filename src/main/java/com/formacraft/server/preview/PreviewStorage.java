@@ -2,6 +2,7 @@ package com.formacraft.server.preview;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.server.build.quality.BuildQualityReport;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.HashMap;
@@ -16,6 +17,8 @@ public class PreviewStorage {
     private static final Map<UUID, GeneratedStructure> lastStructures = new HashMap<>();
     private static final Map<UUID, Boolean> hasPreview = new HashMap<>();
     private static final Map<UUID, Object> skeletonLayouts = new HashMap<>();
+
+    private static final Map<UUID, BuildQualityReport> qualityReports = new HashMap<>();
 
     /**
      * 存储玩家的建筑结构
@@ -84,6 +87,7 @@ public class PreviewStorage {
             lastStructures.remove(uuid);
             hasPreview.remove(uuid);
             skeletonLayouts.remove(uuid);
+            qualityReports.remove(uuid);
         }
     }
 
@@ -121,6 +125,17 @@ public class PreviewStorage {
             return null;
         }
         return skeletonLayouts.get(player.getUuid());
+    }
+
+    public static void storeQualityReport(ServerPlayerEntity player, BuildQualityReport report) {
+        if (player != null && report != null) {
+            qualityReports.put(player.getUuid(), report);
+        }
+    }
+
+    public static BuildQualityReport getQualityReport(ServerPlayerEntity player) {
+        if (player == null) return null;
+        return qualityReports.get(player.getUuid());
     }
 }
 

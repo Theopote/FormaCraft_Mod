@@ -1,13 +1,14 @@
 package com.formacraft.common.patch;
 
 import com.formacraft.common.logging.FcaLog;
+import com.formacraft.common.world.WorldBuildBounds;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.Property;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
@@ -21,29 +22,87 @@ import java.util.Optional;
  * 约定：
  * - place/replace：setBlockState(target)
  * - remove：setBlockState(AIR)
+ * <p>
+ * 跳过未加载区块、世界高度越界与非法方块目标（计入 {@link ApplyResult}）。
  */
 public final class PatchExecutor {
     private static final FcaLog LOG = FcaLog.of("PatchExecutor");
 
     private PatchExecutor() {}
 
-    public static void apply(ServerWorld world, BlockPos origin, List<BlockPatch> patches) {
-        if (world == null || origin == null || patches == null || patches.isEmpty()) return;
+    public record ApplyResult(
+            int applied,
+            int skippedWorldHeight,
+            int skippedUnloaded,
+            int skippedIllegal
+    ) {
+        public int skippedTotal() {
+            return skippedWorldHeight + skippedUnloaded + skippedIllegal;
+        }
+    }
+
+    public static ApplyResult apply(ServerWorld world, BlockPos origin, List<BlockPatch> patches) {
+        if (world == null || origin == null || patches == null || patches.isEmpty()) {
+            return new ApplyResult(0, 0, 0, 0);
+        }
+
+        int applied = 0;
+        int skippedHeight = 0;
+        int skippedUnloaded = 0;
+        int skippedIllegal = 0;
 
         for (BlockPatch p : patches) {
-            if (p == null) continue;
+            if (p == null) {
+                skippedIllegal++;
+                continue;
+            }
             BlockPos pos = origin.add(p.dx(), p.dy(), p.dz());
+
+            if (!WorldBuildBounds.isInsideWorldHeight(world, pos)) {
+                skippedHeight++;
+                continue;
+            }
+            if (!WorldBuildBounds.isChunkReady(world, pos)) {
+                skippedUnloaded++;
+                continue;
+            }
 
             String action = p.action() == null ? "" : p.action().toLowerCase();
             if (BlockPatch.REMOVE.equals(action)) {
                 world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                applied++;
                 continue;
             }
 
-            // place/replace：目标方块
+            if (p.targetBlock() == null || p.targetBlock().isBlank()) {
+                skippedIllegal++;
+                continue;
+            }
+
             BlockState target = parseBlockState(p.targetBlock());
+            if (target.getBlock() == Blocks.AIR && !BlockPatch.REMOVE.equals(action)) {
+                Identifier ident = Identifier.tryParse(stripProperties(p.targetBlock()));
+                if (ident == null || !Registries.BLOCK.containsId(ident)) {
+                    skippedIllegal++;
+                    continue;
+                }
+            }
+
             world.setBlockState(pos, target, 3);
+            applied++;
         }
+
+        if (skippedHeight + skippedUnloaded + skippedIllegal > 0) {
+            LOG.debug("patch apply skipped height={} unloaded={} illegal={} applied={}",
+                    skippedHeight, skippedUnloaded, skippedIllegal, applied);
+        }
+        return new ApplyResult(applied, skippedHeight, skippedUnloaded, skippedIllegal);
+    }
+
+    private static String stripProperties(String raw) {
+        if (raw == null) return "";
+        int lb = raw.indexOf('[');
+        return lb >= 0 ? raw.substring(0, lb).trim() : raw.trim();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -51,7 +110,6 @@ public final class PatchExecutor {
         if (id == null || id.isBlank()) return Blocks.AIR.getDefaultState();
         try {
             String raw = id.trim();
-            // 支持 v1 blockstate string：minecraft:oak_stairs[facing=east,half=bottom]
             String baseId = raw;
             String props = null;
             int lb = raw.indexOf('[');
@@ -61,11 +119,12 @@ public final class PatchExecutor {
             }
 
             Identifier ident = Identifier.tryParse(baseId.trim());
-            if (ident == null) return Blocks.AIR.getDefaultState();
+            if (ident == null || !Registries.BLOCK.containsId(ident)) {
+                return Blocks.AIR.getDefaultState();
+            }
             Block b = Registries.BLOCK.get(ident);
             BlockState state = b.getDefaultState();
 
-            // 应用属性（尽力而为：解析失败则忽略该键值）
             if (props != null && !props.isBlank()) {
                 StateManager<Block, BlockState> sm = b.getStateManager();
                 if (sm != null) {
@@ -85,9 +144,8 @@ public final class PatchExecutor {
                         Optional<?> parsed = prop.parse(val);
                         if (parsed.isEmpty()) continue;
                         Object v = parsed.get();
-                        if (!(v instanceof Comparable<?> c)) continue;
-                        // 类型擦除下的通用属性写入：我们只在 parse() 成功后写入
-                        state = state.with((Property) prop, (Comparable) c);
+                        if (!(v instanceof Comparable<?>)) continue;
+                        state = state.with((Property) prop, (Comparable) v);
                     }
                 }
             }
@@ -99,4 +157,3 @@ public final class PatchExecutor {
         }
     }
 }
-
