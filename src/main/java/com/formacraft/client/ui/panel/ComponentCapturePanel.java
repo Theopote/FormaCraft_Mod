@@ -4,10 +4,15 @@ import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAiExplanation;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureAnchorSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthCoordinator;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthDrawer;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureOrientationController;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSelectionController;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureSelectionSection;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureAiGuardHost;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureAiGuardSection;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticHost;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticPreview;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureThumbnailService;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureWorldOverlay;
@@ -807,222 +812,64 @@ public class ComponentCapturePanel extends BasePanel {
         
         // ============ 阶段 1：选区定义 ============
         boolean phase1Collapsed = phaseCollapsed[0];
-        boolean isPhase1Active = currentPhase == CapturePhase.SELECTION;
-        boolean isPhase1Complete = isPhaseComplete(CapturePhase.SELECTION);
-        
-        String phase1Title = (phase1Collapsed ? "▶ " : "▼ ") + 
-            "① 选区定义" + (isPhase1Complete ? "（已完成 ✓）" : (isPhase1Active ? "（当前步骤 ★）" : "（未开始）"));
-        int phase1TitleColor = isPhase1Active ? 0xFFFFFF00 : (isPhase1Complete ? 0xFF88FF88 : 0xFF888888);
-        y = drawWrappedText(ctx, Text.literal(phase1Title), x, y, w, phase1TitleColor);
-        y += 2;
-        
-        if (!phase1Collapsed) {
-        
-        // 选择模式按钮组
-        int buttonW = (w - 8) / 3; // 3个按钮平分宽度
-        
-        // 框选按钮
-        boxSelectButton.setMessage(Text.literal(selectionController.getMode() == ComponentSelectionMode.BOX_SELECT ? "📦 [框选]" : "📦 框选"));
-        boxSelectButton.setPosition(x, y);
-        boxSelectButton.setWidth(buttonW);
-        boxSelectButton.visible = true;
-        boxSelectButton.active = true;
-        boxSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        
-        // 点选按钮
-        pointSelectButton.setMessage(Text.literal(selectionController.getMode() == ComponentSelectionMode.POINT_SELECT ? "👆 [点选]" : "👆 点选"));
-        pointSelectButton.setPosition(x + buttonW + 4, y);
-        pointSelectButton.setWidth(buttonW);
-        pointSelectButton.visible = true;
-        pointSelectButton.active = true;
-        pointSelectButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        
-        // 清除按钮
-        clearSelectionButton.setMessage(Text.literal("🗑️ 清除"));
-        clearSelectionButton.setPosition(x + buttonW * 2 + 8, y);
-        clearSelectionButton.setWidth(buttonW);
-        clearSelectionButton.visible = true;
-        clearSelectionButton.active = selectionController.hasAnySelection();
-        clearSelectionButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        
-        y += LABEL_OFFSET;
-        
-        // 当前模式提示
-        String modeText = "当前模式: " + selectionController.getMode().getDisplayName() + " - " + selectionController.getMode().getHint();
-        y = drawWrappedText(ctx, Text.literal(modeText), x, y, w, 0xFF88CCFF);
-        y += 4;
-        
-        // 快捷键说明
-        String hint = selectionController.getMode() == ComponentSelectionMode.POINT_SELECT 
-            ? "提示: 点击方块切换选择 | Ctrl+点击强制加选 | 右键设锚点"
-            : "提示: 拖拽可见预览框 | 右键设锚点";
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), x, y, 0xFF666666);
-        y += client.textRenderer.fontHeight + 4;
-        
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 4;
+        y = ComponentCaptureSelectionSection.drawSection(
+                ctx,
+                client,
+                selectionController,
+                thumbnailService,
+                healthCoordinator,
+                this::drawWrappedText,
+                getScaledMouseX(),
+                getScaledMouseY(),
+                phase1Collapsed,
+                currentPhase == CapturePhase.SELECTION,
+                isPhaseComplete(CapturePhase.SELECTION),
+                boxSelectButton,
+                pointSelectButton,
+                clearSelectionButton,
+                THUMBNAIL_SIZE,
+                x,
+                y,
+                w
+        );
 
-            // 检查是否有选区
-            if (!selectionController.hasAnySelection()) {
-                y = drawWrappedText(ctx, Text.literal("⚠ 尚未选择任何方块"), x, y, w, 0xFFFFAA00);
-            } else {
-
-        BlockPos min = SelectionTool.INSTANCE.getMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-
-        // 选区预览
-        y = drawWrappedText(ctx, Text.literal("当前选区"), x, y, w, 0xFFFFFFFF);
-        y += 2;
-
-        int sizeX = 0;
-        if (max != null) {
-            if (min != null) {
-                sizeX = max.getX() - min.getX() + 1;
-            }
-        }
-        int sizeY = 0;
-        if (max != null) {
-            if (min != null) {
-                sizeY = max.getY() - min.getY() + 1;
-            }
-        }
-        int sizeZ = 0;
-        if (max != null) {
-            if (min != null) {
-                sizeZ = max.getZ() - min.getZ() + 1;
-            }
-        }
-        int blockCount = selectionController.countBlocks(client);
-
-        y = drawWrappedText(ctx, Text.literal("尺寸: " + sizeX + "×" + sizeY + "×" + sizeZ), x, y, w, 0xFFAAAAAA);
-        y += client.textRenderer.fontHeight;
-        y = drawWrappedText(ctx, Text.literal("方块数: " + blockCount), x, y, w, 0xFFAAAAAA);
-        y += 6;
-        
-        // 状态指示器
-        y = drawStatusIndicator(ctx, x, y, w);
-        y += 4;
-
-        // 缩略图预览
-        thumbnailService.drawPreview(ctx, client, x + (w - THUMBNAIL_SIZE) / 2, y, THUMBNAIL_SIZE);
-        y += THUMBNAIL_SIZE + 8;
-
-                // 分隔线
-                ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            }
-            y += 4;
-        }
-        
-        // 获取状态（所有阶段都需要）
         var st = ComponentTool.INSTANCE.getState();
         syncPlacementHintsToState();
-        
+
         // ============ 阶段 2：锚点与朝向 ============
         boolean phase2Collapsed = phaseCollapsed[1];
-        boolean isPhase2Active = currentPhase == CapturePhase.ANCHOR_ORIENTATION;
-        boolean isPhase2Complete = isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION);
-        
-        // 如果阶段1未完成，阶段2应该折叠
-        if (!isPhase1Complete) {
-            phase2Collapsed = true;
-        }
-        
-        String phase2Title = (phase2Collapsed ? "▶ " : "▼ ") + 
-            "② 锚点 & 朝向" + (isPhase2Complete ? "（已完成 ✓）" : (isPhase2Active ? "（当前步骤 ★）" : "（未开始）"));
-        int phase2TitleColor = isPhase2Active ? 0xFFFFFF00 : (isPhase2Complete ? 0xFF88FF88 : 0xFF888888);
-        y = drawWrappedText(ctx, Text.literal(phase2Title), x, y, w, phase2TitleColor);
-        y += 2;
-        
-        if (!phase2Collapsed) {
-            // 锚点与朝向（阶段2内容）
-            String anchorText = st.captureDraft.anchor.worldPos != null
-                ? "锚点: (" + st.captureDraft.anchor.worldPos.getX() + ", " + st.captureDraft.anchor.worldPos.getY() + ", " + st.captureDraft.anchor.worldPos.getZ() + ")"
-                : "锚点: (未设置，默认为选区最小角)";
-            y = drawWrappedText(ctx, Text.literal(anchorText), x, y, w, 
-                st.captureDraft.anchor.worldPos != null ? 0xFF66FF66 : 0xFFFFAA00);
-            y += 2;
+        y = ComponentCaptureAnchorSection.drawSection(
+                ctx,
+                client,
+                selectionController,
+                thumbnailService,
+                healthCoordinator,
+                this::drawWrappedText,
+                getScaledMouseX(),
+                getScaledMouseY(),
+                phase2Collapsed,
+                currentPhase == CapturePhase.ANCHOR_ORIENTATION,
+                isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION),
+                !isPhaseComplete(CapturePhase.SELECTION),
+                pickAnchorButton,
+                clearAnchorButton,
+                hostFaceButton,
+                anchorOutsideButton,
+                autoAnchorButton,
+                facingButton,
+                mirrorButton,
+                x,
+                y,
+                w
+        );
 
-            int half = (w - 4) / 2;
-
-            pickAnchorButton.setMessage(Text.literal(st.pickingAnchor ? "⏹ 取消选择" : "📍 点击选择"));
-            pickAnchorButton.setPosition(x, y);
-            pickAnchorButton.setWidth(half);
-            pickAnchorButton.visible = true;
-            pickAnchorButton.active = true;
-            pickAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-            clearAnchorButton.setPosition(x + half + 4, y);
-            clearAnchorButton.setWidth(w - half - 4);
-            clearAnchorButton.visible = true;
-            clearAnchorButton.active = st.captureDraft.anchor.worldPos != null || st.pickingAnchor;
-            clearAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            String hostFaceText = (st.captureDraft.host.referenceBlock != null && st.captureDraft.host.normal != null)
-                    ? ("宿主面: (" + st.captureDraft.host.referenceBlock.getX() + ", " + st.captureDraft.host.referenceBlock.getY() + ", " + st.captureDraft.host.referenceBlock.getZ() + ") " + st.captureDraft.host.normal.name())
-                    : "宿主面: (未设置)";
-            y = drawWrappedText(ctx, Text.literal(hostFaceText), x, y, w,
-                    st.captureDraft.host.normal != null ? 0xFF66CCFF : 0xFF888888);
-            y += 2;
-
-            hostFaceButton.setMessage(Text.literal(st.captureDraft.host.normal != null ? "宿主面：重选" : "选择宿主面"));
-            hostFaceButton.setPosition(x, y);
-            hostFaceButton.setWidth(half);
-            hostFaceButton.visible = true;
-            hostFaceButton.active = selectionController.hasValidSelection();
-            hostFaceButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-            anchorOutsideButton.setMessage(Text.literal(st.captureDraft.anchor.allowOutsideSelection ? "外侧锚点：开" : "外侧锚点：关"));
-            anchorOutsideButton.setPosition(x + half + 4, y);
-            anchorOutsideButton.setWidth(w - half - 4);
-            anchorOutsideButton.visible = true;
-            anchorOutsideButton.active = true;
-            anchorOutsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            autoAnchorButton.setPosition(x, y);
-            autoAnchorButton.setWidth(w);
-            autoAnchorButton.visible = true;
-            autoAnchorButton.active = selectionController.hasValidSelection();
-            autoAnchorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            facingButton.setMessage(Text.literal("朝向：" + st.captureDraft.orientation.facing.name()));
-            facingButton.setPosition(x, y);
-            facingButton.setWidth(half);
-            facingButton.visible = true;
-            facingButton.active = true;
-            facingButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-            mirrorButton.setMessage(Text.literal("镜像：" + st.captureDraft.orientation.mirror.name()));
-            mirrorButton.setPosition(x + half + 4, y);
-            mirrorButton.setWidth(w - half - 4);
-            mirrorButton.visible = true;
-            mirrorButton.active = true;
-            mirrorButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-            
-            // 如果构件需要方向性（门/窗/阳台），显示提示
-            if (st.category == ComponentCategory.DOOR || st.category == ComponentCategory.WINDOW) {
-                y = drawWrappedText(ctx, Text.literal("⚠ 该构件需要\"内 / 外\"方向"), x, y, w, 0xFFFFAA00);
-                y += 2;
-                y = drawWrappedText(ctx, Text.literal("请分别标记："), x, y, w, 0xFFAAAAAA);
-                y += 2;
-            }
-
-            // 分隔线
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
-        }
-        
         // ============ 阶段 3：构件语义确认 ============
         boolean phase3Collapsed = phaseCollapsed[2];
         boolean isPhase3Active = currentPhase == CapturePhase.SEMANTIC;
         boolean isPhase3Complete = isPhaseComplete(CapturePhase.SEMANTIC);
         
         // 如果阶段2未完成，阶段3应该折叠
-        if (!isPhase2Complete) {
+        if (!isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION)) {
             phase3Collapsed = true;
         }
         
@@ -1343,7 +1190,7 @@ public class ComponentCapturePanel extends BasePanel {
         }
         
         // ============ 构件健康状态检查（新设计：健康条 + 抽屉）============
-        if (isPhase2Complete) {
+        if (isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION)) {
             y = ComponentCaptureHealthDrawer.drawSection(
                     ctx,
                     healthCoordinator,
@@ -1360,7 +1207,7 @@ public class ComponentCapturePanel extends BasePanel {
         }
         
         // ============ AI 视角解释区 ============
-        if (isPhase3Complete) {
+        if (isPhaseComplete(CapturePhase.SEMANTIC)) {
             y = aiExplanation.renderSection(ctx, client, this::drawWrappedText, x, y, w);
         }
         
@@ -1746,81 +1593,6 @@ public class ComponentCapturePanel extends BasePanel {
 
     private int getScaledMouseY() {
         return (int) (client.mouse.getY() / client.getWindow().getScaleFactor());
-    }
-    
-    /**
-     * 绘制状态指示器
-     */
-    private int drawStatusIndicator(DrawContext ctx, int x, int y, int w) {
-        var st = ComponentTool.INSTANCE.getState();
-        var draft = st.captureDraft;
-        
-        // 边框
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 2;
-        
-        // 选区状态
-        boolean hasSelection = SelectionTool.INSTANCE.hasSelection();
-        String selectionText = hasSelection ? "OK 选区已设置" : "WARN 选区未设置";
-        int selectionColor = hasSelection ? 0xFF00FF00 : 0xFFFFAA00;
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(selectionText), x, y, selectionColor);
-        y += client.textRenderer.fontHeight + 2;
-        
-        // 锚点状态
-        boolean hasAnchor = draft.anchor.worldPos != null;
-        int anchorColor = hasAnchor ? 0xFF00FF00 : 0xFFFFAA00;
-        String anchorText = hasAnchor
-                ? String.format("OK 锚点: (%d, %d, %d)", draft.anchor.worldPos.getX(), draft.anchor.worldPos.getY(), draft.anchor.worldPos.getZ())
-                : "WARN 锚点: 未设置";
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(anchorText), x, y, anchorColor);
-        y += client.textRenderer.fontHeight + 2;
-
-        String hostText = (draft.host.referenceBlock != null && draft.host.normal != null)
-                ? ("INFO 宿主面: " + draft.host.normal.name() + " @ " + draft.host.referenceBlock.toShortString())
-                : "INFO 宿主面: 未设置";
-        int hostColor = draft.host.normal != null ? 0xFF66CCFF : 0xFF888888;
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(hostText), x, y, hostColor);
-        y += client.textRenderer.fontHeight + 2;
-
-        if (draft.orientation.hasInteriorExterior) {
-            boolean hasInOut = draft.orientation.insideMarkWorld != null && draft.orientation.outsideMarkWorld != null;
-            int inOutColor = hasInOut ? 0xFF00FF00 : 0xFFFFAA00;
-            String inOutText = hasInOut ? "OK 内外方向: 已设置" : "WARN 内外方向: 未设置";
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal(inOutText), x, y, inOutColor);
-            y += client.textRenderer.fontHeight + 2;
-        }
-
-        if (draft.orientation.hasBottomTop) {
-            boolean hasBottomTop = draft.orientation.bottomMarkWorld != null && draft.orientation.topMarkWorld != null;
-            int bottomTopColor = hasBottomTop ? 0xFF00FF00 : 0xFFFFAA00;
-            String bottomTopText = hasBottomTop ? "OK 上下方向: 已设置" : "WARN 上下方向: 未设置";
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal(bottomTopText), x, y, bottomTopColor);
-            y += client.textRenderer.fontHeight + 2;
-        }
-
-        if (draft.anchor.allowOutsideSelection) {
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal("INFO 外侧锚点: 开启"), x, y, 0xFF88CCFF);
-            y += client.textRenderer.fontHeight + 2;
-        }
-        
-        // 朝向状态
-        String facingText = "INFO 朝向: " + draft.orientation.facing.name();
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(facingText), x, y, 0xFF88CCFF);
-        y += client.textRenderer.fontHeight + 2;
-
-        // 名称状态
-        boolean hasName = st.name != null && !st.name.isEmpty() && !st.name.equals("New Component");
-        int nameColor = hasName ? 0xFF00FF00 : 0xFFFFAA00;
-        String nameText = hasName ? "OK 名称已填写" : "WARN 名称: 请填写";
-        ctx.drawTextWithShadow(client.textRenderer, Text.literal(nameText), x, y, nameColor);
-        y += client.textRenderer.fontHeight + 2;
-
-        y = ComponentCaptureHealthDrawer.drawStatusHealth(ctx, client, healthCoordinator, x, y);
-        
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-        y += 2;
-        
-        return y;
     }
     
     // ============ 世界交互方法 ============
