@@ -187,7 +187,7 @@ public final class ComponentAutoFix {
             }
         }
 
-        // blocks（移除 null 条目）
+        // blocks（移除 null 条目 + 归一化到非负局部坐标系）
         if (def.blocks != null) {
             List<ComponentDefinition.BlockEntry> cleaned = new ArrayList<>();
             for (var block : def.blocks) {
@@ -197,10 +197,87 @@ public final class ComponentAutoFix {
             }
             if (cleaned.size() != def.blocks.size()) {
                 def.blocks = cleaned;
-                r.add("blocks", "Removed " + (0) + " null block entries");
+                r.add("blocks", "Removed null block entries");
             }
+            normalizeBlocksToNonNegativeOrigin(def, r);
         }
     }
+
+    /**
+     * 将 blocks 平移到非负坐标，并同步 size / directionHints。
+     * 捕获导出时若局部原点与 size 不一致（出现负 dx/dz），加载后会产生大量越界警告。
+     */
+    private static void normalizeBlocksToNonNegativeOrigin(ComponentDefinition def, AutoFixReport r) {
+        if (def.blocks == null || def.blocks.isEmpty()) return;
+
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+
+        for (var block : def.blocks) {
+            if (block == null) continue;
+            minX = Math.min(minX, block.dx);
+            minY = Math.min(minY, block.dy);
+            minZ = Math.min(minZ, block.dz);
+            maxX = Math.max(maxX, block.dx);
+            maxY = Math.max(maxY, block.dy);
+            maxZ = Math.max(maxZ, block.dz);
+        }
+        if (minX == Integer.MAX_VALUE) return;
+
+        int needW = maxX - minX + 1;
+        int needH = maxY - minY + 1;
+        int needD = maxZ - minZ + 1;
+
+        boolean hasNegative = minX < 0 || minY < 0 || minZ < 0;
+        boolean sizeMismatch = def.size == null
+                || def.size.w < needW || def.size.h < needH || def.size.d < needD;
+        if (!hasNegative && !sizeMismatch) return;
+
+        int shiftX = minX;
+        int shiftY = minY;
+        int shiftZ = minZ;
+        for (var block : def.blocks) {
+            if (block == null) continue;
+            block.dx -= shiftX;
+            block.dy -= shiftY;
+            block.dz -= shiftZ;
+        }
+        shiftDirectionHints(def, shiftX, shiftY, shiftZ);
+
+        if (def.size == null) {
+            def.size = new ComponentDefinition.Size();
+        }
+        def.size.w = needW;
+        def.size.h = needH;
+        def.size.d = needD;
+
+        r.add("blocks", String.format(
+                "Normalized block bounds to origin: shifted (%d,%d,%d), size=%dx%dx%d",
+                shiftX, shiftY, shiftZ, needW, needH, needD));
+    }
+
+    private static void shiftDirectionHints(ComponentDefinition def, int shiftX, int shiftY, int shiftZ) {
+        if (def.directionHints == null) return;
+        shiftMark(def.directionHints.inside, shiftX, shiftY, shiftZ);
+        shiftMark(def.directionHints.outside, shiftX, shiftY, shiftZ);
+        shiftMark(def.directionHints.bottom, shiftX, shiftY, shiftZ);
+        shiftMark(def.directionHints.top, shiftX, shiftY, shiftZ);
+        if (def.directionHints.hostFace != null) {
+            def.directionHints.hostFace.dx -= shiftX;
+            def.directionHints.hostFace.dy -= shiftY;
+            def.directionHints.hostFace.dz -= shiftZ;
+        }
+    }
+
+    private static void shiftMark(ComponentDefinition.DirectionHints.Mark mark, int shiftX, int shiftY, int shiftZ) {
+        if (mark == null) return;
+        mark.dx -= shiftX;
+        mark.dy -= shiftY;
+        mark.dz -= shiftZ;
 
     // ----------------------------------------------------------------
     // Placement（放置规格）
