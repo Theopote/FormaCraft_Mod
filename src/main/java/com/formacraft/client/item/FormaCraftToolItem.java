@@ -1,4 +1,4 @@
-package com.formacraft.common.item;
+package com.formacraft.client.item;
 
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
@@ -18,9 +18,7 @@ public class FormaCraftToolItem extends Item {
     @Override
     public ActionResult use(World world, PlayerEntity user, Hand hand) {
         if (world.isClient()) {
-            // 切换 UI 状态
             FormacraftUIState.toggle();
-            // 如果打开，默认显示聊天面板
             if (FormacraftUIState.isOpen) {
                 FormaCraftHudOverlay.activePanel = PanelType.CHAT;
             }

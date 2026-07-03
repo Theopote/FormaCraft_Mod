@@ -1,6 +1,6 @@
 package com.formacraft;
 
-import com.formacraft.common.item.FormaCraftToolItem;
+import com.formacraft.client.item.FormaCraftToolItem;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.command.FormaCraftCommands;
 import net.fabricmc.api.ModInitializer;

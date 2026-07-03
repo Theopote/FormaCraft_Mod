@@ -1,5 +1,6 @@
 package com.formacraft.client.tool.socket;
 
+import com.formacraft.client.tool.ToolConstraintSnapshotFactory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.socket.Socket;
 import com.formacraft.common.component.socket.SocketProviders;
@@ -7,9 +8,7 @@ import com.formacraft.common.component.socket.SocketQueryContext;
 import com.formacraft.common.component.socket.SocketQueryContextBuilder;
 import com.formacraft.common.component.socket.match.SocketMatchResult;
 import com.formacraft.common.component.variant.ComponentVariant;
-import com.formacraft.client.tool.OutlineTool;
-import com.formacraft.client.tool.PathTool;
-import com.formacraft.client.tool.SelectionTool;
+import com.formacraft.common.tool.ToolConstraintSnapshot;
 import com.formacraft.client.tool.ToolWorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexRendering;
@@ -55,12 +54,8 @@ public final class SocketHighlighter {
         }
 
         // 1. 从工具状态创建查询上下文
-        SocketQueryContext ctx = SocketQueryContextBuilder.fromTools(
-                SelectionTool.INSTANCE,
-                OutlineTool.INSTANCE,
-                PathTool.INSTANCE,
-                focus
-        );
+        ToolConstraintSnapshot snapshot = ToolConstraintSnapshotFactory.fromDefaultTools();
+        SocketQueryContext ctx = SocketQueryContextBuilder.fromSnapshot(snapshot, focus);
 
         // 2. 收集所有 Socket
         List<Socket> allSockets = SocketProviders.collect(client.world, ctx);
