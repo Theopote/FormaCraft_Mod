@@ -16,7 +16,10 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class BuildStatusHeartbeat {
     private BuildStatusHeartbeat() {}
 
-    private static final long STATUS_HEARTBEAT_SEC = 15;
+    /** 首次状态更新的延迟：尽早出现"已等待 N 秒"，避免让玩家以为卡死。 */
+    private static final long STATUS_INITIAL_DELAY_SEC = 5;
+    /** 后续心跳间隔。 */
+    private static final long STATUS_HEARTBEAT_SEC = 10;
 
     public static void start(MinecraftServer server,
                              ServerPlayerEntity player,
@@ -49,6 +52,6 @@ public final class BuildStatusHeartbeat {
             }
         };
 
-        CompletableFuture.delayedExecutor(STATUS_HEARTBEAT_SEC, TimeUnit.SECONDS).execute(tick);
+        CompletableFuture.delayedExecutor(STATUS_INITIAL_DELAY_SEC, TimeUnit.SECONDS).execute(tick);
     }
 }

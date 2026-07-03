@@ -135,9 +135,12 @@ public class OrchestratorClient {
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
+            long t0 = System.nanoTime();
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
                     .thenApply(resp -> {
+                        long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+                        FormacraftMod.LOGGER.info("Orchestrator /build round-trip took {} ms (status={})", elapsedMs, resp.statusCode());
                         if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                             String body = resp.body();
                             FormacraftMod.LOGGER.info("Received response from orchestrator: {}", body);
@@ -236,9 +239,12 @@ public class OrchestratorClient {
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
+            long t0 = System.nanoTime();
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
                     .thenApply(resp -> {
+                        long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+                        FormacraftMod.LOGGER.info("Orchestrator /build (composite) round-trip took {} ms (status={})", elapsedMs, resp.statusCode());
                         if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                             String body = resp.body();
                             FormacraftMod.LOGGER.info("Received composite response from orchestrator: {}", body);
@@ -284,9 +290,12 @@ public class OrchestratorClient {
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
+            long t0 = System.nanoTime();
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
                     .thenApply(resp -> {
+                        long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+                        FormacraftMod.LOGGER.info("Orchestrator /build (city) round-trip took {} ms (status={})", elapsedMs, resp.statusCode());
                         if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                             String body = resp.body();
                             FormacraftMod.LOGGER.info("Received city response from orchestrator: {}", body);

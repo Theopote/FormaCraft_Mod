@@ -82,6 +82,9 @@ public class ChatPanel extends BasePanel {
     // ========== 服务端请求状态（用于更准确的“思考中/超时/错误”展示） ==========
     private long pendingRequestToken = 0L;
     private int pendingThinkingIndex = -1;
+    // 本地等待计时：从发出请求即刻开始，每秒刷新“已等待 N 秒”，不依赖服务端心跳
+    private long pendingStartMs = 0L;
+    private String pendingPhase = "";
     private static final long SOFT_TIMEOUT_SEC = 15;
     // 复杂复合结构/城市规划可能很慢（deepseek/reasoner 尤其），默认给 10 分钟避免误报超时
     private static final long HARD_TIMEOUT_SEC = 600;
@@ -861,10 +864,16 @@ public class ChatPanel extends BasePanel {
                 || providerHint.equalsIgnoreCase("deepseek"))) {
             warn = "（未设置 API Key，可能使用兜底/离线模板）";
         }
-        messages.add(ChatMessage.thinking("已发送请求，等待后端响应…  LLM=" + providerHint + "/" + modelHint + baseHint + warn));
+        String basePhase = "已发送请求，等待后端响应  LLM=" + providerHint + "/" + modelHint + baseHint + warn;
+        pendingPhase = basePhase;
+        pendingStartMs = System.currentTimeMillis();
+        messages.add(ChatMessage.thinking(basePhase + "（已等待 0 秒）"));
         scrollOffset = 0;
 
         FormaCraftClientNetworking.sendBuildRequest(req);
+
+        // 本地等待计时：第 1 秒即开始跳动，不依赖服务端心跳
+        startElapsedTicker(pendingRequestToken);
 
         // 软超时：服务端/AI 可能在生成，15s 不应直接报错（避免误导）
         final long token = pendingRequestToken;
@@ -887,15 +896,10 @@ public class ChatPanel extends BasePanel {
                             if (cur2 == null || cur2.type != ChatMessage.MessageType.THINKING) return;
 
                             if (healthy) {
-                                messages.set(pendingThinkingIndex, ChatMessage.thinking(
-                                        "仍在生成中（已等待 " + SOFT_TIMEOUT_SEC + " 秒）。后端健康，可能是模型生成较慢…"
-                                ));
+                                setPendingPhase("仍在生成中。后端健康，可能是模型生成较慢…");
                             } else {
-                                messages.set(pendingThinkingIndex, ChatMessage.thinking(
-                                        "仍在等待后端响应（已等待 " + SOFT_TIMEOUT_SEC + " 秒）。后端可能未就绪或不可达…"
-                                ));
+                                setPendingPhase("仍在等待后端响应。后端可能未就绪或不可达…");
                             }
-                            scrollOffset = 0;
                         }));
             } else {
                 client.execute(() -> {
@@ -903,10 +907,7 @@ public class ChatPanel extends BasePanel {
                     if (pendingThinkingIndex < 0 || pendingThinkingIndex >= messages.size()) return;
                     ChatMessage cur2 = messages.get(pendingThinkingIndex);
                     if (cur2 == null || cur2.type != ChatMessage.MessageType.THINKING) return;
-                    messages.set(pendingThinkingIndex, ChatMessage.thinking(
-                            "仍在等待服务端响应（已等待 " + SOFT_TIMEOUT_SEC + " 秒）。可能仍在生成中…"
-                    ));
-                    scrollOffset = 0;
+                    setPendingPhase("仍在等待服务端响应。可能仍在生成中…");
                 });
             }
         });
@@ -1271,10 +1272,11 @@ public class ChatPanel extends BasePanel {
                     messages.set(pendingThinkingIndex, new ChatMessage(t, false));
                     pendingThinkingIndex = -1;
                     pendingRequestToken = 0L;
+                    scrollOffset = 0;
                 } else {
-                    messages.set(pendingThinkingIndex, ChatMessage.thinking(t));
+                    // 只更新“阶段文案”，等待秒数交给本地 ticker，避免重复“已等待”
+                    setPendingPhase(t);
                 }
-                scrollOffset = 0;
                 return;
             }
         }
@@ -1286,5 +1288,45 @@ public class ChatPanel extends BasePanel {
             pendingRequestToken = 0L;
         }
         scrollOffset = 0;
+    }
+
+    /**
+     * 更新等待阶段文案（会剥离对方自带的“（已等待 N 秒）”后缀，秒数由本地 ticker 统一渲染），
+     * 并立即刷新一次占位消息。
+     */
+    private void setPendingPhase(String phase) {
+        if (phase == null) return;
+        String p = phase.trim();
+        int idx = p.indexOf("（已等待");
+        if (idx >= 0) p = p.substring(0, idx).trim();
+        this.pendingPhase = p;
+        renderPendingElapsed();
+    }
+
+    /** 把当前占位消息刷新为 “阶段文案（已等待 N 秒）”。不改动 scrollOffset，避免每秒把视图拉到底。 */
+    private void renderPendingElapsed() {
+        if (pendingRequestToken == 0L) return;
+        if (pendingThinkingIndex < 0 || pendingThinkingIndex >= messages.size()) return;
+        ChatMessage cur = messages.get(pendingThinkingIndex);
+        if (cur == null || cur.type != ChatMessage.MessageType.THINKING) return;
+        long sec = Math.max(0, (System.currentTimeMillis() - pendingStartMs) / 1000);
+        String phase = (pendingPhase == null || pendingPhase.isBlank()) ? "正在生成中" : pendingPhase;
+        messages.set(pendingThinkingIndex, ChatMessage.thinking(phase + "（已等待 " + sec + " 秒）"));
+    }
+
+    /** 本地每秒计时；以 token 为准，请求一旦结束/被替换即自动停止。 */
+    private void startElapsedTicker(long token) {
+        Runnable tick = new Runnable() {
+            @Override
+            public void run() {
+                if (pendingRequestToken != token) return;
+                client.execute(() -> {
+                    if (pendingRequestToken != token) return;
+                    renderPendingElapsed();
+                });
+                CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS).execute(this);
+            }
+        };
+        CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS).execute(tick);
     }
 }
