@@ -16,6 +16,7 @@ import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -1607,7 +1608,7 @@ public class ComponentCapturePanel extends BasePanel {
         String componentName = st.name.trim();
         ComponentTool.INSTANCE.markSavePending(componentName);
         HudToast.show("正在保存构件「" + componentName + "」…");
-        FormaCraftNetworking.sendSaveComponent(json, thumbnailPng);
+        FormaCraftClientNetworking.sendSaveComponent(json, thumbnailPng);
     }
 
     @Override

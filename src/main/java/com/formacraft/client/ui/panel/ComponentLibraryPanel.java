@@ -10,6 +10,7 @@ import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentStorage;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -197,7 +198,7 @@ public final class ComponentLibraryPanel extends BasePanel {
             
             // 请求服务端重新发送catalog（作为最终同步，确保服务端和客户端一致）
             if (client.getNetworkHandler() != null) {
-                FormaCraftNetworking.sendComponentCatalogRequest();
+                FormaCraftClientNetworking.sendComponentCatalogRequest();
             }
             
             HudToast.show("已删除构件: " + componentName + "（包括缩略图）");

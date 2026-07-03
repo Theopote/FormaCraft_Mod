@@ -12,6 +12,7 @@ import com.formacraft.client.ui.panel.PanelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 
 /**
@@ -279,12 +280,12 @@ public class InputRouter {
             boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
             boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
             if (ctrl && keyCode == GLFW.GLFW_KEY_Z) {
-                if (shift) FormaCraftNetworking.sendPatchRedo();
-                else FormaCraftNetworking.sendPatchUndo();
+                if (shift) FormaCraftClientNetworking.sendPatchRedo();
+                else FormaCraftClientNetworking.sendPatchUndo();
                 return true;
             }
             if (ctrl && keyCode == GLFW.GLFW_KEY_Y) {
-                FormaCraftNetworking.sendPatchRedo();
+                FormaCraftClientNetworking.sendPatchRedo();
                 return true;
             }
             return false; // 其它键放行（WASD/Space/Shift 等）
@@ -304,12 +305,12 @@ public class InputRouter {
         boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
         boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
         if (ctrl && keyCode == GLFW.GLFW_KEY_Z) {
-            if (shift) FormaCraftNetworking.sendPatchRedo();
-            else FormaCraftNetworking.sendPatchUndo();
+            if (shift) FormaCraftClientNetworking.sendPatchRedo();
+            else FormaCraftClientNetworking.sendPatchUndo();
             return true;
         }
         if (ctrl && keyCode == GLFW.GLFW_KEY_Y) {
-            FormaCraftNetworking.sendPatchRedo();
+            FormaCraftClientNetworking.sendPatchRedo();
             return true;
         }
 

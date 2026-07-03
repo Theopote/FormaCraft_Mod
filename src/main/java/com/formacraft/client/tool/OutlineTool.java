@@ -2,6 +2,7 @@ package com.formacraft.client.tool;
 
 import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.interaction.CursorRaycastHelper;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
@@ -243,7 +244,7 @@ public final class OutlineTool implements FormacraftTool {
     }
 
     private void syncToServer() {
-        FormaCraftNetworking.sendOutlineSync(BuildContextResolver.currentOutlineShape());
+        FormaCraftClientNetworking.sendOutlineSync(BuildContextResolver.currentOutlineShape());
     }
 
     public boolean isDrafting() {

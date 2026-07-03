@@ -2,6 +2,7 @@ package com.formacraft.client.tool;
 
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.common.model.constraint.ProtectedZone;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.render.VertexRendering;
 import net.minecraft.text.Text;
@@ -157,7 +158,7 @@ public final class ProtectedZoneTool implements FormacraftTool {
     }
 
     private void syncToServer() {
-        FormaCraftNetworking.sendProtectedZoneSync(zones);
+        FormaCraftClientNetworking.sendProtectedZoneSync(zones);
     }
 }
 

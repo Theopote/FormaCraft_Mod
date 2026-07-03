@@ -24,6 +24,7 @@ import com.formacraft.common.component.placement.PlacementCaptureContext;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.preview.PromptModeState;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
@@ -384,7 +385,7 @@ public final class ComponentTool implements FormacraftTool {
             selMin = SelectionTool.INSTANCE.getMin();
             selMax = SelectionTool.INSTANCE.getMax();
         }
-        FormaCraftNetworking.sendRequestPatchPreview(new FormaCraftNetworking.RequestPatchPreviewPayload(
+        FormaCraftClientNetworking.sendRequestPatchPreview(new FormaCraftNetworking.RequestPatchPreviewPayload(
                 anchor,
                 componentId,
                 facing != null ? facing.name() : null,
@@ -397,8 +398,8 @@ public final class ComponentTool implements FormacraftTool {
                 List.of(),
                 autoConfirm
         ));
-        FormaCraftNetworking.sendProtectedZoneSync(ProtectedZoneTool.INSTANCE.getZones());
-        FormaCraftNetworking.sendOutlineSync(BuildContextResolver.currentOutlineShape());
+        FormaCraftClientNetworking.sendProtectedZoneSync(ProtectedZoneTool.INSTANCE.getZones());
+        FormaCraftClientNetworking.sendOutlineSync(BuildContextResolver.currentOutlineShape());
     }
 
     public void cycleFacing() {
@@ -530,7 +531,7 @@ public final class ComponentTool implements FormacraftTool {
         awaitingComponentId = state.librarySelectedId;
         loadedComponent = null;
         HudToast.show("正在加载构件：「" + (state.librarySelectedName != null ? state.librarySelectedName : state.librarySelectedId) + "」…");
-        FormaCraftNetworking.sendComponentGetRequest(state.librarySelectedId);
+        FormaCraftClientNetworking.sendComponentGetRequest(state.librarySelectedId);
     }
 
     public void onComponentDefinitionFromServer(String json) {

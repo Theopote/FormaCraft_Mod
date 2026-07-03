@@ -17,6 +17,7 @@ import com.formacraft.client.ui.input.InputRouter;
 import com.formacraft.client.ui.text.SelectableTextBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.config.SettingsConfig;
@@ -56,7 +57,7 @@ public class ChatPanel extends BasePanel {
     private final MinecraftClient client = MinecraftClient.getInstance();
 
     // 已切换为“服务端预览 + 确认后建造”的流程：
-    // ChatPanel 只负责发起请求（FormaCraftNetworking.sendBuildRequest），不再本地直接规划/建造。
+    // ChatPanel 只负责发起请求（FormaCraftClientNetworking.sendBuildRequest），不再本地直接规划/建造。
 
     // ==== 对话状态 ====
     private final List<ChatMessage> messages = new ArrayList<>();
@@ -863,7 +864,7 @@ public class ChatPanel extends BasePanel {
         messages.add(ChatMessage.thinking("已发送请求，等待后端响应…  LLM=" + providerHint + "/" + modelHint + baseHint + warn));
         scrollOffset = 0;
 
-        FormaCraftNetworking.sendBuildRequest(req);
+        FormaCraftClientNetworking.sendBuildRequest(req);
 
         // 软超时：服务端/AI 可能在生成，15s 不应直接报错（避免误导）
         final long token = pendingRequestToken;
@@ -950,7 +951,7 @@ public class ChatPanel extends BasePanel {
 
         messages.add(ChatMessage.system(cmd.hint));
         scrollOffset = 0;
-        FormaCraftNetworking.sendPreviewAdjust(cmd.dx, cmd.dy, cmd.dz);
+        FormaCraftClientNetworking.sendPreviewAdjust(cmd.dx, cmd.dy, cmd.dz);
         return true;
     }
 

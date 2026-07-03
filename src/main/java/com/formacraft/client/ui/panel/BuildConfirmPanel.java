@@ -6,6 +6,7 @@ import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.model.build.Materials;
 import com.formacraft.common.model.build.Features;
 import com.formacraft.common.model.build.Footprint;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.client.preview.BuildingPreviewState;
@@ -110,10 +111,10 @@ public class BuildConfirmPanel {
         applyPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.apply"), b -> applyPatch())
                 .dimensions(0, 0, 90, 16)
                 .build();
-        undoPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.undo"), b -> FormaCraftNetworking.sendPatchUndo())
+        undoPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.undo"), b -> FormaCraftClientNetworking.sendPatchUndo())
                 .dimensions(0, 0, 70, 16)
                 .build();
-        redoPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.redo"), b -> FormaCraftNetworking.sendPatchRedo())
+        redoPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.redo"), b -> FormaCraftClientNetworking.sendPatchRedo())
                 .dimensions(0, 0, 70, 16)
                 .build();
     }
@@ -226,7 +227,7 @@ public class BuildConfirmPanel {
             return;
         }
         PatchPreviewState.clear();
-        FormaCraftNetworking.sendPatchConfirm(previewTicketId);
+        FormaCraftClientNetworking.sendPatchConfirm(previewTicketId);
         hide();
     }
     
@@ -648,7 +649,7 @@ public class BuildConfirmPanel {
             BlockPos pos = BuildingPreviewState.getOrigin();
             if (pos == null) pos = client.player.getBlockPos();
             int[] origin = new int[]{pos.getX(), pos.getY(), pos.getZ()};
-            FormaCraftNetworking.sendConfirmBuild(spec, origin);
+            FormaCraftClientNetworking.sendConfirmBuild(spec, origin);
         }
         hide();
     }

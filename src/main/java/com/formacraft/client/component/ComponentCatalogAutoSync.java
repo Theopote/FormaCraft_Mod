@@ -1,5 +1,6 @@
 package com.formacraft.client.component;
 
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.MinecraftClient;
 
@@ -27,7 +28,7 @@ public final class ComponentCatalogAutoSync {
 
         if (requested) return;
         requested = true;
-        FormaCraftNetworking.sendComponentCatalogRequest();
+        FormaCraftClientNetworking.sendComponentCatalogRequest();
     }
 }
 

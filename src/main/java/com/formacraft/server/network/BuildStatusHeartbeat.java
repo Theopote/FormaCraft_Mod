@@ -1,6 +1,8 @@
-package com.formacraft.common.network;
+package com.formacraft.server.network;
 
+import com.formacraft.common.network.FormaCraftNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.concurrent.CompletableFuture;
@@ -16,7 +18,7 @@ public final class BuildStatusHeartbeat {
 
     private static final long STATUS_HEARTBEAT_SEC = 15;
 
-    public static void start(net.minecraft.server.MinecraftServer server,
+    public static void start(MinecraftServer server,
                              ServerPlayerEntity player,
                              AtomicBoolean alive,
                              long startMs,

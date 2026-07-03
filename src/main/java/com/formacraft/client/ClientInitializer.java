@@ -1,12 +1,12 @@
 package com.formacraft.client;
 
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.client.preview.OutlineRenderer;
 import com.formacraft.client.preview.LayoutSiteHudOverlay;
 import com.formacraft.client.backend.BackendAutoStarter;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.InputEventHandler;
 import com.formacraft.client.component.ComponentCatalogAutoSync;
-import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.config.SettingsConfig;
 import net.fabricmc.api.ClientModInitializer;
@@ -32,7 +32,7 @@ public class ClientInitializer implements ClientModInitializer {
         });
         
         // 注册 S2C 数据包（服务端 → 客户端）
-        FormaCraftNetworking.registerS2C();
+        FormaCraftClientNetworking.registerS2C();
         // 单机/集成服务器环境：服务端也在同一 JVM 内运行，但不会触发 DedicatedServerModInitializer。
         // 因此需要在客户端侧也注册 C2S 接收器，确保请求链路在单机可用。
         FormaCraftServerNetworking.registerC2S();
