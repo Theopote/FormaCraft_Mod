@@ -10,7 +10,8 @@ import net.minecraft.client.gui.DrawContext;
 /**
  * FormaCraft HUD Overlay 主入口
  * 管理所有 UI 面板的渲染和交互
- * 固定左侧栏模式：320px 宽度，工具栏集成在面板顶部
+ * 固定左侧栏模式：展开宽度见 {@link com.formacraft.client.ui.panel.BasePanel} 的 SIDEBAR_EXPANDED_WIDTH，
+ * 工具栏（TabBar）集成在面板顶部。
  */
 @Environment(EnvType.CLIENT)
 @SuppressWarnings("deprecation")
@@ -58,10 +59,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
     // 当前激活的面板
     public static PanelType activePanel = PanelType.CHAT;
     
-    // UI 是否可见（已废弃，使用 FormacraftUIState.isOpen）
-    @Deprecated
-    public static boolean uiVisible = true;
-    
     /**
      * 注册 HUD Overlay 渲染事件
      */
@@ -93,126 +90,6 @@ public class FormaCraftHudOverlay implements HudRenderCallback {
         
         // 建造确认浮层（居中显示）
         BUILD_CONFIRM_PANEL.render(context);
-    }
-
-    
-    /**
-     * 显示/隐藏 UI（已废弃，使用 FormacraftUIState.toggle()）
-     */
-    @Deprecated
-    public static void toggleUI() {
-        FormacraftUIState.toggle();
-        uiVisible = FormacraftUIState.isOpen; // 保持向后兼容
-    }
-    
-    /**
-     * 处理鼠标点击（从事件处理器调用）
-     */
-    public static void handleMouseClick(double mouseX, double mouseY, int button) {
-        if (!FormacraftUIState.isOpen) return;
-        if (!ensurePanelsReady()) return;
-        
-        // 面板点击（工具栏点击已集成在面板中）
-        if (activePanel != PanelType.NONE) {
-            switch (activePanel) {
-                case CHAT -> {
-                    if (CHAT_PANEL != null && CHAT_PANEL.mouseClicked(mouseX, mouseY, button)) return;
-                }
-                case TOOLS -> {
-                    if (TOOL_PANEL != null && TOOL_PANEL.mouseClicked(mouseX, mouseY, button)) return;
-                }
-                case COMPONENT_LIBRARY -> {
-                    if (COMPONENT_LIBRARY_PANEL != null && COMPONENT_LIBRARY_PANEL.mouseClicked(mouseX, mouseY, button)) return;
-                }
-                case COMPONENT_CAPTURE -> {
-                    if (COMPONENT_CAPTURE_PANEL != null && COMPONENT_CAPTURE_PANEL.mouseClicked(mouseX, mouseY, button)) return;
-                }
-                case SETTINGS -> {
-                    if (SETTINGS_PANEL != null && SETTINGS_PANEL.mouseClicked(mouseX, mouseY, button)) return;
-                }
-                // 无操作
-            }
-        }
-        
-        // 确认面板点击
-        if (BUILD_CONFIRM_PANEL.isVisible()) {
-            BUILD_CONFIRM_PANEL.mouseClicked(mouseX, mouseY, button);
-        }
-
-    }
-    
-    /**
-     * 处理键盘输入（从事件处理器调用）
-     */
-    public static boolean handleKeyPress(int keyCode, int scanCode, int modifiers) {
-        if (!FormacraftUIState.isOpen) return false;
-        if (!ensurePanelsReady()) return false;
-        
-        // 如果当前面板有输入焦点，处理键盘事件
-        if (activePanel != PanelType.NONE) {
-            switch (activePanel) {
-                case CHAT -> {
-                    if (CHAT_PANEL != null) CHAT_PANEL.keyPressed(keyCode, scanCode, modifiers);
-                    return true;
-                }
-                case TOOLS -> {
-                    if (TOOL_PANEL != null) TOOL_PANEL.keyPressed(keyCode, scanCode, modifiers);
-                    return true;
-                }
-                case COMPONENT_LIBRARY -> {
-                    if (COMPONENT_LIBRARY_PANEL != null) COMPONENT_LIBRARY_PANEL.keyPressed(keyCode, scanCode, modifiers);
-                    return true;
-                }
-                case COMPONENT_CAPTURE -> {
-                    if (COMPONENT_CAPTURE_PANEL != null) COMPONENT_CAPTURE_PANEL.keyPressed(keyCode, scanCode, modifiers);
-                    return true;
-                }
-                case SETTINGS -> {
-                    if (SETTINGS_PANEL != null) SETTINGS_PANEL.keyPressed(keyCode, scanCode, modifiers);
-                    return true;
-                }
-                // 无操作
-            }
-        }
-        
-        return false;
-    }
-    
-    /**
-     * 处理字符输入（从事件处理器调用）
-     */
-    public static boolean handleCharTyped(char chr, int modifiers) {
-        if (!FormacraftUIState.isOpen) return false;
-        if (!ensurePanelsReady()) return false;
-        
-        // 如果当前面板有输入焦点，处理字符输入
-        if (activePanel != PanelType.NONE) {
-            switch (activePanel) {
-                case CHAT -> {
-                    if (CHAT_PANEL != null) CHAT_PANEL.charTyped(chr);
-                    return true;
-                }
-                case TOOLS -> {
-                    if (TOOL_PANEL != null) TOOL_PANEL.charTyped(chr);
-                    return true;
-                }
-                case COMPONENT_LIBRARY -> {
-                    if (COMPONENT_LIBRARY_PANEL != null) COMPONENT_LIBRARY_PANEL.charTyped(chr);
-                    return true;
-                }
-                case COMPONENT_CAPTURE -> {
-                    if (COMPONENT_CAPTURE_PANEL != null) COMPONENT_CAPTURE_PANEL.charTyped(chr);
-                    return true;
-                }
-                case SETTINGS -> {
-                    if (SETTINGS_PANEL != null) SETTINGS_PANEL.charTyped(chr);
-                    return true;
-                }
-                // 无操作
-            }
-        }
-        
-        return false;
     }
 }
 

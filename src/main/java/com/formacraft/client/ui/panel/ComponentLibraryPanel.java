@@ -52,6 +52,10 @@ public final class ComponentLibraryPanel extends BasePanel {
     // 删除按钮（当选中构件时显示）
     private ButtonWidget deleteButton;
 
+    // 节流的构件文件存在性快照：避免每帧对每个 catalog 条目做磁盘 Files.exists 检查。
+    private long lastExistScanMs = 0L;
+    private java.util.Set<String> existingComponentIds = java.util.Collections.emptySet();
+
     // grid hitboxes
     private static final class GridItem {
         final ComponentCatalog.Entry entry;
@@ -277,13 +281,14 @@ public final class ComponentLibraryPanel extends BasePanel {
         String q = (st.librarySearch == null) ? "" : st.librarySearch.trim().toLowerCase(Locale.ROOT);
         List<ComponentCatalog.Entry> filtered = new ArrayList<>();
         Path globalDir = com.formacraft.common.component.ComponentStorage.getGlobalComponentDir();
+        // 每帧一次目录快照（节流 500ms），替代逐条目的磁盘 exists 检查。
+        refreshExistingIdsIfStale(globalDir);
         for (var e : cat.components) {
             if (e == null || e.id == null || e.id.isBlank()) continue;
             
             // 额外验证：确保构件文件确实存在（防止已删除的构件仍显示）
             // 这可以处理 catalog 更新延迟的情况
-            Path componentFile = globalDir.resolve(e.id + ".json");
-            if (!java.nio.file.Files.exists(componentFile)) {
+            if (!existingComponentIds.contains(e.id)) {
                 // 文件不存在，跳过这个条目（可能已被删除但 catalog 还没更新）
                 continue;
             }
@@ -307,6 +312,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         // sort
         Comparator<ComponentCatalog.Entry> cmp = getEntryComparator(st, q);
         filtered.sort(cmp);
+        // 见 refreshExistingIdsIfStale：目录快照节流刷新，避免每帧磁盘 IO。
 
         // paging
         int cols = 4; // 固定每行4个
@@ -522,6 +528,29 @@ public final class ComponentLibraryPanel extends BasePanel {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * 刷新"磁盘上实际存在的构件 id"快照。节流 500ms，避免每帧对每个 catalog 条目做 Files.exists。
+     * 读取失败（目录缺失/瞬时异常）时保留上一次快照，宁可短暂多显示一条也不清空整列表。
+     */
+    private void refreshExistingIdsIfStale(Path globalDir) {
+        long now = System.currentTimeMillis();
+        if (now - lastExistScanMs < 500L && !existingComponentIds.isEmpty()) return;
+        lastExistScanMs = now;
+        if (globalDir == null) return;
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        try (var stream = java.nio.file.Files.list(globalDir)) {
+            stream.forEach(p -> {
+                String fn = p.getFileName().toString();
+                if (fn.endsWith(".json")) {
+                    ids.add(fn.substring(0, fn.length() - ".json".length()));
+                }
+            });
+            existingComponentIds = ids;
+        } catch (java.io.IOException ignored) {
+            // 目录不存在或读取失败：保留上次快照。
         }
     }
 

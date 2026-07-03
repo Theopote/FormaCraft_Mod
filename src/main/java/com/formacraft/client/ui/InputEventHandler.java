@@ -28,17 +28,9 @@ public class InputEventHandler {
                 // 如果有全屏 Screen，不处理 HUD 输入
                 return;
             }
-            
-            // 处理鼠标点击
-            if (client.mouse.wasLeftButtonClicked()) {
-                double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
-                double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
-                FormaCraftHudOverlay.handleMouseClick(mouseX, mouseY, 0);
-            }
-            
-            // 处理键盘输入（通过 Mixin 或事件系统）
-            // 注意：Minecraft 的键盘输入通常通过 Screen 处理
-            // 对于 HUD Overlay，我们需要特殊处理
+
+            // 注意：鼠标/键盘/字符输入统一走 MouseMixin/KeyboardMixin -> InputRouter，
+            // 不在 tick 里再轮询 wasLeftButtonClicked()（那会造成同一次点击的双重分发）。
 
             // Tools tick：实时预览/状态更新
             ToolManager.tick();
@@ -56,20 +48,6 @@ public class InputEventHandler {
                 }
             }
         });
-    }
-    
-    /**
-     * 处理键盘按键（从 Mixin 或 KeyBinding 调用）
-     */
-    public static boolean handleKeyPress(int keyCode, int scanCode, int modifiers) {
-        return FormaCraftHudOverlay.handleKeyPress(keyCode, scanCode, modifiers);
-    }
-    
-    /**
-     * 处理字符输入（从 Mixin 或 KeyBinding 调用）
-     */
-    public static boolean handleCharTyped(char chr, int modifiers) {
-        return FormaCraftHudOverlay.handleCharTyped(chr, modifiers);
     }
 }
 

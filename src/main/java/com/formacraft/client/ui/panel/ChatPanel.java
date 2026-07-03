@@ -750,8 +750,8 @@ public class ChatPanel extends BasePanel {
 
     @Override
     public boolean wantsKeyboardInput() {
-        // 聊天面板：只要输入框处于焦点，就持续接收键盘（即便鼠标暂时移出面板）
-        return inputBox != null;
+        // 聊天面板：仅当输入框真正处于焦点时才声明需要键盘（与其它面板语义一致）
+        return inputBox != null && inputBox.isFocused();
     }
 
     // ==========================
