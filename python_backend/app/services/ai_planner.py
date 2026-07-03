@@ -5,6 +5,7 @@ AI Planner Service
 import os
 import json
 import re
+import time
 import logging
 import concurrent.futures
 from typing import Any, Dict, List, Optional, Union
@@ -19,14 +20,17 @@ except ImportError:
     OpenAI = None
 
 from ..models.request import BuildRequest
-from .llm_client import get_client, build_config
+from .llm_client import get_client, build_config, resolve_provider
 from ..models.building_spec import (
     BuildingSpec, BuildingType, BuildingStyle, 
     Footprint, Materials, Features, StyleOptions
 )
 from ..models.building_genome import BuildingGenome
 from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
-from ..models.llm_plan_json_schema import call_chat_with_llm_plan_response_formats
+from ..models.llm_plan_json_schema import (
+    call_chat_with_llm_plan_response_formats,
+    resolve_llmplan_json_schema_mode,
+)
 from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
 from ..models.semantic_spatial_plan import SemanticSpatialPlan
@@ -43,6 +47,16 @@ _LLM_CALL_TIMEOUT_LLMPLAN_SEC = float(os.getenv("LLM_CALL_TIMEOUT_LLMPLAN_SEC", 
 # Composite/City 往往比单体 BuildingSpec 更慢；默认给更长时间（可通过环境变量覆盖）
 _LLM_CALL_TIMEOUT_COMPOSITE_SEC = float(os.getenv("LLM_CALL_TIMEOUT_COMPOSITE_SEC", "600"))
 _LLM_CALL_TIMEOUT_CITY_SEC = float(os.getenv("LLM_CALL_TIMEOUT_CITY_SEC", "600"))
+
+# ---- Phase 6 延迟治理开关 ----
+# 参考资料联网搜索策略：landmark（默认，仅地标）| all（地标+风格）| off（完全关闭）
+_ARCHITECTURE_SEARCH_MODE = (os.getenv("ARCHITECTURE_SEARCH") or "landmark").strip().lower()
+# 联网搜索硬超时（秒）：搜索是主要隐藏延迟，超时即跳过，绝不阻塞生成
+_ARCHITECTURE_SEARCH_TIMEOUT_SEC = float(os.getenv("ARCHITECTURE_SEARCH_TIMEOUT_SEC", "3"))
+# 可选：llmplan 步骤强制使用的快模型（覆盖客户端 model，用于速度/质量对比）。为空则不覆盖。
+_LLMPLAN_MODEL_OVERRIDE = (os.getenv("LLMPLAN_MODEL") or "").strip()
+# 已知不支持严格 json_schema 的 provider：auto 模式下直接走 json_object，避免必失的首次尝试
+_NON_JSON_SCHEMA_PROVIDERS = {"deepseek", "ollama", "lmstudio"}
 
 
 def _int_env(name: str, default: int) -> int:
@@ -4272,39 +4286,67 @@ def generate_llm_plan(req: BuildRequest) -> dict:
         user_prompt = req.userMessage or request_text
     
     # ========== 网络搜索增强：为强类型建筑获取参考资料 ==========
-    try:
-        from .architecture_researcher import get_architecture_reference_context
-        
-        # 检查是否需要搜索参考资料
-        search_query = (req.userMessage or "").strip()
-        if not search_query:
-            # 从 requestText 中提取用户请求
-            if "USER REQUEST:" in request_text:
-                search_query = user_prompt
-            else:
-                search_query = user_prompt[:200]  # 使用前200个字符作为搜索关键词
-        
-        if search_query:
-            reference_context = get_architecture_reference_context(search_query)
-            if reference_context:
-                # 将参考资料添加到 user prompt 前面
-                user_prompt = reference_context + "\n\n" + user_prompt
-                logger.info("Added architecture reference context to LlmPlan prompt")
-    except ImportError:
-        logger.warning("architecture_researcher module not available, skipping reference search")
-    except Exception as e:
-        # 搜索失败不应该阻塞生成，只记录警告
-        logger.warning(f"Failed to get architecture reference: {e}")
-    
+    # 默认只对"地标"（埃菲尔/故宫…）联网搜参考；普通风格（中式/欧式…）不搜——
+    # 联网搜索是主要的隐藏延迟来源，风格特征应由 style profile / prompt 表达。
+    search_ms = 0.0
+    if _ARCHITECTURE_SEARCH_MODE != "off":
+        _t_search = time.monotonic()
+        try:
+            from .architecture_researcher import get_architecture_reference_context
+
+            # 检查是否需要搜索参考资料
+            search_query = (req.userMessage or "").strip()
+            if not search_query:
+                # 从 requestText 中提取用户请求
+                if "USER REQUEST:" in request_text:
+                    search_query = user_prompt
+                else:
+                    search_query = user_prompt[:200]  # 使用前200个字符作为搜索关键词
+
+            if search_query:
+                landmark_only = _ARCHITECTURE_SEARCH_MODE != "all"
+                reference_context = _call_with_timeout(
+                    lambda: get_architecture_reference_context(search_query, landmark_only=landmark_only),
+                    _ARCHITECTURE_SEARCH_TIMEOUT_SEC,
+                )
+                if reference_context:
+                    # 将参考资料添加到 user prompt 前面
+                    user_prompt = reference_context + "\n\n" + user_prompt
+                    logger.info("Added architecture reference context to LlmPlan prompt")
+        except ImportError:
+            logger.warning("architecture_researcher module not available, skipping reference search")
+        except TimeoutError:
+            logger.warning(
+                "architecture reference search timed out after %ss; skipping",
+                _ARCHITECTURE_SEARCH_TIMEOUT_SEC,
+            )
+        except Exception as e:
+            # 搜索失败不应该阻塞生成，只记录警告
+            logger.warning(f"Failed to get architecture reference: {e}")
+        search_ms = (time.monotonic() - _t_search) * 1000.0
+
+    llm_ms = 0.0
+    normalize_ms = 0.0
     try:
         model = _resolve_model(req, "gpt-4o-mini")
+        if _LLMPLAN_MODEL_OVERRIDE:
+            logger.info("LlmPlan: overriding model %s -> %s (LLMPLAN_MODEL)", model, _LLMPLAN_MODEL_OVERRIDE)
+            model = _LLMPLAN_MODEL_OVERRIDE
         timeout_sec = _resolve_timeout_sec_for_task("llmplan", req, model)
         
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": user_prompt})
-        
+
+        # 已知不支持严格 json_schema 的 provider：auto 模式下直接走 json_object，
+        # 避免一次必失的 json_schema 尝试（否则等于双调用）。
+        prefer_json_object = (
+            resolve_llmplan_json_schema_mode() == "auto"
+            and resolve_provider(req) in _NON_JSON_SCHEMA_PROVIDERS
+        )
+
+        _t_llm = time.monotonic()
         response, _response_format_label = call_chat_with_llm_plan_response_formats(
             client,
             model=model,
@@ -4312,7 +4354,9 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             temperature=_clamp_temperature(getattr(req, "temperature", None), 0.7),
             call_with_timeout=_call_with_timeout,
             timeout_sec=timeout_sec,
+            prefer_json_object=prefer_json_object,
         )
+        llm_ms = (time.monotonic() - _t_llm) * 1000.0
         
         raw_output = response.choices[0].message.content
         if not raw_output:
@@ -4327,8 +4371,14 @@ def generate_llm_plan(req: BuildRequest) -> dict:
                 plan = json.loads(repaired)
             else:
                 raise
+        _t_norm = time.monotonic()
         normalized = _normalize_llm_plan_output(plan, req)
         validate_llm_plan_dict(normalized)
+        normalize_ms = (time.monotonic() - _t_norm) * 1000.0
+        logger.info(
+            "LlmPlan timing: search=%.0fms llm=%.0fms normalize=%.0fms model=%s fmt=%s",
+            search_ms, llm_ms, normalize_ms, model, _response_format_label,
+        )
         return normalized
     except LlmPlanValidationError:
         raise

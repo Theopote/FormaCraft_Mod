@@ -335,6 +335,18 @@ ComponentParamsObject:
             """;
     }
 
+    /**
+     * 可用地标模块清单（Phase 7）。让 LLM 对"固定形象建筑"引用预制模块，而非硬想象。
+     * 无模块时返回空串。
+     */
+    static String landmarkModulesPrompt() {
+        try {
+            return com.formacraft.common.archetype.LandmarkModuleRegistry.promptListing();
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
     static String socketSystemPrompt() {
         return """
             

@@ -49,10 +49,13 @@ ARCHITECTURE_STYLES = [
 ]
 
 
-def _detect_landmark_or_style(text: str) -> Optional[str]:
+def _detect_landmark_or_style(text: str, landmark_only: bool = False) -> Optional[str]:
     """
     检测文本中是否包含强类型建筑或建筑风格关键词
     返回匹配的关键词（用于搜索）
+
+    landmark_only=True 时只匹配地标建筑（埃菲尔/故宫…），跳过风格词（中式/欧式…）。
+    风格特征应由 style profile / prompt 表达，不值得为其付出联网搜索的延迟。
     """
     text_lower = text.lower()
     
@@ -60,7 +63,10 @@ def _detect_landmark_or_style(text: str) -> Optional[str]:
     for keyword in LANDMARK_BUILDINGS:
         if keyword.lower() in text_lower:
             return keyword
-    
+
+    if landmark_only:
+        return None
+
     # 然后匹配建筑风格
     for keyword in ARCHITECTURE_STYLES:
         if keyword.lower() in text_lower:
@@ -197,17 +203,18 @@ def _search_with_bing(query: str, max_results: int) -> List[Dict[str, str]]:
     return results
 
 
-def get_architecture_reference_context(text: str) -> Optional[str]:
+def get_architecture_reference_context(text: str, landmark_only: bool = False) -> Optional[str]:
     """
     为给定的文本生成建筑参考资料上下文
     
     Args:
         text: 用户请求文本
+        landmark_only: 只对地标建筑联网搜索（跳过普通风格词），默认 False。
     
     Returns:
         格式化的参考资料上下文（如果没有找到相关信息则返回 None）
     """
-    keyword = _detect_landmark_or_style(text)
+    keyword = _detect_landmark_or_style(text, landmark_only=landmark_only)
     if not keyword:
         return None
     

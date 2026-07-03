@@ -211,13 +211,21 @@ public final class UnifiedGeneratorRouter {
             return false;
         }
 
-        if (hasFeaturePrefix(c, "structure_generator:") || hasFeaturePrefix(c, "landmark:")) {
+        if (hasFeaturePrefix(c, "structure_generator:")
+                || hasFeaturePrefix(c, "landmark:")
+                || hasFeaturePrefix(c, "module:")) {
+            return true;
+        }
+
+        // Phase 7：显式地标模块引用（component_type=MODULE + landmark/module feature 或 params.module_id）
+        if ("MODULE".equals(normalizeType(c.componentType()))) {
             return true;
         }
 
         Map<String, Object> params = c.params();
         if (params != null) {
             if (params.containsKey("landmark")) return true;
+            if (params.containsKey("module_id")) return true;
             if (params.containsKey("template")) return true;
             if (params.containsKey("blueprint")) return true;
             if (params.containsKey("assembly")) return true;

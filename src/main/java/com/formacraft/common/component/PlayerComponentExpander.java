@@ -479,11 +479,32 @@ public final class PlayerComponentExpander {
         }
         ComponentQuery query = parseComponentQuery(reqMap, px);
         if (query != null) {
-            ComponentDefinition def = com.formacraft.common.component.query.ComponentRetriever.retrieveBest(query);
-            if (def != null) return def;
+            // Phase 8：检索最佳匹配并自动生成变体（缩放/裁剪/换材质）。
+            // 变体为运行时产物；恒等变体等价于旧 retrieveBest 行为。
+            java.util.Random rng = new java.util.Random(variantSeed(query, px));
+            com.formacraft.common.component.query.ComponentRetriever.VariantResult vr =
+                    com.formacraft.common.component.query.ComponentRetriever.retrieveBestWithVariant(query, rng);
+            if (vr != null && vr.base() != null) {
+                ComponentDefinition applied =
+                        com.formacraft.common.component.variant.ComponentVariantApplier.apply(vr.base(), vr.variant());
+                return applied != null ? applied : vr.base();
+            }
         }
         ComponentRequest req = parseRequestWithPrefix(reqMap, px);
         return ComponentLibrary.findBest(worldDir, req);
+    }
+
+    /**
+     * 变体随机种子：由 query 语义 + prefix 派生，保证同一请求变体稳定（可复现）。
+     */
+    private static long variantSeed(ComponentQuery query, String prefix) {
+        long seed = 1125899906842597L;
+        if (prefix != null) seed = 31 * seed + prefix.hashCode();
+        if (query != null && query.semantic != null) {
+            if (query.semantic.role != null) seed = 31 * seed + query.semantic.role.hashCode();
+            if (query.semantic.tags != null) seed = 31 * seed + query.semantic.tags.hashCode();
+        }
+        return seed;
     }
 
     private static ComponentQuery parseComponentQuery(Map<String, Object> reqMap, String prefix) {

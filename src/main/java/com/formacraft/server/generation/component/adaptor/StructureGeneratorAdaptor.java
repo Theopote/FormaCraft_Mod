@@ -162,6 +162,11 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
             copyIfPresent(params, extra, "blueprint");
             copyIfPresent(params, extra, "assembly");
             copyIfPresent(params, extra, "styleProfileId");
+            // Phase 7：module_id → 规范地标 id（走既有 landmark 路由）
+            Object moduleId = params.get("module_id");
+            if (moduleId != null) {
+                putResolvedLandmark(extra, String.valueOf(moduleId));
+            }
         }
 
         List<String> features = c.features();
@@ -170,7 +175,9 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
                 if (feature == null) continue;
                 String lower = feature.toLowerCase(Locale.ROOT);
                 if (lower.startsWith("landmark:")) {
-                    extra.put("landmark", feature.substring("landmark:".length()).trim());
+                    putResolvedLandmark(extra, feature.substring("landmark:".length()).trim());
+                } else if (lower.startsWith("module:")) {
+                    putResolvedLandmark(extra, feature.substring("module:".length()).trim());
                 } else if (lower.startsWith("structure_generator:")) {
                     String value = feature.substring("structure_generator:".length()).trim();
                     if (!value.isEmpty()) {
@@ -181,6 +188,15 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
                 }
             }
         }
+    }
+
+    /**
+     * 把（可能是别名/中文的）模块引用解析为规范地标 id 写入 extra；解析失败时保留原值兜底。
+     */
+    private static void putResolvedLandmark(Map<String, Object> extra, String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) return;
+        String resolved = com.formacraft.common.archetype.LandmarkModuleRegistry.resolveModuleId(rawValue);
+        extra.put("landmark", resolved != null ? resolved : rawValue.trim());
     }
 
     private static void copyIfPresent(Map<String, Object> from, Map<String, Object> to, String key) {

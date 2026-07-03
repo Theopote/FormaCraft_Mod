@@ -82,7 +82,38 @@ final class PromptSpatialSections {
      * 若要“请求使用构件”，请在 components[].features 中写入 feature 字符串：
      * component_request:{"semantic":"main_entrance","category":"DOOR","tags":["Chinese"],"approx_size":{"w":4,"h":6,"d":1},"count":1}
      */
+    /**
+     * 是否存在可用的玩家构件库（构件 or 构件组）。
+     * <p>
+     * 用于 Prompt 瘦身：无库时，大段 prefab/socket/ComponentQuery 规则纯属浪费 token，
+     * 应整体跳过（见 {@link PromptAssembler} 与 {@link #componentLibraryBlock()}）。
+     */
+    static boolean hasComponentLibrary() {
+        try {
+            var cat = com.formacraft.client.component.ClientComponentCatalogState.getCatalog();
+            if (cat != null && cat.components != null && !cat.components.isEmpty()) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (!com.formacraft.common.component.group.ComponentGroupRegistry.list().isEmpty()) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
     static String componentLibraryBlock() {
+        // 无构件库：不注入大段 prefab/mount/ComponentQuery 规则（纯浪费 token），
+        // 让 LLM 直接用语义组件搭建。
+        if (!hasComponentLibrary()) {
+            return "PLAYER COMPONENT LIBRARY (Prefab Library):\n" +
+                    "(no player components or component groups registered)\n" +
+                    "- No prefab components available; compose the building from semantic components only.\n\n";
+        }
+
         String summary;
         try {
             summary = com.formacraft.client.component.ClientComponentCatalogState.getSummary();
@@ -167,26 +198,8 @@ final class PromptSpatialSections {
                 "  component_request:{\"semantic\":\"...\",\"category\":\"DOOR|WINDOW|COLUMN|...\",\"tags\":[\"...\"],\"approx_size\":{\"w\":-1,\"h\":-1,\"d\":-1},\"facing\":\"NORTH|EAST|SOUTH|WEST\",\"mirror\":\"NONE|X|Z\",\"semantic_style_id\":\"DEFAULT|...\",\"semantic_skin\":true,\"carve\":true,\"mask\":{\"w\":2,\"h\":3,\"d\":1},\"mask_origin\":{\"x\":0,\"y\":0,\"z\":0}}\n" +
                 "- To mount a component into a host socket, use ONE component_request with mount fields (do not emit a separate host component):\n" +
                 "  component_request:{\"host_id\":\"...\",\"socket_id\":\"socket_1\",\"mount_id\":\"...\",\"facing\":\"SOUTH\",\"mirror\":\"NONE\",\"semantic_skin\":true}\n" +
-                "\n" +
-                "COMPONENT QUERY SYSTEM (AI-first component selection):\n" +
-                "- IMPORTANT: You DO NOT select specific component IDs. Instead, describe what kind of component you need using ComponentQuery.\n" +
-                "- The system will automatically find the best matching component from the library based on your query.\n" +
-                "- ComponentQuery structure (embed in component_request.component_query):\n" +
-                "  component_request:{\"component_query\":{\n" +
-                "    \"semantic\":{\"role\":\"door|window|column|railing|decoration\",\"tags\":[\"gothic\",\"arched\"],\"importance\":[\"role\",\"placement\"]},\n" +
-                "    \"context\":{\"placement\":\"wall|roof|edge|ground|interior\",\"side\":\"interior|exterior|both\",\"height_level\":\"ground|mid|roof\",\"edge_condition\":\"corner|flat|convex\"},\n" +
-                "    \"geometry\":{\"opening\":{\"width\":2,\"height\":3,\"tolerance\":1},\"scalable\":true},\n" +
-                "    \"style\":{\"style_profile\":\"Medieval_Castle\",\"material_tone\":\"dark_stone\"},\n" +
-                "    \"constraints\":{\"forbidden_tags\":[\"glass\",\"modern\"],\"must_have\":[\"structural\"]},\n" +
-                "    \"usage_hint\":{\"frequency\":\"primary|secondary|decorative\",\"visibility\":\"high|low\"}\n" +
-                "  }}\n" +
-                "- Example: Instead of \"component_id\":\"gothic_door_A\", use:\n" +
-                "  component_request:{\"component_query\":{\"semantic\":{\"role\":\"door\",\"tags\":[\"gothic\",\"stone\"]},\"context\":{\"placement\":\"wall\",\"side\":\"exterior\"},\"style\":{\"style_profile\":\"Medieval_Castle\"}}}\n" +
-                "- The system will automatically:\n" +
-                "  1. Filter components by hard constraints (role, placement, side, forbidden tags)\n" +
-                "  2. Score components by semantic match, context match, geometry fit, style affinity, usage priority\n" +
-                "  3. Select the best matching component (or top-N candidates for variant generation)\n" +
-                "- You never know which specific component was selected - you only describe requirements.\n" +
+                "- To request a component by intent (not by id), embed a ComponentQuery via component_request.component_query "
+                + "(schema described in the COMPONENT QUERY SYSTEM section above).\n" +
                 "\n";
     }
 

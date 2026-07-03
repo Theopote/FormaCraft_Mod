@@ -49,8 +49,16 @@ public final class PromptAssembler {
         StringBuilder sb = new StringBuilder(1024);
 
         sb.append(PromptSystemSections.systemRole());
-        sb.append(PromptSystemSections.componentQuerySystemPrompt());
-        sb.append(PromptSystemSections.socketSystemPrompt());
+
+        // Phase 7：固定形象地标（埃菲尔/长城/天坛…）引用预制模块，而非让 LLM 硬想象几何。
+        sb.append(PromptSystemSections.landmarkModulesPrompt());
+
+        // Prompt 瘦身：ComponentQuery / Socket 两大系统仅在存在玩家构件库时才有意义。
+        // 无库时这两段（约 5-6k 字符）纯属浪费 token，直接跳过，让 LLM 用语义组件搭建。
+        if (PromptSpatialSections.hasComponentLibrary()) {
+            sb.append(PromptSystemSections.componentQuerySystemPrompt());
+            sb.append(PromptSystemSections.socketSystemPrompt());
+        }
 
         MemoryContext memoryContext = PromptMemorySections.retrieveMemory(ctx);
         if (memoryContext != null && !memoryContext.isEmpty()) {

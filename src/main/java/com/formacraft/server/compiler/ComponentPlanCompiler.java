@@ -599,8 +599,11 @@ public final class ComponentPlanCompiler {
         if (component == null) {
             return null;
         }
-        boolean hasComponentRequest = hasComponentRequest(component.features());
-        String type = normalizeComponentType(component.componentType(), hasComponentRequest);
+        // allowUnknown：component_request/group_request，或显式地标/模块路由提示，
+        // 都应保留原始 type（交由 UnifiedGeneratorRouter 的扩展/整栋回退处理）。
+        boolean allowUnknown = hasComponentRequest(component.features())
+                || hasStructureRoutingHint(component);
+        String type = normalizeComponentType(component.componentType(), allowUnknown);
         if (type.isBlank()) {
             return null;
         }
@@ -651,6 +654,37 @@ public final class ComponentPlanCompiler {
             }
             String lower = feature.toLowerCase(Locale.ROOT);
             if (lower.startsWith("component_request:") || lower.startsWith("group_request:")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 是否携带地标/模块/整栋路由提示（Phase 7）。用于放行 MODULE 等未注册 type，
+     * 交由 {@code UnifiedGeneratorRouter} 的整栋回退（{@code StructureGeneratorAdaptor}）处理。
+     */
+    private static boolean hasStructureRoutingHint(Component component) {
+        if (component == null) {
+            return false;
+        }
+        List<String> features = component.features();
+        if (features != null) {
+            for (String feature : features) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase(Locale.ROOT);
+                if (lower.startsWith("landmark:") || lower.startsWith("module:")
+                        || lower.startsWith("structure_generator:") || lower.startsWith("skeleton:")) {
+                    return true;
+                }
+            }
+        }
+        Map<String, Object> params = component.params();
+        if (params != null) {
+            if (params.containsKey("landmark") || params.containsKey("module_id")
+                    || params.containsKey("template") || params.containsKey("blueprint")
+                    || params.containsKey("assembly") || params.containsKey("skeleton")
+                    || Boolean.TRUE.equals(params.get("useStructureGenerator"))) {
                 return true;
             }
         }

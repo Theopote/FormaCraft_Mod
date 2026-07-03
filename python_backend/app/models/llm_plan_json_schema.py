@@ -289,13 +289,22 @@ def call_chat_with_llm_plan_response_formats(
     temperature: float,
     call_with_timeout: Any,
     timeout_sec: float,
+    prefer_json_object: bool = False,
 ) -> Tuple[Any, str]:
     """
     Call chat.completions.create with json_schema first (if enabled), then json_object.
 
+    When ``prefer_json_object`` is True (e.g. providers that do not support strict
+    json_schema, like DeepSeek/Ollama), skip the json_schema attempt entirely to
+    avoid a guaranteed-fail round-trip. Only takes effect in the ``auto`` mode
+    (an explicit ``LLMPLAN_JSON_SCHEMA=on`` still forces json_schema).
+
     Returns (response, format_label).
     """
-    formats = iter_llm_plan_response_formats()
+    if prefer_json_object:
+        formats: List[Tuple[str, Dict[str, Any]]] = [("json_object", JSON_OBJECT_RESPONSE_FORMAT)]
+    else:
+        formats = iter_llm_plan_response_formats()
     last_exc: BaseException | None = None
 
     for index, (label, response_format) in enumerate(formats):
