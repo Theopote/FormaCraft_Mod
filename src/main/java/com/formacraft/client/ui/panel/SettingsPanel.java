@@ -859,8 +859,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         String url = base.endsWith("/models") ? base : (base + "/models");
         String apiKey = apiKeyInput.getText() != null ? apiKeyInput.getText().trim() : "";
         String provider = (draftLlmProvider == null) ? "" : draftLlmProvider.trim();
+        String model = modelInput.getText() != null ? modelInput.getText().trim() : "";
         String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
         String llmBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
+        String providerHint = provider.isBlank() ? "auto" : provider;
+        String modelHint = model.isBlank() ? "auto" : model;
+        String baseHint = (llmBaseUrl == null || llmBaseUrl.isBlank()) ? "(auto)" : llmBaseUrl;
+        final String llmHint = providerHint + "/" + modelHint + " @ " + baseHint;
 
         if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
             validatingKey = false;
@@ -925,16 +930,23 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             }
 
             if (resp.status >= 200 && resp.status < 300) {
-                showToast("Key 校验通过（" + provider + "）", false);
+                boolean remoteOk = SettingsModelCatalog.readRemoteModelsOk(resp.body);
+                String source = SettingsModelCatalog.readModelsSource(resp.body);
+                if (!remoteOk) {
+                    String src = (source == null || source.isBlank()) ? "fallback" : source;
+                    showToast("上游模型端点不可达（" + src + "），暂无法确认 Key 有效性。当前 LLM：" + llmHint, true);
+                    return;
+                }
+                showToast("Key 校验通过（" + providerHint + "）", false);
                 return;
             }
 
             if (resp.status == 401 || resp.status == 403) {
-                showToast("Key 无效/未授权（" + resp.status + "）：请检查 Provider 与 Key 是否匹配", true);
+                showToast("Key 无效/未授权（" + resp.status + "）。当前 LLM：" + llmHint, true);
                 return;
             }
 
-            showToast("校验失败：" + resp.status + " " + SettingsModelCatalog.shortErr(resp.body), true);
+            showToast("校验失败：" + resp.status + "。当前 LLM：" + llmHint + "。" + SettingsModelCatalog.shortErr(resp.body), true);
         }));
     }
 
