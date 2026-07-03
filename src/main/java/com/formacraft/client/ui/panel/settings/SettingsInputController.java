@@ -317,7 +317,9 @@ public final class SettingsInputController {
         }
 
         // =========== 按钮行（Save/Cancel/Reset） ============
-        y += FIELD_SPACING;
+        // 注意：SettingsPreferencesSection.drawSection() 返回值是 fontSliderY + FIELD_SPACING，
+        // 而这里的 y 仍停留在“font 区块起点”。因此需要补上 LABEL_OFFSET 才能与渲染坐标一致。
+        y += FIELD_SPACING + LABEL_OFFSET;
         int btnY = y;
         int btnW1 = (w - BUTTON_GAP * 2) / 3;
         int btnW3 = Math.max(0, w - (btnW1 + btnW1 + BUTTON_GAP * 2));

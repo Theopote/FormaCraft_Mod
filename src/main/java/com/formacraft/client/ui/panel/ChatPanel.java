@@ -279,8 +279,9 @@ public class ChatPanel extends BasePanel {
             int bubbleBottom = y;
             int bubbleTop = bubbleBottom - bubbleHeight;
 
-            // 如果超出聊天区域上边界就停止绘制
-            if (bubbleTop < chatTop) {
+            // 仅当整条消息都在可视区域上方时才停止。
+            // 这样即使消息很长（bubbleTop < chatTop），也能显示底部可见部分，避免“看起来整屏消失”。
+            if (bubbleBottom < chatTop) {
                 break;
             }
 
