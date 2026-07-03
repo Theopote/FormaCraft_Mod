@@ -8,8 +8,10 @@ import com.formacraft.client.ui.panel.settings.SettingsConnectionSection;
 import com.formacraft.client.ui.panel.settings.SettingsModelCatalog;
 import com.formacraft.client.ui.panel.settings.SettingsInputController;
 import com.formacraft.client.ui.panel.settings.SettingsPanelDrawSupport;
+import com.formacraft.client.ui.panel.settings.SettingsConfigCoordinator;
 import com.formacraft.client.ui.panel.settings.SettingsPanelRenderHost;
 import com.formacraft.client.ui.panel.settings.SettingsPreferencesSection;
+import com.formacraft.client.ui.panel.settings.SettingsSliders;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
@@ -95,9 +97,9 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private ButtonWidget llmBaseUrlPresetButton;
     private ButtonWidget debugWarningsButton;
     private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
-    private TemperatureSlider temperatureSlider;
-    private FontSizeSlider fontSizeSlider;
-    private InteractionReachSlider interactionReachSlider;
+    private SettingsSliders.Temperature temperatureSlider;
+    private SettingsSliders.FontSize fontSizeSlider;
+    private SettingsSliders.InteractionReach interactionReachSlider;
     private SliderWidget activeSlider = null; // 只允许同时操作一个滑条
 
     // LLM Base URL：预设下拉（避免输入错误；需要特殊服务时选择“自定义”）
@@ -156,44 +158,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     private void loadFromConfig() {
-        SettingsConfig.load();
-        SettingsConfig cfg = SettingsConfig.INSTANCE;
-        this.apiKeyInput.setText(cfg.apiKey != null ? cfg.apiKey : "");
-        this.orchestratorInput.setText(cfg.orchestratorEndpoint != null ? cfg.orchestratorEndpoint : "http://localhost:8000");
-        // UX：即便选择了隐藏，也在编辑时显示明文，避免“看不到输入内容”
-        this.apiKeyInput.setPasswordMode(hideKey && !apiKeyInput.isFocused());
-        this.apiKeyInput.setMaxLength(256);
-        this.orchestratorInput.setMaxLength(256);
-        this.llmBaseUrlInput.setMaxLength(256);
-        this.modelInput.setMaxLength(128);
-
-        // 同步草稿态：允许为空（自动），不再限制预设列表
-        this.draftModel = cfg.model != null ? cfg.model.trim() : "";
-        this.modelInput.setText(this.draftModel);
-        this.draftLlmProvider = (cfg.llmProvider == null || cfg.llmProvider.isBlank()) ? "auto" : cfg.llmProvider.trim();
-        String rawBaseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
-        String sanitizedBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(rawBaseUrl);
-        // 如果配置里是明显错误的 baseUrl（例如 https://ps://...），自动清空并保存，避免反复踩坑
-        if (sanitizedBaseUrl == null) {
-            sanitizedBaseUrl = "";
-            if (cfg.llmBaseUrl != null && !cfg.llmBaseUrl.isBlank()) {
-                SettingsConfig.INSTANCE.llmBaseUrl = "";
-                SettingsConfig.save();
-            }
-        }
-        this.draftLlmBaseUrl = sanitizedBaseUrl;
-        this.llmBaseUrlInput.setText(this.draftLlmBaseUrl);
-        syncBaseUrlPresetFromValue(this.draftLlmBaseUrl);
-        this.draftShowDebugWarnings = cfg.showDebugWarnings;
-        this.draftTemperature = clamp01(cfg.temperature);
-        this.draftFontSize = clampInt(cfg.fontSize);
-        this.draftInteractionReach = clampReach(cfg.interactionReach);
-        
-        // 更新缓存
-        updateCachedTemperatureText();
-
-        // 同步原版控件（如果已初始化）
-        syncWidgetStateFromDraft();
+        SettingsConfigCoordinator.load(this);
     }
 
     private static float clamp01(float v) {
@@ -267,7 +232,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         SettingsPanelDrawSupport.drawToast(client, ctx, toast, toastUntilMs, isToastError, x, toastY);
     }
 
-    private void updateCachedTemperatureText() {
+    @Override
+    public void updateCachedTemperatureText() {
         cachedTemperatureText = String.format("%.2f", draftTemperature);
     }
 
@@ -477,9 +443,9 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         }
 
         // Sliders（用原版 SliderWidget 渲染）
-        temperatureSlider = new TemperatureSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), clamp01(draftTemperature));
-        fontSizeSlider = new FontSizeSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), fontSizeToValue(draftFontSize));
-        interactionReachSlider = new InteractionReachSlider(0, 0, 0, INPUT_HEIGHT, Text.empty(), reachToValue(draftInteractionReach));
+        temperatureSlider = new SettingsSliders.Temperature(this, 0, 0, 0, INPUT_HEIGHT, Text.empty(), clamp01(draftTemperature));
+        fontSizeSlider = new SettingsSliders.FontSize(this, 0, 0, 0, INPUT_HEIGHT, Text.empty(), fontSizeToValue(draftFontSize));
+        interactionReachSlider = new SettingsSliders.InteractionReach(this, 0, 0, 0, INPUT_HEIGHT, Text.empty(), reachToValue(draftInteractionReach));
         temperatureSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.temperature")));
         fontSizeSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.font_size")));
         interactionReachSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.interaction_reach")));
@@ -704,7 +670,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         hideModelOptionButtons();
     }
 
-    private void syncBaseUrlPresetFromValue(String baseUrl) {
+    @Override
+    public void syncBaseUrlPresetFromValue(String baseUrl) {
         String v = baseUrl == null ? "" : baseUrl.trim();
 
         if (v.isEmpty()) {
@@ -884,7 +851,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 : Text.translatable("formacraft.settings.hide");
     }
 
-    private void syncWidgetStateFromDraft() {
+    @Override
+    public void syncWidgetStateFromDraft() {
         if (showHideButton != null) {
             showHideButton.setMessage(getShowHideText());
         }
@@ -935,77 +903,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         return MIN_INTERACTION_REACH + (int) Math.round(v * (MAX_INTERACTION_REACH - MIN_INTERACTION_REACH));
     }
 
-    private class TemperatureSlider extends SliderWidget {
-        public TemperatureSlider(int x, int y, int width, int height, Text message, double value) {
-            super(x, y, width, height, message, value);
-            updateMessage();
-        }
-
-        @Override
-        protected void updateMessage() {
-            // 在滑块内部只显示数值，标题仍由上方 label 绘制
-            setMessage(Text.literal(cachedTemperatureText != null ? cachedTemperatureText : ""));
-        }
-
-        @Override
-        protected void applyValue() {
-            draftTemperature = clamp01((float) this.value);
-            updateCachedTemperatureText();
-            updateMessage();
-        }
-
-        public void setCustomValue(double value) {
-            this.value = Math.max(0.0, Math.min(1.0, value));
-            applyValue();
-        }
-    }
-
-    private class FontSizeSlider extends SliderWidget {
-        public FontSizeSlider(int x, int y, int width, int height, Text message, double value) {
-            super(x, y, width, height, message, value);
-            updateMessage();
-        }
-
-        @Override
-        protected void updateMessage() {
-            setMessage(Text.literal(String.valueOf(draftFontSize)));
-        }
-
-        @Override
-        protected void applyValue() {
-            draftFontSize = clampInt(valueToFontSize(this.value));
-            updateMessage();
-        }
-
-        public void setCustomValue(double value) {
-            this.value = Math.max(0.0, Math.min(1.0, value));
-            applyValue();
-        }
-    }
-
-    private class InteractionReachSlider extends SliderWidget {
-        public InteractionReachSlider(int x, int y, int width, int height, Text message, double value) {
-            super(x, y, width, height, message, value);
-            updateMessage();
-        }
-
-        @Override
-        protected void updateMessage() {
-            setMessage(Text.literal(String.valueOf(draftInteractionReach)));
-        }
-
-        @Override
-        protected void applyValue() {
-            draftInteractionReach = clampReach(valueToReach(this.value));
-            updateMessage();
-        }
-
-        public void setCustomValue(double value) {
-            this.value = Math.max(0.0, Math.min(1.0, value));
-            applyValue();
-        }
-    }
-
     /**
      * 验证并清理端点URL
      */
@@ -1042,68 +939,14 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     /**
-     * 验证API Key格式（基础检查）
-     */
-    private static boolean isValidApiKey(String apiKey) {
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            return false;
-        }
-        // 基础检查：长度和字符
-        String trimmed = apiKey.trim();
-        return trimmed.length() >= 10 && trimmed.length() <= 256;
-        // 可以添加更多格式检查，例如OpenAI key以"sk-"开头
-        // if (trimmed.startsWith("sk-")) { ... }
-    }
-
-    /**
      * 保存设置（带验证）
      */
     private boolean saveSettings() {
-        String apiKey = apiKeyInput.getText();
-        String endpoint = sanitizeEndpoint(orchestratorInput.getText());
-        String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
-        String llmBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
-        if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
-            showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
-            return false;
-        }
-        String provider = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim();
-        // 模型以输入框为准（留空=自动）
-        draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
-
-        // 验证 API Key：DeepSeek/OpenAI 等通常需要；本地 ollama 可不填
-        boolean requiresKey = true;
-        String p = provider.toLowerCase();
-        if ("ollama".equals(p)) requiresKey = false;
-        if (!requiresKey && (apiKey == null || apiKey.trim().isEmpty())) {
-            // ok
-        } else if (requiresKey && !isValidApiKey(apiKey)) {
-            showToast(Text.translatable("formacraft.settings.error.api_key_empty").getString(), true);
-            return false;
-        }
-
-        try {
-            SettingsConfig.INSTANCE.apiKey = apiKey;
-            SettingsConfig.INSTANCE.orchestratorEndpoint = endpoint;
-            SettingsConfig.INSTANCE.model = draftModel != null ? draftModel.trim() : "";
-            SettingsConfig.INSTANCE.llmProvider = provider;
-            SettingsConfig.INSTANCE.llmBaseUrl = llmBaseUrl;
-            SettingsConfig.INSTANCE.showDebugWarnings = draftShowDebugWarnings;
-            SettingsConfig.INSTANCE.temperature = clamp01(draftTemperature);
-            SettingsConfig.INSTANCE.fontSize = clampInt(draftFontSize);
-            SettingsConfig.INSTANCE.interactionReach = clampReach(draftInteractionReach);
-            SettingsConfig.save();
-            loadFromConfig(); // 重新加载以确保同步
-            showToast(Text.translatable("formacraft.settings.saved").getString(), false);
-            return true;
-        } catch (Exception e) {
-            String msg = e.getMessage() == null ? "unknown" : e.getMessage();
-            showToast(Text.translatable("formacraft.settings.error.save_failed", msg).getString(), true);
-            return false;
-        }
+        return SettingsConfigCoordinator.save(this);
     }
 
-    private void showToast(String msg, boolean isError) {
+    @Override
+    public void showToast(String msg, boolean isError) {
         this.toast = msg;
         this.isToastError = isError;
         long toastStartMs = System.currentTimeMillis();
@@ -1491,5 +1334,61 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public void setActiveSlider(SliderWidget slider) {
         this.activeSlider = slider;
+    }
+
+    @Override
+    public void applyTemperatureFromSlider(double value) {
+        draftTemperature = clamp01((float) value);
+        updateCachedTemperatureText();
+    }
+
+    @Override
+    public void applyFontSizeFromSlider(double value) {
+        draftFontSize = clampInt(valueToFontSize(value));
+    }
+
+    @Override
+    public void applyInteractionReachFromSlider(double value) {
+        draftInteractionReach = clampReach(valueToReach(value));
+    }
+
+    @Override
+    public String draftLlmProvider() {
+        return draftLlmProvider;
+    }
+
+    @Override
+    public float draftTemperature() {
+        return draftTemperature;
+    }
+
+    @Override
+    public void setDraftLlmProvider(String provider) {
+        this.draftLlmProvider = provider;
+    }
+
+    @Override
+    public void setDraftLlmBaseUrl(String baseUrl) {
+        this.draftLlmBaseUrl = baseUrl;
+    }
+
+    @Override
+    public void setDraftShowDebugWarnings(boolean show) {
+        this.draftShowDebugWarnings = show;
+    }
+
+    @Override
+    public void setDraftTemperature(float temperature) {
+        this.draftTemperature = temperature;
+    }
+
+    @Override
+    public void setDraftFontSize(int fontSize) {
+        this.draftFontSize = fontSize;
+    }
+
+    @Override
+    public void setDraftInteractionReach(int reach) {
+        this.draftInteractionReach = reach;
     }
 }

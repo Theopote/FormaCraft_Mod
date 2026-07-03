@@ -136,4 +136,38 @@ public interface SettingsPanelRenderHost {
     net.minecraft.client.gui.widget.SliderWidget activeSlider();
 
     void setActiveSlider(net.minecraft.client.gui.widget.SliderWidget slider);
+
+    // ---- 滑条数值回写（供 SettingsSliders 使用）----
+
+    void applyTemperatureFromSlider(double value);
+
+    void applyFontSizeFromSlider(double value);
+
+    void applyInteractionReachFromSlider(double value);
+
+    // ---- 配置读写（供 SettingsConfigCoordinator 使用）----
+
+    String draftLlmProvider();
+
+    float draftTemperature();
+
+    void setDraftLlmProvider(String provider);
+
+    void setDraftLlmBaseUrl(String baseUrl);
+
+    void setDraftShowDebugWarnings(boolean show);
+
+    void setDraftTemperature(float temperature);
+
+    void setDraftFontSize(int fontSize);
+
+    void setDraftInteractionReach(int reach);
+
+    void syncBaseUrlPresetFromValue(String baseUrl);
+
+    void updateCachedTemperatureText();
+
+    void syncWidgetStateFromDraft();
+
+    void showToast(String msg, boolean isError);
 }
