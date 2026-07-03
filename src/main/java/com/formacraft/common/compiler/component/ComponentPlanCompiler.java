@@ -15,16 +15,8 @@ import java.util.Random;
  * ComponentPlanCompiler（组件计划编译器）：Component → Patch 编译器。
  * <p>
  * 支持两种变体类型：
- * - 旧的 ComponentVariant（com.formacraft.common.component.model.PersistedComponentVariant）
- * - 新的 ComponentVariant（com.formacraft.common.component.variant.ComponentVariant）
- * <p>
- * 如果传入新的 ComponentVariant，会自动适配为旧的 ComponentVariant。
- */
-
-/**
- * ComponentPlanCompiler（组件计划编译器）：Component → Patch 编译器。
- * <p>
- * 这是"组件系统真正落地为世界修改"的核心，也是整个 Formacraft 架构里最重要的一环之一。
+ * - 存盘变体文档 {@link PersistedComponentVariant}
+ * - 运行时变体 {@link com.formacraft.common.component.variant.ComponentVariant}（经 {@link ComponentVariantAdapter} 适配）
  * <p>
  * 核心原则：
  * - ❌ 绝不直接 setBlock
@@ -32,8 +24,8 @@ import java.util.Random;
  * - ✅ 可用于 Preview / Apply / Undo / Redo / Memory Update
  * <p>
  * 完整流程：
- * ComponentDefinition → ComponentVoxelizer → VoxelPlan → 
- * PatchDiffGenerator → List<BlockPatch>
+ * ComponentDefinition → ComponentVoxelizer → VoxelPlan →
+ * PatchDiffGenerator → List&lt;BlockPatch&gt;
  */
 public final class ComponentPlanCompiler {
     private ComponentPlanCompiler() {}
@@ -117,10 +109,9 @@ public final class ComponentPlanCompiler {
             return List.of();
         }
 
-        // 适配新的 ComponentVariant 为旧的 ComponentVariant
-        PersistedComponentVariant oldVariant = ComponentVariantAdapter.adapt(newVariant, component);
+        // 运行时变体 → 存盘 schema，再走 voxel 编译管线
+        PersistedComponentVariant persistedVariant = ComponentVariantAdapter.adapt(newVariant, component);
 
-        // 使用旧的编译流程
-        return compile(component, oldVariant, ctx, world, styleProfileId);
+        return compile(component, persistedVariant, ctx, world, styleProfileId);
     }
 }

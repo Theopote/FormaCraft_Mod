@@ -2,62 +2,55 @@ package com.formacraft.common.compiler.voxel;
 
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.model.PersistedComponentVariant;
+import com.formacraft.common.component.variant.ComponentVariant;
 
 /**
- * ComponentVariantAdapter（构件变体适配器）：将新的 ComponentVariant 适配为旧的 ComponentVariant。
+ * 将运行时 {@link ComponentVariant} 适配为存盘 schema {@link PersistedComponentVariant}。
  * <p>
- * 这是临时适配层，用于兼容现有的 ComponentVoxelizer 和 ComponentPlanCompiler。
- * <p>
- * 未来可以逐步迁移到新的 ComponentVariant 系统。
+ * 供 {@link ComponentVoxelizer} / {@link com.formacraft.common.compiler.component.ComponentPlanCompiler} 等
+ * 仍消费持久化变体文档的编译路径使用。
  */
 public final class ComponentVariantAdapter {
     private ComponentVariantAdapter() {}
 
     /**
-     * 将新的 ComponentVariant 转换为旧的 ComponentVariant
+     * 将运行时变体转换为持久化变体文档（用于 voxel 编译管线）。
      */
-    public static ComponentVariant adapt(
-            com.formacraft.common.component.variant.ComponentVariant newVariant,
+    public static PersistedComponentVariant adapt(
+            ComponentVariant runtimeVariant,
             ComponentDefinition base
     ) {
-        if (newVariant == null || base == null) {
+        if (runtimeVariant == null || base == null) {
             return null;
         }
 
-        PersistedComponentVariant oldVariant = new PersistedComponentVariant();
-        oldVariant.prototype_id = base.id;
-        oldVariant.variant_id = generateVariantId(newVariant);
+        PersistedComponentVariant persisted = new PersistedComponentVariant();
+        persisted.prototype_id = base.id;
+        persisted.variant_id = generateVariantId(runtimeVariant);
 
-        // 创建参数
         PersistedComponentVariant.Params params = new PersistedComponentVariant.Params();
-        
-        // 缩放
+
         PersistedComponentVariant.Params.Scale scale = new PersistedComponentVariant.Params.Scale();
-        scale.x = Math.round(newVariant.scaleX);
-        scale.y = Math.round(newVariant.scaleY);
-        scale.z = Math.round(newVariant.scaleZ);
+        scale.x = Math.round(runtimeVariant.scaleX);
+        scale.y = Math.round(runtimeVariant.scaleY);
+        scale.z = Math.round(runtimeVariant.scaleZ);
         params.scale = scale;
 
-        // 镜像
-        if (newVariant.mirrored) {
-            params.mirror = newVariant.mirrorAxis == com.formacraft.common.component.variant.ComponentVariantSpec.Axis.X ? "X" : "Z";
+        if (runtimeVariant.mirrored) {
+            params.mirror = runtimeVariant.mirrorAxis == com.formacraft.common.component.variant.ComponentVariantSpec.Axis.X ? "X" : "Z";
         } else {
             params.mirror = "NONE";
         }
 
-        // 材质语义
-        if (newVariant.materialSemantic != null) {
-            params.material_set = newVariant.materialSemantic;
+        if (runtimeVariant.materialSemantic != null) {
+            params.material_set = runtimeVariant.materialSemantic;
         }
 
-        oldVariant.params = params;
-        return oldVariant;
+        persisted.params = params;
+        return persisted;
     }
 
-    /**
-     * 生成变体 ID（基于变体参数）
-     */
-    private static String generateVariantId(com.formacraft.common.component.variant.PersistedComponentVariant variant) {
+    private static String generateVariantId(ComponentVariant variant) {
         StringBuilder sb = new StringBuilder();
         sb.append("v_");
         sb.append(Math.round(variant.scaleX * 100)).append("_");

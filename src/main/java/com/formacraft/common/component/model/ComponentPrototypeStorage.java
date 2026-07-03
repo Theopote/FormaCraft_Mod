@@ -327,7 +327,7 @@ public final class ComponentPrototypeStorage {
         }
         if (!Files.exists(vf)) return null;
         try (Reader r = Files.newBufferedReader(vf, StandardCharsets.UTF_8)) {
-            return JsonUtil.get().fromJson(r, PersistedPersistedComponentVariant.class);
+            return JsonUtil.get().fromJson(r, PersistedComponentVariant.class);
         } catch (Throwable t) {
             LOG.warn("load variant failed prototypeId={} variantId={} path={}", prototypeId, variantId, vf, t);
             return null;
@@ -364,7 +364,7 @@ public final class ComponentPrototypeStorage {
 
         // fallback: array form
         try (Reader r = Files.newBufferedReader(f, StandardCharsets.UTF_8)) {
-            PersistedPersistedComponentVariant[] arr = JsonUtil.get().fromJson(r, PersistedPersistedComponentVariant[].class);
+            PersistedComponentVariant[] arr = JsonUtil.get().fromJson(r, PersistedComponentVariant[].class);
             if (arr == null || arr.length == 0) return List.of();
             return Arrays.asList(arr);
         } catch (Throwable t) {

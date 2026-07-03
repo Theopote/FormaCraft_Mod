@@ -11,7 +11,7 @@ import net.minecraft.util.math.Direction;
  * <p>
  * 核心算法：
  * - 遍历 ComponentDefinition.blocks
- * - 应用 ComponentVariant 的缩放和镜像
+ * - 应用 {@link PersistedComponentVariant} 的缩放和镜像
  * - 应用 PlacementContext 的变换（方向、镜像、对称）
  * - 生成语义块（SemanticBlock）
  * <p>
