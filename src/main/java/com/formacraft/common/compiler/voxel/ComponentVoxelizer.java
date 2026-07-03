@@ -1,7 +1,7 @@
 package com.formacraft.common.compiler.voxel;
 
 import com.formacraft.common.component.ComponentDefinition;
-import com.formacraft.common.component.model.ComponentVariant;
+import com.formacraft.common.component.model.PersistedComponentVariant;
 import com.formacraft.common.placement.PlacementContext;
 import net.minecraft.util.math.Direction;
 
@@ -32,7 +32,7 @@ public final class ComponentVoxelizer {
      */
     public static VoxelPlan voxelize(
             ComponentDefinition component,
-            ComponentVariant variant,
+            PersistedComponentVariant variant,
             PlacementContext ctx
     ) {
         VoxelPlan plan = new VoxelPlan();

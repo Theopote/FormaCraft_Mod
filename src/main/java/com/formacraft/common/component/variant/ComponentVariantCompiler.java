@@ -1,7 +1,7 @@
 package com.formacraft.common.component.variant;
 
 import com.formacraft.common.component.model.ComponentPrototype;
-import com.formacraft.common.component.model.ComponentVariant;
+import com.formacraft.common.component.model.PersistedComponentVariant;
 import com.formacraft.common.component.transform.Mirror;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.patch.BlockPatch;
@@ -45,7 +45,7 @@ public final class ComponentVariantCompiler {
      */
     public static List<BlockPatch> compile(
             ComponentPrototype proto,
-            ComponentVariant variant,
+            PersistedComponentVariant variant,
             Direction targetFacing,
             StyleProfile style
     ) {

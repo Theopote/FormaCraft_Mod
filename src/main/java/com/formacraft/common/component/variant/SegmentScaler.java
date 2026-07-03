@@ -1,7 +1,7 @@
 package com.formacraft.common.component.variant;
 
 import com.formacraft.common.component.model.ComponentPrototype;
-import com.formacraft.common.component.model.ComponentVariant;
+import com.formacraft.common.component.model.PersistedComponentVariant;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ public final class SegmentScaler {
     public static VoxelGrid applyScaling(
             StructureTemplate tpl,
             ComponentPrototype.VariantRules.Scaling rules,
-            ComponentVariant.Params.Scale scale
+            PersistedComponentVariant.Params.Scale scale
     ) {
         if (tpl == null || rules == null || scale == null) {
             // 无规则时，原样输出
@@ -146,7 +146,7 @@ public final class SegmentScaler {
         return rules.axes.get(axis.name());
     }
 
-    private static int getTargetSize(ComponentVariant.Params.Scale scale, Voxel.Axis axis) {
+    private static int getTargetSize(PersistedComponentVariant.Params.Scale scale, Voxel.Axis axis) {
         if (scale == null) return 0;
         return switch (axis) {
             case X -> scale.x;

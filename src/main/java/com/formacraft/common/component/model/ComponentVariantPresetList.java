@@ -10,13 +10,13 @@ import java.util.List;
  * {
  *   "schema": "formacraft.component.variant_presets.v1",
  *   "prototype_id": "gothic_door",
- *   "variants": [ { ...ComponentVariant... }, ... ]
+ *   "variants": [ { ...PersistedComponentVariant... }, ... ]
  * }
  * </pre>
  */
 public class ComponentVariantPresetList {
     public String schema = "formacraft.component.variant_presets.v1";
     public String prototype_id;
-    public List<ComponentVariant> variants;
+    public List<PersistedComponentVariant> variants;
 }
 

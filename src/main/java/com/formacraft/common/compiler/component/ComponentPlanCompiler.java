@@ -1,7 +1,7 @@
 package com.formacraft.common.compiler.component;
 
 import com.formacraft.common.component.ComponentDefinition;
-import com.formacraft.common.component.model.ComponentVariant;
+import com.formacraft.common.component.model.PersistedComponentVariant;
 import com.formacraft.common.compiler.voxel.*;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.placement.PlacementContext;
@@ -15,7 +15,7 @@ import java.util.Random;
  * ComponentPlanCompiler（组件计划编译器）：Component → Patch 编译器。
  * <p>
  * 支持两种变体类型：
- * - 旧的 ComponentVariant（com.formacraft.common.component.model.ComponentVariant）
+ * - 旧的 ComponentVariant（com.formacraft.common.component.model.PersistedComponentVariant）
  * - 新的 ComponentVariant（com.formacraft.common.component.variant.ComponentVariant）
  * <p>
  * 如果传入新的 ComponentVariant，会自动适配为旧的 ComponentVariant。
@@ -50,7 +50,7 @@ public final class ComponentPlanCompiler {
      */
     public static List<BlockPatch> compile(
             ComponentDefinition component,
-            ComponentVariant variant,
+            PersistedComponentVariant variant,
             PlacementContext ctx,
             WorldView world,
             String styleProfileId
@@ -78,7 +78,7 @@ public final class ComponentPlanCompiler {
      */
     public static List<BlockPatch> compile(
             ComponentDefinition component,
-            ComponentVariant variant,
+            PersistedComponentVariant variant,
             PlacementContext ctx,
             WorldView world
     ) {
@@ -90,7 +90,7 @@ public final class ComponentPlanCompiler {
      */
     public static List<BlockPatch> compile(
             ComponentDefinition component,
-            ComponentVariant variant,
+            PersistedComponentVariant variant,
             PlacementContext ctx
     ) {
         return compile(component, variant, ctx, null, null);
@@ -118,7 +118,7 @@ public final class ComponentPlanCompiler {
         }
 
         // 适配新的 ComponentVariant 为旧的 ComponentVariant
-        ComponentVariant oldVariant = ComponentVariantAdapter.adapt(newVariant, component);
+        PersistedComponentVariant oldVariant = ComponentVariantAdapter.adapt(newVariant, component);
 
         // 使用旧的编译流程
         return compile(component, oldVariant, ctx, world, styleProfileId);

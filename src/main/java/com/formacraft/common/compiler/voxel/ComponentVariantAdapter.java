@@ -1,7 +1,7 @@
 package com.formacraft.common.compiler.voxel;
 
 import com.formacraft.common.component.ComponentDefinition;
-import com.formacraft.common.component.model.ComponentVariant;
+import com.formacraft.common.component.model.PersistedComponentVariant;
 
 /**
  * ComponentVariantAdapter（构件变体适配器）：将新的 ComponentVariant 适配为旧的 ComponentVariant。
@@ -24,15 +24,15 @@ public final class ComponentVariantAdapter {
             return null;
         }
 
-        ComponentVariant oldVariant = new ComponentVariant();
+        PersistedComponentVariant oldVariant = new PersistedComponentVariant();
         oldVariant.prototype_id = base.id;
         oldVariant.variant_id = generateVariantId(newVariant);
 
         // 创建参数
-        ComponentVariant.Params params = new ComponentVariant.Params();
+        PersistedComponentVariant.Params params = new PersistedComponentVariant.Params();
         
         // 缩放
-        ComponentVariant.Params.Scale scale = new ComponentVariant.Params.Scale();
+        PersistedComponentVariant.Params.Scale scale = new PersistedComponentVariant.Params.Scale();
         scale.x = Math.round(newVariant.scaleX);
         scale.y = Math.round(newVariant.scaleY);
         scale.z = Math.round(newVariant.scaleZ);
@@ -57,7 +57,7 @@ public final class ComponentVariantAdapter {
     /**
      * 生成变体 ID（基于变体参数）
      */
-    private static String generateVariantId(com.formacraft.common.component.variant.ComponentVariant variant) {
+    private static String generateVariantId(com.formacraft.common.component.variant.PersistedComponentVariant variant) {
         StringBuilder sb = new StringBuilder();
         sb.append("v_");
         sb.append(Math.round(variant.scaleX * 100)).append("_");

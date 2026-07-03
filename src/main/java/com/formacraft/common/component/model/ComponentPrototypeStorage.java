@@ -296,7 +296,7 @@ public final class ComponentPrototypeStorage {
         return proto;
     }
 
-    public static void saveVariant(ComponentVariant variant, ComponentCategory prototypeCategory) {
+    public static void saveVariant(PersistedComponentVariant variant, ComponentCategory prototypeCategory) {
         if (variant == null || variant.prototype_id == null || variant.prototype_id.isBlank()) return;
         if (variant.variant_id == null || variant.variant_id.isBlank()) return;
         ComponentCategory cat = prototypeCategory != null ? prototypeCategory : ComponentCategory.GENERIC;
@@ -312,7 +312,7 @@ public final class ComponentPrototypeStorage {
         }
     }
 
-    public static ComponentVariant loadVariant(String prototypeId, String variantId, ComponentCategory prototypeCategory) {
+    public static PersistedComponentVariant loadVariant(String prototypeId, String variantId, ComponentCategory prototypeCategory) {
         if (prototypeId == null || prototypeId.isBlank()) return null;
         if (variantId == null || variantId.isBlank()) return null;
         ComponentCategory cat = prototypeCategory != null ? prototypeCategory : ComponentCategory.GENERIC;
@@ -327,7 +327,7 @@ public final class ComponentPrototypeStorage {
         }
         if (!Files.exists(vf)) return null;
         try (Reader r = Files.newBufferedReader(vf, StandardCharsets.UTF_8)) {
-            return JsonUtil.get().fromJson(r, ComponentVariant.class);
+            return JsonUtil.get().fromJson(r, PersistedPersistedComponentVariant.class);
         } catch (Throwable t) {
             LOG.warn("load variant failed prototypeId={} variantId={} path={}", prototypeId, variantId, vf, t);
             return null;
@@ -341,7 +341,7 @@ public final class ComponentPrototypeStorage {
      * - 直接数组：[{...variant...}, ...]
      * - 包装对象：{ "variants": [ ... ] }
      */
-    public static List<ComponentVariant> loadPresetVariants(String prototypeId, ComponentCategory prototypeCategory) {
+    public static List<PersistedComponentVariant> loadPresetVariants(String prototypeId, ComponentCategory prototypeCategory) {
         if (prototypeId == null || prototypeId.isBlank()) return List.of();
         ComponentCategory cat = prototypeCategory != null ? prototypeCategory : ComponentCategory.GENERIC;
 
@@ -364,7 +364,7 @@ public final class ComponentPrototypeStorage {
 
         // fallback: array form
         try (Reader r = Files.newBufferedReader(f, StandardCharsets.UTF_8)) {
-            ComponentVariant[] arr = JsonUtil.get().fromJson(r, ComponentVariant[].class);
+            PersistedPersistedComponentVariant[] arr = JsonUtil.get().fromJson(r, PersistedPersistedComponentVariant[].class);
             if (arr == null || arr.length == 0) return List.of();
             return Arrays.asList(arr);
         } catch (Throwable t) {

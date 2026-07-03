@@ -59,9 +59,9 @@ public final class ComponentModelApi {
      * <p>
      * v1：variant_id 若为空，将根据 params 生成一个稳定 id。
      */
-    public static ComponentVariant makeVariant(ComponentPrototype proto, ComponentVariant.Params params) {
+    public static PersistedComponentVariant makeVariant(ComponentPrototype proto, PersistedComponentVariant.Params params) {
         if (proto == null || proto.id == null || proto.id.isBlank()) return null;
-        ComponentVariant v = new ComponentVariant();
+        PersistedComponentVariant v = new PersistedComponentVariant();
         v.prototype_id = proto.id;
         v.params = params;
 
@@ -72,12 +72,12 @@ public final class ComponentModelApi {
         return v;
     }
 
-    public static void saveVariant(ComponentVariant variant, ComponentPrototype proto) {
+    public static void saveVariant(PersistedComponentVariant variant, ComponentPrototype proto) {
         if (variant == null || proto == null) return;
         ComponentPrototypeStorage.saveVariant(variant, proto.category);
     }
 
-    public static List<ComponentVariant> loadPresetVariants(ComponentPrototype proto) {
+    public static List<PersistedComponentVariant> loadPresetVariants(ComponentPrototype proto) {
         if (proto == null || proto.id == null || proto.id.isBlank()) return List.of();
         return ComponentPrototypeStorage.loadPresetVariants(proto.id, proto.category);
     }
@@ -111,7 +111,7 @@ public final class ComponentModelApi {
      * - 如果 style 为 null，会跳过语义材质替换（保持原始方块）
      */
     public static List<BlockPatch> compileToPatch(ComponentPrototype proto,
-                                                 ComponentVariant variant,
+                                                 PersistedComponentVariant variant,
                                                  Direction facing,
                                                  StyleProfile style) {
         if (proto == null) return List.of();
@@ -133,7 +133,7 @@ public final class ComponentModelApi {
      * - 调用方需要自行叠加 baseX/baseY/baseZ 到 BlockPatch.dx/dy/dz
      */
     public static List<BlockPatch> compileToPatch(ComponentPrototype proto,
-                                                 ComponentVariant variant,
+                                                 PersistedComponentVariant variant,
                                                  int baseX, int baseY, int baseZ,
                                                  Direction facing,
                                                  StyleProfile style) {
@@ -150,7 +150,7 @@ public final class ComponentModelApi {
      * 注意：v1 的 Mirror 参数在 variant.params.mirror 中已包含，这里忽略传入的 mirror 参数。
      */
     public static List<BlockPatch> compileToPatch(ComponentPrototype proto,
-                                                 ComponentVariant variant,
+                                                 PersistedComponentVariant variant,
                                                  int baseX, int baseY, int baseZ,
                                                  Direction facing,
                                                  Mirror mirror) {
@@ -162,12 +162,12 @@ public final class ComponentModelApi {
     /**
      * 创建默认变体（原始尺寸、无材质替换）。
      */
-    private static ComponentVariant makeDefaultVariant(ComponentPrototype proto) {
-        ComponentVariant v = new ComponentVariant();
+    private static PersistedComponentVariant makeDefaultVariant(ComponentPrototype proto) {
+        PersistedComponentVariant v = new PersistedComponentVariant();
         v.prototype_id = proto.id;
         v.variant_id = proto.id + "_default";
-        v.params = new ComponentVariant.Params();
-        v.params.scale = new ComponentVariant.Params.Scale();
+        v.params = new PersistedComponentVariant.Params();
+        v.params.scale = new PersistedComponentVariant.Params.Scale();
         v.params.scale.x = proto.structure != null && proto.structure.bounds != null ? proto.structure.bounds.w : 1;
         v.params.scale.y = proto.structure != null && proto.structure.bounds != null ? proto.structure.bounds.h : 1;
         v.params.scale.z = proto.structure != null && proto.structure.bounds != null ? proto.structure.bounds.d : 1;
