@@ -25,6 +25,7 @@ from ..models.building_spec import (
     Footprint, Materials, Features, StyleOptions
 )
 from ..models.building_genome import BuildingGenome
+from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
 from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
 from ..models.semantic_spatial_plan import SemanticSpatialPlan
@@ -4326,7 +4327,11 @@ def generate_llm_plan(req: BuildRequest) -> dict:
                 plan = json.loads(repaired)
             else:
                 raise
-        return _normalize_llm_plan_output(plan, req)
+        normalized = _normalize_llm_plan_output(plan, req)
+        validate_llm_plan_dict(normalized)
+        return normalized
+    except LlmPlanValidationError:
+        raise
     except Exception as e:
         raise RuntimeError(f"LLM call failed for LlmPlan: {e}") from e
 

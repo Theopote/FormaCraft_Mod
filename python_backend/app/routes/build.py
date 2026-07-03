@@ -6,6 +6,7 @@ from ..models.request_adapter import FormaRequestAdapter
 from ..models.building_spec import BuildingSpec
 from ..models.composite_spec import CompositeSpec
 from ..models.city_spec import CitySpec
+from ..models.llm_plan import LlmPlanValidationError
 from ..services.ai_planner import (
     generate_building_spec, 
     generate_composite_spec, 
@@ -72,6 +73,8 @@ async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec,
             
             # 2.2 默认生成 BuildingSpec（地标 / 复合 / 城市等非 BUILD 模式）
             return generate_building_spec(build_req)
+        except LlmPlanValidationError as e:
+            raise HTTPException(status_code=502, detail="; ".join(e.errors))
         except Exception as e:
             # LLM 调用失败时给上游明确错误（由服务端回传到客户端聊天窗口）
             raise HTTPException(status_code=502, detail=str(e))
