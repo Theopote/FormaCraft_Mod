@@ -263,9 +263,10 @@ public final class SettingsInputController {
         }
 
         // =========== 滑动条交互 ============
-        // 注意：这里必须与 drawContents 的布局一致
-        // Model 为三行（FIELD_SPACING + LABEL_OFFSET）
-        y += FIELD_SPACING + LABEL_OFFSET;
+        // 注意：这里必须与 SettingsConnectionSection.drawSection() 的返回值一致。
+        // Connection 区块在 Model 按钮行后还会额外推进 (FIELD_SPACING + LABEL_OFFSET)，
+        // 因此从 modelLabelY 进入 Preferences 前总推进应为 5 * LABEL_OFFSET。
+        y += FIELD_SPACING + LABEL_OFFSET * 3;
 
         // =========== Debug Warnings（toggle） ============
         int dbgBtnY = y + LABEL_OFFSET;
