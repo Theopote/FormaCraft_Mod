@@ -14,6 +14,7 @@ import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.generation.structure.StructureGenerator;
 import com.formacraft.server.generation.structure.composite.CompositeStructureGenerator;
 import com.formacraft.server.orchestrator.OrchestratorClient;
+import com.formacraft.server.build.quality.BuildQualityReport;
 import com.formacraft.server.preview.OutlineGenerator;
 import com.formacraft.server.preview.PreviewStorage;
 import com.formacraft.server.state.PlayerSpecRepository;
@@ -107,58 +108,9 @@ public class FormaCraftCommands {
         dispatcher.register(literal("forma_confirm")
                 // 允许普通玩家确认自己当前的预览（不需要 OP 权限）
                 .requires(source -> source.getEntity() instanceof ServerPlayerEntity)
-                .executes(ctx -> {
-                    ServerPlayerEntity player = ctx.getSource().getPlayer();
-                    if (player == null) {
-                        ctx.getSource().sendError(Text.literal("Only players can use this command."));
-                        return 0;
-                    }
-
-                    if (!PreviewStorage.hasPreview(player)) {
-                        ctx.getSource().sendError(Text.translatable("formacraft.command.preview.no_active"));
-                        return 0;
-                    }
-
-                    com.formacraft.server.build.quality.BuildQualityReport quality =
-                            PreviewStorage.getQualityReport(player);
-                    if (quality != null && quality.hasFatal()) {
-                        ctx.getSource().sendError(Text.literal(quality.summaryZh()));
-                        return 0;
-                    }
-                    if (quality != null && quality.hasError()) {
-                        ctx.getSource().sendFeedback(
-                                () -> Text.literal("【注意】" + quality.summaryZh()),
-                                false
-                        );
-                    }
-
-                    GeneratedStructure structure = PreviewStorage.getStructure(player);
-                    if (structure == null) {
-                        ctx.getSource().sendError(Text.translatable("formacraft.command.preview.no_structure_to_build"));
-                        return 0;
-                    }
-
-                    // 清除预览
-                    FormaCraftServerNetworking.sendClearOutline(player);
-                    PreviewStorage.setPreview(player, false);
-
-                    // 执行建造
-                    if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                        BuildExecutionService.getInstance().enqueueBuild(serverWorld, structure);
-                        ctx.getSource().sendFeedback(
-                                () -> Text.translatable("formacraft.command.build.started"),
-                                false
-                        );
-                    } else {
-                        ctx.getSource().sendError(Text.translatable("formacraft.command.build.cannot_build_here"));
-                        return 0;
-                    }
-
-                    // 清除存储（可选：保留以便再次预览）
-                    // PreviewStorage.clear(player);
-
-                    return 1;
-                }));
+                .executes(ctx -> executeFormaConfirm(ctx.getSource(), false))
+                .then(literal("force")
+                        .executes(ctx -> executeFormaConfirm(ctx.getSource(), true))));
 
         // 取消预览命令
         dispatcher.register(literal("forma_cancel")
@@ -551,5 +503,57 @@ public class FormaCraftCommands {
                         return 0;
                     }
                 }));
+    }
+
+    private static int executeFormaConfirm(ServerCommandSource source, boolean force) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.translatable("formacraft.command.players_only"));
+            return 0;
+        }
+
+        if (!PreviewStorage.hasPreview(player)) {
+            source.sendError(Text.translatable("formacraft.command.preview.no_active"));
+            return 0;
+        }
+
+        BuildQualityReport quality = PreviewStorage.getQualityReport(player);
+        if (quality != null && quality.hasFatal()) {
+            source.sendError(Text.literal(quality.summaryZh()));
+            return 0;
+        }
+        if (quality != null && quality.hasError() && !force) {
+            source.sendError(Text.translatable("formacraft.command.confirm.quality_error",
+                    quality.summaryZh()));
+            return 0;
+        }
+        if (quality != null && quality.hasError() && force) {
+            source.sendFeedback(
+                    () -> Text.translatable("formacraft.command.confirm.forced", quality.summaryZh()),
+                    false
+            );
+        }
+
+        GeneratedStructure structure = PreviewStorage.getStructure(player);
+        if (structure == null) {
+            source.sendError(Text.translatable("formacraft.command.preview.no_structure_to_build"));
+            return 0;
+        }
+
+        FormaCraftServerNetworking.sendClearOutline(player);
+        PreviewStorage.setPreview(player, false);
+
+        if (!(player.getEntityWorld() instanceof ServerWorld serverWorld)) {
+            source.sendError(Text.translatable("formacraft.command.build.cannot_build_here"));
+            return 0;
+        }
+
+        BuildExecutionService.getInstance().enqueueBuild(serverWorld, structure);
+        PreviewStorage.clearQualityReport(player);
+        source.sendFeedback(
+                () -> Text.translatable("formacraft.command.build.started"),
+                false
+        );
+        return 1;
     }
 }

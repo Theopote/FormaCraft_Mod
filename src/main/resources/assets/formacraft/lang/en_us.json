@@ -79,5 +79,7 @@
   "formacraft.command.players_only": "Only players can use this command.",
   "formacraft.command.build.started": "Building started.",
   "formacraft.command.build.cannot_build_here": "Cannot build in this world.",
-  "formacraft.command.preview.canceled": "Preview canceled."
+  "formacraft.command.preview.canceled": "Preview canceled.",
+  "formacraft.command.confirm.quality_error": "%s. Use /forma_confirm force to apply anyway.",
+  "formacraft.command.confirm.forced": "[Forced apply] %s"
 }

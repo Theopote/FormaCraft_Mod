@@ -80,5 +80,7 @@
   "formacraft.command.players_only": "只有玩家可以使用此命令。",
   "formacraft.command.build.started": "已开始建造。",
   "formacraft.command.build.cannot_build_here": "无法在当前世界中建造。",
-  "formacraft.command.preview.canceled": "已取消预览。"
+  "formacraft.command.preview.canceled": "已取消预览。",
+  "formacraft.command.confirm.quality_error": "%s。请使用 /forma_confirm force 强制应用。",
+  "formacraft.command.confirm.forced": "【强制应用】%s"
 }

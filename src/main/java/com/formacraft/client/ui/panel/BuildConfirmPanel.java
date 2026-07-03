@@ -67,6 +67,11 @@ public class BuildConfirmPanel {
     }
 
     private Mode mode = Mode.BUILD;
+
+    /** PREVIEW 模式：质量报告含 Error 时需二次确认（先 /forma_confirm，再 force） */
+    private boolean previewQualityErrorHint = false;
+    private boolean previewQualityError = false;
+    private boolean previewForceArmed = false;
     
     private BuildConfirmPanel() {}
 
@@ -147,7 +152,17 @@ public class BuildConfirmPanel {
         this.patchList = null;
         this.buildId = UUID.randomUUID();
         this.visible = true;
+        this.previewQualityError = previewQualityErrorHint;
+        this.previewForceArmed = false;
         PreviewModalState.lockBuild();
+    }
+
+    /** 服务端质量摘要含 Error 时标记，供 PREVIEW 确认走 force 流程 */
+    public void notePreviewQualityError() {
+        previewQualityErrorHint = true;
+        if (visible && mode == Mode.PREVIEW) {
+            previewQualityError = true;
+        }
     }
 
     /** Patch 预览（服务端签发 PreviewTicket）：显示 Apply/Undo/Redo/Cancel */
@@ -187,6 +202,9 @@ public class BuildConfirmPanel {
         if (this.patchWarnings != null) this.patchWarnings.clear();
         this.patchWarnings = null;
         this.awaitingPatchApplyResult = false;
+        this.previewQualityErrorHint = false;
+        this.previewQualityError = false;
+        this.previewForceArmed = false;
 
         BuildingPreviewState.clear();
         OutlinePreviewState.clear(); // 关闭预览线框
@@ -206,7 +224,12 @@ public class BuildConfirmPanel {
             return;
         }
         if (mode == Mode.PREVIEW) {
-            runPreviewCommand("forma_confirm");
+            if (previewQualityError && !previewForceArmed) {
+                runPreviewCommand("forma_confirm");
+                previewForceArmed = true;
+                return;
+            }
+            runPreviewCommand(previewQualityError ? "forma_confirm force" : "forma_confirm");
             hide();
             return;
         }

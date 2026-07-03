@@ -85,6 +85,9 @@ public final class FormaCraftClientNetworking {
             if (msg == null || msg.isBlank()) return;
             FormacraftMod.LOGGER.info("Received build status from server: {}", msg);
             com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIStatus(msg);
+            if (msg.contains("【注意】") || msg.contains("不建议直接应用")) {
+                com.formacraft.client.ui.panel.BuildConfirmPanel.INSTANCE.notePreviewQualityError();
+            }
         }));
 
         // 预览线框数据包接收器
