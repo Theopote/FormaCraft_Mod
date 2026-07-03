@@ -7,7 +7,9 @@ import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.tool.MirrorSymmetryMode;
 import com.formacraft.common.tool.ToolConstraintSnapshot;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,7 +22,8 @@ public final class ToolConstraintSnapshotFactory {
             SelectionTool selection,
             OutlineTool outline,
             SymmetryTool symmetry,
-            ProtectedZoneTool forbidden
+            ProtectedZoneTool forbidden,
+            PathTool path
     ) {
         SelectionBox selectionBox = null;
         if (selection != null && selection.hasSelection()) {
@@ -37,8 +40,9 @@ public final class ToolConstraintSnapshotFactory {
                 : List.of();
 
         ToolConstraintSnapshot.SymmetryConstraint symmetryConstraint = toSymmetry(symmetry);
+        List<List<Vec3d>> paths = toPaths(path);
 
-        return new ToolConstraintSnapshot(selectionBox, outlineShape, zones, symmetryConstraint);
+        return new ToolConstraintSnapshot(selectionBox, outlineShape, paths, zones, symmetryConstraint);
     }
 
     public static ToolConstraintSnapshot fromDefaultTools() {
@@ -46,7 +50,8 @@ public final class ToolConstraintSnapshotFactory {
                 SelectionTool.INSTANCE,
                 OutlineTool.INSTANCE,
                 SymmetryTool.INSTANCE,
-                ProtectedZoneTool.INSTANCE
+                ProtectedZoneTool.INSTANCE,
+                PathTool.INSTANCE
         );
     }
 
@@ -55,8 +60,25 @@ public final class ToolConstraintSnapshotFactory {
         if (s.mode() == OutlineMode.CIRCLE) {
             return new OutlineShape("circle", List.of(), s.center(), s.radius(), s.minY(), s.maxY());
         }
+        if (s.mode() == OutlineMode.FREE_DRAW) {
+            List<BlockPos> points = s.points() != null ? s.points() : List.of();
+            return new OutlineShape("free_draw", points, null, 0, s.minY(), s.maxY());
+        }
         List<BlockPos> points = s.points() != null ? s.points() : List.of();
         return new OutlineShape("polygon", points, null, 0, s.minY(), s.maxY());
+    }
+
+    private static List<List<Vec3d>> toPaths(PathTool pathTool) {
+        if (pathTool == null || pathTool.getPathCount() <= 0) {
+            return List.of();
+        }
+        List<List<Vec3d>> result = new ArrayList<>();
+        for (PathTool.Path path : pathTool.getPaths()) {
+            if (path != null && path.polyline() != null && !path.polyline().isEmpty()) {
+                result.add(path.polyline());
+            }
+        }
+        return result;
     }
 
     private static ToolConstraintSnapshot.SymmetryConstraint toSymmetry(SymmetryTool tool) {

@@ -1,86 +1,49 @@
 package com.formacraft.common.component.socket;
 
-import com.formacraft.client.tool.OutlineTool;
-import com.formacraft.client.tool.PathTool;
-import com.formacraft.client.tool.SelectionTool;
+import com.formacraft.common.buildcontext.OutlineShape;
+import com.formacraft.common.tool.ToolConstraintSnapshot;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * SocketQueryContextBuilder（Socket 查询上下文构建器）。
  * <p>
- * 把 Tool 状态接进 SocketQueryContext（关键）。
- * <p>
- * 示例用法：
- * <pre>
- * SocketQueryContext ctx = SocketQueryContextBuilder.fromTools(
- *     SelectionTool.INSTANCE,
- *     OutlineTool.INSTANCE,
- *     PathTool.INSTANCE,
- *     hitPosVec
- * );
- * List&lt;Socket&gt; sockets = SocketProviders.collect(world, ctx);
- * </pre>
+ * 从 {@link ToolConstraintSnapshot} 构建 {@link SocketQueryContext}，common 侧不依赖 client 工具类。
  */
 public final class SocketQueryContextBuilder {
     private SocketQueryContextBuilder() {}
 
     /**
-     * 从工具实例创建 SocketQueryContext
-     * 
-     * @param selectionTool 选区工具（可选）
-     * @param outlineTool 轮廓工具（可选）
-     * @param pathTool 路径工具（可选）
-     * @param focus 焦点位置（鼠标 hit 或 anchor）
-     * @return SocketQueryContext
+     * 从工具约束快照创建 SocketQueryContext。
+     *
+     * @param snapshot 工具状态快照（由 client 侧 {@code ToolConstraintSnapshotFactory} 采集）
+     * @param focus    焦点位置（鼠标 hit 或 anchor）
      */
-    public static SocketQueryContext fromTools(
-            SelectionTool selectionTool,
-            OutlineTool outlineTool,
-            PathTool pathTool,
-            Vec3d focus
-    ) {
+    public static SocketQueryContext fromSnapshot(ToolConstraintSnapshot snapshot, Vec3d focus) {
         SocketQueryContext ctx = new SocketQueryContext();
         ctx.focus = focus != null ? focus : Vec3d.ZERO;
         ctx.radius = 48;
 
-        // SelectionTool
-        if (selectionTool != null && selectionTool.hasSelection()) {
-            ctx.selectionMin = selectionTool.getMin();
-            ctx.selectionMax = selectionTool.getMax();
+        if (snapshot != null && snapshot.hasSelection()) {
+            ctx.selectionMin = snapshot.selection.min();
+            ctx.selectionMax = snapshot.selection.max();
         }
 
-        // OutlineTool
-        if (outlineTool != null && outlineTool.hasShape()) {
-            OutlineTool.OutlineShape shape = outlineTool.getShape();
-            if (shape != null && shape.points() != null) {
-                for (BlockPos p : shape.points()) {
-                    // 使用点的 y 坐标，或 focus 的 y
+        if (snapshot != null && snapshot.hasOutline()) {
+            OutlineShape shape = snapshot.outline;
+            if (shape.vertices() != null) {
+                for (BlockPos p : shape.vertices()) {
                     double y = focus != null ? focus.y : p.getY();
                     ctx.outlinePolygon.add(new Vec3d(p.getX(), y, p.getZ()));
                 }
             }
         }
 
-        // PathTool
-        if (pathTool != null && pathTool.getPathCount() > 0) {
-            // 使用 PathTool 的 getNodes() 方法获取路径点
-            List<BlockPos> nodes = pathTool.getNodes();
-            if (!nodes.isEmpty()) {
-                List<Vec3d> pathPoints = new ArrayList<>();
-                for (BlockPos node : nodes) {
-                    pathPoints.add(new Vec3d(node.getX() + 0.5, node.getY(), node.getZ() + 0.5));
-                }
-                ctx.paths.add(pathPoints);
-            }
+        if (snapshot != null && snapshot.hasPaths()) {
+            ctx.paths.addAll(snapshot.paths);
         }
 
-        // openings
         ctx.includeOpenings = true;
-
         return ctx;
     }
 }

@@ -1,7 +1,6 @@
 package com.formacraft.common.component.socket.continuous;
 
-import com.formacraft.client.tool.OutlineTool;
-import com.formacraft.client.tool.OutlineMode;
+import com.formacraft.common.buildcontext.OutlineShape;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
@@ -9,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * OutlineEdgeSocket：来自 OutlineTool 的边界连续插槽实现。
+ * OutlineEdgeSocket：轮廓边界的连续插槽实现。
  */
 public final class OutlineEdgeSocket implements ContinuousSocket {
     private final List<BlockPos> points;
@@ -20,42 +19,32 @@ public final class OutlineEdgeSocket implements ContinuousSocket {
         this.closed = closed;
     }
 
-    /**
-     * 从 OutlineTool.OutlineShape 创建 OutlineEdgeSocket
-     */
-    public static OutlineEdgeSocket fromOutlineTool(OutlineTool.OutlineShape shape) {
-        if (shape == null || shape.points() == null || shape.points().isEmpty()) {
+    public static OutlineEdgeSocket fromOutlineShape(OutlineShape shape) {
+        if (shape == null || shape.vertices() == null || shape.vertices().isEmpty()) {
             return new OutlineEdgeSocket(List.of(), false);
         }
 
-        // Outline 通常是闭合的（polygon/rectangle/circle）
-        // 对于 record，使用 mode() 方法访问
-        boolean isClosed = shape.mode() != OutlineMode.FREE_DRAW;
-
-        return new OutlineEdgeSocket(shape.points(), isClosed);
+        boolean isClosed = !"free_draw".equalsIgnoreCase(shape.shapeType());
+        return new OutlineEdgeSocket(shape.vertices(), isClosed);
     }
 
     @Override
     public List<BlockPos> samplePoints(int step) {
         if (points.isEmpty()) return List.of();
-
-        // v1：如果 step > 1，可以进一步采样（简化处理：直接使用现有点）
         return new ArrayList<>(points);
     }
 
     @Override
     public Vec3d normalAt(int index) {
         if (points.size() < 2 || index < 0 || index >= points.size()) {
-            return new Vec3d(0, 1, 0); // 默认向上
+            return new Vec3d(0, 1, 0);
         }
 
-        // 计算该点的法线（垂直于边界方向，指向外侧）
         Vec3d tangent = tangentAt(index);
         if (tangent.lengthSquared() < 1e-6) {
             return new Vec3d(0, 1, 0);
         }
 
-        // 右法线 = tangent × UP（指向外侧）
         Vec3d up = new Vec3d(0, 1, 0);
         return tangent.crossProduct(up).normalize();
     }
@@ -63,10 +52,9 @@ public final class OutlineEdgeSocket implements ContinuousSocket {
     @Override
     public Vec3d tangentAt(int index) {
         if (points.size() < 2 || index < 0 || index >= points.size()) {
-            return new Vec3d(0, 0, 1); // 默认向南
+            return new Vec3d(0, 0, 1);
         }
 
-        // 计算切线方向
         int nextIndex = (index + 1) % points.size();
         BlockPos cur = points.get(index);
         BlockPos next = points.get(nextIndex);

@@ -4,34 +4,41 @@ import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.buildcontext.SelectionBox;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * 工具约束快照：client 采集当前选区/轮廓/禁区/对称状态后传入 common/server，
+ * 工具约束快照：client 采集当前选区/轮廓/路径/禁区/对称状态后传入 common/server，
  * common 侧不再反向 import client 工具类。
  */
 public final class ToolConstraintSnapshot {
 
     public final SelectionBox selection;
     public final OutlineShape outline;
+    public final List<List<Vec3d>> paths;
     public final List<ProtectedZone> protectedZones;
     public final SymmetryConstraint symmetry;
 
     public ToolConstraintSnapshot(
             SelectionBox selection,
             OutlineShape outline,
+            List<List<Vec3d>> paths,
             List<ProtectedZone> protectedZones,
             SymmetryConstraint symmetry
     ) {
         this.selection = selection;
         this.outline = outline;
+        this.paths = paths != null
+                ? paths.stream().map(p -> p != null ? List.copyOf(p) : List.<Vec3d>of()).collect(Collectors.toList())
+                : List.of();
         this.protectedZones = protectedZones != null ? List.copyOf(protectedZones) : List.of();
         this.symmetry = symmetry != null ? symmetry : SymmetryConstraint.none();
     }
 
     public static ToolConstraintSnapshot empty() {
-        return new ToolConstraintSnapshot(null, null, List.of(), SymmetryConstraint.none());
+        return new ToolConstraintSnapshot(null, null, List.of(), List.of(), SymmetryConstraint.none());
     }
 
     public boolean hasSelection() {
@@ -40,6 +47,10 @@ public final class ToolConstraintSnapshot {
 
     public boolean hasOutline() {
         return outline != null;
+    }
+
+    public boolean hasPaths() {
+        return !paths.isEmpty();
     }
 
     public boolean hasForbiddenZone() {
