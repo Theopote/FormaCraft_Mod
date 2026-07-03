@@ -15,7 +15,7 @@ import com.formacraft.common.component.variant.ComponentVariant;
 import com.formacraft.common.component.variant.VariantGenerator;
 import com.formacraft.common.compiler.component.ComponentPlanCompiler;
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.client.tool.placement.PlacementContext;
+import com.formacraft.common.placement.PlacementContext;
 
 import net.minecraft.world.WorldView;
 

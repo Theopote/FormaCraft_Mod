@@ -1,10 +1,10 @@
-package com.formacraft.client.tool.placement;
+package com.formacraft.common.placement;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 /**
- * PlacementContext（运行时空间上下文）：ComponentTool 与世界之间的桥梁。
+ * 放置上下文 DTO：ComponentTool 与编译器之间的桥梁，不依赖 client 包。
  */
 public class PlacementContext {
     public final BlockPos targetPos;
@@ -19,7 +19,7 @@ public class PlacementContext {
     public boolean isInterior;
     public boolean isExterior;
 
-    /** 派生方向：墙外法线/外法线 */
+    /** 派生方向：墙外法线 */
     public Direction outwardNormal;
     /** 派生方向：沿边缘的切线方向（栏杆等） */
     public Direction edgeDirection;
@@ -29,4 +29,3 @@ public class PlacementContext {
         this.hitFace = face;
     }
 }
-

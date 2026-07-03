@@ -1,10 +1,11 @@
-package com.formacraft.common.network;
+package com.formacraft.server.network;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.preview.OutlineBlock;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
+import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;

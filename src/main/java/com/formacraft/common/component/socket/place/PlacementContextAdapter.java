@@ -1,6 +1,6 @@
 package com.formacraft.common.component.socket.place;
 
-import com.formacraft.client.tool.placement.PlacementContext;
+import com.formacraft.common.placement.PlacementContext;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 

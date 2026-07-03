@@ -2,7 +2,7 @@ package com.formacraft.common.compiler.voxel;
 
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.model.ComponentVariant;
-import com.formacraft.client.tool.placement.PlacementContext;
+import com.formacraft.common.placement.PlacementContext;
 import net.minecraft.util.math.Direction;
 
 

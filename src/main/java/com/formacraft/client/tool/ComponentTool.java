@@ -5,7 +5,7 @@ import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.preview.ComponentPreviewState;
 import com.formacraft.client.tool.placement.PlacementAnalyzer;
-import com.formacraft.client.tool.placement.PlacementContext;
+import com.formacraft.common.placement.PlacementContext;
 import com.formacraft.client.tool.placement.PlacementResult;
 import com.formacraft.client.tool.placement.PlacementValidator;
 import com.formacraft.common.component.socket.*;

@@ -1,4 +1,4 @@
-package com.formacraft.common.network;
+package com.formacraft.server.network;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.preview.OutlineBlock;
@@ -9,11 +9,13 @@ import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
+import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.common.network.LlmPlanTerrainBounds;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics.FallbackReason;
+import com.formacraft.common.network.LlmPlanTerrainBounds.Bounds;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
-import com.formacraft.common.network.LlmPlanTerrainBounds.Bounds;
 import com.formacraft.server.build.BuildConstraintClipper;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.common.build.PlannedBlock;

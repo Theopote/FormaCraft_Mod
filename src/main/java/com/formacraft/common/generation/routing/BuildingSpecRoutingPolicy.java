@@ -14,8 +14,8 @@ import java.util.Map;
  * 明清官式四合院等场景已有确定性整栋生成器（{@code mingqing_courtyard}），
  * 走 Composite 或 LlmPlan 构件拼装易产生重复默认房；本类集中判定并施加路由默认值。
  *
- * @see com.formacraft.common.network.BuildRequestProcessor
- * @see com.formacraft.common.network.LlmPlanPreviewBuilder
+ * @see com.formacraft.server.network.BuildRequestProcessor
+ * @see com.formacraft.server.network.LlmPlanPreviewBuilder
  */
 public final class BuildingSpecRoutingPolicy {
 
@@ -44,7 +44,7 @@ public final class BuildingSpecRoutingPolicy {
     /**
      * 收到 {@code BuildingSpec} 后是否跳过 LlmPlan 预览，直接走 {@code GenerationHub.routeStructure()}。
      *
-     * @return {@code true} 表示不应走 LlmPlan（{@link com.formacraft.common.network.LlmPlanPreviewBuilder} 应返回 false）
+     * @return {@code true} 表示不应走 LlmPlan（{@link com.formacraft.server.network.LlmPlanPreviewBuilder} 应返回 false）
      */
     public static boolean shouldSkipLlmPlanPreview(BuildingSpec spec, FormaRequest req) {
         String requestText = req != null ? req.getRequestText() : null;
