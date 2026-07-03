@@ -1,6 +1,5 @@
 package com.formacraft.common.patch.filter.impl;
 
-import com.formacraft.client.tool.ProtectedZoneTool;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.filter.PatchFilter;
@@ -13,11 +12,6 @@ import java.util.stream.Collectors;
 
 /**
  * ForbiddenZoneFilter（禁区裁剪）
- * 
- * 核心功能：移除所有位于禁区内的 BlockPatch
- * 
- * 效果：
- * 🟥 AI 想在禁区放什么都直接消失
  */
 public class ForbiddenZoneFilter implements PatchFilter {
 
@@ -31,25 +25,21 @@ public class ForbiddenZoneFilter implements PatchFilter {
             return input;
         }
 
-        ProtectedZoneTool tool = context.forbidden;
-        List<ProtectedZone> zones = tool.getZones();
-
-        if (zones == null || zones.isEmpty()) {
+        List<ProtectedZone> zones = context.snapshot.protectedZones;
+        if (zones.isEmpty()) {
             return input;
         }
 
         return input.stream()
                 .filter(p -> {
                     BlockPos world = origin.add(p.dx(), p.dy(), p.dz());
-                    // 检查是否在任何禁区内
                     for (ProtectedZone zone : zones) {
                         if (zone != null && zone.contains(world)) {
-                            return false; // 在禁区内，移除
+                            return false;
                         }
                     }
-                    return true; // 不在禁区内，保留
+                    return true;
                 })
                 .collect(Collectors.toList());
     }
 }
-

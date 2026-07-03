@@ -1,6 +1,6 @@
 package com.formacraft.server.cluster.layout;
 
-import com.formacraft.common.generation.structure.util.StructureSpecParsers;
+import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 
 import java.util.Locale;
 import java.util.Map;

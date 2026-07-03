@@ -1,66 +1,31 @@
 package com.formacraft.common.patch.filter;
 
-import com.formacraft.client.tool.OutlineTool;
-import com.formacraft.client.tool.ProtectedZoneTool;
-import com.formacraft.client.tool.SelectionTool;
-import com.formacraft.client.tool.SymmetryTool;
+import com.formacraft.common.tool.ToolConstraintSnapshot;
 
 /**
- * PatchFilterContext（工具状态快照）
- * 
- * 非常关键：这是 ToolState → Patch 的唯一入口
- * 
- * 核心职责：
- * - 封装所有工具的状态
- * - 提供便捷的检查方法
- * - 确保 Filter 可以安全访问工具状态
+ * Patch 过滤上下文：封装工具约束快照，供 Filter 安全读取。
  */
 public class PatchFilterContext {
 
-    public final SelectionTool selection;
-    public final OutlineTool outline;
-    public final SymmetryTool symmetry;
-    public final ProtectedZoneTool forbidden;
+    public final ToolConstraintSnapshot snapshot;
 
-    public PatchFilterContext(
-            SelectionTool selection,
-            OutlineTool outline,
-            SymmetryTool symmetry,
-            ProtectedZoneTool forbidden
-    ) {
-        this.selection = selection;
-        this.outline = outline;
-        this.symmetry = symmetry;
-        this.forbidden = forbidden;
+    public PatchFilterContext(ToolConstraintSnapshot snapshot) {
+        this.snapshot = snapshot != null ? snapshot : ToolConstraintSnapshot.empty();
     }
 
-    /**
-     * 是否有选区
-     */
     public boolean hasSelection() {
-        return selection != null && selection.hasSelection();
+        return snapshot.hasSelection();
     }
 
-    /**
-     * 是否有轮廓
-     */
     public boolean hasOutline() {
-        return outline != null && outline.hasShape();
+        return snapshot.hasOutline();
     }
 
-    /**
-     * 是否有禁区
-     */
     public boolean hasForbiddenZone() {
-        return forbidden != null && forbidden.hasZones();
+        return snapshot.hasForbiddenZone();
     }
 
-    /**
-     * 是否启用对称
-     */
     public boolean hasSymmetry() {
-        return symmetry != null && symmetry.getMode() != null 
-                && symmetry.getMode() != com.formacraft.client.tool.SymmetryMode.NONE;
+        return snapshot.hasSymmetry();
     }
 }
-

@@ -1,6 +1,6 @@
 package com.formacraft.common.patch.filter.impl;
 
-import com.formacraft.client.tool.SelectionTool;
+import com.formacraft.common.buildcontext.SelectionBox;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.filter.PatchFilter;
 import com.formacraft.common.patch.filter.PatchFilterContext;
@@ -12,12 +12,6 @@ import java.util.stream.Collectors;
 
 /**
  * SelectionOnlyFilter（只修改选区）
- * 
- * 核心功能：只保留位于选区内的 BlockPatch
- * 
- * 效果：
- * 🟩 "只修改选区内建筑"
- * 而且是硬约束
  */
 public class SelectionOnlyFilter implements PatchFilter {
 
@@ -31,9 +25,9 @@ public class SelectionOnlyFilter implements PatchFilter {
             return input;
         }
 
-        SelectionTool sel = context.selection;
-        BlockPos min = sel.getMin();
-        BlockPos max = sel.getMax();
+        SelectionBox sel = context.snapshot.selection;
+        BlockPos min = sel.min();
+        BlockPos max = sel.max();
 
         if (min == null || max == null) {
             return input;
@@ -47,9 +41,6 @@ public class SelectionOnlyFilter implements PatchFilter {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 检查位置是否在选区内
-     */
     private boolean contains(BlockPos min, BlockPos max, BlockPos pos) {
         if (min == null || max == null || pos == null) {
             return false;
@@ -59,4 +50,3 @@ public class SelectionOnlyFilter implements PatchFilter {
                 && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
     }
 }
-

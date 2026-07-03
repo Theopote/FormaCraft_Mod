@@ -13,7 +13,7 @@ import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.server.generation.GenerationHub;
-import com.formacraft.common.generation.structure.StructureGenerator;
+import com.formacraft.server.generation.structure.StructureGenerator;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
