@@ -45,7 +45,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     private static final FcaLog LOG = FcaLog.of("SettingsPanel");
 
-    private static final int BUTTON_GAP_SMALL = 4;
 
     // Toast 持续时间（毫秒）
     private static final long TOAST_DURATION_MS = 2500L;
@@ -873,7 +872,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             return;
         }
 
-        String finalUrl = url;
+        String computedUrl = url;
         try {
             if (llmBaseUrl != null && (!provider.isBlank() || !llmBaseUrl.isBlank())) {
                 StringBuilder q = new StringBuilder();
@@ -884,11 +883,12 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                     if (!q.isEmpty()) q.append('&');
                     q.append("base_url=").append(URLEncoder.encode(llmBaseUrl, StandardCharsets.UTF_8));
                 }
-                finalUrl = url + "?" + q;
+                computedUrl = url + "?" + q;
             }
         } catch (Exception e) {
             LOG.debug("build validate key URL failed", e);
         }
+        final String finalUrl = computedUrl;
 
         CompletableFuture.supplyAsync(() -> {
             try {
