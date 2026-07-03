@@ -6,17 +6,16 @@ import com.formacraft.client.ui.panel.settings.SettingsActionsSection;
 import com.formacraft.client.ui.panel.settings.SettingsBaseUrlPresets;
 import com.formacraft.client.ui.panel.settings.SettingsConnectionSection;
 import com.formacraft.client.ui.panel.settings.SettingsModelCatalog;
+import com.formacraft.client.ui.panel.settings.SettingsInputController;
 import com.formacraft.client.ui.panel.settings.SettingsPanelDrawSupport;
 import com.formacraft.client.ui.panel.settings.SettingsPanelRenderHost;
 import com.formacraft.client.ui.panel.settings.SettingsPreferencesSection;
 import com.formacraft.client.ui.widget.HudTextInput;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import com.formacraft.config.SettingsConfig;
@@ -279,402 +278,22 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (super.mouseClicked(mouseX, mouseY, button)) return true; // 处理顶部 Tab 切换
-
-        if (button != 0) return false;
-
-        ensureWidgets();
-        int x = cachedContentX >= 0 ? cachedContentX : (panelX + CONTENT_PADDING);
-        int y = getContentY() + CONTENT_PADDING - scrollY;
-        int w = panelWidth - CONTENT_PADDING * 2;
-
-        boolean clickedOutside = !isMouseOver(mouseX, mouseY);
-        // 防御：如果点击在面板外，不应继续命中任何控件（否则会“隔空点按钮/输入框”）
-        if (clickedOutside) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return false;
-        }
-
-        // drawContents 里先画标题，再 y += TITLE_HEIGHT
-        y += TITLE_HEIGHT;
-
-        // =========== Orchestrator 区域 ============
-        int orchLabelY = y;
-        int orchY = orchLabelY + LABEL_OFFSET;
-        if (orchestratorInput.mouseClicked(mouseX, mouseY, x, orchY, w, INPUT_HEIGHT)) {
-            apiKeyInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // =========== API Key 区域 ============
-        y += FIELD_SPACING;
-        int apiLabelY = y;
-        int apiY = apiLabelY + LABEL_OFFSET;
-        int apiBtnY = apiLabelY + LABEL_OFFSET * 2;
-        int gap = BUTTON_GAP_SMALL;
-        int apiBtnW1 = (w - gap) / 2;
-        int apiBtnW2 = Math.max(0, w - gap - apiBtnW1);
-        int pasteX = x + apiBtnW1 + gap;
-
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-
-        // Show/Hide（原版按钮）
-        showHideButton.setPosition(x, apiBtnY);
-        showHideButton.setWidth(apiBtnW1);
-        if (showHideButton.mouseClicked(click, false)) {
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // Paste（原版按钮）
-        pasteButton.setPosition(pasteX, apiBtnY);
-        pasteButton.setWidth(apiBtnW2);
-        if (pasteButton.mouseClicked(click, false)) {
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // 点击 API key 输入框
-        if (apiKeyInput.mouseClicked(mouseX, mouseY, x, apiY, w, INPUT_HEIGHT)) {
-            orchestratorInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // =========== LLM Provider ============
-        // API Key 三行：标题 + 输入框 + 按钮行
-        y += FIELD_SPACING + LABEL_OFFSET;
-        int providerLabelY = y;
-        int providerY = providerLabelY + LABEL_OFFSET;
-
-        llmProviderButton.setPosition(x, providerY);
-        llmProviderButton.setWidth(w);
-        if (llmProviderButton.mouseClicked(click, false)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // =========== LLM Base URL ============
-        y += FIELD_SPACING;
-        int llmBaseUrlLabelY = y;
-        int llmBaseUrlPresetY = llmBaseUrlLabelY + LABEL_OFFSET;
-        int llmBaseUrlThirdLineY = llmBaseUrlLabelY + LABEL_OFFSET * 2;
-
-        // 预设按钮（第二行）
-        llmBaseUrlPresetButton.setPosition(x, llmBaseUrlPresetY);
-        llmBaseUrlPresetButton.setWidth(w);
-        if (llmBaseUrlPresetButton.mouseClicked(click, false)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // 下拉展开：命中选项
-        if (baseUrlPresetDropdownOpen) {
-            // 展开应紧贴预设按钮下方（与渲染 overlay 一致）
-            int listY0 = llmBaseUrlPresetY + BUTTON_HEIGHT;
-            layoutBaseUrlPresetButtons(x, listY0, w);
-
-            boolean clickedAny = false;
-            for (ButtonWidget opt : llmBaseUrlPresetOptionButtons) {
-                if (opt != null && opt.visible && opt.mouseClicked(click, false)) {
-                    clickedAny = true;
-                    break;
-                }
-            }
-            if (clickedAny) {
-                return true;
-            }
-
-            int listH = BASE_URL_PRESETS.size() * BUTTON_HEIGHT;
-            boolean insideList = (mouseX >= x && mouseX <= x + w && mouseY >= listY0 && mouseY <= listY0 + listH);
-            if (!insideList) {
-                // 点击列表外：收起（并吞掉点击，避免“穿透”点到下面控件）
-                baseUrlPresetDropdownOpen = false;
-                hideBaseUrlPresetButtons();
-                modelInput.setFocused(false);
-                modelDropdownOpen = false;
-                hideModelOptionButtons();
-                return true;
-            }
-
-            // 点在列表区域但没点到按钮：吞掉（避免误触其它控件）
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // 第三行：只有自定义时才允许点输入框
-        BaseUrlPreset p = getSelectedBaseUrlPreset();
-        if (p != null && p.url == null) {
-            if (llmBaseUrlInput.mouseClicked(mouseX, mouseY, x, llmBaseUrlThirdLineY, w, INPUT_HEIGHT)) {
-                orchestratorInput.setFocused(false);
-                apiKeyInput.setFocused(false);
-                modelInput.setFocused(false);
-                modelDropdownOpen = false;
-                hideModelOptionButtons();
-                return true;
-            }
-        } else {
-            llmBaseUrlInput.setFocused(false);
-        }
-
-        // =========== Model（输入 + 刷新 + 自动） ============
-        // Base URL 是三行（FIELD_SPACING + LABEL_OFFSET）
-        y += FIELD_SPACING + LABEL_OFFSET;
-        int modelLabelY = y;
-        int modelInputY = modelLabelY + LABEL_OFFSET;
-        int modelBtnY = modelLabelY + LABEL_OFFSET * 2;
-
-        // 下拉展开：命中选项（优先处理，避免“穿透”）
-        if (modelDropdownOpen) {
-            int listY0 = modelInputY + INPUT_HEIGHT;
-            layoutModelOptionButtons(x, listY0, w);
-
-            boolean clickedAny = false;
-            int visibleCount = 0;
-            for (ButtonWidget opt : modelOptionButtons) {
-                if (opt != null && opt.visible) {
-                    visibleCount++;
-                    if (opt.mouseClicked(click, false)) {
-                        clickedAny = true;
-                        break;
-                    }
-                }
-            }
-            if (clickedAny) return true;
-
-            int listH = visibleCount * BUTTON_HEIGHT;
-            boolean insideList = (mouseX >= x && mouseX <= x + w && mouseY >= listY0 && mouseY <= listY0 + listH);
-            boolean insideInput = (mouseX >= x && mouseX <= x + w && mouseY >= modelInputY && mouseY <= modelInputY + INPUT_HEIGHT);
-            if (!insideList && !insideInput) {
-                // 点击列表外：收起并吞掉点击，避免“穿透”
-                modelDropdownOpen = false;
-                hideModelOptionButtons();
-                return true;
-            }
-            // 点在列表区域但没点到按钮：吞掉
-            if (insideList) return true;
-        }
-
-        // 点击模型输入框
-        if (modelInput.mouseClicked(mouseX, mouseY, x, modelInputY, w, INPUT_HEIGHT)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            // 输入框聚焦时，如果有候选则展开
-            modelDropdownOpen = !availableModels.isEmpty();
-            draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
-            return true;
-        }
-
-        int gap2 = BUTTON_GAP_SMALL;
-        int modelBtnW1 = (w - gap2) / 2;
-        int modelBtnW2 = Math.max(0, w - gap2 - modelBtnW1);
-
-        detectModelButton.setPosition(x, modelBtnY);
-        detectModelButton.setWidth(modelBtnW1);
-        if (detectModelButton.mouseClicked(click, false)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        autoModelButton.setPosition(x + modelBtnW1 + gap2, modelBtnY);
-        autoModelButton.setWidth(modelBtnW2);
-        if (autoModelButton.mouseClicked(click, false)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // =========== 滑动条交互 ============
-        // 注意：这里必须与 drawContents 的布局一致
-        // Model 为三行（FIELD_SPACING + LABEL_OFFSET）
-        y += FIELD_SPACING + LABEL_OFFSET;
-
-        // =========== Debug Warnings（toggle） ============
-        int dbgBtnY = y + LABEL_OFFSET;
-        debugWarningsButton.setPosition(x, dbgBtnY);
-        debugWarningsButton.setWidth(w);
-        if (debugWarningsButton.mouseClicked(click, false)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            llmBaseUrlInput.setFocused(false);
-            modelInput.setFocused(false);
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return true;
-        }
-
-        // Debug Warnings 是两行（标题+按钮）
-        y += FIELD_SPACING;
-
-        int reachSliderY = y + LABEL_OFFSET;
-        interactionReachSlider.setPosition(x, reachSliderY);
-        interactionReachSlider.setWidth(w);
-        if (interactionReachSlider.mouseClicked(click, false)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            activeSlider = interactionReachSlider;
-            return true;
-        }
-
-        y += FIELD_SPACING;
-        int tempSliderY = y + LABEL_OFFSET;
-        temperatureSlider.setPosition(x, tempSliderY);
-        temperatureSlider.setWidth(w);
-        if (temperatureSlider.mouseClicked(click, false)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            activeSlider = temperatureSlider;
-            return true;
-        }
-
-        y += FIELD_SPACING;
-        int fontSliderY = y + LABEL_OFFSET;
-        fontSizeSlider.setPosition(x, fontSliderY);
-        fontSizeSlider.setWidth(w);
-        if (fontSizeSlider.mouseClicked(click, false)) {
-            orchestratorInput.setFocused(false);
-            apiKeyInput.setFocused(false);
-            activeSlider = fontSizeSlider;
-            return true;
-        }
-
-        // =========== 按钮行（Save/Cancel/Reset） ============
-        y += FIELD_SPACING;
-        int btnY = y;
-        int btnW1 = (w - BUTTON_GAP * 2) / 3;
-        int btnW3 = Math.max(0, w - (btnW1 + btnW1 + BUTTON_GAP * 2));
-        int cancelX = x + btnW1 + BUTTON_GAP;
-        int resetX = cancelX + btnW1 + BUTTON_GAP;
-
-        saveButton.setPosition(x, btnY);
-        saveButton.setWidth(btnW1);
-        if (saveButton.mouseClicked(click, false)) return true;
-
-        cancelButton.setPosition(cancelX, btnY);
-        cancelButton.setWidth(btnW1);
-        if (cancelButton.mouseClicked(click, false)) return true;
-
-        resetButton.setPosition(resetX, btnY);
-        resetButton.setWidth(btnW3);
-        return resetButton.mouseClicked(click, false);
-
-        // 点击空白区域：取消焦点
+        return SettingsInputController.handleClick(this, mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        ensureWidgets();
-        if (button != 0) return false;
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        // 只允许拖动一个滑条；且仅当鼠标位于滑条上时才更新（用户期望）
-        if (activeSlider == null) return false;
-        if (!activeSlider.isMouseOver(mouseX, mouseY)) return false;
-        return activeSlider.mouseDragged(click, deltaX, deltaY);
+        return SettingsInputController.handleDrag(this, mouseX, mouseY, button, deltaX, deltaY);
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        ensureWidgets();
-        if (button != 0) return false;
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        boolean handled = false;
-        if (activeSlider != null) {
-            handled = activeSlider.mouseReleased(click);
-            activeSlider = null;
-        } else {
-            // 兜底：如果未记录 activeSlider，也尝试释放两者，防止残留拖拽状态
-            if (temperatureSlider != null) handled |= temperatureSlider.mouseReleased(click);
-            if (fontSizeSlider != null) handled |= fontSizeSlider.mouseReleased(click);
-            if (interactionReachSlider != null) handled |= interactionReachSlider.mouseReleased(click);
-        }
-        return handled;
+        return SettingsInputController.handleRelease(this, mouseX, mouseY, button);
     }
 
     @Override
     public void mouseScrolled(double mouseX, double mouseY, double amount) {
-        if (!isMouseOver(mouseX, mouseY)) return;
-
-        // 输入框优先：在输入框上滚动时接管（水平滚动查看被截断内容）
-        int x = cachedContentX >= 0 ? cachedContentX : (panelX + CONTENT_PADDING);
-        int y = getContentY() + CONTENT_PADDING - scrollY;
-        int w = panelWidth - CONTENT_PADDING * 2;
-
-        // drawContents 里先画标题，再 y += TITLE_HEIGHT
-        y += TITLE_HEIGHT;
-
-        // Orchestrator 输入框（第二行）
-        int orchY = y + LABEL_OFFSET;
-        if (orchestratorInput.mouseScrolled(mouseX, mouseY, amount, x, orchY, w, INPUT_HEIGHT)) {
-            return;
-        }
-
-        // API Key 输入框（第二行；该字段为三行，但输入框仍在标题行下方一行）
-        y += FIELD_SPACING;
-        int apiY = y + LABEL_OFFSET;
-        if (apiKeyInput.mouseScrolled(mouseX, mouseY, amount, x, apiY, w, INPUT_HEIGHT)) {
-            return;
-        }
-
-        // LLM Base URL：仅“自定义”时允许在输入框上滚动（水平滚动查看被截断内容）
-        y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Provider 区块起点
-        y += FIELD_SPACING;                // 跳过 Provider（label+button）
-        BaseUrlPreset p = getSelectedBaseUrlPreset();
-        if (p != null && p.url == null) {
-            int baseUrlY = y + LABEL_OFFSET * 2; // BaseURL 第三行
-            if (llmBaseUrlInput.mouseScrolled(mouseX, mouseY, amount, x, baseUrlY, w, INPUT_HEIGHT)) {
-                return;
-            }
-        }
-
-        // Model 输入框（允许水平滚动查看被截断内容）
-        y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Model 区块起点（BaseURL 是三行）
-        int modelY = y + LABEL_OFFSET;
-        if (modelInput.mouseScrolled(mouseX, mouseY, amount, x, modelY, w, INPUT_HEIGHT)) {
-            return;
-        }
-
-        // 否则：滚动面板内容
-        int step = 12;
-        scrollY = (int) Math.round(scrollY - amount * step);
-        if (scrollY < 0) scrollY = 0;
-        if (scrollY > maxScrollY) scrollY = maxScrollY;
+        SettingsInputController.handleScroll(this, mouseX, mouseY, amount);
     }
 
     @Override
@@ -1805,5 +1424,72 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public int pendingBaseUrlDropdownW() {
         return pendingBaseUrlDropdownW;
+    }
+
+    // ---- 输入交互（SettingsInputController）----
+
+    @Override
+    public int contentStartX() {
+        return cachedContentX >= 0 ? cachedContentX : (panelX + CONTENT_PADDING);
+    }
+
+    @Override
+    public int contentWidth() {
+        return panelWidth - CONTENT_PADDING * 2;
+    }
+
+    @Override
+    public int contentTopY() {
+        return getContentY();
+    }
+
+    @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        return super.isMouseOver(mouseX, mouseY);
+    }
+
+    @Override
+    public int scrollY() {
+        return scrollY;
+    }
+
+    @Override
+    public void setScrollY(int scrollY) {
+        this.scrollY = scrollY;
+    }
+
+    @Override
+    public int maxScrollY() {
+        return maxScrollY;
+    }
+
+    @Override
+    public void setModelDropdownOpen(boolean open) {
+        this.modelDropdownOpen = open;
+    }
+
+    @Override
+    public void setBaseUrlPresetDropdownOpen(boolean open) {
+        this.baseUrlPresetDropdownOpen = open;
+    }
+
+    @Override
+    public boolean availableModelsEmpty() {
+        return availableModels == null || availableModels.isEmpty();
+    }
+
+    @Override
+    public void setDraftModel(String model) {
+        this.draftModel = model;
+    }
+
+    @Override
+    public SliderWidget activeSlider() {
+        return activeSlider;
+    }
+
+    @Override
+    public void setActiveSlider(SliderWidget slider) {
+        this.activeSlider = slider;
     }
 }

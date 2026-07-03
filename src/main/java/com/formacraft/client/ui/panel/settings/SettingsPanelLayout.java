@@ -5,6 +5,7 @@ public final class SettingsPanelLayout {
     public static final int CONTENT_PADDING = 10;
     public static final int BUTTON_HEIGHT = 16;
     public static final int BUTTON_GAP = 6;
+    public static final int BUTTON_GAP_SMALL = 4;
     public static final int INPUT_HEIGHT = 16;
     public static final int LABEL_OFFSET = INPUT_HEIGHT + 2;
     public static final int FIELD_SPACING = LABEL_OFFSET * 2;

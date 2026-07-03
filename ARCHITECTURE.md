@@ -70,7 +70,7 @@ Minecraft World
 **跨层数据传递**统一走 common 侧 DTO，不在上层之间互相引用实现类：
 
 - 工具约束：`client.tool.ToolConstraintSnapshotFactory` 采集 → `common.tool.ToolConstraintSnapshot` → server/common 过滤管线消费
-- Patch 应用结果：`common.patch.PatchExecutor.ApplyResult` → `PatchHistoryManager` 存储 → S2C `PatchApplyResultPayload` → `BuildConfirmPanel`
+- Patch 应用结果：`common.patch.PatchExecutor.ApplyResult` → `PatchHistoryManager` 存储 → S2C `PatchApplyResultPayload`（含 `operation`=apply/undo/redo 与 `canUndo`/`canRedo`）→ `BuildConfirmPanel`
 - 方块修改单位：`common.patch.BlockPatch`（唯一世界写入载体）
 
 **新增功能时的默认路径：**
@@ -78,6 +78,51 @@ Minecraft World
 1. 在 `common` 定义数据结构 / 算法（如需跨端共享）
 2. `client` 采集输入、展示结果；`server` 做权威校验与落盘
 3. 若 common 需要 Minecraft 类型（如 `BlockPos`），仅限不可变值对象，不拉入 server/client 生命周期
+
+### 2.2 UI Panel 拆分约定（Panel Decomposition）
+
+HUD 面板一旦超过 ~400 行，必须按「薄编排 + 分区」拆分，禁止把绘制/输入/配置逻辑堆回主类。
+参考实现：`client.ui.panel.capture.*`（ComponentCapture）、`client.ui.panel.settings.*`（Settings）。
+
+```
+XxxPanel（薄编排：生命周期 + drawContents 编排 + implements Host）
+  ├── XxxPanelRenderHost   接口：向 Section 暴露 widget 状态与回调
+  ├── XxxPanelDrawSupport  静态绘制工具（label / toast / 缩放鼠标等）
+  ├── XxxPanelLayout       常量：行高、间距、颜色
+  └── Xxx<Stage>Section    每个 Tab/阶段一个：`drawSection(host, ctx, x, y, w) → 返回新 y`
+```
+
+**约束：**
+
+- Section 一律 **static**，通过 `Host` 接口回读状态、回调主类，不持有 Panel 引用字段
+- Section 之间不互相调用，只与 `Host` 通信
+- 主类实现 `Host` 接口的方法用 `@Override public`，不要再留 `private` 同名方法（会与接口冲突：访问权限收窄 / 调用不明确）
+- widget 构建集中在 `WidgetFactory`；鼠标命中/拖拽在 `InputController`；`load/save/sync` 在 `ConfigCoordinator`
+
+### 2.3 预览质量门（Quality Gate）
+
+生成结果经 `server.build.quality.BuildQualityReport` 分级，决定可否预览 / 应用：
+
+| 级别 | 预览 | 默认应用 | 强制应用 |
+|------|------|----------|----------|
+| **Fatal** | 拒绝 | 拒绝 | 拒绝（不可绕过） |
+| **Error** | 允许 | 拒绝 | `/forma_confirm force` |
+| **Warning** | 允许 | 允许 + 提示 | — |
+| **Info/None** | 允许 | 允许 | — |
+
+- 判定入口：`BuildQualityReport.recommendApply()`（`!hasFatal() && !hasError()`）
+- 结构确认：`FormaCraftCommands.executeFormaConfirm(source, force)`；`force=true` 仅放行 Error，Fatal 仍拒绝
+- 客户端：`BuildConfirmPanel` PREVIEW 模式收到含 Error 的质量摘要后，第一次确认发 `/forma_confirm`（被拒），第二次发 `/forma_confirm force`
+
+### 2.4 防回退检查清单（PR 自检）
+
+提交涉及世界写入 / 跨层 / 面板的改动前，逐条核对：
+
+- [ ] `common.*` 未 `import` 任何 `server.*` / `client.*`
+- [ ] 世界写入只经 `BlockPatch` → `PatchExecutor` / `PatchHistoryManager`，无裸 `setBlockState`
+- [ ] 跨端只传 `common` 侧 DTO（如 `ApplyResult`、`ToolConstraintSnapshot`），不传实现类
+- [ ] 新增 Panel > 400 行的，已按 §2.2 拆出 Section，主类保持薄编排
+- [ ] 新增可应用结果的路径，已接入 §2.3 质量门（Fatal 拒绝 / Error 需 force）
 
 ---
 
