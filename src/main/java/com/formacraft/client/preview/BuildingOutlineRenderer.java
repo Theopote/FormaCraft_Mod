@@ -1,6 +1,7 @@
 package com.formacraft.client.preview;
 
 import com.formacraft.client.tool.ToolWorldRenderContext;
+import com.formacraft.common.preview.OutlineBlock;
 import net.minecraft.client.render.VertexRendering;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;

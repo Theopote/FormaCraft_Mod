@@ -5,6 +5,7 @@ import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.placement.ComponentPlacementSpec;
 import com.formacraft.common.component.placement.PlacementConstraints;
 import com.formacraft.common.component.placement.SpatialContext;
+import com.formacraft.common.placement.PlacementContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 

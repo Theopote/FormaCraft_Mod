@@ -401,7 +401,7 @@ public final class LlmPlanPreviewBuilder {
                 BlockPos center = new BlockPos((minX + maxX) / 2, planOrigin.getY(), (minZ + maxZ) / 2);
 
                 TerrainFit.FootprintAnalysis analysis = TerrainFit.analyze(serverWorld, center, width, depth);
-                FoundationType foundationType = FoundationPlanner.chooseType(analysis.range(), blockHeight, spec.getExtra());
+                FoundationType foundationType = FoundationPlanner.chooseType(analysis.range(), blockHeight, null);
                 GlobalConstraints.TerrainStrategy strategy =
                         llmPlan.globalConstraints().terrainStrategy();
                 if (wantsStiltFoundation) {

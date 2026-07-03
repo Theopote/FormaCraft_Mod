@@ -11,6 +11,7 @@ import com.formacraft.common.preview.OutlineBlock;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 import java.util.UUID;

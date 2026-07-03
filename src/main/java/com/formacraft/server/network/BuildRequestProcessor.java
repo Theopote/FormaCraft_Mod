@@ -1,6 +1,7 @@
 package com.formacraft.server.network;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.network.OrchestratorErrorHumanizer;
 import com.formacraft.common.preview.OutlineBlock;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.logging.FcaLog;

@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import com.formacraft.common.preview.OutlineBlock;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 
