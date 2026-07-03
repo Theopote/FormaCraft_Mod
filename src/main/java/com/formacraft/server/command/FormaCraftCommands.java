@@ -6,7 +6,7 @@ import com.formacraft.common.model.blueprint.Blueprint;
 import com.formacraft.common.model.city.CitySpec;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.composite.CompositeSpec;
-import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.server.city.CityBuilder;
@@ -93,7 +93,7 @@ public class FormaCraftCommands {
                     List<OutlineBlock> outline = OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
                     
                     // 发送到客户端
-                    FormaCraftNetworking.sendPreviewOutline(player, outline);
+                    FormaCraftServerNetworking.sendPreviewOutline(player, outline);
                     PreviewStorage.setPreview(player, true);
 
                     ctx.getSource().sendFeedback(
@@ -126,7 +126,7 @@ public class FormaCraftCommands {
                     }
 
                     // 清除预览
-                    FormaCraftNetworking.sendClearOutline(player);
+                    FormaCraftServerNetworking.sendClearOutline(player);
                     PreviewStorage.setPreview(player, false);
 
                     // 执行建造
@@ -159,7 +159,7 @@ public class FormaCraftCommands {
                     }
 
                     // 清除预览
-                    FormaCraftNetworking.sendClearOutline(player);
+                    FormaCraftServerNetworking.sendClearOutline(player);
                     PreviewStorage.setPreview(player, false);
                     PreviewStorage.clear(player);
 
@@ -229,7 +229,7 @@ public class FormaCraftCommands {
 
                                 // 发送预览
                                 List<OutlineBlock> outline = OutlineGenerator.fromPlannedBlocks(gs.getBlocks());
-                                FormaCraftNetworking.sendPreviewOutline(player, outline);
+                                FormaCraftServerNetworking.sendPreviewOutline(player, outline);
                                 PreviewStorage.setPreview(player, true);
 
                                 player.sendMessage(Text.translatable(
@@ -303,7 +303,7 @@ public class FormaCraftCommands {
 
                                 // 发送预览
                                 List<OutlineBlock> outline = OutlineGenerator.fromPlannedBlocks(gs.getBlocks());
-                                FormaCraftNetworking.sendPreviewOutline(player, outline);
+                                FormaCraftServerNetworking.sendPreviewOutline(player, outline);
                                 PreviewStorage.setPreview(player, true);
 
                                 player.sendMessage(Text.translatable(
@@ -458,7 +458,7 @@ public class FormaCraftCommands {
 
                         // 发送预览
                         List<OutlineBlock> outline = OutlineGenerator.fromPlannedBlocks(gs.getBlocks());
-                        FormaCraftNetworking.sendPreviewOutline(player, outline);
+                        FormaCraftServerNetworking.sendPreviewOutline(player, outline);
                         PreviewStorage.setPreview(player, true);
 
                         ctx.getSource().sendFeedback(

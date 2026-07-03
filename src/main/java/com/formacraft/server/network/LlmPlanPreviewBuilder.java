@@ -10,6 +10,7 @@ import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.common.network.LlmPlanTerrainBounds;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics.FallbackReason;
@@ -532,7 +533,7 @@ public final class LlmPlanPreviewBuilder {
             // 自动发送预览
             List<OutlineBlock> outline =
                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-            FormaCraftNetworking.sendPreviewOutline(player, outline);
+            FormaCraftServerNetworking.sendPreviewOutline(player, outline);
 
             PreviewStorage.setPreview(player, true);
 

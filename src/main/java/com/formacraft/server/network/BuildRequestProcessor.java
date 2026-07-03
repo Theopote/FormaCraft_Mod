@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Extracted handler for {@link FormaCraftNetworking.RequestBuildPayload}.
  *
- * <p>Intentionally keeps behavior identical to {@code FormaCraftNetworking.registerC2S()}
+ * <p>Intentionally keeps behavior identical to {@code FormaCraftServerNetworking.registerC2S()}
  * (RequestBuildPayload receiver), but lives in a dedicated class for easier maintenance.
  *
  * <p><b>生成双链路</b>：收到 {@code BuildingSpec} 后优先 {@code LlmPlanPreviewBuilder}（构件层），
@@ -150,13 +150,13 @@ public final class BuildRequestProcessor {
                                             // 自动发送预览
                                             List<OutlineBlock> outline =
                                                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                            FormaCraftNetworking.sendPreviewOutline(player, outline);
+                                            FormaCraftServerNetworking.sendPreviewOutline(player, outline);
                                             // Send skeleton layout preview (if present in CitySpec's first structure extra)
                                             try {
                                                 if (citySpec.getStructures() != null && !citySpec.getStructures().isEmpty()) {
                                                     var sp0 = citySpec.getStructures().getFirst();
                                                     if (sp0 != null && sp0.getSpec() != null && sp0.getSpec().getExtra() != null) {
-                                                        FormaCraftNetworking.sendPreviewSkeleton(player, origin, sp0.getSpec().getExtra());
+                                                        FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, sp0.getSpec().getExtra());
                                                     }
                                                 }
                                             } catch (Throwable t) {
@@ -266,13 +266,13 @@ public final class BuildRequestProcessor {
                                             // 自动发送预览
                                             List<OutlineBlock> outline =
                                                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                            FormaCraftNetworking.sendPreviewOutline(player, outline);
+                                            FormaCraftServerNetworking.sendPreviewOutline(player, outline);
                                             // Send skeleton layout preview (if present in CompositeSpec's first structure extra)
                                             try {
                                                 if (compositeSpec.getStructures() != null && !compositeSpec.getStructures().isEmpty()) {
                                                     var s0 = compositeSpec.getStructures().getFirst();
                                                     if (s0 != null && s0.getSpec() != null && s0.getSpec().getExtra() != null) {
-                                                        FormaCraftNetworking.sendPreviewSkeleton(player, origin, s0.getSpec().getExtra());
+                                                        FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, s0.getSpec().getExtra());
                                                     }
                                                 }
                                             } catch (Throwable t) {
@@ -385,10 +385,10 @@ public final class BuildRequestProcessor {
                                                 com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
                                                 List<OutlineBlock> outline =
                                                         com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                                FormaCraftNetworking.sendPreviewOutline(player, outline);
+                                                FormaCraftServerNetworking.sendPreviewOutline(player, outline);
                                                 try {
                                                     if (updated.getExtra() != null) {
-                                                        FormaCraftNetworking.sendPreviewSkeleton(player, origin, updated.getExtra());
+                                                        FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, updated.getExtra());
                                                     }
                                                 } catch (Throwable t) {
                                                 LOG.player(player).warn("send preview skeleton failed", t);
@@ -518,10 +518,10 @@ public final class BuildRequestProcessor {
                                             // 自动发送预览
                                             List<OutlineBlock> outline =
                                                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                            FormaCraftNetworking.sendPreviewOutline(player, outline);
+                                            FormaCraftServerNetworking.sendPreviewOutline(player, outline);
                                             try {
                                                 if (spec.getExtra() != null) {
-                                                    FormaCraftNetworking.sendPreviewSkeleton(player, origin, spec.getExtra());
+                                                    FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, spec.getExtra());
                                                 }
                                             } catch (Throwable t) {
                                                 LOG.player(player).warn("send preview skeleton failed", t);

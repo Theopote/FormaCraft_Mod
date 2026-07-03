@@ -1,6 +1,7 @@
 package com.formacraft.server;
 
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.server.asset.AssetLibrary;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.memory.MemoryManager;
@@ -20,7 +21,7 @@ public class ServerInitializer implements DedicatedServerModInitializer {
         ModPacket.registerServer();
         
         // 注册新的 FormaCraft 网络系统
-        FormaCraftNetworking.registerC2S();
+        FormaCraftServerNetworking.registerC2S();
         BuildRequestProcessor.register();
         
         // 注册建造执行服务的 Tick 处理器

@@ -7,6 +7,7 @@ import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.InputEventHandler;
 import com.formacraft.client.component.ComponentCatalogAutoSync;
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.config.SettingsConfig;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -34,7 +35,7 @@ public class ClientInitializer implements ClientModInitializer {
         FormaCraftNetworking.registerS2C();
         // 单机/集成服务器环境：服务端也在同一 JVM 内运行，但不会触发 DedicatedServerModInitializer。
         // 因此需要在客户端侧也注册 C2S 接收器，确保请求链路在单机可用。
-        FormaCraftNetworking.registerC2S();
+        FormaCraftServerNetworking.registerC2S();
         // 注册预览线框渲染器
         OutlineRenderer.register();
         // 注册 HUD Overlay

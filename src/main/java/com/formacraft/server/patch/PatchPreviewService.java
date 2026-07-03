@@ -3,7 +3,7 @@ package com.formacraft.server.patch;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.model.constraint.ProtectedZone;
-import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.filter.PatchFilterResult;
 import com.formacraft.common.patch.history.PatchHistoryManager;
@@ -70,7 +70,7 @@ public final class PatchPreviewService {
         }
 
         if (deliverToClient) {
-            FormaCraftNetworking.sendPatchPreview(
+            FormaCraftServerNetworking.sendPatchPreview(
                     player,
                     ticket.id(),
                     origin,
