@@ -4,6 +4,7 @@ import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.server.asset.AssetLibrary;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.memory.MemoryManager;
+import com.formacraft.server.network.BuildRequestProcessor;
 import com.formacraft.server.networking.ModPacket;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -20,6 +21,7 @@ public class ServerInitializer implements DedicatedServerModInitializer {
         
         // 注册新的 FormaCraft 网络系统
         FormaCraftNetworking.registerC2S();
+        BuildRequestProcessor.register();
         
         // 注册建造执行服务的 Tick 处理器
         BuildExecutionService.registerTickHandler();

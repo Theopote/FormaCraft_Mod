@@ -12,7 +12,6 @@ import com.formacraft.common.network.packet.ResponseBuildErrorPacket;
 import com.formacraft.common.network.packet.ResponseBuildSpecPacket;
 import com.formacraft.common.network.packet.ResponseBuildStatusPacket;
 import com.formacraft.common.preview.OutlineBlock;
-import com.formacraft.server.network.BuildRequestProcessor;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.BuildConstraintClipper;
@@ -494,8 +493,6 @@ public class FormaCraftNetworking {
         registerPayloadTypesC2S();
         // 服务端也需要注册 S2C payload types（用于编码回包）。否则可能出现“服务端处理了但发不出包”，客户端只能超时。
         registerPayloadTypesS2C();
-
-        BuildRequestProcessor.register();
 
         // 注册确认建造数据包
         registerPayloadTypesC2S();
