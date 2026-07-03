@@ -136,7 +136,8 @@ public final class LlmPlanPreviewBuilder {
                             llmPlan.planSkeleton(),
                             planOrigin,
                             serverWorld,
-                            styleProfileId
+                            styleProfileId,
+                            req != null ? req.getOutline() : null // C1: 真实轮廓驱动楼板
                     );
                 } else if (llmPlan.planProgram() != null) {
                     patches = com.formacraft.common.compiler.PlanProgramCompiler.compile(

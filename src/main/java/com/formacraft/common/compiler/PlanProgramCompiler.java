@@ -121,6 +121,23 @@ public final class PlanProgramCompiler {
             ServerWorld world,
             String styleProfileId
     ) {
+        return compileFromPlanSkeleton(planSkeleton, globalAnchor, world, styleProfileId, null);
+    }
+
+    /**
+     * 从 PlanSkeleton 编译为 BlockPatch 列表（带风格 + C1 outline 支持）。
+     * <p>
+     * 当提供 {@code outline} 时，编译上下文会据其生成真实多边形楼板（替代写死矩形）。
+     *
+     * @param outline 用户/系统轮廓（可选，可为 null）
+     */
+    public static List<BlockPatch> compileFromPlanSkeleton(
+            PlanSkeleton planSkeleton,
+            BlockPos globalAnchor,
+            ServerWorld world,
+            String styleProfileId,
+            com.formacraft.common.buildcontext.OutlineShape outline
+    ) {
         if (planSkeleton == null) {
             FormacraftMod.LOGGER.warn("PlanProgramCompiler: planSkeleton is null");
             return List.of();
@@ -131,6 +148,10 @@ public final class PlanProgramCompiler {
             PlanCompileContext context = world != null && globalAnchor != null
                     ? PlanCompileContext.createWithTerrain(world, globalAnchor)
                     : PlanCompileContext.createDefault();
+            // C1：把 outline 注入上下文，让 FloorPlate 从真实轮廓生成。
+            if (outline != null) {
+                context = context.withOutline(outline);
+            }
 
             // 编译 PlanSkeleton → CompiledSkeleton
             CompiledSkeleton compiled = PlanToSkeletonIntegrationHelper.compileFromPlanSkeleton(planSkeleton, context);
