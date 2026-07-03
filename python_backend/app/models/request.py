@@ -45,6 +45,15 @@ class ProtectedZone(BaseModel):
     max: Vec3i
 
 
+class PathConstraint(BaseModel):
+    """路径走廊（PathTool），与 Java `FormaRequest.pathNodes/pathRadius` 对齐（Phase 9）。
+
+    服务端硬裁剪在 Java 侧完成；此处仅用于后端感知/提示词，不参与几何运算。
+    """
+    nodes: Optional[list[Vec3i]] = None
+    radius: Optional[int] = None
+
+
 class RagBudget(BaseModel):
     """
     P0: RAG prompt injection budget. If omitted, server env defaults apply.
@@ -69,6 +78,7 @@ class BuildRequest(BaseModel):
     brushSelection: Optional[Selection] = None  # 笔刷选中区域边界（AABB）
     outline: Optional[OutlineShape] = None
     protectedZones: Optional[list[ProtectedZone]] = None
+    path: Optional[PathConstraint] = None  # 路径走廊（Phase 9）
     requestText: str
     # 可选：模式（BUILD/PATCH/MODIFY_REGION），用于后端决定生成/编辑策略
     promptMode: Optional[str] = None

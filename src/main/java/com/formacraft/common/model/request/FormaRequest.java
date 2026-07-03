@@ -34,6 +34,10 @@ public class FormaRequest {
     private OutlineShape outline;
     /** 可选：禁区/保护区（用于服务端生成阶段硬裁剪；与客户端 ProtectedZoneTool 同源） */
     private java.util.List<ProtectedZone> protectedZones;
+    /** 可选：路径（PathTool）节点，世界坐标；用于服务端"走廊"硬裁剪与沿线生成（Phase 9） */
+    private java.util.List<BlockPos> pathNodes;
+    /** 可选：路径走廊半径（水平方块数）；<=0 视为未设置 */
+    private Integer pathRadius;
     private String sessionId;
     private java.util.List<String> chatHistory;
 
@@ -167,6 +171,22 @@ public class FormaRequest {
 
     public void setProtectedZones(java.util.List<ProtectedZone> protectedZones) {
         this.protectedZones = protectedZones != null ? protectedZones : java.util.Collections.emptyList();
+    }
+
+    public java.util.List<BlockPos> getPathNodes() {
+        return pathNodes;
+    }
+
+    public void setPathNodes(java.util.List<BlockPos> pathNodes) {
+        this.pathNodes = pathNodes;
+    }
+
+    public Integer getPathRadius() {
+        return pathRadius;
+    }
+
+    public void setPathRadius(Integer pathRadius) {
+        this.pathRadius = pathRadius;
     }
 
     public String getSessionId() {

@@ -823,6 +823,18 @@ public class ChatPanel extends BasePanel {
         } catch (Throwable t) {
             LOG.debug("enrich build request outline/zones failed", t);
         }
+
+        // 路径走廊（PathTool）：结构化下发，用于服务端"走廊"硬裁剪（Phase 9）
+        try {
+            com.formacraft.common.skeleton.PathSkeleton skel =
+                    com.formacraft.client.tool.PathTool.INSTANCE.toSkeleton();
+            if (skel != null && skel.isValid()) {
+                req.setPathNodes(new java.util.ArrayList<>(skel.nodes));
+                req.setPathRadius(skel.corridorRadius);
+            }
+        } catch (Throwable t) {
+            LOG.debug("enrich build request path corridor failed", t);
+        }
         req.setSessionId(sessionId);
         req.setChatHistory(history);
 
