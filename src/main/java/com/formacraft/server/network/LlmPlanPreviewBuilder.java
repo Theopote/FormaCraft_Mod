@@ -6,10 +6,8 @@ import com.formacraft.server.compiler.ComponentPlanCompiler;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.GlobalConstraints;
-import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.network.FormaCraftNetworking;
-import com.formacraft.server.network.FormaCraftServerNetworking;
 import com.formacraft.common.network.LlmPlanTerrainBounds;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics.FallbackReason;
@@ -255,10 +253,7 @@ public final class LlmPlanPreviewBuilder {
 
             // 如果策略是 ADAPTIVE 或 FLATTEN，进行地坪平整
             boolean b = llmPlan.styleAttributes() != null && llmPlan.styleAttributes().floorMaterial() != null;
-            if (!plannedBlocks.isEmpty()
-                    && (terrainStrategy == GlobalConstraints.TerrainStrategy.ADAPTIVE ||
-                        terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN)
-                    && !wantsStiltFoundation) {
+            if ((terrainStrategy == GlobalConstraints.TerrainStrategy.ADAPTIVE || terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN) && !wantsStiltFoundation) {
                 Bounds blockBounds = LlmPlanTerrainBounds.computePlannedBlockBounds(plannedBlocks);
                 Bounds componentBounds = LlmPlanTerrainBounds.computeComponentBounds(llmPlan, planOrigin);
                 Bounds padBounds = LlmPlanTerrainBounds.chooseTerrainPadBounds(componentBounds, blockBounds);
