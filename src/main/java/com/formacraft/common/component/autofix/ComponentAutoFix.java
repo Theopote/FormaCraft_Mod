@@ -278,6 +278,7 @@ public final class ComponentAutoFix {
         mark.dx -= shiftX;
         mark.dy -= shiftY;
         mark.dz -= shiftZ;
+    }
 
     // ----------------------------------------------------------------
     // Placement（放置规格）

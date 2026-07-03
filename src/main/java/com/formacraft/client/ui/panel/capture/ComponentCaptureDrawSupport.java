@@ -88,6 +88,4 @@ public final class ComponentCaptureDrawSupport {
 
         return y;
     }
-
-    }
 }

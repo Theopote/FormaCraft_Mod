@@ -64,7 +64,8 @@
   "formacraft.preview.patch.undo": "撤销",
   "formacraft.preview.patch.redo": "重做",
   "formacraft.preview.patch.origin": "原点：%s, %s, %s",
-  "formacraft.preview.patch.summary": "放置：%s  移除：%s  替换：%s  被拒绝：%s"
+  "formacraft.preview.patch.summary": "放置：%s  移除：%s  替换：%s  被拒绝：%s",
+  "formacraft.preview.patch.applying": "正在应用…"
 ,
   "formacraft.preview.ready.building": "建筑预览已就绪：点击“确认”开始建造，或点“取消”放弃。",
   "formacraft.preview.ready.composite": "复合结构预览已就绪：点击“确认”开始建造，或点“取消”放弃。",

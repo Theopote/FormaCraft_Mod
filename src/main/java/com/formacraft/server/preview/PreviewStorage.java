@@ -137,5 +137,11 @@ public class PreviewStorage {
         if (player == null) return null;
         return qualityReports.get(player.getUuid());
     }
+
+    public static void clearQualityReport(ServerPlayerEntity player) {
+        if (player != null) {
+            qualityReports.remove(player.getUuid());
+        }
+    }
 }
 

@@ -441,6 +441,3 @@ final class AssemblyValidationSupport {
         return new AssemblyValidationIssue(path, AssemblyValidationIssue.Severity.WARNING, code, msg);
     }
 }
-
-
-}

@@ -352,12 +352,14 @@ public class BuildConfirmPanel {
             // warnings / apply result（最多显示 3 行，避免遮挡按钮）
             if (patchWarnings != null && !patchWarnings.isEmpty()) {
                 int shown = 0;
-                for (String w : patchWarnings) {
+                for (int i = 0; i < patchWarnings.size(); i++) {
+                    String w = patchWarnings.get(i);
                     if (w == null || w.isBlank()) continue;
+                    boolean applyResultLine = i == 0 && previewTicketId == null;
                     context.drawTextWithShadow(
                             client.textRenderer,
-                            Text.literal("⚠ " + w),
-                            textX, infoY, 0xFFAAAAAA
+                            Text.literal(applyResultLine ? "✓ " + w : "⚠ " + w),
+                            textX, infoY, applyResultLine ? 0xFFAAFFAA : 0xFFAAAAAA
                     );
                     infoY += lineHeight;
                     if (++shown >= 3) break;

@@ -84,8 +84,5 @@ final class AssemblyOpFacadeValidator {
                     }
                 }
             }
-        }
-    }
-
     }
 }

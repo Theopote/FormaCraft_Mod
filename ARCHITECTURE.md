@@ -57,6 +57,28 @@ Minecraft World
 - ✅ **所有结果都可预览、可裁剪、可撤销**
 - ✅ **Memory 系统支持建筑演化**
 
+### 2.1 Package Layering Rules（common / server / client）
+
+2026-07 起，`common` 层对 `server.*` / `client.*` 的依赖已物理清零。新代码必须遵守以下分层，避免边界再次变脏：
+
+| 包 | 允许 | 禁止 |
+|----|------|------|
+| **`com.formacraft.common.*`** | 纯数据模型、DTO、算法、网络 payload 定义与 codec | `import com.formacraft.server.*`、`import com.formacraft.client.*`；直接访问 `ServerWorld`、玩家实体、UI 组件 |
+| **`com.formacraft.server.*`** | 世界写入、服务端网络处理、AI 编排、预览票据 | 依赖 client 渲染或 HUD |
+| **`com.formacraft.client.*`** | UI、工具交互、预览渲染、客户端网络发送 | 直接修改服务端世界状态 |
+
+**跨层数据传递**统一走 common 侧 DTO，不在上层之间互相引用实现类：
+
+- 工具约束：`client.tool.ToolConstraintSnapshotFactory` 采集 → `common.tool.ToolConstraintSnapshot` → server/common 过滤管线消费
+- Patch 应用结果：`common.patch.PatchExecutor.ApplyResult` → `PatchHistoryManager` 存储 → S2C `PatchApplyResultPayload` → `BuildConfirmPanel`
+- 方块修改单位：`common.patch.BlockPatch`（唯一世界写入载体）
+
+**新增功能时的默认路径：**
+
+1. 在 `common` 定义数据结构 / 算法（如需跨端共享）
+2. `client` 采集输入、展示结果；`server` 做权威校验与落盘
+3. 若 common 需要 Minecraft 类型（如 `BlockPos`），仅限不可变值对象，不拉入 server/client 生命周期
+
 ---
 
 ## 3. Core Data Flow
@@ -132,6 +154,7 @@ PatchExecutor.apply(world, origin, patches);
 
 // 5. 记录历史（支持 Undo）
 PatchHistoryManager.applyWithHistory(world, playerId, origin, patches);
+// ApplyResult 存入 PatchHistoryManager，并经 PatchApplyResultPayload 下发客户端
 ```
 
 ### 4.3 BuildExecutionService（分 Tick 执行）
