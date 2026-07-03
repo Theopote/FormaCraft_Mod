@@ -549,7 +549,7 @@ final class AssemblyConnectionCompiler {
 
         // Extruded polygon: points bbox if present
         if (type.contains("EXTRUDE")) {
-            int[] bb = polygonBounds(comp);
+            int[] bb = AssemblyComponentEmitter.polygonBounds(comp);
             if (bb != null) {
                 return new AssemblyConnectionRouter.Rect2(ox + bb[0] - margin, oz + bb[2] - margin, ox + bb[1] + margin, oz + bb[3] + margin);
             }
