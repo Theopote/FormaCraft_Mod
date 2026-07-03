@@ -20,6 +20,6 @@ public final class WorldBuildBounds {
 
     public static boolean isChunkReady(ServerWorld world, BlockPos pos) {
         if (world == null || pos == null) return false;
-        return world.isChunkLoaded(pos);
+        return world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
     }
 }

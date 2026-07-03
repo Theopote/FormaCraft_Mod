@@ -7,10 +7,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+@SuppressWarnings("unchecked")
 final class AssemblyMacroPrimaryApplier {
     private AssemblyMacroPrimaryApplier() {}
 
-    @SuppressWarnings("unchecked")
     static Map<String, Object> applyVerticalProfile(Map<String, Object> root,
                                                     Map<String, Object> graph,
                                                     Object compsObj,
@@ -286,7 +286,6 @@ final class AssemblyMacroPrimaryApplier {
         String rt = roofType.trim().toUpperCase(Locale.ROOT);
         if (rt.equals("FLAT") || rt.equals("GABLE")) {
             if (!(compsObj instanceof List<?> list)) return;
-            @SuppressWarnings("unchecked")
             List<Object> comps = (List<Object>) list;
             boolean hasRoof = false;
             for (Object it : comps) {

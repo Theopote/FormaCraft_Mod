@@ -2,7 +2,13 @@ package com.formacraft.client.ui.panel;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.logging.FcaLog;
+import com.formacraft.client.ui.panel.settings.SettingsActionsSection;
+import com.formacraft.client.ui.panel.settings.SettingsBaseUrlPresets;
+import com.formacraft.client.ui.panel.settings.SettingsConnectionSection;
 import com.formacraft.client.ui.panel.settings.SettingsModelCatalog;
+import com.formacraft.client.ui.panel.settings.SettingsPanelDrawSupport;
+import com.formacraft.client.ui.panel.settings.SettingsPanelRenderHost;
+import com.formacraft.client.ui.panel.settings.SettingsPreferencesSection;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -34,7 +40,7 @@ import static com.formacraft.client.ui.panel.settings.SettingsPanelLayout.*;
  * Settings panel for FormaCraft HUD overlay.
  * Handles configuration for API keys, model selection, temperature, and font size.
  */
-public class SettingsPanel extends BasePanel {
+public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost {
 
     private static final FcaLog LOG = FcaLog.of("SettingsPanel");
 
@@ -238,43 +244,10 @@ public class SettingsPanel extends BasePanel {
                     x, y, COLOR_WHITE);
             y += TITLE_HEIGHT;
 
-            drawOrchestratorField(ctx, x, y, w);
-            y += FIELD_SPACING;
-
-            drawApiKeyField(ctx, x, y, w);
-            // API Key 三行：标题 + 输入框 + 按钮行
-            y += FIELD_SPACING + LABEL_OFFSET;
-
-            drawLlmProviderField(ctx, x, y, w);
-            y += FIELD_SPACING;
-
-            drawLlmBaseUrlField(ctx, x, y, w);
-        // BaseURL：三行（标题 + 预设按钮 + 自定义输入/提示）
-        y += FIELD_SPACING + LABEL_OFFSET;
-
-            drawModelField(ctx, x, y, w);
-            // Model：三行（标题 + 输入框 + 按钮行）
-            y += FIELD_SPACING + LABEL_OFFSET;
-
-            drawDebugWarningsField(ctx, x, y, w);
-            y += FIELD_SPACING;
-
-            drawInteractionReachSlider(ctx, x, y, w);
-            y += FIELD_SPACING;
-
-            drawTemperatureSlider(ctx, x, y, w);
-            y += FIELD_SPACING;
-
-            drawFontSizeSlider(ctx, x, y, w);
-            y += FIELD_SPACING;
-
-            drawButtonsRow(ctx, x, y, w);
-            y += BUTTON_ROW_HEIGHT;
-
-            // BaseURL 下拉：最后画（overlay），确保在所有控件之上
-            renderBaseUrlDropdownOverlay(ctx);
-            // Model 下拉：最后画（overlay），确保在所有控件之上
-            renderModelDropdownOverlay(ctx);
+            y = SettingsConnectionSection.drawSection(this, ctx, x, y, w);
+            y = SettingsPreferencesSection.drawSection(this, ctx, x, y, w);
+            y = SettingsActionsSection.drawSection(this, ctx, x, y, w);
+            SettingsConnectionSection.renderOverlays(this, ctx);
 
             // 计算最大滚动（基于未滚动起点）
             int contentTop = getContentY() + CONTENT_PADDING;
@@ -289,7 +262,10 @@ public class SettingsPanel extends BasePanel {
 
         // Toast：不参与滚动，也不被 scissor 裁剪（否则用户会觉得“点了没反应”）
         int toastY = getContentY() + getContentHeight() - CONTENT_PADDING - client.textRenderer.fontHeight - 2;
-        drawToast(ctx, x, toastY, w);
+        if (toast != null && System.currentTimeMillis() > toastUntilMs) {
+            toast = null;
+        }
+        SettingsPanelDrawSupport.drawToast(client, ctx, toast, toastUntilMs, isToastError, x, toastY);
     }
 
     private void drawToast(DrawContext ctx, int x, int y, int w) {
@@ -1918,7 +1894,241 @@ public class SettingsPanel extends BasePanel {
     @Override
     public boolean wantsKeyboardInput() {
         BaseUrlPreset p = getSelectedBaseUrlPreset();
-        boolean baseUrlFocused = (p != null && p.url == null && llmBaseUrlInput.isFocused());
+        boolean baseUrlFocused = (p != null && p.url() == null && llmBaseUrlInput.isFocused());
         return apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused || modelInput.isFocused();
+    }
+
+    // ---- SettingsPanelRenderHost ----
+
+    @Override
+    public void ensureWidgets() {
+        if (showHideButton == null) {
+            initWidgets();
+        }
+    }
+
+    @Override
+    public MinecraftClient client() {
+        return client;
+    }
+
+    @Override
+    public HudTextInput orchestratorInput() {
+        return orchestratorInput;
+    }
+
+    @Override
+    public HudTextInput apiKeyInput() {
+        return apiKeyInput;
+    }
+
+    @Override
+    public HudTextInput llmBaseUrlInput() {
+        return llmBaseUrlInput;
+    }
+
+    @Override
+    public HudTextInput modelInput() {
+        return modelInput;
+    }
+
+    @Override
+    public boolean hideKey() {
+        return hideKey;
+    }
+
+    @Override
+    public boolean detectingModel() {
+        return detectingModel;
+    }
+
+    @Override
+    public boolean draftShowDebugWarnings() {
+        return draftShowDebugWarnings;
+    }
+
+    @Override
+    public int draftInteractionReach() {
+        return draftInteractionReach;
+    }
+
+    @Override
+    public int draftFontSize() {
+        return draftFontSize;
+    }
+
+    @Override
+    public String cachedTemperatureText() {
+        if (cachedTemperatureText == null) {
+            updateCachedTemperatureText();
+        }
+        return cachedTemperatureText;
+    }
+
+    @Override
+    public boolean modelDropdownOpen() {
+        return modelDropdownOpen;
+    }
+
+    @Override
+    public boolean baseUrlPresetDropdownOpen() {
+        return baseUrlPresetDropdownOpen;
+    }
+
+    @Override
+    public ButtonWidget showHideButton() {
+        return showHideButton;
+    }
+
+    @Override
+    public ButtonWidget pasteButton() {
+        return pasteButton;
+    }
+
+    @Override
+    public ButtonWidget detectModelButton() {
+        return detectModelButton;
+    }
+
+    @Override
+    public ButtonWidget autoModelButton() {
+        return autoModelButton;
+    }
+
+    @Override
+    public ButtonWidget llmProviderButton() {
+        return llmProviderButton;
+    }
+
+    @Override
+    public ButtonWidget llmBaseUrlPresetButton() {
+        return llmBaseUrlPresetButton;
+    }
+
+    @Override
+    public ButtonWidget debugWarningsButton() {
+        return debugWarningsButton;
+    }
+
+    @Override
+    public SliderWidget temperatureSlider() {
+        return temperatureSlider;
+    }
+
+    @Override
+    public SliderWidget interactionReachSlider() {
+        return interactionReachSlider;
+    }
+
+    @Override
+    public SliderWidget fontSizeSlider() {
+        return fontSizeSlider;
+    }
+
+    @Override
+    public ButtonWidget saveButton() {
+        return saveButton;
+    }
+
+    @Override
+    public ButtonWidget cancelButton() {
+        return cancelButton;
+    }
+
+    @Override
+    public ButtonWidget resetButton() {
+        return resetButton;
+    }
+
+    @Override
+    public List<ButtonWidget> llmBaseUrlPresetOptionButtons() {
+        return llmBaseUrlPresetOptionButtons;
+    }
+
+    @Override
+    public List<ButtonWidget> modelOptionButtons() {
+        return modelOptionButtons;
+    }
+
+    @Override
+    public Text detectModelButtonText() {
+        return getDetectModelButtonText();
+    }
+
+    @Override
+    public Text llmProviderButtonText() {
+        return getLlmProviderButtonText();
+    }
+
+    @Override
+    public Text baseUrlPresetButtonText() {
+        return getBaseUrlPresetButtonText();
+    }
+
+    @Override
+    public Text debugWarningsButtonText() {
+        return getDebugWarningsButtonText();
+    }
+
+    @Override
+    public SettingsBaseUrlPresets.Preset selectedBaseUrlPreset() {
+        BaseUrlPreset p = getSelectedBaseUrlPreset();
+        return p == null ? null : new SettingsBaseUrlPresets.Preset(p.id(), p.label(), p.url());
+    }
+
+    @Override
+    public void setPendingModelDropdownOverlay(boolean pending, int x, int y, int w) {
+        pendingModelDropdownOverlay = pending;
+        pendingModelDropdownX = x;
+        pendingModelDropdownY = y;
+        pendingModelDropdownW = w;
+    }
+
+    @Override
+    public void setPendingBaseUrlDropdownOverlay(boolean pending, int x, int y, int w) {
+        pendingBaseUrlDropdownOverlay = pending;
+        pendingBaseUrlDropdownX = x;
+        pendingBaseUrlDropdownY = y;
+        pendingBaseUrlDropdownW = w;
+    }
+
+    @Override
+    public boolean pendingModelDropdownOverlay() {
+        return pendingModelDropdownOverlay;
+    }
+
+    @Override
+    public int pendingModelDropdownX() {
+        return pendingModelDropdownX;
+    }
+
+    @Override
+    public int pendingModelDropdownY() {
+        return pendingModelDropdownY;
+    }
+
+    @Override
+    public int pendingModelDropdownW() {
+        return pendingModelDropdownW;
+    }
+
+    @Override
+    public boolean pendingBaseUrlDropdownOverlay() {
+        return pendingBaseUrlDropdownOverlay;
+    }
+
+    @Override
+    public int pendingBaseUrlDropdownX() {
+        return pendingBaseUrlDropdownX;
+    }
+
+    @Override
+    public int pendingBaseUrlDropdownY() {
+        return pendingBaseUrlDropdownY;
+    }
+
+    @Override
+    public int pendingBaseUrlDropdownW() {
+        return pendingBaseUrlDropdownW;
     }
 }
