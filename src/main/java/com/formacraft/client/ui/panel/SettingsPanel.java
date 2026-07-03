@@ -908,7 +908,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         showToast("DebugWarnings=" + (draftShowDebugWarnings ? "ON" : "OFF"), false);
     }
 
-    private void hideModelOptionButtons() {
+    @Override
+    public void hideModelOptionButtons() {
         if (modelOptionButtons == null) return;
         for (ButtonWidget b : modelOptionButtons) {
             b.visible = false;
@@ -929,7 +930,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         return out;
     }
 
-    private void layoutModelOptionButtons(int x, int y0, int w) {
+    @Override
+    public void layoutModelOptionButtons(int x, int y0, int w) {
         ensureWidgets();
         if (modelOptionButtons == null) return;
 
@@ -965,14 +967,16 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         showToast("模型=" + v, false);
     }
 
-    private void hideBaseUrlPresetButtons() {
+    @Override
+    public void hideBaseUrlPresetButtons() {
         if (llmBaseUrlPresetOptionButtons == null) return;
         for (ButtonWidget b : llmBaseUrlPresetOptionButtons) {
             b.visible = false;
         }
     }
 
-    private void layoutBaseUrlPresetButtons(int x, int y0, int w) {
+    @Override
+    public void layoutBaseUrlPresetButtons(int x, int y0, int w) {
         ensureWidgets();
         if (llmBaseUrlPresetOptionButtons == null) return;
 
