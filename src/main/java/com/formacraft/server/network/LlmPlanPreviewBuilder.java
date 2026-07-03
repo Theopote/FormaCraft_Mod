@@ -535,13 +535,6 @@ public final class LlmPlanPreviewBuilder {
 
             LlmPlanRoutingMetrics.recordSuccess(player, req, patches.size(), plannedBlocks.size());
             return true;
-        } catch (PlanParseException e) {
-            FormacraftMod.LOGGER.error("Failed to process LlmPlan", e);
-            LlmPlanRoutingMetrics.recordError(player, req, "parse:" + e.getClass().getSimpleName());
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                    "Failed to parse LlmPlan: " + e.getMessage()
-            ));
-            return true;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("Failed to process LlmPlan", e);
             LlmPlanRoutingMetrics.recordError(player, req, "process:" + e.getClass().getSimpleName());

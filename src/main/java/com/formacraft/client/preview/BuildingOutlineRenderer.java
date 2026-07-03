@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * 世界中绘制“将要占用哪些方块”的预览轮廓。
- *
+ * <p>
  * - 优先使用服务端下发的 {@link OutlinePreviewState#blocks}（真实占用）
  * - 同时绘制整体包围盒，保证远距离也能看清范围
  */
@@ -55,7 +55,7 @@ public final class BuildingOutlineRenderer {
             }
         }
 
-        if (min != null && max != null) {
+        if (min != null) {
             Box world = new Box(
                     min.getX(), min.getY(), min.getZ(),
                     max.getX() + 1, max.getY() + 1, max.getZ() + 1

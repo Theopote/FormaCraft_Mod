@@ -478,9 +478,7 @@ public final class BuildRequestProcessor {
                                                 previewBuildingSpec(player, req, spec, origin, serverWorld, hbAlive);
                                                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));
                                             }
-                                            case AiPlanResult.CompositeSpec(var composite) -> {
-                                                previewCompositeSpec(player, req, composite, origin, serverWorld, hbAlive);
-                                            }
+                                            case AiPlanResult.CompositeSpec(var composite) -> previewCompositeSpec(player, req, composite, origin, serverWorld, hbAlive);
                                             case AiPlanResult.CitySpec(var city) -> {
                                                 FormacraftMod.LOGGER.warn(
                                                         "Unexpected CitySpec from building orchestrator for player {}",
