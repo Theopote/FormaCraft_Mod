@@ -163,169 +163,68 @@ public class OrchestratorClient {
     }
 
     /**
-     * @deprecated 使用 {@link #requestAiPlan(FormaRequest)}；LlmPlan 不再伪装为 {@link BuildingSpec}。
+     * 按后端显式返回的 {@code kind} 判别字段分发（不再靠 body.contains(...) 的脆弱字符串启发式）。
+     * 后端 /build 必须在响应中输出 {@code "kind": "llmplan|city|composite|buildingspec"}。
      */
-    @Deprecated
-    public CompletableFuture<BuildingSpec> requestBuildingSpec(FormaRequest req) {
-        return requestAiPlan(req).thenApply(result -> {
-            if (result instanceof AiPlanResult.BuildingSpec bs) {
-                return bs.spec();
-            }
-            throw new RuntimeException("Orchestrator returned " + result.getClass().getSimpleName()
-                    + ", expected BuildingSpec. Use requestAiPlan() instead.");
-        });
-    }
-
     static AiPlanResult parseAiPlanResponse(String body) {
         if (body == null || body.isBlank()) {
             throw new RuntimeException("Orchestrator returned empty body");
         }
 
-        // LlmPlan：含 mode + (components | layout)
-        if (body.contains("\"mode\"") && (body.contains("\"components\"") || body.contains("\"layout\""))) {
-            try {
-                LlmPlan llmPlan = LlmPlanParser.parseAndValidate(body);
-                FormacraftMod.LOGGER.info("Received LlmPlan from orchestrator, mode: {}", llmPlan.mode());
-                return new AiPlanResult.LlmPlan(llmPlan);
-            } catch (PlanParseException e) {
-                FormacraftMod.LOGGER.warn("Failed to parse as LlmPlan: {}", e.getMessage());
-                throw new RuntimeException(
-                        "Response appears to be LlmPlan format but failed to parse. "
-                                + "This may be due to enum value mismatch (e.g., TerrainStrategy).",
-                        e
-                );
-            }
+        String kind;
+        try {
+            com.google.gson.JsonObject obj = JsonUtil.get().fromJson(body, com.google.gson.JsonObject.class);
+            kind = (obj != null && obj.has("kind") && !obj.get("kind").isJsonNull())
+                    ? obj.get("kind").getAsString()
+                    : null;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse orchestrator response as JSON. body=" + body, e);
         }
 
-        // CitySpec
-        if (body.contains("\"zones\"") || body.contains("\"cityName\"")) {
-            CitySpec city = JsonUtil.fromJson(body, CitySpec.class);
-            if (city != null) {
+        if (kind == null || kind.isBlank()) {
+            throw new RuntimeException(
+                    "Orchestrator response missing 'kind' discriminator. "
+                            + "请更新 Python 后端（/build 需在响应中输出 kind 字段）。body=" + body);
+        }
+
+        return switch (kind) {
+            case "llmplan" -> {
+                try {
+                    LlmPlan llmPlan = LlmPlanParser.parseAndValidate(body);
+                    FormacraftMod.LOGGER.info("Received LlmPlan from orchestrator, mode: {}", llmPlan.mode());
+                    yield new AiPlanResult.LlmPlan(llmPlan);
+                } catch (PlanParseException e) {
+                    throw new RuntimeException(
+                            "Response kind=llmplan but failed to parse "
+                                    + "(可能是枚举值不匹配，如 TerrainStrategy)。", e);
+                }
+            }
+            case "city" -> {
+                CitySpec city = JsonUtil.fromJson(body, CitySpec.class);
+                if (city == null) {
+                    throw new RuntimeException("kind=city but deserialized to null. body=" + body);
+                }
                 validateCitySpec(city);
-                return new AiPlanResult.CitySpec(city);
+                yield new AiPlanResult.CitySpec(city);
             }
-        }
-
-        // CompositeSpec
-        if (body.contains("\"structures\"") && body.contains("\"type\"")) {
-            CompositeSpec composite = JsonUtil.fromJson(body, CompositeSpec.class);
-            if (composite != null && composite.getStructures() != null && !composite.getStructures().isEmpty()) {
-                return new AiPlanResult.CompositeSpec(composite);
+            case "composite" -> {
+                CompositeSpec composite = JsonUtil.fromJson(body, CompositeSpec.class);
+                if (composite == null) {
+                    throw new RuntimeException("kind=composite but deserialized to null. body=" + body);
+                }
+                validateCompositeSpec(composite);
+                yield new AiPlanResult.CompositeSpec(composite);
             }
-        }
-
-        BuildingSpec spec = JsonUtil.fromJson(body, BuildingSpec.class);
-        if (spec == null) {
-            throw new RuntimeException("Orchestrator returned 200 but BuildingSpec is null. body=" + body);
-        }
-        validateBuildingSpec(spec);
-        return new AiPlanResult.BuildingSpec(spec);
-    }
-
-    /**
-     * 向 Python 后端发送建筑请求（支持 CompositeSpec）
-     * @param req 玩家的建筑请求
-     * @return CompletableFuture<CompositeSpec> AI 生成的复合结构规格
-     */
-    public CompletableFuture<CompositeSpec> requestCompositeSpec(FormaRequest req) {
-        try {
-            String json = JsonUtil.toJson(req);
-            FormacraftMod.LOGGER.info("Sending composite request to orchestrator: {}", redactApiKeyForLog(json));
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint + "/build"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
-
-            long t0 = System.nanoTime();
-            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
-                    .thenApply(resp -> {
-                        long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
-                        FormacraftMod.LOGGER.info("Orchestrator /build (composite) round-trip took {} ms (status={})", elapsedMs, resp.statusCode());
-                        if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
-                            String body = resp.body();
-                            FormacraftMod.LOGGER.info("Received composite response from orchestrator: {}", body);
-                            try {
-                                // 尝试解析为 CompositeSpec
-                                if (body.contains("\"structures\"")) {
-                                    return JsonUtil.fromJson(body, CompositeSpec.class);
-                                } else {
-                                    // 如果不是 CompositeSpec，返回 null
-                                    FormacraftMod.LOGGER.warn("Response is not a CompositeSpec, contains single BuildingSpec");
-                                    return null;
-                                }
-                            } catch (Exception e) {
-                                FormacraftMod.LOGGER.error("Failed to parse CompositeSpec from response", e);
-                                throw new RuntimeException("Failed to parse CompositeSpec", e);
-                            }
-                        } else {
-                            String body = resp.body();
-                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
-                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
-                        }
-                    });
-        } catch (Exception e) {
-            FormacraftMod.LOGGER.error("Failed to create HTTP request", e);
-            return CompletableFuture.failedFuture(e);
-        }
-    }
-
-    /**
-     * 向 Python 后端发送城市级建筑请求
-     * @param req 玩家的建筑请求
-     * @return CompletableFuture<CitySpec> AI 生成的城市规格
-     */
-    public CompletableFuture<CitySpec> requestCitySpec(FormaRequest req) {
-        try {
-            String json = JsonUtil.toJson(req);
-            FormacraftMod.LOGGER.info("Sending city request to orchestrator: {}", redactApiKeyForLog(json));
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint + "/build"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
-
-            long t0 = System.nanoTime();
-            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .orTimeout(ORCHESTRATOR_TIMEOUT_SEC + 5, TimeUnit.SECONDS)
-                    .thenApply(resp -> {
-                        long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
-                        FormacraftMod.LOGGER.info("Orchestrator /build (city) round-trip took {} ms (status={})", elapsedMs, resp.statusCode());
-                        if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
-                            String body = resp.body();
-                            FormacraftMod.LOGGER.info("Received city response from orchestrator: {}", body);
-                            try {
-                                // 尝试解析为 CitySpec
-                                if (body.contains("\"zones\"") || body.contains("\"cityName\"")) {
-                                    CitySpec city = JsonUtil.fromJson(body, CitySpec.class);
-                                    if (city != null) {
-                                        // 验证 CitySpec 的关键字段
-                                        validateCitySpec(city);
-                                    }
-                                    return city;
-                                } else {
-                                    FormacraftMod.LOGGER.warn("Response is not a CitySpec");
-                                    return null;
-                                }
-                            } catch (Exception e) {
-                                FormacraftMod.LOGGER.error("Failed to parse CitySpec from response", e);
-                                throw new RuntimeException("Failed to parse CitySpec", e);
-                            }
-                        } else {
-                            String body = resp.body();
-                            FormacraftMod.LOGGER.error("Orchestrator returned error status: {} body={}", resp.statusCode(), body);
-                            throw new RuntimeException("Orchestrator returned status: " + resp.statusCode() + " body=" + body);
-                        }
-                    });
-        } catch (Exception e) {
-            FormacraftMod.LOGGER.error("Failed to create HTTP request", e);
-            return CompletableFuture.failedFuture(e);
-        }
+            case "buildingspec" -> {
+                BuildingSpec spec = JsonUtil.fromJson(body, BuildingSpec.class);
+                if (spec == null) {
+                    throw new RuntimeException("kind=buildingspec but deserialized to null. body=" + body);
+                }
+                validateBuildingSpec(spec);
+                yield new AiPlanResult.BuildingSpec(spec);
+            }
+            default -> throw new RuntimeException("Unknown orchestrator response kind='" + kind + "'. body=" + body);
+        };
     }
 
     /**

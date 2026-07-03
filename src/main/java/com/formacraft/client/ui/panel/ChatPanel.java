@@ -1,7 +1,5 @@
 package com.formacraft.client.ui.panel;
 
-import com.formacraft.ai.AIResult;
-import com.formacraft.ai.AICancelToken;
 import com.formacraft.ai.context.BrushContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.prompt.PromptAssembler;
@@ -76,8 +74,6 @@ public class ChatPanel extends BasePanel {
 
     // ========== AI 输出流式打印（token 队列 + typewriter） ==========
     private AIStreamPrinter currentPrinter = null;
-    private AICancelToken currentCancelToken = null;
-    private CompletableFuture<AIResult> currentRequestFuture = null;
 
     // ========== 服务端请求状态（用于更准确的“思考中/超时/错误”展示） ==========
     private long pendingRequestToken = 0L;
@@ -428,7 +424,7 @@ public class ChatPanel extends BasePanel {
         int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
 
         // Stop 按钮（仅流式打印时显示，位于发送按钮上方）
-        boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
+        boolean generating = currentPrinter != null;
         // 与发送按钮对齐
         int stopY = btnY - STOP_BUTTON_SIZE - 2;
 
@@ -531,7 +527,7 @@ public class ChatPanel extends BasePanel {
         int chatAreaBottom = innerY + innerH - inputAreaHeight - 4;
         int inputY = chatAreaBottom + 6;
 
-        boolean generating = (currentRequestFuture != null && !currentRequestFuture.isDone()) || currentPrinter != null;
+        boolean generating = currentPrinter != null;
         int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
         int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
         int stopY = btnY - STOP_BUTTON_SIZE - 2;
@@ -1089,19 +1085,7 @@ public class ChatPanel extends BasePanel {
     }
 
     private void stopGenerating() {
-        // 1) 取消 token（AI 调用层主动退出）
-        if (currentCancelToken != null) {
-            currentCancelToken.cancel();
-            currentCancelToken = null;
-        }
-
-        // 2) 取消 future（触发线程中断，终止阻塞的 httpClient.send）
-        if (currentRequestFuture != null) {
-            currentRequestFuture.cancel(true);
-            currentRequestFuture = null;
-        }
-
-        // 3) 停止打字机 + 将消息标记为“已停止生成”
+        // 停止打字机 + 将消息标记为“已停止生成”
         if (currentPrinter != null) {
             currentPrinter.cancel();
             currentPrinter = null;

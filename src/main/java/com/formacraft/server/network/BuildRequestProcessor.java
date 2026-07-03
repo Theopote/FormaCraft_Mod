@@ -65,92 +65,11 @@ public final class BuildRequestProcessor {
                     context.server().execute(() -> ServerPlayNetworking.send(player,
                             new FormaCraftNetworking.ResponseBuildStatusPayload("服务端已收到请求，正在请求后端…")));
 
-                    // 检查应该请求什么类型的结构
-                    String requestText = req.getRequestText().toLowerCase();
-                    boolean isCity = requestText.contains("城市") || requestText.contains("城镇") ||
-                            requestText.contains("city") || requestText.contains("town") ||
-                            requestText.contains("settlement") || requestText.contains("urban") ||
-                            requestText.contains("城区") || requestText.contains("市中心") ||
-                            requestText.contains("广场") || requestText.contains("集市");
+                    // 路由完全交给后端：BUILD 模式返回 LlmPlan；城市/复合/单体由后端按 outputFormat/promptMode 决定，
+                    // 响应中的 kind 判别字段经 AiPlanResult 分发（不再在客户端/服务端靠关键词猜类型）。
 
-                    // 四合院等场景：强制单体 BuildingSpec（见 BuildingSpecRoutingPolicy）
-                    boolean isComposite = BuildingSpecRoutingPolicy.shouldUseCompositeOrchestrator(requestText, isCity);
-
-                    if (isCity) {
-                        AtomicBoolean hbAlive = new AtomicBoolean(true);
-                        AtomicReference<String> hbPhase = new AtomicReference<>("后端仍在生成城市方案");
-                        long hbStartMs = System.currentTimeMillis();
-                        BuildStatusHeartbeat.start(context.server(), player, hbAlive, hbStartMs, hbPhase);
-
-                        // 请求城市级结构
-                        NetworkOrchestratorProvider.get().requestCitySpec(req)
-                                .orTimeout(605, TimeUnit.SECONDS)
-                                .exceptionally(ex -> {
-                                    hbAlive.set(false);
-                                    FormacraftMod.LOGGER.error("Orchestrator city request failed", ex);
-                                    // IMPORTANT: always send packets on the server thread
-                                    String msg = OrchestratorErrorHumanizer.humanize("CitySpec", req, ex);
-                                    context.server().execute(() ->
-                                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg)));
-                                    return null;
-                                })
-                                .thenAccept(citySpec -> {
-                                    if (citySpec == null) return; // already handled in exceptionally
-
-                                    // 在主线程中执行
-                                    context.server().execute(() -> {
-                                        hbPhase.set("已收到 AI 结果，正在生成城市预览");
-                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload("已收到 AI 结果，正在生成城市预览…"));
-                                        // 对于城市结构，生成预览而不是直接建造
-                                        BlockPos origin = req.getPlayerPos();
-                                        if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                            previewCitySpec(player, req, citySpec, origin, serverWorld, hbAlive);
-                                            FormacraftMod.LOGGER.info("Generated city structure preview for player {}", player.getName().getString());
-                                        }
-                                    });
-                                });
-                    } else if (isComposite) {
-                        AtomicBoolean hbAlive = new AtomicBoolean(true);
-                        AtomicReference<String> hbPhase = new AtomicReference<>("后端仍在生成复合结构方案");
-                        long hbStartMs = System.currentTimeMillis();
-                        BuildStatusHeartbeat.start(context.server(), player, hbAlive, hbStartMs, hbPhase);
-
-                        // 请求复合结构
-                        OrchestratorClient orchestrator = NetworkOrchestratorProvider.get();
-                        if (!orchestrator.checkHealth()) {
-                            String endpoint = com.formacraft.common.config.ConfigManager.getOrchestratorEndpoint();
-                            String errorMsg = "后端服务不可用：无法连接到 " + endpoint + "。请检查后端是否正在运行。";
-                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(errorMsg));
-                            return;
-                        }
-                        orchestrator.requestCompositeSpec(req)
-                                .orTimeout(605, TimeUnit.SECONDS)
-                                .exceptionally(ex -> {
-                                    hbAlive.set(false);
-                                    FormacraftMod.LOGGER.error("Orchestrator composite request failed", ex);
-                                    String msg = OrchestratorErrorHumanizer.humanize("CompositeSpec", req, ex);
-                                    context.server().execute(() ->
-                                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg)));
-                                    return null;
-                                })
-                                .thenAccept(compositeSpec -> {
-                                    if (compositeSpec == null) return; // already handled
-
-                                    // 在主线程中执行
-                                    context.server().execute(() -> {
-                                        hbPhase.set("已收到 AI 结果，正在生成复合结构预览");
-                                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload("已收到 AI 结果，正在生成复合结构预览…"));
-                                        // 对于复合结构，生成预览而不是直接建造
-                                        BlockPos origin = req.getPlayerPos();
-                                        if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                            previewCompositeSpec(player, req, compositeSpec, origin, serverWorld, hbAlive);
-                                            FormacraftMod.LOGGER.info("Generated composite structure preview for player {}", player.getName().getString());
-                                        }
-                                    });
-                                });
-                    } else {
-                        // 请求单个建筑
-                        // 如果是 PATCH/MODIFY_REGION：走“增量编辑 BuildingSpec”链路
+                    {
+                        // 增量编辑（PATCH/MODIFY_REGION）走 editBuilding；其余统一走 requestAiPlan → AiPlanResult。
                         String mode = req.getPromptMode();
                         boolean isPatch = mode != null && !mode.isBlank() && !"BUILD".equalsIgnoreCase(mode.trim());
                         if (isPatch) {
@@ -299,13 +218,7 @@ public final class BuildRequestProcessor {
                                                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));
                                             }
                                             case AiPlanResult.CompositeSpec(var composite) -> previewCompositeSpec(player, req, composite, origin, serverWorld, hbAlive);
-                                            case AiPlanResult.CitySpec(var city) -> {
-                                                FormacraftMod.LOGGER.warn(
-                                                        "Unexpected CitySpec from building orchestrator for player {}",
-                                                        player.getName().getString()
-                                                );
-                                                previewCitySpec(player, req, city, origin, serverWorld, hbAlive);
-                                            }
+                                            case AiPlanResult.CitySpec(var city) -> previewCitySpec(player, req, city, origin, serverWorld, hbAlive);
                                         }
                                     });
                                 });

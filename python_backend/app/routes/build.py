@@ -1,11 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request
-from typing import Union
+from fastapi.encoders import jsonable_encoder
 
 from ..models.request import BuildRequest
 from ..models.request_adapter import FormaRequestAdapter
-from ..models.building_spec import BuildingSpec
-from ..models.composite_spec import CompositeSpec
-from ..models.city_spec import CitySpec
 from ..models.llm_plan import LlmPlanValidationError
 from ..services.ai_planner import (
     generate_building_spec, 
@@ -19,8 +16,20 @@ from ..services.ai_planner import (
 router = APIRouter()
 
 
+def _tagged(obj, kind: str) -> dict:
+    """给 /build 响应注入显式判别字段 ``kind``。
+
+    Java 端 OrchestratorClient.parseAiPlanResponse() 据此分发，不再靠脆弱的
+    ``body.contains("...")`` 字符串启发式。序列化沿用 FastAPI 默认（by_alias=True），
+    因此与之前直接返回 model 的字段命名完全一致，仅多出一个顶层 ``kind``。
+    """
+    data = dict(obj) if isinstance(obj, dict) else jsonable_encoder(obj)
+    data["kind"] = kind
+    return data
+
+
 @router.post("/build")
-async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec, CitySpec, dict]:
+async def build_endpoint(request: Request) -> dict:
     """
     接收来自 Minecraft 服务器的 BuildRequest，
     调用 AI 生成 BuildingSpec，并返回。
@@ -52,27 +61,27 @@ async def build_endpoint(request: Request) -> Union[BuildingSpec, CompositeSpec,
         try:
             # 1. 如果明确指定了 outputFormat，使用指定的格式
             if build_req.outputFormat == "llmplan":
-                return generate_llm_plan(build_req)
+                return _tagged(generate_llm_plan(build_req), "llmplan")
             elif build_req.outputFormat == "buildingspec":
                 # 跳过城市和复合结构检查，直接生成 BuildingSpec
                 if _should_generate_city(build_req):
-                    return generate_city_spec(build_req)
+                    return _tagged(generate_city_spec(build_req), "city")
                 if _should_generate_composite(build_req):
-                    return generate_composite_spec(build_req)
-                return generate_building_spec(build_req)
+                    return _tagged(generate_composite_spec(build_req), "composite")
+                return _tagged(generate_building_spec(build_req), "buildingspec")
             
             # 2. outputFormat 为 "auto" 或未设置：BUILD 模式默认走 LlmPlan（与 Java ChatPanel 一致）
             if build_req.promptMode == "BUILD":
-                return generate_llm_plan(build_req)
+                return _tagged(generate_llm_plan(build_req), "llmplan")
 
             # 2.1 非 BUILD 模式：检查是否需要生成城市或复合结构
             if _should_generate_city(build_req):
-                return generate_city_spec(build_req)
+                return _tagged(generate_city_spec(build_req), "city")
             if _should_generate_composite(build_req):
-                return generate_composite_spec(build_req)
+                return _tagged(generate_composite_spec(build_req), "composite")
             
             # 2.2 默认生成 BuildingSpec（地标 / 复合 / 城市等非 BUILD 模式）
-            return generate_building_spec(build_req)
+            return _tagged(generate_building_spec(build_req), "buildingspec")
         except LlmPlanValidationError as e:
             raise HTTPException(status_code=502, detail="; ".join(e.errors))
         except Exception as e:

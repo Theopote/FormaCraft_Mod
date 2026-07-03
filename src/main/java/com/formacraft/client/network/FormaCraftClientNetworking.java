@@ -5,7 +5,6 @@ import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.model.request.FormaRequest;
-import com.formacraft.common.network.ConfirmBuildPacket;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.preview.OutlineBlock;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -41,25 +40,13 @@ public final class FormaCraftClientNetworking {
             }
             // Debug: show backend warnings (LLM normalization / fallbacks), gated by settings
             try {
-                if (com.formacraft.config.SettingsConfig.INSTANCE.showDebugWarnings
-                        && spec.getExtra() != null
-                        && spec.getExtra().get("debugWarnings") != null) {
-                    Object dw = spec.getExtra().get("debugWarnings");
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("\n\n[debugWarnings]\n");
-                    if (dw instanceof java.util.List<?> list) {
-                        int n = 0;
-                        for (Object it : list) {
-                            if (it == null) continue;
-                            String s = String.valueOf(it).trim();
-                            if (s.isEmpty()) continue;
-                            sb.append("- ").append(s).append("\n");
-                            n++;
-                            if (n >= 20) break;
-                        }
-                    } else {
-                        String s = String.valueOf(dw).trim();
-                        if (!s.isEmpty()) sb.append("- ").append(s).append("\n");
+                java.util.List<String> warnings = spec.getDebugWarnings();
+                if (com.formacraft.config.SettingsConfig.INSTANCE.showDebugWarnings && !warnings.isEmpty()) {
+                    StringBuilder sb = new StringBuilder("\n\n[debugWarnings]\n");
+                    int n = 0;
+                    for (String s : warnings) {
+                        sb.append("- ").append(s).append("\n");
+                        if (++n >= 20) break;
                     }
                     aiResponse += sb.toString().trim();
                 }
@@ -191,20 +178,6 @@ public final class FormaCraftClientNetworking {
         }
         // fallback：如果还没进 play 阶段，按原方式尝试（不会阻塞）
         ClientPlayNetworking.send(new FormaCraftNetworking.RequestBuildPayload(request));
-    }
-
-    /**
-     * 客户端确认建造
-     * @param spec 建筑规格
-     * @param origin 建造原点 [x, y, z]
-     */
-    public static void sendConfirmBuild(com.formacraft.common.model.build.BuildingSpec spec, int[] origin) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc != null && mc.getNetworkHandler() != null) {
-            mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(new ConfirmBuildPacket(spec, origin)));
-            return;
-        }
-        ClientPlayNetworking.send(new ConfirmBuildPacket(spec, origin));
     }
 
     /** 客户端请求 Patch Undo */

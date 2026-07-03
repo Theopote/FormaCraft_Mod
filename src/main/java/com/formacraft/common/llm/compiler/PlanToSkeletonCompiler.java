@@ -57,8 +57,6 @@ import com.formacraft.common.llm.dto.PlanSkeleton;
  *   ↓
  * SocketProvider
  *   ↓
- * AssemblyPlanner / AutoAssembler
- *   ↓
  * Component (方块)
  * </pre>
  * <p>

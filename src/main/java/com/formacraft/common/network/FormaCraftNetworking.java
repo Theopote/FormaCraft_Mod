@@ -496,7 +496,6 @@ public class FormaCraftNetworking {
         registeredC2SPayloadTypes = true;
 
         PayloadTypeRegistry.playC2S().register(RequestBuildPayload.ID, RequestBuildPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(ConfirmBuildPacket.ID, ConfirmBuildPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchRedoPayload.ID, PatchRedoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchConfirmPayload.ID, PatchConfirmPayload.CODEC);

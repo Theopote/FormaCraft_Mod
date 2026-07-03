@@ -163,7 +163,7 @@ public class BuildConfirmPanel {
     /** 服务端质量摘要含 Error 时标记，供 PREVIEW 确认走 force 流程 */
     public void notePreviewQualityError() {
         previewQualityErrorHint = true;
-        if (visible && mode == Mode.PREVIEW) {
+        if (visible && mode != Mode.PATCH) {
             previewQualityError = true;
         }
     }
@@ -231,17 +231,14 @@ public class BuildConfirmPanel {
             applyPatch();
             return;
         }
-        if (mode == Mode.PREVIEW) {
-            if (previewQualityError && !previewForceArmed) {
-                runPreviewCommand("forma_confirm");
-                previewForceArmed = true;
-                return;
-            }
-            runPreviewCommand(previewQualityError ? "forma_confirm force" : "forma_confirm");
-            hide();
+        // BUILD 与 PREVIEW 统一走 /forma_confirm：服务端从 PreviewStorage 执行（删除 ConfirmBuildPacket 双轨）。
+        if (previewQualityError && !previewForceArmed) {
+            runPreviewCommand("forma_confirm");
+            previewForceArmed = true;
             return;
         }
-        onConfirm();
+        runPreviewCommand(previewQualityError ? "forma_confirm force" : "forma_confirm");
+        hide();
     }
 
     /** 模态：取消预览（供 InputRouter 直接调用） */
@@ -709,16 +706,6 @@ public class BuildConfirmPanel {
         return false;
     }
     
-    private void onConfirm() {
-        if (client.player != null && spec != null) {
-            BlockPos pos = BuildingPreviewState.getOrigin();
-            if (pos == null) pos = client.player.getBlockPos();
-            int[] origin = new int[]{pos.getX(), pos.getY(), pos.getZ()};
-            FormaCraftClientNetworking.sendConfirmBuild(spec, origin);
-        }
-        hide();
-    }
-
     /**
      * 通过客户端发送命令（兼容不同 Yarn/Minecraft 版本：优先 sendChatCommand，其次 sendChatMessage）。
      */

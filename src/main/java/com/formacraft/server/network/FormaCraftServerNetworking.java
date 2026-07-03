@@ -6,14 +6,11 @@ import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.json.JsonUtil;
-import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.constraint.ProtectedZone;
-import com.formacraft.common.network.ConfirmBuildPacket;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.PatchExecutor;
 import com.formacraft.common.preview.OutlineBlock;
-import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.preview.PreviewStorage;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -36,72 +33,6 @@ public final class FormaCraftServerNetworking {
         FormaCraftNetworking.registerPayloadTypesC2S();
         // 服务端也需要注册 S2C payload types（用于编码回包）。否则可能出现“服务端处理了但发不出包”，客户端只能超时。
         FormaCraftNetworking.registerPayloadTypesS2C();
-
-        // 注册确认建造数据包
-        FormaCraftNetworking.registerPayloadTypesC2S();
-        ServerPlayNetworking.registerGlobalReceiver(ConfirmBuildPacket.ID, (payload, context) -> context.server().execute(() -> {
-            ServerPlayerEntity player = context.player();
-            if (player == null) {
-                FormacraftMod.LOGGER.warn("Received confirm build from null player");
-                return;
-            }
-
-            if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                // 优先：按"预览已生成的结构"执行，保证与预览一致（也包含禁区/轮廓硬裁剪）
-                com.formacraft.common.build.GeneratedStructure preview = com.formacraft.server.preview.PreviewStorage.getStructure(player);
-                boolean hasPreview = com.formacraft.server.preview.PreviewStorage.hasPreview(player);
-                if (hasPreview && preview != null) {
-                    // 验证预览结构有效性
-                    if (!com.formacraft.server.preview.PreviewStorage.validatePreview(player)) {
-                        FormacraftMod.LOGGER.warn("Player {} preview structure validation failed, falling back to regenerate", 
-                                player.getName().getString());
-                        // 继续执行回退逻辑
-                    } else {
-                        try { sendClearOutline(player); } catch (Throwable t) {
-                            FormacraftMod.LOGGER.warn("[FormaCraftServerNetworking] Failed to clear outline for player {}", player.getName().getString(), t);
-                        }
-                        com.formacraft.server.preview.PreviewStorage.setPreview(player, false);
-                        BuildExecutionService.getInstance().enqueueBuild(serverWorld, preview);
-                        try {
-                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                                    String.format("已确认建造：开始放置方块…（按预览结果执行，共 %d 个方块）", 
-                                            preview.getBlocks() != null ? preview.getBlocks().size() : 0)));
-                        } catch (Throwable t) {
-                            FormacraftMod.LOGGER.warn("[FormaCraftServerNetworking] Failed to send build status to player {}", player.getName().getString(), t);
-                        }
-                        FormacraftMod.LOGGER.info("Player {} confirmed build (from preview) at {} with {} blocks",
-                                player.getName().getString(), preview.getOrigin(),
-                                preview.getBlocks() != null ? preview.getBlocks().size() : 0);
-                        return;
-                    }
-                }
-
-                // 回退：重新生成（兼容旧流程/无预览时）
-                BuildingSpec spec = payload.spec();
-                int[] originArray = payload.origin();
-                if (originArray != null && originArray.length == 3) {
-                    BlockPos origin = new BlockPos(originArray[0], originArray[1], originArray[2]);
-                    // 保存 BuildingSpec 到 PlayerSpecRepository（供 PATCH/编辑使用）
-                    try {
-                        String buildingId = "player_" + player.getName().getString() + "_world_" +
-                                serverWorld.getRegistryKey().getValue();
-                        String buildingJson = JsonUtil.toJson(spec);
-                        com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, buildingJson);
-                    } catch (Throwable t) {
-                        FormacraftMod.LOGGER.warn("[FormaCraftServerNetworking] Failed to persist building spec for player {}", player.getName().getString(), t);
-                    }
-
-                    BuildExecutionService.getInstance().queueBuild(serverWorld, origin, spec, player.getUuid());
-                    try {
-                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload("已确认建造：开始放置方块…（重新生成）"));
-                    } catch (Throwable t) {
-                        FormacraftMod.LOGGER.warn("[FormaCraftServerNetworking] Failed to send regenerate status to player {}", player.getName().getString(), t);
-                    }
-                    FormacraftMod.LOGGER.info("Player {} confirmed build at {}",
-                            player.getName().getString(), origin);
-                }
-            }
-        }));
 
         // Patch Undo/Redo（服务端执行）
         FormaCraftNetworking.registerPayloadTypesC2S();

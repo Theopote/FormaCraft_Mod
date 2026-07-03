@@ -7,8 +7,7 @@ import com.formacraft.common.component.variant.ComponentVariant;
 /**
  * 将运行时 {@link ComponentVariant} 适配为存盘 schema {@link PersistedComponentVariant}。
  * <p>
- * 供 {@link ComponentVoxelizer} / {@link com.formacraft.common.compiler.component.ComponentPlanCompiler} 等
- * 仍消费持久化变体文档的编译路径使用。
+ * 供 {@link ComponentVoxelizer} 等仍消费持久化变体文档的编译路径使用。
  */
 public final class ComponentVariantAdapter {
     private ComponentVariantAdapter() {}

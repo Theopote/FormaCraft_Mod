@@ -25,6 +25,72 @@ Formacraft 的核心目标不是"自动放方块"，而是：
 
 ---
 
+## 1.5 唯一主干声明（Canonical Pipeline）— 2026-07 收敛
+
+> **本项目只有一条受支持的"描述 → 建筑"主干：LlmPlan。** 所有新功能只能加在这条主干上；其余路径一律 legacy/quarantine，不得再扩展。
+
+**Canonical Pipeline（唯一主干）：**
+
+```
+ChatPanel
+  → FormaRequest(outputFormat="llmplan")
+  → Python /build → generate_llm_plan()
+  → LlmPlan (components[] | plan_program | patch)
+  → ComponentPlanCompiler / PlanProgramCompiler
+  → 生成器 (MassMainGenerator / Roof / Facade / Entrance ...)
+  → BlockPatch → TerrainAdaptation
+  → PreviewStorage → outline 预览
+  → /forma_confirm → BuildExecutionService
+```
+
+**状态分级（收敛目标）：**
+
+- ✅ **主干（唯一支持）**：LlmPlan → `common.compiler` + `common.generation.component` → `BlockPatch`
+- 🟡 **精品库（Phase 5 并入主干）**：`server.generation.structure` 地标生成器 —— 目标是改造成"LlmPlan 可调用的命名模块"，而非独立的 BuildingSpec 并行路径
+- 🔴 **Quarantine / 待删除**：`common.assembly.AutoAssembler`、`server.cluster.ClusterLayoutPlanner`、`common.layout.PathClusterLayoutPlanner`、`common.mass` 占位实现、`ConfirmBuildPacket` 双轨确认、`com.formacraft.ai` 死 service 子集（保留 `ai.prompt.*` / `ai.context.*`）
+
+**新功能默认路径：** 只往 LlmPlan schema / ComponentPlanCompiler / 生成器上加；需要 bespoke 造型时，改为把生成器注册为 LlmPlan 可引用的模块，禁止新增第二条 spec 格式或第二套确认流程。
+
+### 1.6 Golden-Path 回归清单（手测基准）
+
+当前构建/编译需在开发者本地进行（agent 环境无法编译）。每次涉及主干的改动后，进游戏跑以下代表性 prompt，确认"发请求 → 出预览 → /forma_confirm 落地"三段都正常：
+
+1. **基础单体**：`盖一个 7x7 的小石头房子，带门和窗`
+2. **多层竖向**：`盖一座 5 层的方塔，顶部有平台`
+3. **院落/复合**：`盖一个带院子的四合院`
+4. **地标类**：`盖一座天坛` （验证精品库/landmark 路径）
+5. **增量编辑**：先生成一栋，再 `把屋顶换成红色` （验证 patch 主干）
+
+每条记录：是否出现"已发送请求（已等待 N 秒）"、是否出现预览线框、`/forma_confirm` 后是否分 Tick 落地、`latest.log` 中 `Orchestrator /build round-trip took X ms`。
+
+### 1.7 生成质量路线（Phase 5，持续投入）
+
+主干收敛完成后，全部质量投入都压在这一条 LlmPlan 主干上。四条并行工作线（均为**加法**，不再新增并行 spec 格式）：
+
+1. **精品库化（landmark → LlmPlan 可调用模块）**
+   - 现状：`server/generation/structure` 下 30+ 硬编码地标生成器（帕特农/长城/天坛/埃菲尔…）是当前"最好看"的产出，但只能走 BuildingSpec 路径。
+   - 目标：给 LlmPlan 增加一个"命名模块引用"能力（例如组件 `component_type: "MODULE"` + `module_id: "temple_of_heaven"`，或 slot 上挂 `module_id`），由服务端一个 `LandmarkModuleRegistry` 把 `module_id` 映射到既有 `StructureGenerator`，在预览编译阶段直接调用。
+   - 迁移方式：**不删生成器**，而是给它们注册 `module_id` 并让其 `generate()` 能接受 LlmPlan 传入的锚点/尺寸/材质参数（从 `spec.extra` 读取的参数改为从模块调用上下文读取）。bespoke 质量由此并入通用主干。
+
+2. **扩展 LlmPlan schema 表现力**（`python_backend/app/models/llm_plan.py` + Java `common/llm/dto/*`）
+   - 新增字段一律**可选 + 向后兼容**（Java `LlmPlanParser` 已 `FAIL_ON_UNKNOWN_PROPERTIES=false`，旧解析器会忽略未知字段）。
+   - 目标维度：体量（massing：主体块的层叠/退台）、立面节奏（facade rhythm：开窗间距/壁柱）、屋顶（类型/坡度/出檐）、材质分层（勒脚/墙身/檐口不同材质）。
+   - 每加一个字段，必须同步：Python 模型校验 + Java DTO/解析 + `ComponentPlanCompiler`/生成器消费 + 下方 eval 断言。
+
+3. **Prompt 与 few-shot**（Java 端 `com.formacraft.ai.prompt.PromptAssembler` 系列——系统 prompt 在 Java 组装后随 `requestText` 下发）
+   - 补高质量 golden 样例（覆盖 1.6 清单的代表场景），提升 LLM plan 的稳定性与几何丰富度。
+   - few-shot 必须落在**当前合法 schema** 内，避免诱导 LLM 输出解析器会拒绝的字段。
+
+4. **质量闭环 eval**：`python_backend/eval/golden_eval.py`
+   - 复用后端真实 `validate_llm_plan_dict`（schema 合法性）+ 叠加可建造性/丰富度启发式（有门/有窗/有屋顶、无零尺寸、无超大体量、组件数量）。
+   - 断言分 `HARD`（不过退出码非 0）与 `SOFT`（趋势告警）。
+   - 用法：
+     - 离线（推荐，无需 API key）：`python -m eval.golden_eval --plans <捕获的 plan 目录>`
+     - 在线冒烟：`python -m eval.golden_eval --live`
+   - 每次动 prompt/schema/生成器后，跑一遍 eval 量化影响；新加的质量维度要配套新加断言。
+
+---
+
 ## 2. High-Level Architecture
 
 ```
