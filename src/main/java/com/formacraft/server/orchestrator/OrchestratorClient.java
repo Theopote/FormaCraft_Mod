@@ -8,6 +8,7 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.city.CitySpec;
 import com.formacraft.common.model.composite.CompositeSpec;
 import com.formacraft.common.model.request.FormaRequest;
+import com.formacraft.common.orchestrator.AiPlanResult;
 import com.formacraft.FormacraftMod;
 
 import java.net.URI;
@@ -120,11 +121,9 @@ public class OrchestratorClient {
     }
 
     /**
-     * 向 Python 后端发送建筑请求
-     * @param req 玩家的建筑请求
-     * @return CompletableFuture<BuildingSpec> AI 生成的建筑规格
+     * 向 Python 后端发送建筑请求，按响应形态返回类型安全的 {@link AiPlanResult}。
      */
-    public CompletableFuture<BuildingSpec> requestBuildingSpec(FormaRequest req) {
+    public CompletableFuture<AiPlanResult> requestAiPlan(FormaRequest req) {
         try {
             String json = JsonUtil.toJson(req);
             FormacraftMod.LOGGER.info("Sending request to orchestrator: {}", redactApiKeyForLog(json));
@@ -143,79 +142,7 @@ public class OrchestratorClient {
                             String body = resp.body();
                             FormacraftMod.LOGGER.info("Received response from orchestrator: {}", body);
                             try {
-                                // 首先尝试解析为 LlmPlan 格式（Java 端的新格式）
-                                // LlmPlan 格式的特征：包含 "mode" 字段，且包含 "components" 或 "layout"
-                                if (body.contains("\"mode\"") && (body.contains("\"components\"") || body.contains("\"layout\""))) {
-                                    try {
-                                        LlmPlan llmPlan = LlmPlanParser.parseAndValidate(body);
-                                        FormacraftMod.LOGGER.info("Received LlmPlan from orchestrator, mode: {}", llmPlan.mode());
-                                        
-                                        // LlmPlan 需要特殊处理：不能直接转换为 BuildingSpec
-                                        // 创建一个占位 BuildingSpec，在 extra 中存储 LlmPlan JSON，供后续处理
-                                        BuildingSpec placeholder = new BuildingSpec();
-                                        placeholder.setType(com.formacraft.common.model.build.BuildingType.CUSTOM);
-                                        placeholder.setStyle(com.formacraft.common.model.build.BuildingStyle.DEFAULT);
-                                        
-                                        // 设置必需的 footprint（使用默认值）
-                                        com.formacraft.common.model.build.Footprint defaultFootprint = 
-                                                new com.formacraft.common.model.build.Footprint();
-                                        defaultFootprint.setShape("rectangle");
-                                        defaultFootprint.setWidth(10);
-                                        defaultFootprint.setDepth(10);
-                                        placeholder.setFootprint(defaultFootprint);
-                                        
-                                        placeholder.setHeight(10);
-                                        placeholder.setFloors(1);
-                                        placeholder.setMaterials(new com.formacraft.common.model.build.Materials());
-                                        placeholder.setFeatures(new com.formacraft.common.model.build.Features());
-                                        
-                                        // 在 extra 中存储 LlmPlan JSON 和标志
-                                        if (placeholder.getExtra() == null) {
-                                            placeholder.setExtra(new java.util.HashMap<>());
-                                        }
-                                        placeholder.getExtra().put("llmPlanJson", body); // 存储原始 JSON
-                                        placeholder.getExtra().put("llmPlanMode", llmPlan.mode().name());
-                                        placeholder.getExtra().put("isLlmPlan", true);
-                                        
-                                        return placeholder;
-                                    } catch (PlanParseException e) {
-                                        FormacraftMod.LOGGER.warn("Failed to parse as LlmPlan, trying other formats: {}", e.getMessage());
-                                        // 如果明确是 LlmPlan 格式但解析失败，不应该回退到 BuildingSpec
-                                        // 因为 LlmPlan 和 BuildingSpec 的格式完全不同
-                                        // 这里继续尝试其他格式（CompositeSpec），但如果都不匹配，应该抛出异常
-                                    }
-                                }
-                                
-                                // 然后尝试解析为 CompositeSpec
-                                if (body.contains("\"structures\"") && body.contains("\"type\"")) {
-                                    CompositeSpec composite = JsonUtil.fromJson(body, CompositeSpec.class);
-                                    // 如果是 CompositeSpec，转换为单个 BuildingSpec（临时方案）
-                                    // 或者直接返回第一个结构
-                                    if (composite != null && composite.getStructures() != null && 
-                                        !composite.getStructures().isEmpty()) {
-                                        // 返回第一个结构的 spec
-                                        return composite.getStructures().getFirst().getSpec();
-                                    }
-                                }
-                                
-                                // 最后尝试解析为 BuildingSpec（只有当不是 LlmPlan 格式时）
-                                // 如果 body 包含 "mode" 和 "components"/"layout"，说明是 LlmPlan 格式但解析失败
-                                // 此时不应该尝试解析为 BuildingSpec
-                                if (body.contains("\"mode\"") && (body.contains("\"components\"") || body.contains("\"layout\""))) {
-                                    // 这是 LlmPlan 格式但解析失败，抛出明确的错误
-                                    throw new RuntimeException("Response appears to be LlmPlan format but failed to parse. " +
-                                            "This may be due to enum value mismatch (e.g., TerrainStrategy). " +
-                                            "Original error should be logged above.");
-                                }
-                                
-                                // 否则解析为 BuildingSpec
-                                BuildingSpec spec = JsonUtil.fromJson(body, BuildingSpec.class);
-                                if (spec == null) {
-                                    throw new RuntimeException("Orchestrator returned 200 but BuildingSpec is null. body=" + body);
-                                }
-                                // 运行时验证：检查关键字段
-                                validateBuildingSpec(spec);
-                                return spec;
+                                return parseAiPlanResponse(body);
                             } catch (Exception e) {
                                 FormacraftMod.LOGGER.error("Failed to parse response from orchestrator", e);
                                 throw new RuntimeException("Failed to parse response", e);
@@ -230,6 +157,66 @@ public class OrchestratorClient {
             FormacraftMod.LOGGER.error("Failed to create HTTP request", e);
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    /**
+     * @deprecated 使用 {@link #requestAiPlan(FormaRequest)}；LlmPlan 不再伪装为 {@link BuildingSpec}。
+     */
+    @Deprecated
+    public CompletableFuture<BuildingSpec> requestBuildingSpec(FormaRequest req) {
+        return requestAiPlan(req).thenApply(result -> {
+            if (result instanceof AiPlanResult.BuildingSpec bs) {
+                return bs.spec();
+            }
+            throw new RuntimeException("Orchestrator returned " + result.getClass().getSimpleName()
+                    + ", expected BuildingSpec. Use requestAiPlan() instead.");
+        });
+    }
+
+    static AiPlanResult parseAiPlanResponse(String body) {
+        if (body == null || body.isBlank()) {
+            throw new RuntimeException("Orchestrator returned empty body");
+        }
+
+        // LlmPlan：含 mode + (components | layout)
+        if (body.contains("\"mode\"") && (body.contains("\"components\"") || body.contains("\"layout\""))) {
+            try {
+                LlmPlan llmPlan = LlmPlanParser.parseAndValidate(body);
+                FormacraftMod.LOGGER.info("Received LlmPlan from orchestrator, mode: {}", llmPlan.mode());
+                return new AiPlanResult.LlmPlan(llmPlan);
+            } catch (PlanParseException e) {
+                FormacraftMod.LOGGER.warn("Failed to parse as LlmPlan: {}", e.getMessage());
+                throw new RuntimeException(
+                        "Response appears to be LlmPlan format but failed to parse. "
+                                + "This may be due to enum value mismatch (e.g., TerrainStrategy).",
+                        e
+                );
+            }
+        }
+
+        // CitySpec
+        if (body.contains("\"zones\"") || body.contains("\"cityName\"")) {
+            CitySpec city = JsonUtil.fromJson(body, CitySpec.class);
+            if (city != null) {
+                validateCitySpec(city);
+                return new AiPlanResult.CitySpec(city);
+            }
+        }
+
+        // CompositeSpec
+        if (body.contains("\"structures\"") && body.contains("\"type\"")) {
+            CompositeSpec composite = JsonUtil.fromJson(body, CompositeSpec.class);
+            if (composite != null && composite.getStructures() != null && !composite.getStructures().isEmpty()) {
+                return new AiPlanResult.CompositeSpec(composite);
+            }
+        }
+
+        BuildingSpec spec = JsonUtil.fromJson(body, BuildingSpec.class);
+        if (spec == null) {
+            throw new RuntimeException("Orchestrator returned 200 but BuildingSpec is null. body=" + body);
+        }
+        validateBuildingSpec(spec);
+        return new AiPlanResult.BuildingSpec(spec);
     }
 
     /**

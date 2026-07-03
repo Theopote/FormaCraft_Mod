@@ -42,16 +42,10 @@ public final class BuildingSpecRoutingPolicy {
     }
 
     /**
-     * 收到 {@code BuildingSpec} 后是否跳过 LlmPlan 预览，直接走 {@code GenerationHub.routeStructure()}。
-     *
-     * @return {@code true} 表示不应走 LlmPlan（{@link com.formacraft.server.network.LlmPlanPreviewBuilder} 应返回 false）
+     * 收到 LlmPlan 后是否跳过构件预览，直接走 {@code GenerationHub.routeStructure()}。
      */
-    public static boolean shouldSkipLlmPlanPreview(BuildingSpec spec, FormaRequest req) {
-        String requestText = req != null ? req.getRequestText() : null;
-        if (forcesSingleBuildingSpec(normalize(requestText), spec)) {
-            return true;
-        }
-        return false;
+    public static boolean shouldSkipLlmPlanPreview(FormaRequest req) {
+        return forcesSingleBuildingSpec(normalize(req != null ? req.getRequestText() : null), null);
     }
 
     /**

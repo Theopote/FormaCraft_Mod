@@ -1,7 +1,6 @@
 package com.formacraft.common.network.metrics;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import net.minecraft.server.network.ServerPlayerEntity;
 
@@ -16,13 +15,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * Select-String "\[LlmPlanMetrics\]" logs/latest.log
  * }</pre>
  * <p>
- * <b>回退率</b> = {@code fallback / tagged}（仅统计带 {@code isLlmPlan=true} 的请求）。
+ * <b>回退率</b> = {@code fallback / tagged}（仅统计 {@link com.formacraft.common.orchestrator.AiPlanResult.LlmPlan} 分支）。
  */
 public final class LlmPlanRoutingMetrics {
 
     public enum FallbackReason {
         ROUTING_POLICY,
-        MISSING_LLM_PLAN_JSON,
         EMPTY_OUTPUT
     }
 
@@ -35,13 +33,7 @@ public final class LlmPlanRoutingMetrics {
 
     private LlmPlanRoutingMetrics() {}
 
-    public static boolean isLlmPlanTagged(BuildingSpec spec) {
-        return spec != null
-                && spec.getExtra() != null
-                && Boolean.TRUE.equals(spec.getExtra().get("isLlmPlan"));
-    }
-
-    /** {@code isLlmPlan=true}，进入 LlmPlan 处理分支 */
+    /** 进入 {@link com.formacraft.common.orchestrator.AiPlanResult.LlmPlan} 处理分支 */
     public static void recordTaggedAttempt(ServerPlayerEntity player, FormaRequest req) {
         taggedRequests.incrementAndGet();
         log("attempt", null, player, req);
