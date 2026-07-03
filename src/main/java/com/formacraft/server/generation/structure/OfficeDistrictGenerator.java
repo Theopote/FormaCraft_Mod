@@ -23,6 +23,8 @@ import com.formacraft.server.cluster.layout.Candidate;
 import com.formacraft.server.cluster.layout.CandidateGenerator;
 import com.formacraft.server.cluster.layout.ClusterLayoutConfig;
 import com.formacraft.server.cluster.layout.PlacementSolver;
+import com.formacraft.server.cluster.layout.SiteLayoutPlanner;
+import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.server.build.BuildReportContext;
 import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.server.foundation.FoundationType;
@@ -86,11 +88,26 @@ public class OfficeDistrictGenerator implements StructureGenerator {
             List<BuildingUnit> units = new ArrayList<>(count);
             for (int i = 0; i < count; i++) units.add(unit);
 
-            List<Candidate> cands = CandidateGenerator.generate(unit, area, fields, world, origin, cfg);
-            java.util.Map<String, List<Candidate>> byId = new java.util.HashMap<>();
-            byId.put(unit.id, cands);
-
-            List<BuildingPlacement> placed = PlacementSolver.solve(units, byId, cfg.minGap, cfg.maxBacktrack, cfg);
+            List<BuildingPlacement> placed;
+            if (isParcelLayout(extra)) {
+                // C3：outline 驱动的确定性地块排布（把集群包围盒当作场地轮廓，切地块后大单体配大地块）。
+                int y = origin.getY();
+                int mnX = origin.getX() - cfg.halfX, mxX = origin.getX() + cfg.halfX;
+                int mnZ = origin.getZ() - cfg.halfZ, mxZ = origin.getZ() + cfg.halfZ;
+                OutlineShape site = new OutlineShape(
+                        "polygon",
+                        List.of(new BlockPos(mnX, y, mnZ), new BlockPos(mxX, y, mnZ),
+                                new BlockPos(mxX, y, mxZ), new BlockPos(mnX, y, mxZ)),
+                        null, 0, y, y);
+                int road = Math.max(0, spacing - Math.max(blockW, blockD));
+                placed = SiteLayoutPlanner.plan(site, origin, units, road);
+                if (placed.isEmpty()) {
+                    // 轮廓太小 / 切不出地块：回退到采样式 solver，保证行为不劣化。
+                    placed = solveViaSampler(unit, units, area, fields, world, origin, cfg);
+                }
+            } else {
+                placed = solveViaSampler(unit, units, area, fields, world, origin, cfg);
+            }
 
             // If placement fails (too constrained), fall back to grid skeleton.
             if (placed.size() >= count) {
@@ -369,6 +386,38 @@ public class OfficeDistrictGenerator implements StructureGenerator {
 
     private static long relKey(int dx, int dz) {
         return (((long) dx) << 32) ^ (dz & 0xffffffffL);
+    }
+
+    /**
+     * C3：是否启用 outline 驱动的地块排布（opt-in）。
+     * 触发条件：{@code extra.layoutMode == "parcel"} 或 {@code extra.siteLayout} 为真值。
+     * 默认关闭，保持既有采样式排布行为不变。
+     */
+    private static boolean isParcelLayout(Map<String, Object> extra) {
+        if (extra == null) return false;
+        Object lm = extra.get("layoutMode");
+        if (lm != null && "parcel".equalsIgnoreCase(String.valueOf(lm).trim())) {
+            return true;
+        }
+        Object sl = extra.get("siteLayout");
+        if (sl instanceof Boolean b) return b;
+        if (sl != null) {
+            String s = String.valueOf(sl).trim().toLowerCase();
+            return s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("on")
+                    || s.equals("parcel");
+        }
+        return false;
+    }
+
+    /** 既有采样式排布：CandidateGenerator + PlacementSolver。 */
+    private static List<BuildingPlacement> solveViaSampler(BuildingUnit unit, List<BuildingUnit> units,
+                                                           BuildArea area, TerrainFields fields,
+                                                           ServerWorld world, BlockPos origin,
+                                                           ClusterLayoutConfig cfg) {
+        List<Candidate> cands = CandidateGenerator.generate(unit, area, fields, world, origin, cfg);
+        Map<String, List<Candidate>> byId = new HashMap<>();
+        byId.put(unit.id, cands);
+        return PlacementSolver.solve(units, byId, cfg.minGap, cfg.maxBacktrack, cfg);
     }
 
     private static boolean getBool(Map<String, Object> extra) {
