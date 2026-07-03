@@ -16,7 +16,6 @@ import com.formacraft.client.ui.text.SelectableTextBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.client.network.FormaCraftClientNetworking;
-import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.config.SettingsConfig;
 import net.minecraft.client.MinecraftClient;
@@ -29,6 +28,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -864,7 +864,7 @@ public class ChatPanel extends BasePanel {
         try {
             com.formacraft.common.skeleton.PathSkeleton skel =
                     com.formacraft.client.tool.PathTool.INSTANCE.toSkeleton();
-            if (skel != null && skel.isValid()) {
+            if (skel.isValid()) {
                 req.setPathNodes(new java.util.ArrayList<>(skel.nodes));
                 req.setPathRadius(skel.corridorRadius);
             }
@@ -898,17 +898,7 @@ public class ChatPanel extends BasePanel {
         pendingRequestToken = System.currentTimeMillis();
         pendingThinkingIndex = messages.size();
         // 给用户可见性：显示本次使用的 provider/model（不暴露 API Key）
-        String providerHint = (req.getLlmProvider() == null || req.getLlmProvider().isBlank()) ? "auto" : req.getLlmProvider();
-        String modelHint = (req.getModel() == null || req.getModel().isBlank()) ? "auto" : req.getModel();
-        String baseHint = (req.getLlmBaseUrl() == null || req.getLlmBaseUrl().isBlank()) ? "" : (" @ " + req.getLlmBaseUrl());
-        String warn = "";
-        if ((req.getApiKey() == null || req.getApiKey().isBlank())
-                && (providerHint.equalsIgnoreCase("openai")
-                || providerHint.equalsIgnoreCase("openai_compat")
-                || providerHint.equalsIgnoreCase("deepseek"))) {
-            warn = "（未设置 API Key，可能使用兜底/离线模板）";
-        }
-        String basePhase = "已发送请求，等待后端响应  LLM=" + providerHint + "/" + modelHint + baseHint + warn;
+        String basePhase = getString(req);
         pendingPhase = basePhase;
         pendingStartMs = System.currentTimeMillis();
         messages.add(ChatMessage.thinking(basePhase + "（已等待 0 秒）"));
@@ -974,6 +964,20 @@ public class ChatPanel extends BasePanel {
         inputBox.clear();
     }
 
+    private static @NotNull String getString(FormaRequest req) {
+        String providerHint = (req.getLlmProvider() == null || req.getLlmProvider().isBlank()) ? "auto" : req.getLlmProvider();
+        String modelHint = (req.getModel() == null || req.getModel().isBlank()) ? "auto" : req.getModel();
+        String baseHint = (req.getLlmBaseUrl() == null || req.getLlmBaseUrl().isBlank()) ? "" : (" @ " + req.getLlmBaseUrl());
+        String warn = "";
+        if ((req.getApiKey() == null || req.getApiKey().isBlank())
+                && (providerHint.equalsIgnoreCase("openai")
+                || providerHint.equalsIgnoreCase("openai_compat")
+                || providerHint.equalsIgnoreCase("deepseek"))) {
+            warn = "（未设置 API Key，可能使用兜底/离线模板）";
+        }
+        return "已发送请求，等待后端响应  LLM=" + providerHint + "/" + modelHint + baseHint + warn;
+    }
+
     private boolean tryHandlePreviewAdjust(String text) {
         if (!(BuildingPreviewState.isActive() || OutlinePreviewState.active) || text == null) {
             return false;
@@ -1000,102 +1004,91 @@ public class ChatPanel extends BasePanel {
         return true;
     }
 
-    private static final class PreviewAdjustCommand {
-        private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d{1,3})");
-        private final int dx;
-        private final int dy;
-        private final int dz;
-        private final String hint;
-
-        private PreviewAdjustCommand(int dx, int dy, int dz, String hint) {
-            this.dx = dx;
-            this.dy = dy;
-            this.dz = dz;
-            this.hint = hint;
-        }
+    private record PreviewAdjustCommand(int dx, int dy, int dz, String hint) {
+            private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d{1,3})");
 
         private static PreviewAdjustCommand parse(String raw, Direction facing) {
-            String text = raw.trim();
-            if (text.isEmpty() || text.startsWith("/")) {
-                return null;
-            }
-            String lower = text.toLowerCase(Locale.ROOT);
-
-            int step = parseStep(lower);
-            Direction dir = parseAbsoluteDirection(lower);
-            if (dir == null) {
-                dir = parseRelativeDirection(lower, facing);
-            }
-
-            int dx = 0;
-            int dy = 0;
-            int dz = 0;
-
-            if (dir != null) {
-                dx = dir.getOffsetX() * step;
-                dz = dir.getOffsetZ() * step;
-            }
-            if (containsAny(lower, "上移", "往上", "向上", "上挪", "抬高", "升高", "往高", "向高", "up", "raise")) {
-                dy = step;
-            } else if (containsAny(lower, "下移", "往下", "向下", "下挪", "降低", "下降", "down", "lower")) {
-                dy = -step;
-            }
-
-            if (dx == 0 && dy == 0 && dz == 0) {
-                return null;
-            }
-            String hint = "正在调整预览位置：dx=" + dx + " dy=" + dy + " dz=" + dz;
-            return new PreviewAdjustCommand(dx, dy, dz, hint);
-        }
-
-        private static int parseStep(String text) {
-            Matcher m = NUMBER_PATTERN.matcher(text);
-            if (m.find()) {
-                try {
-                    int v = Integer.parseInt(m.group(1));
-                    return Math.max(1, Math.min(32, v));
-                } catch (NumberFormatException e) {
-                    LOG.debug("parseStep number failed text={}", text);
+                String text = raw.trim();
+                if (text.isEmpty() || text.startsWith("/")) {
+                    return null;
                 }
-            }
-            if (text.contains("多一点") || text.contains("再多") || text.contains("再往")) {
-                return 2;
-            }
-            return 1;
-        }
+                String lower = text.toLowerCase(Locale.ROOT);
 
-        private static Direction parseAbsoluteDirection(String text) {
-            if (containsAny(text, "向北", "往北", "北移", "north")) return Direction.NORTH;
-            if (containsAny(text, "向南", "往南", "南移", "south")) return Direction.SOUTH;
-            if (containsAny(text, "向东", "往东", "东移", "east")) return Direction.EAST;
-            if (containsAny(text, "向西", "往西", "西移", "west")) return Direction.WEST;
-            return null;
-        }
+                int step = parseStep(lower);
+                Direction dir = parseAbsoluteDirection(lower);
+                if (dir == null) {
+                    dir = parseRelativeDirection(lower, facing);
+                }
 
-        private static Direction parseRelativeDirection(String text, Direction facing) {
-            if (facing == null) return null;
-            if (containsAny(text, "往前", "向前", "前移", "前挪", "forward")) {
-                return facing;
-            }
-            if (containsAny(text, "往后", "向后", "后移", "后退", "back")) {
-                return facing.getOpposite();
-            }
-            if (containsAny(text, "往左", "向左", "左移", "left")) {
-                return facing.rotateYCounterclockwise();
-            }
-            if (containsAny(text, "往右", "向右", "右移", "right")) {
-                return facing.rotateYClockwise();
-            }
-            return null;
-        }
+                int dx = 0;
+                int dy = 0;
+                int dz = 0;
 
-        private static boolean containsAny(String text, String... keys) {
-            for (String key : keys) {
-                if (text.contains(key)) return true;
+                if (dir != null) {
+                    dx = dir.getOffsetX() * step;
+                    dz = dir.getOffsetZ() * step;
+                }
+                if (containsAny(lower, "上移", "往上", "向上", "上挪", "抬高", "升高", "往高", "向高", "up", "raise")) {
+                    dy = step;
+                } else if (containsAny(lower, "下移", "往下", "向下", "下挪", "降低", "下降", "down", "lower")) {
+                    dy = -step;
+                }
+
+                if (dx == 0 && dy == 0 && dz == 0) {
+                    return null;
+                }
+                String hint = "正在调整预览位置：dx=" + dx + " dy=" + dy + " dz=" + dz;
+                return new PreviewAdjustCommand(dx, dy, dz, hint);
             }
-            return false;
+
+            private static int parseStep(String text) {
+                Matcher m = NUMBER_PATTERN.matcher(text);
+                if (m.find()) {
+                    try {
+                        int v = Integer.parseInt(m.group(1));
+                        return Math.max(1, Math.min(32, v));
+                    } catch (NumberFormatException e) {
+                        LOG.debug("parseStep number failed text={}", text);
+                    }
+                }
+                if (text.contains("多一点") || text.contains("再多") || text.contains("再往")) {
+                    return 2;
+                }
+                return 1;
+            }
+
+            private static Direction parseAbsoluteDirection(String text) {
+                if (containsAny(text, "向北", "往北", "北移", "north")) return Direction.NORTH;
+                if (containsAny(text, "向南", "往南", "南移", "south")) return Direction.SOUTH;
+                if (containsAny(text, "向东", "往东", "东移", "east")) return Direction.EAST;
+                if (containsAny(text, "向西", "往西", "西移", "west")) return Direction.WEST;
+                return null;
+            }
+
+            private static Direction parseRelativeDirection(String text, Direction facing) {
+                if (facing == null) return null;
+                if (containsAny(text, "往前", "向前", "前移", "前挪", "forward")) {
+                    return facing;
+                }
+                if (containsAny(text, "往后", "向后", "后移", "后退", "back")) {
+                    return facing.getOpposite();
+                }
+                if (containsAny(text, "往左", "向左", "左移", "left")) {
+                    return facing.rotateYCounterclockwise();
+                }
+                if (containsAny(text, "往右", "向右", "右移", "right")) {
+                    return facing.rotateYClockwise();
+                }
+                return null;
+            }
+
+            private static boolean containsAny(String text, String... keys) {
+                for (String key : keys) {
+                    if (text.contains(key)) return true;
+                }
+                return false;
+            }
         }
-    }
 
     private static String buildHealthUrlOrNull(String endpoint) {
         if (endpoint == null) return null;
@@ -1151,89 +1144,12 @@ public class ChatPanel extends BasePanel {
         sessionId = java.util.UUID.randomUUID().toString();
     }
 
-    /**
-     * 导出当前对话的快照（用于“历史”面板保存）。
-     * 注意：THINKING 消息不保存；STREAMING/ERROR 等会保存当前已有文本。
-     */
-    public ConversationSnapshot exportConversationSnapshot() {
-        StringBuilder sb = new StringBuilder();
-        for (ChatMessage m : messages) {
-            if (m == null) continue;
-            if (m.type == ChatMessage.MessageType.THINKING) continue;
-            String who = m.fromPlayer ? "Player" : "AI";
-            String text = m.text == null ? "" : m.text;
-            sb.append(who).append(": ").append(text).append("\n");
-        }
-        String draft = inputBox != null ? inputBox.getText() : "";
-        if (draft != null && !draft.trim().isEmpty()) {
-            sb.append("Draft: ").append(draft.trim()).append("\n");
-        }
-
-        String transcript = sb.toString().trim();
-        String title = deriveTitleFromConversation();
-        return new ConversationSnapshot(title, transcript, System.currentTimeMillis());
-    }
-
-    private String deriveTitleFromConversation() {
-        for (ChatMessage m : messages) {
-            if (m == null) continue;
-            if (!m.fromPlayer) continue;
-            if (m.type == ChatMessage.MessageType.THINKING) continue;
-            String t = m.text == null ? "" : m.text.trim();
-            if (!t.isEmpty()) {
-                // 简短标题
-                int max = 28;
-                return t.length() <= max ? t : t.substring(0, max - 1) + "…";
-            }
-        }
-        return "新对话";
-    }
-
     /** 新建对话：先中断生成，再清空会话。 */
     public void startNewConversation() {
         stopGenerating();
         resetSession();
     }
 
-    public static class ConversationSnapshot {
-        public final String title;
-        public final String transcript;
-        public final long timestampMs;
-
-        public ConversationSnapshot(String title, String transcript, long timestampMs) {
-            this.title = title == null ? "新对话" : title;
-            this.transcript = transcript == null ? "" : transcript;
-            this.timestampMs = timestampMs;
-        }
-    }
-
-    /**
-     * 从历史快照恢复对话到当前 ChatPanel。
-     */
-    public void loadConversationSnapshot(ConversationSnapshot snapshot) {
-        if (snapshot == null) return;
-        stopGenerating();
-        messages.clear();
-        scrollOffset = 0;
-        inputBox.clear();
-        sessionId = java.util.UUID.randomUUID().toString();
-
-        String t = snapshot.transcript == null ? "" : snapshot.transcript;
-        if (t.isEmpty()) return;
-        String[] lines = t.split("\\r?\\n");
-        for (String line : lines) {
-            if (line == null) continue;
-            String s = line.trim();
-            if (s.isEmpty()) continue;
-            if (s.startsWith("Draft:")) continue;
-            if (s.startsWith("Player:")) {
-                messages.add(new ChatMessage(s.substring("Player:".length()).trim(), true));
-            } else if (s.startsWith("AI:")) {
-                messages.add(new ChatMessage(s.substring("AI:".length()).trim(), false));
-            }
-        }
-        scrollOffset = 0;
-    }
 
     /**
      * 添加 AI 回复消息（带 BuildingSpec）
