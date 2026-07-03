@@ -187,7 +187,40 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan") -> EvalResult:
     add(Check("not_too_short", not too_short, hard=False,
               detail=", ".join(too_short)))
 
+    # SOFT：立面参数取值合法（与 Java 生成器可识别的枚举对齐；非法值会被静默忽略）。
+    bad_facade = _invalid_facade_params(comps)
+    add(Check("facade_params_valid", not bad_facade, hard=False,
+              detail=", ".join(bad_facade)))
+
     return res
+
+
+# 与 Java ComponentFacadeStyler / FacadePatternDsl / ComponentPlanCompiler 的可识别取值对齐。
+_ALLOWED_FACADE_PROFILE = {"none", "base_plinth", "vertical_pilasters", "pilasters", "mullion_grid", "mullion", "module_grid"}
+_ALLOWED_WALL_PATTERN = {"none", "uniform", "gradient", "striped", "random"}
+_ALLOWED_FACADE_CUTOUT = {"none", "solid", "lattice", "grille", "perforated", "diagrid", "diagonal", "diamond", "checker", "rose", "circle", "oculus", "arches", "arch"}
+_ALLOWED_DETAIL_LEVEL = {"low", "medium", "high"}
+
+
+def _invalid_facade_params(comps: List[Dict[str, Any]]) -> List[str]:
+    out: List[str] = []
+
+    def _check(params: Dict[str, Any], idx: int, keys: Tuple[str, ...], allowed: set, label: str) -> None:
+        for k in keys:
+            v = params.get(k)
+            if isinstance(v, str) and v.strip() and v.strip().lower() not in allowed:
+                out.append(f"#{idx} {label}={v}")
+                return
+
+    for i, c in enumerate(comps):
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        if not params:
+            continue
+        _check(params, i, ("facade_profile", "facadeProfile"), _ALLOWED_FACADE_PROFILE, "facade_profile")
+        _check(params, i, ("wall_pattern", "wallPattern"), _ALLOWED_WALL_PATTERN, "wall_pattern")
+        _check(params, i, ("facade_cutout", "cutout_pattern", "perforation"), _ALLOWED_FACADE_CUTOUT, "facade_cutout")
+        _check(params, i, ("detail_level", "detailLevel", "quality"), _ALLOWED_DETAIL_LEVEL, "detail_level")
+    return out
 
 
 # 与 Java ComponentPlanCompiler.minHeightForType 对齐：主体/塔的合理最小层高。
