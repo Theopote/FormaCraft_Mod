@@ -13,7 +13,7 @@ import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics.FallbackReason;
 import com.formacraft.common.network.LlmPlanTerrainBounds.Bounds;
 import com.formacraft.common.model.request.FormaRequest;
-import com.formacraft.server.build.BuildConstraintClipper;
+import com.formacraft.server.build.BuildPreviewPipeline;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.foundation.FoundationPlanner;
@@ -492,7 +492,6 @@ public final class LlmPlanPreviewBuilder {
                 }
             }
 
-            // 创建 GeneratedStructure
             com.formacraft.common.build.GeneratedStructure generated =
                     new com.formacraft.common.build.GeneratedStructure(
                             player.getUuid(),
@@ -501,19 +500,27 @@ public final class LlmPlanPreviewBuilder {
                             plannedBlocks
                     );
 
-            // 应用约束裁剪
-            com.formacraft.common.build.GeneratedStructure structure =
-                    new com.formacraft.common.build.GeneratedStructure(
-                            player.getUuid(),
-                            planOrigin,
-                            generated.getDescription(),
-                            BuildConstraintClipper.clipPlannedBlocks(plannedBlocks, req)
-                    );
+            BuildPreviewPipeline.Result pipeline = BuildPreviewPipeline.prepare(
+                    player,
+                    serverWorld,
+                    generated,
+                    null,
+                    req,
+                    java.util.Optional.empty()
+            );
 
-            // 存储结构用于预览
+            if (!pipeline.delivered() || pipeline.structure() == null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        pipeline.report().summaryZh()
+                ));
+                hbAlive.set(false);
+                LlmPlanRoutingMetrics.recordError(player, req, "quality:" + pipeline.report().summaryZh());
+                return true;
+            }
+
+            com.formacraft.common.build.GeneratedStructure structure = pipeline.structure();
             PreviewStorage.storeStructure(player, structure);
 
-            // 自动发送预览
             List<OutlineBlock> outline =
                     com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
             FormaCraftServerNetworking.sendPreviewOutline(player, outline);
@@ -523,6 +530,9 @@ public final class LlmPlanPreviewBuilder {
             player.sendMessage(net.minecraft.text.Text.translatable(
                             "formacraft.preview.ready.building"),
                     false);
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                    pipeline.report().summaryZh()
+            ));
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                     "LlmPlan preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
             ));

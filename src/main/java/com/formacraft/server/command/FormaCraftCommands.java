@@ -119,6 +119,19 @@ public class FormaCraftCommands {
                         return 0;
                     }
 
+                    com.formacraft.server.build.quality.BuildQualityReport quality =
+                            PreviewStorage.getQualityReport(player);
+                    if (quality != null && quality.hasFatal()) {
+                        ctx.getSource().sendError(Text.literal(quality.summaryZh()));
+                        return 0;
+                    }
+                    if (quality != null && quality.hasError()) {
+                        ctx.getSource().sendFeedback(
+                                () -> Text.literal("【注意】" + quality.summaryZh()),
+                                false
+                        );
+                    }
+
                     GeneratedStructure structure = PreviewStorage.getStructure(player);
                     if (structure == null) {
                         ctx.getSource().sendError(Text.translatable("formacraft.command.preview.no_structure_to_build"));

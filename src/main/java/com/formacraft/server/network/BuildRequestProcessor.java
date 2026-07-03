@@ -2,7 +2,6 @@ package com.formacraft.server.network;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.network.OrchestratorErrorHumanizer;
-import com.formacraft.common.preview.OutlineBlock;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
@@ -13,15 +12,14 @@ import com.formacraft.common.model.city.CitySpec;
 import com.formacraft.common.model.composite.CompositeSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.orchestrator.AiPlanResult;
-import com.formacraft.server.build.BuildConstraintClipper;
 import com.formacraft.server.build.BuildConstraintContext;
+import com.formacraft.server.build.BuildPreviewDelivery;
 import com.formacraft.server.network.NetworkOrchestratorProvider;
 import com.formacraft.server.orchestrator.OrchestratorClient;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -106,84 +104,7 @@ public final class BuildRequestProcessor {
                                         // 对于城市结构，生成预览而不是直接建造
                                         BlockPos origin = req.getPlayerPos();
                                         if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                            // 生成城市结构
-                                            com.formacraft.server.city.CityBuilder cityBuilder =
-                                                    new com.formacraft.server.city.CityBuilder();
-                                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
-                                                    com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
-                                                            BuildConstraintContext.withRequest(req, () -> cityBuilder.generate(citySpec, origin, serverWorld))
-                                                    );
-                                            final com.formacraft.common.build.GeneratedStructure generated = reported.value();
-
-                                            // 质量检查（CitySpec 没有 BuildingSpec，传递 null）
-                                            com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
-                                                    com.formacraft.server.build.QualityChecker.checkQuality(generated, null, serverWorld);
-                                            com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
-
-                                            // 如果有严重错误，记录但不阻止预览（让用户看到问题）
-                                            if (!qualityReport.errors.isEmpty()) {
-                                                FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
-                                            }
-
-                                            String terrainSummary = reported.report().summaryZh();
-                                            if (!terrainSummary.isBlank()) {
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(terrainSummary));
-                                            }
-
-                                            // H-layer (MVP): auto validation & repair before preview
-                                            com.formacraft.server.build.BuildAutoRepair.Result repair =
-                                                    BuildConstraintContext.withRequest(req, () ->
-                                                            com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.empty(), generated.getBlocks())
-                                                    );
-                                            if (repair.summary() != null && !repair.summary().isBlank()) {
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(repair.summary()));
-                                            }
-
-                                            // 设置玩家 UUID
-                                            com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
-                                                    player.getUuid(),
-                                                    origin,
-                                                    generated.getDescription(),
-                                                    BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
-                                            );
-
-                                            // 存储结构用于预览
-                                            com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-
-                                            // 自动发送预览
-                                            List<OutlineBlock> outline =
-                                                    com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                            FormaCraftServerNetworking.sendPreviewOutline(player, outline);
-                                            // Send skeleton layout preview (if present in CitySpec's first structure extra)
-                                            try {
-                                                if (citySpec.getStructures() != null && !citySpec.getStructures().isEmpty()) {
-                                                    var sp0 = citySpec.getStructures().getFirst();
-                                                    if (sp0 != null && sp0.getSpec() != null && sp0.getSpec().getExtra() != null) {
-                                                        FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, sp0.getSpec().getExtra());
-                                                    }
-                                                }
-                                            } catch (Throwable t) {
-                                                LOG.player(player).warn("send preview skeleton failed", t);
-                                            }
-                                            com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-
-                                            // 保存 CitySpec 到 PlayerSpecRepository
-                                            String cityId = "player_" + player.getName().getString() + "_world_" +
-                                                    serverWorld.getRegistryKey().getValue();
-                                            String cityJson = JsonUtil.toJson(citySpec);
-                                            com.formacraft.server.state.PlayerSpecRepository.setCitySpec(player, cityId, cityJson);
-
-                                            player.sendMessage(net.minecraft.text.Text.literal(
-                                                            String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.",
-                                                                    citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed")),
-                                                    false);
-                                            // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
-                                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                                                    String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.",
-                                                            citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed")
-                                            ));
-                                            hbAlive.set(false);
-
+                                            previewCitySpec(player, req, citySpec, origin, serverWorld, hbAlive);
                                             FormacraftMod.LOGGER.info("Generated city structure preview for player {}", player.getName().getString());
                                         }
                                     });
@@ -222,76 +143,7 @@ public final class BuildRequestProcessor {
                                         // 对于复合结构，生成预览而不是直接建造
                                         BlockPos origin = req.getPlayerPos();
                                         if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                                            // 生成结构
-                                            com.formacraft.server.generation.structure.composite.CompositeStructureGenerator generator =
-                                                    new com.formacraft.server.generation.structure.composite.CompositeStructureGenerator();
-                                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
-                                                    com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
-                                                            BuildConstraintContext.withRequest(req, () -> generator.generate(compositeSpec, origin, serverWorld))
-                                                    );
-                                            final com.formacraft.common.build.GeneratedStructure generated = reported.value();
-
-                                            // 质量检查（CitySpec 没有 BuildingSpec，传递 null）
-                                            com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
-                                                    com.formacraft.server.build.QualityChecker.checkQuality(generated, null, serverWorld);
-                                            com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
-
-                                            // 如果有严重错误，记录但不阻止预览（让用户看到问题）
-                                            if (!qualityReport.errors.isEmpty()) {
-                                                FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
-                                            }
-
-                                            String terrainSummary = reported.report().summaryZh();
-                                            if (!terrainSummary.isBlank()) {
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(terrainSummary));
-                                            }
-
-                                            // H-layer (MVP): auto validation & repair before preview
-                                            com.formacraft.server.build.BuildAutoRepair.Result repair =
-                                                    BuildConstraintContext.withRequest(req, () ->
-                                                            com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.empty(), generated.getBlocks())
-                                                    );
-                                            if (repair.summary() != null && !repair.summary().isBlank()) {
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(repair.summary()));
-                                            }
-
-                                            // 设置玩家 UUID
-                                            com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
-                                                    player.getUuid(),
-                                                    origin,
-                                                    generated.getDescription(),
-                                                    BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
-                                            );
-
-                                            // 存储结构用于预览
-                                            com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-
-                                            // 自动发送预览
-                                            List<OutlineBlock> outline =
-                                                    com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                            FormaCraftServerNetworking.sendPreviewOutline(player, outline);
-                                            // Send skeleton layout preview (if present in CompositeSpec's first structure extra)
-                                            try {
-                                                if (compositeSpec.getStructures() != null && !compositeSpec.getStructures().isEmpty()) {
-                                                    var s0 = compositeSpec.getStructures().getFirst();
-                                                    if (s0 != null && s0.getSpec() != null && s0.getSpec().getExtra() != null) {
-                                                        FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, s0.getSpec().getExtra());
-                                                    }
-                                                }
-                                            } catch (Throwable t) {
-                                                LOG.player(player).warn("send preview skeleton failed", t);
-                                            }
-                                            com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-
-                                            player.sendMessage(net.minecraft.text.Text.translatable(
-                                                    "formacraft.preview.ready.composite"),
-                                                    false);
-                                            // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
-                                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                                                    "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
-                                            ));
-                                            hbAlive.set(false);
-
+                                            previewCompositeSpec(player, req, compositeSpec, origin, serverWorld, hbAlive);
                                             FormacraftMod.LOGGER.info("Generated composite structure preview for player {}", player.getName().getString());
                                         }
                                     });
@@ -353,59 +205,27 @@ public final class BuildRequestProcessor {
                                                         );
                                                 final com.formacraft.common.build.GeneratedStructure generated = reported.value();
 
-                                                // 质量检查
-                                                com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
-                                                        com.formacraft.server.build.QualityChecker.checkQuality(generated, updated, serverWorld);
-                                                com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
-
-                                                // 如果有严重错误，记录但不阻止预览（让用户看到问题）
-                                                if (!qualityReport.errors.isEmpty()) {
-                                                    FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
-                                                }
-
                                                 String terrainSummary = reported.report().summaryZh();
                                                 if (!terrainSummary.isBlank()) {
                                                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(terrainSummary));
                                                 }
 
-                                                // H-layer (MVP): auto validation & repair before preview
-                                                com.formacraft.server.build.BuildAutoRepair.Result repair =
-                                                        BuildConstraintContext.withRequest(req, () ->
-                                                                com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.ofNullable(updated.getStyle()), generated.getBlocks())
-                                                        );
-                                                if (repair.summary() != null && !repair.summary().isBlank()) {
-                                                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(repair.summary()));
-                                                }
-
-                                                // 生成阶段硬裁剪：禁区/轮廓/选区（由工具提供）
-                                                com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
-                                                        player.getUuid(),
-                                                        origin,
-                                                        generated.getDescription(),
-                                                        BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
+                                                com.formacraft.server.build.BuildPreviewDelivery.deliver(
+                                                        player,
+                                                        req,
+                                                        generated,
+                                                        updated,
+                                                        serverWorld,
+                                                        java.util.Optional.ofNullable(updated.getStyle()),
+                                                        hbAlive,
+                                                        net.minecraft.text.Text.translatable("formacraft.preview.ready.updated_building"),
+                                                        "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel.",
+                                                        (p, o) -> {
+                                                            if (updated.getExtra() != null) {
+                                                                FormaCraftServerNetworking.sendPreviewSkeleton(p, o, updated.getExtra());
+                                                            }
+                                                        }
                                                 );
-
-                                                com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-                                                List<OutlineBlock> outline =
-                                                        com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-                                                FormaCraftServerNetworking.sendPreviewOutline(player, outline);
-                                                try {
-                                                    if (updated.getExtra() != null) {
-                                                        FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, updated.getExtra());
-                                                    }
-                                                } catch (Throwable t) {
-                                                LOG.player(player).warn("send preview skeleton failed", t);
-                                            }
-                                                com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-
-                                                player.sendMessage(net.minecraft.text.Text.translatable(
-                                                        "formacraft.preview.ready.updated_building"),
-                                                        false);
-                                                // 同步给自定义 ChatPanel：标记本次请求已完成（否则 120s 会误报超时）
-                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                                                        "Updated building preview ready. Use /forma_confirm to rebuild or /forma_cancel to cancel."
-                                                ));
-                                                hbAlive.set(false);
                                             }
 
                                             // 同步给客户端，用于 UI 显示（notes 等）
@@ -509,53 +329,27 @@ public final class BuildRequestProcessor {
                 );
         final com.formacraft.common.build.GeneratedStructure generated = reported.value();
 
-        com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
-                com.formacraft.server.build.QualityChecker.checkQuality(generated, null, serverWorld);
-        com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
-        if (!qualityReport.errors.isEmpty()) {
-            FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
-        }
-
         String terrainSummary = reported.report().summaryZh();
         if (!terrainSummary.isBlank()) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(terrainSummary));
         }
 
-        com.formacraft.server.build.BuildAutoRepair.Result repair =
-                BuildConstraintContext.withRequest(req, () ->
-                        com.formacraft.server.build.BuildAutoRepair.apply(
-                                serverWorld, java.util.Optional.ofNullable(spec.getStyle()), generated.getBlocks())
-                );
-        if (repair.summary() != null && !repair.summary().isBlank()) {
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(repair.summary()));
-        }
-
-        com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
-                player.getUuid(),
-                origin,
-                generated.getDescription(),
-                BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
+        BuildPreviewDelivery.deliver(
+                player,
+                req,
+                generated,
+                spec,
+                serverWorld,
+                java.util.Optional.ofNullable(spec.getStyle()),
+                hbAlive,
+                net.minecraft.text.Text.translatable("formacraft.preview.ready.building"),
+                "Building preview ready. Use /forma_confirm to build or /forma_cancel to cancel.",
+                (p, o) -> {
+                    if (spec.getExtra() != null) {
+                        FormaCraftServerNetworking.sendPreviewSkeleton(p, o, spec.getExtra());
+                    }
+                }
         );
-
-        com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-
-        List<OutlineBlock> outline =
-                com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-        FormaCraftServerNetworking.sendPreviewOutline(player, outline);
-        try {
-            if (spec.getExtra() != null) {
-                FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, spec.getExtra());
-            }
-        } catch (Throwable t) {
-            LOG.player(player).warn("send preview skeleton failed", t);
-        }
-        com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-
-        player.sendMessage(net.minecraft.text.Text.translatable("formacraft.preview.ready.building"), false);
-        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                "Building preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
-        ));
-        hbAlive.set(false);
     }
 
     private static void previewCompositeSpec(
@@ -574,54 +368,30 @@ public final class BuildRequestProcessor {
                 );
         final com.formacraft.common.build.GeneratedStructure generated = reported.value();
 
-        com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
-                com.formacraft.server.build.QualityChecker.checkQuality(generated, null, serverWorld);
-        com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
-        if (!qualityReport.errors.isEmpty()) {
-            FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
-        }
-
         String terrainSummary = reported.report().summaryZh();
         if (!terrainSummary.isBlank()) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(terrainSummary));
         }
 
-        com.formacraft.server.build.BuildAutoRepair.Result repair =
-                BuildConstraintContext.withRequest(req, () ->
-                        com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.empty(), generated.getBlocks())
-                );
-        if (repair.summary() != null && !repair.summary().isBlank()) {
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(repair.summary()));
-        }
-
-        com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
-                player.getUuid(),
-                origin,
-                generated.getDescription(),
-                BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
-        );
-
-        com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-        List<OutlineBlock> outline =
-                com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-        FormaCraftServerNetworking.sendPreviewOutline(player, outline);
-        try {
-            if (compositeSpec.getStructures() != null && !compositeSpec.getStructures().isEmpty()) {
-                var s0 = compositeSpec.getStructures().getFirst();
-                if (s0 != null && s0.getSpec() != null && s0.getSpec().getExtra() != null) {
-                    FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, s0.getSpec().getExtra());
+        BuildPreviewDelivery.deliver(
+                player,
+                req,
+                generated,
+                null,
+                serverWorld,
+                java.util.Optional.empty(),
+                hbAlive,
+                net.minecraft.text.Text.translatable("formacraft.preview.ready.composite"),
+                "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel.",
+                (p, o) -> {
+                    if (compositeSpec.getStructures() != null && !compositeSpec.getStructures().isEmpty()) {
+                        var s0 = compositeSpec.getStructures().getFirst();
+                        if (s0 != null && s0.getSpec() != null && s0.getSpec().getExtra() != null) {
+                            FormaCraftServerNetworking.sendPreviewSkeleton(p, o, s0.getSpec().getExtra());
+                        }
+                    }
                 }
-            }
-        } catch (Throwable t) {
-            LOG.player(player).warn("send preview skeleton failed", t);
-        }
-        com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-
-        player.sendMessage(net.minecraft.text.Text.translatable("formacraft.preview.ready.composite"), false);
-        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                "Composite structure preview ready. Use /forma_confirm to build or /forma_cancel to cancel."
-        ));
-        hbAlive.set(false);
+        );
     }
 
     private static void previewCitySpec(
@@ -639,60 +409,39 @@ public final class BuildRequestProcessor {
                 );
         final com.formacraft.common.build.GeneratedStructure generated = reported.value();
 
-        com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
-                com.formacraft.server.build.QualityChecker.checkQuality(generated, null, serverWorld);
-        com.formacraft.server.build.QualityChecker.logQualityReport(qualityReport, generated.getDescription());
-        if (!qualityReport.errors.isEmpty()) {
-            FormacraftMod.LOGGER.warn("Quality check found errors for preview: {}", qualityReport.errors);
-        }
-
         String terrainSummary = reported.report().summaryZh();
         if (!terrainSummary.isBlank()) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(terrainSummary));
         }
 
-        com.formacraft.server.build.BuildAutoRepair.Result repair =
-                BuildConstraintContext.withRequest(req, () ->
-                        com.formacraft.server.build.BuildAutoRepair.apply(serverWorld, java.util.Optional.empty(), generated.getBlocks())
-                );
-        if (repair.summary() != null && !repair.summary().isBlank()) {
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(repair.summary()));
-        }
+        String cityName = citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed";
+        String statusTail = String.format(
+                "City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.", cityName);
 
-        com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
-                player.getUuid(),
-                origin,
-                generated.getDescription(),
-                BuildConstraintClipper.clipPlannedBlocks(repair.blocks(), req)
+        boolean delivered = BuildPreviewDelivery.deliver(
+                player,
+                req,
+                generated,
+                null,
+                serverWorld,
+                java.util.Optional.empty(),
+                hbAlive,
+                net.minecraft.text.Text.literal(statusTail),
+                statusTail,
+                (p, o) -> {
+                    if (citySpec.getStructures() != null && !citySpec.getStructures().isEmpty()) {
+                        var sp0 = citySpec.getStructures().getFirst();
+                        if (sp0 != null && sp0.getSpec() != null && sp0.getSpec().getExtra() != null) {
+                            FormaCraftServerNetworking.sendPreviewSkeleton(p, o, sp0.getSpec().getExtra());
+                        }
+                    }
+                }
         );
 
-        com.formacraft.server.preview.PreviewStorage.storeStructure(player, structure);
-        List<OutlineBlock> outline =
-                com.formacraft.server.preview.OutlineGenerator.fromPlannedBlocks(structure.getBlocks());
-        FormaCraftServerNetworking.sendPreviewOutline(player, outline);
-        try {
-            if (citySpec.getStructures() != null && !citySpec.getStructures().isEmpty()) {
-                var sp0 = citySpec.getStructures().getFirst();
-                if (sp0 != null && sp0.getSpec() != null && sp0.getSpec().getExtra() != null) {
-                    FormaCraftServerNetworking.sendPreviewSkeleton(player, origin, sp0.getSpec().getExtra());
-                }
-            }
-        } catch (Throwable t) {
-            LOG.player(player).warn("send preview skeleton failed", t);
+        if (delivered) {
+            String cityId = "player_" + player.getName().getString() + "_world_" + serverWorld.getRegistryKey().getValue();
+            com.formacraft.server.state.PlayerSpecRepository.setCitySpec(player, cityId, JsonUtil.toJson(citySpec));
         }
-        com.formacraft.server.preview.PreviewStorage.setPreview(player, true);
-
-        String cityId = "player_" + player.getName().getString() + "_world_" + serverWorld.getRegistryKey().getValue();
-        com.formacraft.server.state.PlayerSpecRepository.setCitySpec(player, cityId, JsonUtil.toJson(citySpec));
-
-        String cityName = citySpec.getCityName() != null ? citySpec.getCityName() : "Unnamed";
-        player.sendMessage(net.minecraft.text.Text.literal(
-                String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.", cityName)
-        ), false);
-        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                String.format("City '%s' preview ready. Use /forma_confirm to build or /forma_cancel to cancel.", cityName)
-        ));
-        hbAlive.set(false);
     }
 
     private static void enrichRequestFromPlayer(FormaRequest req, ServerPlayerEntity player) {

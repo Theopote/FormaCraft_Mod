@@ -1248,7 +1248,8 @@ public class ChatPanel extends BasePanel {
                 tl.contains("预览已就绪") ||
                 tl.contains("预览就绪") ||
                 tl.contains("预览准备完成") ||
-                tl.contains("已准备好预览");
+                tl.contains("已准备好预览") ||
+                tl.contains("本次生成");
 
         // 复合/城市预览：弹出简单确认 UI（两按钮），避免用户记命令
         boolean isCompositeOrCityPreviewReady =
