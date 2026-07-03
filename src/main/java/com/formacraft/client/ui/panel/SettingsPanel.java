@@ -88,6 +88,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     // 原版风格控件（参考 Pushdozer：ButtonWidget / SliderWidget）
     private ButtonWidget showHideButton;
     private ButtonWidget pasteButton;
+    private ButtonWidget testKeyButton;
     private ButtonWidget saveButton;
     private ButtonWidget cancelButton;
     private ButtonWidget resetButton;
@@ -129,6 +130,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             .connectTimeout(Duration.ofSeconds(2))
             .build();
     private volatile boolean detectingModel = false;
+    private volatile boolean validatingKey = false;
 
     private record DetectResponse(int status, String body) {
     }
@@ -276,6 +278,10 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.paste")), (int) mouseX, (int) mouseY);
             return true;
         }
+        if (testKeyButton != null && testKeyButton.isMouseOver(mouseX, mouseY)) {
+            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.literal("校验当前 API Key（provider/base URL 组合）")), (int) mouseX, (int) mouseY);
+            return true;
+        }
         if (temperatureSlider != null && temperatureSlider.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.temperature")), (int) mouseX, (int) mouseY);
             return true;
@@ -384,6 +390,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 .dimensions(0, 0, PASTE_BUTTON_WIDTH, INPUT_HEIGHT)
                 .tooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.paste")))
                 .build();
+
+        testKeyButton = ButtonWidget.builder(Text.literal("校验 Key"), b -> startValidateKey())
+            .dimensions(0, 0, PASTE_BUTTON_WIDTH, INPUT_HEIGHT)
+            .tooltip(Tooltip.of(Text.literal("调用后端 /models 快速校验当前 Key 是否可用")))
+            .build();
 
         // Model list refresh (calls /models)
         detectModelButton = ButtonWidget.builder(getDetectModelButtonText(), b -> startDetectModel())
@@ -837,6 +848,96 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         }));
     }
 
+    private void startValidateKey() {
+        if (validatingKey) return;
+        validatingKey = true;
+        if (testKeyButton != null) {
+            testKeyButton.setMessage(Text.literal("校验中..."));
+            testKeyButton.active = false;
+        }
+
+        String base = sanitizeEndpoint(orchestratorInput.getText());
+        String url = base.endsWith("/models") ? base : (base + "/models");
+        String apiKey = apiKeyInput.getText() != null ? apiKeyInput.getText().trim() : "";
+        String provider = (draftLlmProvider == null) ? "" : draftLlmProvider.trim();
+        String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
+        String llmBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
+
+        if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
+            validatingKey = false;
+            showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
+            if (testKeyButton != null) {
+                testKeyButton.setMessage(Text.literal("校验 Key"));
+                testKeyButton.active = true;
+            }
+            return;
+        }
+
+        String finalUrl = url;
+        try {
+            if (llmBaseUrl != null && (!provider.isBlank() || !llmBaseUrl.isBlank())) {
+                StringBuilder q = new StringBuilder();
+                if (!provider.isBlank()) {
+                    q.append("provider=").append(URLEncoder.encode(provider, StandardCharsets.UTF_8));
+                }
+                if (!llmBaseUrl.isBlank()) {
+                    if (!q.isEmpty()) q.append('&');
+                    q.append("base_url=").append(URLEncoder.encode(llmBaseUrl, StandardCharsets.UTF_8));
+                }
+                finalUrl = url + "?" + q;
+            }
+        } catch (Exception e) {
+            LOG.debug("build validate key URL failed", e);
+        }
+
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpRequest.Builder b = HttpRequest.newBuilder()
+                        .uri(URI.create(finalUrl))
+                        .timeout(Duration.ofSeconds(10))
+                        .header("Accept", "application/json")
+                        .GET();
+
+                if (!apiKey.isBlank()) {
+                    b.header("Authorization", "Bearer " + apiKey);
+                }
+
+                HttpResponse<String> resp = httpClient.send(b.build(), HttpResponse.BodyHandlers.ofString());
+                return new DetectResponse(resp.statusCode(), resp.body());
+            } catch (Exception e) {
+                return new DetectResponse(-1, e.toString());
+            }
+        }).thenAccept(resp -> client.execute(() -> {
+            validatingKey = false;
+            if (testKeyButton != null) {
+                testKeyButton.setMessage(Text.literal("校验 Key"));
+                testKeyButton.active = true;
+            }
+
+            if (resp == null) {
+                showToast("校验失败：未知错误（resp=null）", true);
+                return;
+            }
+
+            if (resp.status < 0) {
+                showToast("校验失败：请求异常 " + SettingsModelCatalog.shortErr(resp.body), true);
+                return;
+            }
+
+            if (resp.status >= 200 && resp.status < 300) {
+                showToast("Key 校验通过（" + provider + "）", false);
+                return;
+            }
+
+            if (resp.status == 401 || resp.status == 403) {
+                showToast("Key 无效/未授权（" + resp.status + "）：请检查 Provider 与 Key 是否匹配", true);
+                return;
+            }
+
+            showToast("校验失败：" + resp.status + " " + SettingsModelCatalog.shortErr(resp.body), true);
+        }));
+    }
+
     private void toggleHideKey() {
         hideKey = !hideKey;
         apiKeyInput.setPasswordMode(hideKey && !apiKeyInput.isFocused());
@@ -1120,6 +1221,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public ButtonWidget pasteButton() {
         return pasteButton;
+    }
+
+    @Override
+    public ButtonWidget testKeyButton() {
+        return testKeyButton;
     }
 
     @Override

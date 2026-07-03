@@ -120,13 +120,14 @@ public final class SettingsInputController {
         int apiY = apiLabelY + LABEL_OFFSET;
         int apiBtnY = apiLabelY + LABEL_OFFSET * 2;
         int gap = BUTTON_GAP_SMALL;
-        int apiBtnW1 = (w - gap) / 2;
-        int apiBtnW2 = Math.max(0, w - gap - apiBtnW1);
-        int pasteX = x + apiBtnW1 + gap;
+        int apiBtnW = Math.max(0, (w - gap * 2) / 3);
+        int apiBtnW3 = Math.max(0, w - apiBtnW * 2 - gap * 2);
+        int pasteX = x + apiBtnW + gap;
+        int testX = x + apiBtnW * 2 + gap * 2;
 
         // Show/Hide（原版按钮）
         host.showHideButton().setPosition(x, apiBtnY);
-        host.showHideButton().setWidth(apiBtnW1);
+        host.showHideButton().setWidth(apiBtnW);
         if (host.showHideButton().mouseClicked(click, false)) {
             host.modelInput().setFocused(false);
             host.setModelDropdownOpen(false);
@@ -136,8 +137,18 @@ public final class SettingsInputController {
 
         // Paste（原版按钮）
         host.pasteButton().setPosition(pasteX, apiBtnY);
-        host.pasteButton().setWidth(apiBtnW2);
+        host.pasteButton().setWidth(apiBtnW);
         if (host.pasteButton().mouseClicked(click, false)) {
+            host.modelInput().setFocused(false);
+            host.setModelDropdownOpen(false);
+            host.hideModelOptionButtons();
+            return true;
+        }
+
+        // Test Key（即时鉴权）
+        host.testKeyButton().setPosition(testX, apiBtnY);
+        host.testKeyButton().setWidth(apiBtnW3);
+        if (host.testKeyButton().mouseClicked(click, false)) {
             host.modelInput().setFocused(false);
             host.setModelDropdownOpen(false);
             host.hideModelOptionButtons();
@@ -453,7 +464,7 @@ public final class SettingsInputController {
 
         // LLM Base URL：仅“自定义”时允许在输入框上滚动（水平滚动查看被截断内容）
         y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Provider 区块起点
-        y += FIELD_SPACING;                // 跳过 Provider（label+button）
+        y += FIELD_SPACING + LABEL_OFFSET; // 跳过 Provider（label+button）
         SettingsBaseUrlPresets.Preset p = host.selectedBaseUrlPreset();
         if (p != null && p.url() == null) {
             int baseUrlY = y + LABEL_OFFSET * 2; // BaseURL 第三行

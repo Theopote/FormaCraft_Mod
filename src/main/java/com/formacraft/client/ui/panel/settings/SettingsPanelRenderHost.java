@@ -42,6 +42,8 @@ public interface SettingsPanelRenderHost {
 
     ButtonWidget pasteButton();
 
+    ButtonWidget testKeyButton();
+
     ButtonWidget detectModelButton();
 
     ButtonWidget autoModelButton();

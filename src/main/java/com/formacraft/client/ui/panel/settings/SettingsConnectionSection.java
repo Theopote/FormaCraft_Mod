@@ -30,18 +30,23 @@ public final class SettingsConnectionSection {
         host.apiKeyInput().render(ctx, x, inputY, w, INPUT_HEIGHT);
         int btnY = y + LABEL_OFFSET * 2;
         int gap = BUTTON_GAP_SMALL;
-        int btnW1 = (w - gap) / 2;
-        int btnW2 = Math.max(0, w - gap - btnW1);
+        int btnW = Math.max(0, (w - gap * 2) / 3);
+        int btnW3 = Math.max(0, w - btnW * 2 - gap * 2);
         host.showHideButton().setPosition(x, btnY);
-        host.showHideButton().setWidth(btnW1);
+        host.showHideButton().setWidth(btnW);
         host.showHideButton().visible = true;
         host.showHideButton().active = true;
         host.showHideButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        host.pasteButton().setPosition(x + btnW1 + gap, btnY);
-        host.pasteButton().setWidth(btnW2);
+        host.pasteButton().setPosition(x + btnW + gap, btnY);
+        host.pasteButton().setWidth(btnW);
         host.pasteButton().visible = true;
         host.pasteButton().active = true;
         host.pasteButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
+        host.testKeyButton().setPosition(x + btnW * 2 + gap * 2, btnY);
+        host.testKeyButton().setWidth(btnW3);
+        host.testKeyButton().visible = true;
+        host.testKeyButton().active = true;
+        host.testKeyButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
         y += FIELD_SPACING + LABEL_OFFSET;
 
         drawSmallLabel(client, ctx, Text.literal("LLM Provider"), x, y);
