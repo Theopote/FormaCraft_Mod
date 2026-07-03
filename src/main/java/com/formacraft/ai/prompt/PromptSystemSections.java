@@ -40,6 +40,12 @@ STYLE ANALYSIS (IMPORTANT):
 - Be creative and specific: "red brick walls" → wall_color: "red", wall_material: "brick"
 - For traditional styles, include characteristic decorative elements
 
+FACADE DETAIL (params on MASS_* components — use to avoid flat "box + grid window" walls):
+- facade_profile: adds relief. modern/office → "mullion_grid"; gothic/classical/civic → "vertical_pilasters"; heavy stone bases → "base_plinth".
+- wall_pattern: material rhythm. "gradient" (heavier base, lighter top) or "striped" for banded masonry; leave "none" unless it suits the style.
+- facade_cutout: carves openings/tracery into solid walls. "rose" for gothic rose windows, "arches" for arcades, "lattice"/"diagrid" for screens. Use sparingly on feature walls.
+- detail_level: "high" enables richer assembly facades on large gothic/classical/modern/industrial masses; "low" keeps it simple.
+
 If mode = "patch":
 - Only modify components inside the allowed area.
 - Do NOT affect protected or forbidden zones.
@@ -165,6 +171,11 @@ ComponentParamsObject:
   "setback_ratio": 0.0-1.0,
   "floor_height": int,
   "floor_count": int,
+  "facade_profile": "none|base_plinth|vertical_pilasters|mullion_grid|module_grid",
+  "wall_pattern": "none|gradient|striped|random",
+  "facade_cutout": "none|lattice|diagrid|checker|rose|arches",
+  "assembly_facade": true|false,
+  "detail_level": "low|medium|high",
   "masses": [
     { "offset": { "x": int, "y": int, "z": int }, "dimensions": { "width": int, "depth": int, "height": int }, "shape": "rectangle|circle|rounded_rect" }
   ]

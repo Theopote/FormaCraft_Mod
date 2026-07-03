@@ -1,11 +1,13 @@
 package com.formacraft.common.llm.converter;
 
+import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.geometry.*;
 import com.formacraft.common.geometry.boolean_.FloorCourtyardBooleanProcessor;
 import com.formacraft.common.geometry.boolean_.RoofPlateGenerator;
 import com.formacraft.common.llm.dto.PlanSkeleton;
 import com.formacraft.common.llm.dto.StructuralSkeleton;
 import com.formacraft.common.llm.dto.structural.*;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.*;
 
@@ -80,12 +82,20 @@ public final class PlanSkeletonToStructuralSkeletonConverter {
      * @return StructuralSkeleton（3D 结构骨架）
      */
     public static StructuralSkeleton convert(PlanSkeleton planSkeleton) {
+        return convert(planSkeleton, null);
+    }
+
+    /**
+     * C1：带 outline 的转换。当提供了用户/系统的 {@link OutlineShape} 时，从其真实几何生成
+     * 多边形楼板，替代早期写死的 10×10 矩形；未提供时保持原默认行为。
+     */
+    public static StructuralSkeleton convert(PlanSkeleton planSkeleton, OutlineShape outline) {
         if (planSkeleton == null) {
             throw new IllegalArgumentException("PlanSkeleton cannot be null");
         }
 
-        // 1. 生成 floor plate（从 outline 推断，v1 简化：使用默认矩形）
-        StructuralSkeleton.FloorPlate floorPlate = generateFloorPlate(planSkeleton);
+        // 1. 生成 floor plate（优先用 outline 真实多边形，否则回退默认矩形）
+        StructuralSkeleton.FloorPlate floorPlate = generateFloorPlate(planSkeleton, outline);
 
         // 2. 生成 courtyard voids（从 courtyards）
         List<StructuralSkeleton.CourtyardVoid> courtyards = generateCourtyardVoids(planSkeleton);
@@ -125,13 +135,12 @@ public final class PlanSkeletonToStructuralSkeletonConverter {
      * v1 简化：如果 outline 没有具体几何信息，使用默认矩形
      * 未来：可以从 outline 的几何数据生成 polygon
      */
-    private static StructuralSkeleton.FloorPlate generateFloorPlate(PlanSkeleton planSkeleton) {
-        // v1 简化：使用默认矩形（10x10，中心在原点）
-        // 未来：从 outline 或 zones 的实际几何数据生成 polygon
-        Polygon2D footprint = Polygon2D.rectangle(
-                new Vec2(-5, -5),
-                new Vec2(5, 5)
-        );
+    private static StructuralSkeleton.FloorPlate generateFloorPlate(PlanSkeleton planSkeleton, OutlineShape outline) {
+        // C1：优先从 outline 真实几何生成多边形楼板；无 outline 时回退默认 10×10 矩形。
+        Polygon2D footprint = polygonFromOutline(outline);
+        if (footprint == null || footprint.vertexCount() < 3) {
+            footprint = Polygon2D.rectangle(new Vec2(-5, -5), new Vec2(5, 5));
+        }
 
         return new StructuralSkeleton.FloorPlate(
                 footprint,
@@ -139,6 +148,42 @@ public final class PlanSkeletonToStructuralSkeletonConverter {
                 DEFAULT_FLOOR_THICKNESS,
                 GroundingMode.FLAT
         );
+    }
+
+    /**
+     * 从 {@link OutlineShape} 构造原点居中的 {@link Polygon2D}（世界 XZ → 以质心为原点的平面局部坐标）。
+     * 支持多边形顶点与圆（用规则多边形近似）。无法构造时返回 null 由调用方回退。
+     */
+    private static Polygon2D polygonFromOutline(OutlineShape outline) {
+        if (outline == null) {
+            return null;
+        }
+        List<BlockPos> verts = outline.vertices();
+        if (verts != null && verts.size() >= 3) {
+            double cx = 0, cz = 0;
+            for (BlockPos p : verts) {
+                cx += p.getX() + 0.5;
+                cz += p.getZ() + 0.5;
+            }
+            cx /= verts.size();
+            cz /= verts.size();
+            List<Vec2> pts = new ArrayList<>(verts.size());
+            for (BlockPos p : verts) {
+                pts.add(new Vec2((p.getX() + 0.5) - cx, (p.getZ() + 0.5) - cz));
+            }
+            return new Polygon2D(pts);
+        }
+        if ("circle".equalsIgnoreCase(outline.shapeType()) && outline.radius() > 0) {
+            int r = outline.radius();
+            int seg = Math.max(8, Math.min(48, r * 2));
+            List<Vec2> pts = new ArrayList<>(seg);
+            for (int i = 0; i < seg; i++) {
+                double a = (2.0 * Math.PI * i) / seg;
+                pts.add(new Vec2(Math.cos(a) * r, Math.sin(a) * r));
+            }
+            return new Polygon2D(pts);
+        }
+        return null;
     }
 
     /**

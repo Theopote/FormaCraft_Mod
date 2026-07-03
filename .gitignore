@@ -1,7 +1,9 @@
 # gradle
 
 .gradle/
-build/
+# Anchor to the Gradle output dir only, so a future source package named
+# .../server/build/ is not accidentally ignored (see blueprint Track C housekeeping).
+/build/
 out/
 classes/
 

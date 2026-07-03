@@ -58,6 +58,16 @@ _LLMPLAN_MODEL_OVERRIDE = (os.getenv("LLMPLAN_MODEL") or "").strip()
 # 已知不支持严格 json_schema 的 provider：auto 模式下直接走 json_object，避免必失的首次尝试
 _NON_JSON_SCHEMA_PROVIDERS = {"deepseek", "ollama", "lmstudio"}
 
+# ---- Track B 输入理解与多步规划 开关 ----
+# B1 意图解析/扩写（规则版，零额外网络延迟）：on（默认）| off
+_LLMPLAN_INTENT_ENRICH = (os.getenv("LLMPLAN_INTENT_ENRICH") or "on").strip().lower() != "off"
+# B3 在 LlmPlan 路径注入 chatHistory（当前主路径未注入）：on（默认）| off
+_LLMPLAN_INJECT_CHAT_HISTORY = (os.getenv("LLMPLAN_CHAT_HISTORY") or "on").strip().lower() != "off"
+# B3 在 LlmPlan 路径注入文化 RAG（本地检索，非网络）：on（默认）| off
+_LLMPLAN_INJECT_CULTURE_RAG = (os.getenv("LLMPLAN_CULTURE_RAG") or "on").strip().lower() != "off"
+# B2 两阶段生成（先体量后细节）：默认 off（会增加一次 LLM 调用/延迟；失败自动回退单阶段）
+_LLMPLAN_TWO_STAGE = (os.getenv("LLMPLAN_TWO_STAGE") or "off").strip().lower() == "on"
+
 
 def _int_env(name: str, default: int) -> int:
     try:
@@ -4256,6 +4266,137 @@ def _generate_fallback_composite_spec(req: BuildRequest) -> CompositeSpec:
     return _ensure_genome_for_composite_spec(spec, req)
 
 
+def _derive_structured_intent(text: str) -> str:
+    """
+    B1 意图解析/扩写（规则版）：从（可能稀疏的）用户输入里抽取用途/规模/风格/材质，
+    产出一段"结构化意图"软引导，附加到 user prompt 前。纯规则、零额外网络/LLM 调用，
+    不阻断体验；解析不到的项让模型用"合理默认"补齐。
+    """
+    t = (text or "").lower()
+    if not t.strip():
+        return ""
+
+    def _first(mapping):
+        for label, keys in mapping.items():
+            for k in keys:
+                if k in t:
+                    return label
+        return None
+
+    purpose = _first({
+        "residential house": ["house", "home", "住宅", "房子", "民居", "villa", "别墅"],
+        "tower": ["tower", "塔", "spire"],
+        "temple / religious": ["temple", "church", "cathedral", "shrine", "寺", "庙", "教堂", "殿"],
+        "castle / fortress": ["castle", "fortress", "城堡", "要塞", "堡垒"],
+        "bridge": ["bridge", "桥"],
+        "wall / fortification": ["wall", "城墙", "长城", "围墙"],
+        "commercial / shop": ["shop", "store", "mall", "商", "店铺", "商场"],
+        "civic / public": ["hall", "museum", "library", "station", "馆", "厅", "站"],
+        "pavilion / garden": ["pavilion", "亭", "阁", "园林", "garden"],
+    })
+    style = _first({
+        "Chinese traditional": ["中式", "中国", "古建", "chinese", "hui", "徽", "jiangnan", "江南", "imperial", "宫"],
+        "Gothic": ["哥特", "gothic", "cathedral"],
+        "Modern": ["现代", "modern", "minimal", "curtain wall", "玻璃幕墙"],
+        "Classical / European": ["欧式", "古典", "classical", "roman", "greek", "column", "柱"],
+        "Rustic / medieval": ["中世纪", "medieval", "rustic", "乡村", "木屋"],
+        "Industrial": ["工业", "industrial", "factory", "厂"],
+        "Futuristic": ["未来", "futuristic", "sci-fi", "赛博"],
+    })
+    materials = []
+    for label, keys in {
+        "wood": ["wood", "木", "timber"],
+        "stone/brick": ["stone", "石", "brick", "砖"],
+        "glass": ["glass", "玻璃"],
+        "concrete": ["concrete", "混凝土"],
+        "metal": ["metal", "steel", "钢", "iron", "铁"],
+    }.items():
+        if any(k in t for k in keys):
+            materials.append(label)
+    scale = _first({
+        "large / monumental": ["huge", "massive", "巨", "宏大", "大型", "grand", "monumental", "tall", "高耸"],
+        "small / compact": ["small", "tiny", "小", "compact", "cozy", "袖珍"],
+    }) or "medium"
+
+    lines = ["[STRUCTURED INTENT] (auto-derived hint; the user's own text takes priority)"]
+    if purpose:
+        lines.append(f"- purpose: {purpose}")
+    lines.append(f"- scale: {scale}")
+    if style:
+        lines.append(f"- style: {style}")
+    if materials:
+        lines.append(f"- materials: {', '.join(materials)}")
+    lines.append("- completeness: fill reasonable defaults for anything unspecified; ensure the "
+                 "building has an entrance/doors, appropriately sized windows, sane proportions, "
+                 "and style-consistent materials.")
+    return "\n".join(lines)
+
+
+def _llm_plan_context_block(req: BuildRequest) -> str:
+    """
+    B3：为 LlmPlan 主路径补齐上下文（chatHistory + 本地文化 RAG），
+    与 BuildingSpec 路径保持一致。全部为本地操作，不引入网络延迟。
+    """
+    parts: list[str] = []
+
+    if _LLMPLAN_INJECT_CHAT_HISTORY and getattr(req, "chatHistory", None):
+        parts.append("Chat History (recent turns, oldest first):")
+        for msg in req.chatHistory[-8:]:
+            parts.append(f"  {msg}")
+
+    if _LLMPLAN_INJECT_CULTURE_RAG:
+        try:
+            from app.services.keyword_culture_retriever import retrieve_budgeted as _culture_retrieve
+            qtext = (req.requestText or "") + "\n" + (getattr(req, "userMessage", None) or "")
+            rag = _culture_retrieve(qtext, **_resolve_rag_budget(req))
+            if rag:
+                assembly_draft = rag.get("assemblyDraft")
+                if assembly_draft:
+                    parts.append("\nAssemblyDraft(JSON):")
+                    parts.append(json.dumps(assembly_draft, ensure_ascii=False, indent=2))
+                if rag.get("fewShots") or rag.get("hits"):
+                    parts.append("\nCultureRetrieval(JSON):")
+                    parts.append(json.dumps(
+                        {"hits": rag.get("hits", []), "fewShots": rag.get("fewShots", [])},
+                        ensure_ascii=False, indent=2))
+        except Exception:
+            pass
+
+    return "\n".join(parts).strip()
+
+
+def _llm_plan_massing_prepass(client, model, system_prompt, user_prompt, req, timeout_sec):
+    """
+    B2 两阶段生成 —— 阶段1：只产出"体量/布局/风格骨架"的紧凑 JSON，用于约束阶段2的细化，
+    降低单次超长 prompt 的任务过载。任何失败都返回 None 由调用方回退单阶段。
+    """
+    try:
+        instr = (
+            "You are MASSING a building BEFORE detailing it. Output a SHORT JSON object with keys: "
+            "\"massing\" (overall form, number of floors, rough width/depth/height, any wings/setbacks), "
+            "\"style\" (style family + a few defining features), and "
+            "\"materials\" (wall / roof / accent). "
+            "Do NOT output components, slots, or block ids yet. Keep it concise (< 40 lines)."
+        )
+        messages = [{"role": "system", "content": instr},
+                    {"role": "user", "content": user_prompt}]
+        response, _label = call_chat_with_llm_plan_response_formats(
+            client,
+            model=model,
+            messages=messages,
+            temperature=_clamp_temperature(getattr(req, "temperature", None), 0.4),
+            call_with_timeout=_call_with_timeout,
+            timeout_sec=timeout_sec,
+            prefer_json_object=True,
+        )
+        content = response.choices[0].message.content
+        if content and content.strip():
+            return content.strip()
+    except Exception as e:
+        logger.warning("LlmPlan two-stage massing pre-pass failed, falling back to single stage: %s", e)
+    return None
+
+
 def generate_llm_plan(req: BuildRequest) -> dict:
     """
     处理 LlmPlan 格式的请求（Java 端的新格式）
@@ -4325,6 +4466,23 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             logger.warning(f"Failed to get architecture reference: {e}")
         search_ms = (time.monotonic() - _t_search) * 1000.0
 
+    # ========== Track B：意图扩写(B1) + 上下文注入(B3) ==========
+    # 均为本地操作（规则/本地检索），不引入网络延迟。
+    if _LLMPLAN_INTENT_ENRICH:
+        try:
+            intent_src = (getattr(req, "userMessage", None) or "") or user_prompt
+            intent_block = _derive_structured_intent(intent_src)
+            if intent_block:
+                user_prompt = intent_block + "\n\n" + user_prompt
+        except Exception as e:
+            logger.warning("LlmPlan intent enrich skipped: %s", e)
+    try:
+        context_block = _llm_plan_context_block(req)
+        if context_block:
+            user_prompt = context_block + "\n\n" + user_prompt
+    except Exception as e:
+        logger.warning("LlmPlan context injection skipped: %s", e)
+
     llm_ms = 0.0
     normalize_ms = 0.0
     try:
@@ -4333,7 +4491,14 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             logger.info("LlmPlan: overriding model %s -> %s (LLMPLAN_MODEL)", model, _LLMPLAN_MODEL_OVERRIDE)
             model = _LLMPLAN_MODEL_OVERRIDE
         timeout_sec = _resolve_timeout_sec_for_task("llmplan", req, model)
-        
+
+        # B2 两阶段：先做体量骨架预跑，再把骨架作为约束注入细化阶段（默认关闭）。
+        if _LLMPLAN_TWO_STAGE:
+            skeleton = _llm_plan_massing_prepass(client, model, system_prompt, user_prompt, req, timeout_sec)
+            if skeleton:
+                user_prompt = ("[MASSING SKELETON — refine this into a full LlmPlan; stay consistent "
+                               "with the massing/style/materials below]\n" + skeleton + "\n\n" + user_prompt)
+
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})

@@ -517,6 +517,19 @@ public class HouseGenerator implements StructureGenerator {
             wallToUse = PaletteResolver.pick(ctx.world(), ctx.paletteId(), "WALL_BASE", pos, salt, wallToUse);
         }
 
+        // Style-profile wall variants (A1): deterministic per-cell material variety when the style
+        // supplies wallVariants and no pattern/palette override already changed this cell.
+        if (wallToUse == ctx.materials().wall()
+                && ctx.profile() != null && ctx.profile().palette() != null
+                && ctx.profile().palette().wallVariants != null
+                && !ctx.profile().palette().wallVariants.isEmpty()) {
+            long vseed = (x * 0x1000193L) ^ (z * 0x100000001B3L) ^ (y * 0x9E3779B1L);
+            String pickedWallId = ctx.profile().palette().pickWall(vseed);
+            if (pickedWallId != null && !pickedWallId.isBlank()) {
+                wallToUse = HouseMaterialResolver.getStateOrDefault(ctx.world(), pickedWallId, wallToUse);
+            }
+        }
+
         // Facade composition hint
         String facadeProfile = null;
         try {

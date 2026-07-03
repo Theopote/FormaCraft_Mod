@@ -837,7 +837,42 @@ public final class ComponentPlanCompiler {
         if (override != null) {
             return override;
         }
-        return false;
+
+        // A4：默认按"风格族 + 规模 + 质量档"开启 Assembly 立面（复用已建成的宏观立面路径）。
+        // 显式参数（上面）可强制开/关；细节/质量档为 low 时保持简单路径。
+        String detail = getParamString(params, "detail_level", "detailLevel", "quality", "quality_level");
+        if (detail != null && detail.trim().toLowerCase(Locale.ROOT).contains("low")) {
+            return false;
+        }
+        Dimensions d = c.dimensions();
+        boolean largeEnough = Math.min(d.width(), d.depth()) >= 6 && d.height() >= 8;
+        if (!largeEnough) {
+            return false;
+        }
+        return isMacroFacadeStyle(plan, c);
+    }
+
+    /**
+     * A4：判断构件是否属于"宏观立面可表达"的风格族（哥特/古典/现代/工业）。
+     * 中式/亚洲传统走各自的屋顶+立面推断路径，这里排除以免与其冲突。
+     */
+    private static boolean isMacroFacadeStyle(LlmPlan plan, Component c) {
+        StringBuilder merged = new StringBuilder(
+                (plan != null && plan.styleProfile() != null) ? plan.styleProfile() : "");
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null) merged.append(' ').append(f);
+            }
+        }
+        String hint = merged.toString().toUpperCase(Locale.ROOT);
+        if (hint.contains("CHINESE") || hint.contains("HUI") || hint.contains("JIANGNAN")
+                || hint.contains("ASIAN") || hint.contains("中式")) {
+            return false;
+        }
+        return hint.contains("GOTHIC") || hint.contains("CATHEDRAL")
+                || hint.contains("MODERN") || hint.contains("INDUSTRIAL")
+                || hint.contains("CLASSICAL") || hint.contains("CLASSIC")
+                || hint.contains("COLONNADE") || hint.contains("COLUMN");
     }
 
     private static List<BlockPatch> generateAssemblyFacadePatches(

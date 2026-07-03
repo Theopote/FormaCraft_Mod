@@ -55,6 +55,23 @@ public class MassMainGenerator implements ComponentGenerator {
         }
     }
 
+    /**
+     * A2: resolved facade styling for the Component main path. {@code pattern} is a height-based
+     * wall pattern (gradient/striped/random); {@code profile} is an exterior composition profile
+     * (base_plinth/vertical_pilasters/mullion_grid/module_grid). Inactive when both are blank.
+     */
+    private record FacadeStyle(String profile, String pattern, String cutout) {
+        boolean isActive() {
+            return (profile != null && !profile.isBlank())
+                    || (pattern != null && !pattern.isBlank())
+                    || (cutout != null && !cutout.isBlank());
+        }
+
+        boolean hasCutout() {
+            return cutout != null && !cutout.isBlank();
+        }
+    }
+
     private static final class MassConfig {
         private final int offsetX;
         private final int offsetY;
@@ -263,9 +280,13 @@ public class MassMainGenerator implements ComponentGenerator {
                         ? semantic.slot().facing()
                         : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
 
+        // A2: resolve facade styling (param-first, with a conservative style-derived default).
+        FacadeStyle facadeStyle = resolveFacadeStyle(params, semantic, styleProfile);
+
         for (MassConfig mass : massConfigs) {
             emitMass(out, semantic, palette, rp, mass, hasInterior, hasWindows, hasDoors, hasRoof, hasDecor,
-                    hasSteppedFacade, windowSpacing, doorFacing, wallThickness, userFloorHeight, setbackRatioOverride);
+                    hasSteppedFacade, windowSpacing, doorFacing, wallThickness, userFloorHeight, setbackRatioOverride,
+                    facadeStyle);
         }
 
         return out;
@@ -300,11 +321,17 @@ public class MassMainGenerator implements ComponentGenerator {
             com.formacraft.common.llm.dto.GlobalConstraints.Facing doorFacing,
             int wallThickness,
             int userFloorHeight,
-            Double setbackRatioOverride
+            Double setbackRatioOverride,
+            FacadeStyle facadeStyle
     ) {
         int width = mass.width;
         int depth = mass.depth;
         int height = mass.height;
+
+        // A2: resolve trim/foundation ids once per mass for facade styling (cheap, cell-independent).
+        boolean styleActive = facadeStyle != null && facadeStyle.isActive();
+        String facadeTrimId = styleActive ? getBlockForPart(SemanticPart.WALL_ACCENT, semantic, palette) : null;
+        String facadeFoundationId = styleActive ? getBlockForPart(SemanticPart.WALL_BASE, semantic, palette) : null;
 
         int[] layerWidths = new int[height];
         int[] layerDepths = new int[height];
@@ -466,6 +493,42 @@ public class MassMainGenerator implements ComponentGenerator {
                     SemanticPart part = determinePart(y, height, width, depth, localX, localZ,
                             mass.shape, mass.cornerRadius, mass.pattern);
                     String block = getBlockForPart(part, semantic, palette);
+
+                    // A2/A4: apply facade rhythm + optional cutout to solid wall cells only
+                    // (windows/doors/roof already handled and skipped above).
+                    if (styleActive && (part == SemanticPart.WALL || part == SemanticPart.WALL_BASE)) {
+                        boolean isExterior = isExteriorWallPosition(localX, localZ, width, depth,
+                                mass.shape, mass.cornerRadius, mass.pattern);
+                        boolean isEdgeZ = (localZ == 0 || localZ == depth - 1);
+
+                        // A2: material rhythm (gradient/striped) + composition profile (plinth/pilasters/…).
+                        String styled = com.formacraft.common.generation.component.util.ComponentFacadeStyler
+                                .applyWallPattern(block, facadeTrimId, facadeFoundationId,
+                                        facadeStyle.pattern(), y, height);
+                        styled = com.formacraft.common.generation.component.util.ComponentFacadeStyler
+                                .applyFacadeProfile(styled, block, facadeTrimId, facadeFoundationId,
+                                        facadeStyle.profile(), isExterior, isEdgeZ,
+                                        localX, y, localZ, width, depth, userFloorHeight);
+                        if (styled != null && !styled.isEmpty()) {
+                            block = styled;
+                        }
+
+                        // A4: perforation / tracery on exterior body walls (opt-in via param).
+                        if (facadeStyle.hasCutout() && isExterior && part == SemanticPart.WALL
+                                && !isCornerPosition(localX, localZ, width, depth,
+                                        mass.shape, mass.cornerRadius, mass.pattern)) {
+                            int u = isEdgeZ ? localX : localZ;
+                            int uSize = isEdgeZ ? width : depth;
+                            var cell = com.formacraft.common.generation.component.util.FacadePatternDsl
+                                    .cellAt(facadeStyle.cutout(), u, y, uSize, height);
+                            if (cell == com.formacraft.common.generation.component.util.FacadePatternDsl.Cell.AIR) {
+                                block = "minecraft:air";
+                            } else if (cell == com.formacraft.common.generation.component.util.FacadePatternDsl.Cell.FRAME
+                                    && facadeTrimId != null && !facadeTrimId.isBlank()) {
+                                block = facadeTrimId;
+                            }
+                        }
+                    }
 
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
@@ -1136,6 +1199,44 @@ public class MassMainGenerator implements ComponentGenerator {
 
     private String resolveRoofType(Map<String, Object> params, SemanticComponent semantic) {
         return getParamString(params, "roof_type", "roofType");
+    }
+
+    /**
+     * A2: resolve facade styling. Priority: explicit params &gt; feature hints &gt; conservative
+     * style-derived default. Wall patterns (material noise) stay opt-in via params; only the
+     * exterior composition profile gets a subtle default so styled builds gain relief without
+     * randomizing materials.
+     */
+    private FacadeStyle resolveFacadeStyle(Map<String, Object> params, SemanticComponent semantic, String styleProfile) {
+        String profile = getParamString(params, "facade_profile", "facadeProfile", "facade");
+        String pattern = getParamString(params, "wall_pattern", "wallPattern", "material_pattern", "materialPattern");
+        // A4: opt-in wall perforation / tracery pattern (carve air + decorative frames).
+        String cutout = getParamString(params, "facade_cutout", "cutout_pattern", "cutoutPattern",
+                "perforation", "wall_cutout", "tracery");
+
+        // Feature-derived profile (only when not explicitly set).
+        if (profile == null && semantic != null && semantic.source() != null) {
+            Component c = semantic.source();
+            if (hasFeature(c, "pilaster", "pilasters", "buttress", "buttresses", "vertical_ribs", "ribs")) {
+                profile = "vertical_pilasters";
+            } else if (hasFeature(c, "mullion", "mullions", "curtain_wall", "glass_curtain", "grid_facade")) {
+                profile = "mullion_grid";
+            } else if (hasFeature(c, "base_plinth", "plinth", "podium", "stylobate")) {
+                profile = "base_plinth";
+            }
+        }
+
+        // Conservative style-derived default (profile only).
+        if (profile == null && styleProfile != null) {
+            String up = styleProfile.toUpperCase(Locale.ROOT);
+            if (up.contains("MODERN") || up.contains("FUTURISTIC")) {
+                profile = "mullion_grid";
+            } else if (up.contains("GOTHIC") || up.contains("MEDIEVAL") || up.contains("CATHEDRAL") || up.contains("CHURCH")) {
+                profile = "vertical_pilasters";
+            }
+        }
+
+        return new FacadeStyle(profile, pattern, cutout);
     }
 
     private boolean shouldEnableSteppedFacade(SemanticComponent semantic) {

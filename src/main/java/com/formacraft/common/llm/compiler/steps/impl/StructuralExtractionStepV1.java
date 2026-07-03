@@ -19,7 +19,8 @@ public class StructuralExtractionStepV1 implements StructuralExtractionStep {
             return null;
         }
 
-        // 使用已有的转换器
-        return PlanSkeletonToStructuralSkeletonConverter.convert(planSkeleton);
+        // 使用已有的转换器；C1：若上下文带 outline，则据其生成真实多边形楼板。
+        return PlanSkeletonToStructuralSkeletonConverter.convert(
+                planSkeleton, context != null ? context.outline : null);
     }
 }

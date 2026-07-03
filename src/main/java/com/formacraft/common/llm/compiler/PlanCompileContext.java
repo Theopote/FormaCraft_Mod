@@ -32,6 +32,9 @@ public class PlanCompileContext {
     /** 默认地板厚度 */
     public final double defaultFloorThickness;
 
+    /** C1：可选的用户/系统轮廓（用于生成真实多边形楼板）。可为 null。 */
+    public final com.formacraft.common.buildcontext.OutlineShape outline;
+
     public PlanCompileContext(
             TerrainContext terrain,
             HeightStrategy heightStrategy,
@@ -39,11 +42,31 @@ public class PlanCompileContext {
             double defaultWallHeight,
             double defaultFloorThickness
     ) {
+        this(terrain, heightStrategy, roofStrategy, defaultWallHeight, defaultFloorThickness, null);
+    }
+
+    public PlanCompileContext(
+            TerrainContext terrain,
+            HeightStrategy heightStrategy,
+            RoofStrategy roofStrategy,
+            double defaultWallHeight,
+            double defaultFloorThickness,
+            com.formacraft.common.buildcontext.OutlineShape outline
+    ) {
         this.terrain = terrain;
         this.heightStrategy = heightStrategy != null ? heightStrategy : HeightStrategy.FLAT;
         this.roofStrategy = roofStrategy != null ? roofStrategy : RoofStrategy.UNIFIED;
         this.defaultWallHeight = defaultWallHeight > 0 ? defaultWallHeight : 5.0;
         this.defaultFloorThickness = defaultFloorThickness > 0 ? defaultFloorThickness : 1.0;
+        this.outline = outline;
+    }
+
+    /**
+     * C1：在已有上下文基础上附加 outline，返回新实例（不可变）。
+     */
+    public PlanCompileContext withOutline(com.formacraft.common.buildcontext.OutlineShape newOutline) {
+        return new PlanCompileContext(terrain, heightStrategy, roofStrategy,
+                defaultWallHeight, defaultFloorThickness, newOutline);
     }
 
     /**
