@@ -115,7 +115,10 @@ public final class SettingsInputController {
         }
 
         // =========== API Key 区域 ============
-        y += FIELD_SPACING;
+        // Orchestrator 是"标题+输入框"两行：渲染端推进 LABEL_OFFSET(输入框行) + FIELD_SPACING。
+        // 命中测试必须与渲染一致，否则从 API Key 起，下方所有控件的命中框会整体上移一个 LABEL_OFFSET(18px)，
+        // 表现为"点在按钮上，却触发了下面那个按钮"。
+        y += LABEL_OFFSET + FIELD_SPACING;
         int apiLabelY = y;
         int apiY = apiLabelY + LABEL_OFFSET;
         int apiBtnY = apiLabelY + LABEL_OFFSET * 2;
@@ -350,8 +353,9 @@ public final class SettingsInputController {
             return true;
         }
 
-        // Debug Warnings 是两行（标题+按钮）
-        y += FIELD_SPACING;
+        // 每个字段固定占 3 个行槽（label + 控件 + 空行）：渲染端推进 FIELD_SPACING + LABEL_OFFSET。
+        // 命中测试必须一致，否则每经过一个字段，下方滑条命中框就再上移一个 LABEL_OFFSET(累积偏移)。
+        y += FIELD_SPACING + LABEL_OFFSET;
 
         int reachSliderY = y + LABEL_OFFSET;
         host.interactionReachSlider().setPosition(x, reachSliderY);
@@ -363,7 +367,7 @@ public final class SettingsInputController {
             return true;
         }
 
-        y += FIELD_SPACING;
+        y += FIELD_SPACING + LABEL_OFFSET;
         int tempSliderY = y + LABEL_OFFSET;
         host.temperatureSlider().setPosition(x, tempSliderY);
         host.temperatureSlider().setWidth(w);
@@ -374,7 +378,7 @@ public final class SettingsInputController {
             return true;
         }
 
-        y += FIELD_SPACING;
+        y += FIELD_SPACING + LABEL_OFFSET;
         int fontSliderY = y + LABEL_OFFSET;
         host.fontSizeSlider().setPosition(x, fontSliderY);
         host.fontSizeSlider().setWidth(w);
@@ -386,8 +390,8 @@ public final class SettingsInputController {
         }
 
         // =========== 按钮行（Save/Cancel/Reset） ============
-        // 注意：SettingsPreferencesSection.drawSection() 返回值是 fontSliderY + FIELD_SPACING，
-        // 而这里的 y 仍停留在“font 区块起点”。因此需要补上 LABEL_OFFSET 才能与渲染坐标一致。
+        // 此时 y 停留在“font 区块起点”。font 字段同样占 3 个行槽，推进 FIELD_SPACING + LABEL_OFFSET
+        // 即到达 SettingsActionsSection 的按钮行起点，与渲染坐标一致。
         y += FIELD_SPACING + LABEL_OFFSET;
         int btnY = y;
         int btnW1 = (w - BUTTON_GAP * 2) / 3;
@@ -455,8 +459,8 @@ public final class SettingsInputController {
             return;
         }
 
-        // API Key 输入框（第二行；该字段为三行，但输入框仍在标题行下方一行）
-        y += FIELD_SPACING;
+        // API Key 输入框（第二行）。与 handleClick 一致：Orchestrator 两行需推进 LABEL_OFFSET(输入框行) + FIELD_SPACING。
+        y += LABEL_OFFSET + FIELD_SPACING;
         int apiY = y + LABEL_OFFSET;
         if (host.apiKeyInput().mouseScrolled(mouseX, mouseY, amount, x, apiY, w, INPUT_HEIGHT)) {
             return;
