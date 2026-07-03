@@ -2,7 +2,7 @@ package com.formacraft.client.ui.panel;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.logging.FcaLog;
-import com.formacraft.config.SettingsConfig;
+import com.formacraft.client.ui.panel.settings.SettingsModelCatalog;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -12,13 +12,8 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
-import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
+import com.formacraft.config.SettingsConfig;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -28,12 +23,10 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import static com.formacraft.client.ui.panel.settings.SettingsPanelLayout.*;
 
 /**
  * FormaCraft 设置面板（HUD 左侧栏）
@@ -45,44 +38,8 @@ public class SettingsPanel extends BasePanel {
 
     private static final FcaLog LOG = FcaLog.of("SettingsPanel");
 
-    // ======================= 常量定义 =======================
-    private static final int CONTENT_PADDING = 10;
-    // 统一控件高度：与「隐藏/粘贴」按钮一致
-    private static final int BUTTON_HEIGHT = 16;
-    private static final int BUTTON_GAP = 6;
-    private static final int INPUT_HEIGHT = 16;
-    // 两行布局：标题行 →（间距）→ 控件行
-    private static final int LABEL_OFFSET = INPUT_HEIGHT + 2; // 16 + 2 = 18（更紧凑）
-    // 每个“标准字段”（标题+控件）占 2 行：18 * 2 = 36
-    private static final int FIELD_SPACING = LABEL_OFFSET * 2; // 36（统一行距栅格）
-    private static final int TITLE_HEIGHT = 20;
-    private static final int BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + 4;
-    
-    // 颜色常量（注意：DrawContext 的颜色在 1.21+ 通常按 ARGB 解释，需要显式 alpha）
-    private static final int COLOR_WHITE = 0xFFFFFFFF;
-    private static final int COLOR_GRAY = 0xFFAAAAAA;
-    // Toast 这里仍按 0xRRGGBB 使用（alpha 在绘制时单独计算）
-    private static final int COLOR_TOAST_SUCCESS = 0x88FF88;
-    private static final int COLOR_TOAST_ERROR = 0xFF8888;
-    
-    // 字体大小范围
-    private static final int MIN_FONT_SIZE = 8;
-    private static final int MAX_FONT_SIZE = 26;
-
-    // 操作距离范围（光标与世界交互）
-    private static final int MIN_INTERACTION_REACH = 5;
-    private static final int MAX_INTERACTION_REACH = 100;
-    private static final int DEFAULT_INTERACTION_REACH = 80;
-    
-    // 按钮尺寸
-    // “隐藏/粘贴”按钮同宽
-    private static final int SHOW_HIDE_BUTTON_WIDTH = 44;
-    private static final int PASTE_BUTTON_WIDTH = 44;
     private static final int BUTTON_GAP_SMALL = 4;
-    
-    // 下拉菜单
-    // 旧的自绘下拉选项高度常量已移除（现使用原版 ButtonWidget 高度）
-    
+
     // Toast 持续时间（毫秒）
     private static final long TOAST_DURATION_MS = 2500L;
 
@@ -165,9 +122,6 @@ public class SettingsPanel extends BasePanel {
             .connectTimeout(Duration.ofSeconds(2))
             .build();
     private volatile boolean detectingModel = false;
-    // 兼容旧实现的兜底正则（避免后端返回非标准 JSON 或携带额外文本时完全无法解析）
-    private static final Pattern JSON_ID_PATTERN = Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"");
-    private static final Pattern JSON_MODEL_PATTERN = Pattern.compile("\"model\"\\s*:\\s*\"([^\"]+)\"");
 
     private record DetectResponse(int status, String body) {
     }
@@ -213,7 +167,7 @@ public class SettingsPanel extends BasePanel {
         this.modelInput.setText(this.draftModel);
         this.draftLlmProvider = (cfg.llmProvider == null || cfg.llmProvider.isBlank()) ? "auto" : cfg.llmProvider.trim();
         String rawBaseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
-        String sanitizedBaseUrl = sanitizeLlmBaseUrlOrNull(rawBaseUrl);
+        String sanitizedBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(rawBaseUrl);
         // 如果配置里是明显错误的 baseUrl（例如 https://ps://...），自动清空并保存，避免反复踩坑
         if (sanitizedBaseUrl == null) {
             sanitizedBaseUrl = "";
@@ -243,8 +197,8 @@ public class SettingsPanel extends BasePanel {
     }
 
     private static int clampInt(int v) {
-        if (v < SettingsPanel.MIN_FONT_SIZE) return SettingsPanel.MIN_FONT_SIZE;
-        return Math.min(v, SettingsPanel.MAX_FONT_SIZE);
+        if (v < MIN_FONT_SIZE) return MIN_FONT_SIZE;
+        return Math.min(v, MAX_FONT_SIZE);
     }
 
     private static int clampReach(int v) {
@@ -1526,7 +1480,7 @@ public class SettingsPanel extends BasePanel {
         String apiKey = apiKeyInput.getText() != null ? apiKeyInput.getText().trim() : "";
         String provider = (draftLlmProvider == null) ? "" : draftLlmProvider.trim();
         String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
-        String llmBaseUrl = sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
+        String llmBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
         if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
             detectingModel = false;
             showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
@@ -1588,7 +1542,7 @@ public class SettingsPanel extends BasePanel {
 
             // 本地异常（URI.create/连接失败等）
             if (resp.status < 0) {
-                String err = shortErr(resp.body);
+                String err = SettingsModelCatalog.shortErr(resp.body);
                 // 针对超时做更友好的提示：后端可能健康，但上游模型列表探测不可达/太慢
                 if (err.toLowerCase().contains("httptimeoutexception") || err.toLowerCase().contains("request timed out")) {
                     showToast("刷新超时：上游模型列表可能不可达（仍可手动输入模型）", true);
@@ -1613,27 +1567,13 @@ public class SettingsPanel extends BasePanel {
             }
 
             // 解析返回：models[] + default_model + remote_models_ok
-            String suggested = parseDetectedModel(resp.body);
-            List<String> models = parseModelsList(resp.body);
+            String suggested = SettingsModelCatalog.parseDetectedModel(resp.body);
+            List<String> models = SettingsModelCatalog.parseModelsList(resp.body);
             availableModels = (models == null) ? new ArrayList<>() : new ArrayList<>(models);
             availableModelsUpdatedAtMs = System.currentTimeMillis();
 
-            boolean remoteOk = true;
-            String modelsSource = null;
-            try {
-                JsonElement root = JsonParser.parseString(resp.body);
-                if (root != null && root.isJsonObject()) {
-                    JsonObject obj = root.getAsJsonObject();
-                    if (obj.has("remote_models_ok") && obj.get("remote_models_ok").isJsonPrimitive()) {
-                        remoteOk = obj.get("remote_models_ok").getAsBoolean();
-                    }
-                    if (obj.has("models_source") && obj.get("models_source").isJsonPrimitive()) {
-                        modelsSource = obj.get("models_source").getAsString();
-                    }
-                }
-            } catch (Exception e) {
-                LOG.debug("parse models health response failed", e);
-            }
+            boolean remoteOk = SettingsModelCatalog.readRemoteModelsOk(resp.body);
+            String modelsSource = SettingsModelCatalog.readModelsSource(resp.body);
 
             // 同步草稿态（以输入框为准；留空=自动）
             draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
@@ -1658,184 +1598,6 @@ public class SettingsPanel extends BasePanel {
 
             if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
         }));
-    }
-
-    private List<String> parseModelsList(String body) {
-        if (body == null || body.isBlank()) return java.util.Collections.emptyList();
-
-        // 1) 优先解析 Python backend: {"models":["..."], ...}
-        try {
-            JsonElement root = JsonParser.parseString(body);
-            if (root != null && root.isJsonObject()) {
-                JsonObject obj = root.getAsJsonObject();
-                if (obj.has("models") && obj.get("models").isJsonArray()) {
-                    List<String> out = new ArrayList<>();
-                    JsonArray arr = obj.getAsJsonArray("models");
-                    for (JsonElement e : arr) {
-                        if (e != null && e.isJsonPrimitive()) {
-                            String s = e.getAsString();
-                            if (s != null && !s.isBlank()) out.add(s.trim());
-                        }
-                    }
-                    return out;
-                }
-                // OpenAI-compatible: {"data":[{"id":"..."}, ...]}
-                if (obj.has("data") && obj.get("data").isJsonArray()) {
-                    return getStrings(obj.getAsJsonArray("data"));
-                }
-            }
-        } catch (Exception e) {
-            LOG.debug("parse models list JSON failed", e);
-        }
-
-        // 2) 兜底：正则抓取 id
-        List<String> out = new ArrayList<>();
-        Matcher m = JSON_ID_PATTERN.matcher(body);
-        while (m.find()) {
-            String id = m.group(1);
-            if (id != null && !id.isBlank()) out.add(id);
-            if (out.size() >= 50) break;
-        }
-        return out;
-    }
-
-    private static String shortErr(String s) {
-        if (s == null) return "";
-        String t = s.replace("\r", " ").replace("\n", " ").trim();
-        int max = 140;
-        return t.length() <= max ? t : (t.substring(0, max) + "…");
-    }
-
-    /**
-     * LLM Base URL 允许为空；若非空则必须是 http/https。
-     * 兼容用户漏写协议的情况：自动补 https://
-     */
-    private static String sanitizeLlmBaseUrlOrNull(String input) {
-        if (input == null) return "";
-        String v = input.trim();
-        if (v.isEmpty()) return "";
-
-        // 常见误填：漏了协议（例如 api.openai.com/v1）
-        if (!v.startsWith("http://") && !v.startsWith("https://")) {
-            v = "https://" + v;
-        }
-
-        // 移除末尾斜杠
-        while (v.endsWith("/")) v = v.substring(0, v.length() - 1);
-
-        // 只接受 http/https，并且要求 host 合理（避免 https://ps://api.openai.com/v1 这种“被重复补协议”的情况）
-        try {
-            URI uri = new URI(v);
-            String scheme = uri.getScheme();
-            if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) return null;
-
-            String host = uri.getHost();
-            if (host == null || host.isBlank()) return null;
-            // 允许 localhost / 127.0.0.1 / 正常域名（含点），拒绝像 "ps" 这种明显错误 host
-            boolean hostOk = "localhost".equalsIgnoreCase(host)
-                    || host.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")
-                    || host.contains(".");
-            if (!hostOk) return null;
-
-            // 进一步兜底：如果 path/其余部分里还出现 "://"，说明用户把协议又写进来了
-            String rest = v.substring((scheme + "://").length());
-            if (rest.contains("://")) return null;
-        } catch (URISyntaxException e) {
-            return null;
-        }
-        return v;
-    }
-
-    private String parseDetectedModel(String body) {
-        if (body == null || body.isBlank()) return null;
-
-        // 1) JSON 优先（更可靠）
-        try {
-            JsonElement root = JsonParser.parseString(body);
-            if (root != null && root.isJsonObject()) {
-                JsonObject obj = root.getAsJsonObject();
-
-                // Python backend: {"default_model":"..."}
-                if (obj.has("default_model") && obj.get("default_model").isJsonPrimitive()) {
-                    return obj.get("default_model").getAsString();
-                }
-
-                // Some backends: {"model":"..."}
-                if (obj.has("model") && obj.get("model").isJsonPrimitive()) {
-                    return obj.get("model").getAsString();
-                }
-
-                // OpenAI-compatible: {"data":[{"id":"..."}, ...]}
-                if (obj.has("data") && obj.get("data").isJsonArray()) {
-                    JsonArray arr = obj.getAsJsonArray("data");
-                    List<String> ids = getStrings(arr);
-                    String picked = pickPreferredModel(ids);
-                    if (picked != null && !picked.isBlank()) return picked;
-                }
-            }
-        } catch (Exception e) {
-            LOG.debug("pick preferred model from response failed", e);
-        }
-
-        // 2) 兜底：正则抓取（允许 body 不是纯 JSON）
-        Matcher m0 = Pattern.compile("\"default_model\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
-        if (m0.find()) return m0.group(1);
-        Matcher m1 = JSON_MODEL_PATTERN.matcher(body);
-        if (m1.find()) return m1.group(1);
-        Matcher m2 = JSON_ID_PATTERN.matcher(body);
-        if (m2.find()) return m2.group(1);
-        return null;
-    }
-
-    private static @NotNull List<String> getStrings(JsonArray arr) {
-        List<String> ids = new ArrayList<>();
-        for (JsonElement e : arr) {
-            if (e != null && e.isJsonObject()) {
-                JsonObject m = e.getAsJsonObject();
-                if (m.has("id") && m.get("id").isJsonPrimitive()) {
-                    String id = m.get("id").getAsString();
-                    if (id != null && !id.isBlank()) ids.add(id);
-                }
-            }
-        }
-        return ids;
-    }
-
-    private static String pickPreferredModel(List<String> ids) {
-        if (ids == null || ids.isEmpty()) return null;
-
-        // 去重并保持大致稳定
-        Set<String> set = new HashSet<>();
-        List<String> unique = new ArrayList<>();
-        for (String id : ids) {
-            if (id == null) continue;
-            String t = id.trim();
-            if (t.isEmpty()) continue;
-            if (set.add(t)) unique.add(t);
-        }
-        if (unique.isEmpty()) return null;
-
-        // 优先级：更贴近默认推荐（你也可以改成 prefer gpt-4o 作为“最高质量”）
-        String[] prefer = new String[]{
-                "gpt-4o-mini",
-                "gpt-4o",
-                "gpt-4.1-mini",
-                "gpt-4.1",
-                "gpt-4"
-        };
-
-        for (String p : prefer) {
-            for (String id : unique) {
-                if (id.equals(p)) return id;
-            }
-        }
-        for (String p : prefer) {
-            for (String id : unique) {
-                if (id.startsWith(p)) return id; // e.g. gpt-4o-mini-2024-07-18
-            }
-        }
-
-        return unique.getFirst();
     }
 
     private void toggleHideKey() {
@@ -2030,7 +1792,7 @@ public class SettingsPanel extends BasePanel {
         String apiKey = apiKeyInput.getText();
         String endpoint = sanitizeEndpoint(orchestratorInput.getText());
         String llmBaseUrlRaw = llmBaseUrlInput.getText() != null ? llmBaseUrlInput.getText().trim() : "";
-        String llmBaseUrl = sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
+        String llmBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
         if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
             showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
             return false;

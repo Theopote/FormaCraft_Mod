@@ -698,7 +698,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     /**
      * 获取分类的显示名称
      */
-    private String getCategoryDisplayName(ComponentCategory category) {
+    @Override
+    public String getCategoryDisplayName(ComponentCategory category) {
         return switch (category) {
             case DOOR -> "门";
             case WINDOW -> "窗";
@@ -715,7 +716,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     /**
      * 获取附着模式的显示名称
      */
-    private String getAttachmentModeDisplay() {
+    @Override
+    public String getAttachmentModeDisplay() {
         return switch (attachmentMode) {
             case NONE -> "无附着";
             case FLOOR -> "地面";
@@ -834,7 +836,6 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 w
         );
 
-        var st = ComponentTool.INSTANCE.getState();
         syncPlacementHintsToState();
 
         // ============ 阶段 2：锚点与朝向 ============
@@ -866,329 +867,65 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
 
         // ============ 阶段 3：构件语义确认 ============
         boolean phase3Collapsed = phaseCollapsed[2];
-        boolean isPhase3Active = currentPhase == CapturePhase.SEMANTIC;
-        boolean isPhase3Complete = isPhaseComplete(CapturePhase.SEMANTIC);
-        
-        // 如果阶段2未完成，阶段3应该折叠
-        if (!isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION)) {
-            phase3Collapsed = true;
-        }
-        
-        String phase3Title = (phase3Collapsed ? "▶ " : "▼ ") + 
-            "③ 构件语义" + (isPhase3Complete ? "（已完成 ✓）" : (isPhase3Active ? "（当前步骤 ★）" : "（自动 + 可调整）"));
-        int phase3TitleColor = isPhase3Active ? 0xFFFFFF00 : (isPhase3Complete ? 0xFF88FF88 : 0xFF888888);
-        y = drawWrappedText(ctx, Text.literal(phase3Title), x, y, w, phase3TitleColor);
-        y += 2;
-        
-        if (!phase3Collapsed) {
-            // 基础信息
-            y = drawWrappedText(ctx, Text.literal("📝 基础信息"), x, y, w, 0xFFFFFFFF);
-            y += 2;
-            
-            // 名称输入
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal("名称:"), x, y, 0xFFAAAAAA);
-            int inputY = y + LABEL_OFFSET - 2;
-            if (!nameInput.isFocused() && !st.name.equals(nameInput.getText())) {
-                nameInput.setText(st.name);
-            }
-            nameInput.render(ctx, x, inputY, w, 14);
-            nameInputX = x; nameInputY = inputY; nameInputW = w; nameInputH = 14;
-            nameInputBoundsValid = true;
-            st.name = nameInput.getText() != null ? nameInput.getText() : "New Component";
-            y += FIELD_SPACING;
+        y = ComponentCaptureSemanticSection.drawSection(
+                ctx,
+                client,
+                this,
+                orientationController,
+                semanticPreview,
+                this::drawWrappedText,
+                nameInput,
+                tagsInput,
+                getScaledMouseX(),
+                getScaledMouseY(),
+                phase3Collapsed,
+                currentPhase == CapturePhase.SEMANTIC,
+                isPhaseComplete(CapturePhase.SEMANTIC),
+                !isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION),
+                categoryButton,
+                attachmentModeButton,
+                directionalityButton,
+                setInsideButton,
+                setOutsideButton,
+                setBottomButton,
+                setTopButton,
+                culturalStyleButton,
+                geometryArchetypeButton,
+                semanticSkinButton,
+                semanticTagOnSaveButton,
+                semanticStyleButton,
+                semanticPartButton,
+                x,
+                y,
+                w
+        );
 
-            // 分类按钮（语义声明按钮）
-            String categoryEmoji = switch (st.category) {
-                case DOOR -> "🚪";
-                case WINDOW -> "🪟";
-                case COLUMN -> "🏛️";
-                case STAIRS -> "🪜";
-                case BRACKET -> "🏗️";
-                case ORNAMENT -> "🧱";
-                case ARCH -> "⛩️";
-                case ROOF_DETAIL -> "🏠";
-                default -> "📦";
-            };
-            categoryButton.setMessage(Text.literal("你正在定义的是：" + categoryEmoji + " " + getCategoryDisplayName(st.category)));
-            categoryButton.setPosition(x, y);
-            categoryButton.setWidth(w);
-            categoryButton.visible = true;
-            categoryButton.active = true;
-            categoryButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-            
-            // 附着方式解释（自动）
-            String attachmentExplanation = switch (attachmentMode) {
-                case WALL_OPENING -> "📌 这个构件会被\"嵌入到墙体中\"";
-                case WALL_SURFACE -> "📌 这个构件会\"附着在墙面上\"";
-                case FLOOR -> "📌 这个构件会\"放置在地面上\"";
-                case ROOF_SURFACE -> "📌 这个构件会\"附着在屋面上\"";
-                case ROOF_EDGE -> "📌 这个构件会\"附着在屋檐边缘\"";
-                case ROOF_RIDGE -> "📌 这个构件会\"附着在屋脊上\"";
-                case EDGE -> "📌 这个构件会\"沿边缘放置\"";
-                case CORNER -> "📌 这个构件会\"放置在转角\"";
-                default -> "📌 这个构件是\"独立放置\"";
-            };
-            y = drawWrappedText(ctx, Text.literal(attachmentExplanation + "（自动）"), x, y, w, 0xFFAAAAAA);
-            y += 4;
-            
-            // 方向语义解释（自动）
-            if (orientationController.getDirectionalityMode() == DirectionalityMode.INSIDE_OUTSIDE) {
-                y = drawWrappedText(ctx, Text.literal("方向语义：内 → 外（自动）"), x, y, w, 0xFFAAAAAA);
-            } else if (orientationController.getDirectionalityMode() == DirectionalityMode.BOTTOM_TOP) {
-                y = drawWrappedText(ctx, Text.literal("方向语义：下 → 上（自动）"), x, y, w, 0xFFAAAAAA);
-            } else if (orientationController.getDirectionalityMode() == DirectionalityMode.BOTH) {
-                y = drawWrappedText(ctx, Text.literal("方向语义：内 → 外，下 → 上（自动）"), x, y, w, 0xFFAAAAAA);
-            }
-            y += 4;
-
-            // 标签输入
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal("标签 (逗号分隔):"), x, y, 0xFFAAAAAA);
-            inputY = y + LABEL_OFFSET - 2;
-            String currentTags = String.join(", ", st.tags);
-            if (!tagsInput.isFocused() && !currentTags.equals(tagsInput.getText())) {
-                tagsInput.setText(currentTags);
-            }
-            tagsInput.render(ctx, x, inputY, w, 14);
-            tagsInputX = x; tagsInputY = inputY; tagsInputW = w; tagsInputH = 14;
-            tagsInputBoundsValid = true;
-            updateTagsFromInput();
-            y += FIELD_SPACING;
-
-            // AI 语义预览与覆盖
-            y = semanticPreview.renderSection(
-                    ctx,
-                    client,
-                    this::drawWrappedText,
-                    x,
-                    y,
-                    w,
-                    getScaledMouseX(),
-                    getScaledMouseY(),
-                    culturalStyleButton,
-                    geometryArchetypeButton
-            );
-            
-            // 附着模式和方向性（可调整）
-            y = drawWrappedText(ctx, Text.literal("🔧 附着与方向性（可调整）"), x, y, w, 0xFFFFFFFF);
-            y += 2;
-            
-            var draft = ComponentTool.INSTANCE.getState().captureDraft;
-            int halfW = (w - 4) / 2;
-            boolean manualAttach = draft.host.manualAttachment || draft.host.confirmed;
-            String attachLabel = manualAttach
-                    ? "附着覆盖: " + getAttachmentModeDisplay()
-                    : "附着: 自动（见上方分析）";
-            attachmentModeButton.setMessage(Text.literal(attachLabel));
-            attachmentModeButton.setPosition(x, y);
-            attachmentModeButton.setWidth(halfW);
-            attachmentModeButton.visible = true;
-            attachmentModeButton.active = true;
-            attachmentModeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            
-            directionalityButton.setMessage(Text.literal("方向: " + orientationController.getDirectionalityMode().getDisplayName()));
-            directionalityButton.setPosition(x + halfW + 4, y);
-            directionalityButton.setWidth(w - halfW - 4);
-            directionalityButton.visible = true;
-            directionalityButton.active = true;
-            directionalityButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-            
-            // 方向标记按钮（根据方向性模式显示）
-            if (orientationController.getDirectionalityMode().needsInsideOutside()) {
-                setInsideButton.setMessage(Text.literal(draft.orientation.insideMarkWorld != null ? "🏠✓ 内侧" : "🏠 设内侧"));
-                setInsideButton.setPosition(x, y);
-                setInsideButton.setWidth(halfW);
-                setInsideButton.visible = true;
-                setInsideButton.active = true;
-                setInsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-                
-                setOutsideButton.setMessage(Text.literal(draft.orientation.outsideMarkWorld != null ? "🌍✓ 外侧" : "🌍 设外侧"));
-                setOutsideButton.setPosition(x + halfW + 4, y);
-                setOutsideButton.setWidth(w - halfW - 4);
-                setOutsideButton.visible = true;
-                setOutsideButton.active = true;
-                setOutsideButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-                y += LABEL_OFFSET;
-            }
-            
-            if (orientationController.getDirectionalityMode().needsBottomTop()) {
-                setBottomButton.setMessage(Text.literal(draft.orientation.bottomMarkWorld != null ? "⬇️✓ 底端" : "⬇️ 设底端"));
-                setBottomButton.setPosition(x, y);
-                setBottomButton.setWidth(halfW);
-                setBottomButton.visible = true;
-                setBottomButton.active = true;
-                setBottomButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-                
-                setTopButton.setMessage(Text.literal(draft.orientation.topMarkWorld != null ? "⬆️✓ 顶端" : "⬆️ 设顶端"));
-                setTopButton.setPosition(x + halfW + 4, y);
-                setTopButton.setWidth(w - halfW - 4);
-                setTopButton.visible = true;
-                setTopButton.active = true;
-                setTopButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-                y += LABEL_OFFSET;
-            }
-            
-            // 标记模式提示
-            if (orientationController.getMarkingMode() != DirectionMarkingMode.NONE) {
-                y = drawWrappedText(ctx, Text.literal("⚡ " + orientationController.getMarkingMode().getHint()), x, y, w, 0xFFFFFF00);
-                y += 4;
-            }
-            
-            // 分隔线
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
-            
-            // 语义标注（高级，可折叠）
-            y = drawWrappedText(ctx, Text.literal("🎨 语义标注（高级）"), x, y, w, 0xFF888888);
-            y += 2;
-            
-            int half = (w - 4) / 2;
-            semanticSkinButton.setMessage(Text.literal(st.semanticSkin ? "材质：语义" : "材质：原样"));
-            semanticSkinButton.setPosition(x, y);
-            semanticSkinButton.setWidth(half);
-            semanticSkinButton.visible = true;
-            semanticSkinButton.active = true;
-            semanticSkinButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-            semanticTagOnSaveButton.setMessage(Text.literal(st.semanticTagOnSave ? "存语义：开" : "存语义：关"));
-            semanticTagOnSaveButton.setPosition(x + half + 4, y);
-            semanticTagOnSaveButton.setWidth(w - half - 4);
-            semanticTagOnSaveButton.visible = true;
-            semanticTagOnSaveButton.active = true;
-            semanticTagOnSaveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            semanticStyleButton.setMessage(Text.literal("风格：" + (st.semanticStyleId != null ? st.semanticStyleId : "DEFAULT")));
-            semanticStyleButton.setPosition(x, y);
-            semanticStyleButton.setWidth(w);
-            semanticStyleButton.visible = true;
-            semanticStyleButton.active = st.semanticSkin;
-            semanticStyleButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            semanticPartButton.setMessage(Text.literal("语义：" + (st.semanticPart != null ? st.semanticPart.name() : "AUTO")));
-            semanticPartButton.setPosition(x, y);
-            semanticPartButton.setWidth(w);
-            semanticPartButton.visible = true;
-            semanticPartButton.active = st.semanticSkin;
-            semanticPartButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            // 分隔线
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
-        }
-        
         // ============ 阶段 4：AI 使用保障 ============
         boolean phase4Collapsed = phaseCollapsed[3];
-        boolean isPhase4Active = currentPhase == CapturePhase.AI_GUARANTEE;
-        boolean isPhase4Complete = isPhaseComplete(CapturePhase.AI_GUARANTEE);
-        
-        // 如果阶段3未完成，阶段4应该折叠
-        if (!isPhase3Complete) {
-            phase4Collapsed = true;
-        }
-        
-        String phase4Title = (phase4Collapsed ? "▶ " : "▼ ") + 
-            "④ AI 使用保障" + (isPhase4Complete ? "（已完成 ✓）" : (isPhase4Active ? "（当前步骤 ★）" : "（高级，可折叠）"));
-        int phase4TitleColor = isPhase4Active ? 0xFFFFFF00 : (isPhase4Complete ? 0xFF88FF88 : 0xFF888888);
-        y = drawWrappedText(ctx, Text.literal(phase4Title), x, y, w, phase4TitleColor);
-        y += 2;
-        
-        if (!phase4Collapsed) {
-            // 连接位配置
-            y = drawWrappedText(ctx, Text.literal("连接位配置"), x, y, w, 0xFFFFFFFF);
-            y += 2;
-            
-            String so = st.socketOriginLocal != null
-                    ? ("原点(local)=" + st.socketOriginLocal.getX() + "," + st.socketOriginLocal.getY() + "," + st.socketOriginLocal.getZ())
-                    : "原点(local)=未设置";
-            String ss = "尺寸=" + st.socketW + "×" + st.socketH + "×" + st.socketD;
-            y = drawWrappedText(ctx, Text.literal("已添加: " + st.socketCount + " 个  " + so + "  " + ss), x, y, w, 0xFFAAAAAA);
-            y += 2;
-
-            autoDetectSocketsButton.setPosition(x, y);
-            autoDetectSocketsButton.setWidth(w);
-            autoDetectSocketsButton.visible = true;
-            autoDetectSocketsButton.active = false;
-            autoDetectSocketsButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            socketContextButton.setMessage(Text.literal("连接位上下文: " + (st.socketContext != null ? st.socketContext.name() : "WALL")));
-            socketContextButton.setPosition(x, y);
-            socketContextButton.setWidth(w);
-            socketContextButton.visible = true;
-            socketContextButton.active = SelectionTool.INSTANCE.hasSelection();
-            socketContextButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            // 连接位 ID 输入
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal("连接位 ID:"), x, y, 0xFFAAAAAA);
-            int inputY = y + LABEL_OFFSET - 2;
-            socketIdInput.render(ctx, x, inputY, w, 14);
-            socketIdInputX = x; socketIdInputY = inputY; socketIdInputW = w; socketIdInputH = 14;
-            socketIdInputBoundsValid = true;
-            String sid = socketIdInput.getText();
-            if (sid != null && !sid.isBlank()) {
-                st.socketIdDraft = sid.trim();
-            }
-            y += FIELD_SPACING;
-
-            int half = (w - 4) / 2;
-            socketPickOriginButton.setPosition(x, y);
-            socketPickOriginButton.setWidth(half);
-            socketPickOriginButton.visible = true;
-            socketPickOriginButton.active = SelectionTool.INSTANCE.hasSelection() && st.captureDraft.anchor.worldPos != null;
-            socketPickOriginButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-            socketFacingButton.setMessage(Text.literal("朝向: " + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH")));
-            socketFacingButton.setPosition(x + half + 4, y);
-            socketFacingButton.setWidth(w - half - 4);
-            socketFacingButton.visible = true;
-            socketFacingButton.active = true;
-            socketFacingButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            socketAddButton.setPosition(x, y);
-            socketAddButton.setWidth(half);
-            socketAddButton.visible = true;
-            socketAddButton.active = SelectionTool.INSTANCE.hasSelection() && st.socketOriginLocal != null;
-            socketAddButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-            socketPreviewButton.setPosition(x + half + 4, y);
-            socketPreviewButton.setWidth(w - half - 4);
-            socketPreviewButton.visible = true;
-            socketPreviewButton.active = st.captureDraft.anchor.worldPos != null && st.socketOriginLocal != null;
-            socketPreviewButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            socketClearButton.setPosition(x, y);
-            socketClearButton.setWidth(w);
-            socketClearButton.visible = true;
-            socketClearButton.active = st.socketCount > 0;
-            socketClearButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-
-            // 分隔线
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
-            
-            // 智能分析
-            y = drawWrappedText(ctx, Text.literal("🧠 智能分析"), x, y, w, 0xFFFFFFFF);
-            y += 2;
-            
-            autoAnalyzeButton.setPosition(x, y);
-            autoAnalyzeButton.setWidth(w);
-            autoAnalyzeButton.visible = true;
-            autoAnalyzeButton.active = false;
-            autoAnalyzeButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-            y += LABEL_OFFSET;
-            
-            // 分隔线
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
-        }
+        y = ComponentCaptureAiGuardSection.drawSection(
+                ctx,
+                client,
+                this,
+                this::drawWrappedText,
+                socketIdInput,
+                getScaledMouseX(),
+                getScaledMouseY(),
+                phase4Collapsed,
+                currentPhase == CapturePhase.AI_GUARANTEE,
+                isPhaseComplete(CapturePhase.AI_GUARANTEE),
+                !isPhaseComplete(CapturePhase.SEMANTIC),
+                autoDetectSocketsButton,
+                socketContextButton,
+                socketPickOriginButton,
+                socketFacingButton,
+                socketAddButton,
+                socketPreviewButton,
+                socketClearButton,
+                autoAnalyzeButton,
+                x,
+                y,
+                w
+        );
         
         // ============ 构件健康状态检查（新设计：健康条 + 抽屉）============
         if (isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION)) {
@@ -1363,7 +1100,40 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         st.syncDraftToState();
     }
 
-    private void updateTagsFromInput() {
+    @Override
+    public com.formacraft.common.component.placement.AttachmentType getAttachmentMode() {
+        return attachmentMode;
+    }
+
+    @Override
+    public void setNameInputBounds(int x, int y, int w, int h) {
+        nameInputX = x;
+        nameInputY = y;
+        nameInputW = w;
+        nameInputH = h;
+        nameInputBoundsValid = true;
+    }
+
+    @Override
+    public void setTagsInputBounds(int x, int y, int w, int h) {
+        tagsInputX = x;
+        tagsInputY = y;
+        tagsInputW = w;
+        tagsInputH = h;
+        tagsInputBoundsValid = true;
+    }
+
+    @Override
+    public void setSocketIdInputBounds(int x, int y, int w, int h) {
+        socketIdInputX = x;
+        socketIdInputY = y;
+        socketIdInputW = w;
+        socketIdInputH = h;
+        socketIdInputBoundsValid = true;
+    }
+
+    @Override
+    public void updateTagsFromInput() {
         var st = ComponentTool.INSTANCE.getState();
         String text = tagsInput.getText();
         if (text == null || text.isBlank()) {
