@@ -1,7 +1,7 @@
 package com.formacraft.common.network;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.client.preview.OutlineBlock;
+import com.formacraft.common.preview.OutlineBlock;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
@@ -10,6 +10,7 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.server.build.BuildConstraintClipper;
 import com.formacraft.server.build.BuildConstraintContext;
+import com.formacraft.server.network.NetworkOrchestratorProvider;
 import com.formacraft.server.orchestrator.OrchestratorClient;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;

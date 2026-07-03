@@ -1,6 +1,6 @@
 package com.formacraft.server.command;
 
-import com.formacraft.client.preview.OutlineBlock;
+import com.formacraft.common.preview.OutlineBlock;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.blueprint.Blueprint;
 import com.formacraft.common.model.city.CitySpec;

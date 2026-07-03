@@ -1,4 +1,4 @@
-package com.formacraft.common.network;
+package com.formacraft.server.network;
 
 import com.formacraft.server.orchestrator.OrchestratorClient;
 

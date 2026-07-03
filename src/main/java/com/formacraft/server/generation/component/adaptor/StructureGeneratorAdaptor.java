@@ -1,4 +1,4 @@
-package com.formacraft.common.generation.component.adaptor;
+package com.formacraft.server.generation.component.adaptor;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
@@ -25,7 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 将 {@code common.generation.structure.StructureGenerator} 适配为构件级 {@link BlockPatch} 输出。
+ * 将 {@code server.generation.structure.StructureGenerator} 适配为构件级 {@link BlockPatch} 输出。
  * <p>
  * Phase 2：由 {@link UnifiedGeneratorRouter} 在受控条件下调用（显式 landmark / 未注册整栋类型）。
  */

@@ -1,4 +1,4 @@
-package com.formacraft.common.generation.component.adaptor;
+package com.formacraft.server.generation.component.adaptor;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;

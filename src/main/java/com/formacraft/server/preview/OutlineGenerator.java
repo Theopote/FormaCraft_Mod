@@ -1,6 +1,6 @@
 package com.formacraft.server.preview;
 
-import com.formacraft.client.preview.OutlineBlock;
+import com.formacraft.common.preview.OutlineBlock;
 import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.util.math.BlockPos;
 

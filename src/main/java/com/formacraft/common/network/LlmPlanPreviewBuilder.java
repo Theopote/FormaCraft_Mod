@@ -1,8 +1,8 @@
 package com.formacraft.common.network;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.client.preview.OutlineBlock;
-import com.formacraft.common.compiler.ComponentPlanCompiler;
+import com.formacraft.common.preview.OutlineBlock;
+import com.formacraft.server.compiler.ComponentPlanCompiler;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.GlobalConstraints;

@@ -1,4 +1,4 @@
-package com.formacraft.common.init;
+package com.formacraft.server.init;
 
 import com.formacraft.common.palette.DefaultPalettes;
 import com.formacraft.common.skeleton.SkeletonExecutors;

@@ -1,4 +1,4 @@
-package com.formacraft.client.preview;
+package com.formacraft.common.preview;
 
 import net.minecraft.util.math.BlockPos;
 

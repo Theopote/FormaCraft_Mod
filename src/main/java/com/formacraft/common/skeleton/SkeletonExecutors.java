@@ -3,7 +3,7 @@ package com.formacraft.common.skeleton;
 /**
  * 全局骨架执行器持有者。
  * <p>
- * 在 {@link com.formacraft.common.init.SkeletonSystemInitializer#initialize()} 中注册服务端实现。
+ * 在 {@link com.formacraft.server.init.SkeletonSystemInitializer#initialize()} 中注册服务端实现。
  */
 public final class SkeletonExecutors {
 

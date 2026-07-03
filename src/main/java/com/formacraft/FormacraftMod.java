@@ -47,7 +47,7 @@ public class FormacraftMod implements ModInitializer {
 		com.formacraft.common.config.ConfigManager.loadConfig();
 
 		// 初始化 Skeleton 系统（调色板、风格、生成器、装配器等）
-		com.formacraft.common.init.SkeletonSystemInitializer.initialize();
+		com.formacraft.server.init.SkeletonSystemInitializer.initialize();
 
 		// 初始化 Component Group 系统（复合构件：tower/gatehouse/wall segment 等）
 		com.formacraft.common.init.ComponentGroupSystemInitializer.initialize();
