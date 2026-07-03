@@ -26,6 +26,7 @@ from ..models.building_spec import (
 )
 from ..models.building_genome import BuildingGenome
 from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
+from ..models.llm_plan_json_schema import call_chat_with_llm_plan_response_formats
 from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
 from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
 from ..models.semantic_spatial_plan import SemanticSpatialPlan
@@ -4304,14 +4305,13 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": user_prompt})
         
-        response = _call_with_timeout(
-            lambda: client.chat.completions.create(
-                model=model,
-                messages=messages,
-                response_format={"type": "json_object"},
-                temperature=_clamp_temperature(getattr(req, "temperature", None), 0.7),
-            ),
-            timeout_sec,
+        response, _response_format_label = call_chat_with_llm_plan_response_formats(
+            client,
+            model=model,
+            messages=messages,
+            temperature=_clamp_temperature(getattr(req, "temperature", None), 0.7),
+            call_with_timeout=_call_with_timeout,
+            timeout_sec=timeout_sec,
         )
         
         raw_output = response.choices[0].message.content

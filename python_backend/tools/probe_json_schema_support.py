@@ -32,25 +32,11 @@ except ImportError:
     pass
 
 
-# Minimal LlmPlan slice — enough to test strict json_schema without a huge schema.
-_PROBE_SCHEMA: Dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "mode": {"type": "string", "enum": ["build", "patch"]},
-        "anchor": {
-            "type": "object",
-            "properties": {
-                "x": {"type": "integer"},
-                "y": {"type": "integer"},
-                "z": {"type": "integer"},
-            },
-            "required": ["x", "y", "z"],
-            "additionalProperties": False,
-        },
-    },
-    "required": ["mode", "anchor"],
-    "additionalProperties": False,
-}
+# Minimal LlmPlan slice — shared with generate_llm_plan() via app.models.llm_plan_json_schema.
+from app.models.llm_plan_json_schema import (  # noqa: E402
+    JSON_OBJECT_RESPONSE_FORMAT,
+    build_llm_plan_response_format,
+)
 
 _PROBE_MESSAGES = [
     {
@@ -136,32 +122,18 @@ def main() -> int:
     print()
 
     if not args.skip_json_object:
-        ok, msg = _probe(client, model, {"type": "json_object"}, "json_object")
+        ok, msg = _probe(client, model, JSON_OBJECT_RESPONSE_FORMAT, "json_object")
         print(msg)
         if not ok:
             print("\nBaseline json_object failed — fix connectivity before testing json_schema.")
             return 1
         print()
 
-    strict_format = {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "llm_plan_probe",
-            "strict": True,
-            "schema": _PROBE_SCHEMA,
-        },
-    }
+    strict_format = build_llm_plan_response_format(strict=True)
     ok_strict, msg_strict = _probe(client, model, strict_format, "json_schema (strict=True)")
     print(msg_strict)
 
-    loose_format = {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "llm_plan_probe_loose",
-            "strict": False,
-            "schema": _PROBE_SCHEMA,
-        },
-    }
+    loose_format = build_llm_plan_response_format(strict=False)
     ok_loose, msg_loose = _probe(client, model, loose_format, "json_schema (strict=False)")
     print(msg_loose)
     print()
