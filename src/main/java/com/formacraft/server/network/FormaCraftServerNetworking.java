@@ -11,6 +11,7 @@ import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.network.ConfirmBuildPacket;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.PatchExecutor;
 import com.formacraft.common.preview.OutlineBlock;
 import com.formacraft.server.build.BuildExecutionService;
 import com.formacraft.server.preview.PreviewStorage;
@@ -403,6 +404,19 @@ public final class FormaCraftServerNetworking {
                 origin,
                 accepted != null ? accepted : List.of(),
                 rejected != null ? rejected : List.of()
+        ));
+    }
+
+    /** 服务端下发 Patch 应用结果（供 BuildConfirmPanel / Chat 展示）。 */
+    public static void sendPatchApplyResult(ServerPlayerEntity player, PatchExecutor.ApplyResult result) {
+        if (player == null || result == null) return;
+        String summary = result.summaryZh();
+        ServerPlayNetworking.send(player, new FormaCraftNetworking.PatchApplyResultPayload(
+                result.applied(),
+                result.skippedWorldHeight(),
+                result.skippedUnloaded(),
+                result.skippedIllegal(),
+                summary
         ));
     }
 

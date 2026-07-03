@@ -163,6 +163,13 @@ public final class FormaCraftClientNetworking {
                 FormacraftMod.LOGGER.warn("[FormaCraftClientNetworking] PatchPreview handler failed ticketId={}", payload.ticketId(), t);
             }
         }));
+
+        ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchApplyResultPayload.ID, (payload, context) -> context.client().execute(() -> {
+            String summary = payload.summary();
+            if (summary == null || summary.isBlank()) return;
+            com.formacraft.client.ui.panel.BuildConfirmPanel.INSTANCE.onPatchApplyResult(summary);
+            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIStatus(summary);
+        }));
     }
 
     /**

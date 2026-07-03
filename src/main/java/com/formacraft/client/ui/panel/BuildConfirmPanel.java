@@ -44,6 +44,7 @@ public class BuildConfirmPanel {
     private java.util.List<BlockPatch> patchList;
     private java.util.List<BlockPatch> rejectedPatchList;
     private java.util.List<String> patchWarnings;
+    private boolean awaitingPatchApplyResult = false;
     private UUID previewTicketId;
     @SuppressWarnings("unused")
     private UUID buildId; // 可选：用于区分不同建造请求（以后拓展）
@@ -166,6 +167,7 @@ public class BuildConfirmPanel {
         this.patchList = (accepted != null) ? new java.util.ArrayList<>(accepted) : new java.util.ArrayList<>();
         this.rejectedPatchList = (rejected != null) ? new java.util.ArrayList<>(rejected) : new java.util.ArrayList<>();
         this.patchWarnings = new java.util.ArrayList<>();
+        this.awaitingPatchApplyResult = false;
 
         PatchPreviewState.setPreview(this.patchOrigin, this.patchList, this.rejectedPatchList);
         PreviewModalState.lockPatch();
@@ -184,6 +186,7 @@ public class BuildConfirmPanel {
         this.rejectedPatchList = null;
         if (this.patchWarnings != null) this.patchWarnings.clear();
         this.patchWarnings = null;
+        this.awaitingPatchApplyResult = false;
 
         BuildingPreviewState.clear();
         OutlinePreviewState.clear(); // 关闭预览线框
@@ -226,9 +229,22 @@ public class BuildConfirmPanel {
             hide();
             return;
         }
+        if (awaitingPatchApplyResult) return;
         PatchPreviewState.clear();
+        awaitingPatchApplyResult = true;
+        if (applyPatchButton != null) applyPatchButton.active = false;
         FormaCraftClientNetworking.sendPatchConfirm(previewTicketId);
-        hide();
+    }
+
+    /** 服务端 Patch 应用完成后的反馈（S2C）。 */
+    public void onPatchApplyResult(String summary) {
+        if (summary == null || summary.isBlank()) return;
+        awaitingPatchApplyResult = false;
+        if (mode != Mode.PATCH || !visible) return;
+        if (patchWarnings == null) patchWarnings = new java.util.ArrayList<>();
+        patchWarnings.add(0, summary);
+        previewTicketId = null;
+        if (applyPatchButton != null) applyPatchButton.active = false;
     }
     
     /** 在 HUD 渲染时调用 */
@@ -324,7 +340,16 @@ public class BuildConfirmPanel {
             );
             infoY += lineHeight;
 
-            // warnings（最多显示 3 行，避免遮挡按钮）
+            if (awaitingPatchApplyResult) {
+                context.drawTextWithShadow(
+                        client.textRenderer,
+                        Text.translatable("formacraft.preview.patch.applying"),
+                        textX, infoY, 0xFFCCAA00
+                );
+                infoY += lineHeight;
+            }
+
+            // warnings / apply result（最多显示 3 行，避免遮挡按钮）
             if (patchWarnings != null && !patchWarnings.isEmpty()) {
                 int shown = 0;
                 for (String w : patchWarnings) {
@@ -352,7 +377,7 @@ public class BuildConfirmPanel {
             applyPatchButton.setPosition(applyX, btnY);
             applyPatchButton.setWidth(92);
             applyPatchButton.visible = true;
-            applyPatchButton.active = true;
+            applyPatchButton.active = !awaitingPatchApplyResult && previewTicketId != null;
             applyPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
 
             undoPatchButton.setPosition(undoX, btnY);
@@ -588,7 +613,7 @@ public class BuildConfirmPanel {
             applyPatchButton.setPosition(applyX, patchBtnY);
             applyPatchButton.setWidth(92);
             applyPatchButton.visible = true;
-            applyPatchButton.active = true;
+            applyPatchButton.active = !awaitingPatchApplyResult && previewTicketId != null;
             if (applyPatchButton.mouseClicked(click, false)) return true;
 
             undoPatchButton.setPosition(undoX, patchBtnY);

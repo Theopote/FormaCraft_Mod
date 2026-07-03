@@ -5,6 +5,7 @@ import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.PatchExecutor;
 import com.formacraft.common.patch.filter.PatchFilterResult;
 import com.formacraft.common.patch.history.PatchHistoryManager;
 import com.formacraft.server.build.quality.BuildQualityReport;
@@ -141,7 +142,12 @@ public final class PatchPreviewService {
         List<BlockPatch> patches = ticket.patches();
         if (patches == null || patches.isEmpty()) return false;
 
-        PatchHistoryManager.applyWithHistory(sw, player.getUuid(), ticket.origin(), patches);
+        PatchExecutor.ApplyResult applyResult = PatchHistoryManager.applyWithHistory(
+                sw, player.getUuid(), ticket.origin(), patches);
+        if (applyResult != null) {
+            FormaCraftServerNetworking.sendPatchApplyResult(player, applyResult);
+        }
+        PreviewStorage.clearQualityReport(player);
         return true;
     }
 

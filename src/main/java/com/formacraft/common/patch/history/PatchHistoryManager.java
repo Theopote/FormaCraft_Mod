@@ -33,6 +33,7 @@ public final class PatchHistoryManager {
     }
 
     private static final Map<UUID, Stacks> PER_PLAYER = new ConcurrentHashMap<>();
+    private static final Map<UUID, PatchExecutor.ApplyResult> LAST_APPLY_RESULT = new ConcurrentHashMap<>();
 
     private static Stacks stacks(UUID playerId) {
         return PER_PLAYER.computeIfAbsent(playerId, k -> new Stacks());
@@ -51,20 +52,28 @@ public final class PatchHistoryManager {
         Stacks s = stacks(playerId);
         s.undo.clear();
         s.redo.clear();
+        LAST_APPLY_RESULT.remove(playerId);
+    }
+
+    /** 最近一次 apply 的统计（按玩家隔离）。 */
+    public static PatchExecutor.ApplyResult getLastApplyResult(UUID playerId) {
+        return playerId == null ? null : LAST_APPLY_RESULT.get(playerId);
     }
 
     /**
      * 应用 patch，并写入历史（事务）。
      * 同时更新 Memory 系统（Memory → Patch → Memory 闭环）
      */
-    public static void applyWithHistory(ServerWorld world, UUID playerId, BlockPos origin, List<BlockPatch> patches) {
-        if (world == null || playerId == null) return;
-        if (origin == null || patches == null || patches.isEmpty()) return;
+    public static PatchExecutor.ApplyResult applyWithHistory(
+            ServerWorld world, UUID playerId, BlockPos origin, List<BlockPatch> patches) {
+        if (world == null || playerId == null) return null;
+        if (origin == null || patches == null || patches.isEmpty()) return null;
 
         Set<BlockPos> affected = collectAffected(origin, patches);
         Map<BlockPos, BlockState> before = snapshot(world, affected);
 
-        PatchExecutor.apply(world, origin, patches);
+        PatchExecutor.ApplyResult applyResult = PatchExecutor.apply(world, origin, patches);
+        LAST_APPLY_RESULT.put(playerId, applyResult);
 
         Map<BlockPos, BlockState> after = snapshot(world, affected);
 
@@ -81,6 +90,7 @@ public final class PatchHistoryManager {
         // ========== Memory → Patch → Memory 闭环 ==========
         // 分析 Patch 影响并更新 Memory
         updateMemoryFromPatch(world, origin, patches);
+        return applyResult;
     }
     
     /**

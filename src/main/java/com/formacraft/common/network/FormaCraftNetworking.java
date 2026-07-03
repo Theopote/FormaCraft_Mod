@@ -44,6 +44,7 @@ public class FormaCraftNetworking {
     public static final Identifier PATCH_CONFIRM = Identifier.of("formacraft", "patch_confirm");
     public static final Identifier PATCH_PREVIEW = Identifier.of("formacraft", "patch_preview");
     public static final Identifier PATCH_PREVIEW_REQUEST = Identifier.of("formacraft", "patch_preview_request");
+    public static final Identifier PATCH_APPLY_RESULT = Identifier.of("formacraft", "patch_apply_result");
     public static final Identifier PROTECTED_ZONE_SYNC = Identifier.of("formacraft", "protected_zone_sync");
     public static final Identifier OUTLINE_SYNC = Identifier.of("formacraft", "outline_sync");
 
@@ -251,6 +252,36 @@ public class FormaCraftNetworking {
                         buf.readBlockPos(),
                         BlockPatchPacket.readPatches(buf),
                         BlockPatchPacket.readPatches(buf)
+                )
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** S2C：Patch 应用结果（{@link com.formacraft.common.patch.PatchExecutor.ApplyResult}）。 */
+    public record PatchApplyResultPayload(
+            int applied,
+            int skippedWorldHeight,
+            int skippedUnloaded,
+            int skippedIllegal,
+            String summary
+    ) implements CustomPayload {
+        public static final CustomPayload.Id<PatchApplyResultPayload> ID = new CustomPayload.Id<>(PATCH_APPLY_RESULT);
+        public static final PacketCodec<PacketByteBuf, PatchApplyResultPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> {
+                    buf.writeVarInt(payload.applied());
+                    buf.writeVarInt(payload.skippedWorldHeight());
+                    buf.writeVarInt(payload.skippedUnloaded());
+                    buf.writeVarInt(payload.skippedIllegal());
+                    buf.writeString(payload.summary() == null ? "" : payload.summary());
+                },
+                buf -> new PatchApplyResultPayload(
+                        buf.readVarInt(),
+                        buf.readVarInt(),
+                        buf.readVarInt(),
+                        buf.readVarInt(),
+                        buf.readString()
                 )
         );
 
@@ -479,6 +510,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playS2C().register(PreviewOriginPayload.ID, PreviewOriginPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ClearOutlinePayload.ID, ClearOutlinePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PatchPreviewPayload.ID, PatchPreviewPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(PatchApplyResultPayload.ID, PatchApplyResultPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentCatalogPayload.ID, ComponentCatalogPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentSaveAckPayload.ID, ComponentSaveAckPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ComponentDefinitionPayload.ID, ComponentDefinitionPayload.CODEC);

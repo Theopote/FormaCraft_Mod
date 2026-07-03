@@ -39,6 +39,25 @@ public final class PatchExecutor {
         public int skippedTotal() {
             return skippedWorldHeight + skippedUnloaded + skippedIllegal;
         }
+
+        /** 玩家可读的应用结果摘要（中文）。 */
+        public String summaryZh() {
+            if (applied <= 0 && skippedTotal() <= 0) {
+                return "未应用任何方块修改";
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append("已应用 ").append(applied).append(" 个方块");
+            if (skippedWorldHeight > 0) {
+                sb.append("，跳过 ").append(skippedWorldHeight).append(" 个越界方块");
+            }
+            if (skippedUnloaded > 0) {
+                sb.append("，跳过 ").append(skippedUnloaded).append(" 个未加载区块方块");
+            }
+            if (skippedIllegal > 0) {
+                sb.append("，跳过 ").append(skippedIllegal).append(" 个非法目标");
+            }
+            return sb.toString();
+        }
     }
 
     public static ApplyResult apply(ServerWorld world, BlockPos origin, List<BlockPatch> patches) {
