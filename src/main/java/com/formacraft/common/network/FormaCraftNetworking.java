@@ -259,29 +259,41 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** S2C：Patch 应用结果（{@link com.formacraft.common.patch.PatchExecutor.ApplyResult}）。 */
+    /**
+     * S2C：Patch 应用/撤销/重做结果（{@link com.formacraft.common.patch.PatchExecutor.ApplyResult}）。
+     * operation: apply / undo / redo；canUndo/canRedo 用于客户端同步按钮可用性。
+     */
     public record PatchApplyResultPayload(
+            String operation,
             int applied,
             int skippedWorldHeight,
             int skippedUnloaded,
             int skippedIllegal,
-            String summary
+            String summary,
+            boolean canUndo,
+            boolean canRedo
     ) implements CustomPayload {
         public static final CustomPayload.Id<PatchApplyResultPayload> ID = new CustomPayload.Id<>(PATCH_APPLY_RESULT);
         public static final PacketCodec<PacketByteBuf, PatchApplyResultPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> {
+                    buf.writeString(payload.operation() == null ? "apply" : payload.operation());
                     buf.writeVarInt(payload.applied());
                     buf.writeVarInt(payload.skippedWorldHeight());
                     buf.writeVarInt(payload.skippedUnloaded());
                     buf.writeVarInt(payload.skippedIllegal());
                     buf.writeString(payload.summary() == null ? "" : payload.summary());
+                    buf.writeBoolean(payload.canUndo());
+                    buf.writeBoolean(payload.canRedo());
                 },
                 buf -> new PatchApplyResultPayload(
+                        buf.readString(),
                         buf.readVarInt(),
                         buf.readVarInt(),
                         buf.readVarInt(),
                         buf.readVarInt(),
-                        buf.readString()
+                        buf.readString(),
+                        buf.readBoolean(),
+                        buf.readBoolean()
                 )
         );
 

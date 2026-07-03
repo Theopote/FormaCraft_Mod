@@ -45,6 +45,9 @@ public class BuildConfirmPanel {
     private java.util.List<BlockPatch> rejectedPatchList;
     private java.util.List<String> patchWarnings;
     private boolean awaitingPatchApplyResult = false;
+    // 服务端同步的历史可用性（驱动 Undo/Redo 按钮）
+    private boolean patchCanUndo = false;
+    private boolean patchCanRedo = false;
     private UUID previewTicketId;
     @SuppressWarnings("unused")
     private UUID buildId; // 可选：用于区分不同建造请求（以后拓展）
@@ -183,6 +186,9 @@ public class BuildConfirmPanel {
         this.rejectedPatchList = (rejected != null) ? new java.util.ArrayList<>(rejected) : new java.util.ArrayList<>();
         this.patchWarnings = new java.util.ArrayList<>();
         this.awaitingPatchApplyResult = false;
+        // 乐观启用：真实可用性由服务端在首次 apply/undo/redo 后回传校正
+        this.patchCanUndo = true;
+        this.patchCanRedo = true;
 
         PatchPreviewState.setPreview(this.patchOrigin, this.patchList, this.rejectedPatchList);
         PreviewModalState.lockPatch();
@@ -202,6 +208,8 @@ public class BuildConfirmPanel {
         if (this.patchWarnings != null) this.patchWarnings.clear();
         this.patchWarnings = null;
         this.awaitingPatchApplyResult = false;
+        this.patchCanUndo = false;
+        this.patchCanRedo = false;
         this.previewQualityErrorHint = false;
         this.previewQualityError = false;
         this.previewForceArmed = false;
@@ -259,15 +267,22 @@ public class BuildConfirmPanel {
         FormaCraftClientNetworking.sendPatchConfirm(previewTicketId);
     }
 
-    /** 服务端 Patch 应用完成后的反馈（S2C）。 */
-    public void onPatchApplyResult(String summary) {
-        if (summary == null || summary.isBlank()) return;
+    /** 服务端 Patch 应用/撤销/重做完成后的反馈（S2C）。 */
+    public void onPatchApplyResult(String operation, String summary, boolean canUndo, boolean canRedo) {
         awaitingPatchApplyResult = false;
+        patchCanUndo = canUndo;
+        patchCanRedo = canRedo;
+        if (summary == null || summary.isBlank()) return;
         if (mode != Mode.PATCH || !visible) return;
         if (patchWarnings == null) patchWarnings = new java.util.ArrayList<>();
         patchWarnings.add(0, summary);
-        previewTicketId = null;
-        if (applyPatchButton != null) applyPatchButton.active = false;
+        // 首次 apply 会消费掉票据，禁止重复应用；undo/redo 不影响票据
+        if ("apply".equals(operation)) {
+            previewTicketId = null;
+            if (applyPatchButton != null) applyPatchButton.active = false;
+        }
+        if (undoPatchButton != null) undoPatchButton.active = patchCanUndo;
+        if (redoPatchButton != null) redoPatchButton.active = patchCanRedo;
     }
     
     /** 在 HUD 渲染时调用 */
@@ -408,13 +423,13 @@ public class BuildConfirmPanel {
             undoPatchButton.setPosition(undoX, btnY);
             undoPatchButton.setWidth(72);
             undoPatchButton.visible = true;
-            undoPatchButton.active = true;
+            undoPatchButton.active = patchCanUndo;
             undoPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
 
             redoPatchButton.setPosition(redoX, btnY);
             redoPatchButton.setWidth(72);
             redoPatchButton.visible = true;
-            redoPatchButton.active = true;
+            redoPatchButton.active = patchCanRedo;
             redoPatchButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
 
             cancelButton.setPosition(cancelX, btnY);
@@ -644,13 +659,13 @@ public class BuildConfirmPanel {
             undoPatchButton.setPosition(undoX, patchBtnY);
             undoPatchButton.setWidth(72);
             undoPatchButton.visible = true;
-            undoPatchButton.active = true;
+            undoPatchButton.active = patchCanUndo;
             if (undoPatchButton.mouseClicked(click, false)) return true;
 
             redoPatchButton.setPosition(redoX, patchBtnY);
             redoPatchButton.setWidth(72);
             redoPatchButton.visible = true;
-            redoPatchButton.active = true;
+            redoPatchButton.active = patchCanRedo;
             if (redoPatchButton.mouseClicked(click, false)) return true;
 
             cancelButton.setPosition(patchCancelX, patchBtnY);

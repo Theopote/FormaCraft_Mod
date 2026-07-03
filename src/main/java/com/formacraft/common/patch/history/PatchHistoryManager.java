@@ -140,35 +140,43 @@ public final class PatchHistoryManager {
         }
     }
 
-    public static boolean undo(ServerWorld world, UUID playerId) {
-        if (world == null || playerId == null) return false;
+    /**
+     * 撤销上一次事务。
+     * @return 恢复的方块数量；-1 表示无可撤销
+     */
+    public static int undo(ServerWorld world, UUID playerId) {
+        if (world == null || playerId == null) return -1;
         Stacks s = stacks(playerId);
-        if (s.undo.isEmpty()) return false;
+        if (s.undo.isEmpty()) return -1;
 
         PatchTransaction tx = s.undo.pop();
-        restore(world, tx.before());
+        int changed = restore(world, tx.before());
         s.redo.push(tx);
         
         // ========== Undo 时反向更新 Memory ==========
         // 注意：Undo 是反向操作，需要反向 Mutation
         updateMemoryFromPatchUndo(world, tx);
         
-        return true;
+        return changed;
     }
 
-    public static boolean redo(ServerWorld world, UUID playerId) {
-        if (world == null || playerId == null) return false;
+    /**
+     * 重做上一次撤销的事务。
+     * @return 恢复的方块数量；-1 表示无可重做
+     */
+    public static int redo(ServerWorld world, UUID playerId) {
+        if (world == null || playerId == null) return -1;
         Stacks s = stacks(playerId);
-        if (s.redo.isEmpty()) return false;
+        if (s.redo.isEmpty()) return -1;
 
         PatchTransaction tx = s.redo.pop();
-        restore(world, tx.after());
+        int changed = restore(world, tx.after());
         s.undo.push(tx);
         
         // ========== Redo 时再次更新 Memory ==========
         updateMemoryFromPatch(world, tx.origin(), tx.patches());
         
-        return true;
+        return changed;
     }
     
     /**
@@ -253,10 +261,13 @@ public final class PatchHistoryManager {
         return map;
     }
 
-    private static void restore(ServerWorld world, Map<BlockPos, BlockState> states) {
+    private static int restore(ServerWorld world, Map<BlockPos, BlockState> states) {
+        int changed = 0;
         for (Map.Entry<BlockPos, BlockState> e : states.entrySet()) {
             world.setBlockState(e.getKey(), e.getValue(), 3);
+            changed++;
         }
+        return changed;
     }
 }
 

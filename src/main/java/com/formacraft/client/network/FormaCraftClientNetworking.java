@@ -169,9 +169,11 @@ public final class FormaCraftClientNetworking {
 
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchApplyResultPayload.ID, (payload, context) -> context.client().execute(() -> {
             String summary = payload.summary();
-            if (summary == null || summary.isBlank()) return;
-            com.formacraft.client.ui.panel.BuildConfirmPanel.INSTANCE.onPatchApplyResult(summary);
-            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIStatus(summary);
+            com.formacraft.client.ui.panel.BuildConfirmPanel.INSTANCE.onPatchApplyResult(
+                    payload.operation(), summary, payload.canUndo(), payload.canRedo());
+            if (summary != null && !summary.isBlank()) {
+                com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIStatus(summary);
+            }
         }));
     }
 
