@@ -14,6 +14,7 @@ import com.formacraft.client.ui.panel.capture.ComponentCaptureAiGuardHost;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAiGuardSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticHost;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticPreview;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureThumbnailService;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureWorldOverlay;
 import com.formacraft.client.ui.toast.HudToast;
@@ -49,7 +50,7 @@ import net.minecraft.util.math.Direction;
  * 4. 点击"保存到构件库"
  * 5. 自动跳转到构件库面板并高亮新构件
  */
-public class ComponentCapturePanel extends BasePanel {
+public class ComponentCapturePanel extends BasePanel implements ComponentCaptureSemanticHost, ComponentCaptureAiGuardHost {
     private static final int CONTENT_PADDING = 10;
     private static final int LABEL_OFFSET = 18;
     private static final int BUTTON_HEIGHT = 16;
