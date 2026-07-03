@@ -55,10 +55,13 @@ public final class SettingsConnectionSection {
         y += FIELD_SPACING;
 
         y = drawBaseUrlField(host, ctx, x, y, w);
-        y += FIELD_SPACING + LABEL_OFFSET;
+        // BaseURL 是三行区块，drawBaseUrlField 返回第三行起点；
+        // 这里只需补一行偏移进入下一组 label，避免出现过大空隙。
+        y += LABEL_OFFSET;
 
         y = drawModelField(host, ctx, x, y, w);
-        return y + FIELD_SPACING + LABEL_OFFSET;
+        // Model 也是三行区块，结束后仅补一行偏移进入下一 section。
+        return y + LABEL_OFFSET;
     }
 
     public static void renderOverlays(SettingsPanelRenderHost host, DrawContext ctx) {

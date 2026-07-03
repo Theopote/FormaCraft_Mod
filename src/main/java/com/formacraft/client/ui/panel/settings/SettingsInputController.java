@@ -43,6 +43,65 @@ public final class SettingsInputController {
         // drawContents 里先画标题，再 y += TITLE_HEIGHT
         y += TITLE_HEIGHT;
 
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+
+        // 优先处理 overlay 下拉（它们渲染在最上层，必须先命中，避免被下层输入框吞掉点击）
+        if (host.baseUrlPresetDropdownOpen() && host.pendingBaseUrlDropdownOverlay()) {
+            int dx = host.pendingBaseUrlDropdownX();
+            int dy = host.pendingBaseUrlDropdownY();
+            int dw = host.pendingBaseUrlDropdownW();
+            host.layoutBaseUrlPresetButtons(dx, dy, dw);
+
+            boolean clickedAny = false;
+            int visibleCount = 0;
+            for (ButtonWidget opt : host.llmBaseUrlPresetOptionButtons()) {
+                if (opt != null && opt.visible) {
+                    visibleCount++;
+                    if (opt.mouseClicked(click, false)) {
+                        clickedAny = true;
+                        break;
+                    }
+                }
+            }
+            if (clickedAny) return true;
+
+            int listH = visibleCount * BUTTON_HEIGHT;
+            boolean insideList = (mouseX >= dx && mouseX <= dx + dw && mouseY >= dy && mouseY <= dy + listH);
+            if (!insideList) {
+                host.setBaseUrlPresetDropdownOpen(false);
+                host.hideBaseUrlPresetButtons();
+            }
+            return true;
+        }
+
+        if (host.modelDropdownOpen() && host.pendingModelDropdownOverlay()) {
+            int dx = host.pendingModelDropdownX();
+            int dy = host.pendingModelDropdownY();
+            int dw = host.pendingModelDropdownW();
+            host.layoutModelOptionButtons(dx, dy, dw);
+
+            boolean clickedAny = false;
+            int visibleCount = 0;
+            for (ButtonWidget opt : host.modelOptionButtons()) {
+                if (opt != null && opt.visible) {
+                    visibleCount++;
+                    if (opt.mouseClicked(click, false)) {
+                        clickedAny = true;
+                        break;
+                    }
+                }
+            }
+            if (clickedAny) return true;
+
+            int listH = visibleCount * BUTTON_HEIGHT;
+            boolean insideList = (mouseX >= dx && mouseX <= dx + dw && mouseY >= dy && mouseY <= dy + listH);
+            if (!insideList) {
+                host.setModelDropdownOpen(false);
+                host.hideModelOptionButtons();
+            }
+            return true;
+        }
+
         // =========== Orchestrator 区域 ============
         int orchLabelY = y;
         int orchY = orchLabelY + LABEL_OFFSET;
@@ -64,8 +123,6 @@ public final class SettingsInputController {
         int apiBtnW1 = (w - gap) / 2;
         int apiBtnW2 = Math.max(0, w - gap - apiBtnW1);
         int pasteX = x + apiBtnW1 + gap;
-
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
         // Show/Hide（原版按钮）
         host.showHideButton().setPosition(x, apiBtnY);
@@ -116,7 +173,8 @@ public final class SettingsInputController {
         }
 
         // =========== LLM Base URL ============
-        y += FIELD_SPACING;
+        // Provider 区块是两行（标题 + 按钮），推进需与渲染端一致：FIELD_SPACING + LABEL_OFFSET。
+        y += FIELD_SPACING + LABEL_OFFSET;
         int llmBaseUrlLabelY = y;
         int llmBaseUrlPresetY = llmBaseUrlLabelY + LABEL_OFFSET;
         int llmBaseUrlThirdLineY = llmBaseUrlLabelY + LABEL_OFFSET * 2;
@@ -263,10 +321,9 @@ public final class SettingsInputController {
         }
 
         // =========== 滑动条交互 ============
-        // 注意：这里必须与 SettingsConnectionSection.drawSection() 的返回值一致。
-        // Connection 区块在 Model 按钮行后还会额外推进 (FIELD_SPACING + LABEL_OFFSET)，
-        // 因此从 modelLabelY 进入 Preferences 前总推进应为 5 * LABEL_OFFSET。
-        y += FIELD_SPACING + LABEL_OFFSET * 3;
+        // 与 SettingsConnectionSection 紧凑布局保持一致：
+        // 从 modelLabelY 到 Preferences 起点总推进为 3 * LABEL_OFFSET。
+        y += LABEL_OFFSET * 3;
 
         // =========== Debug Warnings（toggle） ============
         int dbgBtnY = y + LABEL_OFFSET;
