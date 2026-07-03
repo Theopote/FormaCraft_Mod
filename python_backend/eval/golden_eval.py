@@ -106,6 +106,17 @@ def _any_token(types: List[str], tokens: Tuple[str, ...]) -> bool:
     return any(any(tok in t for tok in tokens) for t in types)
 
 
+def _has_plan_program(plan: Dict[str, Any]) -> bool:
+    """是否走 PlanProgram/PlanSkeleton 路径（C1 主干；几何来自 2D 骨架→挤出）。
+    兼容 snake_case 与 camelCase：后端模型是 snake_case，但 LLM/Java 也可能吐 camelCase
+    并落到 extra 字段里。"""
+    for key in ("plan_skeleton", "planSkeleton", "plan_program", "planProgram"):
+        v = plan.get(key)
+        if isinstance(v, dict) and v:
+            return True
+    return False
+
+
 def _schema_ok(plan: Dict[str, Any]) -> Tuple[bool, str]:
     try:
         from app.models.llm_plan import validate_llm_plan_dict, LlmPlanValidationError
@@ -154,8 +165,9 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan") -> EvalResult:
         return res
 
     # ---- build 模式的可建造性 / 丰富度启发式 ----
-    add(Check("has_geometry", bool(comps) or bool(slots), hard=True,
-              detail="build 需 components[] 或 layout.slots[]"))
+    has_program = _has_plan_program(plan)
+    add(Check("has_geometry", bool(comps) or bool(slots) or has_program, hard=True,
+              detail="build 需 components[] / layout.slots[] / plan_skeleton|plan_program"))
 
     # 尺寸合理：宽 > 0，且不超过上限。
     zero_or_oversize: List[str] = []
@@ -172,15 +184,21 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan") -> EvalResult:
               detail=", ".join(zero_or_oversize)))
 
     # SOFT：语义丰富度 —— 有入口 / 有窗 / 有屋顶。
-    add(Check("has_entrance", _any_token(types, _ENTRANCE_TOKENS), hard=False,
-              detail=f"types={types}"))
-    add(Check("has_windows", _any_token(types, _WINDOW_TOKENS), hard=False,
-              detail=f"types={types}"))
-    add(Check("has_roof", _any_token(types, _ROOF_TOKENS), hard=False,
-              detail=f"types={types}"))
-    # SOFT：组件数量（过少往往是"空盒子"）。
-    add(Check("component_richness", len(comps) >= 2 or len(slots) >= 2, hard=False,
-              detail=f"components={len(comps)} slots={len(slots)}"))
+    # 仅对 components/slots 几何有意义；plan_skeleton/plan_program 走 2D→挤出，
+    # 组件级 token 检查不适用，跳过以免产生噪声告警。
+    if comps or slots:
+        add(Check("has_entrance", _any_token(types, _ENTRANCE_TOKENS), hard=False,
+                  detail=f"types={types}"))
+        add(Check("has_windows", _any_token(types, _WINDOW_TOKENS), hard=False,
+                  detail=f"types={types}"))
+        add(Check("has_roof", _any_token(types, _ROOF_TOKENS), hard=False,
+                  detail=f"types={types}"))
+        # SOFT：组件数量（过少往往是"空盒子"）。
+        add(Check("component_richness", len(comps) >= 2 or len(slots) >= 2, hard=False,
+                  detail=f"components={len(comps)} slots={len(slots)}"))
+    elif has_program:
+        add(Check("plan_program_path", True, hard=False,
+                  detail="几何来自 plan_skeleton/plan_program（跳过组件级语义检查）"))
 
     # SOFT：合理性 —— "太矮"（与 Java ComponentPlanCompiler.minHeightForType 对齐）。
     too_short = _too_short_masses(comps)
@@ -198,28 +216,53 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan") -> EvalResult:
 # 与 Java ComponentFacadeStyler / FacadePatternDsl / ComponentPlanCompiler 的可识别取值对齐。
 _ALLOWED_FACADE_PROFILE = {"none", "base_plinth", "vertical_pilasters", "pilasters", "mullion_grid", "mullion", "module_grid"}
 _ALLOWED_WALL_PATTERN = {"none", "uniform", "gradient", "striped", "random"}
-_ALLOWED_FACADE_CUTOUT = {"none", "solid", "lattice", "grille", "perforated", "diagrid", "diagonal", "diamond", "checker", "rose", "circle", "oculus", "arches", "arch"}
+# 直接对齐 FacadePatternDsl 的 contains(...) 子串（避免误判 arch_window / perforated 等复合词）。
+_ALLOWED_FACADE_CUTOUT = {"none", "solid", "lattice", "grille", "perfor", "diagrid", "diagonal", "diamond", "checker", "rose", "circle", "oculus", "arch"}
 _ALLOWED_DETAIL_LEVEL = {"low", "medium", "high"}
+# assembly_facade 是布尔类开关；接受 bool / 0-1 / 常见真假字符串。
+_ALLOWED_ASSEMBLY_FACADE_STR = {"true", "false", "1", "0", "auto", "on", "off", "yes", "no"}
 
 
 def _invalid_facade_params(comps: List[Dict[str, Any]]) -> List[str]:
     out: List[str] = []
 
-    def _check(params: Dict[str, Any], idx: int, keys: Tuple[str, ...], allowed: set, label: str) -> None:
+    def _check(params: Dict[str, Any], idx: int, keys: Tuple[str, ...], allowed: set, label: str,
+               substring: bool = False) -> None:
+        # substring=True 对齐 Java 侧的 String.contains 语义（如 facade_profile / facade_cutout），
+        # 只要取值包含任一已知 token 即视为可识别；否则要求精确匹配（如 wall_pattern / detail_level）。
         for k in keys:
             v = params.get(k)
-            if isinstance(v, str) and v.strip() and v.strip().lower() not in allowed:
+            if not (isinstance(v, str) and v.strip()):
+                continue
+            vl = v.strip().lower()
+            recognized = any(tok in vl for tok in allowed) if substring else (vl in allowed)
+            if not recognized:
                 out.append(f"#{idx} {label}={v}")
                 return
+
+    def _check_bool(params: Dict[str, Any], idx: int, keys: Tuple[str, ...], label: str) -> None:
+        for k in keys:
+            v = params.get(k)
+            if v is None:
+                continue
+            if isinstance(v, bool):
+                return
+            if isinstance(v, int) and v in (0, 1):
+                return
+            if isinstance(v, str) and v.strip().lower() in _ALLOWED_ASSEMBLY_FACADE_STR:
+                return
+            out.append(f"#{idx} {label}={v!r}")
+            return
 
     for i, c in enumerate(comps):
         params = c.get("params") if isinstance(c.get("params"), dict) else {}
         if not params:
             continue
-        _check(params, i, ("facade_profile", "facadeProfile"), _ALLOWED_FACADE_PROFILE, "facade_profile")
+        _check(params, i, ("facade_profile", "facadeProfile"), _ALLOWED_FACADE_PROFILE, "facade_profile", substring=True)
         _check(params, i, ("wall_pattern", "wallPattern"), _ALLOWED_WALL_PATTERN, "wall_pattern")
-        _check(params, i, ("facade_cutout", "cutout_pattern", "perforation"), _ALLOWED_FACADE_CUTOUT, "facade_cutout")
+        _check(params, i, ("facade_cutout", "cutout_pattern", "perforation"), _ALLOWED_FACADE_CUTOUT, "facade_cutout", substring=True)
         _check(params, i, ("detail_level", "detailLevel", "quality"), _ALLOWED_DETAIL_LEVEL, "detail_level")
+        _check_bool(params, i, ("assembly_facade", "assemblyFacade"), "assembly_facade")
     return out
 
 
