@@ -5,7 +5,10 @@
 from typing import Optional
 from pydantic import BaseModel
 
-from .request import BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i, OutlineShape, ProtectedZone
+from .request import (
+    BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i,
+    OutlineShape, ProtectedZone, PathConstraint,
+)
 
 
 class FormaRequestAdapter(BaseModel):
@@ -26,6 +29,8 @@ class FormaRequestAdapter(BaseModel):
     brushMax: Optional[dict] = None  # BlockPos 序列化
     outline: Optional[OutlineShape] = None
     protectedZones: Optional[list[ProtectedZone]] = None
+    pathNodes: Optional[list[dict]] = None  # BlockPos 列表：[{"x":..,"y":..,"z":..}]
+    pathRadius: Optional[int] = None
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
     promptMode: Optional[str] = None
@@ -92,7 +97,17 @@ class FormaRequestAdapter(BaseModel):
                     min=Vec3i(**self.brushMin),
                     max=Vec3i(**self.brushMax)
                 )
-            
+
+            # 路径走廊（Phase 9）
+            path_obj = None
+            if self.pathNodes:
+                try:
+                    nodes = [Vec3i(**n) for n in self.pathNodes if isinstance(n, dict)]
+                    if nodes:
+                        path_obj = PathConstraint(nodes=nodes, radius=self.pathRadius)
+                except Exception:
+                    path_obj = None
+
             return BuildRequest(
                 player=player_info,
                 world=world_context,
@@ -100,6 +115,7 @@ class FormaRequestAdapter(BaseModel):
                 brushSelection=brush_selection_obj,
                 outline=self.outline,
                 protectedZones=self.protectedZones,
+                path=path_obj,
                 requestText=self.requestText or "",
                 promptMode=self.promptMode,
                 outputFormat=self.outputFormat,
