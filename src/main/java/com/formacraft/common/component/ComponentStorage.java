@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -341,11 +342,15 @@ public final class ComponentStorage {
         }
     }
 
-    private static void logIssueSample(List<String> issues, int maxLines) {
+    private static void logIssueSample(Collection<String> issues, int maxLines) {
+        if (issues == null || issues.isEmpty()) return;
         int total = issues.size();
         int limit = Math.min(maxLines, total);
-        for (int i = 0; i < limit; i++) {
-            FormacraftMod.LOGGER.info("  {}", issues.get(i));
+        int i = 0;
+        for (String issue : issues) {
+            if (i >= limit) break;
+            FormacraftMod.LOGGER.info("  {}", issue);
+            i++;
         }
         if (total > limit) {
             FormacraftMod.LOGGER.info("  ... 另有 {} 条未显示", total - limit);
