@@ -607,17 +607,46 @@ public final class ComponentPlanCompiler {
         if (type.isBlank()) {
             return null;
         }
-        if (type.equals(component.componentType())) {
+        // Phase 10：合理性修复 —— "太矮"的主体/塔拔高到合理最小层高。
+        Dimensions dims = clampMinHeight(type, component.dimensions());
+        boolean typeChanged = !type.equals(component.componentType());
+        boolean dimsChanged = dims != component.dimensions();
+        if (!typeChanged && !dimsChanged) {
             return component;
         }
         return new Component(
                 type,
                 component.slotId(),
                 component.relativePosition(),
-                component.dimensions(),
+                dims,
                 component.features(),
                 component.params()
         );
+    }
+
+    /**
+     * Phase 10：把明显过矮的主体/塔类构件拔高到合理最小高度（其它类型不动）。
+     * 仅调整 height，不改 width/depth；越界方块仍会被 BuildConstraintClipper 裁剪。
+     */
+    private static Dimensions clampMinHeight(String type, Dimensions dims) {
+        if (dims == null) return null;
+        int minH = minHeightForType(type);
+        if (minH <= 0) return dims;
+        int h = dims.height();
+        if (h > 0 && h < minH) {
+            FormacraftMod.LOGGER.debug("ComponentPlanCompiler: raising too-short {} height {} -> {}", type, h, minH);
+            return new Dimensions(dims.width(), dims.depth(), minH);
+        }
+        return dims;
+    }
+
+    private static int minHeightForType(String type) {
+        if (type == null) return 0;
+        return switch (type) {
+            case "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "HOUSE", "BUILDING" -> 4;
+            case "TOWER" -> 6;
+            default -> 0;
+        };
     }
 
     private static String normalizeComponentType(String value, boolean allowUnknown) {

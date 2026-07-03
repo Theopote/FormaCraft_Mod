@@ -182,7 +182,34 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan") -> EvalResult:
     add(Check("component_richness", len(comps) >= 2 or len(slots) >= 2, hard=False,
               detail=f"components={len(comps)} slots={len(slots)}"))
 
+    # SOFT：合理性 —— "太矮"（与 Java ComponentPlanCompiler.minHeightForType 对齐）。
+    too_short = _too_short_masses(comps)
+    add(Check("not_too_short", not too_short, hard=False,
+              detail=", ".join(too_short)))
+
     return res
+
+
+# 与 Java ComponentPlanCompiler.minHeightForType 对齐：主体/塔的合理最小层高。
+_MIN_HEIGHT_BY_TYPE = {
+    "MASS_MAIN": 4, "MASS_SECONDARY": 4, "MASS_WING": 4,
+    "HOUSE": 4, "BUILDING": 4, "TOWER": 6,
+}
+
+
+def _too_short_masses(comps: List[Dict[str, Any]]) -> List[str]:
+    out: List[str] = []
+    for i, c in enumerate(comps):
+        t = c.get("component_type")
+        t = t.strip().upper() if isinstance(t, str) else ""
+        min_h = _MIN_HEIGHT_BY_TYPE.get(t, 0)
+        if min_h <= 0:
+            continue
+        dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
+        h = dims.get("height", 0) or 0
+        if 0 < h < min_h:
+            out.append(f"#{i} {t} height={h}<{min_h}")
+    return out
 
 
 def _print_result(res: EvalResult) -> None:
@@ -210,7 +237,22 @@ def _load_plan_file(path: Path) -> Optional[Dict[str, Any]]:
     return data
 
 
-def run_offline(paths: List[Path]) -> int:
+def _summarize(results: List[EvalResult], gate: bool) -> int:
+    """打印汇总并返回退出码。gate=True 时 SOFT 告警也计入失败（严格回归门）。"""
+    hard = sum(len(r.hard_failures) for r in results)
+    soft = sum(len(r.soft_failures) for r in results)
+    passed = sum(1 for r in results if r.ok)
+    print(f"\n---- 汇总：{passed}/{len(results)} 通过 HARD 断言；"
+          f"HARD 失败 {hard} 项，SOFT 告警 {soft} 项"
+          + ("（--gate：SOFT 也计入失败）" if gate else "") + " ----")
+    if hard > 0:
+        return 1
+    if gate and soft > 0:
+        return 1
+    return 0
+
+
+def run_offline(paths: List[Path], gate: bool = False) -> int:
     results: List[EvalResult] = []
     for p in paths:
         plan = _load_plan_file(p)
@@ -225,15 +267,10 @@ def run_offline(paths: List[Path]) -> int:
     for r in results:
         _print_result(r)
 
-    hard = sum(len(r.hard_failures) for r in results)
-    soft = sum(len(r.soft_failures) for r in results)
-    passed = sum(1 for r in results if r.ok)
-    print(f"\n---- 汇总：{passed}/{len(results)} 通过 HARD 断言；"
-          f"HARD 失败 {hard} 项，SOFT 告警 {soft} 项 ----")
-    return 0 if hard == 0 else 1
+    return _summarize(results, gate)
 
 
-def run_live() -> int:
+def run_live(gate: bool = False) -> int:
     """真实跑一遍 golden prompt。仅冒烟用：Python 侧缺少 Java 组装的系统 prompt，
     生成质量不代表游戏内真实效果。"""
     try:
@@ -263,8 +300,7 @@ def run_live() -> int:
 
     for r in results:
         _print_result(r)
-    hard = sum(len(r.hard_failures) for r in results)
-    return 0 if hard == 0 else 1
+    return _summarize(results, gate)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -272,10 +308,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--plans", type=str, help="包含 *.json plan 文件的目录")
     parser.add_argument("--plan", type=str, help="单个 plan JSON 文件")
     parser.add_argument("--live", action="store_true", help="真实跑 golden prompt（需配置 LLM）")
+    parser.add_argument("--gate", action="store_true",
+                        help="回归门模式：SOFT 告警也计入失败（退出码非 0）")
     args = parser.parse_args(argv)
 
     if args.live:
-        return run_live()
+        return run_live(gate=args.gate)
 
     paths: List[Path] = []
     if args.plan:
@@ -295,7 +333,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"  {i}. {p}")
         return 0
 
-    return run_offline(paths)
+    return run_offline(paths, gate=args.gate)
 
 
 if __name__ == "__main__":
