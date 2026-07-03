@@ -69,8 +69,9 @@ public class ChatPanel extends BasePanel {
     private int historyIndex = -1;     // -1 表示未浏览历史（编辑当前草稿）
     private String historyDraft = "";  // 进入历史浏览前的草稿
 
-    // 滚动偏移：从底部往上偏移多少条消息
+    // 滚动偏移：从底部往上偏移多少像素（平滑滚动，避免按“整条消息”跳页）
     private int scrollOffset = 0;
+    private double scrollRemainder = 0.0;
 
     // ========== AI 输出流式打印（token 队列 + typewriter） ==========
     private AIStreamPrinter currentPrinter = null;
@@ -243,15 +244,36 @@ public class ChatPanel extends BasePanel {
             return;
         }
 
-        // 计算最大可用 scrollOffset
-        int maxOffset = Math.max(0, messages.size() - 1);
+        // 计算总内容高度（像素）与最大滚动偏移
+        int totalContentHeight = 0;
+        for (int idx = messages.size() - 1; idx >= 0; idx--) {
+            ChatMessage msg = messages.get(idx);
+
+            String measureText;
+            if (msg.type == ChatMessage.MessageType.THINKING) {
+                int dots = (int) ((System.currentTimeMillis() / 350) % 4);
+                String base = (msg.text == null || msg.text.isBlank()) ? "AI 正在思考" : msg.text;
+                measureText = base + ".".repeat(dots);
+            } else {
+                measureText = msg.text;
+            }
+
+            int maxWidthPx = Math.max(1, availableWidth - 8);
+            List<SelectableTextBlock.WrappedLine> wrapped =
+                    SelectableTextBlock.wrap(client.textRenderer, measureText, maxWidthPx);
+            int bubbleHeight = wrapped.size() * lineHeight + 4;
+            totalContentHeight += bubbleHeight;
+            totalContentHeight += msg.hasSpecSummary() ? ((int)(50 * fontScale) + 12) : 6;
+        }
+
+        int visibleHeight = Math.max(1, chatBottom - chatTop - 6);
+        int maxOffset = Math.max(0, totalContentHeight - visibleHeight);
         if (scrollOffset > maxOffset) scrollOffset = maxOffset;
         if (scrollOffset < 0) scrollOffset = 0;
 
-        int startIndex = messages.size() - 1 - scrollOffset;
-        int y = chatBottom - 6; // 从下往上绘制
+        int y = chatBottom - 6 + scrollOffset; // 从下往上绘制，offset 以像素计
 
-        for (int idx = startIndex; idx >= 0; idx--) {
+        for (int idx = messages.size() - 1; idx >= 0; idx--) {
             ChatMessage msg = messages.get(idx);
 
             // 包装文本（考虑字体大小）
@@ -609,10 +631,23 @@ public class ChatPanel extends BasePanel {
             inputBox.mouseScrolled(amount);
             return;
         }
-        if (amount > 0) {
-            scrollOffset = Math.min(scrollOffset + 1, Math.max(0, messages.size() - 1));
-        } else if (amount < 0) {
-            scrollOffset = Math.max(0, scrollOffset - 1);
+
+        // 像素级平滑滚动：保留小数余量，触控板/高精滚轮体验更稳定
+        // amount > 0 向上看历史；amount < 0 回到底部方向
+        final double pxPerWheelUnit = 12.0;
+        scrollRemainder += amount * pxPerWheelUnit;
+
+        int deltaPx;
+        if (scrollRemainder > 0) {
+            deltaPx = (int) Math.floor(scrollRemainder);
+        } else {
+            deltaPx = (int) Math.ceil(scrollRemainder);
+        }
+
+        if (deltaPx != 0) {
+            scrollOffset += deltaPx;
+            if (scrollOffset < 0) scrollOffset = 0;
+            scrollRemainder -= deltaPx;
         }
     }
 
