@@ -27,7 +27,7 @@ import com.formacraft.server.assembly.validation.AssemblySpecNormalizer;
 import com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult;
 import com.formacraft.server.assembly.validation.AssemblySpecValidator;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.math.Direction;
 

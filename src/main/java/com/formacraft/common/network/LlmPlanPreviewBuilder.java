@@ -16,7 +16,7 @@ import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.network.LlmPlanTerrainBounds.Bounds;
 import com.formacraft.server.build.BuildConstraintClipper;
 import com.formacraft.server.build.BuildConstraintContext;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.server.foundation.FoundationType;
 import com.formacraft.server.preview.PreviewStorage;
@@ -507,8 +507,8 @@ public final class LlmPlanPreviewBuilder {
             }
 
             // 创建 GeneratedStructure
-            com.formacraft.server.build.GeneratedStructure generated =
-                    new com.formacraft.server.build.GeneratedStructure(
+            com.formacraft.common.build.GeneratedStructure generated =
+                    new com.formacraft.common.build.GeneratedStructure(
                             player.getUuid(),
                             planOrigin,
                             "LlmPlan generated structure",
@@ -516,8 +516,8 @@ public final class LlmPlanPreviewBuilder {
                     );
 
             // 应用约束裁剪
-            com.formacraft.server.build.GeneratedStructure structure =
-                    new com.formacraft.server.build.GeneratedStructure(
+            com.formacraft.common.build.GeneratedStructure structure =
+                    new com.formacraft.common.build.GeneratedStructure(
                             player.getUuid(),
                             planOrigin,
                             generated.getDescription(),

@@ -2,8 +2,8 @@ package com.formacraft.common.generation.structure.composite;
 
 import com.formacraft.common.model.composite.CompositeSpec;
 import com.formacraft.common.model.path.PathSpec;
-import com.formacraft.server.build.GeneratedStructure;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.common.generation.structure.*;
 import com.formacraft.common.generation.structure.path.PathGenerator;

@@ -1,7 +1,7 @@
 package com.formacraft.common.generation.structure;
 
 import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.server.build.GeneratedStructure;
+import com.formacraft.common.build.GeneratedStructure;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 

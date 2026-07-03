@@ -3,7 +3,7 @@ package com.formacraft.server.skeleton.grid;
 import com.formacraft.common.skeleton.SkeletonPlan;
 import com.formacraft.common.skeleton.grid.GridPlan;
 import com.formacraft.common.skeleton.transform.BlockTransform;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
 import net.minecraft.server.world.ServerWorld;

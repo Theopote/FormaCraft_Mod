@@ -1,8 +1,8 @@
 package com.formacraft.common.generation.structure;
 
 import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.server.build.GeneratedStructure;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;

@@ -1,0 +1,1995 @@
+{
+  "summary": {
+    "common_java_files_scanned": 560,
+    "files_with_server_imports": 52,
+    "files_with_client_imports": 20,
+    "files_with_any_violation": 69,
+    "total_server_import_lines": 247,
+    "total_client_import_lines": 37,
+    "by_primary": {
+      "A": 3,
+      "B": 46,
+      "C": 20
+    },
+    "data_sink_targets": {
+      "com.formacraft.server.build.PlannedBlock": 47,
+      "com.formacraft.server.build.GeneratedStructure": 41,
+      "com.formacraft.server.terrain.TerrainAdaptationMode": 4,
+      "com.formacraft.server.terrain.TerrainAdaptationSpec": 4,
+      "com.formacraft.server.terrain.TerrainPolicy": 4,
+      "com.formacraft.server.build.BuildReportContext": 3,
+      "com.formacraft.server.assembly.AssemblySpec": 2,
+      "com.formacraft.server.assembly.macro.AssemblyMacroApplyResult": 2,
+      "com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult": 2,
+      "com.formacraft.server.assembly.validation.AssemblyValidationIssue": 2,
+      "com.formacraft.server.interior.FloorPlanConfig": 2,
+      "com.formacraft.server.cluster.TerrainFields": 1,
+      "com.formacraft.server.cluster.layout.BuildArea": 1,
+      "com.formacraft.server.cluster.layout.BuildingPlacement": 1,
+      "com.formacraft.server.cluster.layout.BuildingUnit": 1,
+      "com.formacraft.server.cluster.layout.Candidate": 1,
+      "com.formacraft.server.cluster.layout.ClusterLayoutConfig": 1,
+      "com.formacraft.server.skeleton.grid.GridSkeleton": 1,
+      "com.formacraft.server.skeleton.linear.LinearPathSkeleton": 1,
+      "com.formacraft.server.skeleton.span.SpanSuspensionSkeleton": 1,
+      "com.formacraft.server.skeleton.stack.VerticalStackSkeleton": 1
+    }
+  },
+  "entries": [
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/HouseLayoutGenerator.java",
+      "primary": "A",
+      "categories": [
+        "A"
+      ],
+      "reason": "only data server deps: PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 1,
+      "client_import_count": 0,
+      "suggested_batch": "batch-A-data-sink"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/HouseRoofGenerator.java",
+      "primary": "A",
+      "categories": [
+        "A"
+      ],
+      "reason": "only data server deps: PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 1,
+      "client_import_count": 0,
+      "suggested_batch": "batch-A-data-sink"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/network/LlmPlanTerrainBounds.java",
+      "primary": "A",
+      "categories": [
+        "A"
+      ],
+      "reason": "only data server deps: PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 1,
+      "client_import_count": 0,
+      "suggested_batch": "batch-A-data-sink"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/compiler/ComponentPlanCompiler.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: MetaAssemblyCompiler, MetaAssemblyEngine, AssemblyMacroApplier, AssemblySpecNormalizer, AssemblySpecValidator; world/terrain signals: \\bServerWorld\\b, \\bTerrainStrategySampler\\b; also has data-only deps (下沉候选): AssemblySpec, AssemblyMacroApplyResult, AssemblySpecNormalizeResult, AssemblyValidationIssue, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.assembly.AssemblySpec",
+        "com.formacraft.server.assembly.MetaAssemblyCompiler",
+        "com.formacraft.server.assembly.MetaAssemblyEngine",
+        "com.formacraft.server.assembly.macro.AssemblyMacroApplier",
+        "com.formacraft.server.assembly.macro.AssemblyMacroApplyResult",
+        "com.formacraft.server.assembly.validation.AssemblySpecNormalizer",
+        "com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult",
+        "com.formacraft.server.assembly.validation.AssemblySpecValidator",
+        "com.formacraft.server.assembly.validation.AssemblyValidationIssue",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.assembly.AssemblySpec",
+        "com.formacraft.server.assembly.macro.AssemblyMacroApplyResult",
+        "com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult",
+        "com.formacraft.server.assembly.validation.AssemblyValidationIssue",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.assembly.MetaAssemblyCompiler",
+        "com.formacraft.server.assembly.MetaAssemblyEngine",
+        "com.formacraft.server.assembly.macro.AssemblyMacroApplier",
+        "com.formacraft.server.assembly.validation.AssemblySpecNormalizer",
+        "com.formacraft.server.assembly.validation.AssemblySpecValidator"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b",
+        "\\bTerrainStrategySampler\\b"
+      ],
+      "server_import_count": 10,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-compiler"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/component/adaptor/StructureGeneratorAdaptor.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: GenerationHub; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.generation.GenerationHub"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.generation.GenerationHub"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 2,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-misc"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/BirdsNestStadiumGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/BridgeGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver, TerrainAdaptationEngine, TerrainAdaptationResolver; world/terrain signals: \\bServerWorld\\b, \\bworld\\.getBlockState\\s*\\(, \\bTerrainAdaptationEngine\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, TerrainAdaptationMode, TerrainAdaptationSpec",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.terrain.TerrainAdaptationEngine",
+        "com.formacraft.server.terrain.TerrainAdaptationMode",
+        "com.formacraft.server.terrain.TerrainAdaptationResolver",
+        "com.formacraft.server.terrain.TerrainAdaptationSpec"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.terrain.TerrainAdaptationMode",
+        "com.formacraft.server.terrain.TerrainAdaptationSpec"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.terrain.TerrainAdaptationEngine",
+        "com.formacraft.server.terrain.TerrainAdaptationResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b",
+        "\\bworld\\.getBlockState\\s*\\(",
+        "\\bTerrainAdaptationEngine\\b"
+      ],
+      "server_import_count": 7,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/BrutalistMegastructureGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/CastleCompoundGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: GenerationHub, CompoundInterpreter, PlanDispatcher, PathPlanner, PathRoadInterpreter, RectEnclosureInterpreter, TerrainFit, TerrainPolicyResolver, FoundationPlanner, PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, TerrainPolicy, BuildReportContext",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.generation.GenerationHub",
+        "com.formacraft.server.skeleton.compound.CompoundInterpreter",
+        "com.formacraft.server.skeleton.compound.PlanDispatcher",
+        "com.formacraft.server.skeleton.path.PathPlanner",
+        "com.formacraft.server.skeleton.path.PathRoadInterpreter",
+        "com.formacraft.server.skeleton.rect.RectEnclosureInterpreter",
+        "com.formacraft.server.terrain.TerrainFit",
+        "com.formacraft.server.terrain.TerrainPolicy",
+        "com.formacraft.server.terrain.TerrainPolicyResolver",
+        "com.formacraft.server.build.BuildReportContext",
+        "com.formacraft.server.foundation.FoundationPlanner",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.terrain.TerrainPolicy",
+        "com.formacraft.server.build.BuildReportContext"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.generation.GenerationHub",
+        "com.formacraft.server.skeleton.compound.CompoundInterpreter",
+        "com.formacraft.server.skeleton.compound.PlanDispatcher",
+        "com.formacraft.server.skeleton.path.PathPlanner",
+        "com.formacraft.server.skeleton.path.PathRoadInterpreter",
+        "com.formacraft.server.skeleton.rect.RectEnclosureInterpreter",
+        "com.formacraft.server.terrain.TerrainFit",
+        "com.formacraft.server.terrain.TerrainPolicyResolver",
+        "com.formacraft.server.foundation.FoundationPlanner",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 14,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/CyberpunkMegaBlockGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/EiffelTowerGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver, VerticalTaperInterpreter, VerticalTaperSkeleton; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.skeleton.vertical.VerticalTaperInterpreter",
+        "com.formacraft.server.skeleton.vertical.VerticalTaperSkeleton"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.skeleton.vertical.VerticalTaperInterpreter",
+        "com.formacraft.server.skeleton.vertical.VerticalTaperSkeleton"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 5,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/ElvenFlowerHouseGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/ElvenMushroomHouseGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/ElvenTreehouseGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/GiantWildGoosePagodaGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver, VerticalStackInterpreter; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, VerticalStackSkeleton",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.skeleton.stack.VerticalStackInterpreter",
+        "com.formacraft.server.skeleton.stack.VerticalStackSkeleton"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.skeleton.stack.VerticalStackSkeleton"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.skeleton.stack.VerticalStackInterpreter"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 5,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/GoldenGateBridgeGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: SpanSuspensionInterpreter, PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, SpanSuspensionSkeleton",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.skeleton.span.SpanSuspensionInterpreter",
+        "com.formacraft.server.skeleton.span.SpanSuspensionSkeleton",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.skeleton.span.SpanSuspensionSkeleton"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.skeleton.span.SpanSuspensionInterpreter",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 5,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/GothicCathedralGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/GreatWallGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: LinearWallInterpreter, TerrainAdaptationResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, LinearPathSkeleton, TerrainAdaptationMode, TerrainAdaptationSpec",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.skeleton.linear.LinearPathSkeleton",
+        "com.formacraft.server.skeleton.linear.LinearWallInterpreter",
+        "com.formacraft.server.terrain.TerrainAdaptationMode",
+        "com.formacraft.server.terrain.TerrainAdaptationResolver",
+        "com.formacraft.server.terrain.TerrainAdaptationSpec"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.skeleton.linear.LinearPathSkeleton",
+        "com.formacraft.server.terrain.TerrainAdaptationMode",
+        "com.formacraft.server.terrain.TerrainAdaptationSpec"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.skeleton.linear.LinearWallInterpreter",
+        "com.formacraft.server.terrain.TerrainAdaptationResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 7,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/HorseHeadWallGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 1,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/HouseDecorator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 2,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/HouseGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver, WaterDetector, WaterfrontPierGenerator, TerrainFit, TerrainPolicyResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, TerrainPolicy",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.waterfront.WaterDetector",
+        "com.formacraft.server.waterfront.WaterfrontPierGenerator",
+        "com.formacraft.server.terrain.TerrainFit",
+        "com.formacraft.server.terrain.TerrainPolicy",
+        "com.formacraft.server.terrain.TerrainPolicyResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.terrain.TerrainPolicy"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.waterfront.WaterDetector",
+        "com.formacraft.server.waterfront.WaterfrontPierGenerator",
+        "com.formacraft.server.terrain.TerrainFit",
+        "com.formacraft.server.terrain.TerrainPolicyResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 8,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/JapaneseCastleKeepGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/JapaneseShrineGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/JapaneseTeaHouseGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/JiangnanWaterTownGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/MetaAssemblyGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: MetaAssemblyCompiler, MetaAssemblyEngine, AssemblySpecValidator, AssemblySpecNormalizer, AssemblyMacroApplier; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): AssemblySpec, AssemblyValidationIssue, AssemblySpecNormalizeResult, AssemblyMacroApplyResult, GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.assembly.AssemblySpec",
+        "com.formacraft.server.assembly.MetaAssemblyCompiler",
+        "com.formacraft.server.assembly.MetaAssemblyEngine",
+        "com.formacraft.server.assembly.validation.AssemblySpecValidator",
+        "com.formacraft.server.assembly.validation.AssemblyValidationIssue",
+        "com.formacraft.server.assembly.validation.AssemblySpecNormalizer",
+        "com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult",
+        "com.formacraft.server.assembly.macro.AssemblyMacroApplier",
+        "com.formacraft.server.assembly.macro.AssemblyMacroApplyResult",
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.assembly.AssemblySpec",
+        "com.formacraft.server.assembly.validation.AssemblyValidationIssue",
+        "com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult",
+        "com.formacraft.server.assembly.macro.AssemblyMacroApplyResult",
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.assembly.MetaAssemblyCompiler",
+        "com.formacraft.server.assembly.MetaAssemblyEngine",
+        "com.formacraft.server.assembly.validation.AssemblySpecValidator",
+        "com.formacraft.server.assembly.validation.AssemblySpecNormalizer",
+        "com.formacraft.server.assembly.macro.AssemblyMacroApplier"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 11,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/MingQingCourtyardGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: GenerationHub, CompoundInterpreter, PlanDispatcher, PathPlanner, PathRoadInterpreter, RectEnclosureInterpreter, TerrainFit, TerrainPolicyResolver, FoundationPlanner; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, TerrainPolicy, BuildReportContext",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.generation.GenerationHub",
+        "com.formacraft.server.skeleton.compound.CompoundInterpreter",
+        "com.formacraft.server.skeleton.compound.PlanDispatcher",
+        "com.formacraft.server.skeleton.path.PathPlanner",
+        "com.formacraft.server.skeleton.path.PathRoadInterpreter",
+        "com.formacraft.server.skeleton.rect.RectEnclosureInterpreter",
+        "com.formacraft.server.terrain.TerrainFit",
+        "com.formacraft.server.terrain.TerrainPolicy",
+        "com.formacraft.server.terrain.TerrainPolicyResolver",
+        "com.formacraft.server.build.BuildReportContext",
+        "com.formacraft.server.foundation.FoundationPlanner"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.terrain.TerrainPolicy",
+        "com.formacraft.server.build.BuildReportContext"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.generation.GenerationHub",
+        "com.formacraft.server.skeleton.compound.CompoundInterpreter",
+        "com.formacraft.server.skeleton.compound.PlanDispatcher",
+        "com.formacraft.server.skeleton.path.PathPlanner",
+        "com.formacraft.server.skeleton.path.PathRoadInterpreter",
+        "com.formacraft.server.skeleton.rect.RectEnclosureInterpreter",
+        "com.formacraft.server.terrain.TerrainFit",
+        "com.formacraft.server.terrain.TerrainPolicyResolver",
+        "com.formacraft.server.foundation.FoundationPlanner"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 13,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/ModernBauhausRowhouseGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/ModernOfficeCampusGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/ModernSkyscraperGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: BspFloorPlanGenerator, PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, FloorPlanConfig",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.interior.BspFloorPlanGenerator",
+        "com.formacraft.server.interior.FloorPlanConfig",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.interior.FloorPlanConfig"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.interior.BspFloorPlanGenerator",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 5,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/OfficeBlockGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: BspFloorPlanGenerator, PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, FloorPlanConfig",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.interior.BspFloorPlanGenerator",
+        "com.formacraft.server.interior.FloorPlanConfig",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.interior.FloorPlanConfig"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.interior.BspFloorPlanGenerator",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 5,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/OfficeDistrictGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: GenerationHub, PlanDispatcher, GridInterpreter, PathRoadInterpreter, CandidateGenerator, PlacementSolver, FoundationPlanner, FoundationType, PaletteResolver, TerrainFit, TerrainPolicyResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, GridSkeleton, TerrainFields, BuildArea, BuildingPlacement, BuildingUnit, Candidate, ClusterLayoutConfig, BuildReportContext, TerrainPolicy",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.generation.GenerationHub",
+        "com.formacraft.server.skeleton.compound.PlanDispatcher",
+        "com.formacraft.server.skeleton.grid.GridInterpreter",
+        "com.formacraft.server.skeleton.grid.GridSkeleton",
+        "com.formacraft.server.skeleton.path.PathRoadInterpreter",
+        "com.formacraft.server.cluster.TerrainFields",
+        "com.formacraft.server.cluster.layout.BuildArea",
+        "com.formacraft.server.cluster.layout.BuildingPlacement",
+        "com.formacraft.server.cluster.layout.BuildingUnit",
+        "com.formacraft.server.cluster.layout.Candidate",
+        "com.formacraft.server.cluster.layout.CandidateGenerator",
+        "com.formacraft.server.cluster.layout.ClusterLayoutConfig",
+        "com.formacraft.server.cluster.layout.PlacementSolver",
+        "com.formacraft.server.build.BuildReportContext",
+        "com.formacraft.server.foundation.FoundationPlanner",
+        "com.formacraft.server.foundation.FoundationType",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.terrain.TerrainFit",
+        "com.formacraft.server.terrain.TerrainPolicy",
+        "com.formacraft.server.terrain.TerrainPolicyResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.skeleton.grid.GridSkeleton",
+        "com.formacraft.server.cluster.TerrainFields",
+        "com.formacraft.server.cluster.layout.BuildArea",
+        "com.formacraft.server.cluster.layout.BuildingPlacement",
+        "com.formacraft.server.cluster.layout.BuildingUnit",
+        "com.formacraft.server.cluster.layout.Candidate",
+        "com.formacraft.server.cluster.layout.ClusterLayoutConfig",
+        "com.formacraft.server.build.BuildReportContext",
+        "com.formacraft.server.terrain.TerrainPolicy"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.generation.GenerationHub",
+        "com.formacraft.server.skeleton.compound.PlanDispatcher",
+        "com.formacraft.server.skeleton.grid.GridInterpreter",
+        "com.formacraft.server.skeleton.path.PathRoadInterpreter",
+        "com.formacraft.server.cluster.layout.CandidateGenerator",
+        "com.formacraft.server.cluster.layout.PlacementSolver",
+        "com.formacraft.server.foundation.FoundationPlanner",
+        "com.formacraft.server.foundation.FoundationType",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.terrain.TerrainFit",
+        "com.formacraft.server.terrain.TerrainPolicyResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 22,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/PantheonGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/ParametricDeconstructivismGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/ParthenonTempleGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/RectangularHouseGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 2,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/SteampunkAirshipDockGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/SteampunkAirshipGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/SteampunkFactoryGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/StructureGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure"
+      ],
+      "runtime_imports": [],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 1,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/TempleOfHeavenGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver, RadialPrimitiveInterpreter; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 4,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/TowerGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 2,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/TulouGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver, RadialPrimitiveInterpreter; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.skeleton.radial.RadialPrimitiveInterpreter"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 4,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/WallGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: PaletteResolver, TerrainAdaptationResolver; world/terrain signals: \\bServerWorld\\b, \\bworld\\.getBlockState\\s*\\(; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, TerrainAdaptationMode, TerrainAdaptationSpec",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.terrain.TerrainAdaptationMode",
+        "com.formacraft.server.terrain.TerrainAdaptationResolver",
+        "com.formacraft.server.terrain.TerrainAdaptationSpec"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.terrain.TerrainAdaptationMode",
+        "com.formacraft.server.terrain.TerrainAdaptationSpec"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.terrain.TerrainAdaptationResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b",
+        "\\bworld\\.getBlockState\\s*\\("
+      ],
+      "server_import_count": 6,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/blueprint/BlueprintStructureGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: GenerationHub, CompoundInterpreter, PlanDispatcher, PathRoadInterpreter, RectEnclosureInterpreter; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.generation.GenerationHub",
+        "com.formacraft.server.skeleton.compound.CompoundInterpreter",
+        "com.formacraft.server.skeleton.compound.PlanDispatcher",
+        "com.formacraft.server.skeleton.path.PathRoadInterpreter",
+        "com.formacraft.server.skeleton.rect.RectEnclosureInterpreter"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.generation.GenerationHub",
+        "com.formacraft.server.skeleton.compound.CompoundInterpreter",
+        "com.formacraft.server.skeleton.compound.PlanDispatcher",
+        "com.formacraft.server.skeleton.path.PathRoadInterpreter",
+        "com.formacraft.server.skeleton.rect.RectEnclosureInterpreter"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 7,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/composite/CompositeStructureGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: GenerationHub; world/terrain signals: \\bServerWorld\\b; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.generation.GenerationHub"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.generation.GenerationHub"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/generation/structure/path/PathGenerator.java",
+      "primary": "B",
+      "categories": [
+        "B",
+        "A"
+      ],
+      "reason": "runtime server deps: BuildConstraintContext, PaletteResolver, RoadPlanner, RoadAStar, RoadDecorator, RoadSurfaceAnalyzer, TerrainAdaptationResolver; world/terrain signals: \\bServerWorld\\b, \\bworld\\.getBlockState\\s*\\(; also has data-only deps (下沉候选): GeneratedStructure, PlannedBlock, TerrainAdaptationMode, TerrainAdaptationSpec",
+      "server_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.BuildConstraintContext",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.road.RoadPlanner",
+        "com.formacraft.server.road.RoadAStar",
+        "com.formacraft.server.road.RoadDecorator",
+        "com.formacraft.server.road.RoadSurfaceAnalyzer",
+        "com.formacraft.server.terrain.TerrainAdaptationMode",
+        "com.formacraft.server.terrain.TerrainAdaptationResolver",
+        "com.formacraft.server.terrain.TerrainAdaptationSpec"
+      ],
+      "client_imports": [],
+      "data_imports": [
+        "com.formacraft.server.build.GeneratedStructure",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.terrain.TerrainAdaptationMode",
+        "com.formacraft.server.terrain.TerrainAdaptationSpec"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.build.BuildConstraintContext",
+        "com.formacraft.server.material.PaletteResolver",
+        "com.formacraft.server.road.RoadPlanner",
+        "com.formacraft.server.road.RoadAStar",
+        "com.formacraft.server.road.RoadDecorator",
+        "com.formacraft.server.road.RoadSurfaceAnalyzer",
+        "com.formacraft.server.terrain.TerrainAdaptationResolver"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b",
+        "\\bworld\\.getBlockState\\s*\\("
+      ],
+      "server_import_count": 11,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-structure-generators"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/init/SkeletonSystemInitializer.java",
+      "primary": "B",
+      "categories": [
+        "B"
+      ],
+      "reason": "runtime server deps: SkeletonBuildService, SkeletonSemanticRegistry, ComponentAssemblerRegistry",
+      "server_imports": [
+        "com.formacraft.server.skeleton.gen.SkeletonBuildService",
+        "com.formacraft.server.skeleton.gen.SkeletonSemanticRegistry",
+        "com.formacraft.server.skeleton.gen.assembler.ComponentAssemblerRegistry"
+      ],
+      "client_imports": [],
+      "data_imports": [],
+      "runtime_imports": [
+        "com.formacraft.server.skeleton.gen.SkeletonBuildService",
+        "com.formacraft.server.skeleton.gen.SkeletonSemanticRegistry",
+        "com.formacraft.server.skeleton.gen.assembler.ComponentAssemblerRegistry"
+      ],
+      "world_signals": [],
+      "server_import_count": 3,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-misc"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/network/NetworkOrchestratorProvider.java",
+      "primary": "B",
+      "categories": [
+        "B"
+      ],
+      "reason": "runtime server deps: OrchestratorClient",
+      "server_imports": [
+        "com.formacraft.server.orchestrator.OrchestratorClient"
+      ],
+      "client_imports": [],
+      "data_imports": [],
+      "runtime_imports": [
+        "com.formacraft.server.orchestrator.OrchestratorClient"
+      ],
+      "world_signals": [],
+      "server_import_count": 1,
+      "client_import_count": 0,
+      "suggested_batch": "batch-B-network"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/assembly/AutoAssembler.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: PlacementContext",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.placement.PlacementContext"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/assembly/ContinuousPlacementIntegration.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: OutlineTool, PathTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.OutlineTool",
+        "com.formacraft.client.tool.PathTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 2,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/assembly/SkeletonSocketGenerator.java",
+      "primary": "C",
+      "categories": [
+        "C",
+        "B"
+      ],
+      "reason": "imports client UI/tools: OutlineTool, PathTool, SelectionTool; world/terrain signals: \\bServerWorld\\b",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.OutlineTool",
+        "com.formacraft.client.tool.PathTool",
+        "com.formacraft.client.tool.SelectionTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 0,
+      "client_import_count": 3,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/compiler/component/ComponentPlanCompiler.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: PlacementContext",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.placement.PlacementContext"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/compiler/voxel/ComponentVoxelizer.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: PlacementContext",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.placement.PlacementContext"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/component/socket/SocketQueryContextBuilder.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: OutlineTool, PathTool, SelectionTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.OutlineTool",
+        "com.formacraft.client.tool.PathTool",
+        "com.formacraft.client.tool.SelectionTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 3,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/component/socket/continuous/OutlineEdgeSocket.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: OutlineTool, OutlineMode",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.OutlineTool",
+        "com.formacraft.client.tool.OutlineMode"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 2,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/component/socket/continuous/PathSocket.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: PathTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.PathTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/component/socket/place/PlacementContextAdapter.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: PlacementContext",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.placement.PlacementContext"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/item/FormaCraftToolItem.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: FormacraftUIState, FormaCraftHudOverlay, PanelType",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.ui.FormacraftUIState",
+        "com.formacraft.client.ui.FormaCraftHudOverlay",
+        "com.formacraft.client.ui.panel.PanelType"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 3,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/network/BuildRequestProcessor.java",
+      "primary": "C",
+      "categories": [
+        "C",
+        "B"
+      ],
+      "reason": "imports client UI/tools: OutlineBlock; runtime server deps: BuildConstraintClipper, BuildConstraintContext, OrchestratorClient; world/terrain signals: \\bServerWorld\\b",
+      "server_imports": [
+        "com.formacraft.server.build.BuildConstraintClipper",
+        "com.formacraft.server.build.BuildConstraintContext",
+        "com.formacraft.server.orchestrator.OrchestratorClient"
+      ],
+      "client_imports": [
+        "com.formacraft.client.preview.OutlineBlock"
+      ],
+      "data_imports": [],
+      "runtime_imports": [
+        "com.formacraft.server.build.BuildConstraintClipper",
+        "com.formacraft.server.build.BuildConstraintContext",
+        "com.formacraft.server.orchestrator.OrchestratorClient"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b"
+      ],
+      "server_import_count": 3,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/network/FormaCraftNetworking.java",
+      "primary": "C",
+      "categories": [
+        "C",
+        "B",
+        "A"
+      ],
+      "reason": "imports client UI/tools: OutlineBlock; runtime server deps: BuildExecutionService, BuildConstraintContext, BuildConstraintClipper, OrchestratorClient, FoundationPlanner, FoundationType, PreviewStorage, TerrainAdaptationEngine, TerrainFit; world/terrain signals: \\bServerWorld\\b, \\bTerrainAdaptationEngine\\b; also has data-only deps (下沉候选): PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.BuildExecutionService",
+        "com.formacraft.server.build.BuildConstraintContext",
+        "com.formacraft.server.build.BuildConstraintClipper",
+        "com.formacraft.server.orchestrator.OrchestratorClient",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.foundation.FoundationPlanner",
+        "com.formacraft.server.foundation.FoundationType",
+        "com.formacraft.server.preview.PreviewStorage",
+        "com.formacraft.server.terrain.TerrainAdaptationEngine",
+        "com.formacraft.server.terrain.TerrainFit"
+      ],
+      "client_imports": [
+        "com.formacraft.client.preview.OutlineBlock"
+      ],
+      "data_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.build.BuildExecutionService",
+        "com.formacraft.server.build.BuildConstraintContext",
+        "com.formacraft.server.build.BuildConstraintClipper",
+        "com.formacraft.server.orchestrator.OrchestratorClient",
+        "com.formacraft.server.foundation.FoundationPlanner",
+        "com.formacraft.server.foundation.FoundationType",
+        "com.formacraft.server.preview.PreviewStorage",
+        "com.formacraft.server.terrain.TerrainAdaptationEngine",
+        "com.formacraft.server.terrain.TerrainFit"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b",
+        "\\bTerrainAdaptationEngine\\b"
+      ],
+      "server_import_count": 10,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/network/LlmPlanPreviewBuilder.java",
+      "primary": "C",
+      "categories": [
+        "C",
+        "B",
+        "A"
+      ],
+      "reason": "imports client UI/tools: OutlineBlock; runtime server deps: BuildConstraintClipper, BuildConstraintContext, FoundationPlanner, FoundationType, PreviewStorage, TerrainAdaptationEngine, TerrainFit; world/terrain signals: \\bServerWorld\\b, \\bTerrainStrategySampler\\b, \\bTerrainAdaptationEngine\\b; also has data-only deps (下沉候选): PlannedBlock",
+      "server_imports": [
+        "com.formacraft.server.build.BuildConstraintClipper",
+        "com.formacraft.server.build.BuildConstraintContext",
+        "com.formacraft.server.build.PlannedBlock",
+        "com.formacraft.server.foundation.FoundationPlanner",
+        "com.formacraft.server.foundation.FoundationType",
+        "com.formacraft.server.preview.PreviewStorage",
+        "com.formacraft.server.terrain.TerrainAdaptationEngine",
+        "com.formacraft.server.terrain.TerrainFit"
+      ],
+      "client_imports": [
+        "com.formacraft.client.preview.OutlineBlock"
+      ],
+      "data_imports": [
+        "com.formacraft.server.build.PlannedBlock"
+      ],
+      "runtime_imports": [
+        "com.formacraft.server.build.BuildConstraintClipper",
+        "com.formacraft.server.build.BuildConstraintContext",
+        "com.formacraft.server.foundation.FoundationPlanner",
+        "com.formacraft.server.foundation.FoundationType",
+        "com.formacraft.server.preview.PreviewStorage",
+        "com.formacraft.server.terrain.TerrainAdaptationEngine",
+        "com.formacraft.server.terrain.TerrainFit"
+      ],
+      "world_signals": [
+        "\\bServerWorld\\b",
+        "\\bTerrainStrategySampler\\b",
+        "\\bTerrainAdaptationEngine\\b"
+      ],
+      "server_import_count": 8,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/network/packet/PreviewOutlinePacket.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: OutlineBlock",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.preview.OutlineBlock"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/patch/filter/PatchFilterContext.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: OutlineTool, ProtectedZoneTool, SelectionTool, SymmetryTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.OutlineTool",
+        "com.formacraft.client.tool.ProtectedZoneTool",
+        "com.formacraft.client.tool.SelectionTool",
+        "com.formacraft.client.tool.SymmetryTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 4,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/patch/filter/PatchFilterContextBuilder.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: OutlineTool, ProtectedZoneTool, SelectionTool, SymmetryTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.OutlineTool",
+        "com.formacraft.client.tool.ProtectedZoneTool",
+        "com.formacraft.client.tool.SelectionTool",
+        "com.formacraft.client.tool.SymmetryTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 4,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/patch/filter/impl/ForbiddenZoneFilter.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: ProtectedZoneTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.ProtectedZoneTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/patch/filter/impl/OutlineClipFilter.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: OutlineMode, OutlineTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.OutlineMode",
+        "com.formacraft.client.tool.OutlineTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 2,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/patch/filter/impl/SelectionOnlyFilter.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: SelectionTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.SelectionTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 1,
+      "suggested_batch": "batch-C-tool-snapshot"
+    },
+    {
+      "file": "src/main/java/com/formacraft/common/patch/filter/impl/SymmetryFilter.java",
+      "primary": "C",
+      "categories": [
+        "C"
+      ],
+      "reason": "imports client UI/tools: SelectionTool, SymmetryMode, SymmetryTool",
+      "server_imports": [],
+      "client_imports": [
+        "com.formacraft.client.tool.SelectionTool",
+        "com.formacraft.client.tool.SymmetryMode",
+        "com.formacraft.client.tool.SymmetryTool"
+      ],
+      "data_imports": [],
+      "runtime_imports": [],
+      "world_signals": [],
+      "server_import_count": 0,
+      "client_import_count": 3,
+      "suggested_batch": "batch-C-tool-snapshot"
+    }
+  ]
+}

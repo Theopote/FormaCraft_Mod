@@ -7,7 +7,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.model.request.FormaRequest;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.HashMap;

@@ -4,7 +4,7 @@ import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.StyleProfile;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;

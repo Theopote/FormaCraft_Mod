@@ -1,6 +1,6 @@
 package com.formacraft.server.waterfront;
 
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;

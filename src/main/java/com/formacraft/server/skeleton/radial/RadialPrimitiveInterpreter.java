@@ -2,7 +2,7 @@ package com.formacraft.server.skeleton.radial;
 
 import com.formacraft.common.skeleton.radial.*;
 import com.formacraft.server.build.BuildConstraintContext;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;

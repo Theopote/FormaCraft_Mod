@@ -1,7 +1,7 @@
 package com.formacraft.server.skeleton.vertical;
 
 import com.formacraft.common.skeleton.vertical.VerticalTaperPlan;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.skeleton.SkeletonInterpreter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;

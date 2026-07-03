@@ -1,7 +1,7 @@
 package com.formacraft.server.skeleton;
 
 import com.formacraft.common.skeleton.SkeletonPlan;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 

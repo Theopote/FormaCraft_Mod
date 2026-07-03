@@ -1,7 +1,7 @@
 package com.formacraft.server.asset;
 
 import com.formacraft.common.logging.FcaLog;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

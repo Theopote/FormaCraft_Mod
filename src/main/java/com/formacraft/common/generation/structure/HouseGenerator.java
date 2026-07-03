@@ -8,8 +8,8 @@ import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.common.style.StyleGenome;
 import com.formacraft.common.style.StyleGenomeRegistry;
-import com.formacraft.server.build.GeneratedStructure;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -288,7 +288,7 @@ public class HouseGenerator implements StructureGenerator {
                         net.minecraft.block.BlockState current = ctx.world().getBlockState(clearPos);
                         // 清理所有非空气方块（包括地形方块）
                         if (!current.isAir()) {
-                            blocks.add(new com.formacraft.server.build.PlannedBlock(clearPos, net.minecraft.block.Blocks.AIR.getDefaultState()));
+                            blocks.add(new com.formacraft.common.build.PlannedBlock(clearPos, net.minecraft.block.Blocks.AIR.getDefaultState()));
                         }
                     }
                 }

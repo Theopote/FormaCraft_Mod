@@ -292,7 +292,7 @@ public class ProjectMemory {
      * 从 GeneratedStructure 和 BuildingSpec 创建记忆
      */
     public static ProjectMemory fromStructure(
-            com.formacraft.server.build.GeneratedStructure structure,
+            com.formacraft.common.build.GeneratedStructure structure,
             BuildingSpec spec,
             String name,
             Identifier dimension) {
@@ -300,13 +300,13 @@ public class ProjectMemory {
         
         // 计算边界
         if (structure != null && !structure.getBlocks().isEmpty()) {
-            List<com.formacraft.server.build.PlannedBlock> blocks = structure.getBlocks();
+            List<com.formacraft.common.build.PlannedBlock> blocks = structure.getBlocks();
             BlockPos origin = structure.getOrigin();
             
             int minX = origin.getX(), minY = origin.getY(), minZ = origin.getZ();
             int maxX = origin.getX(), maxY = origin.getY(), maxZ = origin.getZ();
             
-            for (com.formacraft.server.build.PlannedBlock block : blocks) {
+            for (com.formacraft.common.build.PlannedBlock block : blocks) {
                 BlockPos pos = block.getPos();
                 minX = Math.min(minX, pos.getX());
                 minY = Math.min(minY, pos.getY());

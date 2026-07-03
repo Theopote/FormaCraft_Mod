@@ -4,7 +4,7 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.BuildReportContext;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;

@@ -2,7 +2,7 @@ package com.formacraft.common.generation.structure;
 
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;

@@ -1,6 +1,6 @@
 package com.formacraft.server.assembly;
 
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.interior.BspFloorPlanGenerator;
 import com.formacraft.server.interior.FloorPlanConfig;
 import net.minecraft.block.BlockState;

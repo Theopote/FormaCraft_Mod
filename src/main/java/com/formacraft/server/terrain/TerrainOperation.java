@@ -1,7 +1,7 @@
 package com.formacraft.server.terrain;
 
-import com.formacraft.server.build.GeneratedStructure;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;

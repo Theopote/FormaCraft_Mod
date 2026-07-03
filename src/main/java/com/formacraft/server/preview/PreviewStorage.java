@@ -1,7 +1,7 @@
 package com.formacraft.server.preview;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.server.build.GeneratedStructure;
+import com.formacraft.common.build.GeneratedStructure;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.HashMap;

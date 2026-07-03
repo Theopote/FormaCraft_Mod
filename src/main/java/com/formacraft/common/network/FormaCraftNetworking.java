@@ -31,7 +31,7 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.llm.parser.LlmPlanParser;
 import com.formacraft.common.llm.parser.PlanParseException;
 import com.formacraft.common.compiler.ComponentPlanCompiler;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.server.foundation.FoundationType;
 import com.formacraft.server.preview.PreviewStorage;
@@ -507,7 +507,7 @@ public class FormaCraftNetworking {
 
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
                 // 优先：按"预览已生成的结构"执行，保证与预览一致（也包含禁区/轮廓硬裁剪）
-                com.formacraft.server.build.GeneratedStructure preview = com.formacraft.server.preview.PreviewStorage.getStructure(player);
+                com.formacraft.common.build.GeneratedStructure preview = com.formacraft.server.preview.PreviewStorage.getStructure(player);
                 boolean hasPreview = com.formacraft.server.preview.PreviewStorage.hasPreview(player);
                 if (hasPreview && preview != null) {
                     // 验证预览结构有效性
@@ -757,7 +757,7 @@ public class FormaCraftNetworking {
                 }
                 return;
             }
-            com.formacraft.server.build.GeneratedStructure structure = PreviewStorage.getStructure(player);
+            com.formacraft.common.build.GeneratedStructure structure = PreviewStorage.getStructure(player);
             if (structure == null || structure.getBlocks() == null || structure.getBlocks().isEmpty()) {
                 try {
                     ServerPlayNetworking.send(player, new ResponseBuildStatusPayload("预览结构为空，无法调整。"));
@@ -776,7 +776,7 @@ public class FormaCraftNetworking {
             dz = Math.max(-max, Math.min(max, dz));
             if (dx == 0 && dy == 0 && dz == 0) return;
 
-            com.formacraft.server.build.GeneratedStructure shifted = shiftStructure(structure, dx, dy, dz);
+            com.formacraft.common.build.GeneratedStructure shifted = shiftStructure(structure, dx, dy, dz);
             PreviewStorage.updateStructure(player, shifted);
             PreviewStorage.setPreview(player, true);
 
@@ -801,8 +801,8 @@ public class FormaCraftNetworking {
         }));
     }
 
-    private static com.formacraft.server.build.GeneratedStructure shiftStructure(
-            com.formacraft.server.build.GeneratedStructure structure,
+    private static com.formacraft.common.build.GeneratedStructure shiftStructure(
+            com.formacraft.common.build.GeneratedStructure structure,
             int dx,
             int dy,
             int dz
@@ -818,7 +818,7 @@ public class FormaCraftNetworking {
             BlockPos newPos = pos.add(dx, dy, dz);
             shifted.add(new PlannedBlock(newPos, block.getTargetState()));
         }
-        return new com.formacraft.server.build.GeneratedStructure(
+        return new com.formacraft.common.build.GeneratedStructure(
                 structure.getOwner(),
                 newOrigin,
                 structure.getDescription(),

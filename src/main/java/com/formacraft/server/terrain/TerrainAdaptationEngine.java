@@ -4,7 +4,7 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.model.build.ShapeSpec;
 import com.formacraft.server.build.BuildConstraintContext;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.build.shape.FootprintGenerator;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.block.BlockState;

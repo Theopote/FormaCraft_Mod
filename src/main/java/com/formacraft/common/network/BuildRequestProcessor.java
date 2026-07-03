@@ -104,11 +104,11 @@ public final class BuildRequestProcessor {
                                             // 生成城市结构
                                             com.formacraft.server.city.CityBuilder cityBuilder =
                                                     new com.formacraft.server.city.CityBuilder();
-                                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
+                                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
                                                     com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
                                                             BuildConstraintContext.withRequest(req, () -> cityBuilder.generate(citySpec, origin, serverWorld))
                                                     );
-                                            final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                                            final com.formacraft.common.build.GeneratedStructure generated = reported.value();
 
                                             // 质量检查（CitySpec 没有 BuildingSpec，传递 null）
                                             com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
@@ -135,7 +135,7 @@ public final class BuildRequestProcessor {
                                             }
 
                                             // 设置玩家 UUID
-                                            com.formacraft.server.build.GeneratedStructure structure = new com.formacraft.server.build.GeneratedStructure(
+                                            com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
                                                     player.getUuid(),
                                                     origin,
                                                     generated.getDescription(),
@@ -220,11 +220,11 @@ public final class BuildRequestProcessor {
                                             // 生成结构
                                             com.formacraft.common.generation.structure.composite.CompositeStructureGenerator generator =
                                                     new com.formacraft.common.generation.structure.composite.CompositeStructureGenerator();
-                                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
+                                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
                                                     com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
                                                             BuildConstraintContext.withRequest(req, () -> generator.generate(compositeSpec, origin, serverWorld))
                                                     );
-                                            final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                                            final com.formacraft.common.build.GeneratedStructure generated = reported.value();
 
                                             // 质量检查（CitySpec 没有 BuildingSpec，传递 null）
                                             com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
@@ -251,7 +251,7 @@ public final class BuildRequestProcessor {
                                             }
 
                                             // 设置玩家 UUID
-                                            com.formacraft.server.build.GeneratedStructure structure = new com.formacraft.server.build.GeneratedStructure(
+                                            com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
                                                     player.getUuid(),
                                                     origin,
                                                     generated.getDescription(),
@@ -342,11 +342,11 @@ public final class BuildRequestProcessor {
                                             if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
                                                 com.formacraft.common.generation.structure.StructureGenerator generator =
                                                         com.formacraft.server.generation.GenerationHub.routeStructure(updated);
-                                                final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
+                                                final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
                                                         com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
                                                                 BuildConstraintContext.withRequest(req, () -> generator.generate(updated, origin, serverWorld))
                                                         );
-                                                final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                                                final com.formacraft.common.build.GeneratedStructure generated = reported.value();
 
                                                 // 质量检查
                                                 com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
@@ -373,7 +373,7 @@ public final class BuildRequestProcessor {
                                                 }
 
                                                 // 生成阶段硬裁剪：禁区/轮廓/选区（由工具提供）
-                                                com.formacraft.server.build.GeneratedStructure structure = new com.formacraft.server.build.GeneratedStructure(
+                                                com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
                                                         player.getUuid(),
                                                         origin,
                                                         generated.getDescription(),
@@ -472,11 +472,11 @@ public final class BuildRequestProcessor {
                                             // 生成结构用于预览
                                                     com.formacraft.common.generation.structure.StructureGenerator generator =
                                                     com.formacraft.server.generation.GenerationHub.routeStructure(spec);
-                                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.server.build.GeneratedStructure> reported =
+                                            final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
                                                     com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
                                                             BuildConstraintContext.withRequest(req, () -> generator.generate(spec, origin, serverWorld))
                                                     );
-                                            final com.formacraft.server.build.GeneratedStructure generated = reported.value();
+                                            final com.formacraft.common.build.GeneratedStructure generated = reported.value();
 
                                             // 质量检查（CitySpec 没有 BuildingSpec，传递 null）
                                             com.formacraft.server.build.QualityChecker.QualityReport qualityReport =
@@ -503,7 +503,7 @@ public final class BuildRequestProcessor {
                                             }
 
                                             // 生成阶段硬裁剪：禁区/轮廓/选区（由工具提供）
-                                            com.formacraft.server.build.GeneratedStructure structure = new com.formacraft.server.build.GeneratedStructure(
+                                            com.formacraft.common.build.GeneratedStructure structure = new com.formacraft.common.build.GeneratedStructure(
                                                     player.getUuid(),
                                                     origin,
                                                     generated.getDescription(),

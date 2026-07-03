@@ -6,7 +6,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import com.formacraft.server.build.GeneratedStructure;
+import com.formacraft.common.build.GeneratedStructure;
 
 import java.io.IOException;
 import java.util.List;

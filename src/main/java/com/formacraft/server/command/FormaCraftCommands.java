@@ -8,7 +8,7 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.composite.CompositeSpec;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.server.build.BuildExecutionService;
-import com.formacraft.server.build.GeneratedStructure;
+import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.server.city.CityBuilder;
 import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.common.generation.structure.StructureGenerator;

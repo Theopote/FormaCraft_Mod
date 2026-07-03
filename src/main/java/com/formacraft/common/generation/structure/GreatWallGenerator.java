@@ -2,8 +2,8 @@ package com.formacraft.common.generation.structure;
 
 import com.formacraft.common.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
-import com.formacraft.server.build.GeneratedStructure;
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.skeleton.SkeletonParams;
 import com.formacraft.common.skeleton.linear.LinearPathPlan;
 import com.formacraft.server.skeleton.linear.LinearPathSkeleton;

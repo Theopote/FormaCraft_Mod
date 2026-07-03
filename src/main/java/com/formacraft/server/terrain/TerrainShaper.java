@@ -1,6 +1,6 @@
 package com.formacraft.server.terrain;
 
-import com.formacraft.server.build.PlannedBlock;
+import com.formacraft.common.build.PlannedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -193,9 +193,9 @@ public class TerrainShaper {
      * @param fillMaterial 填充材料
      * @return 合并了地形整形的结构
      */
-    public static com.formacraft.server.build.GeneratedStructure preprocessStructure(
+    public static com.formacraft.common.build.GeneratedStructure preprocessStructure(
             ServerWorld world,
-            com.formacraft.server.build.GeneratedStructure structure,
+            com.formacraft.common.build.GeneratedStructure structure,
             BlockPos min,
             BlockPos max,
             BlockState fillMaterial) {
@@ -210,7 +210,7 @@ public class TerrainShaper {
         merged.addAll(clear.getBlocks());
         merged.addAll(structure.getBlocks());
         
-        return new com.formacraft.server.build.GeneratedStructure(
+        return new com.formacraft.common.build.GeneratedStructure(
                 structure.getOwner(),
                 structure.getOrigin(),
                 structure.getDescription() + " + Terrain",
