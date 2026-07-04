@@ -18,10 +18,10 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * PRIMITIVE 组件生成器（ShapeLibrary M1 + M2）。
+ * PRIMITIVE 组件生成器（ShapeLibrary M1 + M2 + M3）。
  * <p>
- * params.kind: box | cylinder | cone | frustum | prism | sphere | ellipse | sector | triangle
- * params: hollow, rotation_*_deg, CSG operations[], subtract{}
+ * params.kind: box | cylinder | cone | frustum | prism | sphere | ellipse | sector | triangle | voronoi | mobius
+ * params: extrude_mode, hollow, rotation_*_deg, CSG operations[], subtract{}
  */
 public class PrimitiveShapeGenerator implements ComponentGenerator {
 
