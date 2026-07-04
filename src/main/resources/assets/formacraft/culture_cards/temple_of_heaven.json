@@ -1,0 +1,45 @@
+{
+  "id": "temple_of_heaven",
+  "styleId": "Chinese_Imperial_Official",
+  "intents": ["TEMPLE", "LANDMARK", "天坛", "祭坛"],
+  "keywords": [
+    "天坛", "祈年殿", "圜丘", "皇穹宇", "祭天", "祭坛",
+    "temple of heaven", "qiniandian", "heaven temple", "imperial temple",
+    "圆形殿", "三重檐", "三层台基", "汉白玉台", "皇家祭祀"
+  ],
+  "synonyms": {
+    "天坛": ["temple of heaven", "heaven altar temple", "qiniandian"],
+    "祈年殿": ["hall of prayer", "qinian hall"],
+    "三层台基": ["three-tier platform", "triple terrace"]
+  },
+  "keywordWeights": {
+    "天坛": 8.0,
+    "祈年殿": 7.5,
+    "temple of heaven": 7.5,
+    "qiniandian": 7.0,
+    "祭天": 6.0,
+    "三层台基": 5.5,
+    "三重檐": 5.5,
+    "圆形殿": 5.0
+  },
+  "negativeKeywords": [
+    "体育场", "椭圆", "城堡", "四合院", "方塔", "五层", "stadium", "castle",
+    "courtyard", "cottage", "小房子", "哥特", "大教堂"
+  ],
+  "proportionCardId": "temple_of_heaven",
+  "landmarkModuleId": "temple_of_heaven",
+  "llmPlanExampleRefs": ["temple_of_heaven_module.json"],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "temple_of_heaven_landmark",
+      "constraints": [
+        "天坛/祈年殿：RECOMMENDED 路径为 MODULE + landmark:temple_of_heaven（三层圆台 + 三重檐圆殿）",
+        "允许原创路径：RADIAL_RING/RADIAL_SPOKE + MASS shape=circle + 多层 ROOF/DOME + 汉白玉 PAVING 台基",
+        "layout.skeleton_type=RADIAL_RING；global_constraints.symmetry=RADIAL",
+        "输出 proportion_hints：tier_count=3, base_radius_to_height≈0.5, radial_symmetry_order=4",
+        "禁止用单一方形 MASS 盒子代替圆形祭祀建筑"
+      ]
+    }
+  ]
+}

@@ -74,5 +74,18 @@
       "MASS_MAIN 9×9×15 + TERRACE 顶层平台 + ENTRANCE + FACADE_WINDOWS",
       "layout.skeleton_type=VERTICAL_STACK；proportion_hints.floor_count=5"
     ]
+  },
+  {
+    "id": "temple_of_heaven",
+    "prompt": "盖一座天坛",
+    "plan_fixture": "plans/temple_of_heaven_golden.json",
+    "tags": ["temple", "landmark", "radial"],
+    "proportion_card": "temple_of_heaven",
+    "ci": true,
+    "ideal_notes": [
+      "Culture card temple_of_heaven + proportion_card",
+      "RECOMMENDED: MODULE + landmark:temple_of_heaven（三层圆台 + 三重檐）",
+      "layout.skeleton_type=RADIAL_RING；symmetry=RADIAL"
+    ]
   }
 ]

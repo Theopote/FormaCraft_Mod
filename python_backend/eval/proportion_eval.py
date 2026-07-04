@@ -50,6 +50,8 @@ def resolve_proportion_card_id(prompt: Optional[str]) -> Optional[str]:
         return "siheyuan_courtyard"
     if any(k in q for k in ("方塔", "五层", "5层", "square tower", "five-story tower", "顶部平台")):
         return "square_tower_five_story"
+    if any(k in q for k in ("天坛", "祈年殿", "temple of heaven", "qiniandian", "祭天")):
+        return "temple_of_heaven"
     return None
 
 
@@ -260,5 +262,26 @@ def evaluate_enclosure(plan: Dict[str, Any], prompt: Optional[str] = None) -> Li
                 w > 0 and w == d,
                 f"square tower footprint width={w} depth={d}",
             ))
+
+    is_temple = any(
+        k in q for k in ("天坛", "祈年殿", "temple of heaven", "qiniandian", "祭天")
+    )
+    if is_temple:
+        has_landmark = any(
+            str(c.get("component_type") or "").upper() == "MODULE"
+            and (
+                any(
+                    isinstance(f, str) and "temple_of_heaven" in f.lower()
+                    for f in (c.get("features") or [])
+                )
+                or str((c.get("params") or {}).get("module_id", "")).lower() == "temple_of_heaven"
+            )
+            for c in comps
+        )
+        checks.append((
+            "temple_has_landmark_module",
+            has_landmark,
+            "temple of heaven prompt expects MODULE landmark:temple_of_heaven",
+        ))
 
     return checks

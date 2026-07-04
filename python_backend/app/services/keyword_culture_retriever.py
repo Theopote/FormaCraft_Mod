@@ -108,6 +108,8 @@ def _default_vector_for(style_id: str) -> Tuple[float, float, float, float, floa
         return 0.5, 0.85, 0.4, 0.2, 0.25
     if "TOWER" in sid or sid.endswith("_TOWER"):
         return 0.45, 0.8, 0.95, 0.15, 0.55
+    if "IMPERIAL" in sid or "TEMPLE" in sid or "HEAVEN" in sid:
+        return 0.55, 0.9, 0.75, 0.2, 0.35
     if "CLASSICAL" in sid or "GRECOROMAN" in sid:
         return 0.55, 0.8, 0.6, 0.25, 0.4
     return 0.6, 0.6, 0.6, 0.4, 0.5

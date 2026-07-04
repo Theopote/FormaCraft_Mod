@@ -1,0 +1,34 @@
+{
+  "id": "temple_of_heaven",
+  "typology": "temple_of_heaven",
+  "matchKeywords": [
+    "天坛", "祈年殿", "temple of heaven", "qiniandian", "祭天", "三层台基", "三重檐",
+    "heaven temple", "imperial temple"
+  ],
+  "ratios": {
+    "base_radius_to_height": {
+      "min": 0.35,
+      "ideal": 0.53,
+      "max": 0.75,
+      "desc": "台基半径/总高（祈年殿典型约 18:34）"
+    },
+    "diameter_to_height": {
+      "min": 0.7,
+      "ideal": 1.06,
+      "max": 1.6,
+      "desc": "底径/总高"
+    },
+    "tier_count": {
+      "min": 2,
+      "ideal": 3,
+      "max": 5,
+      "desc": "台基/屋顶层级（默认三重）"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["square", "horizontal_strip"],
+    "min_enclosure_coverage": 0.75,
+    "max_void_ratio": 0.22
+  },
+  "aiInstruction": "Radial ceremonial LlmPlan for Temple of Heaven. RECOMMENDED: MODULE + landmark:temple_of_heaven with params.baseRadius, tiers, facing. Compositional fallback: skeleton_type=RADIAL_RING, circular MASS or tiered ROOF/DOME, PAVING terrace rings. Output proportion_hints with tier_count and base_radius_to_height. symmetry=RADIAL. Do NOT use a plain rectangular box."
+}

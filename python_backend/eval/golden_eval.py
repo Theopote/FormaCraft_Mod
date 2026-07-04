@@ -88,6 +88,13 @@ _SCENARIO_HARD_BY_TAG: Dict[str, frozenset] = {
         "has_windows",
         "component_richness",
     }),
+    "temple": frozenset({
+        "has_proportion_hints",
+        "temple_landmark_or_radial_mass",
+        "temple_radial_layout",
+        "temple_circular_form",
+        "temple_tier_expressed",
+    }),
     "primitive": frozenset({
         "facade_params_valid",
     }),
@@ -104,6 +111,7 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
         for tag in tag_set:
             if tag == "high_frequency" and (
                 "castle" in tag_set or "siheyuan" in tag_set or "tower" in tag_set
+                or "temple" in tag_set
             ):
                 continue
             names.update(_SCENARIO_HARD_BY_TAG.get(tag, ()))
@@ -116,6 +124,8 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
         names.update(_SCENARIO_HARD_BY_TAG.get("siheyuan", ()))
     elif card == "square_tower_five_story":
         names.update(_SCENARIO_HARD_BY_TAG.get("tower", ()))
+    elif card == "temple_of_heaven":
+        names.update(_SCENARIO_HARD_BY_TAG.get("temple", ()))
     hard_names = scenario.get("hard_checks")
     if isinstance(hard_names, list):
         names.update(str(n) for n in hard_names if n)
@@ -463,6 +473,92 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             has_platform,
             hard=False,
             detail="顶部平台：需 TERRACE / PLAZA 等顶层平台组件",
+        ))
+
+    # ---- 天坛 / 径向祭祀建筑 ----
+    is_temple = _prompt_contains(
+        prompt,
+        ("天坛", "祈年殿", "temple of heaven", "qiniandian", "祭天", "heaven temple"),
+    )
+    if is_temple:
+        has_landmark = any(
+            c.get("component_type", "").upper() == "MODULE"
+            and _has_landmark_feature(c, "temple_of_heaven")
+            for c in comps
+        )
+        params_landmark = False
+        for c in comps:
+            if c.get("component_type", "").upper() != "MODULE":
+                continue
+            params = c.get("params") if isinstance(c.get("params"), dict) else {}
+            mid = params.get("module_id", params.get("moduleId"))
+            if isinstance(mid, str) and "temple_of_heaven" in mid.lower():
+                params_landmark = True
+        has_landmark = has_landmark or params_landmark
+
+        checks.append(Check(
+            "temple_landmark_or_radial_mass",
+            has_landmark or _stadium_has_curved_mass(comps),
+            hard=False,
+            detail="天坛意图：应用 MODULE+landmark:temple_of_heaven，"
+                   "或 MASS shape=circle + 径向布局",
+        ))
+
+        layout = plan.get("layout") if isinstance(plan.get("layout"), dict) else {}
+        sk = layout.get("skeleton_type") if isinstance(layout.get("skeleton_type"), str) else ""
+        g_layout = _genome_layout(plan)
+        gc = plan.get("global_constraints") if isinstance(plan.get("global_constraints"), dict) else {}
+        sym = gc.get("symmetry") if isinstance(gc.get("symmetry"), str) else ""
+        radial_ok = (
+            sk.upper() in ("RADIAL_RING", "RADIAL_SPOKE", "COMPOUND")
+            or g_layout in ("circular", "radial")
+            or sym.upper() == "RADIAL"
+        )
+        checks.append(Check(
+            "temple_radial_layout",
+            radial_ok,
+            hard=False,
+            detail=f"skeleton_type={sk!r} genome.layout={g_layout!r} symmetry={sym!r}",
+        ))
+
+        circular_ok = has_landmark
+        if not circular_ok:
+            for c in comps:
+                if c.get("component_type", "").upper() not in (
+                    "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "DOME", "ROOF"
+                ):
+                    continue
+                params = c.get("params") if isinstance(c.get("params"), dict) else {}
+                shape = _param_string(params, "shape", "footprint_shape", "footprintShape")
+                if shape in ("circle", "circular", "round"):
+                    circular_ok = True
+                    break
+        checks.append(Check(
+            "temple_circular_form",
+            circular_ok,
+            hard=False,
+            detail="圆形殿宇：landmark 模块或 MASS/DOME shape=circle",
+        ))
+
+        hints = plan.get("proportion_hints") if isinstance(plan.get("proportion_hints"), dict) else {}
+        tier_ok = has_landmark
+        tc = hints.get("tier_count")
+        if isinstance(tc, (int, float)) and tc >= 2:
+            tier_ok = True
+        if sum(1 for t in types if t in ("ROOF", "DOME", "SPIRE")) >= 2:
+            tier_ok = True
+        if _has_tiered_masses(comps):
+            tier_ok = True
+        for c in comps:
+            params = c.get("params") if isinstance(c.get("params"), dict) else {}
+            tiers = params.get("tiers", params.get("tier_count", params.get("tierCount")))
+            if isinstance(tiers, (int, float)) and tiers >= 2:
+                tier_ok = True
+        checks.append(Check(
+            "temple_tier_expressed",
+            tier_ok,
+            hard=False,
+            detail="三重檐/台基：landmark、proportion_hints.tier_count≥2、多层 ROOF 或 params.tiers",
         ))
 
     return checks
