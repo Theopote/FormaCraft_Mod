@@ -130,6 +130,8 @@ formacraft/
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture overview |
 | [docs/GENERATION_PIPELINE.md](docs/GENERATION_PIPELINE.md) | End-to-end generation pipeline (canonical) |
 | [docs/GENERALIZATION_STRATEGY.md](docs/GENERALIZATION_STRATEGY.md) | Generalization-first strategy and gap list |
+| [docs/DOC_CONVENTIONS.md](docs/DOC_CONVENTIONS.md) | Documentation naming and archive rules |
+| [docs/LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md](docs/LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md) | Design philosophy: AI plans, Java implements |
 | [docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md](docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md) | Detailed developer guide |
 | [python_backend/README.md](python_backend/README.md) | Backend API & configuration |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |

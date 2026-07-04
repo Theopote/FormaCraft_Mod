@@ -2,7 +2,7 @@
 
 > **维护说明**：本文档追踪「构件层（LlmPlan）」与「整栋层（BuildingSpec）」的覆盖关系，**不是**「新系统替代旧系统」的删除清单。  
 > 整栋层（`common.generation.structure`）与构件层（`common.generation.component`）均为活跃子系统，统一入口为 `GenerationHub`。  
-> 最后更新：**2026-07-02** — 与 `ComponentGeneratorRegistry`、`structure_routes_v1.json`、`archetypes_v1.json` 同步。
+> 最后更新：**2026-07-04** — 与 `ComponentGeneratorRegistry`、`structure_routes_v1.json`、`archetypes_v1.json`（25 地标 module_id）同步。
 
 ## 如何阅读
 
@@ -37,11 +37,12 @@ LlmPlanPreviewBuilder   StructureGeneratorFactory
   → BlockPatch                → GeneratedStructure
 ```
 
-**仍有意保留双路径的场景**（`BuildingSpecRoutingPolicy` 集中策略）：
+**仍有意保留双路径的场景**（`BuildingSpecRoutingPolicy` 集中策略，**2026-07 收窄**）：
 
-- 明清官式四合院：`BuildingSpecRoutingPolicy` 禁用 Composite、跳过 LlmPlan，并默认 `extra.template=mingqing_courtyard`
+- 后端/客户端显式 `outputFormat=buildingspec` → 跳过 LlmPlan 预览
 - 地标、城市、复合结构：`CitySpec` / `CompositeSpec` 走整栋层
-- LlmPlan 预览失败时：回退 `GenerationHub.routeStructure()`
+- 明清官式四合院等地标：优先 LlmPlan + `MODULE` + `landmark:mingqing_courtyard`；BuildingSpec 路径仅在 LLM 直接返回 spec 时写入 `extra.template` 提示
+- LlmPlan 预览失败时：**不再**回退 `GenerationHub.routeStructure()`（见 `LlmPlanPreviewBuilder`）
 
 实现：`com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy`
 

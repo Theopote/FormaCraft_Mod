@@ -48,7 +48,7 @@ LLM 的组合能力 + Java 的参数化生成器 = 泛化的核心。
 | PlanProgram 平面程序 | `PlanProgramCompiler` → 2D 程序 → 挤出 | ✅ 子路径 |
 | 玩家构件扩展 | `component_request:` / `group_request:` | ✅ |
 | Assembly 宏观立面 | `MetaAssemblyEngine`（哥特/古典/现代大体量） | ✅ 部分风格 |
-| 地标模块引用 | `LandmarkModuleRegistry` + prompt 清单 | 🟡 需更多 module_id 注册 |
+| 地标模块引用 | `LandmarkModuleRegistry` + prompt 清单 | ✅ 25 个 module_id（2026-07） |
 | 质量回归门 | `python_backend/eval/golden_eval.py` | ✅ |
 | 锚点 = 建筑地面中心 | `ComponentPlanCompiler.defaultSlot(0,0,0)` + center anchor | ✅ 2026-07 修复 |
 

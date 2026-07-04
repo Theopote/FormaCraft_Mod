@@ -51,6 +51,16 @@ ChatPanel
 
 **新功能默认路径：** 只往 LlmPlan schema / ComponentPlanCompiler / 生成器上加；需要 bespoke 造型时，改为把生成器注册为 LlmPlan 可引用的模块，禁止新增第二条 spec 格式或第二套确认流程。
 
+**三条顶层入口**（细节见 [docs/GENERATION_PIPELINE.md](docs/GENERATION_PIPELINE.md)）：
+
+| 路径 | 触发 | 路由 |
+|------|------|------|
+| **A. LlmPlan 构件（主路径）** | 后端返回 `LlmPlan` | `LlmPlanPreviewBuilder` → `ComponentPlanCompiler` → **`UnifiedGeneratorRouter`** → `ComponentGenerator` / `StructureGeneratorAdaptor` |
+| **B. BuildingSpec 整栋** | 后端返回 `BuildingSpec` 或 `outputFormat=buildingspec` | `GenerationHub.routeStructure()` → **`GeneratorRouter`** |
+| **C. Patch 增量** | `LlmPlan.mode=patch` | `PatchPreviewService` |
+
+**注意**：LlmPlan 预览失败**不再**回退假 BuildingSpec；`PatchFilterPipeline` 设计存在但**尚未**在预览/建造路径全线接线。
+
 **泛化优先：** 一般建筑由 LLM 组合参数化语义构件生成；固定 `StructureGenerator` 仅用于著名地标或显式 `landmark:` 模块引用。详见 [docs/GENERALIZATION_STRATEGY.md](docs/GENERALIZATION_STRATEGY.md)。
 
 ### 1.6 Golden-Path 回归清单（手测基准）
@@ -70,9 +80,9 @@ ChatPanel
 主干收敛完成后，全部质量投入都压在这一条 LlmPlan 主干上。四条并行工作线（均为**加法**，不再新增并行 spec 格式）：
 
 1. **精品库化（landmark → LlmPlan 可调用模块）**
-   - 现状：`server/generation/structure` 下 30+ 硬编码地标生成器（帕特农/长城/天坛/埃菲尔…）是当前"最好看"的产出，但只能走 BuildingSpec 路径。
-   - 目标：给 LlmPlan 增加一个"命名模块引用"能力（例如组件 `component_type: "MODULE"` + `module_id: "temple_of_heaven"`，或 slot 上挂 `module_id`），由服务端一个 `LandmarkModuleRegistry` 把 `module_id` 映射到既有 `StructureGenerator`，在预览编译阶段直接调用。
-   - 迁移方式：**不删生成器**，而是给它们注册 `module_id` 并让其 `generate()` 能接受 LlmPlan 传入的锚点/尺寸/材质参数（从 `spec.extra` 读取的参数改为从模块调用上下文读取）。bespoke 质量由此并入通用主干。
+   - 现状：`LandmarkModuleRegistry` + `archetypes_v1.json` 已注册 **25** 个地标 `module_id`；LLM 可通过 `component_type: "MODULE"` + `features: ["landmark:<id>"]` 引用，`UnifiedGeneratorRouter` → `StructureGeneratorAdaptor` 调用既有生成器。
+   - 目标：剩余 StructureGenerator 继续注册 module_id；生成器 `generate()` 更多接受 LlmPlan 锚点/尺寸/材质参数。
+   - 迁移方式：**不删生成器**，参数从 `spec.extra` 逐步改为从模块调用上下文读取。
 
 2. **扩展 LlmPlan schema 表现力**（`python_backend/app/models/llm_plan.py` + Java `common/llm/dto/*`）
    - 新增字段一律**可选 + 向后兼容**（Java `LlmPlanParser` 已 `FAIL_ON_UNKNOWN_PROPERTIES=false`，旧解析器会忽略未知字段）。
@@ -256,8 +266,10 @@ public record BlockPatch(
 // 1. 生成 Patch
 List<BlockPatch> patches = compiler.generate(blueprint);
 
-// 2. 过滤（可选）
-patches = PatchFilterPipeline.filter(patches, constraints);
+// 2. 过滤（设计存在；**当前预览/建造路径尚未接线** PatchFilterPipeline）
+//    禁区/轮廓/对称裁剪见 BuildConstraintClipper、PlayerOutlineStorage 等并行机制。
+//    详见 docs/GENERALIZATION_STRATEGY.md §3 P2 与 PATCH_FILTER_PIPELINE_K3_3.md。
+// patches = PatchFilterPipeline.filter(patches, constraints);
 
 // 3. 预览（客户端）
 PreviewManager.showPreview(patches, origin);
@@ -631,7 +643,7 @@ FormaCraftNetworking.sendToServer(applyPayload);
 |--------|-------|
 | Java source files | ~822 |
 | Python backend files | ~33 |
-| Active markdown (excl. archive) | ~170 |
+| Active markdown (excl. archive) | ~105 |
 
 ### Network layer (2026-07 refactor)
 
@@ -647,8 +659,9 @@ FormaCraftNetworking.sendToServer(applyPayload);
 
 ### Generation system target state
 
-- **Primary:** LlmPlan → `common.compiler` → `common.generation.component` → `BlockPatch`
-- **Structure (landmarks / city / composite):** `BuildingSpec` → `GenerationHub.routeStructure()` → `common.generation.structure`
+- **Primary:** LlmPlan → `ComponentPlanCompiler` / `PlanProgramCompiler` → **`UnifiedGeneratorRouter`** → `common.generation.component` → `BlockPatch`
+- **Landmark modules:** `LandmarkModuleRegistry` + `landmark:<module_id>` → `StructureGeneratorAdaptor` → `StructureGenerator`
+- **Structure (city / composite / explicit BuildingSpec):** `BuildingSpec` → `GenerationHub.routeStructure()` → **`GeneratorRouter`**
 - **Migration tracking:** `docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md`
 - **Routing:** `FormaRequest.outputFormat` — client defaults to `"llmplan"`; Python `build.py` mirrors this
 

@@ -2,7 +2,7 @@
 
 > **阅读顺序**：本页 → [ARCHITECTURE.md](../ARCHITECTURE.md) → [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) → [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md)
 
-最后更新：2026-07
+最后更新：2026-07-04
 
 ---
 
@@ -82,7 +82,7 @@
 | [SOCKET_REFINEMENT_RULES.md](SOCKET_REFINEMENT_RULES.md) | Socket 细化规则 |
 | [VARIANT_RULES_SPEC.md](VARIANT_RULES_SPEC.md) | Variant 规则 |
 | [ComponentQueryRankingSystemV3.md](ComponentQueryRankingSystemV3.md) | 构件查询排序 v3 |
-| [COMPONENT_CAPTURE_DESIGN_V2.md](COMPONENT_CAPTURE_DESIGN_V2.md) | 构件拾取面板 v2 |
+| [COMPONENT_CAPTURE_DESIGN_V2.md](COMPONENT_CAPTURE_DESIGN_V2.md) | 构件拾取面板 v2（活文档；实现计划见 `archive/reports/COMPONENT_CAPTURE_IMPLEMENTATION_PLAN.md`） |
 
 ### 路径 / 交通 / Memory
 
