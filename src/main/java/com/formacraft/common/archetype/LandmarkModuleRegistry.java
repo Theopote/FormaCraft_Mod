@@ -63,6 +63,15 @@ public final class LandmarkModuleRegistry {
     }
 
     /**
+     * 把用户意图文本解析为规范 module_id；无法解析返回 {@code null}。
+     * <p>
+     * 与 {@link #resolveModuleId(String)} 相同，供路由/Compiler 侧语义化调用。
+     */
+    public static String resolveModuleIdFromIntent(String intentText) {
+        return resolveModuleId(intentText);
+    }
+
+    /**
      * 把用户文本 / 模块名解析为规范 module_id；无法解析返回 {@code null}。
      * <p>
      * 既支持精确 id，也支持关键词（别名子串）匹配，与 {@code GeneratorRouter} 一致。

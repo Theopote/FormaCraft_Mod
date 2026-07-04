@@ -1,6 +1,7 @@
 package com.formacraft.common.generation.routing;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.archetype.LandmarkModuleRegistry;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 
@@ -11,8 +12,8 @@ import java.util.Map;
 /**
  * 单体 {@link BuildingSpec} 路由策略（LlmPlan vs 整栋生成器）。
  * <p>
- * 明清官式四合院等场景已有确定性整栋生成器（{@code mingqing_courtyard}），
- * 走 Composite 或 LlmPlan 构件拼装易产生重复默认房；本类集中判定并施加路由默认值。
+ * Phase P1：默认走 LlmPlan + {@code landmark:&lt;module_id&gt;} 引用精品库；
+ * 仅在后端/客户端<b>显式</b>要求 BuildingSpec 整栋链路时才跳过 LlmPlan 预览。
  *
  * @see com.formacraft.server.network.BuildRequestProcessor
  * @see com.formacraft.server.network.LlmPlanPreviewBuilder
@@ -43,9 +44,18 @@ public final class BuildingSpecRoutingPolicy {
 
     /**
      * 收到 LlmPlan 后是否跳过构件预览，直接走 {@code GenerationHub.routeStructure()}。
+     * <p>
+     * P1：不再凭关键词（如「四合院」）跳过；仅 {@code outputFormat=buildingspec} 时跳过。
      */
     public static boolean shouldSkipLlmPlanPreview(FormaRequest req) {
-        return forcesSingleBuildingSpec(normalize(intentText(req)), null);
+        if (req == null) {
+            return false;
+        }
+        String fmt = req.getOutputFormat();
+        if (fmt != null && "buildingspec".equalsIgnoreCase(fmt.trim())) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -84,6 +94,8 @@ public final class BuildingSpecRoutingPolicy {
 
     /**
      * 在整栋生成前为 {@link BuildingSpec} 写入路由提示（不覆盖 LLM / 用户已显式设置的字段）。
+     * <p>
+     * 仅写入 {@code extra.template} 提示，不再自动设置 {@link #EXTRA_FORCE_BUILDING_SPEC_PATH}。
      *
      * @return {@code true} 若修改了 spec
      */
@@ -106,25 +118,16 @@ public final class BuildingSpecRoutingPolicy {
             }
         }
 
-        if (forcesSingleBuildingSpec(normalized, spec)) {
-            Map<String, Object> extra = ensureExtra(spec);
-            Object flag = extra.get(EXTRA_FORCE_BUILDING_SPEC_PATH);
-            if (!Boolean.TRUE.equals(flag)) {
-                extra.put(EXTRA_FORCE_BUILDING_SPEC_PATH, true);
-                changed = true;
-            }
-        }
-
         return changed;
     }
 
     /**
      * 是否强制单体 BuildingSpec 链路（不走 Composite；收到 spec 后跳过 LlmPlan）。
+     * <p>
+     * P1：仅当 spec 上已有显式 force 标记或已登记的地标 template/landmark 时返回 true；
+     * 不再凭用户意图关键词强制整栋。
      */
     public static boolean forcesSingleBuildingSpec(String normalizedRequestText, BuildingSpec spec) {
-        if (isMingQingCourtyardIntent(normalizedRequestText)) {
-            return true;
-        }
         if (spec == null || spec.getExtra() == null) {
             return false;
         }
@@ -132,7 +135,7 @@ public final class BuildingSpecRoutingPolicy {
         if (Boolean.TRUE.equals(extra.get(EXTRA_FORCE_BUILDING_SPEC_PATH))) {
             return true;
         }
-        if (hasTemplate(spec, TEMPLATE_MINGQING_COURTYARD)) {
+        if (hasRegisteredLandmarkTemplate(spec)) {
             return true;
         }
         return extraValueContains(extra, "landmark", TEMPLATE_MINGQING_COURTYARD)
@@ -147,24 +150,39 @@ public final class BuildingSpecRoutingPolicy {
     }
 
     /**
-     * 明清官式院落意图：需同时命中时期/官式语汇与院落语汇（与历史 BuildRequestProcessor 行为一致）。
+     * 明清官式院落意图（收紧）：需 module_id / 官式语汇 + 院落语汇同时命中，
+     * 不再因单独的 {@code ming}/{@code qing}/{@code courtyard} 触发。
      */
     static boolean isMingQingCourtyardIntent(String normalizedRequestText) {
         if (normalizedRequestText == null || normalizedRequestText.isBlank()) {
             return false;
         }
-        boolean periodOrOfficial =
-                normalizedRequestText.contains("明清")
-                        || normalizedRequestText.contains("官式")
-                        || normalizedRequestText.contains("ming")
-                        || normalizedRequestText.contains("qing");
-        boolean courtyard =
-                normalizedRequestText.contains("四合院")
-                        || normalizedRequestText.contains("院落")
-                        || normalizedRequestText.contains("宅院")
-                        || normalizedRequestText.contains("大院")
-                        || normalizedRequestText.contains("courtyard");
-        return periodOrOfficial && courtyard;
+        if (normalizedRequestText.contains("mingqing_courtyard")
+                || normalizedRequestText.contains("明清官式")
+                || normalizedRequestText.contains("明清院落")
+                || normalizedRequestText.contains("ming qing courtyard")) {
+            return true;
+        }
+        boolean courtyard = normalizedRequestText.contains("四合院")
+                || normalizedRequestText.contains("宅院")
+                || (normalizedRequestText.contains("院落") && !normalizedRequestText.contains("院落群"));
+        boolean period = normalizedRequestText.contains("明清") || normalizedRequestText.contains("官式");
+        return courtyard && period;
+    }
+
+    private static boolean hasRegisteredLandmarkTemplate(BuildingSpec spec) {
+        if (spec == null || spec.getExtra() == null) {
+            return false;
+        }
+        Object template = spec.getExtra().get("template");
+        if (template == null) {
+            return false;
+        }
+        String tid = String.valueOf(template).trim();
+        if (tid.isEmpty()) {
+            return false;
+        }
+        return LandmarkModuleRegistry.isModule(tid);
     }
 
     private static boolean matchesCompositeKeywords(String normalizedRequestText) {

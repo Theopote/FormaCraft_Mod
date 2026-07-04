@@ -217,9 +217,9 @@ public final class UnifiedGeneratorRouter {
             return true;
         }
 
-        // Phase 7：显式地标模块引用（component_type=MODULE + landmark/module feature 或 params.module_id）
+        // Phase 7：MODULE 须携带显式 landmark/module 引用，避免空 MODULE 误触整栋回退
         if ("MODULE".equals(normalizeType(c.componentType()))) {
-            return true;
+            return hasLandmarkReference(c);
         }
 
         Map<String, Object> params = c.params();
@@ -266,6 +266,14 @@ public final class UnifiedGeneratorRouter {
             }
         }
         return null;
+    }
+
+    private static boolean hasLandmarkReference(Component c) {
+        if (hasFeaturePrefix(c, "landmark:") || hasFeaturePrefix(c, "module:")) {
+            return true;
+        }
+        Map<String, Object> params = c.params();
+        return params != null && (params.containsKey("landmark") || params.containsKey("module_id"));
     }
 
     private static boolean hasFeaturePrefix(Component component, String prefix) {

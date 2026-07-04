@@ -68,12 +68,13 @@ LLM 的组合能力 + Java 的参数化生成器 = 泛化的核心。
 
 ### P1 — 路由与回退策略
 
-| 差距 | 位置 | 影响 | 建议 |
-|------|------|------|------|
-| 关键词路由表 | `structure_routes_v1.json`, `ArchetypeRegistry` | 新风格/新地标需手动加规则 | 逐步让 LLM 通过 components 描述，减少关键词硬匹配 |
-| BuildingSpecRoutingPolicy 强制整栋 | `BuildingSpecRoutingPolicy`：特定意图跳过 LlmPlan | 部分请求绕过泛化路径 | 收窄 skip 条件，优先 LlmPlan + landmark module |
-| LlmPlan 预览失败无降级 | `BuildRequestProcessor` | 泛化不足时直接失败 | 可选：降级为简化构件 plan 或提示用户细化描述 |
-| 未注册 component_type 被跳过 | `ComponentPlanCompiler.normalizeComponent` | LLM 发明新 type 无效 | 扩展 registry 或 heuristic 映射表 |
+| 差距 | 状态 | 说明 |
+|------|------|------|
+| 关键词路由表 | 待续 | `structure_routes_v1.json`, `ArchetypeRegistry` — 逐步让 LLM 通过 components 描述 |
+| BuildingSpecRoutingPolicy 强制整栋 | **2026-07 已改** | 仅 `outputFormat=buildingspec` 跳过 LlmPlan；明清意图不再 auto-skip |
+| 地标 module_id 注册 | **2026-07 已改** | `archetypes_v1.json` 扩至 25 个地标；prompt 注入 `LandmarkModuleRegistry.promptListing()` |
+| LlmPlan 预览失败无降级 | 待续 | 泛化不足时直接失败 — 可选降级或提示用户细化 |
+| 未注册 component_type 被跳过 | 部分 | `MODULE` 已放行；其它 invented type 仍待 heuristic 映射 |
 
 ### P2 — 管线完整性
 
@@ -87,7 +88,7 @@ LLM 的组合能力 + Java 的参数化生成器 = 泛化的核心。
 
 | 差距 | 现状 | 目标 |
 |------|------|------|
-| 30+ StructureGenerator 仅 BuildingSpec 路径 | 地标质量高但不可组合 | 注册 `module_id`，LlmPlan 可引用 |
+| 30+ StructureGenerator 仅 BuildingSpec 路径 | **部分 2026-07** | 25 个已注册 `module_id`；LlmPlan 可通过 `landmark:` 引用 |
 | 地标参数不可调 | 固定拓扑，仅尺寸/材质微调 | 接受 anchor/dimensions/style 参数 |
 | archetype confidence ≥ 0.85 触发整栋 | 高置信度直接 bypass 构件 | 改为优先构件 + module 引用 |
 

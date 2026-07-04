@@ -57,7 +57,7 @@
     },
     {
       "id": "mingqing_courtyard",
-      "aliases": ["明清官式院落", "明清官式建筑群落", "四合院", "院落", "courtyard", "ming qing courtyard"],
+      "aliases": ["明清官式院落", "明清官式建筑群落", "明清四合院", "ming qing courtyard", "mingqing courtyard"],
       "category": "LANDMARK",
       "generatorId": "mingqing_courtyard",
       "defaults": { "width": 32, "depth": 28, "includePaths": true, "pathWidth": 3 },
@@ -90,6 +90,141 @@
       "defaults": { "width": 60, "depth": 80, "height": 30, "elliptical": true, "meshStructure": true },
       "constraints": { "minWidth": 30, "maxWidth": 120, "minDepth": 40, "maxDepth": 160, "minHeight": 15, "maxHeight": 60 },
       "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "gothic_cathedral",
+      "aliases": ["哥特大教堂", "大教堂", "gothic cathedral", "notre dame", "cologne cathedral", "chartres"],
+      "category": "LANDMARK",
+      "generatorId": "gothic_cathedral",
+      "defaults": { "width": 25, "depth": 45, "wallHeight": 16, "towerHeight": 20, "spireHeight": 10 },
+      "constraints": { "minWidth": 17, "maxWidth": 101, "minDepth": 25, "maxDepth": 151, "minWallHeight": 12, "maxWallHeight": 40 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "pantheon",
+      "aliases": ["万神殿", "罗马万神殿", "pantheon", "roman pantheon"],
+      "category": "LANDMARK",
+      "generatorId": "pantheon",
+      "defaults": { "width": 26, "depth": 26, "height": 24, "domeRadius": 12 },
+      "constraints": { "minWidth": 18, "maxWidth": 60, "minDepth": 18, "maxDepth": 60, "minHeight": 16, "maxHeight": 48 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "parthenon",
+      "aliases": ["帕特农神庙", "帕特农", "parthenon", "athens parthenon"],
+      "category": "LANDMARK",
+      "generatorId": "parthenon",
+      "defaults": { "width": 31, "depth": 14, "columnHeight": 10, "peristyleCols": 8 },
+      "constraints": { "minWidth": 20, "maxWidth": 60, "minDepth": 10, "maxDepth": 30 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "jiangnan_water_town",
+      "aliases": ["江南水乡", "江南水镇", "水镇", "jiangnan water town", "water town", "canal town"],
+      "category": "LANDMARK",
+      "generatorId": "jiangnan_water_town",
+      "defaults": { "width": 40, "depth": 56, "canalWidth": 5, "houseCount": 4 },
+      "constraints": { "minWidth": 24, "maxWidth": 160, "minDepth": 24, "maxDepth": 200 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "japanese_shrine",
+      "aliases": ["日本神社", "神社", "鸟居", "japanese shrine", "shinto shrine", "torii"],
+      "category": "LANDMARK",
+      "generatorId": "japanese_shrine",
+      "defaults": { "width": 18, "depth": 24, "mainHallHeight": 8, "toriiHeight": 6 },
+      "constraints": { "minWidth": 12, "maxWidth": 48, "minDepth": 16, "maxDepth": 64 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "japanese_castle_keep",
+      "aliases": ["天守阁", "日本城堡", "日式城堡", "japanese castle", "japanese castle keep", "himeji"],
+      "category": "LANDMARK",
+      "generatorId": "japanese_castle_keep",
+      "defaults": { "width": 22, "depth": 22, "keepHeight": 28, "tiers": 5 },
+      "constraints": { "minWidth": 14, "maxWidth": 48, "minDepth": 14, "maxDepth": 48, "minKeepHeight": 16, "maxKeepHeight": 60 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "japanese_tea_house",
+      "aliases": ["日本茶室", "茶室", "japanese tea house", "tea house"],
+      "category": "LANDMARK",
+      "generatorId": "japanese_tea_house",
+      "defaults": { "width": 9, "depth": 9, "height": 5 },
+      "constraints": { "minWidth": 7, "maxWidth": 15, "minDepth": 7, "maxDepth": 15 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "modern_skyscraper",
+      "aliases": ["摩天楼", "现代摩天大楼", "skyscraper", "modern skyscraper", "highrise", "high rise"],
+      "category": "LANDMARK",
+      "generatorId": "modern_skyscraper",
+      "defaults": { "width": 19, "depth": 19, "height": 64, "floors": 12, "setbackEveryFloors": 6 },
+      "constraints": { "minWidth": 11, "maxWidth": 71, "minDepth": 11, "maxDepth": 71, "minHeight": 24, "maxHeight": 220 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "modern_office_campus",
+      "aliases": ["现代办公园区", "现代办公区", "modern office campus", "office campus"],
+      "category": "INFRASTRUCTURE",
+      "generatorId": "modern_office_campus",
+      "defaults": { "width": 64, "depth": 48, "blockCount": 4, "blockHeight": 18 },
+      "constraints": { "minWidth": 32, "maxWidth": 160, "minDepth": 32, "maxDepth": 128 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "office_block",
+      "aliases": ["写字楼", "办公大楼", "office block", "office tower"],
+      "category": "INFRASTRUCTURE",
+      "generatorId": "office_block",
+      "defaults": { "width": 15, "depth": 15, "height": 32, "floors": 8 },
+      "constraints": { "minWidth": 9, "maxWidth": 41, "minDepth": 9, "maxDepth": 41, "minHeight": 14, "maxHeight": 80 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "steampunk_airship",
+      "aliases": ["蒸汽朋克飞艇", "飞艇", "steampunk airship", "airship"],
+      "category": "LANDMARK",
+      "generatorId": "steampunk_airship",
+      "defaults": { "length": 40, "hullWidth": 12, "envelopeHeight": 16 },
+      "constraints": { "minLength": 24, "maxLength": 80, "minHullWidth": 8, "maxHullWidth": 24 },
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "cyberpunk_megablock",
+      "aliases": ["赛博朋克", "赛博朋克大楼", "cyberpunk megablock", "cyberpunk tower"],
+      "category": "LANDMARK",
+      "generatorId": "cyberpunk_megablock",
+      "defaults": { "width": 21, "depth": 21, "height": 48, "neonDensity": 0.6 },
+      "constraints": { "minWidth": 13, "maxWidth": 51, "minDepth": 13, "maxDepth": 51, "minHeight": 24, "maxHeight": 120 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "elven_treehouse",
+      "aliases": ["精灵树屋", "树屋", "elven treehouse", "fantasy treehouse"],
+      "category": "LANDMARK",
+      "generatorId": "elven_treehouse",
+      "defaults": { "trunkRadius": 4, "platformRadius": 8, "height": 18, "levels": 2 },
+      "constraints": { "minTrunkRadius": 2, "maxTrunkRadius": 8, "minHeight": 10, "maxHeight": 40 },
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "modern_bauhaus_rowhouse",
+      "aliases": ["包豪斯", "包豪斯联排", "bauhaus rowhouse", "bauhaus terrace"],
+      "category": "LANDMARK",
+      "generatorId": "modern_bauhaus_rowhouse",
+      "defaults": { "width": 28, "depth": 10, "height": 8, "units": 3 },
+      "constraints": { "minWidth": 16, "maxWidth": 64, "minDepth": 8, "maxDepth": 16 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "brutalist_megastructure",
+      "aliases": ["粗野主义", "粗野主义建筑", "brutalist megastructure", "brutalist architecture"],
+      "category": "LANDMARK",
+      "generatorId": "brutalist_megastructure",
+      "defaults": { "width": 36, "depth": 28, "height": 32, "massCount": 3 },
+      "constraints": { "minWidth": 20, "maxWidth": 96, "minDepth": 16, "maxDepth": 80, "minHeight": 16, "maxHeight": 80 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     }
   ]
 }
