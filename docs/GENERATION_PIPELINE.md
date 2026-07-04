@@ -56,7 +56,7 @@ flowchart TD
 | 1 | 客户端发 C2S 建造请求 | `FormaCraftClientNetworking` |
 | 2 | 服务端处理 | `server/network/BuildRequestProcessor.java` |
 | 3 | 调用 Python 编排器 | `OrchestratorClient` → `python_backend/app/routes/build.py` |
-| 4 | 是否跳过 LlmPlan（如特定关键词整栋路由） | `common/generation/routing/BuildingSpecRoutingPolicy.java` |
+| 4 | 是否跳过 LlmPlan（仅 `outputFormat=buildingspec`） | `common/generation/routing/BuildingSpecRoutingPolicy.java` |
 | 5 | Patch 模式分流 | `BlockPatchBridge` → `PatchPreviewService` |
 
 ### 阶段 2 — 编译为 BlockPatch
