@@ -163,9 +163,8 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
 
     private static boolean insideEllipse(int x, int z, int halfA, int halfB) {
         if (halfA <= 0 || halfB <= 0) return false;
-        double na = halfA;
         double nb = halfB;
-        return (x * x) / (na * na) + (z * z) / (nb * nb) <= 1.0;
+        return (x * x) / ((double) halfA * (double) halfA) + (z * z) / (nb * nb) <= 1.0;
     }
 
     private static void clearBox(
@@ -220,7 +219,8 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
             }
         }
         if (origin != null) {
-            return origin.asLong() ^ 0xB1RD5NE5TL;
+            // Hex-safe salt (mnemonic: B1RD5NEST → 0xB1D05E57)
+            return origin.asLong() ^ 0xB1D05E57L;
         }
         return 42L;
     }
