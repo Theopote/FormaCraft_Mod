@@ -10,6 +10,7 @@ import java.util.Set;
  * <p>
  * M2：sphere / ellipse / sector / triangle、XYZ 旋转、CSG union/subtract/intersect。
  * M3：extrude_mode=plate 2D 单层、Voronoi / Möbius 体素近似。
+ * M3+：Voronoi 3D 体积细胞、Möbius CSG 组合。
  */
 public final class ShapeLibrary {
 
@@ -17,13 +18,25 @@ public final class ShapeLibrary {
 
     private record Seed2D(double x, double z) {}
 
+    private record Seed3D(double x, double y, double z) {}
+
+    private record VoronoiSeeds(List<Seed2D> planar, List<Seed3D> volume) {
+        static VoronoiSeeds empty() {
+            return new VoronoiSeeds(List.of(), List.of());
+        }
+
+        boolean isVolume() {
+            return volume != null && !volume.isEmpty();
+        }
+    }
+
     private ShapeLibrary() {}
 
     public static List<Voxel> generate(ShapeSpec spec) {
         if (spec == null) {
             return List.of();
         }
-        List<Seed2D> voronoiSeeds = spec.kind() == ShapeKind.VORONOI ? buildVoronoiSeeds(spec) : List.of();
+        VoronoiSeeds voronoiSeeds = spec.kind() == ShapeKind.VORONOI ? buildVoronoiSeeds(spec) : VoronoiSeeds.empty();
         List<Voxel> out = new ArrayList<>();
         if (spec.extrudeMode() == ShapeExtrudeMode.PLATE && spec.kind() != ShapeKind.MOBIUS) {
             for (int x = 0; x < spec.width(); x++) {
@@ -78,7 +91,7 @@ public final class ShapeLibrary {
         return new ArrayList<>(acc);
     }
 
-    private static boolean isInside(ShapeSpec spec, int x, int y, int z, List<Seed2D> voronoiSeeds) {
+    private static boolean isInside(ShapeSpec spec, int x, int y, int z, VoronoiSeeds voronoiSeeds) {
         double lx0 = x - spec.halfX();
         double ly0 = y - spec.halfY();
         double lz0 = z - spec.halfZ();
@@ -96,7 +109,7 @@ public final class ShapeLibrary {
     }
 
     private static boolean insideCanonical(
-            ShapeSpec spec, double lx, double ly, double lz, List<Seed2D> voronoiSeeds
+            ShapeSpec spec, double lx, double ly, double lz, VoronoiSeeds voronoiSeeds
     ) {
         return switch (spec.kind()) {
             case BOX -> Math.abs(lx) <= spec.halfX() + 0.25
@@ -127,10 +140,24 @@ public final class ShapeLibrary {
         };
     }
 
-    private static List<Seed2D> buildVoronoiSeeds(ShapeSpec spec) {
+    private static VoronoiSeeds buildVoronoiSeeds(ShapeSpec spec) {
         int n = Math.max(3, spec.voronoiCells());
         long seed = spec.voronoiSeed();
         java.util.Random rng = new java.util.Random(seed);
+        if (spec.voronoiDimension() == VoronoiDimension.VOLUME) {
+            double rx = spec.effectiveRadiusX();
+            double ry = spec.effectiveRadiusY();
+            double rz = spec.effectiveRadiusZ();
+            List<Seed3D> seeds = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                seeds.add(new Seed3D(
+                        (rng.nextDouble() * 2.0 - 1.0) * rx * 0.88,
+                        (rng.nextDouble() * 2.0 - 1.0) * ry * 0.88,
+                        (rng.nextDouble() * 2.0 - 1.0) * rz * 0.88
+                ));
+            }
+            return new VoronoiSeeds(List.of(), seeds);
+        }
         double rx = spec.effectiveRadiusX();
         double rz = spec.effectiveRadiusZ();
         List<Seed2D> seeds = new ArrayList<>(n);
@@ -140,10 +167,47 @@ public final class ShapeLibrary {
                     (rng.nextDouble() * 2.0 - 1.0) * rz * 0.88
             ));
         }
-        return seeds;
+        return new VoronoiSeeds(seeds, List.of());
     }
 
     private static boolean insideVoronoi(
+            ShapeSpec spec, double lx, double ly, double lz, VoronoiSeeds seeds
+    ) {
+        if (seeds != null && seeds.isVolume()) {
+            return insideVoronoiVolume(spec, lx, ly, lz, seeds.volume());
+        }
+        return insideVoronoiPlanar(spec, lx, ly, lz, seeds != null ? seeds.planar() : List.of());
+    }
+
+    private static boolean insideVoronoiVolume(
+            ShapeSpec spec, double lx, double ly, double lz, List<Seed3D> seeds
+    ) {
+        if (!insideEllipsoid(lx, ly, lz,
+                spec.effectiveRadiusX(), spec.effectiveRadiusY(), spec.effectiveRadiusZ())) {
+            return false;
+        }
+        if (seeds == null || seeds.isEmpty()) {
+            return false;
+        }
+        double d1 = Double.MAX_VALUE;
+        double d2 = Double.MAX_VALUE;
+        for (Seed3D s : seeds) {
+            double d = Math.sqrt(
+                    (lx - s.x()) * (lx - s.x())
+                            + (ly - s.y()) * (ly - s.y())
+                            + (lz - s.z()) * (lz - s.z())
+            );
+            if (d < d1) {
+                d2 = d1;
+                d1 = d;
+            } else if (d < d2) {
+                d2 = d;
+            }
+        }
+        return voronoiCellInterior(d1, d2, spec.voronoiEdge());
+    }
+
+    private static boolean insideVoronoiPlanar(
             ShapeSpec spec, double lx, double ly, double lz, List<Seed2D> seeds
     ) {
         if (spec.extrudeMode() != ShapeExtrudeMode.PLATE && Math.abs(ly) > spec.halfY() + 0.25) {
@@ -166,10 +230,13 @@ public final class ShapeLibrary {
                 d2 = d;
             }
         }
+        return voronoiCellInterior(d1, d2, spec.voronoiEdge());
+    }
+
+    private static boolean voronoiCellInterior(double d1, double d2, double edge) {
         if (d2 >= Double.MAX_VALUE * 0.5) {
-            return d1 <= spec.effectiveRadiusX() + 0.25;
+            return true;
         }
-        double edge = spec.voronoiEdge();
         if (edge > 0.05) {
             return (d2 - d1) <= edge + 0.35;
         }
@@ -313,7 +380,7 @@ public final class ShapeLibrary {
     }
 
     private static boolean isInteriorHollow(
-            ShapeSpec spec, double lx, double ly, double lz, List<Seed2D> voronoiSeeds
+            ShapeSpec spec, double lx, double ly, double lz, VoronoiSeeds voronoiSeeds
     ) {
         double t = spec.wallThickness();
         ShapeSpec inner = new ShapeSpec(
@@ -327,7 +394,8 @@ public final class ShapeLibrary {
                 spec.radiusZ() > 0 ? Math.max(0.5, spec.radiusZ() - t) : 0,
                 spec.sectorStartDeg(), spec.sectorSweepDeg(), spec.triangleMode(),
                 spec.extrudeMode(), spec.voronoiCells(), spec.voronoiSeed(),
-                spec.voronoiEdge(), spec.mobiusWidth(), spec.mobiusTwist()
+                spec.voronoiEdge(), spec.mobiusWidth(), spec.mobiusTwist(),
+                spec.voronoiDimension()
         );
         return insideCanonical(inner, lx, ly, lz, voronoiSeeds);
     }

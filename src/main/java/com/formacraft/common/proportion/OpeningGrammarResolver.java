@@ -11,7 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * M3：将 proportion card / proportion_hints 的 openingGrammar 注入 FACADE_WINDOWS 与 MASS 组件。
+ * M3+：proportion card / proportion_hints → window_aspect、window_ratio、void_ratio 注入与钳制。
  */
 public final class OpeningGrammarResolver {
 
@@ -24,7 +24,8 @@ public final class OpeningGrammarResolver {
         String type = normalizeType(component.componentType());
         boolean facade = "FACADE_WINDOWS".equals(type);
         boolean mass = isMassType(type);
-        if (!facade && !mass) {
+        boolean wall = "WALL".equals(type);
+        if (!facade && !mass && !wall) {
             return component;
         }
 
@@ -63,7 +64,7 @@ public final class OpeningGrammarResolver {
             if (windowRatio == null) {
                 Object hintRatio = hints.get("window_wall_ratio");
                 if (hintRatio instanceof Number n) {
-                    params.put("window_ratio", n.doubleValue());
+                    params.put("window_ratio", clampRatio(n.doubleValue(), card, "window_wall_ratio"));
                     changed = true;
                 } else if (card != null && card.ratios() != null) {
                     ProportionCardRegistry.RatioSpec spec = card.ratios().get("window_wall_ratio");
@@ -72,7 +73,17 @@ public final class OpeningGrammarResolver {
                         changed = true;
                     }
                 }
+            } else {
+                double clamped = clampRatio(windowRatio, card, "window_wall_ratio");
+                if (Math.abs(clamped - windowRatio) > 1e-6) {
+                    params.put("window_ratio", clamped);
+                    changed = true;
+                }
             }
+        }
+
+        if (facade || mass || wall) {
+            changed |= applyVoidRatio(params, card, hints);
         }
 
         if (!changed) {
@@ -133,6 +144,65 @@ public final class OpeningGrammarResolver {
             }
         }
         return allowed.getFirst();
+    }
+
+    private static boolean applyVoidRatio(
+            Map<String, Object> params,
+            ProportionCardRegistry.ProportionCard card,
+            Map<String, Object> hints
+    ) {
+        Double maxVoid = resolveMaxVoidRatio(card, hints);
+        if (maxVoid == null) {
+            return false;
+        }
+        Double voidRatio = ComponentParamParsers.doubleOrNull(params, "void_ratio", "voidRatio");
+        if (voidRatio == null) {
+            Object hintVoid = hints.get("void_ratio");
+            if (hintVoid == null) {
+                hintVoid = hints.get("max_void_ratio");
+            }
+            if (hintVoid instanceof Number n) {
+                params.put("void_ratio", Math.min(n.doubleValue(), maxVoid));
+                return true;
+            }
+            return false;
+        }
+        if (voidRatio > maxVoid + 1e-6) {
+            params.put("void_ratio", maxVoid);
+            return true;
+        }
+        return false;
+    }
+
+    private static Double resolveMaxVoidRatio(
+            ProportionCardRegistry.ProportionCard card,
+            Map<String, Object> hints
+    ) {
+        Double max = null;
+        if (card != null && card.openingGrammar() != null) {
+            max = card.openingGrammar().maxVoidRatio();
+        }
+        Object hintMax = hints.get("max_void_ratio");
+        if (hintMax instanceof Number n) {
+            double hintVal = n.doubleValue();
+            max = max == null ? hintVal : Math.min(max, hintVal);
+        }
+        return max;
+    }
+
+    private static double clampRatio(
+            double value,
+            ProportionCardRegistry.ProportionCard card,
+            String ratioKey
+    ) {
+        if (card == null || card.ratios() == null) {
+            return value;
+        }
+        ProportionCardRegistry.RatioSpec spec = card.ratios().get(ratioKey);
+        if (spec == null) {
+            return value;
+        }
+        return Math.max(spec.min(), Math.min(spec.max(), value));
     }
 
     private static boolean isMassType(String type) {

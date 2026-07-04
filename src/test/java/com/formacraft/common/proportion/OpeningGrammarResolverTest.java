@@ -48,6 +48,44 @@ class OpeningGrammarResolverTest {
         assertEquals("square", enriched.params().get("window_aspect"));
     }
 
+    @Test
+    void clampsVoidRatioToCardMax() {
+        Map<String, Object> hints = Map.of("typology", "cottage");
+        LlmPlan plan = planWithHints(hints);
+        Map<String, Object> params = new HashMap<>();
+        params.put("void_ratio", 0.45);
+        Component mass = new Component(
+                "MASS_MAIN",
+                null,
+                new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 5),
+                List.of(),
+                params
+        );
+
+        Component enriched = OpeningGrammarResolver.apply(plan, mass);
+        assertEquals(0.12, ((Number) enriched.params().get("void_ratio")).doubleValue(), 1e-6);
+    }
+
+    @Test
+    void clampsWindowRatioToCardMax() {
+        Map<String, Object> hints = Map.of("typology", "cottage");
+        LlmPlan plan = planWithHints(hints);
+        Map<String, Object> params = new HashMap<>();
+        params.put("window_ratio", 0.9);
+        Component facade = new Component(
+                "FACADE_WINDOWS",
+                null,
+                new Vec3i(0, 0, 0),
+                new Dimensions(7, 1, 5),
+                List.of(),
+                params
+        );
+
+        Component enriched = OpeningGrammarResolver.apply(plan, facade);
+        assertEquals(0.38, ((Number) enriched.params().get("window_ratio")).doubleValue(), 1e-6);
+    }
+
     private static LlmPlan planWithHints(Map<String, Object> hints) {
         return new LlmPlan(
                 LlmPlan.Mode.build,

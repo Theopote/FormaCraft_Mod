@@ -34,11 +34,12 @@ Core rules:
   dimensions = axis-aligned bounding box;
   extrude_mode=solid|plate (plate = single-layer 2D footprint at y=0);
   rotation_x_deg / rotation_y_deg / rotation_z_deg for 3D orientation;
-  voronoi: cell_count, seed, voronoi_edge; mobius: mobius_width, mobius_twist;
-  CSG: operations[{op:union|subtract|intersect, kind:...}] or subtract:{kind:...} to carve voids.
+  voronoi: cell_count, seed, voronoi_edge, voronoi_3d|voronoi_dimension=3d for volume cells; mobius: mobius_width, mobius_twist;
+  CSG: operations[{op:union|subtract|intersect, kind:...}] or subtract:{kind:...} — mobius/voronoi work in CSG chains.
   Use for "build a cylinder/sphere/triangle/voronoi/mobius solid" without full building semantics.
 - OPENING GRAMMAR (M3): When proportion_hints or proportion card applies, set FACADE_WINDOWS params.window_aspect
   from openingGrammar; output matching proportion_hints.window_aspect at plan top level.
+  void_ratio on MASS/WALL/FACADE is auto-clamped to proportion card max_void_ratio at compile time.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.
@@ -215,6 +216,8 @@ ComponentParamsObject:
   "voronoi_cells": int,
   "voronoi_seed": int,
   "voronoi_edge": number,
+  "voronoi_3d": boolean,
+  "voronoi_dimension": "2d|3d",
   "mobius_width": number,
   "mobius_twist": number,
   "operations": [{ "op": "union|subtract|intersect", "kind": "..." }],

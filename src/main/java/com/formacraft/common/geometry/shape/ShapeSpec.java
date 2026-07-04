@@ -33,7 +33,8 @@ public record ShapeSpec(
         long voronoiSeed,
         double voronoiEdge,
         double mobiusWidth,
-        double mobiusTwist
+        double mobiusTwist,
+        VoronoiDimension voronoiDimension
 ) {
     public double effectiveRadiusX() {
         return radiusX > 0 ? radiusX : radius;
@@ -104,11 +105,17 @@ public record ShapeSpec(
         double voronoiEdge = dbl(p, "voronoi_edge", "edge_width", 0);
         double mobiusWidth = dbl(p, "mobius_width", "strip_width", Math.min(w, d) * 0.35);
         double mobiusTwist = dbl(p, "mobius_twist", "twist", 1.0);
+        Object voronoiDimRaw = p.containsKey("voronoi_3d") ? bool(p, "voronoi_3d", false) : p.get("voronoi_dimension");
+        if (voronoiDimRaw instanceof Boolean b && b) {
+            voronoiDimRaw = "3d";
+        }
+        VoronoiDimension voronoiDimension = VoronoiDimension.parse(voronoiDimRaw, extrudeMode, h);
 
         return new ShapeSpec(kind, w, d, h, hollow, thickness, sides,
                 rotX, rotY, rotZ, r, topR, rx, ry, rz,
                 sectorStart, sectorSweep, triangleMode,
-                extrudeMode, voronoiCells, voronoiSeed, voronoiEdge, mobiusWidth, mobiusTwist);
+                extrudeMode, voronoiCells, voronoiSeed, voronoiEdge, mobiusWidth, mobiusTwist,
+                voronoiDimension);
     }
 
     private static long longVal(Map<String, Object> p, String k1, String k2, String k3, long def) {

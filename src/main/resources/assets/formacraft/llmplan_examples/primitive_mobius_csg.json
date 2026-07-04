@@ -1,0 +1,26 @@
+{
+  "description": "ShapeLibrary M3+ — Möbius CSG 方盒减 Möbius 带 few-shot",
+  "promptHints": ["mobius csg", "莫比乌斯", "subtract", "扭曲环挖空"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "DEFAULT",
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+    "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+    "components": [
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 16, "depth": 16, "height": 10 },
+        "params": {
+          "kind": "box",
+          "material": "stone",
+          "operations": [
+            { "op": "union", "kind": "box" },
+            { "op": "subtract", "kind": "mobius", "radius": 5, "mobius_width": 3 }
+          ]
+        }
+      }
+    ]
+  }
+}

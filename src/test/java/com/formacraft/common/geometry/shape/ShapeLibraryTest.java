@@ -160,4 +160,33 @@ class ShapeLibraryTest {
         assertTrue(solid.size() > 0);
         assertTrue(solid.size() < box.size());
     }
+
+    @Test
+    void voronoi3d_usesVolumeCells() {
+        ShapeSpec planar = ShapeSpec.fromParams(14, 14, 10, Map.of(
+                "kind", "voronoi", "radius", 6, "cell_count", 8, "seed", 7));
+        ShapeSpec volume = ShapeSpec.fromParams(14, 14, 10, Map.of(
+                "kind", "voronoi", "radius", 6, "cell_count", 8, "seed", 7, "voronoi_3d", true));
+        List<ShapeLibrary.Voxel> planarVoxels = ShapeLibrary.generate(planar);
+        List<ShapeLibrary.Voxel> volumeVoxels = ShapeLibrary.generate(volume);
+        assertTrue(volumeVoxels.size() > 0);
+        long planarY = planarVoxels.stream().map(ShapeLibrary.Voxel::y).distinct().count();
+        long volumeY = volumeVoxels.stream().map(ShapeLibrary.Voxel::y).distinct().count();
+        assertTrue(planarY <= volumeY || volumeVoxels.size() != planarVoxels.size());
+    }
+
+    @Test
+    void mobiusCsg_subtractFromBox() {
+        int w = 16, d = 16, h = 10;
+        Map<String, Object> params = Map.of(
+                "kind", "box",
+                "operations", List.of(
+                        Map.of("op", "union", "kind", "box"),
+                        Map.of("op", "subtract", "kind", "mobius", "radius", 5, "mobius_width", 3)));
+        List<ShapeCsgOperation> ops = ShapeSpec.parseOperations(w, d, h, params);
+        List<ShapeLibrary.Voxel> solid = ShapeLibrary.generate(
+                ShapeSpec.fromParams(w, d, h, Map.of("kind", "box")));
+        List<ShapeLibrary.Voxel> carved = ShapeLibrary.generateComposite(ops);
+        assertTrue(carved.size() < solid.size());
+    }
 }
