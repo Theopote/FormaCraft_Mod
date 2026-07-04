@@ -61,5 +61,18 @@
       "COURTYARD_SPACE + MASS_MAIN + MASS_WING×2 + ENTRANCE + ROOF",
       "layout.skeleton_type=COURTYARD；proportion_hints.courtyard_ratio≈0.35"
     ]
+  },
+  {
+    "id": "square_tower_five_story",
+    "prompt": "盖一座 5 层的方塔，顶部有平台",
+    "plan_fixture": "plans/square_tower_five_story_golden.json",
+    "tags": ["tower", "square", "high_frequency"],
+    "proportion_card": "square_tower_five_story",
+    "ci": true,
+    "ideal_notes": [
+      "Culture card square_tower_five_story + proportion_card",
+      "MASS_MAIN 9×9×15 + TERRACE 顶层平台 + ENTRANCE + FACADE_WINDOWS",
+      "layout.skeleton_type=VERTICAL_STACK；proportion_hints.floor_count=5"
+    ]
   }
 ]

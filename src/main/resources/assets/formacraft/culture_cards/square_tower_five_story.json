@@ -1,0 +1,45 @@
+{
+  "id": "square_tower_five_story",
+  "styleId": "Medieval_Castle",
+  "intents": ["TOWER", "PAGODA", "方塔", "塔楼"],
+  "keywords": [
+    "方塔", "五层", "5层", "5 层", "五层塔", "方形塔", "方型塔",
+    "塔楼", "高塔", "瞭望塔", "多层塔", "顶部平台", "顶层平台",
+    "square tower", "five-story tower", "5 story tower", "tower platform"
+  ],
+  "synonyms": {
+    "方塔": ["square tower", "rectangular tower", "block tower"],
+    "五层": ["5 floors", "five floors", "5-story", "five-story"],
+    "顶部平台": ["roof platform", "top platform", "observation deck"]
+  },
+  "keywordWeights": {
+    "方塔": 7.5,
+    "五层": 7.0,
+    "5层": 7.0,
+    "5 层": 6.5,
+    "square tower": 6.5,
+    "five-story tower": 6.5,
+    "顶部平台": 5.5,
+    "顶层平台": 5.5,
+    "方形塔": 6.0
+  },
+  "negativeKeywords": [
+    "城堡", "城墙", "要塞", "四合院", "院子", "体育场", "castle", "fortress",
+    "courtyard", "stadium", "cottage", "小房子"
+  ],
+  "proportionCardId": "square_tower_five_story",
+  "llmPlanExampleRefs": ["square_tower_five_story.json"],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "square_mass_tower",
+      "constraints": [
+        "组合式 LlmPlan：方形 MASS_MAIN（width=depth, shape=rectangle）+ 5 层（floor_height≈3）+ 顶层 TERRACE/PLAZA 平台",
+        "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=MIRROR_X",
+        "输出 proportion_hints：floor_count=5, height_to_width≈1.6, slenderness≈1.6",
+        "底层 ENTRANCE + 立面 FACADE_WINDOWS（vertical_strip）；禁止仅用圆形 TOWER 代替方塔",
+        "仅用户指名具体地标（大雁塔、埃菲尔等）时才用 MODULE/landmark"
+      ]
+    }
+  ]
+}

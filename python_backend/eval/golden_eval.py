@@ -78,6 +78,16 @@ _SCENARIO_HARD_BY_TAG: Dict[str, frozenset] = {
         "has_enclosure_mass",
         "component_richness",
     }),
+    "tower": frozenset({
+        "has_proportion_hints",
+        "tower_vertical_skeleton",
+        "tower_square_footprint",
+        "tower_five_floors",
+        "tower_top_platform",
+        "has_entrance",
+        "has_windows",
+        "component_richness",
+    }),
     "primitive": frozenset({
         "facade_params_valid",
     }),
@@ -92,7 +102,9 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
     if isinstance(tags, list):
         tag_set = {str(t) for t in tags if t}
         for tag in tag_set:
-            if tag == "high_frequency" and ("castle" in tag_set or "siheyuan" in tag_set):
+            if tag == "high_frequency" and (
+                "castle" in tag_set or "siheyuan" in tag_set or "tower" in tag_set
+            ):
                 continue
             names.update(_SCENARIO_HARD_BY_TAG.get(tag, ()))
     card = scenario.get("proportion_card")
@@ -102,6 +114,8 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
         names.update(_SCENARIO_HARD_BY_TAG.get("castle", ()))
     elif card == "siheyuan_courtyard":
         names.update(_SCENARIO_HARD_BY_TAG.get("siheyuan", ()))
+    elif card == "square_tower_five_story":
+        names.update(_SCENARIO_HARD_BY_TAG.get("tower", ()))
     hard_names = scenario.get("hard_checks")
     if isinstance(hard_names, list):
         names.update(str(n) for n in hard_names if n)
@@ -384,6 +398,71 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             has_courtyard and wing_count >= 2,
             hard=False,
             detail=f"courtyard={has_courtyard} enclosing_masses={wing_count}（期望中庭 + ≥2 厢房/正房）",
+        ))
+
+    # ---- 五层方塔 / 竖向塔楼 ----
+    is_tower = _prompt_contains(
+        prompt,
+        ("方塔", "五层", "5层", "5 层", "square tower", "five-story tower", "tower platform", "顶部平台"),
+    )
+    if is_tower:
+        layout = plan.get("layout") if isinstance(plan.get("layout"), dict) else {}
+        sk = layout.get("skeleton_type") if isinstance(layout.get("skeleton_type"), str) else ""
+        checks.append(Check(
+            "tower_vertical_skeleton",
+            sk.upper() in ("VERTICAL_STACK", "VERTICAL_TAPER", "COMPOUND"),
+            hard=False,
+            detail=f"skeleton_type={sk!r}（期望 VERTICAL_STACK / VERTICAL_TAPER）",
+        ))
+
+        square_ok = False
+        floor_ok = False
+        hints = plan.get("proportion_hints") if isinstance(plan.get("proportion_hints"), dict) else {}
+        for c in comps:
+            t = str(c.get("component_type") or "").upper()
+            if t not in ("MASS_MAIN", "TOWER", "HOUSE", "BUILDING") and not t.startswith("MASS_"):
+                continue
+            dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
+            w = int(dims.get("width") or 0)
+            d = int(dims.get("depth") or 0)
+            h = int(dims.get("height") or 0)
+            params = c.get("params") if isinstance(c.get("params"), dict) else {}
+            shape = _param_string(params, "shape", "footprint_shape", "footprintShape")
+            if w > 0 and w == d and shape in ("rectangle", "rect", "square", None):
+                square_ok = True
+            fh = _param_float(params, "floor_height", "floorHeight")
+            if fh <= 0:
+                fh = float(hints.get("floor_height") or 3)
+            fc = hints.get("floor_count")
+            if isinstance(fc, (int, float)) and fc >= 5:
+                floor_ok = True
+            elif fh > 0 and h >= int(fh * 5 - 1):
+                floor_ok = True
+            feats = c.get("features") if isinstance(c.get("features"), list) else []
+            if any(isinstance(f, str) and "five" in f.lower() for f in feats):
+                floor_ok = True
+        checks.append(Check(
+            "tower_square_footprint",
+            square_ok,
+            hard=False,
+            detail="方塔意图：主塔体 width=depth 且 shape=rectangle/square",
+        ))
+        checks.append(Check(
+            "tower_five_floors",
+            floor_ok,
+            hard=False,
+            detail="五层意图：height≥5×floor_height 或 proportion_hints.floor_count≥5",
+        ))
+
+        has_platform = any(
+            t in ("TERRACE", "PLAZA", "TERRACE_PLAZA", "PLAZA_CORE", "BALCONY")
+            for t in types
+        )
+        checks.append(Check(
+            "tower_top_platform",
+            has_platform,
+            hard=False,
+            detail="顶部平台：需 TERRACE / PLAZA 等顶层平台组件",
         ))
 
     return checks

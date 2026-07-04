@@ -48,6 +48,8 @@ def resolve_proportion_card_id(prompt: Optional[str]) -> Optional[str]:
         return "stadium_bowl"
     if any(k in q for k in ("四合院", "siheyuan", "带院子", "合院", "courtyard house")):
         return "siheyuan_courtyard"
+    if any(k in q for k in ("方塔", "五层", "5层", "square tower", "five-story tower", "顶部平台")):
+        return "square_tower_five_story"
     return None
 
 
@@ -235,5 +237,28 @@ def evaluate_enclosure(plan: Dict[str, Any], prompt: Optional[str] = None) -> Li
             wing_count >= 2,
             f"siheyuan expects ≥2 enclosing masses; found={wing_count}",
         ))
+
+    is_tower = any(
+        k in q for k in ("方塔", "五层", "5层", "square tower", "five-story tower", "顶部平台")
+    )
+    if is_tower:
+        has_platform = any(
+            t in ("TERRACE", "PLAZA", "TERRACE_PLAZA", "PLAZA_CORE", "BALCONY") for t in types
+        )
+        checks.append((
+            "tower_has_top_platform",
+            has_platform,
+            "tower prompt expects TERRACE/PLAZA top platform component",
+        ))
+        main = _main_mass(comps)
+        if main:
+            dims = _dims(main)
+            w = int(dims.get("width") or 0)
+            d = int(dims.get("depth") or 0)
+            checks.append((
+                "tower_square_mass",
+                w > 0 and w == d,
+                f"square tower footprint width={w} depth={d}",
+            ))
 
     return checks

@@ -1,0 +1,65 @@
+{
+  "_meta": {
+    "prompt": "盖一座 5 层的方塔，顶部有平台",
+    "source": "llmplan_examples/square_tower_five_story.json",
+    "notes": "P0 golden fixture — five-story square tower"
+  },
+  "mode": "build",
+  "style_profile": "Medieval_Castle",
+  "style_attributes": {
+    "wall_color": "gray",
+    "wall_material": "stone_brick",
+    "roof_material": "slate",
+    "decorative_elements": ["battlements", "corner_quoins"]
+  },
+  "proportion_hints": {
+    "typology": "square_tower",
+    "floor_count": 5,
+    "floor_height": 3,
+    "height_to_width": 1.67,
+    "slenderness": 1.67,
+    "window_wall_ratio": 0.12,
+    "window_aspect": "vertical_strip",
+    "min_enclosure_coverage": 0.9
+  },
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": { "facing": "SOUTH", "symmetry": "MIRROR_X", "terrain_strategy": "ADAPTIVE" },
+  "layout": { "skeleton_type": "VERTICAL_STACK", "path_based": false, "slots": [] },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 9, "depth": 9, "height": 15 },
+      "params": {
+        "shape": "rectangle",
+        "floor_height": 3,
+        "facade_profile": "vertical_pilasters",
+        "void_ratio": 0.0
+      },
+      "features": ["square_tower", "five_floors", "windows"]
+    },
+    {
+      "component_type": "TERRACE",
+      "relative_position": { "x": -1, "y": 15, "z": -1 },
+      "dimensions": { "width": 11, "depth": 11, "height": 1 },
+      "params": { "surface": "stone_platform" },
+      "features": ["top_platform", "roof_deck"]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": { "x": 3, "y": 0, "z": 0 },
+      "dimensions": { "width": 3, "depth": 2, "height": 4 },
+      "params": { "style": "stone_arch_door" }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": { "x": 0, "y": 2, "z": 0 },
+      "dimensions": { "width": 9, "depth": 9, "height": 13 },
+      "params": {
+        "window_ratio": 0.12,
+        "window_aspect": "vertical_strip",
+        "window_style": "arrow_slit"
+      }
+    }
+  ]
+}
