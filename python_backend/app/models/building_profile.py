@@ -61,6 +61,7 @@ class BuildingProfile(BaseModel):
     minecraft_strategy: ProfileMinecraftStrategy = Field(default_factory=ProfileMinecraftStrategy)
     sources: List[ProfileSource] = Field(default_factory=list)
     research_notes: Optional[str] = None
+    reference_blueprint: Optional[Dict[str, Any]] = None
 
     def to_prompt_dict(self) -> Dict[str, Any]:
         """Compact dict for LLM prompt injection."""
@@ -91,6 +92,8 @@ def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> 
             merged["sources"] = data["sources"]
         if data.get("research_notes"):
             merged["research_notes"] = data["research_notes"]
+        if isinstance(data.get("reference_blueprint"), dict):
+            merged["reference_blueprint"] = data["reference_blueprint"]
         return BuildingProfile.model_validate(merged)
     except Exception:
         return base

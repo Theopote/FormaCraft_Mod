@@ -57,11 +57,12 @@ def research_mode() -> str:
 
 
 def _building_research_timeout_sec() -> float:
-    return _env_float("BUILDING_RESEARCH_TIMEOUT_SEC", 8.0)
+    return _env_float("BUILDING_RESEARCH_TIMEOUT_SEC", 15.0)
 
 
 def _building_research_llm_synth() -> bool:
-    return _env_str("BUILDING_RESEARCH_LLM_SYNTH", "off") == "on"
+    raw = _env_str("BUILDING_RESEARCH_LLM_SYNTH", "on")
+    return raw not in ("off", "0", "false", "no")
 
 
 def _building_research_max_queries() -> int:
@@ -543,10 +544,12 @@ def synthesize_profile_with_llm(
     user_text: str,
     search_results: List[Dict[str, str]],
     *,
+    visual_notes: Optional[str] = None,
+    reference_blueprint: Optional[Dict[str, Any]] = None,
     timeout_sec: float = 15.0,
     call_with_timeout: Optional[Callable] = None,
 ) -> Optional[BuildingProfile]:
-    """可选 LLM 归纳（BUILDING_RESEARCH_LLM_SYNTH=on）。"""
+    """LLM 归纳（BUILDING_RESEARCH_LLM_SYNTH=on，默认开启）。"""
     if client is None:
         return None
 
@@ -557,12 +560,14 @@ def synthesize_profile_with_llm(
 
     system = (
         "You summarize architecture research into a compact BuildingProfile JSON object. "
+        "Use ONLY facts from search snippets, user request, and optional reference_blueprint. "
+        "Do NOT invent architects or dimensions not supported by evidence. "
         "Output ONLY valid JSON matching keys: query, identity{name,architect,year,style,confidence}, "
         "form{footprint,massing,stories,aspect_ratio}, "
         "structure{roof_types,facade,distinctive_elements}, "
         "scale_hints{typical_width_blocks,typical_depth_blocks,typical_height_blocks}, "
         "minecraft_strategy{skeleton_type,recommended_components,landmark_module,notes}, "
-        "research_notes. "
+        "research_notes, reference_blueprint (optional, same schema as vision ReferenceBlueprint). "
         "recommended_components must use only: MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE, "
         "TOWER, WALL, COURTYARD_SPACE, MODULE, TERRACE. "
         "landmark_module is usually null unless a well-known preset applies."
@@ -570,9 +575,17 @@ def synthesize_profile_with_llm(
     user = (
         f"User request: {user_text}\n"
         f"Primary subject: {subject}\n\n"
-        f"Search snippets:\n{snippets_block}\n\n"
-        "Produce BuildingProfile JSON."
+        f"Search snippets:\n{snippets_block}\n"
     )
+    if reference_blueprint:
+        user += (
+            "\nReferenceBlueprint(JSON) from vision — preserve and pass through in output:\n"
+            + json.dumps(reference_blueprint, ensure_ascii=False)[:6000]
+            + "\n"
+        )
+    elif visual_notes:
+        user += f"\nVisual analysis notes:\n{visual_notes[:1500]}\n"
+    user += "\nProduce BuildingProfile JSON."
 
     def _call():
         return client.chat.completions.create(
@@ -620,6 +633,8 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
         "Planning rules:",
         "- Respect scale_hints when choosing dimensions (blocks).",
         "- Include distinctive_elements in component params/features where possible.",
+        "- If reference_blueprint is present, use its architectural_layers, block_palette,",
+        "  and generation_rules as the primary spatial/material guide for LlmPlan components.",
         "- Do NOT invent unregistered component_type values.",
         "- If research_notes conflict with user text, prefer user text for intent.",
         "",
@@ -676,9 +691,17 @@ def research_building_profile(
         if should_search and queries:
             results = multi_source_search(queries, search_fn=search_fn)
 
+        has_full_blueprint = bool(
+            visual is not None and visual.reference_blueprint is not None
+        )
         profile: Optional[BuildingProfile] = None
 
-        if _building_research_llm_synth() and req is not None and should_search:
+        if (
+            _building_research_llm_synth()
+            and req is not None
+            and not has_full_blueprint
+            and (should_search or has_refs or (user_text or "").strip())
+        ):
             try:
                 from .llm_client import get_client, build_config
 
@@ -691,6 +714,12 @@ def research_building_profile(
                         subject,
                         user_text,
                         results,
+                        visual_notes=visual.notes if visual else None,
+                        reference_blueprint=(
+                            visual.reference_blueprint.to_prompt_dict()
+                            if visual and visual.reference_blueprint
+                            else None
+                        ),
                         call_with_timeout=call_with_timeout,
                     )
             except Exception as e:

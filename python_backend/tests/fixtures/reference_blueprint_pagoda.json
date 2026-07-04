@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "project_name": "steampunk_oriental_pagoda",
+    "dimensions": { "width_x": 32, "height_y": 42, "depth_z": 32 },
+    "style": "oriental_fantasy_steampunk"
+  },
+  "block_palette": {
+    "roofs_oriental": {
+      "main_tiles": ["minecraft:mud_brick_stairs", "minecraft:mud_brick_slabs"]
+    }
+  },
+  "architectural_layers": [
+    {
+      "layer_id": "03_upper_pagoda_tower",
+      "y_range": [23, 42],
+      "description": "核心中式三层塔楼与尖顶",
+      "components": [
+        {
+          "name": "pagoda_body",
+          "bounding_box": { "min": [10, 24, 10], "max": [22, 38, 22] },
+          "primary_materials": ["red_aged", "roofs_oriental"],
+          "features": ["逐层向上收缩的主塔", "四角传统中式飞檐"]
+        }
+      ]
+    }
+  ],
+  "generation_rules": {
+    "oriental_eaves_logic": "楼梯正反拼接制造飞檐起翘"
+  }
+}

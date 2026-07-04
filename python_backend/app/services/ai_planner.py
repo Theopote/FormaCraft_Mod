@@ -4596,7 +4596,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
                         req=req,
                         call_with_timeout=_call_with_timeout,
                     ),
-                    float(os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "8")),
+                    float(os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "15")),
                 )
                 if building_profile and not is_research_two_phase_enabled():
                     user_prompt = (
@@ -4615,7 +4615,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
         except TimeoutError:
             logger.warning(
                 "Building research timed out after %ss; skipping",
-                os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "8"),
+                os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "15"),
             )
         except Exception as e:
             logger.warning("Failed building research: %s", e)

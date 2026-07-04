@@ -5,9 +5,21 @@ from pydantic import BaseModel
 class ReferenceInput(BaseModel):
     """PR-4: 用户附带的参考图 / URL（与 Java ReferenceInput 对齐）。"""
 
-    type: str  # image_url | image_base64 | web_url
+    type: str  # image_url | image_base64 | web_url | reference_json
     content: str
     caption: Optional[str] = None
+
+    def is_reference_json(self) -> bool:
+        t = (self.type or "").strip().lower()
+        if t in ("reference_json", "json", "blueprint_json"):
+            return True
+        c = (self.content or "").strip()
+        return c.startswith("{") and ("metadata" in c or "architectural_layers" in c)
+
+    def parsed_reference_blueprint_content(self) -> Optional[str]:
+        if not self.is_reference_json():
+            return None
+        return (self.content or "").strip()
 
     def normalized_image_url(self) -> Optional[str]:
         t = (self.type or "").strip().lower()

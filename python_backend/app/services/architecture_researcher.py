@@ -127,6 +127,45 @@ def is_relevant_architecture_result(item: Dict[str, str]) -> bool:
     return any(sig in blob for sig in _ARCHITECTURE_SIGNALS)
 
 
+def google_cse_configured() -> bool:
+    return bool(
+        (os.getenv("GOOGLE_CSE_API_KEY") or "").strip()
+        and (os.getenv("GOOGLE_CSE_CX") or "").strip()
+    )
+
+
+def _search_with_google_cse(query: str, max_results: int) -> List[Dict[str, str]]:
+    """Google Custom Search JSON API（需 GOOGLE_CSE_API_KEY + GOOGLE_CSE_CX）。"""
+    api_key = (os.getenv("GOOGLE_CSE_API_KEY") or "").strip()
+    cx = (os.getenv("GOOGLE_CSE_CX") or "").strip()
+    if not api_key or not cx:
+        return []
+    try:
+        resp = requests.get(
+            "https://www.googleapis.com/customsearch/v1",
+            params={
+                "key": api_key,
+                "cx": cx,
+                "q": query,
+                "num": min(max(1, max_results), 10),
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        items = resp.json().get("items") or []
+        out: List[Dict[str, str]] = []
+        for item in items:
+            out.append({
+                "title": item.get("title") or "",
+                "snippet": item.get("snippet") or "",
+                "url": item.get("link") or "",
+            })
+        return out[:max_results]
+    except Exception as e:
+        logger.warning("Google CSE search failed for %r: %s", query[:60], e)
+        return []
+
+
 def _core_name_tokens(query: str) -> List[str]:
     """从检索词提取建筑主体 token（用于 Wikipedia 命中校验）。"""
     q = (query or "").strip()
@@ -273,7 +312,13 @@ def search_architecture_reference(query: str, max_results: int = 3) -> List[Dict
         if len(merged) >= max_results:
             return merged[:max_results]
 
-    # 2) DuckDuckGo
+    # 2) Google Custom Search（配置了 API key 时）
+    if google_cse_configured():
+        _add(_search_with_google_cse(query, max_results))
+        if len(merged) >= max_results:
+            return merged[:max_results]
+
+    # 3) DuckDuckGo
     try:
         _add(_search_with_duckduckgo(query, max_results))
     except Exception as e:
