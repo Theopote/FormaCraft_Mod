@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
+    "variant": "module_seed_8842",
+    "notes": "diversity fixture — MODULE 路径，不同 seed/坡度/朝向/尺寸"
+  },
+  "mode": "build",
+  "style_profile": "Modern_Stadium",
+  "style_attributes": {
+    "wall_color": "light_gray",
+    "accent_color": "blue",
+    "wall_material": "concrete",
+    "decorative_elements": ["floodlights", "glass_band"]
+  },
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": { "facing": "WEST", "symmetry": "RADIAL" },
+  "layout": { "skeleton_type": "RADIAL_RING", "slots": [] },
+  "components": [
+    {
+      "component_type": "MODULE",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 55, "depth": 75, "height": 26 },
+      "features": ["landmark:birds_nest_stadium"],
+      "params": {
+        "module_id": "birds_nest_stadium",
+        "meshStructure": true,
+        "designSeed": 8842,
+        "bowlSteepness": 0.42,
+        "facing": "WEST"
+      }
+    }
+  ]
+}

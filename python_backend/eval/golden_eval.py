@@ -658,12 +658,38 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="回归门模式：SOFT 告警也计入失败（退出码非 0）")
     parser.add_argument("--scenarios", action="store_true",
                         help="评估 eval/fixtures/scenarios.json（Week 1 捕获 plan + prompt）")
+    parser.add_argument("--diversity", action="store_true",
+                        help="对多个 plan 计算 diversity 指标（需 --plans 目录或多个 JSON）")
+    parser.add_argument("--diversity-scenarios", action="store_true",
+                        help="运行 eval/fixtures/diversity_scenarios.json")
+    parser.add_argument("--live-diversity", action="store_true",
+                        help="在线：同一 prompt 采样多次并测 diversity（需 LLM）")
+    parser.add_argument("--samples", type=int, default=3,
+                        help="--live-diversity 采样次数")
+    parser.add_argument("--min-unique-ratio", type=float, default=0.5,
+                        help="diversity 最低 unique_ratio（默认 0.5）")
+    parser.add_argument("--min-mean-distance", type=float, default=0.12,
+                        help="diversity 最低平均 Jaccard 距离（默认 0.12）")
     parser.add_argument("--prompt", type=str,
-                        help="与 --plan 联用：按用户描述做意图 SOFT 断言")
+                        help="与 --plan 联用：按用户描述做意图 SOFT 断言；"
+                             "与 --live-diversity 联用：指定采样 prompt")
     args = parser.parse_args(argv)
 
     if args.scenarios:
         return run_scenarios(gate=args.gate)
+
+    if args.diversity_scenarios:
+        from eval.diversity_eval import run_diversity_scenarios
+        return run_diversity_scenarios(gate=args.gate)
+
+    if args.live_diversity:
+        from eval.diversity_eval import DiversityThresholds, run_live_diversity
+        prompt = args.prompt or "在锚点位置生成现代风格的椭圆形体育场建筑"
+        th = DiversityThresholds(
+            min_unique_ratio=args.min_unique_ratio,
+            min_mean_distance=args.min_mean_distance,
+        )
+        return run_live_diversity(prompt, samples=args.samples, gate=args.gate, thresholds=th)
 
     if args.live:
         return run_live(gate=args.gate)
@@ -678,6 +704,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         else:
             print(f"目录不存在：{d}")
             return 2
+
+    if args.diversity:
+        if not paths:
+            print("--diversity 需要 --plans 目录或 --plan 文件")
+            return 2
+        from eval.diversity_eval import DiversityThresholds, run_offline_diversity
+        th = DiversityThresholds(
+            min_unique_ratio=args.min_unique_ratio,
+            min_mean_distance=args.min_mean_distance,
+        )
+        return run_offline_diversity(paths, label="golden_eval", thresholds=th, gate=args.gate)
 
     if not paths:
         print(__doc__)

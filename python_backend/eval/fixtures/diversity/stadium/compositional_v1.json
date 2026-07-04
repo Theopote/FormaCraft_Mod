@@ -1,0 +1,52 @@
+{
+  "_meta": {
+    "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
+    "variant": "compositional_v1",
+    "notes": "diversity fixture — 组合式 MASS 原创路径"
+  },
+  "mode": "build",
+  "style_profile": "Modern_Stadium",
+  "style_attributes": {
+    "wall_color": "light_gray",
+    "roof_color": "white",
+    "wall_material": "concrete",
+    "decorative_elements": ["canopy_roof", "tiered_seating"]
+  },
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": { "facing": "EAST", "symmetry": "RADIAL" },
+  "layout": { "skeleton_type": "RADIAL_RING", "slots": [] },
+  "components": [
+    {
+      "component_type": "PAVING",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 36, "depth": 48, "height": 1 },
+      "params": { "material": "grass_block", "shape": "ellipse" }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 58, "depth": 72, "height": 22 },
+      "params": {
+        "shape": "circle",
+        "void_ratio": 0.42,
+        "facade_profile": "mullion_grid",
+        "masses": [
+          { "y0": 0, "y1": 8, "scale": 1.0 },
+          { "y0": 8, "y1": 16, "scale": 0.88 },
+          { "y0": 16, "y1": 22, "scale": 0.76 }
+        ]
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": { "x": 0, "y": 22, "z": 0 },
+      "dimensions": { "width": 52, "depth": 66, "height": 6 },
+      "params": { "roof_type": "membrane_canopy" }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": { "x": 0, "y": 0, "z": 36 },
+      "dimensions": { "width": 10, "depth": 4, "height": 8 }
+    }
+  ]
+}
