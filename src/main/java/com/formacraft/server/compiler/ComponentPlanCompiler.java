@@ -245,7 +245,12 @@ public final class ComponentPlanCompiler {
     }
 
     /**
-     * 创建默认 slot（使用全局 anchor）
+     * 创建默认 slot（用于没有显式 slot 的组件）。
+     * <p>
+     * <b>锚点必须是相对原点 (0,0,0)</b>，而不是 {@code plan.anchor()}。因为编译产出的
+     * BlockPatch 契约是“相对 plan.anchor 的偏移”，下游（如 {@code LlmPlanPreviewBuilder}）
+     * 会再统一叠加世界锚点 {@code planOrigin}。若这里放绝对锚点，会导致 anchor 被叠加两次，
+     * 使建筑整体偏移一个 anchor 的量（远离锚点 + 悬空），进而触发巨量地形填充。
      */
     private static Slot defaultSlot(LlmPlan plan) {
         GlobalConstraints.Facing facing = (plan.globalConstraints() != null && plan.globalConstraints().facing() != null)
@@ -254,7 +259,7 @@ public final class ComponentPlanCompiler {
 
         return new Slot(
                 "__global__",
-                plan.anchor(),
+                new Vec3i(0, 0, 0),
                 facing,
                 "default",
                 null,
