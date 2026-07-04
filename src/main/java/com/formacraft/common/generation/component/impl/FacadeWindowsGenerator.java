@@ -57,6 +57,14 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         if (windowStyle == null && isLattice) {
             windowStyle = "lattice";
         }
+        WindowAspect windowAspect = WindowAspect.parse(
+                getParamString(params, "window_aspect", "windowAspect"));
+        if (windowAspect == WindowAspect.SQUARE && "arrow_slit".equalsIgnoreCase(windowStyle)) {
+            windowAspect = WindowAspect.ARROW_SLIT;
+        }
+        if (windowAspect == WindowAspect.SQUARE && isLarge) {
+            windowAspect = WindowAspect.PUNCH_WINDOW;
+        }
         int floorHeight = ComponentParamParsers.intParam(params, "floor_height", "floorHeight");
         int floorCount = ComponentParamParsers.intParam(params, "floor_count", "floorCount");
         if (floorHeight <= 0 && floorCount > 0) {
@@ -80,7 +88,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (!isFacade) {
                         continue;
                     }
-                    if (!isWindowBand(y, height, floorHeight)) {
+                    if (!isWindowBand(y, height, floorHeight, windowAspect)) {
                         continue;
                     }
                     int axis;
@@ -114,7 +122,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (axis == 0 || axis >= axisMax - 1) {
                         continue;
                     }
-                    if (!shouldPlaceWindow(axis, y, windowSpacing, windowRatio, rhythm)) {
+                    if (!shouldPlaceWindow(axis, y, axisMax, height, floorHeight, windowSpacing,
+                            windowRatio, rhythm, windowAspect)) {
                         continue;
                     }
 
@@ -319,12 +328,65 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         };
     }
 
-    private boolean isWindowBand(int y, int height, int floorHeight) {
+    private boolean isWindowBand(int y, int height, int floorHeight, WindowAspect aspect) {
+        if (aspect == WindowAspect.FULL_HEIGHT || aspect == WindowAspect.RIBBON_GLAZING) {
+            return y > 0 && y < height - 1;
+        }
+        if (aspect == WindowAspect.HORIZONTAL_STRIP) {
+            if (y <= 0 || y >= height - 1) {
+                return false;
+            }
+            int band = y % Math.max(1, floorHeight);
+            int mid = Math.max(1, floorHeight / 2);
+            return band >= mid - 1 && band <= mid;
+        }
         if (y <= 0 || y >= height - 1) {
             return false;
         }
         int band = y % Math.max(1, floorHeight);
         return band >= 1 && band <= Math.max(1, floorHeight - 2);
+    }
+
+    private boolean shouldPlaceWindow(
+            int axis, int y, int axisMax, int height, int floorHeight,
+            int spacing, Double ratio, String rhythm, WindowAspect aspect
+    ) {
+        return switch (aspect) {
+            case HORIZONTAL_STRIP, RIBBON_GLAZING -> axis > 0 && axis < axisMax - 1;
+            case VERTICAL_STRIP -> {
+                int step = Math.max(3, spacing + 1);
+                yield (axis % step) == (step / 2) && isVerticalStripY(y, height, floorHeight);
+            }
+            case ARROW_SLIT -> {
+                int step = Math.max(4, spacing + 2);
+                yield (axis % step) == (step / 2) && isVerticalStripY(y, height, floorHeight);
+            }
+            case PUNCH_WINDOW -> {
+                int step = Math.max(3, spacing);
+                yield (axis % step) == (step / 2) && isPunchWindowY(y, height, floorHeight);
+            }
+            case FULL_HEIGHT -> {
+                int step = Math.max(4, spacing + 1);
+                yield (axis % step) == (step / 2);
+            }
+            case SQUARE -> shouldPlaceWindow(axis, y, spacing, ratio, rhythm);
+        };
+    }
+
+    private static boolean isVerticalStripY(int y, int height, int floorHeight) {
+        int fh = Math.max(3, floorHeight);
+        int bandStart = (y / fh) * fh;
+        int bandEnd = Math.min(height - 1, bandStart + fh - 1);
+        int minY = bandStart + 1;
+        int maxY = bandEnd - 1;
+        return y >= minY && y <= maxY;
+    }
+
+    private static boolean isPunchWindowY(int y, int height, int floorHeight) {
+        int fh = Math.max(4, floorHeight);
+        int bandStart = (y / fh) * fh;
+        int mid = bandStart + fh / 2;
+        return y >= mid - 1 && y <= mid + 1 && y > 0 && y < height - 1;
     }
 
     private boolean shouldPlaceWindow(int axis, int y, int spacing, Double ratio, String rhythm) {

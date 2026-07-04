@@ -29,6 +29,9 @@ Core rules:
 - BUILDING VARIATION: Never output identical plans for repeat requests; differentiate facade, entrances, masses[].
 - PROPORTION ONTOLOGY: When PROPORTION ONTOLOGY block applies, output top-level proportion_hints with numeric ratio targets before finalizing dimensions.
 - OPENING GRAMMAR: Respect window_aspect and min_enclosure_coverage from proportion card; use FACADE_WINDOWS params.window_aspect.
+- PRIMITIVE SHAPES (standalone geometry): component_type="PRIMITIVE" or "SHAPE" with params.kind=
+  box|cylinder|cone|frustum|prism; dimensions = axis-aligned bounding box; optional rotation_y_deg, hollow, sides, radius, material.
+  Use for "build a cylinder/sphere-like solid" requests without full building semantics.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.
@@ -173,6 +176,7 @@ ComponentParamsObject:
   "courtyard_ratio": 0.0-1.0,
   "void_ratio": 0.0-1.0,
   "window_ratio": 0.0-1.0,
+  "window_aspect": "square|horizontal_strip|vertical_strip|ribbon_glazing|arrow_slit|punch_window|full_height",
   "roof_type": "flat|gable|hip|cone|pyramid|dome|double_gable|xuanshan|xieshan",
   "setback_ratio": 0.0-1.0,
   "floor_height": int,
@@ -184,7 +188,14 @@ ComponentParamsObject:
   "detail_level": "low|medium|high",
   "masses": [
     { "offset": { "x": int, "y": int, "z": int }, "dimensions": { "width": int, "depth": int, "height": int }, "shape": "rectangle|circle|rounded_rect" }
-  ]
+  ],
+  "kind": "box|cylinder|cone|frustum|prism",
+  "rotation_y_deg": number,
+  "hollow": boolean,
+  "sides": int,
+  "radius": number,
+  "top_radius": number,
+  "material": "stone|glass|concrete|..."
 }
 
 """;

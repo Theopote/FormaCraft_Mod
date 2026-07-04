@@ -462,6 +462,10 @@ _ALLOWED_FACADE_CUTOUT = {"none", "solid", "lattice", "grille", "perfor", "diagr
 _ALLOWED_DETAIL_LEVEL = {"low", "medium", "high"}
 # assembly_facade 是布尔类开关；接受 bool / 0-1 / 常见真假字符串。
 _ALLOWED_ASSEMBLY_FACADE_STR = {"true", "false", "1", "0", "auto", "on", "off", "yes", "no"}
+_ALLOWED_WINDOW_ASPECT = {
+    "square", "horizontal_strip", "vertical_strip", "ribbon_glazing",
+    "arrow_slit", "punch_window", "full_height", "horizontal_band", "default", "none",
+}
 
 
 def _invalid_facade_params(comps: List[Dict[str, Any]]) -> List[str]:
@@ -503,6 +507,7 @@ def _invalid_facade_params(comps: List[Dict[str, Any]]) -> List[str]:
         _check(params, i, ("wall_pattern", "wallPattern"), _ALLOWED_WALL_PATTERN, "wall_pattern")
         _check(params, i, ("facade_cutout", "cutout_pattern", "perforation"), _ALLOWED_FACADE_CUTOUT, "facade_cutout", substring=True)
         _check(params, i, ("detail_level", "detailLevel", "quality"), _ALLOWED_DETAIL_LEVEL, "detail_level")
+        _check(params, i, ("window_aspect", "windowAspect"), _ALLOWED_WINDOW_ASPECT, "window_aspect")
         _check_bool(params, i, ("assembly_facade", "assemblyFacade"), "assembly_facade")
     return out
 

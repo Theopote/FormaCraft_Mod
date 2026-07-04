@@ -61,6 +61,10 @@ public final class ComponentGeneratorRegistry {
         register("CONNECTOR", new PathComponentGenerator());
         register("BRIDGE", new PathComponentGenerator());
         register("BRIDGE_CONNECTOR", new PathComponentGenerator());
+
+        // M1 几何基元（独立造形或建筑组合的基础体）
+        register("PRIMITIVE", new PrimitiveShapeGenerator());
+        register("SHAPE", new PrimitiveShapeGenerator());
     }
 
     private ComponentGeneratorRegistry() {}

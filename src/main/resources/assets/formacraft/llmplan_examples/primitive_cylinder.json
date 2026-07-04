@@ -1,0 +1,24 @@
+{
+  "description": "ShapeLibrary M1 — 圆柱体 PRIMITIVE few-shot",
+  "promptHints": ["圆柱", "cylinder", "几何体"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "DEFAULT",
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+    "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+    "components": [
+      {
+        "component_type": "PRIMITIVE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 12, "depth": 12, "height": 20 },
+        "params": {
+          "kind": "cylinder",
+          "radius": 5,
+          "material": "stone",
+          "hollow": false
+        }
+      }
+    ]
+  }
+}
