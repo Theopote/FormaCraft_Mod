@@ -4371,9 +4371,23 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
                     culture_payload["landmarkModuleId"] = rag.get("landmarkModuleId")
                 if rag.get("llmPlanFewShots"):
                     culture_payload["llmPlanFewShots"] = rag.get("llmPlanFewShots")
+                if rag.get("proportionCard"):
+                    culture_payload["proportionCard"] = rag.get("proportionCard")
                 if culture_payload.get("hits") or culture_payload.get("fewShots") or culture_payload.get("llmPlanFewShots"):
                     parts.append("\nCultureRetrieval(JSON):")
                     parts.append(json.dumps(culture_payload, ensure_ascii=False, indent=2))
+
+            from app.services.proportion_retriever import retrieve_proportion_card, proportion_prompt_block
+            _pc_id = None
+            if rag and isinstance(rag.get("proportionCardId"), str):
+                _pc_id = rag.get("proportionCardId")
+            _prop_card = retrieve_proportion_card(qtext, proportion_card_id=_pc_id)
+            if _prop_card:
+                parts.append("\nProportionOntology(JSON) [output proportion_hints in LlmPlan]:")
+                parts.append(json.dumps(_prop_card, ensure_ascii=False, indent=2))
+                _prop_block = proportion_prompt_block(_prop_card)
+                if _prop_block:
+                    parts.append(_prop_block)
 
             routing = _landmark_routing(qtext)
             if routing:

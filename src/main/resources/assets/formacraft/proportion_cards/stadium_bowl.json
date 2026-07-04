@@ -1,0 +1,33 @@
+{
+  "id": "stadium_bowl",
+  "typology": "stadium_bowl",
+  "matchKeywords": [
+    "体育场", "体育馆", "椭圆", "碗状", "看台", "stadium", "arena", "elliptical", "bowl"
+  ],
+  "ratios": {
+    "bowl_depth_to_width": {
+      "min": 0.25,
+      "ideal": 0.38,
+      "max": 0.55,
+      "desc": "碗深/开口宽（碗口比例）"
+    },
+    "height_to_major_axis": {
+      "min": 0.35,
+      "ideal": 0.48,
+      "max": 0.65,
+      "desc": "总高/长轴（椭圆 major）"
+    },
+    "field_to_bowl": {
+      "min": 0.45,
+      "ideal": 0.58,
+      "max": 0.72,
+      "desc": "内场直径/碗口内径"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["ribbon_glazing", "horizontal_band"],
+    "min_enclosure_coverage": 0.55,
+    "max_void_ratio": 0.45
+  },
+  "aiInstruction": "Research bowlSteepness (0.25-0.45) and dimensions before MODULE or tiered MASS. Inner field via PAVING or void_ratio; seating via masses[] tiers or birds_nest_stadium MODULE."
+}

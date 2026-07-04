@@ -44,6 +44,7 @@ GOLDEN_PROMPTS: List[str] = [
     "盖一座天坛",
     "把屋顶换成红色",  # patch 类
     "在锚点位置生成现代风格的椭圆形体育场建筑",
+    "盖一座中世纪石头城堡，有塔楼和城墙",
 ]
 
 # 尺寸合理性上限（与 Java OrchestratorClient.validateBuildingSpec 的 200 对齐）。
@@ -439,6 +440,16 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[st
     # SOFT：按用户 prompt 的意图对齐（Week 1+）。
     for ic in evaluate_intent(plan, prompt):
         add(ic)
+
+    # SOFT：比例 + 围合逻辑（P0 typology cards）
+    try:
+        from eval.proportion_eval import evaluate_enclosure, evaluate_proportions
+        for name, ok, detail in evaluate_proportions(plan, prompt):
+            add(Check(name, ok, hard=False, detail=detail))
+        for name, ok, detail in evaluate_enclosure(plan, prompt):
+            add(Check(name, ok, hard=False, detail=detail))
+    except Exception:
+        pass
 
     return res
 

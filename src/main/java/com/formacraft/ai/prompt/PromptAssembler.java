@@ -55,6 +55,13 @@ public final class PromptAssembler {
 
         sb.append(com.formacraft.common.archetype.LandmarkRoutingPolicy.promptVariationPrinciples());
 
+        // Proportion ontology: cottage / castle / stadium typology ratios
+        String proportionHint = com.formacraft.common.proportion.ProportionCardRegistry
+                .promptBlockForIntent(ctx.userMessage, null);
+        if (proportionHint != null && !proportionHint.isBlank()) {
+            sb.append(proportionHint);
+        }
+
         String landmarkHint = com.formacraft.common.archetype.LandmarkModuleRegistry
                 .promptRoutingHintForIntent(ctx.userMessage);
         if (landmarkHint != null && !landmarkHint.isBlank()) {

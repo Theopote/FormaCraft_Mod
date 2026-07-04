@@ -100,6 +100,10 @@ def _default_vector_for(style_id: str) -> Tuple[float, float, float, float, floa
         return 0.55, 0.75, 0.55, 0.75, 0.35
     if "JAPANESE" in sid:
         return 0.45, 0.55, 0.5, 0.35, 0.25
+    if "COTTAGE" in sid or "RURAL" in sid:
+        return 0.5, 0.65, 0.45, 0.25, 0.2
+    if "CASTLE" in sid or "MEDIEVAL" in sid:
+        return 0.65, 0.75, 0.7, 0.12, 0.85
     if "CLASSICAL" in sid or "GRECOROMAN" in sid:
         return 0.55, 0.8, 0.6, 0.25, 0.4
     return 0.6, 0.6, 0.6, 0.4, 0.5
@@ -211,6 +215,7 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
     best = hits[0] if hits else None
 
     # LlmPlan landmark routing from best culture card
+    proportion_card_id: Optional[str] = None
     if best:
         for cp in cards_dir.glob("*.json"):
             try:
@@ -224,6 +229,9 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
             lm = str(card.get("landmarkModuleId") or "").strip()
             if lm:
                 landmark_module_id = lm
+            pcid = str(card.get("proportionCardId") or "").strip()
+            if pcid:
+                proportion_card_id = pcid
             for ref in _str_list(card.get("llmPlanExampleRefs")):
                 ex_path = llmplan_dir / ref
                 if not ex_path.exists():
@@ -234,6 +242,13 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
                 except Exception:
                     pass
             break
+
+    proportion_card = None
+    try:
+        from app.services.proportion_retriever import retrieve_proportion_card
+        proportion_card = retrieve_proportion_card(q, proportion_card_id=proportion_card_id)
+    except Exception:
+        proportion_card = None
 
     style_id = best.styleId if best else "Unknown"
     base = _default_vector_for(style_id)
@@ -291,6 +306,8 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
         "assemblyDraft": assembly_draft,
         "landmarkModuleId": landmark_module_id,
         "llmPlanFewShots": llm_plan_few_shots,
+        "proportionCardId": proportion_card_id,
+        "proportionCard": proportion_card,
     }
 
 

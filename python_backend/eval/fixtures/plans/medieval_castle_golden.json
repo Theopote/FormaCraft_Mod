@@ -1,0 +1,69 @@
+{
+  "_meta": {
+    "prompt": "盖一座中世纪石头城堡，有塔楼和城墙",
+    "source": "llmplan_examples/medieval_castle_compositional.json",
+    "notes": "P0 golden fixture — compositional castle"
+  },
+  "mode": "build",
+  "style_profile": "Medieval_Castle",
+  "style_attributes": {
+    "wall_color": "gray",
+    "wall_material": "stone_brick",
+    "roof_material": "slate",
+    "decorative_elements": ["battlements", "arrow_slits"]
+  },
+  "proportion_hints": {
+    "typology": "medieval_castle",
+    "wall_height_to_thickness": 6.0,
+    "tower_height_to_base": 4.0,
+    "window_wall_ratio": 0.08,
+    "window_aspect": "vertical_strip",
+    "min_enclosure_coverage": 0.9
+  },
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+    "global_constraints": { "facing": "SOUTH", "symmetry": "MIRROR_X", "terrain_strategy": "ADAPTIVE" },
+  "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 24, "depth": 20, "height": 8 },
+      "params": { "shape": "rectangle", "facade_profile": "base_plinth", "void_ratio": 0.15 },
+      "features": ["keep", "inner_bailey"]
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": { "x": -10, "y": 0, "z": -8 },
+      "dimensions": { "width": 6, "depth": 6, "height": 18 },
+      "params": { "shape": "cylinder", "wall_thickness": 1 }
+    },
+    {
+      "component_type": "TOWER",
+      "relative_position": { "x": 10, "y": 0, "z": -8 },
+      "dimensions": { "width": 6, "depth": 6, "height": 18 },
+      "params": { "shape": "cylinder", "wall_thickness": 1 }
+    },
+    {
+      "component_type": "WALL",
+      "relative_position": { "x": 0, "y": 0, "z": -10 },
+      "dimensions": { "width": 22, "depth": 2, "height": 7 },
+      "params": { "thickness": 2, "battlement": true }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": { "x": 0, "y": 0, "z": -10 },
+      "dimensions": { "width": 4, "depth": 3, "height": 6 },
+      "params": { "style": "stone_arch_gate" }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": { "x": 0, "y": 2, "z": -10 },
+      "dimensions": { "width": 22, "depth": 2, "height": 5 },
+      "params": {
+        "window_ratio": 0.08,
+        "window_aspect": "vertical_strip",
+        "window_style": "arrow_slit"
+      }
+    }
+  ]
+}

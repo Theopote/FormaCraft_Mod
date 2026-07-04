@@ -1,0 +1,40 @@
+{
+  "id": "castle_wall",
+  "typology": "medieval_castle",
+  "matchKeywords": [
+    "城堡", "要塞", "堡垒", "塔楼", "城墙", "垛口", "castle", "fortress", "keep",
+    "battlements", "medieval castle", "stone fortress"
+  ],
+  "ratios": {
+    "wall_height_to_thickness": {
+      "min": 4.0,
+      "ideal": 6.0,
+      "max": 10.0,
+      "desc": "墙高/墙厚"
+    },
+    "tower_height_to_base": {
+      "min": 2.5,
+      "ideal": 4.0,
+      "max": 7.0,
+      "desc": "塔楼高/塔底宽"
+    },
+    "curtain_wall_to_tower": {
+      "min": 0.35,
+      "ideal": 0.55,
+      "max": 0.75,
+      "desc": "城墙段长/塔楼间距比（节奏）"
+    },
+    "window_wall_ratio": {
+      "min": 0.04,
+      "ideal": 0.1,
+      "max": 0.18,
+      "desc": "防御建筑：窄缝窗"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["vertical_strip", "arrow_slit"],
+    "min_enclosure_coverage": 0.88,
+    "max_void_ratio": 0.25
+  },
+  "aiInstruction": "Compositional LlmPlan: MASS_MAIN keep + TOWER corners + WALL segments + ENTRANCE gate. proportion_hints for slenderness and wall H:W. Narrow windows; high enclosure. MODULE only if user names a specific landmark castle."
+}

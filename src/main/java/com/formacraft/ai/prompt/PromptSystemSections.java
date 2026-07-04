@@ -27,6 +27,8 @@ Core rules:
   RECOMMENDED for typological matches (ellipse stadium) but compositional alternatives are allowed.
   Always vary params (designSeed, facing, bowlSteepness) and style_attributes even on MODULE paths.
 - BUILDING VARIATION: Never output identical plans for repeat requests; differentiate facade, entrances, masses[].
+- PROPORTION ONTOLOGY: When PROPORTION ONTOLOGY block applies, output top-level proportion_hints with numeric ratio targets before finalizing dimensions.
+- OPENING GRAMMAR: Respect window_aspect and min_enclosure_coverage from proportion card; use FACADE_WINDOWS params.window_aspect.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.

@@ -9,5 +9,29 @@
       "允许 MODULE+landmark:birds_nest_stadium 或组合式 MASS 原创路径",
       "diversity eval: eval/fixtures/diversity/stadium/ 三个变体应 unique_ratio=1.0"
     ]
+  },
+  {
+    "id": "cottage_small_stone",
+    "prompt": "盖一个 7x7 的小石头房子，带门和窗",
+    "plan_fixture": "plans/cottage_refined_golden.json",
+    "tags": ["cottage", "house", "high_frequency"],
+    "proportion_card": "cottage_refined",
+    "ideal_notes": [
+      "Culture card cottage_refined + proportion_card",
+      "MASS_MAIN + ROOF + ENTRANCE + FACADE_WINDOWS",
+      "proportion_hints.height_to_width≈0.65, window_wall_ratio≈0.2"
+    ]
+  },
+  {
+    "id": "medieval_castle_compositional",
+    "prompt": "盖一座中世纪石头城堡，有塔楼和城墙",
+    "plan_fixture": "plans/medieval_castle_golden.json",
+    "tags": ["castle", "medieval", "high_frequency"],
+    "proportion_card": "castle_wall",
+    "ideal_notes": [
+      "Culture card medieval_castle + proportion_card castle_wall",
+      "MASS keep + TOWER + WALL + ENTRANCE；非 MODULE 除非指名地标",
+      "窄缝窗 vertical_strip；min_enclosure_coverage≥0.88"
+    ]
   }
 ]
