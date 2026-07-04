@@ -56,7 +56,12 @@ _ARCHITECTURE_SEARCH_TIMEOUT_SEC = float(os.getenv("ARCHITECTURE_SEARCH_TIMEOUT_
 # 可选：llmplan 步骤强制使用的快模型（覆盖客户端 model，用于速度/质量对比）。为空则不覆盖。
 _LLMPLAN_MODEL_OVERRIDE = (os.getenv("LLMPLAN_MODEL") or "").strip()
 # 已知不支持严格 json_schema 的 provider：auto 模式下直接走 json_object，避免必失的首次尝试
-_NON_JSON_SCHEMA_PROVIDERS = {"deepseek", "ollama", "lmstudio"}
+_NON_JSON_SCHEMA_PROVIDERS = {
+    "deepseek", "ollama", "lmstudio", "vllm", "llamacpp",
+    "gemini", "anthropic", "mistral", "xai", "groq",
+    "together", "moonshot", "zhipu", "qwen", "siliconflow",
+    "openai_compat",
+}
 
 # ---- Track B 输入理解与多步规划 开关 ----
 # B1 意图解析/扩写（规则版，零额外网络延迟）：on（默认）| off
