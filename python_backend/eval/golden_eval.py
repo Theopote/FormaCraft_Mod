@@ -47,6 +47,58 @@ GOLDEN_PROMPTS: List[str] = [
     "盖一座中世纪石头城堡，有塔楼和城墙",
 ]
 
+# gate 模式下按 scenario 标签提升为 HARD 的 SOFT 检查（与 eval/ci_gate.py 对齐）
+_SCENARIO_HARD_BY_TAG: Dict[str, frozenset] = {
+    "high_frequency": frozenset({
+        "has_proportion_hints",
+        "has_entrance",
+        "has_windows",
+        "has_roof",
+        "has_enclosure_mass",
+        "has_entrance_component",
+        "component_richness",
+        "facade_params_valid",
+    }),
+    "stadium": frozenset({
+        "elliptical_shape_params",
+        "stadium_seating_expressed",
+        "genome_shape_consistency",
+    }),
+    "castle": frozenset({
+        "has_proportion_hints",
+        "has_enclosure_mass",
+        "castle_has_defensive_shell",
+    }),
+    "primitive": frozenset({
+        "facade_params_valid",
+    }),
+}
+
+
+def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -> None:
+    """gate 模式：按 scenario 标签 / proportion_card 将关键 SOFT 升为 HARD。"""
+    names: set[str] = set()
+    tags = scenario.get("tags")
+    tag_set: set[str] = set()
+    if isinstance(tags, list):
+        tag_set = {str(t) for t in tags if t}
+        for tag in tag_set:
+            if tag == "high_frequency" and "castle" in tag_set:
+                continue
+            names.update(_SCENARIO_HARD_BY_TAG.get(tag, ()))
+    card = scenario.get("proportion_card")
+    if card == "cottage_refined":
+        names.update(_SCENARIO_HARD_BY_TAG.get("high_frequency", ()))
+    elif card == "castle_wall":
+        names.update(_SCENARIO_HARD_BY_TAG.get("castle", ()))
+    hard_names = scenario.get("hard_checks")
+    if isinstance(hard_names, list):
+        names.update(str(n) for n in hard_names if n)
+    for check in result.checks:
+        if check.name in names:
+            check.hard = True
+
+
 # 尺寸合理性上限（与 Java OrchestratorClient.validateBuildingSpec 的 200 对齐）。
 MAX_DIMENSION = 200
 
@@ -585,7 +637,7 @@ def _load_scenarios() -> List[Dict[str, Any]]:
         return []
 
 
-def run_scenarios(gate: bool = False) -> int:
+def run_scenarios(gate: bool = False, ci_only: bool = False) -> int:
     """评估 fixtures/scenarios.json 中记录的 prompt + 捕获 plan。"""
     scenarios = _load_scenarios()
     if not scenarios:
@@ -596,6 +648,8 @@ def run_scenarios(gate: bool = False) -> int:
     for sc in scenarios:
         if not isinstance(sc, dict):
             continue
+        if ci_only and not sc.get("ci", True):
+            continue
         prompt = sc.get("prompt") if isinstance(sc.get("prompt"), str) else ""
         rel = sc.get("plan_fixture") if isinstance(sc.get("plan_fixture"), str) else ""
         plan_path = _THIS.parent / "fixtures" / rel
@@ -603,7 +657,10 @@ def run_scenarios(gate: bool = False) -> int:
         if plan is None:
             continue
         label = sc.get("id") or plan_path.name
-        results.append(evaluate_plan(plan, label=f"{label} | {prompt[:24]}…", prompt=prompt))
+        result = evaluate_plan(plan, label=f"{label} | {prompt[:24]}…", prompt=prompt)
+        if gate or ci_only:
+            promote_scenario_hard_checks(result, sc)
+        results.append(result)
 
     if not results:
         print("scenario fixtures 无法加载。")
@@ -674,6 +731,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="回归门模式：SOFT 告警也计入失败（退出码非 0）")
     parser.add_argument("--scenarios", action="store_true",
                         help="评估 eval/fixtures/scenarios.json（Week 1 捕获 plan + prompt）")
+    parser.add_argument("--ci-only", action="store_true",
+                        help="与 --scenarios 联用：仅评估 ci:true 场景")
     parser.add_argument("--diversity", action="store_true",
                         help="对多个 plan 计算 diversity 指标（需 --plans 目录或多个 JSON）")
     parser.add_argument("--diversity-scenarios", action="store_true",
@@ -692,7 +751,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     if args.scenarios:
-        return run_scenarios(gate=args.gate)
+        return run_scenarios(gate=args.gate, ci_only=args.ci_only)
 
     if args.diversity_scenarios:
         from eval.diversity_eval import run_diversity_scenarios

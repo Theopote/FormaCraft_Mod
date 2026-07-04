@@ -467,7 +467,7 @@ def _load_diversity_scenarios() -> List[Dict[str, Any]]:
         return []
 
 
-def run_diversity_scenarios(gate: bool = False) -> int:
+def run_diversity_scenarios(gate: bool = False, ci_only: bool = False) -> int:
     scenarios = _load_diversity_scenarios()
     if not scenarios:
         print("未找到 eval/fixtures/diversity_scenarios.json")
@@ -476,6 +476,10 @@ def run_diversity_scenarios(gate: bool = False) -> int:
     exit_code = 0
     for sc in scenarios:
         if not isinstance(sc, dict):
+            continue
+        if ci_only and not sc.get("ci"):
+            continue
+        if sc.get("expect_fail"):
             continue
         label = sc.get("id") or "scenario"
         rel_plans = sc.get("plan_fixtures")

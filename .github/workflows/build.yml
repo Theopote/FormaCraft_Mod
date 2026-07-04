@@ -26,6 +26,9 @@ jobs:
         run: |
           pip install -r python_backend/requirements.lock
           python python_backend/tools/spec_contract_smoke.py
+      - name: eval quality gate
+        working-directory: python_backend
+        run: python -m eval.ci_gate
       - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:

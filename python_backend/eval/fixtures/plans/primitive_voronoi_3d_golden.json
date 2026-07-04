@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "prompt": "做一个三维 voronoi 几何体",
+    "source": "llmplan_examples/primitive_voronoi_3d.json",
+    "notes": "ShapeLibrary M3+ — 3D Voronoi golden fixture"
+  },
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+  "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+  "components": [
+    {
+      "component_type": "PRIMITIVE",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 14, "depth": 14, "height": 14 },
+      "params": {
+        "kind": "voronoi",
+        "voronoi_3d": true,
+        "radius": 6,
+        "cell_count": 14,
+        "seed": 99,
+        "material": "deepslate"
+      }
+    }
+  ]
+}

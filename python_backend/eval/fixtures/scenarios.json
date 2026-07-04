@@ -1,9 +1,10 @@
 [
-  {
+    {
     "id": "modern_elliptical_stadium",
     "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
     "plan_fixture": "plans/modern_elliptical_stadium_captured.json",
     "tags": ["stadium", "elliptical", "modern"],
+    "ci": true,
     "ideal_notes": [
       "Week 2+: Culture card + RECOMMENDED LandmarkModuleRouting（非强制 MODULE）",
       "允许 MODULE+landmark:birds_nest_stadium 或组合式 MASS 原创路径",
@@ -16,6 +17,7 @@
     "plan_fixture": "plans/cottage_refined_golden.json",
     "tags": ["cottage", "house", "high_frequency"],
     "proportion_card": "cottage_refined",
+    "ci": true,
     "ideal_notes": [
       "Culture card cottage_refined + proportion_card",
       "MASS_MAIN + ROOF + ENTRANCE + FACADE_WINDOWS",
@@ -28,10 +30,23 @@
     "plan_fixture": "plans/medieval_castle_golden.json",
     "tags": ["castle", "medieval", "high_frequency"],
     "proportion_card": "castle_wall",
+    "ci": true,
     "ideal_notes": [
       "Culture card medieval_castle + proportion_card castle_wall",
       "MASS keep + TOWER + WALL + ENTRANCE；非 MODULE 除非指名地标",
       "窄缝窗 vertical_strip；min_enclosure_coverage≥0.88"
+    ]
+  },
+  {
+    "id": "primitive_voronoi_3d",
+    "prompt": "做一个三维 voronoi 几何体",
+    "plan_fixture": "plans/primitive_voronoi_3d_golden.json",
+    "tags": ["primitive", "shape"],
+    "ci": true,
+    "hard_checks": ["has_geometry", "schema_valid", "dimensions_sane"],
+    "ideal_notes": [
+      "PRIMITIVE voronoi + voronoi_3d=true",
+      "ShapeLibrary M3+ 体积细胞"
     ]
   }
 ]

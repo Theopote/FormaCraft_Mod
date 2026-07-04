@@ -89,7 +89,16 @@
         "wall_pattern": "none",
         "facade_cutout": "none",
         "detail_level": "medium",
-        "masses": []
+        "masses": [
+          {
+            "offset": { "x": 0, "y": 0, "z": 0 },
+            "dimensions": { "width": 40, "depth": 28, "height": 8 }
+          },
+          {
+            "offset": { "x": 0, "y": 8, "z": 0 },
+            "dimensions": { "width": 36, "depth": 24, "height": 6 }
+          }
+        ]
       }
     },
     {
