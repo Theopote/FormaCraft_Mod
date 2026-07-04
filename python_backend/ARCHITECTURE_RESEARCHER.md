@@ -1,5 +1,8 @@
 # 建筑参考资料搜索功能
 
+> **2026-07 更新**：LlmPlan 主路径已升级为 [BuildingResearchAgent](../docs/BUILDING_RESEARCH_AGENT.md)（`building_research_agent.py`）。  
+> 本模块保留为 **search provider**（`search_architecture_reference`）；`get_architecture_reference_context()` 仍可用于独立调用。
+
 ## 概述
 
 `architecture_researcher.py` 为 FormaCraft 后端添加了网络搜索功能，用于为强类型建筑（如埃菲尔铁塔、中国古建筑等）自动获取参考资料，提升生成质量。

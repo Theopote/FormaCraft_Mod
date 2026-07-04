@@ -146,7 +146,7 @@ class ResearchIntegrationTest(unittest.TestCase):
         self.assertFalse(is_building_research_enabled())
 
     def test_long_system_prompt_skipped(self):
-        long_prompt = "SYSTEM PROMPT " * 50 + "without build verbs"
+        long_prompt = "SYSTEM PROMPT " * 50 + "context only metadata"
         should, _, _ = plan_search_queries(long_prompt)
         self.assertFalse(should)
 

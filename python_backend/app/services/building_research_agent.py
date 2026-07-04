@@ -133,10 +133,18 @@ def _strip_build_prefix(subject: str) -> str:
     return s.strip()
 
 
+def _is_edit_or_patch_prompt(text: str) -> bool:
+    t = (text or "").strip()
+    if not t:
+        return False
+    lower = t.lower()
+    return any(h in t or h in lower for h in _NON_BUILD_HINTS)
+
+
 def _extract_subject(text: str) -> Optional[str]:
     """从用户话术中提取建筑主体名称。"""
     t = (text or "").strip()
-    if not t:
+    if not t or _is_edit_or_patch_prompt(t):
         return None
 
     patterns = [
@@ -150,9 +158,12 @@ def _extract_subject(text: str) -> Optional[str]:
             if len(subj) >= 2:
                 return subj
 
-    # 整句作为主体（短 prompt）
+    # 整句作为主体（短 prompt，且含建筑类型词）
     if len(t) <= 48 and not any(c in t for c in "，。,.!?"):
-        return _strip_build_prefix(t)
+        if re.search(r"[\u4e00-\u9fff]{2,20}(?:建筑|大楼|塔|宫|庙|寺|馆|院|楼)", t):
+            return _strip_build_prefix(t)
+        if re.search(r"\b(?:tower|cathedral|palace|temple|stadium|museum|bridge)\b", t, re.IGNORECASE):
+            return _strip_build_prefix(t)
     return None
 
 
@@ -165,20 +176,17 @@ def plan_search_queries(user_text: str) -> Tuple[bool, List[str], str]:
     """
     text = (user_text or "").strip()
     mode = research_mode()
-    if mode == "off" or not text:
+    if mode == "off" or not text or _is_edit_or_patch_prompt(text):
         return False, [], ""
 
-    subject = _extract_subject(text) or text[:60]
+    extracted = _extract_subject(text)
+    subject = extracted or text[:60]
     has_intent = _has_build_intent(text)
 
-    if mode == "named_only":
-        if not has_intent and not _extract_subject(text):
-            return False, [], subject
-    elif mode == "always":
-        if not has_intent and len(text) > 80:
-            # 长文本且无建造意图 — 可能是系统 prompt，跳过
-            return False, [], subject
-    else:
+    if not has_intent and not extracted:
+        return False, [], subject
+
+    if mode == "named_only" and not extracted:
         return False, [], subject
 
     queries: List[str] = []

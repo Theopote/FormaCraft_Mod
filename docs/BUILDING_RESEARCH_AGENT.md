@@ -61,7 +61,21 @@ Plan 阶段应读取：
 
 ## 后续（PR-2+）
 
-- 两阶段 Research → Plan 强制分离
-- Vision 参考图 merge 进 profile
+### PR-2：Research → Plan 两阶段（已实现）
+
+| 阶段 | 模块 | 说明 |
+|------|------|------|
+| Stage R | `building_research_agent.py` | 检索 + BuildingProfile |
+| Stage P | `building_plan_stage.py` | 独立 plan prompt + profile 对齐断言 |
+
+环境变量：`BUILDING_RESEARCH_TWO_PHASE=on`（默认开启）。`off` 时回退 PR-1 单阶段（profile 文本注入）。
+
+可与 `LLMPLAN_TWO_STAGE=on`（体量预跑）叠加：顺序为 R → M(massing) → P。
+
+离线对齐检查：`building_plan_stage.evaluate_plan_profile_alignment(plan, profile)`
+
+### 后续
+
+- `BUILDING_RESEARCH_LLM_SYNTH=on` 作为 Stage R 生产默认（评估延迟后）
 - Wikipedia infobox provider
-- `BUILDING_RESEARCH_LLM_SYNTH=on` 作为生产默认（评估延迟后）
+- Vision 参考图 merge 进 profile（PR-4）

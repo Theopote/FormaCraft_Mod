@@ -4488,37 +4488,49 @@ def generate_llm_plan(req: BuildRequest) -> dict:
     if not user_prompt:
         user_prompt = req.userMessage or request_text
     
-    # ========== 开放世界建筑研究（PR-1：BuildingResearchAgent）==========
-    # 任意建筑名均可触发检索 + 结构化 BuildingProfile，不依赖硬编码地标词表。
-    # 失败/超时不阻塞生成；Culture RAG 为旁路 boost，见 _llm_plan_context_block。
+    # ========== 开放世界建筑研究（PR-1/PR-2：BuildingResearchAgent）==========
+    # Stage R: research_building_profile → BuildingProfile
+    # Stage P: BUILDING_RESEARCH_TWO_PHASE=on 时在 LLM 调用前注入独立 plan stage prompt
     search_ms = 0.0
+    building_profile = None
+    research_user_text = (req.userMessage or "").strip()
+    if not research_user_text:
+        if "USER REQUEST:" in request_text:
+            research_user_text = user_prompt
+        else:
+            research_user_text = user_prompt[:200]
+
     if _ARCHITECTURE_SEARCH_MODE != "off":
         _t_search = time.monotonic()
         try:
             from .building_research_agent import (
                 is_building_research_enabled,
-                research_building_context,
+                research_building_profile,
+                format_profile_for_prompt,
             )
+            from .building_plan_stage import is_research_two_phase_enabled
 
-            search_query = (req.userMessage or "").strip()
-            if not search_query:
-                if "USER REQUEST:" in request_text:
-                    search_query = user_prompt
-                else:
-                    search_query = user_prompt[:200]
-
-            if search_query and is_building_research_enabled():
-                research_context = _call_with_timeout(
-                    lambda: research_building_context(
-                        search_query,
+            if research_user_text and is_building_research_enabled():
+                building_profile = _call_with_timeout(
+                    lambda: research_building_profile(
+                        research_user_text,
                         req=req,
                         call_with_timeout=_call_with_timeout,
                     ),
                     float(os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "8")),
                 )
-                if research_context:
-                    user_prompt = research_context + "\n\n" + user_prompt
-                    logger.info("Added BuildingResearch profile context to LlmPlan prompt")
+                if building_profile and not is_research_two_phase_enabled():
+                    user_prompt = (
+                        format_profile_for_prompt(building_profile)
+                        + "\n\n"
+                        + user_prompt
+                    )
+                    logger.info("Added BuildingResearch profile context (single-phase) to LlmPlan prompt")
+                elif building_profile:
+                    logger.info(
+                        "BuildingResearch profile ready for two-phase plan stage: %r",
+                        building_profile.identity.name,
+                    )
         except ImportError:
             logger.warning("building_research_agent not available, skipping research")
         except TimeoutError:
@@ -4562,6 +4574,24 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             if skeleton:
                 user_prompt = ("[MASSING SKELETON — refine this into a full LlmPlan; stay consistent "
                                "with the massing/style/materials below]\n" + skeleton + "\n\n" + user_prompt)
+
+        # PR-2: Research → Plan 两阶段 — profile 就绪后注入 Stage P prompt（在 massing 之后、LLM 之前）
+        if building_profile is not None:
+            try:
+                from .building_plan_stage import (
+                    is_research_two_phase_enabled,
+                    augment_prompts_for_plan_stage,
+                )
+                if is_research_two_phase_enabled():
+                    system_prompt, user_prompt = augment_prompts_for_plan_stage(
+                        building_profile,
+                        research_user_text,
+                        system_prompt,
+                        user_prompt,
+                    )
+                    logger.info("Applied BuildingResearch two-phase plan stage prompts")
+            except Exception as e:
+                logger.warning("Plan stage augmentation skipped: %s", e)
 
         messages = []
         if system_prompt:
