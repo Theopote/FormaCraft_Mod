@@ -6,7 +6,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,5 +56,78 @@ class ShapeLibraryTest {
     void primitiveRegistered() {
         assertTrue(com.formacraft.common.generation.component.ComponentGeneratorRegistry.hasGenerator("PRIMITIVE"));
         assertTrue(com.formacraft.common.generation.component.ComponentGeneratorRegistry.hasGenerator("SHAPE"));
+    }
+
+    @Test
+    void sphere_smallerThanBox() {
+        ShapeSpec spec = ShapeSpec.fromParams(12, 12, 12, Map.of("kind", "sphere", "radius", 5));
+        List<ShapeLibrary.Voxel> voxels = ShapeLibrary.generate(spec);
+        assertTrue(voxels.size() > 0);
+        assertTrue(voxels.size() < 12 * 12 * 12);
+    }
+
+    @Test
+    void hemisphere_onlyLowerHalf() {
+        ShapeSpec spec = ShapeSpec.fromParams(12, 12, 12, Map.of("kind", "hemisphere", "radius", 5));
+        List<ShapeLibrary.Voxel> full = ShapeLibrary.generate(
+                ShapeSpec.fromParams(12, 12, 12, Map.of("kind", "sphere", "radius", 5)));
+        List<ShapeLibrary.Voxel> half = ShapeLibrary.generate(spec);
+        assertTrue(half.size() < full.size());
+        for (ShapeLibrary.Voxel v : half) {
+            assertTrue(v.y() <= spec.halfY() + 0.5);
+        }
+    }
+
+    @Test
+    void sector_smallerThanCylinder() {
+        ShapeSpec sector = ShapeSpec.fromParams(12, 12, 8, Map.of(
+                "kind", "sector", "radius", 5, "sector_sweep_deg", 90));
+        ShapeSpec cylinder = ShapeSpec.fromParams(12, 12, 8, Map.of("kind", "cylinder", "radius", 5));
+        assertTrue(ShapeLibrary.generate(sector).size() < ShapeLibrary.generate(cylinder).size());
+    }
+
+    @Test
+    void triangle_footprint() {
+        ShapeSpec spec = ShapeSpec.fromParams(10, 10, 4, Map.of(
+                "kind", "triangle", "radius", 4, "triangle_mode", "right"));
+        List<ShapeLibrary.Voxel> voxels = ShapeLibrary.generate(spec);
+        assertTrue(voxels.size() > 0);
+        assertTrue(voxels.size() < 10 * 10 * 4);
+    }
+
+    @Test
+    void csg_subtract_carvesHole() {
+        int w = 12, d = 12, h = 12;
+        Map<String, Object> params = Map.of(
+                "kind", "box",
+                "subtract", Map.of("kind", "cylinder", "radius", 3));
+        List<ShapeCsgOperation> ops = ShapeSpec.parseOperations(w, d, h, params);
+        assertEquals(2, ops.size());
+        List<ShapeLibrary.Voxel> solid = ShapeLibrary.generate(
+                ShapeSpec.fromParams(w, d, h, Map.of("kind", "box")));
+        List<ShapeLibrary.Voxel> carved = ShapeLibrary.generateComposite(ops);
+        assertTrue(carved.size() < solid.size());
+    }
+
+    @Test
+    void csg_operations_chain() {
+        int w = 12, d = 12, h = 12;
+        Map<String, Object> params = Map.of(
+                "operations", List.of(
+                        Map.of("op", "union", "kind", "box"),
+                        Map.of("op", "subtract", "kind", "cylinder", "radius", 4)));
+        List<ShapeCsgOperation> ops = ShapeSpec.parseOperations(w, d, h, params);
+        assertEquals(2, ops.size());
+        assertTrue(ShapeLibrary.generateComposite(ops).size() > 0);
+    }
+
+    @Test
+    void rotation_doesNotCrash() {
+        ShapeSpec spec = ShapeSpec.fromParams(10, 10, 10, Map.of(
+                "kind", "box",
+                "rotation_x_deg", 15,
+                "rotation_y_deg", 30,
+                "rotation_z_deg", 45));
+        assertTrue(ShapeLibrary.generate(spec).size() > 0);
     }
 }

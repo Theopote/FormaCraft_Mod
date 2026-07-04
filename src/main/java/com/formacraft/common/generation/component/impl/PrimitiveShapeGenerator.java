@@ -2,6 +2,7 @@ package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
+import com.formacraft.common.geometry.shape.ShapeCsgOperation;
 import com.formacraft.common.geometry.shape.ShapeLibrary;
 import com.formacraft.common.geometry.shape.ShapeSpec;
 import com.formacraft.common.llm.dto.Component;
@@ -17,10 +18,10 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * PRIMITIVE 组件生成器（ShapeLibrary M1）。
+ * PRIMITIVE 组件生成器（ShapeLibrary M1 + M2）。
  * <p>
- * params.kind: box | cylinder | cone | frustum | prism
- * params: hollow, thickness, sides, rotation_y_deg, radius, top_radius, material
+ * params.kind: box | cylinder | cone | frustum | prism | sphere | ellipse | sector | triangle
+ * params: hollow, rotation_*_deg, CSG operations[], subtract{}
  */
 public class PrimitiveShapeGenerator implements ComponentGenerator {
 
@@ -36,10 +37,17 @@ public class PrimitiveShapeGenerator implements ComponentGenerator {
         Vec3i rp = c.relativePosition();
         Map<String, Object> params = c.params() != null ? c.params() : Map.of();
 
-        ShapeSpec spec = ShapeSpec.fromParams(d.width(), d.depth(), d.height(), params);
+        List<ShapeLibrary.Voxel> voxels;
+        List<ShapeCsgOperation> ops = ShapeSpec.parseOperations(d.width(), d.depth(), d.height(), params);
+        if (!ops.isEmpty()) {
+            voxels = ShapeLibrary.generateComposite(ops);
+        } else {
+            voxels = ShapeLibrary.generate(ShapeSpec.fromParams(d.width(), d.depth(), d.height(), params));
+        }
+
         String block = resolveBlock(semantic, params);
 
-        for (ShapeLibrary.Voxel v : ShapeLibrary.generate(spec)) {
+        for (ShapeLibrary.Voxel v : voxels) {
             out.add(new BlockPatch(
                     BlockPatch.PLACE,
                     rp.x() + v.x(),

@@ -30,8 +30,11 @@ Core rules:
 - PROPORTION ONTOLOGY: When PROPORTION ONTOLOGY block applies, output top-level proportion_hints with numeric ratio targets before finalizing dimensions.
 - OPENING GRAMMAR: Respect window_aspect and min_enclosure_coverage from proportion card; use FACADE_WINDOWS params.window_aspect.
 - PRIMITIVE SHAPES (standalone geometry): component_type="PRIMITIVE" or "SHAPE" with params.kind=
-  box|cylinder|cone|frustum|prism; dimensions = axis-aligned bounding box; optional rotation_y_deg, hollow, sides, radius, material.
-  Use for "build a cylinder/sphere-like solid" requests without full building semantics.
+  box|cylinder|cone|frustum|prism|sphere|hemisphere|ellipse|sector|triangle;
+  dimensions = axis-aligned bounding box;
+  rotation_x_deg / rotation_y_deg / rotation_z_deg for 3D orientation;
+  CSG: operations[{op:union|subtract|intersect, kind:...}] or subtract:{kind:...} to carve voids.
+  Use for "build a cylinder/sphere/triangle solid" without full building semantics.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.
@@ -189,12 +192,22 @@ ComponentParamsObject:
   "masses": [
     { "offset": { "x": int, "y": int, "z": int }, "dimensions": { "width": int, "depth": int, "height": int }, "shape": "rectangle|circle|rounded_rect" }
   ],
-  "kind": "box|cylinder|cone|frustum|prism",
+  "kind": "box|cylinder|cone|frustum|prism|sphere|hemisphere|ellipse|sector|triangle",
+  "rotation_x_deg": number,
   "rotation_y_deg": number,
+  "rotation_z_deg": number,
   "hollow": boolean,
   "sides": int,
   "radius": number,
+  "radius_x": number,
+  "radius_y": number,
+  "radius_z": number,
   "top_radius": number,
+  "sector_start_deg": number,
+  "sector_sweep_deg": number,
+  "triangle_mode": "right|equilateral",
+  "operations": [{ "op": "union|subtract|intersect", "kind": "..." }],
+  "subtract": { "kind": "cylinder", "radius": 3 },
   "material": "stone|glass|concrete|..."
 }
 
