@@ -51,6 +51,8 @@ ChatPanel
 
 **新功能默认路径：** 只往 LlmPlan schema / ComponentPlanCompiler / 生成器上加；需要 bespoke 造型时，改为把生成器注册为 LlmPlan 可引用的模块，禁止新增第二条 spec 格式或第二套确认流程。
 
+**泛化优先：** 一般建筑由 LLM 组合参数化语义构件生成；固定 `StructureGenerator` 仅用于著名地标或显式 `landmark:` 模块引用。详见 [docs/GENERALIZATION_STRATEGY.md](docs/GENERALIZATION_STRATEGY.md)。
+
 ### 1.6 Golden-Path 回归清单（手测基准）
 
 当前构建/编译需在开发者本地进行（agent 环境无法编译）。每次涉及主干的改动后，进游戏跑以下代表性 prompt，确认"发请求 → 出预览 → /forma_confirm 落地"三段都正常：
@@ -596,14 +598,24 @@ FormaCraftNetworking.sendToServer(applyPayload);
 
 ## 15. Related Documentation
 
-### Authoritative (maintained)
+### Authoritative (Tier 0 — maintained)
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** — this document; system overview and data flow
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — contribution guide
-- **[README.md](README.md)** — project overview
-- **[docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md](docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md)** — detailed developer reference
+| Document | Description |
+|----------|-------------|
+| [docs/INDEX.md](docs/INDEX.md) | **Documentation master index** |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | This document — system overview and data flow |
+| [docs/GENERATION_PIPELINE.md](docs/GENERATION_PIPELINE.md) | End-to-end pipeline truth (LlmPlan → placed blocks) |
+| [docs/GENERALIZATION_STRATEGY.md](docs/GENERALIZATION_STRATEGY.md) | Generalization-first principles and gap list |
+| [docs/LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md](docs/LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md) | Design philosophy: AI plans, Java implements |
+| [docs/DOC_CONVENTIONS.md](docs/DOC_CONVENTIONS.md) | Documentation naming and archive rules |
 
-### Module indexes
+### Developer reference (Tier 1)
+
+- [docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md](docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md) — detailed developer reference
+- [CONTRIBUTING.md](CONTRIBUTING.md) — contribution guide
+- [docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md](docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md) — component vs structure coverage matrix
+
+### Module indexes (Tier 2)
 
 | Area | Location |
 |------|----------|

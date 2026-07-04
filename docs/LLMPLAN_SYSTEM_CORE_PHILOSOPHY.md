@@ -1,5 +1,7 @@
 # LlmPlan 系统核心思想与工作机制解析
 
+> **2026-07 更新**：流程细节以 [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) 为准；泛化方向见 [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md)。路由类名为 `UnifiedGeneratorRouter`（非已废弃的 `SmartGeneratorRouter`）。
+
 ## 🎯 核心思想
 
 ### 设计哲学：**"AI 负责规划，Java 负责实现"**
@@ -126,20 +128,17 @@ ComponentPlanCompiler.compile()
 ### 阶段 4：语义组件 → BlockPatch（智能路由）
 
 ```
-SemanticComponent → SmartGeneratorRouter.generate()
+SemanticComponent → UnifiedGeneratorRouter.generate()
   ↓
 ┌─────────────────────────────────────────────────────┐
-│ 1. 尝试新系统（ComponentGenerator）                │
-│    - ComponentGeneratorRegistry.getGenerator("MASS_MAIN")   │
+│ 1. 尝试 ComponentGenerator（ComponentGeneratorRegistry）│
 │    - MassMainGenerator.generate(semantic)          │
 │    - 输出：List<BlockPatch>                        │
 └─────────────────────────────────────────────────────┘
-  ↓ (如果失败)
+  ↓ (仅当显式 landmark/module/structure_generator hint)
 ┌─────────────────────────────────────────────────────┐
-│ 2. 回退到传统系统（StructureGenerator）            │
-│    - StructureGeneratorAdaptor.createFor("MASS_MAIN")│
-│    - 映射到 BuildingType.HOUSE                     │
-│    - HouseGenerator.generate(spec, origin, world)   │
+│ 2. 受控回退到整栋生成器（StructureGeneratorAdaptor）│
+│    - 映射到 BuildingType 或 landmark module        │
 │    - 转换为 List<BlockPatch>                       │
 └─────────────────────────────────────────────────────┘
 ```
@@ -418,7 +417,7 @@ LlmPlan JSON
 LlmPlan Object
   ↓ (ComponentPlanCompiler)
 List<SemanticComponent>
-  ↓ (SmartGeneratorRouter → ComponentGenerator)
+  ↓ (UnifiedGeneratorRouter → ComponentGenerator)
 List<BlockPatch>
   ↓ (PostProcessPipeline)
 Enhanced List<BlockPatch>

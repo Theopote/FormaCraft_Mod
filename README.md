@@ -126,10 +126,12 @@ formacraft/
 
 | Document | Description |
 |----------|-------------|
+| [docs/INDEX.md](docs/INDEX.md) | **Documentation master index** |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture overview |
+| [docs/GENERATION_PIPELINE.md](docs/GENERATION_PIPELINE.md) | End-to-end generation pipeline (canonical) |
+| [docs/GENERALIZATION_STRATEGY.md](docs/GENERALIZATION_STRATEGY.md) | Generalization-first strategy and gap list |
 | [docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md](docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md) | Detailed developer guide |
 | [python_backend/README.md](python_backend/README.md) | Backend API & configuration |
-| [python_backend/INTEGRATION_GUIDE.md](python_backend/INTEGRATION_GUIDE.md) | Java ↔ Python integration |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
 
 ---
