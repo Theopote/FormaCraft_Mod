@@ -109,9 +109,10 @@ def build_plan_stage_user_block(
         "1. layout.skeleton_type ← minecraft_strategy.skeleton_type",
         "2. components[] ← recommended_components + distinctive_elements",
         "3. dimensions ← scale_hints (blocks); use reasonable defaults if null",
-        "4. style_profile ← identity.style when available",
-        "5. MODULE/landmark only when landmark_module is set in profile",
+        "4. style_profile ← identity.style when available; if identity.architect is set, match that architect's style profile",
+        "5. MODULE/landmark only when landmark_module is set in profile (never birds_nest for Zaha/architect-led)",
         "6. If research_notes contain [Visual], prioritize visual observations for form/materials",
+        "7. When identity.architect is present, reflect their signature forms in params (curvature, freeform massing)",
         "",
     ]
     if include_registered_types:

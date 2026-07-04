@@ -57,6 +57,26 @@ class QueryPlannerTest(unittest.TestCase):
         self.assertIn("圣家堂", subject)
         self.assertGreaterEqual(len(queries), 1)
 
+    def test_zaha_xian_expands_queries_and_aliases(self):
+        should, queries, subject = plan_search_queries("扎哈设计的西安体育馆")
+        self.assertTrue(should)
+        joined = " ".join(queries)
+        self.assertTrue(
+            any(k in joined for k in ("西安奥体中心", "Zaha Hadid", "扎哈", "西安体育馆")),
+            msg=queries,
+        )
+
+    def test_enrich_profile_from_architect_hint(self):
+        base = synthesize_profile_rule_based("西安体育馆", "扎哈设计的西安体育馆", [])
+        enriched = __import__(
+            "app.services.building_research_agent", fromlist=["_enrich_profile_from_user_text"]
+        )._enrich_profile_from_user_text(base, "扎哈设计的西安体育馆")
+        self.assertEqual(enriched.identity.architect, "Zaha Hadid")
+        self.assertEqual(enriched.identity.style, "Deconstructivism")
+        self.assertIsNone(enriched.minecraft_strategy.landmark_module)
+        self.assertIn("birds_nest", (enriched.minecraft_strategy.notes or "").lower())
+        self.assertTrue(enriched.structure.distinctive_elements)
+
 
 class ProfileSynthesisTest(unittest.TestCase):
     def test_rule_based_profile_from_mock_results(self):
@@ -107,8 +127,8 @@ class MultiSourceSearchTest(unittest.TestCase):
     def test_deduplicates_results(self):
         def fake_search(query: str, max_results: int):
             return [
-                {"title": "A", "snippet": "same snippet", "url": "https://a"},
-                {"title": "B", "snippet": "same snippet", "url": ""},
+                {"title": "A", "snippet": "architecture stadium design structure", "url": "https://a"},
+                {"title": "B", "snippet": "architecture stadium design structure", "url": ""},
             ]
 
         merged = multi_source_search(["q1", "q2"], search_fn=fake_search)

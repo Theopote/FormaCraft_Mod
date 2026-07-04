@@ -11,6 +11,22 @@ from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 
+_WIKI_USER_AGENT = "FormaCraftResearch/1.0 (formacraft; architecture-research@local)"
+
+# 非建筑类搜索结果域名（DuckDuckGo 偶发返回购物/金融页）
+_JUNK_URL_FRAGMENTS = (
+    "target.com", "amazon.", "ebay.", "moneyvox", "pinterest.com",
+    "tripadvisor", "booking.com", "walmart.", "alibaba.com",
+)
+
+# 至少命中一项才视为建筑相关
+_ARCHITECTURE_SIGNALS = (
+    "architect", "architecture", "building", "stadium", "arena", "cathedral",
+    "tower", "museum", "bridge", "facade", "structure", "design",
+    "建筑", "设计", "体育场", "体育馆", "球场", "立面", "结构", "建筑师",
+    "奥体", "奥运", "足球场", "wikipedia.org",
+)
+
 # 强类型建筑关键词列表（需要搜索参考资料的建筑类型）
 LANDMARK_BUILDINGS = [
     "埃菲尔铁塔", "eiffel tower", "eiffel",
@@ -96,6 +112,134 @@ def search_architecture_queries(
     return merged
 
 
+def is_relevant_architecture_result(item: Dict[str, str]) -> bool:
+    """过滤购物/金融等无关网页；Wikipedia 与含建筑关键词的结果保留。"""
+    title = (item.get("title") or "").strip()
+    snippet = (item.get("snippet") or "").strip()
+    url = (item.get("url") or "").strip().lower()
+    if not title and not snippet:
+        return False
+    if url and any(j in url for j in _JUNK_URL_FRAGMENTS):
+        return False
+    blob = f"{title} {snippet} {url}".lower()
+    if "wikipedia.org" in blob:
+        return True
+    return any(sig in blob for sig in _ARCHITECTURE_SIGNALS)
+
+
+def _core_name_tokens(query: str) -> List[str]:
+    """从检索词提取建筑主体 token（用于 Wikipedia 命中校验）。"""
+    q = (query or "").strip()
+    for noise in (
+        "建筑", "结构", "设计", "特点", "尺寸", "architecture", "structure",
+        "design", "characteristics", "dimensions", "stadium", "building",
+    ):
+        q = q.replace(noise, " ")
+    q = re.sub(r"设计的?", " ", q)
+    tokens: List[str] = []
+    for part in re.findall(r"[\u4e00-\u9fff]{2,8}", q):
+        if part not in tokens:
+            tokens.append(part)
+    for part in re.findall(r"[A-Za-z][A-Za-z'.-]{2,}", q):
+        low = part.lower()
+        if low not in ("the", "and", "hadid", "zaha", "architecture") and part not in tokens:
+            tokens.append(part)
+    return tokens[:6]
+
+
+def _text_matches_tokens(text: str, tokens: List[str]) -> bool:
+    if not tokens:
+        return True
+    blob = (text or "").lower()
+    hits = sum(1 for t in tokens if t.lower() in blob)
+    return hits >= 1 if len(tokens) <= 2 else hits >= 2
+
+
+def _wikipedia_search_query(query: str) -> str:
+    """Wikipedia 搜索用短 query（去掉「建筑/结构/design」等噪声词）。"""
+    q = (query or "").strip()
+    for noise in (
+        "建筑 结构 设计 特点 尺寸",
+        "architecture structure design characteristics dimensions",
+        "building features floor plan",
+        "建筑", "结构", "设计", "architecture", "structure", "design",
+    ):
+        q = q.replace(noise, " ")
+    q = re.sub(r"\s+", " ", q).strip()
+    return q or (query or "").strip()
+
+
+def _search_wikipedia(query: str, max_results: int = 2, lang: str = "zh") -> List[Dict[str, str]]:
+    """Wikipedia 搜索 + 摘要提取（中文/英文建筑条目质量稳定）。"""
+    q = _wikipedia_search_query(query)
+    if not q:
+        return []
+    headers = {"User-Agent": _WIKI_USER_AGENT}
+    api = f"https://{lang}.wikipedia.org/w/api.php"
+    try:
+        sr = requests.get(
+            api,
+            params={
+                "action": "query",
+                "list": "search",
+                "srsearch": q,
+                "format": "json",
+                "srlimit": max(max_results * 2, 3),
+            },
+            headers=headers,
+            timeout=8,
+        )
+        sr.raise_for_status()
+        hits = sr.json().get("query", {}).get("search") or []
+        if not hits:
+            return []
+
+        core_tokens = _core_name_tokens(q)
+        filtered_hits = []
+        for hit in hits:
+            title = hit.get("title") or ""
+            snippet = hit.get("snippet") or ""
+            if core_tokens and "列表" in title and len(core_tokens) <= 3:
+                continue
+            if not core_tokens or _text_matches_tokens(f"{title} {snippet}", core_tokens):
+                filtered_hits.append(hit)
+        if not filtered_hits:
+            return []
+
+        titles = "|".join(h["title"] for h in filtered_hits[:max_results])
+        ex = requests.get(
+            api,
+            params={
+                "action": "query",
+                "prop": "extracts",
+                "exintro": 1,
+                "explaintext": 1,
+                "titles": titles,
+                "format": "json",
+            },
+            headers=headers,
+            timeout=8,
+        )
+        ex.raise_for_status()
+        pages = ex.json().get("query", {}).get("pages") or {}
+        out: List[Dict[str, str]] = []
+        for page in pages.values():
+            extract = (page.get("extract") or "").strip()
+            title = (page.get("title") or "").strip()
+            if not extract or not title:
+                continue
+            slug = title.replace(" ", "_")
+            out.append({
+                "title": f"{title} — Wikipedia ({lang})",
+                "snippet": extract[:600],
+                "url": f"https://{lang}.wikipedia.org/wiki/{quote_plus(slug)}",
+            })
+        return out[:max_results]
+    except Exception as e:
+        logger.debug("Wikipedia search failed lang=%s query=%r: %s", lang, q[:60], e)
+        return []
+
+
 def search_architecture_reference(query: str, max_results: int = 3) -> List[Dict[str, str]]:
     """
     搜索建筑参考资料
@@ -107,17 +251,39 @@ def search_architecture_reference(query: str, max_results: int = 3) -> List[Dict
     Returns:
         搜索结果列表，每个结果包含 title, snippet, url
     """
+    merged: List[Dict[str, str]] = []
+    seen: set[str] = set()
+
+    def _add(batch: List[Dict[str, str]]) -> None:
+        for item in batch:
+            if not is_relevant_architecture_result(item):
+                continue
+            key = (item.get("url") or item.get("snippet") or "")[:160]
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+            if len(merged) >= max_results:
+                return
+
+    # 1) Wikipedia（优先，尤其对中文建筑名）
+    langs = ("zh", "en") if any(ord(c) > 127 for c in query) else ("en", "zh")
+    for lang in langs:
+        _add(_search_wikipedia(query, max_results=max_results, lang=lang))
+        if len(merged) >= max_results:
+            return merged[:max_results]
+
+    # 2) DuckDuckGo
     try:
-        # 方法1: 使用 DuckDuckGo (免费，无需 API key)
-        return _search_with_duckduckgo(query, max_results)
+        _add(_search_with_duckduckgo(query, max_results))
     except Exception as e:
-        logger.warning(f"DuckDuckGo search failed: {e}, trying fallback method")
+        logger.warning("DuckDuckGo search failed: %s, trying Bing", e)
         try:
-            # 方法2: 使用 Bing Search API (需要 API key，可选)
-            return _search_with_bing(query, max_results)
+            _add(_search_with_bing(query, max_results))
         except Exception as e2:
-            logger.warning(f"Bing search failed: {e2}, returning empty results")
-            return []
+            logger.warning("Bing search failed: %s", e2)
+
+    return merged[:max_results]
 
 
 def _search_with_duckduckgo(query: str, max_results: int) -> List[Dict[str, str]]:
@@ -129,11 +295,18 @@ def _search_with_duckduckgo(query: str, max_results: int) -> List[Dict[str, str]
         # 尝试导入 duckduckgo_search
         from duckduckgo_search import DDGS
         
+        lower_q = query.lower()
+        if "architecture" in lower_q or "建筑" in query or "设计" in query:
+            search_q = query
+        else:
+            search_q = query + " architecture structure design"
+        region = "cn-zh" if any(ord(c) > 127 for c in query) else "wt-wt"
         with DDGS() as ddgs:
             results = []
             for result in ddgs.text(
-                query + " architecture structure design dimensions",
-                max_results=max_results
+                search_q,
+                max_results=max_results,
+                region=region,
             ):
                 results.append({
                     "title": result.get("title", ""),

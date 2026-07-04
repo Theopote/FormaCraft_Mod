@@ -40,6 +40,16 @@ BIRDS_NEST_EXPLICIT: List[str] = [
 STADIUM_TYPOLOGY: List[str] = ["体育场", "体育馆", "stadium", "arena", "球场"]
 ELLIPSE_TYPOLOGY: List[str] = ["椭圆", "椭圆形", "elliptical", "oval", "碗状", "看台"]
 
+# 用户点名建筑师时，不走 generic birds_nest typology（鸟巢≠扎哈）
+NAMED_ARCHITECT_MARKERS: List[str] = [
+    "扎哈", "zaha", "哈迪德", "hadid",
+    "贝聿铭", "i.m. pei", "pei",
+    "安藤忠雄", "tadao ando",
+    "诺曼·福斯特", "norman foster",
+    "伦佐·皮亚诺", "renzo piano",
+    "让·努维尔", "jean nouvel",
+]
+
 VARIATION_HINTS: List[str] = [
     "Vary facade_profile, entrance count, roof_type, masses[] offsets each generation.",
     "For MODULE: vary designSeed (1-9999), facing, bowlSteepness (0.25-0.45), dimensions hints.",
@@ -69,6 +79,10 @@ def resolve_for_user_intent(text: str) -> Optional[RoutingDecision]:
 
     if _contains_any(lower, BIRDS_NEST_EXPLICIT):
         return RoutingDecision("birds_nest_stadium", RoutingTier.MANDATORY, "explicit_birds_nest")
+
+    # 点名建筑师 + 体育场 → 参数化形体，禁止默认 birds_nest
+    if _contains_any(lower, NAMED_ARCHITECT_MARKERS) and _contains_any(lower, STADIUM_TYPOLOGY):
+        return None
 
     stadium = _contains_any(lower, STADIUM_TYPOLOGY)
     elliptical = _contains_any(lower, ELLIPSE_TYPOLOGY)

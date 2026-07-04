@@ -65,7 +65,7 @@ def _building_research_llm_synth() -> bool:
 
 
 def _building_research_max_queries() -> int:
-    return max(1, _env_int("BUILDING_RESEARCH_MAX_QUERIES", 2))
+    return max(1, _env_int("BUILDING_RESEARCH_MAX_QUERIES", 3))
 
 
 def _building_research_max_results() -> int:
@@ -96,6 +96,51 @@ _FEATURE_KEYWORDS = (
     "arch", "vault", "dome", "pagoda", "minaret", "buttress", "portico",
     "圆顶", "塔", "庭院", "中庭", "立面", "柱廊", "拱", "穹顶", "飞檐",
     "歇山", "琉璃", "钢结构", "玻璃幕墙", "悬挑", "曲线", "椭圆",
+    "流动", "曲面", "参数化", "流线型", "deconstruct", "mesh", "网格",
+)
+
+# 「X设计的Y」解析 + 建筑师/建筑别名（检索词扩展，非硬编码生成）
+_DESIGN_BY_RE = re.compile(
+    r"(.{1,24}?)(?:设计|作品|风格|操刀)?的(.{2,40}?)(?:[，。,.!！?？]|$)"
+)
+
+_ARCHITECT_HINTS: Dict[str, Dict[str, str]] = {
+    "扎哈": {
+        "architect": "Zaha Hadid",
+        "style": "Deconstructivism",
+        "style_profile": "Deconstructivism_Zaha",
+    },
+    "zaha": {
+        "architect": "Zaha Hadid",
+        "style": "Deconstructivism",
+        "style_profile": "Deconstructivism_Zaha",
+    },
+    "哈迪德": {
+        "architect": "Zaha Hadid",
+        "style": "Deconstructivism",
+        "style_profile": "Deconstructivism_Zaha",
+    },
+    "贝聿铭": {
+        "architect": "I.M. Pei",
+        "style": "Modernism",
+        "style_profile": "Modern_Classical",
+    },
+    "安藤忠雄": {
+        "architect": "Tadao Ando",
+        "style": "Minimalist concrete",
+        "style_profile": "Modern_Minimal",
+    },
+}
+
+_BUILDING_SEARCH_ALIASES: Dict[str, List[str]] = {
+    "西安体育馆": ["西安奥体中心", "西安奥林匹克体育中心"],
+    "西安体育场": ["西安奥体中心", "西安奥林匹克体育中心"],
+    "国家体育场": ["鸟巢", "北京国家体育场"],
+}
+
+_ZAHA_FORM_ELEMENTS = (
+    "flowing curves", "organic form", "parametric facade",
+    "ribbon glazing", "deconstructivist massing", "流线型曲面", "流动形态", "参数化立面",
 )
 
 
@@ -167,6 +212,146 @@ def _extract_subject(text: str) -> Optional[str]:
     return None
 
 
+def _detect_architect_hint(text: str) -> Optional[Dict[str, str]]:
+    lower = (text or "").lower()
+    for key, hint in _ARCHITECT_HINTS.items():
+        if key in lower or key in (text or ""):
+            return dict(hint)
+    return None
+
+
+def _parse_designer_building(text: str) -> Tuple[Optional[str], Optional[str]]:
+    """解析「扎哈设计的西安体育馆」→ (architect fragment, building fragment)。"""
+    t = (text or "").strip()
+    m = _DESIGN_BY_RE.search(t)
+    if not m:
+        return None, None
+    designer = m.group(1).strip()
+    building = m.group(2).strip()
+    if len(building) < 2:
+        return None, None
+    return designer, building
+
+
+def _building_search_names(subject: str, user_text: str) -> List[str]:
+    """主体名 + 别名（别名优先，便于 Wikipedia 命中）。"""
+    names: List[str] = []
+    for src in (subject, user_text):
+        s = (src or "").strip()
+        if s and s not in names:
+            names.append(s)
+    _, building = _parse_designer_building(user_text)
+    if building and building not in names:
+        names.append(building)
+
+    prioritized: List[str] = []
+    for name in list(names):
+        for key, aliases in _BUILDING_SEARCH_ALIASES.items():
+            if key in name:
+                for alias in aliases:
+                    if alias not in prioritized:
+                        prioritized.append(alias)
+    for name in names:
+        if name not in prioritized:
+            prioritized.append(name)
+    return prioritized[:4]
+
+
+def _expand_search_queries(subject: str, user_text: str) -> List[str]:
+    """在 plan_search_queries 基础上追加高价值检索词（短建筑名/别名优先）。"""
+    queries: List[str] = []
+    names = _building_search_names(subject, user_text)
+    architect_hint = _detect_architect_hint(user_text)
+
+    search_names: List[str] = []
+    for name in names:
+        if _DESIGN_BY_RE.search(name):
+            continue
+        if name not in search_names:
+            search_names.append(name)
+
+    for name in search_names[:3]:
+        if any(ord(c) > 127 for c in name):
+            queries.append(f"{name} 建筑 结构 设计")
+        else:
+            queries.append(f"{name} architecture structure design")
+
+    if architect_hint:
+        arch = architect_hint["architect"]
+        building = names[0] if names else subject
+        if building:
+            queries.append(f"{arch} {building} stadium architecture")
+        queries.append(f"{arch} architecture style deconstructivism")
+
+    designer, building = _parse_designer_building(user_text)
+    if designer and building:
+        hint = _detect_architect_hint(designer)
+        if hint and building:
+            queries.append(f"{hint['architect']} {building} architecture")
+
+    # 去重
+    seen: set[str] = set()
+    out: List[str] = []
+    for q in queries:
+        qn = q.strip().lower()
+        if qn and qn not in seen:
+            seen.add(qn)
+            out.append(q.strip())
+    return out
+
+
+def _enrich_profile_from_user_text(profile: BuildingProfile, user_text: str) -> BuildingProfile:
+    """搜索失败或不足时，从用户话术注入建筑师/风格/形体约束。"""
+    hint = _detect_architect_hint(user_text)
+    if not hint:
+        return profile
+
+    identity = profile.identity.model_dump()
+    if hint.get("architect"):
+        identity["architect"] = hint["architect"]
+    if hint.get("style"):
+        identity["style"] = hint["style"]
+    if profile.identity.confidence < 0.55:
+        identity["confidence"] = 0.55
+
+    structure = profile.structure.model_dump()
+    elements = list(structure.get("distinctive_elements") or [])
+    for el in _ZAHA_FORM_ELEMENTS:
+        if el not in elements:
+            elements.append(el)
+    structure["distinctive_elements"] = elements[:10]
+
+    form = profile.form.model_dump()
+    if hint.get("style") == "Deconstructivism":
+        form["footprint"] = "freeform"
+        form["massing"] = list(form.get("massing") or []) + ["curved", "organic"]
+
+    mc = profile.minecraft_strategy.model_dump()
+    mc["landmark_module"] = None
+    mc["skeleton_type"] = "RADIAL_RING"
+    mc["recommended_components"] = [
+        "MASS_MAIN", "MASS_SECONDARY", "ROOF", "FACADE_WINDOWS", "ENTRANCE", "PAVING",
+    ]
+    style_profile = hint.get("style_profile") or ""
+    mc["notes"] = (
+        f"Architect-led design ({hint.get('architect')}): use style_profile={style_profile}, "
+        "compositional curved MASS with params.shape=ellipse/rounded_rect, params.curvature; "
+        "Do NOT use landmark:birds_nest_stadium (wrong architect/landmark)."
+    )
+
+    notes = profile.research_notes or user_text[:400]
+    if hint.get("architect") and hint["architect"] not in notes:
+        notes = f"[Architect intent] {hint['architect']} — {hint.get('style', '')}. {notes}"
+
+    return profile.model_copy(update={
+        "identity": profile.identity.model_copy(update=identity),
+        "form": profile.form.model_copy(update=form),
+        "structure": profile.structure.model_copy(update=structure),
+        "minecraft_strategy": profile.minecraft_strategy.model_copy(update=mc),
+        "research_notes": notes[:1200],
+    })
+
+
 def plan_search_queries(
     user_text: str,
     *,
@@ -200,7 +385,10 @@ def plan_search_queries(
         return False, [], subject
 
     queries: List[str] = []
-    if any(ord(c) > 127 for c in subject):
+    expanded = _expand_search_queries(subject, text)
+    if expanded:
+        queries.extend(expanded)
+    elif any(ord(c) > 127 for c in subject):
         queries.append(f"{subject} 建筑结构 设计特点 尺寸")
         queries.append(f"{subject} architecture structure design")
     else:
@@ -247,6 +435,12 @@ def multi_source_search(
             key = url or snippet
             if not key or key in seen_urls or snippet in seen_snippets:
                 continue
+            try:
+                from .architecture_researcher import is_relevant_architecture_result
+                if not is_relevant_architecture_result(item):
+                    continue
+            except Exception:
+                pass
             if url:
                 seen_urls.add(url)
             if snippet:
@@ -504,6 +698,8 @@ def research_building_profile(
 
         if profile is None:
             profile = synthesize_profile_rule_based(subject, user_text, results)
+
+        profile = _enrich_profile_from_user_text(profile, user_text)
 
         if visual is not None:
             profile = merge_visual_into_profile(profile, visual)
