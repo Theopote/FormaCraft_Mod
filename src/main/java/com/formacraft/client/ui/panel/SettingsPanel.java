@@ -102,19 +102,18 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private SettingsSliders.InteractionReach interactionReachSlider;
     private SliderWidget activeSlider = null; // 只允许同时操作一个滑条
 
-    // LLM Base URL：预设下拉（避免输入错误；需要特殊服务时选择“自定义”）
-    private record BaseUrlPreset(String id, String label, String url) {}
-    private static final List<BaseUrlPreset> BASE_URL_PRESETS = List.of(
-            new BaseUrlPreset("auto", "自动（由 Provider 决定）", ""),
-            new BaseUrlPreset("openai", "OpenAI", "https://api.openai.com/v1"),
-            new BaseUrlPreset("deepseek", "DeepSeek", "https://api.deepseek.com/v1"),
-            new BaseUrlPreset("openrouter", "OpenRouter", "https://openrouter.ai/api/v1"),
-            new BaseUrlPreset("groq", "Groq", "https://api.groq.com/openai/v1"),
-            new BaseUrlPreset("together", "Together", "https://api.together.xyz/v1"),
-            new BaseUrlPreset("ollama", "Ollama（本地）", "http://localhost:11434/v1"),
-            new BaseUrlPreset("lmstudio", "LM Studio（本地）", "http://127.0.0.1:1234/v1"),
-            new BaseUrlPreset("custom", "自定义…", null)
-    );
+    // LLM Base URL：预设下拉（避免输入错误；需要特殊服务时选择“自定义”）。
+    // 统一来源：SettingsBaseUrlPresets.CATALOG —— 选中预设时会同时写好 provider + baseUrl。
+    private record BaseUrlPreset(String id, String label, String url, String provider, boolean local) {}
+    private static final List<BaseUrlPreset> BASE_URL_PRESETS = buildPresetsFromCatalog();
+
+    private static List<BaseUrlPreset> buildPresetsFromCatalog() {
+        List<BaseUrlPreset> out = new ArrayList<>(SettingsBaseUrlPresets.CATALOG.size());
+        for (SettingsBaseUrlPresets.Entry e : SettingsBaseUrlPresets.CATALOG) {
+            out.add(new BaseUrlPreset(e.id(), e.label(), e.url(), e.provider(), e.local()));
+        }
+        return List.copyOf(out);
+    }
     private int baseUrlPresetIndex = 0;
     private boolean baseUrlPresetDropdownOpen = false;
 
@@ -604,35 +603,45 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     private void cycleLlmProvider() {
+        // 与预设目录联动：循环遍历目录中「带 provider」的条目（跳过 custom），
+        // 每次同时写好 provider + baseUrl，并同步预设下拉的选中项。
+        List<BaseUrlPreset> cycle = new ArrayList<>();
+        for (BaseUrlPreset p : BASE_URL_PRESETS) {
+            if (p.provider != null && !p.provider.isBlank()) {
+                cycle.add(p);
+            }
+        }
+        if (cycle.isEmpty()) return;
+
         String cur = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim().toLowerCase();
-        String[] order = new String[]{"auto", "deepseek", "openai", "openai_compat", "ollama"};
-        int idx = 0;
-        for (int i = 0; i < order.length; i++) {
-            if (order[i].equals(cur)) {
+        int idx = -1;
+        for (int i = 0; i < cycle.size(); i++) {
+            if (cycle.get(i).provider.equalsIgnoreCase(cur)) {
                 idx = i;
                 break;
             }
         }
-        String next = order[(idx + 1) % order.length];
-        draftLlmProvider = next;
+        BaseUrlPreset next = cycle.get((idx + 1) % cycle.size());
+        draftLlmProvider = next.provider;
 
-        // 友好默认：切到指定 Provider 时，自动填 baseUrl（用户可手动改）
-        if ("deepseek".equals(next) && (draftLlmBaseUrl == null || draftLlmBaseUrl.isBlank())) {
-            draftLlmBaseUrl = "https://api.deepseek.com/v1";
-        }
-        if ("openai".equals(next) && (draftLlmBaseUrl == null || draftLlmBaseUrl.isBlank())) {
-            draftLlmBaseUrl = "https://api.openai.com/v1";
+        // "auto" 不锁定 baseUrl（交给后端/Provider 决定）；其余供应商写入其默认端点。
+        if ("auto".equalsIgnoreCase(next.provider)) {
+            draftLlmBaseUrl = "";
+        } else if (next.url != null) {
+            draftLlmBaseUrl = next.url;
         }
         llmBaseUrlInput.setText(draftLlmBaseUrl != null ? draftLlmBaseUrl : "");
         syncBaseUrlPresetFromValue(draftLlmBaseUrl);
 
         if (llmProviderButton != null) llmProviderButton.setMessage(getLlmProviderButtonText());
+        if (llmBaseUrlPresetButton != null) llmBaseUrlPresetButton.setMessage(getBaseUrlPresetButtonText());
         // Provider 切换后，旧的模型列表很可能不适用：清空缓存，等用户点击“刷新模型列表”
         availableModels = new ArrayList<>();
         availableModelsUpdatedAtMs = 0L;
         modelDropdownOpen = false;
         hideModelOptionButtons();
-        showToast("LLM Provider: " + next, false);
+        showToast(next.local ? ("LLM Provider: " + next.provider + "（本地，API Key 可留空）")
+                : ("LLM Provider: " + next.provider), false);
     }
 
     private BaseUrlPreset getSelectedBaseUrlPreset() {
@@ -663,16 +672,24 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
         BaseUrlPreset p = BASE_URL_PRESETS.get(idx);
         if (p.url == null) {
-            // custom: keep input as-is; allow editing
+            // custom: keep input as-is; allow editing。不覆盖 provider（用户自定端点自行决定）。
             llmBaseUrlInput.setFocused(true);
             currentFocusIndex = FOCUS_LLM_BASEURL;
         } else {
             draftLlmBaseUrl = p.url;
             llmBaseUrlInput.setText(p.url);
             llmBaseUrlInput.setFocused(false);
+            // 一次配好：选中供应商预设时同时写入后端 provider id（custom 除外）。
+            if (p.provider != null && !p.provider.isBlank()) {
+                draftLlmProvider = p.provider;
+                if (llmProviderButton != null) llmProviderButton.setMessage(getLlmProviderButtonText());
+            }
         }
 
         if (llmBaseUrlPresetButton != null) llmBaseUrlPresetButton.setMessage(getBaseUrlPresetButtonText());
+        if (p.local) {
+            showToast("本地供应商：API Key 可留空", false);
+        }
         // Base URL 切换后，模型列表很可能不适用：清空缓存，等用户点击“刷新模型列表”
         availableModels = new ArrayList<>();
         availableModelsUpdatedAtMs = 0L;

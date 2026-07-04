@@ -77,8 +77,8 @@ public final class SettingsConfigCoordinator {
         String model = host.modelInput().getText() == null ? "" : host.modelInput().getText().trim();
         host.setDraftModel(model);
 
-        // 验证 API Key：DeepSeek/OpenAI 等通常需要；本地 ollama 可不填
-        boolean requiresKey = !"ollama".equals(provider.toLowerCase());
+        // 验证 API Key：云端供应商通常需要；本地供应商（Ollama/LM Studio/vLLM/llama.cpp）可不填
+        boolean requiresKey = !SettingsBaseUrlPresets.isLocalProvider(provider);
         if (!requiresKey && (apiKey == null || apiKey.trim().isEmpty())) {
             // ok，本地 provider 允许空 key
         } else if (requiresKey && !isValidApiKey(apiKey)) {

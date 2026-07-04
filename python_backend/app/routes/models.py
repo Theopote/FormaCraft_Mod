@@ -11,6 +11,7 @@ from ..services.llm_client import (
     HAS_OPENAI,
     build_config,
     get_client_from_fields,
+    is_local_provider,
     pick_preferred_model,
     resolve_base_url,
     resolve_provider,
@@ -19,26 +20,50 @@ from ..services.llm_client import (
 router = APIRouter()
 logger = logging.getLogger("formacraft.models")
 
-_REMOTE_MODELS_HARD_TIMEOUT_SEC = 2.5
+# 远程 /models 探测的硬超时（秒）。可用环境变量覆盖；默认 8s（客户端等待 12s，留足余量）。
+try:
+    _REMOTE_MODELS_HARD_TIMEOUT_SEC = float(os.getenv("MODELS_PROBE_TIMEOUT_SEC", "8"))
+except Exception:
+    _REMOTE_MODELS_HARD_TIMEOUT_SEC = 8.0
+# 单次 urlopen 的 socket 超时（略小于硬超时）。
+_REMOTE_MODELS_SOCKET_TIMEOUT_SEC = max(2.0, _REMOTE_MODELS_HARD_TIMEOUT_SEC - 1.5)
 
 
 _FALLBACK_MODELS_BY_PROVIDER: Dict[str, List[str]] = {
     # OpenAI family (examples; will vary by account availability)
     # Note: Model availability depends on account/region; fallback is just convenient suggestions.
-    "openai": ["gpt-5.2", "gpt-5.1", "gpt-5", "gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1", "gpt-4"],
-    "openai_compat": ["gpt-5.2", "gpt-5.1", "gpt-5", "gpt-4o-mini", "gpt-4o"],
+    "openai": ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1", "o4-mini", "gpt-4"],
+    "openai_compat": ["gpt-4o-mini", "gpt-4o"],
     "auto": ["gpt-4o-mini"],
     # DeepSeek
     "deepseek": ["deepseek-chat", "deepseek-reasoner"],
+    # Google Gemini (OpenAI-compatible endpoint)
+    "gemini": ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-lite"],
+    # Anthropic Claude (OpenAI-compatible endpoint)
+    "anthropic": ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"],
+    # OpenRouter (very large catalog; provide a few popular examples)
+    "openrouter": ["openai/gpt-4o-mini", "openai/gpt-4o", "anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash-001", "deepseek/deepseek-chat"],
     # Groq (common public model ids)
-    "groq": ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    "groq": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    # Mistral
+    "mistral": ["mistral-small-latest", "mistral-large-latest", "open-mistral-nemo", "codestral-latest"],
+    # xAI Grok
+    "xai": ["grok-2-latest", "grok-2-vision-latest", "grok-beta"],
     # Together (common examples; naming may change)
     "together": ["meta-llama/Llama-3.1-70B-Instruct-Turbo", "meta-llama/Llama-3.1-8B-Instruct-Turbo", "Qwen/Qwen2.5-72B-Instruct-Turbo"],
-    # OpenRouter (very large catalog; provide a few popular examples)
-    "openrouter": ["openai/gpt-4o-mini", "openai/gpt-4o", "anthropic/claude-3.5-sonnet", "google/gemini-1.5-pro"],
+    # Moonshot / Kimi
+    "moonshot": ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
+    # Zhipu GLM
+    "zhipu": ["glm-4-flash", "glm-4-plus", "glm-4-air", "glm-4-long"],
+    # Qwen / DashScope
+    "qwen": ["qwen-plus", "qwen-turbo", "qwen-max", "qwen2.5-72b-instruct"],
+    # SiliconFlow
+    "siliconflow": ["Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen2.5-72B-Instruct", "deepseek-ai/DeepSeek-V3"],
     # Local providers are user-dependent, but suggestions help first-time setup
-    "ollama": ["llama3.1", "qwen2.5", "deepseek-r1"],
+    "ollama": ["llama3.1", "qwen2.5", "deepseek-r1", "gemma2"],
     "lmstudio": ["local-model"],
+    "vllm": ["local-model"],
+    "llamacpp": ["local-model"],
 }
 
 
@@ -50,8 +75,9 @@ def _fetch_remote_models(base_url: str, api_key: str) -> List[str]:
     url = base_url.rstrip("/") + "/models"
     req = urllib.request.Request(url, method="GET")
     req.add_header("Accept", "application/json")
-    req.add_header("Authorization", f"Bearer {api_key}")
-    with urllib.request.urlopen(req, timeout=2) as resp:
+    if api_key:
+        req.add_header("Authorization", f"Bearer {api_key}")
+    with urllib.request.urlopen(req, timeout=_REMOTE_MODELS_SOCKET_TIMEOUT_SEC) as resp:
         body = resp.read().decode("utf-8", errors="ignore")
         data = json.loads(body)
         models_list: List[str] = []
@@ -96,7 +122,9 @@ def models(
     models_list: List[str] = []
     remote_models_ok = False
     remote_error: Optional[str] = None
-    if resolved_base and api_key:
+    # 本地供应商（Ollama 等）的 /models 通常无需 API Key，允许免 key 探测。
+    can_probe = bool(resolved_base) and (bool(api_key) or is_local_provider(resolved_provider))
+    if can_probe:
         try:
             # Some environments (notably CN) may block api.openai.com and cause long DNS/SSL stalls.
             # In such cases, skip remote probing and fall back immediately.
@@ -115,7 +143,7 @@ def models(
                 ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
                 fut = None
                 try:
-                    fut = ex.submit(_fetch_remote_models, resolved_base, api_key)
+                    fut = ex.submit(_fetch_remote_models, resolved_base, api_key or "")
                     models_list = fut.result(timeout=_REMOTE_MODELS_HARD_TIMEOUT_SEC)
                     remote_models_ok = True
                 except concurrent.futures.TimeoutError:
