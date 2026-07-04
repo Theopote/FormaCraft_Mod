@@ -185,6 +185,16 @@ def evaluate_enclosure(plan: Dict[str, Any], prompt: Optional[str] = None) -> Li
     types = [str(c.get("component_type") or "").upper() for c in comps]
 
     enclosure = sum(1 for t in types if t in _ENCLOSURE_TYPES or t.startswith("MASS_") or t.startswith("TOWER"))
+    for c in comps:
+        if str(c.get("component_type") or "").upper() != "MODULE":
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        features = c.get("features") if isinstance(c.get("features"), list) else []
+        if params.get("module_id") or params.get("moduleId"):
+            enclosure += 1
+            continue
+        if any(isinstance(f, str) and f.lower().startswith("landmark:") for f in features):
+            enclosure += 1
     checks.append((
         "has_enclosure_mass",
         enclosure >= 1,
