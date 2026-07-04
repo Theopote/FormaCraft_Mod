@@ -45,7 +45,41 @@ public final class BuildingSpecRoutingPolicy {
      * 收到 LlmPlan 后是否跳过构件预览，直接走 {@code GenerationHub.routeStructure()}。
      */
     public static boolean shouldSkipLlmPlanPreview(FormaRequest req) {
-        return forcesSingleBuildingSpec(normalize(req != null ? req.getRequestText() : null), null);
+        return forcesSingleBuildingSpec(normalize(intentText(req)), null);
+    }
+
+    /**
+     * 提取“用户真实意图文本”，用于关键词路由判定。
+     * <p>
+     * <b>务必不要直接用 {@link FormaRequest#getRequestText()}</b>：服务端在发送前已把整段
+     * 工程化 System Prompt 写入该字段，其中的 landmark 目录恒定包含
+     * {@code "mingqing_courtyard (明清官式院落 / courtyard)"} 一行——含 {@code ming/qing/明清/官式/courtyard}
+     * 等关键词，会让 {@link #isMingQingCourtyardIntent} 对任意 BUILD 请求恒为真，
+     * 从而误跳过 LlmPlan 预览、导致“已跳过假 BuildingSpec 回退”报错。
+     * <p>
+     * 优先级：{@code userMessage} → 最近一条聊天记录 → 兜底 {@code requestText}。
+     */
+    static String intentText(FormaRequest req) {
+        if (req == null) {
+            return "";
+        }
+        String userMessage = req.getUserMessage();
+        if (userMessage != null && !userMessage.isBlank()) {
+            return userMessage;
+        }
+        try {
+            java.util.List<String> history = req.getChatHistory();
+            if (history != null && !history.isEmpty()) {
+                String last = history.get(history.size() - 1);
+                if (last != null && !last.isBlank()) {
+                    return last;
+                }
+            }
+        } catch (Exception ignored) {
+            // 聊天记录不可用时忽略，继续兜底
+        }
+        String requestText = req.getRequestText();
+        return requestText != null ? requestText : "";
     }
 
     /**
@@ -57,7 +91,7 @@ public final class BuildingSpecRoutingPolicy {
         if (spec == null) {
             return false;
         }
-        String normalized = normalize(req != null ? req.getRequestText() : null);
+        String normalized = normalize(intentText(req));
         boolean changed = false;
 
         if (isMingQingCourtyardIntent(normalized) && !hasTemplate(spec, TEMPLATE_MINGQING_COURTYARD)) {
