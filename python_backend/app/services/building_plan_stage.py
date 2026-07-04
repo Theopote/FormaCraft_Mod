@@ -45,6 +45,8 @@ PLAN_STAGE_SYSTEM_ADDON = (
     "- Set layout.skeleton_type from minecraft_strategy when present.\n"
     "- Use MODULE + feature landmark:xxx ONLY if profile.minecraft_strategy.landmark_module is non-null.\n"
     "- Do NOT output block ids; semantic components only.\n"
+    "- global_constraints.symmetry MUST be one of: NONE, MIRROR_X, MIRROR_Z, RADIAL "
+    "(NOT genome.symmetry.type values like bilateral/radial).\n"
     "- If profile and user request conflict, prefer the user request for intent and profile for form/style.\n"
 )
 

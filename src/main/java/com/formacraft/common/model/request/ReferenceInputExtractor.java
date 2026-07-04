@@ -35,6 +35,10 @@ public final class ReferenceInputExtractor {
         Matcher dataMatcher = DATA_IMAGE.matcher(text);
         while (dataMatcher.find()) {
             String dataUri = dataMatcher.group(1).trim();
+            if (dataUri.length() > 2048) {
+                // 内联图片不能打进 C2S 包；请使用图片 URL
+                continue;
+            }
             if (seen.add(dataUri)) {
                 out.add(new ReferenceInput("image_base64", dataUri, "pasted image"));
             }

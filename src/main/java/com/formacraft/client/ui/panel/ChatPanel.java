@@ -808,11 +808,17 @@ public class ChatPanel extends BasePanel {
         var bc = BuildContextResolver.resolve(promptMode == PromptMode.MODIFY_REGION);
         BlockPos origin = (bc != null && bc.origin != null) ? bc.origin : client.player.getBlockPos().add(2, 0, 2);
 
-        // 构造历史
+        // 构造历史（限制长度，避免 C2S 包超过 32767 字符）
         List<String> history = new ArrayList<>();
-        for (ChatMessage m : messages) {
+        int histFrom = Math.max(0, messages.size() - 8);
+        for (int i = histFrom; i < messages.size(); i++) {
+            ChatMessage m = messages.get(i);
             if (m.type != ChatMessage.MessageType.STREAMING) {
-                history.add((m.fromPlayer ? "Player: " : "AI: ") + m.text);
+                String line = (m.fromPlayer ? "Player: " : "AI: ") + m.text;
+                if (line.length() > 400) {
+                    line = line.substring(0, 400) + "...";
+                }
+                history.add(line);
             }
         }
 

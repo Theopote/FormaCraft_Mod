@@ -818,6 +818,71 @@ def _normalize_dimensions(
     return {"width": int(width), "depth": int(depth), "height": int(height)}
 
 
+_VALID_GLOBAL_SYMMETRY = frozenset({"NONE", "MIRROR_X", "MIRROR_Z", "RADIAL"})
+
+_GLOBAL_SYMMETRY_ALIASES: Dict[str, str] = {
+    "NONE": "NONE",
+    "NO": "NONE",
+    "OFF": "NONE",
+    "FALSE": "NONE",
+    "0": "NONE",
+    "X": "MIRROR_X",
+    "MIRROR_X": "MIRROR_X",
+    "MIRRORX": "MIRROR_X",
+    "LEFT_RIGHT": "MIRROR_X",
+    "BILATERAL": "MIRROR_X",
+    "AXIAL": "MIRROR_X",
+    "Z": "MIRROR_Z",
+    "MIRROR_Z": "MIRROR_Z",
+    "MIRRORZ": "MIRROR_Z",
+    "FRONT_BACK": "MIRROR_Z",
+    "BOTH": "MIRROR_X",
+    "MIRROR_BOTH": "MIRROR_X",
+    "FULL": "MIRROR_X",
+    "RADIAL": "RADIAL",
+    "RADIAL_SYMMETRY": "RADIAL",
+    "CIRCULAR": "RADIAL",
+    "ROTATIONAL": "RADIAL",
+    "GRID": "MIRROR_X",
+}
+
+
+def _symmetry_from_genome_type(genome_type: str) -> Optional[str]:
+    t = genome_type.strip().lower()
+    if t in ("none", "no", "off"):
+        return "NONE"
+    if t in ("bilateral", "mirror", "axial"):
+        return "MIRROR_X"
+    if t in ("radial", "circular", "rotational"):
+        return "RADIAL"
+    if t == "grid":
+        return "MIRROR_X"
+    return None
+
+
+def _normalize_global_symmetry_value(
+    value: Any,
+    *,
+    genome: Optional[Dict[str, Any]] = None,
+) -> Optional[str]:
+    """Map LLM/genome symmetry aliases to LlmPlan global_constraints.symmetry enum."""
+    if value is not None:
+        key = str(value).strip().upper().replace("-", "_").replace(" ", "_")
+        mapped = _GLOBAL_SYMMETRY_ALIASES.get(key)
+        if mapped:
+            return mapped
+        if key in _VALID_GLOBAL_SYMMETRY:
+            return key
+
+    if isinstance(genome, dict):
+        sym = genome.get("symmetry")
+        if isinstance(sym, dict):
+            inferred = _symmetry_from_genome_type(str(sym.get("type") or ""))
+            if inferred:
+                return inferred
+    return None
+
+
 def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         return raw
@@ -961,6 +1026,20 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
                 continue
             filtered_components.append(comp)
         plan["components"] = filtered_components
+
+    gc = plan.get("global_constraints")
+    if isinstance(gc, dict):
+        gc = dict(gc)
+        sym = _normalize_global_symmetry_value(
+            gc.get("symmetry"),
+            genome=plan.get("genome") if isinstance(plan.get("genome"), dict) else None,
+        )
+        if sym:
+            gc["symmetry"] = sym
+        elif "symmetry" in gc:
+            gc.pop("symmetry", None)
+        plan["global_constraints"] = gc
+
     return plan
 
 
