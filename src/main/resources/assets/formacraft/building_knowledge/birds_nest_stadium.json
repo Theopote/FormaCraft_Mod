@@ -89,7 +89,7 @@
   "llmPlanRouting": {
     "componentType": "MODULE",
     "feature": "landmark:birds_nest_stadium",
-    "instruction": "椭圆/碗状/体育场/体育馆 请求应输出 MODULE+landmark，不要用 MASS_MAIN 圆角盒子代替"
+    "instruction": "指名鸟巢/国家体育场 → MANDATORY MODULE+landmark；椭圆/碗状体育场 → RECOMMENDED MODULE（可组合 MASS 原创）；变化 designSeed/bowlSteepness/facing"
   },
   "exampleRefs": []
 }
