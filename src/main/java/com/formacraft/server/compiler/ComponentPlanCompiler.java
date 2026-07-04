@@ -961,7 +961,7 @@ public final class ComponentPlanCompiler {
         }
 
         // P0：默认关闭 Assembly 立面；仅 params / style_attributes 显式请求时开启。
-        if (getParamBoolean(params, "assembly_macro", "assemblyMacro", "use_assembly_macro")) {
+        if (Boolean.TRUE.equals(getParamBoolean(params, "assembly_macro", "assemblyMacro", "use_assembly_macro"))) {
             Dimensions d = c.dimensions();
             return Math.min(d.width(), d.depth()) >= 6 && d.height() >= 6;
         }
@@ -1392,6 +1392,9 @@ public final class ComponentPlanCompiler {
                     String t = s.trim().toLowerCase(Locale.ROOT);
                     if (t.equals("true") || t.equals("1") || t.equals("yes")) return true;
                     if (t.equals("false") || t.equals("0") || t.equals("no")) return false;
+                }
+                case Number n -> {
+                    return n.doubleValue() != 0.0;
                 }
                 case null, default -> {
                 }
