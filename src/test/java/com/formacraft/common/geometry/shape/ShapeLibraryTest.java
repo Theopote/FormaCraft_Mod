@@ -130,4 +130,34 @@ class ShapeLibraryTest {
                 "rotation_z_deg", 45));
         assertTrue(ShapeLibrary.generate(spec).size() > 0);
     }
+
+    @Test
+    void plateMode_singleLayer() {
+        ShapeSpec spec = ShapeSpec.fromParams(10, 10, 8, Map.of(
+                "kind", "cylinder", "radius", 4, "extrude_mode", "plate"));
+        List<ShapeLibrary.Voxel> voxels = ShapeLibrary.generate(spec);
+        assertTrue(voxels.size() > 0);
+        assertTrue(voxels.stream().allMatch(v -> v.y() == 0));
+        assertTrue(voxels.size() < 10 * 10);
+    }
+
+    @Test
+    void voronoi_producesCells() {
+        ShapeSpec spec = ShapeSpec.fromParams(16, 16, 6, Map.of(
+                "kind", "voronoi", "radius", 7, "cell_count", 10, "seed", 42));
+        List<ShapeLibrary.Voxel> voxels = ShapeLibrary.generate(spec);
+        assertTrue(voxels.size() > 0);
+        assertTrue(voxels.size() < 16 * 16 * 6);
+    }
+
+    @Test
+    void mobius_thinSolid() {
+        ShapeSpec spec = ShapeSpec.fromParams(16, 16, 8, Map.of(
+                "kind", "mobius", "radius", 5, "mobius_width", 3));
+        List<ShapeLibrary.Voxel> solid = ShapeLibrary.generate(spec);
+        List<ShapeLibrary.Voxel> box = ShapeLibrary.generate(
+                ShapeSpec.fromParams(16, 16, 8, Map.of("kind", "box")));
+        assertTrue(solid.size() > 0);
+        assertTrue(solid.size() < box.size());
+    }
 }

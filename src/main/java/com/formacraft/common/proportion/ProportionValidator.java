@@ -34,6 +34,7 @@ public final class ProportionValidator {
         out.add(checkHasProportionHints(hints, card));
         out.add(checkVoidRatio(comps, card, hints));
         out.add(checkEnclosureComponents(comps, card));
+        out.add(checkWindowAspect(comps, card, hints));
         out.addAll(checkRatioHints(hints, card));
         if (mainMass != null) {
             out.addAll(checkDerivedRatios(mainMass, card));
@@ -102,7 +103,53 @@ public final class ProportionValidator {
         );
     }
 
-    private static List<CheckResult> checkRatioHints(
+    private static CheckResult checkWindowAspect(
+            List<Map<String, Object>> comps,
+            ProportionCardRegistry.ProportionCard card,
+            Map<String, Object> hints
+    ) {
+        if (card.openingGrammar() == null || card.openingGrammar().windowAspect() == null
+                || card.openingGrammar().windowAspect().isEmpty()) {
+            return new CheckResult("window_aspect_typology", true, "n/a");
+        }
+        List<String> allowed = card.openingGrammar().windowAspect();
+        for (Map<String, Object> c : comps) {
+            if (!"FACADE_WINDOWS".equals(type(c))) {
+                continue;
+            }
+            Map<String, Object> params = params(c);
+            String aspect = paramString(params, "window_aspect", "windowAspect");
+            if (aspect == null || aspect.isBlank()) {
+                Object hintAspect = hints.get("window_aspect");
+                if (hintAspect != null) {
+                    aspect = String.valueOf(hintAspect);
+                }
+            }
+            if (aspect == null || aspect.isBlank()) {
+                continue;
+            }
+            String normalized = aspect.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+            boolean ok = allowed.stream().anyMatch(a -> a != null && a.equalsIgnoreCase(normalized));
+            return new CheckResult(
+                    "window_aspect_typology",
+                    ok,
+                    ok ? "window_aspect=" + aspect + " allowed for " + card.typology()
+                            : "window_aspect=" + aspect + " not in " + allowed + " for " + card.typology()
+            );
+        }
+        return new CheckResult("window_aspect_typology", true, "no FACADE_WINDOWS to check");
+    }
+
+    private static String paramString(Map<String, Object> params, String... keys) {
+        for (String k : keys) {
+            Object v = params.get(k);
+            if (v != null && !String.valueOf(v).isBlank()) {
+                return String.valueOf(v).trim();
+            }
+        }
+        return null;
+    }
+
             Map<String, Object> hints,
             ProportionCardRegistry.ProportionCard card
     ) {

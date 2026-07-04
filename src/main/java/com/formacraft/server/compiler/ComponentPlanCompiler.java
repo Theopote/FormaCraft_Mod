@@ -14,6 +14,7 @@ import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.StyleIntentResolver;
+import com.formacraft.common.proportion.OpeningGrammarResolver;
 import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -284,6 +285,7 @@ public final class ComponentPlanCompiler {
                 continue;
             }
             normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);
+            normalizedComponent = OpeningGrammarResolver.apply(plan, normalizedComponent);
             String type = normalizeType(normalizedComponent.componentType());
             String slotKey = slotKey(normalizedComponent);
             if (isMassType(type)) {
@@ -354,6 +356,7 @@ public final class ComponentPlanCompiler {
                 if (!hasFacade) {
                     Component facade = makeFacadeComponent(c, slotId);
                     facade = StyleIntentResolver.apply(plan, facade);
+                    facade = OpeningGrammarResolver.apply(plan, facade);
                     inferred.add(facade);
                     slotsWithFacade.add(slotKey);
                     hasFacade = true;

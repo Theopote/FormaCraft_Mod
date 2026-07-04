@@ -6,13 +6,16 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * M1 + M2 体素基元库。
+ * M1 + M2 + M3 体素基元库。
  * <p>
  * M2：sphere / ellipse / sector / triangle、XYZ 旋转、CSG union/subtract/intersect。
+ * M3：extrude_mode=plate 2D 单层、Voronoi / Möbius 体素近似。
  */
 public final class ShapeLibrary {
 
     public record Voxel(int x, int y, int z) {}
+
+    private record Seed2D(double x, double z) {}
 
     private ShapeLibrary() {}
 
@@ -20,11 +23,22 @@ public final class ShapeLibrary {
         if (spec == null) {
             return List.of();
         }
+        List<Seed2D> voronoiSeeds = spec.kind() == ShapeKind.VORONOI ? buildVoronoiSeeds(spec) : List.of();
         List<Voxel> out = new ArrayList<>();
+        if (spec.extrudeMode() == ShapeExtrudeMode.PLATE && spec.kind() != ShapeKind.MOBIUS) {
+            for (int x = 0; x < spec.width(); x++) {
+                for (int z = 0; z < spec.depth(); z++) {
+                    if (isInside(spec, x, 0, z, voronoiSeeds)) {
+                        out.add(new Voxel(x, 0, z));
+                    }
+                }
+            }
+            return out;
+        }
         for (int y = 0; y < spec.height(); y++) {
             for (int x = 0; x < spec.width(); x++) {
                 for (int z = 0; z < spec.depth(); z++) {
-                    if (isInside(spec, x, y, z)) {
+                    if (isInside(spec, x, y, z, voronoiSeeds)) {
                         out.add(new Voxel(x, y, z));
                     }
                 }
@@ -64,21 +78,26 @@ public final class ShapeLibrary {
         return new ArrayList<>(acc);
     }
 
-    private static boolean isInside(ShapeSpec spec, int x, int y, int z) {
+    private static boolean isInside(ShapeSpec spec, int x, int y, int z, List<Seed2D> voronoiSeeds) {
         double lx0 = x - spec.halfX();
         double ly0 = y - spec.halfY();
         double lz0 = z - spec.halfZ();
+        if (spec.extrudeMode() == ShapeExtrudeMode.PLATE && spec.kind() != ShapeKind.MOBIUS) {
+            ly0 = -spec.halfY();
+        }
         double[] local = ShapeTransform.worldToLocal(lx0, ly0, lz0, spec);
-        if (!insideCanonical(spec, local[0], local[1], local[2])) {
+        if (!insideCanonical(spec, local[0], local[1], local[2], voronoiSeeds)) {
             return false;
         }
-        if (spec.hollow() && isInteriorHollow(spec, local[0], local[1], local[2])) {
+        if (spec.hollow() && isInteriorHollow(spec, local[0], local[1], local[2], voronoiSeeds)) {
             return false;
         }
         return true;
     }
 
-    private static boolean insideCanonical(ShapeSpec spec, double lx, double ly, double lz) {
+    private static boolean insideCanonical(
+            ShapeSpec spec, double lx, double ly, double lz, List<Seed2D> voronoiSeeds
+    ) {
         return switch (spec.kind()) {
             case BOX -> Math.abs(lx) <= spec.halfX() + 0.25
                     && Math.abs(ly) <= spec.halfY() + 0.25
@@ -103,7 +122,90 @@ public final class ShapeLibrary {
                     && ly >= -0.25;
             case SECTOR -> insideExtrudedSector(spec, lx, ly, lz);
             case TRIANGLE -> insideExtrudedTriangle(spec, lx, ly, lz);
+            case VORONOI -> insideVoronoi(spec, lx, ly, lz, voronoiSeeds);
+            case MOBIUS -> insideMobius(spec, lx, ly, lz);
         };
+    }
+
+    private static List<Seed2D> buildVoronoiSeeds(ShapeSpec spec) {
+        int n = Math.max(3, spec.voronoiCells());
+        long seed = spec.voronoiSeed();
+        java.util.Random rng = new java.util.Random(seed);
+        double rx = spec.effectiveRadiusX();
+        double rz = spec.effectiveRadiusZ();
+        List<Seed2D> seeds = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            seeds.add(new Seed2D(
+                    (rng.nextDouble() * 2.0 - 1.0) * rx * 0.88,
+                    (rng.nextDouble() * 2.0 - 1.0) * rz * 0.88
+            ));
+        }
+        return seeds;
+    }
+
+    private static boolean insideVoronoi(
+            ShapeSpec spec, double lx, double ly, double lz, List<Seed2D> seeds
+    ) {
+        if (spec.extrudeMode() != ShapeExtrudeMode.PLATE && Math.abs(ly) > spec.halfY() + 0.25) {
+            return false;
+        }
+        if (!insideCircle(lx, lz, Math.max(spec.effectiveRadiusX(), spec.effectiveRadiusZ()) + 0.25)) {
+            return false;
+        }
+        if (seeds == null || seeds.isEmpty()) {
+            return false;
+        }
+        double d1 = Double.MAX_VALUE;
+        double d2 = Double.MAX_VALUE;
+        for (Seed2D s : seeds) {
+            double d = Math.hypot(lx - s.x(), lz - s.z());
+            if (d < d1) {
+                d2 = d1;
+                d1 = d;
+            } else if (d < d2) {
+                d2 = d;
+            }
+        }
+        if (d2 >= Double.MAX_VALUE * 0.5) {
+            return d1 <= spec.effectiveRadiusX() + 0.25;
+        }
+        double edge = spec.voronoiEdge();
+        if (edge > 0.05) {
+            return (d2 - d1) <= edge + 0.35;
+        }
+        return d1 * d1 <= d2 * d2 * 0.92;
+    }
+
+    private static boolean insideMobius(ShapeSpec spec, double lx, double ly, double lz) {
+        double major = spec.effectiveRadiusX();
+        double halfW = Math.max(0.75, spec.mobiusWidth() * 0.5);
+        double twist = spec.mobiusTwist() > 0 ? spec.mobiusTwist() : 1.0;
+        int uSteps = 56;
+        for (int i = 0; i < uSteps; i++) {
+            double u = (2.0 * Math.PI * i) / uSteps;
+            double cu = Math.cos(u);
+            double su = Math.sin(u);
+            double halfAngle = u * 0.5 * twist;
+            double cHalf = Math.cos(halfAngle);
+            double sHalf = Math.sin(halfAngle);
+            double v;
+            if (Math.abs(sHalf) > 0.04) {
+                v = ly / sHalf;
+            } else {
+                v = 0;
+            }
+            if (Math.abs(v) > halfW + 0.6) {
+                continue;
+            }
+            double px = (major + v * cHalf) * cu;
+            double py = v * sHalf;
+            double pz = (major + v * cHalf) * su;
+            double dist2 = (lx - px) * (lx - px) + (ly - py) * (ly - py) + (lz - pz) * (lz - pz);
+            if (dist2 <= 1.35) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static double heightT(ShapeSpec spec, double ly) {
@@ -210,7 +312,9 @@ public final class ShapeLibrary {
         return dist <= boundaryRadius + 0.35;
     }
 
-    private static boolean isInteriorHollow(ShapeSpec spec, double lx, double ly, double lz) {
+    private static boolean isInteriorHollow(
+            ShapeSpec spec, double lx, double ly, double lz, List<Seed2D> voronoiSeeds
+    ) {
         double t = spec.wallThickness();
         ShapeSpec inner = new ShapeSpec(
                 spec.kind(), spec.width(), spec.depth(), spec.height(),
@@ -221,8 +325,10 @@ public final class ShapeLibrary {
                 spec.radiusX() > 0 ? Math.max(0.5, spec.radiusX() - t) : 0,
                 spec.radiusY() > 0 ? Math.max(0.5, spec.radiusY() - t) : 0,
                 spec.radiusZ() > 0 ? Math.max(0.5, spec.radiusZ() - t) : 0,
-                spec.sectorStartDeg(), spec.sectorSweepDeg(), spec.triangleMode()
+                spec.sectorStartDeg(), spec.sectorSweepDeg(), spec.triangleMode(),
+                spec.extrudeMode(), spec.voronoiCells(), spec.voronoiSeed(),
+                spec.voronoiEdge(), spec.mobiusWidth(), spec.mobiusTwist()
         );
-        return insideCanonical(inner, lx, ly, lz);
+        return insideCanonical(inner, lx, ly, lz, voronoiSeeds);
     }
 }

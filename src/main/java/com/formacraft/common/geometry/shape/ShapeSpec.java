@@ -7,7 +7,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 从 PRIMITIVE 组件 params + dimensions 解析出的体素形体规格（M1 + M2）。
+ * 从 PRIMITIVE 组件 params + dimensions 解析出的体素形体规格（M1 + M2 + M3）。
  */
 public record ShapeSpec(
         ShapeKind kind,
@@ -27,7 +27,13 @@ public record ShapeSpec(
         double radiusZ,
         double sectorStartDeg,
         double sectorSweepDeg,
-        String triangleMode
+        String triangleMode,
+        ShapeExtrudeMode extrudeMode,
+        int voronoiCells,
+        long voronoiSeed,
+        double voronoiEdge,
+        double mobiusWidth,
+        double mobiusTwist
 ) {
     public double effectiveRadiusX() {
         return radiusX > 0 ? radiusX : radius;
@@ -91,9 +97,36 @@ public record ShapeSpec(
             triangleMode = "right";
         }
 
+        ShapeExtrudeMode extrudeMode = ShapeExtrudeMode.parse(
+                str(p, "extrude_mode", "extrudeMode", "dimension_mode", "dimensionMode"));
+        int voronoiCells = clamp(intVal(p, "voronoi_cells", "cell_count", "cells", 8), 3, 32);
+        long voronoiSeed = longVal(p, "voronoi_seed", "seed", "design_seed", 0xCAFEBABEL);
+        double voronoiEdge = dbl(p, "voronoi_edge", "edge_width", 0);
+        double mobiusWidth = dbl(p, "mobius_width", "strip_width", Math.min(w, d) * 0.35);
+        double mobiusTwist = dbl(p, "mobius_twist", "twist", 1.0);
+
         return new ShapeSpec(kind, w, d, h, hollow, thickness, sides,
                 rotX, rotY, rotZ, r, topR, rx, ry, rz,
-                sectorStart, sectorSweep, triangleMode);
+                sectorStart, sectorSweep, triangleMode,
+                extrudeMode, voronoiCells, voronoiSeed, voronoiEdge, mobiusWidth, mobiusTwist);
+    }
+
+    private static long longVal(Map<String, Object> p, String k1, String k2, String k3, long def) {
+        for (String k : new String[]{k1, k2, k3}) {
+            if (k == null) continue;
+            Object v = p.get(k);
+            if (v instanceof Number n) {
+                return n.longValue();
+            }
+            if (v != null) {
+                try {
+                    return Long.parseLong(String.valueOf(v).trim());
+                } catch (NumberFormatException ignored) {
+                    // continue
+                }
+            }
+        }
+        return def;
     }
 
     /**

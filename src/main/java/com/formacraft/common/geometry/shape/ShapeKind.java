@@ -3,7 +3,7 @@ package com.formacraft.common.geometry.shape;
 import java.util.Locale;
 
 /**
- * M1 + M2 体素基元类型。
+ * M1 + M2 + M3 体素基元类型。
  */
 public enum ShapeKind {
     BOX,
@@ -17,7 +17,10 @@ public enum ShapeKind {
     /** M2：2D  footprint 沿 Y 挤出 */
     ELLIPSE,
     SECTOR,
-    TRIANGLE;
+    TRIANGLE,
+    /** M3：Voronoi 细胞 / Möbius 带体素近似 */
+    VORONOI,
+    MOBIUS;
 
     public static ShapeKind parse(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -35,6 +38,8 @@ public enum ShapeKind {
             case "ellipse", "elliptical", "oval" -> ELLIPSE;
             case "sector", "pie", "fan", "arc_sector" -> SECTOR;
             case "triangle", "tri" -> TRIANGLE;
+            case "voronoi", "cells", "cellular", "honeycomb" -> VORONOI;
+            case "mobius", "möbius", "moebius", "mobius_strip" -> MOBIUS;
             default -> BOX;
         };
     }

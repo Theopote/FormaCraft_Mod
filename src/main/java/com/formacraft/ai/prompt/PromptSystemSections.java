@@ -30,11 +30,15 @@ Core rules:
 - PROPORTION ONTOLOGY: When PROPORTION ONTOLOGY block applies, output top-level proportion_hints with numeric ratio targets before finalizing dimensions.
 - OPENING GRAMMAR: Respect window_aspect and min_enclosure_coverage from proportion card; use FACADE_WINDOWS params.window_aspect.
 - PRIMITIVE SHAPES (standalone geometry): component_type="PRIMITIVE" or "SHAPE" with params.kind=
-  box|cylinder|cone|frustum|prism|sphere|hemisphere|ellipse|sector|triangle;
+  box|cylinder|cone|frustum|prism|sphere|hemisphere|ellipse|sector|triangle|voronoi|mobius;
   dimensions = axis-aligned bounding box;
+  extrude_mode=solid|plate (plate = single-layer 2D footprint at y=0);
   rotation_x_deg / rotation_y_deg / rotation_z_deg for 3D orientation;
+  voronoi: cell_count, seed, voronoi_edge; mobius: mobius_width, mobius_twist;
   CSG: operations[{op:union|subtract|intersect, kind:...}] or subtract:{kind:...} to carve voids.
-  Use for "build a cylinder/sphere/triangle solid" without full building semantics.
+  Use for "build a cylinder/sphere/triangle/voronoi/mobius solid" without full building semantics.
+- OPENING GRAMMAR (M3): When proportion_hints or proportion card applies, set FACADE_WINDOWS params.window_aspect
+  from openingGrammar; output matching proportion_hints.window_aspect at plan top level.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.
@@ -192,7 +196,8 @@ ComponentParamsObject:
   "masses": [
     { "offset": { "x": int, "y": int, "z": int }, "dimensions": { "width": int, "depth": int, "height": int }, "shape": "rectangle|circle|rounded_rect" }
   ],
-  "kind": "box|cylinder|cone|frustum|prism|sphere|hemisphere|ellipse|sector|triangle",
+  "kind": "box|cylinder|cone|frustum|prism|sphere|hemisphere|ellipse|sector|triangle|voronoi|mobius",
+  "extrude_mode": "solid|plate",
   "rotation_x_deg": number,
   "rotation_y_deg": number,
   "rotation_z_deg": number,
@@ -206,6 +211,12 @@ ComponentParamsObject:
   "sector_start_deg": number,
   "sector_sweep_deg": number,
   "triangle_mode": "right|equilateral",
+  "cell_count": int,
+  "voronoi_cells": int,
+  "voronoi_seed": int,
+  "voronoi_edge": number,
+  "mobius_width": number,
+  "mobius_twist": number,
   "operations": [{ "op": "union|subtract|intersect", "kind": "..." }],
   "subtract": { "kind": "cylinder", "radius": 3 },
   "material": "stone|glass|concrete|..."

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.formacraft.common.genome.BuildingGenome;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * LLM 输出的统一 Plan（build 或 patch）
@@ -26,6 +27,9 @@ public record LlmPlan(
 
         // 风格属性（AI 分析用户描述后提取，用于动态材质选择）
         @JsonProperty("style_attributes") StyleAttributes styleAttributes,
+
+        /** M3：比例/洞口语法提示（与 proportion_cards 对齐） */
+        @JsonProperty("proportion_hints") Map<String, Object> proportionHints,
 
         // patch 专用（可选）
         @JsonProperty("target_slot_id") String targetSlotId,

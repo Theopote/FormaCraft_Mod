@@ -110,6 +110,30 @@ def evaluate_proportions(
     else:
         checks.append(("void_ratio_typology", True, "void_ratio within typology"))
 
+    allowed_aspects = og.get("window_aspect")
+    if isinstance(allowed_aspects, list) and allowed_aspects:
+        for i, c in enumerate(_components(plan)):
+            if str(c.get("component_type") or "").upper() != "FACADE_WINDOWS":
+                continue
+            params = _params(c)
+            aspect = params.get("window_aspect", params.get("windowAspect"))
+            if aspect is None:
+                aspect = hints.get("window_aspect")
+            if aspect is None:
+                continue
+            ok = str(aspect).strip().lower() in {
+                str(a).strip().lower() for a in allowed_aspects if a
+            }
+            checks.append((
+                "window_aspect_typology",
+                ok,
+                f"#{i} window_aspect={aspect} allowed={allowed_aspects}" if ok
+                else f"#{i} window_aspect={aspect} not in {allowed_aspects} for {cid}",
+            ))
+            break
+        else:
+            checks.append(("window_aspect_typology", True, "no FACADE_WINDOWS to check"))
+
     ratios = card.get("ratios") if isinstance(card.get("ratios"), dict) else {}
     main = _main_mass(_components(plan))
     if main:
