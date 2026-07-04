@@ -75,6 +75,27 @@ def _detect_landmark_or_style(text: str, landmark_only: bool = False) -> Optiona
     return None
 
 
+def search_architecture_queries(
+    queries: List[str],
+    max_results_per_query: int = 3,
+) -> List[Dict[str, str]]:
+    """
+    多 query 搜索并合并去重（供 BuildingResearchAgent 调用）。
+    """
+    merged: List[Dict[str, str]] = []
+    seen: set[str] = set()
+    for query in queries:
+        for item in search_architecture_reference(query, max_results_per_query):
+            url = (item.get("url") or "").strip()
+            snippet = (item.get("snippet") or "").strip()[:160]
+            key = url or snippet
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+    return merged
+
+
 def search_architecture_reference(query: str, max_results: int = 3) -> List[Dict[str, str]]:
     """
     搜索建筑参考资料

@@ -49,7 +49,8 @@ _LLM_CALL_TIMEOUT_COMPOSITE_SEC = float(os.getenv("LLM_CALL_TIMEOUT_COMPOSITE_SE
 _LLM_CALL_TIMEOUT_CITY_SEC = float(os.getenv("LLM_CALL_TIMEOUT_CITY_SEC", "600"))
 
 # ---- Phase 6 延迟治理开关 ----
-# 参考资料联网搜索策略：landmark（默认，仅地标）| all（地标+风格）| off（完全关闭）
+# 参考资料联网搜索：已由 BuildingResearchAgent 接管（PR-1）。
+# ARCHITECTURE_SEARCH 保留兼容：off=关闭研究，其他值=开启（具体模式见 BUILDING_RESEARCH_MODE）。
 _ARCHITECTURE_SEARCH_MODE = (os.getenv("ARCHITECTURE_SEARCH") or "landmark").strip().lower()
 # 联网搜索硬超时（秒）：搜索是主要隐藏延迟，超时即跳过，绝不阻塞生成
 _ARCHITECTURE_SEARCH_TIMEOUT_SEC = float(os.getenv("ARCHITECTURE_SEARCH_TIMEOUT_SEC", "3"))
@@ -4487,44 +4488,46 @@ def generate_llm_plan(req: BuildRequest) -> dict:
     if not user_prompt:
         user_prompt = req.userMessage or request_text
     
-    # ========== 网络搜索增强：为强类型建筑获取参考资料 ==========
-    # 默认只对"地标"（埃菲尔/故宫…）联网搜参考；普通风格（中式/欧式…）不搜——
-    # 联网搜索是主要的隐藏延迟来源，风格特征应由 style profile / prompt 表达。
+    # ========== 开放世界建筑研究（PR-1：BuildingResearchAgent）==========
+    # 任意建筑名均可触发检索 + 结构化 BuildingProfile，不依赖硬编码地标词表。
+    # 失败/超时不阻塞生成；Culture RAG 为旁路 boost，见 _llm_plan_context_block。
     search_ms = 0.0
     if _ARCHITECTURE_SEARCH_MODE != "off":
         _t_search = time.monotonic()
         try:
-            from .architecture_researcher import get_architecture_reference_context
+            from .building_research_agent import (
+                is_building_research_enabled,
+                research_building_context,
+            )
 
-            # 检查是否需要搜索参考资料
             search_query = (req.userMessage or "").strip()
             if not search_query:
-                # 从 requestText 中提取用户请求
                 if "USER REQUEST:" in request_text:
                     search_query = user_prompt
                 else:
-                    search_query = user_prompt[:200]  # 使用前200个字符作为搜索关键词
+                    search_query = user_prompt[:200]
 
-            if search_query:
-                landmark_only = _ARCHITECTURE_SEARCH_MODE != "all"
-                reference_context = _call_with_timeout(
-                    lambda: get_architecture_reference_context(search_query, landmark_only=landmark_only),
-                    _ARCHITECTURE_SEARCH_TIMEOUT_SEC,
+            if search_query and is_building_research_enabled():
+                research_context = _call_with_timeout(
+                    lambda: research_building_context(
+                        search_query,
+                        req=req,
+                        call_with_timeout=_call_with_timeout,
+                    ),
+                    float(os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "8")),
                 )
-                if reference_context:
-                    # 将参考资料添加到 user prompt 前面
-                    user_prompt = reference_context + "\n\n" + user_prompt
-                    logger.info("Added architecture reference context to LlmPlan prompt")
+                if research_context:
+                    user_prompt = research_context + "\n\n" + user_prompt
+                    logger.info("Added BuildingResearch profile context to LlmPlan prompt")
         except ImportError:
-            logger.warning("architecture_researcher module not available, skipping reference search")
+            logger.warning("building_research_agent not available, skipping research")
         except TimeoutError:
             logger.warning(
-                "architecture reference search timed out after %ss; skipping",
-                _ARCHITECTURE_SEARCH_TIMEOUT_SEC,
+                "Building research timed out after %ss; skipping",
+                os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "8"),
             )
         except Exception as e:
-            # 搜索失败不应该阻塞生成，只记录警告
-            logger.warning(f"Failed to get architecture reference: {e}")
+            logger.warning("Failed building research: %s", e)
         search_ms = (time.monotonic() - _t_search) * 1000.0
 
     # ========== Track B：意图扩写(B1) + 上下文注入(B3) ==========
