@@ -6,7 +6,6 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.semantic.SemanticPart;
 
@@ -37,17 +36,18 @@ public class FoundationGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, Math.min(5, d.height())); // 基础通常只有 1-5 格高
 
-        String styleProfile = getStyleProfile(semantic);
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
+        String styleProfile = semantic.styleProfile();
+        if (styleProfile == null || styleProfile.isBlank()) {
+            styleProfile = "MEDIEVAL_CLASSIC";
+        }
 
-        // 生成基础（通常是实心的）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     SemanticPart part = SemanticPart.FOUNDATION;
-                    String block = palette.pick(part);
-                    if (block == null || block.isEmpty()) {
-                        block = "minecraft:stone_bricks";
+                    String block = PaletteLibrary.resolveBlock(part, styleProfile, semantic.styleAttributes());
+                    if (block == null || block.isBlank()) {
+                        block = PaletteLibrary.resolveBlock(SemanticPart.WALL_BASE, styleProfile, semantic.styleAttributes());
                     }
                     
                     out.add(new BlockPatch(
@@ -62,10 +62,6 @@ public class FoundationGenerator implements ComponentGenerator {
         }
 
         return out;
-    }
-
-    private String getStyleProfile(SemanticComponent semantic) {
-        return "MEDIEVAL_CLASSIC";
     }
 }
 

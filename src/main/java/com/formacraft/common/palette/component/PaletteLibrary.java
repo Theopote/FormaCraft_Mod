@@ -1,5 +1,7 @@
 package com.formacraft.common.palette.component;
 
+import com.formacraft.common.llm.dto.StyleAttributes;
+import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
 
 /**
@@ -18,6 +20,7 @@ public final class PaletteLibrary {
     private static final Palette ELVEN = new Palette();
     private static final Palette HUI_STYLE = new Palette(); // 徽派风格
     private static final Palette CHINESE_ROYAL = new Palette(); // 中式皇家风格
+    private static final Palette MODERN = new Palette(); // 现代风格
 
     static {
         // ========== 中世纪石墙风格 ==========
@@ -209,6 +212,35 @@ public final class PaletteLibrary {
 
         CHINESE_ROYAL.add(SemanticPart.PILLAR, "minecraft:red_concrete", 70);
         CHINESE_ROYAL.add(SemanticPart.PILLAR, "minecraft:red_terracotta", 30);
+
+        // ========== 现代风格（Modern / 玻璃幕墙）==========
+        MODERN.add(SemanticPart.WALL, "minecraft:white_concrete", 45);
+        MODERN.add(SemanticPart.WALL, "minecraft:light_gray_concrete", 35);
+        MODERN.add(SemanticPart.WALL, "minecraft:gray_concrete", 20);
+
+        MODERN.add(SemanticPart.WALL_BASE, "minecraft:stone_bricks", 50);
+        MODERN.add(SemanticPart.WALL_BASE, "minecraft:polished_andesite", 50);
+
+        MODERN.add(SemanticPart.WALL_ACCENT, "minecraft:black_concrete", 60);
+        MODERN.add(SemanticPart.WALL_ACCENT, "minecraft:iron_block", 40);
+
+        MODERN.add(SemanticPart.ROOF, "minecraft:gray_concrete", 70);
+        MODERN.add(SemanticPart.ROOF, "minecraft:light_gray_concrete", 30);
+
+        MODERN.add(SemanticPart.ROOF_SURFACE, "minecraft:light_gray_concrete", 80);
+        MODERN.add(SemanticPart.ROOF_SURFACE, "minecraft:white_concrete", 20);
+
+        MODERN.add(SemanticPart.FLOOR, "minecraft:smooth_stone", 60);
+        MODERN.add(SemanticPart.FLOOR, "minecraft:polished_andesite", 40);
+
+        MODERN.add(SemanticPart.WINDOW, "minecraft:glass", 70);
+        MODERN.add(SemanticPart.WINDOW, "minecraft:glass_pane", 30);
+
+        MODERN.add(SemanticPart.DECOR, "minecraft:iron_bars", 50);
+        MODERN.add(SemanticPart.DECOR, "minecraft:quartz_slab", 50);
+
+        MODERN.add(SemanticPart.PILLAR, "minecraft:quartz_pillar", 60);
+        MODERN.add(SemanticPart.PILLAR, "minecraft:iron_block", 40);
     }
 
     private PaletteLibrary() {}
@@ -221,20 +253,71 @@ public final class PaletteLibrary {
      */
     public static Palette forStyle(String styleProfile) {
         if (styleProfile == null || styleProfile.isBlank()) {
-            return MEDIEVAL_STONE; // 默认
+            return MEDIEVAL_STONE;
         }
 
         String s = styleProfile.trim().toUpperCase();
-        return switch (s) {
+        Palette direct = switch (s) {
             case "MEDIEVAL_CLASSIC", "MEDIEVAL", "MEDIEVAL_STONE", "GOTHIC" -> MEDIEVAL_STONE;
             case "CYBERPUNK", "CYBER", "FUTURISTIC" -> CYBERPUNK;
             case "ELVEN", "ELVISH", "NATURE" -> ELVEN;
-            case "HUI_STYLE_VILLA", "HUI_VILLA", "CHINESE_VILLA", "CHINESE_HUI", "HUI", 
+            case "HUI_STYLE_VILLA", "HUI_VILLA", "CHINESE_VILLA", "CHINESE_HUI", "HUI",
                  "CHINESE_TRADITIONAL", "CHINESE_TRAD" -> HUI_STYLE;
             case "CHINESE_ROYAL", "CHINESE_IMPERIAL", "CHINESE_PALACE", "CHINESE_PALACE_HALL",
                  "CHINESE_ROYAL_HALL", "ROYAL_CHINESE", "IMPERIAL_CHINESE" -> CHINESE_ROYAL;
-            default -> MEDIEVAL_STONE; // 默认返回中世纪风格
+            case "MODERN_CLASSIC", "MODERN", "MODERNIST", "BAUHAUS", "CONTEMPORARY" -> MODERN;
+            default -> null;
         };
+        if (direct != null) {
+            return direct;
+        }
+        return fuzzyMatchStyle(s);
+    }
+
+    /**
+     * 优先 style_attributes 动态解析，再回退到风格 Palette。
+     */
+    public static String resolveBlock(SemanticPart part, String styleProfile, StyleAttributes styleAttributes) {
+        if (styleAttributes != null) {
+            String dynamic = DynamicPaletteResolver.resolve(part, styleAttributes);
+            if (dynamic != null && !dynamic.isBlank()) {
+                return dynamic;
+            }
+        }
+        String picked = forStyle(styleProfile).pick(part);
+        if (picked != null && !picked.isBlank() && !"minecraft:stone".equals(picked)) {
+            return picked;
+        }
+        if (styleAttributes != null) {
+            return DynamicPaletteResolver.resolve(part, styleAttributes);
+        }
+        return picked != null ? picked : "minecraft:stone_bricks";
+    }
+
+    private static Palette fuzzyMatchStyle(String upperProfile) {
+        if (upperProfile.contains("CYBER") || upperProfile.contains("FUTUR")) {
+            return CYBERPUNK;
+        }
+        if (upperProfile.contains("ELVEN") || upperProfile.contains("NATURE")) {
+            return ELVEN;
+        }
+        if (upperProfile.contains("ROYAL") || upperProfile.contains("IMPERIAL") || upperProfile.contains("PALACE")) {
+            return CHINESE_ROYAL;
+        }
+        if (upperProfile.contains("CHINESE") || upperProfile.contains("HUI") || upperProfile.contains("JIANGNAN")
+                || upperProfile.contains("ASIAN") || upperProfile.contains("中式")) {
+            return HUI_STYLE;
+        }
+        if (upperProfile.contains("MODERN") || upperProfile.contains("GLASS") || upperProfile.contains("CONTEMPORARY")) {
+            return MODERN;
+        }
+        if (upperProfile.contains("GOTHIC") || upperProfile.contains("MEDIEVAL") || upperProfile.contains("CATHEDRAL")) {
+            return MEDIEVAL_STONE;
+        }
+        if (upperProfile.contains("INDUSTRIAL")) {
+            return CYBERPUNK;
+        }
+        return MEDIEVAL_STONE;
     }
 }
 

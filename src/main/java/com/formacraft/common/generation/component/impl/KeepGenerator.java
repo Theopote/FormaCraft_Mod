@@ -2,23 +2,22 @@ package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.palette.component.PaletteLibrary;
+import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * KeepGenerator（主堡生成器）
- * 
- * 基础版本：生成矩形主堡（类似 Tower，但更大）
- * 
- * 后续升级方向：
- * - 使用 PaletteResolver
- * - 使用 GeometryModifier（垛口、塔楼节点等）
- * - 支持内部结构（房间、楼梯等）
+ *
+ * 参数化矩形主堡：dimensions 驱动体量，style/style_attributes 驱动材质。
  */
 public class KeepGenerator implements ComponentGenerator {
 
@@ -37,15 +36,26 @@ public class KeepGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
+        int wallThickness = resolveWallThickness(c.params());
 
-        // 生成矩形主堡
+        String styleProfile = resolveStyleProfile(semantic);
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 外墙：使用 stone_bricks
-                    boolean isWall = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
-                    String block = isWall ? "minecraft:stone_bricks" : "minecraft:cobblestone";
+                    boolean isExterior = isExteriorCell(x, z, width, depth, wallThickness);
+                    if (!isExterior && y > 0 && y < height - 1) {
+                        continue;
+                    }
 
+                    SemanticPart part = y == 0
+                            ? SemanticPart.WALL_BASE
+                            : (y >= height - 1 ? SemanticPart.WALL_ACCENT : SemanticPart.WALL);
+                    if (!isExterior && y == 0) {
+                        part = SemanticPart.FLOOR;
+                    }
+
+                    String block = PaletteLibrary.resolveBlock(part, styleProfile, semantic.styleAttributes());
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,
@@ -59,5 +69,21 @@ public class KeepGenerator implements ComponentGenerator {
 
         return out;
     }
-}
 
+    private static int resolveWallThickness(Map<String, Object> params) {
+        int thickness = ComponentParamParsers.intParam(params, 1, "wall_thickness", "wallThickness");
+        return Math.max(1, Math.min(3, thickness));
+    }
+
+    private static boolean isExteriorCell(int x, int z, int width, int depth, int wallThickness) {
+        return x < wallThickness || x >= width - wallThickness
+                || z < wallThickness || z >= depth - wallThickness;
+    }
+
+    private static String resolveStyleProfile(SemanticComponent semantic) {
+        if (semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
+            return semantic.styleProfile();
+        }
+        return "MEDIEVAL_CLASSIC";
+    }
+}

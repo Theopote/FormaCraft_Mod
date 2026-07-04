@@ -459,10 +459,19 @@ public final class ComponentPlanCompiler {
         }
         int entranceDepth = Math.max(1, Math.min(2, Math.max(1, depth / 4)));
         int entranceHeight = Math.max(3, Math.min(height, Math.max(4, height / 2)));
-        boolean chinese = isChineseStyle(plan, base);
-        if (chinese) {
-            entranceDepth = Math.min(Math.max(2, entranceDepth + 1), Math.max(2, depth / 3));
-            entranceHeight = Math.max(4, Math.min(height, entranceHeight + 1));
+
+        Map<String, Object> baseParams = base.params();
+        int paramDoorW = ComponentParamParsers.intParam(baseParams, 0, "door_width", "doorWidth");
+        int paramDoorH = ComponentParamParsers.intParam(baseParams, 0, "door_height", "doorHeight");
+        int paramCanopy = ComponentParamParsers.intParam(baseParams, 0, "canopy_depth", "canopyDepth");
+        if (paramDoorW > 0) {
+            entranceWidth = Math.max(2, Math.min(width - 1, paramDoorW + 1));
+        }
+        if (paramDoorH > 0) {
+            entranceHeight = Math.max(2, Math.min(height, paramDoorH + 1));
+        }
+        if (paramCanopy > 0) {
+            entranceDepth = Math.max(1, Math.min(depth / 2, paramCanopy + 1));
         }
 
         int relX = rp.x();
@@ -483,12 +492,12 @@ public final class ComponentPlanCompiler {
         Map<String, Object> params = new HashMap<>();
         params.put("door_width", Math.max(2, Math.min(entranceWidth - 1, entranceWidth)));
         params.put("door_height", Math.max(2, Math.min(entranceHeight - 1, entranceHeight)));
-        params.put("canopy_depth", chinese ? Math.max(1, entranceDepth - 1) : 1);
+        params.put("canopy_depth", paramCanopy > 0 ? paramCanopy : 1);
 
         List<String> features = new ArrayList<>();
         features.add("entrance");
         features.add("overhang");
-        if (chinese) {
+        if (hasOrnateEntranceHints(plan, base)) {
             features.add("decorative_lintel");
             features.add("wood_carvings");
         }
@@ -527,10 +536,7 @@ public final class ComponentPlanCompiler {
         }
         params.put("roof_type", roofType);
         params.putIfAbsent("roof_height", roofHeight);
-        if (isChineseStyle(plan, base)) {
-            int defaultOverhang = "xuanshan".equalsIgnoreCase(roofType) ? 2 : 1;
-            params.putIfAbsent("overhang", defaultOverhang);
-        }
+        applyInferredOverhang(params, roofType, base);
 
         List<String> features = new ArrayList<>();
         if (base.features() != null) {
@@ -775,45 +781,155 @@ public final class ComponentPlanCompiler {
         return type.startsWith("ROOF");
     }
 
-    private static boolean isChineseStyle(LlmPlan plan, Component base) {
-        String profile = plan != null ? plan.styleProfile() : null;
-        if (profile != null) {
-            String upper = profile.toUpperCase();
-            if (upper.contains("CHINESE") || upper.contains("HUI")) return true;
+    private static String resolveDefaultRoofType(LlmPlan plan, Component base) {
+        String fromParams = roofTypeHintFromParams(base);
+        if (fromParams != null) {
+            return fromParams;
         }
-        if (base.features() != null) {
-            for (String f : base.features()) {
-                if (f == null) continue;
-                String lower = f.toLowerCase();
-                if (lower.contains("chinese") || lower.contains("中式") || lower.contains("徽派")) {
-                    return true;
+        String fromFeatures = roofTypeHintFromFeatures(base);
+        if (fromFeatures != null) {
+            return fromFeatures;
+        }
+        String fromStyle = roofTypeHintFromStyleAttributes(plan);
+        if (fromStyle != null) {
+            return fromStyle;
+        }
+        return "gable";
+    }
+
+    private static String roofTypeHintFromParams(Component base) {
+        if (base == null || base.params() == null) {
+            return null;
+        }
+        return normalizeRoofTypeToken(getParamString(base.params(), "preferred_roof_type", "preferredRoofType"));
+    }
+
+    private static String roofTypeHintFromFeatures(Component base) {
+        if (base == null || base.features() == null) {
+            return null;
+        }
+        for (String feature : base.features()) {
+            if (feature == null) {
+                continue;
+            }
+            String lower = feature.toLowerCase(Locale.ROOT);
+            if (lower.contains("xuanshan") || lower.contains("悬山")) {
+                return "xuanshan";
+            }
+            if (lower.contains("xieshan") || lower.contains("歇山")) {
+                return "xieshan";
+            }
+            if (lower.contains("double_gable") || lower.contains("shuangpo") || lower.contains("双坡")) {
+                return "double_gable";
+            }
+            if (lower.contains("hip") || lower.contains("hipped")) {
+                return "hip";
+            }
+            if (lower.contains("flat") && (lower.contains("roof") || lower.contains("顶"))) {
+                return "flat";
+            }
+            if (lower.contains("pyramid") || lower.contains("cone")) {
+                return "pyramid";
+            }
+            if (lower.contains("dome") || lower.contains("curved_roof")) {
+                return "dome";
+            }
+            if (lower.contains("gable") || lower.contains("gothic") || lower.contains("cathedral")) {
+                return "gable";
+            }
+        }
+        return null;
+    }
+
+    private static String roofTypeHintFromStyleAttributes(LlmPlan plan) {
+        if (plan == null || plan.styleAttributes() == null) {
+            return null;
+        }
+        com.formacraft.common.llm.dto.StyleAttributes attrs = plan.styleAttributes();
+        String roofMat = attrs.roofMaterial();
+        if (roofMat != null) {
+            String lower = roofMat.toLowerCase(Locale.ROOT);
+            if (lower.contains("flat") || (lower.contains("concrete") && !lower.contains("tile"))) {
+                return "flat";
+            }
+        }
+        List<String> decorative = attrs.decorativeElements();
+        if (decorative != null) {
+            for (String element : decorative) {
+                if (element == null) {
+                    continue;
+                }
+                String lower = element.toLowerCase(Locale.ROOT);
+                if (lower.contains("curved_eaves") || lower.contains("flying_eaves") || lower.contains("飞檐")) {
+                    return "xuanshan";
                 }
             }
         }
-        if (plan != null && plan.genome() != null && plan.genome().culturalStyle != null) {
-            String region = plan.genome().culturalStyle.region;
-            return region != null && region.toLowerCase().contains("chinese");
+        return null;
+    }
+
+    private static String normalizeRoofTypeToken(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static void applyInferredOverhang(Map<String, Object> params, String roofType, Component base) {
+        if (ComponentParamParsers.intParam(params, -1, "overhang", "overhang_blocks", "eave_overhang") >= 0) {
+            return;
+        }
+        if ("xuanshan".equalsIgnoreCase(roofType)) {
+            params.putIfAbsent("overhang", 2);
+        } else if ("xieshan".equalsIgnoreCase(roofType)) {
+            params.putIfAbsent("overhang", 1);
+        } else if (hasRoofOverhangFeature(base)) {
+            params.putIfAbsent("overhang", 1);
+        }
+    }
+
+    private static boolean hasRoofOverhangFeature(Component base) {
+        if (base == null || base.features() == null) {
+            return false;
+        }
+        for (String feature : base.features()) {
+            if (feature == null) {
+                continue;
+            }
+            String lower = feature.toLowerCase(Locale.ROOT);
+            if (lower.contains("overhang") || lower.contains("eave") || lower.contains("flying_eaves")
+                    || lower.contains("飞檐") || lower.contains("出檐")) {
+                return true;
+            }
         }
         return false;
     }
 
-    private static String resolveDefaultRoofType(LlmPlan plan, Component base) {
-        if (isChineseStyle(plan, base)) {
-            return "xuanshan";
-        }
-        if (base.features() != null) {
-            for (String f : base.features()) {
-                if (f == null) continue;
-                String lower = f.toLowerCase();
-                if (lower.contains("gothic") || lower.contains("cathedral") || lower.contains("church")) {
-                    return "gable";
+    private static boolean hasOrnateEntranceHints(LlmPlan plan, Component base) {
+        if (base != null && base.features() != null) {
+            for (String feature : base.features()) {
+                if (feature == null) {
+                    continue;
                 }
-                if (lower.contains("modern") || lower.contains("flat")) {
-                    return "flat";
+                String lower = feature.toLowerCase(Locale.ROOT);
+                if (lower.contains("wood_carving") || lower.contains("carved") || lower.contains("lintel")
+                        || lower.contains("decorative_lintel")) {
+                    return true;
                 }
             }
         }
-        return "gable";
+        if (plan != null && plan.styleAttributes() != null && plan.styleAttributes().decorativeElements() != null) {
+            for (String element : plan.styleAttributes().decorativeElements()) {
+                if (element == null) {
+                    continue;
+                }
+                String lower = element.toLowerCase(Locale.ROOT);
+                if (lower.contains("carving") || lower.contains("lintel") || lower.contains("dougong")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static Component markAssemblyFacade(Component base) {
@@ -843,41 +959,28 @@ public final class ComponentPlanCompiler {
             return override;
         }
 
-        // A4：默认按"风格族 + 规模 + 质量档"开启 Assembly 立面（复用已建成的宏观立面路径）。
-        // 显式参数（上面）可强制开/关；细节/质量档为 low 时保持简单路径。
-        String detail = getParamString(params, "detail_level", "detailLevel", "quality", "quality_level");
-        if (detail != null && detail.trim().toLowerCase(Locale.ROOT).contains("low")) {
-            return false;
+        // P0：默认关闭 Assembly 立面；仅 params / style_attributes 显式请求时开启。
+        if (getParamBoolean(params, "assembly_macro", "assemblyMacro", "use_assembly_macro")) {
+            Dimensions d = c.dimensions();
+            return Math.min(d.width(), d.depth()) >= 6 && d.height() >= 6;
         }
-        Dimensions d = c.dimensions();
-        boolean largeEnough = Math.min(d.width(), d.depth()) >= 6 && d.height() >= 8;
-        if (!largeEnough) {
-            return false;
-        }
-        return isMacroFacadeStyle(plan, c);
-    }
-
-    /**
-     * A4：判断构件是否属于"宏观立面可表达"的风格族（哥特/古典/现代/工业）。
-     * 中式/亚洲传统走各自的屋顶+立面推断路径，这里排除以免与其冲突。
-     */
-    private static boolean isMacroFacadeStyle(LlmPlan plan, Component c) {
-        StringBuilder merged = new StringBuilder(
-                (plan != null && plan.styleProfile() != null) ? plan.styleProfile() : "");
-        if (c.features() != null) {
-            for (String f : c.features()) {
-                if (f != null) merged.append(' ').append(f);
+        String facadeProfile = getParamString(params, "facade_profile", "facadeProfile");
+        if (facadeProfile != null && needsAssemblyFacadeProfile(facadeProfile)) {
+            String detail = getParamString(params, "detail_level", "detailLevel", "quality", "quality_level");
+            if (detail == null || !detail.trim().toLowerCase(Locale.ROOT).contains("low")) {
+                Dimensions d = c.dimensions();
+                return Math.min(d.width(), d.depth()) >= 6 && d.height() >= 6;
             }
         }
-        String hint = merged.toString().toUpperCase(Locale.ROOT);
-        if (hint.contains("CHINESE") || hint.contains("HUI") || hint.contains("JIANGNAN")
-                || hint.contains("ASIAN") || hint.contains("中式")) {
+        return false;
+    }
+
+    private static boolean needsAssemblyFacadeProfile(String facadeProfile) {
+        if (facadeProfile == null || facadeProfile.isBlank()) {
             return false;
         }
-        return hint.contains("GOTHIC") || hint.contains("CATHEDRAL")
-                || hint.contains("MODERN") || hint.contains("INDUSTRIAL")
-                || hint.contains("CLASSICAL") || hint.contains("CLASSIC")
-                || hint.contains("COLONNADE") || hint.contains("COLUMN");
+        String v = facadeProfile.trim().toLowerCase(Locale.ROOT);
+        return v.contains("mullion") || v.contains("module_grid") || v.contains("curtain");
     }
 
     private static List<BlockPatch> generateAssemblyFacadePatches(

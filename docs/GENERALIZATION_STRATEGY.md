@@ -60,11 +60,11 @@ LLM 的组合能力 + Java 的参数化生成器 = 泛化的核心。
 
 ### P0 — 影响所有生成的硬编码
 
-| 差距 | 位置 | 影响 | 建议 |
-|------|------|------|------|
-| Compiler 自动推断硬编码风格分支 | `ComponentPlanCompiler.prepareComponents`：中式默认悬山顶、Assembly 立面按 GOTHIC/MODERN/CHINESE 硬分流 | 非预期风格被强制走特定路径 | 改为 params/style_attributes 驱动，推断仅作 fallback |
-| 低参数生成器 | `KeepGenerator`, `GateGenerator`：几乎无 params，硬编码方块 | LLM 无法精细控制 | 接入 Palette + dimensions/params |
-| Palette 覆盖有限 | `PaletteLibrary.forStyle`：未知风格回退默认 | 新风格材质不对 | 扩展 palette 表 + DynamicPaletteResolver 兜底 |
+| 差距 | 状态 | 说明 |
+|------|------|------|
+| Compiler 自动推断硬编码风格分支 | **2026-07 已改** | Assembly 立面默认关闭；屋顶/入口/出檐仅 params、features、style_attributes 驱动 |
+| 低参数生成器 Keep/Gate | **2026-07 已改** | 接入 `PaletteLibrary.resolveBlock` + door/wall params |
+| Palette 覆盖有限 | **2026-07 已改** | 新增 MODERN palette、fuzzy 匹配、`resolveBlock(style_attributes 优先)` |
 
 ### P1 — 路由与回退策略
 
