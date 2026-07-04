@@ -301,21 +301,61 @@ public final class BackendAutoStarter {
         return null;
     }
 
+    /** Python 候选探测结果。 */
+    private enum ProbeResult {
+        /** 可运行 Python 且能 import uvicorn。 */
+        OK,
+        /** 能运行 Python，但缺少 uvicorn 依赖。 */
+        NO_UVICORN,
+        /** 不可用（未找到 / Store 占位桩 / 其它错误）。 */
+        UNAVAILABLE
+    }
+
     /**
-     * 检测 Python 可执行文件是否可用（通过运行 --version）
-     * @param pythonPath Python 可执行文件路径
-     * @return true 如果可用，false 如果不可用
+     * 探测某个候选解释器是否真正可用于启动后端。
+     * <p>
+     * 通过 {@code <py> -c "import uvicorn"} 判定：退出码 0 = 可用；因缺少模块而失败 =
+     * {@link ProbeResult#NO_UVICORN}；其它（含 Windows Store 的 python.exe 占位桩返回的
+     * 9009）= {@link ProbeResult#UNAVAILABLE}。这样即便某个 {@code python} 能被“启动”，
+     * 只要它并非真正的 Python，也不会被误用。
      */
-    private static boolean testPythonExecutable(String pythonPath) {
-        if (pythonPath == null || pythonPath.isBlank()) return false;
+    private static ProbeResult probeInterpreter(String py, File wd) {
+        if (py == null || py.isBlank()) return ProbeResult.UNAVAILABLE;
         try {
-            ProcessBuilder pb = new ProcessBuilder(pythonPath, "--version");
+            ProcessBuilder pb = new ProcessBuilder(py, "-c", "import uvicorn");
+            if (wd != null && wd.exists()) pb.directory(wd);
             pb.redirectErrorStream(true);
             Process proc = pb.start();
-            int exitCode = proc.waitFor();
-            return exitCode == 0;
-        } catch (Exception e) {
-            return false;
+
+            StringBuilder out = new StringBuilder();
+            try (java.io.BufferedReader r = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(proc.getInputStream()))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    if (out.length() < 4000) out.append(line).append('\n');
+                }
+            }
+
+            boolean done = proc.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
+            if (!done) {
+                proc.destroyForcibly();
+                return ProbeResult.UNAVAILABLE;
+            }
+            int code = proc.exitValue();
+            if (code == 0) return ProbeResult.OK;
+
+            String o = out.toString().toLowerCase(java.util.Locale.ROOT);
+            // 真正的 Python 跑起来了但缺少 uvicorn：给出精确的“装依赖”提示。
+            if (o.contains("modulenotfounderror") || o.contains("no module named")) {
+                return ProbeResult.NO_UVICORN;
+            }
+            // 其它非零退出（例如 Store 桩的 9009、"Python was not found" 等）视为不可用。
+            return ProbeResult.UNAVAILABLE;
+        } catch (IOException e) {
+            return ProbeResult.UNAVAILABLE;
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            return ProbeResult.UNAVAILABLE;
         }
     }
 
@@ -363,85 +403,93 @@ public final class BackendAutoStarter {
                 }
             }
 
-            IOException lastIo = null;
-            String lastTestedPython = null;
+            // 先探测每个候选解释器：必须能实际运行 Python 且能 import uvicorn，
+            // 才认定可用。这可避开 Windows 的“Microsoft Store python.exe 桩”——
+            // 它能被 ProcessBuilder 启动、随即以退出码 9009 结束（并未真正跑 Python）。
+            String workingPython = null;
+            boolean sawPythonButNoUvicorn = false;
+            String noUvicornPython = null;
             for (String py : pythonCandidates) {
-                lastTestedPython = py;
-                
-                // 先测试 Python 可执行文件是否可用（仅对路径形式的，不对命令形式的）
-                if (py.contains(File.separator) || py.contains("/") || py.contains("\\")) {
-                    if (!testPythonExecutable(py)) {
-                        log("Python executable not available: " + py);
-                        continue;
-                    }
-                }
-                
-                List<String> cmd = new ArrayList<>();
-                cmd.add(py);
-                cmd.add("-m");
-                cmd.add("uvicorn");
-                cmd.add("app.main:app");
-                cmd.add("--host");
-                cmd.add("127.0.0.1");
-                cmd.add("--port");
-                cmd.add(String.valueOf(port));
-                cmd.add("--log-level");
-                cmd.add("info");
-
-                try {
-                    ProcessBuilder pb = new ProcessBuilder(cmd);
-                    pb.directory(wd);
-                    pb.redirectErrorStream(true);
-                    pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
-
-                    log("starting: " + String.join(" ", cmd) + " (cwd=" + wd.getAbsolutePath() + ")");
-                    backendProcess = pb.start();
-                    lastError = null;
-
-                    // 异步监控：如果子进程很快退出，把退出码记到 autostart 日志里（否则用户只能猜）
-                    Process proc = backendProcess;
-                    CompletableFuture.runAsync(() -> {
-                        try {
-                            int code = proc.waitFor();
-                            String msg = "backend process exited. code=" + code + " (see logs/formacraft_orchestrator.log)";
-                            lastError = msg;
-                            log(msg);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                        } catch (Exception e) {
-                            logErr("failed while waiting backend process", e);
-                        }
-                    });
+                ProbeResult pr = probeInterpreter(py, wd);
+                if (pr == ProbeResult.OK) {
+                    workingPython = py;
                     break;
-                } catch (IOException e) {
-                    lastIo = e;
-                    backendProcess = null;
-                    logErr("failed to start backend with '" + py + "'. cwd=" + wd.getAbsolutePath(), e);
+                } else if (pr == ProbeResult.NO_UVICORN) {
+                    sawPythonButNoUvicorn = true;
+                    noUvicornPython = py;
+                    log("found usable Python but 'uvicorn' is not importable: " + py);
+                } else {
+                    log("python candidate not usable (not found / Store stub / error): " + py);
                 }
             }
 
-            if (backendProcess == null && lastIo != null) {
+            if (workingPython == null) {
                 StringBuilder errorMsg = new StringBuilder();
-                errorMsg.append("无法启动后端服务。");
-                errorMsg.append("\n已尝试的 Python 可执行文件：");
+                if (sawPythonButNoUvicorn) {
+                    errorMsg.append("找到了 Python，但缺少 uvicorn 依赖，后端无法启动。");
+                    errorMsg.append("\n请在 python_backend 目录安装依赖：");
+                    errorMsg.append("\n  ").append(noUvicornPython != null ? noUvicornPython : "python")
+                            .append(" -m pip install -r requirements.txt");
+                } else {
+                    errorMsg.append("无法启动后端服务：未找到可用的 Python。");
+                    errorMsg.append("\n（Windows 提示：命令行里的 python 可能是 Microsoft Store 的占位程序，"
+                            + "会以退出码 9009 立即退出，并非真正的 Python。）");
+                }
+                errorMsg.append("\n\n已尝试：");
                 for (String py : pythonCandidates) {
                     errorMsg.append("\n  - ").append(py);
                 }
-                errorMsg.append("\n\n可能的原因：");
-                errorMsg.append("\n1. Python 未安装或未添加到 PATH");
-                errorMsg.append("\n2. uvicorn 未安装（运行：pip install uvicorn fastapi）");
-                errorMsg.append("\n3. 虚拟环境未激活或配置不正确");
-                errorMsg.append("\n\n解决方案：");
-                errorMsg.append("\n1. 在设置中配置正确的 pythonExecutable 路径");
-                errorMsg.append("\n2. 确保在 python_backend 目录中安装了依赖：pip install -r requirements.txt");
-                errorMsg.append("\n3. 如果使用虚拟环境，确保虚拟环境已创建并激活");
-                if (lastTestedPython != null) {
-                    errorMsg.append("\n\n最后尝试的 Python：").append(lastTestedPython);
-                }
-                if (lastIo != null) {
-                    errorMsg.append("\n错误详情：").append(lastIo.getMessage());
-                }
+                errorMsg.append("\n\n解决方案（任选其一）：");
+                errorMsg.append("\n1. 安装 Python 3 并勾选 \"Add python.exe to PATH\"；");
+                errorMsg.append("\n2. 在设置面板/配置里把 pythonExecutable 指向具体的 python.exe，例如："
+                        + "\n   C:\\\\Users\\\\<你>\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe");
+                errorMsg.append("\n3. 关闭 Windows「应用执行别名」里的 python.exe / python3.exe 占位项；");
+                errorMsg.append("\n4. 在 python_backend 下安装依赖：python -m pip install -r requirements.txt。");
                 lastError = errorMsg.toString();
+                log(lastError);
+                return;
+            }
+
+            List<String> cmd = new ArrayList<>();
+            cmd.add(workingPython);
+            cmd.add("-m");
+            cmd.add("uvicorn");
+            cmd.add("app.main:app");
+            cmd.add("--host");
+            cmd.add("127.0.0.1");
+            cmd.add("--port");
+            cmd.add(String.valueOf(port));
+            cmd.add("--log-level");
+            cmd.add("info");
+
+            try {
+                ProcessBuilder pb = new ProcessBuilder(cmd);
+                pb.directory(wd);
+                pb.redirectErrorStream(true);
+                pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
+
+                log("starting: " + String.join(" ", cmd) + " (cwd=" + wd.getAbsolutePath() + ")");
+                backendProcess = pb.start();
+                lastError = null;
+
+                // 异步监控：如果子进程很快退出，把退出码记到 autostart 日志里（否则用户只能猜）
+                Process proc = backendProcess;
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        int code = proc.waitFor();
+                        String msg = "backend process exited. code=" + code + " (see logs/formacraft_orchestrator.log)";
+                        lastError = msg;
+                        log(msg);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    } catch (Exception e) {
+                        logErr("failed while waiting backend process", e);
+                    }
+                });
+            } catch (IOException e) {
+                backendProcess = null;
+                logErr("failed to start backend with '" + workingPython + "'. cwd=" + wd.getAbsolutePath(), e);
+                lastError = "failed to start backend with '" + workingPython + "': " + e.getMessage();
                 log(lastError);
                 return;
             }
