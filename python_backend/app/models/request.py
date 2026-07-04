@@ -2,6 +2,32 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class ReferenceInput(BaseModel):
+    """PR-4: 用户附带的参考图 / URL（与 Java ReferenceInput 对齐）。"""
+
+    type: str  # image_url | image_base64 | web_url
+    content: str
+    caption: Optional[str] = None
+
+    def normalized_image_url(self) -> Optional[str]:
+        t = (self.type or "").strip().lower()
+        c = (self.content or "").strip()
+        if not c:
+            return None
+        if t == "image_url" and c.startswith(("http://", "https://")):
+            return c
+        if t == "image_base64":
+            return c if c.startswith("data:image") else f"data:image/jpeg;base64,{c}"
+        if t == "web_url" and c.startswith(("http://", "https://")):
+            lower = c.lower()
+            if any(ext in lower for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif")):
+                return c
+        return None
+
+    def is_web_page(self) -> bool:
+        return (self.type or "").strip().lower() == "web_url"
+
+
 class Vec3i(BaseModel):
     x: int
     y: int
@@ -101,4 +127,7 @@ class BuildRequest(BaseModel):
     llmBaseUrl: Optional[str] = None
 
     ragBudget: Optional[RagBudget] = None
+
+    # PR-4: 参考图 / 网页链接
+    references: Optional[list[ReferenceInput]] = None
 

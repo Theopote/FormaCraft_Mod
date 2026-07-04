@@ -66,28 +66,18 @@ def _strip_research_profile_block(text: str) -> str:
     tail = text[start:]
     rules = tail.find("Planning rules:")
     if rules >= 0:
-        pos = rules
-        blank_seen = False
-        while pos < len(tail):
-            nl = tail.find("\n", pos + 1)
-            if nl < 0:
-                pos = len(tail)
+        lines = tail[rules:].split("\n")
+        end = rules
+        for i, line in enumerate(lines):
+            end += len(line) + (1 if i < len(lines) - 1 else 0)
+            if i > 0 and line.strip() == "":
                 break
-            line = tail[pos + 1:nl] if pos >= 0 else tail[:nl]
-            if pos >= rules and line.strip() == "":
-                if blank_seen:
-                    pos = nl + 1
-                    break
-                blank_seen = True
-            pos = nl
-        after = tail[pos:].lstrip("\n")
+        after = tail[end:].lstrip("\n")
     else:
-        # 无 Planning rules 的短注入：去掉标题行后保留后续内容
-        hdr = tail.find("===")
-        hdr2 = tail.find("===", hdr + 3) if hdr >= 0 else -1
-        chunk = tail[hdr2 + 3:] if hdr2 >= 0 else tail
-        parts = chunk.split("\n\n", 1)
-        after = parts[1].strip() if len(parts) > 1 else ""
+        close = tail.find("===", len("=== Building Research Profile"))
+        chunk = tail[close + 3:].lstrip("\n") if close >= 0 else tail
+        parts = [p for p in chunk.split("\n\n") if p.strip()]
+        after = "\n\n".join(parts[1:]) if len(parts) > 1 else ""
     if before and after:
         return f"{before}\n\n{after}".strip()
     return (before or after).strip()
@@ -119,6 +109,7 @@ def build_plan_stage_user_block(
         "3. dimensions ← scale_hints (blocks); use reasonable defaults if null",
         "4. style_profile ← identity.style when available",
         "5. MODULE/landmark only when landmark_module is set in profile",
+        "6. If research_notes contain [Visual], prioritize visual observations for form/materials",
         "",
     ]
     if include_registered_types:
@@ -147,13 +138,7 @@ def augment_prompts_for_plan_stage(
     """
     stage_block = build_plan_stage_user_block(profile, user_request)
 
-    # 去掉 user_prompt 里可能重复的 Building Research Profile 段（PR-1 单阶段注入）
-    cleaned = user_prompt
-    marker = "=== Building Research Profile"
-    if marker in cleaned:
-        idx = cleaned.find(marker)
-        # 保留 marker 之前的内容（intent / culture rag 等）
-        cleaned = cleaned[:idx].rstrip()
+    cleaned = _strip_research_profile_block(user_prompt)
 
     new_user = stage_block
     if cleaned.strip():
@@ -161,7 +146,7 @@ def augment_prompts_for_plan_stage(
 
     new_system = system_prompt.strip()
     addon = plan_stage_system_augmentation()
-    if addon not in new_system:
+    if PLAN_STAGE_MARKER not in new_system:
         new_system = (new_system + "\n\n" + addon).strip() if new_system else addon
 
     return new_system, new_user

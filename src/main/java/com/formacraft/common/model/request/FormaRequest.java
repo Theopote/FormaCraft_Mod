@@ -41,6 +41,9 @@ public class FormaRequest {
     private String sessionId;
     private java.util.List<String> chatHistory;
 
+    /** PR-4: 参考图 / 网页链接 */
+    private java.util.List<ReferenceInput> references;
+
     // LLM 覆盖配置（从客户端 Settings 传入，优先于后端环境变量）
     private String apiKey;
     private String model;
@@ -53,6 +56,7 @@ public class FormaRequest {
     public FormaRequest() {
         this.chatHistory = java.util.Collections.emptyList();
         this.protectedZones = java.util.Collections.emptyList();
+        this.references = java.util.Collections.emptyList();
     }
 
     public FormaRequest(String requestText, BlockPos playerPos, String facing, String dimension,
@@ -251,6 +255,14 @@ public class FormaRequest {
 
     public void setOutputFormat(String outputFormat) {
         this.outputFormat = outputFormat;
+    }
+
+    public java.util.List<ReferenceInput> getReferences() {
+        return references;
+    }
+
+    public void setReferences(java.util.List<ReferenceInput> references) {
+        this.references = references != null ? references : java.util.Collections.emptyList();
     }
 }
 

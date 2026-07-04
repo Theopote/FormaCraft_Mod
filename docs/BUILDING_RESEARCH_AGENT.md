@@ -78,4 +78,4 @@ Plan 阶段应读取：
 
 - `BUILDING_RESEARCH_LLM_SYNTH=on` 作为 Stage R 生产默认（评估延迟后）
 - Wikipedia infobox provider
-- Vision 参考图 merge 进 profile（PR-4）
+- ~~Vision 参考图 merge 进 profile（PR-4）~~ → 见 [VISION_REFERENCE.md](VISION_REFERENCE.md)

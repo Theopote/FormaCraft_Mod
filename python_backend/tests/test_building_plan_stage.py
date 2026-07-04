@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from app.models.building_profile import BuildingProfile
 from app.services.building_plan_stage import (
+    PLAN_STAGE_MARKER,
     augment_prompts_for_plan_stage,
     build_plan_stage_user_block,
     evaluate_plan_profile_alignment,
@@ -57,7 +58,7 @@ class PlanStagePromptTest(unittest.TestCase):
         self.assertIn("STAGE P", user_out)
         self.assertNotIn("Building Research Profile (open-world)", user_out)
         self.assertIn("Culture context here", user_out)
-        self.assertIn(plan_stage_system_augmentation(), sys_out)
+        self.assertIn(PLAN_STAGE_MARKER, sys_out)
 
     def test_system_augmentation_appended_once(self):
         profile = synthesize_profile_rule_based("test", "build test", [])

@@ -15,6 +15,7 @@ import com.formacraft.client.ui.input.InputRouter;
 import com.formacraft.client.ui.text.SelectableTextBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
+import com.formacraft.common.model.request.ReferenceInputExtractor;
 import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.config.SettingsConfig;
@@ -819,6 +820,7 @@ public class ChatPanel extends BasePanel {
         FormaRequest req = new FormaRequest();
         req.setRequestText(finalPrompt);
         req.setUserMessage(text);
+        req.setReferences(ReferenceInputExtractor.extractFromText(text));
         req.setPromptMode(promptMode.name());
         // 因为 PromptAssembler 总是生成 LlmPlan 格式的 prompt，所以默认使用 LlmPlan
         // 用户可以通过 outputFormat 字段覆盖这个行为

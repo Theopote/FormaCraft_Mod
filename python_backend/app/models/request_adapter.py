@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from .request import (
     BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i,
-    OutlineShape, ProtectedZone, PathConstraint,
+    OutlineShape, ProtectedZone, PathConstraint, ReferenceInput,
 )
 
 
@@ -43,6 +43,7 @@ class FormaRequestAdapter(BaseModel):
     temperature: Optional[float] = None
     llmProvider: Optional[str] = None
     llmBaseUrl: Optional[str] = None
+    references: Optional[list[ReferenceInput]] = None
     
     # Python 端格式（嵌套结构，向后兼容）
     player: Optional[dict] = None
@@ -127,6 +128,7 @@ class FormaRequestAdapter(BaseModel):
                 temperature=self.temperature,
                 llmProvider=self.llmProvider,
                 llmBaseUrl=self.llmBaseUrl,
+                references=self.references,
             )
         else:
             # Python 端格式：从嵌套结构构建
@@ -188,5 +190,6 @@ class FormaRequestAdapter(BaseModel):
                 temperature=self.temperature,
                 llmProvider=self.llmProvider,
                 llmBaseUrl=self.llmBaseUrl,
+                references=self.references,
             )
 

@@ -15,7 +15,7 @@ import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..models.building_profile import BuildingProfile, profile_from_llm_dict
-from ..models.request import BuildRequest
+from ..models.request import BuildRequest, ReferenceInput
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ def _extract_subject(text: str) -> Optional[str]:
         return None
 
     patterns = [
-        r"(?:建|盖|造|复原|还原|复刻|建造|打造|生成|制作|修|搭|仿|照)\s*(?:一个|一座|一栋|一间)?\s*(.{2,48}?)(?:[，。,.!！?？]|$)",
+        r"(?:建造|打造|生成|制作|复原|还原|复刻|建|盖|造|修|搭|仿|照)\s*(?:一个|一座|一栋|一间)?\s*(.{2,48}?)(?:[，。,.!！?？]|$)",
         r"(?:build|recreate|reconstruct|make|construct|replicate|restore|model)\s+(?:a|an|the|me\s+)?(.{2,60}?)(?:[,.!?]|$)",
     ]
     for pat in patterns:
@@ -167,7 +167,11 @@ def _extract_subject(text: str) -> Optional[str]:
     return None
 
 
-def plan_search_queries(user_text: str) -> Tuple[bool, List[str], str]:
+def plan_search_queries(
+    user_text: str,
+    *,
+    has_references: bool = False,
+) -> Tuple[bool, List[str], str]:
     """
     QueryPlanner（规则版，零 LLM 延迟）。
 
@@ -176,15 +180,21 @@ def plan_search_queries(user_text: str) -> Tuple[bool, List[str], str]:
     """
     text = (user_text or "").strip()
     mode = research_mode()
-    if mode == "off" or not text or _is_edit_or_patch_prompt(text):
+    if mode == "off" or _is_edit_or_patch_prompt(text):
+        return False, [], ""
+    if not text and not has_references:
         return False, [], ""
 
-    extracted = _extract_subject(text)
-    subject = extracted or text[:60]
-    has_intent = _has_build_intent(text)
+    extracted = _extract_subject(text) if text else None
+    subject = extracted or (text[:60] if text else "reference building")
+    has_intent = _has_build_intent(text) if text else False
 
     if not has_intent and not extracted:
-        return False, [], subject
+        if has_references:
+            # 仅图片/链接参考：仍触发开放世界研究
+            pass
+        else:
+            return False, [], subject
 
     if mode == "named_only" and not extracted:
         return False, [], subject
@@ -427,25 +437,54 @@ def research_building_profile(
     user_text: str,
     *,
     req: Optional[BuildRequest] = None,
+    references: Optional[List[ReferenceInput]] = None,
     call_with_timeout: Optional[Callable] = None,
     search_fn: Optional[Callable[[str, int], List[Dict[str, str]]]] = None,
 ) -> Optional[BuildingProfile]:
     """
     完整 Research 流程；失败返回 None（不阻塞 plan 生成）。
+    PR-4: references[] 触发 vision 分析并 merge 进 profile。
     """
-    if not is_building_research_enabled():
+    refs: List[ReferenceInput] = list(references or [])
+    if not refs and req is not None and getattr(req, "references", None):
+        refs = list(req.references or [])
+    has_refs = bool(refs)
+
+    if not is_building_research_enabled() and not has_refs:
         return None
 
-    should_search, queries, subject = plan_search_queries(user_text)
-    if not should_search:
+    should_search, queries, subject = plan_search_queries(
+        user_text, has_references=has_refs,
+    )
+    if not should_search and not has_refs:
         logger.debug("Building research skipped: no search intent for %r", user_text[:80])
         return None
 
     def _run() -> BuildingProfile:
-        results = multi_source_search(queries, search_fn=search_fn) if queries else []
+        nonlocal subject
+        visual = None
+        if has_refs:
+            try:
+                from .vision_analyzer import analyze_references, merge_visual_into_profile
+
+                visual = analyze_references(
+                    refs,
+                    user_text,
+                    req=req,
+                    call_with_timeout=call_with_timeout,
+                )
+                if visual and visual.building_name:
+                    subject = visual.building_name
+            except Exception as e:
+                logger.warning("Vision reference analysis failed: %s", e)
+
+        results: List[Dict[str, str]] = []
+        if should_search and queries:
+            results = multi_source_search(queries, search_fn=search_fn)
+
         profile: Optional[BuildingProfile] = None
 
-        if _building_research_llm_synth() and req is not None:
+        if _building_research_llm_synth() and req is not None and should_search:
             try:
                 from .llm_client import get_client, build_config
 
@@ -466,11 +505,15 @@ def research_building_profile(
         if profile is None:
             profile = synthesize_profile_rule_based(subject, user_text, results)
 
+        if visual is not None:
+            profile = merge_visual_into_profile(profile, visual)
+
         logger.info(
-            "Building research: subject=%r queries=%d results=%d confidence=%.2f",
+            "Building research: subject=%r queries=%d results=%d refs=%d confidence=%.2f",
             subject,
             len(queries),
             len(results),
+            len(refs),
             profile.identity.confidence,
         )
         return profile
