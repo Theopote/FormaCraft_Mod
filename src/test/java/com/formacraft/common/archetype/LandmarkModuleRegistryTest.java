@@ -18,11 +18,26 @@ class LandmarkModuleRegistryTest {
     }
 
     @Test
-    void promptRoutingHintForIntent_stadiumPrompt() {
+    void promptRoutingHintForIntent_stadiumPrompt_isSuggestedNotMandatory() {
         String hint = LandmarkModuleRegistry.promptRoutingHintForIntent(
                 "在锚点位置生成现代风格的椭圆形体育场建筑");
         assertTrue(hint.contains("birds_nest_stadium"));
-        assertTrue(hint.contains("MODULE"));
+        assertTrue(hint.contains("RECOMMENDED"));
+        assertTrue(!hint.contains("MANDATORY FOR THIS REQUEST"));
+    }
+
+    @Test
+    void promptRoutingHintForIntent_explicitBirdsNest_isMandatory() {
+        String hint = LandmarkModuleRegistry.promptRoutingHintForIntent("在锚点位置生成鸟巢体育馆");
+        assertTrue(hint.contains("birds_nest_stadium"));
+        assertTrue(hint.contains("MANDATORY"));
+    }
+
+    @Test
+    void promptRoutingHintForIntent_creativeIntent_empty() {
+        String hint = LandmarkModuleRegistry.promptRoutingHintForIntent(
+                "在锚点位置原创设计一座独特的现代椭圆体育场，不要地标");
+        assertTrue(hint == null || hint.isBlank());
     }
 
     @Test

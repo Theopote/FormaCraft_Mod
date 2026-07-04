@@ -4377,8 +4377,20 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
 
             routing = _landmark_routing(qtext)
             if routing:
-                parts.append("\nLandmarkModuleRouting(JSON) [MANDATORY — follow for LlmPlan components[]]:")
+                tier = str(routing.get("routingTier") or "suggested").lower()
+                if tier == "mandatory":
+                    label = "MANDATORY"
+                elif tier == "suggested":
+                    label = "RECOMMENDED"
+                else:
+                    label = "OPTIONAL"
+                parts.append(
+                    f"\nLandmarkModuleRouting(JSON) [{label} — follow tier for LlmPlan components[]]:"
+                )
                 parts.append(json.dumps(routing, ensure_ascii=False, indent=2))
+
+            from app.services.landmark_routing_policy import variation_context_block as _variation_block
+            parts.append("\n" + _variation_block())
 
             building_kb = _building_knowledge_retrieve(qtext, topK=1)
             if building_kb:

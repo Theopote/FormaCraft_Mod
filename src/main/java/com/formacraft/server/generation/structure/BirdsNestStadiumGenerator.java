@@ -56,6 +56,9 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
                 spec != null && spec.getFootprint() != null ? spec.getFootprint().getDepth() / 2 : 40), 20, 90);
         int height = clamp(getIntExtra(spec, "height", spec != null ? spec.getHeight() : 28), 14, 60);
         boolean mesh = getBoolExtra(spec, "meshStructure", true);
+        long designSeed = resolveDesignSeed(spec, origin);
+        float bowlSteepness = clampFloat(getFloatExtra(spec, "bowlSteepness", 0.35f), 0.2f, 0.5f);
+        int tierStep = clamp(getIntExtra(spec, "tierStep", 4), 2, 8);
 
         BlockState concrete = Blocks.GRAY_CONCRETE.getDefaultState();
         BlockState slab = Blocks.SMOOTH_STONE_SLAB.getDefaultState();
@@ -78,22 +81,22 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
         // 场地地坪
         fillEllipse(blocks, origin, entrance, 0, halfW - 4, halfD - 6, 0, floor);
 
-        // 碗状看台（逐层收缩的椭圆环）
+        // 碗状看台（逐层收缩的椭圆环；bowlSteepness 控制坡度）
         for (int y = 1; y <= height; y++) {
             float t = y / (float) height;
-            int innerA = Math.max(4, (int) (halfW * (0.55f + 0.35f * t)));
-            int innerB = Math.max(4, (int) (halfD * (0.55f + 0.35f * t)));
+            int innerA = Math.max(4, (int) (halfW * (0.55f + bowlSteepness * t)));
+            int innerB = Math.max(4, (int) (halfD * (0.55f + bowlSteepness * t)));
             int outerA = innerA + 2;
             int outerB = innerB + 2;
             ringEllipse(blocks, origin, entrance, y, innerA, innerB, outerA, outerB, concrete);
-            if (y % 4 == 0) {
+            if (y % tierStep == 0) {
                 ringEllipse(blocks, origin, entrance, y, innerA, innerB, outerA, outerB, slab);
             }
         }
 
         // 外露钢网外壳
         if (mesh) {
-            buildMeshShell(blocks, origin, entrance, halfW + 2, halfD + 2, height + 2, meshBlock, accent);
+            buildMeshShell(blocks, origin, entrance, halfW + 2, halfD + 2, height + 2, meshBlock, accent, designSeed);
         }
 
         return new GeneratedStructure(null, origin, "Bird's Nest Stadium (v1)", blocks);
@@ -107,8 +110,10 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
             int halfD,
             int height,
             BlockState mesh,
-            BlockState accent
+            BlockState accent,
+            long designSeed
     ) {
+        int seedMix = (int) (designSeed & 0xFFFFL);
         for (int y = 0; y <= height; y++) {
             float yNorm = y / (float) Math.max(1, height);
             int a = (int) (halfW * (0.9f + 0.15f * Math.sin(yNorm * Math.PI)));
@@ -117,7 +122,7 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
                 for (int z = -b; z <= b; z++) {
                     double norm = (x * x) / (double) (a * a) + (z * z) / (double) (b * b);
                     if (norm < 0.82 || norm > 1.05) continue;
-                    int hash = Math.floorMod(x * 31 + z * 17 + y * 13, 7);
+                    int hash = Math.floorMod(x * 31 + z * 17 + y * 13 + seedMix, 7);
                     if (hash == 0) continue;
                     BlockState state = (hash % 3 == 0) ? accent : mesh;
                     blocks.add(new PlannedBlock(local(origin, entrance, x, y, z), state));
@@ -198,6 +203,42 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
             }
         } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
+    }
+
+    private static long resolveDesignSeed(BuildingSpec spec, BlockPos origin) {
+        if (spec != null && spec.getExtra() != null) {
+            Object v = spec.getExtra().get("designSeed");
+            if (v instanceof Number n) {
+                return n.longValue();
+            }
+            if (v != null) {
+                try {
+                    return Long.parseLong(String.valueOf(v).trim());
+                } catch (NumberFormatException ignored) {
+                    // fall through
+                }
+            }
+        }
+        if (origin != null) {
+            return origin.asLong() ^ 0xB1RD5NE5TL;
+        }
+        return 42L;
+    }
+
+    private static float getFloatExtra(BuildingSpec spec, String key, float def) {
+        if (spec == null || spec.getExtra() == null || key == null) return def;
+        Object v = spec.getExtra().get(key);
+        if (v == null) return def;
+        if (v instanceof Number n) return n.floatValue();
+        try {
+            return Float.parseFloat(String.valueOf(v).trim());
+        } catch (NumberFormatException ex) {
+            return def;
+        }
+    }
+
+    private static float clampFloat(float v, float min, float max) {
+        return Math.max(min, Math.min(max, v));
     }
 
     private static String getStringExtra(BuildingSpec spec, String key, String def) {

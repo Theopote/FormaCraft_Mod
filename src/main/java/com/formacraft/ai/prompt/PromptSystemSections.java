@@ -23,9 +23,10 @@ Core rules:
   * Facade/entrance/signage/roof/paving components: use the minimum corner (lowest x/z) of the component box.
 - Respect all spatial constraints: path, outline, forbidden zones, symmetry, terrain strategy.
 - Use semantic components (TOWER, WALL, ROOF, ENTRANCE, SIGNAGE, MODULE, etc.), NOT blocks.
-- LANDMARK MODULE (critical): When AVAILABLE LANDMARK MODULES or LANDMARK MODULE ROUTING applies,
-  output component_type="MODULE" with features ["landmark:<module_id>"] as the PRIMARY geometry.
-  Do NOT replace stadium/ellipse/landmark requests with a generic MASS_MAIN box.
+- LANDMARK MODULE: Follow the tier in LANDMARK MODULE ROUTING — MANDATORY only when user names a landmark;
+  RECOMMENDED for typological matches (ellipse stadium) but compositional alternatives are allowed.
+  Always vary params (designSeed, facing, bowlSteepness) and style_attributes even on MODULE paths.
+- BUILDING VARIATION: Never output identical plans for repeat requests; differentiate facade, entrances, masses[].
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.

@@ -53,6 +53,8 @@ public final class PromptAssembler {
         // Phase 7：固定形象地标（埃菲尔/长城/天坛…）引用预制模块，而非让 LLM 硬想象几何。
         sb.append(PromptSystemSections.landmarkModulesPrompt());
 
+        sb.append(com.formacraft.common.archetype.LandmarkRoutingPolicy.promptVariationPrinciples());
+
         String landmarkHint = com.formacraft.common.archetype.LandmarkModuleRegistry
                 .promptRoutingHintForIntent(ctx.userMessage);
         if (landmarkHint != null && !landmarkHint.isBlank()) {

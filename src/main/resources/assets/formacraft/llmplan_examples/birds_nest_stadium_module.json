@@ -43,7 +43,10 @@
         "params": {
           "module_id": "birds_nest_stadium",
           "meshStructure": true,
-          "elliptical": true
+          "elliptical": true,
+          "designSeed": 2847,
+          "bowlSteepness": 0.38,
+          "facing": "SOUTH"
         }
       }
     ]

@@ -157,11 +157,13 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
 
         Map<String, Object> params = c.params();
         if (params != null) {
-            copyIfPresent(params, extra, "landmark");
-            copyIfPresent(params, extra, "template");
-            copyIfPresent(params, extra, "blueprint");
-            copyIfPresent(params, extra, "assembly");
-            copyIfPresent(params, extra, "styleProfileId");
+            for (String key : List.of(
+                    "landmark", "template", "blueprint", "assembly", "styleProfileId",
+                    "meshStructure", "facing", "gateSide", "designSeed", "paletteId",
+                    "bowlSteepness", "tierStep", "width", "depth", "height", "elliptical"
+            )) {
+                copyIfPresent(params, extra, key);
+            }
             // Phase 7：module_id → 规范地标 id（走既有 landmark 路由）
             Object moduleId = params.get("module_id");
             if (moduleId != null) {

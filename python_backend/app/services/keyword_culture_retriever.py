@@ -423,56 +423,84 @@ def _compact_llmplan_example(ex: Any) -> Dict[str, Any]:
 
 def resolve_landmark_module_routing(prompt: str) -> Optional[Dict[str, Any]]:
     """
-    Resolve whether the user prompt should force a landmark MODULE in LlmPlan output.
-    Sources: culture_cards (landmarkModuleId), building_knowledge, keyword heuristics.
+    Resolve landmark MODULE routing tier for LlmPlan output.
+    MANDATORY only when user names a landmark; SUGGESTED for typological matches;
+    None when user wants 原创/独特/不要地标.
     """
+    from app.services.landmark_routing_policy import (
+        RoutingTier,
+        is_creative_or_original_intent,
+        resolve_for_user_intent,
+        variation_context_block,
+    )
+
     q = (prompt or "").strip()
     if not q:
         return None
 
-    module_id: Optional[str] = None
+    if is_creative_or_original_intent(q):
+        return None
+
+    decision = resolve_for_user_intent(q)
+    module_id: Optional[str] = decision.module_id if decision else None
+    routing_tier = decision.tier if decision else RoutingTier.SUGGESTED
+    source = decision.reason if decision else None
+
     llm_plan_few_shots: List[Dict[str, Any]] = []
-    source = None
     instruction = None
 
     rag = retrieve(q, topK=1, fewShotK=0)
-    if isinstance(rag.get("landmarkModuleId"), str) and rag["landmarkModuleId"].strip():
+    if module_id is None and isinstance(rag.get("landmarkModuleId"), str) and rag["landmarkModuleId"].strip():
         module_id = rag["landmarkModuleId"].strip()
-        source = "culture_card"
-        fs = rag.get("llmPlanFewShots")
-        if isinstance(fs, list):
-            llm_plan_few_shots = [x for x in fs if isinstance(x, dict)]
+        source = source or "culture_card"
+    if isinstance(rag.get("llmPlanFewShots"), list):
+        llm_plan_few_shots = [x for x in rag["llmPlanFewShots"] if isinstance(x, dict)]
 
     kb = retrieve_building_knowledge(q, topK=1)
     if kb:
         kb_lm = str(kb.get("landmarkModuleId") or "").strip()
-        if kb_lm:
+        if kb_lm and module_id is None:
             module_id = kb_lm
             source = source or "building_knowledge"
         routing = kb.get("llmPlanRouting")
         if isinstance(routing, dict):
             instruction = routing.get("instruction") if isinstance(routing.get("instruction"), str) else instruction
 
-    qn = q.lower()
-    stadium_kw = any(k in qn for k in ("体育场", "体育馆", "stadium", "arena"))
-    ellipse_kw = any(k in qn for k in ("椭圆", "elliptical", "oval", "椭圆形"))
-    if module_id is None and stadium_kw and (ellipse_kw or "现代" in qn or "modern" in qn):
-        module_id = "birds_nest_stadium"
-        source = source or "keyword_heuristic"
-
     if not module_id:
         return None
+
+    tier_value = routing_tier.value if isinstance(routing_tier, RoutingTier) else str(routing_tier)
+    if tier_value == RoutingTier.MANDATORY.value:
+        default_instruction = (
+            f"User explicitly named landmark {module_id}. "
+            f"MUST output ONE MODULE with features [\"landmark:{module_id}\"]. "
+            "Still vary designSeed, facing, dimensions hints, style_attributes."
+        )
+    else:
+        default_instruction = (
+            f"Typological match for {module_id}. "
+            f"PREFERRED: MODULE with features [\"landmark:{module_id}\"] and varied params "
+            "(designSeed, bowlSteepness, facing). "
+            "ALTERNATIVE: compositional MASS tiers + PAVING + ROOF for 原创 results. "
+            "Do NOT use a plain rectangular MASS box for elliptical stadium requests."
+        )
 
     return {
         "moduleId": module_id,
         "componentType": "MODULE",
         "feature": f"landmark:{module_id}",
+        "routingTier": tier_value,
         "source": source,
-        "instruction": instruction or (
-            "Output ONE MODULE component with features [\"landmark:" + module_id + "\"]. "
-            "Do NOT substitute a generic MASS_MAIN rounded box for elliptical/bowl stadium requests."
-        ),
+        "instruction": instruction or default_instruction,
+        "variationHints": variation_context_block(),
         "exampleDimensions": {"width": 60, "depth": 80, "height": 28},
+        "exampleParams": {
+            "module_id": module_id,
+            "meshStructure": True,
+            "designSeed": 4821,
+            "bowlSteepness": 0.32,
+            "facing": "SOUTH",
+        },
         "llmPlanFewShots": llm_plan_few_shots,
     }
 

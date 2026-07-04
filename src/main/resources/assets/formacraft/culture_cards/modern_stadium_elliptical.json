@@ -42,9 +42,10 @@
     {
       "name": "elliptical_stadium_module",
       "constraints": [
-        "LlmPlan 必须输出单个 MODULE 组件 + features: [\"landmark:birds_nest_stadium\"]",
-        "禁止用 MASS_MAIN+rounded_rect 代替椭圆碗状体育场（MassMain 无法生成真椭圆看台）",
-        "dimensions 建议 width≈60 depth≈80 height≈28，作为模块缩放提示"
+        "椭圆/现代体育场：RECOMMENDED 路径为 MODULE + landmark:birds_nest_stadium（高保真碗状）",
+        "允许原创路径：MASS_MAIN shape=circle|rounded_rect + masses[] 分层 + PAVING 内场",
+        "禁止用单一 MASS_MAIN 方盒代替椭圆看台",
+        "即使走 MODULE，也应变化 designSeed、facing、bowlSteepness、dimensions、style_attributes"
       ]
     }
   ]
