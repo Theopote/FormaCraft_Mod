@@ -1,0 +1,51 @@
+{
+  "id": "modern_stadium_elliptical",
+  "styleId": "Modern_Stadium_Elliptical",
+  "intents": ["STADIUM", "ARENA", "体育馆", "体育场"],
+  "keywords": [
+    "体育场",
+    "体育馆",
+    "椭圆",
+    "椭圆形",
+    "椭圆馆",
+    "碗状",
+    "看台",
+    "stadium",
+    "arena",
+    "elliptical",
+    "oval"
+  ],
+  "synonyms": {
+    "体育场": ["sports stadium", "sport stadium", "football stadium"],
+    "体育馆": ["sports arena", "indoor stadium"],
+    "椭圆": ["elliptical", "oval", "ellipse"],
+    "椭圆形": ["elliptical shape", "oval footprint"]
+  },
+  "keywordWeights": {
+    "体育场": 6.0,
+    "体育馆": 6.0,
+    "椭圆": 5.0,
+    "椭圆形": 5.5,
+    "stadium": 5.0,
+    "elliptical": 5.0,
+    "arena": 4.0,
+    "碗状": 4.0,
+    "看台": 3.5
+  },
+  "negativeKeywords": ["哥特", "教堂", "四合院", "古建", "寺庙", "住宅", "别墅"],
+  "landmarkModuleId": "birds_nest_stadium",
+  "llmPlanExampleRefs": [
+    "birds_nest_stadium_module.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "elliptical_stadium_module",
+      "constraints": [
+        "LlmPlan 必须输出单个 MODULE 组件 + features: [\"landmark:birds_nest_stadium\"]",
+        "禁止用 MASS_MAIN+rounded_rect 代替椭圆碗状体育场（MassMain 无法生成真椭圆看台）",
+        "dimensions 建议 width≈60 depth≈80 height≈28，作为模块缩放提示"
+      ]
+    }
+  ]
+}

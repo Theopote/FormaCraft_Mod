@@ -43,6 +43,7 @@ GOLDEN_PROMPTS: List[str] = [
     "盖一个带院子的四合院",
     "盖一座天坛",
     "把屋顶换成红色",  # patch 类
+    "在锚点位置生成现代风格的椭圆形体育场建筑",
 ]
 
 # 尺寸合理性上限（与 Java OrchestratorClient.validateBuildingSpec 的 200 对齐）。
@@ -136,7 +137,232 @@ def _schema_ok(plan: Dict[str, Any]) -> Tuple[bool, str]:
         return False, str(e)
 
 
-def evaluate_plan(plan: Dict[str, Any], label: str = "plan") -> EvalResult:
+def _param_string(params: Dict[str, Any], *keys: str) -> Optional[str]:
+    for k in keys:
+        v = params.get(k)
+        if isinstance(v, str) and v.strip():
+            return v.strip().lower()
+    return None
+
+
+def _param_float(params: Dict[str, Any], *keys: str, default: float = 0.0) -> float:
+    for k in keys:
+        v = params.get(k)
+        if isinstance(v, (int, float)):
+            return float(v)
+    return default
+
+
+def _has_landmark_feature(c: Dict[str, Any], module_id: str) -> bool:
+    features = c.get("features")
+    if not isinstance(features, list):
+        return False
+    needle = module_id.lower()
+    for f in features:
+        if not isinstance(f, str):
+            continue
+        lower = f.lower()
+        if lower.startswith("landmark:") and needle in lower:
+            return True
+        if lower.startswith("module:") and needle in lower:
+            return True
+    return False
+
+
+def _genome_layout(plan: Dict[str, Any]) -> Optional[str]:
+    genome = plan.get("genome")
+    if not isinstance(genome, dict):
+        return None
+    topology = genome.get("topology")
+    if not isinstance(topology, dict):
+        return None
+    layout = topology.get("layout")
+    return layout.strip().lower() if isinstance(layout, str) and layout.strip() else None
+
+
+def _prompt_contains(prompt: Optional[str], tokens: Tuple[str, ...]) -> bool:
+    if not prompt:
+        return False
+    lower = prompt.lower()
+    return any(t.lower() in lower for t in tokens)
+
+
+def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
+    """SOFT：按用户 prompt 意图检查 plan 是否「像描述所说」——Week 1 质量闭环核心。"""
+    if not prompt or plan.get("mode") == "patch":
+        return []
+
+    checks: List[Check] = []
+    comps = _components(plan)
+    types = _component_types(plan)
+
+    # ---- 体育场 / 椭圆场景 ----
+    is_stadium = _prompt_contains(
+        prompt,
+        ("体育场", "体育馆", "stadium", "arena", "球场"),
+    )
+    is_elliptical = _prompt_contains(
+        prompt,
+        ("椭圆", "elliptical", "oval", "椭圆形"),
+    )
+
+    if is_stadium or is_elliptical:
+        has_landmark = any(
+            c.get("component_type", "").upper() == "MODULE"
+            and _has_landmark_feature(c, "birds_nest_stadium")
+            for c in comps
+        )
+        checks.append(Check(
+            "stadium_landmark_or_curved_mass",
+            has_landmark or _stadium_has_curved_mass(comps),
+            hard=False,
+            detail="体育场/椭圆意图：应用 MODULE+landmark:birds_nest_stadium，"
+                   "或 MASS params.shape=circle|rounded_rect + 非方 footprint",
+        ))
+
+        layout = plan.get("layout") if isinstance(plan.get("layout"), dict) else {}
+        sk = layout.get("skeleton_type") if isinstance(layout.get("skeleton_type"), str) else ""
+        g_layout = _genome_layout(plan)
+        radial_ok = (
+            sk.upper() in ("RADIAL_RING", "COMPOUND")
+            or g_layout in ("circular", "radial", "elliptical", "oval")
+        )
+        checks.append(Check(
+            "stadium_radial_layout",
+            radial_ok,
+            hard=False,
+            detail=f"skeleton_type={sk!r} genome.layout={g_layout!r}",
+        ))
+
+        has_field = (
+            "PAVING" in types
+            or _any_mass_void(comps, min_void=0.15)
+            or has_landmark
+        )
+        checks.append(Check(
+            "stadium_inner_field",
+            has_field,
+            hard=False,
+            detail="应有内场（PAVING / void_ratio / landmark 模块），而非实心盒子",
+        ))
+
+        if is_elliptical:
+            checks.append(Check(
+                "elliptical_shape_params",
+                has_landmark or _elliptical_shape_ok(comps),
+                hard=False,
+                detail="椭圆意图：landmark 或 MASS shape=circle/rounded_rect 且 width≠depth",
+            ))
+
+        checks.append(Check(
+            "stadium_seating_expressed",
+            has_landmark
+            or _has_tiered_masses(comps)
+            or sum(1 for t in types if t.startswith("MASS_")) >= 2,
+            hard=False,
+            detail="看台/分层应通过 landmark、mparams.masses[] 或多 MASS 体块表达，"
+                   "单靠 features 文本无效",
+        ))
+
+        checks.append(Check(
+            "stadium_high_fidelity_ellipse",
+            (not is_elliptical) or has_landmark or _has_plan_program(plan) or _has_tiered_masses(comps),
+            hard=False,
+            detail="真椭圆/碗状需 birds_nest_stadium 模块或 plan_program；"
+                   "MassMain 的 rounded_rect 仅为圆角矩形近似",
+        ))
+
+        checks.append(Check(
+            "stadium_paving_or_landmark_field",
+            has_landmark or "PAVING" in types,
+            hard=False,
+            detail="内场宜显式 PAVING 组件或 landmark 模块，void_ratio  alone 不足以形成场地感",
+        ))
+
+        checks.append(Check(
+            "genome_shape_consistency",
+            _genome_shape_consistent(plan, comps),
+            hard=False,
+            detail="genome 写 circular/curved 时 params.shape 应对齐（非裸 rectangle）",
+        ))
+
+    return checks
+
+
+def _stadium_has_curved_mass(comps: List[Dict[str, Any]]) -> bool:
+    for c in comps:
+        if c.get("component_type", "").upper() not in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "HOUSE", "BUILDING"):
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        shape = _param_string(params, "shape", "footprint_shape", "footprintShape")
+        if shape in ("circle", "circular", "round", "rounded_rect", "rounded", "roundrect", "round_rect"):
+            return True
+    return False
+
+
+def _elliptical_shape_ok(comps: List[Dict[str, Any]]) -> bool:
+    for c in comps:
+        if c.get("component_type", "").upper() != "MASS_MAIN":
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        shape = _param_string(params, "shape", "footprint_shape", "footprintShape")
+        dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
+        w = dims.get("width", 0) or 0
+        d = dims.get("depth", 0) or 0
+        if shape in ("circle", "circular", "round"):
+            return True
+        if shape in ("rounded_rect", "rounded", "roundrect", "round_rect") and w > 0 and d > 0 and w != d:
+            return True
+    return False
+
+
+def _any_mass_void(comps: List[Dict[str, Any]], min_void: float) -> bool:
+    for c in comps:
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        if _param_float(params, "void_ratio", "voidRatio") >= min_void:
+            return True
+        plan_type = _param_string(params, "plan_type", "planType")
+        if plan_type in ("courtyard", "ring", "donut"):
+            return True
+    return False
+
+
+def _has_tiered_masses(comps: List[Dict[str, Any]]) -> bool:
+    for c in comps:
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        masses = params.get("masses")
+        if isinstance(masses, list) and len(masses) >= 2:
+            return True
+    return False
+
+
+def _genome_shape_consistent(plan: Dict[str, Any], comps: List[Dict[str, Any]]) -> bool:
+    genome = plan.get("genome")
+    if not isinstance(genome, dict):
+        return True
+    form = genome.get("form") if isinstance(genome.get("form"), dict) else {}
+    topology = genome.get("topology") if isinstance(genome.get("topology"), dict) else {}
+    curvature = form.get("curvature")
+    layout = topology.get("layout")
+    wants_curved = (
+        (isinstance(curvature, str) and curvature.lower() in ("curved", "mixed"))
+        or (isinstance(layout, str) and layout.lower() in ("circular", "radial", "elliptical", "oval"))
+    )
+    if not wants_curved:
+        return True
+    for c in comps:
+        if c.get("component_type", "").upper() != "MASS_MAIN":
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        shape = _param_string(params, "shape", "footprint_shape", "footprintShape")
+        if shape in ("rectangle", "rect", "square", None):
+            return False
+        if shape in ("circle", "circular", "round", "rounded_rect", "rounded", "roundrect", "round_rect"):
+            return True
+    return bool(comps)
+
+
+def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[str] = None) -> EvalResult:
     res = EvalResult(label=label)
     add = res.checks.append
 
@@ -209,6 +435,10 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan") -> EvalResult:
     bad_facade = _invalid_facade_params(comps)
     add(Check("facade_params_valid", not bad_facade, hard=False,
               detail=", ".join(bad_facade)))
+
+    # SOFT：按用户 prompt 的意图对齐（Week 1+）。
+    for ic in evaluate_intent(plan, prompt):
+        add(ic)
 
     return res
 
@@ -292,7 +522,7 @@ def _print_result(res: EvalResult) -> None:
     status = "PASS" if res.ok else "FAIL"
     print(f"\n=== {res.label}: {status} ===")
     for c in res.checks:
-        mark = "✓" if c.passed else ("✗" if c.hard else "!")
+        mark = "OK" if c.passed else ("FAIL" if c.hard else "WARN")
         tier = "HARD" if c.hard else "soft"
         line = f"  [{mark}] {c.name} ({tier})"
         if c.detail and not c.passed:
@@ -328,13 +558,53 @@ def _summarize(results: List[EvalResult], gate: bool) -> int:
     return 0
 
 
-def run_offline(paths: List[Path], gate: bool = False) -> int:
+def _load_scenarios() -> List[Dict[str, Any]]:
+    path = _THIS.parent / "fixtures" / "scenarios.json"
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def run_scenarios(gate: bool = False) -> int:
+    """评估 fixtures/scenarios.json 中记录的 prompt + 捕获 plan。"""
+    scenarios = _load_scenarios()
+    if not scenarios:
+        print("未找到 eval/fixtures/scenarios.json")
+        return 2
+
+    results: List[EvalResult] = []
+    for sc in scenarios:
+        if not isinstance(sc, dict):
+            continue
+        prompt = sc.get("prompt") if isinstance(sc.get("prompt"), str) else ""
+        rel = sc.get("plan_fixture") if isinstance(sc.get("plan_fixture"), str) else ""
+        plan_path = _THIS.parent / "fixtures" / rel
+        plan = _load_plan_file(plan_path)
+        if plan is None:
+            continue
+        label = sc.get("id") or plan_path.name
+        results.append(evaluate_plan(plan, label=f"{label} | {prompt[:24]}…", prompt=prompt))
+
+    if not results:
+        print("scenario fixtures 无法加载。")
+        return 2
+
+    for r in results:
+        _print_result(r)
+    return _summarize(results, gate)
+
+
+def run_offline(paths: List[Path], gate: bool = False, prompt: Optional[str] = None) -> int:
     results: List[EvalResult] = []
     for p in paths:
         plan = _load_plan_file(p)
         if plan is None:
             continue
-        results.append(evaluate_plan(plan, label=p.name))
+        results.append(evaluate_plan(plan, label=p.name, prompt=prompt))
 
     if not results:
         print("没有可评估的 plan 文件。")
@@ -368,7 +638,7 @@ def run_live(gate: bool = False) -> int:
         )
         try:
             plan = generate_llm_plan(req)
-            results.append(evaluate_plan(plan, label=prompt))
+            results.append(evaluate_plan(plan, label=prompt, prompt=prompt))
         except Exception as e:
             r = EvalResult(label=prompt)
             r.checks.append(Check("generation", False, hard=True, detail=str(e)))
@@ -386,7 +656,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--live", action="store_true", help="真实跑 golden prompt（需配置 LLM）")
     parser.add_argument("--gate", action="store_true",
                         help="回归门模式：SOFT 告警也计入失败（退出码非 0）")
+    parser.add_argument("--scenarios", action="store_true",
+                        help="评估 eval/fixtures/scenarios.json（Week 1 捕获 plan + prompt）")
+    parser.add_argument("--prompt", type=str,
+                        help="与 --plan 联用：按用户描述做意图 SOFT 断言")
     args = parser.parse_args(argv)
+
+    if args.scenarios:
+        return run_scenarios(gate=args.gate)
 
     if args.live:
         return run_live(gate=args.gate)
@@ -409,7 +686,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"  {i}. {p}")
         return 0
 
-    return run_offline(paths, gate=args.gate)
+    return run_offline(paths, gate=args.gate, prompt=args.prompt)
 
 
 if __name__ == "__main__":

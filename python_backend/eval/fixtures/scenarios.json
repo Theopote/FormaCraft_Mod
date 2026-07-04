@@ -1,0 +1,13 @@
+[
+  {
+    "id": "modern_elliptical_stadium",
+    "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
+    "plan_fixture": "plans/modern_elliptical_stadium_captured.json",
+    "tags": ["stadium", "elliptical", "modern"],
+    "ideal_notes": [
+      "Week 2: Culture card modern_stadium_elliptical + LandmarkModuleRouting 应输出 MODULE+landmark:birds_nest_stadium",
+      "Java PromptAssembler 对匹配意图注入 MANDATORY LANDMARK MODULE ROUTING 块",
+      "MassMainGenerator 无真椭圆 footprint；勿用 MASS_MAIN+rounded_rect 代替"
+    ]
+  }
+]

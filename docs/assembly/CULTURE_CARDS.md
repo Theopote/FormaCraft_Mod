@@ -18,6 +18,8 @@
 - **`keywordWeights`**: map<string, number>（可选，关键词权重，默认 3；可把“玫瑰花窗/飞扶壁”等提升权重）
 - **`negativeKeywords`**: string[]（可选，负向词；命中会惩罚分数，用于降低风格串味）
 - **`exampleRefs`**: string[]（可选，引用 `assembly_examples/*.json`，用于 Few-shot/对照）
+- **`llmPlanExampleRefs`**: string[]（可选，引用 `llmplan_examples/*.json`，用于 LlmPlan MODULE few-shot）
+- **`landmarkModuleId`**: string（可选，命中此卡片时强制 LlmPlan 走 `MODULE` + `landmark:<id>`）
 - **`archetypes`**: object[]（必填）
   - **`name`**: string
   - **`exampleRef`**: string（可选，必须存在于 `assembly_examples`）

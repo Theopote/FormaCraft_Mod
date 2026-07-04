@@ -108,6 +108,10 @@ public final class LandmarkModuleRegistry {
         sb.append("- dimensions are a size HINT for the module (it scales toward them within its own limits).\n");
         sb.append("- Use a module ONLY when the request clearly names/implies that specific landmark.\n");
         sb.append("- For generic or imaginative buildings, IGNORE this section and use normal semantic components.\n");
+        sb.append("\nLANDMARK ROUTING HINTS (when user intent matches, MUST use MODULE — do NOT improvise with MASS_MAIN):\n");
+        sb.append("- 椭圆/椭圆形 + 体育场/体育馆 / elliptical stadium / oval arena → landmark:birds_nest_stadium\n");
+        sb.append("- 鸟巢 / Bird's Nest / national stadium → landmark:birds_nest_stadium\n");
+        sb.append("- MassMainGenerator cannot render true elliptical bowl seating; MODULE is required for stadium-like forms.\n");
         sb.append("Available module_id values:\n");
         for (LandmarkModule m : modules) {
             sb.append("  * ").append(m.moduleId())
@@ -115,5 +119,30 @@ public final class LandmarkModuleRegistry {
         }
         sb.append("\n");
         return sb.toString();
+    }
+
+    /**
+     * 当用户意图能解析为地标 module_id 时，返回 MUST 级路由提示（注入 PromptAssembler）。
+     */
+    public static String promptRoutingHintForIntent(String userIntentText) {
+        String moduleId = resolveModuleIdFromIntent(userIntentText);
+        if (moduleId == null || moduleId.isBlank()) {
+            return "";
+        }
+        return """
+
+            ========================================
+            LANDMARK MODULE ROUTING (MANDATORY FOR THIS REQUEST)
+            ========================================
+            User intent matches prebuilt landmark module: %s
+            You MUST output exactly ONE component:
+              { "component_type": "MODULE",
+                "relative_position": {"x":0,"y":0,"z":0},
+                "dimensions": {"width":60,"depth":80,"height":28},
+                "features": ["landmark:%s"] }
+            Do NOT use MASS_MAIN / rounded_rect as a substitute for this landmark form.
+            dimensions are hints only; the module scales within its own limits.
+
+            """.formatted(moduleId, moduleId);
     }
 }

@@ -181,6 +181,10 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
     hits.sort(key=lambda h: (-h.score, -len(h.matchedKeywords), h.id.lower()))
     hits = hits[: max(1, topK)]
 
+    llmplan_dir = assets / "llmplan_examples"
+    llm_plan_few_shots: List[Dict[str, Any]] = []
+    landmark_module_id: Optional[str] = None
+
     # few-shot: union of exampleRefs from hits (dedupe)
     few_shots: List[Dict[str, Any]] = []
     used: set[str] = set()
@@ -205,6 +209,32 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
 
     # draft: styleId from best, sliders fused from topK + prompt evidence
     best = hits[0] if hits else None
+
+    # LlmPlan landmark routing from best culture card
+    if best:
+        for cp in cards_dir.glob("*.json"):
+            try:
+                card = _load_json(cp)
+            except Exception:
+                continue
+            if not isinstance(card, dict):
+                continue
+            if str(card.get("id") or "").strip() != best.id:
+                continue
+            lm = str(card.get("landmarkModuleId") or "").strip()
+            if lm:
+                landmark_module_id = lm
+            for ref in _str_list(card.get("llmPlanExampleRefs")):
+                ex_path = llmplan_dir / ref
+                if not ex_path.exists():
+                    continue
+                try:
+                    ex_obj = _load_json(ex_path)
+                    llm_plan_few_shots.append(_compact_llmplan_example(ex_obj))
+                except Exception:
+                    pass
+            break
+
     style_id = best.styleId if best else "Unknown"
     base = _default_vector_for(style_id)
     ssum = sum(max(0.0, h.score) for h in hits) or 0.0
@@ -259,6 +289,8 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
         "hits": [h.__dict__ for h in hits],
         "fewShots": few_shots,
         "assemblyDraft": assembly_draft,
+        "landmarkModuleId": landmark_module_id,
+        "llmPlanFewShots": llm_plan_few_shots,
     }
 
 
@@ -367,6 +399,82 @@ def retrieve_budgeted(
         return {"hits": [], "fewShots": [], "assemblyDraft": None}
 
     return rag
+
+
+def _compact_llmplan_example(ex: Any) -> Dict[str, Any]:
+    """Keep LlmPlan few-shot compact for prompt injection."""
+    if not isinstance(ex, dict):
+        return {"raw": ex}
+    plan = ex.get("plan") if isinstance(ex.get("plan"), dict) else ex
+    if not isinstance(plan, dict):
+        return {"raw": ex}
+    out: Dict[str, Any] = {
+        "mode": plan.get("mode"),
+        "style_profile": plan.get("style_profile"),
+        "layout": plan.get("layout"),
+        "components": plan.get("components"),
+    }
+    if ex.get("description"):
+        out["description"] = ex.get("description")
+    if ex.get("promptHints"):
+        out["promptHints"] = ex.get("promptHints")
+    return out
+
+
+def resolve_landmark_module_routing(prompt: str) -> Optional[Dict[str, Any]]:
+    """
+    Resolve whether the user prompt should force a landmark MODULE in LlmPlan output.
+    Sources: culture_cards (landmarkModuleId), building_knowledge, keyword heuristics.
+    """
+    q = (prompt or "").strip()
+    if not q:
+        return None
+
+    module_id: Optional[str] = None
+    llm_plan_few_shots: List[Dict[str, Any]] = []
+    source = None
+    instruction = None
+
+    rag = retrieve(q, topK=1, fewShotK=0)
+    if isinstance(rag.get("landmarkModuleId"), str) and rag["landmarkModuleId"].strip():
+        module_id = rag["landmarkModuleId"].strip()
+        source = "culture_card"
+        fs = rag.get("llmPlanFewShots")
+        if isinstance(fs, list):
+            llm_plan_few_shots = [x for x in fs if isinstance(x, dict)]
+
+    kb = retrieve_building_knowledge(q, topK=1)
+    if kb:
+        kb_lm = str(kb.get("landmarkModuleId") or "").strip()
+        if kb_lm:
+            module_id = kb_lm
+            source = source or "building_knowledge"
+        routing = kb.get("llmPlanRouting")
+        if isinstance(routing, dict):
+            instruction = routing.get("instruction") if isinstance(routing.get("instruction"), str) else instruction
+
+    qn = q.lower()
+    stadium_kw = any(k in qn for k in ("体育场", "体育馆", "stadium", "arena"))
+    ellipse_kw = any(k in qn for k in ("椭圆", "elliptical", "oval", "椭圆形"))
+    if module_id is None and stadium_kw and (ellipse_kw or "现代" in qn or "modern" in qn):
+        module_id = "birds_nest_stadium"
+        source = source or "keyword_heuristic"
+
+    if not module_id:
+        return None
+
+    return {
+        "moduleId": module_id,
+        "componentType": "MODULE",
+        "feature": f"landmark:{module_id}",
+        "source": source,
+        "instruction": instruction or (
+            "Output ONE MODULE component with features [\"landmark:" + module_id + "\"]. "
+            "Do NOT substitute a generic MASS_MAIN rounded box for elliptical/bowl stadium requests."
+        ),
+        "exampleDimensions": {"width": 60, "depth": 80, "height": 28},
+        "llmPlanFewShots": llm_plan_few_shots,
+    }
 
 
 def _compact_example(ex: Any) -> Dict[str, Any]:

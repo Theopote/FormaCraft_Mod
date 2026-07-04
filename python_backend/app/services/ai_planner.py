@@ -4351,7 +4351,11 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
 
     if _LLMPLAN_INJECT_CULTURE_RAG:
         try:
-            from app.services.keyword_culture_retriever import retrieve_budgeted as _culture_retrieve
+            from app.services.keyword_culture_retriever import (
+                retrieve_budgeted as _culture_retrieve,
+                resolve_landmark_module_routing as _landmark_routing,
+                retrieve_building_knowledge as _building_knowledge_retrieve,
+            )
             qtext = (req.requestText or "") + "\n" + (getattr(req, "userMessage", None) or "")
             rag = _culture_retrieve(qtext, **_resolve_rag_budget(req))
             if rag:
@@ -4359,11 +4363,37 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
                 if assembly_draft:
                     parts.append("\nAssemblyDraft(JSON):")
                     parts.append(json.dumps(assembly_draft, ensure_ascii=False, indent=2))
-                if rag.get("fewShots") or rag.get("hits"):
+                culture_payload: Dict[str, Any] = {
+                    "hits": rag.get("hits", []),
+                    "fewShots": rag.get("fewShots", []),
+                }
+                if rag.get("landmarkModuleId"):
+                    culture_payload["landmarkModuleId"] = rag.get("landmarkModuleId")
+                if rag.get("llmPlanFewShots"):
+                    culture_payload["llmPlanFewShots"] = rag.get("llmPlanFewShots")
+                if culture_payload.get("hits") or culture_payload.get("fewShots") or culture_payload.get("llmPlanFewShots"):
                     parts.append("\nCultureRetrieval(JSON):")
-                    parts.append(json.dumps(
-                        {"hits": rag.get("hits", []), "fewShots": rag.get("fewShots", [])},
-                        ensure_ascii=False, indent=2))
+                    parts.append(json.dumps(culture_payload, ensure_ascii=False, indent=2))
+
+            routing = _landmark_routing(qtext)
+            if routing:
+                parts.append("\nLandmarkModuleRouting(JSON) [MANDATORY — follow for LlmPlan components[]]:")
+                parts.append(json.dumps(routing, ensure_ascii=False, indent=2))
+
+            building_kb = _building_knowledge_retrieve(qtext, topK=1)
+            if building_kb:
+                building_info = {
+                    "name": building_kb.get("name"),
+                    "nameEn": building_kb.get("nameEn"),
+                    "description": building_kb.get("description"),
+                    "descriptionZh": building_kb.get("descriptionZh"),
+                    "features": building_kb.get("features"),
+                    "dimensions": building_kb.get("dimensions"),
+                    "landmarkModuleId": building_kb.get("landmarkModuleId"),
+                    "llmPlanRouting": building_kb.get("llmPlanRouting"),
+                }
+                parts.append("\nBuildingKnowledge(JSON):")
+                parts.append(json.dumps(building_info, ensure_ascii=False, indent=2))
         except Exception:
             pass
 

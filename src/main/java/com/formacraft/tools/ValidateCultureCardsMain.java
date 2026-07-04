@@ -31,6 +31,7 @@ public final class ValidateCultureCardsMain {
             dir = Path.of(args[0]);
         }
         Path examplesDir = Path.of("src/main/resources/assets/formacraft/assembly_examples");
+        Path llmPlanExamplesDir = Path.of("src/main/resources/assets/formacraft/llmplan_examples");
         if (args != null && args.length >= 2 && args[1] != null && !args[1].isBlank()) {
             examplesDir = Path.of(args[1]);
         }
@@ -50,6 +51,12 @@ public final class ValidateCultureCardsMain {
         try (var s = Files.list(examplesDir)) {
             s.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json"))
              .forEach(p -> exampleNames.add(p.getFileName().toString()));
+        }
+        if (Files.exists(llmPlanExamplesDir) && Files.isDirectory(llmPlanExamplesDir)) {
+            try (var s = Files.list(llmPlanExamplesDir)) {
+                s.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json"))
+                 .forEach(p -> exampleNames.add(p.getFileName().toString()));
+            }
         }
 
         List<Path> files = new ArrayList<>();
@@ -109,6 +116,7 @@ public final class ValidateCultureCardsMain {
 
             // exampleRefs: optional at root
             errs += validateExampleRefs(mm.get("exampleRefs"), exampleNames, p.getFileName().toString(), "$.exampleRefs");
+            errs += validateExampleRefs(mm.get("llmPlanExampleRefs"), exampleNames, p.getFileName().toString(), "$.llmPlanExampleRefs");
             // archetypes[].exampleRef: optional
             Object archObj = mm.get("archetypes");
             if (archObj instanceof List<?> archs) {

@@ -75,14 +75,22 @@
     "鸟巢",
     "体育馆",
     "体育场",
+    "椭圆形",
+    "椭圆",
+    "椭圆体育场",
     "钢结构",
     "网状结构",
-    "椭圆形",
     "解构主义",
     "扎哈风格",
     "不规则",
     "外露结构"
   ],
+  "landmarkModuleId": "birds_nest_stadium",
+  "llmPlanRouting": {
+    "componentType": "MODULE",
+    "feature": "landmark:birds_nest_stadium",
+    "instruction": "椭圆/碗状/体育场/体育馆 请求应输出 MODULE+landmark，不要用 MASS_MAIN 圆角盒子代替"
+  },
   "exampleRefs": []
 }
 
