@@ -20,7 +20,9 @@ public final class BuildingOutlineRenderer {
     private static final int MAX_BOXES = 2000; // 避免渲染过重（城市/复合结构时）
 
     public static void render(ToolWorldRenderContext ctx) {
-        if (!BuildingPreviewState.isActive()) return;
+        // OutlinePreviewState 是“是否有轮廓可画”的权威开关（setBlocks 置真，clear/hide 清空）。
+        // 不再额外要求 BuildingPreviewState.isActive()——那需要 BuildingSpec，会导致
+        // LlmPlan / Composite / City 等无 spec 的预览无法在世界中显示轮廓。
         if (!OutlinePreviewState.active) return;
 
         List<OutlineBlock> blocks = OutlinePreviewState.blocks;

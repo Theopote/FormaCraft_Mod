@@ -83,13 +83,12 @@ public final class FormaCraftClientNetworking {
             com.formacraft.client.preview.OutlinePreviewState.setBlocks(blocks);
             FormacraftMod.LOGGER.info("Received preview outline: {} blocks", blocks != null ? blocks.size() : 0);
 
-            // 显示确认面板（如果有 BuildingSpec，则显示详细信息）
-            // 注意：这里可能需要从 PreviewStorage 获取 BuildingSpec
-            // 暂时先显示一个简单的确认面板
-            if (blocks != null && !blocks.isEmpty()) {
-                // 可以创建一个临时的 BuildingSpec 用于显示
-                // 或者只显示简单的确认信息
-                // 这里先不显示，等待后续完善
+            // 无 BuildingSpec 的预览链路（LlmPlan / Composite / City）：服务端只下发轮廓 + “preview ready”，
+            // 不会发 ResponseBuildSpecPayload。这里在收到轮廓时弹出 PREVIEW 模式确认面板（确认/取消按钮，
+            // 走 /forma_confirm、/forma_cancel）。若已存在带 spec 的 BUILD 面板则不覆盖。
+            if (blocks != null && !blocks.isEmpty()
+                    && !com.formacraft.client.ui.panel.BuildConfirmPanel.INSTANCE.isVisible()) {
+                com.formacraft.client.ui.panel.BuildConfirmPanel.INSTANCE.showPreviewActions();
             }
         }));
 
