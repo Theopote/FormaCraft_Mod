@@ -150,6 +150,7 @@ public final class ProportionValidator {
         return null;
     }
 
+    private static List<CheckResult> checkRatioHints(
             Map<String, Object> hints,
             ProportionCardRegistry.ProportionCard card
     ) {
@@ -188,7 +189,7 @@ public final class ProportionValidator {
         }
 
         ProportionCardRegistry.RatioSpec htw = card.ratios().get("height_to_width");
-        if (htw != null && w > 0) {
+        if (htw != null) {
             double ratio = h / (double) w;
             boolean ok = ratio >= htw.min() && ratio <= htw.max();
             out.add(new CheckResult(
@@ -199,7 +200,7 @@ public final class ProportionValidator {
         }
 
         ProportionCardRegistry.RatioSpec dtw = card.ratios().get("depth_to_width");
-        if (dtw != null && w > 0 && d > 0) {
+        if (dtw != null && d > 0) {
             double ratio = d / (double) w;
             boolean ok = ratio >= dtw.min() && ratio <= dtw.max();
             out.add(new CheckResult(
@@ -230,7 +231,7 @@ public final class ProportionValidator {
                 return c;
             }
         }
-        return comps.isEmpty() ? null : comps.get(0);
+        return comps.isEmpty() ? null : comps.getFirst();
     }
 
     private static boolean isEnclosureType(String t) {
