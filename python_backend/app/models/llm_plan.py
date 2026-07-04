@@ -47,12 +47,16 @@ LlmPlanMode = Literal["build", "patch"]
 SkeletonType = Literal[
     "LINEAR_PATH",
     "RADIAL_RING",
+    "RADIAL_SPOKE",
     "GRID",
     "COMPOUND",
+    "COURTYARD",
     "PATH_POLYLINE",
     "SPAN_SUSPENSION",
     "VERTICAL_TAPER",
     "VERTICAL_STACK",
+    "PERIMETER_LOOP",
+    "ENCLOSURE",
 ]
 
 

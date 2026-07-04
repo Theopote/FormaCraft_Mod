@@ -48,5 +48,18 @@
       "PRIMITIVE voronoi + voronoi_3d=true",
       "ShapeLibrary M3+ 体积细胞"
     ]
+  },
+  {
+    "id": "siheyuan_courtyard",
+    "prompt": "盖一个带院子的四合院",
+    "plan_fixture": "plans/siheyuan_courtyard_golden.json",
+    "tags": ["siheyuan", "courtyard", "high_frequency"],
+    "proportion_card": "siheyuan_courtyard",
+    "ci": true,
+    "ideal_notes": [
+      "Culture card siheyuan_courtyard + proportion_card",
+      "COURTYARD_SPACE + MASS_MAIN + MASS_WING×2 + ENTRANCE + ROOF",
+      "layout.skeleton_type=COURTYARD；proportion_hints.courtyard_ratio≈0.35"
+    ]
   }
 ]

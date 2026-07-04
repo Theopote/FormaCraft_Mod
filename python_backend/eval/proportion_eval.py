@@ -46,6 +46,8 @@ def resolve_proportion_card_id(prompt: Optional[str]) -> Optional[str]:
         return "castle_wall"
     if any(k in q for k in ("体育场", "stadium", "椭圆", "arena")):
         return "stadium_bowl"
+    if any(k in q for k in ("四合院", "siheyuan", "带院子", "合院", "courtyard house")):
+        return "siheyuan_courtyard"
     return None
 
 
@@ -212,6 +214,26 @@ def evaluate_enclosure(plan: Dict[str, Any], prompt: Optional[str] = None) -> Li
             "castle_has_defensive_shell",
             has_tower_or_wall and enclosure >= 2,
             f"tower/wall + mass expected; types={types}",
+        ))
+
+    is_siheyuan = any(
+        k in q for k in ("四合院", "siheyuan", "带院子", "合院", "courtyard house")
+    )
+    if is_siheyuan:
+        has_courtyard = any(t in ("COURTYARD", "COURTYARD_SPACE") for t in types)
+        checks.append((
+            "siheyuan_has_courtyard",
+            has_courtyard,
+            "siheyuan prompt expects COURTYARD or COURTYARD_SPACE component",
+        ))
+        wing_count = sum(
+            1 for t in types
+            if t.startswith("MASS_") or t in ("MASS_MAIN", "HOUSE", "BUILDING")
+        )
+        checks.append((
+            "siheyuan_wing_masses",
+            wing_count >= 2,
+            f"siheyuan expects ≥2 enclosing masses; found={wing_count}",
         ))
 
     return checks

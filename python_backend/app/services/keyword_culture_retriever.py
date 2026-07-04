@@ -104,6 +104,8 @@ def _default_vector_for(style_id: str) -> Tuple[float, float, float, float, floa
         return 0.5, 0.65, 0.45, 0.25, 0.2
     if "CASTLE" in sid or "MEDIEVAL" in sid:
         return 0.65, 0.75, 0.7, 0.12, 0.85
+    if "SIHEYUAN" in sid or "HUIZHOU" in sid or "COURTYARD" in sid:
+        return 0.5, 0.85, 0.4, 0.2, 0.25
     if "CLASSICAL" in sid or "GRECOROMAN" in sid:
         return 0.55, 0.8, 0.6, 0.25, 0.4
     return 0.6, 0.6, 0.6, 0.4, 0.5

@@ -69,6 +69,15 @@ _SCENARIO_HARD_BY_TAG: Dict[str, frozenset] = {
         "has_enclosure_mass",
         "castle_has_defensive_shell",
     }),
+    "siheyuan": frozenset({
+        "has_proportion_hints",
+        "has_courtyard_component",
+        "siheyuan_enclosure_layout",
+        "siheyuan_courtyard_skeleton",
+        "has_entrance",
+        "has_enclosure_mass",
+        "component_richness",
+    }),
     "primitive": frozenset({
         "facade_params_valid",
     }),
@@ -83,7 +92,7 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
     if isinstance(tags, list):
         tag_set = {str(t) for t in tags if t}
         for tag in tag_set:
-            if tag == "high_frequency" and "castle" in tag_set:
+            if tag == "high_frequency" and ("castle" in tag_set or "siheyuan" in tag_set):
                 continue
             names.update(_SCENARIO_HARD_BY_TAG.get(tag, ()))
     card = scenario.get("proportion_card")
@@ -91,6 +100,8 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
         names.update(_SCENARIO_HARD_BY_TAG.get("high_frequency", ()))
     elif card == "castle_wall":
         names.update(_SCENARIO_HARD_BY_TAG.get("castle", ()))
+    elif card == "siheyuan_courtyard":
+        names.update(_SCENARIO_HARD_BY_TAG.get("siheyuan", ()))
     hard_names = scenario.get("hard_checks")
     if isinstance(hard_names, list):
         names.update(str(n) for n in hard_names if n)
@@ -337,6 +348,42 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             _genome_shape_consistent(plan, comps),
             hard=False,
             detail="genome 写 circular/curved 时 params.shape 应对齐（非裸 rectangle）",
+        ))
+
+    # ---- 四合院 / 围合院落 ----
+    is_siheyuan = _prompt_contains(
+        prompt,
+        ("四合院", "siheyuan", "带院子", "合院", "courtyard house", "chinese courtyard"),
+    )
+    if is_siheyuan:
+        has_courtyard = any(
+            t in ("COURTYARD", "COURTYARD_SPACE") for t in types
+        )
+        checks.append(Check(
+            "has_courtyard_component",
+            has_courtyard,
+            hard=False,
+            detail="四合院意图：需显式 COURTYARD 或 COURTYARD_SPACE 组件",
+        ))
+
+        layout = plan.get("layout") if isinstance(plan.get("layout"), dict) else {}
+        sk = layout.get("skeleton_type") if isinstance(layout.get("skeleton_type"), str) else ""
+        checks.append(Check(
+            "siheyuan_courtyard_skeleton",
+            sk.upper() in ("COURTYARD", "COMPOUND"),
+            hard=False,
+            detail=f"skeleton_type={sk!r}（期望 COURTYARD 或 COMPOUND）",
+        ))
+
+        wing_count = sum(
+            1 for t in types
+            if t.startswith("MASS_") or t in ("MASS_MAIN", "HOUSE", "BUILDING")
+        )
+        checks.append(Check(
+            "siheyuan_enclosure_layout",
+            has_courtyard and wing_count >= 2,
+            hard=False,
+            detail=f"courtyard={has_courtyard} enclosing_masses={wing_count}（期望中庭 + ≥2 厢房/正房）",
         ))
 
     return checks

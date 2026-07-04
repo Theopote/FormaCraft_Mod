@@ -1,0 +1,113 @@
+{
+  "description": "北方四合院 — 三进厢 + 中庭围合（组合式 LlmPlan few-shot）",
+  "promptHints": ["四合院", "带院子", "siheyuan", "courtyard house"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Chinese_Vernacular_Huizhou",
+    "style_attributes": {
+      "wall_color": "white",
+      "roof_color": "black",
+      "wall_material": "white_plaster",
+      "roof_material": "dark_tile",
+      "decorative_elements": ["horse_head_gable", "lattice_window", "paifang_gate"]
+    },
+    "proportion_hints": {
+      "typology": "siheyuan_courtyard",
+      "courtyard_ratio": 0.35,
+      "height_to_width": 0.45,
+      "wing_depth_to_court": 0.55,
+      "window_wall_ratio": 0.18,
+      "window_aspect": "horizontal_strip",
+      "min_enclosure_coverage": 0.82
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "global_constraints": { "facing": "SOUTH", "symmetry": "MIRROR_X", "terrain_strategy": "ADAPTIVE" },
+    "layout": { "skeleton_type": "COURTYARD", "path_based": false, "slots": [] },
+    "components": [
+      {
+        "component_type": "COURTYARD_SPACE",
+        "relative_position": { "x": -6, "y": 0, "z": -6 },
+        "dimensions": { "width": 12, "depth": 12, "height": 1 },
+        "params": { "surface": "stone_paving" },
+        "features": ["central_courtyard", "path"]
+      },
+      {
+        "component_type": "MASS_MAIN",
+        "relative_position": { "x": -8, "y": 0, "z": -18 },
+        "dimensions": { "width": 16, "depth": 6, "height": 5 },
+        "params": { "shape": "rectangle", "facade_profile": "base_plinth", "void_ratio": 0.0 },
+        "features": ["main_hall", "north_wing"]
+      },
+      {
+        "component_type": "MASS_WING",
+        "relative_position": { "x": 6, "y": 0, "z": -8 },
+        "dimensions": { "width": 6, "depth": 14, "height": 4 },
+        "params": { "shape": "rectangle", "void_ratio": 0.0 },
+        "features": ["east_wing"]
+      },
+      {
+        "component_type": "MASS_WING",
+        "relative_position": { "x": -12, "y": 0, "z": -8 },
+        "dimensions": { "width": 6, "depth": 14, "height": 4 },
+        "params": { "shape": "rectangle", "void_ratio": 0.0 },
+        "features": ["west_wing"]
+      },
+      {
+        "component_type": "WALL",
+        "relative_position": { "x": 2, "y": 0, "z": 6 },
+        "dimensions": { "width": 6, "depth": 2, "height": 3 },
+        "params": { "thickness": 2 }
+      },
+      {
+        "component_type": "WALL",
+        "relative_position": { "x": -8, "y": 0, "z": 6 },
+        "dimensions": { "width": 6, "depth": 2, "height": 3 },
+        "params": { "thickness": 2 }
+      },
+      {
+        "component_type": "ENTRANCE",
+        "relative_position": { "x": -2, "y": 0, "z": 6 },
+        "dimensions": { "width": 4, "depth": 2, "height": 4 },
+        "params": { "style": "wood_gate" }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": { "x": -8, "y": 5, "z": -18 },
+        "dimensions": { "width": 17, "depth": 7, "height": 2 },
+        "params": { "roof_type": "hip", "overhang": 1 }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": { "x": 6, "y": 4, "z": -8 },
+        "dimensions": { "width": 7, "depth": 15, "height": 2 },
+        "params": { "roof_type": "gable", "overhang": 1 }
+      },
+      {
+        "component_type": "ROOF",
+        "relative_position": { "x": -12, "y": 4, "z": -8 },
+        "dimensions": { "width": 7, "depth": 15, "height": 2 },
+        "params": { "roof_type": "gable", "overhang": 1 }
+      },
+      {
+        "component_type": "FACADE_WINDOWS",
+        "relative_position": { "x": -8, "y": 1, "z": -12 },
+        "dimensions": { "width": 16, "depth": 6, "height": 4 },
+        "params": {
+          "window_ratio": 0.18,
+          "window_aspect": "horizontal_strip",
+          "window_style": "lattice"
+        }
+      },
+      {
+        "component_type": "FACADE_WINDOWS",
+        "relative_position": { "x": 6, "y": 1, "z": -8 },
+        "dimensions": { "width": 6, "depth": 14, "height": 3 },
+        "params": {
+          "window_ratio": 0.16,
+          "window_aspect": "horizontal_strip",
+          "window_style": "lattice"
+        }
+      }
+    ]
+  }
+}
