@@ -87,5 +87,19 @@
       "RECOMMENDED: MODULE + landmark:temple_of_heaven（三层圆台 + 三重檐）",
       "layout.skeleton_type=RADIAL_RING；symmetry=RADIAL"
     ]
+  },
+  {
+    "id": "patch_roof_red",
+    "prompt": "把屋顶换成红色",
+    "plan_fixture": "plans/patch_roof_red_golden.json",
+    "base_plan_fixture": "plans/cottage_refined_golden.json",
+    "tags": ["patch", "roof", "edit"],
+    "ci": true,
+    "ideal_notes": [
+      "前置上下文：cottage_refined 小石头房子已存在",
+      "Culture card patch_roof_color + patch_card roof_color_change",
+      "mode=patch；仅 ROOF + style_attributes.roof_color=red",
+      "禁止全量 rebuild（无 MASS_MAIN/ENTRANCE/FACADE_WINDOWS）"
+    ]
   }
 ]

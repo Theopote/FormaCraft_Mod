@@ -95,6 +95,13 @@ _SCENARIO_HARD_BY_TAG: Dict[str, frozenset] = {
         "temple_circular_form",
         "temple_tier_expressed",
     }),
+    "patch": frozenset({
+        "patch_has_ops",
+        "patch_targets_roof",
+        "patch_roof_color_red",
+        "patch_minimal_scope",
+        "patch_no_full_rebuild",
+    }),
     "primitive": frozenset({
         "facade_params_valid",
     }),
@@ -111,7 +118,7 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
         for tag in tag_set:
             if tag == "high_frequency" and (
                 "castle" in tag_set or "siheyuan" in tag_set or "tower" in tag_set
-                or "temple" in tag_set
+                or "temple" in tag_set or "patch" in tag_set
             ):
                 continue
             names.update(_SCENARIO_HARD_BY_TAG.get(tag, ()))
@@ -654,15 +661,20 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[st
     types = _component_types(plan)
 
     if mode == "patch":
-        has_block_patch = isinstance(plan.get("patch"), dict) and bool(
-            (plan.get("patch") or {}).get("blocks")
-        )
-        add(Check(
-            "patch_has_ops",
-            bool(comps) or has_block_patch,
-            hard=True,
-            detail="patch 需 components[] 或 patch.blocks[]",
-        ))
+        try:
+            from eval.patch_eval import evaluate_patch_intent
+            for name, ok, detail in evaluate_patch_intent(plan, prompt):
+                add(Check(name, ok, hard=False, detail=detail))
+        except Exception:
+            has_block_patch = isinstance(plan.get("patch"), dict) and bool(
+                (plan.get("patch") or {}).get("blocks")
+            )
+            add(Check(
+                "patch_has_ops",
+                bool(comps) or has_block_patch,
+                hard=True,
+                detail="patch 需 components[] 或 patch.blocks[]",
+            ))
         return res
 
     # ---- build 模式的可建造性 / 丰富度启发式 ----

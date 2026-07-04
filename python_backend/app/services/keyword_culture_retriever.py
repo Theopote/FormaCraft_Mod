@@ -110,6 +110,8 @@ def _default_vector_for(style_id: str) -> Tuple[float, float, float, float, floa
         return 0.45, 0.8, 0.95, 0.15, 0.55
     if "IMPERIAL" in sid or "TEMPLE" in sid or "HEAVEN" in sid:
         return 0.55, 0.9, 0.75, 0.2, 0.35
+    if "PATCH" in sid or sid.startswith("PATCH_"):
+        return 0.35, 0.5, 0.3, 0.2, 0.15
     if "CLASSICAL" in sid or "GRECOROMAN" in sid:
         return 0.55, 0.8, 0.6, 0.25, 0.4
     return 0.6, 0.6, 0.6, 0.4, 0.5
@@ -222,6 +224,7 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
 
     # LlmPlan landmark routing from best culture card
     proportion_card_id: Optional[str] = None
+    patch_card_id: Optional[str] = None
     if best:
         for cp in cards_dir.glob("*.json"):
             try:
@@ -238,6 +241,9 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
             pcid = str(card.get("proportionCardId") or "").strip()
             if pcid:
                 proportion_card_id = pcid
+            pkid = str(card.get("patchCardId") or "").strip()
+            if pkid:
+                patch_card_id = pkid
             for ref in _str_list(card.get("llmPlanExampleRefs")):
                 ex_path = llmplan_dir / ref
                 if not ex_path.exists():
@@ -255,6 +261,14 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
         proportion_card = retrieve_proportion_card(q, proportion_card_id=proportion_card_id)
     except Exception:
         proportion_card = None
+
+    patch_card = None
+    try:
+        from eval.patch_eval import load_patch_card
+        if patch_card_id:
+            patch_card = load_patch_card(patch_card_id)
+    except Exception:
+        patch_card = None
 
     style_id = best.styleId if best else "Unknown"
     base = _default_vector_for(style_id)
@@ -314,6 +328,8 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
         "llmPlanFewShots": llm_plan_few_shots,
         "proportionCardId": proportion_card_id,
         "proportionCard": proportion_card,
+        "patchCardId": patch_card_id,
+        "patchCard": patch_card,
     }
 
 

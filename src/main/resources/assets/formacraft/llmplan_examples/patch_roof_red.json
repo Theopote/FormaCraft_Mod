@@ -1,0 +1,30 @@
+{
+  "description": "Patch 编辑 — 把小房子屋顶换成红色（仅 ROOF 增量）",
+  "promptHints": ["把屋顶换成红色", "换屋顶", "red roof", "patch roof"],
+  "contextNotes": "前置上下文：已有 cottage_refined 小石头房子（见 cottage_refined_small.json）",
+  "plan": {
+    "mode": "patch",
+    "style_profile": "Cottage_Rural",
+    "style_attributes": {
+      "roof_color": "red",
+      "roof_material": "terracotta"
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "target_slot_id": "roof_main",
+    "allowed_area": "selection",
+    "components": [
+      {
+        "component_type": "ROOF",
+        "relative_position": { "x": 0, "y": 5, "z": 0 },
+        "dimensions": { "width": 8, "depth": 8, "height": 3 },
+        "params": {
+          "roof_type": "gable",
+          "roof_color": "red",
+          "material": "red_terracotta",
+          "overhang": 1
+        },
+        "features": ["patch_target", "roof_recolor"]
+      }
+    ]
+  }
+}

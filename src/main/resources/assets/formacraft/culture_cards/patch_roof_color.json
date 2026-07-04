@@ -1,0 +1,44 @@
+{
+  "id": "patch_roof_color",
+  "styleId": "Patch_Edit",
+  "intents": ["PATCH", "EDIT", "MODIFY", "修改"],
+  "keywords": [
+    "换屋顶", "改成红色", "屋顶换成", "屋顶改", "红色屋顶", "把屋顶",
+    "换成红色", "改成", "换成", "修改屋顶", "屋顶颜色",
+    "change roof", "red roof", "recolor roof", "roof color", "patch roof"
+  ],
+  "synonyms": {
+    "换屋顶": ["change roof", "replace roof", "recolor roof"],
+    "改成红色": ["make it red", "turn red", "paint red"],
+    "屋顶换成": ["roof to", "switch roof to"]
+  },
+  "keywordWeights": {
+    "把屋顶换成红色": 8.0,
+    "屋顶换成": 7.0,
+    "换成红色": 7.0,
+    "改成红色": 7.0,
+    "换屋顶": 6.5,
+    "红色屋顶": 6.0,
+    "change roof": 6.0,
+    "red roof": 6.0,
+    "修改": 4.0
+  },
+  "negativeKeywords": [
+    "盖一个", "盖一座", "新建", "建造", "生成", "build a", "build new",
+    "castle", "stadium", "四合院", "天坛", "方塔"
+  ],
+  "patchCardId": "roof_color_change",
+  "llmPlanExampleRefs": ["patch_roof_red.json"],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "roof_color_patch",
+      "constraints": [
+        "mode=patch；仅输出 ROOF/ROOF_STRUCTURE 组件或 patch.blocks 覆盖屋面区域",
+        "设置 style_attributes.roof_color=red（或用户指定色）与 ROOF params",
+        "禁止重新输出 MASS_MAIN + ENTRANCE + 全量 rebuild",
+        "可设置 target_slot_id / allowed_area=selection 表示增量编辑范围"
+      ]
+    }
+  ]
+}

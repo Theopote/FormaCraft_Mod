@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "prompt": "把屋顶换成红色",
+    "context_plan": "plans/cottage_refined_golden.json",
+    "source": "llmplan_examples/patch_roof_red.json",
+    "notes": "P0 patch fixture — roof recolor only"
+  },
+  "mode": "patch",
+  "style_profile": "Cottage_Rural",
+  "style_attributes": {
+    "roof_color": "red",
+    "roof_material": "terracotta"
+  },
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "target_slot_id": "roof_main",
+  "allowed_area": "selection",
+  "components": [
+    {
+      "component_type": "ROOF",
+      "relative_position": { "x": 0, "y": 5, "z": 0 },
+      "dimensions": { "width": 8, "depth": 8, "height": 3 },
+      "params": {
+        "roof_type": "gable",
+        "roof_color": "red",
+        "material": "red_terracotta",
+        "overhang": 1
+      },
+      "features": ["patch_target", "roof_recolor"]
+    }
+  ]
+}
