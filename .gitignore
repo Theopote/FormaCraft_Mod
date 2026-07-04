@@ -53,6 +53,9 @@ __pycache__/
 venv/
 .env
 
+# weekly live eval JSON reports (artifacts only)
+python_backend/eval/reports/live_weekly_*.json
+
 # local config (may contain API keys)
 
 config/formacraft_settings.json

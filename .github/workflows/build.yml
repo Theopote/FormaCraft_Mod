@@ -18,6 +18,11 @@ jobs:
         run: chmod +x ./gradlew
       - name: build
         run: ./gradlew build
+      - name: ShapeLibrary & OpeningGrammar unit tests
+        run: >-
+          ./gradlew test
+          --tests "com.formacraft.common.geometry.shape.ShapeLibraryTest"
+          --tests "com.formacraft.common.proportion.OpeningGrammarResolverTest"
       - name: setup python
         uses: actions/setup-python@v5
         with:

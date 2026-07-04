@@ -1,0 +1,59 @@
+name: weekly-live-eval
+
+on:
+  schedule:
+    # 每周一 UTC 02:00（北京时间周一 10:00）
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+    inputs:
+      gate:
+        description: "SOFT 告警也计入失败"
+        type: boolean
+        default: false
+      full:
+        description: "跑完整 GOLDEN_PROMPTS"
+        type: boolean
+        default: false
+
+jobs:
+  live-eval:
+    runs-on: ubuntu-24.04
+    # 需要 LLM 密钥；失败仅作监控，不阻断主 CI
+    continue-on-error: true
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install python backend
+        run: pip install -r python_backend/requirements.lock
+
+      - name: weekly live eval
+        working-directory: python_backend
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4o-mini' }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'auto' }}
+        run: |
+          TS=$(date -u +%Y%m%dT%H%M%SZ)
+          GATE=""
+          FULL=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.gate }}" = "true" ]; then
+            GATE="--gate"
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.full }}" = "true" ]; then
+            FULL="--full"
+          fi
+          python -m eval.live_eval_weekly $GATE $FULL --output "eval/reports/live_weekly_${TS}.json"
+
+      - name: upload live eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-live-eval-report
+          path: python_backend/eval/reports/live_weekly_*.json
+          if-no-files-found: warn
