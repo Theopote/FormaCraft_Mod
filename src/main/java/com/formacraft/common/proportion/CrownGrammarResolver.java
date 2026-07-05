@@ -1,6 +1,5 @@
 package com.formacraft.common.proportion;
 
-import com.formacraft.common.generation.component.util.ComponentCrownDecorator;
 import com.formacraft.common.generation.component.util.CrownTemplateLibrary;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;

@@ -262,6 +262,7 @@ def enrich_llm_plan_architectural_detail(
         plan["proportion_hints"] = {**hints, **existing_hints}
 
     ph = plan.get("proportion_hints")
+    style = str(plan.get("style_profile") or "").upper()
     if isinstance(ph, dict) and tier in ("rich", "monumental"):
         ph.setdefault("floor_cornice", True)
         ph.setdefault("window_order", "full")
@@ -287,7 +288,6 @@ def enrich_llm_plan_architectural_detail(
     if not isinstance(params, dict):
         params = {}
         mass["params"] = params
-    style = str(plan.get("style_profile") or "").upper()
     blob = _text_blob(user_text, profile, plan)
     if tier in ("rich", "monumental") or any(m in blob for m in _CLASSICAL_MARKERS):
         params.setdefault("facade_profile", "vertical_pilasters")
