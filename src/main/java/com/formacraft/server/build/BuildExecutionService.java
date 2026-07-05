@@ -1,7 +1,6 @@
 package com.formacraft.server.build;
 
 import com.formacraft.common.build.GeneratedStructure;
-import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.city.CitySpec;
@@ -90,7 +89,7 @@ public class BuildExecutionService {
         
         // Resolve fill material for terrain ops
         net.minecraft.block.BlockState fillMaterial = net.minecraft.block.Blocks.DIRT.getDefaultState();
-        if (spec.getMaterials() != null && spec.getMaterials().getFoundation() != null) {
+        if (spec != null && spec.getMaterials() != null && spec.getMaterials().getFoundation() != null) {
             try {
                 net.minecraft.util.Identifier id = net.minecraft.util.Identifier.of(spec.getMaterials().getFoundation());
                 net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(id);

@@ -554,68 +554,66 @@ public final class PlayerComponentExpander {
         String blockId = BlockStateStringUtil.fromState(block);
 
         List<BlockPatch> out = new ArrayList<>();
-        if ("column".equals(role) || "pillar".equals(role)) {
-            int spacing = 3;
-            if (d <= 1) {
-                for (int x = 0; x < w; x += spacing) {
-                    addColumn(out, baseX + x, baseY, baseZ, h, blockId);
+        switch (role) {
+            case "column", "pillar" -> {
+                int spacing = 3;
+                if (d <= 1) {
+                    for (int x = 0; x < w; x += spacing) {
+                        addColumn(out, baseX + x, baseY, baseZ, h, blockId);
+                    }
+                    addColumn(out, baseX + w - 1, baseY, baseZ, h, blockId);
+                } else if (w <= 1) {
+                    for (int z = 0; z < d; z += spacing) {
+                        addColumn(out, baseX, baseY, baseZ + z, h, blockId);
+                    }
+                    addColumn(out, baseX, baseY, baseZ + d - 1, h, blockId);
+                } else {
+                    addColumn(out, baseX, baseY, baseZ, h, blockId);
+                    addColumn(out, baseX + w - 1, baseY, baseZ, h, blockId);
+                    addColumn(out, baseX, baseY, baseZ + d - 1, h, blockId);
+                    addColumn(out, baseX + w - 1, baseY, baseZ + d - 1, h, blockId);
+                    if (w > 4) {
+                        int midX = baseX + w / 2;
+                        addColumn(out, midX, baseY, baseZ, h, blockId);
+                        addColumn(out, midX, baseY, baseZ + d - 1, h, blockId);
+                    }
+                    if (d > 4) {
+                        int midZ = baseZ + d / 2;
+                        addColumn(out, baseX, baseY, midZ, h, blockId);
+                        addColumn(out, baseX + w - 1, baseY, midZ, h, blockId);
+                    }
                 }
-                addColumn(out, baseX + w - 1, baseY, baseZ, h, blockId);
-            } else if (w <= 1) {
-                for (int z = 0; z < d; z += spacing) {
-                    addColumn(out, baseX, baseY, baseZ + z, h, blockId);
-                }
-                addColumn(out, baseX, baseY, baseZ + d - 1, h, blockId);
-            } else {
-                addColumn(out, baseX, baseY, baseZ, h, blockId);
-                addColumn(out, baseX + w - 1, baseY, baseZ, h, blockId);
-                addColumn(out, baseX, baseY, baseZ + d - 1, h, blockId);
-                addColumn(out, baseX + w - 1, baseY, baseZ + d - 1, h, blockId);
-                if (w > 4) {
-                    int midX = baseX + w / 2;
-                    addColumn(out, midX, baseY, baseZ, h, blockId);
-                    addColumn(out, midX, baseY, baseZ + d - 1, h, blockId);
-                }
-                if (d > 4) {
-                    int midZ = baseZ + d / 2;
-                    addColumn(out, baseX, baseY, midZ, h, blockId);
-                    addColumn(out, baseX + w - 1, baseY, midZ, h, blockId);
-                }
+                return out;
             }
-            return out;
-        }
-
-        if ("railing".equals(role)) {
-            int y = baseY;
-            for (int x = 0; x < w; x++) {
-                out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ, blockId));
-                if (d > 1) out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ + d - 1, blockId));
+            case "railing" -> {
+                int y = baseY;
+                for (int x = 0; x < w; x++) {
+                    out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ, blockId));
+                    if (d > 1) out.add(new BlockPatch(BlockPatch.PLACE, baseX + x, y, baseZ + d - 1, blockId));
+                }
+                for (int z = 0; z < d; z++) {
+                    out.add(new BlockPatch(BlockPatch.PLACE, baseX, y, baseZ + z, blockId));
+                    if (w > 1) out.add(new BlockPatch(BlockPatch.PLACE, baseX + w - 1, y, baseZ + z, blockId));
+                }
+                return out;
             }
-            for (int z = 0; z < d; z++) {
-                out.add(new BlockPatch(BlockPatch.PLACE, baseX, y, baseZ + z, blockId));
-                if (w > 1) out.add(new BlockPatch(BlockPatch.PLACE, baseX + w - 1, y, baseZ + z, blockId));
+            case "door" -> {
+                com.formacraft.common.llm.dto.GlobalConstraints.Facing facing = semantic.slot() != null
+                        ? semantic.slot().facing() : null;
+                return generateDoorFallback(out, query, baseX, baseY, baseZ, w, d, h, facing);
             }
-            return out;
-        }
-
-        if ("door".equals(role)) {
-            com.formacraft.common.llm.dto.GlobalConstraints.Facing facing = semantic.slot() != null
-                    ? semantic.slot().facing() : null;
-            return generateDoorFallback(out, query, baseX, baseY, baseZ, w, d, h, facing);
-        }
-
-        if ("window".equals(role)) {
-            com.formacraft.common.llm.dto.GlobalConstraints.Facing facing = semantic.slot() != null
-                    ? semantic.slot().facing() : null;
-            return generateWindowFallback(out, query, baseX, baseY, baseZ, w, d, h, blockId, facing);
-        }
-
-        if ("ornament".equals(role) || "bracket".equals(role) || "canopy".equals(role)) {
-            int x = baseX + (w / 2);
-            int y = baseY + Math.max(0, h - 1);
-            int z = baseZ + (d / 2);
-            out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, blockId));
-            return out;
+            case "window" -> {
+                com.formacraft.common.llm.dto.GlobalConstraints.Facing facing = semantic.slot() != null
+                        ? semantic.slot().facing() : null;
+                return generateWindowFallback(out, query, baseX, baseY, baseZ, w, d, h, blockId, facing);
+            }
+            case "ornament", "bracket", "canopy" -> {
+                int x = baseX + (w / 2);
+                int y = baseY + Math.max(0, h - 1);
+                int z = baseZ + (d / 2);
+                out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, blockId));
+                return out;
+            }
         }
 
         return List.of();
@@ -750,8 +748,7 @@ public final class PlayerComponentExpander {
 
     private static int clamp(int v, int min, int max) {
         if (v < min) return min;
-        if (v > max) return max;
-        return v;
+        return Math.min(v, max);
     }
 
     private static ComponentRequest parseRequestWithPrefix(Map<String, Object> reqMap, String prefix) {

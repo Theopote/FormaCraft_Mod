@@ -56,6 +56,19 @@ class ProfileSource(BaseModel):
     url: str = ""
 
 
+class RequestClassification(BaseModel):
+    """Stage-1 intent: specific real building vs generic typology (routing separate from MODULE pick)."""
+
+    is_specific_real_building: bool = False
+    building_name_normalized: Optional[str] = None
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    reasoning_hint: Optional[str] = None
+    source: str = Field(
+        default="rules",
+        description="rules | llm — how this classification was produced",
+    )
+
+
 class BuildingProfile(BaseModel):
     query: str = ""
     identity: ProfileIdentity = Field(default_factory=ProfileIdentity)
@@ -68,6 +81,7 @@ class BuildingProfile(BaseModel):
     reference_blueprint: Optional[Dict[str, Any]] = None
     fidelity_tier: Optional[str] = None
     fidelity_message_zh: Optional[str] = None
+    request_classification: Optional[RequestClassification] = None
 
     def to_prompt_dict(self) -> Dict[str, Any]:
         """Compact dict for LLM prompt injection."""
@@ -108,6 +122,8 @@ def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> 
             merged["fidelity_message_zh"] = data["fidelity_message_zh"]
         if isinstance(data.get("reference_blueprint"), dict):
             merged["reference_blueprint"] = data["reference_blueprint"]
+        if isinstance(data.get("request_classification"), dict):
+            merged["request_classification"] = data["request_classification"]
         return BuildingProfile.model_validate(merged)
     except Exception:
         return base

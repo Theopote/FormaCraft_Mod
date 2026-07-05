@@ -1453,7 +1453,7 @@ public final class ComponentPlanCompiler {
             return Math.min(d.width(), d.depth()) >= 6 && d.height() >= 6;
         }
         String facadeProfile = getParamString(params, "facade_profile", "facadeProfile");
-        if (facadeProfile != null && needsAssemblyFacadeProfile(facadeProfile)) {
+        if (needsAssemblyFacadeProfile(facadeProfile)) {
             String detail = getParamString(params, "detail_level", "detailLevel", "quality", "quality_level");
             if (detail == null || !detail.trim().toLowerCase(Locale.ROOT).contains("low")) {
                 Dimensions d = c.dimensions();

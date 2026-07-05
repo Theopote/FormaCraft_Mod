@@ -6,9 +6,9 @@ import com.formacraft.common.semantic.SemanticPart;
 
 /**
  * PaletteLibrary（风格预设库）
- * 
+ * <p>
  * StyleProfile → Palette 的关键桥梁
- * 
+ * <p>
  * 核心功能：
  * - 提供不同风格的 Palette 预设
  * - 同一个 TowerGenerator → 中世纪像城堡 → 赛博朋克像数据塔 → 精灵风像树干

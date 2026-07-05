@@ -91,10 +91,7 @@ public final class SocketPlacementResolver {
     private static int faceCoord(int min, int max, Direction facing) {
         if (facing == null) return max;
         return switch (facing) {
-            case NORTH -> min;
-            case SOUTH -> max;
-            case WEST -> min;
-            case EAST -> max;
+            case NORTH, WEST -> min;
             default -> max;
         };
     }

@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * WallComponentGenerator（构件层墙体生成器 v2）
- *
+ * <p>
  * 使用 Palette 权重随机生成矩形墙体
  */
 public class WallComponentGenerator implements ComponentGenerator {
@@ -30,7 +30,7 @@ public class WallComponentGenerator implements ComponentGenerator {
         if (c == null || c.dimensions() == null || c.relativePosition() == null) {
             FormacraftMod.LOGGER.warn(
                     "WallComponentGenerator: skipping wall — missing source/dimensions/relativePosition (type={})",
-                    semantic != null && semantic.source() != null ? semantic.source().componentType() : "unknown"
+                    semantic.source() != null ? semantic.source().componentType() : "unknown"
             );
             return out;
         }

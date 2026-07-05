@@ -14,7 +14,7 @@ import os
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from ..models.building_profile import BuildingProfile, profile_from_llm_dict
+from ..models.building_profile import BuildingProfile, profile_from_llm_dict, RequestClassification
 from ..models.request import BuildRequest, ReferenceInput
 
 logger = logging.getLogger(__name__)
@@ -406,6 +406,13 @@ def _compute_fidelity_message(
             f"使用风格模块 {resolved_module}（保真度：低，可能缺少该建筑标志性细节）",
         )
 
+    rc = profile.request_classification
+    if rc and not rc.is_specific_real_building:
+        return (
+            "compositional_generic",
+            f"组合式生成（{name or '风格化描述'}；保真度：风格近似，非精确复刻）",
+        )
+
     distinguishing = profile.structure.distinguishing_features or profile.structure.distinctive_elements
     if profile.identity.confidence >= 0.55 and distinguishing:
         feats = "、".join(distinguishing[:3])
@@ -427,12 +434,29 @@ def _compute_fidelity_message(
 def finalize_profile_minecraft_strategy(
     profile: BuildingProfile,
     user_text: str,
+    *,
+    classification: Optional[RequestClassification] = None,
 ) -> BuildingProfile:
     """
     Authoritative minecraft_strategy after research:
     - known preset landmark → landmark_module + MODULE
     - everything else → landmark_module=null + compositional components
     """
+    if classification is not None:
+        profile = profile.model_copy(update={"request_classification": classification})
+    elif profile.request_classification is None:
+        from .building_request_classifier import (
+            classify_building_request_local,
+            is_request_classification_enabled,
+        )
+
+        if is_request_classification_enabled():
+            profile = profile.model_copy(
+                update={
+                    "request_classification": classify_building_request_local(user_text),
+                }
+            )
+
     mc = profile.minecraft_strategy.model_copy()
     resolved = resolve_landmark_module_for_intent(user_text)
     if resolved:
@@ -487,6 +511,22 @@ def ensure_building_profile_for_plan(
         return finalize_profile_minecraft_strategy(profile, text)
     if not text:
         return None
+
+    from .building_request_classifier import (
+        classify_building_request_local,
+        is_request_classification_enabled,
+    )
+
+    if is_request_classification_enabled():
+        classification = classify_building_request_local(text)
+        if not classification.is_specific_real_building:
+            logger.debug(
+                "Skipping stub profile for generic typology: %r (%s)",
+                text[:80],
+                classification.reasoning_hint,
+            )
+            return None
+
     subject = _extract_subject(text) or text[:60]
     stub = synthesize_profile_rule_based(subject, text, [])
     if subject and subject != stub.identity.name:
@@ -500,6 +540,7 @@ def plan_search_queries(
     user_text: str,
     *,
     has_references: bool = False,
+    classification: Optional[Any] = None,
 ) -> Tuple[bool, List[str], str]:
     """
     QueryPlanner（规则版，零 LLM 延迟）。
@@ -514,8 +555,26 @@ def plan_search_queries(
     if not text and not has_references:
         return False, [], ""
 
+    from .building_request_classifier import (
+        classify_building_request_local,
+        is_request_classification_enabled,
+    )
+
+    if classification is None and is_request_classification_enabled():
+        classification = classify_building_request_local(text)
+
+    if classification is not None:
+        from .building_request_classifier import should_research_for_classification
+
+        if not should_research_for_classification(classification, has_references=has_references):
+            return False, [], classification.building_name_normalized or ""
+
     extracted = _extract_subject(text) if text else None
-    subject = extracted or (text[:60] if text else "reference building")
+    subject = (
+        (getattr(classification, "building_name_normalized", None) or "").strip()
+        or extracted
+        or (text[:60] if text else "reference building")
+    )
     has_intent = _has_build_intent(text) if text else False
 
     if not has_intent and not extracted:
@@ -786,10 +845,22 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
         "- structure.distinguishing_features lists what makes THIS building unique.",
         "- MUST appear in component features/params — priority above generic gothic/modern keywords.",
         "",
+    ]
+    if profile.request_classification is not None:
+        lines.extend([
+            "Request classification (Stage 1 — authoritative for research vs generic intent):",
+            json.dumps(
+                profile.request_classification.model_dump(exclude_none=True),
+                ensure_ascii=False,
+                indent=2,
+            ),
+            "",
+        ])
+    lines.extend([
         "BuildingProfile(JSON):",
         json.dumps(payload, ensure_ascii=False, indent=2),
         "",
-    ]
+    ])
     if profile.fidelity_message_zh:
         lines.extend([
             "Fidelity (tell the player in plan notes / status):",
@@ -830,8 +901,30 @@ def research_building_profile(
     if not is_building_research_enabled() and not has_refs:
         return None
 
+    from .building_request_classifier import (
+        classify_building_request,
+        should_research_for_classification,
+    )
+
+    classification = classify_building_request(
+        user_text,
+        req=req,
+        call_with_timeout=call_with_timeout,
+    )
+
+    if not should_research_for_classification(classification, has_references=has_refs):
+        logger.info(
+            "Building research skipped: generic typology for %r (hint=%s, source=%s)",
+            user_text[:80],
+            classification.reasoning_hint,
+            classification.source,
+        )
+        return None
+
     should_search, queries, subject = plan_search_queries(
-        user_text, has_references=has_refs,
+        user_text,
+        has_references=has_refs,
+        classification=classification,
     )
     if not should_search and not has_refs:
         logger.debug("Building research skipped: no search intent for %r", user_text[:80])
@@ -897,7 +990,21 @@ def research_building_profile(
             profile = synthesize_profile_rule_based(subject, user_text, results)
 
         profile = _enrich_profile_from_user_text(profile, user_text)
-        profile = finalize_profile_minecraft_strategy(profile, user_text)
+        if classification.building_name_normalized and profile.identity.name in (
+            "",
+            "unknown",
+            subject,
+        ):
+            profile = profile.model_copy(
+                update={
+                    "identity": profile.identity.model_copy(
+                        update={"name": classification.building_name_normalized}
+                    )
+                }
+            )
+        profile = finalize_profile_minecraft_strategy(
+            profile, user_text, classification=classification,
+        )
 
         if visual is not None:
             profile = merge_visual_into_profile(profile, visual)
