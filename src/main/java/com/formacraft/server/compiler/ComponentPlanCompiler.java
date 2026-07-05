@@ -296,6 +296,16 @@ public final class ComponentPlanCompiler {
             components.add(normalizedComponent);
         }
 
+        AssemblyPlanPromoter.PromotionResult assemblyPromotion = AssemblyPlanPromoter.promoteNestedAssembly(components);
+        components = assemblyPromotion.components();
+        Set<String> assemblyPrimarySlots = assemblyPromotion.assemblyPrimarySlots();
+        massSlots.clear();
+        for (Component c : components) {
+            if (c != null && isMassType(normalizeType(c.componentType()))) {
+                massSlots.add(slotKey(c));
+            }
+        }
+
         if (!components.isEmpty() && !massSlots.isEmpty()) {
             List<Component> filtered = new ArrayList<>(components.size());
             for (Component c : components) {
@@ -334,11 +344,18 @@ public final class ComponentPlanCompiler {
         for (Component c : components) {
             if (c == null) continue;
             String type = normalizeType(c.componentType());
-            if (!isMassType(type)) {
+            if ("ASSEMBLY".equals(type)) {
                 prepared.add(c);
                 continue;
             }
             String slotKey = slotKey(c);
+            if (assemblyPrimarySlots.contains(slotKey)) {
+                continue;
+            }
+            if (!isMassType(type)) {
+                prepared.add(c);
+                continue;
+            }
             String slotId = c.slotId();
             Slot slot = slotId != null ? slotMap.get(slotId) : null;
             GlobalConstraints.Facing facing = slot != null && slot.facing() != null

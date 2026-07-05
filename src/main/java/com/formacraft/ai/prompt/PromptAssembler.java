@@ -68,6 +68,12 @@ public final class PromptAssembler {
             sb.append(landmarkHint);
         }
 
+        String assemblyHint = AssemblyIntentSections.promptBlockForIntent(ctx.userMessage);
+        if (assemblyHint != null && !assemblyHint.isBlank()) {
+            sb.append(assemblyHint);
+            ctx.rules.add("- 本请求必须使用 component_type ASSEMBLY 表达主体量，禁止把 params.assembly 嵌在 MASS_* 内");
+        }
+
         // Prompt 瘦身：ComponentQuery / Socket 两大系统仅在存在玩家构件库时才有意义。
         // 无库时这两段（约 5-6k 字符）纯属浪费 token，直接跳过，让 LLM 用语义组件搭建。
         if (PromptSpatialSections.hasComponentLibrary()) {
