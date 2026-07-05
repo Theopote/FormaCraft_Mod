@@ -10,9 +10,26 @@ public final class SettingsPanelLayout {
     public static final int BUTTON_GAP_SMALL = 4;
     public static final int INPUT_HEIGHT = 16;
     public static final int LABEL_OFFSET = INPUT_HEIGHT + 2;
-    public static final int FIELD_SPACING = LABEL_OFFSET * 2;
+    /** 相邻字段组之间的垂直间距（去掉多余空行，仅保留小间隙）。 */
+    public static final int GROUP_GAP = 6;
+    public static final int FIELD_SPACING = LABEL_OFFSET + GROUP_GAP;
     public static final int TITLE_HEIGHT = 20;
     public static final int BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + 4;
+
+    /** 两行字段（label + 控件）之后，下一组 label 的 Y。 */
+    public static int afterTwoRowField(int labelY) {
+        return labelY + LABEL_OFFSET + BUTTON_HEIGHT + FIELD_SPACING;
+    }
+
+    /** 三行字段（label + 输入 + 按钮行）之后，下一组 label 的 Y。 */
+    public static int afterThreeRowField(int labelY) {
+        return labelY + LABEL_OFFSET * 2 + BUTTON_HEIGHT + FIELD_SPACING;
+    }
+
+    /** 控件行（按钮/输入顶边在 rowY）之后，下一组 label 的 Y。 */
+    public static int nextLabelAfterRow(int rowY) {
+        return rowY + BUTTON_HEIGHT + FIELD_SPACING;
+    }
 
     public static final int COLOR_WHITE = 0xFFFFFFFF;
     public static final int COLOR_GRAY = 0xFFAAAAAA;

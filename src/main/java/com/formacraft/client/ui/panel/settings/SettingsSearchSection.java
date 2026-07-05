@@ -28,6 +28,7 @@ public final class SettingsSearchSection {
         y += FIELD_SPACING;
 
         drawSmallLabel(client, ctx, Text.literal("Search API Key（Bing/Google/Tavily/SerpAPI）"), x, y);
+        int searchKeyLabelY = y;
         y += LABEL_OFFSET;
         host.searchApiKeyInput().setPasswordMode(host.hideKey() && !host.searchApiKeyInput().isFocused());
         host.searchApiKeyInput().render(ctx, x, y, w, INPUT_HEIGHT);
@@ -44,9 +45,10 @@ public final class SettingsSearchSection {
         host.testSearchKeyButton().visible = true;
         host.testSearchKeyButton().active = !host.validatingSearchKey();
         host.testSearchKeyButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        y += FIELD_SPACING;
+        y = afterThreeRowField(searchKeyLabelY);
 
         drawSmallLabel(client, ctx, Text.literal("Google CSE CX（搜索引擎 ID）"), x, y);
+        int googleCxLabelY = y;
         y += LABEL_OFFSET;
         host.googleCseCxInput().render(ctx, x, y, w, INPUT_HEIGHT);
         if (!host.googleCseCxInput().isFocused()) {
@@ -55,6 +57,6 @@ public final class SettingsSearchSection {
                 ctx.drawTextWithShadow(client.textRenderer, Text.literal("Google 搜索时必填"), x + 4, y + 4, 0xFF777777);
             }
         }
-        return y + FIELD_SPACING;
+        return afterTwoRowField(googleCxLabelY);
     }
 }

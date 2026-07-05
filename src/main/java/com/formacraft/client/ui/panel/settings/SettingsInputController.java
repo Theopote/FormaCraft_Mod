@@ -172,7 +172,7 @@ public final class SettingsInputController {
 
         // =========== LLM Provider ============
         // API Key 三行：标题 + 输入框 + 按钮行
-        y += FIELD_SPACING + LABEL_OFFSET;
+        y = afterThreeRowField(apiLabelY);
         int providerLabelY = y;
         int providerY = providerLabelY + LABEL_OFFSET;
 
@@ -260,8 +260,7 @@ public final class SettingsInputController {
         }
 
         // =========== Model（输入 + 刷新 + 自动） ============
-        // Base URL 是三行（FIELD_SPACING + LABEL_OFFSET）
-        y += FIELD_SPACING + LABEL_OFFSET;
+        y = afterThreeRowField(llmBaseUrlLabelY);
         int modelLabelY = y;
         int modelInputY = modelLabelY + LABEL_OFFSET;
         int modelBtnY = modelLabelY + LABEL_OFFSET * 2;
@@ -337,8 +336,8 @@ public final class SettingsInputController {
         }
 
         // =========== Search（建筑研究） ============
-        // Model 区块结束后推进 LABEL_OFFSET * 3，与 SettingsConnectionSection 出口一致。
-        y += LABEL_OFFSET * 3;
+        // Model 三行结束后进入 Search section
+        y = afterThreeRowField(modelLabelY);
 
         int searchProviderLabelY = y;
         int searchProviderY = searchProviderLabelY + LABEL_OFFSET;
@@ -384,7 +383,8 @@ public final class SettingsInputController {
             return true;
         }
 
-        y += FIELD_SPACING;
+        // Search API Key 三行之后进入 Google CX
+        y = afterThreeRowField(searchKeyLabelY);
         int googleCxLabelY = y;
         int googleCxY = googleCxLabelY + LABEL_OFFSET;
         if (host.googleCseCxInput().mouseClicked(mouseX, mouseY, x, googleCxY, w, INPUT_HEIGHT)) {
@@ -397,7 +397,7 @@ public final class SettingsInputController {
             return true;
         }
 
-        y += FIELD_SPACING;
+        y = afterTwoRowField(googleCxLabelY);
 
         // =========== Debug Warnings（toggle） ============
         int dbgBtnY = y + LABEL_OFFSET;
@@ -413,8 +413,7 @@ public final class SettingsInputController {
             return true;
         }
 
-        // 每个字段固定占 3 个行槽（label + 控件 + 空行）：渲染端推进 FIELD_SPACING + LABEL_OFFSET。
-        // 命中测试必须一致，否则每经过一个字段，下方滑条命中框就再上移一个 LABEL_OFFSET(累积偏移)。
+        // 滑条字段：label + 控件两行，组间距 FIELD_SPACING；与 PreferencesSection 渲染一致。
         y += FIELD_SPACING + LABEL_OFFSET;
 
         int reachSliderY = y + LABEL_OFFSET;
@@ -450,8 +449,7 @@ public final class SettingsInputController {
         }
 
         // =========== 按钮行（Save/Cancel/Reset） ============
-        // 此时 y 停留在“font 区块起点”。font 字段同样占 3 个行槽，推进 FIELD_SPACING + LABEL_OFFSET
-        // 即到达 SettingsActionsSection 的按钮行起点，与渲染坐标一致。
+        // font 区块结束后推进 FIELD_SPACING + LABEL_OFFSET，到达 Actions 按钮行起点。
         y += FIELD_SPACING + LABEL_OFFSET;
         int btnY = y;
         int btnW1 = (w - BUTTON_GAP * 2) / 3;
