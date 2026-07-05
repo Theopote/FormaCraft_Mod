@@ -59,7 +59,14 @@ public final class ComponentCaptureSelectionController {
         if (!selectedBlocks.isEmpty()) {
             return true;
         }
-        return SelectionTool.INSTANCE.hasSelection();
+        if (!SelectionTool.INSTANCE.hasSelection()) {
+            return false;
+        }
+        return true;
+    }
+
+    public boolean hasValidSelection(MinecraftClient client) {
+        return countBlocks(client) > 0;
     }
 
     public BlockPos getSelectionMin() {
@@ -125,11 +132,17 @@ public final class ComponentCaptureSelectionController {
         return isDragging || mode != ComponentSelectionMode.BOX_SELECT;
     }
 
-    public void loadFromDraft(ComponentCaptureDraft draft) {
+    public void loadFromDraft(ComponentCaptureDraft draft, MinecraftClient client) {
         selectedBlocks.clear();
         if (draft != null && draft.selection.explicit && draft.selection.blocks != null) {
-            selectedBlocks.addAll(draft.selection.blocks);
+            for (BlockPos pos : draft.selection.blocks) {
+                if (pos != null && client != null && client.world != null
+                        && !client.world.getBlockState(pos).isAir()) {
+                    selectedBlocks.add(pos.toImmutable());
+                }
+            }
             mode = ComponentSelectionMode.POINT_SELECT;
+            syncSelectionToDraft();
         } else {
             mode = ComponentSelectionMode.BOX_SELECT;
         }
@@ -168,6 +181,10 @@ public final class ComponentCaptureSelectionController {
 
         boolean ctrl = GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
                 || GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+        if (client.world != null && client.world.getBlockState(pos).isAir()) {
+            return true;
+        }
+
         if (ctrl) {
             addBlock(pos);
         } else if (selectedBlocks.contains(pos.toImmutable())) {
@@ -178,12 +195,12 @@ public final class ComponentCaptureSelectionController {
         return true;
     }
 
-    public void handleWorldRelease(int button) {
+    public void handleWorldRelease(MinecraftClient client, int button) {
         if (button == 0 && mode == ComponentSelectionMode.BOX_SELECT && SelectionTool.INSTANCE.hasSelection()) {
             BlockPos min = SelectionTool.INSTANCE.getMin();
             BlockPos max = SelectionTool.INSTANCE.getMax();
             if (min != null && max != null) {
-                setBoxSelection(min, max);
+                setBoxSelection(client, min, max);
             }
         }
     }
@@ -271,7 +288,7 @@ public final class ComponentCaptureSelectionController {
         notifySelectionChanged();
     }
 
-    private void setBoxSelection(BlockPos start, BlockPos end) {
+    private void setBoxSelection(MinecraftClient client, BlockPos start, BlockPos end) {
         if (start == null || end == null) {
             return;
         }
@@ -293,9 +310,20 @@ public final class ComponentCaptureSelectionController {
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    selectedBlocks.add(new BlockPos(x, y, z));
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (client != null && client.world != null && client.world.getBlockState(pos).isAir()) {
+                        continue;
+                    }
+                    selectedBlocks.add(pos);
                 }
             }
+        }
+
+        if (selectedBlocks.isEmpty()) {
+            SelectionTool.INSTANCE.clearSelection();
+            st.syncDraftToState();
+            notifySelectionChanged();
+            return;
         }
 
         SelectionTool.INSTANCE.setSelection(new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ));

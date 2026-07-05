@@ -83,8 +83,7 @@ public final class ComponentHealthChecker {
         // H1-2: 选区高度/宽度异常
         if (def.size != null) {
             int h = def.size.h;
-            ComponentCategory cat = def.category != null ? def.category : ComponentCategory.GENERIC;
-            
+
             if (h == 1 && (cat == ComponentCategory.DOOR || cat == ComponentCategory.WINDOW)) {
                 result.add(HealthCheckResult.CheckItem.warn("H1-2", "门/窗构件高度过低",
                     "门/窗构件高度只有 1 格，可能不完整", "AI 可能误判为装饰块",
@@ -217,19 +216,7 @@ public final class ComponentHealthChecker {
                                       cat == ComponentCategory.STAIRS);
         
         if (needsDirectionality) {
-            boolean hasDirectionality = def.placementSpec != null
-                    && def.placementSpec.facingPolicy != null
-                    && def.placementSpec.facingPolicy != com.formacraft.common.component.placement.FacingPolicy.NONE;
-
-            if (!hasDirectionality && def.directionHints != null) {
-                if (cat == ComponentCategory.STAIRS) {
-                    hasDirectionality = def.directionHints.hasBottomTop
-                            || (def.directionHints.bottom != null && def.directionHints.top != null);
-                } else {
-                    hasDirectionality = def.directionHints.hasInteriorExterior
-                            || (def.directionHints.inside != null && def.directionHints.outside != null);
-                }
-            }
+            boolean hasDirectionality = isHasDirectionality(def, cat);
 
             if (!hasDirectionality) {
                 String categoryName = getCategoryDisplayName(cat);
@@ -292,7 +279,24 @@ public final class ComponentHealthChecker {
             }
         }
     }
-    
+
+    private static boolean isHasDirectionality(ComponentDefinition def, ComponentCategory cat) {
+        boolean hasDirectionality = def.placementSpec != null
+                && def.placementSpec.facingPolicy != null
+                && def.placementSpec.facingPolicy != com.formacraft.common.component.placement.FacingPolicy.NONE;
+
+        if (!hasDirectionality && def.directionHints != null) {
+            if (cat == ComponentCategory.STAIRS) {
+                hasDirectionality = def.directionHints.hasBottomTop
+                        || (def.directionHints.bottom != null && def.directionHints.top != null);
+            } else {
+                hasDirectionality = def.directionHints.hasInteriorExterior
+                        || (def.directionHints.inside != null && def.directionHints.outside != null);
+            }
+        }
+        return hasDirectionality;
+    }
+
     // ============ H3: 语义可理解性规则 ============
     
     private static void checkSemanticHealth(ComponentDefinition def, HealthCheckResult result) {

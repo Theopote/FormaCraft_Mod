@@ -16,4 +16,8 @@ public interface ComponentCaptureSemanticHost {
     void setNameInputBounds(int x, int y, int w, int h);
 
     void setTagsInputBounds(int x, int y, int w, int h);
+
+    boolean isAdvancedOptionsExpanded();
+
+    void setAdvancedOptionsExpanded(boolean expanded);
 }

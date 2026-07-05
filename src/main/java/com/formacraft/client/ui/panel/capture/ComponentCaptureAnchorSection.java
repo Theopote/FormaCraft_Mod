@@ -29,6 +29,8 @@ public final class ComponentCaptureAnchorSection {
             boolean isPhaseActive,
             boolean isPhaseComplete,
             boolean forceCollapsed,
+            ComponentCapturePhaseHeaders phaseHeaders,
+            int phaseIndex,
             ButtonWidget pickAnchorButton,
             ButtonWidget clearAnchorButton,
             ButtonWidget hostFaceButton,
@@ -51,7 +53,11 @@ public final class ComponentCaptureAnchorSection {
         String phase2Title = (phaseCollapsed ? "▶ " : "▼ ") +
         "② 锚点 & 朝向" + (isPhaseComplete ? "（已完成 ✓）" : (isPhaseActive ? "（当前步骤 ★）" : "（未开始）"));
         int phase2TitleColor = isPhaseActive ? 0xFFFFFF00 : (isPhaseComplete ? 0xFF88FF88 : 0xFF888888);
+        int titleY = y;
         y = textDrawer.draw(ctx, Text.literal(phase2Title), x, y, w, phase2TitleColor);
+        if (phaseHeaders != null) {
+            phaseHeaders.record(phaseIndex, x, titleY, w, client.textRenderer.fontHeight);
+        }
         y += 2;
 
         if (!phaseCollapsed) {

@@ -2,8 +2,9 @@ package com.formacraft.client.ui.panel;
 
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
-import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAiExplanation;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureCategoryOrder;
+import com.formacraft.client.ui.panel.capture.ComponentCapturePhaseHeaders;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAnchorSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthCoordinator;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthDrawer;
@@ -56,6 +57,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     private static final int BUTTON_HEIGHT = 16;
     private static final int THUMBNAIL_SIZE = 120; // 增大显示尺寸以更好地展示构件细节
     private static final int FIELD_SPACING = 28;
+    private static final int STICKY_FOOTER_HEIGHT = 22;
 
     // 输入框
     private final HudTextInput nameInput = new HudTextInput();
@@ -102,6 +104,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     private ButtonWidget clearSelectionButton;
     
     // Phase 3: 语义配置按钮
+    private ButtonWidget advancedOptionsButton;
     private ButtonWidget attachmentModeButton;
     private ButtonWidget directionalityButton;
     private ButtonWidget culturalStyleButton;
@@ -137,7 +140,10 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     
     // 阶段感知状态
     private CapturePhase currentPhase = CapturePhase.SELECTION;
-    private boolean[] phaseCollapsed = new boolean[CapturePhase.getTotalPhases()]; // 默认都展开
+    private boolean[] phaseCollapsed = new boolean[CapturePhase.getTotalPhases()];
+    private final ComponentCapturePhaseHeaders phaseHeaders = new ComponentCapturePhaseHeaders();
+    private CapturePhase lastAutoCollapsePhase = null;
+    private boolean advancedOptionsExpanded = false;
     
     // 调试开关
     private static final boolean DEBUG_CAPTURE = false; // 设置为 true 启用调试日志
@@ -274,8 +280,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                         
                         选项：
                         • NONE：不镜像
-                        • LEFT_RIGHT：左右镜像
-                        • FRONT_BACK：前后镜像
+                        • X：沿 X 轴镜像
+                        • Z：沿 Z 轴镜像
                         
                         用于创建对称变体""")))
                 .build();
@@ -478,17 +484,20 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 .build();
 
         // 底部按钮
-        cancelButton = ButtonWidget.builder(Text.literal("取消"), b -> {
+        cancelButton = ButtonWidget.builder(Text.literal("重置"), b -> {
                     st.pickingAnchor = false;
                     st.cancelCapture();
-                    FormaCraftHudOverlay.activePanel = PanelType.TOOLS;
+                    clearSelection();
+                    advancedOptionsExpanded = false;
+                    st.beginCapture();
+                    syncLocalFromState();
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("""
-                        取消构件拾取
+                        重置构件拾取
                         ━━━━━━━━━━━━
-                        放弃当前构件配置
-                        返回工具面板
+                        清空当前选区与配置
+                        留在拾取面板重新开始
                         
                         已配置的内容将丢失""")))
                 .build();
@@ -558,6 +567,13 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 .build();
         
         // Phase 3: 语义配置按钮
+        advancedOptionsButton = ButtonWidget.builder(Text.literal("▶ 高级选项"), b -> {
+                    advancedOptionsExpanded = !advancedOptionsExpanded;
+                })
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("展开附着、方向性与语义标注等高级选项")))
+                .build();
+
         attachmentModeButton = ButtonWidget.builder(
                 Text.literal("附着: " + getAttachmentModeDisplay()), 
                 b -> cycleAttachmentMode()
@@ -703,6 +719,9 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         return switch (category) {
             case DOOR -> "门";
             case WINDOW -> "窗";
+            case BALCONY -> "阳台";
+            case RAILING -> "栏杆";
+            case PANEL -> "面板";
             case COLUMN -> "柱子";
             case STAIRS -> "楼梯";
             case BRACKET -> "斗拱";
@@ -793,17 +812,20 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         // 背景
         ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
 
-        // 启用裁剪
-        ctx.enableScissor(panelX, getContentY(), panelX + panelWidth, panelY + panelHeight);
+        // 启用裁剪（为底部固定按钮留出空间）
+        int scrollBottom = panelY + panelHeight - STICKY_FOOTER_HEIGHT;
+        ctx.enableScissor(panelX, getContentY(), panelX + panelWidth, scrollBottom);
+
+        phaseHeaders.reset();
+        autoCollapseNonActivePhases();
 
         // 标题
         y = drawWrappedText(ctx, Text.literal("🎯 构件拾取  Component Capture"), x, y, w, 0xFFFFFFFF);
         y += 4;
         
         // 阶段提示（顶部弱引导）
-        currentPhase = computeCurrentPhase();
-        String phaseText = String.format("🟢 步骤 %d / %d  ── %s", 
-            currentPhase.getPhaseNumber(), 
+        String phaseText = String.format("🟢 步骤 %d / %d  ── %s",
+            currentPhase.getPhaseNumber(),
             CapturePhase.getTotalPhases(),
             currentPhase.getDescription());
         y = drawWrappedText(ctx, Text.literal(phaseText), x, y, w, 0xFF88FF88);
@@ -827,6 +849,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 phase1Collapsed,
                 currentPhase == CapturePhase.SELECTION,
                 isPhaseComplete(CapturePhase.SELECTION),
+                phaseHeaders,
+                0,
                 boxSelectButton,
                 pointSelectButton,
                 clearSelectionButton,
@@ -853,6 +877,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 currentPhase == CapturePhase.ANCHOR_ORIENTATION,
                 isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION),
                 !isPhaseComplete(CapturePhase.SELECTION),
+                phaseHeaders,
+                1,
                 pickAnchorButton,
                 clearAnchorButton,
                 hostFaceButton,
@@ -882,7 +908,10 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 currentPhase == CapturePhase.SEMANTIC,
                 isPhaseComplete(CapturePhase.SEMANTIC),
                 !isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION),
+                phaseHeaders,
+                2,
                 categoryButton,
+                advancedOptionsButton,
                 attachmentModeButton,
                 directionalityButton,
                 setInsideButton,
@@ -906,6 +935,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 ctx,
                 client,
                 this,
+                selectionController,
                 this::drawWrappedText,
                 socketIdInput,
                 getScaledMouseX(),
@@ -914,6 +944,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 currentPhase == CapturePhase.AI_GUARANTEE,
                 isPhaseComplete(CapturePhase.AI_GUARANTEE),
                 !isPhaseComplete(CapturePhase.SEMANTIC),
+                phaseHeaders,
+                3,
                 autoDetectSocketsButton,
                 socketContextButton,
                 socketPickOriginButton,
@@ -948,55 +980,58 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         if (isPhaseComplete(CapturePhase.SEMANTIC)) {
             y = aiExplanation.renderSection(ctx, client, this::drawWrappedText, x, y, w);
         }
-        
-        // ============ 底部按钮 ============
-        y += 4;
-        
+
+        // 计算最大滚动
+        int contentStartY = getContentY() + CONTENT_PADDING;
+        int totalContentHeight = (y + scrollY) - contentStartY;
+        int visibleHeight = panelHeight - (contentStartY - panelY) - CONTENT_PADDING - STICKY_FOOTER_HEIGHT;
+        maxScrollY = Math.max(0, totalContentHeight - visibleHeight);
+
+        if (scrollY > maxScrollY) scrollY = maxScrollY;
+        if (scrollY < 0) scrollY = 0;
+
+        ctx.disableScissor();
+        drawStickyFooter(ctx, x, w);
+    }
+
+    private void drawStickyFooter(DrawContext ctx, int x, int w) {
+        int footerTop = panelY + panelHeight - STICKY_FOOTER_HEIGHT - 4;
+        ctx.fill(panelX + 1, footerTop, panelX + panelWidth - 1, panelY + panelHeight - 1, 0xE0101010);
+        ctx.fill(x, footerTop, x + w, footerTop + 1, 0xFF444444);
+
         int half = (w - 4) / 2;
-        cancelButton.setPosition(x, y);
+        cancelButton.setPosition(x, footerTop + 4);
         cancelButton.setWidth(half);
         cancelButton.visible = true;
         cancelButton.active = true;
         cancelButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
 
-        // Save按钮策略（按建议：ERROR阻断，WARN提示）
         var healthResult = healthCoordinator.check();
         boolean canSaveBase = canSaveWithoutHealthCheck();
         ComponentCaptureHealthDrawer.configureSaveButton(saveButton, healthResult, canSaveBase);
 
-        saveButton.setPosition(x + half + 4, y);
+        saveButton.setPosition(x + half + 4, footerTop + 4);
         saveButton.setWidth(w - half - 4);
         saveButton.visible = true;
         saveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
+    }
 
-        // 计算最大滚动
-        // y 已经减去了 scrollY，所以需要加回来计算总内容高度
-        int contentStartY = getContentY() + CONTENT_PADDING;
-        int totalContentHeight = (y + scrollY) - contentStartY;
-        int visibleHeight = panelHeight - (contentStartY - panelY) - CONTENT_PADDING;
-        maxScrollY = Math.max(0, totalContentHeight - visibleHeight);
-        
-        // 限制当前滚动位置
-        if (scrollY > maxScrollY) scrollY = maxScrollY;
-        if (scrollY < 0) scrollY = 0;
-
-        ctx.disableScissor();
+    private void autoCollapseNonActivePhases() {
+        currentPhase = computeCurrentPhase();
+        if (currentPhase == lastAutoCollapsePhase) {
+            return;
+        }
+        lastAutoCollapsePhase = currentPhase;
+        int activeIndex = currentPhase.ordinal();
+        for (int i = 0; i < phaseCollapsed.length; i++) {
+            phaseCollapsed[i] = i != activeIndex;
+        }
     }
 
     private void cycleCategory() {
         var st = ComponentTool.INSTANCE.getState();
-        ComponentCategory[] values = ComponentCategory.values();
-        int idx = 0;
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] == st.category) {
-                idx = i;
-                break;
-            }
-        }
-        st.category = values[(idx + 1) % values.length];
-        
-        // 分类驱动：根据分类自动设置附着模式和方向性
+        st.category = ComponentCaptureCategoryOrder.next(st.category);
+
         applyCategoryDefaults(st.category);
         semanticPreview.invalidate();
     }
@@ -1011,6 +1046,18 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
             case DOOR, WINDOW:
                 attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_OPENING;
                 orientationController.setDirectionalityMode(DirectionalityMode.INSIDE_OUTSIDE);
+                break;
+            case BALCONY:
+                attachmentMode = com.formacraft.common.component.placement.AttachmentType.CORNER;
+                orientationController.setDirectionalityMode(DirectionalityMode.INSIDE_OUTSIDE);
+                break;
+            case RAILING:
+                attachmentMode = com.formacraft.common.component.placement.AttachmentType.EDGE;
+                orientationController.setDirectionalityMode(DirectionalityMode.NONE);
+                break;
+            case PANEL:
+                attachmentMode = com.formacraft.common.component.placement.AttachmentType.WALL_SURFACE;
+                orientationController.setDirectionalityMode(DirectionalityMode.NONE);
                 break;
             case COLUMN:
                 attachmentMode = com.formacraft.common.component.placement.AttachmentType.FLOOR;
@@ -1039,21 +1086,19 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
      */
     private CapturePhase computeCurrentPhase() {
         var st = ComponentTool.INSTANCE.getState();
-        boolean hasSelection = selectionController.hasAnySelection();
+        boolean hasSelection = selectionController.hasValidSelection(client);
         boolean hasAnchor = st.captureDraft.anchor.worldPos != null;
         boolean hasName = st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
-        boolean hasCategory = st.category != ComponentCategory.GENERIC;
-        
+
         if (!hasSelection) {
             return CapturePhase.SELECTION;
         }
         if (!hasAnchor) {
             return CapturePhase.ANCHOR_ORIENTATION;
         }
-        if (!hasName || !hasCategory) {
+        if (!hasName) {
             return CapturePhase.SEMANTIC;
         }
-        // 阶段4是可选的，但如果有问题会提示
         return CapturePhase.AI_GUARANTEE;
     }
     
@@ -1064,15 +1109,12 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         var st = ComponentTool.INSTANCE.getState();
         switch (phase) {
             case SELECTION:
-                return selectionController.hasAnySelection();
+                return selectionController.hasValidSelection(client);
             case ANCHOR_ORIENTATION:
                 return st.captureDraft.anchor.worldPos != null;
             case SEMANTIC:
-                boolean hasName = st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
-                boolean hasCategory = st.category != ComponentCategory.GENERIC;
-                return hasName && hasCategory;
+                return st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
             case AI_GUARANTEE:
-                // 阶段4是可选的，总是返回true
                 return true;
             default:
                 return false;
@@ -1150,6 +1192,16 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         }
     }
 
+    @Override
+    public boolean isAdvancedOptionsExpanded() {
+        return advancedOptionsExpanded;
+    }
+
+    @Override
+    public void setAdvancedOptionsExpanded(boolean expanded) {
+        advancedOptionsExpanded = expanded;
+    }
+
     private void runAutoAnalysis() {
         HudToast.show("智能分析尚未实现，请手动配置分类、标签与语义字段", true);
     }
@@ -1160,7 +1212,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     
     private boolean canSaveWithoutHealthCheck() {
         var st = ComponentTool.INSTANCE.getState();
-        if (!selectionController.hasValidSelection()) {
+        if (!selectionController.hasValidSelection(client)) {
             return false;
         }
         if (st.name == null || st.name.isBlank()) {
@@ -1242,6 +1294,12 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         if (healthCoordinator.handleSummaryClick(mouseY, getPanelY(), scrollY)) {
             return true;
         }
+
+        Integer hitPhase = phaseHeaders.hitPhase(mouseX, mouseY);
+        if (hitPhase != null) {
+            phaseCollapsed[hitPhase] = !phaseCollapsed[hitPhase];
+            return true;
+        }
         
         // 选择工具按钮点击
         if (boxSelectButton != null && boxSelectButton.visible && boxSelectButton.mouseClicked(click, false)) return true;
@@ -1258,6 +1316,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         
         // 按钮点击
         if (categoryButton != null && categoryButton.visible && categoryButton.mouseClicked(click, false)) return true;
+        if (advancedOptionsButton != null && advancedOptionsButton.visible && advancedOptionsButton.mouseClicked(click, false)) return true;
         if (pickAnchorButton != null && pickAnchorButton.visible && pickAnchorButton.mouseClicked(click, false)) return true;
         if (clearAnchorButton != null && clearAnchorButton.visible && clearAnchorButton.mouseClicked(click, false)) return true;
         if (hostFaceButton != null && hostFaceButton.visible && hostFaceButton.mouseClicked(click, false)) return true;
@@ -1400,7 +1459,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
      * 处理鼠标释放（从 InputRouter 调用）
      */
     public void handleWorldRelease(int button) {
-        selectionController.handleWorldRelease(button);
+        selectionController.handleWorldRelease(client, button);
     }
 
     /**
@@ -1471,7 +1530,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
      */
     private void syncLocalFromState() {
         var st = ComponentTool.INSTANCE.getState();
-        selectionController.loadFromDraft(st.captureDraft);
+        selectionController.loadFromDraft(st.captureDraft, client);
         orientationController.loadFromDraft(st.captureDraft);
         if (!st.captureDraft.selection.explicit) {
             st.captureDraft.selection.aabbMin = SelectionTool.INSTANCE.getMin();

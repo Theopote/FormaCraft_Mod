@@ -32,7 +32,10 @@ public final class ComponentCaptureSemanticSection {
             boolean isPhaseActive,
             boolean isPhaseComplete,
             boolean forceCollapsed,
+            ComponentCapturePhaseHeaders phaseHeaders,
+            int phaseIndex,
             ButtonWidget categoryButton,
+            ButtonWidget advancedOptionsButton,
             ButtonWidget attachmentModeButton,
             ButtonWidget directionalityButton,
             ButtonWidget setInsideButton,
@@ -58,7 +61,11 @@ public final class ComponentCaptureSemanticSection {
         String phase3Title = (phaseCollapsed ? "▶ " : "▼ ") +
                 "③ 构件语义" + (isPhaseComplete ? "（已完成 ✓）" : (isPhaseActive ? "（当前步骤 ★）" : "（自动 + 可调整）"));
         int phase3TitleColor = isPhaseActive ? 0xFFFFFF00 : (isPhaseComplete ? 0xFF88FF88 : 0xFF888888);
+        int titleY = y;
         y = textDrawer.draw(ctx, Text.literal(phase3Title), x, y, w, phase3TitleColor);
+        if (phaseHeaders != null) {
+            phaseHeaders.record(phaseIndex, x, titleY, w, client.textRenderer.fontHeight);
+        }
         y += 2;
 
         if (!phaseCollapsed) {
@@ -121,6 +128,16 @@ public final class ComponentCaptureSemanticSection {
                     geometryArchetypeButton
             );
 
+            advancedOptionsButton.setMessage(Text.literal(
+                    host.isAdvancedOptionsExpanded() ? "▼ 高级选项" : "▶ 高级选项"));
+            advancedOptionsButton.setPosition(x, y);
+            advancedOptionsButton.setWidth(w);
+            advancedOptionsButton.visible = true;
+            advancedOptionsButton.active = true;
+            advancedOptionsButton.render(ctx, mouseX, mouseY, 0f);
+            y += LABEL_OFFSET;
+
+            if (host.isAdvancedOptionsExpanded()) {
             y = textDrawer.draw(ctx, Text.literal("🔧 附着与方向性（可调整）"), x, y, w, 0xFFFFFFFF);
             y += 2;
 
@@ -224,6 +241,18 @@ public final class ComponentCaptureSemanticSection {
 
             ctx.fill(x, y, x + w, y + 1, 0xFF444444);
             y += 4;
+            } else {
+                attachmentModeButton.visible = false;
+                directionalityButton.visible = false;
+                setInsideButton.visible = false;
+                setOutsideButton.visible = false;
+                setBottomButton.visible = false;
+                setTopButton.visible = false;
+                semanticSkinButton.visible = false;
+                semanticTagOnSaveButton.visible = false;
+                semanticStyleButton.visible = false;
+                semanticPartButton.visible = false;
+            }
         }
 
         return y;
@@ -233,6 +262,9 @@ public final class ComponentCaptureSemanticSection {
         return switch (category) {
             case DOOR -> "🚪";
             case WINDOW -> "🪟";
+            case BALCONY -> "🏡";
+            case RAILING -> "🚧";
+            case PANEL -> "🧩";
             case COLUMN -> "🏛️";
             case STAIRS -> "🪜";
             case BRACKET -> "🏗️";

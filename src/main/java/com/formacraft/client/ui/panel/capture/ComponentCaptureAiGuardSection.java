@@ -1,7 +1,6 @@
 package com.formacraft.client.ui.panel.capture;
 
 import com.formacraft.client.tool.ComponentTool;
-import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -19,6 +18,7 @@ public final class ComponentCaptureAiGuardSection {
             DrawContext ctx,
             MinecraftClient client,
             ComponentCaptureAiGuardHost host,
+            ComponentCaptureSelectionController selectionController,
             ComponentCaptureHealthDrawer.WrappedTextDrawer textDrawer,
             HudTextInput socketIdInput,
             int mouseX,
@@ -27,6 +27,8 @@ public final class ComponentCaptureAiGuardSection {
             boolean isPhaseActive,
             boolean isPhaseComplete,
             boolean forceCollapsed,
+            ComponentCapturePhaseHeaders phaseHeaders,
+            int phaseIndex,
             ButtonWidget autoDetectSocketsButton,
             ButtonWidget socketContextButton,
             ButtonWidget socketPickOriginButton,
@@ -48,10 +50,17 @@ public final class ComponentCaptureAiGuardSection {
         String phase4Title = (phaseCollapsed ? "▶ " : "▼ ") +
                 "④ AI 使用保障" + (isPhaseComplete ? "（已完成 ✓）" : (isPhaseActive ? "（当前步骤 ★）" : "（高级，可折叠）"));
         int phase4TitleColor = isPhaseActive ? 0xFFFFFF00 : (isPhaseComplete ? 0xFF88FF88 : 0xFF888888);
+        int titleY = y;
         y = textDrawer.draw(ctx, Text.literal(phase4Title), x, y, w, phase4TitleColor);
+        if (phaseHeaders != null) {
+            phaseHeaders.record(phaseIndex, x, titleY, w, client.textRenderer.fontHeight);
+        }
         y += 2;
 
         if (!phaseCollapsed) {
+            y = textDrawer.draw(ctx, Text.literal("连接位为可选项，可跳过此步骤"), x, y, w, 0xFF888888);
+            y += 4;
+
             y = textDrawer.draw(ctx, Text.literal("连接位配置"), x, y, w, 0xFFFFFFFF);
             y += 2;
 
@@ -60,20 +69,17 @@ public final class ComponentCaptureAiGuardSection {
                     : "原点(local)=未设置";
             String ss = "尺寸=" + st.socketW + "×" + st.socketH + "×" + st.socketD;
             y = textDrawer.draw(ctx, Text.literal("已添加: " + st.socketCount + " 个  " + so + "  " + ss), x, y, w, 0xFFAAAAAA);
-            y += 2;
+            y += 4;
 
-            autoDetectSocketsButton.setPosition(x, y);
-            autoDetectSocketsButton.setWidth(w);
-            autoDetectSocketsButton.visible = true;
-            autoDetectSocketsButton.active = false;
-            autoDetectSocketsButton.render(ctx, mouseX, mouseY, 0f);
-            y += LABEL_OFFSET;
+            autoDetectSocketsButton.visible = false;
+
+            boolean hasSelection = selectionController.hasValidSelection(client);
 
             socketContextButton.setMessage(Text.literal("连接位上下文: " + (st.socketContext != null ? st.socketContext.name() : "WALL")));
             socketContextButton.setPosition(x, y);
             socketContextButton.setWidth(w);
             socketContextButton.visible = true;
-            socketContextButton.active = SelectionTool.INSTANCE.hasSelection();
+            socketContextButton.active = hasSelection;
             socketContextButton.render(ctx, mouseX, mouseY, 0f);
             y += LABEL_OFFSET;
 
@@ -91,7 +97,7 @@ public final class ComponentCaptureAiGuardSection {
             socketPickOriginButton.setPosition(x, y);
             socketPickOriginButton.setWidth(half);
             socketPickOriginButton.visible = true;
-            socketPickOriginButton.active = SelectionTool.INSTANCE.hasSelection() && st.captureDraft.anchor.worldPos != null;
+            socketPickOriginButton.active = hasSelection && st.captureDraft.anchor.worldPos != null;
             socketPickOriginButton.render(ctx, mouseX, mouseY, 0f);
 
             socketFacingButton.setMessage(Text.literal("朝向: " + (st.socketFacing != null ? st.socketFacing.name() : "SOUTH")));
@@ -105,7 +111,7 @@ public final class ComponentCaptureAiGuardSection {
             socketAddButton.setPosition(x, y);
             socketAddButton.setWidth(half);
             socketAddButton.visible = true;
-            socketAddButton.active = SelectionTool.INSTANCE.hasSelection() && st.socketOriginLocal != null;
+            socketAddButton.active = hasSelection && st.socketOriginLocal != null;
             socketAddButton.render(ctx, mouseX, mouseY, 0f);
 
             socketPreviewButton.setPosition(x + half + 4, y);
@@ -122,21 +128,7 @@ public final class ComponentCaptureAiGuardSection {
             socketClearButton.render(ctx, mouseX, mouseY, 0f);
             y += LABEL_OFFSET;
 
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
-
-            y = textDrawer.draw(ctx, Text.literal("🧠 智能分析"), x, y, w, 0xFFFFFFFF);
-            y += 2;
-
-            autoAnalyzeButton.setPosition(x, y);
-            autoAnalyzeButton.setWidth(w);
-            autoAnalyzeButton.visible = true;
-            autoAnalyzeButton.active = false;
-            autoAnalyzeButton.render(ctx, mouseX, mouseY, 0f);
-            y += LABEL_OFFSET;
-
-            ctx.fill(x, y, x + w, y + 1, 0xFF444444);
-            y += 4;
+            autoAnalyzeButton.visible = false;
         }
 
         return y;

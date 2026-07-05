@@ -27,6 +27,8 @@ public final class ComponentCaptureSelectionSection {
             boolean phaseCollapsed,
             boolean isPhaseActive,
             boolean isPhaseComplete,
+            ComponentCapturePhaseHeaders phaseHeaders,
+            int phaseIndex,
             ButtonWidget boxSelectButton,
             ButtonWidget pointSelectButton,
             ButtonWidget clearSelectionButton,
@@ -39,7 +41,11 @@ public final class ComponentCaptureSelectionSection {
         String phase1Title = (phaseCollapsed ? "▶ " : "▼ ") +
         "① 选区定义" + (isPhaseComplete ? "（已完成 ✓）" : (isPhaseActive ? "（当前步骤 ★）" : "（未开始）"));
         int phase1TitleColor = isPhaseActive ? 0xFFFFFF00 : (isPhaseComplete ? 0xFF88FF88 : 0xFF888888);
+        int titleY = y;
         y = textDrawer.draw(ctx, Text.literal(phase1Title), x, y, w, phase1TitleColor);
+        if (phaseHeaders != null) {
+            phaseHeaders.record(phaseIndex, x, titleY, w, client.textRenderer.fontHeight);
+        }
         y += 2;
 
         if (!phaseCollapsed) {
