@@ -3,7 +3,6 @@ package com.formacraft.common.generation.component.util;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.llm.dto.Component;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 

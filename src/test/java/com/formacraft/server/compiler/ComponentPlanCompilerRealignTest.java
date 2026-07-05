@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 验证 LLM 自带的 ROOF/FACADE/ENTRANCE 会被贴回 MASS 的 min_corner，而不是沿用中心锚点坐标。
@@ -64,6 +65,62 @@ class ComponentPlanCompilerRealignTest {
         assertEquals(true, hasWallLow, "expected wall at mass min_corner");
         assertEquals(true, hasRoofAtTop, "expected roof anchored to mass min_corner top");
         assertEquals(true, hasWindowOnWall, "expected facade windows on mass exterior");
+    }
+
+    @Test
+    void roofSkipsCutCornerFootprint() {
+        Map<String, Object> massParams = new HashMap<>();
+        massParams.put("anchor_mode", "center");
+        massParams.put("plan_type", "cut_corners");
+        massParams.put("corner_cut", 2);
+        massParams.put("roof_type", "flat");
+
+        LlmPlan plan = new LlmPlan(
+                LlmPlan.Mode.build,
+                "Chinese_Traditional",
+                new Vec3i(0, 64, 0),
+                new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null),
+                new Layout(null, false, List.of(
+                        new Slot("villa_1", new Vec3i(0, 0, 0), GlobalConstraints.Facing.EAST, "RESIDENTIAL", null, null)
+                )),
+                List.of(
+                        new Component(
+                                "MASS_MAIN",
+                                "villa_1",
+                                new Vec3i(0, 0, 0),
+                                new Dimensions(12, 8, 6),
+                                List.of(),
+                                massParams
+                        ),
+                        new Component(
+                                "ROOF",
+                                "villa_1",
+                                new Vec3i(0, 6, 0),
+                                new Dimensions(12, 3, 6),
+                                List.of(),
+                                Map.of("roof_type", "flat")
+                        )
+                ),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
+        assertFalse(patches.isEmpty());
+
+        boolean cutCornerRoof = patches.stream().anyMatch(p ->
+                p.dx() == -6 && p.dz() == -4 && p.targetBlock() != null && !p.targetBlock().contains("air"));
+        boolean interiorRoof = patches.stream().anyMatch(p ->
+                p.dx() == -1 && p.dz() == 1 && p.targetBlock() != null && !p.targetBlock().contains("air"));
+
+        assertFalse(cutCornerRoof, "cut corner cell should not receive roof blocks");
+        assertTrue(interiorRoof, "interior footprint should still receive roof blocks");
     }
 
     private static Component massMain() {
