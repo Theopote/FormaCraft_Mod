@@ -859,11 +859,13 @@ def _invalid_assembly_params(comps: List[Dict[str, Any]]) -> List[str]:
             continue
         params = c.get("params") if isinstance(c.get("params"), dict) else {}
         assembly = params.get("assembly") if isinstance(params.get("assembly"), dict) else None
-        has_root = any(k in params for k in ("ops", "components", "graph", "macro"))
+        has_root = any(k in params for k in ("ops", "components", "graph", "macro", "preset", "presetId"))
         if assembly is None and not has_root:
             out.append(f"#{i} ASSEMBLY missing params.assembly")
             continue
         payload = assembly if assembly is not None else params
+        if isinstance(payload, dict) and (payload.get("preset") or payload.get("presetId")):
+            continue
         if not any(k in payload for k in ("ops", "components", "graph", "macro")):
             out.append(f"#{i} ASSEMBLY assembly payload empty")
     return out
@@ -898,6 +900,11 @@ def _assembly_has_twist(comps: List[Dict[str, Any]]) -> bool:
         payload = _assembly_payload(c)
         if not payload:
             continue
+        preset_params = payload.get("presetParams") if isinstance(payload.get("presetParams"), dict) else {}
+        if preset_params.get("twistTurns") is not None or preset_params.get("twist_turns") is not None:
+            return True
+        if payload.get("preset") or payload.get("presetId"):
+            return True
         graph = payload.get("graph") if isinstance(payload.get("graph"), dict) else {}
         components = graph.get("components") if isinstance(graph.get("components"), list) else []
         for comp in components:

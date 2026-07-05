@@ -1,0 +1,29 @@
+{
+  "id": "assembly_spiral_preset_golden",
+  "prompt": "原创螺旋瞭望塔，不要地标模块，用自由几何表达非矩形体量",
+  "mode": "build",
+  "style_profile": "Gothic_Cathedral",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+  "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+  "components": [
+    {
+      "component_type": "ASSEMBLY",
+      "slot_id": null,
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 12, "depth": 12, "height": 28 },
+      "features": [],
+      "params": {
+        "assembly": {
+          "preset": "spiral_watchtower",
+          "presetParams": {
+            "height": 28,
+            "footprint": 10,
+            "twistTurns": 0.75,
+            "styleId": "Gothic_Cathedral"
+          }
+        }
+      }
+    }
+  ]
+}

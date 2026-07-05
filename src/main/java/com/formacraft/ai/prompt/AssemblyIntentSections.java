@@ -51,10 +51,10 @@ ASSEMBLY INTENT (MANDATORY for this request):
 - Slot anchors and relative_position must be RELATIVE to plan.anchor (not world coordinates).
 
 Spiral / twisted tower hint:
-- Prefer graph.components[] with type SHELL_BOX and twistTurns (0.25–1.5 full rotations over height).
-- Example twistTurns: 0.75 = three-quarter turn from base to top; pair with macro.style.verticality.
+- Prefer preset shorthand: params.assembly = { "preset": "spiral_watchtower", "presetParams": { "height": 28, "footprint": 10, "twistTurns": 0.75, "styleId": "Gothic_Cathedral" } }
+- Or graph.components[] with type SHELL_BOX and twistTurns (0.25–1.5 full rotations over height).
 
-FEW-SHOT (spiral lookout tower, no landmark MODULE):
+FEW-SHOT (spiral lookout tower via preset, no landmark MODULE):
 {
   "mode": "build",
   "style_profile": "Gothic_Cathedral",
@@ -68,22 +68,8 @@ FEW-SHOT (spiral lookout tower, no landmark MODULE):
       "dimensions": { "width": 12, "depth": 12, "height": 28 },
       "params": {
         "assembly": {
-          "entranceFacing": "SOUTH",
-          "macro": {
-            "style": { "styleId": "Gothic_Cathedral", "verticality": 0.9, "transparency": 0.4 }
-          },
-          "graph": {
-            "components": [
-              {
-                "id": "SpiralShell",
-                "type": "SHELL_BOX",
-                "at": { "x": 0, "y": 0, "z": 0 },
-                "w": 10, "d": 10, "h": 28,
-                "twistTurns": 0.75
-              }
-            ],
-            "connections": []
-          }
+          "preset": "spiral_watchtower",
+          "presetParams": { "height": 28, "footprint": 10, "twistTurns": 0.75, "styleId": "Gothic_Cathedral" }
         }
       }
     }

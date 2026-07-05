@@ -16,7 +16,9 @@ import com.formacraft.server.assembly.macro.AssemblyMacroApplier;
 import com.formacraft.server.assembly.macro.AssemblyMacroApplyResult;
 import com.formacraft.server.assembly.validation.AssemblySpecNormalizeResult;
 import com.formacraft.server.assembly.validation.AssemblySpecNormalizer;
+import com.formacraft.server.assembly.preset.AssemblyPresetApplier;
 import com.formacraft.server.assembly.validation.AssemblySpecValidator;
+import com.formacraft.server.assembly.validation.AssemblyValidationRepairHints;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
@@ -58,7 +60,17 @@ public final class AssemblyPatchGenerator {
         }
 
         AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assemblyObj);
-        AssemblyMacroApplyResult macroApplied = AssemblyMacroApplier.apply(norm.normalized());
+        AssemblyPresetApplier.ApplyResult presetApplied = AssemblyPresetApplier.apply(norm.normalized());
+        if (!presetApplied.issues().isEmpty()) {
+            for (AssemblyValidationIssue issue : presetApplied.issues()) {
+                if (issue.severity() == AssemblyValidationIssue.Severity.ERROR) {
+                    FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: preset error {} at {}: {}",
+                            issue.code(), issue.path(), issue.message());
+                    return List.of();
+                }
+            }
+        }
+        AssemblyMacroApplyResult macroApplied = AssemblyMacroApplier.apply(presetApplied.applied());
         Object applied = macroApplied.applied();
 
         List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
@@ -66,7 +78,8 @@ public final class AssemblyPatchGenerator {
                 .filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR)
                 .count();
         if (errCount > 0) {
-            FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: validation failed ({} errors)", errCount);
+            FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: validation failed ({} errors). Hints:\n{}",
+                    errCount, AssemblyValidationRepairHints.formatForPrompt(issues));
             return List.of();
         }
 

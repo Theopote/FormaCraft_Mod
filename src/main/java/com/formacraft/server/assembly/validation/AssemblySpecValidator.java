@@ -70,6 +70,8 @@ public final class AssemblySpecValidator {
             validateConnections(out, graph != null ? "$.graph.connections" : "$.connections", conns, componentIds);
         }
 
+        out.addAll(AssemblyGraphDslValidator.validate(root));
+
         return out;
     }
 

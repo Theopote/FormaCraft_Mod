@@ -27,7 +27,7 @@ class AssemblyIntentSectionsTest {
     void promptBlockIncludesMandatoryAssemblyRouting() {
         String block = AssemblyIntentSections.promptBlockForIntent("螺旋瞭望塔 ASSEMBLY");
         assertTrue(block.contains("component_type=\"ASSEMBLY\""));
-        assertTrue(block.contains("twistTurns"));
+        assertTrue(block.contains("spiral_watchtower"));
         assertTrue(block.contains("Do NOT put params.assembly inside MASS"));
     }
 
@@ -37,7 +37,7 @@ class AssemblyIntentSectionsTest {
         assertFalse(prompt.contains("PROPORTION ONTOLOGY"));
         assertFalse(prompt.contains("LANDMARK MODULE ROUTING"));
         assertTrue(prompt.contains("ASSEMBLY INTENT"));
-        assertTrue(prompt.contains("twistTurns"));
+        assertTrue(prompt.contains("spiral_watchtower"));
     }
 
     @Test
