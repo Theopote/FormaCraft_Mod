@@ -3,6 +3,7 @@ package com.formacraft.client.world;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.input.InputRouter;
 import com.formacraft.common.logging.FcaLog;
+import com.formacraft.config.SettingsConfig;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -62,15 +63,7 @@ public final class CursorWorldInteraction {
     }
 
     private static double getReachDistance(MinecraftClient client) {
-        // 优先使用玩家交互范围（会随模式/属性变化）
-        try {
-            if (client.player != null) {
-                return client.player.getBlockInteractionRange();
-            }
-        } catch (Throwable t) {
-            LOG.debug("getBlockInteractionRange failed", t);
-        }
-        return 4.5;
+        return SettingsConfig.effectiveInteractionReach();
     }
 
     /**

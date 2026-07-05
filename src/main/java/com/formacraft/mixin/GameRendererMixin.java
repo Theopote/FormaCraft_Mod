@@ -76,16 +76,7 @@ public class GameRendererMixin {
 
     @Unique
     private double getReachDistance() {
-        // 以设置面板的“操作距离”为准（5~100）
-        try {
-            int v = SettingsConfig.INSTANCE.interactionReach;
-            if (v < 5) v = 5;
-            if (v > 100) v = 100;
-            return v;
-        } catch (Throwable ex) {
-            LOG.debug("read interaction reach failed, using default", ex);
-            return 80.0;
-        }
+        return SettingsConfig.effectiveInteractionReach();
     }
 
     /**

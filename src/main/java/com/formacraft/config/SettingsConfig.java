@@ -32,6 +32,20 @@ public class SettingsConfig {
     /** 系统光标与世界交互的最远距离（用于光标 RayCast / hover 选中框） */
     public int interactionReach = 80;      // 默认 80（范围 5~100）
 
+    private static final int MIN_INTERACTION_REACH = 5;
+    private static final int MAX_INTERACTION_REACH = 100;
+
+    /** 当前生效的操作距离（方块），供 RayCast 等运行时逻辑读取。 */
+    public static double effectiveInteractionReach() {
+        return clampInteractionReach(INSTANCE.interactionReach);
+    }
+
+    public static int clampInteractionReach(int v) {
+        if (v < MIN_INTERACTION_REACH) return MIN_INTERACTION_REACH;
+        if (v > MAX_INTERACTION_REACH) return MAX_INTERACTION_REACH;
+        return v;
+    }
+
     /**
      * Python 后端（Orchestrator）地址（不含末尾路径时默认拼 /build）
      * 例如：<a href="http://localhost:8000">...</a>

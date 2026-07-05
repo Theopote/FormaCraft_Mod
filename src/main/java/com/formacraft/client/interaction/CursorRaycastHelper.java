@@ -2,6 +2,7 @@ package com.formacraft.client.interaction;
 
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.common.logging.FcaLog;
+import com.formacraft.config.SettingsConfig;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -56,14 +57,7 @@ public final class CursorRaycastHelper {
     }
 
     private static double getReachDistance() {
-        try {
-            if (client.player != null) {
-                return client.player.getBlockInteractionRange();
-            }
-        } catch (Throwable t) {
-            LOG.debug("getBlockInteractionRange failed", t);
-        }
-        return 4.5;
+        return SettingsConfig.effectiveInteractionReach();
     }
 
     /**

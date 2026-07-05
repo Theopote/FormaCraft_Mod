@@ -523,6 +523,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     private void toggleDebugWarnings() {
         draftShowDebugWarnings = !draftShowDebugWarnings;
+        SettingsConfig.INSTANCE.showDebugWarnings = draftShowDebugWarnings;
         if (debugWarningsButton != null) {
             debugWarningsButton.setMessage(getDebugWarningsButtonText());
         }
@@ -1690,17 +1691,20 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public void applyTemperatureFromSlider(double value) {
         draftTemperature = clamp01((float) value);
+        SettingsConfig.INSTANCE.temperature = draftTemperature;
         updateCachedTemperatureText();
     }
 
     @Override
     public void applyFontSizeFromSlider(double value) {
         draftFontSize = clampInt(valueToFontSize(value));
+        SettingsConfig.INSTANCE.fontSize = draftFontSize;
     }
 
     @Override
     public void applyInteractionReachFromSlider(double value) {
         draftInteractionReach = clampReach(valueToReach(value));
+        SettingsConfig.INSTANCE.interactionReach = draftInteractionReach;
     }
 
     @Override
