@@ -22,7 +22,7 @@ Core rules:
   * TOWER components: use footprint center.
   * Facade/entrance/signage/roof/paving components: use the minimum corner (lowest x/z) of the component box.
 - Respect all spatial constraints: path, outline, forbidden zones, symmetry, terrain strategy.
-- Use semantic components (TOWER, WALL, ROOF, ENTRANCE, SIGNAGE, MODULE, etc.), NOT blocks.
+- Use semantic components (TOWER, WALL, ROOF, ENTRANCE, ASSEMBLY, PRIMITIVE, MODULE, SIGNAGE, etc.), NOT blocks.
 - LANDMARK MODULE: Follow the tier in LANDMARK MODULE ROUTING — MANDATORY only when user names a landmark;
   RECOMMENDED for typological matches (ellipse stadium) but compositional alternatives are allowed.
   Always vary params (designSeed, facing, bowlSteepness) and style_attributes even on MODULE paths.
@@ -37,6 +37,26 @@ Core rules:
   voronoi: cell_count, seed, voronoi_edge, voronoi_3d|voronoi_dimension=3d for volume cells; mobius: mobius_width, mobius_twist;
   CSG: operations[{op:union|subtract|intersect, kind:...}] or subtract:{kind:...} — mobius/voronoi work in CSG chains.
   Use for "build a cylinder/sphere/triangle/voronoi/mobius solid" without full building semantics.
+- ASSEMBLY (free-form parametric geometry — use when TOWER/MASS/ROOF enums cannot express the shape):
+  component_type="ASSEMBLY", relative_position=min_corner of bounding box, dimensions=axis-aligned bbox hint.
+  params.assembly = { paletteId?, entranceFacing?, macro?, graph?, ops? } — same contract as MetaAssembly extra.assembly.
+  Prefer high-level graph.components + macro.style (system compiles to ops). Use ops[] only when you know exact op names.
+  Example use cases: diagrid facade shell, curved/isosurface roof, structural frame grid, non-rectangular civic volume.
+  Do NOT use ASSEMBLY for ordinary houses/villas — compose MASS_MAIN + ROOF + FACADE_WINDOWS + ENTRANCE instead.
+  Minimal example:
+  { "component_type": "ASSEMBLY", "relative_position": {"x":0,"y":0,"z":0},
+    "dimensions": {"width": 16, "depth": 12, "height": 20},
+    "params": { "assembly": {
+      "entranceFacing": "SOUTH",
+      "macro": { "style": { "styleId": "Gothic_Cathedral", "verticality": 0.9, "transparency": 0.35 } },
+      "graph": { "components": [
+        { "id": "Nave", "type": "SHELL_BOX", "at": {"x":0,"y":0,"z":0}, "w": 16, "d": 12, "h": 20 }
+      ], "connections": [] }
+    }}}
+- PLAN_PROGRAM (complex non-rectangular footprints — alternative to many MASS blocks):
+  Top-level plan_program { intent, zones[], adjacency[], massing, circulation, constraints } OR plan_skeleton.
+  Use when the user wants courtyard compounds, wings, or irregular footprints that are hard to describe with MASS_* alone.
+  Slot anchors must be RELATIVE to plan.anchor (not world coordinates).
 - OPENING GRAMMAR (M3): When proportion_hints or proportion card applies, set FACADE_WINDOWS params.window_aspect
   from openingGrammar; output matching proportion_hints.window_aspect at plan top level.
   void_ratio on MASS/WALL/FACADE is auto-clamped to proportion card max_void_ratio at compile time.
@@ -222,10 +242,27 @@ ComponentParamsObject:
   "mobius_twist": number,
   "operations": [{ "op": "union|subtract|intersect", "kind": "..." }],
   "subtract": { "kind": "cylinder", "radius": 3 },
-  "material": "stone|glass|concrete|..."
+  "material": "stone|glass|concrete|...",
+  "assembly": {
+    "paletteId": "string",
+    "entranceFacing": "NORTH|SOUTH|EAST|WEST",
+    "macro": { "style": { "styleId": "string", "verticality": 0.0-1.0, "transparency": 0.0-1.0, "density": 0.0-1.0 } },
+    "graph": { "components": [ { "id": "string", "type": "SHELL_BOX", "at": {"x":0,"y":0,"z":0}, "w": int, "d": int, "h": int } ], "connections": [] },
+    "ops": [ { "op": "SHELL_BOX|OPENINGS|FACADE_GRID|...", "...": "..." } ]
+  }
 }
 
-""";
+
+plan_program (optional top-level — complex footprint):
+{
+  "schema": "1.0",
+  "intent": { "building_type": "string", "style_hint": "string", "scale": "small|medium|large" },
+  "zones": [ { "id": "string", "role": "core|wing|courtyard|...", "importance": 0.0-1.0 } ],
+  "adjacency": [ ["zone_a", "zone_b"] ],
+  "massing": { "strategy": "cluster|bar|court", "max_floors": int },
+  "circulation": { "primary_axis": "N-S|E-W|radial", "entrances": int },
+  "constraints": { "symmetry": "none|bilateral", "min_courtyard_ratio": 0.0-1.0 }
+}""";
     }
 
     static String componentQuerySystemPrompt() {

@@ -109,6 +109,7 @@ def run_shape_fixtures() -> int:
         "primitive_voronoi_3d.json",
         "primitive_mobius.json",
         "primitive_mobius_csg.json",
+        "assembly_gothic_shell_golden.json",
     )
     errors: List[str] = []
     checked = 0

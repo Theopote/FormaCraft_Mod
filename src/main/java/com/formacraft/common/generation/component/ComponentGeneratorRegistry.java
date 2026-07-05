@@ -3,6 +3,7 @@ package com.formacraft.common.generation.component;
 import com.formacraft.common.generation.component.impl.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -65,6 +66,7 @@ public final class ComponentGeneratorRegistry {
         // M1 几何基元（独立造形或建筑组合的基础体）
         register("PRIMITIVE", new PrimitiveShapeGenerator());
         register("SHAPE", new PrimitiveShapeGenerator());
+        register("ASSEMBLY", semantic -> List.of());
     }
 
     private ComponentGeneratorRegistry() {}

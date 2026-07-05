@@ -834,7 +834,8 @@ public final class ComponentPlanCompiler {
         // 都应保留原始 type（交由 UnifiedGeneratorRouter 的扩展/整栋回退处理）。
         boolean allowUnknown = hasComponentRequest(component.features())
                 || hasStructureRoutingHint(component)
-                || "MODULE".equals(normalizeType(component.componentType()));
+                || "MODULE".equals(normalizeType(component.componentType()))
+                || "ASSEMBLY".equals(normalizeType(component.componentType()));
         String type = normalizeComponentType(component.componentType(), allowUnknown);
         if (type.isBlank()) {
             return null;

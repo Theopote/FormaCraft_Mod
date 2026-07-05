@@ -128,13 +128,15 @@ final class PromptTemplateSections {
         sb.append("\n");
         sb.append("IMPORTANT:\n");
         sb.append("- Fill the \"components\" array with ComponentObject entries based on the component_preset for each slot.\n");
-        sb.append("- Use semantic component types (MASS_MAIN, ENTRANCE, FACADE_WINDOWS, SIGNAGE, etc.), NOT block IDs.\n");
+        sb.append("- Use semantic component types (MASS_MAIN, ENTRANCE, FACADE_WINDOWS, ASSEMBLY, PRIMITIVE, SIGNAGE, etc.), NOT block IDs.\n");
         sb.append("- All positions in components must be relative to the slot's anchor.\n");
         sb.append("- Every component must include relative_position and dimensions (width/depth/height > 0).\n");
         sb.append("- Origin conventions: MASS_* uses center unless params.anchor_mode=\"min_corner\"; TOWER uses center; facade/entrance/signage/roof/paving use min corner.\n");
         sb.append("- Respect the component_preset weights and densities when generating components.\n");
         sb.append("- Populate \"genome\" with topology/structure/form/material semantics to drive parameterized generation.\n");
         sb.append("- Use ComponentObject.params to express shape/plan/void/roof/setback/multi-mass intent instead of free-text features.\n");
+        sb.append("- Slot anchors in layout.slots must be RELATIVE to plan.anchor (y usually 0); never repeat plan.anchor world coordinates.\n");
+        sb.append("- For shapes beyond MASS/ROOF enums, use component_type ASSEMBLY with params.assembly, or top-level plan_program / PRIMITIVE.\n");
         sb.append("- Output ONLY valid JSON. No comments, no explanations.\n");
         
         return sb.toString();

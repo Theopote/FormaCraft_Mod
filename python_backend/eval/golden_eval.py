@@ -723,6 +723,10 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[st
     add(Check("facade_params_valid", not bad_facade, hard=False,
               detail=", ".join(bad_facade)))
 
+    bad_assembly = _invalid_assembly_params(comps)
+    add(Check("assembly_params_valid", not bad_assembly, hard=False,
+              detail=", ".join(bad_assembly)))
+
     # SOFT：按用户 prompt 的意图对齐（Week 1+）。
     for ic in evaluate_intent(plan, prompt):
         add(ic)
@@ -795,6 +799,26 @@ def _invalid_facade_params(comps: List[Dict[str, Any]]) -> List[str]:
         _check(params, i, ("detail_level", "detailLevel", "quality"), _ALLOWED_DETAIL_LEVEL, "detail_level")
         _check(params, i, ("window_aspect", "windowAspect"), _ALLOWED_WINDOW_ASPECT, "window_aspect")
         _check_bool(params, i, ("assembly_facade", "assemblyFacade"), "assembly_facade")
+    return out
+
+
+def _invalid_assembly_params(comps: List[Dict[str, Any]]) -> List[str]:
+    """ASSEMBLY 组件必须携带 params.assembly（或 graph/macro/ops 根字段）。"""
+    out: List[str] = []
+    for i, c in enumerate(comps):
+        t = c.get("component_type")
+        t = t.strip().upper() if isinstance(t, str) else ""
+        if t != "ASSEMBLY":
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        assembly = params.get("assembly") if isinstance(params.get("assembly"), dict) else None
+        has_root = any(k in params for k in ("ops", "components", "graph", "macro"))
+        if assembly is None and not has_root:
+            out.append(f"#{i} ASSEMBLY missing params.assembly")
+            continue
+        payload = assembly if assembly is not None else params
+        if not any(k in payload for k in ("ops", "components", "graph", "macro")):
+            out.append(f"#{i} ASSEMBLY assembly payload empty")
     return out
 
 

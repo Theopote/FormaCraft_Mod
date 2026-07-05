@@ -24,6 +24,7 @@ import java.util.Set;
  * 按优先级选择生成路径：
  * <ol>
  *   <li>组件内嵌骨架（{@code params.skeleton} / {@code skeleton:} feature）→ {@link SkeletonExecutors}</li>
+ *   <li>MetaAssembly ASSEMBLY 构件（{@code component_type=ASSEMBLY} + {@code params.assembly}）</li>
  *   <li>已注册的 {@link ComponentGenerator}（{@link ComponentGeneratorRegistry}）</li>
  *   <li>玩家组件扩展（{@code group_request:} / {@code component_request:}）</li>
  *   <li>整栋生成器回退（{@link StructureGeneratorAdaptor}）— 仅显式请求或未注册整栋类型</li>
@@ -56,6 +57,16 @@ public final class UnifiedGeneratorRouter {
         if (!skeletonPatches.isEmpty()) {
             FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: skeleton path for {}", componentType);
             return skeletonPatches;
+        }
+
+        // 1.5) ASSEMBLY → MetaAssemblyEngine（需要 world）
+        if (world != null) {
+            List<BlockPatch> assemblyPatches = com.formacraft.server.generation.component.impl.AssemblyPatchGenerator
+                    .tryGenerate(semantic, world);
+            if (!assemblyPatches.isEmpty()) {
+                FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: assembly path for {}", componentType);
+                return assemblyPatches;
+            }
         }
 
         boolean hasGroupRequest = hasFeaturePrefix(c, "group_request:");
@@ -208,6 +219,11 @@ public final class UnifiedGeneratorRouter {
     private static boolean shouldUseStructureFallback(SemanticComponent semantic) {
         Component c = semantic.source();
         if (c == null) {
+            return false;
+        }
+
+        // ASSEMBLY 走专用 MetaAssembly 路径，禁止整栋 StructureGenerator 回退
+        if ("ASSEMBLY".equals(normalizeType(c.componentType()))) {
             return false;
         }
 
