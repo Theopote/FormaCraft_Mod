@@ -393,7 +393,7 @@ public final class SettingsInputController {
             return true;
         }
 
-        y += FIELD_SPACING;
+        y = afterTwoRowField(searchProviderLabelY);
         int searchKeyLabelY = y;
         int searchKeyY = searchKeyLabelY + LABEL_OFFSET;
         if (host.searchApiKeyInput().mouseClicked(mouseX, mouseY, x, searchKeyY, w, INPUT_HEIGHT)) {
@@ -572,7 +572,7 @@ public final class SettingsInputController {
         y = afterThreeRowField(modelLabelY);
         y += sectionHeaderHeight(host.client());
         int searchProviderLabelY = y;
-        y += FIELD_SPACING;
+        y = afterTwoRowField(searchProviderLabelY);
         int searchKeyLabelY = y;
         if (host.searchApiKeyInput().mouseScrolled(mouseX, mouseY, amount, x, searchKeyLabelY + LABEL_OFFSET, w, INPUT_HEIGHT)) {
             return;
@@ -611,7 +611,8 @@ public final class SettingsInputController {
         y = afterThreeRowField(modelLabelY);
         y += sectionHeaderHeight(host.client());
 
-        y += FIELD_SPACING;
+        int searchProviderLabelY = y;
+        y = afterTwoRowField(searchProviderLabelY);
         int searchKeyLabelY = y;
         y = afterThreeRowField(searchKeyLabelY);
         int googleCxLabelY = y;
