@@ -8,7 +8,6 @@ import com.formacraft.common.model.build.Materials;
 import com.formacraft.common.model.build.Features;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.client.network.FormaCraftClientNetworking;
-import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.client.ui.UiTheme;
 import com.formacraft.common.patch.BlockPatch;
