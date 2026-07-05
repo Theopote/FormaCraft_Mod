@@ -475,6 +475,7 @@ public final class ComponentPlanCompiler {
         if (llmRoof.params() != null) {
             params.putAll(llmRoof.params());
         }
+        copyFootprintParams(mass.params(), params);
 
         Dimensions templateDims = template.dimensions();
         Dimensions llmDims = llmRoof.dimensions();
@@ -572,6 +573,25 @@ public final class ComponentPlanCompiler {
                 mergeFeatureLists(template.features(), llmEntrance.features()),
                 params
         );
+    }
+
+    private static void copyFootprintParams(Map<String, Object> from, Map<String, Object> to) {
+        if (from == null || to == null) {
+            return;
+        }
+        for (String key : List.of(
+                "plan_type", "planType",
+                "shape", "footprint_shape", "footprintShape",
+                "corner_cut", "cornerCut", "cut_corner", "cutCorner", "cut_size",
+                "l_corner", "lCorner", "l_cut", "lCut",
+                "arm_width", "cross_arm", "cross_arm_width", "armWidth",
+                "courtyard_ratio", "courtyardRatio", "court_ratio", "void_ratio", "voidRatio",
+                "corner_radius", "cornerRadius"
+        )) {
+            if (from.containsKey(key)) {
+                to.put(key, from.get(key));
+            }
+        }
     }
 
     private static List<String> mergeFeatureLists(List<String> primary, List<String> secondary) {
