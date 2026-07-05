@@ -47,4 +47,48 @@ class SocketPlacementResolverTest {
         assertEquals(0, origin.getY());
         assertEquals(0, origin.getZ());
     }
+
+    @Test
+    void infersOpeningOnEastFace() {
+        ComponentDefinition def = new ComponentDefinition();
+        def.anchor = new ComponentDefinition.Anchor();
+        def.anchor.facing = "EAST";
+
+        ComponentDefinition.BlockEntry b1 = new ComponentDefinition.BlockEntry();
+        b1.dx = 0; b1.dy = 0; b1.dz = 0;
+        ComponentDefinition.BlockEntry b2 = new ComponentDefinition.BlockEntry();
+        b2.dx = 2; b2.dy = 2; b2.dz = 4;
+        def.blocks = List.of(b1, b2);
+
+        ComponentSocket socket = ComponentSocket.builder("opening")
+                .size(SizeConstraint.rect(2, 3, 2, 3))
+                .build();
+
+        BlockPos origin = SocketPlacementResolver.resolveLocalOrigin(def, "opening", socket);
+        assertEquals(2, origin.getX());
+        assertEquals(0, origin.getY());
+        assertEquals(1, origin.getZ());
+    }
+
+    @Test
+    void infersOpeningOnWestFace() {
+        ComponentDefinition def = new ComponentDefinition();
+        def.anchor = new ComponentDefinition.Anchor();
+        def.anchor.facing = "WEST";
+
+        ComponentDefinition.BlockEntry b1 = new ComponentDefinition.BlockEntry();
+        b1.dx = 0; b1.dy = 0; b1.dz = 0;
+        ComponentDefinition.BlockEntry b2 = new ComponentDefinition.BlockEntry();
+        b2.dx = 2; b2.dy = 2; b2.dz = 4;
+        def.blocks = List.of(b1, b2);
+
+        ComponentSocket socket = ComponentSocket.builder("opening")
+                .size(SizeConstraint.rect(2, 3, 2, 3))
+                .build();
+
+        BlockPos origin = SocketPlacementResolver.resolveLocalOrigin(def, "opening", socket);
+        assertEquals(0, origin.getX());
+        assertEquals(0, origin.getY());
+        assertEquals(1, origin.getZ());
+    }
 }

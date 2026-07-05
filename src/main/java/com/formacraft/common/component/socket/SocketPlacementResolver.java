@@ -67,13 +67,18 @@ public final class SocketPlacementResolver {
             return BlockPos.ORIGIN;
         }
 
-        int cx = (minX + maxX) / 2;
         int cy = minY;
-        int cz = (minZ + maxZ) / 2;
 
         Direction facing = parseAnchorFacing(def);
-        cz = faceCoord(minZ, maxZ, facing);
-        cx = centerOpeningAxis(minX, maxX, socket, 0);
+        int cx;
+        int cz;
+        if (facing == Direction.EAST || facing == Direction.WEST) {
+            cx = faceCoord(minX, maxX, facing);
+            cz = centerOpeningAxis(minZ, maxZ, socket, 0);
+        } else {
+            cz = faceCoord(minZ, maxZ, facing);
+            cx = centerOpeningAxis(minX, maxX, socket, 0);
+        }
 
         if (socket != null && socket.size != null && socket.size.min != null && socket.size.min.length >= 2) {
             int openH = Math.max(1, socket.size.min[1]);

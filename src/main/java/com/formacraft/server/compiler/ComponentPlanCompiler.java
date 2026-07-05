@@ -66,7 +66,13 @@ public final class ComponentPlanCompiler {
 
     private static final Map<String, String> COMPONENT_TYPE_ALIASES = Map.of(
             "MAIN_MASS", "MASS_MAIN",
-            "BUTTRESS", "WALL"
+            "BUTTRESS", "WALL",
+            "WINDOW", "FACADE_WINDOWS",
+            "WINDOWS", "FACADE_WINDOWS",
+            "RAMPART", "WALL",
+            "PALISADE", "WALL",
+            "BARRIER", "WALL",
+            "PARAPET", "WALL"
     );
 
     private static final Set<String> AUTO_INFERRED_TYPES = Set.of(
@@ -1105,7 +1111,7 @@ public final class ComponentPlanCompiler {
             FormacraftMod.LOGGER.debug("ComponentPlanCompiler: fallback component type {} -> {}", type, fallback);
             return fallback;
         }
-        FormacraftMod.LOGGER.debug("ComponentPlanCompiler: skipping unsupported component type {}", type);
+        FormacraftMod.LOGGER.warn("ComponentPlanCompiler: skipping unsupported component type {}", type);
         return "";
     }
 
@@ -1184,6 +1190,13 @@ public final class ComponentPlanCompiler {
         }
         if (type.contains("GATE")) {
             return "GATE";
+        }
+        if (type.contains("WINDOW")) {
+            return "FACADE_WINDOWS";
+        }
+        if (type.contains("RAMPART") || type.contains("PALISADE") || type.contains("BARRIER")
+                || type.contains("PARAPET") || type.contains("SCREEN")) {
+            return "WALL";
         }
         if (type.contains("WALL") || type.contains("BUTTRESS")) {
             return "WALL";

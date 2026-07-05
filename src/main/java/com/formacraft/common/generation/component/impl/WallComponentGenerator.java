@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
@@ -26,6 +27,10 @@ public class WallComponentGenerator implements ComponentGenerator {
 
         Component c = semantic.source();
         if (c == null || c.dimensions() == null || c.relativePosition() == null) {
+            FormacraftMod.LOGGER.warn(
+                    "WallComponentGenerator: skipping wall — missing source/dimensions/relativePosition (type={})",
+                    semantic != null && semantic.source() != null ? semantic.source().componentType() : "unknown"
+            );
             return out;
         }
 
