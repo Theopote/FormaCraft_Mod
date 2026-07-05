@@ -45,6 +45,9 @@ public final class SettingsInputController {
         // drawContents 里先画标题，再 y += TITLE_HEIGHT
         y += TITLE_HEIGHT;
 
+        // 分组：LLM 与后端
+        y += sectionHeaderHeight(host.client());
+
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
         // 优先处理 overlay 下拉（它们渲染在最上层，必须先命中，避免被下层输入框吞掉点击）
@@ -189,8 +192,7 @@ public final class SettingsInputController {
         }
 
         // =========== LLM Base URL ============
-        // Provider 区块是两行（标题 + 按钮），推进需与渲染端一致：FIELD_SPACING + LABEL_OFFSET。
-        y += FIELD_SPACING + LABEL_OFFSET;
+        y = afterTwoRowField(providerLabelY);
         int llmBaseUrlLabelY = y;
         int llmBaseUrlPresetY = llmBaseUrlLabelY + LABEL_OFFSET;
         int llmBaseUrlThirdLineY = llmBaseUrlLabelY + LABEL_OFFSET * 2;
@@ -336,8 +338,8 @@ public final class SettingsInputController {
         }
 
         // =========== Search（建筑研究） ============
-        // Model 三行结束后进入 Search section
         y = afterThreeRowField(modelLabelY);
+        y += sectionHeaderHeight(host.client());
 
         int searchProviderLabelY = y;
         int searchProviderY = searchProviderLabelY + LABEL_OFFSET;
@@ -398,9 +400,11 @@ public final class SettingsInputController {
         }
 
         y = afterTwoRowField(googleCxLabelY);
+        y += sectionHeaderHeight(host.client());
 
         // =========== Debug Warnings（toggle） ============
-        int dbgBtnY = y + LABEL_OFFSET;
+        int debugLabelY = y;
+        int dbgBtnY = debugLabelY + LABEL_OFFSET;
         host.debugWarningsButton().setPosition(x, dbgBtnY);
         host.debugWarningsButton().setWidth(w);
         if (host.debugWarningsButton().mouseClicked(click, false)) {
@@ -413,10 +417,10 @@ public final class SettingsInputController {
             return true;
         }
 
-        // 滑条字段：label + 控件两行，组间距 FIELD_SPACING；与 PreferencesSection 渲染一致。
-        y += FIELD_SPACING + LABEL_OFFSET;
-
-        int reachSliderY = y + LABEL_OFFSET;
+        // 滑条字段：与 PreferencesSection 一致，两行一组
+        y = afterTwoRowField(debugLabelY);
+        int reachLabelY = y;
+        int reachSliderY = reachLabelY + LABEL_OFFSET;
         host.interactionReachSlider().setPosition(x, reachSliderY);
         host.interactionReachSlider().setWidth(w);
         if (host.interactionReachSlider().mouseClicked(click, false)) {
@@ -426,8 +430,9 @@ public final class SettingsInputController {
             return true;
         }
 
-        y += FIELD_SPACING + LABEL_OFFSET;
-        int tempSliderY = y + LABEL_OFFSET;
+        y = afterTwoRowField(reachLabelY);
+        int tempLabelY = y;
+        int tempSliderY = tempLabelY + LABEL_OFFSET;
         host.temperatureSlider().setPosition(x, tempSliderY);
         host.temperatureSlider().setWidth(w);
         if (host.temperatureSlider().mouseClicked(click, false)) {
@@ -437,8 +442,9 @@ public final class SettingsInputController {
             return true;
         }
 
-        y += FIELD_SPACING + LABEL_OFFSET;
-        int fontSliderY = y + LABEL_OFFSET;
+        y = afterTwoRowField(tempLabelY);
+        int fontLabelY = y;
+        int fontSliderY = fontLabelY + LABEL_OFFSET;
         host.fontSizeSlider().setPosition(x, fontSliderY);
         host.fontSizeSlider().setWidth(w);
         if (host.fontSizeSlider().mouseClicked(click, false)) {
@@ -449,8 +455,8 @@ public final class SettingsInputController {
         }
 
         // =========== 按钮行（Save/Cancel/Reset） ============
-        // font 区块结束后推进 FIELD_SPACING + LABEL_OFFSET，到达 Actions 按钮行起点。
-        y += FIELD_SPACING + LABEL_OFFSET;
+        y = afterTwoRowField(fontLabelY);
+        y += sectionHeaderHeight(host.client());
         int btnY = y;
         int btnW1 = (w - BUTTON_GAP * 2) / 3;
         int btnW3 = Math.max(0, w - (btnW1 + btnW1 + BUTTON_GAP * 2));
@@ -503,46 +509,56 @@ public final class SettingsInputController {
     public static void handleScroll(SettingsPanelRenderHost host, double mouseX, double mouseY, double amount) {
         if (!host.isMouseOver(mouseX, mouseY)) return;
 
-        // 输入框优先：在输入框上滚动时接管（水平滚动查看被截断内容）
         int x = host.contentStartX();
         int y = host.contentTopY() + CONTENT_PADDING - host.scrollY();
         int w = host.contentWidth();
 
-        // drawContents 里先画标题，再 y += TITLE_HEIGHT
         y += TITLE_HEIGHT;
+        y += sectionHeaderHeight(host.client());
 
-        // Orchestrator 输入框（第二行）
-        int orchY = y + LABEL_OFFSET;
-        if (host.orchestratorInput().mouseScrolled(mouseX, mouseY, amount, x, orchY, w, INPUT_HEIGHT)) {
+        int orchLabelY = y;
+        if (host.orchestratorInput().mouseScrolled(mouseX, mouseY, amount, x, orchLabelY + LABEL_OFFSET, w, INPUT_HEIGHT)) {
             return;
         }
 
-        // API Key 输入框（第二行）。与 handleClick 一致：Orchestrator 两行需推进 LABEL_OFFSET(输入框行) + FIELD_SPACING。
         y += LABEL_OFFSET + FIELD_SPACING;
-        int apiY = y + LABEL_OFFSET;
-        if (host.apiKeyInput().mouseScrolled(mouseX, mouseY, amount, x, apiY, w, INPUT_HEIGHT)) {
+        int apiLabelY = y;
+        if (host.apiKeyInput().mouseScrolled(mouseX, mouseY, amount, x, apiLabelY + LABEL_OFFSET, w, INPUT_HEIGHT)) {
             return;
         }
 
-        // LLM Base URL：仅“自定义”时允许在输入框上滚动（水平滚动查看被截断内容）
-        y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Provider 区块起点
-        y += FIELD_SPACING + LABEL_OFFSET; // 跳过 Provider（label+button）
+        y = afterThreeRowField(apiLabelY);
+        int providerLabelY = y;
+        y = afterTwoRowField(providerLabelY);
+        int llmBaseUrlLabelY = y;
         SettingsBaseUrlPresets.Preset p = host.selectedBaseUrlPreset();
         if (p != null && p.url() == null) {
-            int baseUrlY = y + LABEL_OFFSET * 2; // BaseURL 第三行
-            if (host.llmBaseUrlInput().mouseScrolled(mouseX, mouseY, amount, x, baseUrlY, w, INPUT_HEIGHT)) {
+            if (host.llmBaseUrlInput().mouseScrolled(mouseX, mouseY, amount, x, llmBaseUrlLabelY + LABEL_OFFSET * 2, w, INPUT_HEIGHT)) {
                 return;
             }
         }
 
-        // Model 输入框（允许水平滚动查看被截断内容）
-        y += FIELD_SPACING + LABEL_OFFSET; // 跳到 Model 区块起点（BaseURL 是三行）
-        int modelY = y + LABEL_OFFSET;
-        if (host.modelInput().mouseScrolled(mouseX, mouseY, amount, x, modelY, w, INPUT_HEIGHT)) {
+        y = afterThreeRowField(llmBaseUrlLabelY);
+        int modelLabelY = y;
+        if (host.modelInput().mouseScrolled(mouseX, mouseY, amount, x, modelLabelY + LABEL_OFFSET, w, INPUT_HEIGHT)) {
             return;
         }
 
-        // 否则：滚动面板内容
+        y = afterThreeRowField(modelLabelY);
+        y += sectionHeaderHeight(host.client());
+        int searchProviderLabelY = y;
+        y += FIELD_SPACING;
+        int searchKeyLabelY = y;
+        if (host.searchApiKeyInput().mouseScrolled(mouseX, mouseY, amount, x, searchKeyLabelY + LABEL_OFFSET, w, INPUT_HEIGHT)) {
+            return;
+        }
+
+        y = afterThreeRowField(searchKeyLabelY);
+        int googleCxLabelY = y;
+        if (host.googleCseCxInput().mouseScrolled(mouseX, mouseY, amount, x, googleCxLabelY + LABEL_OFFSET, w, INPUT_HEIGHT)) {
+            return;
+        }
+
         int step = 12;
         int newScroll = (int) Math.round(host.scrollY() - amount * step);
         if (newScroll < 0) newScroll = 0;

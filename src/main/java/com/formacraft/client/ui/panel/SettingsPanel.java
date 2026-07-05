@@ -90,7 +90,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private ButtonWidget autoModelButton;
     private ButtonWidget llmProviderButton;
     private ButtonWidget llmBaseUrlPresetButton;
-    private     ButtonWidget debugWarningsButton;
+    private ButtonWidget debugWarningsButton;
     ButtonWidget searchProviderButton;
     ButtonWidget testSearchKeyButton;
     private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
@@ -205,9 +205,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                     x, y, COLOR_WHITE);
             y += TITLE_HEIGHT;
 
+            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("LLM 与后端"), x, y, w);
             y = SettingsConnectionSection.drawSection(this, ctx, x, y, w);
+            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("建筑研究搜索"), x, y, w);
             y = SettingsSearchSection.drawSection(this, ctx, x, y, w);
+            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("界面与偏好"), x, y, w);
             y = SettingsPreferencesSection.drawSection(this, ctx, x, y, w);
+            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("操作"), x, y, w);
             y = SettingsActionsSection.drawSection(this, ctx, x, y, w);
             SettingsConnectionSection.renderOverlays(this, ctx);
 

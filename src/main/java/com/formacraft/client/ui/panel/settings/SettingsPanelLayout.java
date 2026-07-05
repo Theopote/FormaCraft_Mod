@@ -10,25 +10,34 @@ public final class SettingsPanelLayout {
     public static final int BUTTON_GAP_SMALL = 4;
     public static final int INPUT_HEIGHT = 16;
     public static final int LABEL_OFFSET = INPUT_HEIGHT + 2;
-    /** 相邻字段组之间的垂直间距（去掉多余空行，仅保留小间隙）。 */
+    /** 相邻字段组之间的垂直间距（控件行顶 → 下一 label 顶，与两行字段一致）。 */
     public static final int GROUP_GAP = 6;
     public static final int FIELD_SPACING = LABEL_OFFSET + GROUP_GAP;
+
+    /** 分组标题 + 水平线 的上下留白 */
+    public static final int SECTION_DIVIDER_PAD = 5;
+
     public static final int TITLE_HEIGHT = 20;
     public static final int BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + 4;
 
     /** 两行字段（label + 控件）之后，下一组 label 的 Y。 */
     public static int afterTwoRowField(int labelY) {
-        return labelY + LABEL_OFFSET + BUTTON_HEIGHT + FIELD_SPACING;
+        return labelY + LABEL_OFFSET + FIELD_SPACING;
     }
 
     /** 三行字段（label + 输入 + 按钮行）之后，下一组 label 的 Y。 */
     public static int afterThreeRowField(int labelY) {
-        return labelY + LABEL_OFFSET * 2 + BUTTON_HEIGHT + FIELD_SPACING;
+        return labelY + LABEL_OFFSET * 2 + FIELD_SPACING;
     }
 
-    /** 控件行（按钮/输入顶边在 rowY）之后，下一组 label 的 Y。 */
+    /** 控件行顶边 rowY 之后，下一组 label 的 Y（与两行字段尾行一致）。 */
     public static int nextLabelAfterRow(int rowY) {
-        return rowY + BUTTON_HEIGHT + FIELD_SPACING;
+        return rowY + FIELD_SPACING;
+    }
+
+    /** 分组标题区总高度（供命中测试与 drawSectionHeader 对齐）。 */
+    public static int sectionHeaderHeight(net.minecraft.client.MinecraftClient client) {
+        return SECTION_DIVIDER_PAD + client.textRenderer.fontHeight + 2 + 1 + SECTION_DIVIDER_PAD;
     }
 
     public static final int COLOR_WHITE = 0xFFFFFFFF;
