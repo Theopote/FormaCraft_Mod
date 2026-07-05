@@ -354,7 +354,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         return switch (aspect) {
             case HORIZONTAL_STRIP, RIBBON_GLAZING -> axis > 0 && axis < axisMax - 1;
             case VERTICAL_STRIP -> {
-                int step = Math.max(3, spacing + 1);
+                int step = Math.max(2, spacing);
                 yield (axis % step) == (step / 2) && isVerticalStripY(y, height, floorHeight);
             }
             case ARROW_SLIT -> {
@@ -411,9 +411,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             return 3;
         }
         if (windowRatio >= 0.6) return 2;
-        if (windowRatio >= 0.35) return 3;
-        if (windowRatio >= 0.2) return 4;
-        return 5;
+        if (windowRatio >= 0.35) return 2;
+        if (windowRatio >= 0.2) return 3;
+        return 4;
     }
 
     private static int stableHash(int a, int b) {

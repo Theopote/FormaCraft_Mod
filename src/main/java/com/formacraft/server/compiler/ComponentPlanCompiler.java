@@ -391,7 +391,202 @@ public final class ComponentPlanCompiler {
             prepared.addAll(inferred);
         }
 
+        realignSatellitesToMass(prepared, plan, slotMap);
+
         return new PreparedComponents(prepared, assemblyFacadeSlots);
+    }
+
+    /**
+     * LLM 常把 ROOF/FACADE/ENTRANCE 的 relative_position 写成与 MASS 相同的中心坐标；
+     * 这些附属组件生成器按 min_corner 解释坐标。在此统一贴回 {@link #resolveMassOrigin(Component)}。
+     */
+    private static void realignSatellitesToMass(List<Component> components, LlmPlan plan, Map<String, Slot> slotMap) {
+        if (components == null || components.isEmpty()) {
+            return;
+        }
+
+        Map<String, Component> massBySlot = new HashMap<>();
+        for (Component c : components) {
+            if (c == null) {
+                continue;
+            }
+            if (isMassType(normalizeType(c.componentType()))) {
+                massBySlot.putIfAbsent(slotKey(c), c);
+            }
+        }
+        if (massBySlot.isEmpty()) {
+            return;
+        }
+
+        int realigned = 0;
+        for (int i = 0; i < components.size(); i++) {
+            Component c = components.get(i);
+            if (c == null) {
+                continue;
+            }
+            String type = normalizeType(c.componentType());
+            if (isMassType(type)) {
+                continue;
+            }
+            Component mass = massBySlot.get(slotKey(c));
+            if (mass == null) {
+                continue;
+            }
+
+            GlobalConstraints.Facing facing = resolveSlotFacing(plan, slotMap, c.slotId());
+            Component aligned = switch (type) {
+                case "FACADE_WINDOWS" -> alignFacadeToMass(c, mass, plan);
+                case "ENTRANCE" -> alignEntranceToMass(c, mass, plan, facing);
+                default -> isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
+            };
+            if (aligned != null && aligned != c) {
+                components.set(i, aligned);
+                realigned++;
+            }
+        }
+        if (realigned > 0) {
+            FormacraftMod.LOGGER.info("ComponentPlanCompiler: realigned {} satellite component(s) to MASS min_corner", realigned);
+        }
+    }
+
+    private static GlobalConstraints.Facing resolveSlotFacing(LlmPlan plan, Map<String, Slot> slotMap, String slotId) {
+        if (slotId != null && slotMap != null) {
+            Slot slot = slotMap.get(slotId);
+            if (slot != null && slot.facing() != null) {
+                return slot.facing();
+            }
+        }
+        if (plan != null && plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {
+            return plan.globalConstraints().facing();
+        }
+        return GlobalConstraints.Facing.SOUTH;
+    }
+
+    private static Component alignRoofToMass(Component llmRoof, Component mass, LlmPlan plan) {
+        Component template = makeRoofComponent(plan, mass, mass.slotId());
+        if (template == null) {
+            return llmRoof;
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        if (template.params() != null) {
+            params.putAll(template.params());
+        }
+        if (llmRoof.params() != null) {
+            params.putAll(llmRoof.params());
+        }
+
+        Dimensions templateDims = template.dimensions();
+        Dimensions llmDims = llmRoof.dimensions();
+        int roofHeight = templateDims != null ? templateDims.height() : 3;
+        if (llmDims != null && llmDims.height() > 0) {
+            roofHeight = llmDims.height();
+        }
+
+        int baseW = templateDims != null ? templateDims.width() : 1;
+        int baseD = templateDims != null ? templateDims.depth() : 1;
+        if (llmDims != null) {
+            int extraW = Math.max(0, llmDims.width() - baseW);
+            int extraD = Math.max(0, llmDims.depth() - baseD);
+            int overhang = Math.max(extraW / 2, extraD / 2);
+            if (overhang > 0) {
+                int existing = ComponentParamParsers.intParam(params, 0, "overhang", "overhang_blocks", "eave_overhang");
+                params.put("overhang", Math.max(existing, overhang));
+            }
+        }
+
+        return new Component(
+                llmRoof.componentType(),
+                llmRoof.slotId(),
+                template.relativePosition(),
+                new Dimensions(baseW, baseD, roofHeight),
+                mergeFeatureLists(template.features(), llmRoof.features()),
+                params
+        );
+    }
+
+    private static Component alignFacadeToMass(Component llmFacade, Component mass, LlmPlan plan) {
+        Component template = makeFacadeComponent(mass, mass.slotId());
+        template = StyleIntentResolver.apply(plan, template);
+        template = OpeningGrammarResolver.apply(plan, template);
+
+        Map<String, Object> params = new HashMap<>();
+        if (template.params() != null) {
+            params.putAll(template.params());
+        }
+        if (llmFacade.params() != null) {
+            params.putAll(llmFacade.params());
+        }
+
+        Dimensions massDims = mass.dimensions();
+        Dimensions llmDims = llmFacade.dimensions();
+        if (massDims == null || template.relativePosition() == null) {
+            return llmFacade;
+        }
+
+        int width = massDims.width();
+        int depth = 1;
+        int height = massDims.height();
+        if (llmDims != null) {
+            if (llmDims.depth() > 0) {
+                depth = llmDims.depth();
+            }
+            if (llmDims.width() > 0) {
+                width = Math.max(width, llmDims.width());
+            }
+            if (llmDims.height() > 0) {
+                height = Math.max(2, llmDims.height());
+            }
+        }
+
+        return new Component(
+                "FACADE_WINDOWS",
+                llmFacade.slotId(),
+                template.relativePosition(),
+                new Dimensions(width, depth, height),
+                mergeFeatureLists(template.features(), llmFacade.features()),
+                params
+        );
+    }
+
+    private static Component alignEntranceToMass(Component llmEntrance, Component mass, LlmPlan plan,
+                                                 GlobalConstraints.Facing facing) {
+        Component template = makeEntranceComponent(plan, mass, mass.slotId(), facing);
+        if (template == null) {
+            return llmEntrance;
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        if (template.params() != null) {
+            params.putAll(template.params());
+        }
+        if (llmEntrance.params() != null) {
+            params.putAll(llmEntrance.params());
+        }
+
+        return new Component(
+                "ENTRANCE",
+                llmEntrance.slotId(),
+                template.relativePosition(),
+                template.dimensions(),
+                mergeFeatureLists(template.features(), llmEntrance.features()),
+                params
+        );
+    }
+
+    private static List<String> mergeFeatureLists(List<String> primary, List<String> secondary) {
+        List<String> merged = new ArrayList<>();
+        if (primary != null) {
+            merged.addAll(primary);
+        }
+        if (secondary != null) {
+            for (String feature : secondary) {
+                if (feature != null && !merged.contains(feature)) {
+                    merged.add(feature);
+                }
+            }
+        }
+        return merged;
     }
 
     private static Component makeFacadeComponent(Component base, String slotId) {
