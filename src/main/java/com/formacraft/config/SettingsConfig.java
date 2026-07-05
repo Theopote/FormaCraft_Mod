@@ -28,7 +28,6 @@ public class SettingsConfig {
      */
     public String llmBaseUrl = "";
     public float temperature = 0.7f;       // 默认温度
-    public int fontSize = 14;              // 默认字体大小（用于 UI 缩放基准）
     /** 系统光标与世界交互的最远距离（用于光标 RayCast / hover 选中框） */
     public int interactionReach = 80;      // 默认 80（范围 5~100）
 
@@ -92,7 +91,6 @@ public class SettingsConfig {
         llmProvider = "auto";
         llmBaseUrl = "";
         temperature = 0.7f;
-        fontSize = 14;
         interactionReach = 80;
         autoStartBackend = true;
         showDebugWarnings = false;
@@ -111,7 +109,6 @@ public class SettingsConfig {
         this.llmProvider = other.llmProvider != null ? other.llmProvider : "auto";
         this.llmBaseUrl = other.llmBaseUrl != null ? other.llmBaseUrl : "";
         this.temperature = other.temperature;
-        this.fontSize = other.fontSize;
         this.orchestratorEndpoint = other.orchestratorEndpoint != null ? other.orchestratorEndpoint : "http://localhost:8000";
         this.interactionReach = other.interactionReach;
         this.autoStartBackend = other.autoStartBackend;
@@ -147,8 +144,6 @@ public class SettingsConfig {
             // 基础校验/兜底
             if (INSTANCE.temperature < 0.0f) INSTANCE.temperature = 0.0f;
             if (INSTANCE.temperature > 1.0f) INSTANCE.temperature = 1.0f;
-            if (INSTANCE.fontSize < 8) INSTANCE.fontSize = 8;
-            if (INSTANCE.fontSize > 26) INSTANCE.fontSize = 26;
             if (INSTANCE.interactionReach < 5) INSTANCE.interactionReach = 5;
             if (INSTANCE.interactionReach > 100) INSTANCE.interactionReach = 100;
         } catch (Exception e) {

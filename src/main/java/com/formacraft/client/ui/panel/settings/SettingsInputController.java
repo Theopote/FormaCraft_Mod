@@ -458,8 +458,6 @@ public final class SettingsInputController {
         int reachSliderY = reachLabelY + LABEL_OFFSET;
         int tempLabelY = afterTwoRowField(reachLabelY);
         int tempSliderY = tempLabelY + LABEL_OFFSET;
-        int fontLabelY = afterTwoRowField(tempLabelY);
-        int fontSliderY = fontLabelY + LABEL_OFFSET;
 
         layoutPreferenceSlider(host.interactionReachSlider(), x, reachSliderY, w);
         if (clickPreferenceSlider(host, (SettingsSliders.Base) host.interactionReachSlider(), mouseX, mouseY)) {
@@ -471,13 +469,8 @@ public final class SettingsInputController {
             return true;
         }
 
-        layoutPreferenceSlider(host.fontSizeSlider(), x, fontSliderY, w);
-        if (clickPreferenceSlider(host, (SettingsSliders.Base) host.fontSizeSlider(), mouseX, mouseY)) {
-            return true;
-        }
-
         // =========== 按钮行（Save/Cancel/Reset） ============
-        y = afterTwoRowField(fontLabelY);
+        y = afterTwoRowField(tempLabelY);
         y += sectionHeaderHeight(host.client());
         int btnY = y;
         int btnW1 = (w - BUTTON_GAP * 2) / 3;
@@ -622,10 +615,8 @@ public final class SettingsInputController {
         int debugLabelY = y;
         int reachLabelY = afterTwoRowField(debugLabelY);
         int tempLabelY = afterTwoRowField(reachLabelY);
-        int fontLabelY = afterTwoRowField(tempLabelY);
 
         layoutPreferenceSlider(host.interactionReachSlider(), x, reachLabelY + LABEL_OFFSET, w);
         layoutPreferenceSlider(host.temperatureSlider(), x, tempLabelY + LABEL_OFFSET, w);
-        layoutPreferenceSlider(host.fontSizeSlider(), x, fontLabelY + LABEL_OFFSET, w);
     }
 }

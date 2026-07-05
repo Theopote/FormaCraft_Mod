@@ -64,7 +64,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     /** auto / duckduckgo / bing / google_cse / wikipedia_only */
     private String draftSearchProvider = "auto";
     private float draftTemperature = 0.7f;
-    private int draftFontSize = 14;
     private int draftInteractionReach = DEFAULT_INTERACTION_REACH;
 
     // 简易提示（保存成功/失败）
@@ -95,7 +94,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     ButtonWidget testSearchKeyButton;
     private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
     private SettingsSliders.Temperature temperatureSlider;
-    private SettingsSliders.FontSize fontSizeSlider;
     private SettingsSliders.InteractionReach interactionReachSlider;
     private SliderWidget activeSlider = null; // 只允许同时操作一个滑条
 
@@ -162,11 +160,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private static float clamp01(float v) {
         if (v < 0.0f) return 0.0f;
         return Math.min(v, 1.0f);
-    }
-
-    private static int clampInt(int v) {
-        if (v < MIN_FONT_SIZE) return MIN_FONT_SIZE;
-        return Math.min(v, MAX_FONT_SIZE);
     }
 
     private static int clampReach(int v) {
@@ -284,10 +277,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         }
         if (temperatureSlider != null && temperatureSlider.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.temperature")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        if (fontSizeSlider != null && fontSizeSlider.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.font_size")), (int) mouseX, (int) mouseY);
             return true;
         }
         if (interactionReachSlider != null && interactionReachSlider.isMouseOver(mouseX, mouseY)) {
@@ -477,10 +466,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
         // Sliders（用原版 SliderWidget 渲染）
         temperatureSlider = new SettingsSliders.Temperature(this, 0, 0, 0, INPUT_HEIGHT, Text.empty(), clamp01(draftTemperature));
-        fontSizeSlider = new SettingsSliders.FontSize(this, 0, 0, 0, INPUT_HEIGHT, Text.empty(), fontSizeToValue(draftFontSize));
         interactionReachSlider = new SettingsSliders.InteractionReach(this, 0, 0, 0, INPUT_HEIGHT, Text.empty(), reachToValue(draftInteractionReach));
         temperatureSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.temperature")));
-        fontSizeSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.font_size")));
         interactionReachSlider.setTooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.interaction_reach")));
 
         // Buttons row
@@ -1176,19 +1163,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         if (temperatureSlider != null) {
             temperatureSlider.setCustomValue(clamp01(draftTemperature));
         }
-        if (fontSizeSlider != null) {
-            fontSizeSlider.setCustomValue(fontSizeToValue(draftFontSize));
-        }
-    }
-
-    private static double fontSizeToValue(int fontSize) {
-        int clamped = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, fontSize));
-        return (clamped - MIN_FONT_SIZE) / (double) (MAX_FONT_SIZE - MIN_FONT_SIZE);
-    }
-
-    private static int valueToFontSize(double value) {
-        double v = Math.max(0.0, Math.min(1.0, value));
-        return MIN_FONT_SIZE + (int) Math.round(v * (MAX_FONT_SIZE - MIN_FONT_SIZE));
     }
 
     private static double reachToValue(int reach) {
@@ -1392,11 +1366,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     @Override
-    public int draftFontSize() {
-        return draftFontSize;
-    }
-
-    @Override
     public String cachedTemperatureText() {
         if (cachedTemperatureText == null) {
             updateCachedTemperatureText();
@@ -1507,11 +1476,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public SliderWidget interactionReachSlider() {
         return interactionReachSlider;
-    }
-
-    @Override
-    public SliderWidget fontSizeSlider() {
-        return fontSizeSlider;
     }
 
     @Override
@@ -1696,12 +1660,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     @Override
-    public void applyFontSizeFromSlider(double value) {
-        draftFontSize = clampInt(valueToFontSize(value));
-        SettingsConfig.INSTANCE.fontSize = draftFontSize;
-    }
-
-    @Override
     public void applyInteractionReachFromSlider(double value) {
         draftInteractionReach = clampReach(valueToReach(value));
         SettingsConfig.INSTANCE.interactionReach = draftInteractionReach;
@@ -1735,11 +1693,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public void setDraftTemperature(float temperature) {
         this.draftTemperature = temperature;
-    }
-
-    @Override
-    public void setDraftFontSize(int fontSize) {
-        this.draftFontSize = fontSize;
     }
 
     @Override

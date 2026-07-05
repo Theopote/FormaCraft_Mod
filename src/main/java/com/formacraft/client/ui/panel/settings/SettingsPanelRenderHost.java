@@ -30,8 +30,6 @@ public interface SettingsPanelRenderHost {
 
     int draftInteractionReach();
 
-    int draftFontSize();
-
     String cachedTemperatureText();
 
     boolean modelDropdownOpen();
@@ -63,8 +61,6 @@ public interface SettingsPanelRenderHost {
     SliderWidget temperatureSlider();
 
     SliderWidget interactionReachSlider();
-
-    SliderWidget fontSizeSlider();
 
     ButtonWidget saveButton();
 
@@ -157,8 +153,6 @@ public interface SettingsPanelRenderHost {
 
     void applyTemperatureFromSlider(double value);
 
-    void applyFontSizeFromSlider(double value);
-
     void applyInteractionReachFromSlider(double value);
 
     // ---- 配置读写（供 SettingsConfigCoordinator 使用）----
@@ -174,8 +168,6 @@ public interface SettingsPanelRenderHost {
     void setDraftShowDebugWarnings(boolean show);
 
     void setDraftTemperature(float temperature);
-
-    void setDraftFontSize(int fontSize);
 
     void setDraftInteractionReach(int reach);
 

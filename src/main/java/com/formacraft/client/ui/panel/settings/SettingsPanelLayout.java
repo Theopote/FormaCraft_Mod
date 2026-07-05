@@ -45,9 +45,6 @@ public final class SettingsPanelLayout {
     public static final int COLOR_TOAST_SUCCESS = 0x88FF88;
     public static final int COLOR_TOAST_ERROR = 0xFF8888;
 
-    public static final int MIN_FONT_SIZE = 8;
-    public static final int MAX_FONT_SIZE = 26;
-
     public static final int MIN_INTERACTION_REACH = 5;
     public static final int MAX_INTERACTION_REACH = 100;
     public static final int DEFAULT_INTERACTION_REACH = 80;

@@ -4,7 +4,7 @@ import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.text.Text;
 
 /**
- * 设置面板的三个滑条（温度 / 字体大小 / 交互距离）。
+ * 设置面板的滑条（温度 / 交互距离）。
  * <p>
  * 从 {@code SettingsPanel} 的内部类拆出，仅通过 {@link SettingsPanelRenderHost} 回写草稿态，
  * 数值→草稿的换算逻辑保留在面板侧（{@code applyXxxFromSlider}）以复用其 clamp 常量。
@@ -55,27 +55,6 @@ public final class SettingsSliders {
         @Override
         protected void applyValue() {
             host.applyTemperatureFromSlider(this.value);
-            updateMessage();
-        }
-    }
-
-    public static final class FontSize extends Base {
-        private final SettingsPanelRenderHost host;
-
-        public FontSize(SettingsPanelRenderHost host, int x, int y, int width, int height, Text message, double value) {
-            super(x, y, width, height, message, value);
-            this.host = host;
-            updateMessage();
-        }
-
-        @Override
-        protected void updateMessage() {
-            setMessage(Text.literal(String.valueOf(host.draftFontSize())));
-        }
-
-        @Override
-        protected void applyValue() {
-            host.applyFontSizeFromSlider(this.value);
             updateMessage();
         }
     }

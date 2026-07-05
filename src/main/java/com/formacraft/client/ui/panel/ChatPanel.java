@@ -50,7 +50,6 @@ import java.time.Duration;
 
 /**
  * FormaCraft 主聊天面板（左侧固定栏 + 多行输入 + 可滚动消息区域）
- * 支持动态字体大小调整
  */
 public class ChatPanel extends BasePanel {
 
@@ -263,13 +262,10 @@ public class ChatPanel extends BasePanel {
         return client.mouse.getY() / client.getWindow().getScaleFactor();
     }
 
-    private float getFontScale() {
-        // 注意：当前 HUD 文本没有真正缩放（DrawContext 2D 矩阵 API 在 1.21+ 已变化）。
-        // 这里的 fontScale 仅用于“行高/布局密度”，并且我们会 clamp，避免 fontSize 调小导致行距小于字体高度而重叠。
-        float s = SettingsConfig.INSTANCE.fontSize / 14.0f;
-        if (s < 0.75f) s = 0.75f;
-        if (s > 1.4f) s = 1.4f;
-        return s;
+    private static final int CHAT_SPEC_SUMMARY_HEIGHT = 50;
+
+    private static int chatLineHeight() {
+        return UiTheme.CHAT_LINE_HEIGHT;
     }
 
     @Override
@@ -286,10 +282,7 @@ public class ChatPanel extends BasePanel {
             }
         }
 
-        // 字体“缩放”当前仅体现为行高变化：保证最小行高 >= 字体高度 + 2，避免重叠
-        float fontScale = getFontScale();
-        int baseFont = client.textRenderer.fontHeight;
-        int lineHeight = Math.max(baseFont + 2, (int)((baseFont + 2) * fontScale));
+        int lineHeight = chatLineHeight();
 
         // 面板内边距
         ChatLayout layout = computeChatLayout();
@@ -305,7 +298,7 @@ public class ChatPanel extends BasePanel {
         // 消息区裁剪：防止气泡/文本画出聊天区（顶部顶到标签栏、底部侵入输入区）
         enableScissor(ctx, innerX, innerY, innerX + innerW, chatAreaBottom);
         try {
-            drawMessages(ctx, innerX, innerY, innerW, chatAreaBottom, lineHeight, fontScale);
+            drawMessages(ctx, innerX, innerY, innerW, chatAreaBottom, lineHeight);
         } finally {
             disableScissor(ctx, innerX, innerY, innerX + innerW, chatAreaBottom);
         }
@@ -323,7 +316,7 @@ public class ChatPanel extends BasePanel {
     /**
      * 自下而上绘制消息气泡，支持 scrollOffset 和字体大小
      */
-    private void drawMessages(DrawContext ctx, int innerX, int chatTop, int innerW, int chatBottom, int lineHeight, float fontScale) {
+    private void drawMessages(DrawContext ctx, int innerX, int chatTop, int innerW, int chatBottom, int lineHeight) {
         int availableWidth = Math.max(1, innerW - CHAT_BUBBLE_INSET * 2);
         renderedMessages.clear();
 
@@ -368,7 +361,7 @@ public class ChatPanel extends BasePanel {
                     SelectableTextBlock.wrap(client.textRenderer, measureText, maxWidthPx);
             int bubbleHeight = wrapped.size() * lineHeight + 2;
             totalContentHeight += bubbleHeight;
-            totalContentHeight += msg.hasSpecSummary() ? ((int)(50 * fontScale) + 6) : CHAT_MESSAGE_GAP;
+            totalContentHeight += msg.hasSpecSummary() ? (CHAT_SPEC_SUMMARY_HEIGHT + 6) : CHAT_MESSAGE_GAP;
         }
 
         int visibleHeight = Math.max(1, chatBottom - chatTop - CHAT_BOTTOM_INSET);
@@ -408,7 +401,7 @@ public class ChatPanel extends BasePanel {
                     SelectableTextBlock.wrap(client.textRenderer, displayText, maxWidthPx);
 
             int bubbleHeight = wrapped.size() * lineHeight + 2;  // 上下各 1px 内边距
-            int blockHeight = bubbleHeight + (msg.hasSpecSummary() ? ((int)(50 * fontScale) + 8) : CHAT_MESSAGE_GAP);
+            int blockHeight = bubbleHeight + (msg.hasSpecSummary() ? (CHAT_SPEC_SUMMARY_HEIGHT + 8) : CHAT_MESSAGE_GAP);
             int bubbleBottom = chatBottom - CHAT_BOTTOM_INSET - p + scrollOffset;
             int bubbleTop = bubbleBottom - bubbleHeight;
 
@@ -518,7 +511,7 @@ public class ChatPanel extends BasePanel {
      */
     private void drawSpecSummary(DrawContext ctx, BuildingSpec spec, int x, int y, int w, int lineHeight) {
         // 摘要卡片背景
-        int cardHeight = (int)(50 * getFontScale());
+        int cardHeight = CHAT_SPEC_SUMMARY_HEIGHT;
         ctx.fill(x, y - cardHeight, x + w, y, 0x55333333);
 
         int ty = y - cardHeight + 4;
@@ -604,10 +597,7 @@ public class ChatPanel extends BasePanel {
     }
 
     private int getInputHeight(int selectionHintHeight) {
-        // 默认至少显示 3 行；超过上限后固定高度，内部滚动由 MultilineTextInput 保证光标可见
-        float fontScale = getFontScale();
-        int baseFont = client.textRenderer.fontHeight;
-        int lineHeight = Math.max(baseFont + 2, (int)((baseFont + 2) * fontScale));
+        int lineHeight = chatLineHeight();
 
         int lines = Math.max(1, inputBox.getLineCount());
         int visible = Math.max(

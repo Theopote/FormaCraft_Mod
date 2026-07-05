@@ -60,7 +60,6 @@ public final class SettingsConfigCoordinator {
         host.searchApiKeyInput().setText(cfg.searchApiKey != null ? cfg.searchApiKey : "");
         host.googleCseCxInput().setText(cfg.googleCseCx != null ? cfg.googleCseCx : "");
         host.setDraftTemperature(clamp01(cfg.temperature));
-        host.setDraftFontSize(clampInt(cfg.fontSize));
         host.setDraftInteractionReach(clampReach(cfg.interactionReach));
 
         host.updateCachedTemperatureText();
@@ -104,7 +103,6 @@ public final class SettingsConfigCoordinator {
             SettingsConfig.INSTANCE.searchApiKey = host.searchApiKeyInput().getText() != null ? host.searchApiKeyInput().getText().trim() : "";
             SettingsConfig.INSTANCE.googleCseCx = host.googleCseCxInput().getText() != null ? host.googleCseCxInput().getText().trim() : "";
             SettingsConfig.INSTANCE.temperature = clamp01(host.draftTemperature());
-            SettingsConfig.INSTANCE.fontSize = clampInt(host.draftFontSize());
             SettingsConfig.INSTANCE.interactionReach = clampReach(host.draftInteractionReach());
             SettingsConfig.save();
             load(host); // 重新加载以确保同步
@@ -122,11 +120,6 @@ public final class SettingsConfigCoordinator {
     private static float clamp01(float v) {
         if (v < 0.0f) return 0.0f;
         return Math.min(v, 1.0f);
-    }
-
-    private static int clampInt(int v) {
-        if (v < SettingsPanelLayout.MIN_FONT_SIZE) return SettingsPanelLayout.MIN_FONT_SIZE;
-        return Math.min(v, SettingsPanelLayout.MAX_FONT_SIZE);
     }
 
     private static int clampReach(int v) {

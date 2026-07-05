@@ -20,6 +20,8 @@ public final class UiTheme {
     public static final int CONTENT_BG = 0x80101010;
     /** 聊天消息区略浅一层，便于与输入区区分 */
     public static final int CHAT_MESSAGE_BG = 0x90181818;
+    /** 聊天消息与多行输入框的固定行高（像素）。 */
+    public static final int CHAT_LINE_HEIGHT = 10;
 
     public static final int DIVIDER_TOOLBAR = 0xFF7A7A7A;
     public static final int DIVIDER_SECTION = 0xFF808080;

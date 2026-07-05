@@ -46,16 +46,6 @@ public final class SettingsPreferencesSection {
         host.temperatureSlider().visible = true;
         host.temperatureSlider().active = true;
         host.temperatureSlider().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        y = afterTwoRowField(tempLabelY);
-
-        drawSmallLabel(client, ctx, Text.translatable("formacraft.settings.font_size", host.draftFontSize()), x, y);
-        int fontLabelY = y;
-        y += LABEL_OFFSET;
-        host.fontSizeSlider().setPosition(x, y);
-        host.fontSizeSlider().setWidth(w);
-        host.fontSizeSlider().visible = true;
-        host.fontSizeSlider().active = true;
-        host.fontSizeSlider().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        return afterTwoRowField(fontLabelY);
+        return afterTwoRowField(tempLabelY);
     }
 }
