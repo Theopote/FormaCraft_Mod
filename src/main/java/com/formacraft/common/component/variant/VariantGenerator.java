@@ -80,14 +80,8 @@ public final class VariantGenerator {
         // 1.5️⃣ 洞口/尺寸适配：目标小于原构件时用裁剪（缩小），不依赖整数放大
         applyOpeningFitTrim(base, query, spec, variant);
 
-        // 2️⃣ 分段重复（栏杆 / 窗组）
-        if (spec.allowSegmentRepeat && query.usageHint != null) {
-            String frequency = query.usageHint.frequency;
-            if ("secondary".equals(frequency) || "decorative".equals(frequency)) {
-                int repeatCount = randomRepeatCount(random, spec.repeatUnit);
-                variant.applyRepeat(spec.repeatAxis, repeatCount);
-            }
-        }
+        // 2️⃣ 分段重复（栏杆 / 窗组 / 沿轴加长）
+        applySegmentRepeat(base, query, spec, variant, random);
 
         // 3️⃣ 裁剪（适配 opening / edge）
         if (query.geometry != null && query.geometry.openingWidth != null && query.geometry.openingHeight != null) {
@@ -160,6 +154,74 @@ public final class VariantGenerator {
             return false;
         }
         return openW < base.size.w || openH < base.size.h;
+    }
+
+    private static void applySegmentRepeat(
+            ComponentDefinition base,
+            ComponentQuery query,
+            ComponentVariantSpec spec,
+            ComponentVariant variant,
+            Random random
+    ) {
+        if (!spec.allowSegmentRepeat || base == null || variant == null) {
+            return;
+        }
+        int repeat = computeRepeatCount(base, query, spec, random);
+        if (repeat > 1) {
+            variant.applyRepeat(spec.repeatAxis, repeat);
+        }
+    }
+
+    private static int computeRepeatCount(
+            ComponentDefinition base,
+            ComponentQuery query,
+            ComponentVariantSpec spec,
+            Random random
+    ) {
+        int baseSpan = axisSpan(base, spec.repeatAxis);
+        int targetSpan = targetSpan(query, spec.repeatAxis, baseSpan);
+        if (baseSpan > 0 && targetSpan > baseSpan) {
+            return Math.min(8, (targetSpan + baseSpan - 1) / baseSpan);
+        }
+
+        if (query != null && query.usageHint != null && query.usageHint.frequency != null) {
+            String frequency = query.usageHint.frequency;
+            if ("primary".equals(frequency) || "secondary".equals(frequency) || "decorative".equals(frequency)) {
+                return randomRepeatCount(random, spec.repeatUnit);
+            }
+        }
+
+        if (query != null && query.semantic != null && "railing".equalsIgnoreCase(query.semantic.role)
+                && baseSpan > 0 && targetSpan > baseSpan) {
+            return Math.min(8, Math.max(2, targetSpan / baseSpan));
+        }
+        return 1;
+    }
+
+    private static int axisSpan(ComponentDefinition base, ComponentVariantSpec.Axis axis) {
+        if (base == null || base.size == null) {
+            return 0;
+        }
+        return switch (axis) {
+            case Y -> base.size.h;
+            case Z -> base.size.d;
+            default -> base.size.w;
+        };
+    }
+
+    private static int targetSpan(ComponentQuery query, ComponentVariantSpec.Axis axis, int fallback) {
+        if (query == null || query.geometry == null) {
+            return fallback;
+        }
+        Integer v = switch (axis) {
+            case Y -> query.geometry.openingHeight;
+            case Z -> null;
+            default -> query.geometry.openingWidth;
+        };
+        if (v == null || v <= 0) {
+            return fallback;
+        }
+        return v;
     }
 
     /**

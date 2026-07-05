@@ -2,6 +2,7 @@ package com.formacraft.common.component.group;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.ComponentFeatureFlags;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.component.placement.AttachmentRecognizer;
 import com.formacraft.common.component.placement.AttachmentType;
@@ -162,9 +163,10 @@ public final class PlayerComponentGroupExpander {
         }
 
         // style / semantic skin
-        boolean semanticSkin = getBool(reqMap, "semantic_skin", "semanticSkin");
         String semanticStyleId = getString(reqMap, "semantic_style_id", "semanticStyleId", "style_id", "styleId");
         if (semanticStyleId == null) semanticStyleId = resolveSemanticStyleId(semantic.styleProfile());
+        boolean semanticSkin = ComponentFeatureFlags.resolveSemanticSkin(
+                reqMap, semanticStyleId, "semantic_skin", "semanticSkin");
 
         // Expand group + optional mounts (components OR nested groups)
         expandGroupInto(out, worldDir, group, baseX, baseY, baseZ, groupFacing, groupMirror,

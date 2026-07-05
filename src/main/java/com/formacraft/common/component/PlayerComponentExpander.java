@@ -138,11 +138,12 @@ public final class PlayerComponentExpander {
         int baseZ = baseOffset.getZ();
 
         // 4) 是否启用语义换皮
-        boolean semanticSkin = getBool(reqMap, "semantic_skin", "semanticSkin");
         String semanticStyleId = getString(reqMap, "semantic_style_id", "semanticStyleId", "style_id", "styleId");
         if (semanticStyleId == null) {
             semanticStyleId = resolveSemanticStyleId(semantic.styleProfile());
         }
+        boolean semanticSkin = ComponentFeatureFlags.resolveSemanticSkin(
+                reqMap, semanticStyleId, "semantic_skin", "semanticSkin");
 
         // 5) 展开为 patches（相对 slot anchor）
         List<BlockPatch> out = new ArrayList<>(def.blocks.size());
@@ -253,10 +254,12 @@ public final class PlayerComponentExpander {
         int baseZ = baseOffset.getZ();
 
         // style / semantic skin（可分别覆盖 host/mount）
-        boolean semanticSkin = getBool(reqMap, "semantic_skin", "semanticSkin");
         String semanticStyleId = getString(reqMap, "semantic_style_id", "semanticStyleId", "style_id", "styleId");
-        if (semanticStyleId == null) semanticStyleId = resolveSemanticStyleId(semantic != null ? semantic.styleProfile() : null);
-
+        if (semanticStyleId == null) {
+            semanticStyleId = resolveSemanticStyleId(semantic != null ? semantic.styleProfile() : null);
+        }
+        boolean semanticSkin = ComponentFeatureFlags.resolveSemanticSkin(
+                reqMap, semanticStyleId, "semantic_skin", "semanticSkin");
         Boolean hostSkin0 = getBoolNullable(reqMap, "host_semantic_skin", "hostSemanticSkin");
         Boolean mountSkin0 = getBoolNullable(reqMap, "mount_semantic_skin", "mountSemanticSkin");
         boolean hostSkin = hostSkin0 != null ? hostSkin0 : semanticSkin;
@@ -479,6 +482,9 @@ public final class PlayerComponentExpander {
             return ComponentStorage.loadComponent(worldDir, explicitId);
         }
         ComponentQuery query = parseComponentQuery(reqMap, px);
+        if (query == null) {
+            query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(reqMap, px);
+        }
         if (query != null) {
             // Phase 8：检索最佳匹配并自动生成变体（缩放/裁剪/换材质）。
             // 变体为运行时产物；恒等变体等价于旧 retrieveBest 行为。

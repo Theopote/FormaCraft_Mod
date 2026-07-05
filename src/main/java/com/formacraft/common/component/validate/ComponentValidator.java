@@ -1,7 +1,8 @@
 package com.formacraft.common.component.validate;
 
-import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentCategory;
+import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.socket.ComponentSocket;
 
 import java.util.HashSet;
 import java.util.List;
@@ -148,6 +149,8 @@ public final class ComponentValidator {
             }
         }
 
+        validateSocketPlacements(def, out);
+
         // Category 与 Placement 的一致性检查
         if (def.category != null && def.placementSpec != null) {
             switch (def.category) {
@@ -198,6 +201,49 @@ public final class ComponentValidator {
                     out.warn("blocks[" + i + "]", String.format(
                         "Block position (%d,%d,%d) is outside size bounds (%d,%d,%d)",
                         block.dx, block.dy, block.dz, sizeW, sizeH, sizeD));
+                }
+            }
+        }
+    }
+
+    private static void validateSocketPlacements(ComponentDefinition def, ValidationResult out) {
+        if (def.socketPlacements == null || def.socketPlacements.isEmpty()) {
+            return;
+        }
+
+        Set<String> placementIds = new HashSet<>();
+        Set<String> socketIds = new HashSet<>();
+        if (def.sockets != null) {
+            for (ComponentSocket socket : def.sockets) {
+                if (socket == null || isBlank(socket.id)) continue;
+                socketIds.add(socket.id.trim().toLowerCase());
+            }
+        }
+
+        for (int i = 0; i < def.socketPlacements.size(); i++) {
+            var sp = def.socketPlacements.get(i);
+            String base = "socketPlacements[" + i + "]";
+            if (sp == null) {
+                out.warn(base, "Null socket placement");
+                continue;
+            }
+            if (isBlank(sp.id)) {
+                out.error(base + ".id", "Missing socket placement id");
+                continue;
+            }
+            String id = sp.id.trim();
+            if (!placementIds.add(id.toLowerCase())) {
+                out.error(base + ".id", "Duplicate socket placement id: " + id);
+            }
+            if (!socketIds.isEmpty() && !socketIds.contains(id.toLowerCase())) {
+                out.warn(base + ".id", "socketPlacements id '" + id + "' has no matching sockets[] entry");
+            }
+        }
+
+        if (!socketIds.isEmpty()) {
+            for (String socketId : socketIds) {
+                if (!placementIds.contains(socketId)) {
+                    out.warn("socketPlacements", "Socket '" + socketId + "' has no socketPlacements origin (mount may use geometry fallback)");
                 }
             }
         }
