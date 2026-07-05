@@ -261,6 +261,10 @@ def enrich_llm_plan_architectural_detail(
     else:
         plan["proportion_hints"] = {**hints, **existing_hints}
 
+    ph = plan.get("proportion_hints")
+    if isinstance(ph, dict) and tier in ("rich", "monumental"):
+        ph.setdefault("floor_cornice", True)
+
     body_h = int(hints["target_body_height"])
     depth = int(hints["target_depth"])
     roof_h = int(hints["target_roof_height"])
@@ -280,7 +284,10 @@ def enrich_llm_plan_architectural_detail(
         params.setdefault("facade_profile", "vertical_pilasters")
         params.setdefault("wall_pattern", "gradient")
         params.setdefault("floor_height", 4)
+        params.setdefault("floor_cornice", True)
         params.setdefault("void_ratio", min(float(params.get("void_ratio") or 0.12), 0.15))
+        if isinstance(ph, dict):
+            ph.setdefault("floor_height", params.get("floor_height", 4))
     if "GOTHIC" in style or "CATHEDRAL" in style:
         params["facade_profile"] = "vertical_pilasters"
     features = list(mass.get("features") or [])

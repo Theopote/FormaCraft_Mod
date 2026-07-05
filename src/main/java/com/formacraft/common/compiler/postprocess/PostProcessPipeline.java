@@ -25,7 +25,10 @@ public class PostProcessPipeline {
      */
     public static PostProcessPipeline createDefault(PostProcessContext context) {
         PostProcessPipeline pipeline = new PostProcessPipeline();
-        
+
+        // 0. Story 分界檐口（inverted stairs）
+        pipeline.add(new FloorCornicePostProcessor());
+
         // 1. 细节装饰增强
         pipeline.add(new DetailEnhancementPostProcessor());
         
