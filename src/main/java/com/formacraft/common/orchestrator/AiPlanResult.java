@@ -7,7 +7,8 @@ package com.formacraft.common.orchestrator;
  * {@link com.formacraft.common.model.build.BuildingSpec#extra} 的做法。
  */
 public sealed interface AiPlanResult
-        permits AiPlanResult.LlmPlan, AiPlanResult.BuildingSpec, AiPlanResult.CompositeSpec, AiPlanResult.CitySpec {
+        permits AiPlanResult.LlmPlan, AiPlanResult.BuildingSpec, AiPlanResult.CompositeSpec,
+                AiPlanResult.CitySpec, AiPlanResult.Clarification {
 
     record LlmPlan(com.formacraft.common.llm.dto.LlmPlan plan) implements AiPlanResult {}
 
@@ -16,4 +17,6 @@ public sealed interface AiPlanResult
     record CompositeSpec(com.formacraft.common.model.composite.CompositeSpec spec) implements AiPlanResult {}
 
     record CitySpec(com.formacraft.common.model.city.CitySpec spec) implements AiPlanResult {}
+
+    record Clarification(ClarificationResponse response) implements AiPlanResult {}
 }

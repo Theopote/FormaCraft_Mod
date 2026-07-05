@@ -85,6 +85,13 @@ public final class FormaCraftClientNetworking {
             }
         }));
 
+        ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.ResponseClarificationPayload.ID, (payload, context) -> context.client().execute(() -> {
+            String msg = payload.message();
+            if (msg == null || msg.isBlank()) return;
+            FormacraftMod.LOGGER.info("Received clarification from server");
+            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIMessage(msg, null);
+        }));
+
         // 预览线框数据包接收器
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PreviewOutlinePayload.ID, (payload, context) -> context.client().execute(() -> {
             List<OutlineBlock> blocks = payload.blocks();

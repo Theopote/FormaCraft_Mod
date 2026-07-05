@@ -12,6 +12,7 @@ import com.formacraft.common.network.packet.RequestBuildPacket;
 import com.formacraft.common.network.packet.ResponseBuildErrorPacket;
 import com.formacraft.common.network.packet.ResponseBuildSpecPacket;
 import com.formacraft.common.network.packet.ResponseBuildStatusPacket;
+import com.formacraft.common.network.packet.ResponseClarificationPacket;
 import com.formacraft.common.preview.OutlineBlock;
 import com.formacraft.common.patch.BlockPatch;
 
@@ -34,6 +35,7 @@ public class FormaCraftNetworking {
     public static final Identifier RESPONSE_BUILD_SPEC = Identifier.of("formacraft", "response_buildspec");
     public static final Identifier RESPONSE_BUILD_ERROR = Identifier.of("formacraft", "response_builderror");
     public static final Identifier RESPONSE_BUILD_STATUS = Identifier.of("formacraft", "response_buildstatus");
+    public static final Identifier RESPONSE_CLARIFICATION = Identifier.of("formacraft", "response_clarification");
     public static final Identifier PREVIEW_OUTLINE = Identifier.of("formacraft", "preview_outline");
     public static final Identifier PREVIEW_SKELETON = Identifier.of("formacraft", "preview_skeleton");
     public static final Identifier PREVIEW_ADJUST = Identifier.of("formacraft", "preview_adjust");
@@ -108,6 +110,20 @@ public class FormaCraftNetworking {
         public static final PacketCodec<PacketByteBuf, ResponseBuildStatusPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> ResponseBuildStatusPacket.write(buf, payload.message),
                 buf -> new ResponseBuildStatusPayload(ResponseBuildStatusPacket.read(buf))
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    // S2C：澄清追问（信息不足时多轮对话补全意图）
+    public record ResponseClarificationPayload(String message) implements CustomPayload {
+        public static final CustomPayload.Id<ResponseClarificationPayload> ID = new CustomPayload.Id<>(RESPONSE_CLARIFICATION);
+        public static final PacketCodec<PacketByteBuf, ResponseClarificationPayload> CODEC = PacketCodec.of(
+                (payload, buf) -> ResponseClarificationPacket.write(buf, payload.message),
+                buf -> new ResponseClarificationPayload(ResponseClarificationPacket.read(buf))
         );
 
         @Override
@@ -516,6 +532,7 @@ public class FormaCraftNetworking {
         PayloadTypeRegistry.playS2C().register(ResponseBuildSpecPayload.ID, ResponseBuildSpecPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ResponseBuildErrorPayload.ID, ResponseBuildErrorPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ResponseBuildStatusPayload.ID, ResponseBuildStatusPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ResponseClarificationPayload.ID, ResponseClarificationPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewOutlinePayload.ID, PreviewOutlinePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewSkeletonPayload.ID, PreviewSkeletonPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PreviewOriginPayload.ID, PreviewOriginPayload.CODEC);

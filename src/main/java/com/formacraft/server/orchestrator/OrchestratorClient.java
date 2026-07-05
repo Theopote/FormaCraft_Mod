@@ -9,6 +9,7 @@ import com.formacraft.common.model.city.CitySpec;
 import com.formacraft.common.model.composite.CompositeSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.orchestrator.AiPlanResult;
+import com.formacraft.common.orchestrator.ClarificationResponse;
 import com.formacraft.FormacraftMod;
 
 import java.net.URI;
@@ -164,7 +165,7 @@ public class OrchestratorClient {
 
     /**
      * 按后端显式返回的 {@code kind} 判别字段分发（不再靠 body.contains(...) 的脆弱字符串启发式）。
-     * 后端 /build 必须在响应中输出 {@code "kind": "llmplan|city|composite|buildingspec"}。
+     * 后端 /build 必须在响应中输出 {@code "kind": "llmplan|city|composite|buildingspec|clarification"}。
      */
     static AiPlanResult parseAiPlanResponse(String body) {
         if (body == null || body.isBlank()) {
@@ -223,8 +224,47 @@ public class OrchestratorClient {
                 validateBuildingSpec(spec);
                 yield new AiPlanResult.BuildingSpec(spec);
             }
+            case "clarification" -> {
+                ClarificationResponse clar = parseClarificationResponse(body);
+                yield new AiPlanResult.Clarification(clar);
+            }
             default -> throw new RuntimeException("Unknown orchestrator response kind='" + kind + "'. body=" + body);
         };
+    }
+
+    private static ClarificationResponse parseClarificationResponse(String body) {
+        try {
+            com.google.gson.JsonObject obj = JsonUtil.get().fromJson(body, com.google.gson.JsonObject.class);
+            if (obj == null || !obj.has("clarification") || obj.get("clarification").isJsonNull()) {
+                throw new RuntimeException("kind=clarification but missing 'clarification' object. body=" + body);
+            }
+            com.google.gson.JsonObject clar = obj.getAsJsonObject("clarification");
+            String messageZh = clar.has("message_zh") && !clar.get("message_zh").isJsonNull()
+                    ? clar.get("message_zh").getAsString()
+                    : "";
+            String reason = clar.has("reason") && !clar.get("reason").isJsonNull()
+                    ? clar.get("reason").getAsString()
+                    : null;
+            String sessionId = clar.has("session_id") && !clar.get("session_id").isJsonNull()
+                    ? clar.get("session_id").getAsString()
+                    : null;
+            java.util.List<String> questions = new java.util.ArrayList<>();
+            if (clar.has("questions") && clar.get("questions").isJsonArray()) {
+                clar.getAsJsonArray("questions").forEach(el -> {
+                    if (el != null && !el.isJsonNull()) {
+                        questions.add(el.getAsString());
+                    }
+                });
+            }
+            if (messageZh == null || messageZh.isBlank()) {
+                throw new RuntimeException("kind=clarification but message_zh is empty. body=" + body);
+            }
+            return new ClarificationResponse(messageZh, questions, reason, sessionId);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse clarification response. body=" + body, e);
+        }
     }
 
     /**

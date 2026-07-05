@@ -201,6 +201,14 @@ public final class BuildRequestProcessor {
                                         }
 
                                         switch (aiResult) {
+                                            case AiPlanResult.Clarification(var clar) -> {
+                                                hbAlive.set(false);
+                                                String msg = clar.messageZh();
+                                                if (msg == null || msg.isBlank()) {
+                                                    msg = "需要补充更多信息才能开始生成，请描述建筑类型、风格或具体名称。";
+                                                }
+                                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseClarificationPayload(msg));
+                                            }
                                             case AiPlanResult.LlmPlan(var plan) -> {
                                                 if (LlmPlanPreviewBuilder.tryBuildPreview(player, req, plan, origin, serverWorld, hbAlive)) {
                                                     return;

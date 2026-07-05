@@ -12,8 +12,16 @@ from ..services.ai_planner import (
     _should_generate_composite,
     _should_generate_city
 )
+from ..services.intent_clarification import maybe_clarification_response
 
 router = APIRouter()
+
+
+def _maybe_clarify(build_req: BuildRequest) -> dict | None:
+    """Return clarification response when user intent is too vague; else None."""
+    if (build_req.promptMode or "").strip().upper() != "BUILD":
+        return None
+    return maybe_clarification_response(build_req)
 
 
 def _tagged(obj, kind: str) -> dict:
@@ -61,6 +69,9 @@ async def build_endpoint(request: Request) -> dict:
         try:
             # 1. 如果明确指定了 outputFormat，使用指定的格式
             if build_req.outputFormat == "llmplan":
+                clar = _maybe_clarify(build_req)
+                if clar:
+                    return clar
                 return _tagged(generate_llm_plan(build_req), "llmplan")
             elif build_req.outputFormat == "buildingspec":
                 # 跳过城市和复合结构检查，直接生成 BuildingSpec
@@ -72,6 +83,9 @@ async def build_endpoint(request: Request) -> dict:
             
             # 2. outputFormat 为 "auto" 或未设置：BUILD 模式默认走 LlmPlan（与 Java ChatPanel 一致）
             if build_req.promptMode == "BUILD":
+                clar = _maybe_clarify(build_req)
+                if clar:
+                    return clar
                 return _tagged(generate_llm_plan(build_req), "llmplan")
 
             # 2.1 非 BUILD 模式：检查是否需要生成城市或复合结构
