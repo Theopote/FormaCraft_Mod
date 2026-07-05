@@ -99,9 +99,10 @@ public final class SegmentScaler {
         cursor += startSize;
 
         // 2) MID 段（重复 midRepeatCount 次）
+        int midUnit = Math.max(1, sliceSize(mid, axis));
         for (int i = 0; i < midRepeatCount; i++) {
             out.addAll(shiftVoxels(mid, axis, cursor));
-            cursor += 1; // 每次重复偏移 1（假设 mid 是单层切片）
+            cursor += midUnit;
         }
 
         // 3) END 段（固定出现 1 次）

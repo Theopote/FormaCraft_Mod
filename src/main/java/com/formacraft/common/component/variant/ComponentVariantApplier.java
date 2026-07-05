@@ -40,6 +40,47 @@ public final class ComponentVariantApplier {
             return base;
         }
 
+        return applyInternal(base, variant, scaling, repeating, trimming, sx, sy, sz);
+    }
+
+    /**
+     * 应用变体但跳过分段 repeat（SegmentScaler 已处理 repeat 时使用）。
+     */
+    public static ComponentDefinition applyWithoutRepeat(ComponentDefinition base, ComponentVariant variant) {
+        if (base == null || variant == null || base.blocks == null || base.blocks.isEmpty()) {
+            return base;
+        }
+
+        int sx = intScale(variant.scaleX);
+        int sy = intScale(variant.scaleY);
+        int sz = intScale(variant.scaleZ);
+        boolean scaling = sx > 1 || sy > 1 || sz > 1;
+        boolean trimming = variant.trimmedWidth != null || variant.trimmedHeight != null || variant.trimmedDepth != null;
+
+        if (!scaling && !trimming) {
+            return base;
+        }
+
+        return applyInternal(base, variant, scaling, false, trimming, sx, sy, sz);
+    }
+
+    public static ComponentDefinition cloneWithBlocksPublic(
+            ComponentDefinition base,
+            List<ComponentDefinition.BlockEntry> blocks
+    ) {
+        return cloneWithBlocks(base, blocks);
+    }
+
+    private static ComponentDefinition applyInternal(
+            ComponentDefinition base,
+            ComponentVariant variant,
+            boolean scaling,
+            boolean repeating,
+            boolean trimming,
+            int sx,
+            int sy,
+            int sz
+    ) {
         List<ComponentDefinition.BlockEntry> src = base.blocks;
 
         // 1) 整数放大（最近邻）

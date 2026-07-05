@@ -1,17 +1,21 @@
 package com.formacraft.common.component.model;
 
 import com.formacraft.common.component.ComponentDefinition;
-import com.formacraft.common.component.ComponentDefinitionCompiler;
+import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.transform.Mirror;
-import com.formacraft.common.component.variant.ComponentVariantCompiler;
+import com.formacraft.common.component.variant.ComponentVariant;
+import com.formacraft.common.component.variant.ComponentVariantApplier;
+import com.formacraft.common.component.variant.ComponentVariantSpec;
+import com.formacraft.common.component.variant.SegmentScaler;
+import com.formacraft.common.component.variant.StructureLoader;
+import com.formacraft.common.component.variant.StructureTemplate;
+import com.formacraft.common.component.variant.VoxelGrid;
+import com.formacraft.common.component.variant.VoxelGridConverter;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.profile.StyleProfile;
 import net.minecraft.util.math.Direction;
 
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -99,6 +103,116 @@ public final class ComponentModelApi {
     // -------- Compile (v2: 使用新变体编译器) --------
 
     /**
+     * 生产路径：优先 SegmentScaler 分段缩放，再回退 {@link ComponentVariantApplier}。
+     */
+    public static ComponentDefinition applyRuntimeVariant(
+            ComponentDefinition base,
+            ComponentQuery query,
+            ComponentVariant runtimeVariant
+    ) {
+        if (base == null) {
+            return null;
+        }
+        ComponentDefinition segmented = tryApplySegmentScaling(base, query, runtimeVariant);
+        if (segmented != null) {
+            return runtimeVariant != null
+                    ? ComponentVariantApplier.applyWithoutRepeat(segmented, runtimeVariant)
+                    : segmented;
+        }
+        return runtimeVariant != null
+                ? ComponentVariantApplier.apply(base, runtimeVariant)
+                : base;
+    }
+
+    /**
+     * 尝试用 SegmentScaler 做 START/MID/END 分段缩放。
+     *
+     * @return 缩放后的构件；若无规则或无尺寸变化则返回 null（调用方应走 Applier 回退）
+     */
+    public static ComponentDefinition tryApplySegmentScaling(
+            ComponentDefinition base,
+            ComponentQuery query,
+            ComponentVariant runtimeVariant
+    ) {
+        if (base == null || base.blocks == null || base.blocks.isEmpty()) {
+            return null;
+        }
+
+        ComponentPrototype proto = RuntimeComponentPrototypeFactory.fromDefinition(base);
+        if (proto == null || proto.variant_rules == null || proto.variant_rules.scaling == null) {
+            return null;
+        }
+
+        PersistedComponentVariant.Params.Scale target = resolveTargetScale(base, query, runtimeVariant);
+        if (!needsSegmentScaling(base, target)) {
+            return null;
+        }
+
+        StructureTemplate tpl = StructureLoader.fromComponentDefinition(base);
+        if (tpl == null || tpl.all().isEmpty()) {
+            return null;
+        }
+
+        VoxelGrid grid = SegmentScaler.applyScaling(tpl, proto.variant_rules.scaling, target);
+        if (grid == null || grid.size() == 0) {
+            return null;
+        }
+
+        ComponentDefinition out = VoxelGridConverter.toComponentDefinition(base, grid);
+        if (out == null || out.size == null || base.size == null) {
+            return null;
+        }
+        if (out.size.w == base.size.w && out.size.h == base.size.h && out.size.d == base.size.d) {
+            return null;
+        }
+        return out;
+    }
+
+    private static boolean needsSegmentScaling(ComponentDefinition base, PersistedComponentVariant.Params.Scale target) {
+        if (base == null || base.size == null || target == null) {
+            return false;
+        }
+        return target.x != base.size.w || target.y != base.size.h || target.z != base.size.d;
+    }
+
+    private static PersistedComponentVariant.Params.Scale resolveTargetScale(
+            ComponentDefinition base,
+            ComponentQuery query,
+            ComponentVariant runtimeVariant
+    ) {
+        int bw = base.size != null && base.size.w > 0 ? base.size.w : 1;
+        int bh = base.size != null && base.size.h > 0 ? base.size.h : 1;
+        int bd = base.size != null && base.size.d > 0 ? base.size.d : 1;
+
+        PersistedComponentVariant.Params.Scale scale = new PersistedComponentVariant.Params.Scale();
+        scale.x = bw;
+        scale.y = bh;
+        scale.z = bd;
+
+        if (query != null && query.geometry != null) {
+            if (query.geometry.openingWidth != null && query.geometry.openingWidth > 0) {
+                scale.x = query.geometry.openingWidth;
+            }
+            if (query.geometry.openingHeight != null && query.geometry.openingHeight > 0) {
+                scale.y = query.geometry.openingHeight;
+            }
+        }
+
+        if (runtimeVariant != null && runtimeVariant.repeatCount > 1) {
+            int repeat = runtimeVariant.repeatCount;
+            ComponentVariantSpec.Axis axis = runtimeVariant.repeatAxis != null
+                    ? runtimeVariant.repeatAxis
+                    : ComponentVariantSpec.Axis.X;
+            switch (axis) {
+                case Y -> scale.y = Math.max(scale.y, bh * repeat);
+                case Z -> scale.z = Math.max(scale.z, bd * repeat);
+                default -> scale.x = Math.max(scale.x, bw * repeat);
+            }
+        }
+        return scale;
+    }
+
+    /**
      * 将 prototype + variant 编译为 BlockPatch（v2：完整变体编译器）。
      * <p>
      * 支持：
@@ -122,7 +236,7 @@ public final class ComponentModelApi {
         }
 
         // 使用新变体编译器（支持分段缩放 + 语义材质映射）
-        return ComponentVariantCompiler.compile(proto, variant, facing, style);
+        return com.formacraft.common.component.variant.ComponentVariantCompiler.compile(proto, variant, facing, style);
     }
 
     /**

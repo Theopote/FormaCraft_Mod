@@ -62,12 +62,8 @@ public final class StructureLoader {
 
     /**
      * 从 ComponentDefinition（v1 结构）转换为 StructureTemplate。
-     * <p>
-     * 策略：
-     * - blocks[].semantic → semantic tag（语义标签）
-     * - 坐标分布 → 启发式推断 segment tag（分段标签）
      */
-    private static StructureTemplate fromComponentDefinition(ComponentDefinition def) {
+    public static StructureTemplate fromComponentDefinition(ComponentDefinition def) {
         if (def.blocks == null || def.blocks.isEmpty()) return emptyTemplate();
 
         int w = def.size != null ? def.size.w : 1;

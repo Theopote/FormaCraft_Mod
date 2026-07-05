@@ -493,7 +493,8 @@ public final class PlayerComponentExpander {
                     com.formacraft.common.component.query.ComponentRetriever.retrieveBestWithVariant(query, rng);
             if (vr != null && vr.base() != null) {
                 ComponentDefinition applied =
-                        com.formacraft.common.component.variant.ComponentVariantApplier.apply(vr.base(), vr.variant());
+                        com.formacraft.common.component.model.ComponentModelApi.applyRuntimeVariant(
+                                vr.base(), query, vr.variant());
                 return applied != null ? applied : vr.base();
             }
         }

@@ -1,10 +1,10 @@
 package com.formacraft.common.component;
 
+import com.formacraft.common.component.model.ComponentModelApi;
 import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.query.ComponentQueryMatchUtil;
 import com.formacraft.common.component.query.ComponentRequestConverter;
 import com.formacraft.common.component.query.ComponentRetriever;
-import com.formacraft.common.component.variant.ComponentVariantApplier;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -36,7 +36,7 @@ public final class ComponentLibrary {
         if (vr == null || vr.base() == null) {
             return null;
         }
-        ComponentDefinition applied = ComponentVariantApplier.apply(vr.base(), vr.variant());
+        ComponentDefinition applied = ComponentModelApi.applyRuntimeVariant(vr.base(), query, vr.variant());
         return applied != null ? applied : vr.base();
     }
 

@@ -4,6 +4,7 @@ import com.formacraft.ai.context.BrushContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.prompt.PromptAssembler;
 import com.formacraft.ai.prompt.PromptMode;
+import com.formacraft.client.component.ClientComponentCatalogState;
 import com.formacraft.client.buildcontext.BuildContextResolver;
 import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.preview.OutlinePreviewState;
@@ -801,6 +802,8 @@ public class ChatPanel extends BasePanel {
         historyIndex = -1;
         historyDraft = "";
 
+        notifyComponentCatalogStatus(text);
+
         World world = client.world;
         String dimensionId = world.getRegistryKey().getValue().toString();
 
@@ -970,6 +973,40 @@ public class ChatPanel extends BasePanel {
 
         // 清空输入框
         inputBox.clear();
+    }
+
+    /**
+     * 建造前检查构件目录是否就绪：触发同步、磁盘回填，并在必要时提示玩家。
+     */
+    private void notifyComponentCatalogStatus(String userText) {
+        ClientComponentCatalogState.hydrateFromDiskIfEmpty();
+
+        if (ClientComponentCatalogState.isSyncPending() && !ClientComponentCatalogState.isSyncComplete()) {
+            FormaCraftClientNetworking.sendComponentCatalogRequest();
+            messages.add(ChatMessage.system(
+                    "提示：构件目录仍在同步中，AI 可能暂时无法引用你的自定义构件（已尝试加载本地磁盘快照）。"));
+            scrollOffset = 0;
+            return;
+        }
+
+        if (!ClientComponentCatalogState.hasRegisteredComponents() && mightReferencePlayerComponents(userText)) {
+            messages.add(ChatMessage.system(
+                    "提示：当前没有已注册的玩家构件，涉及自定义构件的请求将回退到程序化生成。"));
+            scrollOffset = 0;
+        }
+    }
+
+    private static boolean mightReferencePlayerComponents(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        return lower.contains("构件")
+                || lower.contains("component")
+                || lower.contains("我的门")
+                || lower.contains("我的窗")
+                || lower.contains("player component")
+                || lower.contains("custom component");
     }
 
     private static @NotNull String getString(FormaRequest req) {
