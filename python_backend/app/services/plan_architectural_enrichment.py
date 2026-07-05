@@ -265,6 +265,14 @@ def enrich_llm_plan_architectural_detail(
     if isinstance(ph, dict) and tier in ("rich", "monumental"):
         ph.setdefault("floor_cornice", True)
         ph.setdefault("window_order", "full")
+    if isinstance(ph, dict) and tier == "monumental":
+        ph.setdefault("crown_assembly", True)
+        crown_template = (
+            "ONION_DOME"
+            if any(x in style for x in ("GOTHIC", "BAROQUE", "ORTHODOX", "BYZANTINE"))
+            else "CLASSICAL_CUPOLA"
+        )
+        ph.setdefault("crown_template", crown_template)
 
     body_h = int(hints["target_body_height"])
     depth = int(hints["target_depth"])
@@ -397,6 +405,38 @@ def enrich_llm_plan_architectural_detail(
                 "dimensions": {"width": 5, "depth": 2, "height": 5},
                 "features": ["portico", "steps"],
                 "params": {"door_width": 3, "door_height": 4},
+            },
+        )
+
+    if (
+        tier == "monumental"
+        and min(width, depth) >= 7
+        and not _has_type(new_components, "CROWN")
+    ):
+        crown_r = max(2, min(6, min(width, depth) // 4))
+        crown_w = crown_r * 2 + 1
+        crown_h = max(4, min(10, crown_r * 2))
+        crown_template = (
+            "ONION_DOME"
+            if any(x in style for x in ("GOTHIC", "BAROQUE", "ORTHODOX", "BYZANTINE"))
+            else "CLASSICAL_CUPOLA"
+        )
+        new_components.append(
+            {
+                "component_type": "CROWN",
+                "relative_position": {
+                    "x": max(0, width // 2 - crown_w // 2),
+                    "y": body_h + roof_h,
+                    "z": max(0, depth // 2 - crown_w // 2),
+                },
+                "dimensions": {"width": crown_w, "depth": crown_w, "height": crown_h},
+                "features": ["crown", "revolve_surface"],
+                "params": {
+                    "crown_template": crown_template,
+                    "crown_radius": crown_r,
+                    "crown_height": crown_h,
+                    "revolve_segments": 32,
+                },
             },
         )
 

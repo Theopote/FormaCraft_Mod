@@ -39,6 +39,10 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
         self.assertIn("ROOF", types)
         self.assertIn("DECOR_DETAIL", types)
         self.assertIn("proportion_hints", out)
+        hints = out.get("proportion_hints") or {}
+        if "louvre" in "louvre museum".lower():
+            self.assertIn("CROWN", types)
+            self.assertEqual(hints.get("crown_template"), "CLASSICAL_CUPOLA")
         mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
         self.assertEqual(mass["params"].get("facade_profile"), "vertical_pilasters")
         self.assertGreaterEqual(mass["dimensions"]["height"], 10)

@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.util.ComponentCrownDecorator;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.postprocess.PostProcessContext;
@@ -15,6 +16,7 @@ import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.StyleIntentResolver;
+import com.formacraft.common.proportion.CrownGrammarResolver;
 import com.formacraft.common.proportion.OpeningGrammarResolver;
 import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;
@@ -70,7 +72,10 @@ public final class ComponentPlanCompiler {
             "FACADE_WINDOWS",
             "ENTRANCE",
             "ROOF",
-            "ROOF_STRUCTURE"
+            "ROOF_STRUCTURE",
+            "CROWN",
+            "CUPOLA",
+            "DOME"
     );
 
     /**
@@ -328,6 +333,7 @@ public final class ComponentPlanCompiler {
         Set<String> slotsWithFacade = new HashSet<>();
         Set<String> slotsWithEntrance = new HashSet<>();
         Set<String> slotsWithRoof = new HashSet<>();
+        Set<String> slotsWithCrown = new HashSet<>();
         Set<String> assemblyFacadeSlots = new HashSet<>();
         for (Component c : components) {
             if (c == null) continue;
@@ -339,6 +345,8 @@ public final class ComponentPlanCompiler {
                 slotsWithEntrance.add(slotKey);
             } else if (isRoofType(type)) {
                 slotsWithRoof.add(slotKey);
+            } else if (isCrownType(type)) {
+                slotsWithCrown.add(slotKey);
             }
         }
 
@@ -405,11 +413,24 @@ public final class ComponentPlanCompiler {
                     c = suppressMassRoof(c);
                 }
             }
+            if (!slotsWithCrown.contains(slotKey) && ComponentCrownDecorator.shouldApply(plan, c.params())) {
+                Component roofRef = findRoofForSlot(components, inferred, slotKey);
+                if (roofRef == null) {
+                    roofRef = makeRoofComponent(plan, c, slotId);
+                }
+                Component crown = makeCrownComponent(plan, c, roofRef, slotId);
+                if (crown != null) {
+                    crown = StyleIntentResolver.apply(plan, crown);
+                    crown = CrownGrammarResolver.apply(plan, crown);
+                    inferred.add(crown);
+                    slotsWithCrown.add(slotKey);
+                }
+            }
             prepared.add(c);
         }
 
         if (!inferred.isEmpty()) {
-            FormacraftMod.LOGGER.info("ComponentPlanCompiler: inferred {} facade/entrance/roof components", inferred.size());
+            FormacraftMod.LOGGER.info("ComponentPlanCompiler: inferred {} facade/entrance/roof/crown components", inferred.size());
             prepared.addAll(inferred);
         }
 
@@ -472,6 +493,7 @@ public final class ComponentPlanCompiler {
             Component aligned = switch (type) {
                 case "FACADE_WINDOWS" -> alignFacadeToMass(c, mass, plan);
                 case "ENTRANCE" -> alignEntranceToMass(c, mass, plan, facing);
+                case "CROWN", "CUPOLA", "DOME" -> alignCrownToMass(c, mass, plan, components);
                 default -> isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
             };
             if (aligned != null && aligned != c) {
@@ -822,6 +844,130 @@ public final class ComponentPlanCompiler {
         );
     }
 
+    private static Component makeCrownComponent(LlmPlan plan, Component base, Component roof, String slotId) {
+        Dimensions dims = base.dimensions();
+        Vec3i rp = resolveMassOrigin(base);
+        if (dims == null || rp == null) {
+            return null;
+        }
+        int width = Math.max(2, dims.width());
+        int depth = Math.max(2, dims.depth());
+        int span = Math.min(width, depth);
+        if (span < 7) {
+            return null;
+        }
+
+        int roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
+        if (roof != null && roof.dimensions() != null && roof.dimensions().height() > 0) {
+            roofHeight = roof.dimensions().height();
+        }
+
+        int radius = Math.max(2, Math.min(6, span / 4));
+        int crownWidth = radius * 2 + 1;
+        int crownHeight = Math.max(4, Math.min(10, radius * 2));
+
+        Map<String, Object> params = new HashMap<>();
+        if (base.params() != null) {
+            params.putAll(base.params());
+        }
+        params.put("crown_radius", radius);
+        params.put("crown_height", crownHeight);
+        params.putIfAbsent("revolve_segments", 32);
+        params.put("crown_template", ComponentCrownDecorator.resolveTemplate(plan, params, null));
+
+        int relX = rp.x() + (width - crownWidth) / 2;
+        int relZ = rp.z() + (depth - crownWidth) / 2;
+        int relY = rp.y() + Math.max(1, dims.height() - 1) + roofHeight;
+
+        List<String> features = new ArrayList<>();
+        features.add("crown");
+        features.add("revolve_surface");
+        if (base.features() != null) {
+            for (String feature : base.features()) {
+                if (feature != null && !features.contains(feature)) {
+                    features.add(feature);
+                }
+            }
+        }
+
+        return new Component(
+                "CROWN",
+                slotId,
+                new Vec3i(relX, relY, relZ),
+                new Dimensions(crownWidth, crownWidth, crownHeight),
+                features,
+                params
+        );
+    }
+
+    private static Component alignCrownToMass(Component llmCrown, Component mass, LlmPlan plan, List<Component> all) {
+        Component roof = findRoofForSlot(all, List.of(), slotKey(mass));
+        if (roof == null) {
+            roof = makeRoofComponent(plan, mass, mass.slotId());
+        }
+        Component template = makeCrownComponent(plan, mass, roof, mass.slotId());
+        if (template == null) {
+            return CrownGrammarResolver.apply(plan, llmCrown);
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        if (template.params() != null) {
+            params.putAll(template.params());
+        }
+        if (llmCrown.params() != null) {
+            params.putAll(llmCrown.params());
+        }
+
+        Dimensions templateDims = template.dimensions();
+        Dimensions llmDims = llmCrown.dimensions();
+        int crownHeight = templateDims != null ? templateDims.height() : 6;
+        int crownWidth = templateDims != null ? templateDims.width() : 5;
+        if (llmDims != null) {
+            if (llmDims.height() > 0) {
+                crownHeight = llmDims.height();
+            }
+            if (llmDims.width() > 0) {
+                crownWidth = llmDims.width();
+            }
+        }
+
+        Component aligned = new Component(
+                "CROWN",
+                llmCrown.slotId(),
+                template.relativePosition(),
+                new Dimensions(crownWidth, crownWidth, crownHeight),
+                mergeFeatureLists(template.features(), llmCrown.features()),
+                params
+        );
+        return CrownGrammarResolver.apply(plan, aligned);
+    }
+
+    private static Component findRoofForSlot(List<Component> primary, List<Component> inferred, String slotKey) {
+        Component found = findRoofInList(primary, slotKey);
+        if (found != null) {
+            return found;
+        }
+        return findRoofInList(inferred, slotKey);
+    }
+
+    private static Component findRoofInList(List<Component> components, String slotKey) {
+        if (components == null) {
+            return null;
+        }
+        for (Component c : components) {
+            if (c == null) {
+                continue;
+            }
+            if (!slotKey.equals(slotKey(c))) {
+                continue;
+            }
+            if (isRoofType(normalizeType(c.componentType()))) {
+                return c;
+            }
+        }
+        return null;
+    }
+
     private static Component suppressMassRoof(Component base) {
         if (base == null) {
             return null;
@@ -1017,6 +1163,9 @@ public final class ComponentPlanCompiler {
         if (type.contains("ROOF")) {
             return "ROOF";
         }
+        if (type.contains("CROWN") || type.contains("CUPOLA") || type.contains("DOME") || type.contains("SPIRE")) {
+            return "CROWN";
+        }
         if (type.contains("BALCONY")) {
             return "BALCONY";
         }
@@ -1049,6 +1198,13 @@ public final class ComponentPlanCompiler {
     private static boolean isRoofType(String type) {
         if (type == null) return false;
         return type.startsWith("ROOF");
+    }
+
+    private static boolean isCrownType(String type) {
+        if (type == null) {
+            return false;
+        }
+        return "CROWN".equals(type) || "CUPOLA".equals(type) || "DOME".equals(type);
     }
 
     private static String resolveDefaultRoofType(LlmPlan plan, Component base) {

@@ -35,6 +35,9 @@ public final class ComponentGeneratorRegistry {
         register("FENCE_OR_WALL", new WallComponentGenerator());
 
         register("ROOF", new RoofGenerator());
+        register("CROWN", new CrownGenerator());
+        register("CUPOLA", new CrownGenerator());
+        register("DOME", new CrownGenerator());
         register("COURTYARD_SPACE", new CourtyardSpaceGenerator());
         register("COURTYARD", new CourtyardSpaceGenerator());
         register("GATE_STRUCTURE", new GateStructureGenerator());
