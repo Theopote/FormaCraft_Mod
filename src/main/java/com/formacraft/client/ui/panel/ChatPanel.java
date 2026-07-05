@@ -74,6 +74,8 @@ public class ChatPanel extends BasePanel {
     // 滚动偏移：从底部往上偏移多少像素（平滑滚动，避免按“整条消息”跳页）
     private int scrollOffset = 0;
     private double scrollRemainder = 0.0;
+    /** 上一帧计算的最大滚动偏移，供滚轮事件 clamp 使用 */
+    private int chatMaxScrollOffset = 0;
 
     // ========== AI 输出流式打印（token 队列 + typewriter） ==========
     private AIStreamPrinter currentPrinter = null;
@@ -322,10 +324,13 @@ public class ChatPanel extends BasePanel {
 
         int visibleHeight = Math.max(1, chatBottom - chatTop - 6);
         int maxOffset = Math.max(0, totalContentHeight - visibleHeight);
+        chatMaxScrollOffset = maxOffset;
         if (scrollOffset > maxOffset) scrollOffset = maxOffset;
         if (scrollOffset < 0) scrollOffset = 0;
 
-        int y = chatBottom - 6 - scrollOffset; // 向上滚动时内容上移（scrollOffset 增大 → y 减小）
+        // 自底向上布局：p = 距最新消息底部的累计高度；scrollOffset 平移整个内容区
+        // scrollOffset=0 → 贴底显示最新；scrollOffset=max → 顶部对齐最旧消息
+        int p = 0;
 
         for (int idx = messages.size() - 1; idx >= 0; idx--) {
             ChatMessage msg = messages.get(idx);
@@ -354,12 +359,17 @@ public class ChatPanel extends BasePanel {
                     SelectableTextBlock.wrap(client.textRenderer, displayText, maxWidthPx);
 
             int bubbleHeight = wrapped.size() * lineHeight + 4;  // 减小气泡内边距
-            int bubbleBottom = y;
+            int blockHeight = bubbleHeight + (msg.hasSpecSummary() ? ((int)(50 * fontScale) + 12) : 6);
+            int bubbleBottom = chatBottom - 6 - p + scrollOffset;
             int bubbleTop = bubbleBottom - bubbleHeight;
 
-            // 仅当整条消息都在可视区域上方时才停止。
-            // 这样即使消息很长（bubbleTop < chatTop），也能显示底部可见部分，避免“看起来整屏消失”。
-            if (bubbleBottom < chatTop) {
+            // 完全在可视区下方（更新消息）：跳过绘制，继续向更旧消息遍历
+            if (bubbleTop >= chatBottom) {
+                p += blockHeight;
+                continue;
+            }
+            // 完全在可视区上方：更旧的消息也在上方，可停止
+            if (bubbleBottom <= chatTop) {
                 break;
             }
 
@@ -433,11 +443,9 @@ public class ChatPanel extends BasePanel {
             if (msg.hasSpecSummary()) {
                 int specY = bubbleTop - 6;
                 drawSpecSummary(ctx, msg.spec, bubbleX, specY, availableWidth, lineHeight);
-                y = specY - 6;
-            } else {
-                // 为下一条消息留出间距
-                y = bubbleTop - 6;
             }
+
+            p += blockHeight;
         }
     }
 
@@ -727,6 +735,7 @@ public class ChatPanel extends BasePanel {
         if (deltaPx != 0) {
             scrollOffset += deltaPx;
             if (scrollOffset < 0) scrollOffset = 0;
+            if (scrollOffset > chatMaxScrollOffset) scrollOffset = chatMaxScrollOffset;
             scrollRemainder -= deltaPx;
         }
     }
