@@ -11,6 +11,7 @@ import com.formacraft.common.component.placement.FacingPolicy;
 import com.formacraft.common.component.socket.ComponentSocket;
 import com.formacraft.common.component.socket.FacingUtil;
 import com.formacraft.common.component.socket.SocketMask;
+import com.formacraft.common.component.socket.SocketPlacementResolver;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.component.transform.ComponentTransform;
 import com.formacraft.common.component.transform.ComponentTransformUtil;
@@ -21,6 +22,9 @@ import com.formacraft.common.component.semantic.BlockStatePropertyUtil;
 import com.formacraft.common.component.semantic.SemanticBlockStatePicker;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.json.JsonUtil;
+import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.common.skeleton.transform.YRotation;
@@ -78,12 +82,10 @@ public final class PlayerComponentGroupExpander {
         List<BlockPatch> out = new ArrayList<>(256);
 
         // base anchor (relative to slot anchor)
-        int baseX = 0, baseY = 0, baseZ = 0;
-        if (semantic.source().relativePosition() != null) {
-            baseX = semantic.source().relativePosition().x();
-            baseY = semantic.source().relativePosition().y();
-            baseZ = semantic.source().relativePosition().z();
-        }
+        BlockPos baseOffset = resolveBaseOffset(semantic);
+        int baseX = baseOffset.getX();
+        int baseY = baseOffset.getY();
+        int baseZ = baseOffset.getZ();
 
         // default group placement facing: use request facing, else inherit from slot
         Direction groupFacing = parseDir(getString(reqMap, "facing", "target_facing", "group_facing", "groupFacing"));
@@ -120,12 +122,11 @@ public final class PlayerComponentGroupExpander {
                 return List.of();
             }
 
-            // v1 新版 Socket 不包含坐标和朝向，使用默认值（旧行为兼容）
-            BlockPos socketLocal = BlockPos.ORIGIN;
+            // socket local origin from host geometry
+            BlockPos socketLocal = SocketPlacementResolver.resolveLocalOrigin(host, mt.socketId, socket);
             BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, hostFromFacing, hostTransform);
 
-            // 新版 Socket 不包含 facing()，使用默认朝向
-            Direction socketLocalFacing = Direction.SOUTH;
+            Direction socketLocalFacing = SocketPlacementResolver.resolveLocalFacing(host, mt.socketId, socket);
             Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, hostFromFacing, hostTransform);
             if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = hostTargetFacing;
 
@@ -251,15 +252,14 @@ public final class PlayerComponentGroupExpander {
             }
 
             // socket world offset (in group placement space)
-            // v1 新版 Socket 不包含坐标，返回原点（旧行为兼容）
-            BlockPos socketLocal = BlockPos.ORIGIN;
+            ComponentDefinition groupBounds = buildGroupBoundsDef(group, worldDir, groupFromFacing, groupTransform);
+            BlockPos socketLocal = SocketPlacementResolver.resolveLocalOrigin(groupBounds, me.socketId, socket);
             BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, groupFromFacing, groupTransform);
             int socketX = baseX + socketOff.getX();
             int socketY = baseY + socketOff.getY();
             int socketZ = baseZ + socketOff.getZ();
 
-            // 新版 Socket 不包含 facing()，使用默认朝向
-            Direction socketLocalFacing = Direction.SOUTH;
+            Direction socketLocalFacing = SocketPlacementResolver.resolveLocalFacing(groupBounds, me.socketId, socket);
             Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, groupFromFacing, groupTransform);
             if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = groupFacing;
 
@@ -318,7 +318,7 @@ public final class PlayerComponentGroupExpander {
                             depth + 1);
 
                     if (i == repeat - 1) break;
-                    SocketWorld next = resolveGroupSocketWorld(childGroup, curAnchor, curFacing, childMirror, repeatSocketId);
+                    SocketWorld next = resolveGroupSocketWorld(childGroup, curAnchor, curFacing, childMirror, repeatSocketId, worldDir);
                     if (next == null) {
                         FormacraftMod.LOGGER.warn("PlayerComponentGroupExpander: repeat_socket not found: {}.{}", childGroup.getId(), repeatSocketId);
                         break;
@@ -406,7 +406,8 @@ public final class PlayerComponentGroupExpander {
                                                       BlockPos groupAnchor,
                                                       Direction groupFacing,
                                                       Mirror groupMirror,
-                                                      String socketId) {
+                                                      String socketId,
+                                                      Path worldDir) {
         if (group == null || groupAnchor == null) return null;
         ComponentSocket s = findGroupSocket(group, socketId);
         if (s == null) return null;
@@ -414,8 +415,8 @@ public final class PlayerComponentGroupExpander {
         Direction groupFromFacing = Direction.SOUTH;
         ComponentTransform groupTransform = new ComponentTransform(groupFacing, groupMirror);
 
-        // 新版 Socket 不包含坐标和朝向，使用默认值
-        BlockPos socketLocal = BlockPos.ORIGIN;
+        ComponentDefinition groupBounds = buildGroupBoundsDef(group, worldDir, groupFromFacing, groupTransform);
+        BlockPos socketLocal = SocketPlacementResolver.resolveLocalOrigin(groupBounds, socketId, s);
         BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, groupFromFacing, groupTransform);
         BlockPos pos = new BlockPos(
                 groupAnchor.getX() + socketOff.getX(),
@@ -423,8 +424,7 @@ public final class PlayerComponentGroupExpander {
                 groupAnchor.getZ() + socketOff.getZ()
         );
 
-        // 新版 Socket 不包含 facing()，使用默认朝向
-        Direction socketLocalFacing = Direction.SOUTH;
+        Direction socketLocalFacing = SocketPlacementResolver.resolveLocalFacing(groupBounds, socketId, s);
         Direction facing = FacingTransformUtil.transformFacing(socketLocalFacing, groupFromFacing, groupTransform);
         if (facing == null || !facing.getAxis().isHorizontal()) facing = groupFacing;
 
@@ -749,5 +749,75 @@ public final class PlayerComponentGroupExpander {
     }
 
     private record SocketWorld(BlockPos pos, Direction facing) {}
+
+    private static BlockPos resolveBaseOffset(SemanticComponent semantic) {
+        if (semantic == null || semantic.source() == null || semantic.source().relativePosition() == null) {
+            return BlockPos.ORIGIN;
+        }
+        Component component = semantic.source();
+        Vec3i rp = component.relativePosition();
+        int baseX = rp.x();
+        int baseY = rp.y();
+        int baseZ = rp.z();
+        if (shouldUseCenterAnchor(component)) {
+            Dimensions dims = component.dimensions();
+            if (dims != null) {
+                baseX -= dims.width() / 2;
+                baseZ -= dims.depth() / 2;
+            }
+        }
+        return new BlockPos(baseX, baseY, baseZ);
+    }
+
+    private static boolean shouldUseCenterAnchor(Component component) {
+        if (component == null) return false;
+        Map<String, Object> params = component.params();
+        String anchorMode = getString(params, "anchor_mode", "anchorMode");
+        if (anchorMode != null && anchorMode.toLowerCase(Locale.ROOT).contains("corner")) {
+            return false;
+        }
+        String type = component.componentType();
+        if (type == null || type.isBlank()) return true;
+        String upper = type.trim().toUpperCase(Locale.ROOT);
+        return upper.startsWith("MASS_") || upper.equals("TOWER") || upper.equals("WALL")
+                || upper.equals("WALL_SEGMENT") || upper.equals("FENCE_OR_WALL");
+    }
+
+    private static ComponentDefinition buildGroupBoundsDef(ComponentGroup group,
+                                                           Path worldDir,
+                                                           Direction groupFromFacing,
+                                                           ComponentTransform groupTransform) {
+        ComponentDefinition def = new ComponentDefinition();
+        def.anchor = new ComponentDefinition.Anchor();
+        def.anchor.facing = groupFromFacing != null ? groupFromFacing.name() : "SOUTH";
+        List<ComponentDefinition.BlockEntry> blocks = new ArrayList<>();
+        if (group == null || worldDir == null) {
+            def.blocks = blocks;
+            return def;
+        }
+        List<GroupComponentEntry> entries = group.getComponents();
+        if (entries == null || entries.isEmpty()) {
+            def.blocks = blocks;
+            return def;
+        }
+        for (GroupComponentEntry e : entries) {
+            if (e == null || e.componentId() == null || e.componentId().isBlank()) continue;
+            ComponentDefinition child = ComponentStorage.loadComponent(worldDir, e.componentId().trim());
+            if (child == null || child.blocks == null || child.blocks.isEmpty()) continue;
+            BlockPos childLocal = new BlockPos(e.offsetX(), e.offsetY(), e.offsetZ());
+            BlockPos childOff = ComponentTransformUtil.transformOffset(childLocal, groupFromFacing, groupTransform);
+            for (ComponentDefinition.BlockEntry be : child.blocks) {
+                if (be == null) continue;
+                ComponentDefinition.BlockEntry out = new ComponentDefinition.BlockEntry();
+                out.dx = childOff.getX() + be.dx;
+                out.dy = childOff.getY() + be.dy;
+                out.dz = childOff.getZ() + be.dz;
+                out.block = be.block;
+                blocks.add(out);
+            }
+        }
+        def.blocks = blocks;
+        return def;
+    }
 }
 

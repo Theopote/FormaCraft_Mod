@@ -599,11 +599,15 @@ public final class PlayerComponentExpander {
         }
 
         if ("door".equals(role)) {
-            return generateDoorFallback(out, query, baseX, baseY, baseZ, w, d, h);
+            com.formacraft.common.llm.dto.GlobalConstraints.Facing facing = semantic.slot() != null
+                    ? semantic.slot().facing() : null;
+            return generateDoorFallback(out, query, baseX, baseY, baseZ, w, d, h, facing);
         }
 
         if ("window".equals(role)) {
-            return generateWindowFallback(out, query, baseX, baseY, baseZ, w, d, h, blockId);
+            com.formacraft.common.llm.dto.GlobalConstraints.Facing facing = semantic.slot() != null
+                    ? semantic.slot().facing() : null;
+            return generateWindowFallback(out, query, baseX, baseY, baseZ, w, d, h, blockId, facing);
         }
 
         if ("ornament".equals(role) || "bracket".equals(role) || "canopy".equals(role)) {
@@ -645,15 +649,15 @@ public final class PlayerComponentExpander {
     private static List<BlockPatch> generateDoorFallback(List<BlockPatch> out,
                                                          ComponentQuery query,
                                                          int baseX, int baseY, int baseZ,
-                                                         int w, int d, int h) {
+                                                         int w, int d, int h,
+                                                         com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
         int openW = resolveOpeningWidth(query, 2, w);
         int openH = resolveOpeningHeight(query, 3, h);
-        int x0 = baseX + Math.max(0, (w - openW) / 2);
-        int y0 = baseY;
-        int z0 = baseZ + Math.max(0, (d - 1) / 2);
+        if (facing == null) facing = com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
         for (int x = 0; x < openW; x++) {
             for (int y = 0; y < openH; y++) {
-                out.add(new BlockPatch(BlockPatch.REMOVE, x0 + x, y0 + y, z0, "minecraft:air"));
+                int[] pos = openingPosition(baseX, baseY, baseZ, w, d, openW, x, y, facing);
+                out.add(new BlockPatch(BlockPatch.REMOVE, pos[0], pos[1], pos[2], "minecraft:air"));
             }
         }
         return out;
@@ -663,27 +667,53 @@ public final class PlayerComponentExpander {
                                                            ComponentQuery query,
                                                            int baseX, int baseY, int baseZ,
                                                            int w, int d, int h,
-                                                           String blockId) {
+                                                           String blockId,
+                                                           com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
         int openW = resolveOpeningWidth(query, 2, w);
         int openH = resolveOpeningHeight(query, 2, h);
-        int x0 = baseX + Math.max(0, (w - openW) / 2);
+        if (facing == null) facing = com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
         int y0 = resolveOpeningBaseY(query, baseY, h, openH);
-        int z0 = baseZ + Math.max(0, (d - 1) / 2);
 
         boolean requiresOpening = query.geometry != null && query.geometry.requiresOpening;
-        if (requiresOpening) {
-            for (int x = 0; x < openW; x++) {
-                for (int y = 0; y < openH; y++) {
-                    out.add(new BlockPatch(BlockPatch.REMOVE, x0 + x, y0 + y, z0, "minecraft:air"));
-                }
-            }
-        }
         for (int x = 0; x < openW; x++) {
             for (int y = 0; y < openH; y++) {
-                out.add(new BlockPatch(BlockPatch.PLACE, x0 + x, y0 + y, z0, blockId));
+                int[] pos = openingPosition(baseX, y0, baseZ, w, d, openW, x, y, facing);
+                if (requiresOpening) {
+                    out.add(new BlockPatch(BlockPatch.REMOVE, pos[0], pos[1], pos[2], "minecraft:air"));
+                }
+                out.add(new BlockPatch(BlockPatch.PLACE, pos[0], pos[1], pos[2], blockId));
             }
         }
         return out;
+    }
+
+    /** Returns [x, y, z] for an opening cell on the facade matching {@code facing}. */
+    private static int[] openingPosition(int baseX, int baseY, int baseZ,
+                                         int w, int d, int openW,
+                                         int localX, int localY,
+                                         com.formacraft.common.llm.dto.GlobalConstraints.Facing facing) {
+        return switch (facing) {
+            case NORTH -> new int[]{
+                    baseX + Math.max(0, (w - openW) / 2) + localX,
+                    baseY + localY,
+                    baseZ + Math.max(0, d - 1)
+            };
+            case EAST -> new int[]{
+                    baseX,
+                    baseY + localY,
+                    baseZ + Math.max(0, (d - openW) / 2) + localX
+            };
+            case WEST -> new int[]{
+                    baseX + Math.max(0, w - 1),
+                    baseY + localY,
+                    baseZ + Math.max(0, (d - openW) / 2) + localX
+            };
+            default -> new int[]{
+                    baseX + Math.max(0, (w - openW) / 2) + localX,
+                    baseY + localY,
+                    baseZ
+            };
+        };
     }
 
     private static int resolveOpeningWidth(ComponentQuery query, int fallback, int max) {

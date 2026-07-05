@@ -315,7 +315,7 @@ public final class PaletteLibrary {
             return MEDIEVAL_STONE;
         }
         if (upperProfile.contains("INDUSTRIAL")) {
-            return CYBERPUNK;
+            return MODERN;
         }
         return MEDIEVAL_STONE;
     }

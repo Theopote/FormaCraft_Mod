@@ -13,6 +13,7 @@ import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * WallComponentGenerator（构件层墙体生成器 v2）
@@ -40,6 +41,12 @@ public class WallComponentGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
+
+        String anchorMode = getParamString(c.params(), "anchor_mode", "anchorMode");
+        boolean useCornerAnchor = anchorMode != null && anchorMode.toLowerCase(java.util.Locale.ROOT).contains("corner");
+        if (!useCornerAnchor) {
+            rp = new Vec3i(rp.x() - width / 2, rp.y(), rp.z() - depth / 2);
+        }
 
         String styleProfile = getStyleProfile(semantic);
         Palette palette = PaletteLibrary.forStyle(styleProfile);
@@ -206,5 +213,17 @@ public class WallComponentGenerator implements ComponentGenerator {
         }
 
         return "MEDIEVAL_CLASSIC";
+    }
+
+    private static String getParamString(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            Object v = params.get(key);
+            if (v != null && !v.toString().isBlank()) {
+                return v.toString().trim();
+            }
+        }
+        return null;
     }
 }

@@ -125,10 +125,16 @@ public final class UnifiedGeneratorRouter {
                 List<BlockPatch> expanded = com.formacraft.common.component.group.PlayerComponentGroupExpander
                         .tryExpand(semantic, world);
                 if (expanded != null) {
+                    if (expanded.isEmpty()) {
+                        return base;
+                    }
                     if (base.isEmpty()) {
                         return expanded;
                     }
-                    return expanded;
+                    List<BlockPatch> merged = new ArrayList<>(base.size() + expanded.size());
+                    merged.addAll(base);
+                    merged.addAll(expanded);
+                    return merged;
                 }
             } catch (Throwable t) {
                 FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: PlayerComponentGroupExpander failed, skipping", t);
@@ -140,15 +146,10 @@ public final class UnifiedGeneratorRouter {
                 List<BlockPatch> expanded = com.formacraft.common.component.PlayerComponentExpander
                         .tryExpand(semantic, world);
                 if (expanded != null) {
-                    if (base.isEmpty()) {
+                    if (!expanded.isEmpty()) {
                         return expanded;
                     }
-                    if (!expanded.isEmpty()) {
-                        List<BlockPatch> merged = new ArrayList<>(base.size() + expanded.size());
-                        merged.addAll(base);
-                        merged.addAll(expanded);
-                        return merged;
-                    }
+                    return base;
                 }
             } catch (Throwable t) {
                 FormacraftMod.LOGGER.warn("UnifiedGeneratorRouter: PlayerComponentExpander failed, skipping", t);

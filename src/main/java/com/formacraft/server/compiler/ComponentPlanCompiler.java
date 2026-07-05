@@ -598,7 +598,7 @@ public final class ComponentPlanCompiler {
                 depth = llmDims.depth();
             }
             if (llmDims.width() > 0) {
-                width = Math.max(width, llmDims.width());
+                width = Math.min(width, llmDims.width());
             }
             if (llmDims.height() > 0) {
                 height = Math.max(2, llmDims.height());
@@ -774,17 +774,33 @@ public final class ComponentPlanCompiler {
 
         int relX = rp.x();
         int relZ = rp.z();
+        int boxWidth;
+        int boxDepth;
         switch (facing != null ? facing : GlobalConstraints.Facing.SOUTH) {
             case NORTH -> {
-                relX = rp.x() + Math.max(0, (width - entranceWidth) / 2);
-                relZ = rp.z() + Math.max(0, depth - entranceDepth);
+                boxWidth = entranceWidth;
+                boxDepth = entranceDepth;
+                relX = rp.x() + Math.max(0, (width - boxWidth) / 2);
+                relZ = rp.z() + Math.max(0, depth - boxDepth);
             }
-            case EAST -> relZ = rp.z() + Math.max(0, (depth - entranceDepth) / 2);
+            case EAST -> {
+                boxWidth = entranceDepth;
+                boxDepth = entranceWidth;
+                relX = rp.x();
+                relZ = rp.z() + Math.max(0, (depth - boxDepth) / 2);
+            }
             case WEST -> {
-                relX = rp.x() + Math.max(0, width - entranceWidth);
-                relZ = rp.z() + Math.max(0, (depth - entranceDepth) / 2);
+                boxWidth = entranceDepth;
+                boxDepth = entranceWidth;
+                relX = rp.x() + Math.max(0, width - boxWidth);
+                relZ = rp.z() + Math.max(0, (depth - boxDepth) / 2);
             }
-            case SOUTH -> relX = rp.x() + Math.max(0, (width - entranceWidth) / 2);
+            default -> {
+                boxWidth = entranceWidth;
+                boxDepth = entranceDepth;
+                relX = rp.x() + Math.max(0, (width - boxWidth) / 2);
+                relZ = rp.z();
+            }
         }
 
         Map<String, Object> params = new HashMap<>();
@@ -807,7 +823,7 @@ public final class ComponentPlanCompiler {
                 "ENTRANCE",
                 slotId,
                 new Vec3i(relX, rp.y(), relZ),
-                new Dimensions(entranceWidth, entranceDepth, entranceHeight),
+                new Dimensions(boxWidth, boxDepth, entranceHeight),
                 features,
                 params
         );
