@@ -558,13 +558,6 @@ public class ChatPanel extends BasePanel {
         }
     }
 
-    /**
-     * 获取输入框高度（用于布局计算）
-     */
-    private int getInputHeight() {
-        return getInputHeight(0);
-    }
-
     private int getInputHeight(int selectionHintHeight) {
         // 根据当前输入行数自动增长：到上限后固定高度，内部滚动由 MultilineTextInput 保证光标可见
         float fontScale = getFontScale();
