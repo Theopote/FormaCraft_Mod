@@ -37,8 +37,9 @@ public final class SettingsPreferencesSection {
         host.interactionReachSlider().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
         y = afterTwoRowField(reachLabelY);
 
-        String tempText = host.cachedTemperatureText();
-        drawSmallLabel(client, ctx, Text.translatable("formacraft.settings.temperature", tempText), x, y);
+        drawSmallLabel(client, ctx,
+                Text.translatable("formacraft.settings.temperature", String.format("%.2f", host.draftTemperature())),
+                x, y);
         int tempLabelY = y;
         y += LABEL_OFFSET;
         host.temperatureSlider().setPosition(x, y);

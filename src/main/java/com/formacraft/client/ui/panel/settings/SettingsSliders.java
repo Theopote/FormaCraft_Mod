@@ -48,8 +48,7 @@ public final class SettingsSliders {
 
         @Override
         protected void updateMessage() {
-            String t = host.cachedTemperatureText();
-            setMessage(Text.literal(t != null ? t : ""));
+            setMessage(Text.literal(String.format("%.2f", host.draftTemperature())));
         }
 
         @Override

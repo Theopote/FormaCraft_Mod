@@ -1692,7 +1692,9 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void setDraftTemperature(float temperature) {
-        this.draftTemperature = temperature;
+        this.draftTemperature = clamp01(temperature);
+        SettingsConfig.INSTANCE.temperature = this.draftTemperature;
+        updateCachedTemperatureText();
     }
 
     @Override
