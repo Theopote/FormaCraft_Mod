@@ -123,6 +123,7 @@ public final class FacadeRhythmPresetLibrary {
                         .alignmentMode(FacadeRhythmProfile.AlignmentMode.EDGE_ALIGNED)
                         .symmetryMode(FacadeRhythmProfile.SymmetryMode.NONE)
                         .variationMode(FacadeRhythmProfile.VariationMode.NONE)
+                        .spacing(2)
                         .build(),
                 Set.of(FacadeRhythmPreset.StyleTag.INDUSTRIAL),
                 Set.of(FacadeRhythmPreset.BuildingTag.INDUSTRIAL),
@@ -131,6 +132,26 @@ public final class FacadeRhythmPresetLibrary {
                         new FacadeRhythmPreset.IntRange(2, 4),
                         EnumSet.of(FacadeRhythmProfile.VariationMode.NONE),
                         EnumSet.of(FacadeRhythmProfile.AlignmentMode.EDGE_ALIGNED)
+                )
+        ));
+
+        // CLASSICAL_PILASTER_BAY：柱-窗×3-柱 对称开间（主路径 FacadeWindows 使用）
+        register(new FacadeRhythmPreset(
+                "CLASSICAL_PILASTER_BAY",
+                FacadeRhythmProfile.builder()
+                        .rhythmMode(FacadeRhythmProfile.RhythmMode.REGULAR)
+                        .alignmentMode(FacadeRhythmProfile.AlignmentMode.AXIS_ALIGNED)
+                        .symmetryMode(FacadeRhythmProfile.SymmetryMode.BILATERAL)
+                        .variationMode(FacadeRhythmProfile.VariationMode.NONE)
+                        .spacing(5)
+                        .build(),
+                Set.of(FacadeRhythmPreset.StyleTag.CLASSICAL, FacadeRhythmPreset.StyleTag.PALACE),
+                Set.of(FacadeRhythmPreset.BuildingTag.PALACE, FacadeRhythmPreset.BuildingTag.RESIDENTIAL),
+                2, -1,
+                new FacadeRhythmPreset.TuningRange(
+                        new FacadeRhythmPreset.IntRange(5, 5),
+                        EnumSet.of(FacadeRhythmProfile.VariationMode.NONE),
+                        EnumSet.of(FacadeRhythmProfile.AlignmentMode.AXIS_ALIGNED, FacadeRhythmProfile.AlignmentMode.CENTERED)
                 )
         ));
     }

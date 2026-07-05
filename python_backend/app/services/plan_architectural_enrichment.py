@@ -337,6 +337,9 @@ def enrich_llm_plan_architectural_detail(
                     "window_aspect": hints.get("window_aspect") or "vertical_bay",
                     "window_ratio": 0.22 if tier == "monumental" else 0.28,
                     "rhythm": "vertical_bay",
+                    "rhythm_preset": "CLASSICAL_PILASTER_BAY"
+                    if tier in ("rich", "monumental")
+                    else "RESIDENTIAL_REGULAR",
                 },
             },
         )
@@ -347,6 +350,8 @@ def enrich_llm_plan_architectural_detail(
                 cp.setdefault("window_aspect", hints.get("window_aspect") or "vertical_bay")
                 cp.setdefault("rhythm", "vertical_bay")
                 cp.setdefault("window_ratio", 0.25)
+                if tier in ("rich", "monumental"):
+                    cp.setdefault("rhythm_preset", "CLASSICAL_PILASTER_BAY")
 
     decor_count = sum(
         1 for c in new_components if str(c.get("component_type") or "").upper() == "DECOR_DETAIL"

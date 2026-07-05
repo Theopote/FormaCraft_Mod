@@ -1,6 +1,7 @@
 package com.formacraft.common.proportion;
 
 import com.formacraft.common.generation.component.impl.WindowAspect;
+import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -84,6 +85,10 @@ public final class OpeningGrammarResolver {
 
         if (facade || mass || wall) {
             changed |= applyVoidRatio(params, card, hints);
+        }
+
+        if (facade) {
+            changed |= applyRhythmPreset(params, card, hints);
         }
 
         if (!changed) {
@@ -170,6 +175,45 @@ public final class OpeningGrammarResolver {
         if (voidRatio > maxVoid + 1e-6) {
             params.put("void_ratio", maxVoid);
             return true;
+        }
+        return false;
+    }
+
+    private static boolean applyRhythmPreset(
+            Map<String, Object> params,
+            ProportionCardRegistry.ProportionCard card,
+            Map<String, Object> hints
+    ) {
+        if (!isBlank(getParamString(params, "rhythm_preset", "rhythmPreset"))) {
+            return false;
+        }
+        Object hintPreset = hints.get("rhythm_preset");
+        if (hintPreset == null) {
+            hintPreset = hints.get("rhythmPreset");
+        }
+        if (hintPreset instanceof String s && !s.isBlank()) {
+            params.put("rhythm_preset", s.trim());
+            return true;
+        }
+        String aspect = getParamString(params, "window_aspect", "windowAspect");
+        if ("vertical_bay".equalsIgnoreCase(aspect)) {
+            params.put("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
+            return true;
+        }
+        if (card != null) {
+            String typology = card.typology() != null ? card.typology().toLowerCase(Locale.ROOT) : "";
+            if (typology.contains("classical") || typology.contains("monument") || typology.contains("palace")) {
+                params.put("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
+                return true;
+            }
+        }
+        String facadeProfile = getParamString(params, "facade_profile", "facadeProfile");
+        if (facadeProfile != null) {
+            String fp = facadeProfile.toLowerCase(Locale.ROOT);
+            if (fp.contains("pilaster") || fp.contains("colonnade")) {
+                params.put("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
+                return true;
+            }
         }
         return false;
     }

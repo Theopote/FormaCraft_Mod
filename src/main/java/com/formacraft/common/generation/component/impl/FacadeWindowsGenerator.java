@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
@@ -13,6 +14,7 @@ import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -78,6 +80,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 (semantic.slot() != null && semantic.slot().facing() != null)
                         ? semantic.slot().facing()
                         : com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH;
+        boolean useRhythmPlan = windowAspect != WindowAspect.HORIZONTAL_STRIP
+                && windowAspect != WindowAspect.RIBBON_GLAZING;
+        Map<Integer, ComponentFacadeRhythmPlanner.RhythmPlan> rhythmPlans = new HashMap<>();
         // boolean isFloorToCeiling = hasFeature(c, "floor_to_ceiling", "full_height"); // 保留用于未来扩展
 
         // 生成窗户（通常只在立面，depth 通常为 1）
@@ -122,7 +127,20 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (axis == 0 || axis >= axisMax - 1) {
                         continue;
                     }
-                    if (!shouldPlaceWindow(axis, y, axisMax, height, floorHeight, windowSpacing,
+                    if (useRhythmPlan) {
+                        ComponentFacadeRhythmPlanner.RhythmPlan rhythmPlan = rhythmPlans.computeIfAbsent(
+                                axisMax,
+                                am -> ComponentFacadeRhythmPlanner.resolve(semantic, params, am)
+                        );
+                        if (rhythmPlan.active()) {
+                            if (!rhythmPlan.isWindowAxis(axis)) {
+                                continue;
+                            }
+                        } else if (!shouldPlaceWindow(axis, y, axisMax, height, floorHeight, windowSpacing,
+                                windowRatio, rhythm, windowAspect)) {
+                            continue;
+                        }
+                    } else if (!shouldPlaceWindow(axis, y, axisMax, height, floorHeight, windowSpacing,
                             windowRatio, rhythm, windowAspect)) {
                         continue;
                     }

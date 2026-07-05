@@ -49,6 +49,16 @@ class OpeningGrammarResolverTest {
     }
 
     @Test
+    void injectsRhythmPresetForClassicalTypology() {
+        Map<String, Object> hints = Map.of("typology", "classical_monument");
+        LlmPlan plan = planWithHints(hints);
+        Component facade = facadeWithoutAspect();
+
+        Component enriched = OpeningGrammarResolver.apply(plan, facade);
+        assertEquals("CLASSICAL_PILASTER_BAY", enriched.params().get("rhythm_preset"));
+    }
+
+    @Test
     void clampsVoidRatioToCardMax() {
         Map<String, Object> hints = Map.of("typology", "cottage");
         LlmPlan plan = planWithHints(hints);

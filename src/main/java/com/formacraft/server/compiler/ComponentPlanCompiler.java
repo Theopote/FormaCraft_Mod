@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.postprocess.PostProcessContext;
 import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
@@ -657,6 +658,14 @@ public final class ComponentPlanCompiler {
             params.put("window_ratio", 0.25);
         }
         params.putIfAbsent("rhythm", "regular");
+        String facadeProfile = getParamString(params, "facade_profile", "facadeProfile", "facade");
+        if (facadeProfile != null) {
+            String fp = facadeProfile.toLowerCase(Locale.ROOT);
+            if (fp.contains("pilaster") || fp.contains("colonnade") || fp.contains("classical")) {
+                params.putIfAbsent("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
+                params.putIfAbsent("rhythm", "vertical_bay");
+            }
+        }
 
         List<String> features = new ArrayList<>();
         if (base.features() != null) {
