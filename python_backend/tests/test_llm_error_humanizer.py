@@ -32,6 +32,7 @@ class TestLlmErrorHumanizer(unittest.TestCase):
             RuntimeError("credit balance is too low to access the Anthropic API"),
             req,
         )
+        self.assertIn("LLM 调用失败", out)
         self.assertIn("anthropic/claude-3-5-sonnet-latest", out)
         self.assertIn("建议", out)
 

@@ -1,5 +1,6 @@
 package com.formacraft.common.network;
 
+import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.request.FormaRequest;
 import org.junit.jupiter.api.Test;
 
@@ -52,6 +53,22 @@ class OrchestratorErrorHumanizerTest {
         );
         assertTrue(msg.contains("403"));
         assertTrue(msg.contains("访问被拒绝"));
+    }
+
+    @Test
+    void humanizePreHumanizedPythonDetail() {
+        String detail = """
+                LLM 调用失败。
+                原因：Anthropic（Claude）账户余额不足。请前往 console.anthropic.com 充值，或在游戏设置中更换 Provider / API Key。
+                当前 LLM：anthropic/claude-3-5-sonnet-latest
+                建议：FormaCraft 设置 → LLM，核对 Provider / API Key / 模型，或切换至有余额的服务。""";
+        String msg = OrchestratorErrorHumanizer.humanize(
+                "AiPlan",
+                new FormaRequest(),
+                new RuntimeException("Orchestrator returned status: 502 body={\"detail\":" + JsonUtil.toJson(detail) + "}")
+        );
+        assertTrue(msg.startsWith("LLM 调用失败"));
+        assertFalse(msg.contains("后端请求失败"));
     }
 
     @Test

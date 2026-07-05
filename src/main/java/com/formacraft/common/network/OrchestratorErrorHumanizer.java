@@ -59,6 +59,10 @@ public final class OrchestratorErrorHumanizer {
                     + "\n" + hint;
         }
 
+        if (detail != null && isPreHumanizedBackendDetail(detail)) {
+            return detail;
+        }
+
         String header = (stage == null || stage.isBlank()) ? "后端请求失败。" : ("后端请求失败（" + stage + "）。");
         String hint = llmHint(req);
 
@@ -134,6 +138,19 @@ public final class OrchestratorErrorHumanizer {
             return "请求过于频繁（限流）。请稍后重试，或降低请求频率/更换模型。";
         }
         return null;
+    }
+
+    /** Python 后端已 humanize 的 detail，直接展示，避免再包一层「后端请求失败」。 */
+    private static boolean isPreHumanizedBackendDetail(String detail) {
+        if (detail == null || detail.isBlank()) return false;
+        if (detail.startsWith("LLM 调用失败")) return true;
+        if (detail.contains("当前 LLM：") && detail.contains("建议：FormaCraft 设置 → LLM")) return true;
+        return (detail.contains("Anthropic（Claude）") && detail.contains("余额不足"))
+                || detail.contains("DeepSeek 余额不足")
+                || detail.contains("OpenAI 额度")
+                || detail.contains("LLM 账户余额不足")
+                || detail.contains("API Key 无效")
+                || detail.contains("API 访问被拒绝");
     }
 
     private static String detectConnectionError(Throwable root, String rawMsg) {

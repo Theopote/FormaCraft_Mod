@@ -3,7 +3,6 @@
 """
 from __future__ import annotations
 
-import re
 from typing import Optional
 
 from ..models.request import BuildRequest
@@ -79,7 +78,8 @@ def humanize_llm_exception(exc: Exception, req: Optional[BuildRequest] = None) -
     provider = _provider_label(req)
     if summary:
         return (
-            f"{summary}\n"
+            "LLM 调用失败。\n"
+            f"原因：{summary}\n"
             f"当前 LLM：{provider}\n"
             "建议：FormaCraft 设置 → LLM，核对 Provider / API Key / 模型，或切换至有余额的服务。"
         )
