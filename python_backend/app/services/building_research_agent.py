@@ -353,6 +353,93 @@ def _enrich_profile_from_user_text(profile: BuildingProfile, user_text: str) -> 
     })
 
 
+def resolve_landmark_module_for_intent(user_text: str) -> Optional[str]:
+    """
+    Return a preset landmark module id only when user intent explicitly matches
+    a registered archetype with a dedicated generator. Otherwise None (open-world).
+    """
+    text = (user_text or "").strip()
+    if not text:
+        return None
+    try:
+        from .archetype_detector import detect_archetype_local
+
+        match = detect_archetype_local(text)
+        if match is None or match.confidence < 0.85:
+            return None
+        from .archetype_registry import get_archetype_def
+
+        defn = get_archetype_def(match.id)
+        if defn is None or not defn.generator_id:
+            return None
+        return match.id
+    except Exception:
+        return None
+
+
+def finalize_profile_minecraft_strategy(
+    profile: BuildingProfile,
+    user_text: str,
+) -> BuildingProfile:
+    """
+    Authoritative minecraft_strategy after research:
+    - known preset landmark → landmark_module + MODULE
+    - everything else → landmark_module=null + compositional components
+    """
+    mc = profile.minecraft_strategy.model_copy()
+    resolved = resolve_landmark_module_for_intent(user_text)
+    if resolved:
+        mc.landmark_module = resolved
+        if "MODULE" not in [str(c).upper() for c in (mc.recommended_components or [])]:
+            mc.recommended_components = ["MODULE"] + list(mc.recommended_components or [])
+        note = (mc.notes or "").strip()
+        if resolved not in note:
+            mc.notes = (
+                f"Preset landmark module available: use MODULE with landmark:{resolved}. "
+                + note
+            ).strip()
+    else:
+        mc.landmark_module = None
+        components = [
+            str(c).upper()
+            for c in (mc.recommended_components or [])
+            if str(c).upper() != "MODULE"
+        ]
+        if not components:
+            components = ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
+        mc.recommended_components = components
+        note = (mc.notes or "").strip()
+        if "landmark_module is null" not in note.lower():
+            mc.notes = (
+                "landmark_module is null: compose with recommended_components only; "
+                "IGNORE Java prompt landmark MODULE routing hints. "
+                + note
+            ).strip()
+    return profile.model_copy(update={"minecraft_strategy": mc})
+
+
+def ensure_building_profile_for_plan(
+    user_text: str,
+    profile: Optional[BuildingProfile],
+) -> Optional[BuildingProfile]:
+    """
+    Guarantee a profile object for open-world plan normalization when research
+    was skipped or timed out — never block generation for unknown buildings.
+    """
+    text = (user_text or "").strip()
+    if profile is not None:
+        return finalize_profile_minecraft_strategy(profile, text)
+    if not text:
+        return None
+    subject = _extract_subject(text) or text[:60]
+    stub = synthesize_profile_rule_based(subject, text, [])
+    if subject and subject != stub.identity.name:
+        stub = stub.model_copy(
+            update={"identity": stub.identity.model_copy(update={"name": subject})}
+        )
+    return finalize_profile_minecraft_strategy(stub, text)
+
+
 def plan_search_queries(
     user_text: str,
     *,
@@ -570,7 +657,10 @@ def synthesize_profile_with_llm(
         "research_notes, reference_blueprint (optional, same schema as vision ReferenceBlueprint). "
         "recommended_components must use only: MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE, "
         "TOWER, WALL, COURTYARD_SPACE, MODULE, TERRACE. "
-        "landmark_module is usually null unless a well-known preset applies."
+        "landmark_module is usually null unless the user names a building with a known preset "
+        "(e.g. eiffel_tower, golden_gate_bridge, great_wall). "
+        "For Louvre, White House, Sydney Opera House, etc., set landmark_module=null and "
+        "list compositional recommended_components."
     )
     user = (
         f"User request: {user_text}\n"
@@ -624,8 +714,12 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
         "=== Building Research Profile (open-world) ===",
         "",
         "The following profile was synthesized from web research and the user request.",
-        "Use it to inform accurate LlmPlan generation. Prefer parametric components",
-        "from minecraft_strategy.recommended_components unless landmark_module is set.",
+        "Use it to inform accurate LlmPlan generation.",
+        "",
+        "CRITICAL routing:",
+        "- If minecraft_strategy.landmark_module is null → compositional plan ONLY; do NOT use MODULE.",
+        "- If landmark_module is set → one MODULE with features [\"landmark:<id>\"] is allowed.",
+        "- IGNORE any Java prompt 'LANDMARK MODULE ROUTING' sections that conflict with this profile.",
         "",
         "BuildingProfile(JSON):",
         json.dumps(payload, ensure_ascii=False, indent=2),
@@ -729,6 +823,7 @@ def research_building_profile(
             profile = synthesize_profile_rule_based(subject, user_text, results)
 
         profile = _enrich_profile_from_user_text(profile, user_text)
+        profile = finalize_profile_minecraft_strategy(profile, user_text)
 
         if visual is not None:
             profile = merge_visual_into_profile(profile, visual)

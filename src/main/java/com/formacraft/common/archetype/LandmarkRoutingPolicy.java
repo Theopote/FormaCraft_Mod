@@ -153,7 +153,10 @@ public final class LandmarkRoutingPolicy {
             - For MODULE landmarks: still vary dimensions (within limits), params.facing, params.meshStructure,
               params.designSeed (integer), params.bowlSteepness (0.2–0.5), style_attributes materials.
             - Prefer compositional MASS + ROOF + PAVING + ENTRANCE when user wants 原创/独特/不要地标.
-            - Only reproduce a canonical landmark form when the user explicitly names that landmark.
+            - Only reproduce a canonical landmark form when the user explicitly names that landmark
+              AND a matching module_id exists in AVAILABLE LANDMARK MODULES.
+            - For all other buildings (infinite open world), compositional MASS/ROOF/ENTRANCE plans
+              are required; server-side Building Research Profile overrides landmark MODULE hints.
 
             """;
     }
@@ -167,77 +170,31 @@ public final class LandmarkRoutingPolicy {
             return """
 
                 ========================================
-                LANDMARK MODULE ROUTING (MANDATORY FOR THIS REQUEST)
+                LANDMARK MODULE ROUTING (SUGGESTED PRESET — may be overridden by Building Research)
                 ========================================
                 User explicitly named landmark module: %s
-                You MUST output exactly ONE component:
+                If server research confirms this preset, output ONE component:
                   { "component_type": "MODULE",
                     "relative_position": {"x":0,"y":0,"z":0},
                     "dimensions": {"width":60,"depth":80,"height":28},
                     "features": ["landmark:%s"],
                     "params": { "module_id": "%s", "meshStructure": true, "designSeed": <vary 1-9999> } }
-                Do NOT substitute MASS_MAIN for this named landmark.
-                Still vary designSeed, facing, dimensions hints, and style_attributes within the style.
+                If research profile sets landmark_module=null, IGNORE this block and compose with MASS/ROOF instead.
 
                 """.formatted(moduleId, moduleId, moduleId);
         }
         return """
 
             ========================================
-            LANDMARK MODULE ROUTING (RECOMMENDED — creative alternative allowed)
+            LANDMARK MODULE ROUTING (OPTIONAL PRESET — compositional alternative preferred for open world)
             ========================================
-            User intent matches typology for module: %s
-            PREFERRED path (high-fidelity bowl/ellipse):
-              { "component_type": "MODULE",
-                "relative_position": {"x":0,"y":0,"z":0},
-                "dimensions": {"width":60,"depth":80,"height":28},
-                "features": ["landmark:%s"],
-                "params": { "module_id": "%s", "meshStructure": true, "designSeed": <vary 1-9999>,
-                            "bowlSteepness": <0.25-0.45>, "facing": "SOUTH|NORTH|EAST|WEST" } }
-            ALTERNATIVE (原创/独特): compositional MASS_MAIN (shape=circle|rounded_rect, masses[] tiers)
-              + PAVING inner field + ROOF canopy + ENTRANCE — vary layout each time.
-            Do NOT default to a plain rectangular MASS box for elliptical stadium requests.
-            MassMain cannot render true elliptical bowl seating; use MODULE or plan_program + tiered masses.
+            User intent may match typology for module: %s
+            Optional high-fidelity path when research profile confirms landmark_module:
+              { "component_type": "MODULE", "features": ["landmark:%s"], ... }
+            Default for unknown/named buildings: compositional MASS_MAIN + ROOF + ENTRANCE.
+            MassMain cannot render true elliptical bowl seating; MODULE helps stadium typology only when confirmed.
 
-            """.formatted(moduleId, moduleId, moduleId);
-    }
-
-    /**
-     * 用户指名了<b>没有</b>预制 MODULE 的地标时，强制走组合式语义构件，禁止乱套 MODULE。
-     */
-    public static String promptNonModuleLandmarkBlock(String userIntentText) {
-        if (userIntentText == null || userIntentText.isBlank()) {
-            return "";
-        }
-        String lower = userIntentText.toLowerCase(Locale.ROOT);
-        if (lower.contains("卢浮宫") || lower.contains("louvre")) {
-            return """
-
-                ========================================
-                COMPOSITIONAL LANDMARK (NO MODULE — Louvre / Musée du Louvre)
-                ========================================
-                There is NO landmark module for the Louvre. Do NOT use MODULE or birds_nest_stadium.
-                Compose with French_Classical / Renaissance style:
-                  - MASS_MAIN U-shaped palace block (courtyard void via plan_type or inner courtyard)
-                  - ROOF mansard or low hip roofs on wings
-                  - ENTRANCE central glass pyramid (optional DECOR) if user implies modern Louvre
-                  - COLONNADE / FACADE rhythm along the wings
-                Use style_profile French_Classical or similar — NOT Modern_Stadium or Deconstructivism_Zaha.
-
-                """;
-        }
-        if (lower.contains("白宫") || lower.contains("white house")) {
-            return """
-
-                ========================================
-                COMPOSITIONAL LANDMARK (NO MODULE — White House)
-                ========================================
-                No landmark module exists. Compose neoclassical MASS_MAIN + COLONNADE + ROOF + ENTRANCE portico.
-                Do NOT use stadium or unrelated MODULE landmarks.
-
-                """;
-        }
-        return "";
+            """.formatted(moduleId, moduleId);
     }
 
     private static boolean containsAny(String lower, List<String> markers) {

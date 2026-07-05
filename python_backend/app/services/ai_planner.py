@@ -8,7 +8,7 @@ import re
 import time
 import logging
 import concurrent.futures
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -944,23 +944,6 @@ def _sanitize_layout_slots(layout: Any) -> Any:
     return layout
 
 
-_NON_MODULE_LANDMARK_MARKERS: Tuple[Tuple[str, ...], ...] = (
-    ("卢浮宫", "louvre", "louvre museum"),
-    ("白宫", "white house"),
-    ("悉尼歌剧院", "sydney opera house", "sydney opera"),
-)
-
-
-def _user_names_non_module_landmark(user_text: str) -> bool:
-    s = (user_text or "").lower()
-    if not s:
-        return False
-    for markers in _NON_MODULE_LANDMARK_MARKERS:
-        if any(m in s for m in markers):
-            return True
-    return False
-
-
 def _extract_landmark_module_id(comp: Dict[str, Any]) -> Optional[str]:
     for feature in comp.get("features") or []:
         if not isinstance(feature, str):
@@ -978,18 +961,30 @@ def _extract_landmark_module_id(comp: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _sanitize_landmark_modules(plan: Dict[str, Any], req: Optional[BuildRequest]) -> None:
-    user_text = (req.userMessage or "").strip() if req is not None else ""
-    if not user_text:
-        return
+def _sanitize_landmark_modules(
+    plan: Dict[str, Any],
+    req: Optional[BuildRequest],
+    building_profile: Optional[Any] = None,
+) -> None:
     components = plan.get("components")
     if not isinstance(components, list):
         return
 
-    expected = detect_archetype_local(user_text)
-    expected_id = expected.id if expected is not None else None
+    expected_id: Optional[str] = None
+    profile_authoritative = building_profile is not None
 
-    if _user_names_non_module_landmark(user_text):
+    if building_profile is not None:
+        mc = getattr(building_profile, "minecraft_strategy", None)
+        lm = getattr(mc, "landmark_module", None) if mc is not None else None
+        expected_id = str(lm).strip().lower() if lm else None
+    elif req is not None:
+        user_text = (req.userMessage or "").strip()
+        if user_text:
+            from .building_research_agent import resolve_landmark_module_for_intent
+
+            expected_id = resolve_landmark_module_for_intent(user_text)
+
+    if profile_authoritative and not expected_id:
         filtered = []
         for comp in components:
             if not isinstance(comp, dict):
@@ -1004,26 +999,51 @@ def _sanitize_landmark_modules(plan: Dict[str, Any], req: Optional[BuildRequest]
     if not expected_id:
         return
 
+    kept: List[Dict[str, Any]] = []
+    module_seen = False
     for comp in components:
         if not isinstance(comp, dict):
             continue
         actual = _extract_landmark_module_id(comp)
-        if actual and actual != expected_id:
+        ctype = str(comp.get("component_type") or "").upper()
+        if ctype == "MODULE" or actual:
+            if actual and actual != expected_id:
+                continue
+            if module_seen:
+                continue
             features = [
                 f for f in (comp.get("features") or [])
                 if isinstance(f, str)
                 and not f.strip().lower().startswith(("landmark:", "module:"))
             ]
-            comp["features"] = features
-            params = comp.get("params")
-            if isinstance(params, dict):
-                params = dict(params)
-                params["module_id"] = expected_id
-                comp["params"] = params
+            params = dict(comp.get("params") or {})
+            params["module_id"] = expected_id
+            comp = dict(comp)
+            comp["component_type"] = "MODULE"
             comp["features"] = list(features) + [f"landmark:{expected_id}"]
+            comp["params"] = params
+            module_seen = True
+        kept.append(comp)
+    if not module_seen:
+        kept.insert(
+            0,
+            {
+                "component_type": "MODULE",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 32, "depth": 24, "height": 16},
+                "features": [f"landmark:{expected_id}"],
+                "params": {"module_id": expected_id},
+            },
+        )
+    plan["components"] = kept
 
 
-def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[str, Any]:
+def _normalize_llm_plan_output(
+    raw: Dict[str, Any],
+    req: BuildRequest,
+    *,
+    building_profile: Optional[Any] = None,
+) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         return raw
     plan = dict(raw)
@@ -1170,7 +1190,7 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
                 continue
             filtered_components.append(comp)
         plan["components"] = filtered_components
-        _sanitize_landmark_modules(plan, req)
+        _sanitize_landmark_modules(plan, req, building_profile)
 
     gc = plan.get("global_constraints")
     if isinstance(gc, dict):
@@ -4734,8 +4754,12 @@ def generate_llm_plan(req: BuildRequest) -> dict:
                 is_building_research_enabled,
                 research_building_profile,
                 format_profile_for_prompt,
+                ensure_building_profile_for_plan,
             )
-            from .building_plan_stage import is_research_two_phase_enabled
+            from .building_plan_stage import (
+                is_research_two_phase_enabled,
+                apply_research_landmark_override,
+            )
 
             if research_user_text and is_building_research_enabled():
                 building_profile = _call_with_timeout(
@@ -4746,18 +4770,6 @@ def generate_llm_plan(req: BuildRequest) -> dict:
                     ),
                     float(os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "15")),
                 )
-                if building_profile and not is_research_two_phase_enabled():
-                    user_prompt = (
-                        format_profile_for_prompt(building_profile)
-                        + "\n\n"
-                        + user_prompt
-                    )
-                    logger.info("Added BuildingResearch profile context (single-phase) to LlmPlan prompt")
-                elif building_profile:
-                    logger.info(
-                        "BuildingResearch profile ready for two-phase plan stage: %r",
-                        building_profile.identity.name,
-                    )
         except ImportError:
             logger.warning("building_research_agent not available, skipping research")
         except TimeoutError:
@@ -4768,6 +4780,31 @@ def generate_llm_plan(req: BuildRequest) -> dict:
         except Exception as e:
             logger.warning("Failed building research: %s", e)
         search_ms = (time.monotonic() - _t_search) * 1000.0
+
+    try:
+        from .building_research_agent import ensure_building_profile_for_plan
+        from .building_plan_stage import apply_research_landmark_override
+
+        building_profile = ensure_building_profile_for_plan(research_user_text, building_profile)
+        if building_profile is not None:
+            system_prompt = apply_research_landmark_override(system_prompt, building_profile)
+            from .building_plan_stage import is_research_two_phase_enabled
+            from .building_research_agent import format_profile_for_prompt
+
+            if not is_research_two_phase_enabled():
+                user_prompt = (
+                    format_profile_for_prompt(building_profile)
+                    + "\n\n"
+                    + user_prompt
+                )
+                logger.info("Added BuildingResearch profile context (single-phase) to LlmPlan prompt")
+            else:
+                logger.info(
+                    "BuildingResearch profile ready for two-phase plan stage: %r",
+                    building_profile.identity.name,
+                )
+    except Exception as e:
+        logger.warning("Building profile ensure/override skipped: %s", e)
 
     # ========== Track B：意图扩写(B1) + 上下文注入(B3) ==========
     # 均为本地操作（规则/本地检索），不引入网络延迟。
@@ -4858,9 +4895,30 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             else:
                 raise
         _t_norm = time.monotonic()
-        normalized = _normalize_llm_plan_output(plan, req)
-        validate_llm_plan_dict(normalized)
         user_text = (req.userMessage or user_prompt or research_user_text or "").strip()
+
+        def _normalize_for_plan(raw_plan: Dict[str, Any], build_req: BuildRequest, **_: Any) -> Dict[str, Any]:
+            return _normalize_llm_plan_output(
+                raw_plan,
+                build_req,
+                building_profile=building_profile,
+            )
+
+        from .llm_plan_repair import repair_llm_plan_validation
+
+        normalized = repair_llm_plan_validation(
+            plan,
+            req,
+            user_text=user_text,
+            building_profile=building_profile,
+            normalize_fn=_normalize_for_plan,
+            client=client,
+            model=model,
+            messages=messages,
+            call_with_timeout=_call_with_timeout,
+            timeout_sec=timeout_sec,
+            prefer_json_object=prefer_json_object,
+        )
         try:
             from .assembly_plan_repair import maybe_repair_assembly_plan
             normalized = maybe_repair_assembly_plan(
@@ -4872,7 +4930,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
                 call_with_timeout=_call_with_timeout,
                 timeout_sec=timeout_sec,
                 prefer_json_object=prefer_json_object,
-                normalize_fn=_normalize_llm_plan_output,
+                normalize_fn=_normalize_for_plan,
                 req=req,
             )
         except Exception as e:
@@ -4888,8 +4946,6 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             search_ms, llm_ms, normalize_ms, model, _response_format_label,
         )
         return normalized
-    except LlmPlanValidationError:
-        raise
     except Exception as e:
         raise RuntimeError(f"LLM call failed for LlmPlan: {e}") from e
 

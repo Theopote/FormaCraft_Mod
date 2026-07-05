@@ -83,6 +83,7 @@ async def build_endpoint(request: Request) -> dict:
             # 2.2 默认生成 BuildingSpec（地标 / 复合 / 城市等非 BUILD 模式）
             return _tagged(generate_building_spec(build_req), "buildingspec")
         except LlmPlanValidationError as e:
+            # Should be rare: generate_llm_plan degrades to profile fallback / capability_gap.
             raise HTTPException(status_code=502, detail="; ".join(e.errors))
         except Exception as e:
             # LLM 调用失败时给上游明确错误（由服务端回传到客户端聊天窗口）

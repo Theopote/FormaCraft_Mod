@@ -57,6 +57,40 @@ def is_research_two_phase_enabled() -> bool:
 
 
 PLAN_STAGE_MARKER = "PLAN STAGE (after Building Research)"
+RESEARCH_OVERRIDE_MARKER = "OPEN-WORLD RESEARCH OVERRIDE"
+
+
+def research_landmark_override_block(profile: BuildingProfile) -> str:
+    """Authoritative override for Java-side landmark MODULE prompt leakage."""
+    lm = (profile.minecraft_strategy.landmark_module or "").strip()
+    if lm:
+        return f"""
+========================================
+{RESEARCH_OVERRIDE_MARKER} (authoritative)
+========================================
+BuildingProfile.minecraft_strategy.landmark_module = "{lm}"
+You MUST output exactly ONE MODULE component with features ["landmark:{lm}"].
+Ignore conflicting landmark hints from earlier prompt sections.
+
+"""
+    return f"""
+========================================
+{RESEARCH_OVERRIDE_MARKER} (authoritative)
+========================================
+BuildingProfile.minecraft_strategy.landmark_module = null
+Do NOT output MODULE or landmark:* features.
+IGNORE all "LANDMARK MODULE ROUTING (MANDATORY/RECOMMENDED)" sections above.
+Compose using minecraft_strategy.recommended_components and distinctive_elements only.
+
+"""
+
+
+def apply_research_landmark_override(system_prompt: str, profile: BuildingProfile) -> str:
+    block = research_landmark_override_block(profile).strip()
+    base = (system_prompt or "").strip()
+    if RESEARCH_OVERRIDE_MARKER in base:
+        return base
+    return f"{block}\n\n{base}" if base else block
 
 
 def _strip_research_profile_block(text: str) -> str:
@@ -153,6 +187,7 @@ def augment_prompts_for_plan_stage(
     addon = plan_stage_system_augmentation()
     if PLAN_STAGE_MARKER not in new_system:
         new_system = (new_system + "\n\n" + addon).strip() if new_system else addon
+    new_system = apply_research_landmark_override(new_system, profile)
 
     return new_system, new_user
 

@@ -4,10 +4,10 @@ import unittest
 
 
 class TestGlobalSymmetryNormalize(unittest.TestCase):
-    def _normalize(self, plan: dict, req=None) -> dict:
+    def _normalize(self, plan: dict, req=None, profile=None) -> dict:
         from app.services.ai_planner import _normalize_llm_plan_output
 
-        return _normalize_llm_plan_output(plan, req=req)
+        return _normalize_llm_plan_output(plan, req=req, building_profile=profile)
 
     def _validate(self, plan: dict) -> None:
         from app.models.llm_plan import validate_llm_plan_dict
@@ -130,8 +130,9 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
         self.assertEqual(slots[0]["anchor"], {"x": 1, "y": 0, "z": 2})
         self._validate(out)
 
-    def test_louvre_strips_wrong_landmark_module(self):
+    def test_louvre_strips_wrong_landmark_module_via_profile(self):
         from unittest.mock import Mock
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
 
         plan = {
             "mode": "build",
@@ -154,11 +155,18 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
                 },
             ],
         }
+        profile = BuildingProfile(
+            query="louvre",
+            minecraft_strategy=ProfileMinecraftStrategy(
+                landmark_module=None,
+                recommended_components=["MASS_MAIN", "ROOF", "ENTRANCE"],
+            ),
+        )
         req = Mock()
         req.userMessage = "louvre museum"
         req.selection = None
         req.brushSelection = None
-        out = self._normalize(plan, req=req)
+        out = self._normalize(plan, req=req, profile=profile)
         types = [c["component_type"] for c in out["components"]]
         self.assertNotIn("MODULE", types)
         self.assertIn("MASS_MAIN", types)

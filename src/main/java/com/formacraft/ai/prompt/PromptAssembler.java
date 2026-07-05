@@ -74,12 +74,6 @@ public final class PromptAssembler {
             }
         }
 
-        String nonModuleHint = com.formacraft.common.archetype.LandmarkRoutingPolicy
-                .promptNonModuleLandmarkBlock(ctx.userMessage);
-        if (nonModuleHint != null && !nonModuleHint.isBlank()) {
-            sb.append(nonModuleHint);
-        }
-
         String assemblyHint = AssemblyIntentSections.promptBlockForIntent(ctx.userMessage);
         if (assemblyHint != null && !assemblyHint.isBlank()) {
             sb.append(assemblyHint);
