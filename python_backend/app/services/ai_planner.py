@@ -8,7 +8,7 @@ import re
 import time
 import logging
 import concurrent.futures
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -883,6 +883,146 @@ def _normalize_global_symmetry_value(
     return None
 
 
+def _coerce_optional_bool(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        s = value.strip().lower()
+        if s in ("true", "yes", "1", "on"):
+            return True
+        if s in ("false", "no", "0", "off"):
+            return False
+        if "|" in s:
+            return None
+    return None
+
+
+def _sanitize_genome_dict(genome: Any) -> Dict[str, Any]:
+    if not isinstance(genome, dict):
+        return BuildingGenome().model_dump()
+    g = dict(genome)
+    sym = g.get("symmetry")
+    if isinstance(sym, dict):
+        sym = dict(sym)
+        sym["mirror"] = _coerce_optional_bool(sym.get("mirror"))
+        order = sym.get("order")
+        if order is not None and not isinstance(order, int):
+            sym["order"] = _coerce_int(order, None)
+        g["symmetry"] = sym
+    return g
+
+
+def _sanitize_layout_slots(layout: Any) -> Any:
+    if not isinstance(layout, dict):
+        return layout
+    layout = dict(layout)
+    slots = layout.get("slots")
+    if not isinstance(slots, list):
+        return layout
+    cleaned: List[Dict[str, Any]] = []
+    for i, slot in enumerate(slots):
+        if not isinstance(slot, dict):
+            continue
+        s = dict(slot)
+        slot_id = str(s.get("slot_id") or "").strip()
+        if not slot_id:
+            s["slot_id"] = f"slot_{i}"
+        anchor = s.get("anchor")
+        if not isinstance(anchor, dict):
+            s["anchor"] = {"x": 0, "y": 0, "z": 0}
+        else:
+            s["anchor"] = _normalize_vec3(anchor)
+        cp = s.get("component_preset")
+        if cp is not None and (not isinstance(cp, str) or not cp.strip()):
+            s.pop("component_preset", None)
+        cleaned.append(s)
+    layout["slots"] = cleaned
+    return layout
+
+
+_NON_MODULE_LANDMARK_MARKERS: Tuple[Tuple[str, ...], ...] = (
+    ("卢浮宫", "louvre", "louvre museum"),
+    ("白宫", "white house"),
+    ("悉尼歌剧院", "sydney opera house", "sydney opera"),
+)
+
+
+def _user_names_non_module_landmark(user_text: str) -> bool:
+    s = (user_text or "").lower()
+    if not s:
+        return False
+    for markers in _NON_MODULE_LANDMARK_MARKERS:
+        if any(m in s for m in markers):
+            return True
+    return False
+
+
+def _extract_landmark_module_id(comp: Dict[str, Any]) -> Optional[str]:
+    for feature in comp.get("features") or []:
+        if not isinstance(feature, str):
+            continue
+        f = feature.strip().lower()
+        if f.startswith("landmark:"):
+            return f.split(":", 1)[1].strip()
+        if f.startswith("module:"):
+            return f.split(":", 1)[1].strip()
+    params = comp.get("params")
+    if isinstance(params, dict):
+        module_id = params.get("module_id")
+        if isinstance(module_id, str) and module_id.strip():
+            return module_id.strip().lower()
+    return None
+
+
+def _sanitize_landmark_modules(plan: Dict[str, Any], req: Optional[BuildRequest]) -> None:
+    user_text = (req.userMessage or "").strip() if req is not None else ""
+    if not user_text:
+        return
+    components = plan.get("components")
+    if not isinstance(components, list):
+        return
+
+    expected = detect_archetype_local(user_text)
+    expected_id = expected.id if expected is not None else None
+
+    if _user_names_non_module_landmark(user_text):
+        filtered = []
+        for comp in components:
+            if not isinstance(comp, dict):
+                continue
+            ctype = str(comp.get("component_type") or "").upper()
+            if ctype == "MODULE" or _extract_landmark_module_id(comp):
+                continue
+            filtered.append(comp)
+        plan["components"] = filtered
+        return
+
+    if not expected_id:
+        return
+
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        actual = _extract_landmark_module_id(comp)
+        if actual and actual != expected_id:
+            features = [
+                f for f in (comp.get("features") or [])
+                if isinstance(f, str)
+                and not f.strip().lower().startswith(("landmark:", "module:"))
+            ]
+            comp["features"] = features
+            params = comp.get("params")
+            if isinstance(params, dict):
+                params = dict(params)
+                params["module_id"] = expected_id
+                comp["params"] = params
+            comp["features"] = list(features) + [f"landmark:{expected_id}"]
+
+
 def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         return raw
@@ -899,7 +1039,11 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
     if not isinstance(plan.get("genome"), dict):
         plan["genome"] = default_genome
     else:
-        plan["genome"] = _deep_merge(default_genome, plan.get("genome", {}))
+        plan["genome"] = _sanitize_genome_dict(_deep_merge(default_genome, plan.get("genome", {})))
+
+    layout = plan.get("layout")
+    if isinstance(layout, dict):
+        plan["layout"] = _sanitize_layout_slots(layout)
 
     components = plan.get("components")
     if isinstance(components, list):
@@ -1026,6 +1170,7 @@ def _normalize_llm_plan_output(raw: Dict[str, Any], req: BuildRequest) -> Dict[s
                 continue
             filtered_components.append(comp)
         plan["components"] = filtered_components
+        _sanitize_landmark_modules(plan, req)
 
     gc = plan.get("global_constraints")
     if isinstance(gc, dict):
@@ -2276,7 +2421,10 @@ def _should_use_golden_gate_bridge_template(req: Optional[BuildRequest]) -> bool
         return False
     if any(k in s for k in ("随意", "随便", "自由发挥", "你决定", "random", "freeform")):
         return False
-    return any(k in s for k in ("金门大桥", "golden gate bridge", "golden gate"))
+    return any(k in s for k in (
+        "金门大桥", "旧金山大桥", "旧金山金门大桥", "旧金山金门",
+        "golden gate bridge", "golden gate",
+    ))
 
 
 def _parse_span_from_text(s: str) -> Optional[int]:

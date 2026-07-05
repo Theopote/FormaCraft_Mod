@@ -1,6 +1,7 @@
 package com.formacraft.common.network.metrics;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.model.request.FormaRequest;
 import net.minecraft.server.network.ServerPlayerEntity;
 
@@ -91,7 +92,7 @@ public final class LlmPlanRoutingMetrics {
 
     private static void log(String event, String detail, ServerPlayerEntity player, FormaRequest req) {
         String playerName = player != null ? player.getName().getString() : "?";
-        String prompt = truncate(req != null ? req.getRequestText() : null, 80);
+        String prompt = truncate(BuildingSpecRoutingPolicy.userIntentText(req), 80);
         if (detail == null || detail.isBlank()) {
             FormacraftMod.LOGGER.info(
                     "[LlmPlanMetrics] event={} player={} prompt=\"{}\" {}",

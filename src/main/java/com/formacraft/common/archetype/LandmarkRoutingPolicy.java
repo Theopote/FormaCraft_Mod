@@ -202,6 +202,44 @@ public final class LandmarkRoutingPolicy {
             """.formatted(moduleId, moduleId, moduleId);
     }
 
+    /**
+     * 用户指名了<b>没有</b>预制 MODULE 的地标时，强制走组合式语义构件，禁止乱套 MODULE。
+     */
+    public static String promptNonModuleLandmarkBlock(String userIntentText) {
+        if (userIntentText == null || userIntentText.isBlank()) {
+            return "";
+        }
+        String lower = userIntentText.toLowerCase(Locale.ROOT);
+        if (lower.contains("卢浮宫") || lower.contains("louvre")) {
+            return """
+
+                ========================================
+                COMPOSITIONAL LANDMARK (NO MODULE — Louvre / Musée du Louvre)
+                ========================================
+                There is NO landmark module for the Louvre. Do NOT use MODULE or birds_nest_stadium.
+                Compose with French_Classical / Renaissance style:
+                  - MASS_MAIN U-shaped palace block (courtyard void via plan_type or inner courtyard)
+                  - ROOF mansard or low hip roofs on wings
+                  - ENTRANCE central glass pyramid (optional DECOR) if user implies modern Louvre
+                  - COLONNADE / FACADE rhythm along the wings
+                Use style_profile French_Classical or similar — NOT Modern_Stadium or Deconstructivism_Zaha.
+
+                """;
+        }
+        if (lower.contains("白宫") || lower.contains("white house")) {
+            return """
+
+                ========================================
+                COMPOSITIONAL LANDMARK (NO MODULE — White House)
+                ========================================
+                No landmark module exists. Compose neoclassical MASS_MAIN + COLONNADE + ROOF + ENTRANCE portico.
+                Do NOT use stadium or unrelated MODULE landmarks.
+
+                """;
+        }
+        return "";
+    }
+
     private static boolean containsAny(String lower, List<String> markers) {
         for (String m : markers) {
             if (m != null && !m.isBlank() && lower.contains(m.toLowerCase(Locale.ROOT))) {

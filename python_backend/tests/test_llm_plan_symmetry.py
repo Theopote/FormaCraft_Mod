@@ -4,10 +4,10 @@ import unittest
 
 
 class TestGlobalSymmetryNormalize(unittest.TestCase):
-    def _normalize(self, plan: dict) -> dict:
+    def _normalize(self, plan: dict, req=None) -> dict:
         from app.services.ai_planner import _normalize_llm_plan_output
 
-        return _normalize_llm_plan_output(plan, req=None)
+        return _normalize_llm_plan_output(plan, req=req)
 
     def _validate(self, plan: dict) -> None:
         from app.models.llm_plan import validate_llm_plan_dict
@@ -94,6 +94,74 @@ class TestGlobalSymmetryNormalize(unittest.TestCase):
         out = self._normalize(plan)
         self.assertEqual(out["global_constraints"]["symmetry"], "RADIAL")
         self._validate(out)
+
+    def test_genome_mirror_template_pollution_coerced(self):
+        plan = {
+            "mode": "build",
+            "style_profile": "DEFAULT",
+            "anchor": {"x": 0, "y": 64, "z": 0},
+            "components": [],
+            "genome": {
+                "genomeVersion": "1.0",
+                "symmetry": {"type": "bilateral", "order": "4", "mirror": "true|false"},
+            },
+        }
+        out = self._normalize(plan)
+        self.assertIsNone(out["genome"]["symmetry"]["mirror"])
+        self.assertEqual(out["genome"]["symmetry"]["order"], 4)
+        self._validate(out)
+
+    def test_layout_slots_missing_fields_repaired(self):
+        plan = {
+            "mode": "build",
+            "style_profile": "DEFAULT",
+            "anchor": {"x": 0, "y": 64, "z": 0},
+            "components": [],
+            "layout": {
+                "skeleton_type": "COMPOUND",
+                "path_based": False,
+                "slots": [{"anchor": {"x": 1, "y": 0, "z": 2}}],
+            },
+        }
+        out = self._normalize(plan)
+        slots = out["layout"]["slots"]
+        self.assertEqual(len(slots), 1)
+        self.assertEqual(slots[0]["slot_id"], "slot_0")
+        self.assertEqual(slots[0]["anchor"], {"x": 1, "y": 0, "z": 2})
+        self._validate(out)
+
+    def test_louvre_strips_wrong_landmark_module(self):
+        from unittest.mock import Mock
+
+        plan = {
+            "mode": "build",
+            "style_profile": "Modern_Stadium",
+            "anchor": {"x": 0, "y": 64, "z": 0},
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 60, "depth": 80, "height": 28},
+                    "features": ["landmark:birds_nest_stadium"],
+                    "params": {"module_id": "birds_nest_stadium"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 40, "depth": 30, "height": 12},
+                    "features": [],
+                    "params": {},
+                },
+            ],
+        }
+        req = Mock()
+        req.userMessage = "louvre museum"
+        req.selection = None
+        req.brushSelection = None
+        out = self._normalize(plan, req=req)
+        types = [c["component_type"] for c in out["components"]]
+        self.assertNotIn("MODULE", types)
+        self.assertIn("MASS_MAIN", types)
 
 
 if __name__ == "__main__":

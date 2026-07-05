@@ -49,7 +49,7 @@ public final class BuildRequestProcessor {
 
                     FormaRequest req = payload.request();
                     FormacraftMod.LOGGER.info("Received build request from player {}: {}",
-                            player.getName().getString(), req.getRequestText());
+                            player.getName().getString(), BuildingSpecRoutingPolicy.userIntentText(req));
 
                     // 补齐“世界上下文”字段：让 Python 侧可以稳定获取 biome/facing/origin，而不是只依赖 prompt 文本解析。
                     // 注意：客户端可能已填充这些字段；这里仅在缺失时兜底。

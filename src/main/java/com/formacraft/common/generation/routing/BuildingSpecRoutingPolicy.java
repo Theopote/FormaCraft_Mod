@@ -93,6 +93,15 @@ public final class BuildingSpecRoutingPolicy {
     }
 
     /**
+     * 提取用户真实意图文本（供日志、路由、指标使用）。
+     *
+     * @see #intentText(FormaRequest)
+     */
+    public static String userIntentText(FormaRequest req) {
+        return intentText(req);
+    }
+
+    /**
      * 在整栋生成前为 {@link BuildingSpec} 写入路由提示（不覆盖 LLM / 用户已显式设置的字段）。
      * <p>
      * 仅写入 {@code extra.template} 提示，不再自动设置 {@link #EXTRA_FORCE_BUILDING_SPEC_PATH}。
