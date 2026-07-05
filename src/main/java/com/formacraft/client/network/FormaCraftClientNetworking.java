@@ -62,9 +62,15 @@ public final class FormaCraftClientNetworking {
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.ResponseBuildErrorPayload.ID, (payload, context) -> context.client().execute(() -> {
             String msg = payload.message();
             FormacraftMod.LOGGER.warn("Received build error from server: {}", msg);
-            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIError(
-                    (msg == null || msg.isBlank()) ? "请求失败：未知错误" : ("请求失败：" + msg)
-            );
+            String display;
+            if (msg == null || msg.isBlank()) {
+                display = "请求失败：未知错误";
+            } else if (msg.startsWith("【ASSEMBLY 能力缺口】") || msg.startsWith("[Capability gap]")) {
+                display = msg;
+            } else {
+                display = "请求失败：" + msg;
+            }
+            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIError(display);
         }));
 
         ClientPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.ResponseBuildStatusPayload.ID, (payload, context) -> context.client().execute(() -> {

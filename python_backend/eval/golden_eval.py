@@ -105,6 +105,18 @@ _SCENARIO_HARD_BY_TAG: Dict[str, frozenset] = {
     "primitive": frozenset({
         "facade_params_valid",
     }),
+    "assembly": frozenset({
+        "assembly_primary_component",
+        "assembly_graph_dsl_valid",
+        "no_nested_assembly_in_mass",
+        "assembly_no_conflicting_mass_stack",
+    }),
+    "capability_gap": frozenset({
+        "capability_gap_status",
+        "capability_gap_object",
+        "capability_gap_code",
+        "capability_gap_message",
+    }),
 }
 
 
@@ -398,12 +410,20 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             str(c.get("component_type") or "").upper() == "ASSEMBLY"
             for c in comps
         )
-        checks.append(Check(
-            "assembly_primary_component",
-            has_assembly,
-            hard=False,
-            detail="ASSEMBLY/螺旋/自由几何意图：主体应使用 component_type=ASSEMBLY",
-        ))
+        if _is_capability_gap_plan(plan):
+            checks.append(Check(
+                "assembly_intent_honest_gap",
+                True,
+                hard=False,
+                detail="ASSEMBLY 意图以 capability_gap 显式失败（优于空 plan）",
+            ))
+        else:
+            checks.append(Check(
+                "assembly_primary_component",
+                has_assembly,
+                hard=False,
+                detail="ASSEMBLY/螺旋/自由几何意图：主体应使用 component_type=ASSEMBLY",
+            ))
 
         nested = _nested_assembly_in_mass(comps)
         checks.append(Check(
@@ -414,12 +434,13 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
         ))
 
         if _prompt_contains(prompt, ("螺旋", "spiral", "helix", "twist", "扭转", "旋转")):
-            checks.append(Check(
-                "spiral_twist_expressed",
-                has_assembly and _assembly_has_twist(comps),
-                hard=False,
-                detail="螺旋意图：ASSEMBLY graph/ops 中 SHELL_BOX 等应含 twistTurns",
-            ))
+            if not _is_capability_gap_plan(plan):
+                checks.append(Check(
+                    "spiral_twist_expressed",
+                    has_assembly and _assembly_has_twist(comps),
+                    hard=False,
+                    detail="螺旋意图：ASSEMBLY graph/ops 中 SHELL_BOX 等应含 twistTurns",
+                ))
 
         checks.append(Check(
             "assembly_no_conflicting_mass_stack",
@@ -710,6 +731,29 @@ def _genome_shape_consistent(plan: Dict[str, Any], comps: List[Dict[str, Any]]) 
     return bool(comps)
 
 
+def _is_capability_gap_plan(plan: Dict[str, Any]) -> bool:
+    return str(plan.get("plan_status") or "").strip().lower() == "capability_gap"
+
+
+def _evaluate_capability_gap_plan(plan: Dict[str, Any], res: EvalResult) -> EvalResult:
+    add = res.checks.append
+    gap = plan.get("capability_gap") if isinstance(plan.get("capability_gap"), dict) else {}
+    message = str(gap.get("message") or plan.get("error") or "").strip()
+    suggestions = gap.get("suggestions")
+    add(Check("capability_gap_status", _is_capability_gap_plan(plan), hard=True))
+    add(Check("capability_gap_object", isinstance(gap, dict) and bool(gap), hard=True))
+    add(Check("capability_gap_code", bool(str(gap.get("code") or "").strip()), hard=True))
+    add(Check("capability_gap_message", bool(message), hard=True))
+    add(Check(
+        "capability_gap_suggestions",
+        isinstance(suggestions, list) and len(suggestions) > 0,
+        hard=False,
+        detail=f"suggestions={len(suggestions) if isinstance(suggestions, list) else 0}",
+    ))
+    add(Check("has_anchor", isinstance(plan.get("anchor"), dict), hard=True))
+    return res
+
+
 def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[str] = None) -> EvalResult:
     res = EvalResult(label=label)
     add = res.checks.append
@@ -718,6 +762,9 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[st
     add(Check("schema_valid", schema_ok, hard=True, detail=schema_detail))
     if not schema_ok:
         return res  # schema 都不过，后续断言无意义
+
+    if _is_capability_gap_plan(plan):
+        return _evaluate_capability_gap_plan(plan, res)
 
     mode = plan.get("mode")
     add(Check("has_anchor", isinstance(plan.get("anchor"), dict), hard=True))

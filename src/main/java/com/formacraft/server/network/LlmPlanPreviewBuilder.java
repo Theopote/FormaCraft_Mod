@@ -592,13 +592,9 @@ public final class LlmPlanPreviewBuilder {
             com.formacraft.common.llm.dto.CapabilityGap gap
     ) {
         hbAlive.set(false);
-        String summary = gap.summary();
-        if (gap.code() != null && !gap.code().isBlank() && !summary.contains(gap.code())) {
-            summary = gap.code() + ": " + summary;
-        }
         LlmPlanRoutingMetrics.recordError(player, req, gap.code() != null ? gap.code() : "capability_gap");
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
-                "ASSEMBLY 能力缺口 — " + summary
+                CapabilityGapMessages.formatPlayerMessage(gap)
         ));
     }
 }

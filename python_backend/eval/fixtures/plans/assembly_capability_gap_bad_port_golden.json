@@ -1,0 +1,30 @@
+{
+  "id": "assembly_capability_gap_bad_port_golden",
+  "prompt": "原创螺旋瞭望塔，ASSEMBLY 自由几何",
+  "mode": "build",
+  "style_profile": "Gothic_Cathedral",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+  "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+  "components": [
+    {
+      "component_type": "ASSEMBLY",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 12, "depth": 12, "height": 24 },
+      "features": [],
+      "params": {
+        "assembly": {
+          "graph": {
+            "components": [
+              { "id": "Tower", "type": "SHELL_BOX", "w": 10, "d": 10, "h": 24, "twistTurns": 0.5 },
+              { "id": "Cap", "type": "ROOF_COVER", "w": 8, "d": 8, "h": 4 }
+            ],
+            "connections": [
+              { "from": "Tower.bad_port", "to": "Cap.bottom_center" }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

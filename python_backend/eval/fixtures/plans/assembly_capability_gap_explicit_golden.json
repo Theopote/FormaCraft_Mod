@@ -1,0 +1,22 @@
+{
+  "id": "assembly_capability_gap_explicit_golden",
+  "prompt": "做一个当前引擎不支持的复杂自由曲面壳体",
+  "mode": "build",
+  "style_profile": "Gothic_Cathedral",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": { "facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+  "layout": { "skeleton_type": "COMPOUND", "path_based": false, "slots": [] },
+  "components": [],
+  "plan_status": "capability_gap",
+  "error": "Unsupported freeform shell: requires custom implicit field beyond current preset library.",
+  "capability_gap": {
+    "code": "E_UNSUPPORTED_GEOMETRY",
+    "message": "Unsupported freeform shell: requires custom implicit field beyond current preset library.",
+    "path": "plan",
+    "suggestions": [
+      "Use preset spiral_watchtower for twisted towers.",
+      "Use preset suspension_bridge_simple for bridges.",
+      "Or simplify to MASS_* + ROOF for conventional buildings."
+    ]
+  }
+}

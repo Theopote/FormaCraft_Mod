@@ -45,6 +45,9 @@ _UNITTEST_MODULES: Tuple[str, ...] = (
     "tests.test_shape_primitive_m2",
     "tests.test_shape_primitive_m3",
     "tests.test_shape_advanced_m3plus",
+    "tests.test_assembly_plan_validator",
+    "tests.test_assembly_plan_repair",
+    "tests.test_golden_assembly_capability_gap",
 )
 
 
@@ -93,7 +96,7 @@ def run_diversity_negative() -> int:
 
 def run_shape_fixtures() -> int:
     """校验 ShapeLibrary PRIMITIVE few-shot / golden plan schema。"""
-    print("\n========== [5/5] ShapeLibrary fixture schema ==========")
+    print("\n========== [6/6] ShapeLibrary fixture schema ==========")
     from app.models.llm_plan import validate_llm_plan_dict
 
     repo_root = _BACKEND_ROOT.parent
@@ -112,6 +115,7 @@ def run_shape_fixtures() -> int:
         "assembly_gothic_shell_golden.json",
         "assembly_spiral_preset_golden.json",
         "assembly_bridge_preset_golden.json",
+        "assembly_capability_gap_explicit_golden.json",
     )
     errors: List[str] = []
     checked = 0
@@ -138,6 +142,31 @@ def run_shape_fixtures() -> int:
             print(f"  FAIL {e}")
         return 1
     print(f"OK: {checked} 个 PRIMITIVE fixture schema 通过")
+    return 0
+
+
+def run_assembly_repair_negative() -> int:
+    """负向：无效 graph 端口应通过 finalize 转为 capability_gap。"""
+    from eval.golden_eval import _load_plan_file
+    from app.services.assembly_plan_repair import finalize_assembly_plan_or_gap
+
+    print("\n========== [5/6] Assembly repair → capability_gap ==========")
+    path = _THIS.parent / "fixtures" / "plans" / "assembly_capability_gap_bad_port_golden.json"
+    plan = _load_plan_file(path)
+    if plan is None:
+        print("负向 fixture 缺失")
+        return 2
+    prompt = plan.get("prompt") if isinstance(plan.get("prompt"), str) else "ASSEMBLY 自由几何"
+    out = finalize_assembly_plan_or_gap(plan, prompt)
+    if str(out.get("plan_status") or "").lower() != "capability_gap":
+        print(f"FAIL: bad port plan 未转为 capability_gap (status={out.get('plan_status')!r})")
+        return 1
+    gap = out.get("capability_gap") if isinstance(out.get("capability_gap"), dict) else {}
+    code = str(gap.get("code") or "")
+    if code != "E_CONN_UNKNOWN_PORT":
+        print(f"FAIL: 期望 E_CONN_UNKNOWN_PORT，实际 {code!r}")
+        return 1
+    print("OK: bad port plan 正确转为 capability_gap")
     return 0
 
 
@@ -170,6 +199,12 @@ def run_ci_gate(*, gate: bool = True, quick: bool = False) -> int:
 
     code = run_diversity_negative()
     steps.append(("diversity_negative", code))
+    if code != 0:
+        _print_summary(steps)
+        return code
+
+    code = run_assembly_repair_negative()
+    steps.append(("assembly_repair_negative", code))
     if code != 0:
         _print_summary(steps)
         return code

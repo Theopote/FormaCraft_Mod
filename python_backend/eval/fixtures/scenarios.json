@@ -88,7 +88,7 @@
       "layout.skeleton_type=RADIAL_RING；symmetry=RADIAL"
     ]
   },
-  {
+    {
     "id": "patch_roof_red",
     "prompt": "把屋顶换成红色",
     "plan_fixture": "plans/patch_roof_red_golden.json",
@@ -100,6 +100,51 @@
       "Culture card patch_roof_color + patch_card roof_color_change",
       "mode=patch；仅 ROOF + style_attributes.roof_color=red",
       "禁止全量 rebuild（无 MASS_MAIN/ENTRANCE/FACADE_WINDOWS）"
+    ]
+  },
+  {
+    "id": "assembly_spiral_preset",
+    "prompt": "原创螺旋瞭望塔，不要地标模块，用自由几何表达非矩形体量",
+    "plan_fixture": "plans/assembly_spiral_preset_golden.json",
+    "tags": ["assembly", "spiral", "freeform"],
+    "ci": true,
+    "ideal_notes": [
+      "component_type=ASSEMBLY + preset spiral_watchtower",
+      "禁止 MASS_MAIN + ROOF 叠在同一 slot",
+      "twistTurns via presetParams"
+    ]
+  },
+  {
+    "id": "assembly_bridge_preset",
+    "prompt": "原创悬索桥，不要地标，跨度约 48",
+    "plan_fixture": "plans/assembly_bridge_preset_golden.json",
+    "tags": ["assembly", "bridge", "freeform"],
+    "ci": true,
+    "ideal_notes": [
+      "component_type=ASSEMBLY + preset suspension_bridge_simple",
+      "span/towerHeight/deckY/sag via presetParams"
+    ]
+  },
+  {
+    "id": "assembly_gothic_shell",
+    "prompt": "哥特壳体螺旋塔，ASSEMBLY graph SHELL_BOX + twistTurns",
+    "plan_fixture": "plans/assembly_gothic_shell_golden.json",
+    "tags": ["assembly", "spiral", "gothic"],
+    "ci": true,
+    "ideal_notes": [
+      "ASSEMBLY graph SHELL_BOX + style macro",
+      "spiral_twist_expressed via twistTurns"
+    ]
+  },
+  {
+    "id": "assembly_capability_gap_explicit",
+    "prompt": "做一个当前引擎不支持的复杂自由曲面壳体",
+    "plan_fixture": "plans/assembly_capability_gap_explicit_golden.json",
+    "tags": ["capability_gap", "assembly", "freeform"],
+    "ci": true,
+    "ideal_notes": [
+      "plan_status=capability_gap with structured capability_gap object",
+      "优于空 components[] 或静默 HOUSE 回退"
     ]
   }
 ]
