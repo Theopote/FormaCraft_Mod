@@ -886,18 +886,7 @@ public class ChatPanel extends BasePanel {
         BlockPos origin = (bc != null && bc.origin != null) ? bc.origin : client.player.getBlockPos().add(2, 0, 2);
 
         // 构造历史（限制长度，避免 C2S 包超过 32767 字符）
-        List<String> history = new ArrayList<>();
-        int histFrom = Math.max(0, messages.size() - 8);
-        for (int i = histFrom; i < messages.size(); i++) {
-            ChatMessage m = messages.get(i);
-            if (m.type != ChatMessage.MessageType.STREAMING) {
-                String line = (m.fromPlayer ? "Player: " : "AI: ") + m.text;
-                if (line.length() > 400) {
-                    line = line.substring(0, 400) + "...";
-                }
-                history.add(line);
-            }
-        }
+        List<String> history = getStrings();
 
         // 改为：发送到服务端 → 服务端请求 Orchestrator → 生成预览线框 → 客户端确认后再真正建造
         FormaRequest req = new FormaRequest();
@@ -1047,6 +1036,22 @@ public class ChatPanel extends BasePanel {
 
         // 清空输入框
         inputBox.clear();
+    }
+
+    private @NotNull List<String> getStrings() {
+        List<String> history = new ArrayList<>();
+        int histFrom = Math.max(0, messages.size() - 8);
+        for (int i = histFrom; i < messages.size(); i++) {
+            ChatMessage m = messages.get(i);
+            if (m.type != ChatMessage.MessageType.STREAMING) {
+                String line = (m.fromPlayer ? "Player: " : "AI: ") + m.text;
+                if (line.length() > 400) {
+                    line = line.substring(0, 400) + "...";
+                }
+                history.add(line);
+            }
+        }
+        return history;
     }
 
     /**
