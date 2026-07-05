@@ -1,7 +1,9 @@
 package com.formacraft.client.ui.panel.settings;
 
+import com.formacraft.client.ui.widget.HudClickSupport;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.MouseInput;
 
@@ -15,6 +17,36 @@ import static com.formacraft.client.ui.panel.settings.SettingsPanelLayout.*;
  */
 public final class SettingsInputController {
     private SettingsInputController() {}
+
+    private static boolean clickButton(ClickableWidget button, Click click) {
+        return HudClickSupport.click(button, click);
+    }
+
+    private static boolean clickPreferenceSlider(SettingsPanelRenderHost host, SettingsSliders.Base slider,
+                                                 double mouseX, double mouseY) {
+        if (!slider.active || !slider.visible || !slider.isMouseOver(mouseX, mouseY)) return false;
+        HudClickSupport.clearPending();
+        host.orchestratorInput().setFocused(false);
+        host.apiKeyInput().setFocused(false);
+        host.setActiveSlider(slider);
+        slider.dragWithMouse(mouseX);
+        return true;
+    }
+
+    private static void layoutPreferenceSlider(SliderWidget slider, int x, int y, int w) {
+        slider.setPosition(x, y);
+        slider.setWidth(w);
+        slider.visible = true;
+        slider.active = true;
+    }
+
+    private static void layoutPressableButton(ButtonWidget button, int x, int y, int w) {
+        button.setPosition(x, y);
+        button.setWidth(w);
+        button.setHeight(BUTTON_HEIGHT);
+        button.visible = true;
+        button.active = true;
+    }
 
     /**
      * 处理面板内点击（顶部 Tab 切换由 {@code SettingsPanel} 的 super 调用先行处理）。
@@ -39,8 +71,12 @@ public final class SettingsInputController {
             host.googleCseCxInput().setFocused(false);
             host.setModelDropdownOpen(false);
             host.hideModelOptionButtons();
+            HudClickSupport.clearPending();
+            host.setActiveSlider(null);
             return false;
         }
+
+        host.setActiveSlider(null);
 
         // drawContents 里先画标题，再 y += TITLE_HEIGHT
         y += TITLE_HEIGHT;
@@ -62,7 +98,7 @@ public final class SettingsInputController {
             for (ButtonWidget opt : host.llmBaseUrlPresetOptionButtons()) {
                 if (opt != null && opt.visible) {
                     visibleCount++;
-                    if (opt.mouseClicked(click, false)) {
+                    if (clickButton(opt, click)) {
                         clickedAny = true;
                         break;
                     }
@@ -90,7 +126,7 @@ public final class SettingsInputController {
             for (ButtonWidget opt : host.modelOptionButtons()) {
                 if (opt != null && opt.visible) {
                     visibleCount++;
-                    if (opt.mouseClicked(click, false)) {
+                    if (clickButton(opt, click)) {
                         clickedAny = true;
                         break;
                     }
@@ -136,7 +172,7 @@ public final class SettingsInputController {
         // Show/Hide（原版按钮）
         host.showHideButton().setPosition(x, apiBtnY);
         host.showHideButton().setWidth(apiBtnW);
-        if (host.showHideButton().mouseClicked(click, false)) {
+        if (clickButton(host.showHideButton(), click)) {
             host.modelInput().setFocused(false);
             host.setModelDropdownOpen(false);
             host.hideModelOptionButtons();
@@ -146,7 +182,7 @@ public final class SettingsInputController {
         // Paste（原版按钮）
         host.pasteButton().setPosition(pasteX, apiBtnY);
         host.pasteButton().setWidth(apiBtnW);
-        if (host.pasteButton().mouseClicked(click, false)) {
+        if (clickButton(host.pasteButton(), click)) {
             host.modelInput().setFocused(false);
             host.setModelDropdownOpen(false);
             host.hideModelOptionButtons();
@@ -156,7 +192,7 @@ public final class SettingsInputController {
         // Test Key（即时鉴权）
         host.testKeyButton().setPosition(testX, apiBtnY);
         host.testKeyButton().setWidth(apiBtnW3);
-        if (host.testKeyButton().mouseClicked(click, false)) {
+        if (clickButton(host.testKeyButton(), click)) {
             host.modelInput().setFocused(false);
             host.setModelDropdownOpen(false);
             host.hideModelOptionButtons();
@@ -181,7 +217,7 @@ public final class SettingsInputController {
 
         host.llmProviderButton().setPosition(x, providerY);
         host.llmProviderButton().setWidth(w);
-        if (host.llmProviderButton().mouseClicked(click, false)) {
+        if (clickButton(host.llmProviderButton(), click)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
@@ -200,7 +236,7 @@ public final class SettingsInputController {
         // 预设按钮（第二行）
         host.llmBaseUrlPresetButton().setPosition(x, llmBaseUrlPresetY);
         host.llmBaseUrlPresetButton().setWidth(w);
-        if (host.llmBaseUrlPresetButton().mouseClicked(click, false)) {
+        if (clickButton(host.llmBaseUrlPresetButton(), click)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
@@ -218,7 +254,7 @@ public final class SettingsInputController {
 
             boolean clickedAny = false;
             for (ButtonWidget opt : host.llmBaseUrlPresetOptionButtons()) {
-                if (opt != null && opt.visible && opt.mouseClicked(click, false)) {
+                if (opt != null && opt.visible && clickButton(opt, click)) {
                     clickedAny = true;
                     break;
                 }
@@ -277,7 +313,7 @@ public final class SettingsInputController {
             for (ButtonWidget opt : host.modelOptionButtons()) {
                 if (opt != null && opt.visible) {
                     visibleCount++;
-                    if (opt.mouseClicked(click, false)) {
+                    if (clickButton(opt, click)) {
                         clickedAny = true;
                         break;
                     }
@@ -315,7 +351,7 @@ public final class SettingsInputController {
 
         host.detectModelButton().setPosition(x, modelBtnY);
         host.detectModelButton().setWidth(modelBtnW1);
-        if (host.detectModelButton().mouseClicked(click, false)) {
+        if (clickButton(host.detectModelButton(), click)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
@@ -327,7 +363,7 @@ public final class SettingsInputController {
 
         host.autoModelButton().setPosition(x + modelBtnW1 + gap2, modelBtnY);
         host.autoModelButton().setWidth(modelBtnW2);
-        if (host.autoModelButton().mouseClicked(click, false)) {
+        if (clickButton(host.autoModelButton(), click)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
@@ -345,7 +381,7 @@ public final class SettingsInputController {
         int searchProviderY = searchProviderLabelY + LABEL_OFFSET;
         host.searchProviderButton().setPosition(x, searchProviderY);
         host.searchProviderButton().setWidth(w);
-        if (host.searchProviderButton().mouseClicked(click, false)) {
+        if (clickButton(host.searchProviderButton(), click)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
@@ -373,7 +409,7 @@ public final class SettingsInputController {
         int searchTestBtnY = searchKeyY + LABEL_OFFSET;
         host.testSearchKeyButton().setPosition(x, searchTestBtnY);
         host.testSearchKeyButton().setWidth(w);
-        if (host.testSearchKeyButton().mouseClicked(click, false)) {
+        if (clickButton(host.testSearchKeyButton(), click)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
@@ -405,9 +441,8 @@ public final class SettingsInputController {
         // =========== Debug Warnings（toggle） ============
         int debugLabelY = y;
         int dbgBtnY = debugLabelY + LABEL_OFFSET;
-        host.debugWarningsButton().setPosition(x, dbgBtnY);
-        host.debugWarningsButton().setWidth(w);
-        if (host.debugWarningsButton().mouseClicked(click, false)) {
+        layoutPressableButton(host.debugWarningsButton(), x, dbgBtnY, w);
+        if (clickButton(host.debugWarningsButton(), click)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
@@ -421,36 +456,23 @@ public final class SettingsInputController {
         y = afterTwoRowField(debugLabelY);
         int reachLabelY = y;
         int reachSliderY = reachLabelY + LABEL_OFFSET;
-        host.interactionReachSlider().setPosition(x, reachSliderY);
-        host.interactionReachSlider().setWidth(w);
-        if (host.interactionReachSlider().mouseClicked(click, false)) {
-            host.orchestratorInput().setFocused(false);
-            host.apiKeyInput().setFocused(false);
-            host.setActiveSlider(host.interactionReachSlider());
-            return true;
-        }
-
-        y = afterTwoRowField(reachLabelY);
-        int tempLabelY = y;
+        int tempLabelY = afterTwoRowField(reachLabelY);
         int tempSliderY = tempLabelY + LABEL_OFFSET;
-        host.temperatureSlider().setPosition(x, tempSliderY);
-        host.temperatureSlider().setWidth(w);
-        if (host.temperatureSlider().mouseClicked(click, false)) {
-            host.orchestratorInput().setFocused(false);
-            host.apiKeyInput().setFocused(false);
-            host.setActiveSlider(host.temperatureSlider());
+        int fontLabelY = afterTwoRowField(tempLabelY);
+        int fontSliderY = fontLabelY + LABEL_OFFSET;
+
+        layoutPreferenceSlider(host.interactionReachSlider(), x, reachSliderY, w);
+        if (clickPreferenceSlider(host, (SettingsSliders.Base) host.interactionReachSlider(), mouseX, mouseY)) {
             return true;
         }
 
-        y = afterTwoRowField(tempLabelY);
-        int fontLabelY = y;
-        int fontSliderY = fontLabelY + LABEL_OFFSET;
-        host.fontSizeSlider().setPosition(x, fontSliderY);
-        host.fontSizeSlider().setWidth(w);
-        if (host.fontSizeSlider().mouseClicked(click, false)) {
-            host.orchestratorInput().setFocused(false);
-            host.apiKeyInput().setFocused(false);
-            host.setActiveSlider(host.fontSizeSlider());
+        layoutPreferenceSlider(host.temperatureSlider(), x, tempSliderY, w);
+        if (clickPreferenceSlider(host, (SettingsSliders.Base) host.temperatureSlider(), mouseX, mouseY)) {
+            return true;
+        }
+
+        layoutPreferenceSlider(host.fontSizeSlider(), x, fontSliderY, w);
+        if (clickPreferenceSlider(host, (SettingsSliders.Base) host.fontSizeSlider(), mouseX, mouseY)) {
             return true;
         }
 
@@ -465,26 +487,33 @@ public final class SettingsInputController {
 
         host.saveButton().setPosition(x, btnY);
         host.saveButton().setWidth(btnW1);
-        if (host.saveButton().mouseClicked(click, false)) return true;
+        if (clickButton(host.saveButton(), click)) return true;
 
         host.cancelButton().setPosition(cancelX, btnY);
         host.cancelButton().setWidth(btnW1);
-        if (host.cancelButton().mouseClicked(click, false)) return true;
+        if (clickButton(host.cancelButton(), click)) return true;
 
         host.resetButton().setPosition(resetX, btnY);
         host.resetButton().setWidth(btnW3);
-        return host.resetButton().mouseClicked(click, false);
+        return clickButton(host.resetButton(), click);
     }
 
     public static boolean handleDrag(SettingsPanelRenderHost host, double mouseX, double mouseY,
                                      int button, double deltaX, double deltaY) {
         host.ensureWidgets();
         if (button != 0) return false;
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        // 只允许拖动一个滑条；且仅当鼠标位于滑条上时才更新（用户期望）
+
         SliderWidget active = host.activeSlider();
         if (active == null) return false;
-        if (!active.isMouseOver(mouseX, mouseY)) return false;
+
+        // 拖拽时同步滑条位置（与 drawContents / handleClick 一致），再按鼠标 X 更新数值。
+        if (active instanceof SettingsSliders.Base slider) {
+            syncPreferenceSliderLayout(host);
+            slider.dragWithMouse(mouseX);
+            return true;
+        }
+
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         return active.mouseDragged(click, deltaX, deltaY);
     }
 
@@ -492,16 +521,12 @@ public final class SettingsInputController {
         host.ensureWidgets();
         if (button != 0) return false;
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        boolean handled = false;
+        boolean handled = HudClickSupport.release(click);
+
         SliderWidget active = host.activeSlider();
         if (active != null) {
-            handled = active.mouseReleased(click);
+            handled |= active.mouseReleased(click);
             host.setActiveSlider(null);
-        } else {
-            // 兜底：如果未记录 activeSlider，也尝试释放三者，防止残留拖拽状态
-            if (host.temperatureSlider() != null) handled |= host.temperatureSlider().mouseReleased(click);
-            if (host.fontSizeSlider() != null) handled |= host.fontSizeSlider().mouseReleased(click);
-            if (host.interactionReachSlider() != null) handled |= host.interactionReachSlider().mouseReleased(click);
         }
         return handled;
     }
@@ -564,5 +589,42 @@ public final class SettingsInputController {
         if (newScroll < 0) newScroll = 0;
         if (newScroll > host.maxScrollY()) newScroll = host.maxScrollY();
         host.setScrollY(newScroll);
+    }
+
+    /** 拖拽进行中：按当前 scroll 重算三个滑条位置，避免与渲染坐标漂移。 */
+    private static void syncPreferenceSliderLayout(SettingsPanelRenderHost host) {
+        int x = host.contentStartX();
+        int y = host.contentTopY() + CONTENT_PADDING - host.scrollY();
+        int w = host.contentWidth();
+
+        y += TITLE_HEIGHT;
+        y += sectionHeaderHeight(host.client());
+
+        y += LABEL_OFFSET + FIELD_SPACING;
+        int apiLabelY = y;
+        y = afterThreeRowField(apiLabelY);
+        int providerLabelY = y;
+        y = afterTwoRowField(providerLabelY);
+        int llmBaseUrlLabelY = y;
+        y = afterThreeRowField(llmBaseUrlLabelY);
+        int modelLabelY = y;
+        y = afterThreeRowField(modelLabelY);
+        y += sectionHeaderHeight(host.client());
+
+        y += FIELD_SPACING;
+        int searchKeyLabelY = y;
+        y = afterThreeRowField(searchKeyLabelY);
+        int googleCxLabelY = y;
+        y = afterTwoRowField(googleCxLabelY);
+        y += sectionHeaderHeight(host.client());
+
+        int debugLabelY = y;
+        int reachLabelY = afterTwoRowField(debugLabelY);
+        int tempLabelY = afterTwoRowField(reachLabelY);
+        int fontLabelY = afterTwoRowField(tempLabelY);
+
+        layoutPreferenceSlider(host.interactionReachSlider(), x, reachLabelY + LABEL_OFFSET, w);
+        layoutPreferenceSlider(host.temperatureSlider(), x, tempLabelY + LABEL_OFFSET, w);
+        layoutPreferenceSlider(host.fontSizeSlider(), x, fontLabelY + LABEL_OFFSET, w);
     }
 }

@@ -16,8 +16,28 @@ public final class SettingsSliders {
         return Math.max(0.0, Math.min(1.0, v));
     }
 
+    /** HUD 面板内手动拖拽：与原版 SliderWidget 内边距一致（左右各 4px）。 */
+    public abstract static class Base extends SliderWidget {
+        private static final double HANDLE_PAD = 4.0;
+
+        protected Base(int x, int y, int width, int height, Text message, double value) {
+            super(x, y, width, height, message, value);
+        }
+
+        /** 按鼠标 X 更新滑条（不依赖 Screen 级拖拽状态机）。 */
+        public void dragWithMouse(double mouseX) {
+            double range = Math.max(1.0, this.getWidth() - 2.0 * HANDLE_PAD);
+            setCustomValue((mouseX - (this.getX() + HANDLE_PAD)) / range);
+        }
+
+        public void setCustomValue(double value) {
+            this.value = clamp01(value);
+            applyValue();
+        }
+    }
+
     /** 温度滑条：滑块内只显示数值，标题由上方 label 绘制。 */
-    public static final class Temperature extends SliderWidget {
+    public static final class Temperature extends Base {
         private final SettingsPanelRenderHost host;
 
         public Temperature(SettingsPanelRenderHost host, int x, int y, int width, int height, Text message, double value) {
@@ -37,14 +57,9 @@ public final class SettingsSliders {
             host.applyTemperatureFromSlider(this.value);
             updateMessage();
         }
-
-        public void setCustomValue(double value) {
-            this.value = clamp01(value);
-            applyValue();
-        }
     }
 
-    public static final class FontSize extends SliderWidget {
+    public static final class FontSize extends Base {
         private final SettingsPanelRenderHost host;
 
         public FontSize(SettingsPanelRenderHost host, int x, int y, int width, int height, Text message, double value) {
@@ -63,14 +78,9 @@ public final class SettingsSliders {
             host.applyFontSizeFromSlider(this.value);
             updateMessage();
         }
-
-        public void setCustomValue(double value) {
-            this.value = clamp01(value);
-            applyValue();
-        }
     }
 
-    public static final class InteractionReach extends SliderWidget {
+    public static final class InteractionReach extends Base {
         private final SettingsPanelRenderHost host;
 
         public InteractionReach(SettingsPanelRenderHost host, int x, int y, int width, int height, Text message, double value) {
@@ -88,11 +98,6 @@ public final class SettingsSliders {
         protected void applyValue() {
             host.applyInteractionReachFromSlider(this.value);
             updateMessage();
-        }
-
-        public void setCustomValue(double value) {
-            this.value = clamp01(value);
-            applyValue();
         }
     }
 }

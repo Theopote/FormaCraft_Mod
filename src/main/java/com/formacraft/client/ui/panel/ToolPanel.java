@@ -10,6 +10,7 @@ import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.interaction.AnchorState;
+import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.ui.toast.HudToast;
@@ -576,6 +577,10 @@ public class ToolPanel extends BasePanel {
         return client.mouse.getY() / client.getWindow().getScaleFactor();
     }
 
+    private boolean clickButton(ButtonWidget button, Click click) {
+        return button != null && button.visible && HudClickSupport.click(button, click);
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (super.mouseClicked(mouseX, mouseY, button)) return true;
@@ -589,9 +594,9 @@ public class ToolPanel extends BasePanel {
         double fixedAreaTop = getContentY() + 1;
         double fixedAreaBottom = separatorY + 1;
         if (mouseY >= fixedAreaTop && mouseY <= fixedAreaBottom) {
-            if (noneToolButton != null && noneToolButton.visible && noneToolButton.mouseClicked(click, false)) return true;
+            if (clickButton(noneToolButton, click)) return true;
             for (ButtonWidget b : toolButtons.values()) {
-                if (b != null && b.visible && b.mouseClicked(click, false)) return true;
+                if (clickButton(b, click)) return true;
             }
             return false; // 固定区域只处理工具按钮
         }
@@ -604,40 +609,42 @@ public class ToolPanel extends BasePanel {
         // 根据当前激活的工具，处理对应的选项按钮
 
         if (ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
-            if (clearSelectionButton != null && clearSelectionButton.visible && clearSelectionButton.mouseClicked(click, false)) return true;
+            if (clickButton(clearSelectionButton, click)) return true;
         } else if (ToolManager.isActive(ProtectedZoneTool.INSTANCE.getId())) {
-            if (clearProtectedZonesButton != null && clearProtectedZonesButton.visible && clearProtectedZonesButton.mouseClicked(click, false)) return true;
+            if (clickButton(clearProtectedZonesButton, click)) return true;
         } else if (ToolManager.isActive(OutlineTool.INSTANCE.getId())) {
-            if (outlineModeButton != null && outlineModeButton.visible && outlineModeButton.mouseClicked(click, false)) return true;
-            if (clearOutlineButton != null && clearOutlineButton.visible && clearOutlineButton.mouseClicked(click, false)) return true;
+            if (clickButton(outlineModeButton, click)) return true;
+            if (clickButton(clearOutlineButton, click)) return true;
         } else if (ToolManager.isActive(PathTool.INSTANCE.getId())) {
-            if (clearPathsButton != null && clearPathsButton.visible && clearPathsButton.mouseClicked(click, false)) return true;
+            if (clickButton(clearPathsButton, click)) return true;
         } else if (ToolManager.isActive(BrushTool.INSTANCE.getId())) {
-            if (brushModeButton != null && brushModeButton.visible && brushModeButton.mouseClicked(click, false)) return true;
-            if (brushRadiusMinusButton != null && brushRadiusMinusButton.visible && brushRadiusMinusButton.mouseClicked(click, false)) return true;
-            if (brushRadiusPlusButton != null && brushRadiusPlusButton.visible && brushRadiusPlusButton.mouseClicked(click, false)) return true;
-            if (clearBrushSelectionButton != null && clearBrushSelectionButton.visible && clearBrushSelectionButton.mouseClicked(click, false)) return true;
+            if (clickButton(brushModeButton, click)) return true;
+            if (clickButton(brushRadiusMinusButton, click)) return true;
+            if (clickButton(brushRadiusPlusButton, click)) return true;
+            if (clickButton(clearBrushSelectionButton, click)) return true;
         } else if (ToolManager.isActive(SymmetryTool.INSTANCE.getId())) {
-            if (symmetryModeButton != null && symmetryModeButton.visible && symmetryModeButton.mouseClicked(click, false)) return true;
-            if (clearSymmetryButton != null && clearSymmetryButton.visible && clearSymmetryButton.mouseClicked(click, false)) return true;
+            if (clickButton(symmetryModeButton, click)) return true;
+            if (clickButton(clearSymmetryButton, click)) return true;
         } else if (ToolManager.isActive(SemanticLabelTool.INSTANCE.getId())) {
             // 标签名输入框（使用 drawContents 缓存的 bounds）
             if (labelNameInputBoundsValid) {
                 if (labelNameInput.mouseClicked(mouseX, mouseY, labelNameInputX, labelNameInputY, labelNameInputW, labelNameInputH)) {
+                    HudClickSupport.clearPending();
                     return true;
                 }
             }
-            // 标签范围滑条（按 SettingsPanel 逻辑：mouseClicked 命中后记录 activeSlider）
-            if (labelRangeSlider != null && labelRangeSlider.visible && labelRangeSlider.mouseClicked(click, false)) {
+            if (labelRangeSlider != null && labelRangeSlider.visible && labelRangeSlider.isMouseOver(mouseX, mouseY)) {
+                HudClickSupport.clearPending();
                 labelNameInput.setFocused(false);
                 activeSlider = labelRangeSlider;
+                labelRangeSlider.dragWithMouse(mouseX);
                 return true;
             }
-            if (clearLabelsButton != null && clearLabelsButton.visible && clearLabelsButton.mouseClicked(click, false)) return true;
+            if (clickButton(clearLabelsButton, click)) return true;
         }
 
         // 锚点按钮（无论是否有激活工具都显示，因为锚点可以在没有工具时设置）
-        return clearAnchorButton != null && clearAnchorButton.visible && clearAnchorButton.mouseClicked(click, false);
+        return clickButton(clearAnchorButton, click);
     }
 
     @Override
@@ -704,10 +711,11 @@ public class ToolPanel extends BasePanel {
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         ensureWidgets();
         if (button != 0) return false;
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        if (activeSlider == null) return false;
-        if (!activeSlider.isMouseOver(mouseX, mouseY)) return false;
-        return activeSlider.mouseDragged(click, deltaX, deltaY);
+        if (activeSlider instanceof LabelRangeSlider slider) {
+            slider.dragWithMouse(mouseX);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -715,13 +723,10 @@ public class ToolPanel extends BasePanel {
         ensureWidgets();
         if (button != 0) return false;
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        boolean handled = false;
+        boolean handled = HudClickSupport.release(click);
         if (activeSlider != null) {
-            handled = activeSlider.mouseReleased(click);
+            handled |= activeSlider.mouseReleased(click);
             activeSlider = null;
-        } else {
-            // 兜底：如果未记录 activeSlider，也尝试释放，防止残留拖拽状态
-            if (labelRangeSlider != null) handled |= labelRangeSlider.mouseReleased(click);
         }
         return handled;
     }
@@ -737,9 +742,18 @@ public class ToolPanel extends BasePanel {
     }
 
     private static class LabelRangeSlider extends SliderWidget {
+        private static final double HANDLE_PAD = 4.0;
+
         public LabelRangeSlider(int x, int y, int width, int height, Text message, double value) {
             super(x, y, width, height, message, value);
             updateMessage();
+        }
+
+        void dragWithMouse(double mouseX) {
+            double range = Math.max(1.0, this.getWidth() - 2.0 * HANDLE_PAD);
+            double v = (mouseX - (this.getX() + HANDLE_PAD)) / range;
+            this.value = Math.max(0.0, Math.min(1.0, v));
+            applyValue();
         }
 
         @Override

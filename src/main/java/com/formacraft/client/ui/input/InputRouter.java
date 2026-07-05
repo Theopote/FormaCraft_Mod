@@ -371,7 +371,12 @@ public class InputRouter {
 
     /** 鼠标释放事件 */
     public static boolean onMouseReleased(double x, double y, int button) {
-        if (isPreviewLocked()) return true;
+        if (isPreviewLocked()) {
+            if (BuildConfirmPanel.INSTANCE.isVisible()) {
+                BuildConfirmPanel.INSTANCE.mouseReleased(x, y, button);
+            }
+            return true;
+        }
         if (!FormacraftUIState.isOpen) return false;
         
         // 特殊处理：构件拾取面板的世界交互
@@ -381,9 +386,16 @@ public class InputRouter {
             }
         }
 
+        boolean handled = false;
+        if (BuildConfirmPanel.INSTANCE.isVisible()) {
+            handled = BuildConfirmPanel.INSTANCE.mouseReleased(x, y, button);
+        }
+
         BasePanel panel = getPanel();
-        if (panel == null) return false;
-        return panel.mouseReleased(x, y, button);
+        if (panel != null) {
+            handled |= panel.mouseReleased(x, y, button);
+        }
+        return handled;
     }
 
     public static double getMouseX() { return mouseX; }

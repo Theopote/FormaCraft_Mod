@@ -20,6 +20,7 @@ import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureThumbnailService;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureWorldOverlay;
 import com.formacraft.client.ui.toast.HudToast;
+import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
@@ -59,6 +60,10 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     private static final int THUMBNAIL_SIZE = 120; // 增大显示尺寸以更好地展示构件细节
     private static final int FIELD_SPACING = 28;
     private static final int STICKY_FOOTER_HEIGHT = 22;
+
+    private static boolean clickButton(ButtonWidget button, Click click) {
+        return button != null && button.visible && HudClickSupport.click(button, click);
+    }
 
     // 输入框
     private final HudTextInput nameInput = new HudTextInput();
@@ -1306,48 +1311,48 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         }
         
         // 选择工具按钮点击
-        if (boxSelectButton != null && boxSelectButton.visible && boxSelectButton.mouseClicked(click, false)) return true;
-        if (pointSelectButton != null && pointSelectButton.visible && pointSelectButton.mouseClicked(click, false)) return true;
-        if (clearSelectionButton != null && clearSelectionButton.visible && clearSelectionButton.mouseClicked(click, false)) return true;
+        if (clickButton(boxSelectButton, click)) return true;
+        if (clickButton(pointSelectButton, click)) return true;
+        if (clickButton(clearSelectionButton, click)) return true;
         
         // Phase 3: 语义配置按钮点击
-        if (attachmentModeButton != null && attachmentModeButton.visible && attachmentModeButton.mouseClicked(click, false)) return true;
-        if (directionalityButton != null && directionalityButton.visible && directionalityButton.mouseClicked(click, false)) return true;
-        if (setInsideButton != null && setInsideButton.visible && setInsideButton.mouseClicked(click, false)) return true;
-        if (setOutsideButton != null && setOutsideButton.visible && setOutsideButton.mouseClicked(click, false)) return true;
-        if (setBottomButton != null && setBottomButton.visible && setBottomButton.mouseClicked(click, false)) return true;
-        if (setTopButton != null && setTopButton.visible && setTopButton.mouseClicked(click, false)) return true;
+        if (clickButton(attachmentModeButton, click)) return true;
+        if (clickButton(directionalityButton, click)) return true;
+        if (clickButton(setInsideButton, click)) return true;
+        if (clickButton(setOutsideButton, click)) return true;
+        if (clickButton(setBottomButton, click)) return true;
+        if (clickButton(setTopButton, click)) return true;
         
         // 按钮点击
-        if (categoryButton != null && categoryButton.visible && categoryButton.mouseClicked(click, false)) return true;
-        if (advancedOptionsButton != null && advancedOptionsButton.visible && advancedOptionsButton.mouseClicked(click, false)) return true;
-        if (pickAnchorButton != null && pickAnchorButton.visible && pickAnchorButton.mouseClicked(click, false)) return true;
-        if (clearAnchorButton != null && clearAnchorButton.visible && clearAnchorButton.mouseClicked(click, false)) return true;
-        if (hostFaceButton != null && hostFaceButton.visible && hostFaceButton.mouseClicked(click, false)) return true;
-        if (anchorOutsideButton != null && anchorOutsideButton.visible && anchorOutsideButton.mouseClicked(click, false)) return true;
-        if (autoAnchorButton != null && autoAnchorButton.visible && autoAnchorButton.mouseClicked(click, false)) return true;
-        if (facingButton != null && facingButton.visible && facingButton.mouseClicked(click, false)) return true;
-        if (mirrorButton != null && mirrorButton.visible && mirrorButton.mouseClicked(click, false)) return true;
+        if (clickButton(categoryButton, click)) return true;
+        if (clickButton(advancedOptionsButton, click)) return true;
+        if (clickButton(pickAnchorButton, click)) return true;
+        if (clickButton(clearAnchorButton, click)) return true;
+        if (clickButton(hostFaceButton, click)) return true;
+        if (clickButton(anchorOutsideButton, click)) return true;
+        if (clickButton(autoAnchorButton, click)) return true;
+        if (clickButton(facingButton, click)) return true;
+        if (clickButton(mirrorButton, click)) return true;
         
-        if (semanticSkinButton != null && semanticSkinButton.visible && semanticSkinButton.mouseClicked(click, false)) return true;
-        if (semanticTagOnSaveButton != null && semanticTagOnSaveButton.visible && semanticTagOnSaveButton.mouseClicked(click, false)) return true;
-        if (semanticStyleButton != null && semanticStyleButton.visible && semanticStyleButton.mouseClicked(click, false)) return true;
-        if (semanticPartButton != null && semanticPartButton.visible && semanticPartButton.mouseClicked(click, false)) return true;
+        if (clickButton(semanticSkinButton, click)) return true;
+        if (clickButton(semanticTagOnSaveButton, click)) return true;
+        if (clickButton(semanticStyleButton, click)) return true;
+        if (clickButton(semanticPartButton, click)) return true;
         
-        if (socketContextButton != null && socketContextButton.visible && socketContextButton.mouseClicked(click, false)) return true;
-        if (socketPickOriginButton != null && socketPickOriginButton.visible && socketPickOriginButton.mouseClicked(click, false)) return true;
-        if (socketFacingButton != null && socketFacingButton.visible && socketFacingButton.mouseClicked(click, false)) return true;
-        if (socketAddButton != null && socketAddButton.visible && socketAddButton.mouseClicked(click, false)) return true;
-        if (socketPreviewButton != null && socketPreviewButton.visible && socketPreviewButton.mouseClicked(click, false)) return true;
-        if (socketClearButton != null && socketClearButton.visible && socketClearButton.mouseClicked(click, false)) return true;
+        if (clickButton(socketContextButton, click)) return true;
+        if (clickButton(socketPickOriginButton, click)) return true;
+        if (clickButton(socketFacingButton, click)) return true;
+        if (clickButton(socketAddButton, click)) return true;
+        if (clickButton(socketPreviewButton, click)) return true;
+        if (clickButton(socketClearButton, click)) return true;
         
-        if (autoAnalyzeButton != null && autoAnalyzeButton.visible && autoAnalyzeButton.mouseClicked(click, false)) return true;
-        if (autoDetectSocketsButton != null && autoDetectSocketsButton.visible && autoDetectSocketsButton.mouseClicked(click, false)) return true;
-        if (autoFixButton != null && autoFixButton.visible && autoFixButton.mouseClicked(click, false)) return true;
-        if (undoAutoFixButton != null && undoAutoFixButton.visible && undoAutoFixButton.mouseClicked(click, false)) return true;
+        if (clickButton(autoAnalyzeButton, click)) return true;
+        if (clickButton(autoDetectSocketsButton, click)) return true;
+        if (clickButton(autoFixButton, click)) return true;
+        if (clickButton(undoAutoFixButton, click)) return true;
         
-        if (cancelButton != null && cancelButton.visible && cancelButton.mouseClicked(click, false)) return true;
-        if (saveButton != null && saveButton.visible && saveButton.mouseClicked(click, false)) return true;
+        if (clickButton(cancelButton, click)) return true;
+        if (clickButton(saveButton, click)) return true;
 
         // 输入框点击
         if (nameInputBoundsValid) {

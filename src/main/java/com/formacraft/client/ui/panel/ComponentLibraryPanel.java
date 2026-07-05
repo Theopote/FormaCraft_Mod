@@ -7,6 +7,7 @@ import com.formacraft.client.component.ComponentLibraryUsage;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.ComponentToolState;
 import com.formacraft.client.ui.toast.HudToast;
+import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentCategory;
@@ -84,6 +85,10 @@ public final class ComponentLibraryPanel extends BasePanel {
     private long lastClickMs = 0L;
     private String lastClickId = null;
     private static final long DOUBLE_CLICK_MS = 280L;
+
+    private static boolean clickButton(ButtonWidget button, Click click) {
+        return button != null && button.visible && HudClickSupport.click(button, click);
+    }
 
     public ComponentLibraryPanel() {
         searchInput.setMaxLength(64);
@@ -682,13 +687,13 @@ public final class ComponentLibraryPanel extends BasePanel {
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
         // allow buttons
-        if (sortButton != null && sortButton.visible && sortButton.mouseClicked(click, false)) return true;
-        if (categoryButton != null && categoryButton.visible && categoryButton.mouseClicked(click, false)) return true;
-        if (prevPageButton != null && prevPageButton.visible && prevPageButton.mouseClicked(click, false)) return true;
-        if (nextPageButton != null && nextPageButton.visible && nextPageButton.mouseClicked(click, false)) return true;
-        if (validateButton != null && validateButton.visible && validateButton.mouseClicked(click, false)) return true;
-        if (autoFixButton != null && autoFixButton.visible && autoFixButton.mouseClicked(click, false)) return true;
-        if (deleteButton != null && deleteButton.visible && deleteButton.mouseClicked(click, false)) return true;
+        if (clickButton(sortButton, click)) return true;
+        if (clickButton(categoryButton, click)) return true;
+        if (clickButton(prevPageButton, click)) return true;
+        if (clickButton(nextPageButton, click)) return true;
+        if (clickButton(validateButton, click)) return true;
+        if (clickButton(autoFixButton, click)) return true;
+        if (clickButton(deleteButton, click)) return true;
 
         if (searchBoundsValid) {
             if (searchInput.mouseClicked(mouseX, mouseY, searchX, searchY, searchW, searchH)) {

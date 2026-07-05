@@ -10,6 +10,7 @@ import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.preview.OutlinePreviewState;
 import com.formacraft.client.preview.PromptModeState;
+import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.MultilineTextInput;
 import com.formacraft.client.ui.panel.chat.AIStreamPrinter;
 import com.formacraft.client.ui.panel.chat.ChatMessage;
@@ -666,14 +667,14 @@ public class ChatPanel extends BasePanel {
         stopButton.setPosition(bounds.btnX(), bounds.stopY());
         stopButton.visible = generating;
         stopButton.active = generating;
-        if (generating && stopButton.mouseClicked(click, false)) {
+        if (generating && HudClickSupport.click(stopButton, click)) {
             return true;
         }
 
         sendButton.setPosition(bounds.btnX(), bounds.btnY());
         sendButton.visible = true;
         sendButton.active = true;
-        if (sendButton.mouseClicked(click, false)) {
+        if (HudClickSupport.click(sendButton, click)) {
             return true;
         }
 

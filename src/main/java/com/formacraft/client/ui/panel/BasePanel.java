@@ -6,6 +6,7 @@ import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.ui.widget.TabBar;
 import net.minecraft.client.MinecraftClient;
+import com.formacraft.client.ui.widget.HudClickSupport;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -479,19 +480,19 @@ public abstract class BasePanel {
             closeButton.setPosition(closeX, closeY);
             closeButton.visible = true;
             closeButton.active = true;
-            if (closeButton.mouseClicked(click, false)) return true;
+            if (HudClickSupport.click(closeButton, click)) return true;
         }
         if (!sidebarCollapsed && panelWidth >= SIDEBAR_EXPANDED_WIDTH / 2) {
             collapseButton.setPosition(collapseX, closeY);
             collapseButton.visible = true;
             collapseButton.active = true;
-            if (collapseButton.mouseClicked(click, false)) return true;
+            if (HudClickSupport.click(collapseButton, click)) return true;
         }
         if (!sidebarCollapsed && panelWidth >= SIDEBAR_EXPANDED_WIDTH / 2 && FormaCraftHudOverlay.activePanel == PanelType.CHAT) {
             newChatButton.setPosition(newChatX, closeY);
             newChatButton.visible = true;
             newChatButton.active = true;
-            if (newChatButton.mouseClicked(click, false)) return true;
+            if (HudClickSupport.click(newChatButton, click)) return true;
         }
 
         // Tab 区域（使用 TabBar 处理）
@@ -528,7 +529,11 @@ public abstract class BasePanel {
     /**
      * 鼠标释放事件（HUD 模式下由 MouseMixin/InputRouter 转发）。
      */
-    public boolean mouseReleased(double mouseX, double mouseY, int button) { return false; }
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button != 0) return false;
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        return HudClickSupport.release(click);
+    }
 
     /**
      * 是否希望接收键盘/字符输入（即便鼠标暂时不在面板区域内）。

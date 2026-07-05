@@ -523,6 +523,9 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     private void toggleDebugWarnings() {
         draftShowDebugWarnings = !draftShowDebugWarnings;
+        if (debugWarningsButton != null) {
+            debugWarningsButton.setMessage(getDebugWarningsButtonText());
+        }
         showToast("DebugWarnings=" + (draftShowDebugWarnings ? "ON" : "OFF"), false);
     }
 

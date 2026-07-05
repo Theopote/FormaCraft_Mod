@@ -10,6 +10,7 @@ import com.formacraft.common.model.build.Footprint;
 import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.client.ui.UiTheme;
+import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -74,6 +75,10 @@ public class BuildConfirmPanel {
     private boolean previewForceArmed = false;
     
     private BuildConfirmPanel() {}
+
+    private boolean clickButton(ButtonWidget button, Click click) {
+        return button != null && button.visible && HudClickSupport.click(button, click);
+    }
 
     private void layoutBuildButtons(int screenW, int screenH) {
         // 放在屏幕底部居中，略高于热键栏
@@ -639,8 +644,8 @@ public class BuildConfirmPanel {
         if (mode == Mode.BUILD || mode == Mode.PREVIEW) {
             layoutBuildButtons(screenW, screenH);
             Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-            if (confirmButton.mouseClicked(click, false)) return true;
-            cancelButton.mouseClicked(click, false);
+            if (clickButton(confirmButton, click)) return true;
+            clickButton(cancelButton, click);
             return true;
         }
         
@@ -678,25 +683,25 @@ public class BuildConfirmPanel {
             applyPatchButton.setWidth(92);
             applyPatchButton.visible = true;
             applyPatchButton.active = !awaitingPatchApplyResult && previewTicketId != null;
-            if (applyPatchButton.mouseClicked(click, false)) return true;
+            if (clickButton(applyPatchButton, click)) return true;
 
             undoPatchButton.setPosition(undoX, patchBtnY);
             undoPatchButton.setWidth(72);
             undoPatchButton.visible = true;
             undoPatchButton.active = patchCanUndo;
-            if (undoPatchButton.mouseClicked(click, false)) return true;
+            if (clickButton(undoPatchButton, click)) return true;
 
             redoPatchButton.setPosition(redoX, patchBtnY);
             redoPatchButton.setWidth(72);
             redoPatchButton.visible = true;
             redoPatchButton.active = patchCanRedo;
-            if (redoPatchButton.mouseClicked(click, false)) return true;
+            if (clickButton(redoPatchButton, click)) return true;
 
             cancelButton.setPosition(patchCancelX, patchBtnY);
             cancelButton.setWidth(90);
             cancelButton.visible = true;
             cancelButton.active = true;
-            cancelButton.mouseClicked(click, false);
+            clickButton(cancelButton, click);
             return true;
         }
 
@@ -704,15 +709,21 @@ public class BuildConfirmPanel {
         confirmButton.setWidth(btnW);
         confirmButton.visible = true;
         confirmButton.active = true;
-        if (confirmButton.mouseClicked(click, false)) return true;
+        if (clickButton(confirmButton, click)) return true;
 
         cancelButton.setPosition(cancelX, btnY);
         cancelButton.setWidth(btnW);
         cancelButton.visible = true;
         cancelButton.active = true;
-        cancelButton.mouseClicked(click, false);
+        clickButton(cancelButton, click);
 
         return true; // 点击面板内部其他位置，也阻止传递到世界
+    }
+
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (!visible || client == null || button != 0) return false;
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        return HudClickSupport.release(click);
     }
     
     /** 键盘支持：Enter 确认，Esc 取消 */
