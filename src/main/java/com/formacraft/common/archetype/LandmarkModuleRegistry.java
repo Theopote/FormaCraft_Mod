@@ -52,7 +52,7 @@ public final class LandmarkModuleRegistry {
         List<LandmarkModule> out = new ArrayList<>();
         for (ArchetypeCatalog.ArchetypeDef def : ArchetypeRegistry.all()) {
             if (def == null || def.id == null || def.id.isBlank()) continue;
-            if (def.generatorId == null || def.generatorId.isBlank()) continue;
+            if (!def.hasModuleGenerator()) continue;
             out.add(new LandmarkModule(
                     def.id.trim().toLowerCase(Locale.ROOT),
                     def.category == null ? "LANDMARK" : def.category,
@@ -81,6 +81,7 @@ public final class LandmarkModuleRegistry {
         ArchetypeCatalog.ArchetypeDef def = ArchetypeRegistry.getById(text.trim());
         if (def == null) def = ArchetypeRegistry.matchByKeyword(text);
         if (def == null || def.id == null || def.id.isBlank()) return null;
+        if (!def.hasModuleGenerator()) return null;
         return def.id.trim().toLowerCase(Locale.ROOT);
     }
 

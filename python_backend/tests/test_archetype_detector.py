@@ -9,6 +9,7 @@ from app.services.archetype_detector import (
     detect_archetype_local,
 )
 from app.services.building_research_agent import resolve_landmark_module_for_intent
+from app.services.building_request_classifier import classify_building_request_local
 from app.services.landmark_alias_matcher import (
     GENERIC_TYPOLOGY_CONFIDENCE,
     PROPER_NOUN_CONFIDENCE,
@@ -85,6 +86,26 @@ class ArchetypeDetectorTest(unittest.TestCase):
         self.assertEqual(
             resolve_landmark_module_for_intent("中世纪城堡"),
             "castle_compound",
+        )
+
+
+class ResearchOnlyLandmarkTest(unittest.TestCase):
+    def test_notre_dame_does_not_route_gothic_module(self):
+        self.assertIsNone(resolve_landmark_module_for_intent("复原巴黎圣母院"))
+
+    def test_notre_dame_is_specific_for_research(self):
+        rc = classify_building_request_local("复原巴黎圣母院")
+        self.assertTrue(rc.is_specific_real_building)
+
+    def test_cologne_cathedral_research_only(self):
+        self.assertIsNone(resolve_landmark_module_for_intent("科隆大教堂"))
+        rc = classify_building_request_local("科隆大教堂")
+        self.assertTrue(rc.is_specific_real_building)
+
+    def test_gothic_cathedral_template_still_routes_module(self):
+        self.assertEqual(
+            resolve_landmark_module_for_intent("哥特大教堂"),
+            "gothic_cathedral",
         )
 
 

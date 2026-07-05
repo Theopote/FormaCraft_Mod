@@ -41,6 +41,7 @@ class ArchetypeDef:
     generic_aliases: Tuple[str, ...]
     category: str                      # landmark / infrastructure / fortification / etc
     generator_id: str                  # tulou / eiffel_tower / great_wall ... (maps to Java side)
+    research_only: bool = False        # real landmark identity without preset MODULE generator
     # Raw maps loaded from JSON (single source of truth)
     defaults_map: Dict[str, Any] = field(default_factory=dict)
     constraints_map: Dict[str, Any] = field(default_factory=dict)
@@ -101,7 +102,11 @@ def _load_from_json(path: Path) -> Dict[str, ArchetypeDef]:
         if not merged_aliases:
             merged_aliases = aliases
         category = str(item.get("category") or "").strip().lower() or "landmark"
-        generator_id = str(item.get("generatorId") or aid).strip().lower() or aid
+        research_only = item.get("researchOnly") is True
+        if research_only:
+            generator_id = ""
+        else:
+            generator_id = str(item.get("generatorId") or aid).strip().lower() or aid
 
         defaults_raw = item.get("defaults") or {}
         constraints_raw = item.get("constraints") or {}
@@ -129,6 +134,7 @@ def _load_from_json(path: Path) -> Dict[str, ArchetypeDef]:
             generic_aliases=generic_aliases,
             category=category,
             generator_id=generator_id,
+            research_only=research_only,
             defaults_map=dict(defaults_raw) if isinstance(defaults_raw, dict) else {},
             constraints_map=dict(constraints_raw) if isinstance(constraints_raw, dict) else {},
             defaults=defaults,

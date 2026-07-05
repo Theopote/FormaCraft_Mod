@@ -21,10 +21,20 @@ class ArchetypeMatch:
     matched_alias: Optional[str] = None
 
     def qualifies_for_module_route(self) -> bool:
-        """High-confidence proper-noun hit only — generic typology must not route MODULE."""
+        """High-confidence proper-noun hit with a preset MODULE generator only."""
         if self.confidence < MODULE_ROUTE_MIN_CONFIDENCE:
             return False
-        return "generic_typology" not in self.reason_tags
+        if "generic_typology" in self.reason_tags:
+            return False
+        try:
+            from .archetype_registry import get_archetype_def
+
+            defn = get_archetype_def(self.id)
+            if defn is None or defn.research_only or not defn.generator_id:
+                return False
+        except Exception:
+            return False
+        return True
 
 
 def detect_archetype_local(text: str) -> Optional[ArchetypeMatch]:

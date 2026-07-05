@@ -137,6 +137,11 @@ _BUILDING_SEARCH_ALIASES: Dict[str, List[str]] = {
     "西安体育馆": ["西安奥体中心", "西安奥林匹克体育中心"],
     "西安体育场": ["西安奥体中心", "西安奥林匹克体育中心"],
     "国家体育场": ["鸟巢", "北京国家体育场"],
+    "圣家族大教堂": ["Sagrada Família", "Basílica de la Sagrada Família", "Barcelona"],
+    "圣家堂": ["Sagrada Família", "圣家族大教堂"],
+    "巴黎圣母院": ["Notre-Dame de Paris", "Cathédrale Notre-Dame de Paris"],
+    "科隆大教堂": ["Cologne Cathedral", "Kölner Dom"],
+    "沙特尔": ["Chartres Cathedral", "Cathédrale Notre-Dame de Chartres"],
 }
 
 _ZAHA_FORM_ELEMENTS = (
@@ -370,7 +375,7 @@ def resolve_landmark_module_for_intent(user_text: str) -> Optional[str]:
         from .archetype_registry import get_archetype_def
 
         defn = get_archetype_def(match.id)
-        if defn is None or not defn.generator_id:
+        if defn is None or defn.research_only or not defn.generator_id:
             return None
         return match.id
     except Exception:

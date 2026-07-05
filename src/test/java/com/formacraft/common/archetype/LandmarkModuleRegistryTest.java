@@ -15,6 +15,15 @@ class LandmarkModuleRegistryTest {
     }
 
     @Test
+    void resolveModuleId_rejectsResearchOnlyCathedrals() {
+        assertNull(LandmarkModuleRegistry.resolveModuleId("巴黎圣母院"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("notre dame de paris"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("科隆大教堂"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("chartres cathedral"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("sagrada familia"));
+    }
+
+    @Test
     void resolveModuleId_matchesNewLandmarks() {
         assertEquals("gothic_cathedral", LandmarkModuleRegistry.resolveModuleId("哥特大教堂"));
         assertEquals("jiangnan_water_town", LandmarkModuleRegistry.resolveModuleId("江南水乡"));

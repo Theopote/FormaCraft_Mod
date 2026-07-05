@@ -60,4 +60,15 @@ class LandmarkRoutingPolicyTest {
         assertEquals("gothic_cathedral", d.moduleId());
         assertEquals(LandmarkRoutingPolicy.RoutingTier.MANDATORY, d.tier());
     }
+
+    @Test
+    void notreDameParis_doesNotForceGothicCathedralModule() {
+        assertNull(LandmarkRoutingPolicy.resolveForUserIntent("复原巴黎圣母院"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("巴黎圣母院"));
+    }
+
+    @Test
+    void cologneCathedral_doesNotForceGothicCathedralModule() {
+        assertNull(LandmarkRoutingPolicy.resolveForUserIntent("建造科隆大教堂"));
+    }
 }

@@ -95,13 +95,57 @@
     },
     {
       "id": "gothic_cathedral",
-      "properNounAliases": ["哥特大教堂", "notre dame", "cologne cathedral", "chartres"],
+      "properNounAliases": ["哥特大教堂"],
       "genericAliases": ["gothic cathedral", "哥特", "大教堂", "cathedral"],
-      "aliases": ["哥特大教堂", "gothic cathedral", "notre dame", "cologne cathedral", "chartres"],
+      "aliases": ["哥特大教堂", "gothic cathedral"],
       "category": "LANDMARK",
       "generatorId": "gothic_cathedral",
       "defaults": { "width": 25, "depth": 45, "wallHeight": 16, "towerHeight": 20, "spireHeight": 10 },
       "constraints": { "minWidth": 17, "maxWidth": 101, "minDepth": 25, "maxDepth": 151, "minWallHeight": 12, "maxWallHeight": 40 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "notre_dame_paris",
+      "properNounAliases": ["巴黎圣母院", "notre dame", "notre dame de paris", "notre-dame de paris", "notre dame paris"],
+      "genericAliases": [],
+      "aliases": ["巴黎圣母院", "notre dame", "notre dame de paris", "notre-dame de paris", "notre dame paris"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "cologne_cathedral",
+      "properNounAliases": ["科隆大教堂", "cologne cathedral", "kölner dom", "kolner dom"],
+      "genericAliases": [],
+      "aliases": ["科隆大教堂", "cologne cathedral", "kölner dom", "kolner dom"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "chartres_cathedral",
+      "properNounAliases": ["沙特尔主教座堂", "沙特尔大教堂", "chartres cathedral", "chartres"],
+      "genericAliases": [],
+      "aliases": ["沙特尔主教座堂", "沙特尔大教堂", "chartres cathedral", "chartres"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "sagrada_familia",
+      "properNounAliases": ["圣家族大教堂", "圣家堂", "sagrada família", "sagrada familia", "basílica de la sagrada família"],
+      "genericAliases": [],
+      "aliases": ["圣家族大教堂", "圣家堂", "sagrada família", "sagrada familia", "basílica de la sagrada família"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     },
     {

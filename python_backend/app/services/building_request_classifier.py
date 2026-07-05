@@ -107,6 +107,14 @@ def classify_building_request_local(user_text: str) -> RequestClassification:
                 reasoning_hint="explicit preset landmark alias match",
                 source="rules",
             )
+        if match and "proper_noun" in match.reason_tags and match.confidence >= 0.85:
+            return RequestClassification(
+                is_specific_real_building=True,
+                building_name_normalized=subject or match.matched_alias or match.id,
+                confidence=match.confidence,
+                reasoning_hint="named real landmark (research-only, no preset MODULE)",
+                source="rules",
+            )
         if match and "generic_typology" in match.reason_tags:
             return RequestClassification(
                 is_specific_real_building=False,
