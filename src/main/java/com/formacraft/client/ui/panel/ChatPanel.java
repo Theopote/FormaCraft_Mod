@@ -111,9 +111,27 @@ public class ChatPanel extends BasePanel {
 
     private final List<RenderedMessage> renderedMessages = new ArrayList<>();
 
-    // 与全局面板一致的内容内边距
-    private static final int PADDING = UiTheme.CONTENT_PADDING;
-    private static final int CHAT_INPUT_GAP = 6;
+    /** Chat 侧栏较窄，使用比全局 CONTENT_PADDING 更紧凑的内边距 */
+    private static final int CHAT_PADDING_H = 1;
+    private static final int CHAT_PADDING_V = 1;
+    /** 气泡距内容区左右边缘的水平留白 */
+    private static final int CHAT_BUBBLE_INSET = 1;
+    /** 气泡内文字左右 padding（各 1px） */
+    private static final int CHAT_BUBBLE_TEXT_PAD = 2;
+    /** 最新消息距输入区分隔线的底部留白 */
+    private static final int CHAT_BOTTOM_INSET = 2;
+    /** 相邻消息块之间的垂直间距 */
+    private static final int CHAT_MESSAGE_GAP = 2;
+    /** 输入框默认可见行数（与 MultilineTextInput 内边距对齐） */
+    private static final int CHAT_INPUT_MIN_VISIBLE_LINES = 3;
+    private static final int CHAT_INPUT_MAX_VISIBLE_LINES = 8;
+    /** MultilineTextInput 上下各 4px，合计 8px */
+    private static final int CHAT_INPUT_BOX_VERTICAL_PAD = 8;
+    /** UI 侧允许的最大输入量（发送时由 FormaRequestCompactor 再压缩） */
+    private static final int CHAT_INPUT_MAX_CHARS = 1_048_576;
+    private static final int CHAT_INPUT_MAX_LINES = 10_000;
+    /** 聊天区与输入区之间仅留分隔线，不再额外留白 */
+    private static final int CHAT_DIVIDER_HEIGHT = 1;
 
     /** 聊天区布局（与 drawContents / 鼠标事件共用，避免漂移） */
     private record ChatLayout(
@@ -129,16 +147,15 @@ public class ChatPanel extends BasePanel {
     ) {}
 
     private ChatLayout computeChatLayout() {
-        int padding = PADDING;
-        int innerX = panelX + padding;
-        int innerY = getContentY() + padding;
-        int innerW = Math.max(1, panelWidth - padding * 2);
-        int innerH = Math.max(1, getContentHeight() - padding * 2);
+        int innerX = panelX + CHAT_PADDING_H;
+        int innerY = getContentY() + CHAT_PADDING_V;
+        int innerW = Math.max(1, panelWidth - CHAT_PADDING_H * 2);
+        int innerH = Math.max(1, getContentHeight() - CHAT_PADDING_V * 2);
 
-        int selectionHintHeight = SelectionContext.hasSelection() ? 12 : 0;
+        int selectionHintHeight = SelectionContext.hasSelection() ? 10 : 0;
         int inputAreaHeight = getInputHeight(selectionHintHeight);
-        int chatBottom = innerY + innerH - inputAreaHeight - 4;
-        int inputY = chatBottom + CHAT_INPUT_GAP;
+        int chatBottom = innerY + innerH - inputAreaHeight - CHAT_DIVIDER_HEIGHT;
+        int inputY = chatBottom + CHAT_DIVIDER_HEIGHT;
 
         return new ChatLayout(
                 innerX,
@@ -151,6 +168,36 @@ public class ChatPanel extends BasePanel {
                 inputAreaHeight,
                 selectionHintHeight
         );
+    }
+
+    /** 输入框与发送按钮布局（draw / mouseClicked 共用，避免点击区域漂移） */
+    private record InputBounds(
+            int inputBoxX,
+            int inputBoxY,
+            int inputBoxW,
+            int inputBoxH,
+            int btnX,
+            int btnY,
+            int stopY
+    ) {}
+
+    private InputBounds computeInputBounds(ChatLayout layout) {
+        int innerX = layout.innerX();
+        int innerW = layout.innerW();
+        int inputY = layout.inputY();
+        int inputAreaHeight = layout.inputAreaHeight();
+        int selectionHintHeight = layout.selectionHintHeight();
+
+        int btnX = innerX + innerW - SEND_BUTTON_SIZE - 1;
+        int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 1;
+        int stopY = btnY - STOP_BUTTON_SIZE - 1;
+
+        int inputBoxX = innerX + 1;
+        int inputBoxY = inputY + 1 + selectionHintHeight;
+        int inputBoxW = innerW - SEND_BUTTON_SIZE - 3;
+        int inputBoxH = inputAreaHeight - 2 - selectionHintHeight;
+
+        return new InputBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH, btnX, btnY, stopY);
     }
 
     private static void enableScissor(DrawContext ctx, int x0, int y0, int x1, int y1) {
@@ -179,10 +226,9 @@ public class ChatPanel extends BasePanel {
     public ChatPanel() {
         // 初始输入框，在第一次 render 时会根据当前面板尺寸重新 setBounds
         this.inputBox = new MultilineTextInput(0, 0, 10, 48);
-        // 聊天输入：扩大总长度与最大行数限制，允许输入更多内容
-        // 之前是 2048 字符和 12 行，现在增加到 32768 字符和 100 行，支持大量文本输入
-        this.inputBox.setMaxChars(32768);
-        this.inputBox.setMaxLines(100);
+        // 聊天输入：UI 侧尽量放宽；网络发送时 FormaRequestCompactor 会再压缩
+        this.inputBox.setMaxChars(CHAT_INPUT_MAX_CHARS);
+        this.inputBox.setMaxLines(CHAT_INPUT_MAX_LINES);
         initWidgets();
     }
 
@@ -277,7 +323,7 @@ public class ChatPanel extends BasePanel {
      * 自下而上绘制消息气泡，支持 scrollOffset 和字体大小
      */
     private void drawMessages(DrawContext ctx, int innerX, int chatTop, int innerW, int chatBottom, int lineHeight, float fontScale) {
-        int availableWidth = innerW - 20;
+        int availableWidth = Math.max(1, innerW - CHAT_BUBBLE_INSET * 2);
         renderedMessages.clear();
 
         // 选中的消息被删除/索引越界时，清空选区
@@ -292,8 +338,8 @@ public class ChatPanel extends BasePanel {
             ctx.drawText(
                     client.textRenderer,
                     Text.translatable("formacraft.chat.hint"),
-                    innerX + 4,
-                    chatBottom - lineHeight - 2,
+                    innerX + CHAT_BUBBLE_INSET,
+                    chatBottom - lineHeight - CHAT_BOTTOM_INSET,
                     0x888888,
                     false
             );
@@ -316,15 +362,15 @@ public class ChatPanel extends BasePanel {
                 measureText = msg.text;
             }
 
-            int maxWidthPx = Math.max(1, availableWidth - 8);
+            int maxWidthPx = Math.max(1, availableWidth - CHAT_BUBBLE_TEXT_PAD);
             List<SelectableTextBlock.WrappedLine> wrapped =
                     SelectableTextBlock.wrap(client.textRenderer, measureText, maxWidthPx);
-            int bubbleHeight = wrapped.size() * lineHeight + 4;
+            int bubbleHeight = wrapped.size() * lineHeight + 2;
             totalContentHeight += bubbleHeight;
-            totalContentHeight += msg.hasSpecSummary() ? ((int)(50 * fontScale) + 12) : 6;
+            totalContentHeight += msg.hasSpecSummary() ? ((int)(50 * fontScale) + 6) : CHAT_MESSAGE_GAP;
         }
 
-        int visibleHeight = Math.max(1, chatBottom - chatTop - 6);
+        int visibleHeight = Math.max(1, chatBottom - chatTop - CHAT_BOTTOM_INSET);
         int maxOffset = Math.max(0, totalContentHeight - visibleHeight);
         chatMaxScrollOffset = maxOffset;
         if (scrollOffset > maxOffset) scrollOffset = maxOffset;
@@ -339,7 +385,7 @@ public class ChatPanel extends BasePanel {
 
             // 包装文本（考虑字体大小）
             // wrapLines 使用真实像素宽度；气泡左右各有 4px padding，所以扣掉 8px
-            int maxWidthPx = Math.max(1, availableWidth - 8);
+            int maxWidthPx = Math.max(1, availableWidth - CHAT_BUBBLE_TEXT_PAD);
             
             // 需要绘制 caret（流式）/ thinking 点点点动画
             boolean caret = false;
@@ -360,9 +406,9 @@ public class ChatPanel extends BasePanel {
             List<SelectableTextBlock.WrappedLine> wrapped =
                     SelectableTextBlock.wrap(client.textRenderer, displayText, maxWidthPx);
 
-            int bubbleHeight = wrapped.size() * lineHeight + 4;  // 减小气泡内边距
-            int blockHeight = bubbleHeight + (msg.hasSpecSummary() ? ((int)(50 * fontScale) + 12) : 6);
-            int bubbleBottom = chatBottom - 6 - p + scrollOffset;
+            int bubbleHeight = wrapped.size() * lineHeight + 2;  // 上下各 1px 内边距
+            int blockHeight = bubbleHeight + (msg.hasSpecSummary() ? ((int)(50 * fontScale) + 8) : CHAT_MESSAGE_GAP);
+            int bubbleBottom = chatBottom - CHAT_BOTTOM_INSET - p + scrollOffset;
             int bubbleTop = bubbleBottom - bubbleHeight;
 
             // 完全在可视区下方（更新消息）：跳过绘制，继续向更旧消息遍历
@@ -380,11 +426,11 @@ public class ChatPanel extends BasePanel {
             int bgColor;
             int textColor;
             if (msg.fromPlayer) {
-                bubbleX = innerX + innerW - availableWidth - 4;
+                bubbleX = innerX + innerW - availableWidth - CHAT_BUBBLE_INSET;
                 bgColor = 0xAA004466;
                 textColor = 0xFFCCFFFF;
             } else {
-                bubbleX = innerX + 4;
+                bubbleX = innerX + CHAT_BUBBLE_INSET;
                 if (msg.type == ChatMessage.MessageType.ERROR) {
                     bgColor = 0xAA662222;
                     textColor = 0xFFFFDDDD;
@@ -401,8 +447,8 @@ public class ChatPanel extends BasePanel {
             ctx.fill(bubbleX, bubbleTop, bubbleX + availableWidth, bubbleBottom, bgColor);
 
             // 文本（减小上边距，通过调整行高实现紧凑效果）
-            int textY = bubbleTop + 2;
-            int textX = bubbleX + 4;
+            int textY = bubbleTop + 1;
+            int textX = bubbleX + 1;
             boolean isSelectedMsg = (idx == selectableMsgIndex);
             if (isSelectedMsg) {
                 selectable.setBounds(textX, textY, maxWidthPx, lineHeight);
@@ -507,48 +553,34 @@ public class ChatPanel extends BasePanel {
      */
     private void drawInputArea(DrawContext ctx, ChatLayout layout) {
         int innerX = layout.innerX();
-        int inputY = layout.inputY();
         int innerW = layout.innerW();
+        int inputY = layout.inputY();
         int inputAreaHeight = layout.inputAreaHeight();
         int selectionHintHeight = layout.selectionHintHeight();
+        InputBounds bounds = computeInputBounds(layout);
 
         // 背景（更透明）
         ctx.fill(innerX, inputY, innerX + innerW, inputY + inputAreaHeight, 0x401A1A1A);
 
         initWidgets();
 
-        int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
-        int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
-
-        // Stop 按钮（仅流式打印时显示，位于发送按钮上方）
         boolean generating = currentPrinter != null;
-        // 与发送按钮对齐
-        int stopY = btnY - STOP_BUTTON_SIZE - 2;
 
         double mouseX = getScaledMouseX();
         double mouseY = getScaledMouseY();
 
-        // Send（原版 ButtonWidget 渲染）
-        sendButton.setPosition(btnX, btnY);
+        sendButton.setPosition(bounds.btnX(), bounds.btnY());
         sendButton.visible = true;
         sendButton.active = true;
         sendButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
 
-        // Stop（原版 ButtonWidget 渲染）
-        stopButton.setPosition(btnX, stopY);
+        stopButton.setPosition(bounds.btnX(), bounds.stopY());
         stopButton.visible = generating;
         stopButton.active = generating;
         if (generating) {
             stopButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
         }
 
-        // 输入框区域（根据字体大小调整高度，减小边距）
-        int inputBoxX = innerX + 2;
-        int inputBoxY = inputY + 2 + selectionHintHeight;
-        int inputBoxW = innerW - SEND_BUTTON_SIZE - 8;
-        int inputBoxH = inputAreaHeight - 4 - selectionHintHeight;
-
-        // 选区提示（保留在输入区内，避免画进聊天区）
         if (selectionHintHeight > 0) {
             String hint = Text.translatable(
                     "formacraft.chat.selection.hint",
@@ -556,32 +588,35 @@ public class ChatPanel extends BasePanel {
                     SelectionContext.sizeY(),
                     SelectionContext.sizeZ()
             ).getString();
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), inputBoxX, inputY + 2, 0xFFAAAAAA);
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), bounds.inputBoxX(), inputY + 1, 0xFFAAAAAA);
         }
 
-        inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
-        enableScissor(ctx, inputBoxX, inputBoxY, inputBoxX + inputBoxW, inputBoxY + inputBoxH);
+        inputBox.setBounds(bounds.inputBoxX(), bounds.inputBoxY(), bounds.inputBoxW(), bounds.inputBoxH());
+        enableScissor(ctx, bounds.inputBoxX(), bounds.inputBoxY(),
+                bounds.inputBoxX() + bounds.inputBoxW(), bounds.inputBoxY() + bounds.inputBoxH());
         try {
             inputBox.render(ctx);
         } finally {
-            disableScissor(ctx, inputBoxX, inputBoxY, inputBoxX + inputBoxW, inputBoxY + inputBoxH);
+            disableScissor(ctx, bounds.inputBoxX(), bounds.inputBoxY(),
+                    bounds.inputBoxX() + bounds.inputBoxW(), bounds.inputBoxY() + bounds.inputBoxH());
         }
     }
 
     private int getInputHeight(int selectionHintHeight) {
-        // 根据当前输入行数自动增长：到上限后固定高度，内部滚动由 MultilineTextInput 保证光标可见
+        // 默认至少显示 3 行；超过上限后固定高度，内部滚动由 MultilineTextInput 保证光标可见
         float fontScale = getFontScale();
         int baseFont = client.textRenderer.fontHeight;
         int lineHeight = Math.max(baseFont + 2, (int)((baseFont + 2) * fontScale));
 
-        int minVisibleLines = 2;
-        int maxVisibleLines = 6; // UI 上限：超过则输入框内部滚动
         int lines = Math.max(1, inputBox.getLineCount());
-        int visible = Math.max(minVisibleLines, Math.min(maxVisibleLines, lines));
+        int visible = Math.max(
+                CHAT_INPUT_MIN_VISIBLE_LINES,
+                Math.min(CHAT_INPUT_MAX_VISIBLE_LINES, lines)
+        );
 
-        // inputBoxH 需要满足：maxLinesVisible = (h - 8) / lineHeight ≈ visible
-        int inputBoxH = 8 + visible * lineHeight;
-        return inputBoxH + 4 + selectionHintHeight; // drawInputArea 中上下各 2px padding + 选区提示行
+        // 与 MultilineTextInput.render 一致：maxLinesVisible = (height - 8) / lineHeight
+        int inputBoxH = CHAT_INPUT_BOX_VERTICAL_PAD + visible * lineHeight;
+        return inputBoxH + 2 + selectionHintHeight;
     }
     
     /**
@@ -622,28 +657,20 @@ public class ChatPanel extends BasePanel {
         initWidgets();
 
         ChatLayout layout = computeChatLayout();
-        int innerX = layout.innerX();
-        int innerW = layout.innerW();
+        InputBounds bounds = computeInputBounds(layout);
         int chatAreaBottom = layout.chatBottom();
-        int inputY = layout.inputY();
-        int inputAreaHeight = layout.inputAreaHeight();
-        int selectionHintHeight = layout.selectionHintHeight();
 
         boolean generating = currentPrinter != null;
-        int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
-        int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 2;
-        int stopY = btnY - STOP_BUTTON_SIZE - 2;
 
-        // ButtonWidget 点击（优先 Stop）
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        stopButton.setPosition(btnX, stopY);
+        stopButton.setPosition(bounds.btnX(), bounds.stopY());
         stopButton.visible = generating;
         stopButton.active = generating;
         if (generating && stopButton.mouseClicked(click, false)) {
             return true;
         }
 
-        sendButton.setPosition(btnX, btnY);
+        sendButton.setPosition(bounds.btnX(), bounds.btnY());
         sendButton.visible = true;
         sendButton.active = true;
         if (sendButton.mouseClicked(click, false)) {
@@ -661,14 +688,7 @@ public class ChatPanel extends BasePanel {
             selectableMsgIndex = -1;
         }
 
-        // 点击输入框区域，设置焦点
-        // 注意：这里必须与 drawInputArea 的 bounds 完全一致，否则会出现"点击位置不准/放不到中间"的问题
-        int inputBoxX = innerX + 2;
-        int inputBoxY = inputY + 2 + selectionHintHeight;
-        int inputBoxW = innerW - SEND_BUTTON_SIZE - 8;
-        int inputBoxH = inputAreaHeight - 4 - selectionHintHeight;
-        
-        inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
+        inputBox.setBounds(bounds.inputBoxX(), bounds.inputBoxY(), bounds.inputBoxW(), bounds.inputBoxH());
         if (inputBox.mouseClicked(mouseX, mouseY)) {
             // 点击输入框即退出历史浏览态（保持当前内容）
             historyIndex = -1;
