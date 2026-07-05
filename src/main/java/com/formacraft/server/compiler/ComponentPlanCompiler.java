@@ -117,6 +117,8 @@ public final class ComponentPlanCompiler {
             return result;
         }
 
+        plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
+
         // 索引 slots（便于快速查找）
         Map<String, Slot> slotMap = indexSlots(plan);
         boolean allowAssemblyFacade = world != null && globalAnchor != null;

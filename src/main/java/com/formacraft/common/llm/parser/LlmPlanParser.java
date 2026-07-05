@@ -33,7 +33,7 @@ public final class LlmPlanParser {
      * 解析 + 校验（失败抛异常，便于你在 ChatPanel 里显示错误）
      */
     public static LlmPlan parseAndValidate(String json) throws PlanParseException {
-        final LlmPlan plan;
+        LlmPlan plan;
         try {
             plan = MAPPER.readValue(json, LlmPlan.class);
         } catch (JsonProcessingException e) {
@@ -42,6 +42,7 @@ public final class LlmPlanParser {
             throw new PlanParseException("Parse error: " + e.getMessage(), e);
         }
 
+        plan = LlmPlanAnchorNormalizer.normalize(plan);
         validate(plan);
         return plan;
     }
@@ -51,7 +52,8 @@ public final class LlmPlanParser {
      */
     public static LlmPlan parse(String json) throws PlanParseException {
         try {
-            return MAPPER.readValue(json, LlmPlan.class);
+            LlmPlan plan = MAPPER.readValue(json, LlmPlan.class);
+            return LlmPlanAnchorNormalizer.normalize(plan);
         } catch (Exception e) {
             throw new PlanParseException("Parse error: " + e.getMessage(), e);
         }
