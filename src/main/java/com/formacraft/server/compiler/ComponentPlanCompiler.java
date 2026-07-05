@@ -18,6 +18,7 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.StyleIntentResolver;
 import com.formacraft.common.proportion.CrownGrammarResolver;
 import com.formacraft.common.proportion.OpeningGrammarResolver;
+import com.formacraft.common.proportion.RoofGrammarResolver;
 import com.formacraft.FormacraftMod;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -408,6 +409,7 @@ public final class ComponentPlanCompiler {
                 Component roof = makeRoofComponent(plan, c, slotId);
                 if (roof != null) {
                     roof = StyleIntentResolver.apply(plan, roof);
+                    roof = RoofGrammarResolver.apply(plan, roof);
                     inferred.add(roof);
                     slotsWithRoof.add(slotKey);
                     c = suppressMassRoof(c);
@@ -553,14 +555,14 @@ public final class ComponentPlanCompiler {
             }
         }
 
-        return new Component(
+        return applyRoofGrammar(plan, new Component(
                 llmRoof.componentType(),
                 llmRoof.slotId(),
                 template.relativePosition(),
                 new Dimensions(baseW, baseD, roofHeight),
                 mergeFeatureLists(template.features(), llmRoof.features()),
                 params
-        );
+        ));
     }
 
     private static Component alignFacadeToMass(Component llmFacade, Component mass, LlmPlan plan) {
@@ -842,6 +844,13 @@ public final class ComponentPlanCompiler {
                 features,
                 params
         );
+    }
+
+    private static Component applyRoofGrammar(LlmPlan plan, Component roof) {
+        if (roof == null) {
+            return null;
+        }
+        return RoofGrammarResolver.apply(plan, roof);
     }
 
     private static Component makeCrownComponent(LlmPlan plan, Component base, Component roof, String slotId) {
@@ -1220,7 +1229,33 @@ public final class ComponentPlanCompiler {
         if (fromStyle != null) {
             return fromStyle;
         }
+        String fromHints = roofTypeHintFromProportionHints(plan);
+        if (fromHints != null) {
+            return fromHints;
+        }
         return "gable";
+    }
+
+    private static String roofTypeHintFromProportionHints(LlmPlan plan) {
+        if (plan == null || plan.proportionHints() == null) {
+            return null;
+        }
+        Map<String, Object> hints = plan.proportionHints();
+        Object specialty = hints.get("roof_specialty");
+        if (specialty == null) {
+            specialty = hints.get("roofSpecialty");
+        }
+        if (specialty != null) {
+            String s = String.valueOf(specialty).toLowerCase(Locale.ROOT);
+            if (s.contains("mansard")) {
+                return "mansard";
+            }
+        }
+        String typology = String.valueOf(hints.getOrDefault("typology", "")).toLowerCase(Locale.ROOT);
+        if (typology.contains("baroque") || typology.contains("townhouse") || typology.contains("paris")) {
+            return "mansard";
+        }
+        return null;
     }
 
     private static String roofTypeHintFromParams(Component base) {

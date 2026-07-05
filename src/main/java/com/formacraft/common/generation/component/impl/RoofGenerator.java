@@ -2,6 +2,7 @@ package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.ComponentRoofSpecialtyDecorator;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.llm.dto.Component;
@@ -95,9 +96,20 @@ public class RoofGenerator implements ComponentGenerator {
                         footprint, appliedOverhang);
                 case DOME -> generateConeRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette, true,
                         footprint, appliedOverhang);
+                case MANSARD -> generateMansardRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
+                        footprint, appliedOverhang);
                 default -> generateFlatRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
             }
+        }
+
+        if (ComponentRoofSpecialtyDecorator.shouldApplyDormers(null, params, c)
+                && width >= 7) {
+            String trim = getBlockForPart(semantic, palette, SemanticPart.WALL_ACCENT);
+            String glass = "minecraft:glass_pane";
+            String roofBlock = getBlockForPart(semantic, palette, SemanticPart.ROOF);
+            ComponentRoofSpecialtyDecorator.emitDormers(
+                    out, out, baseX, rp.y(), baseZ, width, depth, height, trim, glass, roofBlock);
         }
 
         boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱");
@@ -299,6 +311,36 @@ public class RoofGenerator implements ComponentGenerator {
         }
     }
 
+    private void generateMansardRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                     int width, int depth, int height, Palette palette,
+                                     ComponentFootprintMask footprint, int overhang) {
+        if (width < 2 || depth < 2 || height < 2) {
+            generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+            return;
+        }
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
+                    continue;
+                }
+                int rise = ComponentRoofSpecialtyDecorator.computeMansardRise(x, z, width, depth, height);
+                if (rise < 0) {
+                    continue;
+                }
+                int dist = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
+                SemanticPart part = (dist <= 1) ? SemanticPart.ROOF : SemanticPart.ROOF_SURFACE;
+                String block = getBlockForPart(semantic, palette, part);
+                out.add(new BlockPatch(
+                        BlockPatch.PLACE,
+                        baseX + x,
+                        baseY + rise,
+                        baseZ + z,
+                        block
+                ));
+            }
+        }
+    }
+
     /**
      * 生成平屋顶
      */
@@ -416,6 +458,7 @@ public class RoofGenerator implements ComponentGenerator {
                 else if (lower.contains("pyramid")) type = "pyramid";
                 else if (lower.contains("cone")) type = "cone";
                 else if (lower.contains("dome") || lower.contains("curved")) type = "dome";
+                else if (lower.contains("mansard") || lower.contains("baroque") || lower.contains("french")) type = "mansard";
                 else if (lower.contains("sloped") || lower.contains("pitched")) type = "gable";
             }
         }
@@ -457,6 +500,7 @@ public class RoofGenerator implements ComponentGenerator {
             case "pyramid" -> RoofType.PYRAMID;
             case "cone", "conical" -> RoofType.CONE;
             case "dome", "domed", "curved" -> RoofType.DOME;
+            case "mansard", "mansard_roof", "baroque_roof" -> RoofType.MANSARD;
             default -> RoofType.FLAT;
         };
     }
@@ -566,6 +610,7 @@ public class RoofGenerator implements ComponentGenerator {
         XUANSHAN,
         PYRAMID,
         CONE,
-        DOME
+        DOME,
+        MANSARD
     }
 }

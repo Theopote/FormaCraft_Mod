@@ -263,6 +263,7 @@ def enrich_llm_plan_architectural_detail(
 
     ph = plan.get("proportion_hints")
     style = str(plan.get("style_profile") or "").upper()
+    blob = _text_blob(user_text, profile, plan)
     if isinstance(ph, dict) and tier in ("rich", "monumental"):
         ph.setdefault("floor_cornice", True)
         ph.setdefault("window_order", "full")
@@ -274,6 +275,12 @@ def enrich_llm_plan_architectural_detail(
             else "CLASSICAL_CUPOLA"
         )
         ph.setdefault("crown_template", crown_template)
+    if isinstance(ph, dict) and tier in ("rich", "monumental"):
+        if any(x in style for x in ("FRENCH", "BAROQUE", "PARIS", "NEOCLASS")) or any(
+            m in blob for m in ("baroque", "townhouse", "巴黎", "mansard", "卢浮")
+        ):
+            ph.setdefault("roof_specialty", "mansard_dormer" if tier == "monumental" else "mansard")
+            ph.setdefault("roof_dormers", tier == "monumental")
 
     body_h = int(hints["target_body_height"])
     depth = int(hints["target_depth"])
@@ -288,7 +295,6 @@ def enrich_llm_plan_architectural_detail(
     if not isinstance(params, dict):
         params = {}
         mass["params"] = params
-    blob = _text_blob(user_text, profile, plan)
     if tier in ("rich", "monumental") or any(m in blob for m in _CLASSICAL_MARKERS):
         params.setdefault("facade_profile", "vertical_pilasters")
         params.setdefault("wall_pattern", "gradient")
@@ -326,6 +332,9 @@ def enrich_llm_plan_architectural_detail(
     overhang = 2 if tier == "monumental" else 1
     roof_w = width + overhang * 2
     roof_d = depth + overhang * 2
+    roof_type = params.get("roof_type") or ("hip" if tier == "monumental" else "gable")
+    if isinstance(ph, dict) and str(ph.get("roof_specialty") or "").lower().find("mansard") >= 0:
+        roof_type = "mansard"
     roof_spec = {
         "component_type": "ROOF",
         "relative_position": {"x": -overhang, "y": body_h, "z": -overhang},
@@ -334,9 +343,13 @@ def enrich_llm_plan_architectural_detail(
         "params": {
             "roof_height": roof_h,
             "overhang": overhang,
-            "roof_type": params.get("roof_type") or ("hip" if tier == "monumental" else "gable"),
+            "roof_type": roof_type,
         },
     }
+    if isinstance(ph, dict) and ph.get("roof_dormers"):
+        roof_spec["features"] = ["overhang", "eaves", "dormer"]
+        roof_spec["params"]["roof_dormers"] = True
+        roof_spec["params"]["roof_specialty"] = ph.get("roof_specialty") or "mansard_dormer"
     if roof_idx is None:
         new_components.append(roof_spec)
     else:
