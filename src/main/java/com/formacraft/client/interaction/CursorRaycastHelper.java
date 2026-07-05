@@ -62,7 +62,7 @@ public final class CursorRaycastHelper {
 
     /**
      * 使用“光标在屏幕中的位置”进行 RayCast。
-     *
+     * <p>
      * 说明：
      * - 使用 scaled 坐标（与 HUD/UI 命中测试一致），避免高 DPI/缩放导致的边缘偏移
      * - 不依赖 crosshairTarget；但上层可以选择把结果写回 crosshairTarget 来复用原版交互

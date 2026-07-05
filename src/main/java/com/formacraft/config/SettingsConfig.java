@@ -42,8 +42,7 @@ public class SettingsConfig {
 
     public static int clampInteractionReach(int v) {
         if (v < MIN_INTERACTION_REACH) return MIN_INTERACTION_REACH;
-        if (v > MAX_INTERACTION_REACH) return MAX_INTERACTION_REACH;
-        return v;
+        return Math.min(v, MAX_INTERACTION_REACH);
     }
 
     /**
