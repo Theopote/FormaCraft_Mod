@@ -2,6 +2,7 @@ package com.formacraft.server.network;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.preview.OutlineBlock;
+import com.formacraft.server.assembly.CapabilityGapMessages;
 import com.formacraft.server.compiler.ComponentPlanCompiler;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.llm.dto.LlmPlan;
