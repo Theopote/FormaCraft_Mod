@@ -86,8 +86,9 @@ async def build_endpoint(request: Request) -> dict:
             # Should be rare: generate_llm_plan degrades to profile fallback / capability_gap.
             raise HTTPException(status_code=502, detail="; ".join(e.errors))
         except Exception as e:
-            # LLM 调用失败时给上游明确错误（由服务端回传到客户端聊天窗口）
-            raise HTTPException(status_code=502, detail=str(e))
+            from ..services.llm_error_humanizer import humanize_llm_exception
+
+            raise HTTPException(status_code=502, detail=humanize_llm_exception(e, build_req))
     except HTTPException:
         raise
     except Exception as e:

@@ -64,8 +64,10 @@ public final class FormaCraftClientNetworking {
             FormacraftMod.LOGGER.warn("Received build error from server: {}", msg);
             String display;
             if (msg == null || msg.isBlank()) {
-                display = "请求失败：未知错误";
+                display = "未知错误：后端未返回具体原因。";
             } else if (msg.startsWith("【ASSEMBLY 能力缺口】") || msg.startsWith("[Capability gap]")) {
+                display = msg;
+            } else if (shouldShowOrchestratorMessageDirectly(msg)) {
                 display = msg;
             } else {
                 display = "请求失败：" + msg;
@@ -292,6 +294,21 @@ public final class FormaCraftClientNetworking {
             return;
         }
         ClientPlayNetworking.send(payload);
+    }
+
+    /** 已由 OrchestratorErrorHumanizer 格式化的多行说明，不再叠加「请求失败：」前缀。 */
+    private static boolean shouldShowOrchestratorMessageDirectly(String msg) {
+        if (msg == null || msg.isBlank()) return false;
+        return msg.startsWith("无法连接到后端服务")
+                || msg.startsWith("LLM 调用失败")
+                || msg.startsWith("Anthropic（Claude）")
+                || msg.startsWith("DeepSeek ")
+                || msg.startsWith("OpenAI ")
+                || msg.startsWith("API Key")
+                || msg.startsWith("API 访问被拒绝")
+                || msg.startsWith("LLM 账户余额")
+                || msg.contains("\n原因：")
+                || msg.contains("\n建议：");
     }
 
 }

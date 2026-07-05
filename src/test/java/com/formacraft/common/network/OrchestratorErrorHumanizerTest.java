@@ -26,6 +26,32 @@ class OrchestratorErrorHumanizerTest {
                 new RuntimeException("error code: 429 insufficient_quota")
         );
         assertTrue(msg.contains("额度/配额不足"));
+        assertTrue(msg.startsWith("LLM 调用失败"));
+    }
+
+    @Test
+    void humanizeAnthropicCreditBalance() {
+        String msg = OrchestratorErrorHumanizer.humanize(
+                "AiPlan",
+                new FormaRequest(),
+                new RuntimeException(
+                        "Orchestrator returned status: 502 body={\"detail\":\"LLM call failed for LlmPlan: "
+                                + "Error code: 400 - credit balance is too low to access the Anthropic API\"}"
+                )
+        );
+        assertTrue(msg.contains("Anthropic（Claude）账户余额不足"));
+        assertFalse(msg.contains("后端请求失败"));
+    }
+
+    @Test
+    void humanize403Forbidden() {
+        String msg = OrchestratorErrorHumanizer.humanize(
+                "LlmPlan",
+                new FormaRequest(),
+                new RuntimeException("Error code: 403 - permission denied")
+        );
+        assertTrue(msg.contains("403"));
+        assertTrue(msg.contains("访问被拒绝"));
     }
 
     @Test
