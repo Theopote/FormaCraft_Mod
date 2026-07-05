@@ -15,20 +15,69 @@ public final class ClientComponentCatalogState {
 
     private static final AtomicReference<ComponentCatalog> CATALOG = new AtomicReference<>(null);
     private static volatile String lastSummary = "(no player components registered)";
+    private static volatile boolean syncPending = false;
+    private static volatile boolean syncComplete = false;
 
     public static ComponentCatalog getCatalog() {
         return CATALOG.get();
     }
 
     public static String getSummary() {
+        hydrateFromDiskIfEmpty();
         return lastSummary;
     }
 
+    /** 客户端缓存或服务端同步/磁盘上是否存在可用构件。 */
+    public static boolean hasRegisteredComponents() {
+        ComponentCatalog cat = CATALOG.get();
+        if (cat != null && cat.components != null && !cat.components.isEmpty()) {
+            return true;
+        }
+        return hydrateFromDiskIfEmpty();
+    }
+
+    public static boolean isSyncPending() {
+        return syncPending;
+    }
+
+    public static boolean isSyncComplete() {
+        return syncComplete;
+    }
+
+    public static void markSyncRequested() {
+        syncPending = true;
+        syncComplete = false;
+    }
+
+    /**
+     * 当服务端 catalog 尚未到达时，从全局磁盘目录回填（best-effort）。
+     */
+    public static boolean hydrateFromDiskIfEmpty() {
+        ComponentCatalog current = CATALOG.get();
+        if (current != null && current.components != null && !current.components.isEmpty()) {
+            return true;
+        }
+        try {
+            ComponentCatalog disk = com.formacraft.common.component.ComponentStorage.loadCatalogWithSockets(null);
+            if (disk != null && disk.components != null && !disk.components.isEmpty()) {
+                CATALOG.set(disk);
+                lastSummary = buildSummary(disk);
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
     public static void setFromJson(String json) {
+        syncPending = false;
+        syncComplete = true;
         try {
             if (json == null || json.isBlank()) {
-                CATALOG.set(null);
-                lastSummary = "(no player components registered)";
+                if (!hydrateFromDiskIfEmpty()) {
+                    CATALOG.set(null);
+                    lastSummary = "(no player components registered)";
+                }
                 return;
             }
             ComponentCatalog cat = JsonUtil.fromJson(json, ComponentCatalog.class);
@@ -47,9 +96,11 @@ public final class ClientComponentCatalogState {
             CATALOG.set(cat);
             lastSummary = buildSummary(cat);
         } catch (Throwable t) {
-            // best-effort：失败时不让 prompt 崩
-            CATALOG.set(null);
-            lastSummary = "(failed to load player components)";
+            // best-effort：失败时尝试磁盘 fallback
+            if (!hydrateFromDiskIfEmpty()) {
+                CATALOG.set(null);
+                lastSummary = "(failed to load player components)";
+            }
         }
     }
 

@@ -104,95 +104,38 @@ public final class ComponentRetriever {
     }
 
     /**
-     * 硬过滤（必须通过的条件，没有"评分"，只有"能不能用"）
+     * 硬过滤（仅保留真正“不可用”的条件）。
      * <p>
-     * 硬过滤条件：
-     * - semantic.role 匹配
-     * - placement_spec.allowed_placements 包含
-     * - side_policy 不冲突
-     * - requires_opening 与 geometry.opening 是否满足
-     * - forbidden_tags 不命中
+     * placement / side / role 等语义约束改由 {@link com.formacraft.common.component.rank.ComponentRanker} 软评分，
+     * 避免用户构件因 metadata 不完整被整批剔除。
      */
     private static boolean hardFilter(ComponentMetadata metadata, ComponentQuery query) {
-        // 1. semantic.role 匹配
-        if (query.semantic != null && query.semantic.role != null) {
-            if (metadata.semantic == null || metadata.semantic.role == null) {
-                return false;
-            }
-            if (!query.semantic.role.equalsIgnoreCase(metadata.semantic.role)) {
-                return false;
-            }
-        }
-
-        // 2. placement_spec.allowed_placements 包含
-        if (query.context != null && query.context.placement != null) {
-            if (metadata.placementSpec == null || metadata.placementSpec.allowedPlacements == null) {
-                return false;
-            }
-            boolean placementMatch = metadata.placementSpec.allowedPlacements.stream()
-                    .anyMatch(p -> p.equalsIgnoreCase(query.context.placement));
-            if (!placementMatch) {
-                return false;
-            }
-        }
-
-        // 3. side_policy 不冲突
-        if (query.context != null && query.context.side != null) {
-            if (metadata.placementSpec != null && metadata.placementSpec.sidePolicy != null) {
-                String sidePolicy = metadata.placementSpec.sidePolicy.toLowerCase();
-                String querySide = query.context.side.toLowerCase();
-                if (sidePolicy.equals("exterior_only") && !querySide.equals("exterior")) {
-                    return false;
-                }
-                if (sidePolicy.equals("interior_only") && !querySide.equals("interior")) {
-                    return false;
-                }
-            }
-        }
-
-        // 4. requires_opening 与 geometry 是否满足
-        if (metadata.placementSpec != null && Boolean.TRUE.equals(metadata.placementSpec.requiresOpening)) {
-            // 需要开口，且查询提供了开口信息 → 通过
-            // 如果查询没有提供开口信息，但构件需要开口 → 可能不匹配，但暂时通过（由评分阶段处理）
-        }// 构件需要开口，但查询没有提供 → 可能不匹配，但暂时通过（由评分阶段处理）
-
-        // 5. forbidden_tags 不命中
+        // 1. forbidden_tags 不命中
         if (query.constraints != null && query.constraints.forbiddenTags != null) {
             if (metadata.semantic != null && metadata.semantic.tags != null) {
                 for (String forbiddenTag : query.constraints.forbiddenTags) {
                     if (forbiddenTag == null || forbiddenTag.isBlank()) continue;
-                    String lowerForbidden = forbiddenTag.toLowerCase();
-                    for (String componentTag : metadata.semantic.tags) {
-                        if (componentTag != null && componentTag.toLowerCase().contains(lowerForbidden)) {
-                            return false; // 命中禁止标签
-                        }
+                    if (ComponentQueryMatchUtil.tagMatches(forbiddenTag, metadata.semantic.tags)) {
+                        return false;
                     }
                 }
             }
         }
 
-        // 6. must_have 必须命中
+        // 2. must_have 必须命中
         if (query.constraints != null && query.constraints.mustHave != null && !query.constraints.mustHave.isEmpty()) {
             if (metadata.semantic == null || metadata.semantic.tags == null || metadata.semantic.tags.isEmpty()) {
                 return false;
             }
             for (String mustHaveTag : query.constraints.mustHave) {
                 if (mustHaveTag == null || mustHaveTag.isBlank()) continue;
-                String lowerMustHave = mustHaveTag.toLowerCase();
-                boolean found = false;
-                for (String componentTag : metadata.semantic.tags) {
-                    if (componentTag != null && componentTag.toLowerCase().contains(lowerMustHave)) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    return false; // 缺少必须标签
+                if (!ComponentQueryMatchUtil.tagMatches(mustHaveTag, metadata.semantic.tags)) {
+                    return false;
                 }
             }
         }
 
-        return true; // 通过所有硬过滤条件
+        return true;
     }
 
     /**
@@ -215,8 +158,8 @@ public final class ComponentRetriever {
         }
 
         ComponentScore best = results.getFirst();
-        if (best.totalScore < 0.5) {
-            // 如果最佳匹配的分数太低，返回 null
+        if (best.totalScore < 0.35) {
+            // 软评分体系下阈值略降，避免唯一候选被误拒
             return null;
         }
 

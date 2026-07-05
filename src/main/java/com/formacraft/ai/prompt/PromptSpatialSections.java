@@ -90,8 +90,7 @@ final class PromptSpatialSections {
      */
     static boolean hasComponentLibrary() {
         try {
-            var cat = com.formacraft.client.component.ClientComponentCatalogState.getCatalog();
-            if (cat != null && cat.components != null && !cat.components.isEmpty()) {
+            if (com.formacraft.client.component.ClientComponentCatalogState.hasRegisteredComponents()) {
                 return true;
             }
         } catch (Throwable ignored) {
@@ -116,6 +115,7 @@ final class PromptSpatialSections {
 
         String summary;
         try {
+            com.formacraft.client.component.ClientComponentCatalogState.hydrateFromDiskIfEmpty();
             summary = com.formacraft.client.component.ClientComponentCatalogState.getSummary();
         } catch (Throwable t) {
             summary = "(no player components registered)";

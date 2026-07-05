@@ -1,7 +1,8 @@
 package com.formacraft.common.component.rank;
 
-import com.formacraft.common.component.query.ComponentQuery;
 import com.formacraft.common.component.query.ComponentMetadata;
+import com.formacraft.common.component.query.ComponentQuery;
+import com.formacraft.common.component.query.ComponentQueryMatchUtil;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -76,25 +77,31 @@ public class ComponentRanker {
      * ---------------------------- */
 
     private static double semanticScore(ComponentQuery q, ComponentMetadata m) {
-        if (q.semantic == null || q.semantic.role == null) {
-            return 0.5; // 如果没有语义要求，给中等分数
+        if (q.semantic == null || q.semantic.role == null || q.semantic.role.isBlank()) {
+            return 0.5;
         }
 
-        if (m.semantic == null || m.semantic.role == null) {
-            return 0.0;
+        if (m.semantic == null) {
+            return 0.2;
         }
 
-        if (!safeEquals(q.semantic.role, m.semantic.role)) {
-            return 0.0;
+        double score;
+        if (m.semantic.role != null
+                && ComponentQueryMatchUtil.equalsIgnoreCase(q.semantic.role, m.semantic.role)) {
+            score = 1.0;
+        } else if (ComponentQueryMatchUtil.roleImpliedByTags(q.semantic.role, m.semantic.tags)) {
+            score = 0.72;
+        } else if ("decoration".equalsIgnoreCase(m.semantic.role)) {
+            score = 0.25;
+        } else {
+            score = 0.12;
         }
-
-        double score = 1.0;
 
         if (q.semantic.geometryArchetype != null && !q.semantic.geometryArchetype.isBlank()) {
             if (m.semantic.geometryArchetype == null) {
-                score *= 0.5;
-            } else if (!safeEquals(q.semantic.geometryArchetype, m.semantic.geometryArchetype)) {
-                return 0.0;
+                score *= 0.55;
+            } else if (!ComponentQueryMatchUtil.equalsIgnoreCase(q.semantic.geometryArchetype, m.semantic.geometryArchetype)) {
+                score *= 0.35;
             }
         }
 
@@ -103,40 +110,43 @@ public class ComponentRanker {
         }
 
         if (m.semantic.tags == null || m.semantic.tags.isEmpty()) {
-            return score * 0.5;
+            return score * 0.45;
         }
 
         int hit = 0;
         for (String tag : q.semantic.tags) {
-            if (m.semantic.tags.contains(tag)) {
+            if (ComponentQueryMatchUtil.tagMatches(tag, m.semantic.tags)) {
                 hit++;
             }
         }
 
-        return score * ((double) hit / q.semantic.tags.size());
+        return score * (0.35 + 0.65 * ((double) hit / q.semantic.tags.size()));
     }
 
     private static double placementScore(ComponentQuery q, ComponentMetadata m) {
-        if (q.context == null || q.context.placement == null) {
-            return 0.5; // 如果没有上下文要求，给中等分数
+        if (q.context == null || q.context.placement == null || q.context.placement.isBlank()) {
+            return 0.5;
         }
 
-        if (m.placementSpec == null || m.placementSpec.allowedPlacements == null) {
-            return 0.0;
+        if (m.placementSpec == null || m.placementSpec.allowedPlacements == null
+                || m.placementSpec.allowedPlacements.isEmpty()) {
+            return 0.35;
         }
 
-        if (!m.placementSpec.allowedPlacements.contains(q.context.placement)) {
-            return 0.0;
-        }
-
-        if (q.context.side != null && !m.placementSpec.isSideAllowed(q.context.side)) {
-            return 0.0;
+        if (!ComponentQueryMatchUtil.placementMatches(q.context.placement, m.placementSpec.allowedPlacements)) {
+            return 0.18;
         }
 
         double score = 1.0;
 
+        if (q.context.side != null && m.placementSpec.sidePolicy != null) {
+            if (!m.placementSpec.isSideAllowed(q.context.side)) {
+                score *= 0.45;
+            }
+        }
+
         if (q.context.edgeCondition != null && m.placementSpec.edgePreference != null) {
-            if (safeEquals(q.context.edgeCondition, m.placementSpec.edgePreference)) {
+            if (ComponentQueryMatchUtil.equalsIgnoreCase(q.context.edgeCondition, m.placementSpec.edgePreference)) {
                 score += 0.2;
             }
         }
@@ -146,51 +156,64 @@ public class ComponentRanker {
 
     private static double geometryScore(ComponentQuery q, ComponentMetadata m) {
         if (q.geometry == null) {
-            return 0.5; // 如果没有几何要求，给中等分数
+            return 0.5;
         }
 
         if (m.geometrySpec == null) {
-            return 0.0;
+            return 0.25;
         }
 
+        double score = 0.8;
+
         if (q.geometry.requiresOpening && !m.geometrySpec.requiresOpening) {
-            return 0.0;
+            score *= 0.35;
         }
 
         if (!q.geometry.scalable && (m.geometrySpec.scalableAxes == null || m.geometrySpec.scalableAxes.isEmpty())) {
-            return 0.0;
+            score *= 0.5;
         }
 
         if (q.geometry.openingWidth != null && q.geometry.openingHeight != null) {
             int dw = Math.abs(q.geometry.openingWidth - m.geometrySpec.getBaseWidth());
             int dh = Math.abs(q.geometry.openingHeight - m.geometrySpec.getBaseHeight());
+            int tol = Math.max(1, q.geometry.tolerance);
 
-            int tol = q.geometry.tolerance;
-            if (dw > tol || dh > tol) {
-                return 0.0;
+            if (dw <= tol && dh <= tol) {
+                score = Math.max(score, 1.0 - (dw + dh) * 0.08);
+            } else {
+                double penalty = (dw + dh) * 0.12;
+                score = Math.max(0.15, 0.85 - penalty);
             }
-
-            return 1.0 - (dw + dh) * 0.1;
         }
 
-        return 0.8;
+        return score;
     }
 
     private static double styleScore(ComponentQuery q, ComponentMetadata m) {
         if (q.style == null || q.style.styleProfile == null) {
-            return 0.5; // 如果没有风格要求，给中等分数
+            return 0.5;
         }
 
-        if (m.styleAffinity == null) {
-            return 0.0;
+        if (m.styleAffinity == null || m.styleAffinity.isEmpty()) {
+            return 0.25;
         }
 
-        return m.styleAffinity.getOrDefault(q.style.styleProfile, 0.0);
+        double direct = m.styleAffinity.getOrDefault(q.style.styleProfile, 0.0);
+        if (direct > 0) {
+            return direct;
+        }
+        for (var entry : m.styleAffinity.entrySet()) {
+            if (entry.getKey() != null
+                    && ComponentQueryMatchUtil.equalsIgnoreCase(entry.getKey(), q.style.styleProfile)) {
+                return entry.getValue();
+            }
+        }
+        return 0.0;
     }
 
     private static double usageScore(ComponentQuery q, ComponentMetadata m) {
         if (q.usageHint == null) {
-            return 0.5; // 如果没有使用提示，给中等分数
+            return 0.5;
         }
 
         double score = 1.0;
@@ -205,18 +228,6 @@ public class ComponentRanker {
 
         return Math.max(0.0, Math.min(score, 1.2));
     }
-
-    /* ----------------------------
-     * 工具
-     * ---------------------------- */
-
-    private static boolean safeEquals(String a, String b) {
-        return a != null && a.equals(b);
-    }
-
-    /* ----------------------------
-     * 输出结构
-     * ---------------------------- */
 
     /**
      * 评分结果

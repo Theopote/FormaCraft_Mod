@@ -19,7 +19,17 @@ import java.util.*;
 public final class ComponentHealthChecker {
     private ComponentHealthChecker() {}
     
-    private static final int MIN_BLOCKS = 4; // 最小方块数（建议阈值，避免过小的构件）
+    private static final int MIN_BLOCKS = 4; // 默认最小方块数（建议阈值，避免过小的构件）
+
+    private static int minBlocksFor(ComponentCategory cat) {
+        if (cat == null) {
+            return MIN_BLOCKS;
+        }
+        return switch (cat) {
+            case ORNAMENT, ROOF_DETAIL, PANEL, BRACKET -> 1;
+            default -> MIN_BLOCKS;
+        };
+    }
     
     /**
      * 执行完整的健康检查
@@ -59,7 +69,9 @@ public final class ComponentHealthChecker {
         }
         
         int blockCount = def.blocks.size();
-        if (blockCount < MIN_BLOCKS) {
+        ComponentCategory cat = def.category != null ? def.category : ComponentCategory.GENERIC;
+        int minBlocks = minBlocksFor(cat);
+        if (blockCount < minBlocks) {
             result.add(HealthCheckResult.CheckItem.error("H1-1", "选区过小",
                 "构件只包含 " + blockCount + " 个方块，可能不完整", "无法保存", 
                 HealthCheckResult.FixAction.NONE, ""));

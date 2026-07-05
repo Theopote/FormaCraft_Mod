@@ -65,14 +65,20 @@ public final class VariantGenerator {
                 float targetWidth = (float) query.geometry.openingWidth / base.size.w;
                 float targetHeight = (float) query.geometry.openingHeight / base.size.h;
                 
-                // 在允许范围内调整
+                // 在允许范围内调整放大
                 if (targetWidth >= spec.scaleMin && targetWidth <= spec.scaleMax) {
-                    scale = targetWidth;
+                    scale = Math.max(scale, targetWidth);
+                }
+                if (targetHeight >= spec.scaleMin && targetHeight <= spec.scaleMax) {
+                    scale = Math.max(scale, targetHeight);
                 }
             }
             
             variant.applyScale(scale, spec.scalePolicy);
         }
+
+        // 1.5️⃣ 洞口/尺寸适配：目标小于原构件时用裁剪（缩小），不依赖整数放大
+        applyOpeningFitTrim(base, query, spec, variant);
 
         // 2️⃣ 分段重复（栏杆 / 窗组）
         if (spec.allowSegmentRepeat && query.usageHint != null) {
@@ -84,8 +90,8 @@ public final class VariantGenerator {
         }
 
         // 3️⃣ 裁剪（适配 opening / edge）
-        if (spec.allowTrim && query.geometry != null && query.geometry.requiresOpening) {
-            if (query.geometry.openingWidth != null && query.geometry.openingHeight != null) {
+        if (query.geometry != null && query.geometry.openingWidth != null && query.geometry.openingHeight != null) {
+            if (spec.allowTrim || query.geometry.requiresOpening || needsShrinkTrim(base, query)) {
                 int width = query.geometry.openingWidth;
                 int height = query.geometry.openingHeight;
                 int depth = base.size != null ? base.size.d : 1;
@@ -118,6 +124,42 @@ public final class VariantGenerator {
      */
     private static float lerp(float a, float b, float t) {
         return a + (b - a) * t;
+    }
+
+    private static void applyOpeningFitTrim(
+            ComponentDefinition base,
+            ComponentQuery query,
+            ComponentVariantSpec spec,
+            ComponentVariant variant
+    ) {
+        if (query == null || query.geometry == null || base == null || base.size == null || variant == null) {
+            return;
+        }
+        Integer openW = query.geometry.openingWidth;
+        Integer openH = query.geometry.openingHeight;
+        if (openW == null || openH == null || openW <= 0 || openH <= 0) {
+            return;
+        }
+        if (openW >= base.size.w && openH >= base.size.h) {
+            return;
+        }
+        if (!spec.allowTrim && !query.geometry.requiresOpening && !needsShrinkTrim(base, query)) {
+            return;
+        }
+        int depth = base.size.d > 0 ? base.size.d : 1;
+        variant.applyTrim(openW, openH, depth);
+    }
+
+    private static boolean needsShrinkTrim(ComponentDefinition base, ComponentQuery query) {
+        if (base == null || base.size == null || query == null || query.geometry == null) {
+            return false;
+        }
+        Integer openW = query.geometry.openingWidth;
+        Integer openH = query.geometry.openingHeight;
+        if (openW == null || openH == null) {
+            return false;
+        }
+        return openW < base.size.w || openH < base.size.h;
     }
 
     /**
