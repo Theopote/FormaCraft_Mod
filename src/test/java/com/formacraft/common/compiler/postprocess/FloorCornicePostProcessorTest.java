@@ -37,7 +37,7 @@ class FloorCornicePostProcessorTest {
                 null, "MEDIEVAL_CLASSIC", null, null,
                 new Layout(null, false, List.of()),
                 List.of(mass), null, null,
-                hints, null, null, null, null, null, null, null, null
+                hints, null, null, null, null, null, null, null, null, null
         );
 
         List<BlockPatch> input = List.of(

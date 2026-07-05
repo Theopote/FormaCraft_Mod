@@ -51,7 +51,7 @@ class AssemblyPlanCapabilityTest {
                                 Map.of()
                         )
                 ),
-                null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         assertFalse(AssemblyPlanCapability.isAssemblyOnly(plan));
     }
@@ -68,7 +68,8 @@ class AssemblyPlanCapabilityTest {
                 null, null, null, null, null, null, null, null,
                 "capability_gap",
                 "unsupported geometry",
-                new CapabilityGap("E_TEST", "unsupported geometry", "plan", List.of("use preset"))
+                new CapabilityGap("E_TEST", "unsupported geometry", "plan", List.of("use preset")),
+                null
         );
         assertTrue(plan.hasCapabilityGap());
     }
@@ -79,8 +80,7 @@ class AssemblyPlanCapabilityTest {
                 "E_ASSEMBLY_MISSING",
                 "missing assembly payload",
                 "components[0].params.assembly",
-                List.of("use preset")
-        );
+                List.of("use preset"));
         AssemblyCompileDiagnostics.set(gap);
         assertTrue(AssemblyCompileDiagnostics.hasGap());
         assertNotNull(AssemblyCompileDiagnostics.get());
@@ -97,7 +97,7 @@ class AssemblyPlanCapabilityTest {
                 new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null),
                 new Layout(null, false, List.of()),
                 List.of(assemblyComponent()),
-                null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
     }
 

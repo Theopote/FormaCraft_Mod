@@ -30,6 +30,10 @@ class ProfileStructure(BaseModel):
     roof_types: List[str] = Field(default_factory=list)
     facade: List[str] = Field(default_factory=list)
     distinctive_elements: List[str] = Field(default_factory=list)
+    distinguishing_features: List[str] = Field(
+        default_factory=list,
+        description="3-5 features that uniquely identify this building vs generic same-style structures",
+    )
 
 
 class ProfileScaleHints(BaseModel):
@@ -62,6 +66,8 @@ class BuildingProfile(BaseModel):
     sources: List[ProfileSource] = Field(default_factory=list)
     research_notes: Optional[str] = None
     reference_blueprint: Optional[Dict[str, Any]] = None
+    fidelity_tier: Optional[str] = None
+    fidelity_message_zh: Optional[str] = None
 
     def to_prompt_dict(self) -> Dict[str, Any]:
         """Compact dict for LLM prompt injection."""
@@ -86,12 +92,20 @@ def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> 
         for key in ("identity", "form", "structure", "scale_hints", "minecraft_strategy"):
             if isinstance(data.get(key), dict):
                 merged[key] = {**merged.get(key, {}), **data[key]}
+        struct = merged.get("structure") or {}
+        if struct.get("distinctive_elements") and not struct.get("distinguishing_features"):
+            struct["distinguishing_features"] = struct["distinctive_elements"]
+            merged["structure"] = struct
         if data.get("query"):
             merged["query"] = data["query"]
         if isinstance(data.get("sources"), list):
             merged["sources"] = data["sources"]
         if data.get("research_notes"):
             merged["research_notes"] = data["research_notes"]
+        if data.get("fidelity_tier"):
+            merged["fidelity_tier"] = data["fidelity_tier"]
+        if data.get("fidelity_message_zh"):
+            merged["fidelity_message_zh"] = data["fidelity_message_zh"]
         if isinstance(data.get("reference_blueprint"), dict):
             merged["reference_blueprint"] = data["reference_blueprint"]
         return BuildingProfile.model_validate(merged)

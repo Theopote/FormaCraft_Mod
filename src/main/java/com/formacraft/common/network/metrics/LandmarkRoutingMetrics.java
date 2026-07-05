@@ -1,6 +1,7 @@
 package com.formacraft.common.network.metrics;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.archetype.LandmarkAliasMatcher;
 import com.formacraft.common.archetype.LandmarkModuleRegistry;
 import com.formacraft.common.archetype.LandmarkRoutingPolicy;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
@@ -87,33 +88,22 @@ public final class LandmarkRoutingMetrics {
     }
 
     /**
-     * 用户意图比命中的地标别名更具体（如「圣家族大教堂」仅命中别名「大教堂」）时视为近似匹配。
+     * 用户意图比命中的地标别名更具体（如「圣家族大教堂」仅命中宽泛别名「大教堂」）时视为近似匹配。
      */
     static boolean isApproximateLandmarkMatch(String intent, String moduleId) {
         if (intent == null || intent.isBlank() || moduleId == null || moduleId.isBlank()) {
             return false;
         }
-        String lower = intent.toLowerCase(Locale.ROOT).trim();
-        String bestAlias = null;
         for (LandmarkModuleRegistry.LandmarkModule module : LandmarkModuleRegistry.listModules()) {
             if (!moduleId.equalsIgnoreCase(module.moduleId())) continue;
-            if (module.aliases() == null) continue;
-            for (String alias : module.aliases()) {
-                if (alias == null || alias.isBlank()) continue;
-                String a = alias.toLowerCase(Locale.ROOT).trim();
-                if (a.length() < 2) continue;
-                if (lower.contains(a) && (bestAlias == null || a.length() > bestAlias.length())) {
-                    bestAlias = a;
-                }
+            LandmarkAliasMatcher.Match match = LandmarkAliasMatcher.matchIntentLenient(
+                    intent, module.moduleId(), module.aliases());
+            if (match == null) {
+                return true;
             }
-            break;
+            return !match.explicit();
         }
-        if (bestAlias == null) {
-            return true;
-        }
-        String remainder = lower.replace(bestAlias, " ").trim();
-        remainder = remainder.replaceAll("[的了一座栋生成建造帮我请\\s]+", "").trim();
-        return remainder.length() >= 2;
+        return true;
     }
 
     /** 近似匹配时给玩家的中文提示；精确匹配返回 {@code null}。 */

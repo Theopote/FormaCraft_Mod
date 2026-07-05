@@ -3,6 +3,7 @@ package com.formacraft.common.archetype;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,5 +46,18 @@ class LandmarkRoutingPolicyTest {
     @Test
     void variationPrinciples_nonEmpty() {
         assertTrue(LandmarkRoutingPolicy.promptVariationPrinciples().contains("BUILDING VARIATION"));
+    }
+
+    @Test
+    void sagradaFamilia_doesNotForceGothicCathedralModule() {
+        assertNull(LandmarkRoutingPolicy.resolveForUserIntent("生成圣家族大教堂"));
+    }
+
+    @Test
+    void gothicCathedral_explicitName_isMandatory() {
+        LandmarkRoutingPolicy.RoutingDecision d = LandmarkRoutingPolicy.resolveForUserIntent("生成一座哥特大教堂");
+        assertNotNull(d);
+        assertEquals("gothic_cathedral", d.moduleId());
+        assertEquals(LandmarkRoutingPolicy.RoutingTier.MANDATORY, d.tier());
     }
 }

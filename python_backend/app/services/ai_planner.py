@@ -1238,6 +1238,11 @@ def _normalize_llm_plan_output(
             if isinstance(comp, dict):
                 comp.pop("_style_hint", None)
 
+    if building_profile is not None:
+        fidelity_msg = getattr(building_profile, "fidelity_message_zh", None)
+        if fidelity_msg and str(fidelity_msg).strip():
+            plan["player_fidelity_notice_zh"] = str(fidelity_msg).strip()
+
     return plan
 
 

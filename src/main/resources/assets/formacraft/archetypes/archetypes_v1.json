@@ -66,6 +66,8 @@
     },
     {
       "id": "castle_compound",
+      "properNounAliases": ["中世纪城堡"],
+      "genericAliases": ["城堡", "要塞", "堡垒", "castle", "medieval castle", "fortress", "keep"],
       "aliases": ["城堡", "中世纪城堡", "要塞", "堡垒", "castle", "medieval castle", "fortress", "keep"],
       "category": "FORTIFICATION",
       "generatorId": "castle_compound",
@@ -93,7 +95,9 @@
     },
     {
       "id": "gothic_cathedral",
-      "aliases": ["哥特大教堂", "大教堂", "gothic cathedral", "notre dame", "cologne cathedral", "chartres"],
+      "properNounAliases": ["哥特大教堂", "notre dame", "cologne cathedral", "chartres"],
+      "genericAliases": ["gothic cathedral", "哥特", "大教堂", "cathedral"],
+      "aliases": ["哥特大教堂", "gothic cathedral", "notre dame", "cologne cathedral", "chartres"],
       "category": "LANDMARK",
       "generatorId": "gothic_cathedral",
       "defaults": { "width": 25, "depth": 45, "wallHeight": 16, "towerHeight": 20, "spireHeight": 10 },

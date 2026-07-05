@@ -59,6 +59,7 @@ class LlmPlanTerrainBoundsTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
         BlockPos origin = new BlockPos(100, 64, 200);

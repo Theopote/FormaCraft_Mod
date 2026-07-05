@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from .landmark_alias_matcher import is_broad_alias
+
 
 @dataclass(frozen=True)
 class ArchetypeConstraints:
@@ -35,6 +37,8 @@ class ArchetypeScoring:
 class ArchetypeDef:
     id: str
     aliases: Tuple[str, ...]
+    proper_noun_aliases: Tuple[str, ...]
+    generic_aliases: Tuple[str, ...]
     category: str                      # landmark / infrastructure / fortification / etc
     generator_id: str                  # tulou / eiffel_tower / great_wall ... (maps to Java side)
     # Raw maps loaded from JSON (single source of truth)
@@ -62,6 +66,19 @@ def _default_json_path() -> Path:
     return repo_root / "src" / "main" / "resources" / "assets" / "formacraft" / "archetypes" / "archetypes_v1.json"
 
 
+def _split_legacy_aliases(aliases: Tuple[str, ...]) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
+    proper: List[str] = []
+    generic: List[str] = []
+    for alias in aliases:
+        if not alias:
+            continue
+        if is_broad_alias(alias):
+            generic.append(alias)
+        else:
+            proper.append(alias)
+    return tuple(proper), tuple(generic)
+
+
 def _load_from_json(path: Path) -> Dict[str, ArchetypeDef]:
     data: Dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     arr = data.get("archetypes") or []
@@ -73,6 +90,16 @@ def _load_from_json(path: Path) -> Dict[str, ArchetypeDef]:
         if not aid:
             continue
         aliases = tuple(str(a).strip() for a in (item.get("aliases") or []) if str(a).strip())
+        proper_raw = [str(a).strip() for a in (item.get("properNounAliases") or []) if str(a).strip()]
+        generic_raw = [str(a).strip() for a in (item.get("genericAliases") or []) if str(a).strip()]
+        if proper_raw or generic_raw:
+            proper_aliases = tuple(proper_raw)
+            generic_aliases = tuple(generic_raw)
+        else:
+            proper_aliases, generic_aliases = _split_legacy_aliases(aliases)
+        merged_aliases = proper_aliases + generic_aliases
+        if not merged_aliases:
+            merged_aliases = aliases
         category = str(item.get("category") or "").strip().lower() or "landmark"
         generator_id = str(item.get("generatorId") or aid).strip().lower() or aid
 
@@ -97,7 +124,9 @@ def _load_from_json(path: Path) -> Dict[str, ArchetypeDef]:
         )
         out[aid] = ArchetypeDef(
             id=aid,
-            aliases=aliases,
+            aliases=merged_aliases,
+            proper_noun_aliases=proper_aliases,
+            generic_aliases=generic_aliases,
             category=category,
             generator_id=generator_id,
             defaults_map=dict(defaults_raw) if isinstance(defaults_raw, dict) else {},

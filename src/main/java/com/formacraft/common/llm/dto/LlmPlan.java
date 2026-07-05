@@ -64,7 +64,10 @@ public record LlmPlan(
         @JsonProperty("error") String error,
 
         /** Structured ASSEMBLY / freeform geometry capability gap */
-        @JsonProperty("capability_gap") CapabilityGap capabilityGap
+        @JsonProperty("capability_gap") CapabilityGap capabilityGap,
+
+        /** Research-derived fidelity notice for the player (Chinese) */
+        @JsonProperty("player_fidelity_notice_zh") String playerFidelityNoticeZh
 ) {
     public enum Mode { build, patch }
 

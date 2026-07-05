@@ -70,20 +70,26 @@ public final class ArchetypeRegistry {
     }
 
     /**
-     * Keyword match by aliases: if text contains any alias substring, returns the most specific (longest) alias match.
+     * Keyword match by aliases: longest alias wins; broad aliases do not match more specific building names.
      */
     public static ArchetypeCatalog.ArchetypeDef matchByKeyword(String text) {
         ensureLoaded();
         if (text == null || text.isBlank()) return null;
-        String lower = text.toLowerCase();
+        String lower = text.toLowerCase(Locale.ROOT);
         ArchetypeCatalog.ArchetypeDef best = null;
         int bestLen = 0;
-        for (Map.Entry<String, ArchetypeCatalog.ArchetypeDef> e : BY_ALIAS.entrySet()) {
-            String alias = e.getKey();
-            if (alias == null || alias.isEmpty()) continue;
-            if (lower.contains(alias) && alias.length() > bestLen) {
-                best = e.getValue();
-                bestLen = alias.length();
+        for (ArchetypeCatalog.ArchetypeDef def : BY_ID.values()) {
+            if (def == null || def.id == null) continue;
+            LandmarkAliasMatcher.Match match = LandmarkAliasMatcher.matchIntent(
+                    lower,
+                    def.id,
+                    def.aliases
+            );
+            if (match == null || !match.explicit()) continue;
+            int len = match.matchedAlias().length();
+            if (len > bestLen) {
+                best = def;
+                bestLen = len;
             }
         }
         return best;

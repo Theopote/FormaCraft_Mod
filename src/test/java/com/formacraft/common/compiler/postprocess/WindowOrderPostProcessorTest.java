@@ -41,7 +41,7 @@ class WindowOrderPostProcessorTest {
                         GlobalConstraints.TerrainStrategy.ADAPTIVE),
                 new Layout(null, false, List.of()),
                 List.of(facade), null, null,
-                hints, null, null, null, null, null, null, null, null
+                hints, null, null, null, null, null, null, null, null, null
         );
 
         List<BlockPatch> input = List.of(

@@ -207,20 +207,12 @@ public final class LandmarkRoutingPolicy {
     }
 
     private static boolean mentionsExplicitLandmark(String lower, LandmarkModuleRegistry.LandmarkModule module) {
-        if (module.aliases() == null) return false;
-        for (String alias : module.aliases()) {
-            if (alias == null || alias.isBlank()) continue;
-            String a = alias.toLowerCase(Locale.ROOT).trim();
-            if (a.length() < 2) continue;
-            // 跳过过宽的英文泛词，避免「stadium」误触发非鸟巢地标
-            if (a.equals("stadium") || a.equals("arena") || a.equals("elliptical stadium")
-                    || a.equals("oval stadium") || a.equals("体育馆") || a.equals("体育场")) {
-                continue;
-            }
-            if (lower.contains(a)) {
-                return true;
-            }
-        }
-        return lower.contains(module.moduleId());
+        if (module == null) return false;
+        LandmarkAliasMatcher.Match match = LandmarkAliasMatcher.matchIntent(
+                lower,
+                module.moduleId(),
+                module.aliases()
+        );
+        return match != null && match.explicit();
     }
 }

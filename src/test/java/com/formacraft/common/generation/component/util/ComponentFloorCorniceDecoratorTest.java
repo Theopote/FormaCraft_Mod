@@ -56,7 +56,7 @@ class ComponentFloorCorniceDecoratorTest {
                 null, null, null, null,
                 new Layout(null, false, List.of()),
                 List.of(), null, null,
-                hints, null, null, null, null, null, null, null, null
+                hints, null, null, null, null, null, null, null, null, null
         );
         assertTrue(ComponentFloorCorniceDecorator.shouldApply(plan));
     }
@@ -75,7 +75,7 @@ class ComponentFloorCorniceDecoratorTest {
                 null, null, null, null,
                 new Layout(null, false, List.of()),
                 List.of(mass), null, null,
-                null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null
         );
         assertEquals(4, ComponentFloorCorniceDecorator.resolveFloorHeight(plan, 12));
     }

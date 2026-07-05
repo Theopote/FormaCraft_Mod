@@ -52,6 +52,7 @@ class CrownGrammarResolverTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
     }

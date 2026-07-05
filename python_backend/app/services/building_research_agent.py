@@ -356,7 +356,7 @@ def _enrich_profile_from_user_text(profile: BuildingProfile, user_text: str) -> 
 def resolve_landmark_module_for_intent(user_text: str) -> Optional[str]:
     """
     Return a preset landmark module id only when user intent explicitly matches
-    a registered archetype with a dedicated generator. Otherwise None (open-world).
+    a registered archetype proper-noun alias (not generic typology alone).
     """
     text = (user_text or "").strip()
     if not text:
@@ -365,7 +365,7 @@ def resolve_landmark_module_for_intent(user_text: str) -> Optional[str]:
         from .archetype_detector import detect_archetype_local
 
         match = detect_archetype_local(text)
-        if match is None or match.confidence < 0.85:
+        if match is None or not match.qualifies_for_module_route():
             return None
         from .archetype_registry import get_archetype_def
 
@@ -375,6 +375,53 @@ def resolve_landmark_module_for_intent(user_text: str) -> Optional[str]:
         return match.id
     except Exception:
         return None
+
+
+def _compute_fidelity_message(
+    profile: BuildingProfile,
+    user_text: str,
+    resolved_module: Optional[str],
+) -> Tuple[str, str]:
+    """Return (fidelity_tier, fidelity_message_zh) for player-facing transparency."""
+    name = (profile.identity.name or "").strip() or (user_text or "")[:40]
+    from .archetype_detector import detect_archetype_local
+    from .archetype_registry import get_archetype_def
+    from .landmark_alias_matcher import is_approximate_landmark_match
+
+    if resolved_module:
+        arch = get_archetype_def(resolved_module)
+        if arch and is_approximate_landmark_match(user_text, resolved_module, arch):
+            return (
+                "style_approximation",
+                f"识别为「{name}」，目录无精确模板，已使用近似风格模块 {resolved_module}（保真度：低）",
+            )
+        match = detect_archetype_local(user_text)
+        if match and match.qualifies_for_module_route():
+            return (
+                "preset_module",
+                f"识别为预置地标「{resolved_module}」，使用固定模板生成（保真度：取决于模块与真实建筑吻合度）",
+            )
+        return (
+            "style_approximation",
+            f"使用风格模块 {resolved_module}（保真度：低，可能缺少该建筑标志性细节）",
+        )
+
+    distinguishing = profile.structure.distinguishing_features or profile.structure.distinctive_elements
+    if profile.identity.confidence >= 0.55 and distinguishing:
+        feats = "、".join(distinguishing[:3])
+        return (
+            "researched_compositional",
+            f"识别为真实建筑「{name}」，无专属模板，已依据研究资料组合式重建（保真度：中等；重点特征：{feats}）",
+        )
+    if name and len(name) >= 2:
+        return (
+            "compositional_generic",
+            f"组合式生成「{name}」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+        )
+    return (
+        "compositional_generic",
+        "组合式生成（保真度：风格化，非精确复刻）",
+    )
 
 
 def finalize_profile_minecraft_strategy(
@@ -416,6 +463,8 @@ def finalize_profile_minecraft_strategy(
                 + note
             ).strip()
     profile = profile.model_copy(update={"minecraft_strategy": mc})
+    tier, msg = _compute_fidelity_message(profile, user_text, resolved)
+    profile = profile.model_copy(update={"fidelity_tier": tier, "fidelity_message_zh": msg})
     try:
         from .plan_architectural_enrichment import enrich_profile_architectural_detail
 
@@ -658,7 +707,7 @@ def synthesize_profile_with_llm(
         "Do NOT invent architects or dimensions not supported by evidence. "
         "Output ONLY valid JSON matching keys: query, identity{name,architect,year,style,confidence}, "
         "form{footprint,massing,stories,aspect_ratio}, "
-        "structure{roof_types,facade,distinctive_elements}, "
+        "structure{roof_types,facade,distinctive_elements,distinguishing_features}, "
         "scale_hints{typical_width_blocks,typical_depth_blocks,typical_height_blocks}, "
         "minecraft_strategy{skeleton_type,recommended_components,landmark_module,notes}, "
         "research_notes, reference_blueprint (optional, same schema as vision ReferenceBlueprint). "
@@ -666,8 +715,13 @@ def synthesize_profile_with_llm(
         "TOWER, WALL, COURTYARD_SPACE, MODULE, TERRACE. "
         "landmark_module is usually null unless the user names a building with a known preset "
         "(e.g. eiffel_tower, golden_gate_bridge, great_wall). "
-        "For Louvre, White House, Sydney Opera House, etc., set landmark_module=null and "
-        "list compositional recommended_components."
+        "For Louvre, White House, Sydney Opera House, Sagrada Família, etc., set landmark_module=null and "
+        "list compositional recommended_components. "
+        "distinguishing_features (REQUIRED when identity.name is a specific real building): "
+        "3-5 traits that make THIS building recognizable vs any generic building of the same style "
+        "(e.g. Sagrada: organic hyperboloid towers, tree-like branching columns, mosaic facade — "
+        "NOT generic gothic flying buttresses). "
+        "Put the same items in distinctive_elements for backward compatibility."
     )
     user = (
         f"User request: {user_text}\n"
@@ -728,18 +782,31 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
         "- If landmark_module is set → one MODULE with features [\"landmark:<id>\"] is allowed.",
         "- IGNORE any Java prompt 'LANDMARK MODULE ROUTING' sections that conflict with this profile.",
         "",
+        "CRITICAL distinguishing features (override generic style keywords):",
+        "- structure.distinguishing_features lists what makes THIS building unique.",
+        "- MUST appear in component features/params — priority above generic gothic/modern keywords.",
+        "",
         "BuildingProfile(JSON):",
         json.dumps(payload, ensure_ascii=False, indent=2),
         "",
+    ]
+    if profile.fidelity_message_zh:
+        lines.extend([
+            "Fidelity (tell the player in plan notes / status):",
+            profile.fidelity_message_zh,
+            "",
+        ])
+    lines.extend([
         "Planning rules:",
         "- Respect scale_hints when choosing dimensions (blocks).",
+        "- Include distinguishing_features in component params/features (highest priority).",
         "- Include distinctive_elements in component params/features where possible.",
         "- If reference_blueprint is present, use its architectural_layers, block_palette,",
         "  and generation_rules as the primary spatial/material guide for LlmPlan components.",
         "- Do NOT invent unregistered component_type values.",
         "- If research_notes conflict with user text, prefer user text for intent.",
         "",
-    ]
+    ])
     return "\n".join(lines)
 
 

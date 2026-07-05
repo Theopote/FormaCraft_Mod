@@ -10,6 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LandmarkModuleRegistryTest {
 
     @Test
+    void resolveModuleId_rejectsSagradaFamiliaBroadMatch() {
+        assertNull(LandmarkModuleRegistry.resolveModuleId("圣家族大教堂"));
+    }
+
+    @Test
     void resolveModuleId_matchesNewLandmarks() {
         assertEquals("gothic_cathedral", LandmarkModuleRegistry.resolveModuleId("哥特大教堂"));
         assertEquals("jiangnan_water_town", LandmarkModuleRegistry.resolveModuleId("江南水乡"));

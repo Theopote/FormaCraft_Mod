@@ -73,6 +73,9 @@ public final class LlmPlanPreviewBuilder {
             if (warn != null) {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(warn));
             }
+        } else if (llmPlan.playerFidelityNoticeZh() != null && !llmPlan.playerFidelityNoticeZh().isBlank()) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                    llmPlan.playerFidelityNoticeZh().trim()));
         }
 
         if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req)) {
