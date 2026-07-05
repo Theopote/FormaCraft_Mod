@@ -29,6 +29,9 @@ public class PostProcessPipeline {
         // 0. Story 分界檐口（inverted stairs）
         pipeline.add(new FloorCornicePostProcessor());
 
+        // 0.5 Window Order（sill / lintel / pediment）
+        pipeline.add(new WindowOrderPostProcessor());
+
         // 1. 细节装饰增强
         pipeline.add(new DetailEnhancementPostProcessor());
         

@@ -89,6 +89,7 @@ public final class OpeningGrammarResolver {
 
         if (facade) {
             changed |= applyRhythmPreset(params, card, hints);
+            changed |= applyWindowOrder(params, card, hints);
         }
 
         if (!changed) {
@@ -214,6 +215,37 @@ public final class OpeningGrammarResolver {
                 params.put("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
                 return true;
             }
+        }
+        return false;
+    }
+
+    private static boolean applyWindowOrder(
+            Map<String, Object> params,
+            ProportionCardRegistry.ProportionCard card,
+            Map<String, Object> hints
+    ) {
+        if (!isBlank(getParamString(params, "window_order", "windowOrder"))) {
+            return false;
+        }
+        Object hint = hints.get("window_order");
+        if (hint == null) {
+            hint = hints.get("windowOrder");
+        }
+        if (hint instanceof String s && !s.isBlank()) {
+            params.put("window_order", s.trim());
+            return true;
+        }
+        if (card != null) {
+            String typology = card.typology() != null ? card.typology().toLowerCase(Locale.ROOT) : "";
+            if (typology.contains("classical") || typology.contains("monument") || typology.contains("castle")) {
+                params.put("window_order", "full");
+                return true;
+            }
+        }
+        String aspect = getParamString(params, "window_aspect", "windowAspect");
+        if ("vertical_bay".equalsIgnoreCase(aspect)) {
+            params.put("window_order", "medium");
+            return true;
         }
         return false;
     }

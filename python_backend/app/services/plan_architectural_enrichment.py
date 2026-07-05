@@ -264,6 +264,7 @@ def enrich_llm_plan_architectural_detail(
     ph = plan.get("proportion_hints")
     if isinstance(ph, dict) and tier in ("rich", "monumental"):
         ph.setdefault("floor_cornice", True)
+        ph.setdefault("window_order", "full")
 
     body_h = int(hints["target_body_height"])
     depth = int(hints["target_depth"])
@@ -348,6 +349,9 @@ def enrich_llm_plan_architectural_detail(
                     if tier in ("rich", "monumental")
                     else "RESIDENTIAL_REGULAR",
                     "reserve_entrance_bay": True,
+                    "window_order": "full"
+                    if tier in ("rich", "monumental")
+                    else "medium",
                 },
             },
         )

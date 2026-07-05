@@ -667,6 +667,12 @@ public final class ComponentPlanCompiler {
             }
         }
         params.putIfAbsent("reserve_entrance_bay", true);
+        if (facadeProfile != null) {
+            String fp = facadeProfile.toLowerCase(Locale.ROOT);
+            if (fp.contains("pilaster") || fp.contains("colonnade") || fp.contains("classical")) {
+                params.putIfAbsent("window_order", "full");
+            }
+        }
 
         List<String> features = new ArrayList<>();
         if (base.features() != null) {

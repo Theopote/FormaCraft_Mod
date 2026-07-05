@@ -56,6 +56,7 @@ class OpeningGrammarResolverTest {
 
         Component enriched = OpeningGrammarResolver.apply(plan, facade);
         assertEquals("CLASSICAL_PILASTER_BAY", enriched.params().get("rhythm_preset"));
+        assertEquals("full", enriched.params().get("window_order"));
     }
 
     @Test
