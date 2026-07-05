@@ -10,13 +10,13 @@ import java.util.List;
 
 /**
  * 高级多行输入框：
- *
+ * <p>
  * - 支持光标位置、闪烁
  * - 支持选区
  * - 支持多行编辑
  * - 支持复制粘贴（使用 Minecraft 剪贴板）
  * - 支持方向键导航
- *
+ * <p>
  * 可在 HUD Overlay 使用，不依赖 Screen。
  */
 public class MultilineTextInput {
@@ -451,7 +451,7 @@ public class MultilineTextInput {
             sb.append(lines.get(i)).append("\n");
         }
 
-        sb.append(lines.get(el).substring(0, ec));
+        sb.append(lines.get(el), 0, ec);
         return sb.toString();
     }
 
@@ -620,7 +620,6 @@ public class MultilineTextInput {
 
         int textY = y + 4;
         int maxLinesVisible = (height - 8) / lineHeight;
-        maxLinesVisible = Math.max(1, maxLinesVisible);
 
         // 让光标始终可见：默认跟随光标；但用户刚滚轮滚过时，短时间内允许“手动滚动查看”
         long now = System.currentTimeMillis();
