@@ -94,6 +94,53 @@ class AssemblyPlanPromoterTest {
     }
 
     @Test
+    void stripsConflictingComponentsWhenExplicitAssemblyPresent() {
+        Map<String, Object> assemblyParams = Map.of(
+                "assembly", Map.of(
+                        "graph", Map.of(
+                                "components", List.of(
+                                        Map.of("id", "Shell", "type", "SHELL_BOX", "w", 8, "d", 8, "h", 20)
+                                ),
+                                "connections", List.of()
+                        )
+                )
+        );
+
+        List<Component> input = List.of(
+                new Component(
+                        "ASSEMBLY",
+                        "tower_1",
+                        new Vec3i(0, 0, 0),
+                        new Dimensions(10, 10, 24),
+                        List.of(),
+                        assemblyParams
+                ),
+                new Component(
+                        "ROOF",
+                        "tower_1",
+                        new Vec3i(0, 0, 0),
+                        new Dimensions(10, 10, 2),
+                        List.of(),
+                        Map.of("roof_type", "flat")
+                ),
+                new Component(
+                        "MASS_MAIN",
+                        "tower_1",
+                        new Vec3i(0, 0, 0),
+                        new Dimensions(10, 10, 24),
+                        List.of(),
+                        Map.of("shape", "circle")
+                )
+        );
+
+        AssemblyPlanPromoter.PromotionResult result = AssemblyPlanPromoter.promoteNestedAssembly(input);
+
+        assertEquals(1, result.components().size());
+        assertEquals("ASSEMBLY", result.components().get(0).componentType());
+        assertTrue(result.assemblyPrimarySlots().contains("tower_1"));
+    }
+
+    @Test
     void prepareComponentsSkipsMassInferenceForPromotedAssembly() throws Exception {
         Map<String, Object> massParams = new HashMap<>();
         massParams.put("assembly", Map.of(

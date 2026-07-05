@@ -34,15 +34,14 @@ public final class AssemblyPlanPromoter {
             return new PromotionResult(List.of(), Set.of());
         }
 
-        Set<String> slotsWithAssembly = new HashSet<>();
+        Set<String> assemblyPrimarySlots = new HashSet<>();
         for (Component c : components) {
             if (c != null && "ASSEMBLY".equals(normalizeType(c.componentType()))) {
-                slotsWithAssembly.add(slotKey(c));
+                assemblyPrimarySlots.add(slotKey(c));
             }
         }
 
         List<Component> promoted = new ArrayList<>(components.size() + 2);
-        Set<String> assemblyPrimarySlots = new HashSet<>();
 
         for (Component c : components) {
             if (c == null) {
@@ -54,25 +53,31 @@ public final class AssemblyPlanPromoter {
                 continue;
             }
 
+            String slotKey = slotKey(c);
+            if (assemblyPrimarySlots.contains(slotKey)) {
+                Object payload = AssemblyPatchGenerator.resolveAssemblyPayload(c.params());
+                if (payload != null) {
+                    FormacraftMod.LOGGER.warn(
+                            "AssemblyPlanPromoter: dropping {} with nested params.assembly on slot {} (ASSEMBLY already present)",
+                            type, slotKey
+                    );
+                } else {
+                    FormacraftMod.LOGGER.info(
+                            "AssemblyPlanPromoter: dropping conflicting {} on assembly-primary slot {}",
+                            type, slotKey
+                    );
+                }
+                continue;
+            }
+
             Object payload = AssemblyPatchGenerator.resolveAssemblyPayload(c.params());
             if (payload == null) {
                 promoted.add(c);
                 continue;
             }
 
-            String slotKey = slotKey(c);
-            if (slotsWithAssembly.contains(slotKey)) {
-                FormacraftMod.LOGGER.warn(
-                        "AssemblyPlanPromoter: dropping nested params.assembly on {} (slot {}); ASSEMBLY already present",
-                        type, slotKey
-                );
-                promoted.add(stripAssemblyFromMass(c));
-                continue;
-            }
-
             Component assembly = toAssemblyComponent(c, payload);
             promoted.add(assembly);
-            slotsWithAssembly.add(slotKey);
             assemblyPrimarySlots.add(slotKey);
             FormacraftMod.LOGGER.info(
                     "AssemblyPlanPromoter: promoted nested params.assembly on {} (slot {}) -> ASSEMBLY",
@@ -84,8 +89,15 @@ public final class AssemblyPlanPromoter {
             return new PromotionResult(promoted, Set.of());
         }
 
-        List<Component> filtered = new ArrayList<>(promoted.size());
-        for (Component c : promoted) {
+        return new PromotionResult(stripConflictingOnAssemblySlots(promoted, assemblyPrimarySlots), assemblyPrimarySlots);
+    }
+
+    private static List<Component> stripConflictingOnAssemblySlots(
+            List<Component> components,
+            Set<String> assemblyPrimarySlots
+    ) {
+        List<Component> filtered = new ArrayList<>(components.size());
+        for (Component c : components) {
             if (c == null) {
                 continue;
             }
@@ -108,8 +120,7 @@ public final class AssemblyPlanPromoter {
             }
             filtered.add(c);
         }
-
-        return new PromotionResult(filtered, assemblyPrimarySlots);
+        return filtered;
     }
 
     private static Component toAssemblyComponent(Component mass, Object payload) {
@@ -132,24 +143,6 @@ public final class AssemblyPlanPromoter {
         );
     }
 
-    private static Component stripAssemblyFromMass(Component mass) {
-        Map<String, Object> params = mass.params();
-        if (params == null || !params.containsKey("assembly")) {
-            return mass;
-        }
-        Map<String, Object> stripped = new HashMap<>(params);
-        stripped.remove("assembly");
-        return new Component(
-                mass.componentType(),
-                mass.slotId(),
-                mass.relativePosition(),
-                mass.dimensions(),
-                mass.features(),
-                stripped
-        );
-    }
-
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> copyMap(Map<?, ?> source) {
         Map<String, Object> out = new HashMap<>();
         for (Map.Entry<?, ?> e : source.entrySet()) {

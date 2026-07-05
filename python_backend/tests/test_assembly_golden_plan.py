@@ -17,6 +17,10 @@ class AssemblyGoldenPlanTest(unittest.TestCase):
         self.assertIsInstance(assembly, dict)
         self.assertIn("graph", assembly)
         self.assertIn("macro", assembly)
+        graph = assembly.get("graph") or {}
+        components = graph.get("components") or []
+        self.assertTrue(components)
+        self.assertIn("twistTurns", components[0])
 
 
 if __name__ == "__main__":

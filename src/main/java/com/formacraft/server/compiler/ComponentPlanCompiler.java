@@ -410,7 +410,7 @@ public final class ComponentPlanCompiler {
             prepared.addAll(inferred);
         }
 
-        realignSatellitesToMass(prepared, plan, slotMap);
+        realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);
     }
@@ -418,8 +418,14 @@ public final class ComponentPlanCompiler {
     /**
      * LLM 常把 ROOF/FACADE/ENTRANCE 的 relative_position 写成与 MASS 相同的中心坐标；
      * 这些附属组件生成器按 min_corner 解释坐标。在此统一贴回 {@link #resolveMassOrigin(Component)}。
+     * <p>assembly-primary slot 无 MASS 锚点，跳过以免误对齐。</p>
      */
-    private static void realignSatellitesToMass(List<Component> components, LlmPlan plan, Map<String, Slot> slotMap) {
+    private static void realignSatellitesToMass(
+            List<Component> components,
+            LlmPlan plan,
+            Map<String, Slot> slotMap,
+            Set<String> assemblyPrimarySlots
+    ) {
         if (components == null || components.isEmpty()) {
             return;
         }
@@ -427,6 +433,9 @@ public final class ComponentPlanCompiler {
         Map<String, Component> massBySlot = new HashMap<>();
         for (Component c : components) {
             if (c == null) {
+                continue;
+            }
+            if (assemblyPrimarySlots != null && assemblyPrimarySlots.contains(slotKey(c))) {
                 continue;
             }
             if (isMassType(normalizeType(c.componentType()))) {
@@ -443,11 +452,15 @@ public final class ComponentPlanCompiler {
             if (c == null) {
                 continue;
             }
+            String slotKey = slotKey(c);
+            if (assemblyPrimarySlots != null && assemblyPrimarySlots.contains(slotKey)) {
+                continue;
+            }
             String type = normalizeType(c.componentType());
             if (isMassType(type)) {
                 continue;
             }
-            Component mass = massBySlot.get(slotKey(c));
+            Component mass = massBySlot.get(slotKey);
             if (mass == null) {
                 continue;
             }

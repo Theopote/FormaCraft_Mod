@@ -381,6 +381,53 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             detail="genome 写 circular/curved 时 params.shape 应对齐（非裸 rectangle）",
         ))
 
+    # ---- ASSEMBLY / 螺旋 / 自由几何 ----
+    is_assembly_intent = _prompt_contains(
+        prompt,
+        (
+            "assembly", "assemble", "metaassembly",
+            "螺旋", "螺旋塔", "瞭望塔", "旋转", "扭转",
+            "spiral", "helix", "twist", "watchtower", "lookout",
+            "自由几何", "自由形体", "非矩形", "非矩形体量", "异形",
+            "freeform", "free-form", "non-rectangular",
+            "不要地标", "no landmark",
+        ),
+    )
+    if is_assembly_intent:
+        has_assembly = any(
+            str(c.get("component_type") or "").upper() == "ASSEMBLY"
+            for c in comps
+        )
+        checks.append(Check(
+            "assembly_primary_component",
+            has_assembly,
+            hard=False,
+            detail="ASSEMBLY/螺旋/自由几何意图：主体应使用 component_type=ASSEMBLY",
+        ))
+
+        nested = _nested_assembly_in_mass(comps)
+        checks.append(Check(
+            "no_nested_assembly_in_mass",
+            not nested,
+            hard=False,
+            detail=", ".join(nested) or "params.assembly 不应嵌在 MASS_* 内",
+        ))
+
+        if _prompt_contains(prompt, ("螺旋", "spiral", "helix", "twist", "扭转", "旋转")):
+            checks.append(Check(
+                "spiral_twist_expressed",
+                has_assembly and _assembly_has_twist(comps),
+                hard=False,
+                detail="螺旋意图：ASSEMBLY graph/ops 中 SHELL_BOX 等应含 twistTurns",
+            ))
+
+        checks.append(Check(
+            "assembly_no_conflicting_mass_stack",
+            not _assembly_slot_has_mass_stack(comps),
+            hard=False,
+            detail="ASSEMBLY slot 不应叠加 MASS_SECONDARY + FACADE_WINDOWS + ROOF",
+        ))
+
     # ---- 四合院 / 围合院落 ----
     is_siheyuan = _prompt_contains(
         prompt,
@@ -820,6 +867,70 @@ def _invalid_assembly_params(comps: List[Dict[str, Any]]) -> List[str]:
         if not any(k in payload for k in ("ops", "components", "graph", "macro")):
             out.append(f"#{i} ASSEMBLY assembly payload empty")
     return out
+
+
+def _nested_assembly_in_mass(comps: List[Dict[str, Any]]) -> List[str]:
+    out: List[str] = []
+    for i, c in enumerate(comps):
+        t = str(c.get("component_type") or "").upper()
+        if not t.startswith("MASS_") and t not in ("MASS_MAIN", "MAIN_MASS"):
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        if isinstance(params.get("assembly"), dict):
+            out.append(f"#{i} {t} nested params.assembly")
+    return out
+
+
+def _assembly_payload(c: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = c.get("params") if isinstance(c.get("params"), dict) else {}
+    assembly = params.get("assembly")
+    if isinstance(assembly, dict):
+        return assembly
+    if any(k in params for k in ("ops", "components", "graph", "macro")):
+        return params
+    return None
+
+
+def _assembly_has_twist(comps: List[Dict[str, Any]]) -> bool:
+    for c in comps:
+        if str(c.get("component_type") or "").upper() != "ASSEMBLY":
+            continue
+        payload = _assembly_payload(c)
+        if not payload:
+            continue
+        graph = payload.get("graph") if isinstance(payload.get("graph"), dict) else {}
+        components = graph.get("components") if isinstance(graph.get("components"), list) else []
+        for comp in components:
+            if not isinstance(comp, dict):
+                continue
+            if comp.get("twistTurns") is not None or comp.get("twist_turns") is not None:
+                return True
+        ops = payload.get("ops") if isinstance(payload.get("ops"), list) else []
+        for op in ops:
+            if isinstance(op, dict) and (
+                op.get("twistTurns") is not None or op.get("twist_turns") is not None
+            ):
+                return True
+    return False
+
+
+def _assembly_slot_has_mass_stack(comps: List[Dict[str, Any]]) -> bool:
+    by_slot: Dict[str, List[str]] = {}
+    for c in comps:
+        slot = c.get("slot_id")
+        slot_key = str(slot) if slot else "__global__"
+        t = str(c.get("component_type") or "").upper()
+        by_slot.setdefault(slot_key, []).append(t)
+    conflict_types = {"MASS_SECONDARY", "FACADE_WINDOWS", "ENTRANCE", "ROOF", "ROOF_STRUCTURE"}
+    for types in by_slot.values():
+        if "ASSEMBLY" not in types:
+            continue
+        if any(t in conflict_types for t in types):
+            return True
+        mass_count = sum(1 for t in types if t.startswith("MASS_") or t in ("MASS_MAIN", "MAIN_MASS"))
+        if mass_count >= 1:
+            return True
+    return False
 
 
 # 与 Java ComponentPlanCompiler.minHeightForType 对齐：主体/塔的合理最小层高。

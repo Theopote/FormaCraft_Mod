@@ -30,4 +30,19 @@ class AssemblyIntentSectionsTest {
         assertTrue(block.contains("twistTurns"));
         assertTrue(block.contains("Do NOT put params.assembly inside MASS"));
     }
+
+    @Test
+    void suppressesProportionAndLandmarkHintsWhenAssemblyIntent() {
+        String prompt = PromptAssembler.assemble("原创螺旋瞭望塔，不要地标，用 ASSEMBLY 自由几何");
+        assertFalse(prompt.contains("PROPORTION ONTOLOGY"));
+        assertFalse(prompt.contains("LANDMARK MODULE ROUTING"));
+        assertTrue(prompt.contains("ASSEMBLY INTENT"));
+        assertTrue(prompt.contains("twistTurns"));
+    }
+
+    @Test
+    void stillIncludesProportionHintForOrdinaryHouse() {
+        String prompt = PromptAssembler.assemble("建一栋中式别墅，带庭院");
+        assertFalse(prompt.contains("ASSEMBLY INTENT (MANDATORY"));
+    }
 }
