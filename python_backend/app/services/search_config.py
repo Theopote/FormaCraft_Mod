@@ -8,13 +8,15 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 VALID_SEARCH_PROVIDERS = frozenset({
     "auto",
     "duckduckgo",
     "bing",
     "google_cse",
+    "tavily",
+    "serpapi",
     "wikipedia_only",
 })
 
@@ -25,6 +27,8 @@ class SearchRuntimeConfig:
     bing_api_key: str = ""
     google_api_key: str = ""
     google_cse_cx: str = ""
+    tavily_api_key: str = ""
+    serpapi_api_key: str = ""
 
 
 def _pick(req: Any, attr: str, env_name: str, default: str = "") -> str:
@@ -43,6 +47,8 @@ def resolve_search_config(req: Any = None) -> SearchRuntimeConfig:
     search_api_key = _pick(req, "searchApiKey", "SEARCH_API_KEY")
     bing_key = search_api_key or (os.getenv("BING_SEARCH_API_KEY") or "").strip()
     google_key = search_api_key or (os.getenv("GOOGLE_CSE_API_KEY") or "").strip()
+    tavily_key = search_api_key or (os.getenv("TAVILY_API_KEY") or "").strip()
+    serpapi_key = search_api_key or (os.getenv("SERPAPI_API_KEY") or "").strip()
     google_cx = _pick(req, "googleCseCx", "GOOGLE_CSE_CX")
 
     return SearchRuntimeConfig(
@@ -50,6 +56,8 @@ def resolve_search_config(req: Any = None) -> SearchRuntimeConfig:
         bing_api_key=bing_key,
         google_api_key=google_key,
         google_cse_cx=google_cx,
+        tavily_api_key=tavily_key,
+        serpapi_api_key=serpapi_key,
     )
 
 

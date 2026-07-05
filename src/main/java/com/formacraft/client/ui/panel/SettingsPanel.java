@@ -92,6 +92,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private ButtonWidget llmBaseUrlPresetButton;
     private     ButtonWidget debugWarningsButton;
     ButtonWidget searchProviderButton;
+    ButtonWidget testSearchKeyButton;
     private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
     private SettingsSliders.Temperature temperatureSlider;
     private SettingsSliders.FontSize fontSizeSlider;
@@ -125,6 +126,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             .build();
     private volatile boolean detectingModel = false;
     private volatile boolean validatingKey = false;
+    private volatile boolean validatingSearchKey = false;
 
     private record DetectResponse(int status, String body) {
     }
@@ -349,6 +351,18 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             );
             return true;
         }
+        if (testSearchKeyButton != null && testSearchKeyButton.isMouseOver(mouseX, mouseY)) {
+            drawTooltipCompat(
+                    ctx,
+                    java.util.List.of(
+                            Text.literal("测试搜索 Key"),
+                            Text.literal("调用 /search/validate 探测当前搜索引擎")
+                    ),
+                    (int) mouseX,
+                    (int) mouseY
+            );
+            return true;
+        }
         if (saveButton != null && saveButton.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.save")), (int) mouseX, (int) mouseY);
             return true;
@@ -425,6 +439,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         searchProviderButton = ButtonWidget.builder(getSearchProviderButtonText(), b -> cycleSearchProvider())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("建筑研究联网搜索：选择搜索引擎或 API")))
+                .build();
+
+        testSearchKeyButton = ButtonWidget.builder(Text.literal("测试搜索 Key"), b -> startValidateSearchKey())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("调用后端 /search/validate 探测当前搜索引擎配置")))
                 .build();
 
         // BaseURL 下拉选项（按钮形式，避免自绘命中不准）
@@ -669,6 +688,112 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         draftSearchProvider = next.id();
         if (searchProviderButton != null) searchProviderButton.setMessage(getSearchProviderButtonText());
         showToast("搜索引擎: " + next.label(), false);
+    }
+
+    private void startValidateSearchKey() {
+        if (validatingSearchKey) return;
+        validatingSearchKey = true;
+        if (testSearchKeyButton != null) {
+            testSearchKeyButton.setMessage(Text.literal("测试中..."));
+            testSearchKeyButton.active = false;
+        }
+
+        String base = sanitizeEndpoint(orchestratorInput.getText());
+        String provider = (draftSearchProvider == null || draftSearchProvider.isBlank()) ? "auto" : draftSearchProvider.trim();
+        String searchApiKey = searchApiKeyInput.getText() != null ? searchApiKeyInput.getText().trim() : "";
+        String googleCx = googleCseCxInput.getText() != null ? googleCseCxInput.getText().trim() : "";
+
+        if (SettingsSearchProviders.requiresApiKey(provider) && searchApiKey.isBlank()) {
+            validatingSearchKey = false;
+            if (testSearchKeyButton != null) {
+                testSearchKeyButton.setMessage(Text.literal("测试搜索 Key"));
+                testSearchKeyButton.active = true;
+            }
+            showToast("当前搜索引擎需要填写 Search API Key", true);
+            return;
+        }
+        if ("google_cse".equalsIgnoreCase(provider) && googleCx.isBlank()) {
+            validatingSearchKey = false;
+            if (testSearchKeyButton != null) {
+                testSearchKeyButton.setMessage(Text.literal("测试搜索 Key"));
+                testSearchKeyButton.active = true;
+            }
+            showToast("Google 自定义搜索需要填写 CSE CX", true);
+            return;
+        }
+
+        String computedUrl = base + "/search/validate";
+        try {
+            StringBuilder q = new StringBuilder();
+            q.append("provider=").append(URLEncoder.encode(provider, StandardCharsets.UTF_8));
+            if (!googleCx.isBlank()) {
+                q.append("&google_cse_cx=").append(URLEncoder.encode(googleCx, StandardCharsets.UTF_8));
+            }
+            computedUrl = computedUrl + "?" + q;
+        } catch (Exception e) {
+            LOG.debug("build search validate URL failed", e);
+        }
+        final String finalUrl = computedUrl;
+
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpRequest.Builder b = HttpRequest.newBuilder()
+                        .uri(URI.create(finalUrl))
+                        .timeout(Duration.ofSeconds(15))
+                        .header("Accept", "application/json")
+                        .GET();
+                if (!searchApiKey.isBlank()) {
+                    b.header("Authorization", "Bearer " + searchApiKey);
+                }
+                HttpResponse<String> resp = httpClient.send(b.build(), HttpResponse.BodyHandlers.ofString());
+                return new DetectResponse(resp.statusCode(), resp.body());
+            } catch (Exception e) {
+                return new DetectResponse(-1, e.toString());
+            }
+        }).thenAccept(resp -> client.execute(() -> {
+            validatingSearchKey = false;
+            if (testSearchKeyButton != null) {
+                testSearchKeyButton.setMessage(Text.literal("测试搜索 Key"));
+                testSearchKeyButton.active = true;
+            }
+            if (resp == null) {
+                showToast("搜索校验失败：未知错误", true);
+                return;
+            }
+            if (resp.status < 0) {
+                showToast("搜索校验失败：" + SettingsModelCatalog.shortErr(resp.body), true);
+                return;
+            }
+            if (resp.status < 200 || resp.status >= 300) {
+                showToast("搜索校验 HTTP " + resp.status + "：" + SettingsModelCatalog.shortErr(resp.body), true);
+                return;
+            }
+            String msg = readSearchValidateMessage(resp.body);
+            boolean ok = readSearchValidateOk(resp.body);
+            showToast(msg != null && !msg.isBlank() ? msg : (ok ? "搜索 Key 校验通过" : "搜索 Key 校验失败"), !ok);
+        }));
+    }
+
+    private static boolean readSearchValidateOk(String body) {
+        if (body == null || body.isBlank()) return false;
+        try {
+            var obj = com.formacraft.common.json.JsonUtil.get().fromJson(body, com.google.gson.JsonObject.class);
+            return obj != null && obj.has("ok") && obj.get("ok").getAsBoolean();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static String readSearchValidateMessage(String body) {
+        if (body == null || body.isBlank()) return null;
+        try {
+            var obj = com.formacraft.common.json.JsonUtil.get().fromJson(body, com.google.gson.JsonObject.class);
+            if (obj != null && obj.has("message_zh") && !obj.get("message_zh").isJsonNull()) {
+                return obj.get("message_zh").getAsString();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private BaseUrlPreset getSelectedBaseUrlPreset() {
@@ -1026,6 +1151,10 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         if (searchProviderButton != null) {
             searchProviderButton.setMessage(getSearchProviderButtonText());
         }
+        if (testSearchKeyButton != null) {
+            testSearchKeyButton.setMessage(validatingSearchKey ? Text.literal("测试中...") : Text.literal("测试搜索 Key"));
+            testSearchKeyButton.active = !validatingSearchKey;
+        }
         if (draftLlmBaseUrl != null) {
             // 避免 loadFromConfig 后输入框仍显示旧值
             llmBaseUrlInput.setText(draftLlmBaseUrl);
@@ -1335,6 +1464,21 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public Text searchProviderButtonText() {
         return getSearchProviderButtonText();
+    }
+
+    @Override
+    public ButtonWidget testSearchKeyButton() {
+        return testSearchKeyButton;
+    }
+
+    @Override
+    public Text testSearchKeyButtonText() {
+        return validatingSearchKey ? Text.literal("测试中...") : Text.literal("测试搜索 Key");
+    }
+
+    @Override
+    public boolean validatingSearchKey() {
+        return validatingSearchKey;
     }
 
     @Override

@@ -179,6 +179,101 @@ def _search_with_google_cse(
         return []
 
 
+def tavily_configured(cfg: "SearchRuntimeConfig | None" = None) -> bool:
+    if cfg is not None:
+        return bool((cfg.tavily_api_key or "").strip())
+    return bool((os.getenv("TAVILY_API_KEY") or "").strip())
+
+
+def serpapi_configured(cfg: "SearchRuntimeConfig | None" = None) -> bool:
+    if cfg is not None:
+        return bool((cfg.serpapi_api_key or "").strip())
+    return bool((os.getenv("SERPAPI_API_KEY") or "").strip())
+
+
+def _search_with_tavily(
+    query: str,
+    max_results: int,
+    cfg: "SearchRuntimeConfig | None" = None,
+) -> List[Dict[str, str]]:
+    """Tavily Search API — https://docs.tavily.com/"""
+    if cfg is not None and (cfg.tavily_api_key or "").strip():
+        api_key = cfg.tavily_api_key.strip()
+    else:
+        api_key = (os.getenv("TAVILY_API_KEY") or "").strip()
+    if not api_key:
+        raise ValueError("Tavily API key not set")
+
+    search_q = query
+    if "architecture" not in query.lower() and "建筑" not in query:
+        search_q = query + " architecture structure design"
+
+    resp = requests.post(
+        "https://api.tavily.com/search",
+        json={
+            "api_key": api_key,
+            "query": search_q,
+            "search_depth": "basic",
+            "max_results": min(max(1, max_results), 10),
+            "include_answer": False,
+        },
+        timeout=12,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    out: List[Dict[str, str]] = []
+    for item in data.get("results") or []:
+        if not isinstance(item, dict):
+            continue
+        out.append({
+            "title": item.get("title") or "",
+            "snippet": item.get("content") or "",
+            "url": item.get("url") or "",
+        })
+    return out[:max_results]
+
+
+def _search_with_serpapi(
+    query: str,
+    max_results: int,
+    cfg: "SearchRuntimeConfig | None" = None,
+) -> List[Dict[str, str]]:
+    """SerpAPI Google engine — https://serpapi.com/"""
+    if cfg is not None and (cfg.serpapi_api_key or "").strip():
+        api_key = cfg.serpapi_api_key.strip()
+    else:
+        api_key = (os.getenv("SERPAPI_API_KEY") or "").strip()
+    if not api_key:
+        raise ValueError("SerpAPI key not set")
+
+    search_q = query
+    if "architecture" not in query.lower() and "建筑" not in query:
+        search_q = query + " architecture structure design"
+
+    resp = requests.get(
+        "https://serpapi.com/search.json",
+        params={
+            "engine": "google",
+            "q": search_q,
+            "api_key": api_key,
+            "num": min(max(1, max_results), 10),
+        },
+        timeout=12,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    out: List[Dict[str, str]] = []
+    for item in data.get("organic_results") or []:
+        if not isinstance(item, dict):
+            continue
+        out.append({
+            "title": item.get("title") or "",
+            "snippet": item.get("snippet") or "",
+            "url": item.get("link") or "",
+        })
+    return out[:max_results]
+
+
 def _core_name_tokens(query: str) -> List[str]:
     """从检索词提取建筑主体 token（用于 Wikipedia 命中校验）。"""
     q = (query or "").strip()
@@ -316,7 +411,9 @@ def search_architecture_reference(
             cfg = None
 
     provider = (cfg.provider if cfg is not None else "auto").strip().lower()
-    if provider not in ("auto", "duckduckgo", "bing", "google_cse", "wikipedia_only"):
+    if provider not in (
+        "auto", "duckduckgo", "bing", "google_cse", "tavily", "serpapi", "wikipedia_only"
+    ):
         provider = "auto"
 
     merged: List[Dict[str, str]] = []
@@ -352,6 +449,26 @@ def search_architecture_reference(
         _add(_search_with_google_cse(query, max_results, cfg=cfg))
         if len(merged) >= max_results:
             return merged[:max_results]
+
+    if provider in ("auto", "tavily") and tavily_configured(cfg):
+        try:
+            _add(_search_with_tavily(query, max_results, cfg=cfg))
+            if len(merged) >= max_results:
+                return merged[:max_results]
+        except Exception as e:
+            logger.warning("Tavily search failed: %s", e)
+            if provider == "tavily":
+                raise
+
+    if provider in ("auto", "serpapi") and serpapi_configured(cfg):
+        try:
+            _add(_search_with_serpapi(query, max_results, cfg=cfg))
+            if len(merged) >= max_results:
+                return merged[:max_results]
+        except Exception as e:
+            logger.warning("SerpAPI search failed: %s", e)
+            if provider == "serpapi":
+                raise
 
     if provider == "bing" or (provider == "auto" and cfg is not None and (cfg.bing_api_key or "").strip()):
         try:

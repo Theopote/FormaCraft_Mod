@@ -369,6 +369,21 @@ public final class SettingsInputController {
             return true;
         }
 
+        int searchTestBtnY = searchKeyY + LABEL_OFFSET;
+        host.testSearchKeyButton().setPosition(x, searchTestBtnY);
+        host.testSearchKeyButton().setWidth(w);
+        if (host.testSearchKeyButton().mouseClicked(click, false)) {
+            host.orchestratorInput().setFocused(false);
+            host.apiKeyInput().setFocused(false);
+            host.llmBaseUrlInput().setFocused(false);
+            host.modelInput().setFocused(false);
+            host.searchApiKeyInput().setFocused(false);
+            host.googleCseCxInput().setFocused(false);
+            host.setModelDropdownOpen(false);
+            host.hideModelOptionButtons();
+            return true;
+        }
+
         y += FIELD_SPACING;
         int googleCxLabelY = y;
         int googleCxY = googleCxLabelY + LABEL_OFFSET;

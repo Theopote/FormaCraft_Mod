@@ -53,7 +53,7 @@ public class FormaRequest {
     /** OpenAI-compatible base URL，例如 https://api.deepseek.com/v1 */
     private String llmBaseUrl;
 
-    /** 建筑研究网络搜索：auto / duckduckgo / bing / google_cse / wikipedia_only */
+    /** 建筑研究网络搜索：auto / duckduckgo / bing / google_cse / tavily / serpapi / wikipedia_only */
     private String searchProvider;
     /** Bing 或 Google CSE API Key */
     private String searchApiKey;

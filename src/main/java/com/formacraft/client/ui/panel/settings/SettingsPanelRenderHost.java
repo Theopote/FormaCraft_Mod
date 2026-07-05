@@ -86,6 +86,12 @@ public interface SettingsPanelRenderHost {
 
     Text searchProviderButtonText();
 
+    ButtonWidget testSearchKeyButton();
+
+    Text testSearchKeyButtonText();
+
+    boolean validatingSearchKey();
+
     SettingsBaseUrlPresets.Preset selectedBaseUrlPreset();
 
     void setPendingModelDropdownOverlay(boolean pending, int x, int y, int w);
