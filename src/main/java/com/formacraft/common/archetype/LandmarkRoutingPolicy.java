@@ -39,16 +39,6 @@ public final class LandmarkRoutingPolicy {
             "varied", "different each time"
     );
 
-    /** @deprecated use {@link #rejectsLandmarkModule} / {@link #isVariationIntent} */
-    @SuppressWarnings("unused")
-    private static final List<String> CREATIVE_INTENT_MARKERS = List.of(
-            "原创", "独创", "独特", "不一样", "不要一样", "每次不同", "创新", "想象", "自由发挥",
-            "不要地标", "不要鸟巢", "不要仿", "不要复制", "别照搬", "非地标", "自行设计", "自己设计",
-            "generic", "original", "unique", "creative", "imaginative", "custom design",
-            "don't copy", "do not copy", "not landmark", "not a landmark", "one of a kind",
-            "varied", "different each time", "no landmark"
-    );
-
     /** 指名鸟巢/国家体育场——强制 MODULE */
     private static final List<String> BIRDS_NEST_EXPLICIT = List.of(
             "鸟巢", "鸟巢体育馆", "国家体育场", "北京鸟巢",

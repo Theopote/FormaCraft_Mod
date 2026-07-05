@@ -268,6 +268,12 @@ def analyze_references(
                 continue
         img = ref.normalized_image_url()
         if img:
+            if img.startswith(("http://", "https://")):
+                try:
+                    validate_reference_url(img)
+                except UnsafeUrlError as e:
+                    logger.warning("Skipping unsafe image URL reference: %s", e)
+                    continue
             image_urls.append(img)
         elif ref.is_web_page():
             raw_url = ref.content.strip()
