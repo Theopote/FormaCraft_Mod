@@ -87,6 +87,36 @@ public class VariationSpec {
     }
 
     /**
+     * 创建阳台的变形规格
+     */
+    public static VariationSpec forBalcony() {
+        VariationSpec spec = new VariationSpec();
+        spec.scaleX = AxisScaleRule.scalable(0.8f, 2.5f);
+        spec.scaleY = AxisScaleRule.locked();
+        spec.scaleZ = AxisScaleRule.scalable(0.8f, 2.0f);
+        spec.allowMirror = true;
+        spec.allowRotation = false;
+        spec.allowMaterialSwap = true;
+        spec.repeatRule = RepeatRule.disabled();
+        return spec;
+    }
+
+    /**
+     * 创建栏板的变形规格
+     */
+    public static VariationSpec forPanel() {
+        VariationSpec spec = new VariationSpec();
+        spec.scaleX = AxisScaleRule.scalable(0.8f, 3.0f);
+        spec.scaleY = AxisScaleRule.scalable(0.8f, 2.0f);
+        spec.scaleZ = AxisScaleRule.locked();
+        spec.allowMirror = true;
+        spec.allowRotation = false;
+        spec.allowMaterialSwap = true;
+        spec.repeatRule = RepeatRule.disabled();
+        return spec;
+    }
+
+    /**
      * 创建柱的变形规格
      */
     public static VariationSpec forColumn() {

@@ -117,6 +117,7 @@ public final class ClientComponentCatalogState {
                             .append(" shape=").append(s.shape)
                             .append(" context=").append(s.context)
                             .append(" facingPolicy=").append(s.facingPolicy);
+                    appendSocketOrigin(sb, e, s.id);
                     if (s.size != null && s.size.min != null && s.size.min.length > 0) {
                         if (s.size.min.length == 1) {
                             sb.append(" size=[width=").append(s.size.min[0]).append("-").append(s.size.max[0]).append("]");
@@ -133,6 +134,25 @@ public final class ClientComponentCatalogState {
             }
         }
         return sb.toString().trim();
+    }
+
+    private static void appendSocketOrigin(StringBuilder sb, ComponentCatalog.Entry entry, String socketId) {
+        if (entry == null || socketId == null || socketId.isBlank()) {
+            return;
+        }
+        com.formacraft.common.component.ComponentDefinition def =
+                com.formacraft.common.component.ComponentStorage.loadComponent(null, entry.id);
+        if (def == null || def.socketPlacements == null) {
+            return;
+        }
+        for (var sp : def.socketPlacements) {
+            if (sp == null || sp.id == null || !socketId.equals(sp.id)) continue;
+            sb.append(" origin=(").append(sp.dx).append(",").append(sp.dy).append(",").append(sp.dz).append(")");
+            if (sp.facing != null && !sp.facing.isBlank()) {
+                sb.append(" facing=").append(sp.facing);
+            }
+            return;
+        }
     }
 }
 

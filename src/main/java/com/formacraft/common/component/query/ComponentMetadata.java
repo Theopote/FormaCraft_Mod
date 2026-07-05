@@ -187,21 +187,7 @@ public class ComponentMetadata {
 
         // 语义信息
         metadata.semantic = new Semantic();
-        if (component.category != null) {
-            // 从分类推断角色（简化处理）
-            String categoryName = component.category.name().toLowerCase();
-            if (categoryName.contains("door") || categoryName.contains("window")) {
-                metadata.semantic.role = categoryName.contains("door") ? "door" : "window";
-            } else if (categoryName.contains("column") || categoryName.contains("support")) {
-                metadata.semantic.role = "column";
-            } else if (categoryName.contains("railing") || categoryName.contains("guard")) {
-                metadata.semantic.role = "railing";
-            } else {
-                metadata.semantic.role = "decoration";
-            }
-        } else {
-            metadata.semantic.role = "unknown";
-        }
+        metadata.semantic.role = inferRole(component);
         metadata.semantic.tags = component.tags != null ? component.tags : List.of();
         metadata.semantic.geometryArchetype = component.geometryArchetype;
         if (isBlank(metadata.semantic.geometryArchetype) && archetype != null && archetype.geometryHint != null
@@ -209,36 +195,16 @@ public class ComponentMetadata {
             metadata.semantic.geometryArchetype = archetype.geometryHint.archetype.name();
         }
 
-        // 放置规格（从 Archetype 获取）
-        if (archetype != null && archetype.attachment != null) {
-            metadata.placementSpec = new PlacementSpec();
-            var attachment = archetype.attachment;
-            if (attachment.allowedContexts != null) {
-                metadata.placementSpec.allowedPlacements = attachment.allowedContexts.stream()
-                        .map(Enum::name)
-                        .map(String::toLowerCase)
-                        .toList();
-            }
-            if (attachment.allowedSides != null) {
-                if (attachment.allowedSides.size() == 1) {
-                    var side = attachment.allowedSides.iterator().next();
-                    metadata.placementSpec.sidePolicy = side == com.formacraft.common.component.archetype.SurfaceSide.EXTERIOR
-                            ? "exterior_only"
-                            : side == com.formacraft.common.component.archetype.SurfaceSide.INTERIOR
-                            ? "interior_only"
-                            : "both";
-                } else {
-                    metadata.placementSpec.sidePolicy = "both";
-                }
-            }
-            metadata.placementSpec.requiresOpening = attachment.type == com.formacraft.common.component.archetype.AttachmentType.SURFACE;
-        }
+        // 放置规格：优先 ComponentDefinition.placementSpec，Archetype 作补充
+        metadata.placementSpec = mapPlacementSpec(component, archetype);
 
         // 几何规格（从 ComponentDefinition 和 Archetype 获取）
         if (component.size != null) {
             metadata.geometrySpec = new GeometrySpec();
             metadata.geometrySpec.baseSize = new int[]{component.size.w, component.size.h, component.size.d};
-            
+            if (component.placementSpec != null) {
+                metadata.geometrySpec.requiresOpening = component.placementSpec.requiresOpening;
+            }
             if (archetype != null && archetype.variation != null) {
                 var variation = archetype.variation;
                 var scalableAxes = new java.util.ArrayList<String>();
@@ -285,6 +251,114 @@ public class ComponentMetadata {
         }
 
         return metadata;
+    }
+
+    private static String inferRole(com.formacraft.common.component.ComponentDefinition component) {
+        if (component == null) {
+            return "unknown";
+        }
+        if (component.category != null) {
+            String role = switch (component.category) {
+                case DOOR -> "door";
+                case WINDOW -> "window";
+                case BALCONY -> "balcony";
+                case RAILING -> "railing";
+                case PANEL -> "panel";
+                case COLUMN, BRACKET -> "column";
+                case STAIRS -> "stairs";
+                case ARCH, ORNAMENT, ROOF_DETAIL -> "ornament";
+                default -> null;
+            };
+            if (role != null) {
+                return role;
+            }
+        }
+        if (component.tags != null) {
+            for (String tag : component.tags) {
+                if (tag == null) continue;
+                String lower = tag.toLowerCase();
+                if (lower.contains("door") || lower.contains("门")) return "door";
+                if (lower.contains("window") || lower.contains("窗")) return "window";
+                if (lower.contains("balcony") || lower.contains("阳台")) return "balcony";
+                if (lower.contains("railing") || lower.contains("guard") || lower.contains("栏杆")) return "railing";
+                if (lower.contains("panel") || lower.contains("栏板")) return "panel";
+                if (lower.contains("column") || lower.contains("pillar") || lower.contains("柱")) return "column";
+            }
+        }
+        return "decoration";
+    }
+
+    private static PlacementSpec mapPlacementSpec(
+            com.formacraft.common.component.ComponentDefinition component,
+            com.formacraft.common.component.archetype.ComponentArchetype archetype
+    ) {
+        if (component != null && component.placementSpec != null) {
+            var ps = component.placementSpec;
+            PlacementSpec out = new PlacementSpec();
+            out.allowedPlacements = allowedPlacementsFromAttachment(ps.attachment);
+            out.sidePolicy = sidePolicyFromSpatialContext(ps.spatialContext);
+            out.requiresOpening = ps.requiresOpening;
+            if (ps.requireEdge) {
+                out.edgePreference = "flat";
+            }
+            if (out.allowedPlacements != null && !out.allowedPlacements.isEmpty()) {
+                return out;
+            }
+        }
+        if (archetype != null && archetype.attachment != null) {
+            PlacementSpec out = new PlacementSpec();
+            var attachment = archetype.attachment;
+            if (attachment.allowedContexts != null) {
+                out.allowedPlacements = attachment.allowedContexts.stream()
+                        .map(Enum::name)
+                        .map(String::toLowerCase)
+                        .toList();
+            }
+            if (attachment.allowedSides != null) {
+                if (attachment.allowedSides.size() == 1) {
+                    var side = attachment.allowedSides.iterator().next();
+                    out.sidePolicy = side == com.formacraft.common.component.archetype.SurfaceSide.EXTERIOR
+                            ? "exterior_only"
+                            : side == com.formacraft.common.component.archetype.SurfaceSide.INTERIOR
+                            ? "interior_only"
+                            : "both";
+                } else {
+                    out.sidePolicy = "both";
+                }
+            }
+            out.requiresOpening = attachment.type == com.formacraft.common.component.archetype.AttachmentType.SURFACE;
+            return out;
+        }
+        return null;
+    }
+
+    private static java.util.List<String> allowedPlacementsFromAttachment(
+            com.formacraft.common.component.placement.AttachmentType attachment
+    ) {
+        if (attachment == null || attachment == com.formacraft.common.component.placement.AttachmentType.NONE) {
+            return java.util.List.of("ground", "free");
+        }
+        return switch (attachment) {
+            case WALL_OPENING, WALL_SURFACE -> java.util.List.of("wall");
+            case ROOF_SURFACE, ROOF_RIDGE -> java.util.List.of("roof");
+            case ROOF_EDGE, EDGE -> java.util.List.of("edge", "wall");
+            case FLOOR -> java.util.List.of("ground", "floor");
+            case CORNER -> java.util.List.of("corner", "wall");
+            default -> java.util.List.of("wall");
+        };
+    }
+
+    private static String sidePolicyFromSpatialContext(
+            com.formacraft.common.component.placement.SpatialContext spatialContext
+    ) {
+        if (spatialContext == null) {
+            return "both";
+        }
+        return switch (spatialContext) {
+            case EXTERIOR -> "exterior_only";
+            case INTERIOR -> "interior_only";
+            case ANY -> "both";
+        };
     }
 
     private static boolean isBlank(String value) {

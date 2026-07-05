@@ -33,9 +33,10 @@ public final class ComponentVariantApplier {
         int sy = intScale(variant.scaleY);
         int sz = intScale(variant.scaleZ);
         boolean scaling = sx > 1 || sy > 1 || sz > 1;
+        boolean repeating = variant.repeatCount > 1;
         boolean trimming = variant.trimmedWidth != null || variant.trimmedHeight != null || variant.trimmedDepth != null;
 
-        if (!scaling && !trimming) {
+        if (!scaling && !trimming && !repeating) {
             return base;
         }
 
@@ -63,7 +64,12 @@ public final class ComponentVariantApplier {
             src = scaled;
         }
 
-        // 2) 裁剪（相对 min 角，超出目标尺寸的体素丢弃）
+        // 2) 分段重复（沿指定轴平铺整段几何，用于栏杆/窗带等）
+        if (repeating) {
+            src = applyAxisRepeat(src, variant.repeatAxis, variant.repeatCount);
+        }
+
+        // 3) 裁剪（相对 min 角，超出目标尺寸的体素丢弃）
         if (trimming) {
             int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
             for (ComponentDefinition.BlockEntry be : src) {
@@ -92,6 +98,56 @@ public final class ComponentVariantApplier {
         }
 
         return cloneWithBlocks(base, src);
+    }
+
+    /**
+     * 沿单轴平铺 repeatCount 份（整段复制，stride = 该轴跨度）。
+     */
+    private static List<ComponentDefinition.BlockEntry> applyAxisRepeat(
+            List<ComponentDefinition.BlockEntry> src,
+            ComponentVariantSpec.Axis axis,
+            int repeatCount
+    ) {
+        if (src == null || src.isEmpty() || repeatCount <= 1 || axis == null) {
+            return src;
+        }
+
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        for (ComponentDefinition.BlockEntry be : src) {
+            if (be == null) continue;
+            minX = Math.min(minX, be.dx); maxX = Math.max(maxX, be.dx);
+            minY = Math.min(minY, be.dy); maxY = Math.max(maxY, be.dy);
+            minZ = Math.min(minZ, be.dz); maxZ = Math.max(maxZ, be.dz);
+        }
+        if (minX == Integer.MAX_VALUE) {
+            return src;
+        }
+
+        int stride = switch (axis) {
+            case Y -> maxY - minY + 1;
+            case Z -> maxZ - minZ + 1;
+            default -> maxX - minX + 1;
+        };
+        if (stride <= 0) {
+            return src;
+        }
+
+        List<ComponentDefinition.BlockEntry> out = new ArrayList<>(src.size() * repeatCount);
+        for (int i = 0; i < repeatCount; i++) {
+            int shift = i * stride;
+            for (ComponentDefinition.BlockEntry be : src) {
+                if (be == null) continue;
+                ComponentDefinition.BlockEntry e = new ComponentDefinition.BlockEntry();
+                e.block = be.block;
+                e.semantic = be.semantic;
+                e.dx = be.dx + (axis == ComponentVariantSpec.Axis.X ? shift : 0);
+                e.dy = be.dy + (axis == ComponentVariantSpec.Axis.Y ? shift : 0);
+                e.dz = be.dz + (axis == ComponentVariantSpec.Axis.Z ? shift : 0);
+                out.add(e);
+            }
+        }
+        return out;
     }
 
     /** 把 float 缩放折算成整数放大因子（<1.5 视为不放大，返回 1）。 */
@@ -126,6 +182,7 @@ public final class ComponentVariantApplier {
         out.anchorHint = base.anchorHint;
         out.placementHints = base.placementHints;
         out.sockets = base.sockets;
+        out.socketPlacements = base.socketPlacements;
         out.blocks = blocks;
 
         // 重新计算 bounding size

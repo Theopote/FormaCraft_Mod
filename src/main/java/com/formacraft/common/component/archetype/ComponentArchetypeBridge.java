@@ -54,6 +54,8 @@ public final class ComponentArchetypeBridge {
             case DOOR, WINDOW -> "OPENING";
             case COLUMN -> "SUPPORT";
             case STAIRS -> "CIRCULATION";
+            case RAILING, BALCONY -> "EDGE";
+            case PANEL -> "SURFACE";
             default -> "DECORATION";
         };
     }
@@ -65,7 +67,9 @@ public final class ComponentArchetypeBridge {
                 case WALL_OPENING -> category == ComponentCategory.WINDOW
                         ? AttachmentSpec.forWindow()
                         : AttachmentSpec.forDoor();
-                case WALL_SURFACE, ROOF_SURFACE, ROOF_RIDGE -> AttachmentSpec.createDefault();
+                case WALL_SURFACE, ROOF_SURFACE, ROOF_RIDGE -> category == ComponentCategory.BALCONY
+                        ? AttachmentSpec.forBalcony()
+                        : AttachmentSpec.createDefault();
                 case ROOF_EDGE, EDGE -> AttachmentSpec.forRailing();
                 case FLOOR -> AttachmentSpec.forColumn();
                 case CORNER -> AttachmentSpec.createDefault();
@@ -78,6 +82,9 @@ public final class ComponentArchetypeBridge {
         return switch (category) {
             case DOOR -> AttachmentSpec.forDoor();
             case WINDOW -> AttachmentSpec.forWindow();
+            case BALCONY -> AttachmentSpec.forBalcony();
+            case RAILING -> AttachmentSpec.forRailing();
+            case PANEL -> AttachmentSpec.createDefault();
             case COLUMN, BRACKET -> AttachmentSpec.forColumn();
             case ORNAMENT, ROOF_DETAIL, ARCH -> AttachmentSpec.createDefault();
             default -> AttachmentSpec.createDefault();
@@ -92,6 +99,9 @@ public final class ComponentArchetypeBridge {
             case DOOR -> VariationSpec.forDoor();
             case WINDOW -> VariationSpec.forWindow();
             case COLUMN -> VariationSpec.forColumn();
+            case RAILING -> VariationSpec.forRailing();
+            case BALCONY -> VariationSpec.forBalcony();
+            case PANEL -> VariationSpec.forPanel();
             case ORNAMENT, ROOF_DETAIL, ARCH, BRACKET -> VariationSpec.forRailing();
             default -> new VariationSpec();
         };
@@ -109,6 +119,24 @@ public final class ComponentArchetypeBridge {
                 ornament.visualIdentity = "decorative architectural element";
                 ornament.symmetryPreferred = true;
                 yield ornament;
+            }
+            case RAILING -> {
+                GeometryHint railing = new GeometryHint();
+                railing.archetype = GeometryArchetype.LINEAR;
+                railing.visualIdentity = "railing or guard element";
+                yield railing;
+            }
+            case BALCONY -> {
+                GeometryHint balcony = new GeometryHint();
+                balcony.archetype = GeometryArchetype.VOLUME;
+                balcony.visualIdentity = "balcony or terrace projection";
+                yield balcony;
+            }
+            case PANEL -> {
+                GeometryHint panel = new GeometryHint();
+                panel.archetype = GeometryArchetype.FLAT_PANEL;
+                panel.visualIdentity = "wall panel or cladding";
+                yield panel;
             }
             default -> {
                 GeometryHint generic = new GeometryHint();

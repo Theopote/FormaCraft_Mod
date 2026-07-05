@@ -28,7 +28,8 @@ import java.util.Map;
 final class ComponentToolJsonBuilder {
     private ComponentToolJsonBuilder() {}
 
-    static String build(MinecraftClient client, ComponentToolState state, List<ComponentSocket> sockets, ComponentCaptureDraft draft) {
+    static String build(MinecraftClient client, ComponentToolState state, List<ComponentSocket> sockets,
+                        List<ComponentDefinition.SocketPlacement> socketPlacements, ComponentCaptureDraft draft) {
         if (client == null || client.world == null) return null;
         if (!ComponentToolCaptureSupport.hasValidSelection(draft)) return null;
 
@@ -99,6 +100,9 @@ final class ComponentToolJsonBuilder {
         def.placement_rules = new ComponentDefinition.PlacementRules();
         if (sockets != null && !sockets.isEmpty()) {
             def.sockets = new ArrayList<>(sockets);
+        }
+        if (socketPlacements != null && !socketPlacements.isEmpty()) {
+            def.socketPlacements = new ArrayList<>(socketPlacements);
         }
 
         ComponentDefinition.DirectionHints hints = buildDirectionHints(anchor, draft);

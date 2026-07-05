@@ -16,6 +16,7 @@ import com.formacraft.common.component.socket.ComponentSocket;
 import com.formacraft.common.component.socket.FacingUtil;
 import com.formacraft.common.component.socket.SocketMask;
 import com.formacraft.common.component.socket.*;
+import com.formacraft.common.component.socket.SocketPlacementResolver;
 import com.formacraft.common.component.placement.AttachmentRecognizer;
 import com.formacraft.common.component.placement.AttachmentType;
 import com.formacraft.common.component.placement.FacingDeriver;
@@ -287,12 +288,12 @@ public final class PlayerComponentExpander {
         }
 
         // socket world offset and facing (in host placement space)
-        // v1 新版 Socket 不包含坐标，返回原点（旧行为兼容）
-        BlockPos socketLocal = BlockPos.ORIGIN;
+        BlockPos socketLocal = com.formacraft.common.component.socket.SocketPlacementResolver
+                .resolveLocalOrigin(host, socketId, socket);
         BlockPos socketOff = ComponentTransformUtil.transformOffset(socketLocal, hostFromFacing, hostTransform);
 
-        // 新版 Socket 不包含 facing()，使用默认朝向
-        Direction socketLocalFacing = Direction.SOUTH;
+        Direction socketLocalFacing = com.formacraft.common.component.socket.SocketPlacementResolver
+                .resolveLocalFacing(host, socketId, socket);
         Direction socketWorldFacing = FacingTransformUtil.transformFacing(socketLocalFacing, hostFromFacing, hostTransform);
         if (socketWorldFacing == null || !socketWorldFacing.getAxis().isHorizontal()) socketWorldFacing = hostTargetFacing;
 
@@ -766,15 +767,11 @@ public final class PlayerComponentExpander {
         Object o = reqMap.get("mask_origin");
         if (!(o instanceof Map<?, ?>)) o = reqMap.get("socket_origin");
         if (!(o instanceof Map<?, ?> mm)) {
-            // 若提供 socket_id，则优先使用 def.sockets 中该 socket 的 origin
+            // 若提供 socket_id，则优先使用 def 中记录的 socketPlacements
             String socketId = getString(reqMap, "socket_id", "socketId");
-            if (socketId != null && def != null && def.sockets != null) {
-                for (ComponentSocket s : def.sockets) {
-                    if (s == null || s.id == null) continue;
-                    if (!socketId.equals(s.id)) continue;
-                    // v1 新版 Socket 不包含坐标（由 SocketPlacement 提供），返回默认原点
-                    return BlockPos.ORIGIN;
-                }
+            if (socketId != null && def != null) {
+                ComponentSocket socket = findSocket(def, socketId);
+                return SocketPlacementResolver.resolveLocalOrigin(def, socketId, socket);
             }
             return BlockPos.ORIGIN;
         }

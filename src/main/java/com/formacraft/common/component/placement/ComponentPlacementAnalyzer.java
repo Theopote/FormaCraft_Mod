@@ -122,6 +122,9 @@ public final class ComponentPlacementAnalyzer {
     if (cat == ComponentCategory.DOOR || cat == ComponentCategory.WINDOW || cat == ComponentCategory.ARCH) {
       score += 55;
     }
+    if (cat == ComponentCategory.BALCONY) {
+      score += 40;
+    }
     if (geo.hasDoorWindowBlocks) {
       score += 45;
     }
@@ -141,6 +144,9 @@ public final class ComponentPlacementAnalyzer {
     }
     if (hasTag(def, "railing", "guard", "balustrade", "栏杆", "护栏")) {
       score += 35;
+    }
+    if (def != null && def.category == ComponentCategory.RAILING) {
+      score += 40;
     }
     if (geo.railingSemanticCount >= 3 && !geo.suggestsBalconyComposite()) {
       score += 20;
@@ -170,6 +176,9 @@ public final class ComponentPlacementAnalyzer {
     }
     if (hasTag(def, "balcony", "terrace", "awning", "canopy", "阳台", "雨棚")) {
       score += 35;
+    }
+    if (def != null && def.category == ComponentCategory.BALCONY) {
+      score += 45;
     }
     if (def != null && def.category == ComponentCategory.ORNAMENT && geo.dominantFaceDensity >= 0.20) {
       score += 10;

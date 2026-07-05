@@ -6,6 +6,9 @@ package com.formacraft.common.component;
 public enum ComponentCategory {
     DOOR,
     WINDOW,
+    BALCONY,     // 阳台/挑檐平台
+    RAILING,     // 栏杆/护栏
+    PANEL,       // 栏板/墙面板
     COLUMN,
     BRACKET,     // 斗拱
     ORNAMENT,    // 装饰

@@ -97,6 +97,9 @@ public final class ComponentCaptureAiExplanation {
         return switch (category) {
             case DOOR -> "门（Door）";
             case WINDOW -> "窗（Window）";
+            case BALCONY -> "阳台（Balcony）";
+            case RAILING -> "栏杆（Railing）";
+            case PANEL -> "栏板（Panel）";
             case COLUMN -> "柱子（Column）";
             case STAIRS -> "楼梯（Stairs）";
             case BRACKET -> "斗拱（Bracket）";

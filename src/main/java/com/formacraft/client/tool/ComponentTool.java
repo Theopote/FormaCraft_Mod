@@ -53,6 +53,8 @@ public final class ComponentTool implements FormacraftTool {
     private final ComponentToolLibraryPlacement.HoverSnapshot hoverSnapshot = new ComponentToolLibraryPlacement.HoverSnapshot();
 
     private final List<ComponentSocket> sockets = new ArrayList<>();
+    /** 与 sockets 一一对应的局部原点（保存时写入 socketPlacements）。 */
+    private final List<ComponentDefinition.SocketPlacement> pendingSocketPlacements = new ArrayList<>();
     private final ComponentCaptureDraft scratchDraft = new ComponentCaptureDraft();
 
     private ComponentTool() {}
@@ -490,6 +492,13 @@ public final class ComponentTool implements FormacraftTool {
                 .tag("opening")
                 .build();
         sockets.add(s);
+        ComponentDefinition.SocketPlacement placement = new ComponentDefinition.SocketPlacement();
+        placement.id = id;
+        placement.dx = state.socketOriginLocal.getX();
+        placement.dy = state.socketOriginLocal.getY();
+        placement.dz = state.socketOriginLocal.getZ();
+        placement.facing = (state.socketFacing != null ? state.socketFacing : Direction.SOUTH).name();
+        pendingSocketPlacements.add(placement);
         int w = s.size.min.length > 0 ? s.size.min[0] : 0;
         int h = s.size.min.length > 1 ? s.size.min[1] : 0;
         HudToast.show("已添加连接位：" + id + " (" + s.context + ") " + w + "x" + h);
@@ -560,6 +569,7 @@ public final class ComponentTool implements FormacraftTool {
 
     public void clearSockets() {
         sockets.clear();
+        pendingSocketPlacements.clear();
         state.socketCount = 0;
         HudToast.show("已清空连接位");
     }
@@ -751,6 +761,6 @@ public final class ComponentTool implements FormacraftTool {
     }
 
     public String buildCurrentComponentJson(net.minecraft.client.MinecraftClient client, ComponentCaptureDraft draft) {
-        return ComponentToolJsonBuilder.build(client, state, sockets, draft);
+        return ComponentToolJsonBuilder.build(client, state, sockets, pendingSocketPlacements, draft);
     }
 }

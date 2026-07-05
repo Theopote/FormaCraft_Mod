@@ -69,6 +69,12 @@ public class ComponentDefinition {
     /** 可选：构件插槽（用于“安装/开洞”）。 */
     public List<ComponentSocket> sockets;
 
+    /**
+     * 插槽局部坐标（相对 anchor），与 {@link #sockets} 中同 id 条目一一对应。
+     * 新版 ComponentSocket 不含坐标，mount/carve 依赖此字段定位。
+     */
+    public List<SocketPlacement> socketPlacements;
+
     public static class Size {
         public int w, h, d;
     }
@@ -125,6 +131,14 @@ public class ComponentDefinition {
         public String primaryAxis;
         /** 是否需要宿主面 */
         public boolean needsHostFace = false;
+    }
+
+    /** 插槽在构件局部坐标系中的原点（与 blocks 相同：相对 anchor）。 */
+    public static class SocketPlacement {
+        public String id;
+        public int dx, dy, dz;
+        /** 可选："NORTH"/"SOUTH"/"EAST"/"WEST" */
+        public String facing;
     }
 
     public static class BlockEntry {

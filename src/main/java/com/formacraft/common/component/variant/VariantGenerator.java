@@ -102,10 +102,10 @@ public final class VariantGenerator {
             }
         }
 
-        // 5️⃣ 镜像（如果允许且查询需要）
-        if (spec.materialPolicy != MaterialVariantPolicy.NONE && archetype != null && archetype.variation != null) {
+        // 5️⃣ 镜像（如果 Archetype 允许）
+        if (archetype != null && archetype.variation != null) {
             if (archetype.variation.allowMirror && random.nextFloat() < 0.3f) {
-                // 30% 概率镜像
+                // 30% 概率镜像（由展开器 reqMap.mirror 实际应用）
                 variant.applyMirror(ComponentVariantSpec.Axis.X);
             }
         }
