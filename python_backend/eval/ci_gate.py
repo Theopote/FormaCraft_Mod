@@ -111,6 +111,7 @@ def run_shape_fixtures() -> int:
         "primitive_mobius_csg.json",
         "assembly_gothic_shell_golden.json",
         "assembly_spiral_preset_golden.json",
+        "assembly_bridge_preset_golden.json",
     )
     errors: List[str] = []
     checked = 0

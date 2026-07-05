@@ -1,0 +1,27 @@
+{
+  "id": "assembly_bridge_preset_golden",
+  "prompt": "原创悬索桥，不要地标，跨度约 48",
+  "mode": "build",
+  "style_profile": "Industrial_Steel",
+  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "global_constraints": { "facing": "EAST", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE" },
+  "layout": { "skeleton_type": "LINEAR_PATH", "path_based": true, "slots": [] },
+  "components": [
+    {
+      "component_type": "ASSEMBLY",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 52, "depth": 8, "height": 32 },
+      "params": {
+        "assembly": {
+          "preset": "suspension_bridge_simple",
+          "presetParams": {
+            "span": 48,
+            "towerHeight": 32,
+            "deckY": 12,
+            "sag": 8
+          }
+        }
+      }
+    }
+  ]
+}

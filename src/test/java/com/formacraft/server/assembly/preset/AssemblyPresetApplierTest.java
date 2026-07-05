@@ -46,4 +46,34 @@ class AssemblyPresetApplierTest {
         assertTrue(preset.isPresent());
         assertEquals("spiral_watchtower", preset.get().id());
     }
+
+    @Test
+    void expandsSuspensionBridgePreset() {
+        Map<String, Object> assembly = Map.of(
+                "preset", "suspension_bridge_simple",
+                "presetParams", Map.of(
+                        "span", 48,
+                        "towerHeight", 32,
+                        "deckY", 12,
+                        "sag", 8
+                )
+        );
+
+        AssemblyPresetApplier.ApplyResult result = AssemblyPresetApplier.apply(assembly);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> expanded = (Map<String, Object>) result.applied();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> graph = (Map<String, Object>) expanded.get("graph");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> comps = (List<Map<String, Object>>) graph.get("components");
+
+        Map<String, Object> towerB = comps.stream()
+                .filter(c -> "TowerB".equals(c.get("id")))
+                .findFirst()
+                .orElseThrow();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> at = (Map<String, Object>) towerB.get("at");
+        assertEquals(48, ((Number) at.get("x")).intValue());
+        assertEquals(32, ((Number) towerB.get("h")).intValue());
+    }
 }

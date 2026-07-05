@@ -4712,6 +4712,23 @@ def generate_llm_plan(req: BuildRequest) -> dict:
         _t_norm = time.monotonic()
         normalized = _normalize_llm_plan_output(plan, req)
         validate_llm_plan_dict(normalized)
+        user_text = (req.userMessage or user_prompt or research_user_text or "").strip()
+        try:
+            from .assembly_plan_repair import maybe_repair_assembly_plan
+            normalized = maybe_repair_assembly_plan(
+                client,
+                model,
+                messages,
+                normalized,
+                user_text or None,
+                call_with_timeout=_call_with_timeout,
+                timeout_sec=timeout_sec,
+                prefer_json_object=prefer_json_object,
+                normalize_fn=_normalize_llm_plan_output,
+                req=req,
+            )
+        except Exception as e:
+            logger.warning("Assembly plan repair skipped: %s", e)
         normalize_ms = (time.monotonic() - _t_norm) * 1000.0
         logger.info(
             "LlmPlan timing: search=%.0fms llm=%.0fms normalize=%.0fms model=%s fmt=%s",

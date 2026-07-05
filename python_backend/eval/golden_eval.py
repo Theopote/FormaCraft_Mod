@@ -428,6 +428,25 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             detail="ASSEMBLY slot 不应叠加 MASS_SECONDARY + FACADE_WINDOWS + ROOF",
         ))
 
+    is_bridge = _prompt_contains(
+        prompt,
+        ("桥", "bridge", "悬索", "suspension", "cable-stayed", "斜拉"),
+    )
+    if is_bridge and is_assembly_intent:
+        has_bridge_preset = any(
+            str(c.get("component_type") or "").upper() == "ASSEMBLY"
+            and isinstance((c.get("params") or {}).get("assembly"), dict)
+            and str(((c.get("params") or {}).get("assembly") or {}).get("preset") or "").strip()
+            in ("suspension_bridge_simple",)
+            for c in comps
+        )
+        checks.append(Check(
+            "bridge_assembly_preset",
+            has_bridge_preset,
+            hard=False,
+            detail="桥梁/悬索意图：优先 preset=suspension_bridge_simple",
+        ))
+
     # ---- 四合院 / 围合院落 ----
     is_siheyuan = _prompt_contains(
         prompt,
@@ -773,6 +792,15 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[st
     bad_assembly = _invalid_assembly_params(comps)
     add(Check("assembly_params_valid", not bad_assembly, hard=False,
               detail=", ".join(bad_assembly)))
+
+    try:
+        from app.services.assembly_plan_validator import validate_assembly_plan
+        asm_issues = validate_assembly_plan(plan)
+        hard_asm = [i for i in asm_issues if i.severity == "ERROR"]
+        add(Check("assembly_graph_dsl_valid", not hard_asm, hard=False,
+                  detail=", ".join(f"{i.code}@{i.path}" for i in hard_asm[:5])))
+    except Exception:
+        pass
 
     # SOFT：按用户 prompt 的意图对齐（Week 1+）。
     for ic in evaluate_intent(plan, prompt):

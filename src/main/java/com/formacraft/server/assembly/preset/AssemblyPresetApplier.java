@@ -102,21 +102,23 @@ public final class AssemblyPresetApplier {
         if (params == null || params.isEmpty()) {
             return;
         }
-        Map<String, Object> graph = graphMap(assembly);
-        if (graph == null) {
-            return;
+        switch (preset.id()) {
+            case "spiral_watchtower" -> applySpiralWatchtowerParams(assembly, preset, params);
+            case "suspension_bridge_simple" -> applySuspensionBridgeParams(assembly, preset, params);
+            case "gothic_shell_box" -> applyGothicShellParams(assembly, preset, params);
+            default -> applyGenericFirstComponentParams(assembly, preset, params);
         }
-        Object compsObj = graph.get("components");
-        if (!(compsObj instanceof List<?> comps) || comps.isEmpty()) {
-            return;
-        }
-        Object first = comps.get(0);
-        if (!(first instanceof Map<?, ?>)) {
-            return;
-        }
-        @SuppressWarnings("unchecked")
-        Map<String, Object> shell = (Map<String, Object>) first;
+    }
 
+    private static void applySpiralWatchtowerParams(
+            Map<String, Object> assembly,
+            AssemblyPresetDefinition preset,
+            Map<String, Object> params
+    ) {
+        Map<String, Object> shell = firstGraphComponent(assembly);
+        if (shell == null) {
+            return;
+        }
         Double height = numParam(params, preset, "height");
         if (height != null) {
             shell.put("h", height.intValue());
@@ -131,12 +133,174 @@ public final class AssemblyPresetApplier {
         if (twist != null) {
             shell.put("twistTurns", twist);
         }
+        applyStyleId(assembly, params);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void applySuspensionBridgeParams(
+            Map<String, Object> assembly,
+            AssemblyPresetDefinition preset,
+            Map<String, Object> params
+    ) {
+        Map<String, Object> graph = graphMap(assembly);
+        if (graph == null) {
+            return;
+        }
+        Object compsObj = graph.get("components");
+        if (!(compsObj instanceof List<?> comps)) {
+            return;
+        }
+        int span = intParam(params, preset, "span", 40);
+        int towerH = intParam(params, preset, "towerHeight", 28);
+        int deckY = intParam(params, preset, "deckY", 10);
+        int sag = intParam(params, preset, "sag", 10);
+
+        for (Object it : comps) {
+            if (!(it instanceof Map<?, ?> cm)) {
+                continue;
+            }
+            Map<String, Object> c = shallowCopyMap(cm);
+            String id = str(c.get("id"));
+            String type = str(c.get("type")).toUpperCase(Locale.ROOT);
+            if ("TowerA".equals(id) || "TowerB".equals(id)) {
+                c.put("h", towerH);
+                if ("TowerB".equals(id)) {
+                    putAt(c, span, intAt(c, 1), intAt(c, 2));
+                }
+            } else if ("Deck".equals(id)) {
+                c.put("w", span + 4);
+                putAt(c, 0, deckY, intAt(c, 2));
+            } else if ("MainCables".equals(id) || type.contains("TENSION_CABLE")) {
+                c.put("from", Map.of("x", 2, "y", Math.max(2, towerH - 2), "z", 0));
+                c.put("to", Map.of("x", span + 2, "y", Math.max(2, towerH - 2), "z", 0));
+                c.put("sag", sag);
+                c.put("hangersToY", deckY + 2);
+            }
+            replaceComponent(comps, c);
+        }
+    }
+
+    private static void applyGothicShellParams(
+            Map<String, Object> assembly,
+            AssemblyPresetDefinition preset,
+            Map<String, Object> params
+    ) {
+        Map<String, Object> shell = firstGraphComponent(assembly);
+        if (shell == null) {
+            return;
+        }
+        Double height = numParam(params, preset, "height");
+        if (height != null) {
+            shell.put("h", height.intValue());
+        }
+        Double width = numParam(params, preset, "width");
+        if (width != null) {
+            shell.put("w", width.intValue());
+        }
+        Double depth = numParam(params, preset, "depth");
+        if (depth != null) {
+            shell.put("d", depth.intValue());
+        }
+        applyStyleId(assembly, params);
+    }
+
+    private static void applyGenericFirstComponentParams(
+            Map<String, Object> assembly,
+            AssemblyPresetDefinition preset,
+            Map<String, Object> params
+    ) {
+        Map<String, Object> shell = firstGraphComponent(assembly);
+        if (shell == null) {
+            return;
+        }
+        Double height = numParam(params, preset, "height");
+        if (height != null) {
+            shell.put("h", height.intValue());
+        }
+        applyStyleId(assembly, params);
+    }
+
+    private static void applyStyleId(Map<String, Object> assembly, Map<String, Object> params) {
         Object styleId = params.get("styleId");
         if (styleId != null && !String.valueOf(styleId).isBlank()) {
             Map<String, Object> macro = macroMap(assembly);
             Map<String, Object> style = styleMap(macro);
             style.put("styleId", String.valueOf(styleId).trim());
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> firstGraphComponent(Map<String, Object> assembly) {
+        Map<String, Object> graph = graphMap(assembly);
+        if (graph == null) {
+            return null;
+        }
+        Object compsObj = graph.get("components");
+        if (!(compsObj instanceof List<?> comps) || comps.isEmpty()) {
+            return null;
+        }
+        Object first = comps.get(0);
+        if (first instanceof Map<?, ?> fm) {
+            return (Map<String, Object>) fm;
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void replaceComponent(List<?> comps, Map<String, Object> updated) {
+        String id = str(updated.get("id"));
+        if (id.isBlank()) {
+            return;
+        }
+        List<Object> list = (List<Object>) comps;
+        for (int i = 0; i < list.size(); i++) {
+            Object it = list.get(i);
+            if (it instanceof Map<?, ?> m && id.equals(str(m.get("id")))) {
+                list.set(i, updated);
+                return;
+            }
+        }
+    }
+
+    private static int intParam(
+            Map<String, Object> params,
+            AssemblyPresetDefinition preset,
+            String name,
+            int defaultValue
+    ) {
+        Double v = numParam(params, preset, name);
+        return v != null ? v.intValue() : defaultValue;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void putAt(Map<String, Object> comp, int x, int y, int z) {
+        Object at = comp.get("at");
+        Map<String, Object> am;
+        if (at instanceof Map<?, ?> existing) {
+            am = shallowCopyMap(existing);
+        } else {
+            am = new LinkedHashMap<>();
+        }
+        am.put("x", x);
+        am.put("y", y);
+        am.put("z", z);
+        comp.put("at", am);
+    }
+
+    private static int intAt(Map<String, Object> comp, int axis) {
+        Object at = comp.get("at");
+        if (at instanceof Map<?, ?> am) {
+            String key = switch (axis) {
+                case 0 -> "x";
+                case 1 -> "y";
+                default -> "z";
+            };
+            Object v = am.get(key);
+            if (v instanceof Number n) {
+                return n.intValue();
+            }
+        }
+        return 0;
     }
 
     private static Double numParam(

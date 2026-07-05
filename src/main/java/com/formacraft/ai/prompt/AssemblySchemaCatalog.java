@@ -154,8 +154,10 @@ Ports are ALWAYS "ComponentId.portName" (e.g. "Tower.top_center" -> "Bridge.star
             sb.append("\n  ports: ").append(String.join(", ", s.ports())).append("\n");
         }
         sb.append("""
-Preset shorthand (preferred for spiral towers):
-  params.assembly = { "preset": "spiral_watchtower", "presetParams": { "height": 28, "footprint": 10, "twistTurns": 0.75, "styleId": "Gothic_Cathedral" } }
+Preset shorthand (preferred):
+  spiral: { "preset": "spiral_watchtower", "presetParams": { "height", "footprint", "twistTurns", "styleId" } }
+  bridge: { "preset": "suspension_bridge_simple", "presetParams": { "span", "towerHeight", "deckY", "sag" } }
+  gothic shell: { "preset": "gothic_shell_box", "presetParams": { "height", "width", "depth", "styleId" } }
 Do NOT invent port names; use listed ports only.
 
 """);
