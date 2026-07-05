@@ -1,6 +1,7 @@
 package com.formacraft.common.archetype;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -58,7 +59,7 @@ public final class LandmarkModuleRegistry {
                     def.category == null ? "LANDMARK" : def.category,
                     def.aliases == null ? List.of() : def.aliases));
         }
-        out.sort((a, b) -> a.moduleId().compareTo(b.moduleId()));
+        out.sort(Comparator.comparing(LandmarkModule::moduleId));
         return out;
     }
 

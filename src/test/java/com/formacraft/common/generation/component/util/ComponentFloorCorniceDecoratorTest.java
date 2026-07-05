@@ -2,14 +2,12 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
-import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.Layout;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
 import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 

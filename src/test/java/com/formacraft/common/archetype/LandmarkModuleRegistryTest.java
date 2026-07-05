@@ -2,10 +2,7 @@ package com.formacraft.common.archetype;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class LandmarkModuleRegistryTest {
 
@@ -48,7 +45,7 @@ class LandmarkModuleRegistryTest {
                 "在锚点位置生成现代风格的椭圆形体育场建筑");
         assertTrue(hint.contains("birds_nest_stadium"));
         assertTrue(hint.contains("RECOMMENDED"));
-        assertTrue(!hint.contains("MANDATORY FOR THIS REQUEST"));
+        assertFalse(hint.contains("MANDATORY FOR THIS REQUEST"));
     }
 
     @Test
@@ -62,7 +59,7 @@ class LandmarkModuleRegistryTest {
     void promptRoutingHintForIntent_creativeIntent_empty() {
         String hint = LandmarkModuleRegistry.promptRoutingHintForIntent(
                 "在锚点位置原创设计一座独特的现代椭圆体育场，不要地标");
-        assertTrue(hint == null || hint.isBlank());
+        assertTrue(hint.isBlank());
     }
 
     @Test

@@ -16,11 +16,17 @@ from ..models.intent_clarification import ClarificationAssessment
 _VAGUE_ONLY_RE = re.compile(
     r"^(?:"
     r"(?:建|造|盖|生成|做一个?|帮我建|帮我造|帮我生成)\s*"
-    r"(?:一个?|一座|一栋)?\s*"
+    r"(?:个|一个?|一座|一栋)?\s*"
     r"(?:建筑|房子|房|大楼|楼|东西|building)?\s*"
     r"|"
     r"(?:build|make|create)\s+(?:a\s+)?(?:building|house|something|it)?\s*"
     r")$",
+    re.IGNORECASE,
+)
+
+_BROAD_TYPE_ONLY_RE = re.compile(
+    r"^(?:个|一个|一座|一栋)?\s*"
+    r"(?:建筑|房子|房|大楼|楼|东西|building|house)$",
     re.IGNORECASE,
 )
 
@@ -35,6 +41,20 @@ _CLARIFICATION_AI_MARKERS = (
     "需要再确认", "需要补充", "请问", "能否说明", "clarification",
     "哪一类建筑", "具体建筑", "参考图",
 )
+
+
+def _is_vague_build_phrase(text: str) -> bool:
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _VAGUE_ONLY_RE.match(t):
+        return True
+    subject = t
+    for prefix in ("建个", "造个", "盖个", "建一座", "造一座", "建一个", "造一个"):
+        if t.startswith(prefix):
+            subject = t[len(prefix):].strip()
+            break
+    return bool(_BROAD_TYPE_ONLY_RE.match(subject))
 
 
 def is_intent_clarification_enabled() -> bool:
@@ -172,7 +192,15 @@ def assess_clarification_needs(req: Any) -> ClarificationAssessment:
 
     classify_text = effective or user_text
 
-    if _VAGUE_ONLY_RE.match(user_text) or _VAGUE_ONLY_RE.match(classify_text):
+    from .building_request_classifier import classify_building_request_local
+
+    classification = classify_building_request_local(classify_text)
+
+    if classification.is_specific_real_building and classification.confidence >= 0.85:
+        if not _is_vague_build_phrase(user_text):
+            return ClarificationAssessment(needs_clarification=False)
+
+    if _is_vague_build_phrase(user_text) or _VAGUE_ONLY_RE.match(user_text):
         qs = _build_questions("vague_intent", user_text)
         return ClarificationAssessment(
             needs_clarification=True,
@@ -182,7 +210,12 @@ def assess_clarification_needs(req: Any) -> ClarificationAssessment:
             confidence=0.88,
         )
 
-    if not _has_build_intent(classify_text) and len(classify_text) < 20:
+    if _is_edit_or_patch_prompt(user_text):
+        return ClarificationAssessment(needs_clarification=False)
+
+    if not _has_build_intent(classify_text):
+        if classification.is_specific_real_building and classification.confidence >= 0.8:
+            return ClarificationAssessment(needs_clarification=False)
         qs = _build_questions("no_build_intent", user_text)
         return ClarificationAssessment(
             needs_clarification=True,
@@ -192,37 +225,30 @@ def assess_clarification_needs(req: Any) -> ClarificationAssessment:
             confidence=0.82,
         )
 
-    from .building_request_classifier import classify_building_request_local
-
-    classification = classify_building_request_local(classify_text)
-
     if (
         not classification.is_specific_real_building
-        and classification.confidence >= 0.55
         and not _has_style_or_scale_hint(classify_text)
     ):
-        qs = _build_questions("generic_typology", user_text)
-        return ClarificationAssessment(
-            needs_clarification=True,
-            reason="generic_typology",
-            questions_zh=qs,
-            message_zh=format_clarification_message(qs),
-            confidence=classification.confidence,
-        )
+        hint = (classification.reasoning_hint or "").lower()
+        if classification.confidence >= 0.55 or "generic" in hint or "broad" in hint:
+            qs = _build_questions("generic_typology", user_text)
+            return ClarificationAssessment(
+                needs_clarification=True,
+                reason="generic_typology",
+                questions_zh=qs,
+                message_zh=format_clarification_message(qs),
+                confidence=classification.confidence,
+            )
 
-    if (
-        not classification.is_specific_real_building
-        and classification.confidence < 0.5
-        and len(classify_text) < 24
-    ):
-        qs = _build_questions("low_confidence", user_text)
-        return ClarificationAssessment(
-            needs_clarification=True,
-            reason="low_confidence",
-            questions_zh=qs,
-            message_zh=format_clarification_message(qs),
-            confidence=classification.confidence,
-        )
+        if classification.confidence < 0.5 and len(classify_text) < 24:
+            qs = _build_questions("low_confidence", user_text)
+            return ClarificationAssessment(
+                needs_clarification=True,
+                reason="low_confidence",
+                questions_zh=qs,
+                message_zh=format_clarification_message(qs),
+                confidence=classification.confidence,
+            )
 
     return ClarificationAssessment(needs_clarification=False)
 
