@@ -1,7 +1,6 @@
 package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
-import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 
@@ -43,9 +42,7 @@ public final class ComponentCrownDecorator {
         String profile = getParam(massParams, "facade_profile", "facadeProfile");
         if (profile != null) {
             String fp = profile.toLowerCase(Locale.ROOT);
-            if (fp.contains("pilaster") || fp.contains("colonnade") || fp.contains("classical")) {
-                return true;
-            }
+            return fp.contains("pilaster") || fp.contains("colonnade") || fp.contains("classical");
         }
         return false;
     }

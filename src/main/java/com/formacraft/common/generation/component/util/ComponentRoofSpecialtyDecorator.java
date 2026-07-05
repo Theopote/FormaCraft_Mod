@@ -100,9 +100,7 @@ public final class ComponentRoofSpecialtyDecorator {
                 return true;
             }
             String specialty = String.valueOf(hints.getOrDefault("roof_specialty", "")).toLowerCase(Locale.ROOT);
-            if (specialty.contains("dormer")) {
-                return true;
-            }
+            return specialty.contains("dormer");
         }
         return false;
     }
@@ -117,9 +115,6 @@ public final class ComponentRoofSpecialtyDecorator {
         int setback = Math.max(1, Math.min(width, depth) / 5);
         int dist = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
         if (dist < setback) {
-            if (setback <= 0) {
-                return 0;
-            }
             return (int) Math.round((dist / (double) setback) * (lowerH - 1));
         }
         int centerDist = Math.min(width - 1, depth - 1) / 2;

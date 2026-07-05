@@ -130,7 +130,7 @@ public final class ComponentFloorCorniceDecorator {
         return stairBase + "[facing=" + facing + ",half=top]";
     }
 
-    static String inferStairsBlock(String blockId) {
+    public static String inferStairsBlock(String blockId) {
         if (blockId == null || blockId.isBlank()) {
             return "minecraft:stone_brick_stairs";
         }

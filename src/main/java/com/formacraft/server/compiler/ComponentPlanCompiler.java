@@ -1146,12 +1146,10 @@ public final class ComponentPlanCompiler {
         }
         Map<String, Object> params = component.params();
         if (params != null) {
-            if (params.containsKey("landmark") || params.containsKey("module_id")
+            return params.containsKey("landmark") || params.containsKey("module_id")
                     || params.containsKey("template") || params.containsKey("blueprint")
                     || params.containsKey("assembly") || params.containsKey("skeleton")
-                    || Boolean.TRUE.equals(params.get("useStructureGenerator"))) {
-                return true;
-            }
+                    || Boolean.TRUE.equals(params.get("useStructureGenerator"));
         }
         return false;
     }
