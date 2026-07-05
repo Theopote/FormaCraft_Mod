@@ -82,6 +82,23 @@ class AssemblyPlanValidatorTest(unittest.TestCase):
         issues = [i for i in validate_assembly_plan(plan) if i.severity == "ERROR"]
         self.assertEqual([], issues)
 
+    def test_capability_gap_plan_fields_validate(self):
+        from app.models.llm_plan import validate_llm_plan_dict
+
+        plan = validate_llm_plan_dict({
+            "mode": "build",
+            "anchor": {"x": 0, "y": 64, "z": 0},
+            "plan_status": "capability_gap",
+            "error": "unsupported freeform geometry",
+            "capability_gap": {
+                "code": "E_UNSUPPORTED_GEOMETRY",
+                "message": "unsupported freeform geometry",
+                "path": "plan",
+                "suggestions": ["use preset spiral_watchtower"],
+            },
+        })
+        self.assertEqual("capability_gap", plan.get("plan_status"))
+
     def test_format_repair_prompt_includes_errors(self):
         plan = {"components": []}
         from app.services.assembly_plan_validator import AssemblyPlanIssue

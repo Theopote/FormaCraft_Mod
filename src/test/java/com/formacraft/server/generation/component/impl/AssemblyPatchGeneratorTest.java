@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -43,5 +43,13 @@ class AssemblyPatchGeneratorTest {
     @Test
     void compilerAcceptsAssemblyComponentType() {
         assertTrue(ComponentGeneratorRegistry.hasGenerator("ASSEMBLY"));
+    }
+
+    @Test
+    void generateWithoutWorldDoesNotSetGap() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        AssemblyPatchGenerator.GenerateResult result = AssemblyPatchGenerator.generate(null, null);
+        assertFalse(result.hasGap());
+        assertNull(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get());
     }
 }

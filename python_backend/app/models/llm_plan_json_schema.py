@@ -201,6 +201,21 @@ def build_llm_plan_json_schema(*, strict: bool = True) -> Dict[str, Any]:
             "patch": {"type": "object", "additionalProperties": True},
             "plan_program": {"type": "object", "additionalProperties": True},
             "plan_skeleton": {"type": "object", "additionalProperties": True},
+            "plan_status": {"type": "string"},
+            "error": {"type": "string"},
+            "capability_gap": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string"},
+                    "message": {"type": "string"},
+                    "path": {"type": "string"},
+                    "suggestions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "additionalProperties": True,
+            },
         },
         "required": ["mode", "anchor"],
         "additionalProperties": True,

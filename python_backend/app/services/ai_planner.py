@@ -4729,6 +4729,11 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             )
         except Exception as e:
             logger.warning("Assembly plan repair skipped: %s", e)
+        try:
+            from .assembly_plan_repair import finalize_assembly_plan_or_gap
+            normalized = finalize_assembly_plan_or_gap(normalized, user_text or None)
+        except Exception as e:
+            logger.warning("Assembly capability_gap finalize skipped: %s", e)
         normalize_ms = (time.monotonic() - _t_norm) * 1000.0
         logger.info(
             "LlmPlan timing: search=%.0fms llm=%.0fms normalize=%.0fms model=%s fmt=%s",
