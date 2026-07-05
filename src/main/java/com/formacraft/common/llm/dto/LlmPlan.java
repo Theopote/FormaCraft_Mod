@@ -55,9 +55,28 @@ public record LlmPlan(
          * <p>
          * 优先级：planSkeleton > planProgram（如果两者都提供，优先使用 planSkeleton）
          */
-        @JsonProperty("plan_skeleton") PlanSkeleton planSkeleton
+        @JsonProperty("plan_skeleton") PlanSkeleton planSkeleton,
+
+        /** ok | capability_gap | error — orchestrator may set explicit failure instead of empty components */
+        @JsonProperty("plan_status") String planStatus,
+
+        /** Human-readable failure summary when plan_status != ok */
+        @JsonProperty("error") String error,
+
+        /** Structured ASSEMBLY / freeform geometry capability gap */
+        @JsonProperty("capability_gap") CapabilityGap capabilityGap
 ) {
     public enum Mode { build, patch }
+
+    public boolean hasCapabilityGap() {
+        if (capabilityGap != null) {
+            return true;
+        }
+        if (planStatus == null || planStatus.isBlank()) {
+            return false;
+        }
+        return "capability_gap".equalsIgnoreCase(planStatus.trim());
+    }
 
     /**
      * 检查是否使用 PlanProgram 模式

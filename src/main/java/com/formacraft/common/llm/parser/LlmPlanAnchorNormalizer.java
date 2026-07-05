@@ -78,7 +78,10 @@ public final class LlmPlanAnchorNormalizer {
                 plan.allowedArea(),
                 plan.patch(),
                 plan.planProgram(),
-                plan.planSkeleton()
+                plan.planSkeleton(),
+                plan.planStatus(),
+                plan.error(),
+                plan.capabilityGap()
         );
     }
 

@@ -3,12 +3,14 @@ package com.formacraft.server.generation.component.impl;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.server.assembly.AssemblySpec;
 import com.formacraft.server.assembly.MetaAssemblyCompiler;
 import com.formacraft.server.assembly.MetaAssemblyEngine;
@@ -30,57 +32,85 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 将 LlmPlan {@code component_type=ASSEMBLY} 的 {@code params.assembly} 直接编译为 BlockPatch。
  * <p>
  * Patch 坐标相对 slot anchor；{@link com.formacraft.server.compiler.ComponentPlanCompiler} 再叠加 slot 偏移。
+ * Failures set {@link AssemblyCompileDiagnostics} instead of silently returning empty patches.
  */
 public final class AssemblyPatchGenerator {
+
+    public record GenerateResult(List<BlockPatch> patches, CapabilityGap gap) {
+        public static GenerateResult ok(List<BlockPatch> patches) {
+            return new GenerateResult(patches == null ? List.of() : patches, null);
+        }
+
+        public static GenerateResult failed(CapabilityGap gap) {
+            return new GenerateResult(List.of(), gap);
+        }
+
+        public boolean hasGap() {
+            return gap != null;
+        }
+    }
 
     private AssemblyPatchGenerator() {}
 
     public static List<BlockPatch> tryGenerate(SemanticComponent semantic, ServerWorld world) {
+        return generate(semantic, world).patches();
+    }
+
+    public static GenerateResult generate(SemanticComponent semantic, ServerWorld world) {
         if (semantic == null || world == null || semantic.source() == null) {
-            return List.of();
+            return GenerateResult.ok(List.of());
         }
         Component component = semantic.source();
         if (!"ASSEMBLY".equals(normalizeType(component.componentType()))) {
-            return List.of();
+            return GenerateResult.ok(List.of());
         }
         if (component.relativePosition() == null) {
-            FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: missing relative_position");
-            return List.of();
+            return fail("E_ASSEMBLY_MISSING_ANCHOR",
+                    "ASSEMBLY component missing relative_position",
+                    "components[].relative_position",
+                    List.of("Add relative_position {x,y,z} for the ASSEMBLY slot anchor."));
         }
 
         Object assemblyObj = resolveAssemblyPayload(component.params());
         if (assemblyObj == null) {
-            FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: ASSEMBLY component missing params.assembly (or ops/graph/macro)");
-            return List.of();
+            return fail("E_ASSEMBLY_MISSING",
+                    "ASSEMBLY component missing params.assembly (or ops/graph/macro/preset)",
+                    "components[].params.assembly",
+                    List.of(
+                            "Use params.assembly with preset, graph.components, or ops[].",
+                            "Prefer preset: spiral_watchtower | suspension_bridge_simple | gothic_shell_box."
+                    ));
         }
 
         AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assemblyObj);
         AssemblyPresetApplier.ApplyResult presetApplied = AssemblyPresetApplier.apply(norm.normalized());
-        if (!presetApplied.issues().isEmpty()) {
-            for (AssemblyValidationIssue issue : presetApplied.issues()) {
-                if (issue.severity() == AssemblyValidationIssue.Severity.ERROR) {
-                    FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: preset error {} at {}: {}",
-                            issue.code(), issue.path(), issue.message());
-                    return List.of();
-                }
+        for (AssemblyValidationIssue issue : presetApplied.issues()) {
+            if (issue.severity() == AssemblyValidationIssue.Severity.ERROR) {
+                return failFromIssue(issue, List.of("Fix preset id or presetParams.", "See ai-assembly-schema.json presets."));
             }
         }
         AssemblyMacroApplyResult macroApplied = AssemblyMacroApplier.apply(presetApplied.applied());
         Object applied = macroApplied.applied();
 
         List<AssemblyValidationIssue> issues = AssemblySpecValidator.validate(applied);
-        long errCount = issues.stream()
+        List<AssemblyValidationIssue> errors = issues.stream()
                 .filter(i -> i.severity() == AssemblyValidationIssue.Severity.ERROR)
-                .count();
-        if (errCount > 0) {
+                .toList();
+        if (!errors.isEmpty()) {
             FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: validation failed ({} errors). Hints:\n{}",
-                    errCount, AssemblyValidationRepairHints.formatForPrompt(issues));
-            return List.of();
+                    errors.size(), AssemblyValidationRepairHints.formatForPrompt(issues));
+            AssemblyValidationIssue first = errors.getFirst();
+            List<String> suggestions = errors.stream()
+                    .limit(4)
+                    .map(i -> i.code() + ": " + i.message())
+                    .collect(Collectors.toList());
+            return failFromIssue(first, suggestions);
         }
 
         BuildingSpec footprintHint = buildFootprintHint(component);
@@ -89,8 +119,14 @@ public final class AssemblyPatchGenerator {
             spec = MetaAssemblyCompiler.compile(applied, footprintHint);
         }
         if (spec == null || spec.ops == null || spec.ops.isEmpty()) {
-            FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: could not compile assembly to ops");
-            return List.of();
+            return fail("E_ASSEMBLY_COMPILE_EMPTY",
+                    "Could not compile assembly graph/ops to executable MetaAssembly ops",
+                    "components[].params.assembly",
+                    List.of(
+                            "Ensure graph.components[] types match exported schema.",
+                            "Or use a known preset shorthand.",
+                            "Return plan_status=capability_gap if geometry is unsupported."
+                    ));
         }
 
         Vec3i rp = component.relativePosition();
@@ -104,7 +140,13 @@ public final class AssemblyPatchGenerator {
                 new MetaAssemblyEngine.Context(world, origin, entrance, paletteId)
         );
         if (blocks.isEmpty()) {
-            return List.of();
+            return fail("E_ASSEMBLY_EMPTY_OUTPUT",
+                    "MetaAssemblyEngine produced zero blocks for ASSEMBLY component",
+                    "components[].params.assembly",
+                    List.of(
+                            "Check dimensions and params (w/d/h, points, span).",
+                            "Do not rely on silent fallback to HOUSE/MASS."
+                    ));
         }
 
         List<BlockPatch> out = new ArrayList<>(blocks.size());
@@ -119,7 +161,23 @@ public final class AssemblyPatchGenerator {
         }
 
         FormacraftMod.LOGGER.info("AssemblyPatchGenerator: generated {} patches for ASSEMBLY component", out.size());
-        return out;
+        return GenerateResult.ok(out);
+    }
+
+    private static GenerateResult fail(String code, String message, String path, List<String> suggestions) {
+        CapabilityGap gap = new CapabilityGap(code, message, path, suggestions);
+        AssemblyCompileDiagnostics.set(gap);
+        FormacraftMod.LOGGER.warn("AssemblyPatchGenerator: {} at {} — {}", code, path, message);
+        return GenerateResult.failed(gap);
+    }
+
+    private static GenerateResult failFromIssue(AssemblyValidationIssue issue, List<String> suggestions) {
+        return fail(
+                issue.code(),
+                issue.message(),
+                issue.path(),
+                suggestions
+        );
     }
 
     /**
@@ -134,7 +192,7 @@ public final class AssemblyPatchGenerator {
             return nested;
         }
         if (params.containsKey("ops") || params.containsKey("components") || params.containsKey("graph")
-                || params.containsKey("macro")) {
+                || params.containsKey("macro") || params.containsKey("preset") || params.containsKey("presetId")) {
             return new HashMap<>(params);
         }
         return null;

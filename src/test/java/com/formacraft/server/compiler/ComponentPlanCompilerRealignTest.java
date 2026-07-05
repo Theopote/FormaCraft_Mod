@@ -46,6 +46,9 @@ class ComponentPlanCompilerRealignTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
         );
 
@@ -101,6 +104,9 @@ class ComponentPlanCompilerRealignTest {
                                 Map.of("roof_type", "flat")
                         )
                 ),
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,

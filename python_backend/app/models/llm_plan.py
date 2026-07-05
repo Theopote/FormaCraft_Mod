@@ -154,6 +154,15 @@ class StyleAttributesModel(BaseModel):
     custom_attributes: Optional[Dict[str, str]] = None
 
 
+class CapabilityGapModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    code: Optional[str] = None
+    message: Optional[str] = None
+    path: Optional[str] = None
+    suggestions: Optional[List[str]] = None
+
+
 class ComponentModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -252,6 +261,9 @@ class LlmPlanModel(BaseModel):
     patch: Optional[PatchBlockSectionModel] = None
     plan_program: Optional[Dict[str, Any]] = None
     plan_skeleton: Optional[Dict[str, Any]] = None
+    plan_status: Optional[str] = None
+    error: Optional[str] = None
+    capability_gap: Optional[CapabilityGapModel] = None
 
     @model_validator(mode="after")
     def validate_patch_mode(self) -> "LlmPlanModel":

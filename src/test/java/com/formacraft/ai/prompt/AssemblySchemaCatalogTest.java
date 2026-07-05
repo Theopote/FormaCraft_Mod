@@ -1,11 +1,18 @@
 package com.formacraft.ai.prompt;
 
+import com.formacraft.server.assembly.schema.AssemblySchemaExporter;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssemblySchemaCatalogTest {
+
+    @BeforeAll
+    static void initSchema() {
+        AssemblySchemaExporter.initialize();
+    }
 
     @Test
     void selectsSpiralRelevantTypes() {

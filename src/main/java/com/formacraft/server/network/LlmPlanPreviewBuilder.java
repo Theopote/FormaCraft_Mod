@@ -58,6 +58,11 @@ public final class LlmPlanPreviewBuilder {
             return false;
         }
 
+        if (llmPlan.hasCapabilityGap()) {
+            reportCapabilityGap(player, req, hbAlive, resolvePlanGap(llmPlan));
+            return true;
+        }
+
         LlmPlanRoutingMetrics.recordTaggedAttempt(player, req);
 
         if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req)) {
@@ -236,6 +241,19 @@ public final class LlmPlanPreviewBuilder {
             }
 
             if (plannedBlocks.isEmpty()) {
+                com.formacraft.common.llm.dto.CapabilityGap compileGap =
+                        com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
+                if (compileGap != null || com.formacraft.server.assembly.AssemblyPlanCapability.isAssemblyOnly(llmPlan)) {
+                    reportCapabilityGap(player, req, hbAlive, compileGap != null
+                            ? compileGap
+                            : new com.formacraft.common.llm.dto.CapabilityGap(
+                                    "E_ASSEMBLY_EMPTY_OUTPUT",
+                                    "ASSEMBLY plan compiled to zero blocks",
+                                    "components[]",
+                                    List.of("Check params.assembly preset/graph.", "Use exported schema types and ports.")
+                            ));
+                    return true;
+                }
                 LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
                 return false;
             }
@@ -549,6 +567,39 @@ public final class LlmPlanPreviewBuilder {
             ));
             return true;
         }
+    }
+
+    private static com.formacraft.common.llm.dto.CapabilityGap resolvePlanGap(LlmPlan plan) {
+        if (plan.capabilityGap() != null) {
+            return plan.capabilityGap();
+        }
+        String msg = plan.error();
+        if (msg == null || msg.isBlank()) {
+            msg = "Requested geometry is outside current MetaAssembly capabilities.";
+        }
+        return new com.formacraft.common.llm.dto.CapabilityGap(
+                "E_CAPABILITY_GAP",
+                msg,
+                "plan",
+                List.of("Use ASSEMBLY preset/graph from ai-assembly-schema.json.", "Or simplify to MASS_* + ROOF.")
+        );
+    }
+
+    private static void reportCapabilityGap(
+            ServerPlayerEntity player,
+            FormaRequest req,
+            AtomicBoolean hbAlive,
+            com.formacraft.common.llm.dto.CapabilityGap gap
+    ) {
+        hbAlive.set(false);
+        String summary = gap.summary();
+        if (gap.code() != null && !gap.code().isBlank() && !summary.contains(gap.code())) {
+            summary = gap.code() + ": " + summary;
+        }
+        LlmPlanRoutingMetrics.recordError(player, req, gap.code() != null ? gap.code() : "capability_gap");
+        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                "ASSEMBLY 能力缺口 — " + summary
+        ));
     }
 }
 

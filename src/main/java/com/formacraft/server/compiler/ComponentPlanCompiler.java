@@ -117,6 +117,8 @@ public final class ComponentPlanCompiler {
             return result;
         }
 
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+
         plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
 
         // 索引 slots（便于快速查找）

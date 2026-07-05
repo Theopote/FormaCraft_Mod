@@ -7,11 +7,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-KNOWN_PRESETS = frozenset({
-    "spiral_watchtower",
-    "suspension_bridge_simple",
-    "gothic_shell_box",
-})
+from app.services.assembly_schema_loader import (
+    compatibility_rules,
+    component_ports,
+    known_preset_ids,
+)
+
+KNOWN_PRESETS = known_preset_ids()
 
 ASSEMBLY_INTENT_MARKERS = (
     "assembly", "螺旋", "spiral", "helix", "twist", "瞭望", "watchtower",
@@ -258,21 +260,10 @@ def _parse_endpoint(endpoint: Any) -> Optional[Tuple[Optional[str], Optional[str
 
 
 def _ports_for_component(comp: Dict[str, Any]) -> Set[str]:
-    ports = set(BUILTIN_PORTS)
-    ctype = str(comp.get("type") or comp.get("op") or "").upper()
-    w = int(comp.get("w") or comp.get("width") or 10)
-    d = int(comp.get("d") or comp.get("depth") or 10)
-    h = int(comp.get("h") or comp.get("height") or 10)
-    ports.add("top_center")
-    if "SPLINE" in ctype:
-        ports.update({"start", "end", "start_n", "start_s", "start_e", "start_w",
-                      "end_n", "end_s", "end_e", "end_w"})
-    if w > 0 or d > 0:
-        hx, hz = w // 2, d // 2
-        for name in (f"corner_{a}_{b}" for a in ("front", "back") for b in ("left", "right")):
-            ports.add(name)
-    if h > 0:
-        ports.add("top")
+    ctype = str(comp.get("type") or comp.get("op") or "").strip()
+    ports = set(component_ports(ctype))
+    if not ports:
+        ports = set(BUILTIN_PORTS)
     return ports
 
 
@@ -292,6 +283,11 @@ def format_repair_prompt(plan: Dict[str, Any], issues: List[AssemblyPlanIssue]) 
         '- Use component_type="ASSEMBLY" at top level (never nest params.assembly inside MASS_*).',
         '- Prefer preset: { "preset": "spiral_watchtower"|"suspension_bridge_simple", "presetParams": {...} }.',
         '- Connection endpoints must be "ComponentId.port" using valid ports (center, top_center, bottom_center, north, ...).',
+        '- If geometry is unsupported, return plan_status="capability_gap" with capability_gap{code,message,path,suggestions}.',
+    ])
+    for rule in compatibility_rules()[:4]:
+        lines.append(f"- {rule}")
+    lines.extend([
         "",
         "Previous plan JSON:",
     ])

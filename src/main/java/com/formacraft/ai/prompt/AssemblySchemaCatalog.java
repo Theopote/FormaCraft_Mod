@@ -1,5 +1,8 @@
 package com.formacraft.ai.prompt;
 
+import com.formacraft.server.assembly.schema.AssemblyComponentSchemaRegistry;
+import com.formacraft.server.assembly.schema.AssemblySchemaExporter;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -8,7 +11,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Compact MetaAssembly component schema for AI prompts (Nodecraft-style intent cropping).
+ * AI prompt view of MetaAssembly schema (loaded from {@link AssemblySchemaExporter} snapshot).
  */
 public final class AssemblySchemaCatalog {
 
@@ -19,59 +22,6 @@ public final class AssemblySchemaCatalog {
             List<String> optionalParams,
             List<String> ports
     ) {}
-
-    private static final List<String> BUILTIN_PORTS = List.of(
-            "center", "bottom_center", "top_center",
-            "north", "south", "east", "west",
-            "nw", "ne", "sw", "se",
-            "entrance", "exit", "in", "out"
-    );
-
-    private static final List<ComponentSchema> ALL = List.of(
-            schema("SHELL_BOX", "shell", List.of("w", "d", "h"),
-                    List.of("twistTurns", "twistPhase", "wall", "window", "floor", "facade"),
-                    BUILTIN_PORTS),
-            schema("CYLINDER", "solid", List.of("r", "h"),
-                    List.of("thickness", "hollow", "wall", "window"),
-                    concat(BUILTIN_PORTS, List.of("ne", "nw", "se", "sw"))),
-            schema("FRAME_GRID_3D", "structure", List.of("w", "d", "h"),
-                    List.of("x0", "x1", "y0", "y1", "z0", "z1", "diag", "material"),
-                    BUILTIN_PORTS),
-            schema("SPLINE_SWEEP", "curve", List.of("points"),
-                    List.of("profileW", "profileH", "thickness", "hollow", "twistTurns"),
-                    List.of("start", "end", "start_n", "start_s", "start_e", "start_w",
-                            "end_n", "end_s", "end_e", "end_w", "center")),
-            schema("BEZIER_SURFACE", "surface", List.of("p00", "p10", "p01", "p11"),
-                    List.of("samplesU", "samplesV", "thickness", "material"),
-                    BUILTIN_PORTS),
-            schema("LOFT_SURFACE", "surface", List.of("profiles"),
-                    List.of("samples", "material"),
-                    BUILTIN_PORTS),
-            schema("IMPLICIT_FIELD", "field", List.of("kind"),
-                    List.of("radius", "expression", "material"),
-                    BUILTIN_PORTS),
-            schema("MARCHING_CUBES", "field", List.of("field"),
-                    List.of("resolution", "isoLevel", "material"),
-                    BUILTIN_PORTS),
-            schema("EXTRUDE_POLYGON", "solid", List.of("h"),
-                    List.of("points", "w", "d", "shape", "thickness"),
-                    BUILTIN_PORTS),
-            schema("ROOF_COVER", "roof", List.of("w", "d"),
-                    List.of("roofType", "h", "material"),
-                    BUILTIN_PORTS),
-            schema("TENSION_CABLE", "bridge", List.of("from", "to"),
-                    List.of("sag", "samples", "thickness", "material"),
-                    BUILTIN_PORTS),
-            schema("ARCH_RIB", "structure", List.of("span", "rise"),
-                    List.of("samples", "thickness", "material"),
-                    BUILTIN_PORTS),
-            schema("STAIR_SYSTEM", "circulation", List.of("w", "d", "h"),
-                    List.of("steps", "material"),
-                    BUILTIN_PORTS),
-            schema("CONNECTOR_LINE", "route", List.of("from", "to"),
-                    List.of("width", "material", "routing"),
-                    BUILTIN_PORTS)
-    );
 
     private static final List<String> SPIRAL_INTENT = List.of(
             "螺旋", "spiral", "helix", "twist", "瞭望", "watchtower", "lookout", "扭转"
@@ -87,6 +37,20 @@ public final class AssemblySchemaCatalog {
     );
 
     private AssemblySchemaCatalog() {}
+
+    public static List<ComponentSchema> allComponents() {
+        List<ComponentSchema> out = new ArrayList<>();
+        for (AssemblySchemaExporter.ExportedComponent c : AssemblySchemaExporter.snapshot().components()) {
+            out.add(new ComponentSchema(
+                    c.type(),
+                    c.category(),
+                    c.requiredParams(),
+                    c.optionalParams(),
+                    c.ports()
+            ));
+        }
+        return out;
+    }
 
     public static List<ComponentSchema> selectRelevant(String userIntent) {
         if (userIntent == null || userIntent.isBlank()) {
@@ -119,7 +83,7 @@ public final class AssemblySchemaCatalog {
             types.add("ROOF_COVER");
         }
         List<ComponentSchema> out = new ArrayList<>();
-        for (ComponentSchema s : ALL) {
+        for (ComponentSchema s : allComponents()) {
             if (types.contains(s.type())) {
                 out.add(s);
             }
@@ -141,6 +105,7 @@ ASSEMBLY COMPONENT LIBRARY (use exact type names and port ids):
 graph.components[] = { id, type, at{x,y,z}, params... }
 graph.connections[] = { from: "A.port", to: "B.port", type?: "CONNECTOR_LINE"|"PATH_ROUTE"|"WALL_ROUTE" }
 Ports are ALWAYS "ComponentId.portName" (e.g. "Tower.top_center" -> "Bridge.start").
+If geometry is unsupported, return plan_status="capability_gap" with capability_gap{code,message,path,suggestions} — never empty ASSEMBLY.
 
 """);
         for (ComponentSchema s : schemas) {
@@ -153,14 +118,19 @@ Ports are ALWAYS "ComponentId.portName" (e.g. "Tower.top_center" -> "Bridge.star
             }
             sb.append("\n  ports: ").append(String.join(", ", s.ports())).append("\n");
         }
+        sb.append("\nPreset shorthand (preferred):\n");
+        for (AssemblySchemaExporter.ExportedPreset preset : AssemblySchemaExporter.snapshot().presets()) {
+            sb.append("  ").append(preset.id()).append(": presetParams ")
+                    .append(String.join(", ", preset.parameters())).append("\n");
+        }
         sb.append("""
-Preset shorthand (preferred):
-  spiral: { "preset": "spiral_watchtower", "presetParams": { "height", "footprint", "twistTurns", "styleId" } }
-  bridge: { "preset": "suspension_bridge_simple", "presetParams": { "span", "towerHeight", "deckY", "sag" } }
-  gothic shell: { "preset": "gothic_shell_box", "presetParams": { "height", "width", "depth", "styleId" } }
 Do NOT invent port names; use listed ports only.
 
+Compatibility:
 """);
+        for (String rule : AssemblySchemaExporter.snapshot().compatibilityRules()) {
+            sb.append("- ").append(rule).append("\n");
+        }
         return sb.toString();
     }
 
@@ -169,38 +139,29 @@ Do NOT invent port names; use listed ports only.
             return false;
         }
         String upper = type.trim().toUpperCase(Locale.ROOT);
-        for (ComponentSchema s : ALL) {
+        for (ComponentSchema s : allComponents()) {
             if (upper.equals(s.type()) || upper.contains(s.type())) {
                 return true;
             }
         }
-        return com.formacraft.server.assembly.AssemblyComponentTypes.isKnown(type);
+        return AssemblyComponentSchemaRegistry.isKnownType(type);
+    }
+
+    public static Set<String> knownPresetIds() {
+        Set<String> out = new LinkedHashSet<>();
+        for (AssemblySchemaExporter.ExportedPreset p : AssemblySchemaExporter.snapshot().presets()) {
+            out.add(p.id());
+        }
+        return out;
     }
 
     private static ComponentSchema schemaFor(String type) {
-        for (ComponentSchema s : ALL) {
+        for (ComponentSchema s : allComponents()) {
             if (s.type().equals(type)) {
                 return s;
             }
         }
         throw new IllegalArgumentException("unknown schema type: " + type);
-    }
-
-    private static ComponentSchema schema(
-            String type,
-            String category,
-            List<String> required,
-            List<String> optional,
-            List<String> ports
-    ) {
-        return new ComponentSchema(type, category, required, optional, ports);
-    }
-
-    private static List<String> concat(List<String> a, List<String> b) {
-        List<String> out = new ArrayList<>(a.size() + b.size());
-        out.addAll(a);
-        out.addAll(b);
-        return out;
     }
 
     private static boolean matches(String lower, List<String> markers) {
