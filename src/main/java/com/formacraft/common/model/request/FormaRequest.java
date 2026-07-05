@@ -53,6 +53,13 @@ public class FormaRequest {
     /** OpenAI-compatible base URL，例如 https://api.deepseek.com/v1 */
     private String llmBaseUrl;
 
+    /** 建筑研究网络搜索：auto / duckduckgo / bing / google_cse / wikipedia_only */
+    private String searchProvider;
+    /** Bing 或 Google CSE API Key */
+    private String searchApiKey;
+    /** Google Custom Search Engine ID */
+    private String googleCseCx;
+
     public FormaRequest() {
         this.chatHistory = java.util.Collections.emptyList();
         this.protectedZones = java.util.Collections.emptyList();
@@ -247,6 +254,30 @@ public class FormaRequest {
 
     public void setLlmBaseUrl(String llmBaseUrl) {
         this.llmBaseUrl = llmBaseUrl;
+    }
+
+    public String getSearchProvider() {
+        return searchProvider;
+    }
+
+    public void setSearchProvider(String searchProvider) {
+        this.searchProvider = searchProvider;
+    }
+
+    public String getSearchApiKey() {
+        return searchApiKey;
+    }
+
+    public void setSearchApiKey(String searchApiKey) {
+        this.searchApiKey = searchApiKey;
+    }
+
+    public String getGoogleCseCx() {
+        return googleCseCx;
+    }
+
+    public void setGoogleCseCx(String googleCseCx) {
+        this.googleCseCx = googleCseCx;
     }
 
     public String getOutputFormat() {

@@ -43,6 +43,9 @@ class FormaRequestAdapter(BaseModel):
     temperature: Optional[float] = None
     llmProvider: Optional[str] = None
     llmBaseUrl: Optional[str] = None
+    searchProvider: Optional[str] = None
+    searchApiKey: Optional[str] = None
+    googleCseCx: Optional[str] = None
     references: Optional[list[ReferenceInput]] = None
     
     # Python 端格式（嵌套结构，向后兼容）
@@ -128,6 +131,9 @@ class FormaRequestAdapter(BaseModel):
                 temperature=self.temperature,
                 llmProvider=self.llmProvider,
                 llmBaseUrl=self.llmBaseUrl,
+                searchProvider=self.searchProvider,
+                searchApiKey=self.searchApiKey,
+                googleCseCx=self.googleCseCx,
                 references=self.references,
             )
         else:
@@ -190,6 +196,9 @@ class FormaRequestAdapter(BaseModel):
                 temperature=self.temperature,
                 llmProvider=self.llmProvider,
                 llmBaseUrl=self.llmBaseUrl,
+                searchProvider=self.searchProvider,
+                searchApiKey=self.searchApiKey,
+                googleCseCx=self.googleCseCx,
                 references=self.references,
             )
 

@@ -29,6 +29,8 @@ public final class SettingsConfigCoordinator {
         host.orchestratorInput().setMaxLength(256);
         host.llmBaseUrlInput().setMaxLength(256);
         host.modelInput().setMaxLength(128);
+        host.searchApiKeyInput().setMaxLength(256);
+        host.googleCseCxInput().setMaxLength(128);
 
         // 同步草稿态：允许为空（自动），不再限制预设列表
         String model = cfg.model != null ? cfg.model.trim() : "";
@@ -53,6 +55,10 @@ public final class SettingsConfigCoordinator {
         host.syncBaseUrlPresetFromValue(sanitizedBaseUrl);
 
         host.setDraftShowDebugWarnings(cfg.showDebugWarnings);
+        String searchProvider = (cfg.searchProvider == null || cfg.searchProvider.isBlank()) ? "auto" : cfg.searchProvider.trim();
+        host.setDraftSearchProvider(searchProvider);
+        host.searchApiKeyInput().setText(cfg.searchApiKey != null ? cfg.searchApiKey : "");
+        host.googleCseCxInput().setText(cfg.googleCseCx != null ? cfg.googleCseCx : "");
         host.setDraftTemperature(clamp01(cfg.temperature));
         host.setDraftFontSize(clampInt(cfg.fontSize));
         host.setDraftInteractionReach(clampReach(cfg.interactionReach));
@@ -93,6 +99,10 @@ public final class SettingsConfigCoordinator {
             SettingsConfig.INSTANCE.llmProvider = provider;
             SettingsConfig.INSTANCE.llmBaseUrl = llmBaseUrl;
             SettingsConfig.INSTANCE.showDebugWarnings = host.draftShowDebugWarnings();
+            String searchProvider = host.draftSearchProvider();
+            SettingsConfig.INSTANCE.searchProvider = (searchProvider == null || searchProvider.isBlank()) ? "auto" : searchProvider.trim();
+            SettingsConfig.INSTANCE.searchApiKey = host.searchApiKeyInput().getText() != null ? host.searchApiKeyInput().getText().trim() : "";
+            SettingsConfig.INSTANCE.googleCseCx = host.googleCseCxInput().getText() != null ? host.googleCseCxInput().getText().trim() : "";
             SettingsConfig.INSTANCE.temperature = clamp01(host.draftTemperature());
             SettingsConfig.INSTANCE.fontSize = clampInt(host.draftFontSize());
             SettingsConfig.INSTANCE.interactionReach = clampReach(host.draftInteractionReach());

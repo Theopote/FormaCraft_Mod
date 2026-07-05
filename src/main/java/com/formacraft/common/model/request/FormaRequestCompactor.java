@@ -106,6 +106,9 @@ public final class FormaRequestCompactor {
         dst.setTemperature(src.getTemperature());
         dst.setLlmProvider(src.getLlmProvider());
         dst.setLlmBaseUrl(src.getLlmBaseUrl());
+        dst.setSearchProvider(src.getSearchProvider());
+        dst.setSearchApiKey(src.getSearchApiKey());
+        dst.setGoogleCseCx(src.getGoogleCseCx());
         return dst;
     }
 

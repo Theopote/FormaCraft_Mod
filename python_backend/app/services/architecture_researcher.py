@@ -5,9 +5,12 @@ Architecture Researcher Service
 import os
 import re
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, TYPE_CHECKING
 import requests
 from urllib.parse import quote_plus
+
+if TYPE_CHECKING:
+    from .search_config import SearchRuntimeConfig
 
 logger = logging.getLogger(__name__)
 
@@ -127,17 +130,27 @@ def is_relevant_architecture_result(item: Dict[str, str]) -> bool:
     return any(sig in blob for sig in _ARCHITECTURE_SIGNALS)
 
 
-def google_cse_configured() -> bool:
+def google_cse_configured(cfg: "SearchRuntimeConfig | None" = None) -> bool:
+    if cfg is not None:
+        return bool((cfg.google_api_key or "").strip() and (cfg.google_cse_cx or "").strip())
     return bool(
         (os.getenv("GOOGLE_CSE_API_KEY") or "").strip()
         and (os.getenv("GOOGLE_CSE_CX") or "").strip()
     )
 
 
-def _search_with_google_cse(query: str, max_results: int) -> List[Dict[str, str]]:
-    """Google Custom Search JSON API（需 GOOGLE_CSE_API_KEY + GOOGLE_CSE_CX）。"""
-    api_key = (os.getenv("GOOGLE_CSE_API_KEY") or "").strip()
-    cx = (os.getenv("GOOGLE_CSE_CX") or "").strip()
+def _search_with_google_cse(
+    query: str,
+    max_results: int,
+    cfg: "SearchRuntimeConfig | None" = None,
+) -> List[Dict[str, str]]:
+    """Google Custom Search JSON API（需 API key + CX）。"""
+    if cfg is not None:
+        api_key = (cfg.google_api_key or "").strip()
+        cx = (cfg.google_cse_cx or "").strip()
+    else:
+        api_key = (os.getenv("GOOGLE_CSE_API_KEY") or "").strip()
+        cx = (os.getenv("GOOGLE_CSE_CX") or "").strip()
     if not api_key or not cx:
         return []
     try:
@@ -279,17 +292,33 @@ def _search_wikipedia(query: str, max_results: int = 2, lang: str = "zh") -> Lis
         return []
 
 
-def search_architecture_reference(query: str, max_results: int = 3) -> List[Dict[str, str]]:
+def search_architecture_reference(
+    query: str,
+    max_results: int = 3,
+    cfg: "SearchRuntimeConfig | None" = None,
+) -> List[Dict[str, str]]:
     """
     搜索建筑参考资料
     
     Args:
         query: 搜索查询（如 "埃菲尔铁塔 建筑结构"）
         max_results: 最大结果数量
+        cfg: 可选；来自客户端设置或 search_config.resolve_search_config()
     
     Returns:
         搜索结果列表，每个结果包含 title, snippet, url
     """
+    if cfg is None:
+        try:
+            from .search_config import resolve_search_config
+            cfg = resolve_search_config()
+        except Exception:
+            cfg = None
+
+    provider = (cfg.provider if cfg is not None else "auto").strip().lower()
+    if provider not in ("auto", "duckduckgo", "bing", "google_cse", "wikipedia_only"):
+        provider = "auto"
+
     merged: List[Dict[str, str]] = []
     seen: set[str] = set()
 
@@ -305,28 +334,43 @@ def search_architecture_reference(query: str, max_results: int = 3) -> List[Dict
             if len(merged) >= max_results:
                 return
 
-    # 1) Wikipedia（优先，尤其对中文建筑名）
-    langs = ("zh", "en") if any(ord(c) > 127 for c in query) else ("en", "zh")
-    for lang in langs:
-        _add(_search_wikipedia(query, max_results=max_results, lang=lang))
+    def _wiki_pass() -> bool:
+        langs = ("zh", "en") if any(ord(c) > 127 for c in query) else ("en", "zh")
+        for lang in langs:
+            _add(_search_wikipedia(query, max_results=max_results, lang=lang))
+            if len(merged) >= max_results:
+                return True
+        return False
+
+    if _wiki_pass():
+        return merged[:max_results]
+
+    if provider == "wikipedia_only":
+        return merged[:max_results]
+
+    if provider in ("auto", "google_cse") and google_cse_configured(cfg):
+        _add(_search_with_google_cse(query, max_results, cfg=cfg))
         if len(merged) >= max_results:
             return merged[:max_results]
 
-    # 2) Google Custom Search（配置了 API key 时）
-    if google_cse_configured():
-        _add(_search_with_google_cse(query, max_results))
-        if len(merged) >= max_results:
-            return merged[:max_results]
-
-    # 3) DuckDuckGo
-    try:
-        _add(_search_with_duckduckgo(query, max_results))
-    except Exception as e:
-        logger.warning("DuckDuckGo search failed: %s, trying Bing", e)
+    if provider == "bing" or (provider == "auto" and cfg is not None and (cfg.bing_api_key or "").strip()):
         try:
-            _add(_search_with_bing(query, max_results))
-        except Exception as e2:
-            logger.warning("Bing search failed: %s", e2)
+            _add(_search_with_bing(query, max_results, cfg=cfg))
+            if len(merged) >= max_results:
+                return merged[:max_results]
+        except Exception as e:
+            logger.warning("Bing search failed: %s", e)
+
+    if provider in ("auto", "duckduckgo"):
+        try:
+            _add(_search_with_duckduckgo(query, max_results))
+        except Exception as e:
+            logger.warning("DuckDuckGo search failed: %s, trying Bing", e)
+            if provider == "auto":
+                try:
+                    _add(_search_with_bing(query, max_results, cfg=cfg))
+                except Exception as e2:
+                    logger.warning("Bing search failed: %s", e2)
 
     return merged[:max_results]
 
@@ -411,13 +455,20 @@ def _search_with_http(query: str, max_results: int) -> List[Dict[str, str]]:
     return []
 
 
-def _search_with_bing(query: str, max_results: int) -> List[Dict[str, str]]:
+def _search_with_bing(
+    query: str,
+    max_results: int,
+    cfg: "SearchRuntimeConfig | None" = None,
+) -> List[Dict[str, str]]:
     """
     使用 Bing Search API 搜索（需要 API key）
     """
-    api_key = os.getenv("BING_SEARCH_API_KEY")
+    if cfg is not None and (cfg.bing_api_key or "").strip():
+        api_key = cfg.bing_api_key.strip()
+    else:
+        api_key = (os.getenv("BING_SEARCH_API_KEY") or "").strip()
     if not api_key:
-        raise ValueError("BING_SEARCH_API_KEY not set")
+        raise ValueError("Bing Search API key not set")
     
     search_url = "https://api.bing.microsoft.com/v7.0/search"
     headers = {"Ocp-Apim-Subscription-Key": api_key}

@@ -999,6 +999,15 @@ public class ChatPanel extends BasePanel {
         String baseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
         if (!baseUrl.isEmpty()) req.setLlmBaseUrl(baseUrl);
 
+        String searchProvider = cfg.searchProvider != null ? cfg.searchProvider.trim() : "";
+        if (!searchProvider.isEmpty()) req.setSearchProvider(searchProvider);
+
+        String searchApiKey = cfg.searchApiKey != null ? cfg.searchApiKey.trim() : "";
+        if (!searchApiKey.isEmpty()) req.setSearchApiKey(searchApiKey);
+
+        String googleCseCx = cfg.googleCseCx != null ? cfg.googleCseCx.trim() : "";
+        if (!googleCseCx.isEmpty()) req.setGoogleCseCx(googleCseCx);
+
         // 记录 origin，确保 confirm 时与预览一致
         BuildingPreviewState.setPendingOrigin(origin);
 

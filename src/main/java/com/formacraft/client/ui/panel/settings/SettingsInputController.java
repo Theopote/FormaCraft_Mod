@@ -35,6 +35,8 @@ public final class SettingsInputController {
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
+            host.searchApiKeyInput().setFocused(false);
+            host.googleCseCxInput().setFocused(false);
             host.setModelDropdownOpen(false);
             host.hideModelOptionButtons();
             return false;
@@ -334,10 +336,53 @@ public final class SettingsInputController {
             return true;
         }
 
-        // =========== 滑动条交互 ============
-        // 与 SettingsConnectionSection 紧凑布局保持一致：
-        // 从 modelLabelY 到 Preferences 起点总推进为 3 * LABEL_OFFSET。
+        // =========== Search（建筑研究） ============
+        // Model 区块结束后推进 LABEL_OFFSET * 3，与 SettingsConnectionSection 出口一致。
         y += LABEL_OFFSET * 3;
+
+        int searchProviderLabelY = y;
+        int searchProviderY = searchProviderLabelY + LABEL_OFFSET;
+        host.searchProviderButton().setPosition(x, searchProviderY);
+        host.searchProviderButton().setWidth(w);
+        if (host.searchProviderButton().mouseClicked(click, false)) {
+            host.orchestratorInput().setFocused(false);
+            host.apiKeyInput().setFocused(false);
+            host.llmBaseUrlInput().setFocused(false);
+            host.modelInput().setFocused(false);
+            host.searchApiKeyInput().setFocused(false);
+            host.googleCseCxInput().setFocused(false);
+            host.setModelDropdownOpen(false);
+            host.hideModelOptionButtons();
+            return true;
+        }
+
+        y += FIELD_SPACING;
+        int searchKeyLabelY = y;
+        int searchKeyY = searchKeyLabelY + LABEL_OFFSET;
+        if (host.searchApiKeyInput().mouseClicked(mouseX, mouseY, x, searchKeyY, w, INPUT_HEIGHT)) {
+            host.orchestratorInput().setFocused(false);
+            host.llmBaseUrlInput().setFocused(false);
+            host.modelInput().setFocused(false);
+            host.googleCseCxInput().setFocused(false);
+            host.setModelDropdownOpen(false);
+            host.hideModelOptionButtons();
+            return true;
+        }
+
+        y += FIELD_SPACING;
+        int googleCxLabelY = y;
+        int googleCxY = googleCxLabelY + LABEL_OFFSET;
+        if (host.googleCseCxInput().mouseClicked(mouseX, mouseY, x, googleCxY, w, INPUT_HEIGHT)) {
+            host.orchestratorInput().setFocused(false);
+            host.llmBaseUrlInput().setFocused(false);
+            host.modelInput().setFocused(false);
+            host.searchApiKeyInput().setFocused(false);
+            host.setModelDropdownOpen(false);
+            host.hideModelOptionButtons();
+            return true;
+        }
+
+        y += FIELD_SPACING;
 
         // =========== Debug Warnings（toggle） ============
         int dbgBtnY = y + LABEL_OFFSET;

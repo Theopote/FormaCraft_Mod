@@ -1,17 +1,8 @@
 package com.formacraft.client.ui.panel;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.client.ui.panel.settings.*;
 import com.formacraft.common.logging.FcaLog;
-import com.formacraft.client.ui.panel.settings.SettingsActionsSection;
-import com.formacraft.client.ui.panel.settings.SettingsBaseUrlPresets;
-import com.formacraft.client.ui.panel.settings.SettingsConnectionSection;
-import com.formacraft.client.ui.panel.settings.SettingsModelCatalog;
-import com.formacraft.client.ui.panel.settings.SettingsInputController;
-import com.formacraft.client.ui.panel.settings.SettingsPanelDrawSupport;
-import com.formacraft.client.ui.panel.settings.SettingsConfigCoordinator;
-import com.formacraft.client.ui.panel.settings.SettingsPanelRenderHost;
-import com.formacraft.client.ui.panel.settings.SettingsPreferencesSection;
-import com.formacraft.client.ui.panel.settings.SettingsSliders;
 import com.formacraft.client.ui.widget.HudTextInput;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
@@ -56,6 +47,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private final HudTextInput apiKeyInput = new HudTextInput();
     private final HudTextInput llmBaseUrlInput = new HudTextInput();
     private final HudTextInput modelInput = new HudTextInput();
+    private final HudTextInput searchApiKeyInput = new HudTextInput();
+    private final HudTextInput googleCseCxInput = new HudTextInput();
     // 默认显示明文（用户可以手动点 Hide 隐藏）
     private boolean hideKey = false;
 
@@ -68,6 +61,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private String draftLlmBaseUrl = "";
     /** 调试：是否在聊天面板显示后端 debugWarnings */
     private boolean draftShowDebugWarnings = false;
+    /** auto / duckduckgo / bing / google_cse / wikipedia_only */
+    private String draftSearchProvider = "auto";
     private float draftTemperature = 0.7f;
     private int draftFontSize = 14;
     private int draftInteractionReach = DEFAULT_INTERACTION_REACH;
@@ -95,7 +90,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private ButtonWidget autoModelButton;
     private ButtonWidget llmProviderButton;
     private ButtonWidget llmBaseUrlPresetButton;
-    private ButtonWidget debugWarningsButton;
+    private     ButtonWidget debugWarningsButton;
+    ButtonWidget searchProviderButton;
     private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
     private SettingsSliders.Temperature temperatureSlider;
     private SettingsSliders.FontSize fontSizeSlider;
@@ -208,6 +204,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             y += TITLE_HEIGHT;
 
             y = SettingsConnectionSection.drawSection(this, ctx, x, y, w);
+            y = SettingsSearchSection.drawSection(this, ctx, x, y, w);
             y = SettingsPreferencesSection.drawSection(this, ctx, x, y, w);
             y = SettingsActionsSection.drawSection(this, ctx, x, y, w);
             SettingsConnectionSection.renderOverlays(this, ctx);
@@ -423,6 +420,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         debugWarningsButton = ButtonWidget.builder(getDebugWarningsButtonText(), b -> toggleDebugWarnings())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("调试：将后端 debugWarnings 追加显示到聊天面板（便于调 prompt / 纠错链路）")))
+                .build();
+
+        searchProviderButton = ButtonWidget.builder(getSearchProviderButtonText(), b -> cycleSearchProvider())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT)
+                .tooltip(Tooltip.of(Text.literal("建筑研究联网搜索：选择搜索引擎或 API")))
                 .build();
 
         // BaseURL 下拉选项（按钮形式，避免自绘命中不准）
@@ -641,6 +643,32 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         hideModelOptionButtons();
         showToast(next.local ? ("LLM Provider: " + next.provider + "（本地，API Key 可留空）")
                 : ("LLM Provider: " + next.provider), false);
+    }
+
+    private Text getSearchProviderButtonText() {
+        String p = (draftSearchProvider == null || draftSearchProvider.isBlank()) ? "auto" : draftSearchProvider.trim();
+        for (SettingsSearchProviders.Entry e : SettingsSearchProviders.CYCLE) {
+            if (e.id().equalsIgnoreCase(p)) {
+                return Text.literal("搜索：" + e.label());
+            }
+        }
+        return Text.literal("搜索：" + p);
+    }
+
+    private void cycleSearchProvider() {
+        List<SettingsSearchProviders.Entry> cycle = SettingsSearchProviders.CYCLE;
+        String cur = (draftSearchProvider == null || draftSearchProvider.isBlank()) ? "auto" : draftSearchProvider.trim().toLowerCase();
+        int idx = -1;
+        for (int i = 0; i < cycle.size(); i++) {
+            if (cycle.get(i).id().equalsIgnoreCase(cur)) {
+                idx = i;
+                break;
+            }
+        }
+        SettingsSearchProviders.Entry next = cycle.get((idx + 1) % cycle.size());
+        draftSearchProvider = next.id();
+        if (searchProviderButton != null) searchProviderButton.setMessage(getSearchProviderButtonText());
+        showToast("搜索引擎: " + next.label(), false);
     }
 
     private BaseUrlPreset getSelectedBaseUrlPreset() {
@@ -969,6 +997,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private void toggleHideKey() {
         hideKey = !hideKey;
         apiKeyInput.setPasswordMode(hideKey && !apiKeyInput.isFocused());
+        searchApiKeyInput.setPasswordMode(hideKey && !searchApiKeyInput.isFocused());
         if (showHideButton != null) {
             showHideButton.setMessage(getShowHideText());
         }
@@ -993,6 +1022,9 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         }
         if (debugWarningsButton != null) {
             debugWarningsButton.setMessage(getDebugWarningsButtonText());
+        }
+        if (searchProviderButton != null) {
+            searchProviderButton.setMessage(getSearchProviderButtonText());
         }
         if (draftLlmBaseUrl != null) {
             // 避免 loadFromConfig 后输入框仍显示旧值
@@ -1101,6 +1133,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
             if (!availableModels.isEmpty()) modelDropdownOpen = true;
         }
+        if (searchApiKeyInput.isFocused()) searchApiKeyInput.charTyped(chr);
+        if (googleCseCxInput.isFocused()) googleCseCxInput.charTyped(chr);
     }
 
     @Override
@@ -1121,6 +1155,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
             if (!availableModels.isEmpty()) modelDropdownOpen = true;
         }
+        if (searchApiKeyInput.isFocused()) searchApiKeyInput.keyPressed(keyCode, modifiers);
+        if (googleCseCxInput.isFocused()) googleCseCxInput.keyPressed(keyCode, modifiers);
 
         // ESC：收起模型下拉（避免挡住操作）
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && modelDropdownOpen) {
@@ -1279,6 +1315,36 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public ButtonWidget debugWarningsButton() {
         return debugWarningsButton;
+    }
+
+    @Override
+    public ButtonWidget searchProviderButton() {
+        return searchProviderButton;
+    }
+
+    @Override
+    public HudTextInput searchApiKeyInput() {
+        return searchApiKeyInput;
+    }
+
+    @Override
+    public HudTextInput googleCseCxInput() {
+        return googleCseCxInput;
+    }
+
+    @Override
+    public Text searchProviderButtonText() {
+        return getSearchProviderButtonText();
+    }
+
+    @Override
+    public String draftSearchProvider() {
+        return draftSearchProvider;
+    }
+
+    @Override
+    public void setDraftSearchProvider(String provider) {
+        this.draftSearchProvider = provider;
     }
 
     @Override

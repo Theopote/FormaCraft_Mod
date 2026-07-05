@@ -56,6 +56,16 @@ public class SettingsConfig {
     /** Uvicorn 端口（默认 8000） */
     public int backendPort = 8000;
 
+    /**
+     * 建筑研究网络搜索（优先于后端环境变量）。
+     * auto | duckduckgo | bing | google_cse | wikipedia_only
+     */
+    public String searchProvider = "auto";
+    /** Bing 或 Google Custom Search API Key */
+    public String searchApiKey = "";
+    /** Google Custom Search Engine ID（仅 google_cse / auto 使用） */
+    public String googleCseCx = "";
+
     // === 单例 ===
     public static final SettingsConfig INSTANCE = new SettingsConfig();
 
@@ -76,6 +86,9 @@ public class SettingsConfig {
         pythonExecutable = "";
         backendWorkDir = "python_backend";
         backendPort = 8000;
+        searchProvider = "auto";
+        searchApiKey = "";
+        googleCseCx = "";
     }
 
     private void copyFrom(SettingsConfig other) {
@@ -93,6 +106,9 @@ public class SettingsConfig {
         this.pythonExecutable = other.pythonExecutable != null ? other.pythonExecutable : "";
         this.backendWorkDir = other.backendWorkDir != null ? other.backendWorkDir : "python_backend";
         this.backendPort = other.backendPort > 0 ? other.backendPort : 8000;
+        this.searchProvider = other.searchProvider != null ? other.searchProvider : "auto";
+        this.searchApiKey = other.searchApiKey != null ? other.searchApiKey : "";
+        this.googleCseCx = other.googleCseCx != null ? other.googleCseCx : "";
     }
 
     public static void load() {

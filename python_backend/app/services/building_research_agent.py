@@ -940,6 +940,21 @@ def research_building_profile(
         call_with_timeout=call_with_timeout,
     )
 
+    if search_fn is None:
+        if req is not None:
+            try:
+                from .search_config import make_search_fn
+
+                search_fn = make_search_fn(req)
+            except Exception:
+                from .architecture_researcher import search_architecture_reference
+
+                search_fn = search_architecture_reference
+        else:
+            from .architecture_researcher import search_architecture_reference
+
+            search_fn = search_architecture_reference
+
     if not should_research_for_classification(classification, has_references=has_refs):
         logger.info(
             "Building research skipped: generic typology for %r (hint=%s, source=%s)",

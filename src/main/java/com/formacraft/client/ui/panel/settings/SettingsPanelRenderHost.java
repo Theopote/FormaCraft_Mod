@@ -54,6 +54,12 @@ public interface SettingsPanelRenderHost {
 
     ButtonWidget debugWarningsButton();
 
+    ButtonWidget searchProviderButton();
+
+    HudTextInput searchApiKeyInput();
+
+    HudTextInput googleCseCxInput();
+
     SliderWidget temperatureSlider();
 
     SliderWidget interactionReachSlider();
@@ -77,6 +83,8 @@ public interface SettingsPanelRenderHost {
     Text baseUrlPresetButtonText();
 
     Text debugWarningsButtonText();
+
+    Text searchProviderButtonText();
 
     SettingsBaseUrlPresets.Preset selectedBaseUrlPreset();
 
@@ -164,6 +172,10 @@ public interface SettingsPanelRenderHost {
     void setDraftFontSize(int fontSize);
 
     void setDraftInteractionReach(int reach);
+
+    String draftSearchProvider();
+
+    void setDraftSearchProvider(String provider);
 
     void syncBaseUrlPresetFromValue(String baseUrl);
 

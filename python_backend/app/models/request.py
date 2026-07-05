@@ -138,6 +138,11 @@ class BuildRequest(BaseModel):
     llmProvider: Optional[str] = None
     llmBaseUrl: Optional[str] = None
 
+    # 网络搜索配置（建筑研究 / 参考资料检索；优先于后端环境变量）
+    searchProvider: Optional[str] = None  # auto | duckduckgo | bing | google_cse | wikipedia_only
+    searchApiKey: Optional[str] = None    # Bing 或 Google CSE API key
+    googleCseCx: Optional[str] = None   # Google Custom Search Engine ID
+
     ragBudget: Optional[RagBudget] = None
 
     # PR-4: 参考图 / 网页链接
