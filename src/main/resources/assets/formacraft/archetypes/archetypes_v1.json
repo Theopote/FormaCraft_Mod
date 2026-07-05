@@ -237,6 +237,61 @@
       "scoringWeights": { "shape": 0.4, "ratio": 0.2, "signature": 0.4 }
     },
     {
+      "id": "disney_castle",
+      "properNounAliases": ["迪士尼城堡", "disney castle", "cinderella castle"],
+      "genericAliases": [],
+      "aliases": ["迪士尼城堡", "disney castle", "cinderella castle"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "fushimi_inari_shrine",
+      "properNounAliases": ["伏见稻荷神社", "伏见稻荷", "fushimi inari", "fushimi inari shrine"],
+      "genericAliases": [],
+      "aliases": ["伏见稻荷神社", "伏见稻荷", "fushimi inari", "fushimi inari shrine"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "himeji_castle",
+      "properNounAliases": ["姬路城", "姬路城堡", "himeji castle", "himeji"],
+      "genericAliases": [],
+      "aliases": ["姬路城", "姬路城堡", "himeji castle", "himeji"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "wuzhen_water_town",
+      "properNounAliases": ["乌镇", "wuzhen", "wuzhen water town"],
+      "genericAliases": [],
+      "aliases": ["乌镇", "wuzhen", "wuzhen water town"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "zhouzhuang_water_town",
+      "properNounAliases": ["周庄", "zhouzhuang", "zhouzhuang water town"],
+      "genericAliases": [],
+      "aliases": ["周庄", "zhouzhuang", "zhouzhuang water town"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
       "id": "pantheon",
       "aliases": ["万神殿", "罗马万神殿", "pantheon", "roman pantheon"],
       "category": "LANDMARK",
@@ -256,7 +311,9 @@
     },
     {
       "id": "jiangnan_water_town",
-      "aliases": ["江南水乡", "江南水镇", "水镇", "jiangnan water town", "water town", "canal town"],
+      "properNounAliases": ["江南水乡", "江南水镇", "jiangnan water town"],
+      "genericAliases": ["水镇", "water town", "canal town"],
+      "aliases": ["江南水乡", "江南水镇", "jiangnan water town", "water town", "canal town"],
       "category": "LANDMARK",
       "generatorId": "jiangnan_water_town",
       "defaults": { "width": 40, "depth": 56, "canalWidth": 5, "houseCount": 4 },
@@ -265,7 +322,9 @@
     },
     {
       "id": "japanese_shrine",
-      "aliases": ["日本神社", "神社", "鸟居", "japanese shrine", "shinto shrine", "torii"],
+      "properNounAliases": ["日本神社", "japanese shrine", "shinto shrine"],
+      "genericAliases": ["神社", "鸟居", "shrine", "torii"],
+      "aliases": ["日本神社", "japanese shrine", "shinto shrine", "torii"],
       "category": "LANDMARK",
       "generatorId": "japanese_shrine",
       "defaults": { "width": 18, "depth": 24, "mainHallHeight": 8, "toriiHeight": 6 },
@@ -274,7 +333,9 @@
     },
     {
       "id": "japanese_castle_keep",
-      "aliases": ["天守阁", "日本城堡", "日式城堡", "japanese castle", "japanese castle keep", "himeji"],
+      "properNounAliases": ["天守阁", "日本城堡", "日式城堡", "japanese castle", "japanese castle keep"],
+      "genericAliases": [],
+      "aliases": ["天守阁", "日本城堡", "日式城堡", "japanese castle", "japanese castle keep"],
       "category": "LANDMARK",
       "generatorId": "japanese_castle_keep",
       "defaults": { "width": 22, "depth": 22, "keepHeight": 28, "tiers": 5 },
@@ -283,7 +344,9 @@
     },
     {
       "id": "japanese_tea_house",
-      "aliases": ["日本茶室", "茶室", "japanese tea house", "tea house"],
+      "properNounAliases": ["日本茶室", "japanese tea house"],
+      "genericAliases": ["茶室", "tea house"],
+      "aliases": ["日本茶室", "japanese tea house"],
       "category": "LANDMARK",
       "generatorId": "japanese_tea_house",
       "defaults": { "width": 9, "depth": 9, "height": 5 },
@@ -319,7 +382,9 @@
     },
     {
       "id": "steampunk_airship",
-      "aliases": ["蒸汽朋克飞艇", "飞艇", "steampunk airship", "airship"],
+      "properNounAliases": ["蒸汽朋克飞艇", "steampunk airship"],
+      "genericAliases": ["飞艇", "airship"],
+      "aliases": ["蒸汽朋克飞艇", "steampunk airship"],
       "category": "LANDMARK",
       "generatorId": "steampunk_airship",
       "defaults": { "length": 40, "hullWidth": 12, "envelopeHeight": 16 },
@@ -337,7 +402,9 @@
     },
     {
       "id": "elven_treehouse",
-      "aliases": ["精灵树屋", "树屋", "elven treehouse", "fantasy treehouse"],
+      "properNounAliases": ["精灵树屋", "elven treehouse", "fantasy treehouse"],
+      "genericAliases": ["树屋"],
+      "aliases": ["精灵树屋", "elven treehouse", "fantasy treehouse"],
       "category": "LANDMARK",
       "generatorId": "elven_treehouse",
       "defaults": { "trunkRadius": 4, "platformRadius": 8, "height": 18, "levels": 2 },

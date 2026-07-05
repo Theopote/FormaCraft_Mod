@@ -77,6 +77,11 @@ class ApplyResearchLandmarkSeedTest(unittest.TestCase):
             "white_house",
             "guggenheim_bilbao",
             "burj_khalifa",
+            "disney_castle",
+            "fushimi_inari_shrine",
+            "himeji_castle",
+            "wuzhen_water_town",
+            "zhouzhuang_water_town",
         }
         self.assertEqual(set(RESEARCH_LANDMARK_SEEDS.keys()), expected)
 

@@ -24,6 +24,14 @@ class LandmarkModuleRegistryTest {
         assertNull(LandmarkModuleRegistry.resolveModuleId("悉尼歌剧院"));
         assertNull(LandmarkModuleRegistry.resolveModuleId("卢浮宫"));
         assertNull(LandmarkModuleRegistry.resolveModuleId("苏州博物馆"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("伏见稻荷神社"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("乌镇"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("姬路城"));
+    }
+
+    @Test
+    void resolveModuleId_matchesJiangnanExplicit() {
+        assertEquals("jiangnan_water_town", LandmarkModuleRegistry.resolveModuleId("江南水乡"));
     }
 
     @Test

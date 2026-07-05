@@ -29,6 +29,8 @@ BROAD_ALIASES = frozenset({
     "体育场",
     "church",
     "寺庙",
+    "airship",
+    "tea house",
 })
 
 PROPER_NOUN_CONFIDENCE = 0.9

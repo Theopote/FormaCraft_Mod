@@ -151,6 +151,12 @@ _BUILDING_SEARCH_ALIASES: Dict[str, List[str]] = {
     "古根海姆博物馆": ["Guggenheim Museum Bilbao", "Frank Gehry"],
     "毕尔巴鄂古根海姆": ["Guggenheim Bilbao", "Frank Gehry"],
     "哈利法塔": ["Burj Khalifa", "Dubai"],
+    "伏见稻荷神社": ["Fushimi Inari Taisha", "Kyoto", "千本鸟居"],
+    "伏见稻荷": ["Fushimi Inari", "千本鸟居"],
+    "姬路城": ["Himeji Castle", "White Heron Castle"],
+    "乌镇": ["Wuzhen", "江南古镇"],
+    "周庄": ["Zhouzhuang", "江南古镇"],
+    "迪士尼城堡": ["Disney Castle", "Cinderella Castle"],
 }
 
 _ZAHA_FORM_ELEMENTS = (

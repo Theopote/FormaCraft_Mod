@@ -32,7 +32,9 @@ public final class LandmarkAliasMatcher {
             "stadium",
             "arena",
             "体育馆",
-            "体育场"
+            "体育场",
+            "airship",
+            "tea house"
     );
 
     private LandmarkAliasMatcher() {}

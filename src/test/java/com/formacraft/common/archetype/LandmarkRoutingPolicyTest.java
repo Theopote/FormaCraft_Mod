@@ -71,4 +71,24 @@ class LandmarkRoutingPolicyTest {
     void cologneCathedral_doesNotForceGothicCathedralModule() {
         assertNull(LandmarkRoutingPolicy.resolveForUserIntent("建造科隆大教堂"));
     }
+
+    @Test
+    void fushimiInari_doesNotForceJapaneseShrineModule() {
+        assertNull(LandmarkRoutingPolicy.resolveForUserIntent("建造伏见稻荷神社"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("伏见稻荷神社"));
+    }
+
+    @Test
+    void wuzhen_doesNotForceJiangnanWaterTownModule() {
+        assertNull(LandmarkRoutingPolicy.resolveForUserIntent("建造乌镇"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("乌镇"));
+    }
+
+    @Test
+    void jiangnanExplicit_isMandatory() {
+        LandmarkRoutingPolicy.RoutingDecision d =
+                LandmarkRoutingPolicy.resolveForUserIntent("生成江南水乡");
+        assertNotNull(d);
+        assertEquals("jiangnan_water_town", d.moduleId());
+    }
 }

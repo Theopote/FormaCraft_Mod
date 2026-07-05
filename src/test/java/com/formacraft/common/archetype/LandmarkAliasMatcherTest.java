@@ -38,6 +38,26 @@ class LandmarkAliasMatcherTest {
     }
 
     @Test
+    void rejectsFushimiInariViaBroadShrineAlias() {
+        assertNull(LandmarkAliasMatcher.matchIntent(
+                "建造伏见稻荷神社",
+                "japanese_shrine",
+                List.of("日本神社", "神社", "torii")
+        ));
+    }
+
+    @Test
+    void acceptsExplicitJiangnanPhrase() {
+        LandmarkAliasMatcher.Match match = LandmarkAliasMatcher.matchIntent(
+                "江南水乡",
+                "jiangnan_water_town",
+                List.of("江南水乡", "江南水镇", "water town")
+        );
+        assertNotNull(match);
+        assertTrue(match.explicit());
+    }
+
+    @Test
     void rejectsDisneyCastleViaBroadCastleAlias() {
         assertNull(LandmarkAliasMatcher.matchIntent(
                 "迪士尼城堡",

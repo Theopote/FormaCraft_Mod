@@ -8,8 +8,10 @@ from app.services.archetype_detector import (
     MODULE_ROUTE_MIN_CONFIDENCE,
     detect_archetype_local,
 )
+from app.models.building_profile import BuildingProfile
 from app.services.building_research_agent import resolve_landmark_module_for_intent
 from app.services.building_request_classifier import classify_building_request_local
+from app.services.research_landmark_seeds import apply_research_landmark_seed
 from app.services.landmark_alias_matcher import (
     GENERIC_TYPOLOGY_CONFIDENCE,
     PROPER_NOUN_CONFIDENCE,
@@ -107,6 +109,44 @@ class ResearchOnlyLandmarkTest(unittest.TestCase):
             resolve_landmark_module_for_intent("哥特大教堂"),
             "gothic_cathedral",
         )
+
+
+class BroadTypologyAliasTest(unittest.TestCase):
+    def test_fushimi_inari_not_japanese_shrine_module(self):
+        self.assertIsNone(resolve_landmark_module_for_intent("建造伏见稻荷神社"))
+        rc = classify_building_request_local("建造伏见稻荷神社")
+        self.assertTrue(rc.is_specific_real_building)
+
+    def test_wuzhen_not_jiangnan_module(self):
+        self.assertIsNone(resolve_landmark_module_for_intent("建造乌镇"))
+        rc = classify_building_request_local("建造乌镇")
+        self.assertTrue(rc.is_specific_real_building)
+
+    def test_jiangnan_explicit_still_routes_module(self):
+        self.assertEqual(
+            resolve_landmark_module_for_intent("江南水乡"),
+            "jiangnan_water_town",
+        )
+
+    def test_himeji_not_generic_japanese_castle_module(self):
+        self.assertIsNone(resolve_landmark_module_for_intent("姬路城"))
+
+    def test_japanese_castle_keep_template_still_routes(self):
+        self.assertEqual(
+            resolve_landmark_module_for_intent("日本城堡"),
+            "japanese_castle_keep",
+        )
+
+    def test_generic_shrine_typology_low_confidence(self):
+        match = detect_archetype_local("帮我建一个神社")
+        if match is not None:
+            self.assertFalse(match.qualifies_for_module_route())
+
+    def test_disney_castle_research_not_medieval_module(self):
+        self.assertIsNone(resolve_landmark_module_for_intent("迪士尼城堡"))
+        updated, lid = apply_research_landmark_seed(BuildingProfile(), "迪士尼城堡")
+        self.assertEqual(lid, "disney_castle")
+        self.assertTrue(any("fairytale" in f.lower() for f in updated.structure.distinguishing_features))
 
 
 if __name__ == "__main__":

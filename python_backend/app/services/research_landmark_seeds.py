@@ -162,6 +162,66 @@ RESEARCH_LANDMARK_SEEDS: Dict[str, Dict[str, Any]] = {
         ],
         "scale_hints": {"typical_height_blocks": 160, "typical_width_blocks": 25, "typical_depth_blocks": 25},
     },
+    "disney_castle": {
+        "display_name": "Disney Cinderella Castle (迪士尼城堡)",
+        "style": "Fairytale Romantic Revival",
+        "distinguishing_features": [
+            "slender pink-blue fairytale spires",
+            "central tall keep with steep roofs",
+            "symmetrical fantasy castle silhouette",
+            "ornate balconies and turrets",
+            "not a medieval European fortress layout",
+        ],
+        "scale_hints": {"typical_height_blocks": 55, "typical_width_blocks": 40, "typical_depth_blocks": 35},
+    },
+    "fushimi_inari_shrine": {
+        "display_name": "Fushimi Inari Taisha (伏见稻荷神社)",
+        "style": "Japanese Shinto",
+        "distinguishing_features": [
+            "thousands of vermillion torii gates in tunnels",
+            "mountain path axis through gates",
+            "fox statue guardians (kitsune)",
+            "main shrine buildings at base",
+            "senbon torii corridor rhythm",
+        ],
+        "scale_hints": {"typical_height_blocks": 12, "typical_width_blocks": 30, "typical_depth_blocks": 80},
+    },
+    "himeji_castle": {
+        "display_name": "Himeji Castle (姬路城)",
+        "style": "Japanese feudal",
+        "distinguishing_features": [
+            "white plastered keep complex (Shirasagi-jo)",
+            "tiered curved roof gables",
+            "defensive maze-like approach paths",
+            "multiple roof tiers and fish ornaments",
+            "stone base with wooden superstructure",
+        ],
+        "scale_hints": {"typical_height_blocks": 45, "typical_width_blocks": 50, "typical_depth_blocks": 50},
+    },
+    "wuzhen_water_town": {
+        "display_name": "Wuzhen (乌镇)",
+        "style": "Jiangnan water town",
+        "distinguishing_features": [
+            "canal streets with stone bridges",
+            "whitewashed walls and black-tiled roofs",
+            "wooden waterfront verandas",
+            "boats along narrow canals",
+            "dense historic lane fabric",
+        ],
+        "scale_hints": {"typical_height_blocks": 10, "typical_width_blocks": 70, "typical_depth_blocks": 90},
+    },
+    "zhouzhuang_water_town": {
+        "display_name": "Zhouzhuang (周庄)",
+        "style": "Jiangnan water town",
+        "distinguishing_features": [
+            "double-bridge canal crossing (Shide/Taishi)",
+            "Ming-Qing courtyard houses on water",
+            "arched stone bridges",
+            "boat-access storefronts",
+            "canal-centered town plan",
+        ],
+        "scale_hints": {"typical_height_blocks": 10, "typical_width_blocks": 65, "typical_depth_blocks": 85},
+    },
 }
 
 
