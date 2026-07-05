@@ -40,6 +40,27 @@ class ComponentFacadeRhythmPlannerTest {
     }
 
     @Test
+    void classicalPilasterAxes_doNotOverlapWindows() {
+        BitSet windows = ComponentFacadeRhythmPlanner.computeClassicalPilasterBayAxes(13);
+        BitSet pilasters = ComponentFacadeRhythmPlanner.computeClassicalPilasterAxes(13);
+        for (int i = 0; i < 13; i++) {
+            assertFalse(windows.get(i) && pilasters.get(i), "axis " + i + " cannot be both window and pilaster");
+        }
+        assertTrue(pilasters.get(3));
+        assertTrue(pilasters.get(4));
+        assertTrue(pilasters.get(8));
+        assertTrue(pilasters.get(9));
+    }
+
+    @Test
+    void classicalEntranceBay_isCenterWindows() {
+        BitSet entrance = ComponentFacadeRhythmPlanner.computeClassicalEntranceBayWindowAxes(13);
+        assertTrue(entrance.get(5));
+        assertTrue(entrance.get(6));
+        assertTrue(entrance.get(7));
+    }
+
+    @Test
     void regularBilateral_spacing3() {
         BitSet axes = ComponentFacadeRhythmPlanner.computeRegularBilateralAxes(13, 3);
         assertTrue(axes.get(6));

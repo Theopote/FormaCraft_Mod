@@ -666,6 +666,7 @@ public final class ComponentPlanCompiler {
                 params.putIfAbsent("rhythm", "vertical_bay");
             }
         }
+        params.putIfAbsent("reserve_entrance_bay", true);
 
         List<String> features = new ArrayList<>();
         if (base.features() != null) {

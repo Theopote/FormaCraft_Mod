@@ -62,6 +62,18 @@ public final class ComponentFacadeStyler {
     public static String applyFacadeProfile(String current, String wallId, String trimId, String foundationId,
                                             String facadeProfile, boolean isExterior, boolean isEdgeZ,
                                             int x, int y, int z, int width, int depth, int floorHeight) {
+        return applyFacadeProfile(current, wallId, trimId, foundationId, facadeProfile, isExterior, isEdgeZ,
+                x, y, z, width, depth, floorHeight, null, isEdgeZ ? x : z);
+    }
+
+    /**
+     * @param rhythmPilasterAxes 由 {@link ComponentFacadeRhythmPlanner} 算出的柱位；非 null 且非空时覆盖 cadence 取模
+     * @param facadeAxis         当前立面 cell 在开间方向上的坐标（x 或 z）
+     */
+    public static String applyFacadeProfile(String current, String wallId, String trimId, String foundationId,
+                                            String facadeProfile, boolean isExterior, boolean isEdgeZ,
+                                            int x, int y, int z, int width, int depth, int floorHeight,
+                                            java.util.BitSet rhythmPilasterAxes, int facadeAxis) {
         if (current == null) {
             return null;
         }
@@ -80,8 +92,14 @@ public final class ComponentFacadeStyler {
             return current;
         }
 
-        // vertical pilasters: periodic vertical trim strips
+        // vertical pilasters: rhythm-driven strips, else periodic cadence fallback
         if (fp.contains("vertical_pilasters") || fp.contains("pilasters")) {
+            if (rhythmPilasterAxes != null && !rhythmPilasterAxes.isEmpty()) {
+                if (y > 0 && facadeAxis >= 0 && rhythmPilasterAxes.get(facadeAxis)) {
+                    return trimOr(trimId, current);
+                }
+                return current;
+            }
             int cadence = 3;
             if (isEdgeZ) {
                 if (x > 0 && x < width - 1 && (x % cadence == 0) && y > 0) return trimOr(trimId, current);

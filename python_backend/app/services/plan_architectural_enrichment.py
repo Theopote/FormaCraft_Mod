@@ -340,6 +340,7 @@ def enrich_llm_plan_architectural_detail(
                     "rhythm_preset": "CLASSICAL_PILASTER_BAY"
                     if tier in ("rich", "monumental")
                     else "RESIDENTIAL_REGULAR",
+                    "reserve_entrance_bay": True,
                 },
             },
         )

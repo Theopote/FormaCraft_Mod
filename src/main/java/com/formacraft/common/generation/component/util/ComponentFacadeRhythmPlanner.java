@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 主路径（components[]）立面节奏规划器。
  * <p>
- * 从 rhythm_preset / facade_profile / genome 解析预设，在立面上计算确定性窗位，
+ * 从 rhythm_preset / facade_profile / genome 解析预设，在立面上计算确定性窗位、柱位，
  * 替代 {@code axis % spacing} 的取模开窗，避免窗落在柱位或不对称。
  */
 public final class ComponentFacadeRhythmPlanner {
@@ -23,7 +23,13 @@ public final class ComponentFacadeRhythmPlanner {
 
     private ComponentFacadeRhythmPlanner() {}
 
-    public record RhythmPlan(int axisMax, BitSet windowAxes, String presetId) {
+    public record RhythmPlan(
+            int axisMax,
+            BitSet windowAxes,
+            BitSet pilasterAxes,
+            BitSet entranceBayWindowAxes,
+            String presetId
+    ) {
         public boolean active() {
             return presetId != null && !presetId.isBlank() && windowAxes != null && !windowAxes.isEmpty();
         }
@@ -32,8 +38,20 @@ public final class ComponentFacadeRhythmPlanner {
             return windowAxes != null && axis >= 0 && axis < axisMax && windowAxes.get(axis);
         }
 
+        public boolean isPilasterAxis(int axis) {
+            return pilasterAxes != null && axis >= 0 && axis < axisMax && pilasterAxes.get(axis);
+        }
+
+        public boolean isEntranceBayAxis(int axis) {
+            return entranceBayWindowAxes != null && axis >= 0 && axis < axisMax && entranceBayWindowAxes.get(axis);
+        }
+
+        public boolean hasRhythmPilasters() {
+            return pilasterAxes != null && !pilasterAxes.isEmpty();
+        }
+
         public static RhythmPlan inactive(int axisMax) {
-            return new RhythmPlan(axisMax, null, null);
+            return new RhythmPlan(axisMax, null, null, null, null);
         }
     }
 
@@ -49,11 +67,13 @@ public final class ComponentFacadeRhythmPlanner {
         FacadeRhythmPreset preset = FacadeRhythmPresetLibrary.getPreset(presetId);
         int spacing = preset != null && preset.profile() != null ? preset.profile().spacing : 3;
         boolean bilateral = isBilateral(semantic, preset);
-        BitSet axes = computeWindowAxes(presetId, axisMax, spacing, bilateral);
-        if (axes.isEmpty()) {
+        BitSet windows = computeWindowAxes(presetId, axisMax, spacing, bilateral);
+        if (windows.isEmpty()) {
             return RhythmPlan.inactive(axisMax);
         }
-        return new RhythmPlan(axisMax, axes, presetId);
+        BitSet pilasters = computePilasterAxes(presetId, axisMax, windows);
+        BitSet entranceBay = computeEntranceBayWindowAxes(presetId, axisMax);
+        return new RhythmPlan(axisMax, windows, pilasters, entranceBay, presetId);
     }
 
     static BitSet computeWindowAxes(String presetId, int axisMax, int spacing, boolean bilateral) {
@@ -81,9 +101,74 @@ public final class ComponentFacadeRhythmPlanner {
         if (axisMax <= 4) {
             return windows;
         }
+        for (int bayCenter : listClassicalBayCenters(axisMax)) {
+            for (int d = -1; d <= 1; d++) {
+                int axis = bayCenter + d;
+                if (axis > 0 && axis < axisMax - 1) {
+                    windows.set(axis);
+                }
+            }
+        }
+        return windows;
+    }
+
+    /** P-W-W-W-P 单元中的 P（柱位），含角柱。 */
+    static BitSet computeClassicalPilasterAxes(int axisMax) {
+        BitSet pilasters = new BitSet();
+        if (axisMax <= 2) {
+            return pilasters;
+        }
+        pilasters.set(0);
+        pilasters.set(axisMax - 1);
+        if (axisMax <= 4) {
+            return pilasters;
+        }
+        for (int bayCenter : listClassicalBayCenters(axisMax)) {
+            markIfInterior(pilasters, bayCenter - 2, axisMax);
+            markIfInterior(pilasters, bayCenter + 2, axisMax);
+        }
+        return pilasters;
+    }
+
+    /** 主入口开间（center bay）窗位 — 正立面由 ENTRANCE 占用，不在此开窗。 */
+    static BitSet computeClassicalEntranceBayWindowAxes(int axisMax) {
+        BitSet axes = new BitSet();
+        if (axisMax <= 4) {
+            return axes;
+        }
+        int center = axisMax / 2;
+        for (int d = -1; d <= 1; d++) {
+            markIfInterior(axes, center + d, axisMax);
+        }
+        return axes;
+    }
+
+    static BitSet computePilasterAxes(String presetId, int axisMax, BitSet windowAxes) {
+        if (presetId == null || axisMax <= 2) {
+            return new BitSet();
+        }
+        String id = presetId.trim().toUpperCase(Locale.ROOT);
+        if (PRESET_CLASSICAL_PILASTER_BAY.equals(id)) {
+            return computeClassicalPilasterAxes(axisMax);
+        }
+        return new BitSet();
+    }
+
+    static BitSet computeEntranceBayWindowAxes(String presetId, int axisMax) {
+        if (presetId == null || axisMax <= 4) {
+            return new BitSet();
+        }
+        String id = presetId.trim().toUpperCase(Locale.ROOT);
+        if (PRESET_CLASSICAL_PILASTER_BAY.equals(id)) {
+            return computeClassicalEntranceBayWindowAxes(axisMax);
+        }
+        return new BitSet();
+    }
+
+    private static java.util.List<Integer> listClassicalBayCenters(int axisMax) {
+        java.util.List<Integer> bayCenters = new java.util.ArrayList<>();
         int center = axisMax / 2;
         int unit = 5;
-        java.util.List<Integer> bayCenters = new java.util.ArrayList<>();
         bayCenters.add(center);
         for (int step = unit; ; step += unit) {
             boolean added = false;
@@ -101,15 +186,13 @@ public final class ComponentFacadeRhythmPlanner {
                 break;
             }
         }
-        for (int bayCenter : bayCenters) {
-            for (int d = -1; d <= 1; d++) {
-                int axis = bayCenter + d;
-                if (axis > 0 && axis < axisMax - 1) {
-                    windows.set(axis);
-                }
-            }
+        return bayCenters;
+    }
+
+    private static void markIfInterior(BitSet target, int axis, int axisMax) {
+        if (axis > 0 && axis < axisMax - 1) {
+            target.set(axis);
         }
-        return windows;
     }
 
     static BitSet computeRegularBilateralAxes(int axisMax, int spacing) {

@@ -83,6 +83,18 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         boolean useRhythmPlan = windowAspect != WindowAspect.HORIZONTAL_STRIP
                 && windowAspect != WindowAspect.RIBBON_GLAZING;
         Map<Integer, ComponentFacadeRhythmPlanner.RhythmPlan> rhythmPlans = new HashMap<>();
+        boolean reserveEntranceBay = true;
+        if (params != null) {
+            Object reserve = params.get("reserve_entrance_bay");
+            if (reserve == null) {
+                reserve = params.get("reserveEntranceBay");
+            }
+            if (reserve instanceof Boolean b) {
+                reserveEntranceBay = b;
+            } else if (reserve != null) {
+                reserveEntranceBay = !"false".equalsIgnoreCase(String.valueOf(reserve).trim());
+            }
+        }
         // boolean isFloorToCeiling = hasFeature(c, "floor_to_ceiling", "full_height"); // 保留用于未来扩展
 
         // 生成窗户（通常只在立面，depth 通常为 1）
@@ -134,6 +146,11 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                         );
                         if (rhythmPlan.active()) {
                             if (!rhythmPlan.isWindowAxis(axis)) {
+                                continue;
+                            }
+                            if (reserveEntranceBay
+                                    && isEntranceFacade(x, z, width, depth, facing, wrapFacade)
+                                    && rhythmPlan.isEntranceBayAxis(axis)) {
                                 continue;
                             }
                         } else if (!shouldPlaceWindow(axis, y, axisMax, height, floorHeight, windowSpacing,
@@ -327,6 +344,12 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         }
         
         return null;
+    }
+
+    private boolean isEntranceFacade(int x, int z, int width, int depth,
+                                     com.formacraft.common.llm.dto.GlobalConstraints.Facing facing,
+                                     boolean wrapFacade) {
+        return isFacadePosition(x, z, width, depth, facing, wrapFacade);
     }
 
     private boolean isFacadePosition(int x, int z, int width, int depth,

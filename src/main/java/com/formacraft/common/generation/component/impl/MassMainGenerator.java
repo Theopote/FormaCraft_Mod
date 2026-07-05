@@ -333,6 +333,14 @@ public class MassMainGenerator implements ComponentGenerator {
         String facadeTrimId = styleActive ? getBlockForPart(SemanticPart.WALL_ACCENT, semantic, palette) : null;
         String facadeFoundationId = styleActive ? getBlockForPart(SemanticPart.WALL_BASE, semantic, palette) : null;
 
+        Map<String, Object> massParams = semantic.source() != null ? semantic.source().params() : null;
+        com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.RhythmPlan widthRhythm =
+                com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.resolve(
+                        semantic, massParams, width);
+        com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.RhythmPlan depthRhythm =
+                com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.resolve(
+                        semantic, massParams, depth);
+
         int[] layerWidths = new int[height];
         int[] layerDepths = new int[height];
         int[] layerXOffsets = new int[height];
@@ -508,7 +516,9 @@ public class MassMainGenerator implements ComponentGenerator {
                         styled = com.formacraft.common.generation.component.util.ComponentFacadeStyler
                                 .applyFacadeProfile(styled, block, facadeTrimId, facadeFoundationId,
                                         facadeStyle.profile(), isExterior, isEdgeZ,
-                                        localX, y, localZ, width, depth, userFloorHeight);
+                                        localX, y, localZ, width, depth, userFloorHeight,
+                                        isEdgeZ ? widthRhythm.pilasterAxes() : depthRhythm.pilasterAxes(),
+                                        isEdgeZ ? localX : localZ);
                         if (styled != null && !styled.isEmpty()) {
                             block = styled;
                         }

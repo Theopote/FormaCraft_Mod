@@ -51,6 +51,21 @@ class FacadeWindowsRhythmTest {
         }
     }
 
+    @Test
+    void classicalRhythmPreset_skipsEntranceBayOnPrimaryFacade() {
+        List<BlockPatch> patches = generate(13, 8, Map.of(
+                "window_aspect", "vertical_bay",
+                "rhythm_preset", "CLASSICAL_PILASTER_BAY",
+                "reserve_entrance_bay", true
+        ));
+        Set<Integer> axes = patches.stream().map(BlockPatch::dx).collect(Collectors.toSet());
+        assertFalse(axes.contains(5));
+        assertFalse(axes.contains(6));
+        assertFalse(axes.contains(7));
+        assertTrue(axes.contains(1));
+        assertTrue(axes.contains(10));
+    }
+
     private static List<BlockPatch> generate(int width, int height, Map<String, Object> params) {
         Map<String, Object> p = new HashMap<>(params);
         Component c = new Component(

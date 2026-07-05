@@ -85,4 +85,15 @@ class ComponentFacadeStylerTest {
         assertEquals(WALL, ComponentFacadeStyler.applyFacadeProfile(
                 WALL, WALL, TRIM, FOUND, "vertical_pilasters", true, true, 1, 2, 0, 10, 10, 4));
     }
+
+    @Test
+    void rhythmPilasterAxesOverrideCadence() {
+        java.util.BitSet pilasters = ComponentFacadeRhythmPlanner.computeClassicalPilasterAxes(13);
+        assertEquals(TRIM, ComponentFacadeStyler.applyFacadeProfile(
+                WALL, WALL, TRIM, FOUND, "vertical_pilasters", true, true,
+                4, 2, 0, 13, 10, 4, pilasters, 4));
+        assertEquals(WALL, ComponentFacadeStyler.applyFacadeProfile(
+                WALL, WALL, TRIM, FOUND, "vertical_pilasters", true, true,
+                5, 2, 0, 13, 10, 4, pilasters, 5));
+    }
 }
