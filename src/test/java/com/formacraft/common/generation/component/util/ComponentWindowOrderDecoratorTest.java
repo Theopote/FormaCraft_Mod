@@ -32,6 +32,12 @@ class ComponentWindowOrderDecoratorTest {
     }
 
     @Test
+    void inferSlabBlock_derivesFromStairsMapping() {
+        assertEquals("minecraft:stone_brick_slab",
+                ComponentWindowOrderDecorator.inferSlabBlock("minecraft:stone_bricks"));
+    }
+
+    @Test
     void clusterGroupsAdjacentGlassOnSouthFace() {
         Set<long[]> glass = new HashSet<>();
         glass.add(ComponentWindowOrderDecorator.packCell(5, 2, 0));

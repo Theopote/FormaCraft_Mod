@@ -29,6 +29,18 @@ class ComponentFloorCorniceDecoratorTest {
     }
 
     @Test
+    void inferStairsBlock_mapsBrickBlocksToSingularBrickStairs() {
+        assertEquals("minecraft:stone_brick_stairs",
+                ComponentFloorCorniceDecorator.inferStairsBlock("minecraft:stone_bricks"));
+        assertEquals("minecraft:mossy_stone_brick_stairs",
+                ComponentFloorCorniceDecorator.inferStairsBlock("minecraft:mossy_stone_bricks"));
+        assertEquals("minecraft:nether_brick_stairs",
+                ComponentFloorCorniceDecorator.inferStairsBlock("minecraft:nether_bricks"));
+        assertEquals("minecraft:brick_stairs",
+                ComponentFloorCorniceDecorator.inferStairsBlock("minecraft:bricks"));
+    }
+
+    @Test
     void corniceStairUsesInvertedHalfTop() {
         String block = ComponentFloorCorniceDecorator.corniceStairBlock(
                 "minecraft:stone_bricks", Direction.SOUTH);

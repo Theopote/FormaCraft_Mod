@@ -158,12 +158,15 @@ public final class ComponentFloorCorniceDecorator {
             name = "quartz_stairs";
         } else if (name.equals("deepslate_tiles") || name.equals("deepslate_bricks")) {
             name = "deepslate_tile_stairs";
+        } else if (name.endsWith("_bricks")) {
+            String prefix = name.substring(0, name.length() - "_bricks".length());
+            name = "quartz".equals(prefix) ? "quartz_stairs" : prefix + "_brick_stairs";
+        } else if (name.equals("bricks")) {
+            name = "brick_stairs";
+        } else if (name.endsWith("_tiles")) {
+            name = name.substring(0, name.length() - "_tiles".length()) + "_tile_stairs";
         } else if (!name.endsWith("_stairs")) {
-            if (name.endsWith("s")) {
-                name = name + "_stairs";
-            } else {
-                name = name + "_stairs";
-            }
+            name = name + "_stairs";
         }
         return "minecraft:" + name;
     }
