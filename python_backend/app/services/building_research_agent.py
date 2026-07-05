@@ -415,7 +415,14 @@ def finalize_profile_minecraft_strategy(
                 "IGNORE Java prompt landmark MODULE routing hints. "
                 + note
             ).strip()
-    return profile.model_copy(update={"minecraft_strategy": mc})
+    profile = profile.model_copy(update={"minecraft_strategy": mc})
+    try:
+        from .plan_architectural_enrichment import enrich_profile_architectural_detail
+
+        profile = enrich_profile_architectural_detail(profile, user_text)
+    except Exception as exc:
+        logger.warning("Profile architectural enrichment skipped: %s", exc)
+    return profile
 
 
 def ensure_building_profile_for_plan(

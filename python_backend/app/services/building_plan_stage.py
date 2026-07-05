@@ -34,6 +34,11 @@ REGISTERED_COMPONENT_TYPES: Tuple[str, ...] = (
     "KEEP",
     "PLAZA",
     "PLAZA_CORE",
+    "DECOR_DETAIL",
+    "FOUNDATION",
+    "BALCONY",
+    "CHIMNEY",
+    "TERRACE",
 )
 
 PLAN_STAGE_SYSTEM_ADDON = (
@@ -145,10 +150,14 @@ def build_plan_stage_user_block(
         "3. dimensions ← scale_hints (blocks); use reasonable defaults if null",
         "4. style_profile ← identity.style when available; if identity.architect is set, match that architect's style profile",
         "5. MODULE/landmark only when landmark_module is set in profile (never birds_nest for Zaha/architect-led)",
-        "6. If reference_blueprint is present, map architectural_layers → components[] with matching dimensions",
-        "7. Use block_palette roles in style_attributes / params.material hints",
-        "8. Apply generation_rules / detailing_rules in params and features",
-        "9. If research_notes contain [Visual], prioritize visual observations for form/materials",
+        "6. Architectural richness (required for open-world): MASS params.facade_profile=vertical_pilasters or base_plinth, "
+        "params.wall_pattern=gradient, FOUNDATION plinth, ROOF with params.roof_height+overhang, "
+        "FACADE_WINDOWS with params.window_aspect/rhythm, ≥1 DECOR_DETAIL cornice or column band.",
+        "7. Output top-level proportion_hints (height_to_width, depth_to_width, roof_to_body_height) before dimensions.",
+        "8. If reference_blueprint is present, map architectural_layers → components[] with matching dimensions",
+        "9. Use block_palette roles in style_attributes / params.material hints",
+        "10. Apply generation_rules / detailing_rules in params and features",
+        "11. If research_notes contain [Visual], prioritize visual observations for form/materials",
         "",
     ]
     if include_registered_types:

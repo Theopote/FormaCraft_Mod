@@ -431,6 +431,21 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
                 params["setback_ratio"] = 0.06
         if "floor_height" not in params and dims.get("height"):
             params["floor_height"] = max(3, int(dims.get("height", 6) / max(1, dims.get("height", 6) // 3)))
+        style = str((comp.get("_style_hint") or "")).upper()
+        if "facade_profile" not in params:
+            if any(k in style for k in ("GOTHIC", "CATHEDRAL", "CLASSICAL", "RENAISSANCE", "NAPOLEON", "FRENCH")):
+                params["facade_profile"] = "vertical_pilasters"
+            elif any(k in style for k in ("MODERN", "FUTURISTIC", "INDUSTRIAL")):
+                params["facade_profile"] = "mullion_grid"
+        if "wall_pattern" not in params and params.get("facade_profile") == "vertical_pilasters":
+            params["wall_pattern"] = "gradient"
+
+    if ctype == "ROOF":
+        parent_h = dims.get("height")
+        if "roof_height" not in params and isinstance(parent_h, int) and parent_h > 0:
+            params["roof_height"] = max(2, min(12, parent_h))
+        if "overhang" not in params:
+            params["overhang"] = 2
 
     if ctype == "FACADE_WINDOWS":
         if "window_ratio" not in params:
@@ -1111,6 +1126,7 @@ def _normalize_llm_plan_output(
             if not ctype:
                 continue
             comp["component_type"] = ctype
+            comp["_style_hint"] = str(plan.get("style_profile") or "")
             comp["features"] = _normalize_features(comp.get("features"))
             params = comp.get("params")
             if not isinstance(params, dict):
@@ -1204,6 +1220,23 @@ def _normalize_llm_plan_output(
         elif "symmetry" in gc:
             gc.pop("symmetry", None)
         plan["global_constraints"] = gc
+
+    try:
+        from .plan_architectural_enrichment import enrich_llm_plan_architectural_detail
+
+        user_text = (req.userMessage or "").strip() if req is not None else ""
+        plan = enrich_llm_plan_architectural_detail(
+            plan,
+            user_text=user_text,
+            profile=building_profile,
+        )
+    except Exception as exc:
+        logger.warning("Architectural plan enrichment skipped: %s", exc)
+
+    if isinstance(plan.get("components"), list):
+        for comp in plan["components"]:
+            if isinstance(comp, dict):
+                comp.pop("_style_hint", None)
 
     return plan
 
@@ -4630,6 +4663,12 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
             if rag and isinstance(rag.get("proportionCardId"), str):
                 _pc_id = rag.get("proportionCardId")
             _prop_card = retrieve_proportion_card(qtext, proportion_card_id=_pc_id)
+            if not _prop_card:
+                from app.services.plan_architectural_enrichment import infer_heuristic_proportion_card
+
+                _prop_card = infer_heuristic_proportion_card(
+                    getattr(req, "userMessage", None) or qtext,
+                )
             if _prop_card:
                 parts.append("\nProportionOntology(JSON) [output proportion_hints in LlmPlan]:")
                 parts.append(json.dumps(_prop_card, ensure_ascii=False, indent=2))
