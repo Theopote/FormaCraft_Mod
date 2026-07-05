@@ -142,6 +142,15 @@ _BUILDING_SEARCH_ALIASES: Dict[str, List[str]] = {
     "巴黎圣母院": ["Notre-Dame de Paris", "Cathédrale Notre-Dame de Paris"],
     "科隆大教堂": ["Cologne Cathedral", "Kölner Dom"],
     "沙特尔": ["Chartres Cathedral", "Cathédrale Notre-Dame de Chartres"],
+    "悉尼歌剧院": ["Sydney Opera House", "Jørn Utzon"],
+    "卢浮宫": ["Louvre Museum", "Musée du Louvre", "Louvre Pyramid"],
+    "苏州博物馆": ["Suzhou Museum", "I.M. Pei"],
+    "故宫": ["Forbidden City", "Palace Museum Beijing", "紫禁城"],
+    "泰姬陵": ["Taj Mahal", "Agra"],
+    "白宫": ["White House", "Washington DC"],
+    "古根海姆博物馆": ["Guggenheim Museum Bilbao", "Frank Gehry"],
+    "毕尔巴鄂古根海姆": ["Guggenheim Bilbao", "Frank Gehry"],
+    "哈利法塔": ["Burj Khalifa", "Dubai"],
 }
 
 _ZAHA_FORM_ELEMENTS = (
@@ -492,6 +501,14 @@ def finalize_profile_minecraft_strategy(
                 + note
             ).strip()
     profile = profile.model_copy(update={"minecraft_strategy": mc})
+    try:
+        from .research_landmark_seeds import apply_research_landmark_seed
+
+        profile, seed_id = apply_research_landmark_seed(profile, user_text)
+        if seed_id:
+            logger.info("Applied research landmark seed for %r", seed_id)
+    except Exception as exc:
+        logger.warning("Research landmark seed skipped: %s", exc)
     tier, msg = _compute_fidelity_message(profile, user_text, resolved)
     profile = profile.model_copy(update={"fidelity_tier": tier, "fidelity_message_zh": msg})
     try:

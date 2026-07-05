@@ -149,6 +149,94 @@
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     },
     {
+      "id": "sydney_opera_house",
+      "properNounAliases": ["悉尼歌剧院", "sydney opera house"],
+      "genericAliases": [],
+      "aliases": ["悉尼歌剧院", "sydney opera house"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "louvre_museum",
+      "properNounAliases": ["卢浮宫", "louvre museum", "musée du louvre", "musee du louvre"],
+      "genericAliases": [],
+      "aliases": ["卢浮宫", "louvre museum", "musée du louvre", "musee du louvre"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "suzhou_museum",
+      "properNounAliases": ["苏州博物馆"],
+      "genericAliases": [],
+      "aliases": ["苏州博物馆"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "forbidden_city",
+      "properNounAliases": ["故宫", "紫禁城", "forbidden city", "palace museum beijing"],
+      "genericAliases": [],
+      "aliases": ["故宫", "紫禁城", "forbidden city", "palace museum beijing"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "taj_mahal",
+      "properNounAliases": ["泰姬陵", "taj mahal"],
+      "genericAliases": [],
+      "aliases": ["泰姬陵", "taj mahal"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "white_house",
+      "properNounAliases": ["白宫", "white house"],
+      "genericAliases": [],
+      "aliases": ["白宫", "white house"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "guggenheim_bilbao",
+      "properNounAliases": ["毕尔巴鄂古根海姆", "古根海姆博物馆", "guggenheim bilbao", "guggenheim museum bilbao"],
+      "genericAliases": [],
+      "aliases": ["毕尔巴鄂古根海姆", "古根海姆博物馆", "guggenheim bilbao", "guggenheim museum bilbao"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }
+    },
+    {
+      "id": "burj_khalifa",
+      "properNounAliases": ["哈利法塔", "迪拜塔", "burj khalifa"],
+      "genericAliases": [],
+      "aliases": ["哈利法塔", "迪拜塔", "burj khalifa"],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
+      "scoringWeights": { "shape": 0.4, "ratio": 0.2, "signature": 0.4 }
+    },
+    {
       "id": "pantheon",
       "aliases": ["万神殿", "罗马万神殿", "pantheon", "roman pantheon"],
       "category": "LANDMARK",

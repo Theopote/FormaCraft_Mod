@@ -21,6 +21,9 @@ class LandmarkModuleRegistryTest {
         assertNull(LandmarkModuleRegistry.resolveModuleId("科隆大教堂"));
         assertNull(LandmarkModuleRegistry.resolveModuleId("chartres cathedral"));
         assertNull(LandmarkModuleRegistry.resolveModuleId("sagrada familia"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("悉尼歌剧院"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("卢浮宫"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("苏州博物馆"));
     }
 
     @Test
