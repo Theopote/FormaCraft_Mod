@@ -110,6 +110,57 @@ public class ChatPanel extends BasePanel {
 
     // Padding（减小边距）
     private static final int PADDING = 2;
+    private static final int CHAT_INPUT_GAP = 6;
+
+    /** 聊天区布局（与 drawContents / 鼠标事件共用，避免漂移） */
+    private record ChatLayout(
+            int innerX,
+            int innerY,
+            int innerW,
+            int innerH,
+            int chatTop,
+            int chatBottom,
+            int inputY,
+            int inputAreaHeight,
+            int selectionHintHeight
+    ) {}
+
+    private ChatLayout computeChatLayout() {
+        int padding = PADDING;
+        int innerX = panelX + padding;
+        int innerY = getContentY() + padding;
+        int innerW = Math.max(1, panelWidth - padding * 2);
+        int innerH = Math.max(1, getContentHeight() - padding * 2);
+
+        int selectionHintHeight = SelectionContext.hasSelection() ? 12 : 0;
+        int inputAreaHeight = getInputHeight(selectionHintHeight);
+        int chatBottom = innerY + innerH - inputAreaHeight - 4;
+        int inputY = chatBottom + CHAT_INPUT_GAP;
+
+        return new ChatLayout(
+                innerX,
+                innerY,
+                innerW,
+                innerH,
+                innerY,
+                chatBottom,
+                inputY,
+                inputAreaHeight,
+                selectionHintHeight
+        );
+    }
+
+    private static void enableScissor(DrawContext ctx, int x0, int y0, int x1, int y1) {
+        if (x1 > x0 && y1 > y0) {
+            ctx.enableScissor(x0, y0, x1, y1);
+        }
+    }
+
+    private static void disableScissor(DrawContext ctx, int x0, int y0, int x1, int y1) {
+        if (x1 > x0 && y1 > y0) {
+            ctx.disableScissor();
+        }
+    }
 
     // 统一控件高度：与 SettingsPanel 输入/按钮一致（16）
     private static final int SEND_BUTTON_SIZE = 16;
@@ -173,6 +224,7 @@ public class ChatPanel extends BasePanel {
 
     @Override
     protected void drawContents(DrawContext ctx) {
+        ensureLayout();
         // 拖拽更新选区（不依赖额外鼠标事件：利用 InputRouter.leftDown + 每帧更新）
         tickTextSelectionDrag();
 
@@ -190,27 +242,25 @@ public class ChatPanel extends BasePanel {
         int lineHeight = Math.max(baseFont + 2, (int)((baseFont + 2) * fontScale));
 
         // 面板内边距
-        int padding = PADDING;
-        int titleBarHeight = 22;
-
-        int innerX = panelX + padding;
-        int innerY = panelY + titleBarHeight + padding;
-        int innerW = panelWidth - padding * 2;
-        int innerH = panelHeight - titleBarHeight - padding * 2;
-
-        // 输入区域高度（根据字体大小动态调整）
-        int inputAreaHeight = getInputHeight();
-        int chatAreaBottom = innerY + innerH - inputAreaHeight - 4;
+        ChatLayout layout = computeChatLayout();
+        int innerX = layout.innerX();
+        int innerY = layout.innerY();
+        int innerW = layout.innerW();
+        int chatAreaBottom = layout.chatBottom();
 
         // 绘制聊天区域背景（半透明）
         ctx.fill(innerX, innerY, innerX + innerW, chatAreaBottom, 0x201A1A1A);
 
-        // 绘制消息（自下而上）
-        drawMessages(ctx, innerX, innerY, innerW, chatAreaBottom, lineHeight, fontScale);
+        // 消息区裁剪：防止气泡/文本画出聊天区（顶部顶到标签栏、底部侵入输入区）
+        enableScissor(ctx, innerX, innerY, innerX + innerW, chatAreaBottom);
+        try {
+            drawMessages(ctx, innerX, innerY, innerW, chatAreaBottom, lineHeight, fontScale);
+        } finally {
+            disableScissor(ctx, innerX, innerY, innerX + innerW, chatAreaBottom);
+        }
 
         // 绘制输入框背景 + 输入框 + 发送按钮
-        int inputY = chatAreaBottom + 6;
-        drawInputArea(ctx, innerX, inputY, innerW, inputAreaHeight);
+        drawInputArea(ctx, layout);
         
         // 在输入区域上方绘制分隔线（参考 Quick Settings 样式）
         ctx.fill(innerX, chatAreaBottom, innerX + innerW, chatAreaBottom + 1, 0x66FFFFFF);
@@ -273,7 +323,7 @@ public class ChatPanel extends BasePanel {
         if (scrollOffset > maxOffset) scrollOffset = maxOffset;
         if (scrollOffset < 0) scrollOffset = 0;
 
-        int y = chatBottom - 6 + scrollOffset; // 从下往上绘制，offset 以像素计
+        int y = chatBottom - 6 - scrollOffset; // 向上滚动时内容上移（scrollOffset 增大 → y 减小）
 
         for (int idx = messages.size() - 1; idx >= 0; idx--) {
             ChatMessage msg = messages.get(idx);
@@ -439,7 +489,13 @@ public class ChatPanel extends BasePanel {
     /**
      * 绘制输入区域（多行输入框 + Send 按钮）
      */
-    private void drawInputArea(DrawContext ctx, int innerX, int inputY, int innerW, int inputAreaHeight) {
+    private void drawInputArea(DrawContext ctx, ChatLayout layout) {
+        int innerX = layout.innerX();
+        int inputY = layout.inputY();
+        int innerW = layout.innerW();
+        int inputAreaHeight = layout.inputAreaHeight();
+        int selectionHintHeight = layout.selectionHintHeight();
+
         // 背景（更透明）
         ctx.fill(innerX, inputY, innerX + innerW, inputY + inputAreaHeight, 0x401A1A1A);
 
@@ -472,24 +528,33 @@ public class ChatPanel extends BasePanel {
 
         // 输入框区域（根据字体大小调整高度，减小边距）
         int inputBoxX = innerX + 2;
-        int inputBoxY = inputY + 2;
+        int inputBoxY = inputY + 2 + selectionHintHeight;
         int inputBoxW = innerW - SEND_BUTTON_SIZE - 8;
-        int inputBoxH = inputAreaHeight - 4;
+        int inputBoxH = inputAreaHeight - 4 - selectionHintHeight;
 
-        // 选区提示（在输入框上方一行灰字）
-        if (SelectionContext.hasSelection()) {
+        // 选区提示（保留在输入区内，避免画进聊天区）
+        if (selectionHintHeight > 0) {
             String hint = "已选区：" + SelectionContext.sizeX() + " × " + SelectionContext.sizeY() + " × " + SelectionContext.sizeZ() + "（将作为 AI 建造范围）";
-            ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), inputBoxX, inputBoxY - 12, 0xFFAAAAAA);
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), inputBoxX, inputY + 2, 0xFFAAAAAA);
         }
 
         inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
-        inputBox.render(ctx);
+        enableScissor(ctx, inputBoxX, inputBoxY, inputBoxX + inputBoxW, inputBoxY + inputBoxH);
+        try {
+            inputBox.render(ctx);
+        } finally {
+            disableScissor(ctx, inputBoxX, inputBoxY, inputBoxX + inputBoxW, inputBoxY + inputBoxH);
+        }
     }
 
     /**
      * 获取输入框高度（用于布局计算）
      */
     private int getInputHeight() {
+        return getInputHeight(0);
+    }
+
+    private int getInputHeight(int selectionHintHeight) {
         // 根据当前输入行数自动增长：到上限后固定高度，内部滚动由 MultilineTextInput 保证光标可见
         float fontScale = getFontScale();
         int baseFont = client.textRenderer.fontHeight;
@@ -502,7 +567,7 @@ public class ChatPanel extends BasePanel {
 
         // inputBoxH 需要满足：maxLinesVisible = (h - 8) / lineHeight ≈ visible
         int inputBoxH = 8 + visible * lineHeight;
-        return inputBoxH + 4; // drawInputArea 中上下各 2px padding
+        return inputBoxH + 4 + selectionHintHeight; // drawInputArea 中上下各 2px padding + 选区提示行
     }
     
     /**
@@ -535,22 +600,20 @@ public class ChatPanel extends BasePanel {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        ensureLayout();
         if (super.mouseClicked(mouseX, mouseY, button)) return true; // 处理顶部 Tab 切换
 
         if (button != 0) return false;
 
         initWidgets();
 
-        int padding = PADDING;
-        int titleBarHeight = 22;
-        int innerX = panelX + padding;
-        int innerY = panelY + titleBarHeight + padding;
-        int innerW = panelWidth - padding * 2;
-        int innerH = panelHeight - titleBarHeight - padding * 2;
-        
-        int inputAreaHeight = getInputHeight();
-        int chatAreaBottom = innerY + innerH - inputAreaHeight - 4;
-        int inputY = chatAreaBottom + 6;
+        ChatLayout layout = computeChatLayout();
+        int innerX = layout.innerX();
+        int innerW = layout.innerW();
+        int chatAreaBottom = layout.chatBottom();
+        int inputY = layout.inputY();
+        int inputAreaHeight = layout.inputAreaHeight();
+        int selectionHintHeight = layout.selectionHintHeight();
 
         boolean generating = currentPrinter != null;
         int btnX = innerX + innerW - SEND_BUTTON_SIZE - 2;
@@ -574,7 +637,7 @@ public class ChatPanel extends BasePanel {
         }
 
         // 在输出区点击：开始选择 / 或点击空白清除
-        if (tryStartSelection(mouseX, mouseY)) {
+        if (mouseY >= layout.chatTop() && mouseY < layout.chatBottom() && tryStartSelection(mouseX, mouseY)) {
             // 选中输出文本后，不要抢输入框焦点
             inputBox.setFocused(false);
             return true;
@@ -587,9 +650,9 @@ public class ChatPanel extends BasePanel {
         // 点击输入框区域，设置焦点
         // 注意：这里必须与 drawInputArea 的 bounds 完全一致，否则会出现"点击位置不准/放不到中间"的问题
         int inputBoxX = innerX + 2;
-        int inputBoxY = inputY + 2;
+        int inputBoxY = inputY + 2 + selectionHintHeight;
         int inputBoxW = innerW - SEND_BUTTON_SIZE - 8;
-        int inputBoxH = inputAreaHeight - 4;
+        int inputBoxH = inputAreaHeight - 4 - selectionHintHeight;
         
         inputBox.setBounds(inputBoxX, inputBoxY, inputBoxW, inputBoxH);
         if (inputBox.mouseClicked(mouseX, mouseY)) {
@@ -627,10 +690,21 @@ public class ChatPanel extends BasePanel {
 
     @Override
     public void mouseScrolled(double mouseX, double mouseY, double amount) {
+        ensureLayout();
         if (!isMouseOver(mouseX, mouseY)) return;
-        // 输入框区域：滚动输入内容；其余区域：滚动消息区
-        if (inputBox != null && inputBox.isMouseOver(mouseX, mouseY)) {
+
+        ChatLayout layout = computeChatLayout();
+        boolean inChatArea = mouseX >= layout.innerX()
+                && mouseX <= layout.innerX() + layout.innerW()
+                && mouseY >= layout.chatTop()
+                && mouseY < layout.chatBottom();
+
+        // 输入框区域：滚动输入内容；聊天区：滚动消息
+        if (!inChatArea && inputBox != null && inputBox.isMouseOver(mouseX, mouseY)) {
             inputBox.mouseScrolled(amount);
+            return;
+        }
+        if (!inChatArea) {
             return;
         }
 
