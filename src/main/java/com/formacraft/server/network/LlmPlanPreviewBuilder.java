@@ -65,6 +65,15 @@ public final class LlmPlanPreviewBuilder {
         }
 
         LlmPlanRoutingMetrics.recordTaggedAttempt(player, req);
+        com.formacraft.common.network.metrics.LandmarkRoutingMetrics.recordFromPlan(player, req, llmPlan);
+        String landmarkModule = com.formacraft.common.network.metrics.LandmarkRoutingMetrics.extractLandmarkModuleId(llmPlan);
+        if (landmarkModule != null) {
+            String warn = com.formacraft.common.network.metrics.LandmarkRoutingMetrics.playerWarningZh(
+                    BuildingSpecRoutingPolicy.userIntentText(req), landmarkModule);
+            if (warn != null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(warn));
+            }
+        }
 
         if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req)) {
             LlmPlanRoutingMetrics.recordFallback(FallbackReason.ROUTING_POLICY, player, req);

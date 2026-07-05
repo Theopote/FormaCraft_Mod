@@ -262,9 +262,9 @@ public class BuildExecutionService {
             if (task.isFinished()) {
                 it.remove();
 
-                // 将执行完的 BlockChange 记录为 UndoEntry
                 var structure = task.getStructure();
                 var changes = task.getAppliedChanges();
+                BuildTask.BuildApplyResult applyResult = task.result();
                 if (structure.getOwner() != null) {
                     ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(structure.getOwner());
                     if (owner != null) {
@@ -279,8 +279,8 @@ public class BuildExecutionService {
                             undoService.pushUndo(owner, entry);
                         }
 
-                        FormacraftMod.LOGGER.info("Build task completed: {} ({} blocks, owner: {})",
-                                structure.getDescription(), changes.size(), owner.getName().getString());
+                        FormacraftMod.LOGGER.info("Build task completed: {} — {}",
+                                structure.getDescription(), applyResult.summaryZh());
 
                         // 保存到记忆系统
                         if (memoryManager != null && !changes.isEmpty()) {
@@ -318,19 +318,19 @@ public class BuildExecutionService {
                             }
                         }
 
-                        // 给客户端一个明确的"已完成"提示（即使 0 方块也提示，便于排查）
+                        // 给客户端明确的完成提示（含累计跳过统计）
                         try {
                             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
                                     owner,
                                     new com.formacraft.common.network.FormaCraftNetworking.ResponseBuildStatusPayload(
-                                            "建造完成：" + structure.getDescription() + "（" + changes.size() + " 方块）"
+                                            applyResult.summaryZh()
                                     )
                             );
                         } catch (Throwable ignored) {}
                     }
                 } else {
-                    FormacraftMod.LOGGER.info("Build task completed: {} ({} blocks, no owner)",
-                            structure.getDescription(), changes.size());
+                    FormacraftMod.LOGGER.info("Build task completed: {} — {}",
+                            structure.getDescription(), applyResult.summaryZh());
                 }
             }
         }

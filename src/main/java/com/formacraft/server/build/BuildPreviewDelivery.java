@@ -76,6 +76,13 @@ public final class BuildPreviewDelivery {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(statusTail));
         }
 
+        int planned = structure.getBlocks() != null ? structure.getBlocks().size() : 0;
+        if (planned > 0) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                    "预览含 " + planned + " 个目标方块；确认建造后，与现有地形相同的方块不会重复放置"
+            ));
+        }
+
         if (hbAlive != null) hbAlive.set(false);
         return true;
     }
