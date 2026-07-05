@@ -820,15 +820,19 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         autoCollapseNonActivePhases();
 
         // 标题
-        y = drawWrappedText(ctx, Text.literal("🎯 构件拾取  Component Capture"), x, y, w, 0xFFFFFFFF);
+        y = drawWrappedText(ctx, Text.translatable("formacraft.capture.title"), x, y, w, 0xFFFFFFFF);
         y += 4;
         
         // 阶段提示（顶部弱引导）
-        String phaseText = String.format("🟢 步骤 %d / %d  ── %s",
-            currentPhase.getPhaseNumber(),
-            CapturePhase.getTotalPhases(),
-            currentPhase.getDescription());
-        y = drawWrappedText(ctx, Text.literal(phaseText), x, y, w, 0xFF88FF88);
+        y = drawWrappedText(
+                ctx,
+                Text.translatable(
+                        "formacraft.capture.phase_progress",
+                        currentPhase.getPhaseNumber(),
+                        CapturePhase.getTotalPhases(),
+                        Text.translatable(currentPhase.getDescriptionTranslationKey()).getString()
+                ),
+                x, y, w, 0xFF88FF88);
         y += 6;
         
         // 分隔线

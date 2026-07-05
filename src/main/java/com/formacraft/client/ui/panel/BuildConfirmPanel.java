@@ -314,18 +314,12 @@ public class BuildConfirmPanel {
         int x1 = x0 + width;
         int y1 = y0 + height;
         
-        // 半透明背景
+        // 半透明背景 + 双层 3D 边框（与侧边栏 BasePanel 一致）
         int bgColor = 0xDD000000;
         context.fill(x0, y0, x1, y1, bgColor);
+        UiTheme.drawPanelBorder(context, x0, y0, x1, y1);
         
-        // 手动画边框
-        int borderColor = 0xFFFFFFFF;
-        context.fill(x0, y0, x1, y0 + 1, borderColor);       // 上
-        context.fill(x0, y1 - 1, x1, y1, borderColor);       // 下
-        context.fill(x0, y0, x0 + 1, y1, borderColor);       // 左
-        context.fill(x1 - 1, y0, x1, y1, borderColor);       // 右
-        
-        // 标题
+        // 标题（内缩 2px，避开边框）
         int titleY = y0 + 10;
         context.drawCenteredTextWithShadow(
                 client.textRenderer,

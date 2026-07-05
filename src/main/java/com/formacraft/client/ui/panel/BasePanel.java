@@ -206,30 +206,7 @@ public abstract class BasePanel {
      * 绘制边框（仅3D边框效果，不绘制内容区背景）
      */
     protected void drawBackground(DrawContext ctx) {
-        int x0 = panelX;
-        int y0 = panelY;
-        int x1 = panelX + panelWidth;
-        int y1 = panelY + panelHeight;
-
-        // 外层 3D 边框（上/左高光，下/右阴影）
-        int outerLight = 0xFFFFFFFF;
-        int outerDark = 0xFF6F6F6F;
-        ctx.fill(x0, y0, x1, y0 + 1, outerLight); // top
-        ctx.fill(x0, y0, x0 + 1, y1, outerLight); // left
-        ctx.fill(x0, y1 - 1, x1, y1, outerDark); // bottom
-        ctx.fill(x1 - 1, y0, x1, y1, outerDark); // right
-
-        // 内层 3D 边框（再内缩 1px）
-        int ix0 = x0 + 1;
-        int iy0 = y0 + 1;
-        int ix1 = x1 - 1;
-        int iy1 = y1 - 1;
-        int innerLight = 0xFFE6E6E6;
-        int innerDark = 0xFF8A8A8A;
-        ctx.fill(ix0, iy0, ix1, iy0 + 1, innerLight);
-        ctx.fill(ix0, iy0, ix0 + 1, iy1, innerLight);
-        ctx.fill(ix0, iy1 - 1, ix1, iy1, innerDark);
-        ctx.fill(ix1 - 1, iy0, ix1, iy1, innerDark);
+        UiTheme.drawPanelBorder(ctx, panelX, panelY, panelX + panelWidth, panelY + panelHeight);
     }
 
     // --------------------------------------------------------------------

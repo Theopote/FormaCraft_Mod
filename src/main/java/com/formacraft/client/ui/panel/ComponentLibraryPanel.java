@@ -75,6 +75,11 @@ public final class ComponentLibraryPanel extends BasePanel {
     private int searchX, searchY, searchW, searchH;
     private boolean searchBoundsValid = false;
 
+    // 滚动（固定搜索/排序行，下方内容可滚）
+    private int scrollY = 0;
+    private int maxScrollY = 0;
+    private int scrollAreaTop = 0;
+
     // double-click
     private long lastClickMs = 0L;
     private String lastClickId = null;
@@ -231,17 +236,27 @@ public final class ComponentLibraryPanel extends BasePanel {
         drawContentBackground(ctx);
 
         var st = ComponentTool.INSTANCE.getState();
-        int clipTop = getContentY();
         int clipBottom = panelY + panelHeight - 1;
-        ctx.enableScissor(contentScissorLeft(), clipTop, contentScissorRight(), clipBottom);
+
+        int headerBottom = drawLibraryFixedHeader(ctx, x, w, y, st);
+        scrollAreaTop = headerBottom;
+
+        ctx.enableScissor(contentScissorLeft(), scrollAreaTop, contentScissorRight(), clipBottom);
         try {
-            drawLibraryContents(ctx, x, w, y, st);
+            int sy = scrollAreaTop - scrollY;
+            sy = drawLibraryScrollable(ctx, x, w, sy, st);
+            int visibleHeight = Math.max(1, clipBottom - scrollAreaTop);
+            int totalHeight = (sy + scrollY) - scrollAreaTop;
+            maxScrollY = Math.max(0, totalHeight - visibleHeight);
+            if (scrollY > maxScrollY) scrollY = maxScrollY;
+            if (scrollY < 0) scrollY = 0;
         } finally {
             ctx.disableScissor();
         }
     }
 
-    private void drawLibraryContents(DrawContext ctx, int x, int w, int y, ComponentToolState st) {
+    /** 固定区：搜索 + 排序/分类（不随滚动移动） */
+    private int drawLibraryFixedHeader(DrawContext ctx, int x, int w, int y, ComponentToolState st) {
         String curSearch = st.librarySearch != null ? st.librarySearch : "";
         if (!searchInput.isFocused() && !curSearch.equals(searchInput.getText())) {
             searchInput.setText(curSearch);
@@ -250,17 +265,20 @@ public final class ComponentLibraryPanel extends BasePanel {
         ctx.drawTextWithShadow(client.textRenderer, Text.literal("搜索："), x, y, 0xFFAAAAAA);
         int inY = y + LABEL_OFFSET - 2;
         searchInput.render(ctx, x, inY, w, 14);
-        searchX = x; searchY = inY; searchW = w; searchH = 14;
+        searchX = x;
+        searchY = inY;
+        searchW = w;
+        searchH = 14;
         searchBoundsValid = true;
         String newSearch = searchInput.getText();
         if (newSearch == null) newSearch = "";
         if (!newSearch.equals(st.librarySearch)) {
             st.librarySearch = newSearch;
             st.libraryPage = 0;
+            scrollY = 0;
         }
         y += LABEL_OFFSET + 10;
 
-        // sort + category row
         int half = (w - 4) / 2;
         sortButton.setMessage(Text.literal("排序：" + sortLabel(st.librarySort)));
         sortButton.setPosition(x, y);
@@ -278,13 +296,14 @@ public final class ComponentLibraryPanel extends BasePanel {
         categoryButton.render(ctx, (int) (client.mouse.getX() / client.getWindow().getScaleFactor()),
                 (int) (client.mouse.getY() / client.getWindow().getScaleFactor()), 0f);
 
-        y += LABEL_OFFSET;
+        return y + LABEL_OFFSET;
+    }
 
-        // catalog
+    /** 可滚动区：分页、网格、选中/验证/修复等 */
+    private int drawLibraryScrollable(DrawContext ctx, int x, int w, int y, ComponentToolState st) {
         ComponentCatalog cat = ClientComponentCatalogState.getCatalog();
         if (cat == null || cat.components == null || cat.components.isEmpty()) {
-            drawWrappedText(ctx, Text.literal("构件库为空：请先保存构件或等待 catalog 同步。"), x, y, w, 0xFFAAAAAA);
-            return;
+            return drawWrappedText(ctx, Text.literal("构件库为空：请先保存构件或等待 catalog 同步。"), x, y, w, 0xFFAAAAAA);
         }
 
         // filter
@@ -338,6 +357,7 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (start >= total) { st.libraryPage = 0; page = 0; start = 0; }
         int end = Math.min(total, start + pageSize);
 
+        int half = (w - 4) / 2;
         prevPageButton.setPosition(x, y);
         prevPageButton.setWidth(half);
         prevPageButton.visible = true;
@@ -539,6 +559,7 @@ public final class ComponentLibraryPanel extends BasePanel {
                 }
             }
         }
+        return y;
     }
 
     /**
@@ -637,6 +658,15 @@ public final class ComponentLibraryPanel extends BasePanel {
             y += lineHeight;
         }
         return y;
+    }
+
+    @Override
+    public void mouseScrolled(double mouseX, double mouseY, double amount) {
+        if (!isMouseOver(mouseX, mouseY)) return;
+        if (scrollAreaTop > 0 && mouseY < scrollAreaTop) return;
+        scrollY = (int) Math.round(scrollY - amount * 12.0);
+        if (scrollY < 0) scrollY = 0;
+        if (scrollY > maxScrollY) scrollY = maxScrollY;
     }
 
     @Override

@@ -45,6 +45,15 @@ public enum CapturePhase {
         return description;
     }
     
+    public String getDescriptionTranslationKey() {
+        return switch (this) {
+            case SELECTION -> "formacraft.capture.phase.selection";
+            case ANCHOR_ORIENTATION -> "formacraft.capture.phase.anchor_orientation";
+            case SEMANTIC -> "formacraft.capture.phase.semantic";
+            case AI_GUARANTEE -> "formacraft.capture.phase.ai_guarantee";
+        };
+    }
+    
     /**
      * 获取阶段编号（1-based）
      */
