@@ -4,6 +4,7 @@ import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.component.placement.ComponentPlacementSpec;
+import com.formacraft.common.component.variant.StructureNbtWriter;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.logging.FcaLog;
 import net.fabricmc.loader.api.FabricLoader;
@@ -242,8 +243,9 @@ public final class ComponentPrototypeStorage {
      * v1 导入策略：
      * - 在 prototype 目录内写入：
      *   - prototype.json（ComponentPrototype）
-     *   - component.json（原始 ComponentDefinition JSON，作为 structure 载体）
-     * - structure.format = "component_v1_json"
+     *   - structure.nbt（v2 推荐，Minecraft 结构方块格式）
+     *   - component.json（v1 兼容 JSON）
+     * - structure.format 优先 {@code nbt}（导出成功时），否则 {@code component_v1_json}
      * - placement 从 def.placementSpec（若存在）桥接
      */
     public static ComponentPrototype importFromComponentDefinition(ComponentDefinition def) {
@@ -281,16 +283,22 @@ public final class ComponentPrototypeStorage {
         // 1) save prototype.json + catalog
         savePrototype(proto);
 
-        // 2) save component.json（原始 v1 结构）
+        // 2) save component.json + optional structure.nbt（v2 推荐格式）
         try {
             Path dir = getPrototypeDir(proto.category, proto.id);
             Files.createDirectories(dir);
-            Path f = dir.resolve("component.json");
-            try (Writer w = Files.newBufferedWriter(f, StandardCharsets.UTF_8)) {
+            Path jsonFile = dir.resolve("component.json");
+            try (Writer w = Files.newBufferedWriter(jsonFile, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(def, w);
             }
+            Path nbtFile = dir.resolve("structure.nbt");
+            if (StructureNbtWriter.write(def, nbtFile)) {
+                proto.structure.format = "nbt";
+                proto.structure.file = "structure.nbt";
+                savePrototype(proto);
+            }
         } catch (Throwable t) {
-            LOG.warn("save component.json failed componentId={}", proto.id, t);
+            LOG.warn("save component structure files failed componentId={}", proto.id, t);
         }
 
         return proto;
