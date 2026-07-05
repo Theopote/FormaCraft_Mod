@@ -201,7 +201,7 @@ public class ChatPanel extends BasePanel {
                     selectableMsgIndex = -1;
                 })
                 .dimensions(0, 0, STOP_BUTTON_SIZE, STOP_BUTTON_SIZE)
-                .tooltip(Tooltip.of(Text.literal("中断生成")))
+                .tooltip(Tooltip.of(Text.translatable("formacraft.chat.stop.tooltip")))
                 .build();
     }
 
@@ -287,7 +287,7 @@ public class ChatPanel extends BasePanel {
             // 空提示
             ctx.drawText(
                     client.textRenderer,
-                    Text.translatable("formacraft.chat.hint", "输入描述让 AI 为你建造…"),
+                    Text.translatable("formacraft.chat.hint"),
                     innerX + 4,
                     chatBottom - lineHeight - 2,
                     0x888888,
@@ -304,7 +304,9 @@ public class ChatPanel extends BasePanel {
             String measureText;
             if (msg.type == ChatMessage.MessageType.THINKING) {
                 int dots = (int) ((System.currentTimeMillis() / 350) % 4);
-                String base = (msg.text == null || msg.text.isBlank()) ? "AI 正在思考" : msg.text;
+                String base = (msg.text == null || msg.text.isBlank())
+                        ? Text.translatable("formacraft.chat.thinking").getString()
+                        : msg.text;
                 measureText = base + ".".repeat(dots);
             } else {
                 measureText = msg.text;
@@ -337,7 +339,9 @@ public class ChatPanel extends BasePanel {
             String displayText;
             if (msg.type == ChatMessage.MessageType.THINKING) {
                 int dots = (int) ((System.currentTimeMillis() / 350) % 4);
-                String base = (msg.text == null || msg.text.isBlank()) ? "AI 正在思考" : msg.text;
+                String base = (msg.text == null || msg.text.isBlank())
+                        ? Text.translatable("formacraft.chat.thinking").getString()
+                        : msg.text;
                 displayText = base + ".".repeat(dots);
             } else if (msg.type == ChatMessage.MessageType.STREAMING) {
                 displayText = msg.text;
@@ -465,7 +469,8 @@ public class ChatPanel extends BasePanel {
         // 建筑类型
         com.formacraft.common.model.build.BuildingType type = spec.getType();
         if (type != null) {
-            ctx.drawText(client.textRenderer, Text.literal("Type: " + type.name()), x + 6, ty, 0xFFFFFF, false);
+            ctx.drawText(client.textRenderer,
+                    Text.translatable("formacraft.preview.type", type.name()), x + 6, ty, 0xFFFFFF, false);
             ty += lineHeight;
         }
 
@@ -474,16 +479,17 @@ public class ChatPanel extends BasePanel {
         if (footprint != null) {
             String sizeText;
             if ("circle".equals(footprint.getShape())) {
-                sizeText = "Radius: " + footprint.getRadius();
+                sizeText = Text.translatable("formacraft.preview.radius", footprint.getRadius()).getString();
             } else {
-                sizeText = "Size: " + footprint.getWidth() + "×" + footprint.getDepth();
+                sizeText = Text.translatable("formacraft.preview.size",
+                        footprint.getWidth(), footprint.getDepth()).getString();
             }
             ctx.drawText(client.textRenderer, Text.literal(sizeText), x + 6, ty, 0xDDDDDD, false);
             ty += lineHeight;
         }
 
-        // 高度
-        ctx.drawText(client.textRenderer, Text.literal("Height: " + spec.getHeight()), x + 6, ty, 0xDDDDDD, false);
+        ctx.drawText(client.textRenderer,
+                Text.translatable("formacraft.preview.height", spec.getHeight()), x + 6, ty, 0xDDDDDD, false);
     }
 
     /**
@@ -534,7 +540,12 @@ public class ChatPanel extends BasePanel {
 
         // 选区提示（保留在输入区内，避免画进聊天区）
         if (selectionHintHeight > 0) {
-            String hint = "已选区：" + SelectionContext.sizeX() + " × " + SelectionContext.sizeY() + " × " + SelectionContext.sizeZ() + "（将作为 AI 建造范围）";
+            String hint = Text.translatable(
+                    "formacraft.chat.selection.hint",
+                    SelectionContext.sizeX(),
+                    SelectionContext.sizeY(),
+                    SelectionContext.sizeZ()
+            ).getString();
             ctx.drawTextWithShadow(client.textRenderer, Text.literal(hint), inputBoxX, inputY + 2, 0xFFAAAAAA);
         }
 
@@ -586,7 +597,7 @@ public class ChatPanel extends BasePanel {
 
         if (stopButton != null && stopButton.visible && stopButton.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx,
-                        java.util.Collections.singletonList(Text.literal("中断生成")),
+                        java.util.Collections.singletonList(Text.translatable("formacraft.chat.stop.tooltip")),
                         (int) mouseX, (int) mouseY);
                 return true;
             }
@@ -737,8 +748,8 @@ public class ChatPanel extends BasePanel {
 
     /**
      * 键盘按下事件（完整版，带修饰符）：
-     * - Enter：换行
-     * - Shift+Enter：发送消息
+     * - Enter：发送消息
+     * - Shift+Enter：换行
      * - Backspace：删除一个字符
      * - 方向键、Home/End：光标移动
      * - Ctrl+C/V/X：复制粘贴剪切
@@ -765,17 +776,16 @@ public class ChatPanel extends BasePanel {
             return;
         }
 
-        // Enter 键（KeyCode 257 是 GLFW_KEY_ENTER）
-        if (keyCode == GLFW.GLFW_KEY_ENTER) {
-            // 检查 Shift 键
+        // Enter / 小键盘 Enter：发送；Shift+Enter：换行
+        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
             if (shift) {
-                // Shift+Enter：发送消息
-                sendCurrentMessage();
-            } else {
-                // Enter：换行
+                // Shift+Enter：换行
                 historyIndex = -1;
                 inputBox.insertNewLine();
+            } else {
+                // Enter：发送
+                sendCurrentMessage();
             }
             return;
         }
@@ -840,7 +850,7 @@ public class ChatPanel extends BasePanel {
 
         if (client.player == null || client.world == null) return;
         if (client.getNetworkHandler() == null) {
-            messages.add(ChatMessage.error("未连接到服务器，无法发送请求"));
+            messages.add(ChatMessage.error(Text.translatable("formacraft.chat.error.not_connected").getString()));
             scrollOffset = 0;
             return;
         }
@@ -975,7 +985,7 @@ public class ChatPanel extends BasePanel {
         String basePhase = getString(req);
         pendingPhase = basePhase;
         pendingStartMs = System.currentTimeMillis();
-        messages.add(ChatMessage.thinking(basePhase + "（已等待 0 秒）"));
+        messages.add(ChatMessage.thinking(formatThinkingElapsed(basePhase, 0)));
         scrollOffset = 0;
 
         FormaCraftClientNetworking.sendBuildRequest(req);
@@ -1004,9 +1014,9 @@ public class ChatPanel extends BasePanel {
                             if (cur2 == null || cur2.type != ChatMessage.MessageType.THINKING) return;
 
                             if (healthy) {
-                                setPendingPhase("仍在生成中。后端健康，可能是模型生成较慢…");
+                                setPendingPhase(Text.translatable("formacraft.chat.phase.still_generating_healthy").getString());
                             } else {
-                                setPendingPhase("仍在等待后端响应。后端可能未就绪或不可达…");
+                                setPendingPhase(Text.translatable("formacraft.chat.phase.still_waiting_backend").getString());
                             }
                         }));
             } else {
@@ -1015,7 +1025,7 @@ public class ChatPanel extends BasePanel {
                     if (pendingThinkingIndex < 0 || pendingThinkingIndex >= messages.size()) return;
                     ChatMessage cur2 = messages.get(pendingThinkingIndex);
                     if (cur2 == null || cur2.type != ChatMessage.MessageType.THINKING) return;
-                    setPendingPhase("仍在等待服务端响应。可能仍在生成中…");
+                    setPendingPhase(Text.translatable("formacraft.chat.phase.still_waiting_server").getString());
                 });
             }
         });
@@ -1027,9 +1037,7 @@ public class ChatPanel extends BasePanel {
             ChatMessage cur = messages.get(pendingThinkingIndex);
             if (cur == null || cur.type != ChatMessage.MessageType.THINKING) return;
             messages.set(pendingThinkingIndex, ChatMessage.error(
-                    "请求超时：服务端/后端长时间未响应（已等待 " + HARD_TIMEOUT_SEC + " 秒）。\n" +
-                            "如果你在单机模式：请确认 Python 后端正在运行，并且 Backend URL 可访问（例如 http://localhost:8000）。\n" +
-                            "如果你在多人服务器：请联系服务器管理员检查后端与日志。"
+                    Text.translatable("formacraft.chat.error.timeout", HARD_TIMEOUT_SEC).getString()
             ));
             scrollOffset = 0;
         }));
@@ -1063,14 +1071,14 @@ public class ChatPanel extends BasePanel {
         if (ClientComponentCatalogState.isSyncPending() && !ClientComponentCatalogState.isSyncComplete()) {
             FormaCraftClientNetworking.sendComponentCatalogRequest();
             messages.add(ChatMessage.system(
-                    "提示：构件目录仍在同步中，AI 可能暂时无法引用你的自定义构件（已尝试加载本地磁盘快照）。"));
+                    Text.translatable("formacraft.chat.catalog.sync_pending").getString()));
             scrollOffset = 0;
             return;
         }
 
         if (!ClientComponentCatalogState.hasRegisteredComponents() && mightReferencePlayerComponents(userText)) {
             messages.add(ChatMessage.system(
-                    "提示：当前没有已注册的玩家构件，涉及自定义构件的请求将回退到程序化生成。"));
+                    Text.translatable("formacraft.chat.catalog.no_components").getString()));
             scrollOffset = 0;
         }
     }
@@ -1097,9 +1105,16 @@ public class ChatPanel extends BasePanel {
                 && (providerHint.equalsIgnoreCase("openai")
                 || providerHint.equalsIgnoreCase("openai_compat")
                 || providerHint.equalsIgnoreCase("deepseek"))) {
-            warn = "（未设置 API Key，可能使用兜底/离线模板）";
+            warn = Text.translatable("formacraft.chat.request.no_api_key_warn").getString();
         }
-        return "已发送请求，等待后端响应  LLM=" + providerHint + "/" + modelHint + baseHint + warn;
+        return Text.translatable("formacraft.chat.request.sent", providerHint, modelHint, baseHint, warn).getString();
+    }
+
+    private static String formatThinkingElapsed(String phase, long seconds) {
+        String p = (phase == null || phase.isBlank())
+                ? Text.translatable("formacraft.chat.phase.generating_default").getString()
+                : phase.trim();
+        return Text.translatable("formacraft.chat.thinking.elapsed", p, seconds).getString();
     }
 
     private boolean tryHandlePreviewAdjust(String text) {
@@ -1161,7 +1176,7 @@ public class ChatPanel extends BasePanel {
                 if (dx == 0 && dy == 0 && dz == 0) {
                     return null;
                 }
-                String hint = "正在调整预览位置：dx=" + dx + " dy=" + dy + " dz=" + dz;
+                String hint = Text.translatable("formacraft.chat.preview.adjust.hint", dx, dy, dz).getString();
                 return new PreviewAdjustCommand(dx, dy, dz, hint);
             }
 
@@ -1368,10 +1383,7 @@ public class ChatPanel extends BasePanel {
      */
     private void setPendingPhase(String phase) {
         if (phase == null) return;
-        String p = phase.trim();
-        int idx = p.indexOf("（已等待");
-        if (idx >= 0) p = p.substring(0, idx).trim();
-        this.pendingPhase = p;
+        this.pendingPhase = phase.trim();
         renderPendingElapsed();
     }
 
@@ -1382,8 +1394,7 @@ public class ChatPanel extends BasePanel {
         ChatMessage cur = messages.get(pendingThinkingIndex);
         if (cur == null || cur.type != ChatMessage.MessageType.THINKING) return;
         long sec = Math.max(0, (System.currentTimeMillis() - pendingStartMs) / 1000);
-        String phase = (pendingPhase == null || pendingPhase.isBlank()) ? "正在生成中" : pendingPhase;
-        messages.set(pendingThinkingIndex, ChatMessage.thinking(phase + "（已等待 " + sec + " 秒）"));
+        messages.set(pendingThinkingIndex, ChatMessage.thinking(formatThinkingElapsed(pendingPhase, sec)));
     }
 
     /** 本地每秒计时；以 token 为准，请求一旦结束/被替换即自动停止。 */

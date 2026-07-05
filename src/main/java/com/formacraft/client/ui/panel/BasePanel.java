@@ -352,7 +352,7 @@ public abstract class BasePanel {
             newChatButton.visible = true;
             if (newChatButton.isMouseOver(mouseX, mouseY)) {
                 drawTooltipCompat(ctx,
-                        java.util.Collections.singletonList(Text.literal("新建对话")),
+                        java.util.Collections.singletonList(Text.translatable("formacraft.chat.new_conversation.tooltip")),
                         (int) mouseX, (int) mouseY);
             }
         }
