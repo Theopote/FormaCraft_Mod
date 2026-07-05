@@ -3,11 +3,13 @@ package com.formacraft.client.ui.panel;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.ui.FormacraftUIState;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
+import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.ui.widget.TabBar;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
@@ -42,8 +44,8 @@ public abstract class BasePanel {
 
     // 左侧栏折叠状态：全局共享（所有面板共用一个宽度）
     private static boolean sidebarCollapsed = false;
-    private static final int SIDEBAR_EXPANDED_WIDTH = 160;
-    private static final int SIDEBAR_COLLAPSED_WIDTH = 12;
+    private static final int SIDEBAR_EXPANDED_WIDTH = UiTheme.SIDEBAR_EXPANDED_WIDTH;
+    private static final int SIDEBAR_COLLAPSED_WIDTH = UiTheme.SIDEBAR_COLLAPSED_WIDTH;
     private static float sidebarAnimWidth = SIDEBAR_EXPANDED_WIDTH;
     private static final float SIDEBAR_ANIM_SPEED = 0.35f; // 越大越快（0~1）
 
@@ -115,10 +117,9 @@ public abstract class BasePanel {
         // 背景（无论折叠与否，左侧都有一条区域）
         drawBackground(ctx);
 
-        // 如果处于完全折叠状态，且宽度接近 collapsed 宽度，只绘制窄条手柄
-        if (sidebarCollapsed && panelWidth <= SIDEBAR_COLLAPSED_WIDTH + 1) {
+        // 折叠态：始终只显示窄条手柄（避免动画中间态 Tab 与按钮重叠）
+        if (sidebarCollapsed) {
             drawCollapsedHandle(ctx);
-            // 折叠状态下也要显示 tooltip（用于手柄的提示）
             if (visible) {
                 drawTooltip(ctx);
             }
@@ -169,6 +170,33 @@ public abstract class BasePanel {
     private static float smoothstep(float x) {
         float t = clamp01((x - (float) 0.15) / ((float) 0.8 - (float) 0.15));
         return t * t * (3.0f - 2.0f * t);
+    }
+
+    protected void drawContentBackground(DrawContext ctx) {
+        UiTheme.drawContentBackground(ctx, panelX, getContentY(), panelWidth, panelY + panelHeight);
+    }
+
+    protected int contentScissorLeft() {
+        return UiTheme.contentInnerLeft(panelX);
+    }
+
+    protected int contentScissorRight() {
+        return UiTheme.contentInnerRight(panelX, panelWidth);
+    }
+
+    private record ToolbarLayout(int closeX, int closeY, int collapseX, int newChatX, int buttonAreaWidth) {}
+
+    /** 工具栏右侧按钮布局（含 Chat 新建对话按钮占位） */
+    private ToolbarLayout computeToolbarLayout() {
+        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
+        int closeY = panelY + CLOSE_BUTTON_PADDING;
+        int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+        int newChatX = collapseX - CLOSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+        int buttonAreaWidth = CLOSE_BUTTON_SIZE + COLLAPSE_BUTTON_SIZE + COLLAPSE_BUTTON_PADDING;
+        if (FormaCraftHudOverlay.activePanel == PanelType.CHAT && panelWidth >= SIDEBAR_EXPANDED_WIDTH / 2) {
+            buttonAreaWidth += CLOSE_BUTTON_SIZE + COLLAPSE_BUTTON_PADDING;
+        }
+        return new ToolbarLayout(closeX, closeY, collapseX, newChatX, buttonAreaWidth);
     }
 
     // --------------------------------------------------------------------
@@ -238,13 +266,11 @@ public abstract class BasePanel {
 
         // 顶部/底部分隔线（Minecraft 原生样式）
         ctx.fill(bx, by, bx + bw, by + 1, 0xFFFFFFFF);
-        ctx.fill(bx, by + bh - 1, bx + bw, by + bh, 0xFF7A7A7A);
+        ctx.fill(bx, by + bh - 1, bx + bw, by + bh, UiTheme.DIVIDER_TOOLBAR);
 
-        // 计算标签栏可用宽度（减去按钮区域）
-        int buttonAreaWidth = CLOSE_BUTTON_SIZE + COLLAPSE_BUTTON_SIZE + COLLAPSE_BUTTON_PADDING;
-        int tabBarWidth = Math.max(0, bw - buttonAreaWidth - TOOLBAR_PADDING * 2);
+        ToolbarLayout layout = computeToolbarLayout();
+        int tabBarWidth = Math.max(0, bw - layout.buttonAreaWidth() - TOOLBAR_PADDING * 2);
         
-        // 设置标签栏位置并渲染
         tabBar.setBounds(bx + TOOLBAR_PADDING, by, tabBarWidth);
         
         // 获取鼠标位置（scaled坐标）
@@ -272,10 +298,9 @@ public abstract class BasePanel {
             return;
         }
 
-        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
-        int closeY = panelY + CLOSE_BUTTON_PADDING;
-        int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
-        int newX = collapseX - CLOSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+        ToolbarLayout layout = computeToolbarLayout();
+        int closeY = layout.closeY();
+        int newX = layout.newChatX();
 
         double mouseX = getScaledMouseX();
         double mouseY = getScaledMouseY();
@@ -294,13 +319,12 @@ public abstract class BasePanel {
         double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();
         
         // 如果处于完全折叠状态，检查折叠手柄的 tooltip
-        if (sidebarCollapsed && panelWidth <= SIDEBAR_COLLAPSED_WIDTH + 1) {
-            // 检查鼠标是否在折叠手柄上
-            if (mouseX >= panelX && mouseX <= panelX + panelWidth &&
-                mouseY >= panelY && mouseY <= panelY + panelHeight) {
-                Text expandTooltip = Text.translatable("formacraft.button.expand");
-                java.util.List<Text> tooltipLines = java.util.Collections.singletonList(expandTooltip);
-                drawTooltipCompat(ctx, tooltipLines, (int) mouseX, (int) mouseY);
+        if (sidebarCollapsed) {
+            if (mouseX >= panelX && mouseX <= panelX + panelWidth
+                    && mouseY >= panelY && mouseY <= panelY + panelHeight) {
+                drawTooltipCompat(ctx,
+                        java.util.Collections.singletonList(Text.translatable("formacraft.button.expand")),
+                        (int) mouseX, (int) mouseY);
             }
             return;
         }
@@ -321,10 +345,11 @@ public abstract class BasePanel {
         
         // 检查按钮提示（关闭按钮和折叠按钮）：与 ButtonWidget 的位置完全一致
         ensureToolbarWidgets();
-        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
-        int closeY = panelY + CLOSE_BUTTON_PADDING;
-        int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
-        int newChatX = collapseX - CLOSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+        ToolbarLayout layout = computeToolbarLayout();
+        int closeX = layout.closeX();
+        int closeY = layout.closeY();
+        int collapseX = layout.collapseX();
+        int newChatX = layout.newChatX();
 
         if (panelWidth >= CLOSE_BUTTON_SIZE) {
             closeButton.setPosition(closeX, closeY);
@@ -362,46 +387,28 @@ public abstract class BasePanel {
      * Tooltip 渲染兼容：Screen 打开时走原版 drawTooltip；HUD（currentScreen==null）时手动绘制。
      */
     protected final void drawTooltipCompat(DrawContext ctx, List<Text> lines, int mouseX, int mouseY) {
-        if (lines == null || lines.isEmpty()) return;
-        if (client.currentScreen != null) {
-            ctx.drawTooltip(client.textRenderer, lines, mouseX, mouseY);
-            return;
+        UiTheme.drawTooltip(ctx, client, lines, mouseX, mouseY);
+    }
+
+    /** HUD 模式下为 ClickableWidget 补 tooltip（Screen 模式仍由原版 widget 处理）。 */
+    protected boolean drawWidgetTooltip(DrawContext ctx, double mouseX, double mouseY,
+                                        ClickableWidget widget, Text tooltip) {
+        if (client.currentScreen != null || widget == null || !widget.visible || !widget.isMouseOver(mouseX, mouseY)) {
+            return false;
         }
-
-        // HUD 模式：手绘 tooltip（避免依赖 Screen）
-        int padding = 4;
-        int lineGap = 2;
-        int maxW = 0;
-        for (Text t : lines) {
-            if (t == null) continue;
-            maxW = Math.max(maxW, client.textRenderer.getWidth(t));
+        if (tooltip == null) {
+            return false;
         }
-        int lineH = client.textRenderer.fontHeight;
-        int boxW = maxW + padding * 2;
-        int boxH = padding * 2 + lines.size() * lineH + (lines.size() - 1) * lineGap;
+        drawTooltipCompat(ctx, java.util.Collections.singletonList(tooltip), (int) mouseX, (int) mouseY);
+        return true;
+    }
 
-        int x = mouseX + 10;
-        int y = mouseY + 8;
-        int sw = client.getWindow().getScaledWidth();
-        int sh = client.getWindow().getScaledHeight();
-        if (x + boxW > sw) x = Math.max(0, sw - boxW - 2);
-        if (y + boxH > sh) y = Math.max(0, sh - boxH - 2);
-
-        int bg = 0xF0100010;      // 原版 tooltip 背景风格近似
-        int border = 0x505000FF;  // 近似紫色边框
-        ctx.fill(x, y, x + boxW, y + boxH, bg);
-        ctx.fill(x, y, x + boxW, y + 1, border);
-        ctx.fill(x, y + boxH - 1, x + boxW, y + boxH, border);
-        ctx.fill(x, y, x + 1, y + boxH, border);
-        ctx.fill(x + boxW - 1, y, x + boxW, y + boxH, border);
-
-        int ty = y + padding;
-        for (Text t : lines) {
-            if (t != null) {
-                ctx.drawTextWithShadow(client.textRenderer, t, x + padding, ty, 0xFFFFFFFF);
-            }
-            ty += lineH + lineGap;
+    /** 使用 widget 当前 message 作为 HUD tooltip 文案。 */
+    protected boolean drawWidgetMessageTooltip(DrawContext ctx, double mouseX, double mouseY, ClickableWidget widget) {
+        if (widget == null) {
+            return false;
         }
+        return drawWidgetTooltip(ctx, mouseX, mouseY, widget, widget.getMessage());
     }
     
     /**
@@ -475,12 +482,9 @@ public abstract class BasePanel {
     // --------------------------------------------------------------------
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) return false;
-
-        // 如果完全不在面板区域内，则不处理
         if (!isMouseOver(mouseX, mouseY)) return false;
 
-        // 折叠状态：点击窄条 = 展开
-        if (sidebarCollapsed && panelWidth <= SIDEBAR_COLLAPSED_WIDTH + 1) {
+        if (sidebarCollapsed) {
             sidebarCollapsed = false;
             return true;
         }
@@ -488,10 +492,11 @@ public abstract class BasePanel {
         // 工具栏按钮点击（原版 ButtonWidget 处理）
         ensureToolbarWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        int closeX = panelX + panelWidth - CLOSE_BUTTON_SIZE - CLOSE_BUTTON_PADDING;
-        int closeY = panelY + CLOSE_BUTTON_PADDING;
-        int collapseX = closeX - COLLAPSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
-        int newChatX = collapseX - CLOSE_BUTTON_SIZE - COLLAPSE_BUTTON_PADDING;
+        ToolbarLayout layout = computeToolbarLayout();
+        int closeX = layout.closeX();
+        int closeY = layout.closeY();
+        int collapseX = layout.collapseX();
+        int newChatX = layout.newChatX();
 
         if (panelWidth >= CLOSE_BUTTON_SIZE) {
             closeButton.setPosition(closeX, closeY);

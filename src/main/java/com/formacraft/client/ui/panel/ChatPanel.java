@@ -6,6 +6,7 @@ import com.formacraft.ai.prompt.PromptAssembler;
 import com.formacraft.ai.prompt.PromptMode;
 import com.formacraft.client.component.ClientComponentCatalogState;
 import com.formacraft.client.buildcontext.BuildContextResolver;
+import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.client.preview.BuildingPreviewState;
 import com.formacraft.client.preview.OutlinePreviewState;
 import com.formacraft.client.preview.PromptModeState;
@@ -17,7 +18,7 @@ import com.formacraft.client.ui.text.SelectableTextBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.model.request.ReferenceInputExtractor;
-import com.formacraft.client.network.FormaCraftClientNetworking;
+import com.formacraft.client.ui.UiTheme;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.config.SettingsConfig;
 import net.minecraft.client.MinecraftClient;
@@ -110,8 +111,8 @@ public class ChatPanel extends BasePanel {
 
     private final List<RenderedMessage> renderedMessages = new ArrayList<>();
 
-    // Padding（减小边距）
-    private static final int PADDING = 2;
+    // 与全局面板一致的内容内边距
+    private static final int PADDING = UiTheme.CONTENT_PADDING;
     private static final int CHAT_INPUT_GAP = 6;
 
     /** 聊天区布局（与 drawContents / 鼠标事件共用，避免漂移） */
@@ -250,8 +251,9 @@ public class ChatPanel extends BasePanel {
         int innerW = layout.innerW();
         int chatAreaBottom = layout.chatBottom();
 
-        // 绘制聊天区域背景（半透明）
-        ctx.fill(innerX, innerY, innerX + innerW, chatAreaBottom, 0x201A1A1A);
+        // 内容区统一背景 + 聊天消息区略深一层
+        drawContentBackground(ctx);
+        ctx.fill(innerX, innerY, innerX + innerW, chatAreaBottom, UiTheme.CHAT_MESSAGE_BG);
 
         // 消息区裁剪：防止气泡/文本画出聊天区（顶部顶到标签栏、底部侵入输入区）
         enableScissor(ctx, innerX, innerY, innerX + innerW, chatAreaBottom);
@@ -265,7 +267,7 @@ public class ChatPanel extends BasePanel {
         drawInputArea(ctx, layout);
         
         // 在输入区域上方绘制分隔线（参考 Quick Settings 样式）
-        ctx.fill(innerX, chatAreaBottom, innerX + innerW, chatAreaBottom + 1, 0x66FFFFFF);
+        ctx.fill(innerX, chatAreaBottom, innerX + innerW, chatAreaBottom + 1, UiTheme.DIVIDER_SECTION);
         
         // 注意：发送按钮的 tooltip 应该在 BasePanel 的 drawTooltip 中处理
         // 这里不再绘制，避免覆盖其他按钮的 tooltip

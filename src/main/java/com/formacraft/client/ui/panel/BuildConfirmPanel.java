@@ -1,5 +1,6 @@
 package com.formacraft.client.ui.panel;
 
+import com.formacraft.client.preview.*;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingType;
 import com.formacraft.common.model.build.BuildingStyle;
@@ -9,17 +10,14 @@ import com.formacraft.common.model.build.Footprint;
 import com.formacraft.client.network.FormaCraftClientNetworking;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.logging.FcaLog;
-import com.formacraft.client.preview.BuildingPreviewState;
-import com.formacraft.client.preview.OutlinePreviewState;
-import com.formacraft.client.preview.PatchPreviewState;
-import com.formacraft.client.preview.PreviewModalState;
-import com.formacraft.client.preview.SkeletonPreviewState;
+import com.formacraft.client.ui.UiTheme;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
@@ -272,7 +270,7 @@ public class BuildConfirmPanel {
         if (summary == null || summary.isBlank()) return;
         if (mode != Mode.PATCH || !visible) return;
         if (patchWarnings == null) patchWarnings = new java.util.ArrayList<>();
-        patchWarnings.add(0, summary);
+        patchWarnings.addFirst(summary);
         // 首次 apply 会消费掉票据，禁止重复应用；undo/redo 不影响票据
         if ("apply".equals(operation)) {
             previewTicketId = null;
@@ -299,6 +297,12 @@ public class BuildConfirmPanel {
             layoutBuildButtons(screenW, screenH);
             confirmButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
             cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+            drawFirstMatchingHudTooltip(context, (int) mouseX, (int) mouseY,
+                    new ClickableWidget[]{confirmButton, cancelButton},
+                    new Text[]{
+                            Text.translatable("formacraft.preview.confirm.tooltip"),
+                            Text.translatable("formacraft.preview.cancel.tooltip")
+                    });
             return;
         }
         
@@ -434,6 +438,9 @@ public class BuildConfirmPanel {
             cancelButton.visible = true;
             cancelButton.active = true;
             cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+            drawFirstMatchingHudTooltip(context, (int) mouseX, (int) mouseY,
+                    new ClickableWidget[]{applyPatchButton, undoPatchButton, redoPatchButton, cancelButton},
+                    null);
             return;
         }
 
@@ -596,6 +603,33 @@ public class BuildConfirmPanel {
         cancelButton.visible = true;
         cancelButton.active = true;
         cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
+        drawFirstMatchingHudTooltip(context, (int) mouseX, (int) mouseY,
+                new ClickableWidget[]{confirmButton, cancelButton},
+                new Text[]{
+                        Text.translatable("formacraft.preview.confirm.tooltip"),
+                        Text.translatable("formacraft.preview.cancel.tooltip")
+                });
+    }
+
+    private void drawFirstMatchingHudTooltip(DrawContext ctx, int mouseX, int mouseY,
+                                             ClickableWidget[] widgets, Text[] tooltips) {
+        if (client.currentScreen != null || widgets == null) {
+            return;
+        }
+        for (int i = 0; i < widgets.length; i++) {
+            ClickableWidget widget = widgets[i];
+            if (widget == null || !widget.visible || !widget.isMouseOver(mouseX, mouseY)) {
+                continue;
+            }
+            Text tip = (tooltips != null && i < tooltips.length && tooltips[i] != null)
+                    ? tooltips[i]
+                    : widget.getMessage();
+            if (tip == null) {
+                continue;
+            }
+            UiTheme.drawTooltip(ctx, client, java.util.Collections.singletonList(tip), mouseX, mouseY);
+            return;
+        }
     }
     
     /** 鼠标点击处理。返回 true 表示事件已被消费。 */

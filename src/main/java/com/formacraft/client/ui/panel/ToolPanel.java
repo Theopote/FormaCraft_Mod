@@ -11,12 +11,14 @@ import com.formacraft.client.tool.SymmetryTool;
 import com.formacraft.client.tool.ToolManager;
 import com.formacraft.client.interaction.AnchorState;
 import com.formacraft.client.ui.widget.HudTextInput;
+import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.ui.toast.HudToast;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
@@ -30,7 +32,7 @@ import java.util.Map;
  */
 public class ToolPanel extends BasePanel {
 
-    private static final int CONTENT_PADDING = 10;
+    private static final int CONTENT_PADDING = UiTheme.CONTENT_PADDING;
     private static final int BUTTON_HEIGHT = 16;
     private static final int LABEL_OFFSET = 18; // 与 SettingsPanel 一致的紧凑行距
     private static final int FIELD_SPACING = LABEL_OFFSET * 2;
@@ -198,8 +200,7 @@ public class ToolPanel extends BasePanel {
         // 每帧重置 bounds（如果本帧没画到输入框，就不允许点击命中它）
         labelNameInputBoundsValid = false;
 
-        // 半透明底
-        ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
+        drawContentBackground(ctx);
 
         // ====================
         // 第一部分：固定区域（工具列表，不滚动）
@@ -256,9 +257,9 @@ public class ToolPanel extends BasePanel {
         separatorY = fixedY;
 
         // 绘制分隔线
-        int separatorX0 = panelX + 1;
-        int separatorX1 = panelX + panelWidth - 1;
-        ctx.fill(separatorX0, separatorY, separatorX1, separatorY + 1, 0xFF808080);
+        int separatorX0 = contentScissorLeft();
+        int separatorX1 = contentScissorRight();
+        ctx.fill(separatorX0, separatorY, separatorX1, separatorY + 1, UiTheme.DIVIDER_SECTION);
 
         // ====================
         // 第二部分：滚动区域（当前工具选项）
@@ -669,6 +670,30 @@ public class ToolPanel extends BasePanel {
         if (labelNameInput.charTyped(chr)) {
             SemanticLabelTool.INSTANCE.setPendingName(labelNameInput.getText());
         }
+    }
+
+    private static final Text LABEL_RANGE_TOOLTIP =
+            Text.literal("设置标签作用范围（方块），用于提示 AI 该标签影响的周边区域");
+
+    @Override
+    protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
+        ensureWidgets();
+        if (drawWidgetMessageTooltip(ctx, mouseX, mouseY, noneToolButton)) return true;
+        for (ButtonWidget b : toolButtons.values()) {
+            if (drawWidgetMessageTooltip(ctx, mouseX, mouseY, b)) return true;
+        }
+        ButtonWidget[] extras = {
+                clearAnchorButton, clearSelectionButton, clearProtectedZonesButton,
+                outlineModeButton, clearOutlineButton, clearPathsButton,
+                brushModeButton, brushRadiusMinusButton, brushRadiusPlusButton,
+                clearBrushSelectionButton, symmetryModeButton, clearSymmetryButton,
+                clearLabelsButton
+        };
+        for (ButtonWidget b : extras) {
+            if (drawWidgetMessageTooltip(ctx, mouseX, mouseY, b)) return true;
+        }
+        return labelRangeSlider != null
+                && drawWidgetTooltip(ctx, mouseX, mouseY, labelRangeSlider, LABEL_RANGE_TOOLTIP);
     }
 
     @Override

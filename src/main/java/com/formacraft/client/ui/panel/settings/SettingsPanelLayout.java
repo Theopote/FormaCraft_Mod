@@ -1,8 +1,10 @@
 package com.formacraft.client.ui.panel.settings;
 
+import com.formacraft.client.ui.UiTheme;
+
 /** Shared layout constants for {@link com.formacraft.client.ui.panel.SettingsPanel}. */
 public final class SettingsPanelLayout {
-    public static final int CONTENT_PADDING = 10;
+    public static final int CONTENT_PADDING = UiTheme.CONTENT_PADDING;
     public static final int BUTTON_HEIGHT = 16;
     public static final int BUTTON_GAP = 6;
     public static final int BUTTON_GAP_SMALL = 4;

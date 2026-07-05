@@ -1,5 +1,6 @@
 package com.formacraft.client.ui.panel;
 
+import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAiExplanation;
@@ -52,7 +53,7 @@ import net.minecraft.util.math.Direction;
  * 5. 自动跳转到构件库面板并高亮新构件
  */
 public class ComponentCapturePanel extends BasePanel implements ComponentCaptureSemanticHost, ComponentCaptureAiGuardHost {
-    private static final int CONTENT_PADDING = 10;
+    private static final int CONTENT_PADDING = UiTheme.CONTENT_PADDING;
     private static final int LABEL_OFFSET = 18;
     private static final int BUTTON_HEIGHT = 16;
     private static final int THUMBNAIL_SIZE = 120; // 增大显示尺寸以更好地展示构件细节
@@ -809,12 +810,11 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         tagsInputBoundsValid = false;
         socketIdInputBoundsValid = false;
 
-        // 背景
-        ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
+        drawContentBackground(ctx);
 
-        // 启用裁剪（为底部固定按钮留出空间）
+        // 启用裁剪（为底部固定按钮留出空间，与内层边框对齐）
         int scrollBottom = panelY + panelHeight - STICKY_FOOTER_HEIGHT;
-        ctx.enableScissor(panelX, getContentY(), panelX + panelWidth, scrollBottom);
+        ctx.enableScissor(contentScissorLeft(), getContentY(), contentScissorRight(), scrollBottom);
 
         phaseHeaders.reset();
         autoCollapseNonActivePhases();
@@ -832,7 +832,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         y += 6;
         
         // 分隔线
-        ctx.fill(x, y, x + w, y + 1, 0xFF444444);
+        ctx.fill(x, y, x + w, y + 1, UiTheme.DIVIDER_SUBTLE);
         y += 4;
         
         // ============ 阶段 1：选区定义 ============
@@ -997,7 +997,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     private void drawStickyFooter(DrawContext ctx, int x, int w) {
         int footerTop = panelY + panelHeight - STICKY_FOOTER_HEIGHT - 4;
         ctx.fill(panelX + 1, footerTop, panelX + panelWidth - 1, panelY + panelHeight - 1, 0xE0101010);
-        ctx.fill(x, footerTop, x + w, footerTop + 1, 0xFF444444);
+        ctx.fill(x, footerTop, x + w, footerTop + 1, UiTheme.DIVIDER_SUBTLE);
 
         int half = (w - 4) / 2;
         cancelButton.setPosition(x, footerTop + 4);

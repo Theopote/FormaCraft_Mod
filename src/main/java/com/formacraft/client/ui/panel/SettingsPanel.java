@@ -188,8 +188,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         int y = getContentY() + CONTENT_PADDING - scrollY;
         int w = panelWidth - CONTENT_PADDING * 2;
 
-        // 给设置页加一层半透明底（否则标题/标签直接叠在世界上，容易“看不见”）
-        ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
+        drawContentBackground(ctx);
 
         // 内容裁剪（避免滚动时画出边界）
         int sx0 = panelX + 1;

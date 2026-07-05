@@ -1,5 +1,6 @@
 package com.formacraft.client.ui.panel;
 
+import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.component.ClientComponentCatalogState;
 import com.formacraft.client.component.ComponentThumbnailCache;
 import com.formacraft.client.component.ComponentLibraryUsage;
@@ -34,7 +35,7 @@ import java.util.Locale;
  * - 双击卡片：直接加载该构件（省一次“加载构件”按钮）
  */
 public final class ComponentLibraryPanel extends BasePanel {
-    private static final int CONTENT_PADDING = 10;
+    private static final int CONTENT_PADDING = UiTheme.CONTENT_PADDING;
     private static final int LABEL_OFFSET = 18;
     private static final int BUTTON_HEIGHT = 16;
 
@@ -227,11 +228,20 @@ public final class ComponentLibraryPanel extends BasePanel {
         gridValid = false;
         searchBoundsValid = false;
 
-        // background
-        ctx.fill(panelX + 1, getContentY(), panelX + panelWidth - 1, panelY + panelHeight - 1, 0x80101010);
+        drawContentBackground(ctx);
 
-        // search input (bind to ComponentToolState)
         var st = ComponentTool.INSTANCE.getState();
+        int clipTop = getContentY();
+        int clipBottom = panelY + panelHeight - 1;
+        ctx.enableScissor(contentScissorLeft(), clipTop, contentScissorRight(), clipBottom);
+        try {
+            drawLibraryContents(ctx, x, w, y, st);
+        } finally {
+            ctx.disableScissor();
+        }
+    }
+
+    private void drawLibraryContents(DrawContext ctx, int x, int w, int y, ComponentToolState st) {
         String curSearch = st.librarySearch != null ? st.librarySearch : "";
         if (!searchInput.isFocused() && !curSearch.equals(searchInput.getText())) {
             searchInput.setText(curSearch);
