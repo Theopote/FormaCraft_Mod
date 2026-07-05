@@ -26,6 +26,21 @@ public final class LandmarkRoutingPolicy {
         }
     }
 
+    private static final List<String> LANDMARK_REJECTION_MARKERS = List.of(
+            "不要地标", "不要鸟巢", "不要仿", "不要复制", "别照搬", "非地标",
+            "not landmark", "not a landmark", "no landmark",
+            "don't copy", "do not copy"
+    );
+
+    private static final List<String> VARIATION_INTENT_MARKERS = List.of(
+            "原创", "独创", "独特", "不一样", "不要一样", "每次不同", "创新", "想象", "自由发挥",
+            "自行设计", "自己设计",
+            "generic", "original", "unique", "creative", "imaginative", "custom design",
+            "varied", "different each time"
+    );
+
+    /** @deprecated use {@link #rejectsLandmarkModule} / {@link #isVariationIntent} */
+    @SuppressWarnings("unused")
     private static final List<String> CREATIVE_INTENT_MARKERS = List.of(
             "原创", "独创", "独特", "不一样", "不要一样", "每次不同", "创新", "想象", "自由发挥",
             "不要地标", "不要鸟巢", "不要仿", "不要复制", "别照搬", "非地标", "自行设计", "自己设计",
@@ -48,12 +63,21 @@ public final class LandmarkRoutingPolicy {
             "椭圆", "椭圆形", "elliptical", "oval", "碗状", "看台"
     );
 
+    private static final List<String> NAMED_ARCHITECT_MARKERS = List.of(
+            "扎哈", "zaha", "哈迪德", "hadid",
+            "贝聿铭", "i.m. pei", "pei",
+            "安藤忠雄", "tadao ando",
+            "诺曼·福斯特", "norman foster",
+            "伦佐·皮亚诺", "renzo piano",
+            "让·努维尔", "jean nouvel"
+    );
+
     private LandmarkRoutingPolicy() {}
 
-    public static boolean isCreativeOrOriginalIntent(String text) {
+    public static boolean rejectsLandmarkModule(String text) {
         if (text == null || text.isBlank()) return false;
         String lower = text.toLowerCase(Locale.ROOT);
-        for (String marker : CREATIVE_INTENT_MARKERS) {
+        for (String marker : LANDMARK_REJECTION_MARKERS) {
             if (lower.contains(marker.toLowerCase(Locale.ROOT))) {
                 return true;
             }
@@ -61,14 +85,30 @@ public final class LandmarkRoutingPolicy {
         return false;
     }
 
+    public static boolean isVariationIntent(String text) {
+        if (text == null || text.isBlank()) return false;
+        String lower = text.toLowerCase(Locale.ROOT);
+        for (String marker : VARIATION_INTENT_MARKERS) {
+            if (lower.contains(marker.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean isCreativeOrOriginalIntent(String text) {
+        return rejectsLandmarkModule(text) || isVariationIntent(text);
+    }
+
     /**
      * 解析用户意图对应的地标路由决策；无匹配返回 {@code null}。
+     * <p>指名地标（MANDATORY）优先于「不一样」等多样化措辞。</p>
      */
     public static RoutingDecision resolveForUserIntent(String text) {
         if (text == null || text.isBlank()) {
             return null;
         }
-        if (isCreativeOrOriginalIntent(text)) {
+        if (rejectsLandmarkModule(text)) {
             return null;
         }
 
@@ -78,16 +118,7 @@ public final class LandmarkRoutingPolicy {
             return new RoutingDecision("birds_nest_stadium", RoutingTier.MANDATORY, "explicit_birds_nest");
         }
 
-        boolean stadium = containsAny(lower, STADIUM_TYPOLOGY);
-        boolean elliptical = containsAny(lower, ELLIPSE_TYPOLOGY);
-        if (stadium && elliptical) {
-            return new RoutingDecision("birds_nest_stadium", RoutingTier.SUGGESTED, "typological_elliptical_stadium");
-        }
-        if (stadium && (lower.contains("现代") || lower.contains("modern"))) {
-            return new RoutingDecision("birds_nest_stadium", RoutingTier.SUGGESTED, "typological_modern_stadium");
-        }
-
-        // 其它地标：仅当用户文本含该模块的「指名别名」（非 stadium 等泛词）时强制
+        // 其它地标：用户指名别名时强制 MODULE（优先于多样化措辞）
         for (LandmarkModuleRegistry.LandmarkModule module : LandmarkModuleRegistry.listModules()) {
             if ("birds_nest_stadium".equals(module.moduleId())) {
                 continue;
@@ -95,6 +126,23 @@ public final class LandmarkRoutingPolicy {
             if (mentionsExplicitLandmark(lower, module)) {
                 return new RoutingDecision(module.moduleId(), RoutingTier.MANDATORY, "explicit_landmark");
             }
+        }
+
+        if (containsAny(lower, NAMED_ARCHITECT_MARKERS) && containsAny(lower, STADIUM_TYPOLOGY)) {
+            return null;
+        }
+
+        if (isVariationIntent(text)) {
+            return null;
+        }
+
+        boolean stadium = containsAny(lower, STADIUM_TYPOLOGY);
+        boolean elliptical = containsAny(lower, ELLIPSE_TYPOLOGY);
+        if (stadium && elliptical) {
+            return new RoutingDecision("birds_nest_stadium", RoutingTier.SUGGESTED, "typological_elliptical_stadium");
+        }
+        if (stadium && (lower.contains("现代") || lower.contains("modern"))) {
+            return new RoutingDecision("birds_nest_stadium", RoutingTier.SUGGESTED, "typological_modern_stadium");
         }
 
         return null;

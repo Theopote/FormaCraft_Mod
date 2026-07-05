@@ -24,13 +24,23 @@ class RoutingDecision:
         return bool(self.module_id) and self.tier != RoutingTier.NONE
 
 
-CREATIVE_INTENT_MARKERS: List[str] = [
-    "原创", "独创", "独特", "不一样", "不要一样", "每次不同", "创新", "想象", "自由发挥",
-    "不要地标", "不要鸟巢", "不要仿", "不要复制", "别照搬", "非地标", "自行设计", "自己设计",
-    "generic", "original", "unique", "creative", "imaginative", "custom design",
-    "don't copy", "do not copy", "not landmark", "not a landmark", "one of a kind",
-    "varied", "different each time", "no landmark",
+# 用户明确拒绝地标 MODULE（优先于别名子串匹配，避免「不要鸟巢」误命中「鸟巢」）
+LANDMARK_REJECTION_MARKERS: List[str] = [
+    "不要地标", "不要鸟巢", "不要仿", "不要复制", "别照搬", "非地标",
+    "not landmark", "not a landmark", "no landmark",
+    "don't copy", "do not copy",
 ]
+
+# 多样化/原创措辞——仅在没有指名地标时，阻止 typology SUGGESTED 联想
+VARIATION_INTENT_MARKERS: List[str] = [
+    "原创", "独创", "独特", "不一样", "不要一样", "每次不同", "创新", "想象", "自由发挥",
+    "自行设计", "自己设计",
+    "generic", "original", "unique", "creative", "imaginative", "custom design",
+    "varied", "different each time",
+]
+
+# 兼容旧 API：拒绝 + 多样化均视为「非强制路由」信号
+CREATIVE_INTENT_MARKERS: List[str] = LANDMARK_REJECTION_MARKERS + VARIATION_INTENT_MARKERS
 
 BIRDS_NEST_EXPLICIT: List[str] = [
     "鸟巢", "鸟巢体育馆", "国家体育场", "北京鸟巢",
@@ -40,7 +50,6 @@ BIRDS_NEST_EXPLICIT: List[str] = [
 STADIUM_TYPOLOGY: List[str] = ["体育场", "体育馆", "stadium", "arena", "球场"]
 ELLIPSE_TYPOLOGY: List[str] = ["椭圆", "椭圆形", "elliptical", "oval", "碗状", "看台"]
 
-# 用户点名建筑师时，不走 generic birds_nest typology（鸟巢≠扎哈）
 NAMED_ARCHITECT_MARKERS: List[str] = [
     "扎哈", "zaha", "哈迪德", "hadid",
     "贝聿铭", "i.m. pei", "pei",
@@ -62,26 +71,47 @@ def _contains_any(text: str, markers: List[str]) -> bool:
     return any(m.lower() in lower for m in markers)
 
 
-def is_creative_or_original_intent(text: str) -> bool:
+def rejects_landmark_module(text: str) -> bool:
     if not (text or "").strip():
         return False
-    return _contains_any(text, CREATIVE_INTENT_MARKERS)
+    return _contains_any(text, LANDMARK_REJECTION_MARKERS)
+
+
+def is_variation_intent(text: str) -> bool:
+    if not (text or "").strip():
+        return False
+    return _contains_any(text, VARIATION_INTENT_MARKERS)
+
+
+def is_creative_or_original_intent(text: str) -> bool:
+    """拒绝地标 或 仅要原创/多样化（无指名地标时阻止 SUGGESTED typology）。"""
+    return rejects_landmark_module(text) or is_variation_intent(text)
 
 
 def resolve_for_user_intent(text: str) -> Optional[RoutingDecision]:
+    """
+    指名地标（MANDATORY）优先于多样化措辞；
+    多样化/拒绝仅在没有指名地标时阻止 typology SUGGESTED。
+    """
     q = (text or "").strip()
     if not q:
         return None
-    if is_creative_or_original_intent(q):
+
+    if rejects_landmark_module(q):
         return None
 
     lower = q.lower()
 
+    # 指名鸟巢 — 即使同时含「不一样」等多样化词，仍强制 MODULE
     if _contains_any(lower, BIRDS_NEST_EXPLICIT):
         return RoutingDecision("birds_nest_stadium", RoutingTier.MANDATORY, "explicit_birds_nest")
 
-    # 点名建筑师 + 体育场 → 参数化形体，禁止默认 birds_nest
+    # 点名建筑师 + 体育场 → 参数化形体，禁止默认 birds_nest typology
     if _contains_any(lower, NAMED_ARCHITECT_MARKERS) and _contains_any(lower, STADIUM_TYPOLOGY):
+        return None
+
+    # 无指名地标时的原创/多样化 → 不做 typology 联想
+    if is_variation_intent(q):
         return None
 
     stadium = _contains_any(lower, STADIUM_TYPOLOGY)

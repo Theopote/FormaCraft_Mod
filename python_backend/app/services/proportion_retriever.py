@@ -3,16 +3,45 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+logger = logging.getLogger(__name__)
+
+_ASSETS_WARNED = False
+
 
 def _find_assets_dir() -> Optional[Path]:
+    """Locate formacraft assets; prefer FORMCRAFT_ASSETS_DIR env override."""
+    global _ASSETS_WARNED
+
+    env = (os.getenv("FORMCRAFT_ASSETS_DIR") or "").strip()
+    if env:
+        cand = Path(env).expanduser().resolve()
+        if cand.is_dir():
+            return cand
+        if not _ASSETS_WARNED:
+            logger.warning(
+                "FORMCRAFT_ASSETS_DIR=%s is not a directory; falling back to repo walk",
+                env,
+            )
+            _ASSETS_WARNED = True
+
     here = Path(__file__).resolve()
     for p in [here] + list(here.parents):
         cand = p / "src" / "main" / "resources" / "assets" / "formacraft"
         if cand.is_dir():
             return cand
+
+    if not _ASSETS_WARNED:
+        logger.warning(
+            "proportion cards assets dir not found "
+            "(set FORMCRAFT_ASSETS_DIR to src/main/resources/assets/formacraft); "
+            "retrieve_proportion_card() will always miss"
+        )
+        _ASSETS_WARNED = True
     return None
 
 
@@ -28,6 +57,7 @@ def _load_cards() -> List[Dict[str, Any]]:
         return []
     card_dir = assets / "proportion_cards"
     if not card_dir.is_dir():
+        logger.warning("proportion_cards directory missing under %s", assets)
         return []
     out: List[Dict[str, Any]] = []
     for p in sorted(card_dir.glob("*.json")):

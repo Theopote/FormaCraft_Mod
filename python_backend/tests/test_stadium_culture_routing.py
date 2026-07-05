@@ -35,6 +35,15 @@ class LandmarkRoutingPolicyTest(unittest.TestCase):
         self.assertIsNone(resolve_for_user_intent(self.CREATIVE))
         self.assertIsNone(resolve_landmark_module_routing(self.CREATIVE))
 
+    def test_variation_with_explicit_birds_nest_still_mandatory(self):
+        from app.services.landmark_routing_policy import RoutingTier, resolve_for_user_intent
+
+        decision = resolve_for_user_intent("给我做个不一样的鸟巢体育馆")
+        self.assertIsNotNone(decision)
+        assert decision is not None
+        self.assertEqual(decision.module_id, "birds_nest_stadium")
+        self.assertEqual(decision.tier, RoutingTier.MANDATORY)
+
 
 class StadiumCultureRoutingTest(unittest.TestCase):
     PROMPT = "在锚点位置生成现代风格的椭圆形体育场建筑"

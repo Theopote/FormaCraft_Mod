@@ -26,6 +26,15 @@ class LandmarkRoutingPolicyTest {
     }
 
     @Test
+    void explicitBirdsNestWithVariation_isMandatory() {
+        LandmarkRoutingPolicy.RoutingDecision d = LandmarkRoutingPolicy.resolveForUserIntent(
+                "给我做个不一样的鸟巢体育馆");
+        assertTrue(d != null && d.applies());
+        assertEquals("birds_nest_stadium", d.moduleId());
+        assertEquals(LandmarkRoutingPolicy.RoutingTier.MANDATORY, d.tier());
+    }
+
+    @Test
     void creativeIntent_returnsNull() {
         assertTrue(LandmarkRoutingPolicy.isCreativeOrOriginalIntent(
                 "在锚点位置原创设计一座独特的现代椭圆体育场，不要地标"));

@@ -8,8 +8,6 @@ import os
 import re
 from typing import Any, Callable, Dict, List, Optional
 
-import requests
-
 from ..models.building_profile import BuildingProfile
 from ..models.reference_blueprint import (
     REFERENCE_BLUEPRINT_VISION_PROMPT,
@@ -17,6 +15,7 @@ from ..models.reference_blueprint import (
     parse_reference_blueprint,
 )
 from ..models.request import BuildRequest, ReferenceInput
+from .url_safety import UnsafeUrlError, safe_http_get, validate_reference_url
 
 logger = logging.getLogger(__name__)
 
@@ -99,24 +98,29 @@ def _resolve_vision_model(req: Optional[BuildRequest]) -> str:
 
 def _fetch_web_page_snippet(url: str, max_chars: int = 600) -> str:
     try:
-        resp = requests.get(
-            url,
+        safe_url = validate_reference_url(url)
+        resp = safe_http_get(
+            safe_url,
             timeout=8,
+            max_bytes=_VISION_MAX_BYTES,
             headers={"User-Agent": "FormaCraft/1.0 (architecture research)"},
         )
         resp.raise_for_status()
         ctype = (resp.headers.get("content-type") or "").lower()
         if "image" in ctype:
-            return f"[image content at {url}]"
+            return f"[image content at {safe_url}]"
         text = resp.text[:8000]
         title_m = re.search(r"<title[^>]*>([^<]+)</title>", text, re.I)
-        title = title_m.group(1).strip() if title_m else url
+        title = title_m.group(1).strip() if title_m else safe_url
         body = re.sub(r"<script[^>]*>.*?</script>", " ", text, flags=re.I | re.S)
         body = re.sub(r"<style[^>]*>.*?</style>", " ", body, flags=re.I | re.S)
         body = re.sub(r"<[^>]+>", " ", body)
         body = re.sub(r"\s+", " ", body).strip()
         snippet = body[:max_chars]
         return f"{title}: {snippet}"
+    except UnsafeUrlError as e:
+        logger.warning("Blocked unsafe reference URL %r: %s", url, e)
+        return ""
     except Exception as e:
         logger.warning("Web URL fetch failed for %s: %s", url, e)
         return ""
@@ -266,7 +270,13 @@ def analyze_references(
         if img:
             image_urls.append(img)
         elif ref.is_web_page():
-            snippet = _fetch_web_page_snippet(ref.content.strip())
+            raw_url = ref.content.strip()
+            try:
+                validate_reference_url(raw_url)
+            except UnsafeUrlError as e:
+                logger.warning("Skipping unsafe web_url reference: %s", e)
+                continue
+            snippet = _fetch_web_page_snippet(raw_url)
             if snippet:
                 web_snippets.append(snippet)
 
