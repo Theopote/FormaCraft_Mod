@@ -422,13 +422,22 @@ public final class CourtyardCompoundBuilder {
                     if (plan == null) return "none";
                     String p = String.valueOf(plan).trim().toLowerCase(java.util.Locale.ROOT);
                     if (p.isEmpty()) return "none";
-                    if (p.equals("none") || p.equals("no") || p.equals("false") || p.equals("0") || p.equals("off")) return "none";
-                    if (p.equals("front_back") || p.equals("frontback") || p.equals("front-back") || p.equals("front/back")
-                            || p.equals("前后") || p.equals("前后分区") || p.equals("前后布局") || p.equals("前厅后室")) return "front_back";
-                    if (p.equals("left_right") || p.equals("leftright") || p.equals("left-right") || p.equals("left/right")
-                            || p.equals("左右") || p.equals("左右分区") || p.equals("左右布局")) return "left_right";
-                    if (p.equals("ring_corridor") || p.equals("ring") || p.equals("courtyard_corridor") || p.equals("gallery") || p.equals("cloister")
-                            || p.equals("回廊") || p.equals("环廊") || p.equals("环形走廊") || p.equals("围绕中庭") || p.equals("回字形") || p.equals("回字布局") || p.equals("回字走廊")) return "ring_corridor";
+                    switch (p) {
+                        case "none", "no", "false", "0", "off" -> {
+                            return "none";
+                        }
+                        case "front_back", "frontback", "front-back", "front/back", "前后", "前后分区", "前后布局",
+                             "前厅后室" -> {
+                            return "front_back";
+                        }
+                        case "left_right", "leftright", "left-right", "left/right", "左右", "左右分区", "左右布局" -> {
+                            return "left_right";
+                        }
+                        case "ring_corridor", "ring", "courtyard_corridor", "gallery", "cloister", "回廊", "环廊",
+                             "环形走廊", "围绕中庭", "回字形", "回字布局", "回字走廊" -> {
+                            return "ring_corridor";
+                        }
+                    }
                 }
             }
         } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
@@ -503,7 +512,7 @@ public final class CourtyardCompoundBuilder {
         };
     }
 
-    private BlockState getStateOrDefault(ServerWorld world, String id, BlockState def) {
+    private static BlockState getStateOrDefault(ServerWorld world, String id, BlockState def) {
         if (id == null || id.isBlank()) return def;
         try {
             var ident = net.minecraft.util.Identifier.tryParse(id);
