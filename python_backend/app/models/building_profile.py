@@ -47,6 +47,8 @@ class ProfileMinecraftStrategy(BaseModel):
     recommended_components: List[str] = Field(
         default_factory=lambda: ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
     )
+    structural_typology: Optional[str] = None
+    reference_landmark: Optional[str] = None
     landmark_module: Optional[str] = None
     notes: Optional[str] = None
 

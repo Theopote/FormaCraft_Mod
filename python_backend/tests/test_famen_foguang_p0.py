@@ -1,4 +1,4 @@
-"""P0: Famen pagoda + Foguang Temple Hall culture/proportion RAG."""
+"""P0: Famen pagoda + Foguang Temple Hall culture/proportion RAG (typology-first)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,8 @@ class FamenPagodaCultureTest(unittest.TestCase):
         self.assertTrue(rag.get("hits"))
         self.assertEqual(rag["hits"][0]["id"], "famen_pagoda")
         self.assertEqual(rag.get("proportionCardId"), "famen_pagoda")
-        self.assertEqual(rag.get("landmarkModuleId"), "famen_pagoda")
+        self.assertEqual(rag.get("structuralTypologyId"), "dense_eaves_pagoda")
+        self.assertIsNone(rag.get("landmarkModuleId"))
         self.assertTrue(rag.get("llmPlanFewShots"))
 
     def test_famen_beats_temple_of_heaven(self):
@@ -32,18 +33,22 @@ class FamenPagodaCultureTest(unittest.TestCase):
         card = retrieve_proportion_card(self.FAMEN_PROMPT)
         assert card is not None
         self.assertEqual(card.get("id"), "famen_pagoda")
+        self.assertEqual(card.get("typology"), "dense_eaves_pagoda")
         self.assertIn("floor_count", card.get("ratios", {}))
 
-    def test_famen_archetype(self):
+    def test_famen_archetype_research_only(self):
         from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
+        from app.services.archetype_registry import get_archetype_def
         from app.services.building_research_agent import resolve_landmark_module_for_intent
 
         match = detect_archetype_local(self.FAMEN_PROMPT)
         self.assertIsNotNone(match)
         self.assertEqual(match.id, "famen_pagoda")
         self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
-        self.assertTrue(match.qualifies_for_module_route())
-        self.assertEqual(resolve_landmark_module_for_intent(self.FAMEN_PROMPT), "famen_pagoda")
+        defn = get_archetype_def("famen_pagoda")
+        self.assertTrue(defn.research_only)
+        self.assertFalse(match.qualifies_for_module_route())
+        self.assertIsNone(resolve_landmark_module_for_intent(self.FAMEN_PROMPT))
 
 
 class FoguangTempleHallCultureTest(unittest.TestCase):
@@ -56,7 +61,8 @@ class FoguangTempleHallCultureTest(unittest.TestCase):
         self.assertTrue(rag.get("hits"))
         self.assertEqual(rag["hits"][0]["id"], "foguang_temple_hall")
         self.assertEqual(rag.get("proportionCardId"), "foguang_temple_hall")
-        self.assertEqual(rag.get("landmarkModuleId"), "foguang_temple_hall")
+        self.assertEqual(rag.get("structuralTypologyId"), "tailiang_timber_hall")
+        self.assertIsNone(rag.get("landmarkModuleId"))
         self.assertTrue(rag.get("llmPlanFewShots"))
 
     def test_foguang_beats_cottage(self):
@@ -72,13 +78,14 @@ class FoguangTempleHallCultureTest(unittest.TestCase):
         card = retrieve_proportion_card(self.FOGUANG_PROMPT)
         assert card is not None
         self.assertEqual(card.get("id"), "foguang_temple_hall")
+        self.assertEqual(card.get("typology"), "tailiang_timber_hall")
         self.assertIn("bay_count_x", card.get("ratios", {}))
 
-    def test_foguang_landmark_module_via_rag(self):
+    def test_foguang_typology_via_rag(self):
         from app.services.keyword_culture_retriever import retrieve
 
         rag = retrieve(self.FOGUANG_PROMPT, topK=3, fewShotK=0)
-        self.assertEqual(rag.get("landmarkModuleId"), "foguang_temple_hall")
+        self.assertEqual(rag.get("structuralTypologyId"), "tailiang_timber_hall")
 
     def test_foguang_archetype_research_only(self):
         from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
@@ -91,6 +98,7 @@ class FoguangTempleHallCultureTest(unittest.TestCase):
         defn = get_archetype_def("foguang_temple_hall")
         self.assertIsNotNone(defn)
         self.assertTrue(defn.research_only)
+        self.assertEqual(defn.typology_id, "tailiang_timber_hall")
         self.assertFalse(match.qualifies_for_module_route())
 
 

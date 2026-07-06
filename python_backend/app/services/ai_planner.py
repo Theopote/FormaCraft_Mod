@@ -4672,6 +4672,10 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
                 }
                 if rag.get("landmarkModuleId"):
                     culture_payload["landmarkModuleId"] = rag.get("landmarkModuleId")
+                if rag.get("structuralTypologyId"):
+                    culture_payload["structuralTypologyId"] = rag.get("structuralTypologyId")
+                if rag.get("typology"):
+                    culture_payload["typology"] = rag.get("typology")
                 if rag.get("llmPlanFewShots"):
                     culture_payload["llmPlanFewShots"] = rag.get("llmPlanFewShots")
                 if rag.get("proportionCard"):
@@ -4697,6 +4701,21 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
                 _prop_block = proportion_prompt_block(_prop_card)
                 if _prop_block:
                     parts.append(_prop_block)
+
+            try:
+                from app.services.typology_retriever import resolve_typology_for_intent, typology_prompt_block
+
+                _culture_id = None
+                if rag and rag.get("hits"):
+                    _hits = rag.get("hits") or []
+                    if _hits and isinstance(_hits[0], dict):
+                        _culture_id = _hits[0].get("id")
+                _typ_match = resolve_typology_for_intent(qtext, culture_card_id=_culture_id)
+                _typ_block = typology_prompt_block(_typ_match)
+                if _typ_block:
+                    parts.append(_typ_block)
+            except Exception:
+                pass
 
             routing = _landmark_routing(qtext)
             if routing:

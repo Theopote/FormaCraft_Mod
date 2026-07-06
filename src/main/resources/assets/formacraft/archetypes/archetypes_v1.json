@@ -67,6 +67,8 @@
         "famen si pagoda", "famen stupa", "famensi pagoda", "famen temple stupa"
       ],
       "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "dense_eaves_pagoda",
       "generatorId": "famen_pagoda",
       "defaults": { "levels": 13, "height": 47, "baseWidth": 10 },
       "constraints": { "minLevels": 7, "maxLevels": 15, "minHeight": 28, "maxHeight": 72, "minBaseWidth": 7, "maxBaseWidth": 14 },
@@ -134,6 +136,7 @@
       ],
       "category": "LANDMARK",
       "researchOnly": true,
+      "typologyId": "tailiang_timber_hall",
       "generatorId": "foguang_temple_hall",
       "defaults": { "width": 21, "depth": 15, "baysX": 7, "baysZ": 4 },
       "constraints": {},

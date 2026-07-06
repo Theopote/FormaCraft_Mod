@@ -1,6 +1,6 @@
 {
   "id": "foguang_temple_hall",
-  "typology": "foguang_temple_hall",
+  "typology": "tailiang_timber_hall",
   "matchKeywords": [
     "佛光寺", "佛光寺大殿", "佛光寺东大殿", "五台山佛光寺", "东大殿",
     "foguang temple", "foguang si", "wutai foguang", "tang timber hall",
@@ -49,5 +49,5 @@
     "min_enclosure_coverage": 0.82,
     "max_void_ratio": 0.18
   },
-  "aiInstruction": "Foguang Temple East Hall (Tang timber frame, 7-bay × 4-bay, single-eave wudian roof). RECOMMENDED: MODULE + landmark:foguang_temple_hall with params.baysX=7, baysZ=4, width≈21, depth≈15, hallHeight≈7, includeSubEaves=true. Compositional fallback: alignment_and_symmetry rhythm_x with 7 equal bays, rhythm_z with 4 bays; MASS_MAIN width:depth≈7:4, height modest; FOUNDATION stone platform; ROOF xuanshan large overhang; DECOR dougong/bracket_sets. style_profile Tang_Dynasty_Timber. FORBID: CROWN/CLASSICAL_CUPOLA, small cottage/cube, classical_monument pilaster-only without timber bracket expression."
+  "aiInstruction": "Tailiang timber hall (structural_typology=tailiang_timber_hall). PREFERRED: STRUCTURE + typology:tailiang_timber_hall; reference_landmark=foguang_temple_hall for 7-bay proportions. Params: baysX=7, baysZ=4, width≈21, depth≈15, hallHeight≈7, includeSubEaves=true. layout.skeleton_type=GRID_BAY. Compositional fallback: alignment_and_symmetry rhythm_x with 7 equal bays, rhythm_z with 4 bays; MASS_MAIN width:depth≈7:4, height modest; FOUNDATION stone platform; ROOF xuanshan large overhang; DECOR dougong/bracket_sets. style_profile Tang_Dynasty_Timber. FORBID: CROWN/CLASSICAL_CUPOLA, small cottage/cube, classical_monument pilaster-only without timber bracket expression, pagoda/tower proportions."
 }

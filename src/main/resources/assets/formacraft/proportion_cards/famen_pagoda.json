@@ -1,6 +1,6 @@
 {
   "id": "famen_pagoda",
-  "typology": "famen_pagoda",
+  "typology": "dense_eaves_pagoda",
   "matchKeywords": [
     "法门寺", "法门寺塔", "法门寺舍利塔", "famen temple", "famen pagoda", "famen si",
     "famen stupa", "famensi pagoda", "唐代砖塔", "密檐塔"
@@ -48,5 +48,5 @@
     "min_enclosure_coverage": 0.88,
     "max_void_ratio": 0.12
   },
-  "aiInstruction": "Famen Temple relic pagoda (Tang brick dense-eaves pagoda). RECOMMENDED: MODULE + landmark:famen_pagoda with params.levels=13, height≈47, baseWidth≈10, facing=SOUTH, detailLevel=refined. Output proportion_hints: typology=famen_pagoda, floor_count=13, slenderness≈4.7, setback_ratio≈0.06. style_profile Chinese_Traditional; wall=brick/stone, roof=dark_glazed_tile; decorative_elements bracket_sets,eaves,cornice,stupa_finial. Compositional fallback: layout.skeleton_type=VERTICAL_STACK; octagonal mass with tiered eaves. FORBID: CROWN crown_template=CLASSICAL_CUPOLA|ONION_DOME, generic classical_monument palace box, cottage proportions. Use stupa/spire finial at top, NOT western dome."
+  "aiInstruction": "Dense-eaves brick pagoda (structural_typology=dense_eaves_pagoda). PREFERRED: STRUCTURE + typology:dense_eaves_pagoda with reference_landmark=famen_pagoda when user names Famen. Params: levels=13, height≈47, baseWidth≈10, footprint=octagon, facing=SOUTH, detailLevel=refined. Output proportion_hints: typology=dense_eaves_pagoda, floor_count=13, slenderness≈4.7, setback_ratio≈0.06. style_profile Chinese_Traditional; wall=brick/stone, roof=dark_glazed_tile; decorative_elements bracket_sets,eaves,cornice,stupa_finial. layout.skeleton_type=VERTICAL_STACK. FORBID: CROWN crown_template=CLASSICAL_CUPOLA|ONION_DOME, generic classical_monument palace box, cottage proportions. Phase-0 MODULE fallback via migrationMap only."
 }

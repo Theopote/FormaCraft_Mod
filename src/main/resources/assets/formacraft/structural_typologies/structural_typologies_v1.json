@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "schema": {
+    "description": "Structural typology registry — finite parametric interpreters, landmarks as references only.",
+    "typologyRequired": ["id", "displayName", "skeletonType", "matchKeywords", "routingPolicy"],
+    "routingPolicies": {
+      "typology_first": "Plan emits structural_typology; landmark MODULE disabled unless legacy fallback.",
+      "legacy_module_fallback": "Typology guides params; MODULE still allowed via legacyInterpreterId.",
+      "compositional_only": "No dedicated interpreter; MASS_MAIN + ROOF composition with proportion_hints."
+    },
+    "migrationMapEntry": {
+      "typologyId": "string",
+      "phase": "typology_first | legacy_module_fallback",
+      "legacyModuleId": "string (optional)",
+      "deprecatedAfter": "string (optional)"
+    }
+  },
+  "typologies": [
+    {
+      "id": "dense_eaves_pagoda",
+      "displayName": {
+        "zh": "密檐砖塔",
+        "en": "Dense-eaves brick pagoda"
+      },
+      "skeletonType": "VERTICAL_STACK",
+      "styleFamilies": ["Chinese_Traditional", "Tang_Brick"],
+      "matchKeywords": [
+        "密檐塔", "密檐砖塔", "砖塔", "舍利塔", "唐代砖塔",
+        "dense eaves pagoda", "brick pagoda", "multi-eave pagoda", "stupa tower",
+        "法门寺", "法门寺塔", "法门寺舍利塔", "famen pagoda", "famen temple", "famensi"
+      ],
+      "negativeKeywords": [
+        "大雁塔", "楼阁式塔", "木塔", "天坛", "祈年殿", "temple of heaven",
+        "哥特", "大教堂", "classical monument", "圆顶", "onion dome"
+      ],
+      "interpreterId": "dense_eaves_pagoda",
+      "legacyInterpreterId": "famen_pagoda",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "levels": 13,
+        "height": 47,
+        "baseWidth": 10,
+        "footprint": "octagon",
+        "setback_ratio": 0.06,
+        "niche_rhythm": "tier_synced_octagon",
+        "detailLevel": "refined",
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "levels": { "min": 7, "ideal": 13, "max": 15, "desc": "密檐层数" },
+        "height": { "min": 28, "ideal": 47, "max": 72, "desc": "塔身总高（blocks）" },
+        "baseWidth": { "min": 7, "ideal": 10, "max": 14, "desc": "底层边长/直径" },
+        "setback_ratio": { "min": 0.04, "ideal": 0.06, "max": 0.1, "desc": "逐层收分" },
+        "footprint": { "enum": ["octagon", "square", "hexagon"], "default": "octagon" },
+        "niche_rhythm": { "enum": ["tier_synced_octagon", "uniform", "none"], "default": "tier_synced_octagon" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "famen_pagoda",
+          "role": "primary",
+          "notes": "唐代法门寺舍利塔：13 层八角密檐砖塔，券窗按层序轮转八面"
+        },
+        {
+          "archetypeId": "giant_wild_goose_pagoda",
+          "role": "secondary",
+          "notes": "楼阁式砖塔，可共享 VERTICAL_STACK 但 eaves 节奏不同；Phase 3 评估合并"
+        }
+      ],
+      "proportionCardIds": ["famen_pagoda"],
+      "cultureCardIds": ["famen_pagoda"],
+      "llmPlanGuidance": "Use structural_typology=dense_eaves_pagoda with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=dense_eaves_pagoda. Params: levels, height, baseWidth, footprint=octagon, setback_ratio≈0.06. Prefer STRUCTURE + typology:dense_eaves_pagoda; set reference_landmark=famen_pagoda when user names Famen. FORBID western dome/CROWN. Phase-0 fallback: MODULE landmark:famen_pagoda still accepted via migrationMap."
+    },
+    {
+      "id": "tailiang_timber_hall",
+      "displayName": {
+        "zh": "抬梁式木构大殿",
+        "en": "Tailiang timber hall"
+      },
+      "skeletonType": "GRID_BAY",
+      "styleFamilies": ["Tang_Dynasty_Timber", "Chinese_Traditional"],
+      "matchKeywords": [
+        "抬梁式", "抬梁式大殿", "唐代木构", "唐代建筑", "木构大殿", "七开间", "庑殿顶",
+        "斗拱", "铺作", "副阶周匝", "tailiang hall", "tang timber hall", "timber frame hall",
+        "佛光寺", "佛光寺大殿", "东大殿", "foguang temple", "foguang si", "wutai foguang"
+      ],
+      "negativeKeywords": [
+        "密檐塔", "砖塔", "pagoda", "天坛", "祈年殿", "四合院", "哥特", "大教堂",
+        "圆顶", "classical monument", "cottage", "小房子"
+      ],
+      "interpreterId": "tailiang_timber_hall",
+      "legacyInterpreterId": "foguang_temple_hall",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "baysX": 7,
+        "baysZ": 4,
+        "width": 21,
+        "depth": 15,
+        "hallHeight": 7,
+        "includeSubEaves": true,
+        "puzuoProfile": "tang_seven_bay",
+        "roofType": "wudian",
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "baysX": { "min": 5, "ideal": 7, "max": 9, "desc": "面阔开间数" },
+        "baysZ": { "min": 3, "ideal": 4, "max": 5, "desc": "进深开间数" },
+        "width": { "min": 15, "ideal": 21, "max": 30, "desc": "面阔（blocks）" },
+        "depth": { "min": 10, "ideal": 15, "max": 22, "desc": "进深（blocks）" },
+        "hallHeight": { "min": 5, "ideal": 7, "max": 12, "desc": "柱网主体高度" },
+        "includeSubEaves": { "type": "boolean", "default": true, "desc": "副阶周匝 + 副阶内檐" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "foguang_temple_hall",
+          "role": "primary",
+          "notes": "五台山佛光寺东大殿：七开间四深，单檐庑殿，副阶周匝铺作分区"
+        }
+      ],
+      "proportionCardIds": ["foguang_temple_hall"],
+      "cultureCardIds": ["foguang_temple_hall"],
+      "llmPlanGuidance": "Use structural_typology=tailiang_timber_hall with layout.skeleton_type=GRID_BAY. proportion_hints.typology=tailiang_timber_hall. Params: baysX, baysZ, width, depth, hallHeight, includeSubEaves=true. MASS_MAIN low and wide; FOUNDATION stone platform; ROOF wudian large overhang; DECOR dougong/bracket_sets. Set reference_landmark=foguang_temple_hall when user names Foguang. FORBID pagoda/tower proportions and western dome."
+    }
+  ],
+  "migrationMap": {
+    "famen_pagoda": {
+      "typologyId": "dense_eaves_pagoda",
+      "phase": "typology_first",
+      "legacyModuleId": "famen_pagoda",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Culture/archetype hits route to dense_eaves_pagoda; Java delegates to FamenPagodaGenerator until generic interpreter."
+    },
+    "foguang_temple_hall": {
+      "typologyId": "tailiang_timber_hall",
+      "phase": "typology_first",
+      "legacyModuleId": "foguang_temple_hall",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Archetype already researchOnly; culture card now emits structuralTypologyId instead of landmarkModuleId."
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "description": "抬梁式木构大殿 typology-first → tailiang_timber_hall（佛光寺作 reference_landmark）",
+  "promptHints": ["抬梁式", "唐代木构", "佛光寺大殿", "七开间", "tailiang hall"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Tang_Dynasty_Timber",
+    "style_attributes": {
+      "wall_color": "red",
+      "roof_color": "grey",
+      "wall_material": "wood",
+      "roof_material": "grey_tile",
+      "floor_material": "stone",
+      "decorative_elements": ["bracket_sets", "dougong", "eaves", "column_grid"]
+    },
+    "proportion_hints": {
+      "typology": "tailiang_timber_hall",
+      "bay_count_x": 7,
+      "bay_count_z": 4,
+      "depth_to_width": 0.57,
+      "height_to_width": 0.52,
+      "roof_to_body_height": 0.45,
+      "min_enclosure_coverage": 0.82
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "genome": {
+      "genomeVersion": "1.0",
+      "archetype": { "id": "foguang_temple_hall", "confidence": 0.92 },
+      "topology": { "layout": "rectangular", "composition": "single", "axis": "longitudinal", "levels": "single" },
+      "form": { "repetition": "bay_grid", "progression": "horizontal", "curvature": "angular", "rhythm": "regular" },
+      "symmetry": { "type": "mirror", "order": 2, "mirror": true },
+      "materials": { "primary": "wood", "secondary": "stone", "accent": "red_lacquer", "textureBias": "natural" },
+      "culturalStyle": { "region": "chinese", "era": "tang", "keywords": ["temple", "timber", "wudian", "dougong"] }
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "GRID_BAY",
+      "path_based": false,
+      "slots": []
+    },
+    "components": [
+      {
+        "component_type": "STRUCTURE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 27, "depth": 21, "height": 16 },
+        "features": ["typology:tailiang_timber_hall"],
+        "params": {
+          "typology_id": "tailiang_timber_hall",
+          "reference_landmark": "foguang_temple_hall",
+          "baysX": 7,
+          "baysZ": 4,
+          "width": 21,
+          "depth": 15,
+          "hallHeight": 7,
+          "includeSubEaves": true,
+          "puzuoProfile": "tang_seven_bay",
+          "roofType": "wudian",
+          "facing": "SOUTH"
+        }
+      }
+    ]
+  }
+}

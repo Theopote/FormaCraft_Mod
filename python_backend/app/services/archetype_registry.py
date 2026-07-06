@@ -41,6 +41,7 @@ class ArchetypeDef:
     generic_aliases: Tuple[str, ...]
     category: str                      # landmark / infrastructure / fortification / etc
     generator_id: str                  # tulou / eiffel_tower / great_wall ... (maps to Java side)
+    typology_id: Optional[str] = None  # structural typology when research_only / typology-first
     research_only: bool = False        # real landmark identity without preset MODULE generator
     # Raw maps loaded from JSON (single source of truth)
     defaults_map: Dict[str, Any] = field(default_factory=dict)
@@ -127,6 +128,7 @@ def _load_from_json(path: Path) -> Dict[str, ArchetypeDef]:
             ratio=_to_float(scoring_raw.get("ratio"), 0.3),
             signature=_to_float(scoring_raw.get("signature"), 0.3),
         )
+        typology_id = str(item.get("typologyId") or "").strip() or None
         out[aid] = ArchetypeDef(
             id=aid,
             aliases=merged_aliases,
@@ -134,6 +136,7 @@ def _load_from_json(path: Path) -> Dict[str, ArchetypeDef]:
             generic_aliases=generic_aliases,
             category=category,
             generator_id=generator_id,
+            typology_id=typology_id,
             research_only=research_only,
             defaults_map=dict(defaults_raw) if isinstance(defaults_raw, dict) else {},
             constraints_map=dict(constraints_raw) if isinstance(constraints_raw, dict) else {},

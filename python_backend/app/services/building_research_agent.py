@@ -455,6 +455,27 @@ def _compute_fidelity_message(
     )
 
 
+def resolve_structural_typology_for_intent(user_text: str) -> Optional[str]:
+    """Return structural typology id when culture/RAG/keyword resolution succeeds."""
+    text = (user_text or "").strip()
+    if not text:
+        return None
+    try:
+        from .keyword_culture_retriever import retrieve
+        from .typology_retriever import resolve_typology_for_intent
+
+        rag = retrieve(text, topK=1, fewShotK=0)
+        stid = rag.get("structuralTypologyId")
+        if isinstance(stid, str) and stid.strip():
+            return stid.strip()
+        hits = rag.get("hits") or []
+        culture_id = hits[0].get("id") if hits else None
+        match = resolve_typology_for_intent(text, culture_card_id=culture_id)
+        return match.typology_id if match else None
+    except Exception:
+        return None
+
+
 def finalize_profile_minecraft_strategy(
     profile: BuildingProfile,
     user_text: str,
@@ -482,8 +503,41 @@ def finalize_profile_minecraft_strategy(
             )
 
     mc = profile.minecraft_strategy.model_copy()
+    typology_id = resolve_structural_typology_for_intent(user_text)
     resolved = resolve_landmark_module_for_intent(user_text)
-    if resolved:
+    if typology_id:
+        from .typology_registry import get_typology
+
+        defn = get_typology(typology_id)
+        mc.structural_typology = typology_id
+        try:
+            from .typology_retriever import resolve_typology_for_intent
+
+            match = resolve_typology_for_intent(user_text)
+            if match and match.reference_landmark_id:
+                mc.reference_landmark = match.reference_landmark_id
+        except Exception:
+            pass
+        if defn:
+            mc.skeleton_type = defn.skeleton_type
+        mc.landmark_module = None
+        components = [
+            str(c).upper()
+            for c in (mc.recommended_components or [])
+            if str(c).upper() != "MODULE"
+        ]
+        if not components:
+            components = ["STRUCTURE", "MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
+        elif "STRUCTURE" not in components:
+            components = ["STRUCTURE"] + components
+        mc.recommended_components = components
+        note = (mc.notes or "").strip()
+        mc.notes = (
+            f"structural_typology={typology_id}: use typology params in LlmPlan; "
+            f"landmark_module=null (reference_landmark={mc.reference_landmark or 'none'}). "
+            + note
+        ).strip()
+    elif resolved:
         mc.landmark_module = resolved
         if "MODULE" not in [str(c).upper() for c in (mc.recommended_components or [])]:
             mc.recommended_components = ["MODULE"] + list(mc.recommended_components or [])

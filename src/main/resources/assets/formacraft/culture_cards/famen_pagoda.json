@@ -26,19 +26,22 @@
     "classical monument", "卢浮宫", "白宫"
   ],
   "proportionCardId": "famen_pagoda",
+  "structuralTypologyId": "dense_eaves_pagoda",
   "landmarkModuleId": "famen_pagoda",
-  "llmPlanExampleRefs": ["famen_pagoda_module.json"],
+  "llmPlanExampleRefs": ["famen_dense_eaves_typology.json", "famen_pagoda_module.json"],
   "exampleRefs": [],
   "archetypes": [
     {
       "name": "famen_dense_eaves_pagoda",
       "constraints": [
-        "RECOMMENDED: MODULE + landmark:famen_pagoda（八角密檐砖塔专用生成器）",
-        "params.levels=13, height≈47, baseWidth≈10, detailLevel=refined, facing=SOUTH",
+        "PREFERRED: structural_typology=dense_eaves_pagoda + STRUCTURE/typology params（八角密檐砖塔参数化解释器）",
+        "reference_landmark=famen_pagoda 仅作比例锚点；禁止仅靠 MODULE 硬路由",
+        "params.levels=13, height≈47, baseWidth≈10, footprint=octagon, detailLevel=refined, facing=SOUTH",
         "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=MIRROR_X",
-        "输出 proportion_hints：typology=famen_pagoda, floor_count=13, slenderness≈4.7, setback_ratio≈0.06",
+        "输出 proportion_hints：typology=dense_eaves_pagoda, floor_count=13, slenderness≈4.7, setback_ratio≈0.06",
         "券窗按层序轮转八面（levelIndex%8）；refined 时加对向券窗",
-        "材质：砖石塔身 + 深色琉璃瓦檐；禁止西方圆顶与宫殿式 classical_monument 方盒"
+        "材质：砖石塔身 + 深色琉璃瓦檐；禁止西方圆顶与宫殿式 classical_monument 方盒",
+        "Phase-0 fallback: MODULE + landmark:famen_pagoda 仍可由 migrationMap 重定向"
       ]
     }
   ]

@@ -28,19 +28,22 @@
     "classical monument", "vertical stack tower", "pagoda"
   ],
   "proportionCardId": "foguang_temple_hall",
+  "structuralTypologyId": "tailiang_timber_hall",
   "landmarkModuleId": "foguang_temple_hall",
-  "llmPlanExampleRefs": ["foguang_temple_hall_module.json", "foguang_temple_hall_compositional.json"],
+  "llmPlanExampleRefs": ["foguang_tailiang_typology.json", "foguang_temple_hall_module.json", "foguang_temple_hall_compositional.json"],
   "exampleRefs": [],
   "archetypes": [
     {
       "name": "tang_seven_bay_hall",
       "constraints": [
-        "RECOMMENDED: MODULE + landmark:foguang_temple_hall（七开间唐代木构大殿专用生成器）",
+        "PREFERRED: structural_typology=tailiang_timber_hall + GRID_BAY 参数（抬梁式木构大殿解释器）",
+        "reference_landmark=foguang_temple_hall 仅作七开间比例锚点",
         "params.baysX=7, baysZ=4, width≈21, depth≈15, hallHeight≈7, includeSubEaves=true, facing=SOUTH",
         "MASS_MAIN 低而阔（height_to_width≈0.5），FOUNDATION 石台基，ROOF 大出檐 xuanshan",
         "铺作分区：内槽角柱双轴跳+撩檐枋；副阶柱简化铺作 + 副阶内檐浅屋面",
         "style_attributes.decorative_elements 必含 bracket,dougong,eaves",
-        "禁止 CROWN/西方圆顶、禁止 cottage 小方盒、禁止把大殿做成高塔"
+        "禁止 CROWN/西方圆顶、禁止 cottage 小方盒、禁止把大殿做成高塔",
+        "Phase-0 fallback: MODULE + landmark:foguang_temple_hall 仍可由 migrationMap 重定向"
       ]
     }
   ]

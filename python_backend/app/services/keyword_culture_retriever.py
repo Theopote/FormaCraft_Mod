@@ -196,6 +196,7 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
     llmplan_dir = assets / "llmplan_examples"
     llm_plan_few_shots: List[Dict[str, Any]] = []
     landmark_module_id: Optional[str] = None
+    structural_typology_id: Optional[str] = None
 
     # few-shot: union of exampleRefs from hits (dedupe)
     few_shots: List[Dict[str, Any]] = []
@@ -235,6 +236,9 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
                 continue
             if str(card.get("id") or "").strip() != best.id:
                 continue
+            stid = str(card.get("structuralTypologyId") or "").strip()
+            if stid:
+                structural_typology_id = stid
             lm = str(card.get("landmarkModuleId") or "").strip()
             if lm:
                 landmark_module_id = lm
@@ -261,6 +265,32 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
         proportion_card = retrieve_proportion_card(q, proportion_card_id=proportion_card_id)
     except Exception:
         proportion_card = None
+
+    typology_match = None
+    typology_payload = None
+    try:
+        from app.services.typology_retriever import (
+            compact_typology_payload,
+            resolve_typology_for_intent,
+            should_suppress_landmark_module,
+        )
+
+        typology_match = resolve_typology_for_intent(
+            q,
+            culture_card_id=best.id if best else None,
+            legacy_module_id=landmark_module_id,
+        )
+        typology_payload = compact_typology_payload(typology_match)
+        if typology_match and should_suppress_landmark_module(typology_match):
+            landmark_module_id = None
+        elif structural_typology_id and typology_payload is None:
+            typology_match = resolve_typology_for_intent(q, culture_card_id=best.id if best else None)
+            typology_payload = compact_typology_payload(typology_match)
+            if typology_match and should_suppress_landmark_module(typology_match):
+                landmark_module_id = None
+    except Exception:
+        typology_match = None
+        typology_payload = None
 
     patch_card = None
     try:
@@ -324,6 +354,12 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
         "hits": [h.__dict__ for h in hits],
         "fewShots": few_shots,
         "assemblyDraft": assembly_draft,
+        "structuralTypologyId": (
+            typology_payload.get("structuralTypologyId")
+            if typology_payload
+            else structural_typology_id
+        ),
+        "typology": typology_payload,
         "landmarkModuleId": landmark_module_id,
         "llmPlanFewShots": llm_plan_few_shots,
         "proportionCardId": proportion_card_id,
