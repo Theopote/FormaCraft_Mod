@@ -19,6 +19,10 @@ public final class TypologyBackedStructureGenerator implements StructureGenerato
         this.typologyId = typologyId;
     }
 
+    public String typologyId() {
+        return typologyId;
+    }
+
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         if (typologyId == null || typologyId.isBlank()) {

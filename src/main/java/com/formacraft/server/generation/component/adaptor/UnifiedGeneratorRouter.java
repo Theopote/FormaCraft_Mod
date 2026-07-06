@@ -66,6 +66,8 @@ public final class UnifiedGeneratorRouter {
                     .tryGenerate(semantic, world);
             if (!assemblyPatches.isEmpty()) {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: assembly path for {}", componentType);
+                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordCompositionalHit(
+                        "ASSEMBLY", "assembly_router");
                 return assemblyPatches;
             }
         }
@@ -115,6 +117,8 @@ public final class UnifiedGeneratorRouter {
             List<BlockPatch> patches = generator.generate(semantic);
             if (patches != null && !patches.isEmpty()) {
                 FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: component generator for {}", componentType);
+                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordCompositionalHit(
+                        componentType, "component_router");
                 return new ArrayList<>(patches);
             }
         } catch (Exception e) {

@@ -59,7 +59,54 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
         }
 
         StructureGeneratorAdaptor adaptor = new StructureGeneratorAdaptor(generator, spec.getType());
-        return adaptor.generate(semantic, world);
+        List<BlockPatch> patches = adaptor.generate(semantic, world);
+        if (!patches.isEmpty()) {
+            recordStructureAdaptorHit(semantic, generator, spec);
+        }
+        return patches;
+    }
+
+    private static void recordStructureAdaptorHit(
+            SemanticComponent semantic,
+            StructureGenerator generator,
+            BuildingSpec spec
+    ) {
+        Component c = semantic != null ? semantic.source() : null;
+        if (generator instanceof com.formacraft.server.generation.structure.TypologyBackedStructureGenerator tbg) {
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordTypologyBuilderHit(
+                    tbg.typologyId(), "structure_adaptor");
+            return;
+        }
+        String moduleId = c != null
+                ? com.formacraft.common.typology.TypologyComponentRouter.extractLandmarkModuleId(c)
+                : null;
+        if (moduleId != null
+                && com.formacraft.common.network.metrics.TypologyRoutingMetrics.isModuleComponent(c)) {
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordModuleHit(
+                    moduleId, "structure_adaptor");
+            return;
+        }
+        String key = resolveGeneratorKey(generator, spec);
+        com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordStructureGeneratorHit(
+                key, "structure_adaptor");
+    }
+
+    private static String resolveGeneratorKey(StructureGenerator generator, BuildingSpec spec) {
+        if (generator == null) {
+            return "unknown";
+        }
+        Map<String, Object> extra = spec != null ? spec.getExtra() : null;
+        if (extra != null) {
+            Object landmark = extra.get("landmark");
+            if (landmark != null && !String.valueOf(landmark).isBlank()) {
+                return String.valueOf(landmark).trim();
+            }
+            Object template = extra.get("template");
+            if (template != null && !String.valueOf(template).isBlank()) {
+                return String.valueOf(template).trim();
+            }
+        }
+        return generator.getClass().getSimpleName();
     }
 
     @Override
