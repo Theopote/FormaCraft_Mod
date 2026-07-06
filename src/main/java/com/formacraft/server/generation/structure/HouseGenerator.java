@@ -556,9 +556,14 @@ public class HouseGenerator implements StructureGenerator {
             wallToUse = HouseGeneratorUtils.applyFacadeProfileToWallCell(
                     wallToUse, ctx.materials().wall(), ctx.materials().trim(), ctx.materials().foundation(),
                     facadeProfile, ctx.doorSide(), x, y, z, ctx.width(), ctx.depth(),
-                    ctx.hasDoor(), ctx.floorHeight()
+                    ctx.hasDoor(), ctx.floorHeight(),
+                    ctx.rhythmWidthPlan(), ctx.rhythmDepthPlan()
             );
         }
+        wallToUse = HouseGeneratorUtils.applyRhythmPilasterTrim(
+                wallToUse, ctx.materials().wall(), ctx.materials().trim(),
+                ctx.rhythmWidthPlan(), ctx.rhythmDepthPlan(),
+                x, y, z, ctx.width(), ctx.depth());
 
         blocks.add(new PlannedBlock(pos, wallToUse));
     }

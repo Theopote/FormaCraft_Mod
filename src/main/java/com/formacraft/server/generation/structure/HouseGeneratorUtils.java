@@ -339,6 +339,26 @@ public class HouseGeneratorUtils {
                                                            int depth,
                                                            boolean hasDoor,
                                                            int floorHeight) {
+        return applyFacadeProfileToWallCell(
+                current, wall, trim, foundation, facadeProfile, doorSide,
+                x, y, z, width, depth, hasDoor, floorHeight, null, null);
+    }
+
+    public static BlockState applyFacadeProfileToWallCell(BlockState current,
+                                                           BlockState wall,
+                                                           BlockState trim,
+                                                           BlockState foundation,
+                                                           String facadeProfile,
+                                                           Direction doorSide,
+                                                           int x,
+                                                           int y,
+                                                           int z,
+                                                           int width,
+                                                           int depth,
+                                                           boolean hasDoor,
+                                                           int floorHeight,
+                                                           ComponentFacadeRhythmPlanner.RhythmPlan rhythmWidthPlan,
+                                                           ComponentFacadeRhythmPlanner.RhythmPlan rhythmDepthPlan) {
         if (current == null) return null;
         String fp = (facadeProfile == null) ? "" : facadeProfile.trim().toLowerCase(java.util.Locale.ROOT);
         if (fp.isBlank()) return current;
@@ -359,8 +379,11 @@ public class HouseGeneratorUtils {
             return current;
         }
 
-        // vertical pilasters: periodic vertical trim strips
-        if (fp.contains("vertical_pilasters")) {
+        // vertical pilasters: rhythm-driven strips, else periodic cadence fallback
+        if (fp.contains("vertical_pilasters") || fp.contains("pilasters")) {
+            if (isRhythmPilasterExteriorCell(rhythmWidthPlan, rhythmDepthPlan, x, y, z, width, depth)) {
+                return trim != null ? trim : current;
+            }
             int cadence = 3;
             if (isEdgeZ) {
                 if (x > 0 && x < width - 1 && (x % cadence == 0) && y > 0) return trim != null ? trim : current;
@@ -395,6 +418,63 @@ public class HouseGeneratorUtils {
         }
 
         return current;
+    }
+
+    /**
+     * Applies repeating-unit pilaster strips on exterior wall cells when a rhythm plan is active.
+     */
+    public static BlockState applyRhythmPilasterTrim(BlockState current,
+                                                      BlockState wall,
+                                                      BlockState trim,
+                                                      ComponentFacadeRhythmPlanner.RhythmPlan rhythmWidthPlan,
+                                                      ComponentFacadeRhythmPlanner.RhythmPlan rhythmDepthPlan,
+                                                      int x,
+                                                      int y,
+                                                      int z,
+                                                      int width,
+                                                      int depth) {
+        if (current == null || trim == null || y <= 0) {
+            return current;
+        }
+        if (wall != null && current != wall) {
+            return current;
+        }
+        if (!isRhythmPilasterExteriorCell(rhythmWidthPlan, rhythmDepthPlan, x, y, z, width, depth)) {
+            return current;
+        }
+        return trim;
+    }
+
+    public static boolean isRhythmPilasterExteriorCell(ComponentFacadeRhythmPlanner.RhythmPlan rhythmWidthPlan,
+                                                        ComponentFacadeRhythmPlanner.RhythmPlan rhythmDepthPlan,
+                                                        int x,
+                                                        int y,
+                                                        int z,
+                                                        int width,
+                                                        int depth) {
+        if (y <= 0) {
+            return false;
+        }
+        boolean onNorthSouth = (z == 0 || z == depth - 1);
+        boolean onWestEast = (x == 0 || x == width - 1);
+        if (!onNorthSouth && !onWestEast) {
+            return false;
+        }
+        if (onNorthSouth
+                && rhythmWidthPlan != null
+                && rhythmWidthPlan.active()
+                && rhythmWidthPlan.axisMax() == width
+                && rhythmWidthPlan.isPilasterAxis(x)) {
+            return true;
+        }
+        if (onWestEast
+                && rhythmDepthPlan != null
+                && rhythmDepthPlan.active()
+                && rhythmDepthPlan.axisMax() == depth
+                && rhythmDepthPlan.isPilasterAxis(z)) {
+            return true;
+        }
+        return false;
     }
 }
 
