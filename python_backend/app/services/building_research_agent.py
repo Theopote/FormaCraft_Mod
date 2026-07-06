@@ -511,9 +511,13 @@ def finalize_profile_minecraft_strategy(
         defn = get_typology(typology_id)
         mc.structural_typology = typology_id
         try:
+            from .keyword_culture_retriever import retrieve
             from .typology_retriever import resolve_typology_for_intent
 
-            match = resolve_typology_for_intent(user_text)
+            rag = retrieve(user_text, topK=1, fewShotK=0)
+            hits = rag.get("hits") or []
+            culture_id = hits[0].get("id") if hits else None
+            match = resolve_typology_for_intent(user_text, culture_card_id=culture_id)
             if match and match.reference_landmark_id:
                 mc.reference_landmark = match.reference_landmark_id
         except Exception:

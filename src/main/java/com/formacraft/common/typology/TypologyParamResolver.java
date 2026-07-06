@@ -22,6 +22,7 @@ public final class TypologyParamResolver {
         if (ref != null && !ref.isBlank()) {
             merged.putIfAbsent("reference_landmark", ref);
         }
+        TypologyReferencePresets.apply(merged);
         return merged;
     }
 
@@ -45,9 +46,16 @@ public final class TypologyParamResolver {
             if (spec.getFloors() > 0) {
                 merged.putIfAbsent("levels", spec.getFloors());
             }
+            if (spec.getExtra() != null) {
+                Object lm = spec.getExtra().get("landmark");
+                if (lm != null) {
+                    merged.putIfAbsent("reference_landmark", String.valueOf(lm).trim());
+                }
+            }
         }
         merged.put("typology_id", typologyId);
         merged.put("structural_typology", typologyId);
+        TypologyReferencePresets.apply(merged);
         return merged;
     }
 

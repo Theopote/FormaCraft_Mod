@@ -1,0 +1,52 @@
+{
+  "id": "giant_wild_goose_pagoda",
+  "typology": "dense_eaves_pagoda",
+  "matchKeywords": [
+    "大雁塔", "大慈恩寺", "大慈恩寺塔", "giant wild goose pagoda", "dayanta",
+    "wild goose pagoda", "唐代砖塔", "方形塔"
+  ],
+  "ratios": {
+    "height_to_width": {
+      "min": 2.0,
+      "ideal": 2.4,
+      "max": 4.0,
+      "desc": "塔高/底边（大雁塔约 41m / 底边 ~17m，较矮胖）"
+    },
+    "slenderness": {
+      "min": 2.0,
+      "ideal": 2.4,
+      "max": 4.5,
+      "desc": "height / max(width, depth)"
+    },
+    "floor_count": {
+      "min": 5,
+      "ideal": 7,
+      "max": 9,
+      "desc": "密檐层数（大雁塔 7 层）"
+    },
+    "floor_height": {
+      "min": 4,
+      "ideal": 5,
+      "max": 7,
+      "desc": "每层檐口节奏（方形密檐，层间略高）"
+    },
+    "setback_ratio": {
+      "min": 0.05,
+      "ideal": 0.08,
+      "max": 0.12,
+      "desc": "逐层收分比例（方形塔收分略大）"
+    },
+    "window_wall_ratio": {
+      "min": 0.0,
+      "ideal": 0.02,
+      "max": 0.08,
+      "desc": "立面开窗极少（实墙砖塔）"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["square", "arrow_slit"],
+    "min_enclosure_coverage": 0.92,
+    "max_void_ratio": 0.08
+  },
+  "aiInstruction": "Square dense-eaves brick pagoda (structural_typology=dense_eaves_pagoda, footprint=square). PREFERRED: STRUCTURE + typology:dense_eaves_pagoda with reference_landmark=giant_wild_goose_pagoda when user names Dayanta. Params: levels=7, height≈41, baseWidth≈17, footprint=square, facing=SOUTH, detailLevel=aesthetic, niche_rhythm=none. Output proportion_hints: typology=dense_eaves_pagoda, floor_count=7, slenderness≈2.4, setback_ratio≈0.08. style_profile Chinese_Traditional; wall=brick/stone, roof=brick_slab eaves; NO octagon niche rhythm. layout.skeleton_type=VERTICAL_STACK. FORBID: CROWN crown_template=CLASSICAL_CUPOLA|ONION_DOME, generic classical_monument palace box, cottage proportions, Famen octagon params. Phase-0 MODULE fallback via migrationMap only."
+}

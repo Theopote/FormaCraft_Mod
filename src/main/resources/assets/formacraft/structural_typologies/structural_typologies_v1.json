@@ -27,10 +27,11 @@
       "matchKeywords": [
         "密檐塔", "密檐砖塔", "砖塔", "舍利塔", "唐代砖塔",
         "dense eaves pagoda", "brick pagoda", "multi-eave pagoda", "stupa tower",
-        "法门寺", "法门寺塔", "法门寺舍利塔", "famen pagoda", "famen temple", "famensi"
+        "法门寺", "法门寺塔", "法门寺舍利塔", "famen pagoda", "famen temple", "famensi",
+        "大雁塔", "大慈恩寺", "giant wild goose pagoda", "dayanta", "wild goose pagoda"
       ],
       "negativeKeywords": [
-        "大雁塔", "楼阁式塔", "木塔", "天坛", "祈年殿", "temple of heaven",
+        "楼阁式塔", "木塔", "天坛", "祈年殿", "temple of heaven",
         "哥特", "大教堂", "classical monument", "圆顶", "onion dome"
       ],
       "interpreterId": "dense_eaves_pagoda",
@@ -63,12 +64,12 @@
         {
           "archetypeId": "giant_wild_goose_pagoda",
           "role": "secondary",
-          "notes": "楼阁式砖塔，可共享 VERTICAL_STACK 但 eaves 节奏不同；Phase 3 评估合并"
+          "notes": "大慈恩寺大雁塔：7 层方形密檐砖塔，footprint=square，niche_rhythm=none"
         }
       ],
-      "proportionCardIds": ["famen_pagoda"],
-      "cultureCardIds": ["famen_pagoda"],
-      "llmPlanGuidance": "Use structural_typology=dense_eaves_pagoda with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=dense_eaves_pagoda. Params: levels, height, baseWidth, footprint=octagon, setback_ratio≈0.06. Prefer STRUCTURE + typology:dense_eaves_pagoda; set reference_landmark=famen_pagoda when user names Famen. FORBID western dome/CROWN. Phase-0 fallback: MODULE landmark:famen_pagoda still accepted via migrationMap."
+      "proportionCardIds": ["famen_pagoda", "giant_wild_goose_pagoda"],
+      "cultureCardIds": ["famen_pagoda", "giant_wild_goose_pagoda"],
+      "llmPlanGuidance": "Use structural_typology=dense_eaves_pagoda with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=dense_eaves_pagoda. Params: levels, height, baseWidth, footprint (octagon for Famen, square for Dayanta), setback_ratio≈0.06. Prefer STRUCTURE + typology:dense_eaves_pagoda; set reference_landmark=famen_pagoda (octagon) or reference_landmark=giant_wild_goose_pagoda (square, levels=7, baseWidth=17). FORBID western dome/CROWN. Phase-0 fallback: MODULE landmark still accepted via migrationMap."
     },
     {
       "id": "tailiang_timber_hall",
@@ -135,6 +136,13 @@
       "legacyModuleId": "foguang_temple_hall",
       "deprecatedAfter": "2026-Q4",
       "notes": "Archetype already researchOnly; culture card now emits structuralTypologyId instead of landmarkModuleId."
+    },
+    "giant_wild_goose_pagoda": {
+      "typologyId": "dense_eaves_pagoda",
+      "phase": "typology_first",
+      "legacyModuleId": "giant_wild_goose_pagoda",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Dayanta square pagoda merged into dense_eaves_pagoda with footprint=square; Java delegates to DenseEavesPagodaBuilder."
     }
   }
 }

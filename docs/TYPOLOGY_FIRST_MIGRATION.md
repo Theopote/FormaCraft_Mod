@@ -1,6 +1,6 @@
 # Typology-First 架构迁移方案
 
-> **状态**：Phase 0 落地中（2026-07-06）  
+> **状态**：Phase 0–3 已完成（2026-07-06）  
 > **政策**：冻结新地标专用 Generator；新中式/古建需求走 **Structural Typology + 参数化解释器**，地标仅作 RAG 比例与风格参考。
 
 ## 1. 背景与问题
@@ -134,6 +134,24 @@ src/main/resources/assets/formacraft/structural_typologies/structural_typologies
 
 **通用触发词**：抬梁式大殿、唐代木构、七开间庑殿顶、tailiang hall
 
+### 5.3 大慈恩寺大雁塔（Phase 3）
+
+| 维度 | 旧 | 新 |
+|---|---|---|
+| 路由 | `MODULE + landmark:giant_wild_goose_pagoda` | `structural_typology: dense_eaves_pagoda` + `footprint=square` |
+| archetype | `generatorId=giant_wild_goose_pagoda` | `typologyId=dense_eaves_pagoda`, `researchOnly=true` |
+| culture card | 无专用卡 | `structuralTypologyId=dense_eaves_pagoda` |
+| proportion | 无专用卡 | `typology=dense_eaves_pagoda`（id 为 `giant_wild_goose_pagoda` 卡） |
+| Java | `GiantWildGoosePagodaGenerator` | `DenseEavesPagodaBuilder` square 分支 + `TypologyReferencePresets` |
+
+**关键参数**（`dense_eaves_pagoda` + `reference_landmark=giant_wild_goose_pagoda`）：
+
+- `footprint=square`, `levels=7`, `height≈41`, `baseWidth≈17`
+- `niche_rhythm=none`（无八面券窗轮转）
+- `detailLevel=aesthetic`, `facing`
+
+**通用触发词**：大雁塔、大慈恩寺、dayanta、giant wild goose pagoda
+
 ## 6. 数据流（Phase 0）
 
 ```
@@ -161,7 +179,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | **0** | Schema + migrationMap + RAG/plan 优先 typology；legacy MODULE 作 fallback | **已完成** |
 | **1** | `TypologyInterpreterRegistry` + `TypologyComponentRouter`；STRUCTURE/typology 构件路由；legacy 委托 Famen/Foguang | **已完成** |
 | **2** | `DenseEavesPagodaBuilder` / `TailiangTimberHallBuilder` + 原生解释器；`ChineseTypologyDetailUtil` 迁入 typology 包 | **已完成** |
-| **3** | 大雁塔等迁入 `dense_eaves_pagoda`；废弃对应 landmark generator | 待办 |
+| **3** | 大雁塔等迁入 `dense_eaves_pagoda`（`footprint=square`）；`GiantWildGoosePagodaGenerator` 瘦身为 Builder 委托 | **已完成** |
 
 ## 8. 冻结政策
 
@@ -182,7 +200,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 解释器实现 | `server.generation.typology.interpreter.*` |
 | Java 参数化 Builder | `server.generation.typology.builder.*` |
 | 细节工具 | `com.formacraft.common.typology.detail.ChineseTypologyDetailUtil` |
-| Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json` |
+| Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json`, `giant_wild_goose_pagoda.json` |
 | 测试 | `python_backend/tests/test_typology_migration.py` |
 
 ## 10. LlmPlan 目标形状（typology-first few-shot）

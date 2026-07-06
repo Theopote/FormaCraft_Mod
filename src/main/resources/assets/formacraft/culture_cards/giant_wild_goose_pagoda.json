@@ -1,0 +1,47 @@
+{
+  "id": "giant_wild_goose_pagoda",
+  "styleId": "Chinese_Traditional",
+  "intents": ["PAGODA", "LANDMARK", "BUDDHIST", "大雁塔", "方形塔"],
+  "keywords": [
+    "大雁塔", "大慈恩寺", "大慈恩寺塔", "dayanta", "giant wild goose pagoda",
+    "wild goose pagoda", "唐代砖塔", "方形塔", "密檐塔"
+  ],
+  "synonyms": {
+    "大雁塔": ["dayanta", "giant wild goose pagoda", "wild goose pagoda", "大慈恩寺塔"],
+    "大慈恩寺": ["daci'en temple", "daci en si"]
+  },
+  "keywordWeights": {
+    "大雁塔": 10.0,
+    "大慈恩寺": 9.0,
+    "大慈恩寺塔": 8.5,
+    "giant wild goose pagoda": 8.0,
+    "dayanta": 7.5,
+    "方形塔": 6.0
+  },
+  "negativeKeywords": [
+    "法门寺", "法门寺塔", "famensi", "famen pagoda", "famen temple",
+    "天坛", "祈年殿", "temple of heaven", "佛光寺", "foguang",
+    "CLASSICAL_CUPOLA", "onion dome", "哥特", "大教堂", "cottage", "小房子",
+    "classical monument", "卢浮宫", "白宫"
+  ],
+  "proportionCardId": "giant_wild_goose_pagoda",
+  "structuralTypologyId": "dense_eaves_pagoda",
+  "landmarkModuleId": "giant_wild_goose_pagoda",
+  "llmPlanExampleRefs": [],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "dayanta_square_dense_eaves",
+      "constraints": [
+        "PREFERRED: structural_typology=dense_eaves_pagoda + STRUCTURE/typology params（方形密檐砖塔）",
+        "reference_landmark=giant_wild_goose_pagoda 仅作比例锚点；禁止仅靠 MODULE 硬路由",
+        "params.levels=7, height≈41, baseWidth≈17, footprint=square, niche_rhythm=none, detailLevel=aesthetic, facing=SOUTH",
+        "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=MIRROR_X",
+        "输出 proportion_hints：typology=dense_eaves_pagoda, floor_count=7, slenderness≈2.4",
+        "方形逐层收分 + 砖檐口；无八面券窗轮转",
+        "材质：砖石塔身 + 砖檐；禁止西方圆顶与宫殿式 classical_monument 方盒",
+        "Phase-0 fallback: MODULE + landmark:giant_wild_goose_pagoda 仍可由 migrationMap 重定向"
+      ]
+    }
+  ]
+}

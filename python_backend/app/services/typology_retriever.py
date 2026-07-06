@@ -89,7 +89,7 @@ def resolve_typology_for_intent(
                     score=9.0,
                     source="culture_card",
                     matched_keywords=[culture_card_id],
-                    reference_landmark_id=_primary_reference_landmark(defn),
+                    reference_landmark_id=culture_card_id,
                     legacy_module_id=defn.legacy_interpreter_id,
                     routing_policy=defn.routing_policy,
                 )

@@ -50,6 +50,8 @@
       "id": "giant_wild_goose_pagoda",
       "aliases": ["大慈恩寺", "大雁塔", "giant wild goose pagoda", "dayanta", "wild goose pagoda"],
       "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "dense_eaves_pagoda",
       "generatorId": "giant_wild_goose_pagoda",
       "defaults": { "levels": 7, "height": 41, "baseWidth": 17 },
       "constraints": { "minLevels": 3, "maxLevels": 13, "minHeight": 18, "maxHeight": 120, "minBaseWidth": 9, "maxBaseWidth": 41 },

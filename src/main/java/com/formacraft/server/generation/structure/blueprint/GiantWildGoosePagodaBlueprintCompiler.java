@@ -69,6 +69,11 @@ public final class GiantWildGoosePagodaBlueprintCompiler implements BlueprintCom
         Map<String, Object> extra = copyExtraWithoutBlueprint(parentSpec != null ? parentSpec.getExtra() : null);
         if (extra == null) extra = new HashMap<>();
         extra.putIfAbsent("landmark", "giant_wild_goose_pagoda");
+        extra.putIfAbsent("structural_typology", "dense_eaves_pagoda");
+        extra.putIfAbsent("typology_id", "dense_eaves_pagoda");
+        extra.putIfAbsent("reference_landmark", "giant_wild_goose_pagoda");
+        extra.putIfAbsent("footprint", "square");
+        extra.putIfAbsent("niche_rhythm", "none");
         extra.putIfAbsent("levels", levels);
         extra.putIfAbsent("towerHeight", towerHeight);
         extra.putIfAbsent("baseWidth", baseWidth);

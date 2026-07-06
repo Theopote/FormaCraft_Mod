@@ -216,7 +216,7 @@ def typology_for_archetype(archetype_id: str) -> Optional[str]:
         return None
     for t in _REGISTRY.values():
         for ref in t.reference_landmarks:
-            if ref.archetype_id == aid and ref.role == "primary":
+            if ref.archetype_id == aid:
                 return t.id
     entry = get_migration(aid)
     return entry.typology_id if entry else None

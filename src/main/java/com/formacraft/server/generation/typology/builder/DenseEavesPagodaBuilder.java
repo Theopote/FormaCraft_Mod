@@ -10,14 +10,19 @@ import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.TypologyParams;
 import com.formacraft.common.typology.detail.ChineseTypologyDetailUtil;
-import com.formacraft.server.generation.structure.util.StructureSpecParsers;
+import com.formacraft.common.skeleton.SkeletonParams;
+import com.formacraft.common.skeleton.stack.VerticalStackPlan;
+import com.formacraft.server.skeleton.stack.VerticalStackInterpreter;
+import com.formacraft.server.skeleton.stack.VerticalStackSkeleton;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +47,94 @@ public final class DenseEavesPagodaBuilder {
             BuildingSpec specHint
     ) {
         TypologyParams p = new TypologyParams(params);
+        String footprint = p.strVal("footprint", "octagon").toLowerCase(Locale.ROOT);
+        if ("square".equals(footprint)) {
+            return generateSquare(p, origin, world, specHint);
+        }
+        return generateOctagon(p, origin, world, specHint);
+    }
+
+    private static GeneratedStructure generateSquare(
+            TypologyParams p,
+            BlockPos origin,
+            ServerWorld world,
+            BuildingSpec specHint
+    ) {
+        int levels = p.intVal("levels", 7, 3, 15);
+        int height = p.intVal("height", "towerHeight", 41, 18, 120);
+        int baseW = p.intVal("baseWidth", 17, 9, 51);
+        if (baseW % 2 == 0) baseW += 1;
+
+        String detail = p.strVal("detailLevel", "aesthetic").toLowerCase();
+        boolean refined = detail.contains("refined") || detail.contains("ornate");
+
+        BuildingStyle style = (specHint != null && specHint.getStyle() != null)
+                ? specHint.getStyle() : BuildingStyle.ASIAN;
+        StyleProfile profile = (specHint != null)
+                ? StyleProfileRegistry.resolve(specHint)
+                : StyleProfileRegistry.forStyle(style);
+        DetailPreferences details = profile != null ? profile.details() : null;
+
+        String paletteId = p.strVal("paletteId", null);
+        if ((paletteId == null || paletteId.isBlank()) && details != null
+                && details.paletteId != null && !details.paletteId.isBlank()) {
+            paletteId = details.paletteId.trim();
+        }
+
+        Direction facing = specHint != null
+                ? StructureSpecParsers.resolveEntranceFacing(specHint, Direction.SOUTH)
+                : facingFromParam(p.strVal("facing", "SOUTH"));
+
+        BlockState body = blockOrDefault(world, p.strVal("bodyBlock", "minecraft:bricks"), Blocks.BRICKS.getDefaultState());
+        BlockState trim = blockOrDefault(world, p.strVal("trimBlock", "minecraft:stone_brick_slab"), Blocks.STONE_BRICK_SLAB.getDefaultState());
+        BlockState eave = blockOrDefault(world, p.strVal("eaveBlock", "minecraft:brick_slab"), Blocks.BRICK_SLAB.getDefaultState());
+        BlockState accent = blockOrDefault(world, p.strVal("accentBlock", "minecraft:chiseled_stone_bricks"), Blocks.CHISELED_STONE_BRICKS.getDefaultState());
+
+        if (paletteId != null && !paletteId.isBlank()) {
+            if (p.strVal("bodyBlock", "").isBlank()) {
+                body = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0xD4C1A001L, body);
+            }
+            if (p.strVal("trimBlock", "").isBlank()) {
+                trim = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xD4C1A002L, trim);
+                trim = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xD4C1A003L, trim);
+            }
+            if (p.strVal("eaveBlock", "").isBlank()) {
+                eave = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xD4C1A004L, eave);
+                eave = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xD4C1A005L, eave);
+            }
+            if (p.strVal("accentBlock", "").isBlank()) {
+                accent = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xD4C1A006L, accent);
+            }
+        }
+
+        SkeletonParams skParams = new SkeletonParams()
+                .put("levels", levels)
+                .put("height", height)
+                .put("baseWidth", baseW)
+                .put("refined", refined)
+                .put("facing", facing.asString());
+
+        VerticalStackPlan plan = new VerticalStackSkeleton().generate(skParams);
+        List<PlannedBlock> blocks = new VerticalStackInterpreter(body, trim, eave, accent, true)
+                .interpret(plan, origin, world);
+
+        double ratioScore = clamp01(1.0 - Math.abs((height / (double) baseW) - 3.0) * 0.12);
+        double signatureScore = clamp01(0.75 + Math.min(0.25, levels / 10.0));
+        double overall = clamp01(0.9 * 0.4 + ratioScore * 0.3 + signatureScore * 0.3);
+        String ref = p.strVal("reference_landmark", "");
+        String desc = String.format(
+                "dense_eaves_pagoda/square (levels=%d, h=%d, base=%d, facing=%s, ref=%s, score=%.2f)",
+                levels, height, baseW, facing.asString(), ref.isBlank() ? "-" : ref, overall
+        );
+        return new GeneratedStructure(null, origin, desc, blocks);
+    }
+
+    private static GeneratedStructure generateOctagon(
+            TypologyParams p,
+            BlockPos origin,
+            ServerWorld world,
+            BuildingSpec specHint
+    ) {
         int levels = p.intVal("levels", 13, 7, 15);
         int height = p.intVal("height", "towerHeight", 47, 28, 120);
         int baseW = p.intVal("baseWidth", 10, 7, 21);

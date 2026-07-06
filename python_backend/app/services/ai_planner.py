@@ -3139,6 +3139,11 @@ def _generate_giant_wild_goose_pagoda_building_spec(req: BuildRequest) -> Buildi
         notes=f"模板：大慈恩寺·大雁塔（levels={levels}，h≈{height}，base≈{base_w}，facing={facing}）。",
         extra={
             "landmark": "giant_wild_goose_pagoda",
+            "structural_typology": "dense_eaves_pagoda",
+            "typology_id": "dense_eaves_pagoda",
+            "reference_landmark": "giant_wild_goose_pagoda",
+            "footprint": "square",
+            "niche_rhythm": "none",
             "levels": levels,
             "towerHeight": height,
             "baseWidth": base_w,
