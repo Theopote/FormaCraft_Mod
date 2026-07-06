@@ -208,6 +208,49 @@
       "proportionCardIds": ["stadium_bowl"],
       "cultureCardIds": ["modern_stadium_elliptical"],
       "llmPlanGuidance": "Use structural_typology=stadium_bowl with layout.skeleton_type=RADIAL_RING. Output proportion_hints.typology=stadium_bowl, bowl_depth_to_width≈0.38, height_to_major_axis≈0.48. Prefer STRUCTURE + typology:stadium_bowl; set reference_landmark=birds_nest_stadium when user names Bird's Nest. Params: width, depth, height, meshStructure, bowlSteepness, designSeed, facing. global_constraints.symmetry=RADIAL. FORBID plain rectangular MASS box for elliptical stadium requests."
+    },
+    {
+      "id": "suspension_bridge",
+      "displayName": {
+        "zh": "悬索桥",
+        "en": "Suspension bridge"
+      },
+      "skeletonType": "SPAN_SUSPENSION",
+      "styleFamilies": ["Modern_International", "Industrial_Structural"],
+      "matchKeywords": [
+        "悬索桥", "吊桥", "斜拉", "主缆", "桥塔", "桥面", "桥梁",
+        "suspension bridge", "cable bridge", "span bridge", "bridge",
+        "golden gate", "金门大桥", "旧金山大桥"
+      ],
+      "negativeKeywords": [
+        "哥特", "教堂", "四合院", "体育场", "城堡", "住宅", "密檐塔", "古建"
+      ],
+      "interpreterId": "suspension_bridge",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "span": 180,
+        "deckWidth": 9,
+        "towerHeight": 44,
+        "followTerrain": true,
+        "facing": "EAST",
+        "detailLevel": "aesthetic"
+      },
+      "paramSchema": {
+        "span": { "min": 40, "ideal": 180, "max": 2000, "desc": "主跨跨度（blocks）" },
+        "deckWidth": { "min": 5, "ideal": 9, "max": 63, "desc": "桥面宽度（奇数）" },
+        "towerHeight": { "min": 18, "ideal": 44, "max": 160, "desc": "桥塔高度" },
+        "followTerrain": { "min": 0, "ideal": 1, "max": 1, "desc": "桥面随地形（0/1）" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "golden_gate_bridge",
+          "role": "primary",
+          "notes": "金门大桥：双塔红色 + 主缆抛物线 + 吊索，SPAN_SUSPENSION 骨架"
+        }
+      ],
+      "proportionCardIds": ["suspension_bridge"],
+      "cultureCardIds": ["suspension_bridge", "golden_gate_bridge"],
+      "llmPlanGuidance": "Use structural_typology=suspension_bridge with layout.skeleton_type=SPAN_SUSPENSION. Output proportion_hints.typology=suspension_bridge, span_to_tower_height≈4.0, cable_sag_ratio≈0.12. Prefer STRUCTURE + typology:suspension_bridge; set reference_landmark=golden_gate_bridge when user names Golden Gate. Params: span, deckWidth, towerHeight, followTerrain, facing, detailLevel. global_constraints.symmetry=MIRROR_X. FORBID plain PATH polyline without twin towers and main cables."
     }
   ],
   "migrationMap": {
@@ -245,6 +288,13 @@
       "legacyModuleId": "birds_nest_stadium",
       "deprecatedAfter": "2026-Q4",
       "notes": "Routes to StadiumBowlBuilder via typology interpreter."
+    },
+    "golden_gate_bridge": {
+      "typologyId": "suspension_bridge",
+      "phase": "typology_first",
+      "legacyModuleId": "golden_gate_bridge",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Routes to SuspensionBridgeBuilder via typology interpreter."
     }
   }
 }

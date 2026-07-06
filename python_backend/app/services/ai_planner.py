@@ -2655,7 +2655,9 @@ def _generate_golden_gate_bridge_building_spec(req: BuildRequest) -> BuildingSpe
         styleOptions=style_options,
         notes=f"模板：金门大桥（span≈{span}，deck≈{deck_width}，tower≈{tower_height}，facing={facing}）。",
         extra={
-            "landmark": "golden_gate_bridge",
+            "typology_id": "suspension_bridge",
+            "structural_typology": "suspension_bridge",
+            "reference_landmark": "golden_gate_bridge",
             "span": span,
             "deckWidth": deck_width,
             "towerHeight": tower_height,

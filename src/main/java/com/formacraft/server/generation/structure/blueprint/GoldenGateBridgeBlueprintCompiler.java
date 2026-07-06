@@ -14,7 +14,8 @@ import java.util.Map;
 
 /**
  * GoldenGateBridgeBlueprintCompiler (v1):
- * Delegates to GoldenGateBridgeGenerator via landmark routing.
+ * Compiles a semantic suspension bridge blueprint into a GeneratorBackedPlan
+ * routed via suspension_bridge typology interpreter.
  *
  * Suggested blueprint keys:
  * - blueprint_type: "golden_gate_bridge"
@@ -71,7 +72,9 @@ public final class GoldenGateBridgeBlueprintCompiler implements BlueprintCompile
 
         Map<String, Object> extra = copyExtraWithoutBlueprint(parentSpec != null ? parentSpec.getExtra() : null);
         if (extra == null) extra = new HashMap<>();
-        extra.putIfAbsent("landmark", "golden_gate_bridge");
+        extra.putIfAbsent("typology_id", "suspension_bridge");
+        extra.putIfAbsent("structural_typology", "suspension_bridge");
+        extra.putIfAbsent("reference_landmark", "golden_gate_bridge");
         extra.putIfAbsent("span", span);
         extra.putIfAbsent("deckWidth", deckWidth);
         extra.putIfAbsent("towerHeight", towerHeight);

@@ -48,6 +48,14 @@ public final class TypologyReferencePresets {
                 "tierStep", 4,
                 "facing", "SOUTH"
         ));
+        PRESETS.put("golden_gate_bridge", Map.of(
+                "span", 180,
+                "deckWidth", 9,
+                "towerHeight", 44,
+                "followTerrain", true,
+                "facing", "EAST",
+                "detailLevel", "aesthetic"
+        ));
     }
 
     private TypologyReferencePresets() {}

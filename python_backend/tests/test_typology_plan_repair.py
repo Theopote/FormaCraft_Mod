@@ -90,7 +90,7 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(comp["params"]["reference_landmark"], "birds_nest_stadium")
         self.assertEqual(comp["params"]["width"], 60)
 
-    def test_non_migrated_module_unchanged(self):
+    def test_golden_gate_module_repaired_to_structure(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 
         plan = {
@@ -98,7 +98,30 @@ class TypologyPlanRepairTest(unittest.TestCase):
                 {
                     "component_type": "MODULE",
                     "features": ["landmark:golden_gate_bridge"],
-                    "params": {"module_id": "golden_gate_bridge"},
+                    "params": {"module_id": "golden_gate_bridge", "span": 120},
+                    "dimensions": {"width": 9, "depth": 120, "height": 36},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        comp = out["components"][0]
+        self.assertEqual(comp["component_type"], "STRUCTURE")
+        self.assertIn("typology:suspension_bridge", comp["features"])
+        self.assertEqual(comp["params"]["typology_id"], "suspension_bridge")
+        self.assertEqual(comp["params"]["reference_landmark"], "golden_gate_bridge")
+        self.assertEqual(comp["params"]["span"], 180)
+
+    def test_non_migrated_module_unchanged(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:gothic_cathedral"],
+                    "params": {"module_id": "gothic_cathedral"},
                     "dimensions": {"width": 32, "depth": 8, "height": 16},
                     "relative_position": {"x": 0, "y": 0, "z": 0},
                 }

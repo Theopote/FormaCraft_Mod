@@ -44,7 +44,7 @@ class TestLlmPlanRepair(unittest.TestCase):
         types = [c["component_type"] for c in out["components"]]
         self.assertIn("MASS_MAIN", types)
 
-    def test_golden_gate_profile_keeps_module(self):
+    def test_golden_gate_profile_typology_first(self):
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
         from app.services.building_research_agent import finalize_profile_minecraft_strategy
 
@@ -52,7 +52,9 @@ class TestLlmPlanRepair(unittest.TestCase):
             BuildingProfile(query="bridge"),
             "生成旧金山大桥",
         )
-        self.assertEqual(profile.minecraft_strategy.landmark_module, "golden_gate_bridge")
+        self.assertIsNone(profile.minecraft_strategy.landmark_module)
+        self.assertEqual(profile.minecraft_strategy.structural_typology, "suspension_bridge")
+        self.assertEqual(profile.minecraft_strategy.reference_landmark, "golden_gate_bridge")
 
 
 if __name__ == "__main__":

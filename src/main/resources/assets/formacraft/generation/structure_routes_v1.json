@@ -31,6 +31,7 @@
     { "id": "brutalist_megastructure", "keywords": ["brutalism_megastructure", "soviet_megastructure", "brutalism", "粗野", "巨构"], "generatorKey": "brutalist_megastructure" },
     { "id": "parametric_deconstructivism", "keywords": ["deconstructivism", "parametric", "zaha", "gehry", "guggenheim", "解构", "参数化"], "generatorKey": "parametric_deconstructivism" },
     { "id": "birds_nest_stadium", "keywords": ["birds_nest_stadium", "birds_nest", "birds nest", "鸟巢", "鸟巢体育馆", "国家体育场", "national stadium"], "generatorKey": "stadium_bowl" },
+    { "id": "golden_gate_bridge", "keywords": ["golden_gate_bridge", "golden_gate", "golden gate", "金门大桥", "旧金山大桥", "旧金山金门", "goldengate"], "generatorKey": "suspension_bridge" },
     { "id": "famen_pagoda", "keywords": ["famen_pagoda", "famen pagoda", "famen temple", "famensi", "法门寺", "法门寺舍利塔"], "generatorKey": "dense_eaves_pagoda" },
     { "id": "foguang_temple_hall", "keywords": ["foguang_temple_hall", "foguang temple", "foguang si", "佛光寺", "佛光寺大殿", "东大殿"], "generatorKey": "tailiang_timber_hall" }
   ],

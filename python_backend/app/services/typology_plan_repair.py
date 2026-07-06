@@ -54,6 +54,14 @@ _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
         "tierStep": 4,
         "facing": "SOUTH",
     },
+    "golden_gate_bridge": {
+        "span": 180,
+        "deckWidth": 9,
+        "towerHeight": 44,
+        "followTerrain": True,
+        "facing": "EAST",
+        "detailLevel": "aesthetic",
+    },
 }
 
 

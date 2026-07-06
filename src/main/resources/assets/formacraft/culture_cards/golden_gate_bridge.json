@@ -1,0 +1,50 @@
+{
+  "id": "golden_gate_bridge",
+  "styleId": "Modern_International",
+  "intents": ["BRIDGE", "LANDMARK", "悬索桥", "金门大桥"],
+  "keywords": [
+    "金门大桥",
+    "旧金山大桥",
+    "旧金山金门大桥",
+    "旧金山金门",
+    "golden gate bridge",
+    "golden gate",
+    "goldengate",
+    "san francisco bridge"
+  ],
+  "synonyms": {
+    "金门大桥": ["golden gate bridge", "san francisco golden gate", "ggb"],
+    "旧金山大桥": ["san francisco bridge", "sf bridge"]
+  },
+  "keywordWeights": {
+    "金门大桥": 10.0,
+    "旧金山金门大桥": 9.5,
+    "golden gate bridge": 9.0,
+    "golden gate": 8.5,
+    "旧金山大桥": 8.0,
+    "san francisco bridge": 7.5
+  },
+  "negativeKeywords": [
+    "哥特", "教堂", "四合院", "体育场", "城堡", "住宅",
+    "原创", "不要地标", "unique design", "zaha"
+  ],
+  "proportionCardId": "suspension_bridge",
+  "structuralTypologyId": "suspension_bridge",
+  "llmPlanExampleRefs": [
+    "golden_gate_suspension_typology.json"
+  ],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "golden_gate_suspension_bridge",
+      "constraints": [
+        "MANDATORY: structural_typology=suspension_bridge + STRUCTURE/typology params（双塔悬索参数化解释器）",
+        "reference_landmark=golden_gate_bridge 作比例锚点；禁止 MODULE/landmark:golden_gate_bridge 硬路由",
+        "params: span≈180, deckWidth≈9, towerHeight≈44, followTerrain=true, facing=EAST",
+        "layout.skeleton_type=SPAN_SUSPENSION；global_constraints.symmetry=MIRROR_X",
+        "输出 proportion_hints：typology=suspension_bridge, span_to_tower_height≈4.0",
+        "禁止用单一 PATH/BRIDGE 折线代替双塔主缆体系"
+      ]
+    }
+  ]
+}

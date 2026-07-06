@@ -1,0 +1,61 @@
+{
+  "description": "悬索桥 typology-first → suspension_bridge（金门作 reference_landmark）",
+  "promptHints": ["金门大桥", "旧金山大桥", "悬索桥", "golden gate bridge", "suspension bridge"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Modern_International",
+    "style_attributes": {
+      "wall_color": "red",
+      "roof_color": "gray",
+      "accent_color": "steel",
+      "wall_material": "metal",
+      "roof_material": "concrete",
+      "floor_material": "stone",
+      "decorative_elements": ["cable_mesh", "exposed_structure", "tower_frame"]
+    },
+    "proportion_hints": {
+      "typology": "suspension_bridge",
+      "span_to_tower_height": 4.0,
+      "deck_to_tower_width": 0.2,
+      "cable_sag_ratio": 0.12
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "genome": {
+      "genomeVersion": "1.0",
+      "archetype": { "id": "golden_gate_bridge", "confidence": 0.92 },
+      "topology": { "layout": "linear", "composition": "single", "axis": "span", "levels": "horizontal" },
+      "form": { "repetition": "symmetric", "progression": "uniform", "curvature": "curved", "rhythm": "regular" },
+      "symmetry": { "type": "mirror", "order": 2, "mirror": true },
+      "materials": { "primary": "metal", "secondary": "concrete", "accent": "steel", "textureBias": "smooth" },
+      "culturalStyle": { "region": "modern", "era": "modernist", "keywords": ["bridge", "suspension", "infrastructure"] }
+    },
+    "global_constraints": {
+      "facing": "EAST",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "SPAN_SUSPENSION",
+      "path_based": true,
+      "slots": []
+    },
+    "components": [
+      {
+        "component_type": "STRUCTURE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 9, "depth": 180, "height": 44 },
+        "features": ["typology:suspension_bridge"],
+        "params": {
+          "typology_id": "suspension_bridge",
+          "reference_landmark": "golden_gate_bridge",
+          "span": 180,
+          "deckWidth": 9,
+          "towerHeight": 44,
+          "followTerrain": true,
+          "facing": "EAST",
+          "detailLevel": "aesthetic"
+        }
+      }
+    ]
+  }
+}

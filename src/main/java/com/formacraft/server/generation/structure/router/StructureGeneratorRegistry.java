@@ -34,7 +34,7 @@ public final class StructureGeneratorRegistry {
         register("tulou", TulouGenerator::new);
         register("eiffel_tower", EiffelTowerGenerator::new);
         register("great_wall", GreatWallGenerator::new);
-        register("golden_gate_bridge", GoldenGateBridgeGenerator::new);
+        register("suspension_bridge", () -> new TypologyBackedStructureGenerator("suspension_bridge"));
         register("dense_eaves_pagoda", () -> new TypologyBackedStructureGenerator("dense_eaves_pagoda"));
         register("tailiang_timber_hall", () -> new TypologyBackedStructureGenerator("tailiang_timber_hall"));
         register("radial_terrace_hall", () -> new TypologyBackedStructureGenerator("radial_terrace_hall"));

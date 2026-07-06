@@ -143,6 +143,7 @@ public final class ProportionCardRegistry {
                 "cottage_refined.json",
                 "castle_wall.json",
                 "stadium_bowl.json",
+                "suspension_bridge.json",
                 "classical_monument.json",
                 "siheyuan_courtyard.json",
                 "square_tower_five_story.json",

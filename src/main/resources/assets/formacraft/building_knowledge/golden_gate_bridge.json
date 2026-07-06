@@ -1,0 +1,41 @@
+{
+  "id": "golden_gate_bridge",
+  "name": "金门大桥",
+  "nameEn": "Golden Gate Bridge",
+  "aliases": [
+    "金门大桥",
+    "旧金山大桥",
+    "旧金山金门大桥",
+    "golden gate bridge",
+    "golden gate",
+    "san francisco bridge"
+  ],
+  "category": "INFRASTRUCTURE",
+  "architect": "Joseph Strauss / Irving Morrow",
+  "style": "Art Deco / Modern",
+  "styleId": "Modern_International",
+  "features": {
+    "shape": "linear_span",
+    "form": "suspension",
+    "structuralType": "twin_tower_cable",
+    "materials": ["steel", "concrete", "paint"],
+    "scale": "large",
+    "distinctiveElements": [
+      "international orange towers",
+      "main cable catenary",
+      "vertical hangers",
+      "long single span",
+      "art deco tower portals"
+    ]
+  },
+  "dimensions": {
+    "typicalSpan": 180,
+    "typicalDeckWidth": 9,
+    "typicalTowerHeight": 44,
+    "footprintShape": "linear",
+    "aspectRatio": "20:1"
+  },
+  "llmPlanRouting": {
+    "instruction": "指名金门大桥/旧金山大桥 → MANDATORY STRUCTURE+typology:suspension_bridge（reference_landmark=golden_gate_bridge）；泛悬索桥 → RECOMMENDED typology 或 ASSEMBLY preset；变化 span/deckWidth/towerHeight/facing"
+  }
+}

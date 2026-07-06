@@ -67,6 +67,15 @@ class PrACultureFewshotTest(unittest.TestCase):
         self.assertIn("stadium_bowl", blob.lower())
         self.assertNotIn("_module.json", blob.lower())
 
+    def test_golden_gate_typology_fewshot(self):
+        from app.services.keyword_culture_retriever import retrieve
+
+        rag = retrieve("生成旧金山金门大桥", topK=1, fewShotK=3)
+        blob = json.dumps(rag.get("llmPlanFewShots") or [], ensure_ascii=False)
+        self.assertTrue(rag.get("llmPlanFewShots"))
+        self.assertIn("suspension_bridge", blob.lower())
+        self.assertNotIn("_module.json", blob.lower())
+
 
 class PrAResearchPromptTest(unittest.TestCase):
     TEMPLE_PROMPT = "盖一座天坛"

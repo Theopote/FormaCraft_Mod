@@ -43,7 +43,9 @@
       "id": "golden_gate_bridge",
       "aliases": ["金门大桥", "旧金山大桥", "旧金山金门大桥", "旧金山金门", "golden gate bridge", "golden gate"],
       "category": "INFRASTRUCTURE",
-      "generatorId": "golden_gate_bridge",
+      "researchOnly": true,
+      "typologyId": "suspension_bridge",
+      "generatorId": "suspension_bridge",
       "defaults": { "span": 180, "deckWidth": 9, "towerHeight": 44, "followTerrain": true },
       "constraints": { "minSpan": 60, "maxSpan": 800, "minDeckWidth": 5, "maxDeckWidth": 41, "minTowerHeight": 18, "maxTowerHeight": 120 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }

@@ -207,9 +207,11 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 路由 | `LandmarkRoutingPolicy` 跳过 migrated 指名强制 MODULE |
 | Java 构件 | `TypologyComponentRouter` 从 `landmark:` feature 解析 typology；`StructureGeneratorAdaptor` 不写 `extra.landmark` |
 
-**仍保留 MODULE 的地标**（未迁入 migrationMap）：`golden_gate_bridge`, `gothic_cathedral` 等。
+**仍保留 MODULE 的地标**（未迁入 migrationMap）：`gothic_cathedral` 等。
 
 **Phase 8.19 已迁入 typology-first**：`birds_nest_stadium` → `stadium_bowl`（`StadiumBowlBuilder` + `StadiumBowlInterpreter`）。
+
+**Phase 8.20 已迁入 typology-first**：`golden_gate_bridge` → `suspension_bridge`（`SuspensionBridgeBuilder` + `SuspensionBridgeInterpreter`）。
 
 ### Phase 5 细节（天坛 / 祈年殿）
 
@@ -251,7 +253,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 解释器实现 | `server.generation.typology.interpreter.*` |
 | Java 参数化 Builder | `server.generation.typology.builder.*` |
 | 细节工具 | `com.formacraft.common.typology.detail.ChineseTypologyDetailUtil` |
-| Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json`, `giant_wild_goose_pagoda.json`, `temple_of_heaven.json`, `birds_nest_stadium.json`, `modern_stadium_elliptical.json` |
+| Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json`, `giant_wild_goose_pagoda.json`, `temple_of_heaven.json`, `birds_nest_stadium.json`, `modern_stadium_elliptical.json`, `golden_gate_bridge.json`, `suspension_bridge.json` |
 | 测试 | `python_backend/tests/test_typology_migration.py`, `test_typology_plan_repair.py`, `test_legacy_module_tightening.py` |
 | 遥测 | `com.formacraft.common.network.metrics.TypologyRoutingMetrics` |
 

@@ -58,6 +58,7 @@ public final class TypologyInterpreterRegistry {
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.TailiangTimberHallInterpreter());
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.RadialTerraceHallInterpreter());
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.StadiumBowlInterpreter());
+        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.SuspensionBridgeInterpreter());
 
         FormacraftMod.LOGGER.info("TypologyInterpreterRegistry bootstrapped {} interpreters", out.size());
         return Map.copyOf(out);
