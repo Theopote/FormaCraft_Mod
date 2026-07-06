@@ -3,6 +3,7 @@ package com.formacraft.common.llm.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.formacraft.common.genome.BuildingGenome;
+import com.formacraft.common.alignment.AlignmentAndSymmetry;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,9 @@ public record LlmPlan(
 
         /** M3：比例/洞口语法提示（与 proportion_cards 对齐） */
         @JsonProperty("proportion_hints") Map<String, Object> proportionHints,
+
+        /** 全局对齐/开间契约：对称轴 + bay grid，components 在其下填充 */
+        @JsonProperty("alignment_and_symmetry") AlignmentAndSymmetry alignmentAndSymmetry,
 
         // patch 专用（可选）
         @JsonProperty("target_slot_id") String targetSlotId,

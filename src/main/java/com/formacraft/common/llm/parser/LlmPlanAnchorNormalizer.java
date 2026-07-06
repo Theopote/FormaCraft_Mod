@@ -74,6 +74,7 @@ public final class LlmPlanAnchorNormalizer {
                 plan.genome(),
                 plan.styleAttributes(),
                 plan.proportionHints(),
+                plan.alignmentAndSymmetry(),
                 plan.targetSlotId(),
                 plan.allowedArea(),
                 plan.patch(),

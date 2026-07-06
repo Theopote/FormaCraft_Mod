@@ -3,6 +3,7 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.generation.component.util.ComponentCrownDecorator;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.alignment.AlignmentContractEnforcer;
 import com.formacraft.common.compiler.postprocess.PostProcessContext;
 import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
@@ -442,6 +443,7 @@ public final class ComponentPlanCompiler {
             prepared.addAll(inferred);
         }
 
+        prepared = AlignmentContractEnforcer.apply(plan, prepared);
         realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);

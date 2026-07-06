@@ -99,19 +99,6 @@ public class HouseGeneratorUtils {
         return StructureSpecParsers.resolveEntranceFacing(spec, Direction.NORTH);
     }
 
-    /**
-     * 计算门火炬的位置
-     */
-    public static BlockPos doorTorchPos(BlockPos origin, Direction doorSide, int axis, int y, int width, int depth) {
-        return switch (doorSide) {
-            case NORTH -> origin.add(axis, y, 1);
-            case SOUTH -> origin.add(axis, y, depth - 2);
-            case WEST -> origin.add(1, y, axis);
-            case EAST -> origin.add(width - 2, y, axis);
-            default -> origin.add(axis, y, 1);
-        };
-    }
-
     // ========== 窗户放置判断方法 ==========
 
     /**
