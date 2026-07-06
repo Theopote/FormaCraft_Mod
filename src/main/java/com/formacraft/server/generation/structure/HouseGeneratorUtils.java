@@ -16,13 +16,13 @@ import java.util.Set;
 
 /**
  * HouseGenerator 工具方法类
- *
+ * <p>
  * 提供各种辅助方法，包括：
  * - 方块状态处理（朝向、门状态等）
  * - 位置判断（门边缘、靠近门等）
  * - 窗户放置逻辑
  * - 门位置计算
- *
+ * <p>
  * 从 HouseGenerator 中拆分出来，提高代码可维护性。
  */
 public class HouseGeneratorUtils {
@@ -146,10 +146,7 @@ public class HouseGeneratorUtils {
             if (!plan.isWindowAxis(axis)) {
                 return false;
             }
-            if (doorSide != null && isNearDoor(doorSide, x, z, width, depth) && plan.isEntranceBayAxis(axis)) {
-                return false;
-            }
-            return true;
+            return doorSide == null || !isNearDoor(doorSide, x, z, width, depth) || !plan.isEntranceBayAxis(axis);
         }
 
         return isShouldPlaceWindowLegacy(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth);
@@ -181,11 +178,11 @@ public class HouseGeneratorUtils {
             // Solid walls: sparse, centered rhythm (stronger silhouette).
             if (onNorthSouth) {
                 int cx = width / 2;
-                return (Math.abs(x - cx) % spacing == 0) && x >= 2 && x <= width - 3;
+                return Math.abs(x - cx) % spacing == 0 && x <= width - 3;
             }
             if (onWestEast) {
                 int cz = depth / 2;
-                return (Math.abs(z - cz) % spacing == 0) && z >= 2 && z <= depth - 3;
+                return Math.abs(z - cz) % spacing == 0 && z <= depth - 3;
             }
             return false;
         }
@@ -249,7 +246,7 @@ public class HouseGeneratorUtils {
         if (nearDoor) return;
         // avoid overwriting adjacent windows
         boolean wouldBeWindow = isShouldPlaceWindow(
-                wallStrategy, windowRatio, preferSymmetry, rhythmWidthPlan, rhythmDepthPlan, doorSide, x, y, z, width, depth);
+                wallStrategy, windowRatio, preferSymmetry, rhythmWidthPlan, rhythmDepthPlan, doorSide, x, z, width, depth);
         if (wouldBeWindow) return;
         out.add(origin.add(x, y, z));
     }
@@ -466,14 +463,11 @@ public class HouseGeneratorUtils {
                 && rhythmWidthPlan.isPilasterAxis(x)) {
             return true;
         }
-        if (onWestEast
+        return onWestEast
                 && rhythmDepthPlan != null
                 && rhythmDepthPlan.active()
                 && rhythmDepthPlan.axisMax() == depth
-                && rhythmDepthPlan.isPilasterAxis(z)) {
-            return true;
-        }
-        return false;
+                && rhythmDepthPlan.isPilasterAxis(z);
     }
 }
 
