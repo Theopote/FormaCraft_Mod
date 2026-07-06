@@ -1,14 +1,14 @@
-package com.formacraft.server.generation.structure;
+package com.formacraft.server.generation.typology.builder;
 
-import com.formacraft.server.generation.structure.util.StructureSpecParsers;
-import com.formacraft.common.logging.FcaLog;
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
-import com.formacraft.common.build.GeneratedStructure;
-import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.typology.TypologyParamResolver;
+import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -17,30 +17,48 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * BirdsNestStadiumGenerator（鸟巢体育馆，v1）
- *
- * 识别性目标：
- * - 椭圆形平面
- * - 碗状看台体量
- * - 外露钢网立面（iron bars / chain 交织感）
- *
- * 触发：extra.landmark = "birds_nest_stadium" / extra.template 含 birds_nest / 鸟巢
+ * Parametric elliptical stadium bowl builder (typology: {@code stadium_bowl}).
+ * 椭圆平面 + 碗状看台 + 可选钢网外壳（鸟巢意象）。
  */
-public class BirdsNestStadiumGenerator implements StructureGenerator {
+public final class StadiumBowlBuilder {
 
-    private static final FcaLog LOG = FcaLog.of("BirdsNestStadiumGenerator");
+    public static final String TYPOLOGY_ID = "stadium_bowl";
 
-    @Override
-    public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+    private StadiumBowlBuilder() {}
+
+    public static GeneratedStructure fromBuildingSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        return generate(TypologyParamResolver.fromBuildingSpec(spec, TYPOLOGY_ID), origin, world, spec);
+    }
+
+    public static GeneratedStructure generate(
+            Map<String, Object> params,
+            BlockPos origin,
+            ServerWorld world,
+            BuildingSpec specHint
+    ) {
+        BuildingSpec spec = specHint != null ? specHint : new BuildingSpec();
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        if (spec.getExtra() != null) {
+            merged.putAll(spec.getExtra());
+        }
+        if (params != null) {
+            merged.putAll(params);
+        }
+        spec.setExtra(merged);
+        return generateFromSpec(spec, origin, world);
+    }
+
+    private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         List<PlannedBlock> blocks = new ArrayList<>();
 
-        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
-        StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
+        BuildingStyle style = (spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
+        StyleProfile profile = StyleProfileRegistry.resolve(spec);
         DetailPreferences details = profile != null ? profile.details() : null;
 
         String paletteId = getStringExtra(spec, "paletteId", null);
@@ -50,11 +68,13 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
 
         Direction entrance = resolveEntranceFacing(spec);
 
-        int halfW = clamp(getIntExtra(spec, "width",
-                spec != null && spec.getFootprint() != null ? spec.getFootprint().getWidth() / 2 : 30), 16, 70);
-        int halfD = clamp(getIntExtra(spec, "depth",
-                spec != null && spec.getFootprint() != null ? spec.getFootprint().getDepth() / 2 : 40), 20, 90);
-        int height = clamp(getIntExtra(spec, "height", spec != null ? spec.getHeight() : 28), 14, 60);
+        int fullW = clamp(getIntExtra(spec, "width",
+                spec.getFootprint() != null ? spec.getFootprint().getWidth() : 60), 30, 120);
+        int fullD = clamp(getIntExtra(spec, "depth",
+                spec.getFootprint() != null ? spec.getFootprint().getDepth() : 80), 40, 160);
+        int halfW = clamp(fullW / 2, 16, 70);
+        int halfD = clamp(fullD / 2, 20, 90);
+        int height = clamp(getIntExtra(spec, "height", spec.getHeight() > 0 ? spec.getHeight() : 28), 14, 60);
         boolean mesh = getBoolExtra(spec, "meshStructure", true);
         long designSeed = resolveDesignSeed(spec, origin);
         float bowlSteepness = clampFloat(getFloatExtra(spec, "bowlSteepness", 0.35f), 0.2f, 0.5f);
@@ -78,10 +98,8 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
         clearBox(blocks, origin, entrance, -halfW - pad, 0, -halfD - pad,
                 halfW + pad, height + 8, halfD + pad);
 
-        // 场地地坪
         fillEllipse(blocks, origin, entrance, 0, halfW - 4, halfD - 6, 0, floor);
 
-        // 碗状看台（逐层收缩的椭圆环；bowlSteepness 控制坡度）
         for (int y = 1; y <= height; y++) {
             float t = y / (float) height;
             int innerA = Math.max(4, (int) (halfW * (0.55f + bowlSteepness * t)));
@@ -94,12 +112,11 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
             }
         }
 
-        // 外露钢网外壳
         if (mesh) {
             buildMeshShell(blocks, origin, entrance, halfW + 2, halfD + 2, height + 2, meshBlock, accent, designSeed);
         }
 
-        return new GeneratedStructure(null, origin, "Bird's Nest Stadium (v1)", blocks);
+        return new GeneratedStructure(null, origin, "Stadium Bowl (stadium_bowl)", blocks);
     }
 
     private static void buildMeshShell(
@@ -163,8 +180,7 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
 
     private static boolean insideEllipse(int x, int z, int halfA, int halfB) {
         if (halfA <= 0 || halfB <= 0) return false;
-        double nb = halfB;
-        return (x * x) / ((double) halfA * (double) halfA) + (z * z) / (nb * nb) <= 1.0;
+        return (x * x) / ((double) halfA * (double) halfA) + (z * z) / ((double) halfB * (double) halfB) <= 1.0;
     }
 
     private static void clearBox(
@@ -192,7 +208,7 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
 
     private static Direction resolveEntranceFacing(BuildingSpec spec) {
         try {
-            Map<String, Object> extra = spec != null ? spec.getExtra() : null;
+            Map<String, Object> extra = spec.getExtra();
             if (extra != null) {
                 Object v = extra.get("facing");
                 if (v == null) v = extra.get("gateSide");
@@ -200,12 +216,13 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
                     return Direction.valueOf(String.valueOf(v).trim().toUpperCase(Locale.ROOT));
                 }
             }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
+        } catch (Throwable ignored) {
+        }
         return Direction.SOUTH;
     }
 
     private static long resolveDesignSeed(BuildingSpec spec, BlockPos origin) {
-        if (spec != null && spec.getExtra() != null) {
+        if (spec.getExtra() != null) {
             Object v = spec.getExtra().get("designSeed");
             if (v instanceof Number n) {
                 return n.longValue();
@@ -214,19 +231,17 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
                 try {
                     return Long.parseLong(String.valueOf(v).trim());
                 } catch (NumberFormatException ignored) {
-                    // fall through
                 }
             }
         }
         if (origin != null) {
-            // Hex-safe salt (mnemonic: B1RD5NEST → 0xB1D05E57)
             return origin.asLong() ^ 0xB1D05E57L;
         }
         return 42L;
     }
 
     private static float getFloatExtra(BuildingSpec spec, String key, float def) {
-        if (spec == null || spec.getExtra() == null || key == null) return def;
+        if (spec.getExtra() == null || key == null) return def;
         Object v = spec.getExtra().get(key);
         if (v == null) return def;
         if (v instanceof Number n) return n.floatValue();
@@ -242,7 +257,7 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
     }
 
     private static String getStringExtra(BuildingSpec spec, String key, String def) {
-        if (spec == null || spec.getExtra() == null || key == null) return def;
+        if (spec.getExtra() == null || key == null) return def;
         Object v = spec.getExtra().get(key);
         if (v == null) return def;
         String s = String.valueOf(v).trim();
@@ -254,7 +269,7 @@ public class BirdsNestStadiumGenerator implements StructureGenerator {
     }
 
     private static boolean getBoolExtra(BuildingSpec spec, String key, boolean def) {
-        if (spec == null || spec.getExtra() == null || key == null) return def;
+        if (spec.getExtra() == null || key == null) return def;
         Object v = spec.getExtra().get(key);
         if (v == null) return def;
         if (v instanceof Boolean b) return b;

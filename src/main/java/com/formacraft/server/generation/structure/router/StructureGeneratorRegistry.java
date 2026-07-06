@@ -38,6 +38,7 @@ public final class StructureGeneratorRegistry {
         register("dense_eaves_pagoda", () -> new TypologyBackedStructureGenerator("dense_eaves_pagoda"));
         register("tailiang_timber_hall", () -> new TypologyBackedStructureGenerator("tailiang_timber_hall"));
         register("radial_terrace_hall", () -> new TypologyBackedStructureGenerator("radial_terrace_hall"));
+        register("stadium_bowl", () -> new TypologyBackedStructureGenerator("stadium_bowl"));
         register("castle_compound", CastleCompoundGenerator::new);
         register("office_district", OfficeDistrictGenerator::new);
         register("mingqing_courtyard", MingQingCourtyardGenerator::new);
@@ -61,7 +62,6 @@ public final class StructureGeneratorRegistry {
         register("modern_bauhaus_rowhouse", ModernBauhausRowhouseGenerator::new);
         register("brutalist_megastructure", BrutalistMegastructureGenerator::new);
         register("parametric_deconstructivism", ParametricDeconstructivismGenerator::new);
-        register("birds_nest_stadium", BirdsNestStadiumGenerator::new);
     }
 
     private StructureGeneratorRegistry() {}

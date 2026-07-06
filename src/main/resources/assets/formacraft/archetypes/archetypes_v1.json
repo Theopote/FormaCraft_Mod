@@ -111,7 +111,9 @@
       "id": "birds_nest_stadium",
       "aliases": ["鸟巢", "鸟巢体育馆", "国家体育场", "北京鸟巢", "birds nest", "birds nest stadium", "national stadium", "beijing national stadium", "椭圆形体育场", "椭圆体育馆", "elliptical stadium", "oval stadium"],
       "category": "LANDMARK",
-      "generatorId": "birds_nest_stadium",
+      "researchOnly": true,
+      "typologyId": "stadium_bowl",
+      "generatorId": "stadium_bowl",
       "defaults": { "width": 60, "depth": 80, "height": 30, "elliptical": true, "meshStructure": true },
       "constraints": { "minWidth": 30, "maxWidth": 120, "minDepth": 40, "maxDepth": 160, "minHeight": 15, "maxHeight": 60 },
       "scoringWeights": { "shape": 0.5, "ratio": 0.3, "signature": 0.2 }

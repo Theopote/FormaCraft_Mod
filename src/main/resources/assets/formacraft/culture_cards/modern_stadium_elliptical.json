@@ -33,19 +33,22 @@
     "看台": 3.5
   },
   "negativeKeywords": ["哥特", "教堂", "四合院", "古建", "寺庙", "住宅", "别墅"],
-  "landmarkModuleId": "birds_nest_stadium",
+  "proportionCardId": "stadium_bowl",
+  "structuralTypologyId": "stadium_bowl",
   "llmPlanExampleRefs": [
-    "birds_nest_stadium_module.json"
+    "modern_stadium_elliptical_typology.json"
   ],
   "exampleRefs": [],
   "archetypes": [
     {
-      "name": "elliptical_stadium_module",
+      "name": "elliptical_stadium_bowl",
       "constraints": [
-        "椭圆/现代体育场：RECOMMENDED 路径为 MODULE + landmark:birds_nest_stadium（高保真碗状）",
+        "PREFERRED: structural_typology=stadium_bowl + STRUCTURE/typology params（椭圆碗状参数化解释器）",
+        "reference_landmark=birds_nest_stadium 仅作比例锚点；禁止仅靠 MODULE 硬路由",
         "允许原创路径：MASS_MAIN shape=circle|rounded_rect + masses[] 分层 + PAVING 内场",
-        "禁止用单一 MASS_MAIN 方盒代替椭圆看台",
-        "即使走 MODULE，也应变化 designSeed、facing、bowlSteepness、dimensions、style_attributes"
+        "params: width≈60, depth≈80, height≈28, meshStructure=true, bowlSteepness≈0.35, facing=SOUTH",
+        "layout.skeleton_type=RADIAL_RING；global_constraints.symmetry=RADIAL",
+        "禁止用单一 MASS_MAIN 方盒代替椭圆看台"
       ]
     }
   ]

@@ -4,6 +4,7 @@ import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.generation.typology.builder.DenseEavesPagodaBuilder;
 import com.formacraft.server.generation.typology.builder.RadialTerraceHallBuilder;
+import com.formacraft.server.generation.typology.builder.StadiumBowlBuilder;
 import com.formacraft.server.generation.typology.builder.TailiangTimberHallBuilder;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -35,6 +36,8 @@ public final class TypologyBackedStructureGenerator implements StructureGenerato
                     TailiangTimberHallBuilder.fromBuildingSpec(spec, origin, world);
             case RadialTerraceHallBuilder.TYPOLOGY_ID ->
                     RadialTerraceHallBuilder.fromBuildingSpec(spec, origin, world);
+            case StadiumBowlBuilder.TYPOLOGY_ID ->
+                    StadiumBowlBuilder.fromBuildingSpec(spec, origin, world);
             default -> null;
         };
     }

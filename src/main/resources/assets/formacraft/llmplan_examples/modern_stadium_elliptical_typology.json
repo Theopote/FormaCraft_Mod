@@ -1,9 +1,9 @@
 {
-  "description": "现代椭圆/碗状体育场 → birds_nest_stadium 地标模块（Week 2 few-shot）",
-  "promptHints": ["椭圆形体育场", "椭圆体育馆", "现代体育场", "elliptical stadium"],
+  "description": "椭圆碗状体育场 typology-first → stadium_bowl（鸟巢作 reference_landmark）",
+  "promptHints": ["椭圆形体育场", "椭圆体育馆", "鸟巢", "现代体育场", "elliptical stadium", "birds nest"],
   "plan": {
     "mode": "build",
-    "style_profile": "Modern_Stadium",
+    "style_profile": "Modern_Stadium_Elliptical",
     "style_attributes": {
       "wall_color": "gray",
       "roof_color": "silver",
@@ -11,7 +11,14 @@
       "wall_material": "concrete",
       "roof_material": "metal",
       "floor_material": "stone",
-      "decorative_elements": ["steel_mesh", "exposed_structure"]
+      "decorative_elements": ["steel_mesh", "exposed_structure", "steel_ribs"]
+    },
+    "proportion_hints": {
+      "typology": "stadium_bowl",
+      "bowl_depth_to_width": 0.38,
+      "height_to_major_axis": 0.48,
+      "field_to_bowl": 0.58,
+      "min_enclosure_coverage": 0.55
     },
     "anchor": { "x": 0, "y": 64, "z": 0 },
     "genome": {
@@ -35,13 +42,16 @@
     },
     "components": [
       {
-        "component_type": "MODULE",
-        "slot_id": "",
+        "component_type": "STRUCTURE",
         "relative_position": { "x": 0, "y": 0, "z": 0 },
         "dimensions": { "width": 60, "depth": 80, "height": 28 },
-        "features": ["landmark:birds_nest_stadium"],
+        "features": ["typology:stadium_bowl"],
         "params": {
-          "module_id": "birds_nest_stadium",
+          "typology_id": "stadium_bowl",
+          "reference_landmark": "birds_nest_stadium",
+          "width": 60,
+          "depth": 80,
+          "height": 28,
           "meshStructure": true,
           "elliptical": true,
           "designSeed": 2847,

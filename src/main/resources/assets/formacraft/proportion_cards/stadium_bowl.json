@@ -29,5 +29,5 @@
     "min_enclosure_coverage": 0.55,
     "max_void_ratio": 0.45
   },
-  "aiInstruction": "Research bowlSteepness (0.25-0.45) and dimensions before MODULE or tiered MASS. Inner field via PAVING or void_ratio; seating via masses[] tiers or birds_nest_stadium MODULE."
+  "aiInstruction": "Research bowlSteepness (0.25-0.45) and dimensions before typology STRUCTURE or tiered MASS. Inner field via PAVING or void_ratio; seating via masses[] tiers or stadium_bowl typology interpreter."
 }

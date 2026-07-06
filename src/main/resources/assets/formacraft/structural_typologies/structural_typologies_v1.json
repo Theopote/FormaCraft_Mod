@@ -163,6 +163,51 @@
       "proportionCardIds": ["temple_of_heaven"],
       "cultureCardIds": ["temple_of_heaven"],
       "llmPlanGuidance": "Use structural_typology=radial_terrace_hall with layout.skeleton_type=RADIAL_RING. Output proportion_hints.typology=radial_terrace_hall, tier_count=3, base_radius_to_height≈0.53. Prefer STRUCTURE + typology:radial_terrace_hall; set reference_landmark=temple_of_heaven when user names Temple of Heaven. Params: baseRadius, tiers, height, hallRadius, facing. global_constraints.symmetry=RADIAL. FORBID rectangular box MASS-only plans without radial/circular form."
+    },
+    {
+      "id": "stadium_bowl",
+      "displayName": {
+        "zh": "椭圆碗状体育场",
+        "en": "Elliptical stadium bowl"
+      },
+      "skeletonType": "RADIAL_RING",
+      "styleFamilies": ["Modern_Stadium_Elliptical", "Modern_Stadium"],
+      "matchKeywords": [
+        "体育场", "体育馆", "椭圆", "椭圆形", "碗状", "看台", "鸟巢", "国家体育场",
+        "stadium", "arena", "elliptical", "oval", "birds nest", "bowl seating"
+      ],
+      "negativeKeywords": [
+        "哥特", "教堂", "四合院", "古建", "寺庙", "住宅", "别墅", "密檐塔", "城堡"
+      ],
+      "interpreterId": "stadium_bowl",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "width": 60,
+        "depth": 80,
+        "height": 28,
+        "elliptical": true,
+        "meshStructure": true,
+        "bowlSteepness": 0.35,
+        "tierStep": 4,
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "width": { "min": 30, "ideal": 60, "max": 120, "desc": "椭圆全长（blocks）" },
+        "depth": { "min": 40, "ideal": 80, "max": 160, "desc": "椭圆全深（blocks）" },
+        "height": { "min": 14, "ideal": 28, "max": 60, "desc": "碗状看台总高" },
+        "bowlSteepness": { "min": 0.2, "ideal": 0.35, "max": 0.5, "desc": "看台坡度系数" },
+        "tierStep": { "min": 2, "ideal": 4, "max": 8, "desc": "看台分层步进（层）" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "birds_nest_stadium",
+          "role": "primary",
+          "notes": "国家体育场（鸟巢）：椭圆碗状 + 钢网外壳，RADIAL_RING 骨架"
+        }
+      ],
+      "proportionCardIds": ["stadium_bowl"],
+      "cultureCardIds": ["modern_stadium_elliptical"],
+      "llmPlanGuidance": "Use structural_typology=stadium_bowl with layout.skeleton_type=RADIAL_RING. Output proportion_hints.typology=stadium_bowl, bowl_depth_to_width≈0.38, height_to_major_axis≈0.48. Prefer STRUCTURE + typology:stadium_bowl; set reference_landmark=birds_nest_stadium when user names Bird's Nest. Params: width, depth, height, meshStructure, bowlSteepness, designSeed, facing. global_constraints.symmetry=RADIAL. FORBID plain rectangular MASS box for elliptical stadium requests."
     }
   ],
   "migrationMap": {
@@ -193,6 +238,13 @@
       "legacyModuleId": "temple_of_heaven",
       "deprecatedAfter": "2026-Q4",
       "notes": "Routes to RadialTerraceHallBuilder via typology interpreter."
+    },
+    "birds_nest_stadium": {
+      "typologyId": "stadium_bowl",
+      "phase": "typology_first",
+      "legacyModuleId": "birds_nest_stadium",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Routes to StadiumBowlBuilder via typology interpreter."
     }
   }
 }

@@ -1,7 +1,6 @@
 package com.formacraft.common.typology;
 
 import java.util.LinkedHashMap;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -37,6 +36,16 @@ public final class TypologyReferencePresets {
                 "height", 34,
                 "hallRadius", 10,
                 "detailLevel", "aesthetic",
+                "facing", "SOUTH"
+        ));
+        PRESETS.put("birds_nest_stadium", Map.of(
+                "width", 60,
+                "depth", 80,
+                "height", 28,
+                "elliptical", true,
+                "meshStructure", true,
+                "bowlSteepness", 0.35f,
+                "tierStep", 4,
                 "facing", "SOUTH"
         ));
     }

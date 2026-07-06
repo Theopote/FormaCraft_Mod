@@ -1,0 +1,54 @@
+{
+  "description": "现代椭圆/碗状体育场 → birds_nest_stadium 地标模块（Week 2 few-shot，已归档）",
+  "promptHints": ["椭圆形体育场", "椭圆体育馆", "现代体育场", "elliptical stadium"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Modern_Stadium",
+    "style_attributes": {
+      "wall_color": "gray",
+      "roof_color": "silver",
+      "accent_color": "steel",
+      "wall_material": "concrete",
+      "roof_material": "metal",
+      "floor_material": "stone",
+      "decorative_elements": ["steel_mesh", "exposed_structure"]
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "genome": {
+      "genomeVersion": "1.0",
+      "archetype": { "id": "birds_nest_stadium", "confidence": 0.92 },
+      "topology": { "layout": "circular", "composition": "single", "axis": "centered", "levels": "horizontal" },
+      "form": { "repetition": "radial", "progression": "uniform", "curvature": "curved", "rhythm": "irregular" },
+      "symmetry": { "type": "radial", "order": 4, "mirror": true },
+      "materials": { "primary": "concrete", "secondary": "metal", "accent": "steel", "textureBias": "smooth" },
+      "culturalStyle": { "region": "modern", "era": "contemporary", "keywords": ["stadium", "elliptical", "deconstructivism"] }
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "RADIAL",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "RADIAL_RING",
+      "path_based": false,
+      "slots": []
+    },
+    "components": [
+      {
+        "component_type": "MODULE",
+        "slot_id": "",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 60, "depth": 80, "height": 28 },
+        "features": ["landmark:birds_nest_stadium"],
+        "params": {
+          "module_id": "birds_nest_stadium",
+          "meshStructure": true,
+          "elliptical": true,
+          "designSeed": 2847,
+          "bowlSteepness": 0.38,
+          "facing": "SOUTH"
+        }
+      }
+    ]
+  }
+}

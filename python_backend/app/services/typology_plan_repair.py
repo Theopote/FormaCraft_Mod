@@ -44,6 +44,16 @@ _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
         "detailLevel": "aesthetic",
         "facing": "SOUTH",
     },
+    "birds_nest_stadium": {
+        "width": 60,
+        "depth": 80,
+        "height": 28,
+        "elliptical": True,
+        "meshStructure": True,
+        "bowlSteepness": 0.35,
+        "tierStep": 4,
+        "facing": "SOUTH",
+    },
 }
 
 
