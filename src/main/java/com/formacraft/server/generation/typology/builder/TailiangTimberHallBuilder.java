@@ -66,8 +66,8 @@ public final class TailiangTimberHallBuilder {
         int baysX = p.intVal("baysX", 7, 5, 9);
         int baysZ = p.intVal("baysZ", 4, 3, 5);
         int bayWidth = p.intVal("bayWidth", 3, 2, 4);
-        int w = clampOdd(p.intVal("width", baysX * bayWidth, 15, 35));
-        int d = clampOdd(p.intVal("depth", baysZ * bayWidth, 11, 25));
+        int w = clampOdd(p.intVal("width", baysX * bayWidth, 15, 35), 15, 35);
+        int d = clampOdd(p.intVal("depth", baysZ * bayWidth, 11, 25), 11, 25);
         int platformH = p.intVal("platformHeight", 2, 1, 4);
         int bodyH = p.intVal("hallHeight", 7, 5, 12);
         boolean subEaves = p.boolVal("includeSubEaves", true);
