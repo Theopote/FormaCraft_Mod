@@ -1,0 +1,62 @@
+{
+  "description": "法门寺舍利塔 → giant_wild_goose_pagoda 近似模块（13 层密檐砖塔 few-shot）",
+  "promptHints": ["法门寺", "法门寺舍利塔", "法门寺塔", "famen pagoda", "famen temple"],
+  "plan": {
+    "mode": "build",
+    "style_profile": "Chinese_Traditional",
+    "style_attributes": {
+      "wall_color": "grey",
+      "roof_color": "black",
+      "accent_color": "gold",
+      "wall_material": "brick",
+      "roof_material": "dark_glazed_tile",
+      "floor_material": "stone",
+      "decorative_elements": ["bracket_sets", "eaves", "cornice", "stupa_finial"]
+    },
+    "proportion_hints": {
+      "typology": "famen_pagoda",
+      "floor_count": 13,
+      "slenderness": 4.7,
+      "height_to_width": 4.7,
+      "setback_ratio": 0.06,
+      "window_wall_ratio": 0.1,
+      "min_enclosure_coverage": 0.88
+    },
+    "anchor": { "x": 0, "y": 64, "z": 0 },
+    "genome": {
+      "genomeVersion": "1.0",
+      "archetype": { "id": "famen_pagoda", "confidence": 0.92 },
+      "topology": { "layout": "vertical", "composition": "single", "axis": "centered", "levels": "stacked" },
+      "form": { "repetition": "tiered", "progression": "setback", "curvature": "angular", "rhythm": "regular" },
+      "symmetry": { "type": "mirror", "order": 4, "mirror": true },
+      "materials": { "primary": "brick", "secondary": "stone", "accent": "gold", "textureBias": "weathered" },
+      "culturalStyle": { "region": "chinese", "era": "tang", "keywords": ["pagoda", "stupa", "dense_eaves", "brick"] }
+    },
+    "global_constraints": {
+      "facing": "SOUTH",
+      "symmetry": "MIRROR_X",
+      "terrain_strategy": "ADAPTIVE"
+    },
+    "layout": {
+      "skeleton_type": "VERTICAL_STACK",
+      "path_based": false,
+      "slots": []
+    },
+    "components": [
+      {
+        "component_type": "MODULE",
+        "relative_position": { "x": 0, "y": 0, "z": 0 },
+        "dimensions": { "width": 10, "depth": 10, "height": 47 },
+        "features": ["landmark:giant_wild_goose_pagoda"],
+        "params": {
+          "module_id": "giant_wild_goose_pagoda",
+          "levels": 13,
+          "height": 47,
+          "baseWidth": 10,
+          "detailLevel": "refined",
+          "facing": "SOUTH"
+        }
+      }
+    ]
+  }
+}

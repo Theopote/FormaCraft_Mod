@@ -1,0 +1,45 @@
+{
+  "id": "famen_pagoda",
+  "styleId": "Chinese_Traditional",
+  "intents": ["PAGODA", "LANDMARK", "BUDDHIST", "法门寺", "密檐塔"],
+  "keywords": [
+    "法门寺", "法门寺塔", "法门寺舍利塔", "famensi", "famen temple", "famen pagoda",
+    "famen si", "famen stupa", "唐代砖塔", "密檐塔", "砖塔", "塔刹", "相轮"
+  ],
+  "synonyms": {
+    "法门寺": ["famen temple", "famensi temple", "famen si"],
+    "法门寺舍利塔": ["famen pagoda", "famen temple pagoda", "famen relic pagoda"],
+    "密檐塔": ["dense eaves pagoda", "multi-eave brick pagoda"]
+  },
+  "keywordWeights": {
+    "法门寺舍利塔": 10.0,
+    "法门寺": 9.0,
+    "法门寺塔": 8.5,
+    "famen pagoda": 8.0,
+    "famen temple": 7.5,
+    "密檐塔": 6.0,
+    "famensi": 7.0
+  },
+  "negativeKeywords": [
+    "天坛", "祈年殿", "圆殿", "temple of heaven", "大雁塔", "大慈恩寺",
+    "CLASSICAL_CUPOLA", "onion dome", "哥特", "大教堂", "cottage", "小房子",
+    "classical monument", "卢浮宫", "白宫"
+  ],
+  "proportionCardId": "famen_pagoda",
+  "landmarkModuleId": "giant_wild_goose_pagoda",
+  "llmPlanExampleRefs": ["famen_pagoda_module.json"],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "famen_dense_eaves_pagoda",
+      "constraints": [
+        "RECOMMENDED: MODULE + landmark:giant_wild_goose_pagoda（近似密檐方/八角砖塔；非法门寺精确复刻但优于通用盒子）",
+        "params.levels=13, height≈47, baseWidth≈10, detailLevel=refined, facing=SOUTH",
+        "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=MIRROR_X",
+        "输出 proportion_hints：typology=famen_pagoda, floor_count=13, slenderness≈4.7, setback_ratio≈0.06",
+        "顶刹/相轮：用 DECOR_DETAIL 或 crown_template=SIMPLE_DOME 小刹，禁止 CLASSICAL_CUPOLA/ONION_DOME",
+        "材质：砖石塔身 + 深色琉璃瓦檐；禁止西方圆顶与宫殿式 classical_monument 方盒"
+      ]
+    }
+  ]
+}

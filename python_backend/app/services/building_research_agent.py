@@ -157,6 +157,10 @@ _BUILDING_SEARCH_ALIASES: Dict[str, List[str]] = {
     "乌镇": ["Wuzhen", "江南古镇"],
     "周庄": ["Zhouzhuang", "江南古镇"],
     "迪士尼城堡": ["Disney Castle", "Cinderella Castle"],
+    "法门寺": ["Famen Temple", "Famensi", "Shaanxi"],
+    "法门寺舍利塔": ["Famen Temple Pagoda", "Famen Stupa", "Relic Pagoda"],
+    "佛光寺": ["Foguang Temple", "Wutai Mountain", "East Hall"],
+    "佛光寺大殿": ["Foguang Temple Main Hall", "East Main Hall", "Tang timber hall"],
 }
 
 _ZAHA_FORM_ELEMENTS = (

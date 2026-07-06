@@ -1,0 +1,46 @@
+{
+  "id": "foguang_temple_hall",
+  "styleId": "Tang_Dynasty_Timber",
+  "intents": ["TEMPLE", "LANDMARK", "TIMBER", "佛光寺", "唐代木构"],
+  "keywords": [
+    "佛光寺", "佛光寺大殿", "佛光寺东大殿", "五台山佛光寺", "东大殿",
+    "foguang temple", "foguang si", "wutai foguang", "tang dynasty hall",
+    "唐代木构", "唐代建筑", "庑殿顶", "斗拱", "七开间", "铺作", "副阶周匝"
+  ],
+  "synonyms": {
+    "佛光寺": ["foguang temple", "foguang si", "wutai foguang"],
+    "佛光寺大殿": ["foguang temple main hall", "east hall foguang"],
+    "东大殿": ["east main hall", "foguang east hall"]
+  },
+  "keywordWeights": {
+    "佛光寺大殿": 10.0,
+    "佛光寺东大殿": 10.0,
+    "五台山佛光寺": 9.5,
+    "佛光寺": 9.0,
+    "东大殿": 8.0,
+    "foguang temple": 7.5,
+    "七开间": 7.0,
+    "庑殿顶": 6.5
+  },
+  "negativeKeywords": [
+    "天坛", "祈年殿", "temple of heaven", "四合院", "siheyuan", "cottage",
+    "小石头房子", "哥特", "大教堂", "CLASSICAL_CUPOLA", "圆顶", "城堡",
+    "classical monument", "vertical stack tower", "pagoda"
+  ],
+  "proportionCardId": "foguang_temple_hall",
+  "llmPlanExampleRefs": ["foguang_temple_hall_compositional.json"],
+  "exampleRefs": [],
+  "archetypes": [
+    {
+      "name": "tang_seven_bay_hall",
+      "constraints": [
+        "唐代佛殿：面阔七开间 × 进深四开间，单檐庑殿顶，木构架+斗拱铺作",
+        "alignment_and_symmetry.rhythm_x：7 等分开间；rhythm_z：4 等分进深",
+        "MASS_MAIN 低而阔（height_to_width≈0.5），FOUNDATION 石台基，ROOF 大出檐 xuanshan",
+        "DECOR_DETAIL：柱网/bracket_sets/dougong；facade_profile=vertical_pilasters",
+        "style_attributes.decorative_elements 必含 bracket,dougong,eaves",
+        "禁止 CROWN/西方圆顶、禁止 cottage 小方盒、禁止把大殿做成高塔"
+      ]
+    }
+  ]
+}

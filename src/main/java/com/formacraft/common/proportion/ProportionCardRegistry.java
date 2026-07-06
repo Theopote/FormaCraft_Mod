@@ -142,7 +142,13 @@ public final class ProportionCardRegistry {
         List<String> names = List.of(
                 "cottage_refined.json",
                 "castle_wall.json",
-                "stadium_bowl.json"
+                "stadium_bowl.json",
+                "classical_monument.json",
+                "siheyuan_courtyard.json",
+                "square_tower_five_story.json",
+                "temple_of_heaven.json",
+                "famen_pagoda.json",
+                "foguang_temple_hall.json"
         );
         List<ProportionCard> out = new ArrayList<>();
         for (String name : names) {

@@ -56,6 +56,23 @@
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     },
     {
+      "id": "famen_pagoda",
+      "properNounAliases": [
+        "法门寺舍利塔", "法门寺塔", "法门寺", "famen temple pagoda", "famen pagoda",
+        "famen si pagoda", "famen stupa", "famensi pagoda", "famen temple stupa"
+      ],
+      "genericAliases": [],
+      "aliases": [
+        "法门寺舍利塔", "法门寺塔", "法门寺", "famen temple pagoda", "famen pagoda",
+        "famen si pagoda", "famen stupa", "famensi pagoda", "famen temple stupa"
+      ],
+      "category": "LANDMARK",
+      "generatorId": "giant_wild_goose_pagoda",
+      "defaults": { "levels": 13, "height": 47, "baseWidth": 10 },
+      "constraints": { "minLevels": 7, "maxLevels": 15, "minHeight": 28, "maxHeight": 72, "minBaseWidth": 7, "maxBaseWidth": 14 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
       "id": "mingqing_courtyard",
       "aliases": ["明清官式院落", "明清官式建筑群落", "明清四合院", "ming qing courtyard", "mingqing courtyard"],
       "category": "LANDMARK",
@@ -102,6 +119,23 @@
       "generatorId": "gothic_cathedral",
       "defaults": { "width": 25, "depth": 45, "wallHeight": 16, "towerHeight": 20, "spireHeight": 10 },
       "constraints": { "minWidth": 17, "maxWidth": 101, "minDepth": 25, "maxDepth": 151, "minWallHeight": 12, "maxWallHeight": 40 },
+      "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
+    },
+    {
+      "id": "foguang_temple_hall",
+      "properNounAliases": [
+        "佛光寺大殿", "佛光寺东大殿", "五台山佛光寺", "佛光寺",
+        "foguang temple main hall", "foguang si hall", "wutai foguang temple", "foguang temple"
+      ],
+      "genericAliases": [],
+      "aliases": [
+        "佛光寺大殿", "佛光寺东大殿", "五台山佛光寺", "佛光寺",
+        "foguang temple main hall", "foguang si hall", "wutai foguang temple", "foguang temple"
+      ],
+      "category": "LANDMARK",
+      "researchOnly": true,
+      "defaults": {},
+      "constraints": {},
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     },
     {

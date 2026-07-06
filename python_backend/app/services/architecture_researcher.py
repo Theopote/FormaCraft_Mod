@@ -40,6 +40,8 @@ LANDMARK_BUILDINGS = [
     "金字塔", "pyramid", "古埃及",
     "长城", "great wall", "中国长城",
     "天坛", "temple of heaven", "天坛公园",
+    "法门寺", "famen temple", "法门寺舍利塔", "famen pagoda",
+    "佛光寺", "foguang temple", "佛光寺大殿", "wutai foguang",
     "故宫", "forbidden city", "紫禁城",
     "布达拉宫", "potala palace",
     "比萨斜塔", "leaning tower of pisa",

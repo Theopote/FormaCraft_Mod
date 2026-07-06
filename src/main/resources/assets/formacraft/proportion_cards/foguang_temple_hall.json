@@ -1,0 +1,53 @@
+{
+  "id": "foguang_temple_hall",
+  "typology": "foguang_temple_hall",
+  "matchKeywords": [
+    "佛光寺", "佛光寺大殿", "佛光寺东大殿", "五台山佛光寺", "东大殿",
+    "foguang temple", "foguang si", "wutai foguang", "tang timber hall",
+    "唐代木构", "庑殿顶", "七开间"
+  ],
+  "ratios": {
+    "height_to_width": {
+      "min": 0.35,
+      "ideal": 0.52,
+      "max": 0.75,
+      "desc": "主体高度/面宽（大殿面阔七间、平坐较低）"
+    },
+    "depth_to_width": {
+      "min": 0.5,
+      "ideal": 0.62,
+      "max": 0.75,
+      "desc": "进深/面宽（四间深 / 七间阔 ≈ 0.57）"
+    },
+    "roof_to_body_height": {
+      "min": 0.32,
+      "ideal": 0.45,
+      "max": 0.6,
+      "desc": "屋顶高度/主体高度（庑殿顶大屋顶）"
+    },
+    "bay_count_x": {
+      "min": 5,
+      "ideal": 7,
+      "max": 9,
+      "desc": "面阔开间数（佛光寺东大殿七开间）"
+    },
+    "bay_count_z": {
+      "min": 3,
+      "ideal": 4,
+      "max": 5,
+      "desc": "进深开间数（四间深）"
+    },
+    "window_wall_ratio": {
+      "min": 0.08,
+      "ideal": 0.15,
+      "max": 0.22,
+      "desc": "窗洞占比（实墙+柱网为主）"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["vertical_bay", "vertical_strip"],
+    "min_enclosure_coverage": 0.82,
+    "max_void_ratio": 0.18
+  },
+  "aiInstruction": "Foguang Temple East Hall (Tang timber frame, 7-bay × 4-bay, single-eave wudian roof). Compositional LlmPlan: alignment_and_symmetry rhythm_x with 7 equal bays, rhythm_z with 4 bays; MASS_MAIN width:depth≈7:4, height modest (one story hall), params.facade_profile=vertical_pilasters, roof_type=xuanshan with large overhang. FOUNDATION stone platform + optional TERRACE plinth. DECOR_DETAIL column/bracket bands (dougong/bracket_sets); perimeter column rhythm. style_profile Tang_Dynasty_Timber or Chinese_Traditional; wall=wood/red_lacquer, roof=grey_tile. FORBID: CROWN/CLASSICAL_CUPOLA, small cottage/cube, classical_monument pilaster-only without timber bracket expression, stone fortress mass. No dedicated MODULE yet — research + proportion-driven compositional plan."
+}

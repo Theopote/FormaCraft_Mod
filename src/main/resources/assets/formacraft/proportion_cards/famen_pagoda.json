@@ -1,0 +1,52 @@
+{
+  "id": "famen_pagoda",
+  "typology": "famen_pagoda",
+  "matchKeywords": [
+    "法门寺", "法门寺塔", "法门寺舍利塔", "famen temple", "famen pagoda", "famen si",
+    "famen stupa", "famensi pagoda", "唐代砖塔", "密檐塔"
+  ],
+  "ratios": {
+    "height_to_width": {
+      "min": 3.0,
+      "ideal": 4.7,
+      "max": 7.0,
+      "desc": "塔高/底边（法门寺塔约 47m / 底径 ~10m，明显竖向）"
+    },
+    "slenderness": {
+      "min": 3.0,
+      "ideal": 4.7,
+      "max": 7.5,
+      "desc": "height / max(width, depth)"
+    },
+    "floor_count": {
+      "min": 7,
+      "ideal": 13,
+      "max": 15,
+      "desc": "密檐层数（法门寺现塔 13 层）"
+    },
+    "floor_height": {
+      "min": 2,
+      "ideal": 3,
+      "max": 4,
+      "desc": "每层檐口节奏（密檐，层高低）"
+    },
+    "setback_ratio": {
+      "min": 0.04,
+      "ideal": 0.06,
+      "max": 0.1,
+      "desc": "逐层收分比例"
+    },
+    "window_wall_ratio": {
+      "min": 0.04,
+      "ideal": 0.1,
+      "max": 0.18,
+      "desc": "券形假窗/真窗占比（砖塔立面实墙为主）"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["vertical_strip", "square", "arrow_slit"],
+    "min_enclosure_coverage": 0.88,
+    "max_void_ratio": 0.12
+  },
+  "aiInstruction": "Famen Temple relic pagoda (Tang brick dense-eaves pagoda). RECOMMENDED: MODULE + landmark:giant_wild_goose_pagoda with params.levels=13, height≈47, baseWidth≈10, facing=SOUTH, detailLevel=refined. Output proportion_hints: typology=famen_pagoda, floor_count=13, slenderness≈4.7, setback_ratio≈0.06. style_profile Chinese_Traditional; wall=brick/stone, roof=dark_glazed_tile; decorative_elements bracket_sets,eaves,cornice,stupa_finial. Compositional fallback: layout.skeleton_type=VERTICAL_STACK; MASS width=depth with params.setback_ratio + tiered masses[] OR stacked ROOF eaves per floor; shape=circle as octagon approximation. FORBID: CROWN crown_template=CLASSICAL_CUPOLA|ONION_DOME, generic classical_monument palace box, cottage proportions. Use stupa/spire finial at top, NOT western dome."
+}
