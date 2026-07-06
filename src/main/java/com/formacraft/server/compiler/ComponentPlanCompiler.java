@@ -339,6 +339,8 @@ public final class ComponentPlanCompiler {
             return new PreparedComponents(components, Set.of());
         }
 
+        components = AlignmentContractEnforcer.apply(plan, components);
+
         Set<String> slotsWithFacade = new HashSet<>();
         Set<String> slotsWithEntrance = new HashSet<>();
         Set<String> slotsWithRoof = new HashSet<>();
@@ -444,7 +446,6 @@ public final class ComponentPlanCompiler {
             prepared.addAll(inferred);
         }
 
-        prepared = AlignmentContractEnforcer.apply(plan, prepared);
         realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);

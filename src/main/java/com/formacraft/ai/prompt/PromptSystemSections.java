@@ -74,6 +74,7 @@ Core rules:
     "rhythm_z": { ... same ... } }.
   MASS_* width/depth are forced to sum(side_bays) or bay_count*bay_width; center axes pin mass anchor.
   Components should FILL bays, not invent free-form spans. Pair with repeating_pattern inside each bay.
+  Compiler writes bay_grid_x/z on MASS; FACADE_WINDOWS and ENTRANCE snap to bay spans automatically.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.

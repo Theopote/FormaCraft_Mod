@@ -171,7 +171,6 @@ public final class BayGridRhythmPlanner {
         return new EntranceBay(widest.start(), widest.width(), widest.role());
     }
 
-    @SuppressWarnings("unchecked")
     static BayGridResolver.ResolvedAxisGrid parseGridParam(Object raw) {
         if (!(raw instanceof Map<?, ?> map)) {
             return null;
