@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.ComponentCrownDecorator;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
+import com.formacraft.common.alignment.BayGridRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.alignment.AlignmentContractEnforcer;
 import com.formacraft.common.compiler.postprocess.PostProcessContext;
@@ -774,41 +775,60 @@ public final class ComponentPlanCompiler {
             entranceDepth = Math.max(1, Math.min(depth / 2, paramCanopy + 1));
         }
 
+        BayGridRhythmPlanner.EntranceSnap baySnap = BayGridRhythmPlanner.snapEntrance(
+                baseParams, width, depth, facing);
+        int facadeBoxSpan = entranceWidth;
+        if (baySnap != null) {
+            facadeBoxSpan = Math.max(3, Math.min(baySnap.axisSpan(), width - baySnap.axisStart()));
+        }
+        int doorWidth = paramDoorW > 0
+                ? Math.max(2, Math.min(facadeBoxSpan - 1, paramDoorW))
+                : Math.max(2, Math.min(facadeBoxSpan - 1, facadeBoxSpan - 1));
+        if (doorWidth % 2 == 0 && doorWidth > 2) {
+            doorWidth--;
+        }
+
         int relX = rp.x();
         int relZ = rp.z();
         int boxWidth;
         int boxDepth;
+        int facadeAxisStart = baySnap != null ? baySnap.axisStart() : Math.max(0, (width - facadeBoxSpan) / 2);
         switch (facing != null ? facing : GlobalConstraints.Facing.SOUTH) {
             case NORTH -> {
-                boxWidth = entranceWidth;
+                boxWidth = facadeBoxSpan;
                 boxDepth = entranceDepth;
-                relX = rp.x() + Math.max(0, (width - boxWidth) / 2);
+                relX = rp.x() + facadeAxisStart;
                 relZ = rp.z() + Math.max(0, depth - boxDepth);
             }
             case EAST -> {
                 boxWidth = entranceDepth;
-                boxDepth = entranceWidth;
+                boxDepth = facadeBoxSpan;
                 relX = rp.x();
-                relZ = rp.z() + Math.max(0, (depth - boxDepth) / 2);
+                relZ = rp.z() + facadeAxisStart;
             }
             case WEST -> {
                 boxWidth = entranceDepth;
-                boxDepth = entranceWidth;
+                boxDepth = facadeBoxSpan;
                 relX = rp.x() + Math.max(0, width - boxWidth);
-                relZ = rp.z() + Math.max(0, (depth - boxDepth) / 2);
+                relZ = rp.z() + facadeAxisStart;
             }
             default -> {
-                boxWidth = entranceWidth;
+                boxWidth = facadeBoxSpan;
                 boxDepth = entranceDepth;
-                relX = rp.x() + Math.max(0, (width - boxWidth) / 2);
+                relX = rp.x() + facadeAxisStart;
                 relZ = rp.z();
             }
         }
 
         Map<String, Object> params = new HashMap<>();
-        params.put("door_width", Math.max(2, Math.min(entranceWidth - 1, entranceWidth)));
+        params.put("door_width", doorWidth);
         params.put("door_height", Math.max(2, Math.min(entranceHeight - 1, entranceHeight)));
         params.put("canopy_depth", paramCanopy > 0 ? paramCanopy : 1);
+        if (baySnap != null) {
+            params.put("entrance_bay_start", baySnap.axisStart());
+            params.put("entrance_bay_span", baySnap.axisSpan());
+            params.put("reserve_entrance_bay", true);
+        }
 
         List<String> features = new ArrayList<>();
         features.add("entrance");

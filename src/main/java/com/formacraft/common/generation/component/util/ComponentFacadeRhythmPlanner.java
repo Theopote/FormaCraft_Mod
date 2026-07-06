@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.component.util;
 
+import com.formacraft.common.alignment.BayGridRhythmPlanner;
+import com.formacraft.common.alignment.BayGridResolver;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.facade.rhythm.RepeatingPattern;
 import com.formacraft.common.facade.rhythm.RepeatingPatternParser;
@@ -61,6 +63,13 @@ public final class ComponentFacadeRhythmPlanner {
     public static RhythmPlan resolve(SemanticComponent semantic, Map<String, Object> params, int axisMax) {
         if (axisMax <= 2) {
             return RhythmPlan.inactive(axisMax);
+        }
+
+        if (params != null) {
+            BayGridResolver.ResolvedAxisGrid bayGrid = BayGridRhythmPlanner.pickGrid(params, axisMax);
+            if (bayGrid != null && !bayGrid.bays().isEmpty()) {
+                return BayGridRhythmPlanner.toRhythmPlan(bayGrid, axisMax);
+            }
         }
 
         RepeatingPattern explicit = RepeatingPatternParser.parse(params);

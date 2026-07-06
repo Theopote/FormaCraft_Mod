@@ -72,6 +72,24 @@ class ComponentFacadeRhythmPlannerTest {
     }
 
     @Test
+    void resolvePrefersBayGridOverRepeatingPattern() {
+        java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("repeating_pattern", RepeatingPatternParser.toParamsMap(RepeatingPattern.classicalPilasterBay()));
+        params.put("bay_grid_x", java.util.Map.of(
+                "total_span", 14,
+                "bays", java.util.List.of(
+                        java.util.Map.of("start", 0, "width", 4, "role", "wing"),
+                        java.util.Map.of("start", 4, "width", 6, "role", "hall"),
+                        java.util.Map.of("start", 10, "width", 4, "role", "wing")
+                )
+        ));
+        ComponentFacadeRhythmPlanner.RhythmPlan plan = ComponentFacadeRhythmPlanner.resolve(null, params, 14);
+        assertTrue(plan.active());
+        assertEquals("BAY_GRID", plan.presetId());
+        assertTrue(plan.isEntranceBayAxis(6));
+    }
+
+    @Test
     void regularBilateral_spacing3() {
         BitSet axes = ComponentFacadeRhythmPlanner.computeRegularBilateralAxes(13, 3);
         assertTrue(axes.get(6));
