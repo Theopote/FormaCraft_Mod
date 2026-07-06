@@ -297,6 +297,48 @@
       "proportionCardIds": ["gothic_cathedral_hall"],
       "cultureCardIds": ["gothic_sacred", "gothic_cathedral"],
       "llmPlanGuidance": "Use structural_typology=gothic_cathedral_hall with layout.skeleton_type=GRID_BAY. Output proportion_hints.typology=gothic_cathedral_hall, nave_length_to_width≈1.8, tower_height_to_nave≈1.35. Prefer STRUCTURE + typology:gothic_cathedral_hall; set reference_landmark=gothic_cathedral when user names Gothic cathedral preset. Params: width, depth, wallHeight, towerHeight, spireHeight, buttressStep, facing. global_constraints.symmetry=MIRROR_X. FORBID single MASS box without nave/aisle/buttress grammar. Notre Dame/Cologne/Sagrada are research-only — compose instead."
+    },
+    {
+      "id": "courtyard_compound",
+      "displayName": {
+        "zh": "官式院落群落",
+        "en": "Official courtyard compound"
+      },
+      "skeletonType": "COMPOUND",
+      "styleFamilies": ["Chinese_Imperial_Official"],
+      "matchKeywords": [
+        "明清官式", "官式院落", "官式建筑群落", "明清四合院",
+        "ming qing courtyard", "mingqing courtyard", "official courtyard compound"
+      ],
+      "negativeKeywords": [
+        "民居", "北方四合院", "北京四合院", "siheyuan", "徽派", "江南水乡",
+        "体育场", "城堡", "哥特", "摩天楼", "原创", "不要地标"
+      ],
+      "interpreterId": "courtyard_compound",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "width": 32,
+        "depth": 28,
+        "includePaths": true,
+        "pathWidth": 3,
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "width": { "min": 16, "ideal": 32, "max": 96, "desc": "院落占地宽" },
+        "depth": { "min": 16, "ideal": 28, "max": 96, "desc": "院落占地深" },
+        "includePaths": { "min": 0, "ideal": 1, "max": 1, "desc": "内院铺径（0/1）" },
+        "pathWidth": { "min": 1, "ideal": 3, "max": 7, "desc": "内院路径宽" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "mingqing_courtyard",
+          "role": "primary",
+          "notes": "明清官式院落群落 preset：围墙围合 + 正房/厢房/门楼 COMPOUND 骨架"
+        }
+      ],
+      "proportionCardIds": ["courtyard_compound"],
+      "cultureCardIds": ["mingqing_courtyard"],
+      "llmPlanGuidance": "Use structural_typology=courtyard_compound with layout.skeleton_type=COMPOUND. Output proportion_hints.typology=courtyard_compound, courtyard_ratio≈0.38, enclosure_coverage≈0.85. Prefer STRUCTURE + typology:courtyard_compound; set reference_landmark=mingqing_courtyard when user names Ming-Qing official courtyard. Params: width, depth, includePaths, pathWidth, facing. global_constraints.symmetry=MIRROR_X. FORBID single MASS box without walled enclosure + hall/wing/gate cluster. Siheyuan residential courtyards use compositional COURTYARD — do not mix."
     }
   ],
   "migrationMap": {
@@ -348,6 +390,13 @@
       "legacyModuleId": "gothic_cathedral",
       "deprecatedAfter": "2026-Q4",
       "notes": "Routes to GothicCathedralHallBuilder via typology interpreter."
+    },
+    "mingqing_courtyard": {
+      "typologyId": "courtyard_compound",
+      "phase": "typology_first",
+      "legacyModuleId": "mingqing_courtyard",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Routes to CourtyardCompoundBuilder via typology interpreter."
     }
   }
 }

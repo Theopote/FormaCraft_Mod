@@ -65,6 +65,13 @@ public final class TypologyReferencePresets {
                 "buttressStep", 5,
                 "facing", "SOUTH"
         ));
+        PRESETS.put("mingqing_courtyard", Map.of(
+                "width", 32,
+                "depth", 28,
+                "includePaths", true,
+                "pathWidth", 3,
+                "facing", "SOUTH"
+        ));
     }
 
     private TypologyReferencePresets() {}

@@ -7,7 +7,7 @@
     { "styleProfileId": "Deconstructivism_Zaha", "generatorKey": "parametric_deconstructivism" }
   ],
   "templateRoutes": [
-    { "id": "mingqing_courtyard", "keywords": ["mingqing_courtyard", "mingqing"], "generatorKey": "mingqing_courtyard" },
+    { "id": "mingqing_courtyard", "keywords": ["mingqing_courtyard", "mingqing"], "generatorKey": "courtyard_compound" },
     { "id": "castle_compound", "keywords": ["castle_compound", "castle"], "generatorKey": "castle_compound" },
     { "id": "office_block", "keywords": ["office_block"], "generatorKey": "office_block" },
     { "id": "office_district", "keywords": ["office_district", "office_park", "office"], "generatorKey": "office_district" },

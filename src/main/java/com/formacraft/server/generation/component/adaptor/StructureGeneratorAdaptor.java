@@ -163,8 +163,10 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
                 ));
             }
 
-            FormacraftMod.LOGGER.debug("StructureGeneratorAdaptor: generated {} patches (type={})",
-                    patches.size(), spec.getType());
+            if (spec != null) {
+                FormacraftMod.LOGGER.debug("StructureGeneratorAdaptor: generated {} patches (type={})",
+                        patches.size(), spec.getType());
+            }
             return patches;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("StructureGeneratorAdaptor: error generating structure", e);

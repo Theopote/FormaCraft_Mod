@@ -215,6 +215,8 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 
 **Phase 8.21 已迁入 typology-first**：`gothic_cathedral` → `gothic_cathedral_hall`（`GothicCathedralHallBuilder` + `GothicCathedralHallInterpreter`）。
 
+**Phase 8.22 已迁入 typology-first**：`mingqing_courtyard` → `courtyard_compound`（`CourtyardCompoundBuilder` + `CourtyardCompoundInterpreter`）。
+
 ### Phase 5 细节（天坛 / 祈年殿）
 
 | 维度 | 旧 | 新 |

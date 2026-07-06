@@ -84,7 +84,9 @@
       "id": "mingqing_courtyard",
       "aliases": ["明清官式院落", "明清官式建筑群落", "明清四合院", "ming qing courtyard", "mingqing courtyard"],
       "category": "LANDMARK",
-      "generatorId": "mingqing_courtyard",
+      "researchOnly": true,
+      "typologyId": "courtyard_compound",
+      "generatorId": "courtyard_compound",
       "defaults": { "width": 32, "depth": 28, "includePaths": true, "pathWidth": 3 },
       "constraints": { "minWidth": 16, "maxWidth": 96, "minDepth": 16, "maxDepth": 96, "minPathWidth": 1, "maxPathWidth": 7 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }

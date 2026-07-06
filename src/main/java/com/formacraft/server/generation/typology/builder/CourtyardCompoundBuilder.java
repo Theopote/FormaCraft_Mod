@@ -1,4 +1,4 @@
-package com.formacraft.server.generation.structure;
+package com.formacraft.server.generation.typology.builder;
 
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.logging.FcaLog;
@@ -10,6 +10,7 @@ import com.formacraft.common.skeleton.rect.RectEnclosurePlan;
 import com.formacraft.common.skeleton.transform.BlockTransform;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.skeleton.compound.CompoundInterpreter;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
@@ -31,24 +32,46 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * MingQingCourtyardGenerator (v1):
- * A COMPOUND-based courtyard complex composed from reusable parts:
- * - RectEnclosurePlan (walls + gate opening)
- * - Main hall / side rooms / gatehouse as GeneratorBackedPlan (delegates to existing generators)
- * <p>
- * Anchor convention: origin is the center of the whole complex.
+ * Parametric Ming-Qing official courtyard compound builder (typology: {@code courtyard_compound}).
+ * COMPOUND 骨架：围墙围合 + 正房/厢房/门楼 GeneratorBackedPlan 组合。
  */
-public class MingQingCourtyardGenerator implements StructureGenerator {
+public final class CourtyardCompoundBuilder {
 
-    private static final FcaLog LOG = FcaLog.of("MingQingCourtyardGenerator");
+    public static final String TYPOLOGY_ID = "courtyard_compound";
 
-    @Override
-    public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+    private static final FcaLog LOG = FcaLog.of("CourtyardCompoundBuilder");
+
+    private CourtyardCompoundBuilder() {}
+
+    public static GeneratedStructure fromBuildingSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        return generate(TypologyParamResolver.fromBuildingSpec(spec, TYPOLOGY_ID), origin, world, spec);
+    }
+
+    public static GeneratedStructure generate(
+            Map<String, Object> params,
+            BlockPos origin,
+            ServerWorld world,
+            BuildingSpec specHint
+    ) {
+        BuildingSpec spec = specHint != null ? specHint : new BuildingSpec();
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        if (spec.getExtra() != null) {
+            merged.putAll(spec.getExtra());
+        }
+        if (params != null) {
+            merged.putAll(params);
+        }
+        spec.setExtra(merged);
+        return generateFromSpec(spec, origin, world);
+    }
+
+    private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         int w = (spec != null && spec.getFootprint() != null) ? Math.max(16, spec.getFootprint().getWidth()) : 20;
         int d = (spec != null && spec.getFootprint() != null) ? Math.max(16, spec.getFootprint().getDepth()) : 20;
         w = clamp(w, 16, 96);
@@ -324,7 +347,7 @@ public class MingQingCourtyardGenerator implements StructureGenerator {
 
         List<PlannedBlock> blocks = new CompoundInterpreter(dispatcher).interpret(compound, origin, world);
 
-        String desc = String.format("MingQingCourtyard (w=%d,d=%d, compoundParts=%d)", w, d, compound.components.size());
+        String desc = String.format("Courtyard Compound (courtyard_compound, w=%d, d=%d, parts=%d)", w, d, compound.components.size());
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 

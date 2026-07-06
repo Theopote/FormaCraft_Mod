@@ -3674,7 +3674,14 @@ def _generate_mingqing_courtyard_building_spec(req: BuildRequest) -> BuildingSpe
         features=features,
         styleOptions=style_options,
         notes=f"模板：明清官式院落（{w}×{d}）。为保证按描述生成，使用确定性模板（除非用户要求随意）。",
-        extra={"template": "mingqing_courtyard", "includePaths": bool(include_paths), "pathWidth": int(path_width)},
+        extra={
+            "template": "mingqing_courtyard",
+            "typology_id": "courtyard_compound",
+            "structural_typology": "courtyard_compound",
+            "reference_landmark": "mingqing_courtyard",
+            "includePaths": bool(include_paths),
+            "pathWidth": int(path_width),
+        },
     )
     return _ensure_genome_for_spec(spec, req)
 

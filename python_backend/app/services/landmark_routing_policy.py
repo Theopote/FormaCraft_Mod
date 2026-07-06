@@ -51,6 +51,11 @@ GOTHIC_CATHEDRAL_EXPLICIT: List[str] = [
     "哥特大教堂", "哥特式大教堂", "gothic cathedral",
 ]
 
+MINGQING_COURTYARD_EXPLICIT: List[str] = [
+    "明清官式院落", "明清官式建筑群落", "明清四合院",
+    "ming qing courtyard", "mingqing courtyard",
+]
+
 STADIUM_TYPOLOGY: List[str] = ["体育场", "体育馆", "stadium", "arena", "球场"]
 ELLIPSE_TYPOLOGY: List[str] = ["椭圆", "椭圆形", "elliptical", "oval", "碗状", "看台"]
 
@@ -114,6 +119,9 @@ def resolve_for_user_intent(text: str) -> Optional[RoutingDecision]:
         x in lower for x in ("notre dame", "巴黎圣母院", "cologne", "科隆", "chartres", "sagrada", "圣家族")
     ):
         return RoutingDecision("gothic_cathedral", RoutingTier.MANDATORY, "explicit_gothic_cathedral")
+
+    if _contains_any(lower, MINGQING_COURTYARD_EXPLICIT):
+        return RoutingDecision("mingqing_courtyard", RoutingTier.MANDATORY, "explicit_mingqing_courtyard")
 
     # 点名建筑师 + 体育场 → 参数化形体，禁止默认 birds_nest typology
     if _contains_any(lower, NAMED_ARCHITECT_MARKERS) and _contains_any(lower, STADIUM_TYPOLOGY):

@@ -60,6 +60,12 @@ public final class LandmarkRoutingPolicy {
             "哥特大教堂", "哥特式大教堂", "gothic cathedral"
     );
 
+    /** 指名明清官式院落 preset——强制 typology（经 migrationMap 转 STRUCTURE） */
+    private static final List<String> MINGQING_COURTYARD_EXPLICIT = List.of(
+            "明清官式院落", "明清官式建筑群落", "明清四合院",
+            "ming qing courtyard", "mingqing courtyard"
+    );
+
     private static final List<String> NAMED_ARCHITECT_MARKERS = List.of(
             "扎哈", "zaha", "哈迪德", "hadid",
             "贝聿铭", "i.m. pei", "pei",
@@ -122,12 +128,19 @@ public final class LandmarkRoutingPolicy {
             return new RoutingDecision("gothic_cathedral", RoutingTier.MANDATORY, "explicit_gothic_cathedral");
         }
 
+        if (containsAny(lower, MINGQING_COURTYARD_EXPLICIT)) {
+            return new RoutingDecision("mingqing_courtyard", RoutingTier.MANDATORY, "explicit_mingqing_courtyard");
+        }
+
         // 其它地标：用户指名别名时强制 MODULE（优先于多样化措辞）
         for (LandmarkModuleRegistry.LandmarkModule module : LandmarkModuleRegistry.listModules()) {
             if ("birds_nest_stadium".equals(module.moduleId())) {
                 continue;
             }
             if ("gothic_cathedral".equals(module.moduleId())) {
+                continue;
+            }
+            if ("mingqing_courtyard".equals(module.moduleId())) {
                 continue;
             }
             if (mentionsExplicitLandmark(lower, module)) {

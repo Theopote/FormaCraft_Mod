@@ -25,7 +25,8 @@
   },
   "negativeKeywords": [
     "体育场", "城堡", "大教堂", "摩天楼", "stadium", "castle", "skyscraper",
-    "cottage", "小石头房子", "7x7"
+    "cottage", "小石头房子", "7x7",
+    "明清官式", "官式院落", "官式建筑群落", "mingqing courtyard"
   ],
   "proportionCardId": "siheyuan_courtyard",
   "llmPlanExampleRefs": ["siheyuan_courtyard_compositional.json"],
@@ -38,7 +39,7 @@
         "layout.skeleton_type=COURTYARD；global_constraints.symmetry=MIRROR_X",
         "输出 proportion_hints：courtyard_ratio≈0.35, height_to_width≈0.45, window_aspect=horizontal_strip",
         "各厢房配 ROOF + 面向内院的 FACADE_WINDOWS；禁止实心单盒子替代围合",
-        "仅用户指名明清官式地标群落时才用 MODULE/blueprint mingqing_courtyard"
+        "指名明清官式院落/官式建筑群落 → STRUCTURE + typology:courtyard_compound（reference_landmark=mingqing_courtyard）；禁止 MODULE"
       ]
     }
   ]

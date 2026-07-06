@@ -71,6 +71,13 @@ _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
         "buttressStep": 5,
         "facing": "SOUTH",
     },
+    "mingqing_courtyard": {
+        "width": 32,
+        "depth": 28,
+        "includePaths": True,
+        "pathWidth": 3,
+        "facing": "SOUTH",
+    },
 }
 
 
