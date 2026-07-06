@@ -37,6 +37,10 @@ public final class DetailRuleParser {
     }
 
     @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(Map<?, ?> map) {
+        return (Map<String, Object>) map;
+    }
+
     private static void appendExplicitRules(LlmPlan plan, List<DetailRule> rules, Set<String> seen) {
         Map<String, Object> hints = plan.proportionHints();
         if (hints == null) {
@@ -50,7 +54,7 @@ public final class DetailRuleParser {
             if (!(item instanceof Map<?, ?> map)) {
                 continue;
             }
-            DetailRule rule = parseRuleMap((Map<String, Object>) map, null);
+            DetailRule rule = parseRuleMap(asMap(map), null);
             if (rule != null && rule.isValid() && seen.add(ruleKey(rule))) {
                 rules.add(rule);
             }
@@ -150,7 +154,6 @@ public final class DetailRuleParser {
         return false;
     }
 
-    @SuppressWarnings("unchecked")
     private static DetailRule parseRuleMap(Map<String, Object> map, String presetId) {
         Object whenRaw = map.get("when");
         Object actionRaw = map.get("action");
@@ -163,8 +166,8 @@ public final class DetailRuleParser {
         if (!(whenRaw instanceof Map<?, ?> whenMap) || !(actionRaw instanceof Map<?, ?> actionMap)) {
             return null;
         }
-        DetailRule.DetailRuleWhen when = parseWhen((Map<String, Object>) whenMap);
-        DetailRule.DetailRuleAction action = parseAction((Map<String, Object>) actionMap);
+        DetailRule.DetailRuleWhen when = parseWhen(asMap(whenMap));
+        DetailRule.DetailRuleAction action = parseAction(asMap(actionMap));
         if (when == null || action == null) {
             return null;
         }
@@ -183,11 +186,11 @@ public final class DetailRuleParser {
         if (yRaw instanceof Number n) {
             offset = n.intValue();
         } else if (yRaw instanceof Map<?, ?> yMap) {
-            Object anchorRaw = firstPresent((Map<String, Object>) yMap, "anchor", "ref", "datum");
+            Object anchorRaw = firstPresent(asMap(yMap), "anchor", "ref", "datum");
             if (anchorRaw != null) {
                 anchor = DetailRuleYAnchor.parse(String.valueOf(anchorRaw));
             }
-            Object offRaw = firstPresent((Map<String, Object>) yMap, "offset", "delta");
+            Object offRaw = firstPresent(asMap(yMap), "offset", "delta");
             if (offRaw instanceof Number num) {
                 offset = num.intValue();
             }
@@ -206,7 +209,6 @@ public final class DetailRuleParser {
         return new DetailRule.DetailRuleWhen(region, anchor, offset, blockFilter);
     }
 
-    @SuppressWarnings("unchecked")
     private static DetailRule.DetailRuleAction parseAction(Map<String, Object> action) {
         Object typeRaw = firstPresent(action, "replace_with", "replaceWith", "type", "action");
         DetailRuleActionType type = DetailRuleActionType.parse(typeRaw == null ? null : String.valueOf(typeRaw));
