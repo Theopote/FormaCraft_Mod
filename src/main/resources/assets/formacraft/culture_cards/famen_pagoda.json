@@ -26,14 +26,14 @@
     "classical monument", "卢浮宫", "白宫"
   ],
   "proportionCardId": "famen_pagoda",
-  "landmarkModuleId": "giant_wild_goose_pagoda",
+  "landmarkModuleId": "famen_pagoda",
   "llmPlanExampleRefs": ["famen_pagoda_module.json"],
   "exampleRefs": [],
   "archetypes": [
     {
       "name": "famen_dense_eaves_pagoda",
       "constraints": [
-        "RECOMMENDED: MODULE + landmark:giant_wild_goose_pagoda（近似密檐方/八角砖塔；非法门寺精确复刻但优于通用盒子）",
+        "RECOMMENDED: MODULE + landmark:famen_pagoda（八角密檐砖塔专用生成器）",
         "params.levels=13, height≈47, baseWidth≈10, detailLevel=refined, facing=SOUTH",
         "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=MIRROR_X",
         "输出 proportion_hints：typology=famen_pagoda, floor_count=13, slenderness≈4.7, setback_ratio≈0.06",

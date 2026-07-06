@@ -59,7 +59,10 @@ public final class BlueprintSchema {
             return "great_wall";
         if (s.contains("eiffel")) return "eiffel_tower";
         if (s.contains("golden_gate") || s.contains("goldengate") || s.contains("suspension_bridge")) return "golden_gate_bridge";
-        if (s.contains("giant_wild_goose_pagoda") || s.contains("dayanta") || s.contains("pagoda")) return "giant_wild_goose_pagoda";
+        if (s.contains("famen") || s.contains("famensi") || s.contains("famen_pagoda")) return "famen_pagoda";
+        if (s.contains("foguang") || s.contains("foguang_temple")) return "foguang_temple_hall";
+        if (s.contains("giant_wild_goose_pagoda") || s.contains("dayanta")) return "giant_wild_goose_pagoda";
+        if (s.contains("pagoda")) return "giant_wild_goose_pagoda";
         return s;
     }
 

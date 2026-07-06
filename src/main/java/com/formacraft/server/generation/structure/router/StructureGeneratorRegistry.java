@@ -37,6 +37,8 @@ public final class StructureGeneratorRegistry {
         register("great_wall", GreatWallGenerator::new);
         register("golden_gate_bridge", GoldenGateBridgeGenerator::new);
         register("giant_wild_goose_pagoda", GiantWildGoosePagodaGenerator::new);
+        register("famen_pagoda", FamenPagodaGenerator::new);
+        register("foguang_temple_hall", FoguangTempleHallGenerator::new);
         register("castle_compound", CastleCompoundGenerator::new);
         register("office_district", OfficeDistrictGenerator::new);
         register("mingqing_courtyard", MingQingCourtyardGenerator::new);

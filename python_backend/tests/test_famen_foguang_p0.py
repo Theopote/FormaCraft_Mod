@@ -15,7 +15,7 @@ class FamenPagodaCultureTest(unittest.TestCase):
         self.assertTrue(rag.get("hits"))
         self.assertEqual(rag["hits"][0]["id"], "famen_pagoda")
         self.assertEqual(rag.get("proportionCardId"), "famen_pagoda")
-        self.assertEqual(rag.get("landmarkModuleId"), "giant_wild_goose_pagoda")
+        self.assertEqual(rag.get("landmarkModuleId"), "famen_pagoda")
         self.assertTrue(rag.get("llmPlanFewShots"))
 
     def test_famen_beats_temple_of_heaven(self):
@@ -36,12 +36,14 @@ class FamenPagodaCultureTest(unittest.TestCase):
 
     def test_famen_archetype(self):
         from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
+        from app.services.building_research_agent import resolve_landmark_module_for_intent
 
         match = detect_archetype_local(self.FAMEN_PROMPT)
         self.assertIsNotNone(match)
         self.assertEqual(match.id, "famen_pagoda")
         self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
         self.assertTrue(match.qualifies_for_module_route())
+        self.assertEqual(resolve_landmark_module_for_intent(self.FAMEN_PROMPT), "famen_pagoda")
 
 
 class FoguangTempleHallCultureTest(unittest.TestCase):
@@ -54,7 +56,7 @@ class FoguangTempleHallCultureTest(unittest.TestCase):
         self.assertTrue(rag.get("hits"))
         self.assertEqual(rag["hits"][0]["id"], "foguang_temple_hall")
         self.assertEqual(rag.get("proportionCardId"), "foguang_temple_hall")
-        self.assertIsNone(rag.get("landmarkModuleId"))
+        self.assertEqual(rag.get("landmarkModuleId"), "foguang_temple_hall")
         self.assertTrue(rag.get("llmPlanFewShots"))
 
     def test_foguang_beats_cottage(self):
@@ -71,6 +73,12 @@ class FoguangTempleHallCultureTest(unittest.TestCase):
         assert card is not None
         self.assertEqual(card.get("id"), "foguang_temple_hall")
         self.assertIn("bay_count_x", card.get("ratios", {}))
+
+    def test_foguang_landmark_module_via_rag(self):
+        from app.services.keyword_culture_retriever import retrieve
+
+        rag = retrieve(self.FOGUANG_PROMPT, topK=3, fewShotK=0)
+        self.assertEqual(rag.get("landmarkModuleId"), "foguang_temple_hall")
 
     def test_foguang_archetype_research_only(self):
         from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE

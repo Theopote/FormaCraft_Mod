@@ -33,7 +33,8 @@ public final class GiantWildGoosePagodaBlueprintCompiler implements BlueprintCom
         String t = asLower(blueprint.get("blueprint_type"));
         if (t.isBlank()) t = asLower(blueprint.get("blueprintType"));
         if (t.isBlank()) t = asLower(blueprint.get("type"));
-        return t.contains("giant_wild_goose_pagoda") || t.contains("wild_goose") || t.contains("pagoda") || t.contains("dayanta");
+        return t.contains("giant_wild_goose_pagoda") || t.contains("wild_goose") || t.contains("dayanta")
+                || (t.contains("pagoda") && !t.contains("famen"));
     }
 
     @Override

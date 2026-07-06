@@ -28,6 +28,8 @@ public final class BlueprintCompilerRegistry {
             new GreatWallBlueprintCompiler(),
             new EiffelTowerBlueprintCompiler(),
             new GoldenGateBridgeBlueprintCompiler(),
+            new FamenPagodaBlueprintCompiler(),
+            new FoguangTempleHallBlueprintCompiler(),
             new GiantWildGoosePagodaBlueprintCompiler()
     );
 

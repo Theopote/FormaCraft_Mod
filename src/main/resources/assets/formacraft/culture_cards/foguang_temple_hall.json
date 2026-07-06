@@ -28,14 +28,15 @@
     "classical monument", "vertical stack tower", "pagoda"
   ],
   "proportionCardId": "foguang_temple_hall",
-  "llmPlanExampleRefs": ["foguang_temple_hall_compositional.json"],
+  "landmarkModuleId": "foguang_temple_hall",
+  "llmPlanExampleRefs": ["foguang_temple_hall_module.json", "foguang_temple_hall_compositional.json"],
   "exampleRefs": [],
   "archetypes": [
     {
       "name": "tang_seven_bay_hall",
       "constraints": [
-        "唐代佛殿：面阔七开间 × 进深四开间，单檐庑殿顶，木构架+斗拱铺作",
-        "alignment_and_symmetry.rhythm_x：7 等分开间；rhythm_z：4 等分进深",
+        "RECOMMENDED: MODULE + landmark:foguang_temple_hall（七开间唐代木构大殿专用生成器）",
+        "params.baysX=7, baysZ=4, width≈21, depth≈15, hallHeight≈7, includeSubEaves=true, facing=SOUTH",
         "MASS_MAIN 低而阔（height_to_width≈0.5），FOUNDATION 石台基，ROOF 大出檐 xuanshan",
         "DECOR_DETAIL：柱网/bracket_sets/dougong；facade_profile=vertical_pilasters",
         "style_attributes.decorative_elements 必含 bracket,dougong,eaves",

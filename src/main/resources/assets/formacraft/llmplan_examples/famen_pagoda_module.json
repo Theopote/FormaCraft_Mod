@@ -1,5 +1,5 @@
 {
-  "description": "法门寺舍利塔 → giant_wild_goose_pagoda 近似模块（13 层密檐砖塔 few-shot）",
+  "description": "法门寺舍利塔 → famen_pagoda 专用模块（13 层八角密檐砖塔 few-shot）",
   "promptHints": ["法门寺", "法门寺舍利塔", "法门寺塔", "famen pagoda", "famen temple"],
   "plan": {
     "mode": "build",
@@ -47,9 +47,9 @@
         "component_type": "MODULE",
         "relative_position": { "x": 0, "y": 0, "z": 0 },
         "dimensions": { "width": 10, "depth": 10, "height": 47 },
-        "features": ["landmark:giant_wild_goose_pagoda"],
+        "features": ["landmark:famen_pagoda"],
         "params": {
-          "module_id": "giant_wild_goose_pagoda",
+          "module_id": "famen_pagoda",
           "levels": 13,
           "height": 47,
           "baseWidth": 10,

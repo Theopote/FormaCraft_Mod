@@ -67,7 +67,7 @@
         "famen si pagoda", "famen stupa", "famensi pagoda", "famen temple stupa"
       ],
       "category": "LANDMARK",
-      "generatorId": "giant_wild_goose_pagoda",
+      "generatorId": "famen_pagoda",
       "defaults": { "levels": 13, "height": 47, "baseWidth": 10 },
       "constraints": { "minLevels": 7, "maxLevels": 15, "minHeight": 28, "maxHeight": 72, "minBaseWidth": 7, "maxBaseWidth": 14 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
@@ -134,7 +134,8 @@
       ],
       "category": "LANDMARK",
       "researchOnly": true,
-      "defaults": {},
+      "generatorId": "foguang_temple_hall",
+      "defaults": { "width": 21, "depth": 15, "baysX": 7, "baysZ": 4 },
       "constraints": {},
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
     },
