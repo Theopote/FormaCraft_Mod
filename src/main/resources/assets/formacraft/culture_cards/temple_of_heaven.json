@@ -28,7 +28,7 @@
   ],
   "proportionCardId": "temple_of_heaven",
   "structuralTypologyId": "radial_terrace_hall",
-  "llmPlanExampleRefs": ["temple_of_heaven_radial_typology.json", "temple_of_heaven_module.json"],
+  "llmPlanExampleRefs": ["temple_of_heaven_radial_typology.json"],
   "exampleRefs": [],
   "archetypes": [
     {

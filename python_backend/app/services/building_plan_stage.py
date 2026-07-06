@@ -15,6 +15,7 @@ from ..models.building_profile import BuildingProfile
 
 # 与 Java ComponentGeneratorRegistry / LlmPlan prompt 对齐的可注册构件类型
 REGISTERED_COMPONENT_TYPES: Tuple[str, ...] = (
+    "STRUCTURE",
     "MASS_MAIN",
     "MASS_SECONDARY",
     "MASS_ANCILLARY",
@@ -48,7 +49,9 @@ PLAN_STAGE_SYSTEM_ADDON = (
     "- Prefer minecraft_strategy.recommended_components; map distinctive_elements to params/features.\n"
     "- Respect scale_hints for dimensions (width/depth/height in blocks).\n"
     "- Set layout.skeleton_type from minecraft_strategy when present.\n"
-    "- Use MODULE + feature landmark:xxx ONLY if profile.minecraft_strategy.landmark_module is non-null.\n"
+    "- When structural_typology is set → STRUCTURE + typology:<id>; landmark_module must be null.\n"
+    "- MODULE + landmark:xxx ONLY for non-migrated presets when landmark_module is explicitly non-null.\n"
+    "- Set proportion_hints.typology when structural_typology is present.\n"
     "- Do NOT output block ids; semantic components only.\n"
     "- global_constraints.symmetry MUST be one of: NONE, MIRROR_X, MIRROR_Z, RADIAL "
     "(NOT genome.symmetry.type values like bilateral/radial).\n"
@@ -67,8 +70,44 @@ RESEARCH_OVERRIDE_MARKER = "OPEN-WORLD RESEARCH OVERRIDE"
 
 def research_landmark_override_block(profile: BuildingProfile) -> str:
     """Authoritative override for Java-side landmark MODULE prompt leakage."""
-    lm = (profile.minecraft_strategy.landmark_module or "").strip()
+    mc = profile.minecraft_strategy
+    stid = (mc.structural_typology or "").strip()
+    lm = (mc.landmark_module or "").strip()
+    ref = (mc.reference_landmark or "").strip()
+
+    if stid:
+        ref_hint = f'\nSet params.reference_landmark="{ref}".' if ref else ""
+        return f"""
+========================================
+{RESEARCH_OVERRIDE_MARKER} (authoritative)
+========================================
+BuildingProfile.minecraft_strategy.structural_typology = "{stid}"
+BuildingProfile.minecraft_strategy.landmark_module = null
+You MUST output ONE STRUCTURE component with features ["typology:{stid}"]{ref_hint}
+Set proportion_hints.typology = "{stid}".
+Do NOT output MODULE or landmark:* for typology-first buildings.
+Ignore conflicting landmark MODULE hints from earlier prompt sections.
+
+"""
+
     if lm:
+        try:
+            from .typology_registry import is_migrated_landmark, typology_for_legacy_module
+
+            if is_migrated_landmark(lm):
+                tid = typology_for_legacy_module(lm) or ""
+                if tid:
+                    return f"""
+========================================
+{RESEARCH_OVERRIDE_MARKER} (authoritative)
+========================================
+Landmark "{lm}" is typology-first (migrated). landmark_module must be null.
+Output STRUCTURE with features ["typology:{tid}"] and params.reference_landmark="{lm}".
+Do NOT output MODULE.
+
+"""
+        except Exception:
+            pass
         return f"""
 ========================================
 {RESEARCH_OVERRIDE_MARKER} (authoritative)
@@ -83,9 +122,10 @@ Ignore conflicting landmark hints from earlier prompt sections.
 {RESEARCH_OVERRIDE_MARKER} (authoritative)
 ========================================
 BuildingProfile.minecraft_strategy.landmark_module = null
-Do NOT output MODULE or landmark:* features.
+Do NOT output MODULE or landmark:* unless profile sets a non-migrated landmark_module.
+If structural_typology is present, use STRUCTURE + typology:* instead.
 IGNORE all "LANDMARK MODULE ROUTING (MANDATORY/RECOMMENDED)" sections above.
-Compose using minecraft_strategy.recommended_components and distinctive_elements only.
+Compose using minecraft_strategy.recommended_components and distinctive_elements.
 
 """
 
@@ -149,7 +189,7 @@ def build_plan_stage_user_block(
         "2. components[] ← recommended_components + distinctive_elements",
         "3. dimensions ← scale_hints (blocks); use reasonable defaults if null",
         "4. style_profile ← identity.style when available; if identity.architect is set, match that architect's style profile",
-        "5. MODULE/landmark only when landmark_module is set in profile (never birds_nest for Zaha/architect-led)",
+        "5. structural_typology set → STRUCTURE + typology:*; MODULE only for non-migrated landmark_module",
         "6. Architectural richness (required for open-world): MASS params.facade_profile=vertical_pilasters or base_plinth, "
         "params.wall_pattern=gradient, FOUNDATION plinth, ROOF with params.roof_height+overhang, "
         "FACADE_WINDOWS with params.window_aspect/rhythm, ≥1 DECOR_DETAIL cornice or column band.",

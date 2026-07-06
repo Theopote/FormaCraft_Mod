@@ -27,7 +27,7 @@
   ],
   "proportionCardId": "famen_pagoda",
   "structuralTypologyId": "dense_eaves_pagoda",
-  "llmPlanExampleRefs": ["famen_dense_eaves_typology.json", "famen_pagoda_module.json"],
+  "llmPlanExampleRefs": ["famen_dense_eaves_typology.json"],
   "exampleRefs": [],
   "archetypes": [
     {

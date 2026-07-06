@@ -484,7 +484,8 @@ def finalize_profile_minecraft_strategy(
 ) -> BuildingProfile:
     """
     Authoritative minecraft_strategy after research:
-    - known preset landmark → landmark_module + MODULE
+    - structural_typology resolved → typology-first STRUCTURE; landmark_module=null
+    - non-migrated preset landmark (MODULE whitelist) → landmark_module + MODULE
     - everything else → landmark_module=null + compositional components
     """
     if classification is not None:
@@ -858,12 +859,17 @@ def synthesize_profile_with_llm(
         "form{footprint,massing,stories,aspect_ratio}, "
         "structure{roof_types,facade,distinctive_elements,distinguishing_features}, "
         "scale_hints{typical_width_blocks,typical_depth_blocks,typical_height_blocks}, "
-        "minecraft_strategy{skeleton_type,recommended_components,landmark_module,notes}, "
+        "minecraft_strategy{skeleton_type,structural_typology,reference_landmark,recommended_components,landmark_module,notes}, "
         "research_notes, reference_blueprint (optional, same schema as vision ReferenceBlueprint). "
-        "recommended_components must use only: MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE, "
+        "recommended_components must use only: STRUCTURE, MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE, "
         "TOWER, WALL, COURTYARD_SPACE, MODULE, TERRACE. "
-        "landmark_module is usually null unless the user names a building with a known preset "
-        "(e.g. eiffel_tower, golden_gate_bridge, great_wall). "
+        "landmark_module is usually null. When the user names a Chinese pagoda/hall/temple with a known "
+        "structural typology, set structural_typology (e.g. dense_eaves_pagoda, tailiang_timber_hall, "
+        "radial_terrace_hall) and reference_landmark; keep landmark_module=null. "
+        "NEVER set landmark_module for famen_pagoda, giant_wild_goose_pagoda, foguang_temple_hall, "
+        "or temple_of_heaven — they are typology-first only. "
+        "landmark_module only for explicit non-migrated presets (e.g. birds_nest_stadium, "
+        "golden_gate_bridge, great_wall, eiffel_tower). "
         "For Louvre, White House, Sydney Opera House, Sagrada Família, etc., set landmark_module=null and "
         "list compositional recommended_components. "
         "distinguishing_features (REQUIRED when identity.name is a specific real building): "
@@ -926,9 +932,16 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
         "The following profile was synthesized from web research and the user request.",
         "Use it to inform accurate LlmPlan generation.",
         "",
-        "CRITICAL routing:",
-        "- If minecraft_strategy.landmark_module is null → compositional plan ONLY; do NOT use MODULE.",
-        "- If landmark_module is set → one MODULE with features [\"landmark:<id>\"] is allowed.",
+        "CRITICAL routing (typology-first):",
+        "- When minecraft_strategy.structural_typology is set → output STRUCTURE with "
+        "features [\"typology:<id>\"] and params.reference_landmark if provided; "
+        "landmark_module MUST stay null.",
+        "- Migrated landmarks (famen_pagoda, giant_wild_goose_pagoda, foguang_temple_hall, "
+        "temple_of_heaven) NEVER use MODULE — even if Java LANDMARK MODULE blocks suggest it.",
+        "- If landmark_module is null → compositional and/or STRUCTURE typology; do NOT use MODULE.",
+        "- MODULE allowed ONLY when landmark_module is a non-migrated preset explicitly set in this "
+        "profile (e.g. birds_nest_stadium, golden_gate_bridge, gothic_cathedral).",
+        "- Set proportion_hints.typology to structural_typology when present.",
         "- IGNORE any Java prompt 'LANDMARK MODULE ROUTING' sections that conflict with this profile.",
         "",
         "CRITICAL distinguishing features (override generic style keywords):",

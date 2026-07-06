@@ -29,7 +29,7 @@
   ],
   "proportionCardId": "foguang_temple_hall",
   "structuralTypologyId": "tailiang_timber_hall",
-  "llmPlanExampleRefs": ["foguang_tailiang_typology.json", "foguang_temple_hall_module.json", "foguang_temple_hall_compositional.json"],
+  "llmPlanExampleRefs": ["foguang_tailiang_typology.json", "foguang_temple_hall_compositional.json"],
   "exampleRefs": [],
   "archetypes": [
     {
