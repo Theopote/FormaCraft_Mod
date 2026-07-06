@@ -55,6 +55,11 @@ public final class LandmarkRoutingPolicy {
             "椭圆", "椭圆形", "elliptical", "oval", "碗状", "看台"
     );
 
+    /** 指名哥特大教堂 preset——强制 typology（经 migrationMap 转 STRUCTURE） */
+    private static final List<String> GOTHIC_CATHEDRAL_EXPLICIT = List.of(
+            "哥特大教堂", "哥特式大教堂", "gothic cathedral"
+    );
+
     private static final List<String> NAMED_ARCHITECT_MARKERS = List.of(
             "扎哈", "zaha", "哈迪德", "hadid",
             "贝聿铭", "i.m. pei", "pei",
@@ -110,9 +115,19 @@ public final class LandmarkRoutingPolicy {
             return new RoutingDecision("birds_nest_stadium", RoutingTier.MANDATORY, "explicit_birds_nest");
         }
 
+        if (containsAny(lower, GOTHIC_CATHEDRAL_EXPLICIT)
+                && !lower.contains("notre dame") && !lower.contains("巴黎圣母院")
+                && !lower.contains("cologne") && !lower.contains("科隆")
+                && !lower.contains("chartres") && !lower.contains("sagrada") && !lower.contains("圣家族")) {
+            return new RoutingDecision("gothic_cathedral", RoutingTier.MANDATORY, "explicit_gothic_cathedral");
+        }
+
         // 其它地标：用户指名别名时强制 MODULE（优先于多样化措辞）
         for (LandmarkModuleRegistry.LandmarkModule module : LandmarkModuleRegistry.listModules()) {
             if ("birds_nest_stadium".equals(module.moduleId())) {
+                continue;
+            }
+            if ("gothic_cathedral".equals(module.moduleId())) {
                 continue;
             }
             if (mentionsExplicitLandmark(lower, module)) {

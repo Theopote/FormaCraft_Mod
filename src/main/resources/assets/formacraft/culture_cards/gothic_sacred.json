@@ -13,7 +13,10 @@
     "飞扶壁": 4.0,
     "尖拱": 4.0
   },
-  "negativeKeywords": ["现代", "现代主义", "幕墙", "玻璃摩天楼", "包豪斯", "极简"],
+  "negativeKeywords": ["现代", "现代主义", "幕墙", "玻璃摩天楼", "包豪斯", "极简", "哥特大教堂", "gothic cathedral"],
+  "proportionCardId": "gothic_cathedral_hall",
+  "structuralTypologyId": "gothic_cathedral_hall",
+  "llmPlanExampleRefs": ["gothic_cathedral_hall_typology.json"],
   "exampleRefs": [
     "macro_style_gothic_box.json",
     "box_gothic_vertical.json",
@@ -35,6 +38,8 @@
         }
       },
       "constraints": [
+        "PREFERRED: structural_typology=gothic_cathedral_hall + STRUCTURE/typology params（中殿侧廊飞扶壁）",
+        "泛哥特/神圣建筑可用 assembly macro；指名哥特大教堂 → reference_landmark=gothic_cathedral",
         "OPENINGS 包含 ARCH_WINDOW(POINTED) 与 ROSE_WINDOW",
         "高 verticality（尖塔/竖向节律）优先"
       ]

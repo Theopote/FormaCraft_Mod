@@ -126,7 +126,9 @@
       "genericAliases": ["gothic cathedral", "哥特", "大教堂", "cathedral"],
       "aliases": ["哥特大教堂", "gothic cathedral"],
       "category": "LANDMARK",
-      "generatorId": "gothic_cathedral",
+      "researchOnly": true,
+      "typologyId": "gothic_cathedral_hall",
+      "generatorId": "gothic_cathedral_hall",
       "defaults": { "width": 25, "depth": 45, "wallHeight": 16, "towerHeight": 20, "spireHeight": 10 },
       "constraints": { "minWidth": 17, "maxWidth": 101, "minDepth": 25, "maxDepth": 151, "minWallHeight": 12, "maxWallHeight": 40 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }

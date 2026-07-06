@@ -2,7 +2,7 @@
   "version": 1,
   "styleProfiles": [
     { "styleProfileId": "Chinese_Vernacular_Jiangnan_WaterTown", "generatorKey": "jiangnan_water_town" },
-    { "styleProfileId": "Gothic_Cathedral", "generatorKey": "gothic_cathedral" },
+    { "styleProfileId": "Gothic_Cathedral", "generatorKey": "gothic_cathedral_hall" },
     { "styleProfileId": "Brutalism", "generatorKey": "brutalist_megastructure" },
     { "styleProfileId": "Deconstructivism_Zaha", "generatorKey": "parametric_deconstructivism" }
   ],
@@ -24,7 +24,7 @@
     { "id": "japanese_tea_house", "keywords": ["japanese_tea_house", "tea_house", "teahouse", "chashitsu", "茶室"], "generatorKey": "japanese_tea_house" },
     { "id": "pantheon", "keywords": ["pantheon", "万神殿", "dome_temple"], "generatorKey": "pantheon" },
     { "id": "parthenon", "keywords": ["parthenon", "帕特农", "classical_temple", "greco_roman_temple"], "generatorKey": "parthenon" },
-    { "id": "gothic_cathedral", "keywords": ["gothic_cathedral", "cathedral", "notre_dame", "cologne", "哥特"], "generatorKey": "gothic_cathedral" },
+    { "id": "gothic_cathedral", "keywords": ["gothic_cathedral", "cathedral", "notre_dame", "cologne", "哥特", "哥特大教堂"], "generatorKey": "gothic_cathedral_hall" },
     { "id": "modern_skyscraper", "keywords": ["modern_skyscraper", "highrise", "skyscraper", "摩天", "摩天楼"], "generatorKey": "modern_skyscraper" },
     { "id": "modern_office_campus", "keywords": ["modern_office_campus", "office_campus", "campus", "园区"], "generatorKey": "modern_office_campus" },
     { "id": "modern_bauhaus_rowhouse", "keywords": ["bauhaus_rowhouse", "bauhaus", "rowhouse", "townhouse", "terrace", "联排", "包豪斯"], "generatorKey": "modern_bauhaus_rowhouse" },

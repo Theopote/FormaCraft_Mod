@@ -66,13 +66,13 @@ class ArchetypeDetectorTest(unittest.TestCase):
             self.assertFalse(match.qualifies_for_module_route())
         self.assertIsNone(resolve_landmark_module_for_intent("生成圣家族大教堂"))
 
-    def test_explicit_gothic_cathedral_routes_module(self):
+    def test_explicit_gothic_cathedral_detects_archetype_not_module_route(self):
         match = detect_archetype_local("哥特大教堂")
         self.assertIsNotNone(match)
         self.assertEqual(match.id, "gothic_cathedral")
         self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
-        self.assertTrue(match.qualifies_for_module_route())
-        self.assertEqual(resolve_landmark_module_for_intent("哥特大教堂"), "gothic_cathedral")
+        self.assertFalse(match.qualifies_for_module_route())
+        self.assertIsNone(resolve_landmark_module_for_intent("哥特大教堂"))
 
     def test_generic_cathedral_only_typology_hint(self):
         match = detect_archetype_local("生成一个大教堂")
@@ -104,11 +104,13 @@ class ResearchOnlyLandmarkTest(unittest.TestCase):
         rc = classify_building_request_local("科隆大教堂")
         self.assertTrue(rc.is_specific_real_building)
 
-    def test_gothic_cathedral_template_still_routes_module(self):
-        self.assertEqual(
-            resolve_landmark_module_for_intent("哥特大教堂"),
-            "gothic_cathedral",
-        )
+    def test_gothic_cathedral_template_routes_typology_not_module(self):
+        from app.services.keyword_culture_retriever import resolve_landmark_module_routing
+
+        routing = resolve_landmark_module_routing("哥特大教堂")
+        self.assertIsNotNone(routing)
+        self.assertEqual(routing.get("typologyId"), "gothic_cathedral_hall")
+        self.assertEqual(routing.get("componentType"), "STRUCTURE")
 
 
 class BroadTypologyAliasTest(unittest.TestCase):

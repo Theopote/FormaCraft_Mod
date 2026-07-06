@@ -1,0 +1,34 @@
+{
+  "id": "gothic_cathedral_hall",
+  "typology": "gothic_cathedral_hall",
+  "matchKeywords": [
+    "哥特", "教堂", "大教堂", "尖拱", "玫瑰花窗", "飞扶壁", "中殿", "侧廊",
+    "gothic cathedral", "cathedral", "pointed arch", "rose window", "flying buttress"
+  ],
+  "ratios": {
+    "nave_length_to_width": {
+      "min": 1.4,
+      "ideal": 1.8,
+      "max": 2.5,
+      "desc": "中殿深/宽（纵向比例）"
+    },
+    "tower_height_to_nave": {
+      "min": 1.1,
+      "ideal": 1.35,
+      "max": 1.8,
+      "desc": "塔高/中殿墙高"
+    },
+    "spire_to_tower": {
+      "min": 0.35,
+      "ideal": 0.5,
+      "max": 0.7,
+      "desc": "尖顶高/塔身"
+    }
+  },
+  "openingGrammar": {
+    "window_aspect": ["pointed_arch", "rose_window", "vertical_strip"],
+    "min_enclosure_coverage": 0.75,
+    "max_void_ratio": 0.35
+  },
+  "aiInstruction": "Research width, depth, wallHeight, towerHeight, spireHeight before STRUCTURE typology:gothic_cathedral_hall. layout.skeleton_type=GRID_BAY; global_constraints.symmetry=MIRROR_X. 指名哥特大教堂时 reference_landmark=gothic_cathedral。禁止用单一 MASS 方盒代替中殿+侧廊+飞扶壁体系。"
+}

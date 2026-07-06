@@ -207,11 +207,13 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 路由 | `LandmarkRoutingPolicy` 跳过 migrated 指名强制 MODULE |
 | Java 构件 | `TypologyComponentRouter` 从 `landmark:` feature 解析 typology；`StructureGeneratorAdaptor` 不写 `extra.landmark` |
 
-**仍保留 MODULE 的地标**（未迁入 migrationMap）：`gothic_cathedral` 等。
+**仍保留 MODULE 的地标**（未迁入 migrationMap）：`castle_compound` 等。
 
 **Phase 8.19 已迁入 typology-first**：`birds_nest_stadium` → `stadium_bowl`（`StadiumBowlBuilder` + `StadiumBowlInterpreter`）。
 
 **Phase 8.20 已迁入 typology-first**：`golden_gate_bridge` → `suspension_bridge`（`SuspensionBridgeBuilder` + `SuspensionBridgeInterpreter`）。
+
+**Phase 8.21 已迁入 typology-first**：`gothic_cathedral` → `gothic_cathedral_hall`（`GothicCathedralHallBuilder` + `GothicCathedralHallInterpreter`）。
 
 ### Phase 5 细节（天坛 / 祈年殿）
 

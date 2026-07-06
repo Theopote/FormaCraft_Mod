@@ -81,6 +81,7 @@ class PrBMigratedCultureCardContractTest(unittest.TestCase):
         "temple_of_heaven": "radial_terrace_hall",
         "birds_nest_stadium": "stadium_bowl",
         "golden_gate_bridge": "suspension_bridge",
+        "gothic_cathedral": "gothic_cathedral_hall",
     }
 
     def test_migration_map_matches_expected(self):

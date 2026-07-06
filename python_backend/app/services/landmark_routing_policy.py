@@ -47,6 +47,10 @@ BIRDS_NEST_EXPLICIT: List[str] = [
     "bird's nest", "birds nest", "birds' nest", "beijing national stadium",
 ]
 
+GOTHIC_CATHEDRAL_EXPLICIT: List[str] = [
+    "哥特大教堂", "哥特式大教堂", "gothic cathedral",
+]
+
 STADIUM_TYPOLOGY: List[str] = ["体育场", "体育馆", "stadium", "arena", "球场"]
 ELLIPSE_TYPOLOGY: List[str] = ["椭圆", "椭圆形", "elliptical", "oval", "碗状", "看台"]
 
@@ -105,6 +109,11 @@ def resolve_for_user_intent(text: str) -> Optional[RoutingDecision]:
     # 指名鸟巢 — 即使同时含「不一样」等多样化词，仍强制 MODULE
     if _contains_any(lower, BIRDS_NEST_EXPLICIT):
         return RoutingDecision("birds_nest_stadium", RoutingTier.MANDATORY, "explicit_birds_nest")
+
+    if _contains_any(lower, GOTHIC_CATHEDRAL_EXPLICIT) and not any(
+        x in lower for x in ("notre dame", "巴黎圣母院", "cologne", "科隆", "chartres", "sagrada", "圣家族")
+    ):
+        return RoutingDecision("gothic_cathedral", RoutingTier.MANDATORY, "explicit_gothic_cathedral")
 
     # 点名建筑师 + 体育场 → 参数化形体，禁止默认 birds_nest typology
     if _contains_any(lower, NAMED_ARCHITECT_MARKERS) and _contains_any(lower, STADIUM_TYPOLOGY):

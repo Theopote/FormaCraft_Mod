@@ -56,7 +56,7 @@ public final class StructureGeneratorRegistry {
         register("japanese_tea_house", JapaneseTeaHouseGenerator::new);
         register("pantheon", PantheonGenerator::new);
         register("parthenon", ParthenonTempleGenerator::new);
-        register("gothic_cathedral", GothicCathedralGenerator::new);
+        register("gothic_cathedral_hall", () -> new TypologyBackedStructureGenerator("gothic_cathedral_hall"));
         register("modern_skyscraper", ModernSkyscraperGenerator::new);
         register("modern_office_campus", ModernOfficeCampusGenerator::new);
         register("modern_bauhaus_rowhouse", ModernBauhausRowhouseGenerator::new);

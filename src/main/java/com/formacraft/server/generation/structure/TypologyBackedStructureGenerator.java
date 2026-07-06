@@ -3,6 +3,7 @@ package com.formacraft.server.generation.structure;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.server.generation.typology.builder.DenseEavesPagodaBuilder;
+import com.formacraft.server.generation.typology.builder.GothicCathedralHallBuilder;
 import com.formacraft.server.generation.typology.builder.RadialTerraceHallBuilder;
 import com.formacraft.server.generation.typology.builder.StadiumBowlBuilder;
 import com.formacraft.server.generation.typology.builder.SuspensionBridgeBuilder;
@@ -41,6 +42,8 @@ public final class TypologyBackedStructureGenerator implements StructureGenerato
                     StadiumBowlBuilder.fromBuildingSpec(spec, origin, world);
             case SuspensionBridgeBuilder.TYPOLOGY_ID ->
                     SuspensionBridgeBuilder.fromBuildingSpec(spec, origin, world);
+            case GothicCathedralHallBuilder.TYPOLOGY_ID ->
+                    GothicCathedralHallBuilder.fromBuildingSpec(spec, origin, world);
             default -> null;
         };
     }

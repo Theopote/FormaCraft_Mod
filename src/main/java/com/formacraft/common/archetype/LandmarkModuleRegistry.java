@@ -121,6 +121,8 @@ public final class LandmarkModuleRegistry {
         sb.append("- 椭圆/椭圆形 + 体育场/体育馆 → RECOMMENDED typology:stadium_bowl OR compositional MASS tiers\n");
         sb.append("- 金门大桥 / Golden Gate (explicit name) → MANDATORY STRUCTURE + typology:suspension_bridge (reference_landmark=golden_gate_bridge)\n");
         sb.append("- 悬索桥/吊桥（泛型） → RECOMMENDED typology:suspension_bridge OR ASSEMBLY preset=suspension_bridge_simple\n");
+        sb.append("- 哥特大教堂 / Gothic cathedral (explicit preset) → MANDATORY STRUCTURE + typology:gothic_cathedral_hall (reference_landmark=gothic_cathedral)\n");
+        sb.append("- 哥特/教堂/玫瑰花窗（泛型） → RECOMMENDED typology:gothic_cathedral_hall OR assembly macro\n");
         sb.append("- 原创/独特/不要地标 → do NOT force MODULE; compose with varied MASS + PAVING + ROOF\n");
         sb.append("- MassMainGenerator cannot render true elliptical bowl seating; use MODULE or tiered masses/plan_program.\n");
         sb.append("Available module_id values:\n");

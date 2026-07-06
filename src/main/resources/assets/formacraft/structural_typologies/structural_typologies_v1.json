@@ -251,6 +251,52 @@
       "proportionCardIds": ["suspension_bridge"],
       "cultureCardIds": ["suspension_bridge", "golden_gate_bridge"],
       "llmPlanGuidance": "Use structural_typology=suspension_bridge with layout.skeleton_type=SPAN_SUSPENSION. Output proportion_hints.typology=suspension_bridge, span_to_tower_height≈4.0, cable_sag_ratio≈0.12. Prefer STRUCTURE + typology:suspension_bridge; set reference_landmark=golden_gate_bridge when user names Golden Gate. Params: span, deckWidth, towerHeight, followTerrain, facing, detailLevel. global_constraints.symmetry=MIRROR_X. FORBID plain PATH polyline without twin towers and main cables."
+    },
+    {
+      "id": "gothic_cathedral_hall",
+      "displayName": {
+        "zh": "哥特教堂中殿",
+        "en": "Gothic cathedral hall"
+      },
+      "skeletonType": "GRID_BAY",
+      "styleFamilies": ["Gothic_Cathedral", "Gothic_Sacred"],
+      "matchKeywords": [
+        "哥特", "教堂", "大教堂", "尖拱", "玫瑰花窗", "飞扶壁", "中殿", "侧廊", "彩窗",
+        "gothic cathedral", "gothic church", "cathedral", "pointed arch", "rose window",
+        "flying buttress", "nave", "aisle"
+      ],
+      "negativeKeywords": [
+        "现代", "摩天楼", "体育场", "四合院", "古建塔", "住宅", "巴黎圣母院", "notre dame",
+        "科隆", "cologne", "chartres", "sagrada", "圣家族"
+      ],
+      "interpreterId": "gothic_cathedral_hall",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "width": 25,
+        "depth": 45,
+        "wallHeight": 16,
+        "towerHeight": 20,
+        "spireHeight": 10,
+        "buttressStep": 5,
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "width": { "min": 17, "ideal": 25, "max": 101, "desc": "平面宽（含侧廊）" },
+        "depth": { "min": 25, "ideal": 45, "max": 151, "desc": "中殿纵深" },
+        "wallHeight": { "min": 12, "ideal": 16, "max": 40, "desc": "中殿墙高" },
+        "towerHeight": { "min": 16, "ideal": 20, "max": 80, "desc": "立面塔身高" },
+        "spireHeight": { "min": 6, "ideal": 10, "max": 26, "desc": "尖顶高度" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "gothic_cathedral",
+          "role": "primary",
+          "notes": "Generic Gothic cathedral preset：双塔+玫瑰窗+飞扶壁，GRID_BAY 骨架"
+        }
+      ],
+      "proportionCardIds": ["gothic_cathedral_hall"],
+      "cultureCardIds": ["gothic_sacred", "gothic_cathedral"],
+      "llmPlanGuidance": "Use structural_typology=gothic_cathedral_hall with layout.skeleton_type=GRID_BAY. Output proportion_hints.typology=gothic_cathedral_hall, nave_length_to_width≈1.8, tower_height_to_nave≈1.35. Prefer STRUCTURE + typology:gothic_cathedral_hall; set reference_landmark=gothic_cathedral when user names Gothic cathedral preset. Params: width, depth, wallHeight, towerHeight, spireHeight, buttressStep, facing. global_constraints.symmetry=MIRROR_X. FORBID single MASS box without nave/aisle/buttress grammar. Notre Dame/Cologne/Sagrada are research-only — compose instead."
     }
   ],
   "migrationMap": {
@@ -295,6 +341,13 @@
       "legacyModuleId": "golden_gate_bridge",
       "deprecatedAfter": "2026-Q4",
       "notes": "Routes to SuspensionBridgeBuilder via typology interpreter."
+    },
+    "gothic_cathedral": {
+      "typologyId": "gothic_cathedral_hall",
+      "phase": "typology_first",
+      "legacyModuleId": "gothic_cathedral",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Routes to GothicCathedralHallBuilder via typology interpreter."
     }
   }
 }

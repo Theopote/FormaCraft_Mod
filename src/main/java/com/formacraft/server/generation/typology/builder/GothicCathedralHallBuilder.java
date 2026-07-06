@@ -1,4 +1,4 @@
-package com.formacraft.server.generation.structure;
+package com.formacraft.server.generation.typology.builder;
 
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.logging.FcaLog;
@@ -9,6 +9,7 @@ import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -18,25 +19,45 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * GothicCathedralGenerator（哥特大教堂强原型，v1）
- *
- * 识别性目标（v1）：
- * - 垂直性：双塔 + 尖顶（spires）
- * - 飞扶壁：侧墙外扶壁 + 斜撑（stairs 近似）
- * - 光线：正立面玫瑰花窗（stained glass）
- *
- * 触发建议：extra.template = "gothic_cathedral" / "cathedral" / "notre_dame" / "cologne"
+ * Parametric Gothic cathedral hall builder (typology: {@code gothic_cathedral_hall}).
+ * 中殿 + 侧廊 + 飞扶壁 + 双塔尖顶 + 玫瑰窗。
  */
-public class GothicCathedralGenerator implements StructureGenerator {
+public final class GothicCathedralHallBuilder {
 
-    private static final FcaLog LOG = FcaLog.of("GothicCathedralGenerator");
+    public static final String TYPOLOGY_ID = "gothic_cathedral_hall";
 
-    @Override
-    public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+    private static final FcaLog LOG = FcaLog.of("GothicCathedralHallBuilder");
+
+    private GothicCathedralHallBuilder() {}
+
+    public static GeneratedStructure fromBuildingSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        return generate(TypologyParamResolver.fromBuildingSpec(spec, TYPOLOGY_ID), origin, world, spec);
+    }
+
+    public static GeneratedStructure generate(
+            Map<String, Object> params,
+            BlockPos origin,
+            ServerWorld world,
+            BuildingSpec specHint
+    ) {
+        BuildingSpec spec = specHint != null ? specHint : new BuildingSpec();
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        if (spec.getExtra() != null) {
+            merged.putAll(spec.getExtra());
+        }
+        if (params != null) {
+            merged.putAll(params);
+        }
+        spec.setExtra(merged);
+        return generateFromSpec(spec, origin, world);
+    }
+
+    private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         List<PlannedBlock> blocks = new ArrayList<>();
 
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
@@ -167,7 +188,7 @@ public class GothicCathedralGenerator implements StructureGenerator {
         put(blocks, origin, entrance, mx - 5, y0 + 2, zFront + 1, lantern, null);
         put(blocks, origin, entrance, mx + 5, y0 + 2, zFront + 1, lantern, null);
 
-        String desc = "Gothic Cathedral v1";
+        String desc = "Gothic Cathedral Hall (gothic_cathedral_hall)";
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 

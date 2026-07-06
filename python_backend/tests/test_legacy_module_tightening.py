@@ -14,6 +14,7 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         "temple_of_heaven",
         "birds_nest_stadium",
         "golden_gate_bridge",
+        "gothic_cathedral",
     }
 
     def test_registry_lists_migrated_landmarks(self):
@@ -23,7 +24,18 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         self.assertTrue(self.MIGRATED.issubset(migrated))
         for mid in self.MIGRATED:
             self.assertTrue(is_migrated_landmark(mid))
-        self.assertFalse(is_migrated_landmark("gothic_cathedral"))
+        self.assertFalse(is_migrated_landmark("castle_compound"))
+
+    def test_gothic_cathedral_routing_returns_typology_not_module(self):
+        from app.services.keyword_culture_retriever import resolve_landmark_module_routing
+
+        routing = resolve_landmark_module_routing("生成一座哥特大教堂")
+        self.assertIsNotNone(routing)
+        self.assertEqual(routing.get("componentType"), "STRUCTURE")
+        self.assertEqual(routing.get("typologyId"), "gothic_cathedral_hall")
+        self.assertEqual(routing.get("referenceLandmark"), "gothic_cathedral")
+        self.assertTrue(routing.get("legacyModuleDeprecated"))
+        self.assertNotIn("moduleId", routing)
 
     def test_golden_gate_routing_returns_typology_not_module(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing

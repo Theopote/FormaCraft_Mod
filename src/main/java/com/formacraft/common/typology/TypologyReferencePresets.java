@@ -56,6 +56,15 @@ public final class TypologyReferencePresets {
                 "facing", "EAST",
                 "detailLevel", "aesthetic"
         ));
+        PRESETS.put("gothic_cathedral", Map.of(
+                "width", 25,
+                "depth", 45,
+                "wallHeight", 16,
+                "towerHeight", 20,
+                "spireHeight", 10,
+                "buttressStep", 5,
+                "facing", "SOUTH"
+        ));
     }
 
     private TypologyReferencePresets() {}
