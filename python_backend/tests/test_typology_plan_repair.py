@@ -136,6 +136,30 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(comp["params"]["reference_landmark"], "gothic_cathedral")
         self.assertEqual(comp["params"]["width"], 25)
 
+    def test_mingqing_courtyard_module_repaired_to_structure(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:mingqing_courtyard"],
+                    "params": {"module_id": "mingqing_courtyard"},
+                    "dimensions": {"width": 32, "depth": 28, "height": 10},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        comp = out["components"][0]
+        self.assertEqual(comp["component_type"], "STRUCTURE")
+        self.assertIn("typology:courtyard_compound", comp["features"])
+        self.assertEqual(comp["params"]["typology_id"], "courtyard_compound")
+        self.assertEqual(comp["params"]["reference_landmark"], "mingqing_courtyard")
+        self.assertEqual(comp["params"]["width"], 32)
+        self.assertTrue(comp["params"]["includePaths"])
+
     def test_non_migrated_module_unchanged(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 
