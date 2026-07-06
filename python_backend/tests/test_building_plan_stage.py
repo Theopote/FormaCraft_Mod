@@ -16,6 +16,7 @@ from app.services.building_plan_stage import (
     evaluate_plan_profile_alignment,
     is_research_two_phase_enabled,
     plan_stage_system_augmentation,
+    score_plan_profile_alignment,
 )
 from app.services.building_research_agent import synthesize_profile_rule_based
 
@@ -79,14 +80,14 @@ class PlanProfileAlignmentTest(unittest.TestCase):
             identity={"name": "天坛", "confidence": 0.9},
             minecraft_strategy={
                 "skeleton_type": "RADIAL_RING",
-                "recommended_components": ["MODULE", "MASS_MAIN", "ROOF"],
-                "landmark_module": "temple_of_heaven",
+                "recommended_components": ["STRUCTURE"],
+                "structural_typology": "radial_terrace_hall",
+                "reference_landmark": "temple_of_heaven",
             },
         )
         results = {n: ok for n, ok, _ in evaluate_plan_profile_alignment(plan, profile)}
         self.assertTrue(results.get("plan_reflects_skeleton"))
         self.assertTrue(results.get("plan_uses_recommended_components"))
-        self.assertTrue(results.get("plan_uses_landmark_module"))
 
     def test_siheyuan_profile_alignment(self):
         plan = self._load("siheyuan_courtyard_golden.json")
@@ -103,6 +104,78 @@ class PlanProfileAlignmentTest(unittest.TestCase):
         self.assertTrue(results.get("plan_reflects_skeleton"))
         self.assertTrue(results.get("plan_uses_recommended_components"))
         self.assertTrue(results.get("plan_expresses_complexity"))
+
+    def test_distinguishing_features_alignment_passes_when_reflected(self):
+        plan = {
+            "style_profile": "Modern_Expressionist",
+            "layout": {"skeleton_type": "CLUSTER"},
+            "style_attributes": {
+                "decorative_elements": ["white sail shells", "shell roof"],
+            },
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "dimensions": {"width": 28, "depth": 18, "height": 12},
+                    "features": ["white_sail_shells", "shell_roof"],
+                    "params": {"distinctive_features": ["waterfront podium"]},
+                },
+                {
+                    "component_type": "ROOF",
+                    "dimensions": {"width": 30, "depth": 20, "height": 8},
+                    "features": ["shell roof"],
+                    "params": {"roof_type": "shell"},
+                },
+            ],
+        }
+        profile = BuildingProfile(
+            query="悉尼歌剧院",
+            minecraft_strategy={
+                "skeleton_type": "CLUSTER",
+                "recommended_components": ["MASS_MAIN", "ROOF"],
+            },
+            structure={
+                "distinguishing_features": [
+                    "white sail shells",
+                    "shell roof",
+                    "waterfront podium",
+                ],
+            },
+        )
+        summary = score_plan_profile_alignment(plan, profile)
+        self.assertTrue(summary["checks"]["plan_reflects_distinguishing_features"])
+        self.assertGreaterEqual(summary["feature_coverage"], 0.66)
+        self.assertTrue(summary["passed"])
+
+    def test_distinguishing_features_alignment_fails_when_missing(self):
+        plan = {
+            "layout": {"skeleton_type": "RECT_SINGLE"},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "dimensions": {"width": 20, "depth": 14, "height": 8},
+                    "features": ["pilasters"],
+                    "params": {"facade_profile": "vertical_pilasters"},
+                },
+                {"component_type": "ROOF", "dimensions": {"width": 22, "depth": 16, "height": 5}, "features": []},
+            ],
+        }
+        profile = BuildingProfile(
+            query="悉尼歌剧院",
+            minecraft_strategy={
+                "skeleton_type": "RECT_SINGLE",
+                "recommended_components": ["MASS_MAIN", "ROOF"],
+            },
+            structure={
+                "distinguishing_features": [
+                    "white sail shells",
+                    "shell roof",
+                    "waterfront podium",
+                ],
+            },
+        )
+        summary = score_plan_profile_alignment(plan, profile)
+        self.assertFalse(summary["checks"]["plan_reflects_distinguishing_features"])
+        self.assertFalse(summary["passed"])
 
 
 class TwoPhaseIntegrationTest(unittest.TestCase):

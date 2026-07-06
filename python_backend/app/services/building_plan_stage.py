@@ -12,6 +12,10 @@ import os
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..models.building_profile import BuildingProfile
+from .plan_specificity_guard import (
+    extract_distinguishing_tokens,
+    score_feature_token_coverage,
+)
 
 # 与 Java ComponentGeneratorRegistry / LlmPlan prompt 对齐的可注册构件类型
 REGISTERED_COMPONENT_TYPES: Tuple[str, ...] = (
@@ -345,7 +349,40 @@ def evaluate_plan_profile_alignment(
             f"distinctive_elements={len(distinct)} component_count={len(components)}",
         ))
 
+    tokens = extract_distinguishing_tokens(profile)
+    if tokens:
+        coverage, matched, missing = score_feature_token_coverage(plan, tokens)
+        min_required = min(2, len(tokens)) if len(tokens) >= 2 else 1
+        ok = len(matched) >= min_required
+        results.append((
+            "plan_reflects_distinguishing_features",
+            ok,
+            f"coverage={coverage:.2f} matched={matched} missing={missing}",
+        ))
+
     return results
+
+
+def score_plan_profile_alignment(
+    plan: Dict[str, Any],
+    profile: BuildingProfile,
+) -> Dict[str, Any]:
+    """Aggregate alignment checks for logging, eval fixtures, and optional CI gates."""
+    results = evaluate_plan_profile_alignment(plan, profile)
+    hard_failures = alignment_hard_failures(results)
+    tokens = extract_distinguishing_tokens(profile)
+    coverage, matched, missing = score_feature_token_coverage(plan, tokens)
+    min_required = min(2, len(tokens)) if len(tokens) >= 2 else (1 if tokens else 0)
+    feature_ok = len(matched) >= min_required if tokens else True
+    return {
+        "passed": len(hard_failures) == 0 and feature_ok,
+        "hard_failures": hard_failures,
+        "feature_coverage": coverage,
+        "feature_matched": matched,
+        "feature_missing": missing,
+        "checks": {name: ok for name, ok, _ in results},
+        "details": {name: detail for name, _, detail in results},
+    }
 
 
 def alignment_hard_failures(

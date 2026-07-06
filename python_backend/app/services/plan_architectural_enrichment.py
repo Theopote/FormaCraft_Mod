@@ -11,6 +11,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..models.building_profile import BuildingProfile
 from .building_research_agent import typology_exclusive_component_note
+from .plan_specificity_guard import (
+    apply_profile_features_to_plan,
+    should_skip_classical_enrichment,
+)
 
 _CLASSICAL_MARKERS = (
     "palace", "museum", "cathedral", "church", "temple", "monument", "classical",
@@ -124,6 +128,48 @@ def enrich_profile_architectural_detail(
             mc.notes = f"{exclusive} {note}".strip()
         mc.recommended_components = ["STRUCTURE"]
         return profile.model_copy(update={"minecraft_strategy": mc})
+
+    skip_classical, skip_reason = should_skip_classical_enrichment(user_text, profile)
+    if skip_classical:
+        base = [
+            str(c).upper()
+            for c in (mc.recommended_components or [])
+            if str(c).upper() != "MODULE"
+        ]
+        extras = ["FOUNDATION", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
+        merged: List[str] = []
+        for c in base + extras:
+            if c not in merged:
+                merged.append(c)
+        mc.recommended_components = merged[:8]
+        note = (mc.notes or "").strip()
+        guard_note = (
+            f"Specificity guard ({skip_reason}): preserve profile distinguishing_features; "
+            "avoid generic pilaster/cornice/gable/CROWN templates."
+        )
+        if guard_note not in note:
+            mc.notes = f"{guard_note} {note}".strip()
+        card = infer_heuristic_proportion_card(user_text, profile)
+        scale = profile.scale_hints.model_copy()
+        ratios = card.get("ratios") or {}
+        hw = ratios.get("height_to_width") or {}
+        dw = ratios.get("depth_to_width") or {}
+        if scale.typical_width_blocks and not scale.typical_height_blocks:
+            ideal = hw.get("ideal", 0.65)
+            scale = scale.model_copy(
+                update={"typical_height_blocks": max(8, int(scale.typical_width_blocks * ideal))}
+            )
+        if scale.typical_width_blocks and not scale.typical_depth_blocks:
+            ideal_d = dw.get("ideal", 1.0)
+            scale = scale.model_copy(
+                update={"typical_depth_blocks": max(8, int(scale.typical_width_blocks * ideal_d))}
+            )
+        return profile.model_copy(
+            update={
+                "minecraft_strategy": mc,
+                "scale_hints": scale,
+            }
+        )
 
     base = [
         str(c).upper()
@@ -285,6 +331,27 @@ def enrich_llm_plan_architectural_detail(
     if all(str(c.get("component_type") or "").upper() == "MODULE" for c in components if isinstance(c, dict)):
         return plan
     if _plan_has_typology_structure(components):
+        return plan
+
+    skip_classical, skip_reason = should_skip_classical_enrichment(user_text, profile, plan)
+    if skip_classical:
+        plan = apply_profile_features_to_plan(plan, profile)
+        card = infer_heuristic_proportion_card(user_text, profile)
+        mass_hit = _find_mass(components)
+        if mass_hit is not None:
+            _, mass = mass_hit
+            hints = build_proportion_hints(card, _mass_dims(mass)["width"])
+            existing_hints = plan.get("proportion_hints")
+            if not isinstance(existing_hints, dict):
+                plan["proportion_hints"] = hints
+            else:
+                merged = {**hints, **existing_hints}
+                merged.pop("floor_cornice", None)
+                merged.pop("crown_assembly", None)
+                merged.pop("crown_template", None)
+                merged.pop("detail_rules", None)
+                plan["proportion_hints"] = merged
+        plan["enrichment_guard"] = skip_reason
         return plan
 
     tier = detect_detail_tier(user_text, profile, plan)

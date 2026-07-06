@@ -112,6 +112,62 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
         self.assertEqual(len(out["components"]), 2)
         self.assertNotIn("floor_cornice", (out.get("proportion_hints") or {}))
 
+    def test_sydney_opera_skips_classical_enrichment(self):
+        from app.models.building_profile import BuildingProfile, ProfileForm, ProfileStructure
+        from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
+
+        profile = BuildingProfile(
+            query="悉尼歌剧院",
+            form=ProfileForm(footprint="freeform", massing=["shell clusters", "waterfront"]),
+            structure=ProfileStructure(
+                distinguishing_features=["white sail shells", "shell roof", "waterfront podium"],
+            ),
+        )
+        plan = {
+            "mode": "build",
+            "style_profile": "Modern_Expressionist",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 28, "depth": 18, "height": 10},
+                    "features": [],
+                    "params": {},
+                },
+            ],
+        }
+        out = enrich_llm_plan_architectural_detail(
+            plan,
+            user_text="悉尼歌剧院",
+            profile=profile,
+        )
+        types = [c["component_type"] for c in out["components"]]
+        self.assertNotIn("CROWN", types)
+        self.assertNotIn("DECOR_DETAIL", types)
+        mass = out["components"][0]
+        self.assertNotEqual(mass["params"].get("facade_profile"), "vertical_pilasters")
+        self.assertIn("enrichment_guard", out)
+        self.assertIn("shell", " ".join(mass.get("features") or []).lower())
+
+    def test_zaha_profile_skips_classical_notes(self):
+        from app.models.building_profile import BuildingProfile, ProfileIdentity, ProfileStructure
+        from app.services.plan_architectural_enrichment import enrich_profile_architectural_detail
+
+        profile = enrich_profile_architectural_detail(
+            BuildingProfile(
+                query="扎哈体育场",
+                identity=ProfileIdentity(architect="Zaha Hadid", style="parametric modern"),
+                structure=ProfileStructure(
+                    distinguishing_features=["curved facade", "parametric mesh", "cantilever roof"],
+                ),
+            ),
+            "扎哈风格的体育场",
+        )
+        notes = profile.minecraft_strategy.notes or ""
+        self.assertNotIn("vertical_pilasters", notes)
+        self.assertIn("Specificity guard", notes)
+        self.assertNotIn("DECOR_DETAIL", profile.minecraft_strategy.recommended_components)
+
 
 if __name__ == "__main__":
     unittest.main()

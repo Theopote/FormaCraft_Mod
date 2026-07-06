@@ -1268,6 +1268,18 @@ def _normalize_llm_plan_output(
             user_text=user_text,
             profile=building_profile,
         )
+        if building_profile is not None:
+            from .building_plan_stage import score_plan_profile_alignment
+
+            alignment = score_plan_profile_alignment(plan, building_profile)
+            logger.info(
+                "Plan-profile alignment passed=%s coverage=%.2f matched=%s missing=%s guard=%s",
+                alignment["passed"],
+                alignment["feature_coverage"],
+                alignment["feature_matched"],
+                alignment["feature_missing"],
+                plan.get("enrichment_guard"),
+            )
     except Exception as exc:
         logger.warning("Architectural plan enrichment skipped: %s", exc)
 
