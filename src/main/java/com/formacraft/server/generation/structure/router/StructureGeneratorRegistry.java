@@ -57,7 +57,7 @@ public final class StructureGeneratorRegistry {
         register("pantheon", PantheonGenerator::new);
         register("parthenon", ParthenonTempleGenerator::new);
         register("gothic_cathedral_hall", () -> new TypologyBackedStructureGenerator("gothic_cathedral_hall"));
-        register("modern_skyscraper", ModernSkyscraperGenerator::new);
+        register("setback_tower", () -> new TypologyBackedStructureGenerator("setback_tower"));
         register("modern_office_campus", ModernOfficeCampusGenerator::new);
         register("modern_bauhaus_rowhouse", ModernBauhausRowhouseGenerator::new);
         register("brutalist_megastructure", BrutalistMegastructureGenerator::new);

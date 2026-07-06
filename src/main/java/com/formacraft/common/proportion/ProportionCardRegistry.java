@@ -147,6 +147,7 @@ public final class ProportionCardRegistry {
                 "gothic_cathedral_hall.json",
                 "courtyard_compound.json",
                 "radial_fortress.json",
+                "setback_tower.json",
                 "classical_monument.json",
                 "siheyuan_courtyard.json",
                 "square_tower_five_story.json",

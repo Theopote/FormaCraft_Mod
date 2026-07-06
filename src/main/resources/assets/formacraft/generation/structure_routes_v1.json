@@ -25,7 +25,7 @@
     { "id": "pantheon", "keywords": ["pantheon", "万神殿", "dome_temple"], "generatorKey": "pantheon" },
     { "id": "parthenon", "keywords": ["parthenon", "帕特农", "classical_temple", "greco_roman_temple"], "generatorKey": "parthenon" },
     { "id": "gothic_cathedral", "keywords": ["gothic_cathedral", "cathedral", "notre_dame", "cologne", "哥特", "哥特大教堂"], "generatorKey": "gothic_cathedral_hall" },
-    { "id": "modern_skyscraper", "keywords": ["modern_skyscraper", "highrise", "skyscraper", "摩天", "摩天楼"], "generatorKey": "modern_skyscraper" },
+    { "id": "modern_skyscraper", "keywords": ["modern_skyscraper", "highrise", "skyscraper", "摩天", "摩天楼"], "generatorKey": "setback_tower" },
     { "id": "modern_office_campus", "keywords": ["modern_office_campus", "office_campus", "campus", "园区"], "generatorKey": "modern_office_campus" },
     { "id": "modern_bauhaus_rowhouse", "keywords": ["bauhaus_rowhouse", "bauhaus", "rowhouse", "townhouse", "terrace", "联排", "包豪斯"], "generatorKey": "modern_bauhaus_rowhouse" },
     { "id": "brutalist_megastructure", "keywords": ["brutalism_megastructure", "soviet_megastructure", "brutalism", "粗野", "巨构"], "generatorKey": "brutalist_megastructure" },

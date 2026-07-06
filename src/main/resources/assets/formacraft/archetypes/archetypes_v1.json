@@ -409,7 +409,9 @@
       "id": "modern_skyscraper",
       "aliases": ["摩天楼", "现代摩天大楼", "skyscraper", "modern skyscraper", "highrise", "high rise"],
       "category": "LANDMARK",
-      "generatorId": "modern_skyscraper",
+      "researchOnly": true,
+      "typologyId": "setback_tower",
+      "generatorId": "setback_tower",
       "defaults": { "width": 19, "depth": 19, "height": 64, "floors": 12, "setbackEveryFloors": 6 },
       "constraints": { "minWidth": 11, "maxWidth": 71, "minDepth": 11, "maxDepth": 71, "minHeight": 24, "maxHeight": 220 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }

@@ -86,6 +86,15 @@ public final class TypologyReferencePresets {
                 "followTerrain", true,
                 "facing", "SOUTH"
         ));
+        PRESETS.put("modern_skyscraper", Map.of(
+                "width", 19,
+                "depth", 19,
+                "height", 64,
+                "floors", 12,
+                "setbackEveryFloors", 6,
+                "setbackStep", 2,
+                "facing", "SOUTH"
+        ));
     }
 
     private TypologyReferencePresets() {}

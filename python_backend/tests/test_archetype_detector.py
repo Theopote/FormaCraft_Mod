@@ -131,6 +131,14 @@ class ResearchOnlyLandmarkTest(unittest.TestCase):
         self.assertEqual(routing.get("typologyId"), "radial_fortress")
         self.assertEqual(routing.get("componentType"), "STRUCTURE")
 
+    def test_modern_skyscraper_template_routes_typology_not_module(self):
+        from app.services.keyword_culture_retriever import resolve_landmark_module_routing
+
+        routing = resolve_landmark_module_routing("摩天楼")
+        self.assertIsNotNone(routing)
+        self.assertEqual(routing.get("typologyId"), "setback_tower")
+        self.assertEqual(routing.get("componentType"), "STRUCTURE")
+
 
 class BroadTypologyAliasTest(unittest.TestCase):
     def test_fushimi_inari_not_japanese_shrine_module(self):

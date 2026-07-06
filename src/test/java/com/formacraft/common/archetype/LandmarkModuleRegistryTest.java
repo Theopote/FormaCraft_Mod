@@ -35,7 +35,7 @@ class LandmarkModuleRegistryTest {
     void resolveModuleId_matchesNewLandmarks() {
         assertEquals("jiangnan_water_town", LandmarkModuleRegistry.resolveModuleId("江南水乡"));
         assertNull(LandmarkModuleRegistry.resolveModuleId("哥特大教堂"));
-        assertEquals("modern_skyscraper", LandmarkModuleRegistry.resolveModuleId("skyscraper"));
+        assertNull(LandmarkModuleRegistry.resolveModuleId("skyscraper"));
         assertNull(LandmarkModuleRegistry.resolveModuleId("椭圆形体育场"));
     }
 

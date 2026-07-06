@@ -390,6 +390,52 @@
       "proportionCardIds": ["radial_fortress"],
       "cultureCardIds": ["castle_compound"],
       "llmPlanGuidance": "Use structural_typology=radial_fortress with layout.skeleton_type=COMPOUND. Output proportion_hints.typology=radial_fortress, tower_height_to_wall≈3.5, enclosure_coverage≈0.92. Prefer STRUCTURE + typology:radial_fortress; set reference_landmark=castle_compound when user names medieval castle compound preset. Params: width, depth, wallHeight, towerHeight, wallThickness, gateWidth, moat, drawbridge, includePaths, pathWidth, facing, followTerrain. global_constraints.symmetry=MIRROR_X. FORBID single MASS box without walled enclosure + corner towers. Disney/Himeji/Japanese keep are research-only — compose instead."
+    },
+    {
+      "id": "setback_tower",
+      "displayName": {
+        "zh": "退台摩天楼",
+        "en": "Setback tower"
+      },
+      "skeletonType": "VERTICAL_STACK",
+      "styleFamilies": ["Modern_International", "Modern_Minimal"],
+      "matchKeywords": [
+        "摩天楼", "现代摩天大楼", "高层塔楼", "玻璃幕墙大楼",
+        "skyscraper", "modern skyscraper", "highrise", "high rise", "tower block"
+      ],
+      "negativeKeywords": [
+        "写字楼", "办公大楼", "office block", "office tower",
+        "扎哈", "zaha", "解构", "deconstruct", "参数化", "gehry", "guggenheim",
+        "体育场", "城堡", "四合院", "哥特", "原创", "不要地标"
+      ],
+      "interpreterId": "setback_tower",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "width": 19,
+        "depth": 19,
+        "height": 64,
+        "floors": 12,
+        "setbackEveryFloors": 6,
+        "setbackStep": 2,
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "width": { "min": 11, "ideal": 19, "max": 71, "desc": "塔楼底面宽（奇数）" },
+        "depth": { "min": 11, "ideal": 19, "max": 71, "desc": "塔楼底面深（奇数）" },
+        "height": { "min": 24, "ideal": 64, "max": 220, "desc": "塔楼总高" },
+        "floors": { "min": 4, "ideal": 12, "max": 60, "desc": "楼层数" },
+        "setbackEveryFloors": { "min": 3, "ideal": 6, "max": 12, "desc": "每 N 层退台" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "modern_skyscraper",
+          "role": "primary",
+          "notes": "现代摩天楼 preset：退台方塔 + 幕墙 + 内透光，VERTICAL_STACK 骨架"
+        }
+      ],
+      "proportionCardIds": ["setback_tower"],
+      "cultureCardIds": ["modern_skyscraper"],
+      "llmPlanGuidance": "Use structural_typology=setback_tower with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=setback_tower, slenderness≈4.5, setback_ratio≈0.12, window_wall_ratio≈0.55. Prefer STRUCTURE + typology:setback_tower; set reference_landmark=modern_skyscraper when user names modern skyscraper preset. Params: width, depth, height, floors, setbackEveryFloors, setbackStep, facing, paletteId. global_constraints.symmetry=RADIAL. FORBID plain MASS box without setbacks and curtain wall grammar. Office block / Zaha deconstructivism use other routes."
     }
   ],
   "migrationMap": {
@@ -455,6 +501,13 @@
       "legacyModuleId": "castle_compound",
       "deprecatedAfter": "2026-Q4",
       "notes": "Routes to RadialFortressBuilder via typology interpreter."
+    },
+    "modern_skyscraper": {
+      "typologyId": "setback_tower",
+      "phase": "typology_first",
+      "legacyModuleId": "modern_skyscraper",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Routes to SetbackTowerBuilder via typology interpreter."
     }
   }
 }

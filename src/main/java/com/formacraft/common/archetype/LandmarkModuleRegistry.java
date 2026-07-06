@@ -127,6 +127,8 @@ public final class LandmarkModuleRegistry {
         sb.append("- 四合院/民居院落（泛型） → compositional COURTYARD + MASS_WING（siheyuan）；勿与官式 preset 混用\n");
         sb.append("- 中世纪城堡 / Medieval castle compound (explicit preset) → MANDATORY STRUCTURE + typology:radial_fortress (reference_landmark=castle_compound)\n");
         sb.append("- 城堡/要塞（泛型） → RECOMMENDED typology:radial_fortress OR compositional MASS+TOWER+WALL\n");
+        sb.append("- 摩天楼 / Modern skyscraper (explicit preset) → MANDATORY STRUCTURE + typology:setback_tower (reference_landmark=modern_skyscraper)\n");
+        sb.append("- 高层/玻璃幕墙（泛型） → RECOMMENDED typology:setback_tower OR compositional MASS stepped tiers\n");
         sb.append("- 原创/独特/不要地标 → do NOT force MODULE; compose with varied MASS + PAVING + ROOF\n");
         sb.append("- MassMainGenerator cannot render true elliptical bowl seating; use MODULE or tiered masses/plan_program.\n");
         sb.append("Available module_id values:\n");

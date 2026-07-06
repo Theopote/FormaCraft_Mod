@@ -92,6 +92,15 @@ _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
         "followTerrain": True,
         "facing": "SOUTH",
     },
+    "modern_skyscraper": {
+        "width": 19,
+        "depth": 19,
+        "height": 64,
+        "floors": 12,
+        "setbackEveryFloors": 6,
+        "setbackStep": 2,
+        "facing": "SOUTH",
+    },
 }
 
 

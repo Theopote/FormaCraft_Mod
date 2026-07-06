@@ -1,4 +1,4 @@
-package com.formacraft.server.generation.structure;
+package com.formacraft.server.generation.typology.builder;
 
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.logging.FcaLog;
@@ -9,6 +9,7 @@ import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.server.interior.BspFloorPlanGenerator;
 import com.formacraft.server.interior.FloorPlanConfig;
 import com.formacraft.server.material.PaletteResolver;
@@ -20,25 +21,45 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * ModernSkyscraperGenerator（摩天楼强原型，v1）
- *
- * 识别性目标：
- * - “少即是多”：方盒子体块堆叠（setback）
- * - 幕墙系统：FRAME + FACADE_CURTAIN
- * - 内透光：INTERNAL_LIGHT（现代风格默认 sea lantern）
- *
- * 触发建议：extra.template = "modern_skyscraper" / "highrise"
+ * Parametric modern setback skyscraper builder (typology: {@code setback_tower}).
+ * VERTICAL_STACK：方盒子体块 + 逐层退台 + 幕墙 FRAME/FACADE_CURTAIN + 内透光。
  */
-public class ModernSkyscraperGenerator implements StructureGenerator {
+public final class SetbackTowerBuilder {
 
-    private static final FcaLog LOG = FcaLog.of("ModernSkyscraperGenerator");
+    public static final String TYPOLOGY_ID = "setback_tower";
 
-    @Override
-    public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+    private static final FcaLog LOG = FcaLog.of("SetbackTowerBuilder");
+
+    private SetbackTowerBuilder() {}
+
+    public static GeneratedStructure fromBuildingSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        return generate(TypologyParamResolver.fromBuildingSpec(spec, TYPOLOGY_ID), origin, world, spec);
+    }
+
+    public static GeneratedStructure generate(
+            Map<String, Object> params,
+            BlockPos origin,
+            ServerWorld world,
+            BuildingSpec specHint
+    ) {
+        BuildingSpec spec = specHint != null ? specHint : new BuildingSpec();
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        if (spec.getExtra() != null) {
+            merged.putAll(spec.getExtra());
+        }
+        if (params != null) {
+            merged.putAll(params);
+        }
+        spec.setExtra(merged);
+        return generateFromSpec(spec, origin, world);
+    }
+
+    private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         List<PlannedBlock> blocks = new ArrayList<>();
 
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.MODERN;
@@ -191,7 +212,7 @@ public class ModernSkyscraperGenerator implements StructureGenerator {
         fillRect(blocks, origin, entrance, x0, y, z0, x1, y, z1, roof);
         ringRect(blocks, origin, entrance, x0, y + 1, z0, x1, y + 1, z1, frame);
 
-        String desc = "Modern Skyscraper v1";
+        String desc = String.format("Setback Tower (setback_tower, w=%d, d=%d, h=%d, floors=%d)", w, d, height, floors);
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 

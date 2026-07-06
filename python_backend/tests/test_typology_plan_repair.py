@@ -184,6 +184,30 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(comp["params"]["width"], 48)
         self.assertTrue(comp["params"]["moat"])
 
+    def test_modern_skyscraper_module_repaired_to_structure(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:modern_skyscraper"],
+                    "params": {"module_id": "modern_skyscraper"},
+                    "dimensions": {"width": 19, "depth": 19, "height": 64},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        comp = out["components"][0]
+        self.assertEqual(comp["component_type"], "STRUCTURE")
+        self.assertIn("typology:setback_tower", comp["features"])
+        self.assertEqual(comp["params"]["typology_id"], "setback_tower")
+        self.assertEqual(comp["params"]["reference_landmark"], "modern_skyscraper")
+        self.assertEqual(comp["params"]["width"], 19)
+        self.assertEqual(comp["params"]["floors"], 12)
+
     def test_non_migrated_module_unchanged(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 

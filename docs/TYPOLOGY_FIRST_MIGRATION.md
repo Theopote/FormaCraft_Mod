@@ -207,7 +207,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 路由 | `LandmarkRoutingPolicy` 跳过 migrated 指名强制 MODULE |
 | Java 构件 | `TypologyComponentRouter` 从 `landmark:` feature 解析 typology；`StructureGeneratorAdaptor` 不写 `extra.landmark` |
 
-**仍保留 MODULE 的地标**（未迁入 migrationMap）：`castle_compound` 等。
+**仍保留 MODULE 的地标**（未迁入 migrationMap）：`office_district`、`great_wall`、`eiffel_tower` 等。
 
 **Phase 8.19 已迁入 typology-first**：`birds_nest_stadium` → `stadium_bowl`（`StadiumBowlBuilder` + `StadiumBowlInterpreter`）。
 
@@ -218,6 +218,8 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 **Phase 8.22 已迁入 typology-first**：`mingqing_courtyard` → `courtyard_compound`（`CourtyardCompoundBuilder` + `CourtyardCompoundInterpreter`）。
 
 **Phase 8.23 已迁入 typology-first**：`castle_compound` → `radial_fortress`（`RadialFortressBuilder` + `RadialFortressInterpreter`）。
+
+**Phase 8.24 已迁入 typology-first**：`modern_skyscraper` → `setback_tower`（`SetbackTowerBuilder` + `SetbackTowerInterpreter`）。
 
 ### Phase 5 细节（天坛 / 祈年殿）
 

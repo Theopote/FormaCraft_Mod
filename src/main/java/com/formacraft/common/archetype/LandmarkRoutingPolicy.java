@@ -72,6 +72,12 @@ public final class LandmarkRoutingPolicy {
             "medieval castle compound", "medieval castle", "castle compound"
     );
 
+    /** 指名现代摩天楼 preset——强制 typology（经 migrationMap 转 STRUCTURE） */
+    private static final List<String> MODERN_SKYSCRAPER_EXPLICIT = List.of(
+            "摩天楼", "现代摩天大楼",
+            "modern skyscraper", "skyscraper", "highrise", "high rise"
+    );
+
     private static final List<String> NAMED_ARCHITECT_MARKERS = List.of(
             "扎哈", "zaha", "哈迪德", "hadid",
             "贝聿铭", "i.m. pei", "pei",
@@ -145,6 +151,15 @@ public final class LandmarkRoutingPolicy {
             return new RoutingDecision("castle_compound", RoutingTier.MANDATORY, "explicit_castle_compound");
         }
 
+        if (containsAny(lower, MODERN_SKYSCRAPER_EXPLICIT)
+                && !lower.contains("office block") && !lower.contains("写字楼")
+                && !lower.contains("办公大楼") && !lower.contains("office tower")
+                && !containsAny(lower, NAMED_ARCHITECT_MARKERS)
+                && !lower.contains("deconstruct") && !lower.contains("解构")
+                && !lower.contains("参数化") && !lower.contains("gehry")) {
+            return new RoutingDecision("modern_skyscraper", RoutingTier.MANDATORY, "explicit_modern_skyscraper");
+        }
+
         // 其它地标：用户指名别名时强制 MODULE（优先于多样化措辞）
         for (LandmarkModuleRegistry.LandmarkModule module : LandmarkModuleRegistry.listModules()) {
             if ("birds_nest_stadium".equals(module.moduleId())) {
@@ -157,6 +172,9 @@ public final class LandmarkRoutingPolicy {
                 continue;
             }
             if ("castle_compound".equals(module.moduleId())) {
+                continue;
+            }
+            if ("modern_skyscraper".equals(module.moduleId())) {
                 continue;
             }
             if (mentionsExplicitLandmark(lower, module)) {

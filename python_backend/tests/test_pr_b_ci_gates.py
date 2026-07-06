@@ -84,6 +84,7 @@ class PrBMigratedCultureCardContractTest(unittest.TestCase):
         "gothic_cathedral": "gothic_cathedral_hall",
         "mingqing_courtyard": "courtyard_compound",
         "castle_compound": "radial_fortress",
+        "modern_skyscraper": "setback_tower",
     }
 
     def test_migration_map_matches_expected(self):

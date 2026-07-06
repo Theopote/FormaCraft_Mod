@@ -61,6 +61,11 @@ CASTLE_COMPOUND_EXPLICIT: List[str] = [
     "medieval castle compound", "medieval castle", "castle compound",
 ]
 
+MODERN_SKYSCRAPER_EXPLICIT: List[str] = [
+    "摩天楼", "现代摩天大楼",
+    "modern skyscraper", "skyscraper", "highrise", "high rise",
+]
+
 STADIUM_TYPOLOGY: List[str] = ["体育场", "体育馆", "stadium", "arena", "球场"]
 ELLIPSE_TYPOLOGY: List[str] = ["椭圆", "椭圆形", "elliptical", "oval", "碗状", "看台"]
 
@@ -132,6 +137,13 @@ def resolve_for_user_intent(text: str) -> Optional[RoutingDecision]:
         x in lower for x in ("disney", "迪士尼", "himeji", "姬路", "japanese castle", "日式")
     ):
         return RoutingDecision("castle_compound", RoutingTier.MANDATORY, "explicit_castle_compound")
+
+    if _contains_any(lower, MODERN_SKYSCRAPER_EXPLICIT) and not any(
+        x in lower for x in ("office block", "写字楼", "办公大楼", "office tower")
+    ) and not _contains_any(lower, NAMED_ARCHITECT_MARKERS) and not any(
+        x in lower for x in ("deconstruct", "解构", "参数化", "gehry")
+    ):
+        return RoutingDecision("modern_skyscraper", RoutingTier.MANDATORY, "explicit_modern_skyscraper")
 
     # 点名建筑师 + 体育场 → 参数化形体，禁止默认 birds_nest typology
     if _contains_any(lower, NAMED_ARCHITECT_MARKERS) and _contains_any(lower, STADIUM_TYPOLOGY):
