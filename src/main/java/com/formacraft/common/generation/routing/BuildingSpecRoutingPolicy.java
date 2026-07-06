@@ -20,7 +20,7 @@ import java.util.Map;
  */
 public final class BuildingSpecRoutingPolicy {
 
-    /** {@link com.formacraft.server.generation.structure.MingQingCourtyardGenerator} 路由键 */
+    /** {@link com.formacraft.server.generation.typology.builder.CourtyardCompoundBuilder} 路由键（template → courtyard_compound） */
     public static final String TEMPLATE_MINGQING_COURTYARD = "mingqing_courtyard";
 
     /** Python / 客户端可显式要求走整栋链路（跳过 LlmPlan 预览） */
