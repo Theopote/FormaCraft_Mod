@@ -1,4 +1,4 @@
-package com.formacraft.server.generation.structure;
+package com.formacraft.server.generation.typology.builder;
 
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.logging.FcaLog;
@@ -11,6 +11,7 @@ import com.formacraft.common.skeleton.transform.BlockTransform;
 import com.formacraft.server.generation.structure.blueprint.CastleBlueprintCompiler;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.skeleton.compound.CompoundInterpreter;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
@@ -34,27 +35,46 @@ import net.minecraft.util.math.Direction;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * CastleCompoundGenerator (v1):
- * A reusable "fortification compound" generator driven by COMPOUND topology.
- *
- * Parts:
- * - RectEnclosurePlan: perimeter wall with gate opening
- * - 4 corner towers: GeneratorBackedPlan (delegates to TowerGenerator)
- * - Gatehouse: GeneratorBackedPlan (delegates to HouseGenerator)
- *
- * Anchor convention: origin is the center of the whole castle footprint.
+ * Parametric medieval fortress compound builder (typology: {@code radial_fortress}).
+ * COMPOUND 骨架：矩形围墙 + 四角塔楼 + 门楼；origin 为城堡占地中心。
  */
-public class CastleCompoundGenerator implements StructureGenerator {
+public final class RadialFortressBuilder {
 
-    private static final FcaLog LOG = FcaLog.of("CastleCompoundGenerator");
+    public static final String TYPOLOGY_ID = "radial_fortress";
 
-    @Override
-    public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+    private static final FcaLog LOG = FcaLog.of("RadialFortressBuilder");
+
+    private RadialFortressBuilder() {}
+
+    public static GeneratedStructure fromBuildingSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
+        return generate(TypologyParamResolver.fromBuildingSpec(spec, TYPOLOGY_ID), origin, world, spec);
+    }
+
+    public static GeneratedStructure generate(
+            Map<String, Object> params,
+            BlockPos origin,
+            ServerWorld world,
+            BuildingSpec specHint
+    ) {
+        BuildingSpec spec = specHint != null ? specHint : new BuildingSpec();
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        if (spec.getExtra() != null) {
+            merged.putAll(spec.getExtra());
+        }
+        if (params != null) {
+            merged.putAll(params);
+        }
+        spec.setExtra(merged);
+        return generateFromSpec(spec, origin, world);
+    }
+
+    private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         Map<String, Object> extra = spec != null ? spec.getExtra() : null;
         boolean includePaths = getBool(extra);
         int pathWidth = clamp(getInt(extra, "pathWidth", 3), 1, 7);
@@ -448,7 +468,7 @@ public class CastleCompoundGenerator implements StructureGenerator {
             }
         }
 
-        String desc = String.format("CastleCompound (w=%d,d=%d, towers=4, wallH=%d)", w, d, wallHeight);
+        String desc = String.format("Radial Fortress (radial_fortress, w=%d, d=%d, towers=4, wallH=%d)", w, d, wallHeight);
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 

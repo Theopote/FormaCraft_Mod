@@ -8,7 +8,7 @@
   ],
   "templateRoutes": [
     { "id": "mingqing_courtyard", "keywords": ["mingqing_courtyard", "mingqing"], "generatorKey": "courtyard_compound" },
-    { "id": "castle_compound", "keywords": ["castle_compound", "castle"], "generatorKey": "castle_compound" },
+    { "id": "castle_compound", "keywords": ["castle_compound", "castle"], "generatorKey": "radial_fortress" },
     { "id": "office_block", "keywords": ["office_block"], "generatorKey": "office_block" },
     { "id": "office_district", "keywords": ["office_district", "office_park", "office"], "generatorKey": "office_district" },
     { "id": "cyberpunk_megablock", "keywords": ["cyberpunk_megablock", "cyber_megablock", "cyber_slum_tower", "夜城", "赛博巨构", "贫民窟塔"], "generatorKey": "cyberpunk_megablock" },

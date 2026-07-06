@@ -160,7 +160,7 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(comp["params"]["width"], 32)
         self.assertTrue(comp["params"]["includePaths"])
 
-    def test_non_migrated_module_unchanged(self):
+    def test_castle_compound_module_repaired_to_structure(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 
         plan = {
@@ -169,6 +169,30 @@ class TypologyPlanRepairTest(unittest.TestCase):
                     "component_type": "MODULE",
                     "features": ["landmark:castle_compound"],
                     "params": {"module_id": "castle_compound"},
+                    "dimensions": {"width": 48, "depth": 36, "height": 18},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        comp = out["components"][0]
+        self.assertEqual(comp["component_type"], "STRUCTURE")
+        self.assertIn("typology:radial_fortress", comp["features"])
+        self.assertEqual(comp["params"]["typology_id"], "radial_fortress")
+        self.assertEqual(comp["params"]["reference_landmark"], "castle_compound")
+        self.assertEqual(comp["params"]["width"], 48)
+        self.assertTrue(comp["params"]["moat"])
+
+    def test_non_migrated_module_unchanged(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:office_district"],
+                    "params": {"module_id": "office_district"},
                     "dimensions": {"width": 48, "depth": 36, "height": 18},
                     "relative_position": {"x": 0, "y": 0, "z": 0},
                 }

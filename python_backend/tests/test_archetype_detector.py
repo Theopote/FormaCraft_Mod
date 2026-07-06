@@ -84,11 +84,14 @@ class ArchetypeDetectorTest(unittest.TestCase):
     def test_disney_castle_does_not_route_castle_compound(self):
         self.assertIsNone(resolve_landmark_module_for_intent("迪士尼城堡"))
 
-    def test_medieval_castle_routes_module(self):
-        self.assertEqual(
-            resolve_landmark_module_for_intent("中世纪城堡"),
-            "castle_compound",
-        )
+    def test_medieval_castle_routes_typology_not_module(self):
+        from app.services.keyword_culture_retriever import resolve_landmark_module_routing
+
+        routing = resolve_landmark_module_routing("中世纪城堡")
+        self.assertIsNotNone(routing)
+        self.assertEqual(routing.get("typologyId"), "radial_fortress")
+        self.assertEqual(routing.get("componentType"), "STRUCTURE")
+        self.assertIsNone(resolve_landmark_module_for_intent("中世纪城堡"))
 
 
 class ResearchOnlyLandmarkTest(unittest.TestCase):
@@ -118,6 +121,14 @@ class ResearchOnlyLandmarkTest(unittest.TestCase):
         routing = resolve_landmark_module_routing("明清官式院落")
         self.assertIsNotNone(routing)
         self.assertEqual(routing.get("typologyId"), "courtyard_compound")
+        self.assertEqual(routing.get("componentType"), "STRUCTURE")
+
+    def test_castle_compound_template_routes_typology_not_module(self):
+        from app.services.keyword_culture_retriever import resolve_landmark_module_routing
+
+        routing = resolve_landmark_module_routing("中世纪城堡")
+        self.assertIsNotNone(routing)
+        self.assertEqual(routing.get("typologyId"), "radial_fortress")
         self.assertEqual(routing.get("componentType"), "STRUCTURE")
 
 

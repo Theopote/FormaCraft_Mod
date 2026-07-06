@@ -97,7 +97,9 @@
       "genericAliases": ["城堡", "要塞", "堡垒", "castle", "medieval castle", "fortress", "keep"],
       "aliases": ["城堡", "中世纪城堡", "要塞", "堡垒", "castle", "medieval castle", "fortress", "keep"],
       "category": "FORTIFICATION",
-      "generatorId": "castle_compound",
+      "researchOnly": true,
+      "typologyId": "radial_fortress",
+      "generatorId": "radial_fortress",
       "defaults": { "width": 48, "depth": 36, "wallHeight": 6, "towerHeight": 18, "followTerrain": true, "includePaths": true, "pathWidth": 3 },
       "constraints": { "minWidth": 24, "maxWidth": 128, "minDepth": 24, "maxDepth": 128, "minWallHeight": 4, "maxWallHeight": 12, "minTowerHeight": 10, "maxTowerHeight": 40, "minPathWidth": 1, "maxPathWidth": 7 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }

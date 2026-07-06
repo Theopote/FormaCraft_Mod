@@ -83,6 +83,7 @@ class PrBMigratedCultureCardContractTest(unittest.TestCase):
         "golden_gate_bridge": "suspension_bridge",
         "gothic_cathedral": "gothic_cathedral_hall",
         "mingqing_courtyard": "courtyard_compound",
+        "castle_compound": "radial_fortress",
     }
 
     def test_migration_map_matches_expected(self):

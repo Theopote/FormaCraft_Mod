@@ -25,7 +25,7 @@ import java.util.Map;
  * - AI may omit spec/type/footprint fields; program keeps plans stable.
  * - Never overwrite explicit values set by user/LLM.
  * - Output should align with existing GeneratorRouter keys:
- *   - extra.template -> deterministic generators (office_block/office_district/courtyard_compound/castle_compound...)
+ *   - extra.template -> deterministic generators (office_block/office_district/courtyard_compound/radial_fortress...)
  *   - extra.landmark -> legacy landmark routing (tulou/temple_of_heaven/eiffel_tower/...)
  */
 public final class RuleBasedGeneratorSelector {

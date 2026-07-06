@@ -217,6 +217,8 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 
 **Phase 8.22 已迁入 typology-first**：`mingqing_courtyard` → `courtyard_compound`（`CourtyardCompoundBuilder` + `CourtyardCompoundInterpreter`）。
 
+**Phase 8.23 已迁入 typology-first**：`castle_compound` → `radial_fortress`（`RadialFortressBuilder` + `RadialFortressInterpreter`）。
+
 ### Phase 5 细节（天坛 / 祈年殿）
 
 | 维度 | 旧 | 新 |

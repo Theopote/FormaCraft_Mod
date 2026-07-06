@@ -39,9 +39,9 @@ public final class StructureGeneratorRegistry {
         register("tailiang_timber_hall", () -> new TypologyBackedStructureGenerator("tailiang_timber_hall"));
         register("radial_terrace_hall", () -> new TypologyBackedStructureGenerator("radial_terrace_hall"));
         register("stadium_bowl", () -> new TypologyBackedStructureGenerator("stadium_bowl"));
-        register("castle_compound", CastleCompoundGenerator::new);
-        register("office_district", OfficeDistrictGenerator::new);
         register("courtyard_compound", () -> new TypologyBackedStructureGenerator("courtyard_compound"));
+        register("radial_fortress", () -> new TypologyBackedStructureGenerator("radial_fortress"));
+        register("office_district", OfficeDistrictGenerator::new);
         register("office_block", OfficeBlockGenerator::new);
         register("cyberpunk_megablock", CyberpunkMegaBlockGenerator::new);
         register("elven_treehouse", ElvenTreehouseGenerator::new);

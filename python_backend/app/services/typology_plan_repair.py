@@ -78,6 +78,20 @@ _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
         "pathWidth": 3,
         "facing": "SOUTH",
     },
+    "castle_compound": {
+        "width": 48,
+        "depth": 36,
+        "wallHeight": 6,
+        "towerHeight": 18,
+        "wallThickness": 2,
+        "gateWidth": 3,
+        "includePaths": True,
+        "pathWidth": 3,
+        "moat": True,
+        "drawbridge": True,
+        "followTerrain": True,
+        "facing": "SOUTH",
+    },
 }
 
 

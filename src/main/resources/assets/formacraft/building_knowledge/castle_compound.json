@@ -1,0 +1,41 @@
+{
+  "id": "castle_compound",
+  "name": "中世纪城堡复合体",
+  "nameEn": "Medieval Castle Compound",
+  "aliases": [
+    "中世纪城堡",
+    "城堡复合体",
+    "medieval castle",
+    "castle compound",
+    "fortress",
+    "keep"
+  ],
+  "category": "FORTIFICATION",
+  "style": "Medieval Castle",
+  "styleId": "Medieval_Castle",
+  "features": {
+    "shape": "rectangular_enclosure",
+    "form": "corner_tower_fortress",
+    "structuralType": "walled_compound",
+    "materials": ["stone_brick", "cobblestone", "deepslate"],
+    "scale": "large",
+    "distinctiveElements": [
+      "rectangular curtain walls",
+      "four corner towers",
+      "south gatehouse",
+      "inner bailey courtyard",
+      "optional moat and drawbridge",
+      "battlements and arrow slits"
+    ]
+  },
+  "dimensions": {
+    "typicalWidth": 48,
+    "typicalDepth": 36,
+    "typicalHeight": 18,
+    "footprintShape": "rectangle",
+    "aspectRatio": "4:3"
+  },
+  "llmPlanRouting": {
+    "instruction": "指名中世纪城堡/城堡复合体 → MANDATORY STRUCTURE+typology:radial_fortress（reference_landmark=castle_compound）；泛型城堡 → compositional MASS+TOWER+WALL；迪士尼/姬路/日式天守勿混用"
+  }
+}

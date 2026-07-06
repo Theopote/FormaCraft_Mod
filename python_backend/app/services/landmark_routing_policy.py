@@ -56,6 +56,11 @@ MINGQING_COURTYARD_EXPLICIT: List[str] = [
     "ming qing courtyard", "mingqing courtyard",
 ]
 
+CASTLE_COMPOUND_EXPLICIT: List[str] = [
+    "中世纪城堡", "城堡复合体",
+    "medieval castle compound", "medieval castle", "castle compound",
+]
+
 STADIUM_TYPOLOGY: List[str] = ["体育场", "体育馆", "stadium", "arena", "球场"]
 ELLIPSE_TYPOLOGY: List[str] = ["椭圆", "椭圆形", "elliptical", "oval", "碗状", "看台"]
 
@@ -122,6 +127,11 @@ def resolve_for_user_intent(text: str) -> Optional[RoutingDecision]:
 
     if _contains_any(lower, MINGQING_COURTYARD_EXPLICIT):
         return RoutingDecision("mingqing_courtyard", RoutingTier.MANDATORY, "explicit_mingqing_courtyard")
+
+    if _contains_any(lower, CASTLE_COMPOUND_EXPLICIT) and not any(
+        x in lower for x in ("disney", "迪士尼", "himeji", "姬路", "japanese castle", "日式")
+    ):
+        return RoutingDecision("castle_compound", RoutingTier.MANDATORY, "explicit_castle_compound")
 
     # 点名建筑师 + 体育场 → 参数化形体，禁止默认 birds_nest typology
     if _contains_any(lower, NAMED_ARCHITECT_MARKERS) and _contains_any(lower, STADIUM_TYPOLOGY):

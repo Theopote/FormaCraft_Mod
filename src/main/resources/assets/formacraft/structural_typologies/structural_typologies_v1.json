@@ -339,6 +339,57 @@
       "proportionCardIds": ["courtyard_compound"],
       "cultureCardIds": ["mingqing_courtyard"],
       "llmPlanGuidance": "Use structural_typology=courtyard_compound with layout.skeleton_type=COMPOUND. Output proportion_hints.typology=courtyard_compound, courtyard_ratio≈0.38, enclosure_coverage≈0.85. Prefer STRUCTURE + typology:courtyard_compound; set reference_landmark=mingqing_courtyard when user names Ming-Qing official courtyard. Params: width, depth, includePaths, pathWidth, facing. global_constraints.symmetry=MIRROR_X. FORBID single MASS box without walled enclosure + hall/wing/gate cluster. Siheyuan residential courtyards use compositional COURTYARD — do not mix."
+    },
+    {
+      "id": "radial_fortress",
+      "displayName": {
+        "zh": "角塔要塞",
+        "en": "Radial corner-tower fortress"
+      },
+      "skeletonType": "COMPOUND",
+      "styleFamilies": ["Medieval_Castle"],
+      "matchKeywords": [
+        "城堡", "要塞", "堡垒", "塔楼", "城墙", "垛口", "中世纪城堡",
+        "castle", "fortress", "keep", "medieval castle", "stone fortress", "battlements"
+      ],
+      "negativeKeywords": [
+        "迪士尼", "disney", "灰姑娘", "cinderella", "童话",
+        "姬路", "himeji", "日式", "天守", "japanese castle",
+        "体育场", "四合院", "哥特", "摩天楼", "原创", "不要地标"
+      ],
+      "interpreterId": "radial_fortress",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "width": 48,
+        "depth": 36,
+        "wallHeight": 6,
+        "towerHeight": 18,
+        "wallThickness": 2,
+        "gateWidth": 3,
+        "includePaths": true,
+        "pathWidth": 3,
+        "moat": true,
+        "drawbridge": true,
+        "followTerrain": true,
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "width": { "min": 24, "ideal": 48, "max": 128, "desc": "城堡占地宽" },
+        "depth": { "min": 24, "ideal": 36, "max": 128, "desc": "城堡占地深" },
+        "wallHeight": { "min": 4, "ideal": 6, "max": 12, "desc": "城墙高度" },
+        "towerHeight": { "min": 10, "ideal": 18, "max": 40, "desc": "角塔高度" },
+        "includePaths": { "min": 0, "ideal": 1, "max": 1, "desc": "内院铺径（0/1）" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "castle_compound",
+          "role": "primary",
+          "notes": "中世纪城堡复合体 preset：矩形围墙 + 四角塔 + 门楼 COMPOUND 骨架"
+        }
+      ],
+      "proportionCardIds": ["radial_fortress"],
+      "cultureCardIds": ["castle_compound"],
+      "llmPlanGuidance": "Use structural_typology=radial_fortress with layout.skeleton_type=COMPOUND. Output proportion_hints.typology=radial_fortress, tower_height_to_wall≈3.5, enclosure_coverage≈0.92. Prefer STRUCTURE + typology:radial_fortress; set reference_landmark=castle_compound when user names medieval castle compound preset. Params: width, depth, wallHeight, towerHeight, wallThickness, gateWidth, moat, drawbridge, includePaths, pathWidth, facing, followTerrain. global_constraints.symmetry=MIRROR_X. FORBID single MASS box without walled enclosure + corner towers. Disney/Himeji/Japanese keep are research-only — compose instead."
     }
   ],
   "migrationMap": {
@@ -397,6 +448,13 @@
       "legacyModuleId": "mingqing_courtyard",
       "deprecatedAfter": "2026-Q4",
       "notes": "Routes to CourtyardCompoundBuilder via typology interpreter."
+    },
+    "castle_compound": {
+      "typologyId": "radial_fortress",
+      "phase": "typology_first",
+      "legacyModuleId": "castle_compound",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Routes to RadialFortressBuilder via typology interpreter."
     }
   }
 }

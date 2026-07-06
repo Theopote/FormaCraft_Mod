@@ -36,5 +36,5 @@
     "min_enclosure_coverage": 0.88,
     "max_void_ratio": 0.25
   },
-  "aiInstruction": "Compositional LlmPlan: MASS_MAIN keep + TOWER corners + WALL segments + ENTRANCE gate. proportion_hints for slenderness and wall H:W. Narrow windows; high enclosure. MODULE only if user names a specific landmark castle."
+  "aiInstruction": "Compositional LlmPlan: MASS_MAIN keep + TOWER corners + WALL segments + ENTRANCE gate. proportion_hints for slenderness and wall H:W. Narrow windows; high enclosure. 指名中世纪城堡 preset → STRUCTURE typology:radial_fortress（reference_landmark=castle_compound）；禁止 MODULE。"
 }

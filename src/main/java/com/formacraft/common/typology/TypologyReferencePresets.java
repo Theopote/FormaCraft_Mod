@@ -72,6 +72,20 @@ public final class TypologyReferencePresets {
                 "pathWidth", 3,
                 "facing", "SOUTH"
         ));
+        PRESETS.put("castle_compound", Map.of(
+                "width", 48,
+                "depth", 36,
+                "wallHeight", 6,
+                "towerHeight", 18,
+                "wallThickness", 2,
+                "gateWidth", 3,
+                "includePaths", true,
+                "pathWidth", 3,
+                "moat", true,
+                "drawbridge", true,
+                "followTerrain", true,
+                "facing", "SOUTH"
+        ));
     }
 
     private TypologyReferencePresets() {}

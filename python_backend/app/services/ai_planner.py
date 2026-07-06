@@ -2769,7 +2769,9 @@ def _generate_castle_compound_building_spec(req: BuildRequest) -> BuildingSpec:
         notes=f"模板：城堡复合体（{w}×{d}，wallH={wall_h}，towerH={tower_h}，facing={facing}）。使用 COMPOUND 组合器。",
         extra={
             "template": "castle_compound",
-            "landmark": "castle_compound",
+            "typology_id": "radial_fortress",
+            "structural_typology": "radial_fortress",
+            "reference_landmark": "castle_compound",
             "wallHeight": wall_h,
             "towerHeight": tower_h,
             "wallThickness": 2,

@@ -125,6 +125,8 @@ public final class LandmarkModuleRegistry {
         sb.append("- 哥特/教堂/玫瑰花窗（泛型） → RECOMMENDED typology:gothic_cathedral_hall OR assembly macro\n");
         sb.append("- 明清官式院落 / Ming-Qing official courtyard (explicit preset) → MANDATORY STRUCTURE + typology:courtyard_compound (reference_landmark=mingqing_courtyard)\n");
         sb.append("- 四合院/民居院落（泛型） → compositional COURTYARD + MASS_WING（siheyuan）；勿与官式 preset 混用\n");
+        sb.append("- 中世纪城堡 / Medieval castle compound (explicit preset) → MANDATORY STRUCTURE + typology:radial_fortress (reference_landmark=castle_compound)\n");
+        sb.append("- 城堡/要塞（泛型） → RECOMMENDED typology:radial_fortress OR compositional MASS+TOWER+WALL\n");
         sb.append("- 原创/独特/不要地标 → do NOT force MODULE; compose with varied MASS + PAVING + ROOF\n");
         sb.append("- MassMainGenerator cannot render true elliptical bowl seating; use MODULE or tiered masses/plan_program.\n");
         sb.append("Available module_id values:\n");
