@@ -262,7 +262,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 参数化 Builder | `server.generation.typology.builder.*` |
 | 细节工具 | `com.formacraft.common.typology.detail.ChineseTypologyDetailUtil` |
 | Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json`, `giant_wild_goose_pagoda.json`, `temple_of_heaven.json`, `birds_nest_stadium.json`, `modern_stadium_elliptical.json`, `golden_gate_bridge.json`, `suspension_bridge.json` |
-| 测试 | `python_backend/tests/test_typology_migration.py`, `test_typology_plan_repair.py`, `test_legacy_module_tightening.py` |
+| 测试 | `python_backend/tests/test_typology_migration.py`, `test_typology_plan_repair.py`, `test_legacy_module_tightening.py`, `test_typology_golden_p0.py` |
 | 遥测 | `com.formacraft.common.network.metrics.TypologyRoutingMetrics` |
 
 ## 10. LlmPlan 目标形状（typology-first few-shot）
