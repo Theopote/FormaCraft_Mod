@@ -416,9 +416,9 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
 
         checks.append(Check(
             "stadium_paving_or_landmark_field",
-            has_landmark or "PAVING" in types,
+            has_stadium_route or "PAVING" in types,
             hard=False,
-            detail="内场宜显式 PAVING 组件或 landmark 模块，void_ratio  alone 不足以形成场地感",
+            detail="内场宜显式 PAVING 组件或 typology stadium_bowl 路由，void_ratio alone 不足以形成场地感",
         ))
 
         checks.append(Check(

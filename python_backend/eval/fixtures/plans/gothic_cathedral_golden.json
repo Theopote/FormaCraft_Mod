@@ -68,7 +68,7 @@
   "global_constraints": {
     "facing": "SOUTH",
     "symmetry": "MIRROR_X",
-    "terrain_strategy": "FLAT_PAD"
+    "terrain_strategy": "FLATTEN"
   },
   "layout": {
     "skeleton_type": "GRID_BAY",

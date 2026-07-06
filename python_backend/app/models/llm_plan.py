@@ -49,6 +49,7 @@ SkeletonType = Literal[
     "RADIAL_RING",
     "RADIAL_SPOKE",
     "GRID",
+    "GRID_BAY",
     "COMPOUND",
     "COURTYARD",
     "PATH_POLYLINE",
