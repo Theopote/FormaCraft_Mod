@@ -4,6 +4,7 @@ import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
