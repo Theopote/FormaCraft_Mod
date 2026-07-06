@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.component.util;
 
+import com.formacraft.common.facade.rhythm.RepeatingPattern;
+import com.formacraft.common.facade.rhythm.RepeatingPatternParser;
 import org.junit.jupiter.api.Test;
 
 import java.util.BitSet;
@@ -58,6 +60,15 @@ class ComponentFacadeRhythmPlannerTest {
         assertTrue(entrance.get(5));
         assertTrue(entrance.get(6));
         assertTrue(entrance.get(7));
+    }
+
+    @Test
+    void resolveUsesExplicitRepeatingPattern() {
+        java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("repeating_pattern", RepeatingPatternParser.toParamsMap(RepeatingPattern.classicalPilasterBay()));
+        ComponentFacadeRhythmPlanner.RhythmPlan plan = ComponentFacadeRhythmPlanner.resolve(null, params, 13);
+        assertTrue(plan.active());
+        assertTrue(plan.isWindowAxis(6));
     }
 
     @Test

@@ -1,6 +1,9 @@
 package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
+import com.formacraft.common.facade.rhythm.RepeatingPattern;
+import com.formacraft.common.facade.rhythm.RepeatingPatternParser;
+import com.formacraft.common.facade.rhythm.RepeatingPatternTiler;
 import com.formacraft.common.genome.BuildingGenome;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.mass.derived.FacadeRhythmProfile;
@@ -59,7 +62,20 @@ public final class ComponentFacadeRhythmPlanner {
         if (axisMax <= 2) {
             return RhythmPlan.inactive(axisMax);
         }
+
+        RepeatingPattern explicit = RepeatingPatternParser.parse(params);
+        if (explicit != null) {
+            return fromRepeatingPattern(explicit, axisMax, "REPEATING_PATTERN");
+        }
+
         String presetId = resolvePresetId(semantic, params);
+        if (presetId != null && !presetId.isBlank()) {
+            RepeatingPattern fromPreset = RepeatingPattern.fromPresetId(presetId);
+            if (fromPreset != null) {
+                return fromRepeatingPattern(fromPreset, axisMax, presetId);
+            }
+        }
+
         if (presetId == null || presetId.isBlank()) {
             return RhythmPlan.inactive(axisMax);
         }
@@ -74,6 +90,27 @@ public final class ComponentFacadeRhythmPlanner {
         BitSet pilasters = computePilasterAxes(presetId, axisMax, windows);
         BitSet entranceBay = computeEntranceBayWindowAxes(presetId, axisMax);
         return new RhythmPlan(axisMax, windows, pilasters, entranceBay, presetId);
+    }
+
+    public static RhythmPlan fromRepeatingPattern(RepeatingPattern pattern, int axisMax) {
+        return fromRepeatingPattern(pattern, axisMax, "REPEATING_PATTERN");
+    }
+
+    public static RhythmPlan fromRepeatingPattern(RepeatingPattern pattern, int axisMax, String presetId) {
+        if (pattern == null || !pattern.isValid() || axisMax <= 2) {
+            return RhythmPlan.inactive(axisMax);
+        }
+        RepeatingPatternTiler.TiledAxes tiled = RepeatingPatternTiler.tile(pattern, axisMax);
+        if (tiled.windowAxes().isEmpty()) {
+            return RhythmPlan.inactive(axisMax);
+        }
+        return new RhythmPlan(
+                axisMax,
+                tiled.windowAxes(),
+                tiled.pilasterAxes(),
+                tiled.entranceBayWindowAxes(),
+                presetId
+        );
     }
 
     static BitSet computeWindowAxes(String presetId, int axisMax, int spacing, boolean bilateral) {

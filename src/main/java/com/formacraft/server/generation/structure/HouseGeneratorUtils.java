@@ -1,5 +1,6 @@
 package com.formacraft.server.generation.structure;
 
+import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.style.profile.BuildStrategy;
@@ -119,6 +120,44 @@ public class HouseGeneratorUtils {
      */
     public static boolean isShouldPlaceWindow(BuildStrategy wallStrategy, double windowRatio, boolean preferSymmetry,
                                                int x, int z, int width, int depth) {
+        return isShouldPlaceWindow(
+                wallStrategy, windowRatio, preferSymmetry,
+                null, null, null,
+                x, z, width, depth);
+    }
+
+    public static boolean isShouldPlaceWindow(BuildStrategy wallStrategy, double windowRatio, boolean preferSymmetry,
+                                               ComponentFacadeRhythmPlanner.RhythmPlan rhythmWidthPlan,
+                                               ComponentFacadeRhythmPlanner.RhythmPlan rhythmDepthPlan,
+                                               Direction doorSide,
+                                               int x, int z, int width, int depth) {
+        boolean corner = (x == 0 || x == width - 1) && (z == 0 || z == depth - 1);
+        if (corner) return false;
+
+        boolean onNorthSouth = (z == 0 || z == depth - 1);
+        boolean onWestEast = (x == 0 || x == width - 1);
+        if (!onNorthSouth && !onWestEast) {
+            return false;
+        }
+
+        int axis = onNorthSouth ? x : z;
+        int axisMax = onNorthSouth ? width : depth;
+        ComponentFacadeRhythmPlanner.RhythmPlan plan = onNorthSouth ? rhythmWidthPlan : rhythmDepthPlan;
+        if (plan != null && plan.active() && plan.axisMax() == axisMax) {
+            if (!plan.isWindowAxis(axis)) {
+                return false;
+            }
+            if (doorSide != null && isNearDoor(doorSide, x, z, width, depth) && plan.isEntranceBayAxis(axis)) {
+                return false;
+            }
+            return true;
+        }
+
+        return isShouldPlaceWindowLegacy(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth);
+    }
+
+    private static boolean isShouldPlaceWindowLegacy(BuildStrategy wallStrategy, double windowRatio, boolean preferSymmetry,
+                                               int x, int z, int width, int depth) {
         // Only meaningful on exterior ring; caller already checks edges.
         // Derive spacing from density suggestion (still respects explicit windowRatio values).
         int spacing;
@@ -187,6 +226,22 @@ public class HouseGeneratorUtils {
                                              int z,
                                              int width,
                                              int depth) {
+        tryCollectFenceFrame(out, origin, wallStrategy, windowRatio, preferSymmetry, null, null, null, x, y, z, width, depth);
+    }
+
+    public static void tryCollectFenceFrame(Set<BlockPos> out,
+                                             BlockPos origin,
+                                             BuildStrategy wallStrategy,
+                                             double windowRatio,
+                                             boolean preferSymmetry,
+                                             ComponentFacadeRhythmPlanner.RhythmPlan rhythmWidthPlan,
+                                             ComponentFacadeRhythmPlanner.RhythmPlan rhythmDepthPlan,
+                                             Direction doorSide,
+                                             int x,
+                                             int y,
+                                             int z,
+                                             int width,
+                                             int depth) {
         if (x < 0 || z < 0 || x >= width || z >= depth) return;
         // avoid corner pillars
         if ((x == 0 || x == width - 1) && (z == 0 || z == depth - 1)) return;
@@ -194,7 +249,8 @@ public class HouseGeneratorUtils {
         boolean nearDoor = (z == 0) && (x == width / 2 || x == width / 2 - 1);
         if (nearDoor) return;
         // avoid overwriting adjacent windows
-        boolean wouldBeWindow = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x, z, width, depth);
+        boolean wouldBeWindow = isShouldPlaceWindow(
+                wallStrategy, windowRatio, preferSymmetry, rhythmWidthPlan, rhythmDepthPlan, doorSide, x, y, z, width, depth);
         if (wouldBeWindow) return;
         out.add(origin.add(x, y, z));
     }
@@ -204,6 +260,14 @@ public class HouseGeneratorUtils {
      */
     public static boolean isPointedArchWindowSafe(BuildStrategy wallStrategy, double windowRatio, boolean preferSymmetry,
                                                    Direction doorSide, int x, int z, int width, int depth) {
+        return isPointedArchWindowSafe(
+                wallStrategy, windowRatio, preferSymmetry, null, null, doorSide, x, z, width, depth);
+    }
+
+    public static boolean isPointedArchWindowSafe(BuildStrategy wallStrategy, double windowRatio, boolean preferSymmetry,
+                                                   ComponentFacadeRhythmPlanner.RhythmPlan rhythmWidthPlan,
+                                                   ComponentFacadeRhythmPlanner.RhythmPlan rhythmDepthPlan,
+                                                   Direction doorSide, int x, int z, int width, int depth) {
         if (isNearDoor(doorSide, x, z, width, depth)) return false;
         boolean corner = (x == 0 || x == width - 1) && (z == 0 || z == depth - 1);
         if (corner) return false;
@@ -211,13 +275,16 @@ public class HouseGeneratorUtils {
         // 尖拱窗需要左右两侧各有至少一格空间（不能紧邻其他窗户）
         boolean onNorthSouth = (z == 0 || z == depth - 1);
         if (onNorthSouth) {
-            boolean leftWouldBeWindow = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x - 1, z, width, depth);
-            boolean rightWouldBeWindow = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x + 1, z, width, depth);
+            boolean leftWouldBeWindow = isShouldPlaceWindow(
+                    wallStrategy, windowRatio, preferSymmetry, rhythmWidthPlan, rhythmDepthPlan, doorSide, x - 1, z, width, depth);
+            boolean rightWouldBeWindow = isShouldPlaceWindow(
+                    wallStrategy, windowRatio, preferSymmetry, rhythmWidthPlan, rhythmDepthPlan, doorSide, x + 1, z, width, depth);
             return !leftWouldBeWindow && !rightWouldBeWindow;
         }
-        // onWestEast
-        boolean a = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x, z - 1, width, depth);
-        boolean b = isShouldPlaceWindow(wallStrategy, windowRatio, preferSymmetry, x, z + 1, width, depth);
+        boolean a = isShouldPlaceWindow(
+                wallStrategy, windowRatio, preferSymmetry, rhythmWidthPlan, rhythmDepthPlan, doorSide, x, z - 1, width, depth);
+        boolean b = isShouldPlaceWindow(
+                wallStrategy, windowRatio, preferSymmetry, rhythmWidthPlan, rhythmDepthPlan, doorSide, x, z + 1, width, depth);
         return !a && !b;
     }
 

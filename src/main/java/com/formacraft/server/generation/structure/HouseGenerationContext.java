@@ -1,5 +1,6 @@
 package com.formacraft.server.generation.structure;
 
+import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.BuildStrategy;
@@ -39,6 +40,8 @@ import net.minecraft.util.math.BlockPos;
  * @param paletteId 调色板ID（用于材质变化）
  * @param doorSide 门的朝向
  * @param layoutInfo 布局信息（包含庭院等）
+ * @param rhythmWidthPlan  南北立面（x 轴）节奏规划
+ * @param rhythmDepthPlan  东西立面（z 轴）节奏规划
  */
 public record HouseGenerationContext(
         BuildingSpec spec,
@@ -63,7 +66,9 @@ public record HouseGenerationContext(
         int floorHeight,
         String paletteId,
         Direction doorSide,
-        HouseLayoutGenerator.LayoutInfo layoutInfo
+        HouseLayoutGenerator.LayoutInfo layoutInfo,
+        ComponentFacadeRhythmPlanner.RhythmPlan rhythmWidthPlan,
+        ComponentFacadeRhythmPlanner.RhythmPlan rhythmDepthPlan
 ) {
     // Record 自动生成构造函数、访问器方法、equals、hashCode、toString
 }

@@ -1,5 +1,6 @@
 package com.formacraft.server.generation.structure;
 
+import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
@@ -169,6 +170,11 @@ public class HouseGenerator implements StructureGenerator {
         // 获取调色板ID
         String paletteId = HouseStyleOptionsResolver.resolvePaletteId(spec, profile, style);
 
+        ComponentFacadeRhythmPlanner.RhythmPlan rhythmWidthPlan =
+                HouseRhythmParams.resolveWidthPlan(spec, profile, genome, width);
+        ComponentFacadeRhythmPlanner.RhythmPlan rhythmDepthPlan =
+                HouseRhythmParams.resolveDepthPlan(spec, profile, genome, depth);
+
         // Door side 和 Layout
         Direction doorSide = HouseGeneratorUtils.resolveDoorSide(spec);
         HouseLayoutGenerator.LayoutInfo layoutInfo = HouseLayoutGenerator.resolveLayout(spec, width, depth);
@@ -178,7 +184,8 @@ public class HouseGenerator implements StructureGenerator {
                 style, genome, profile, materials,
                 hasWindows, hasDoor, hasRoof,
                 doorStyle, roofType, windowRatio, wallPattern,
-                wallStrategy, floorHeight, paletteId, doorSide, layoutInfo
+                wallStrategy, floorHeight, paletteId, doorSide, layoutInfo,
+                rhythmWidthPlan, rhythmDepthPlan
         );
     }
 
@@ -446,7 +453,9 @@ public class HouseGenerator implements StructureGenerator {
 
         boolean preferSymmetry = (ctx.profile() != null && ctx.profile().rules() != null && ctx.profile().rules().preferSymmetry);
         boolean shouldPlaceWindow = HouseGeneratorUtils.isShouldPlaceWindow(
-                ctx.wallStrategy(), ctx.windowRatio(), preferSymmetry, x, z, ctx.width(), ctx.depth());
+                ctx.wallStrategy(), ctx.windowRatio(), preferSymmetry,
+                ctx.rhythmWidthPlan(), ctx.rhythmDepthPlan(), ctx.doorSide(),
+                x, z, ctx.width(), ctx.depth());
         boolean nearDoor = HouseGeneratorUtils.isNearDoor(ctx.doorSide(), x, z, ctx.width(), ctx.depth());
         
         if (!shouldPlaceWindow || nearDoor) {
@@ -475,7 +484,9 @@ public class HouseGenerator implements StructureGenerator {
         if (isTopOfBand && y + 1 < ctx.height()) {
             boolean pointed = (ctx.profile() != null && ctx.profile().details() != null && ctx.profile().details().pointedArches);
             if (pointed && HouseGeneratorUtils.isPointedArchWindowSafe(
-                    ctx.wallStrategy(), ctx.windowRatio(), preferSymmetry, ctx.doorSide(), x, z, ctx.width(), ctx.depth())) {
+                    ctx.wallStrategy(), ctx.windowRatio(), preferSymmetry,
+                    ctx.rhythmWidthPlan(), ctx.rhythmDepthPlan(), ctx.doorSide(),
+                    x, z, ctx.width(), ctx.depth())) {
                 HouseDecorator.addPointedWindowFrame(blocks, origin, x, y + 1, z, ctx.width(), ctx.depth(), 
                         ctx.materials().trim(), ctx.materials().roofStairs());
             } else {
@@ -487,15 +498,19 @@ public class HouseGenerator implements StructureGenerator {
         if (HouseGeneratorUtils.isFenceLikeWindow(ctx.materials().windowBlock())) {
             boolean isEdgeZ = (z == 0 || z == ctx.depth() - 1);
             if (isEdgeZ) {
-                HouseGeneratorUtils.tryCollectFenceFrame(fenceFramePositions, origin, ctx.wallStrategy(), 
-                        ctx.windowRatio(), preferSymmetry, x - 1, y, z, ctx.width(), ctx.depth());
-                HouseGeneratorUtils.tryCollectFenceFrame(fenceFramePositions, origin, ctx.wallStrategy(), 
-                        ctx.windowRatio(), preferSymmetry, x + 1, y, z, ctx.width(), ctx.depth());
+                HouseGeneratorUtils.tryCollectFenceFrame(fenceFramePositions, origin, ctx.wallStrategy(),
+                        ctx.windowRatio(), preferSymmetry, ctx.rhythmWidthPlan(), ctx.rhythmDepthPlan(), ctx.doorSide(),
+                        x - 1, y, z, ctx.width(), ctx.depth());
+                HouseGeneratorUtils.tryCollectFenceFrame(fenceFramePositions, origin, ctx.wallStrategy(),
+                        ctx.windowRatio(), preferSymmetry, ctx.rhythmWidthPlan(), ctx.rhythmDepthPlan(), ctx.doorSide(),
+                        x + 1, y, z, ctx.width(), ctx.depth());
             } else {
-                HouseGeneratorUtils.tryCollectFenceFrame(fenceFramePositions, origin, ctx.wallStrategy(), 
-                        ctx.windowRatio(), preferSymmetry, x, y, z - 1, ctx.width(), ctx.depth());
-                HouseGeneratorUtils.tryCollectFenceFrame(fenceFramePositions, origin, ctx.wallStrategy(), 
-                        ctx.windowRatio(), preferSymmetry, x, y, z + 1, ctx.width(), ctx.depth());
+                HouseGeneratorUtils.tryCollectFenceFrame(fenceFramePositions, origin, ctx.wallStrategy(),
+                        ctx.windowRatio(), preferSymmetry, ctx.rhythmWidthPlan(), ctx.rhythmDepthPlan(), ctx.doorSide(),
+                        x, y, z - 1, ctx.width(), ctx.depth());
+                HouseGeneratorUtils.tryCollectFenceFrame(fenceFramePositions, origin, ctx.wallStrategy(),
+                        ctx.windowRatio(), preferSymmetry, ctx.rhythmWidthPlan(), ctx.rhythmDepthPlan(), ctx.doorSide(),
+                        x, y, z + 1, ctx.width(), ctx.depth());
             }
         }
 

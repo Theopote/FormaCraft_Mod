@@ -1,5 +1,6 @@
 package com.formacraft.common.proportion;
 
+import com.formacraft.common.facade.rhythm.RepeatingPatternParser;
 import com.formacraft.common.generation.component.impl.WindowAspect;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
@@ -88,6 +89,7 @@ public final class OpeningGrammarResolver {
         }
 
         if (facade) {
+            changed |= applyRepeatingPattern(params, hints);
             changed |= applyRhythmPreset(params, card, hints);
             changed |= applyWindowOrder(params, card, hints);
         }
@@ -178,6 +180,21 @@ public final class OpeningGrammarResolver {
             return true;
         }
         return false;
+    }
+
+    private static boolean applyRepeatingPattern(Map<String, Object> params, Map<String, Object> hints) {
+        if (RepeatingPatternParser.parse(params) != null) {
+            return false;
+        }
+        Object raw = hints.get("repeating_pattern");
+        if (raw == null) {
+            raw = hints.get("repeatingPattern");
+        }
+        if (raw == null) {
+            return false;
+        }
+        params.put("repeating_pattern", raw);
+        return true;
     }
 
     private static boolean applyRhythmPreset(
