@@ -31,8 +31,11 @@ public final class HouseRhythmParams {
                 params.put("facade_profile", profile.details().facadeProfile.trim());
             }
         }
-        if (genome != null && genome.form != null && genome.form.rhythm != null && !params.containsKey("rhythm")) {
-            params.put("rhythm", genome.form.rhythm);
+        if (!params.containsKey("rhythm")) {
+            String rhythm = rhythmFromSpecGenome(spec);
+            if (rhythm != null) {
+                params.put("rhythm", rhythm);
+            }
         }
         if (RepeatingPatternParser.parse(params) == null && !hasRhythmPreset(params)) {
             java.util.Map<String, Object> hintLike = new java.util.HashMap<>();
@@ -67,6 +70,26 @@ public final class HouseRhythmParams {
     private static boolean hasRhythmPreset(Map<String, Object> params) {
         Object v = first(params, "rhythm_preset", "rhythmPreset", "facade_rhythm_preset");
         return v != null && !String.valueOf(v).isBlank();
+    }
+
+    private static String rhythmFromSpecGenome(BuildingSpec spec) {
+        if (spec == null || spec.getExtra() == null) {
+            return null;
+        }
+        Object genomeRaw = spec.getExtra().get("genome");
+        if (!(genomeRaw instanceof Map<?, ?> genomeMap)) {
+            return null;
+        }
+        Object formRaw = genomeMap.get("form");
+        if (!(formRaw instanceof Map<?, ?> formMap)) {
+            return null;
+        }
+        Object rhythm = formMap.get("rhythm");
+        if (rhythm == null) {
+            return null;
+        }
+        String s = String.valueOf(rhythm).trim();
+        return s.isEmpty() ? null : s;
     }
 
     private static void copyIfPresent(Map<String, Object> src, Map<String, Object> dst, String... keys) {
