@@ -79,6 +79,7 @@ class PrBMigratedCultureCardContractTest(unittest.TestCase):
         "foguang_temple_hall": "tailiang_timber_hall",
         "giant_wild_goose_pagoda": "dense_eaves_pagoda",
         "temple_of_heaven": "radial_terrace_hall",
+        "birds_nest_stadium": "stadium_bowl",
     }
 
     def test_migration_map_matches_expected(self):

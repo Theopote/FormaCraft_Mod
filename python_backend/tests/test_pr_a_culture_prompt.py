@@ -58,13 +58,14 @@ class PrACultureFewshotTest(unittest.TestCase):
                             msg=f"{card_id} few-shot must not use landmark: feature",
                         )
 
-    def test_birds_nest_still_has_module_fewshot(self):
+    def test_birds_nest_typology_fewshot(self):
         from app.services.keyword_culture_retriever import retrieve
 
         rag = retrieve("建一座鸟巢体育馆", topK=1, fewShotK=3)
         blob = json.dumps(rag.get("llmPlanFewShots") or [], ensure_ascii=False)
         self.assertTrue(rag.get("llmPlanFewShots"))
-        self.assertIn("birds_nest", blob.lower())
+        self.assertIn("stadium_bowl", blob.lower())
+        self.assertNotIn("_module.json", blob.lower())
 
 
 class PrAResearchPromptTest(unittest.TestCase):

@@ -47,6 +47,7 @@ class LandmarkRoutingPolicyTest(unittest.TestCase):
 
 class StadiumCultureRoutingTest(unittest.TestCase):
     PROMPT = "在锚点位置生成现代风格的椭圆形体育场建筑"
+    EXPLICIT = "在锚点位置生成鸟巢体育馆"
 
     def test_culture_card_matches_stadium_prompt(self):
         from app.services.keyword_culture_retriever import retrieve
@@ -55,20 +56,36 @@ class StadiumCultureRoutingTest(unittest.TestCase):
         self.assertTrue(rag.get("hits"), "expected culture card hit")
         best = rag["hits"][0]
         self.assertEqual(best.get("id"), "modern_stadium_elliptical")
-        self.assertEqual(rag.get("landmarkModuleId"), "birds_nest_stadium")
+        self.assertIsNone(rag.get("landmarkModuleId"))
+        self.assertEqual(
+            (rag.get("typology") or {}).get("structuralTypologyId"),
+            "stadium_bowl",
+        )
         self.assertTrue(rag.get("llmPlanFewShots"), "expected LlmPlan few-shot example")
 
-    def test_resolve_landmark_module_routing_suggested_tier(self):
+    def test_resolve_landmark_module_routing_typology_tier(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing(self.PROMPT)
         self.assertIsNotNone(routing)
         assert routing is not None
-        self.assertEqual(routing.get("moduleId"), "birds_nest_stadium")
+        self.assertEqual(routing.get("typologyId"), "stadium_bowl")
+        self.assertEqual(routing.get("componentType"), "STRUCTURE")
         self.assertEqual(routing.get("routingTier"), "suggested")
-        self.assertEqual(routing.get("feature"), "landmark:birds_nest_stadium")
+        self.assertEqual(routing.get("feature"), "typology:stadium_bowl")
         self.assertIn("exampleParams", routing)
         self.assertIn("llmPlanFewShots", routing)
+
+    def test_explicit_birds_nest_routing_typology_mandatory(self):
+        from app.services.keyword_culture_retriever import resolve_landmark_module_routing
+
+        routing = resolve_landmark_module_routing(self.EXPLICIT)
+        self.assertIsNotNone(routing)
+        assert routing is not None
+        self.assertEqual(routing.get("typologyId"), "stadium_bowl")
+        self.assertEqual(routing.get("componentType"), "STRUCTURE")
+        self.assertEqual(routing.get("routingTier"), "mandatory")
+        self.assertEqual(routing.get("referenceLandmark"), "birds_nest_stadium")
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         "foguang_temple_hall",
         "giant_wild_goose_pagoda",
         "temple_of_heaven",
+        "birds_nest_stadium",
     }
 
     def test_registry_lists_migrated_landmarks(self):
@@ -21,7 +22,18 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         self.assertTrue(self.MIGRATED.issubset(migrated))
         for mid in self.MIGRATED:
             self.assertTrue(is_migrated_landmark(mid))
-        self.assertFalse(is_migrated_landmark("birds_nest_stadium"))
+        self.assertFalse(is_migrated_landmark("golden_gate_bridge"))
+
+    def test_birds_nest_routing_returns_typology_not_module(self):
+        from app.services.keyword_culture_retriever import resolve_landmark_module_routing
+
+        routing = resolve_landmark_module_routing("建一座鸟巢体育馆")
+        self.assertIsNotNone(routing)
+        self.assertEqual(routing.get("componentType"), "STRUCTURE")
+        self.assertEqual(routing.get("typologyId"), "stadium_bowl")
+        self.assertEqual(routing.get("referenceLandmark"), "birds_nest_stadium")
+        self.assertTrue(routing.get("legacyModuleDeprecated"))
+        self.assertNotIn("moduleId", routing)
 
     def test_temple_routing_returns_typology_not_module(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
@@ -42,15 +54,8 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         self.assertEqual(routing.get("typologyId"), "dense_eaves_pagoda")
         self.assertEqual(routing.get("referenceLandmark"), "famen_pagoda")
 
-    def test_birds_nest_still_module_routing(self):
-        from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
-        routing = resolve_landmark_module_routing("建一座鸟巢体育馆")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "MODULE")
-        self.assertEqual(routing.get("moduleId"), "birds_nest_stadium")
-
-    def test_culture_retrieve_suppresses_migrated_landmark_module_id(self):
+    def test_famen_routing_returns_typology_not_module(self):
         from app.services.keyword_culture_retriever import retrieve
 
         rag = retrieve("法门寺塔", topK=1, fewShotK=0)
