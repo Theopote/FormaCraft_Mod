@@ -25,7 +25,7 @@
       "category": "LANDMARK",
       "researchOnly": true,
       "typologyId": "radial_terrace_hall",
-      "generatorId": "temple_of_heaven",
+      "generatorId": "radial_terrace_hall",
       "defaults": { "baseRadius": 18, "tiers": 3 },
       "constraints": { "minBaseRadius": 10, "maxBaseRadius": 60 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
@@ -54,7 +54,7 @@
       "category": "LANDMARK",
       "researchOnly": true,
       "typologyId": "dense_eaves_pagoda",
-      "generatorId": "giant_wild_goose_pagoda",
+      "generatorId": "dense_eaves_pagoda",
       "defaults": { "levels": 7, "height": 41, "baseWidth": 17 },
       "constraints": { "minLevels": 3, "maxLevels": 13, "minHeight": 18, "maxHeight": 120, "minBaseWidth": 9, "maxBaseWidth": 41 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
@@ -73,7 +73,7 @@
       "category": "LANDMARK",
       "researchOnly": true,
       "typologyId": "dense_eaves_pagoda",
-      "generatorId": "famen_pagoda",
+      "generatorId": "dense_eaves_pagoda",
       "defaults": { "levels": 13, "height": 47, "baseWidth": 10 },
       "constraints": { "minLevels": 7, "maxLevels": 15, "minHeight": 28, "maxHeight": 72, "minBaseWidth": 7, "maxBaseWidth": 14 },
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }
@@ -141,7 +141,7 @@
       "category": "LANDMARK",
       "researchOnly": true,
       "typologyId": "tailiang_timber_hall",
-      "generatorId": "foguang_temple_hall",
+      "generatorId": "tailiang_timber_hall",
       "defaults": { "width": 21, "depth": 15, "baysX": 7, "baysZ": 4 },
       "constraints": {},
       "scoringWeights": { "shape": 0.4, "ratio": 0.3, "signature": 0.3 }

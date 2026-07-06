@@ -18,6 +18,9 @@
         "buildingType": "CUSTOM",
         "height": 36,
         "extraDefaults": {
+          "typology_id": "radial_terrace_hall",
+          "structural_typology": "radial_terrace_hall",
+          "reference_landmark": "temple_of_heaven",
           "tiers": 3,
           "detailLevel": "aesthetic"
         }
