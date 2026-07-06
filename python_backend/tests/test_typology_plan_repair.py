@@ -67,6 +67,29 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(count, 1)
         self.assertEqual(out["components"][0]["params"]["typology_id"], "tailiang_timber_hall")
 
+    def test_birds_nest_module_repaired_to_structure(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:birds_nest_stadium"],
+                    "params": {"module_id": "birds_nest_stadium", "meshStructure": True},
+                    "dimensions": {"width": 60, "depth": 80, "height": 28},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        comp = out["components"][0]
+        self.assertEqual(comp["component_type"], "STRUCTURE")
+        self.assertIn("typology:stadium_bowl", comp["features"])
+        self.assertEqual(comp["params"]["typology_id"], "stadium_bowl")
+        self.assertEqual(comp["params"]["reference_landmark"], "birds_nest_stadium")
+        self.assertEqual(comp["params"]["width"], 60)
+
     def test_non_migrated_module_unchanged(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 

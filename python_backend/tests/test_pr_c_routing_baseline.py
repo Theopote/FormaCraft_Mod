@@ -24,12 +24,12 @@ class RoutingClassificationTest(unittest.TestCase):
         }
         self.assertEqual(classify_component(comp), "typology_builder")
 
-    def test_module_birds_nest(self):
+    def test_migrated_module_classifies_as_typology(self):
         comp = {
             "component_type": "MODULE",
             "features": ["landmark:birds_nest_stadium"],
         }
-        self.assertEqual(classify_component(comp), "module")
+        self.assertEqual(classify_component(comp), "typology_builder")
 
     def test_migrated_module_classifies_as_typology(self):
         comp = {

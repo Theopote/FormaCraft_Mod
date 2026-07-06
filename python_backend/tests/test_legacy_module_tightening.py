@@ -54,8 +54,7 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         self.assertEqual(routing.get("typologyId"), "dense_eaves_pagoda")
         self.assertEqual(routing.get("referenceLandmark"), "famen_pagoda")
 
-
-    def test_famen_routing_returns_typology_not_module(self):
+    def test_culture_retrieve_suppresses_migrated_landmark_module_id(self):
         from app.services.keyword_culture_retriever import retrieve
 
         rag = retrieve("法门寺塔", topK=1, fewShotK=0)
