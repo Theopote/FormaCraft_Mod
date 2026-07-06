@@ -76,9 +76,24 @@ def build_minimal_plan_from_profile(
     style_profile = profile.identity.style or "DEFAULT"
     skeleton = (profile.minecraft_strategy.skeleton_type or "COMPOUND").upper()
     lm = profile.minecraft_strategy.landmark_module
+    st = profile.minecraft_strategy.structural_typology
+    ref = profile.minecraft_strategy.reference_landmark
 
     components: List[Dict[str, Any]] = []
-    if lm:
+    if st:
+        from .typology_plan_repair import _typology_params
+
+        params = _typology_params(st, ref, {})
+        components.append(
+            {
+                "component_type": "STRUCTURE",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": width, "depth": depth, "height": height},
+                "features": [f"typology:{st}"],
+                "params": params,
+            }
+        )
+    elif lm:
         components.append(
             {
                 "component_type": "MODULE",

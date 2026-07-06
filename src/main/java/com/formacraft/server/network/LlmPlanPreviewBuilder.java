@@ -66,12 +66,19 @@ public final class LlmPlanPreviewBuilder {
 
         LlmPlanRoutingMetrics.recordTaggedAttempt(player, req);
         com.formacraft.common.network.metrics.LandmarkRoutingMetrics.recordFromPlan(player, req, llmPlan);
+        com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordFromPlan(player, req, llmPlan);
         String landmarkModule = com.formacraft.common.network.metrics.LandmarkRoutingMetrics.extractLandmarkModuleId(llmPlan);
         if (landmarkModule != null) {
-            String warn = com.formacraft.common.network.metrics.LandmarkRoutingMetrics.playerWarningZh(
-                    BuildingSpecRoutingPolicy.userIntentText(req), landmarkModule);
-            if (warn != null) {
-                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(warn));
+            String typWarn = com.formacraft.common.network.metrics.TypologyRoutingMetrics
+                    .playerDeprecationWarningZh(landmarkModule);
+            if (typWarn != null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(typWarn));
+            } else {
+                String warn = com.formacraft.common.network.metrics.LandmarkRoutingMetrics.playerWarningZh(
+                        BuildingSpecRoutingPolicy.userIntentText(req), landmarkModule);
+                if (warn != null) {
+                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(warn));
+                }
             }
         } else if (llmPlan.playerFidelityNoticeZh() != null && !llmPlan.playerFidelityNoticeZh().isBlank()) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(

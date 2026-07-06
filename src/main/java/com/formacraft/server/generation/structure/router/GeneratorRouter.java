@@ -122,14 +122,15 @@ public final class GeneratorRouter {
         );
         if (typologyId == null) return null;
 
-        String legacy = StructuralTypologyRegistry.legacyModuleForTypology(typologyId);
-        if (legacy != null && StructureGeneratorRegistry.has(legacy)) {
-            return StructureGeneratorRegistry.create(legacy);
-        }
-
         String interpreter = StructuralTypologyRegistry.resolveInterpreterId(typologyId);
         if (interpreter != null && StructureGeneratorRegistry.has(interpreter)) {
             return StructureGeneratorRegistry.create(interpreter);
+        }
+
+        String legacy = StructuralTypologyRegistry.legacyModuleForTypology(typologyId);
+        if (legacy != null && StructureGeneratorRegistry.has(legacy)) {
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordLegacyRedirect(legacy, typologyId);
+            return StructureGeneratorRegistry.create(legacy);
         }
         return null;
     }

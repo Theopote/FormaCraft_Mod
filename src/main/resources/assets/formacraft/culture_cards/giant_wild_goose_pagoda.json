@@ -27,7 +27,7 @@
   "proportionCardId": "giant_wild_goose_pagoda",
   "structuralTypologyId": "dense_eaves_pagoda",
   "landmarkModuleId": "giant_wild_goose_pagoda",
-  "llmPlanExampleRefs": [],
+  "llmPlanExampleRefs": ["dayanta_dense_eaves_typology.json"],
   "exampleRefs": [],
   "archetypes": [
     {

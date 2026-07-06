@@ -201,10 +201,6 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
                     if (!typologyId.isEmpty()) {
                         extra.put("typology_id", typologyId);
                         extra.put("structural_typology", typologyId);
-                        String legacy = StructuralTypologyRegistry.legacyModuleForTypology(typologyId);
-                        if (legacy != null && !legacy.isBlank()) {
-                            putResolvedLandmark(extra, legacy);
-                        }
                     }
                 } else if (lower.startsWith("structure_generator:")) {
                     String value = feature.substring("structure_generator:".length()).trim();
@@ -230,6 +226,7 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
         if (typology != null && !typology.isBlank()) {
             extra.putIfAbsent("typology_id", typology);
             extra.putIfAbsent("structural_typology", typology);
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordLegacyRedirect(moduleId, typology);
         }
     }
 

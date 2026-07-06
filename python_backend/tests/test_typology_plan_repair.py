@@ -1,0 +1,128 @@
+"""Phase 4: typology plan repair — MODULE landmark → STRUCTURE + typology."""
+
+from __future__ import annotations
+
+import unittest
+
+
+class TypologyPlanRepairTest(unittest.TestCase):
+    def test_famen_module_repaired_to_structure(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 47},
+                    "features": ["landmark:famen_pagoda"],
+                    "params": {"module_id": "famen_pagoda"},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        comp = out["components"][0]
+        self.assertEqual(comp["component_type"], "STRUCTURE")
+        self.assertIn("typology:dense_eaves_pagoda", comp["features"])
+        self.assertEqual(comp["params"]["typology_id"], "dense_eaves_pagoda")
+        self.assertEqual(comp["params"]["reference_landmark"], "famen_pagoda")
+        self.assertEqual(comp["params"]["footprint"], "octagon")
+
+    def test_dayanta_module_repaired_to_square(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:giant_wild_goose_pagoda"],
+                    "params": {"module_id": "giant_wild_goose_pagoda"},
+                    "dimensions": {"width": 17, "depth": 17, "height": 41},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        comp = out["components"][0]
+        self.assertEqual(comp["params"]["footprint"], "square")
+        self.assertEqual(comp["params"]["levels"], 7)
+
+    def test_foguang_module_repaired(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:foguang_temple_hall"],
+                    "params": {"module_id": "foguang_temple_hall"},
+                    "dimensions": {"width": 21, "depth": 15, "height": 7},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        self.assertEqual(out["components"][0]["params"]["typology_id"], "tailiang_timber_hall")
+
+    def test_non_migrated_module_unchanged(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:golden_gate_bridge"],
+                    "params": {"module_id": "golden_gate_bridge"},
+                    "dimensions": {"width": 32, "depth": 8, "height": 16},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 0)
+        self.assertEqual(out["components"][0]["component_type"], "MODULE")
+
+    def test_sanitize_strips_remaining_module_with_typology_profile(self):
+        from unittest.mock import Mock
+
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
+        from app.services.ai_planner import _normalize_llm_plan_output, _sanitize_landmark_modules
+
+        profile = BuildingProfile(
+            query="大雁塔",
+            minecraft_strategy=ProfileMinecraftStrategy(
+                structural_typology="dense_eaves_pagoda",
+                reference_landmark="giant_wild_goose_pagoda",
+                landmark_module=None,
+                skeleton_type="VERTICAL_STACK",
+                recommended_components=["STRUCTURE", "MASS_MAIN", "ROOF"],
+            ),
+        )
+        plan = {
+            "mode": "build",
+            "style_profile": "Chinese_Traditional",
+            "genome": {"genomeVersion": "1.0"},
+            "layout": {"skeleton_type": "VERTICAL_STACK", "slots": []},
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:giant_wild_goose_pagoda"],
+                    "params": {"module_id": "giant_wild_goose_pagoda"},
+                    "dimensions": {"width": 17, "depth": 17, "height": 41},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ],
+        }
+        _sanitize_landmark_modules(plan, Mock(), profile)
+        types = [c["component_type"] for c in plan["components"]]
+        self.assertIn("STRUCTURE", types)
+        self.assertNotIn("MODULE", types)
+        struct = next(c for c in plan["components"] if c["component_type"] == "STRUCTURE")
+        self.assertEqual(struct["params"]["footprint"], "square")
+
+
+if __name__ == "__main__":
+    unittest.main()

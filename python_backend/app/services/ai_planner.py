@@ -981,6 +981,24 @@ def _sanitize_landmark_modules(
     req: Optional[BuildRequest],
     building_profile: Optional[Any] = None,
 ) -> None:
+    from .typology_plan_repair import repair_migrated_landmark_components
+
+    stid: Optional[str] = None
+    ref_lm: Optional[str] = None
+    if building_profile is not None:
+        mc = getattr(building_profile, "minecraft_strategy", None)
+        if mc is not None:
+            raw_st = getattr(mc, "structural_typology", None)
+            raw_ref = getattr(mc, "reference_landmark", None)
+            stid = str(raw_st).strip() if raw_st else None
+            ref_lm = str(raw_ref).strip() if raw_ref else None
+
+    plan, _ = repair_migrated_landmark_components(
+        plan,
+        structural_typology=stid,
+        reference_landmark=ref_lm,
+    )
+
     components = plan.get("components")
     if not isinstance(components, list):
         return

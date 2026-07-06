@@ -34,6 +34,7 @@ _UNITTEST_MODULES: Tuple[str, ...] = (
     "tests.test_temple_of_heaven_p0",
     "tests.test_famen_foguang_p0",
     "tests.test_typology_migration",
+    "tests.test_typology_plan_repair",
     "tests.test_patch_edit_p0",
     "tests.test_building_research_agent",
     "tests.test_reference_blueprint",

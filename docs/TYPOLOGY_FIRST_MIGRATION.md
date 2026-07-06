@@ -1,6 +1,6 @@
 # Typology-First 架构迁移方案
 
-> **状态**：Phase 0–3 已完成（2026-07-06）  
+> **状态**：Phase 0–4 已完成（2026-07-06）  
 > **政策**：冻结新地标专用 Generator；新中式/古建需求走 **Structural Typology + 参数化解释器**，地标仅作 RAG 比例与风格参考。
 
 ## 1. 背景与问题
@@ -180,6 +180,16 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | **1** | `TypologyInterpreterRegistry` + `TypologyComponentRouter`；STRUCTURE/typology 构件路由；legacy 委托 Famen/Foguang | **已完成** |
 | **2** | `DenseEavesPagodaBuilder` / `TailiangTimberHallBuilder` + 原生解释器；`ChineseTypologyDetailUtil` 迁入 typology 包 | **已完成** |
 | **3** | 大雁塔等迁入 `dense_eaves_pagoda`（`footprint=square`）；`GiantWildGoosePagodaGenerator` 瘦身为 Builder 委托 | **已完成** |
+| **4** | `TypologyRoutingMetrics` 遥测；LLM MODULE→STRUCTURE 自动修复；Java 路由优先原生 typology builder | **已完成** |
+
+### Phase 4 细节
+
+| 能力 | 实现 |
+|---|---|
+| 遥测 | `[TypologyMetrics]` — `typology_structure_hit` / `deprecated_module_use` / `legacy_redirect` |
+| Plan 修复 | `typology_plan_repair.py` — migrationMap 内 landmark MODULE 自动转为 `STRUCTURE + typology:*` |
+| 路由优先 | `GeneratorRouter.routeByTypology` 先走 `interpreterId`（`TypologyBackedStructureGenerator`），legacy 仅 fallback |
+| Few-shot | `dayanta_dense_eaves_typology.json` 注入大雁塔 culture 卡 |
 
 ## 8. 冻结政策
 
@@ -201,7 +211,8 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 参数化 Builder | `server.generation.typology.builder.*` |
 | 细节工具 | `com.formacraft.common.typology.detail.ChineseTypologyDetailUtil` |
 | Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json`, `giant_wild_goose_pagoda.json` |
-| 测试 | `python_backend/tests/test_typology_migration.py` |
+| 测试 | `python_backend/tests/test_typology_migration.py`, `test_typology_plan_repair.py` |
+| 遥测 | `com.formacraft.common.network.metrics.TypologyRoutingMetrics` |
 
 ## 10. LlmPlan 目标形状（typology-first few-shot）
 

@@ -36,6 +36,7 @@ public final class TypologyComponentRouter {
         try {
             List<BlockPatch> patches = interpreter.interpret(semantic, world);
             if (patches != null && !patches.isEmpty()) {
+                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordTypologyComponentHit(typologyId);
                 FormacraftMod.LOGGER.debug(
                         "TypologyComponentRouter: typology={} produced {} patches",
                         typologyId, patches.size()

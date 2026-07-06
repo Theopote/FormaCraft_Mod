@@ -39,9 +39,9 @@ public final class StructureGeneratorRegistry {
         register("giant_wild_goose_pagoda", GiantWildGoosePagodaGenerator::new);
         register("famen_pagoda", FamenPagodaGenerator::new);
         register("foguang_temple_hall", FoguangTempleHallGenerator::new);
-        // Typology interpreter aliases (Phase 1 — delegate to legacy generators until generic interpreters land)
-        register("dense_eaves_pagoda", FamenPagodaGenerator::new);
-        register("tailiang_timber_hall", FoguangTempleHallGenerator::new);
+        // Typology interpreter aliases (Phase 4 — native builders, legacy generators deprecated)
+        register("dense_eaves_pagoda", () -> new TypologyBackedStructureGenerator("dense_eaves_pagoda"));
+        register("tailiang_timber_hall", () -> new TypologyBackedStructureGenerator("tailiang_timber_hall"));
         register("castle_compound", CastleCompoundGenerator::new);
         register("office_district", OfficeDistrictGenerator::new);
         register("mingqing_courtyard", MingQingCourtyardGenerator::new);
