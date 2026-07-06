@@ -23,6 +23,23 @@ _MONUMENTAL_MARKERS = _CLASSICAL_MARKERS + (
     "城堡", "要塞", "市政", "议会",
 )
 
+_DEFAULT_DETAIL_RULES: List[Dict[str, Any]] = [
+    {
+        "id": "floor_cornice",
+        "when": {"region": "perimeter", "y": "floor_boundary", "block": "wall"},
+        "action": {
+            "replace_with": "inverted_stairs",
+            "part": "WALL_ACCENT",
+            "facing": "outward",
+        },
+    },
+    {
+        "id": "base_plinth_top",
+        "when": {"region": "perimeter", "y": "base_top", "block": "wall"},
+        "action": {"replace_with": "slab", "part": "FOUNDATION"},
+    },
+]
+
 
 def _text_blob(user_text: str, profile: Optional[BuildingProfile], plan: Dict[str, Any]) -> str:
     parts = [user_text or ""]
@@ -267,6 +284,8 @@ def enrich_llm_plan_architectural_detail(
     target_depth = int(hints["target_depth"])
     if isinstance(ph, dict) and tier in ("rich", "monumental"):
         ph.setdefault("floor_cornice", True)
+        ph.setdefault("base_plinth_detail", True)
+        ph.setdefault("detail_rules", [dict(r) for r in _DEFAULT_DETAIL_RULES])
         ph.setdefault("window_order", "full")
         ph.setdefault(
             "repeating_pattern",

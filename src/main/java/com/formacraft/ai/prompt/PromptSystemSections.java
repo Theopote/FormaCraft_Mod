@@ -76,6 +76,13 @@ Core rules:
   Components should FILL bays, not invent free-form spans. Pair with repeating_pattern inside each bay.
   When both are present, bay_grid defines macro spans; repeating_pattern tiles P-W-P (or custom elements) inside each bay.
   Compiler writes bay_grid_x/z on MASS; FACADE_WINDOWS and ENTRANCE snap to bay spans automatically.
+- DETAIL_RULES (perimeter molding — declare rules, not per-block components):
+  Put in proportion_hints.detail_rules OR rely on presets (floor_cornice, base_plinth_detail).
+  Schema: [ { "when": { "region": "perimeter|all", "y": "floor_boundary|base_top|roof_eave|int",
+      "block": "wall|any" }, "action": { "replace_with": "inverted_stairs|slab|block",
+      "part": "WALL_ACCENT|FOUNDATION", "facing": "outward?", "block": "minecraft:...?" } } ].
+  Example story cornice: y=floor_boundary + inverted_stairs + facing=outward on perimeter wall cells.
+  Compiler also injects preset rules when proportion_hints.floor_cornice or classical typology applies.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.

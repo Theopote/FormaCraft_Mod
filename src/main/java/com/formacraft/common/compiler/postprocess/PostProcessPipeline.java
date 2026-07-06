@@ -12,9 +12,11 @@ import java.util.List;
  * 按顺序执行多个后处理器，对 BlockPatch 列表进行后处理。
  * 
  * 执行顺序：
- * 1. DetailEnhancementPostProcessor - 细节装饰增强
- * 2. MaterialVariationPostProcessor - 材质变化
- * 3. TerrainAdaptationPostProcessor - 地形适应（如果提供了 world 和 terrainSampler）
+ * 1. DetailRulePostProcessor - 条件式收边规则（线脚/基座带等）
+ * 2. WindowOrderPostProcessor - 窗套 sill/lintel
+ * 3. DetailEnhancementPostProcessor - 细节装饰增强
+ * 4. MaterialVariationPostProcessor - 材质变化
+ * 5. TerrainAdaptationPostProcessor - 地形适应（如果提供了 world 和 terrainSampler）
  */
 public class PostProcessPipeline {
 
@@ -26,8 +28,8 @@ public class PostProcessPipeline {
     public static PostProcessPipeline createDefault(PostProcessContext context) {
         PostProcessPipeline pipeline = new PostProcessPipeline();
 
-        // 0. Story 分界檐口（inverted stairs）
-        pipeline.add(new FloorCornicePostProcessor());
+        // 0. Declarative detail rules + floor_cornice/base_plinth presets
+        pipeline.add(new DetailRulePostProcessor());
 
         // 0.5 Window Order（sill / lintel / pediment）
         pipeline.add(new WindowOrderPostProcessor());
