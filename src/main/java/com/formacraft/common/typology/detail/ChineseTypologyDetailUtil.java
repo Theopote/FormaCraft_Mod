@@ -94,10 +94,10 @@ public final class ChineseTypologyDetailUtil {
             stair = stair.with(Properties.BLOCK_HALF, BlockHalf.TOP);
         }
         blocks.add(new PlannedBlock(origin.add(x, y + 2, z), stair));
-        int lx = x + face.rotateYCW().getOffsetX();
-        int lz = z + face.rotateYCW().getOffsetZ();
-        int rx = x + face.rotateYCCW().getOffsetX();
-        int rz = z + face.rotateYCCW().getOffsetZ();
+        int lx = x + face.rotateYClockwise().getOffsetX();
+        int lz = z + face.rotateYClockwise().getOffsetZ();
+        int rx = x + face.rotateYCounterclockwise().getOffsetX();
+        int rz = z + face.rotateYCounterclockwise().getOffsetZ();
         blocks.add(new PlannedBlock(origin.add(lx, y + 2, lz), archTrim));
         blocks.add(new PlannedBlock(origin.add(rx, y + 2, rz), archTrim));
     }
@@ -141,7 +141,7 @@ public final class ChineseTypologyDetailUtil {
     ) {
         blocks.add(new PlannedBlock(origin.add(0, baseY, 0), accent));
         blocks.add(new PlannedBlock(origin.add(0, baseY + 1, 0), accent));
-        blocks.add(new PlannedBlock(origin.add(0, baseY + 2, 0), Blocks.CHAIN.getDefaultState()));
+        blocks.add(new PlannedBlock(origin.add(0, baseY + 2, 0), Blocks.IRON_CHAIN.getDefaultState()));
         int y = baseY + 3;
         for (int tier = 0; tier < 3; tier++) {
             int rh = Math.max(1, 2 - tier / 2);
@@ -174,8 +174,8 @@ public final class ChineseTypologyDetailUtil {
             place.accept(new BlockPos(x - ax, y + 1, z - az), gong);
         }
         place.accept(new BlockPos(x, y + 2, z), fang);
+        place.accept(new BlockPos(x + ox, y + 2, z + oz), withFacing(gong, outward));
         if (full) {
-            place.accept(new BlockPos(x + ox, y + 2, z + oz), withFacing(gong, outward));
             if (corner) {
                 place.accept(new BlockPos(x + ax, y + 2, z + az), withFacing(gong, along));
                 place.accept(new BlockPos(x - ax, y + 2, z - az), withFacing(gong, along.getOpposite()));
@@ -187,8 +187,6 @@ public final class ChineseTypologyDetailUtil {
                 place.accept(new BlockPos(x + ox, y + 3, z + oz), paint);
                 if (corner) place.accept(new BlockPos(x + ax, y + 3, z + az), paint);
             }
-        } else {
-            place.accept(new BlockPos(x + ox, y + 2, z + oz), withFacing(gong, outward));
         }
     }
 
