@@ -63,6 +63,55 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
         self.assertIn("DECOR_DETAIL", rec)
         self.assertIn("FOUNDATION", rec)
 
+    def test_typology_profile_skips_compositional_enrichment(self):
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
+        from app.services.plan_architectural_enrichment import enrich_profile_architectural_detail
+
+        profile = enrich_profile_architectural_detail(
+            BuildingProfile(
+                query="金门大桥",
+                minecraft_strategy=ProfileMinecraftStrategy(
+                    structural_typology="suspension_bridge",
+                    reference_landmark="golden_gate_bridge",
+                ),
+            ),
+            "在锚点位置生成金门大桥",
+        )
+        self.assertEqual(profile.minecraft_strategy.recommended_components, ["STRUCTURE"])
+        self.assertIn("FORBID", profile.minecraft_strategy.notes or "")
+
+    def test_typology_plan_not_enriched_with_house_facade(self):
+        from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 9, "depth": 180, "height": 44},
+                    "features": ["typology:suspension_bridge"],
+                    "params": {
+                        "typology_id": "suspension_bridge",
+                        "reference_landmark": "golden_gate_bridge",
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 7},
+                    "features": [],
+                    "params": {},
+                },
+            ],
+        }
+        out = enrich_llm_plan_architectural_detail(
+            plan,
+            user_text="金门大桥",
+        )
+        self.assertEqual(len(out["components"]), 2)
+        self.assertNotIn("floor_cornice", (out.get("proportion_hints") or {}))
+
 
 if __name__ == "__main__":
     unittest.main()

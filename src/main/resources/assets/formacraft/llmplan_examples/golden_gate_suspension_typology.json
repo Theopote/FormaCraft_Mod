@@ -1,6 +1,6 @@
 {
-  "description": "悬索桥 typology-first → suspension_bridge（金门作 reference_landmark）",
-  "promptHints": ["金门大桥", "旧金山大桥", "悬索桥", "golden gate bridge", "suspension bridge"],
+  "description": "悬索桥 typology-first → suspension_bridge（金门作 reference_landmark）。components 仅一个 STRUCTURE，禁止 MASS/TOWER/ROOF 等组合式冗余。",
+  "promptHints": ["金门大桥", "旧金山大桥", "悬索桥", "golden gate bridge", "suspension bridge", "单 STRUCTURE", "禁止 MASS TOWER"],
   "plan": {
     "mode": "build",
     "style_profile": "Modern_International",

@@ -250,7 +250,7 @@
       ],
       "proportionCardIds": ["suspension_bridge"],
       "cultureCardIds": ["suspension_bridge", "golden_gate_bridge"],
-      "llmPlanGuidance": "Use structural_typology=suspension_bridge with layout.skeleton_type=SPAN_SUSPENSION. Output proportion_hints.typology=suspension_bridge, span_to_tower_height≈4.0, cable_sag_ratio≈0.12. Prefer STRUCTURE + typology:suspension_bridge; set reference_landmark=golden_gate_bridge when user names Golden Gate. Params: span, deckWidth, towerHeight, followTerrain, facing, detailLevel. global_constraints.symmetry=MIRROR_X. FORBID plain PATH polyline without twin towers and main cables."
+      "llmPlanGuidance": "Use structural_typology=suspension_bridge with layout.skeleton_type=SPAN_SUSPENSION. Output proportion_hints.typology=suspension_bridge, span_to_tower_height≈4.0, cable_sag_ratio≈0.12. Prefer ONE STRUCTURE + typology:suspension_bridge; set reference_landmark=golden_gate_bridge when user names Golden Gate. Params: span, deckWidth, towerHeight, followTerrain, facing, detailLevel. global_constraints.symmetry=MIRROR_X. FORBID MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, ENTRANCE, FOUNDATION, FACADE_WINDOWS, DECOR_DETAIL alongside typology STRUCTURE — interpreter owns deck, twin towers, cables. FORBID house proportion_hints (height_to_width, floor_cornice, pilaster rhythm). FORBID plain PATH polyline without twin towers and main cables."
     },
     {
       "id": "gothic_cathedral_hall",

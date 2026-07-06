@@ -19,6 +19,32 @@ from ..models.request import BuildRequest, ReferenceInput
 
 logger = logging.getLogger(__name__)
 
+_TYPOLOGY_EXCLUSIVE_SUPPRESSED_COMPONENTS = frozenset({
+    "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS",
+    "TOWER", "ROOF", "ROOF_STRUCTURE", "ENTRANCE", "FACADE_WINDOWS",
+    "FOUNDATION", "TERRACE", "BASE", "CROWN", "CUPOLA", "DOME",
+    "BALCONY", "DECOR_DETAIL", "CHIMNEY", "GATE", "WALL",
+})
+
+
+def typology_exclusive_component_note(
+    typology_id: str,
+    reference_landmark: Optional[str] = None,
+) -> str:
+    ref = reference_landmark or "none"
+    note = (
+        f"structural_typology={typology_id}: output ONLY ONE STRUCTURE with "
+        f"typology:{typology_id} params; landmark_module=null (reference_landmark={ref}). "
+        "FORBID MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, ENTRANCE, FOUNDATION, "
+        "FACADE_WINDOWS, DECOR_DETAIL alongside typology STRUCTURE — interpreter owns geometry."
+    )
+    if typology_id == "suspension_bridge":
+        note += (
+            " proportion_hints must use bridge ratios (span_to_tower_height≈4.0, "
+            "cable_sag_ratio≈0.12); do NOT emit house ratios (height_to_width, floor_cornice)."
+        )
+    return note
+
 
 def _env_str(name: str, default: str = "") -> str:
     return (os.getenv(name) or default).strip().lower()
@@ -526,22 +552,9 @@ def finalize_profile_minecraft_strategy(
         if defn:
             mc.skeleton_type = defn.skeleton_type
         mc.landmark_module = None
-        components = [
-            str(c).upper()
-            for c in (mc.recommended_components or [])
-            if str(c).upper() != "MODULE"
-        ]
-        if not components:
-            components = ["STRUCTURE", "MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
-        elif "STRUCTURE" not in components:
-            components = ["STRUCTURE"] + components
-        mc.recommended_components = components
+        mc.recommended_components = ["STRUCTURE"]
         note = (mc.notes or "").strip()
-        mc.notes = (
-            f"structural_typology={typology_id}: use typology params in LlmPlan; "
-            f"landmark_module=null (reference_landmark={mc.reference_landmark or 'none'}). "
-            + note
-        ).strip()
+        mc.notes = (typology_exclusive_component_note(typology_id, mc.reference_landmark) + " " + note).strip()
     elif resolved:
         mc.landmark_module = resolved
         if "MODULE" not in [str(c).upper() for c in (mc.recommended_components or [])]:
@@ -868,6 +881,8 @@ def synthesize_profile_with_llm(
         "radial_terrace_hall) and reference_landmark; keep landmark_module=null. "
         "NEVER set landmark_module for famen_pagoda, giant_wild_goose_pagoda, foguang_temple_hall, "
         "temple_of_heaven, birds_nest_stadium, golden_gate_bridge, gothic_cathedral, mingqing_courtyard, castle_compound, or modern_skyscraper — they are typology-first only. "
+        "When structural_typology is set, recommended_components must be [\"STRUCTURE\"] only — "
+        "never MASS_MAIN/TOWER/ROOF alongside typology STRUCTURE. "
         "landmark_module only for explicit non-migrated presets (e.g. "
         "great_wall, eiffel_tower). "
         "For Louvre, White House, Sydney Opera House, Sagrada Família, etc., set landmark_module=null and "
@@ -933,9 +948,13 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
         "Use it to inform accurate LlmPlan generation.",
         "",
         "CRITICAL routing (typology-first):",
-        "- When minecraft_strategy.structural_typology is set → output STRUCTURE with "
+        "- When minecraft_strategy.structural_typology is set → output ONE STRUCTURE with "
         "features [\"typology:<id>\"] and params.reference_landmark if provided; "
         "landmark_module MUST stay null.",
+        "- Typology-first plans MUST NOT include MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, "
+        "ENTRANCE, FOUNDATION, FACADE_WINDOWS, or DECOR_DETAIL alongside typology STRUCTURE.",
+        "- suspension_bridge / golden_gate_bridge: proportion_hints use span_to_tower_height "
+        "and cable_sag_ratio only — never house ratios (height_to_width, floor_cornice).",
         "- Migrated landmarks (famen_pagoda, giant_wild_goose_pagoda, foguang_temple_hall, "
         "temple_of_heaven, birds_nest_stadium, golden_gate_bridge, gothic_cathedral, mingqing_courtyard, castle_compound, modern_skyscraper) NEVER use MODULE — even if Java LANDMARK MODULE blocks suggest it.",
         "- If landmark_module is null → compositional and/or STRUCTURE typology; do NOT use MODULE.",

@@ -75,6 +75,41 @@ class PrACultureFewshotTest(unittest.TestCase):
         self.assertTrue(rag.get("llmPlanFewShots"))
         self.assertIn("suspension_bridge", blob.lower())
         self.assertNotIn("_module.json", blob.lower())
+        self.assertTrue("禁止" in blob or "forbid" in blob.lower())
+
+    def test_golden_gate_profile_structure_only_components(self):
+        from app.services.building_research_agent import finalize_profile_minecraft_strategy
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
+
+        profile = finalize_profile_minecraft_strategy(
+            BuildingProfile(
+                query="在锚点位置生成金门大桥",
+                minecraft_strategy=ProfileMinecraftStrategy(),
+            ),
+            "在锚点位置生成金门大桥",
+        )
+        mc = profile.minecraft_strategy
+        self.assertEqual(mc.structural_typology, "suspension_bridge")
+        self.assertEqual(mc.reference_landmark, "golden_gate_bridge")
+        self.assertEqual(mc.recommended_components, ["STRUCTURE"])
+        self.assertNotIn("MASS_MAIN", mc.recommended_components)
+        self.assertIn("FORBID", mc.notes or "")
+
+    def test_golden_gate_research_override_forbids_mass(self):
+        from app.services.building_plan_stage import research_landmark_override_block
+        from app.services.building_research_agent import finalize_profile_minecraft_strategy
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
+
+        profile = finalize_profile_minecraft_strategy(
+            BuildingProfile(
+                query="在锚点位置生成金门大桥",
+                minecraft_strategy=ProfileMinecraftStrategy(),
+            ),
+            "在锚点位置生成金门大桥",
+        )
+        block = research_landmark_override_block(profile)
+        self.assertIn("MASS_MAIN", block)
+        self.assertIn("span_to_tower_height", block)
 
     def test_gothic_cathedral_typology_fewshot(self):
         from app.services.keyword_culture_retriever import retrieve

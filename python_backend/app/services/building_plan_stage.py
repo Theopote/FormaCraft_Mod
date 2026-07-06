@@ -86,7 +86,10 @@ BuildingProfile.minecraft_strategy.landmark_module = null
 You MUST output ONE STRUCTURE component with features ["typology:{stid}"]{ref_hint}
 Set proportion_hints.typology = "{stid}".
 Do NOT output MODULE or landmark:* for typology-first buildings.
+Do NOT output MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, ENTRANCE, FOUNDATION,
+FACADE_WINDOWS, or DECOR_DETAIL alongside typology STRUCTURE.
 Ignore conflicting landmark MODULE hints from earlier prompt sections.
+{"For suspension_bridge: use span_to_tower_height≈4.0 and cable_sag_ratio≈0.12 in proportion_hints; never house ratios." if stid == "suspension_bridge" else ""}
 
 """
 

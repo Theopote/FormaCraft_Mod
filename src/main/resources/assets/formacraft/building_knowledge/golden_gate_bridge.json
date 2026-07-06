@@ -36,6 +36,6 @@
     "aspectRatio": "20:1"
   },
   "llmPlanRouting": {
-    "instruction": "指名金门大桥/旧金山大桥 → MANDATORY STRUCTURE+typology:suspension_bridge（reference_landmark=golden_gate_bridge）；泛悬索桥 → RECOMMENDED typology 或 ASSEMBLY preset；变化 span/deckWidth/towerHeight/facing"
+    "instruction": "指名金门大桥/旧金山大桥 → MANDATORY 仅一个 STRUCTURE+typology:suspension_bridge（reference_landmark=golden_gate_bridge）；禁止并存 MASS/TOWER/ROOF/ENTRANCE/FOUNDATION；泛悬索桥 → RECOMMENDED typology 或 ASSEMBLY preset；变化 span/deckWidth/towerHeight/facing"
   }
 }

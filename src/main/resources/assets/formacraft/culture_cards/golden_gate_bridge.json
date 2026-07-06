@@ -42,7 +42,8 @@
         "reference_landmark=golden_gate_bridge 作比例锚点；禁止 MODULE/landmark:golden_gate_bridge 硬路由",
         "params: span≈180, deckWidth≈9, towerHeight≈44, followTerrain=true, facing=EAST",
         "layout.skeleton_type=SPAN_SUSPENSION；global_constraints.symmetry=MIRROR_X",
-        "输出 proportion_hints：typology=suspension_bridge, span_to_tower_height≈4.0",
+        "输出 proportion_hints：typology=suspension_bridge, span_to_tower_height≈4.0, cable_sag_ratio≈0.12",
+        "components 仅一个 STRUCTURE+typology:suspension_bridge；禁止并存 MASS_MAIN/MASS_SECONDARY/TOWER/ROOF/ENTRANCE/FOUNDATION/FACADE_WINDOWS",
         "禁止用单一 PATH/BRIDGE 折线代替双塔主缆体系"
       ]
     }

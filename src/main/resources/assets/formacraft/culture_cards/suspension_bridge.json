@@ -43,6 +43,7 @@
         "原创悬索桥可省略 reference_landmark；指名金门时设 reference_landmark=golden_gate_bridge",
         "params: span≈120, deckWidth≈9, towerHeight≈36, followTerrain=true, facing=EAST",
         "layout.skeleton_type=SPAN_SUSPENSION",
+        "components 仅一个 STRUCTURE+typology:suspension_bridge（typology 路径）；禁止并存 MASS/TOWER/ROOF/ENTRANCE/FOUNDATION",
         "允许原创路径：ASSEMBLY preset=suspension_bridge_simple（组合式兜底）",
         "禁止用单一 PATH 折线代替塔-缆-吊索体系"
       ]

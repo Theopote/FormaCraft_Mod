@@ -10,6 +10,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..models.building_profile import BuildingProfile
+from .building_research_agent import typology_exclusive_component_note
 
 _CLASSICAL_MARKERS = (
     "palace", "museum", "cathedral", "church", "temple", "monument", "classical",
@@ -116,6 +117,14 @@ def enrich_profile_architectural_detail(
 ) -> BuildingProfile:
     tier = detect_detail_tier(user_text, profile, {})
     mc = profile.minecraft_strategy.model_copy()
+    if mc.structural_typology:
+        note = (mc.notes or "").strip()
+        exclusive = typology_exclusive_component_note(mc.structural_typology, mc.reference_landmark)
+        if exclusive not in note:
+            mc.notes = f"{exclusive} {note}".strip()
+        mc.recommended_components = ["STRUCTURE"]
+        return profile.model_copy(update={"minecraft_strategy": mc})
+
     base = [
         str(c).upper()
         for c in (mc.recommended_components or [])
@@ -242,6 +251,21 @@ def _mass_dims(comp: Dict[str, Any]) -> Dict[str, int]:
     }
 
 
+def _plan_has_typology_structure(components: List[Dict[str, Any]]) -> bool:
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        if str(comp.get("component_type") or "").upper() != "STRUCTURE":
+            continue
+        feats = comp.get("features") or []
+        if any(isinstance(f, str) and "typology:" in f.lower() for f in feats):
+            return True
+        params = comp.get("params") or {}
+        if isinstance(params, dict) and (params.get("typology_id") or params.get("structural_typology")):
+            return True
+    return False
+
+
 def enrich_llm_plan_architectural_detail(
     plan: Dict[str, Any],
     *,
@@ -259,6 +283,8 @@ def enrich_llm_plan_architectural_detail(
     if not isinstance(components, list) or not components:
         return plan
     if all(str(c.get("component_type") or "").upper() == "MODULE" for c in components if isinstance(c, dict)):
+        return plan
+    if _plan_has_typology_structure(components):
         return plan
 
     tier = detect_detail_tier(user_text, profile, plan)
