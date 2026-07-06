@@ -43,6 +43,7 @@ public final class LlmPlanParser {
         }
 
         plan = LlmPlanAnchorNormalizer.normalize(plan);
+        plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         validate(plan);
         return plan;
     }
@@ -53,7 +54,8 @@ public final class LlmPlanParser {
     public static LlmPlan parse(String json) throws PlanParseException {
         try {
             LlmPlan plan = MAPPER.readValue(json, LlmPlan.class);
-            return LlmPlanAnchorNormalizer.normalize(plan);
+            plan = LlmPlanAnchorNormalizer.normalize(plan);
+            return com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         } catch (Exception e) {
             throw new PlanParseException("Parse error: " + e.getMessage(), e);
         }

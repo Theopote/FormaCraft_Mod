@@ -139,6 +139,7 @@ public final class ComponentPlanCompiler {
         com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
 
         plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
+        plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
 
         // 索引 slots（便于快速查找）
         Map<String, Slot> slotMap = indexSlots(plan);
@@ -1876,6 +1877,13 @@ public final class ComponentPlanCompiler {
     private static String resolveAssemblyStyleId(LlmPlan plan, SemanticComponent semantic) {
         String profile = plan != null ? plan.styleProfile() : null;
         StringBuilder merged = new StringBuilder(profile != null ? profile : "");
+        if (plan != null && plan.distinguishingFeatures() != null) {
+            for (String feature : plan.distinguishingFeatures()) {
+                if (feature != null) {
+                    merged.append(" ").append(feature);
+                }
+            }
+        }
         if (semantic != null && semantic.source() != null && semantic.source().features() != null) {
             for (String f : semantic.source().features()) {
                 if (f == null) continue;
