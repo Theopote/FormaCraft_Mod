@@ -123,7 +123,9 @@ Output schema:
     "path_based": true,
     "slots": [ SlotObject ]
   },
-  "components": [ ComponentObject ]
+  "components": [ ComponentObject ],
+  "proportion_hints": { ProportionHintsObject },
+  "alignment_and_symmetry": { AlignmentAndSymmetryObject }
 }
 
 SlotObject:
