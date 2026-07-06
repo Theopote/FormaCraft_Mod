@@ -183,6 +183,18 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | **4** | `TypologyRoutingMetrics` 遥测；LLM MODULE→STRUCTURE 自动修复；Java 路由优先原生 typology builder | **已完成** |
 | **5** | 天坛迁入 `radial_terrace_hall`（`RADIAL_RING`）；`TempleOfHeavenGenerator` 瘦身为 Builder 委托 | **已完成** |
 | **6** | 收紧 legacy MODULE：migrationMap 内地标禁止/降级 MODULE 硬路由；Java/Python 双侧阻断 | **已完成** |
+| **7** | 移除 Phase-0 fallback 文案；删除 deprecated generator 委托链（`LegacyDelegatingTypologyInterpreter` + 4 个瘦身材质 Generator） | **已完成** |
+
+### Phase 7 细节（删除 deprecated 委托链）
+
+| 删除项 | 替代路径 |
+|---|---|
+| `FamenPagodaGenerator` / `GiantWildGoosePagodaGenerator` | `TypologyBackedStructureGenerator("dense_eaves_pagoda")` → `DenseEavesPagodaBuilder` |
+| `FoguangTempleHallGenerator` | `TypologyBackedStructureGenerator("tailiang_timber_hall")` |
+| `TempleOfHeavenGenerator` | `TypologyBackedStructureGenerator("radial_terrace_hall")` |
+| `LegacyDelegatingTypologyInterpreter` | 原生 `*Interpreter` 已注册，不再 bootstrap legacy 委托 |
+| culture/proportion 卡 `Phase-0 fallback` 文案 | 已移除；culture 卡删除 `landmarkModuleId` |
+| `structural_typologies_v1.json` `legacyInterpreterId` | 已移除；`interpreterId` 直连 typology builder |
 
 ### Phase 6 细节（legacy MODULE 收紧）
 
@@ -215,7 +227,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 |---|---|
 | 遥测 | `[TypologyMetrics]` — `typology_structure_hit` / `deprecated_module_use` / `legacy_redirect` |
 | Plan 修复 | `typology_plan_repair.py` — migrationMap 内 landmark MODULE 自动转为 `STRUCTURE + typology:*` |
-| 路由优先 | `GeneratorRouter.routeByTypology` 先走 `interpreterId`（`TypologyBackedStructureGenerator`），legacy 仅 fallback |
+| 路由优先 | `GeneratorRouter.routeByTypology` 走 `interpreterId`（`TypologyBackedStructureGenerator`） |
 | Few-shot | `dayanta_dense_eaves_typology.json` 注入大雁塔 culture 卡 |
 
 ## 8. 冻结政策

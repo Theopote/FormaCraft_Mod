@@ -33,13 +33,8 @@ public final class StructureGeneratorRegistry {
         // Landmarks & templates (archetypes + structure_routes_v1.json)
         register("tulou", TulouGenerator::new);
         register("eiffel_tower", EiffelTowerGenerator::new);
-        register("temple_of_heaven", TempleOfHeavenGenerator::new);
         register("great_wall", GreatWallGenerator::new);
         register("golden_gate_bridge", GoldenGateBridgeGenerator::new);
-        register("giant_wild_goose_pagoda", GiantWildGoosePagodaGenerator::new);
-        register("famen_pagoda", FamenPagodaGenerator::new);
-        register("foguang_temple_hall", FoguangTempleHallGenerator::new);
-        // Typology interpreter aliases (Phase 4 — native builders, legacy generators deprecated)
         register("dense_eaves_pagoda", () -> new TypologyBackedStructureGenerator("dense_eaves_pagoda"));
         register("tailiang_timber_hall", () -> new TypologyBackedStructureGenerator("tailiang_timber_hall"));
         register("radial_terrace_hall", () -> new TypologyBackedStructureGenerator("radial_terrace_hall"));

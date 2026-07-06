@@ -4,13 +4,12 @@
     "description": "Structural typology registry — finite parametric interpreters, landmarks as references only.",
     "typologyRequired": ["id", "displayName", "skeletonType", "matchKeywords", "routingPolicy"],
     "routingPolicies": {
-      "typology_first": "Plan emits structural_typology; landmark MODULE disabled unless legacy fallback.",
-      "legacy_module_fallback": "Typology guides params; MODULE still allowed via legacyInterpreterId.",
+      "typology_first": "Plan emits structural_typology; landmark MODULE disabled for migrated landmarks.",
       "compositional_only": "No dedicated interpreter; MASS_MAIN + ROOF composition with proportion_hints."
     },
     "migrationMapEntry": {
       "typologyId": "string",
-      "phase": "typology_first | legacy_module_fallback",
+      "phase": "typology_first",
       "legacyModuleId": "string (optional)",
       "deprecatedAfter": "string (optional)"
     }
@@ -35,7 +34,6 @@
         "哥特", "大教堂", "classical monument", "圆顶", "onion dome"
       ],
       "interpreterId": "dense_eaves_pagoda",
-      "legacyInterpreterId": "famen_pagoda",
       "routingPolicy": "typology_first",
       "defaultParams": {
         "levels": 13,
@@ -69,7 +67,7 @@
       ],
       "proportionCardIds": ["famen_pagoda", "giant_wild_goose_pagoda"],
       "cultureCardIds": ["famen_pagoda", "giant_wild_goose_pagoda"],
-      "llmPlanGuidance": "Use structural_typology=dense_eaves_pagoda with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=dense_eaves_pagoda. Params: levels, height, baseWidth, footprint (octagon for Famen, square for Dayanta), setback_ratio≈0.06. Prefer STRUCTURE + typology:dense_eaves_pagoda; set reference_landmark=famen_pagoda (octagon) or reference_landmark=giant_wild_goose_pagoda (square, levels=7, baseWidth=17). FORBID western dome/CROWN. Phase-0 fallback: MODULE landmark still accepted via migrationMap."
+      "llmPlanGuidance": "Use structural_typology=dense_eaves_pagoda with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=dense_eaves_pagoda. Params: levels, height, baseWidth, footprint (octagon for Famen, square for Dayanta), setback_ratio≈0.06. Prefer STRUCTURE + typology:dense_eaves_pagoda; set reference_landmark=famen_pagoda (octagon) or reference_landmark=giant_wild_goose_pagoda (square, levels=7, baseWidth=17). FORBID western dome/CROWN and MODULE landmark routing."
     },
     {
       "id": "tailiang_timber_hall",
@@ -89,7 +87,6 @@
         "圆顶", "classical monument", "cottage", "小房子"
       ],
       "interpreterId": "tailiang_timber_hall",
-      "legacyInterpreterId": "foguang_temple_hall",
       "routingPolicy": "typology_first",
       "defaultParams": {
         "baysX": 7,
@@ -139,7 +136,6 @@
         "classical monument", "onion dome", "cottage", "小房子"
       ],
       "interpreterId": "radial_terrace_hall",
-      "legacyInterpreterId": "temple_of_heaven",
       "routingPolicy": "typology_first",
       "defaultParams": {
         "baseRadius": 18,
@@ -175,28 +171,28 @@
       "phase": "typology_first",
       "legacyModuleId": "famen_pagoda",
       "deprecatedAfter": "2026-Q4",
-      "notes": "Culture/archetype hits route to dense_eaves_pagoda; Java delegates to FamenPagodaGenerator until generic interpreter."
+      "notes": "Routes to DenseEavesPagodaBuilder via typology interpreter."
     },
     "foguang_temple_hall": {
       "typologyId": "tailiang_timber_hall",
       "phase": "typology_first",
       "legacyModuleId": "foguang_temple_hall",
       "deprecatedAfter": "2026-Q4",
-      "notes": "Archetype already researchOnly; culture card now emits structuralTypologyId instead of landmarkModuleId."
+      "notes": "Routes to TailiangTimberHallBuilder via typology interpreter."
     },
     "giant_wild_goose_pagoda": {
       "typologyId": "dense_eaves_pagoda",
       "phase": "typology_first",
       "legacyModuleId": "giant_wild_goose_pagoda",
       "deprecatedAfter": "2026-Q4",
-      "notes": "Dayanta square pagoda merged into dense_eaves_pagoda with footprint=square; Java delegates to DenseEavesPagodaBuilder."
+      "notes": "Square pagoda preset via DenseEavesPagodaBuilder footprint=square."
     },
     "temple_of_heaven": {
       "typologyId": "radial_terrace_hall",
       "phase": "typology_first",
       "legacyModuleId": "temple_of_heaven",
       "deprecatedAfter": "2026-Q4",
-      "notes": "Temple of Heaven merged into radial_terrace_hall; Java delegates to RadialTerraceHallBuilder."
+      "notes": "Routes to RadialTerraceHallBuilder via typology interpreter."
     }
   }
 }

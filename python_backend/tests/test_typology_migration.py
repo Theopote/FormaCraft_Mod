@@ -17,7 +17,8 @@ class TypologyRegistryTest(unittest.TestCase):
         famen = get_typology("dense_eaves_pagoda")
         self.assertIsNotNone(famen)
         assert famen is not None
-        self.assertEqual(famen.legacy_interpreter_id, "famen_pagoda")
+        self.assertEqual(famen.interpreter_id, "dense_eaves_pagoda")
+        self.assertIsNone(famen.legacy_interpreter_id)
         self.assertEqual(famen.skeleton_type, "VERTICAL_STACK")
 
     def test_migration_map_famen(self):

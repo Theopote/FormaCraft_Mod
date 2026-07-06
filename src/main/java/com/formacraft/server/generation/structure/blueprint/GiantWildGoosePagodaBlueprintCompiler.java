@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * GiantWildGoosePagodaBlueprintCompiler (v1):
- * Delegates to GiantWildGoosePagodaGenerator via landmark routing.
+ * Routes to dense_eaves_pagoda typology interpreter (square footprint).
  *
  * Suggested blueprint keys:
  * - blueprint_type: "giant_wild_goose_pagoda"
@@ -68,7 +68,6 @@ public final class GiantWildGoosePagodaBlueprintCompiler implements BlueprintCom
 
         Map<String, Object> extra = copyExtraWithoutBlueprint(parentSpec != null ? parentSpec.getExtra() : null);
         if (extra == null) extra = new HashMap<>();
-        extra.putIfAbsent("landmark", "giant_wild_goose_pagoda");
         extra.putIfAbsent("structural_typology", "dense_eaves_pagoda");
         extra.putIfAbsent("typology_id", "dense_eaves_pagoda");
         extra.putIfAbsent("reference_landmark", "giant_wild_goose_pagoda");

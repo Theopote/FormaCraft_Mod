@@ -145,11 +145,6 @@ def typology_prompt_block(match: Optional[TypologyMatch]) -> str:
     ]
     if match.reference_landmark_id:
         lines.append(f"reference_landmark (proportion anchor only): {match.reference_landmark_id}")
-    if defn.legacy_interpreter_id:
-        lines.append(
-            f"legacy_module_fallback: {defn.legacy_interpreter_id} "
-            "(Phase 0 only — prefer typology params in LlmPlan)"
-        )
     if defn.default_params:
         lines.append("default_params: " + ", ".join(f"{k}={v}" for k, v in defn.default_params.items()))
     if defn.llm_plan_guidance:

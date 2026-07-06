@@ -15,7 +15,6 @@ import java.util.Optional;
 
 /**
  * Loads structural_typologies/structural_typologies_v1.json for typology-first routing.
- * Phase 0: legacyInterpreterId delegates to existing landmark generators via migrationMap.
  */
 public final class StructuralTypologyRegistry {
 
@@ -30,7 +29,6 @@ public final class StructuralTypologyRegistry {
             List<String> matchKeywords,
             List<String> negativeKeywords,
             String interpreterId,
-            String legacyInterpreterId,
             String routingPolicy,
             Map<String, Object> defaultParams,
             Map<String, Object> paramSchema,
@@ -90,22 +88,12 @@ public final class StructuralTypologyRegistry {
         return getMigration(legacyModuleId) != null;
     }
 
-    /** Phase 0: map typology to legacy generator when no dedicated interpreter exists. */
     public static String resolveInterpreterId(String typologyId) {
         TypologyDef def = getById(typologyId);
-        if (def == null) {
+        if (def == null || def.interpreterId() == null || def.interpreterId().isBlank()) {
             return null;
         }
-        if (def.interpreterId() != null && !def.interpreterId().isBlank()) {
-            return def.interpreterId();
-        }
-        return def.legacyInterpreterId();
-    }
-
-    /** Legacy MODULE id to invoke when typology interpreter is not yet registered. */
-    public static String legacyModuleForTypology(String typologyId) {
-        TypologyDef def = getById(typologyId);
-        return def != null ? def.legacyInterpreterId() : null;
+        return def.interpreterId();
     }
 
     public static TypologyDef resolveForPrompt(String userText) {
@@ -150,10 +138,6 @@ public final class StructuralTypologyRegistry {
           .append(" (").append(def.displayNameZh()).append(")\n");
         sb.append("skeleton_type: ").append(def.skeletonType()).append("\n");
         sb.append("routing_policy: ").append(def.routingPolicy()).append("\n");
-        if (def.legacyInterpreterId() != null && !def.legacyInterpreterId().isBlank()) {
-            sb.append("legacy_module_fallback: ").append(def.legacyInterpreterId())
-              .append(" (Phase 0 only)\n");
-        }
         if (def.llmPlanGuidance() != null && !def.llmPlanGuidance().isBlank()) {
             sb.append(def.llmPlanGuidance()).append("\n");
         }
@@ -258,7 +242,6 @@ public final class StructuralTypologyRegistry {
                 strList(item.get("matchKeywords")),
                 strList(item.get("negativeKeywords")),
                 str(item.get("interpreterId")),
-                str(item.get("legacyInterpreterId")),
                 Optional.ofNullable(str(item.get("routingPolicy"))).orElse("typology_first"),
                 objMap(item.get("defaultParams")),
                 objMap(item.get("paramSchema")),

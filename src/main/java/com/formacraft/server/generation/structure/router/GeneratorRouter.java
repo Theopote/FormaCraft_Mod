@@ -126,12 +126,6 @@ public final class GeneratorRouter {
         if (interpreter != null && StructureGeneratorRegistry.has(interpreter)) {
             return StructureGeneratorRegistry.create(interpreter);
         }
-
-        String legacy = StructuralTypologyRegistry.legacyModuleForTypology(typologyId);
-        if (legacy != null && StructureGeneratorRegistry.has(legacy)) {
-            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordLegacyRedirect(legacy, typologyId);
-            return StructureGeneratorRegistry.create(legacy);
-        }
         return null;
     }
 
@@ -173,9 +167,22 @@ public final class GeneratorRouter {
 
     private static StructureGenerator routeByArchetypeId(String archetypeId) {
         if (archetypeId == null || archetypeId.isBlank()) return null;
+        StructureGenerator migrated = routeMigratedLandmark(archetypeId);
+        if (migrated != null) return migrated;
+
         ArchetypeCatalog.ArchetypeDef def = ArchetypeRegistry.getById(archetypeId);
         if (def == null) return null;
+        if (Boolean.TRUE.equals(def.researchOnly)) return null;
         return StructureGeneratorRegistry.create(def.generatorId);
+    }
+
+    private static StructureGenerator routeMigratedLandmark(String landmarkOrArchetypeId) {
+        if (landmarkOrArchetypeId == null || landmarkOrArchetypeId.isBlank()) return null;
+        String typologyId = StructuralTypologyRegistry.typologyForLegacyModule(landmarkOrArchetypeId.trim());
+        if (typologyId == null) return null;
+        String interpreter = StructuralTypologyRegistry.resolveInterpreterId(typologyId);
+        if (interpreter == null || !StructureGeneratorRegistry.has(interpreter)) return null;
+        return StructureGeneratorRegistry.create(interpreter);
     }
 
     private static StructureGenerator routeLegacyLandmark(BuildingSpec spec) {
@@ -187,9 +194,13 @@ public final class GeneratorRouter {
         String s = String.valueOf(lm).trim();
         if (s.isEmpty()) return null;
 
+        StructureGenerator migrated = routeMigratedLandmark(s);
+        if (migrated != null) return migrated;
+
         ArchetypeCatalog.ArchetypeDef def = ArchetypeRegistry.getById(s);
         if (def == null) def = ArchetypeRegistry.matchByKeyword(s);
         if (def == null) return null;
+        if (Boolean.TRUE.equals(def.researchOnly)) return null;
         return StructureGeneratorRegistry.create(def.generatorId);
     }
 

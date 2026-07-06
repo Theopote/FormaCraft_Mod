@@ -13,9 +13,10 @@ class StructuralTypologyRegistryTest {
     }
 
     @Test
-    void resolvesLegacyModuleForTypology() {
-        assertEquals("famen_pagoda", StructuralTypologyRegistry.legacyModuleForTypology("dense_eaves_pagoda"));
-        assertEquals("foguang_temple_hall", StructuralTypologyRegistry.legacyModuleForTypology("tailiang_timber_hall"));
+    void resolvesInterpreterId() {
+        assertEquals("dense_eaves_pagoda", StructuralTypologyRegistry.resolveInterpreterId("dense_eaves_pagoda"));
+        assertEquals("tailiang_timber_hall", StructuralTypologyRegistry.resolveInterpreterId("tailiang_timber_hall"));
+        assertEquals("radial_terrace_hall", StructuralTypologyRegistry.resolveInterpreterId("radial_terrace_hall"));
     }
 
     @Test

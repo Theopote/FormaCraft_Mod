@@ -26,7 +26,6 @@
   ],
   "proportionCardId": "giant_wild_goose_pagoda",
   "structuralTypologyId": "dense_eaves_pagoda",
-  "landmarkModuleId": "giant_wild_goose_pagoda",
   "llmPlanExampleRefs": ["dayanta_dense_eaves_typology.json"],
   "exampleRefs": [],
   "archetypes": [
@@ -39,8 +38,7 @@
         "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=MIRROR_X",
         "输出 proportion_hints：typology=dense_eaves_pagoda, floor_count=7, slenderness≈2.4",
         "方形逐层收分 + 砖檐口；无八面券窗轮转",
-        "材质：砖石塔身 + 砖檐；禁止西方圆顶与宫殿式 classical_monument 方盒",
-        "Phase-0 fallback: MODULE + landmark:giant_wild_goose_pagoda 仍可由 migrationMap 重定向"
+        "材质：砖石塔身 + 砖檐；禁止西方圆顶与宫殿式 classical_monument 方盒"
       ]
     }
   ]

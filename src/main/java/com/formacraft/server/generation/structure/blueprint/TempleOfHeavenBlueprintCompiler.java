@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * TempleOfHeavenBlueprintCompiler (v1):
  * Compiles a semantic "temple_of_heaven" blueprint into a GeneratorBackedPlan
- * that delegates to the existing TempleOfHeavenGenerator via landmark routing.
+ * routed via radial_terrace_hall typology interpreter.
  * <p>
  * Suggested blueprint keys:
  * - blueprint_type: "temple_of_heaven"
@@ -58,7 +58,7 @@ public final class TempleOfHeavenBlueprintCompiler implements BlueprintCompiler 
         if (overall != null) height = getInt(overall.get("height"), height);
         height = clamp(height, 18, 120);
 
-        // Child spec that routes to TempleOfHeavenGenerator
+        // Child spec routed via radial_terrace_hall typology
         BuildingSpec s = new BuildingSpec();
         s.setType(BuildingType.CUSTOM);
         s.setStyle(parentSpec != null && parentSpec.getStyle() != null ? parentSpec.getStyle() : BuildingStyle.ASIAN);
@@ -70,7 +70,9 @@ public final class TempleOfHeavenBlueprintCompiler implements BlueprintCompiler 
 
         Map<String, Object> extra = copyExtraWithoutBlueprint(parentSpec != null ? parentSpec.getExtra() : null);
         if (extra == null) extra = new HashMap<>();
-        extra.putIfAbsent("landmark", "temple_of_heaven");
+        extra.putIfAbsent("typology_id", "radial_terrace_hall");
+        extra.putIfAbsent("structural_typology", "radial_terrace_hall");
+        extra.putIfAbsent("reference_landmark", "temple_of_heaven");
 
         // Map a few well-known generator params
         extra.putIfAbsent("baseRadius", baseRadius);
@@ -85,7 +87,7 @@ public final class TempleOfHeavenBlueprintCompiler implements BlueprintCompiler 
             copyIfPresent(params, extra, "hallHeight", "hallHeight");
             copyIfPresent(params, extra, "detailLevel", "detailLevel");
 
-            // Optional material overrides supported by TempleOfHeavenGenerator
+            // Optional material overrides supported by RadialTerraceHallBuilder
             copyIfPresent(params, extra, "baseBlock", "baseBlock");
             copyIfPresent(params, extra, "stairBlock", "stairBlock");
             copyIfPresent(params, extra, "trimBlock", "trimBlock");

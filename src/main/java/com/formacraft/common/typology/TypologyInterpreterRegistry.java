@@ -8,7 +8,6 @@ import java.util.Map;
 
 /**
  * Registry of structural typology interpreters.
- * Bootstraps legacy-delegating interpreters from {@link StructuralTypologyRegistry}.
  */
 public final class TypologyInterpreterRegistry {
 
@@ -59,20 +58,6 @@ public final class TypologyInterpreterRegistry {
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.TailiangTimberHallInterpreter());
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.RadialTerraceHallInterpreter());
 
-        for (StructuralTypologyRegistry.TypologyDef def : StructuralTypologyRegistry.listTypologies()) {
-            if (def == null || def.id() == null || def.id().isBlank()) {
-                continue;
-            }
-            String key = def.id().toLowerCase(Locale.ROOT);
-            if (out.containsKey(key)) {
-                continue;
-            }
-            String legacy = def.legacyInterpreterId();
-            if (legacy == null || legacy.isBlank()) {
-                continue;
-            }
-            out.put(key, new LegacyDelegatingTypologyInterpreter(def.id(), legacy, def.defaultParams()));
-        }
         FormacraftMod.LOGGER.info("TypologyInterpreterRegistry bootstrapped {} interpreters", out.size());
         return Map.copyOf(out);
     }

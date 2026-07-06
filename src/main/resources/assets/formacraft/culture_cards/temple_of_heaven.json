@@ -28,7 +28,6 @@
   ],
   "proportionCardId": "temple_of_heaven",
   "structuralTypologyId": "radial_terrace_hall",
-  "landmarkModuleId": "temple_of_heaven",
   "llmPlanExampleRefs": ["temple_of_heaven_radial_typology.json", "temple_of_heaven_module.json"],
   "exampleRefs": [],
   "archetypes": [
@@ -40,8 +39,7 @@
         "params.baseRadius=18, tiers=3, height≈34, hallRadius≈10, detailLevel=aesthetic, facing=SOUTH",
         "layout.skeleton_type=RADIAL_RING；global_constraints.symmetry=RADIAL",
         "输出 proportion_hints：typology=radial_terrace_hall, tier_count=3, base_radius_to_height≈0.53",
-        "禁止用单一方形 MASS 盒子代替圆形祭祀建筑",
-        "Phase-0 fallback: MODULE + landmark:temple_of_heaven 仍可由 migrationMap 重定向"
+        "禁止用单一方形 MASS 盒子代替圆形祭祀建筑"
       ]
     }
   ]

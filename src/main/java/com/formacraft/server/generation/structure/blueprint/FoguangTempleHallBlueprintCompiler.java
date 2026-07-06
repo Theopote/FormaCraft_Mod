@@ -13,7 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * FoguangTempleHallBlueprintCompiler (v1): routes to {@link com.formacraft.server.generation.structure.FoguangTempleHallGenerator}.
+ * FoguangTempleHallBlueprintCompiler (v1): routes to tailiang_timber_hall typology interpreter.
  */
 public final class FoguangTempleHallBlueprintCompiler implements BlueprintCompiler {
 
@@ -65,7 +65,9 @@ public final class FoguangTempleHallBlueprintCompiler implements BlueprintCompil
         s.setFloors(1);
 
         Map<String, Object> extra = copyExtra(parentSpec);
-        extra.putIfAbsent("landmark", "foguang_temple_hall");
+        extra.putIfAbsent("typology_id", "tailiang_timber_hall");
+        extra.putIfAbsent("structural_typology", "tailiang_timber_hall");
+        extra.putIfAbsent("reference_landmark", "foguang_temple_hall");
         extra.putIfAbsent("baysX", baysX);
         extra.putIfAbsent("baysZ", baysZ);
         extra.putIfAbsent("width", width);

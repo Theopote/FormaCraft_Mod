@@ -29,7 +29,6 @@
   ],
   "proportionCardId": "foguang_temple_hall",
   "structuralTypologyId": "tailiang_timber_hall",
-  "landmarkModuleId": "foguang_temple_hall",
   "llmPlanExampleRefs": ["foguang_tailiang_typology.json", "foguang_temple_hall_module.json", "foguang_temple_hall_compositional.json"],
   "exampleRefs": [],
   "archetypes": [
@@ -42,8 +41,7 @@
         "MASS_MAIN 低而阔（height_to_width≈0.5），FOUNDATION 石台基，ROOF 大出檐 xuanshan",
         "铺作分区：内槽角柱双轴跳+撩檐枋；副阶柱简化铺作 + 副阶内檐浅屋面",
         "style_attributes.decorative_elements 必含 bracket,dougong,eaves",
-        "禁止 CROWN/西方圆顶、禁止 cottage 小方盒、禁止把大殿做成高塔",
-        "Phase-0 fallback: MODULE + landmark:foguang_temple_hall 仍可由 migrationMap 重定向"
+        "禁止 CROWN/西方圆顶、禁止 cottage 小方盒、禁止把大殿做成高塔"
       ]
     }
   ]

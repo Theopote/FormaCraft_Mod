@@ -13,7 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * FamenPagodaBlueprintCompiler (v1): routes to {@link com.formacraft.server.generation.structure.FamenPagodaGenerator}.
+ * FamenPagodaBlueprintCompiler (v1): routes to dense_eaves_pagoda typology interpreter.
  */
 public final class FamenPagodaBlueprintCompiler implements BlueprintCompiler {
 
@@ -61,7 +61,10 @@ public final class FamenPagodaBlueprintCompiler implements BlueprintCompiler {
         s.setFloors(Math.max(7, levels));
 
         Map<String, Object> extra = copyExtra(parentSpec);
-        extra.putIfAbsent("landmark", "famen_pagoda");
+        extra.putIfAbsent("typology_id", "dense_eaves_pagoda");
+        extra.putIfAbsent("structural_typology", "dense_eaves_pagoda");
+        extra.putIfAbsent("reference_landmark", "famen_pagoda");
+        extra.putIfAbsent("footprint", "octagon");
         extra.putIfAbsent("levels", levels);
         extra.putIfAbsent("towerHeight", towerHeight);
         extra.putIfAbsent("baseWidth", baseWidth);
