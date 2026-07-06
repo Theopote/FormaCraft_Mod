@@ -29,6 +29,24 @@ class ComponentPlanCompilerTypeNormalizationTest {
         assertEquals("", normalize("NOT_A_REAL_COMPONENT"));
     }
 
+    @Test
+    void mapsPalaceAndTierToMassMain() throws Exception {
+        assertEquals("MASS_MAIN", inferFallback("PALACE"));
+        assertEquals("MASS_MAIN", inferFallback("TIER"));
+        assertEquals("MASS_MAIN", inferFallback("MOUNTAIN_TIER"));
+    }
+
+    @Test
+    void terraceStaysIndependentFromTierMapping() throws Exception {
+        assertEquals("TERRACE", inferFallback("TERRACE"));
+    }
+
+    private static String inferFallback(String type) throws Exception {
+        Method m = ComponentPlanCompiler.class.getDeclaredMethod("inferFallbackType", String.class);
+        m.setAccessible(true);
+        return (String) m.invoke(null, type);
+    }
+
     private static String normalize(String type) throws Exception {
         Method m = ComponentPlanCompiler.class.getDeclaredMethod(
                 "normalizeComponentType",

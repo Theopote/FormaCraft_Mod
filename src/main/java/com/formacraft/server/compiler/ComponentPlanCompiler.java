@@ -11,6 +11,7 @@ import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import com.formacraft.server.generation.GenerationHub;
+import com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -150,82 +151,16 @@ public final class ComponentPlanCompiler {
             return result;
         }
 
-        // 遍历所有 components
-        for (Component c : components) {
-            if (c == null) continue;
-            String normalizedType = normalizeType(c.componentType());
-
-            // 查找对应的 slot
-            Slot slot = slotMap.get(c.slotId());
-            if (slot == null) {
-                // 没有 slot 的 component，默认使用全局 anchor
-                slot = defaultSlot(plan);
-                FormacraftMod.LOGGER.debug("ComponentPlanCompiler: component {} has no slot, using default slot", c.componentType());
-            }
-            String slotKey = slotKey(c);
-
-            // 创建语义构件（传递 styleProfile 和 styleAttributes）
-            String styleProfile = plan.styleProfile();
-            com.formacraft.common.llm.dto.StyleAttributes styleAttributes = plan.styleAttributes();
-            com.formacraft.common.genome.BuildingGenome genome = plan.genome();
-            SemanticComponent semantic = new SemanticComponent(
-                    c.componentType(),
-                    slot,
-                    c,
-                    styleProfile,
-                    styleAttributes,
-                    genome
-            );
-
-            // 统一路由：ComponentGenerator → 扩展器 → 受控 StructureGenerator 回退
-            List<BlockPatch> patches;
-            try {
-                patches = GenerationHub.generateComponent(semantic, world);
-                if (!patches.isEmpty()) {
-                    if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
-                            && assemblyFacadeSlots.contains(slotKey)) {
-                        List<BlockPatch> facade = generateAssemblyFacadePatches(plan, semantic, slot, globalAnchor, world);
-                        if (!facade.isEmpty()) {
-                            List<BlockPatch> merged = new ArrayList<>(patches.size() + facade.size());
-                            merged.addAll(patches);
-                            merged.addAll(facade);
-                            patches = merged;
-                        }
-                    }
-                    // 调整 BlockPatch 坐标：组件生成器返回的坐标是相对于 slot anchor 的
-                    // 但 BlockPatch 的坐标应该是相对于 plan.anchor() 的
-                    // slot.anchor() 已经是相对于 plan.anchor() 的，所以直接加上即可
-                    com.formacraft.common.llm.dto.Vec3i slotAnchor = slot.anchor();
-                    
-                    if (slotAnchor != null) {
-                        // 调整所有 patches 的坐标：slotAnchor（相对于 plan anchor）+ patch.dx/dy/dz（相对于 slot anchor）
-                        for (BlockPatch patch : patches) {
-                            if (patch != null) {
-                                result.add(new BlockPatch(
-                                        patch.action(),
-                                        slotAnchor.x() + patch.dx(),
-                                        slotAnchor.y() + patch.dy(),
-                                        slotAnchor.z() + patch.dz(),
-                                        patch.targetBlock()
-                                ));
-                            }
-                        }
-                    } else {
-                        // 如果 slot anchor 信息不完整，直接添加 patches（保持向后兼容）
-                        FormacraftMod.LOGGER.warn("ComponentPlanCompiler: missing slotAnchor, component={}", c.componentType());
-                        result.addAll(patches);
-                    }
-                } else {
-                    FormacraftMod.LOGGER.warn("ComponentPlanCompiler: no patches generated for component: {}", 
-                            c.componentType());
-                }
-            } catch (Exception e) {
-                FormacraftMod.LOGGER.error("ComponentPlanCompiler: error generating component {}: {}", 
-                        c.componentType(), e.getMessage(), e);
-            }
+        boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
+        UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
+        try {
+            compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
+                    slotMap, result);
+        } finally {
+            UnifiedGeneratorRouter.clearTypologyExclusivePlan();
         }
 
-        FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches", 
+        FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches",
                 components.size(), result.size());
 
         // 后处理步骤
@@ -287,6 +222,98 @@ public final class ComponentPlanCompiler {
                 null,
                 null
         );
+    }
+
+    private static boolean hasTypologyStructureComponent(List<Component> components) {
+        if (components == null || components.isEmpty()) {
+            return false;
+        }
+        for (Component c : components) {
+            if (c == null) {
+                continue;
+            }
+            if ("STRUCTURE".equals(normalizeType(c.componentType()))
+                    && TypologyComponentRouter.hasTypologyHint(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void compileComponents(
+            LlmPlan plan,
+            ServerWorld world,
+            BlockPos globalAnchor,
+            boolean allowAssemblyFacade,
+            List<Component> components,
+            Set<String> assemblyFacadeSlots,
+            Map<String, Slot> slotMap,
+            List<BlockPatch> result
+    ) {
+        for (Component c : components) {
+            if (c == null) continue;
+            String normalizedType = normalizeType(c.componentType());
+
+            Slot slot = slotMap.get(c.slotId());
+            if (slot == null) {
+                slot = defaultSlot(plan);
+                FormacraftMod.LOGGER.debug("ComponentPlanCompiler: component {} has no slot, using default slot", c.componentType());
+            }
+            String slotKey = slotKey(c);
+
+            String styleProfile = plan.styleProfile();
+            com.formacraft.common.llm.dto.StyleAttributes styleAttributes = plan.styleAttributes();
+            com.formacraft.common.genome.BuildingGenome genome = plan.genome();
+            SemanticComponent semantic = new SemanticComponent(
+                    c.componentType(),
+                    slot,
+                    c,
+                    styleProfile,
+                    styleAttributes,
+                    genome
+            );
+
+            List<BlockPatch> patches;
+            try {
+                patches = GenerationHub.generateComponent(semantic, world);
+                if (!patches.isEmpty()) {
+                    if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
+                            && assemblyFacadeSlots.contains(slotKey)) {
+                        List<BlockPatch> facade = generateAssemblyFacadePatches(plan, semantic, slot, globalAnchor, world);
+                        if (!facade.isEmpty()) {
+                            List<BlockPatch> merged = new ArrayList<>(patches.size() + facade.size());
+                            merged.addAll(patches);
+                            merged.addAll(facade);
+                            patches = merged;
+                        }
+                    }
+                    com.formacraft.common.llm.dto.Vec3i slotAnchor = slot.anchor();
+
+                    if (slotAnchor != null) {
+                        for (BlockPatch patch : patches) {
+                            if (patch != null) {
+                                result.add(new BlockPatch(
+                                        patch.action(),
+                                        slotAnchor.x() + patch.dx(),
+                                        slotAnchor.y() + patch.dy(),
+                                        slotAnchor.z() + patch.dz(),
+                                        patch.targetBlock()
+                                ));
+                            }
+                        }
+                    } else {
+                        FormacraftMod.LOGGER.warn("ComponentPlanCompiler: missing slotAnchor, component={}", c.componentType());
+                        result.addAll(patches);
+                    }
+                } else {
+                    FormacraftMod.LOGGER.warn("ComponentPlanCompiler: no patches generated for component: {}",
+                            c.componentType());
+                }
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.error("ComponentPlanCompiler: error generating component {}: {}",
+                        c.componentType(), e.getMessage(), e);
+            }
+        }
     }
 
     private static PreparedComponents prepareComponents(LlmPlan plan, Map<String, Slot> slotMap, boolean allowAssemblyFacade) {
@@ -1376,6 +1403,12 @@ public final class ComponentPlanCompiler {
         }
         if (type.contains("WALL") || type.contains("BUTTRESS")) {
             return "WALL";
+        }
+        if (type.contains("TERRACE")) {
+            return "TERRACE";
+        }
+        if (type.contains("PALACE") || type.contains("TIER")) {
+            return "MASS_MAIN";
         }
         if (type.contains("TOWER") || type.contains("SPIRE")) {
             return "TOWER";

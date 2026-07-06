@@ -39,11 +39,26 @@ public final class UnifiedGeneratorRouter {
 
     private static final double ARCHETYPE_STRONG_THRESHOLD = 0.85;
 
+    private static final ThreadLocal<Boolean> TYPOLOGY_EXCLUSIVE_PLAN = new ThreadLocal<>();
+
     private static final Set<String> WHOLE_BUILDING_TYPES = Set.of(
             "HOUSE", "CASTLE", "COMPOUND", "LANDMARK", "BUILDING"
     );
 
     private UnifiedGeneratorRouter() {}
+
+    /** Set while compiling a plan that already owns a typology STRUCTURE (blocks archetype HouseGenerator fallback). */
+    public static void setTypologyExclusivePlan(boolean exclusive) {
+        if (exclusive) {
+            TYPOLOGY_EXCLUSIVE_PLAN.set(Boolean.TRUE);
+        } else {
+            TYPOLOGY_EXCLUSIVE_PLAN.remove();
+        }
+    }
+
+    public static void clearTypologyExclusivePlan() {
+        TYPOLOGY_EXCLUSIVE_PLAN.remove();
+    }
 
     public static List<BlockPatch> generate(SemanticComponent semantic, ServerWorld world) {
         if (semantic == null || semantic.source() == null) {
@@ -273,6 +288,11 @@ public final class UnifiedGeneratorRouter {
             if (Boolean.TRUE.equals(params.get("useStructureGenerator"))) return true;
         }
 
+        if (Boolean.TRUE.equals(TYPOLOGY_EXCLUSIVE_PLAN.get())
+                && !isExplicitStructureRoutingComponent(c)) {
+            return false;
+        }
+
         if (semantic.genome() != null && semantic.genome().archetype != null
                 && semantic.genome().archetype.confidence >= ARCHETYPE_STRONG_THRESHOLD) {
             return true;
@@ -280,6 +300,37 @@ public final class UnifiedGeneratorRouter {
 
         String type = normalizeType(c.componentType());
         return !ComponentGeneratorRegistry.hasGenerator(type) && WHOLE_BUILDING_TYPES.contains(type);
+    }
+
+    private static boolean isExplicitStructureRoutingComponent(Component c) {
+        if (c == null) {
+            return false;
+        }
+        if (hasFeaturePrefix(c, "structure_generator:")
+                || hasFeaturePrefix(c, "landmark:")
+                || hasFeaturePrefix(c, "module:")
+                || hasFeaturePrefix(c, "typology:")) {
+            return true;
+        }
+        if (com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)) {
+            return true;
+        }
+        String type = normalizeType(c.componentType());
+        if ("MODULE".equals(type)) {
+            return hasLandmarkReference(c);
+        }
+        if ("STRUCTURE".equals(type)) {
+            return com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c);
+        }
+        Map<String, Object> params = c.params();
+        return params != null && (
+                params.containsKey("landmark")
+                        || params.containsKey("module_id")
+                        || params.containsKey("template")
+                        || params.containsKey("blueprint")
+                        || params.containsKey("assembly")
+                        || Boolean.TRUE.equals(params.get("useStructureGenerator"))
+        );
     }
 
     private static SlotAnchor resolveSlotAnchor(SemanticComponent semantic) {

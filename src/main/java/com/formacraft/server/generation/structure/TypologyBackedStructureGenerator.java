@@ -8,6 +8,7 @@ import com.formacraft.server.generation.typology.builder.RadialTerraceHallBuilde
 import com.formacraft.server.generation.typology.builder.StadiumBowlBuilder;
 import com.formacraft.server.generation.typology.builder.SuspensionBridgeBuilder;
 import com.formacraft.server.generation.typology.builder.TailiangTimberHallBuilder;
+import com.formacraft.server.generation.typology.builder.TieredMountainPalaceBuilder;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -44,6 +45,8 @@ public final class TypologyBackedStructureGenerator implements StructureGenerato
                     SuspensionBridgeBuilder.fromBuildingSpec(spec, origin, world);
             case GothicCathedralHallBuilder.TYPOLOGY_ID ->
                     GothicCathedralHallBuilder.fromBuildingSpec(spec, origin, world);
+            case TieredMountainPalaceBuilder.TYPOLOGY_ID ->
+                    TieredMountainPalaceBuilder.fromBuildingSpec(spec, origin, world);
             default -> null;
         };
     }

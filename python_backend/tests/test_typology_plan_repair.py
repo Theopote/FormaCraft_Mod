@@ -208,6 +208,30 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(comp["params"]["width"], 19)
         self.assertEqual(comp["params"]["floors"], 12)
 
+    def test_potala_palace_module_repaired_to_structure(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:potala_palace"],
+                    "params": {"module_id": "potala_palace"},
+                    "dimensions": {"width": 48, "depth": 40, "height": 40},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        comp = out["components"][0]
+        self.assertEqual(comp["component_type"], "STRUCTURE")
+        self.assertIn("typology:tiered_mountain_palace", comp["features"])
+        self.assertEqual(comp["params"]["typology_id"], "tiered_mountain_palace")
+        self.assertEqual(comp["params"]["reference_landmark"], "potala_palace")
+        self.assertEqual(comp["params"]["baseWidth"], 48)
+        self.assertEqual(comp["params"]["tiers"], 6)
+
     def test_non_migrated_module_unchanged(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 

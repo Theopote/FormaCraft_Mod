@@ -63,6 +63,7 @@ public final class TypologyInterpreterRegistry {
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.CourtyardCompoundInterpreter());
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.RadialFortressInterpreter());
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.SetbackTowerInterpreter());
+        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.TieredMountainPalaceInterpreter());
 
         FormacraftMod.LOGGER.info("TypologyInterpreterRegistry bootstrapped {} interpreters", out.size());
         return Map.copyOf(out);

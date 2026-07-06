@@ -95,6 +95,15 @@ public final class TypologyReferencePresets {
                 "setbackStep", 2,
                 "facing", "SOUTH"
         ));
+        PRESETS.put("potala_palace", Map.of(
+                "baseWidth", 48,
+                "baseDepth", 40,
+                "tiers", 6,
+                "tierInset", 3,
+                "tierHeight", 6,
+                "platformHeight", 5,
+                "facing", "SOUTH"
+        ));
     }
 
     private TypologyReferencePresets() {}

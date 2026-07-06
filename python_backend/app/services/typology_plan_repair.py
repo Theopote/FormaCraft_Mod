@@ -103,6 +103,15 @@ _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
         "setbackStep": 2,
         "facing": "SOUTH",
     },
+    "potala_palace": {
+        "baseWidth": 48,
+        "baseDepth": 40,
+        "tiers": 6,
+        "tierInset": 3,
+        "tierHeight": 6,
+        "platformHeight": 5,
+        "facing": "SOUTH",
+    },
 }
 
 

@@ -436,6 +436,52 @@
       "proportionCardIds": ["setback_tower"],
       "cultureCardIds": ["modern_skyscraper"],
       "llmPlanGuidance": "Use structural_typology=setback_tower with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=setback_tower, slenderness≈4.5, setback_ratio≈0.12, window_wall_ratio≈0.55. Prefer STRUCTURE + typology:setback_tower; set reference_landmark=modern_skyscraper when user names modern skyscraper preset. Params: width, depth, height, floors, setbackEveryFloors, setbackStep, facing, paletteId. global_constraints.symmetry=RADIAL. FORBID plain MASS box without setbacks and curtain wall grammar. Office block / Zaha deconstructivism use other routes."
+    },
+    {
+      "id": "tiered_mountain_palace",
+      "displayName": {
+        "zh": "台地退台宫城",
+        "en": "Tiered mountain palace"
+      },
+      "skeletonType": "VERTICAL_STACK",
+      "styleFamilies": ["Tibetan", "Asian_Monument", "Chinese_Traditional"],
+      "matchKeywords": [
+        "布达拉宫", "宫城", "退台宫殿", "山地宫殿", "台地宫殿", "逐层退台",
+        "potala", "potala palace", "tiered palace", "mountain palace", "palace on hill",
+        "tiered mountain palace", "himalayan palace", "tibetan palace"
+      ],
+      "negativeKeywords": [
+        "四合院", "天坛", "摩天楼", "哥特", "城堡复合", "金门大桥", "原创别墅"
+      ],
+      "interpreterId": "tiered_mountain_palace",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "baseWidth": 48,
+        "baseDepth": 40,
+        "tiers": 5,
+        "tierInset": 3,
+        "tierHeight": 6,
+        "platformHeight": 4,
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "baseWidth": { "min": 24, "ideal": 48, "max": 96, "desc": "底层台地宽（奇数）" },
+        "baseDepth": { "min": 20, "ideal": 40, "max": 88, "desc": "底层台地深（奇数）" },
+        "tiers": { "min": 2, "ideal": 5, "max": 8, "desc": "退台层数" },
+        "tierInset": { "min": 2, "ideal": 3, "max": 6, "desc": "每层内缩格数" },
+        "tierHeight": { "min": 4, "ideal": 6, "max": 12, "desc": "单层高度" },
+        "platformHeight": { "min": 2, "ideal": 4, "max": 10, "desc": "台地基座高度" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "potala_palace",
+          "role": "primary",
+          "notes": "布达拉宫 preset：石砌台地 + 逐层退台宫城 + 顶层金顶，VERTICAL_STACK 骨架"
+        }
+      ],
+      "proportionCardIds": ["tiered_mountain_palace"],
+      "cultureCardIds": ["potala_palace"],
+      "llmPlanGuidance": "Use structural_typology=tiered_mountain_palace with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=tiered_mountain_palace, setback_ratio≈0.08, tier_count≈5. Prefer STRUCTURE + typology:tiered_mountain_palace; set reference_landmark=potala_palace when user names Potala / 布达拉宫. Params: baseWidth, baseDepth, tiers, tierInset, tierHeight, platformHeight, facing, paletteId. global_constraints.symmetry=MIRROR_X. FORBID plain MASS box without terraced setbacks. Courtyard compounds and pagodas use other typologies."
     }
   ],
   "migrationMap": {
@@ -508,6 +554,13 @@
       "legacyModuleId": "modern_skyscraper",
       "deprecatedAfter": "2026-Q4",
       "notes": "Routes to SetbackTowerBuilder via typology interpreter."
+    },
+    "potala_palace": {
+      "typologyId": "tiered_mountain_palace",
+      "phase": "typology_first",
+      "legacyModuleId": "potala_palace",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Routes to TieredMountainPalaceBuilder via typology interpreter."
     }
   }
 }
