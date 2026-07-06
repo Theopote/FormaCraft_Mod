@@ -1,9 +1,13 @@
 [
-    {
+  {
     "id": "modern_elliptical_stadium",
     "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
     "plan_fixture": "plans/modern_elliptical_stadium_captured.json",
-    "tags": ["stadium", "elliptical", "modern"],
+    "tags": [
+      "stadium",
+      "elliptical",
+      "modern"
+    ],
     "ci": true,
     "ideal_notes": [
       "Week 2+: Culture card + RECOMMENDED LandmarkModuleRouting（非强制 MODULE）",
@@ -15,7 +19,11 @@
     "id": "cottage_small_stone",
     "prompt": "盖一个 7x7 的小石头房子，带门和窗",
     "plan_fixture": "plans/cottage_refined_golden.json",
-    "tags": ["cottage", "house", "high_frequency"],
+    "tags": [
+      "cottage",
+      "house",
+      "high_frequency"
+    ],
     "proportion_card": "cottage_refined",
     "ci": true,
     "ideal_notes": [
@@ -28,7 +36,11 @@
     "id": "medieval_castle_compositional",
     "prompt": "盖一座中世纪石头城堡，有塔楼和城墙",
     "plan_fixture": "plans/medieval_castle_golden.json",
-    "tags": ["castle", "medieval", "high_frequency"],
+    "tags": [
+      "castle",
+      "medieval",
+      "high_frequency"
+    ],
     "proportion_card": "castle_wall",
     "ci": true,
     "ideal_notes": [
@@ -41,9 +53,16 @@
     "id": "primitive_voronoi_3d",
     "prompt": "做一个三维 voronoi 几何体",
     "plan_fixture": "plans/primitive_voronoi_3d_golden.json",
-    "tags": ["primitive", "shape"],
+    "tags": [
+      "primitive",
+      "shape"
+    ],
     "ci": true,
-    "hard_checks": ["has_geometry", "schema_valid", "dimensions_sane"],
+    "hard_checks": [
+      "has_geometry",
+      "schema_valid",
+      "dimensions_sane"
+    ],
     "ideal_notes": [
       "PRIMITIVE voronoi + voronoi_3d=true",
       "ShapeLibrary M3+ 体积细胞"
@@ -53,7 +72,11 @@
     "id": "siheyuan_courtyard",
     "prompt": "盖一个带院子的四合院",
     "plan_fixture": "plans/siheyuan_courtyard_golden.json",
-    "tags": ["siheyuan", "courtyard", "high_frequency"],
+    "tags": [
+      "siheyuan",
+      "courtyard",
+      "high_frequency"
+    ],
     "proportion_card": "siheyuan_courtyard",
     "ci": true,
     "ideal_notes": [
@@ -66,7 +89,11 @@
     "id": "square_tower_five_story",
     "prompt": "盖一座 5 层的方塔，顶部有平台",
     "plan_fixture": "plans/square_tower_five_story_golden.json",
-    "tags": ["tower", "square", "high_frequency"],
+    "tags": [
+      "tower",
+      "square",
+      "high_frequency"
+    ],
     "proportion_card": "square_tower_five_story",
     "ci": true,
     "ideal_notes": [
@@ -79,21 +106,30 @@
     "id": "temple_of_heaven",
     "prompt": "盖一座天坛",
     "plan_fixture": "plans/temple_of_heaven_golden.json",
-    "tags": ["temple", "landmark", "radial"],
+    "tags": [
+      "temple",
+      "landmark",
+      "radial",
+      "typology"
+    ],
     "proportion_card": "temple_of_heaven",
     "ci": true,
     "ideal_notes": [
-      "Culture card temple_of_heaven + proportion_card",
-      "RECOMMENDED: MODULE + landmark:temple_of_heaven（三层圆台 + 三重檐）",
-      "layout.skeleton_type=RADIAL_RING；symmetry=RADIAL"
+      "STRUCTURE + typology:radial_terrace_hall (reference_landmark=temple_of_heaven)",
+      "layout.skeleton_type=RADIAL_RING; FORBID MODULE + landmark",
+      "proportion_card temple_of_heaven"
     ]
   },
-    {
+  {
     "id": "patch_roof_red",
     "prompt": "把屋顶换成红色",
     "plan_fixture": "plans/patch_roof_red_golden.json",
     "base_plan_fixture": "plans/cottage_refined_golden.json",
-    "tags": ["patch", "roof", "edit"],
+    "tags": [
+      "patch",
+      "roof",
+      "edit"
+    ],
     "ci": true,
     "ideal_notes": [
       "前置上下文：cottage_refined 小石头房子已存在",
@@ -106,7 +142,11 @@
     "id": "assembly_spiral_preset",
     "prompt": "原创螺旋瞭望塔，不要地标模块，用自由几何表达非矩形体量",
     "plan_fixture": "plans/assembly_spiral_preset_golden.json",
-    "tags": ["assembly", "spiral", "freeform"],
+    "tags": [
+      "assembly",
+      "spiral",
+      "freeform"
+    ],
     "ci": true,
     "ideal_notes": [
       "component_type=ASSEMBLY + preset spiral_watchtower",
@@ -118,7 +158,11 @@
     "id": "assembly_bridge_preset",
     "prompt": "原创悬索桥，不要地标，跨度约 48",
     "plan_fixture": "plans/assembly_bridge_preset_golden.json",
-    "tags": ["assembly", "bridge", "freeform"],
+    "tags": [
+      "assembly",
+      "bridge",
+      "freeform"
+    ],
     "ci": true,
     "ideal_notes": [
       "component_type=ASSEMBLY + preset suspension_bridge_simple",
@@ -129,7 +173,11 @@
     "id": "assembly_gothic_shell",
     "prompt": "哥特壳体螺旋塔，ASSEMBLY graph SHELL_BOX + twistTurns",
     "plan_fixture": "plans/assembly_gothic_shell_golden.json",
-    "tags": ["assembly", "spiral", "gothic"],
+    "tags": [
+      "assembly",
+      "spiral",
+      "gothic"
+    ],
     "ci": true,
     "ideal_notes": [
       "ASSEMBLY graph SHELL_BOX + style macro",
@@ -140,11 +188,177 @@
     "id": "assembly_capability_gap_explicit",
     "prompt": "做一个当前引擎不支持的复杂自由曲面壳体",
     "plan_fixture": "plans/assembly_capability_gap_explicit_golden.json",
-    "tags": ["capability_gap", "assembly", "freeform"],
+    "tags": [
+      "capability_gap",
+      "assembly",
+      "freeform"
+    ],
     "ci": true,
     "ideal_notes": [
       "plan_status=capability_gap with structured capability_gap object",
       "优于空 components[] 或静默 HOUSE 回退"
+    ]
+  },
+  {
+    "id": "famen_pagoda",
+    "prompt": "在锚点位置生成法门寺舍利塔",
+    "plan_fixture": "plans/famen_pagoda_golden.json",
+    "tags": [
+      "typology",
+      "pagoda",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "famen_pagoda",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:dense_eaves_pagoda (reference_landmark=famen_pagoda)",
+      "layout.skeleton_type=VERTICAL_STACK; FORBID MODULE + landmark",
+      "proportion_card famen_pagoda"
+    ]
+  },
+  {
+    "id": "giant_wild_goose_pagoda",
+    "prompt": "在锚点位置生成大雁塔",
+    "plan_fixture": "plans/giant_wild_goose_pagoda_golden.json",
+    "tags": [
+      "typology",
+      "pagoda",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "giant_wild_goose_pagoda",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:dense_eaves_pagoda (reference_landmark=giant_wild_goose_pagoda)",
+      "layout.skeleton_type=VERTICAL_STACK; FORBID MODULE + landmark",
+      "proportion_card giant_wild_goose_pagoda"
+    ]
+  },
+  {
+    "id": "foguang_temple_hall",
+    "prompt": "在锚点位置生成佛光寺大殿",
+    "plan_fixture": "plans/foguang_temple_hall_golden.json",
+    "tags": [
+      "typology",
+      "timber_hall",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "foguang_temple_hall",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:tailiang_timber_hall (reference_landmark=foguang_temple_hall)",
+      "layout.skeleton_type=GRID_BAY; FORBID MODULE + landmark",
+      "proportion_card foguang_temple_hall"
+    ]
+  },
+  {
+    "id": "birds_nest_stadium",
+    "prompt": "在锚点位置生成鸟巢体育馆",
+    "plan_fixture": "plans/birds_nest_stadium_golden.json",
+    "tags": [
+      "typology",
+      "stadium",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "stadium_bowl",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:stadium_bowl (reference_landmark=birds_nest_stadium)",
+      "layout.skeleton_type=RADIAL_RING; FORBID MODULE + landmark",
+      "proportion_card stadium_bowl"
+    ]
+  },
+  {
+    "id": "golden_gate_bridge",
+    "prompt": "在锚点位置生成旧金山金门大桥",
+    "plan_fixture": "plans/golden_gate_bridge_golden.json",
+    "tags": [
+      "typology",
+      "bridge",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "suspension_bridge",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:suspension_bridge (reference_landmark=golden_gate_bridge)",
+      "layout.skeleton_type=SPAN_SUSPENSION; FORBID MODULE + landmark",
+      "proportion_card suspension_bridge"
+    ]
+  },
+  {
+    "id": "gothic_cathedral",
+    "prompt": "生成一座哥特大教堂",
+    "plan_fixture": "plans/gothic_cathedral_golden.json",
+    "tags": [
+      "typology",
+      "cathedral",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "gothic_cathedral_hall",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:gothic_cathedral_hall (reference_landmark=gothic_cathedral)",
+      "layout.skeleton_type=GRID_BAY; FORBID MODULE + landmark",
+      "proportion_card gothic_cathedral_hall"
+    ]
+  },
+  {
+    "id": "mingqing_courtyard",
+    "prompt": "建造一座明清官式院落",
+    "plan_fixture": "plans/mingqing_courtyard_golden.json",
+    "tags": [
+      "typology",
+      "courtyard",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "courtyard_compound",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:courtyard_compound (reference_landmark=mingqing_courtyard)",
+      "layout.skeleton_type=COMPOUND; FORBID MODULE + landmark",
+      "proportion_card courtyard_compound"
+    ]
+  },
+  {
+    "id": "castle_compound",
+    "prompt": "建造一座中世纪城堡",
+    "plan_fixture": "plans/castle_compound_golden.json",
+    "tags": [
+      "typology",
+      "castle",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "radial_fortress",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:radial_fortress (reference_landmark=castle_compound)",
+      "layout.skeleton_type=COMPOUND; FORBID MODULE + landmark",
+      "proportion_card radial_fortress"
+    ]
+  },
+  {
+    "id": "modern_skyscraper",
+    "prompt": "建造一座摩天楼",
+    "plan_fixture": "plans/modern_skyscraper_golden.json",
+    "tags": [
+      "typology",
+      "skyscraper",
+      "landmark",
+      "ci"
+    ],
+    "proportion_card": "setback_tower",
+    "ci": true,
+    "ideal_notes": [
+      "STRUCTURE + typology:setback_tower (reference_landmark=modern_skyscraper)",
+      "layout.skeleton_type=VERTICAL_STACK; FORBID MODULE + landmark",
+      "proportion_card setback_tower"
     ]
   }
 ]

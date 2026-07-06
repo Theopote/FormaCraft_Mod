@@ -1,0 +1,112 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Imperial_Official",
+  "style_attributes": {
+    "wall_color": "red_terracotta",
+    "roof_color": "slate_gray",
+    "accent_color": "stone_trim",
+    "wall_material": "brick",
+    "roof_material": "tile",
+    "floor_material": "stone",
+    "decorative_elements": [
+      "official_gate",
+      "symmetric_wings",
+      "courtyard_paving"
+    ]
+  },
+  "proportion_hints": {
+    "typology": "courtyard_compound",
+    "courtyard_ratio": 0.38,
+    "hall_depth_to_width": 0.55,
+    "enclosure_coverage": 0.85
+  },
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "mingqing_courtyard",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "enclosed",
+      "composition": "compound",
+      "axis": "north_south",
+      "levels": "single"
+    },
+    "form": {
+      "repetition": "symmetric",
+      "progression": "hierarchical",
+      "curvature": "rectilinear",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "mirror",
+      "order": 2,
+      "mirror": true
+    },
+    "materials": {
+      "primary": "brick",
+      "secondary": "wood",
+      "accent": "stone",
+      "textureBias": "smooth"
+    },
+    "culturalStyle": {
+      "region": "chinese",
+      "era": "ming_qing",
+      "keywords": [
+        "official",
+        "courtyard",
+        "compound"
+      ]
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 32,
+        "depth": 28,
+        "height": 10
+      },
+      "features": [
+        "typology:courtyard_compound"
+      ],
+      "params": {
+        "typology_id": "courtyard_compound",
+        "reference_landmark": "mingqing_courtyard",
+        "width": 32,
+        "depth": 28,
+        "includePaths": true,
+        "pathWidth": 3,
+        "facing": "SOUTH"
+      }
+    }
+  ],
+  "_meta": {
+    "prompt": "建造一座明清官式院落",
+    "source": "llmplan_examples/mingqing_courtyard_typology.json",
+    "notes": "P0 golden fixture — courtyard_compound typology-first",
+    "reference_landmark": "mingqing_courtyard",
+    "structural_typology": "courtyard_compound",
+    "skeleton_type": "COMPOUND"
+  }
+}

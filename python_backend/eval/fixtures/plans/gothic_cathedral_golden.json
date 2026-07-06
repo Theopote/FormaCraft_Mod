@@ -1,0 +1,115 @@
+{
+  "mode": "build",
+  "style_profile": "Gothic_Cathedral",
+  "style_attributes": {
+    "wall_color": "stone_gray",
+    "roof_color": "slate",
+    "accent_color": "dark_trim",
+    "wall_material": "stone",
+    "roof_material": "slate_tile",
+    "floor_material": "stone",
+    "decorative_elements": [
+      "pointed_arch",
+      "rose_window",
+      "flying_buttress",
+      "twin_spires"
+    ]
+  },
+  "proportion_hints": {
+    "typology": "gothic_cathedral_hall",
+    "nave_length_to_width": 1.8,
+    "tower_height_to_nave": 1.35,
+    "spire_to_tower": 0.5
+  },
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "gothic_cathedral",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "linear",
+      "composition": "cruciform_hint",
+      "axis": "longitudinal",
+      "levels": "vertical"
+    },
+    "form": {
+      "repetition": "bay_rhythm",
+      "progression": "ascending",
+      "curvature": "pointed",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "mirror",
+      "order": 2,
+      "mirror": true
+    },
+    "materials": {
+      "primary": "stone",
+      "secondary": "stained_glass",
+      "accent": "trim",
+      "textureBias": "rough"
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "medieval",
+      "keywords": [
+        "gothic",
+        "sacred",
+        "vertical"
+      ]
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "FLAT_PAD"
+  },
+  "layout": {
+    "skeleton_type": "GRID_BAY",
+    "path_based": false,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 25,
+        "depth": 45,
+        "height": 30
+      },
+      "features": [
+        "typology:gothic_cathedral_hall"
+      ],
+      "params": {
+        "typology_id": "gothic_cathedral_hall",
+        "reference_landmark": "gothic_cathedral",
+        "width": 25,
+        "depth": 45,
+        "wallHeight": 16,
+        "towerHeight": 20,
+        "spireHeight": 10,
+        "buttressStep": 5,
+        "facing": "SOUTH"
+      }
+    }
+  ],
+  "_meta": {
+    "prompt": "生成一座哥特大教堂",
+    "source": "llmplan_examples/gothic_cathedral_hall_typology.json",
+    "notes": "P0 golden fixture — gothic_cathedral_hall typology-first",
+    "reference_landmark": "gothic_cathedral",
+    "structural_typology": "gothic_cathedral_hall",
+    "skeleton_type": "GRID_BAY"
+  }
+}

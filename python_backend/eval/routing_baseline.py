@@ -293,6 +293,13 @@ def render_markdown(stats: BaselineStats) -> str:
 
     lines.extend([
         "",
+        "## Migrated typology goldens",
+        "",
+        f"- **Typology-builder primary path**: {stats.by_path.get('typology_builder', 0)} plans "
+        f"(target: ≥10 migrated landmark goldens in `typology_golden_manifest.json`).",
+        f"- **MODULE primary path**: {stats.by_path.get('module', 0)} plans "
+        "(target: 0 on migrated typology CI scenarios).",
+        "",
         "## Target (Phase 3)",
         "",
         "- **80% typology-first**: compositional + typology_builder primary path on landmark / archetype prompts.",

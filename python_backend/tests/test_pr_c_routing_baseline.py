@@ -31,12 +31,31 @@ class RoutingClassificationTest(unittest.TestCase):
         }
         self.assertEqual(classify_component(comp), "typology_builder")
 
-    def test_migrated_module_classifies_as_typology(self):
+    def test_migrated_module_temple_classifies_as_typology(self):
         comp = {
             "component_type": "MODULE",
             "features": ["landmark:temple_of_heaven"],
         }
         self.assertEqual(classify_component(comp), "typology_builder")
+
+    def test_all_typology_golden_fixtures_classify_typology_builder(self):
+        manifest_path = (
+            Path(__file__).resolve().parent.parent
+            / "eval"
+            / "typology_golden_manifest.json"
+        )
+        fixtures_root = Path(__file__).resolve().parent.parent / "eval" / "fixtures"
+        entries = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(entries), 10)
+        for entry in entries:
+            plan_path = fixtures_root / str(entry["plan_fixture"])
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+            cls = classify_plan(plan)
+            self.assertEqual(
+                cls["primary_path"],
+                "typology_builder",
+                msg=f"{entry['id']} should be typology_builder",
+            )
 
     def test_compositional_mass(self):
         comp = {"component_type": "MASS_MAIN", "features": ["elliptical_footprint"]}
@@ -63,6 +82,7 @@ class RoutingBaselineReportTest(unittest.TestCase):
         self.assertGreater(stats.total, 0)
         self.assertGreater(stats.by_path.get("compositional", 0), 0)
         self.assertGreater(stats.by_path.get("typology_builder", 0), 0)
+        self.assertGreaterEqual(stats.by_path.get("typology_builder", 0), 10)
 
     def test_render_markdown_contains_summary(self):
         stats = collect_baseline()

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "famen_pagoda",
+    "prompt": "在锚点位置生成法门寺舍利塔",
+    "plan_fixture": "plans/famen_pagoda_golden.json",
+    "typology_id": "dense_eaves_pagoda",
+    "reference_landmark": "famen_pagoda",
+    "proportion_card": "famen_pagoda",
+    "skeleton_type": "VERTICAL_STACK",
+    "tags": ["typology", "pagoda", "landmark"]
+  },
+  {
+    "id": "giant_wild_goose_pagoda",
+    "prompt": "在锚点位置生成大雁塔",
+    "plan_fixture": "plans/giant_wild_goose_pagoda_golden.json",
+    "typology_id": "dense_eaves_pagoda",
+    "reference_landmark": "giant_wild_goose_pagoda",
+    "proportion_card": "giant_wild_goose_pagoda",
+    "skeleton_type": "VERTICAL_STACK",
+    "tags": ["typology", "pagoda", "landmark"]
+  },
+  {
+    "id": "foguang_temple_hall",
+    "prompt": "在锚点位置生成佛光寺大殿",
+    "plan_fixture": "plans/foguang_temple_hall_golden.json",
+    "typology_id": "tailiang_timber_hall",
+    "reference_landmark": "foguang_temple_hall",
+    "proportion_card": "foguang_temple_hall",
+    "skeleton_type": "GRID_BAY",
+    "tags": ["typology", "timber_hall", "landmark"]
+  },
+  {
+    "id": "temple_of_heaven",
+    "prompt": "盖一座天坛",
+    "plan_fixture": "plans/temple_of_heaven_golden.json",
+    "typology_id": "radial_terrace_hall",
+    "reference_landmark": "temple_of_heaven",
+    "proportion_card": "temple_of_heaven",
+    "skeleton_type": "RADIAL_RING",
+    "tags": ["typology", "temple", "landmark"]
+  },
+  {
+    "id": "birds_nest_stadium",
+    "prompt": "在锚点位置生成鸟巢体育馆",
+    "plan_fixture": "plans/birds_nest_stadium_golden.json",
+    "typology_id": "stadium_bowl",
+    "reference_landmark": "birds_nest_stadium",
+    "proportion_card": "stadium_bowl",
+    "skeleton_type": "RADIAL_RING",
+    "tags": ["typology", "stadium", "landmark"]
+  },
+  {
+    "id": "golden_gate_bridge",
+    "prompt": "在锚点位置生成旧金山金门大桥",
+    "plan_fixture": "plans/golden_gate_bridge_golden.json",
+    "typology_id": "suspension_bridge",
+    "reference_landmark": "golden_gate_bridge",
+    "proportion_card": "suspension_bridge",
+    "skeleton_type": "SPAN_SUSPENSION",
+    "tags": ["typology", "bridge", "landmark"]
+  },
+  {
+    "id": "gothic_cathedral",
+    "prompt": "生成一座哥特大教堂",
+    "plan_fixture": "plans/gothic_cathedral_golden.json",
+    "typology_id": "gothic_cathedral_hall",
+    "reference_landmark": "gothic_cathedral",
+    "proportion_card": "gothic_cathedral_hall",
+    "skeleton_type": "GRID_BAY",
+    "tags": ["typology", "cathedral", "landmark"]
+  },
+  {
+    "id": "mingqing_courtyard",
+    "prompt": "建造一座明清官式院落",
+    "plan_fixture": "plans/mingqing_courtyard_golden.json",
+    "typology_id": "courtyard_compound",
+    "reference_landmark": "mingqing_courtyard",
+    "proportion_card": "courtyard_compound",
+    "skeleton_type": "COMPOUND",
+    "tags": ["typology", "courtyard", "landmark"]
+  },
+  {
+    "id": "castle_compound",
+    "prompt": "建造一座中世纪城堡",
+    "plan_fixture": "plans/castle_compound_golden.json",
+    "typology_id": "radial_fortress",
+    "reference_landmark": "castle_compound",
+    "proportion_card": "radial_fortress",
+    "skeleton_type": "COMPOUND",
+    "tags": ["typology", "castle", "landmark"]
+  },
+  {
+    "id": "modern_skyscraper",
+    "prompt": "建造一座摩天楼",
+    "plan_fixture": "plans/modern_skyscraper_golden.json",
+    "typology_id": "setback_tower",
+    "reference_landmark": "modern_skyscraper",
+    "proportion_card": "setback_tower",
+    "skeleton_type": "VERTICAL_STACK",
+    "tags": ["typology", "skyscraper", "landmark"]
+  }
+]

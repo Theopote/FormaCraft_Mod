@@ -1,7 +1,7 @@
 # Generator Routing Map（Phase 0 对照表）
 
 > 生成器合并 Phase 0 产出。记录当前三套活跃体系的完整路由映射，以及已清理的死代码。
-> 最后更新：2026-07-02（Phase 6b 完成；活跃文档路径已同步）
+> 最后更新：2026-07-06（Phase 6 typology-first 收尾；P4 六批迁移完成）
 
 ## 体系总览（Phase 1 后）
 
@@ -172,16 +172,25 @@ Template / styleProfile 路由数据文件：`assets/formacraft/generation/struc
 |--------------|--------------|------|
 | `tulou` | `tulou` | |
 | `eiffel_tower` | `eiffel_tower` | |
-| `temple_of_heaven` | `temple_of_heaven` | |
 | `great_wall` | `great_wall` | |
-| `golden_gate_bridge` | `golden_gate_bridge` | |
-| `giant_wild_goose_pagoda` | `giant_wild_goose_pagoda` | |
-| `castle_compound` | `castle_compound` | 亦可通过 template 路由 |
 | `office_district` | `office_district` | 亦可通过 template 路由 |
-| `mingqing_courtyard` | `mingqing_courtyard` | **Phase 3 已修复** Factory 映射 |
-| `birds_nest_stadium` | `birds_nest_stadium` | **Phase 4 已实现** |
 
-触发方式：
+**已迁入 typology-first（不再 MODULE 路由）** — 见 `structural_typologies_v1.json` `migrationMap`：
+
+| archetype id | typology id | Java Builder / Interpreter |
+|--------------|-------------|---------------------------|
+| `temple_of_heaven` | `radial_terrace_hall` | `RadialTerraceHallBuilder` |
+| `famen_pagoda` | `dense_eaves_pagoda` | legacy → typology interpreter |
+| `giant_wild_goose_pagoda` | `dense_eaves_pagoda` | legacy → typology interpreter |
+| `foguang_temple_hall` | `tailiang_timber_hall` | legacy → typology interpreter |
+| `birds_nest_stadium` | `stadium_bowl` | `StadiumBowlBuilder` |
+| `golden_gate_bridge` | `suspension_bridge` | `SuspensionBridgeBuilder` |
+| `gothic_cathedral` | `gothic_cathedral_hall` | `GothicCathedralHallBuilder` |
+| `mingqing_courtyard` | `courtyard_compound` | `CourtyardCompoundBuilder` |
+| `castle_compound` | `radial_fortress` | `RadialFortressBuilder` |
+| `modern_skyscraper` | `setback_tower` | `SetbackTowerBuilder` |
+
+触发方式（未迁入地标仍走 MODULE）：
 - `extra.landmark` → `ArchetypeRegistry.matchByKeyword()` → Factory
 - `extra.genome.archetype.id`（confidence ≥ 0.85）→ Factory
 

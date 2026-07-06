@@ -1,0 +1,116 @@
+{
+  "mode": "build",
+  "style_profile": "Modern_Stadium_Elliptical",
+  "style_attributes": {
+    "wall_color": "gray",
+    "roof_color": "silver",
+    "accent_color": "steel",
+    "wall_material": "concrete",
+    "roof_material": "metal",
+    "floor_material": "stone",
+    "decorative_elements": [
+      "steel_mesh",
+      "exposed_structure",
+      "steel_ribs"
+    ]
+  },
+  "proportion_hints": {
+    "typology": "stadium_bowl",
+    "bowl_depth_to_width": 0.38,
+    "height_to_major_axis": 0.48,
+    "field_to_bowl": 0.58,
+    "min_enclosure_coverage": 0.55
+  },
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "birds_nest_stadium",
+      "confidence": 0.92
+    },
+    "topology": {
+      "layout": "circular",
+      "composition": "single",
+      "axis": "centered",
+      "levels": "horizontal"
+    },
+    "form": {
+      "repetition": "radial",
+      "progression": "uniform",
+      "curvature": "curved",
+      "rhythm": "irregular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 4,
+      "mirror": true
+    },
+    "materials": {
+      "primary": "concrete",
+      "secondary": "metal",
+      "accent": "steel",
+      "textureBias": "smooth"
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "contemporary",
+      "keywords": [
+        "stadium",
+        "elliptical",
+        "deconstructivism"
+      ]
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "RADIAL_RING",
+    "path_based": false,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 60,
+        "depth": 80,
+        "height": 28
+      },
+      "features": [
+        "typology:stadium_bowl"
+      ],
+      "params": {
+        "typology_id": "stadium_bowl",
+        "reference_landmark": "birds_nest_stadium",
+        "width": 60,
+        "depth": 80,
+        "height": 28,
+        "meshStructure": true,
+        "elliptical": true,
+        "designSeed": 2847,
+        "bowlSteepness": 0.38,
+        "facing": "SOUTH"
+      }
+    }
+  ],
+  "_meta": {
+    "prompt": "在锚点位置生成鸟巢体育馆",
+    "source": "llmplan_examples/modern_stadium_elliptical_typology.json",
+    "notes": "P0 golden fixture — stadium_bowl typology-first",
+    "reference_landmark": "birds_nest_stadium",
+    "structural_typology": "stadium_bowl",
+    "skeleton_type": "RADIAL_RING"
+  }
+}

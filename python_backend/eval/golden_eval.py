@@ -117,6 +117,13 @@ _SCENARIO_HARD_BY_TAG: Dict[str, frozenset] = {
         "capability_gap_code",
         "capability_gap_message",
     }),
+    "typology": frozenset({
+        "has_proportion_hints",
+        "typology_structure_route",
+        "typology_proportion_hints",
+        "typology_skeleton_match",
+        "no_migrated_module",
+    }),
 }
 
 
@@ -134,6 +141,8 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
             ):
                 continue
             names.update(_SCENARIO_HARD_BY_TAG.get(tag, ()))
+        if "typology" in tag_set:
+            names.update(_SCENARIO_HARD_BY_TAG.get("typology", ()))
     card = scenario.get("proportion_card")
     if card == "cottage_refined":
         names.update(_SCENARIO_HARD_BY_TAG.get("high_frequency", ()))
@@ -145,6 +154,12 @@ def promote_scenario_hard_checks(result: EvalResult, scenario: Dict[str, Any]) -
         names.update(_SCENARIO_HARD_BY_TAG.get("tower", ()))
     elif card == "temple_of_heaven":
         names.update(_SCENARIO_HARD_BY_TAG.get("temple", ()))
+    elif card in (
+        "famen_pagoda", "giant_wild_goose_pagoda", "foguang_temple_hall",
+        "stadium_bowl", "suspension_bridge", "gothic_cathedral_hall",
+        "courtyard_compound", "radial_fortress", "setback_tower",
+    ):
+        names.update(_SCENARIO_HARD_BY_TAG.get("typology", ()))
     hard_names = scenario.get("hard_checks")
     if isinstance(hard_names, list):
         names.update(str(n) for n in hard_names if n)
@@ -686,6 +701,73 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
     return checks
 
 
+def evaluate_typology_fixture_alignment(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
+    """Golden fixtures with _meta.structural_typology must stay typology-first."""
+    meta = plan.get("_meta") if isinstance(plan.get("_meta"), dict) else {}
+    typology_id = str(meta.get("structural_typology") or "").strip()
+    if not typology_id:
+        return []
+
+    landmark = str(meta.get("reference_landmark") or "").strip()
+    expected_skeleton = str(meta.get("skeleton_type") or "").strip()
+    comps = _components(plan)
+    checks: List[Check] = []
+
+    has_route = any(
+        str(c.get("component_type") or "").upper() == "STRUCTURE"
+        and _has_typology_feature(c, typology_id)
+        for c in comps
+    )
+    checks.append(Check(
+        "typology_structure_route",
+        has_route,
+        hard=False,
+        detail=f"expected STRUCTURE + typology:{typology_id}",
+    ))
+
+    has_migrated_module = any(
+        str(c.get("component_type") or "").upper() == "MODULE"
+        and (
+            (landmark and _has_landmark_feature(c, landmark))
+            or _has_landmark_feature(c, typology_id)
+        )
+        for c in comps
+    )
+    checks.append(Check(
+        "no_migrated_module",
+        not has_migrated_module,
+        hard=False,
+        detail="typology golden must not emit MODULE for migrated landmark",
+    ))
+
+    hints = plan.get("proportion_hints") if isinstance(plan.get("proportion_hints"), dict) else {}
+    hints_typ = str(hints.get("typology") or "").strip()
+    checks.append(Check(
+        "typology_proportion_hints",
+        hints_typ == typology_id,
+        hard=False,
+        detail=f"proportion_hints.typology should be {typology_id}",
+    ))
+    checks.append(Check(
+        "has_proportion_hints",
+        bool(hints),
+        hard=False,
+        detail="typology fixture expects proportion_hints",
+    ))
+
+    layout = plan.get("layout") if isinstance(plan.get("layout"), dict) else {}
+    sk = str(layout.get("skeleton_type") or "").strip()
+    if expected_skeleton:
+        checks.append(Check(
+            "typology_skeleton_match",
+            sk == expected_skeleton,
+            hard=False,
+            detail=f"layout.skeleton_type should be {expected_skeleton}",
+        ))
+
+    return checks
+
+
 def _stadium_has_curved_mass(comps: List[Dict[str, Any]]) -> bool:
     for c in comps:
         if c.get("component_type", "").upper() not in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "HOUSE", "BUILDING"):
@@ -879,6 +961,8 @@ def evaluate_plan(plan: Dict[str, Any], label: str = "plan", prompt: Optional[st
 
     # SOFT：按用户 prompt 的意图对齐（Week 1+）。
     for ic in evaluate_intent(plan, prompt):
+        add(ic)
+    for ic in evaluate_typology_fixture_alignment(plan, prompt):
         add(ic)
 
     # SOFT：比例 + 围合逻辑（P0 typology cards）

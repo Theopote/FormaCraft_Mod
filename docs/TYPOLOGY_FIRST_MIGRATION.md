@@ -1,6 +1,6 @@
 # Typology-First 架构迁移方案
 
-> **状态**：Phase 0–5 已完成（2026-07-06）  
+> **状态**：Phase 0–6 收尾已完成（2026-07-06）  
 > **政策**：冻结新地标专用 Generator；新中式/古建需求走 **Structural Typology + 参数化解释器**，地标仅作 RAG 比例与风格参考。
 
 ## 1. 背景与问题
@@ -290,3 +290,48 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 ```
 
 Phase 6 起：LLM 若仍输出 `MODULE + landmark:<migrated>`，Python sanitize 剥离并 repair；Java 构件路由经 `TypologyComponentRouter` 解析 typology，不再写入 `extra.landmark`。
+
+## 11. Phase 6 收尾（Golden fixture + routing baseline）
+
+### 11.1 Golden fixture 索引
+
+| ID | Typology | Skeleton | Plan fixture |
+|---|---|---|---|
+| `famen_pagoda` | `dense_eaves_pagoda` | `VERTICAL_STACK` | `eval/fixtures/plans/famen_pagoda_golden.json` |
+| `giant_wild_goose_pagoda` | `dense_eaves_pagoda` | `VERTICAL_STACK` | `eval/fixtures/plans/giant_wild_goose_pagoda_golden.json` |
+| `foguang_temple_hall` | `tailiang_timber_hall` | `GRID_BAY` | `eval/fixtures/plans/foguang_temple_hall_golden.json` |
+| `temple_of_heaven` | `radial_terrace_hall` | `RADIAL_RING` | `eval/fixtures/plans/temple_of_heaven_golden.json` |
+| `birds_nest_stadium` | `stadium_bowl` | `RADIAL_RING` | `eval/fixtures/plans/birds_nest_stadium_golden.json` |
+| `golden_gate_bridge` | `suspension_bridge` | `SPAN_SUSPENSION` | `eval/fixtures/plans/golden_gate_bridge_golden.json` |
+| `gothic_cathedral` | `gothic_cathedral_hall` | `GRID_BAY` | `eval/fixtures/plans/gothic_cathedral_golden.json` |
+| `mingqing_courtyard` | `courtyard_compound` | `COMPOUND` | `eval/fixtures/plans/mingqing_courtyard_golden.json` |
+| `castle_compound` | `radial_fortress` | `COMPOUND` | `eval/fixtures/plans/castle_compound_golden.json` |
+| `modern_skyscraper` | `setback_tower` | `VERTICAL_STACK` | `eval/fixtures/plans/modern_skyscraper_golden.json` |
+
+清单与同步脚本：
+
+- `python_backend/eval/typology_golden_manifest.json`
+- `python -m eval.sync_typology_goldens`（从 `llmplan_examples` 刷新 `_meta`）
+
+### 11.2 CI 场景与评估
+
+- `eval/fixtures/scenarios.json`：21 条场景（含 10 条 typology golden）
+- `eval/golden_eval.py`：`evaluate_typology_fixture_alignment()` — `typology_structure_route`、`no_migrated_module`、`typology_proportion_hints`、`typology_skeleton_match`
+- `eval/proportion_eval.py`：通用 `typology_fixture_structure_route` 围合检查
+- 测试：`python_backend/tests/test_typology_golden_p0.py`（manifest 参数化 golden + proportion + routing）
+- Routing baseline：`python -m eval.routing_baseline --write` → `docs/metrics/typology_routing_baseline.md`
+
+### 11.3 Culture 卡索引（P4 迁入后）
+
+| Culture card | Typology | 备注 |
+|---|---|---|
+| `famen_pagoda.json` | `dense_eaves_pagoda` | Phase 1 |
+| `giant_wild_goose_pagoda.json` | `dense_eaves_pagoda` | Phase 4 |
+| `foguang_temple_hall.json` | `tailiang_timber_hall` | Phase 1 |
+| `temple_of_heaven.json` | `radial_terrace_hall` | Phase 5 |
+| `birds_nest_stadium.json` | `stadium_bowl` | Phase 8.19 |
+| `golden_gate_bridge.json` | `suspension_bridge` | Phase 8.20 |
+| `gothic_cathedral.json` | `gothic_cathedral_hall` | Phase 8.21 |
+| `mingqing_courtyard.json` | `courtyard_compound` | Phase 8.22 |
+| `castle_compound.json` | `radial_fortress` | Phase 8.23 |
+| `modern_skyscraper.json` | `setback_tower` | Phase 8.24 |
