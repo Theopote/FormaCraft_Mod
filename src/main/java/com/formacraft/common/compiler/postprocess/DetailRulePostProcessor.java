@@ -77,35 +77,22 @@ public class DetailRulePostProcessor implements PostProcessor {
             if (patch == null) {
                 continue;
             }
-            if (replaced < MAX_REPLACEMENTS && shouldReplacePatch(
-                    patch, rules, yCtx, palette, minX, maxX, minZ, maxZ, minY)) {
-                DetailRule matched = findMatchingRule(patch, rules, yCtx, minX, maxX, minZ, maxZ, minY);
-                if (matched != null) {
-                    String replacement = buildReplacement(
-                            matched, patch, palette, minX, maxX, minZ, maxZ);
-                    out.add(new BlockPatch(BlockPatch.REPLACE, patch.dx(), patch.dy(), patch.dz(), replacement));
-                    replaced++;
-                    continue;
-                }
+            DetailRule matched = replaced < MAX_REPLACEMENTS
+                    ? findMatchingRule(patch, rules, yCtx, minX, maxX, minZ, maxZ, minY)
+                    : null;
+            if (matched != null) {
+                String replacement = buildReplacement(matched, patch, palette, minX, maxX, minZ, maxZ);
+                out.add(new BlockPatch(BlockPatch.REPLACE, patch.dx(), patch.dy(), patch.dz(), replacement));
+                replaced++;
+            } else {
+                out.add(patch);
             }
-            out.add(patch);
         }
 
         if (replaced > 0) {
             FormacraftMod.LOGGER.debug("DetailRulePostProcessor: applied {} detail rule replacements", replaced);
         }
         return out;
-    }
-
-    private static boolean shouldReplacePatch(
-            BlockPatch patch,
-            List<DetailRule> rules,
-            DetailRuleYResolver.BuildingYContext yCtx,
-            Palette palette,
-            int minX, int maxX, int minZ, int maxZ,
-            int minY
-    ) {
-        return findMatchingRule(patch, rules, yCtx, minX, maxX, minZ, maxZ, minY) != null;
     }
 
     private static DetailRule findMatchingRule(
