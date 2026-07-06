@@ -276,6 +276,30 @@ def _has_landmark_feature(c: Dict[str, Any], module_id: str) -> bool:
     return False
 
 
+def _has_typology_feature(c: Dict[str, Any], typology_id: str) -> bool:
+    features = c.get("features")
+    if isinstance(features, list):
+        needle = f"typology:{typology_id}".lower()
+        for f in features:
+            if isinstance(f, str) and f.lower().strip() == needle:
+                return True
+    params = c.get("params") if isinstance(c.get("params"), dict) else {}
+    for key in ("typology_id", "structural_typology", "typologyId", "structuralTypologyId"):
+        if str(params.get(key) or "").strip().lower() == typology_id.lower():
+            return True
+    return False
+
+
+def _has_stadium_bowl_route(comps: List[Dict[str, Any]]) -> bool:
+    for c in comps:
+        ctype = str(c.get("component_type") or "").upper()
+        if ctype == "MODULE" and _has_landmark_feature(c, "birds_nest_stadium"):
+            return True
+        if ctype == "STRUCTURE" and _has_typology_feature(c, "stadium_bowl"):
+            return True
+    return False
+
+
 def _genome_layout(plan: Dict[str, Any]) -> Optional[str]:
     genome = plan.get("genome")
     if not isinstance(genome, dict):
@@ -314,16 +338,12 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
     )
 
     if is_stadium or is_elliptical:
-        has_landmark = any(
-            c.get("component_type", "").upper() == "MODULE"
-            and _has_landmark_feature(c, "birds_nest_stadium")
-            for c in comps
-        )
+        has_stadium_route = _has_stadium_bowl_route(comps)
         checks.append(Check(
             "stadium_landmark_or_curved_mass",
-            has_landmark or _stadium_has_curved_mass(comps),
+            has_stadium_route or _stadium_has_curved_mass(comps),
             hard=False,
-            detail="体育场/椭圆意图：应用 MODULE+landmark:birds_nest_stadium，"
+            detail="体育场/椭圆意图：应用 STRUCTURE+typology:stadium_bowl，"
                    "或 MASS params.shape=circle|rounded_rect + 非方 footprint",
         ))
 
@@ -344,7 +364,7 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
         has_field = (
             "PAVING" in types
             or _any_mass_void(comps, min_void=0.15)
-            or has_landmark
+            or has_stadium_route
         )
         checks.append(Check(
             "stadium_inner_field",
@@ -356,26 +376,26 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
         if is_elliptical:
             checks.append(Check(
                 "elliptical_shape_params",
-                has_landmark or _elliptical_shape_ok(comps),
+                has_stadium_route or _elliptical_shape_ok(comps),
                 hard=False,
-                detail="椭圆意图：landmark 或 MASS shape=circle/rounded_rect 且 width≠depth",
+                detail="椭圆意图：typology stadium_bowl 或 MASS shape=circle/rounded_rect 且 width≠depth",
             ))
 
         checks.append(Check(
             "stadium_seating_expressed",
-            has_landmark
+            has_stadium_route
             or _has_tiered_masses(comps)
             or sum(1 for t in types if t.startswith("MASS_")) >= 2,
             hard=False,
-            detail="看台/分层应通过 landmark、mparams.masses[] 或多 MASS 体块表达，"
+            detail="看台/分层应通过 typology stadium_bowl、mparams.masses[] 或多 MASS 体块表达，"
                    "单靠 features 文本无效",
         ))
 
         checks.append(Check(
             "stadium_high_fidelity_ellipse",
-            (not is_elliptical) or has_landmark or _has_plan_program(plan) or _has_tiered_masses(comps),
+            (not is_elliptical) or has_stadium_route or _has_plan_program(plan) or _has_tiered_masses(comps),
             hard=False,
-            detail="真椭圆/碗状需 birds_nest_stadium 模块或 plan_program；"
+            detail="真椭圆/碗状需 stadium_bowl typology 或 plan_program；"
                    "MassMain 的 rounded_rect 仅为圆角矩形近似",
         ))
 

@@ -867,8 +867,8 @@ def synthesize_profile_with_llm(
         "structural typology, set structural_typology (e.g. dense_eaves_pagoda, tailiang_timber_hall, "
         "radial_terrace_hall) and reference_landmark; keep landmark_module=null. "
         "NEVER set landmark_module for famen_pagoda, giant_wild_goose_pagoda, foguang_temple_hall, "
-        "or temple_of_heaven — they are typology-first only. "
-        "landmark_module only for explicit non-migrated presets (e.g. birds_nest_stadium, "
+        "temple_of_heaven, or birds_nest_stadium — they are typology-first only. "
+        "landmark_module only for explicit non-migrated presets (e.g. "
         "golden_gate_bridge, great_wall, eiffel_tower). "
         "For Louvre, White House, Sydney Opera House, Sagrada Família, etc., set landmark_module=null and "
         "list compositional recommended_components. "
@@ -940,7 +940,7 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
         "temple_of_heaven) NEVER use MODULE — even if Java LANDMARK MODULE blocks suggest it.",
         "- If landmark_module is null → compositional and/or STRUCTURE typology; do NOT use MODULE.",
         "- MODULE allowed ONLY when landmark_module is a non-migrated preset explicitly set in this "
-        "profile (e.g. birds_nest_stadium, golden_gate_bridge, gothic_cathedral).",
+        "profile (e.g. golden_gate_bridge, gothic_cathedral).",
         "- Set proportion_hints.typology to structural_typology when present.",
         "- IGNORE any Java prompt 'LANDMARK MODULE ROUTING' sections that conflict with this profile.",
         "",
