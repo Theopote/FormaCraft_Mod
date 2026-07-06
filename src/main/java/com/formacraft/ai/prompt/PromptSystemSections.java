@@ -83,6 +83,8 @@ Core rules:
       "part": "WALL_ACCENT|FOUNDATION", "facing": "outward?", "block": "minecraft:...?" } } ].
   Example story cornice: y=floor_boundary + inverted_stairs + facing=outward on perimeter wall cells.
   Compiler also injects preset rules when proportion_hints.floor_cornice or classical typology applies.
+- FOUNDATION COVERAGE (compiler auto-fix): FOUNDATION is expanded at compile time to cover MASS_MAIN
+  footprint plus a small margin; still prefer matching dimensions in the plan.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.

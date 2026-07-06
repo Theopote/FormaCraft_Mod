@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.ComponentCrownDecorator;
+import com.formacraft.common.generation.component.util.ComponentFoundationEnforcer;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.alignment.BayGridRhythmPlanner;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
@@ -447,6 +448,7 @@ public final class ComponentPlanCompiler {
         }
 
         realignSatellitesToMass(prepared, plan, slotMap, assemblyPrimarySlots);
+        ComponentFoundationEnforcer.apply(prepared);
 
         return new PreparedComponents(prepared, assemblyFacadeSlots);
     }
@@ -503,7 +505,7 @@ public final class ComponentPlanCompiler {
 
             GlobalConstraints.Facing facing = resolveSlotFacing(plan, slotMap, c.slotId());
             Component aligned = switch (type) {
-                case "FACADE_WINDOWS" -> alignFacadeToMass(c, mass, plan);
+                case "FACADE_WINDOWS" -> alignFacadeToMass(c, mass, plan, facing);
                 case "ENTRANCE" -> alignEntranceToMass(c, mass, plan, facing);
                 case "CROWN", "CUPOLA", "DOME" -> alignCrownToMass(c, mass, plan, components);
                 default -> isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
@@ -575,7 +577,12 @@ public final class ComponentPlanCompiler {
         ));
     }
 
-    private static Component alignFacadeToMass(Component llmFacade, Component mass, LlmPlan plan) {
+    private static Component alignFacadeToMass(
+            Component llmFacade,
+            Component mass,
+            LlmPlan plan,
+            GlobalConstraints.Facing facing
+    ) {
         Component template = makeFacadeComponent(mass, mass.slotId());
         template = StyleIntentResolver.apply(plan, template);
         template = OpeningGrammarResolver.apply(plan, template);
@@ -590,33 +597,89 @@ public final class ComponentPlanCompiler {
 
         Dimensions massDims = mass.dimensions();
         Dimensions llmDims = llmFacade.dimensions();
-        if (massDims == null || template.relativePosition() == null) {
+        Vec3i massOrigin = template.relativePosition();
+        if (massDims == null || massOrigin == null) {
             return llmFacade;
         }
 
-        int width = massDims.width();
-        int depth = 1;
-        int height = massDims.height();
-        if (llmDims != null) {
-            if (llmDims.depth() > 0) {
-                depth = llmDims.depth();
+        List<String> features = mergeFeatureLists(template.features(), llmFacade.features());
+        boolean wrap = hasWrapFeature(features);
+        GlobalConstraints.Facing effectiveFacing = facing != null ? facing : GlobalConstraints.Facing.SOUTH;
+
+        int height = Math.max(2, massDims.height() - 1);
+        if (llmDims != null && llmDims.height() > 0) {
+            height = Math.max(2, llmDims.height());
+        }
+
+        int width;
+        int depth;
+        Vec3i origin = massOrigin;
+        if (wrap) {
+            width = massDims.width();
+            depth = massDims.depth();
+            if (llmDims != null && llmDims.depth() > 0 && llmDims.depth() != depth) {
+                FormacraftMod.LOGGER.debug(
+                        "ComponentPlanCompiler: clamped FACADE_WINDOWS depth from {} to mass depth {} (wrap/perimeter)",
+                        llmDims.depth(), depth);
             }
-            if (llmDims.width() > 0) {
-                width = Math.min(width, llmDims.width());
-            }
-            if (llmDims.height() > 0) {
-                height = Math.max(2, llmDims.height());
+        } else {
+            OrientedFacade oriented = orientSingleFaceFacade(massOrigin, massDims, effectiveFacing);
+            width = oriented.width();
+            depth = oriented.depth();
+            origin = oriented.origin();
+            if (llmDims != null && llmDims.depth() > 1) {
+                FormacraftMod.LOGGER.debug(
+                        "ComponentPlanCompiler: ignored FACADE_WINDOWS depth {} (single-face facade uses depth=1)",
+                        llmDims.depth());
             }
         }
 
         return new Component(
                 "FACADE_WINDOWS",
                 llmFacade.slotId(),
-                template.relativePosition(),
+                origin,
                 new Dimensions(width, depth, height),
-                mergeFeatureLists(template.features(), llmFacade.features()),
+                features,
                 params
         );
+    }
+
+    private record OrientedFacade(int width, int depth, Vec3i origin) {}
+
+    private static OrientedFacade orientSingleFaceFacade(
+            Vec3i massOrigin,
+            Dimensions massDims,
+            GlobalConstraints.Facing facing
+    ) {
+        int mw = Math.max(1, massDims.width());
+        int md = Math.max(1, massDims.depth());
+        return switch (facing) {
+            case NORTH -> new OrientedFacade(
+                    mw, 1,
+                    new Vec3i(massOrigin.x(), massOrigin.y(), massOrigin.z() + md - 1));
+            case EAST -> new OrientedFacade(1, md, massOrigin);
+            case WEST -> new OrientedFacade(
+                    1, md,
+                    new Vec3i(massOrigin.x() + mw - 1, massOrigin.y(), massOrigin.z()));
+            case SOUTH -> new OrientedFacade(mw, 1, massOrigin);
+        };
+    }
+
+    private static boolean hasWrapFeature(List<String> features) {
+        if (features == null || features.isEmpty()) {
+            return false;
+        }
+        for (String feature : features) {
+            if (feature == null) {
+                continue;
+            }
+            String lower = feature.toLowerCase(Locale.ROOT);
+            if ("wrap".equals(lower) || lower.contains("all_sides") || lower.contains("perimeter")
+                    || lower.contains("around")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Component alignEntranceToMass(Component llmEntrance, Component mass, LlmPlan plan,
