@@ -64,6 +64,10 @@ class TestPlanSpecificityGuard(unittest.TestCase):
         mass = out["components"][0]
         self.assertIn("shell_roof", mass["features"])
         self.assertIn("shell roof", out["style_attributes"]["decorative_elements"])
+        self.assertEqual(
+            out["distinguishing_features"],
+            ["shell roof", "sail shells"],
+        )
 
     def test_feature_coverage_scoring(self):
         plan = {

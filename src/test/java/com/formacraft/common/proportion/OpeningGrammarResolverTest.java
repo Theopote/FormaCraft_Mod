@@ -155,7 +155,9 @@ class OpeningGrammarResolverTest {
                 null,
                 null,
                 null
+                null
         );
+
     }
 
     private static Component facadeWithoutAspect() {

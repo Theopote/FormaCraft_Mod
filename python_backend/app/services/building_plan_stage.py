@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..models.building_profile import BuildingProfile
@@ -51,6 +52,7 @@ PLAN_STAGE_SYSTEM_ADDON = (
     "- You receive a BuildingProfile from open-world research; convert it to a valid LlmPlan JSON.\n"
     "- Use ONLY registered component_type values listed in the user message.\n"
     "- Prefer minecraft_strategy.recommended_components; map distinctive_elements to params/features.\n"
+    "- Copy profile.structure.distinguishing_features to top-level distinguishing_features[] in LlmPlan.\n"
     "- Respect scale_hints for dimensions (width/depth/height in blocks).\n"
     "- Set layout.skeleton_type from minecraft_strategy when present.\n"
     "- When structural_typology is set → STRUCTURE + typology:<id>; landmark_module must be null.\n"
@@ -92,7 +94,7 @@ Set proportion_hints.typology = "{stid}".
 Do NOT output MODULE or landmark:* for typology-first buildings.
 Do NOT output MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, ENTRANCE, FOUNDATION,
 FACADE_WINDOWS, or DECOR_DETAIL alongside typology STRUCTURE.
-Ignore conflicting landmark MODULE hints from earlier prompt sections.
+Ignore conflicting landmark MODULE hints from other prompt sections (above or below this block).
 {"For suspension_bridge: use span_to_tower_height≈4.0 and cable_sag_ratio≈0.12 in proportion_hints; never house ratios." if stid == "suspension_bridge" else ""}
 
 """
@@ -121,7 +123,7 @@ Do NOT output MODULE.
 ========================================
 BuildingProfile.minecraft_strategy.landmark_module = "{lm}"
 You MUST output exactly ONE MODULE component with features ["landmark:{lm}"].
-Ignore conflicting landmark hints from earlier prompt sections.
+Ignore conflicting landmark hints from other prompt sections (above or below this block).
 
 """
     return f"""
@@ -131,18 +133,40 @@ Ignore conflicting landmark hints from earlier prompt sections.
 BuildingProfile.minecraft_strategy.landmark_module = null
 Do NOT output MODULE or landmark:* unless profile sets a non-migrated landmark_module.
 If structural_typology is present, use STRUCTURE + typology:* instead.
-IGNORE all "LANDMARK MODULE ROUTING (MANDATORY/RECOMMENDED)" sections above.
+IGNORE all "LANDMARK MODULE ROUTING" and "AVAILABLE LANDMARK MODULES" sections in this prompt.
 Compose using minecraft_strategy.recommended_components and distinctive_elements.
 
 """
 
 
+def strip_java_landmark_routing_blocks(system_prompt: str) -> str:
+    """Remove Java PromptAssembler landmark MODULE sections when research override is authoritative."""
+    text = (system_prompt or "").strip()
+    if not text:
+        return text
+
+    patterns = (
+        r"(?ms)^={0,3}\s*LANDMARK MODULE ROUTING.*?(?=^={3}|\Z)",
+        r"(?ms)^AVAILABLE LANDMARK MODULES.*?(?=^={3}|\Z)",
+        r"(?ms)^SUGGESTED PRESET[^\n]*LANDMARK[^\n]*\n.*?(?=^={3}|\Z)",
+    )
+    for pattern in patterns:
+        text = re.sub(pattern, "", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
 def apply_research_landmark_override(system_prompt: str, profile: BuildingProfile) -> str:
     block = research_landmark_override_block(profile).strip()
-    base = (system_prompt or "").strip()
+    base = strip_java_landmark_routing_blocks(system_prompt or "")
     if RESEARCH_OVERRIDE_MARKER in base:
-        return base
-    return f"{block}\n\n{base}" if base else block
+        base = re.sub(
+            r"(?ms)^={0,40}\s*OPEN-WORLD RESEARCH OVERRIDE.*?(?=^={3}|\Z)",
+            "",
+            base,
+        ).strip()
+    if base:
+        return f"{base}\n\n{block}"
+    return block
 
 
 def _strip_research_profile_block(text: str) -> str:
@@ -205,6 +229,7 @@ def build_plan_stage_user_block(
         "9. Use block_palette roles in style_attributes / params.material hints",
         "10. Apply generation_rules / detailing_rules in params and features",
         "11. If research_notes contain [Visual], prioritize visual observations for form/materials",
+        "12. distinguishing_features[] ← profile.structure.distinguishing_features (top-level LlmPlan field)",
         "",
     ]
     if include_registered_types:
@@ -351,6 +376,13 @@ def evaluate_plan_profile_alignment(
 
     tokens = extract_distinguishing_tokens(profile)
     if tokens:
+        top = plan.get("distinguishing_features")
+        has_top = isinstance(top, list) and len(top) >= 1
+        results.append((
+            "plan_has_distinguishing_features_field",
+            has_top,
+            f"top_level={top!r}",
+        ))
         coverage, matched, missing = score_feature_token_coverage(plan, tokens)
         min_required = min(2, len(tokens)) if len(tokens) >= 2 else 1
         ok = len(matched) >= min_required

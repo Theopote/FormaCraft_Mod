@@ -71,7 +71,10 @@ public record LlmPlan(
         @JsonProperty("capability_gap") CapabilityGap capabilityGap,
 
         /** Research-derived fidelity notice for the player (Chinese) */
-        @JsonProperty("player_fidelity_notice_zh") String playerFidelityNoticeZh
+        @JsonProperty("player_fidelity_notice_zh") String playerFidelityNoticeZh,
+
+        /** 3–8 features that uniquely identify this building vs generic same-style structures */
+        @JsonProperty("distinguishing_features") List<String> distinguishingFeatures
 ) {
     public enum Mode { build, patch }
 

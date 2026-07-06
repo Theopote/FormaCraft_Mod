@@ -47,6 +47,7 @@ final class PromptTemplateSections {
         sb.append("  \"style_profile\": \"").append(styleProfile).append("\",\n");
         sb.append("  \"style_attributes\": { \"wall_color\": null, \"roof_color\": null, \"accent_color\": null, ")
           .append("\"wall_material\": null, \"roof_material\": null, \"floor_material\": null, \"decorative_elements\": [] },\n");
+        sb.append("  \"distinguishing_features\": [],\n");
         sb.append("  \"anchor\": { \"x\": ").append(anchorX).append(", \"y\": ").append(anchorY).append(", \"z\": ").append(anchorZ).append(" },\n");
         sb.append("  \"genome\": {\n");
         sb.append("    \"genomeVersion\": \"1.0\",\n");

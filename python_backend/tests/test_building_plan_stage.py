@@ -108,6 +108,11 @@ class PlanProfileAlignmentTest(unittest.TestCase):
     def test_distinguishing_features_alignment_passes_when_reflected(self):
         plan = {
             "style_profile": "Modern_Expressionist",
+            "distinguishing_features": [
+                "white sail shells",
+                "shell roof",
+                "waterfront podium",
+            ],
             "layout": {"skeleton_type": "CLUSTER"},
             "style_attributes": {
                 "decorative_elements": ["white sail shells", "shell roof"],
@@ -143,6 +148,7 @@ class PlanProfileAlignmentTest(unittest.TestCase):
         )
         summary = score_plan_profile_alignment(plan, profile)
         self.assertTrue(summary["checks"]["plan_reflects_distinguishing_features"])
+        self.assertTrue(summary["checks"]["plan_has_distinguishing_features_field"])
         self.assertGreaterEqual(summary["feature_coverage"], 0.66)
         self.assertTrue(summary["passed"])
 

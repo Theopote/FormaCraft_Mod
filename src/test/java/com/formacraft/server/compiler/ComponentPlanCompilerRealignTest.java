@@ -52,7 +52,9 @@ class ComponentPlanCompilerRealignTest {
                 null,
                 null,
                 null
+                null
         );
+
 
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
         assertFalse(patches.isEmpty());
@@ -118,7 +120,9 @@ class ComponentPlanCompilerRealignTest {
                 null,
                 null,
                 null
+                null
         );
+
 
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
         assertFalse(patches.isEmpty());
@@ -159,7 +163,9 @@ class ComponentPlanCompilerRealignTest {
                 null,
                 null,
                 null
+                null
         );
+
 
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
         assertFalse(patches.isEmpty());

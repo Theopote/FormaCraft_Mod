@@ -82,5 +82,6 @@ class DetailRuleParserTest {
                 List.of(), null, null,
                 hints, null, null, null, null, null, null, null, null, null, null
         );
+
     }
 }

@@ -88,7 +88,9 @@ class LlmPlanAnchorNormalizerTest {
                 null,
                 null,
                 null
+                null
         );
+
 
         LlmPlan normalized = LlmPlanAnchorNormalizer.normalize(plan);
         assertEquals(new Vec3i(24, 0, 0), normalized.layout().slots().get(0).anchor());

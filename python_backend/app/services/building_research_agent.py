@@ -993,6 +993,7 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
         "Planning rules:",
         "- Respect scale_hints when choosing dimensions (blocks).",
         "- Include distinguishing_features in component params/features (highest priority).",
+        "- Also copy profile.structure.distinguishing_features to top-level LlmPlan distinguishing_features[].",
         "- Include distinctive_elements in component params/features where possible.",
         "- If reference_blueprint is present, use its architectural_layers, block_palette,",
         "  and generation_rules as the primary spatial/material guide for LlmPlan components.",

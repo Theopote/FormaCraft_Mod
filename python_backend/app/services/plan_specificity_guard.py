@@ -73,6 +73,9 @@ def plan_text_blob(plan: Dict[str, Any]) -> str:
     """Flatten plan fields likely to carry distinctive feature encoding."""
     parts: List[str] = []
     parts.append(str(plan.get("style_profile") or ""))
+    df = plan.get("distinguishing_features")
+    if isinstance(df, list):
+        parts.extend(str(x) for x in df if x)
     sa = plan.get("style_attributes")
     if isinstance(sa, dict):
         parts.append(json.dumps(sa, ensure_ascii=False))
@@ -184,6 +187,17 @@ def apply_profile_features_to_plan(
     if not tokens:
         return plan
 
+    existing = plan.get("distinguishing_features")
+    merged_top: List[str] = []
+    if isinstance(existing, list):
+        for item in existing:
+            if item and str(item).strip() and str(item) not in merged_top:
+                merged_top.append(str(item))
+    for token in tokens[:8]:
+        if token not in merged_top:
+            merged_top.append(token)
+    plan["distinguishing_features"] = merged_top[:12]
+
     sa = plan.get("style_attributes")
     if not isinstance(sa, dict):
         sa = {}
@@ -194,12 +208,7 @@ def apply_profile_features_to_plan(
             deco.append(token)
     sa["decorative_elements"] = deco[:12]
 
-    notes = plan.get("player_fidelity_notice_zh") or plan.get("notes") or ""
-    if tokens and "distinguishing" not in str(notes).lower():
-        plan.setdefault(
-            "research_feature_hints",
-            tokens[:8],
-        )
+    plan.pop("research_feature_hints", None)
 
     for comp in plan.get("components") or []:
         if not isinstance(comp, dict):

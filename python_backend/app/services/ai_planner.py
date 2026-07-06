@@ -1259,6 +1259,14 @@ def _normalize_llm_plan_output(
             gc.pop("symmetry", None)
         plan["global_constraints"] = gc
 
+    if building_profile is not None:
+        try:
+            from .plan_specificity_guard import apply_profile_features_to_plan
+
+            plan = apply_profile_features_to_plan(plan, building_profile)
+        except Exception as exc:
+            logger.warning("Plan distinguishing_features sync skipped: %s", exc)
+
     try:
         from .plan_architectural_enrichment import enrich_llm_plan_architectural_detail
 
@@ -4706,12 +4714,13 @@ def _derive_structured_intent(text: str) -> str:
     return "\n".join(lines)
 
 
-def _llm_plan_context_block(req: BuildRequest) -> str:
+def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] = None) -> str:
     """
     B3：为 LlmPlan 主路径补齐上下文（chatHistory + 本地文化 RAG），
     与 BuildingSpec 路径保持一致。全部为本地操作，不引入网络延迟。
     """
     parts: list[str] = []
+    skip_landmark_routing = building_profile is not None
 
     if _LLMPLAN_INJECT_CHAT_HISTORY and getattr(req, "chatHistory", None):
         parts.append("Chat History (recent turns, oldest first):")
@@ -4740,10 +4749,15 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
                     from app.services.typology_registry import is_migrated_landmark
 
                     lm = rag.get("landmarkModuleId")
-                    if isinstance(lm, str) and lm.strip() and not is_migrated_landmark(lm.strip()):
+                    if (
+                        not skip_landmark_routing
+                        and isinstance(lm, str)
+                        and lm.strip()
+                        and not is_migrated_landmark(lm.strip())
+                    ):
                         culture_payload["landmarkModuleId"] = lm.strip()
                 except Exception:
-                    if rag.get("landmarkModuleId"):
+                    if not skip_landmark_routing and rag.get("landmarkModuleId"):
                         culture_payload["landmarkModuleId"] = rag.get("landmarkModuleId")
                 if rag.get("structuralTypologyId"):
                     culture_payload["structuralTypologyId"] = rag.get("structuralTypologyId")
@@ -4790,7 +4804,7 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
             except Exception:
                 pass
 
-            routing = _landmark_routing(qtext)
+            routing = None if skip_landmark_routing else _landmark_routing(qtext)
             if routing:
                 tier = str(routing.get("routingTier") or "suggested").lower()
                 if tier == "mandatory":
@@ -4822,13 +4836,35 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
                     from app.services.typology_registry import is_migrated_landmark
 
                     kb_lm = str(building_kb.get("landmarkModuleId") or "").strip()
-                    if kb_lm and not is_migrated_landmark(kb_lm):
+                    if (
+                        not skip_landmark_routing
+                        and kb_lm
+                        and not is_migrated_landmark(kb_lm)
+                    ):
                         building_info["landmarkModuleId"] = kb_lm
                 except Exception:
-                    if building_kb.get("landmarkModuleId"):
+                    if not skip_landmark_routing and building_kb.get("landmarkModuleId"):
                         building_info["landmarkModuleId"] = building_kb.get("landmarkModuleId")
                 parts.append("\nBuildingKnowledge(JSON):")
                 parts.append(json.dumps(building_info, ensure_ascii=False, indent=2))
+            if skip_landmark_routing:
+                mc = getattr(building_profile, "minecraft_strategy", None)
+                stid = (getattr(mc, "structural_typology", None) or "").strip()
+                if stid:
+                    parts.append(
+                        "\nResearchRouting(JSON) [authoritative — from BuildingProfile]:"
+                    )
+                    parts.append(
+                        json.dumps(
+                            {
+                                "structural_typology": stid,
+                                "reference_landmark": getattr(mc, "reference_landmark", None),
+                                "landmark_module": None,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
         except Exception:
             pass
 
@@ -4978,7 +5014,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
         except Exception as e:
             logger.warning("LlmPlan intent enrich skipped: %s", e)
     try:
-        context_block = _llm_plan_context_block(req)
+        context_block = _llm_plan_context_block(req, building_profile)
         if context_block:
             user_prompt = context_block + "\n\n" + user_prompt
     except Exception as e:

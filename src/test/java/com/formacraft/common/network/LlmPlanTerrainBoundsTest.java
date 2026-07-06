@@ -61,7 +61,9 @@ class LlmPlanTerrainBoundsTest {
                 null,
                 null,
                 null
+                null
         );
+
         BlockPos origin = new BlockPos(100, 64, 200);
         LlmPlanTerrainBounds.Bounds bounds = LlmPlanTerrainBounds.computeComponentBounds(plan, origin);
         assertNotNull(bounds);

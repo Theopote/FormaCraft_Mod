@@ -76,7 +76,9 @@ class AlignmentContractParserTest {
                 null,
                 null,
                 null
+                null
         );
+
 
         AlignmentAndSymmetry resolved = AlignmentContractParser.resolve(plan);
         assertNotNull(resolved);

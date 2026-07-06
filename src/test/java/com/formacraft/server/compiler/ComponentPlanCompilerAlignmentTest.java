@@ -63,7 +63,9 @@ class ComponentPlanCompilerAlignmentTest {
                 null,
                 null,
                 null
+                null
         );
+
 
         @SuppressWarnings("unchecked")
         List<Component> prepared = invokePrepareComponents(plan);

@@ -257,6 +257,7 @@ class LlmPlanModel(BaseModel):
     components: Optional[List[ComponentModel]] = None
     genome: Optional[BuildingGenome] = None
     style_attributes: Optional[StyleAttributesModel] = None
+    distinguishing_features: Optional[List[str]] = None
     proportion_hints: Optional[Dict[str, Any]] = None
     alignment_and_symmetry: Optional[Dict[str, Any]] = None
     target_slot_id: Optional[str] = None

@@ -59,6 +59,7 @@ class ComponentPlanCompilerFoundationFacadeTest {
                 null, null, null, null, null, null, null, null, null, null, null, null, null
         );
 
+
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
         assertFalse(patches.isEmpty());
 

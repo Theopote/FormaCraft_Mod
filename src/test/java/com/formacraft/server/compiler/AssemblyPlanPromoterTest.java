@@ -180,6 +180,7 @@ class AssemblyPlanPromoterTest {
                 null, null, null, null, null, null, null, null, null, null, null, null, null
         );
 
+
         @SuppressWarnings("unchecked")
         List<Component> prepared = invokePrepareComponents(plan);
 

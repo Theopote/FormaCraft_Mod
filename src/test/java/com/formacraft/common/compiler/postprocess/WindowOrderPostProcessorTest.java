@@ -44,6 +44,7 @@ class WindowOrderPostProcessorTest {
                 hints, null, null, null, null, null, null, null, null, null, null
         );
 
+
         List<BlockPatch> input = List.of(
                 new BlockPatch(BlockPatch.PLACE, 5, 2, 0, "minecraft:glass"),
                 new BlockPatch(BlockPatch.PLACE, 6, 2, 0, "minecraft:glass"),

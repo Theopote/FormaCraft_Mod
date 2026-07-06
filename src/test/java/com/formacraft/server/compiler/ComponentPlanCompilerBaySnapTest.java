@@ -67,7 +67,9 @@ class ComponentPlanCompilerBaySnapTest {
                 null,
                 null,
                 null
+                null
         );
+
 
         List<Component> prepared = invokePrepareComponents(plan);
         Component mass = prepared.stream()

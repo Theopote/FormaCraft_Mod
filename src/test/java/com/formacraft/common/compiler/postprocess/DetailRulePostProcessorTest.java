@@ -40,6 +40,7 @@ class DetailRulePostProcessorTest {
                 hints, null, null, null, null, null, null, null, null, null, null
         );
 
+
         List<BlockPatch> input = List.of(
                 new BlockPatch(BlockPatch.PLACE, 0, 3, 0, "minecraft:stone_bricks"),
                 new BlockPatch(BlockPatch.PLACE, 2, 3, 0, "minecraft:stone_bricks"),
@@ -76,6 +77,7 @@ class DetailRulePostProcessorTest {
                 List.of(), null, null,
                 hints, null, null, null, null, null, null, null, null, null, null
         );
+
 
         List<BlockPatch> input = List.of(
                 new BlockPatch(BlockPatch.PLACE, 0, 5, 0, "minecraft:stone_bricks"),
