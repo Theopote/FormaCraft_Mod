@@ -72,19 +72,19 @@ public final class TypologyReferencePresets {
                 "pathWidth", 3,
                 "facing", "SOUTH"
         ));
-        PRESETS.put("castle_compound", Map.of(
-                "width", 48,
-                "depth", 36,
-                "wallHeight", 6,
-                "towerHeight", 18,
-                "wallThickness", 2,
-                "gateWidth", 3,
-                "includePaths", true,
-                "pathWidth", 3,
-                "moat", true,
-                "drawbridge", true,
-                "followTerrain", true,
-                "facing", "SOUTH"
+        PRESETS.put("castle_compound", Map.ofEntries(
+                Map.entry("width", 48),
+                Map.entry("depth", 36),
+                Map.entry("wallHeight", 6),
+                Map.entry("towerHeight", 18),
+                Map.entry("wallThickness", 2),
+                Map.entry("gateWidth", 3),
+                Map.entry("includePaths", true),
+                Map.entry("pathWidth", 3),
+                Map.entry("moat", true),
+                Map.entry("drawbridge", true),
+                Map.entry("followTerrain", true),
+                Map.entry("facing", "SOUTH")
         ));
         PRESETS.put("modern_skyscraper", Map.of(
                 "width", 19,
