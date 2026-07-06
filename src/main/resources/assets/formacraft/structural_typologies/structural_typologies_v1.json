@@ -120,6 +120,53 @@
       "proportionCardIds": ["foguang_temple_hall"],
       "cultureCardIds": ["foguang_temple_hall"],
       "llmPlanGuidance": "Use structural_typology=tailiang_timber_hall with layout.skeleton_type=GRID_BAY. proportion_hints.typology=tailiang_timber_hall. Params: baysX, baysZ, width, depth, hallHeight, includeSubEaves=true. MASS_MAIN low and wide; FOUNDATION stone platform; ROOF wudian large overhang; DECOR dougong/bracket_sets. Set reference_landmark=foguang_temple_hall when user names Foguang. FORBID pagoda/tower proportions and western dome."
+    },
+    {
+      "id": "radial_terrace_hall",
+      "displayName": {
+        "zh": "径向台基圆殿",
+        "en": "Radial terrace ceremonial hall"
+      },
+      "skeletonType": "RADIAL_RING",
+      "styleFamilies": ["Chinese_Imperial_Official", "Chinese_Traditional"],
+      "matchKeywords": [
+        "天坛", "祈年殿", "圜丘", "祭天", "祭坛", "三重檐", "三层台基", "圆形殿", "汉白玉台",
+        "temple of heaven", "qiniandian", "heaven temple", "imperial sacrificial hall",
+        "radial terrace", "circular hall", "triple eaves"
+      ],
+      "negativeKeywords": [
+        "密檐塔", "砖塔", "方塔", "pagoda", "哥特", "大教堂", "体育场", "城堡", "四合院",
+        "classical monument", "onion dome", "cottage", "小房子"
+      ],
+      "interpreterId": "radial_terrace_hall",
+      "legacyInterpreterId": "temple_of_heaven",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "baseRadius": 18,
+        "tiers": 3,
+        "height": 34,
+        "hallRadius": 10,
+        "hallHeight": 21,
+        "detailLevel": "aesthetic",
+        "facing": "SOUTH"
+      },
+      "paramSchema": {
+        "baseRadius": { "min": 10, "ideal": 18, "max": 60, "desc": "底层台基半径（blocks）" },
+        "tiers": { "min": 2, "ideal": 3, "max": 5, "desc": "台基层数" },
+        "height": { "min": 18, "ideal": 34, "max": 80, "desc": "总高（blocks）" },
+        "hallRadius": { "min": 6, "ideal": 10, "max": 30, "desc": "圆殿半径" },
+        "hallHeight": { "min": 10, "ideal": 21, "max": 50, "desc": "屋顶段总高" }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "temple_of_heaven",
+          "role": "primary",
+          "notes": "天坛祈年殿：三层汉白玉台基 + 三重檐圆殿，RADIAL_RING 骨架"
+        }
+      ],
+      "proportionCardIds": ["temple_of_heaven"],
+      "cultureCardIds": ["temple_of_heaven"],
+      "llmPlanGuidance": "Use structural_typology=radial_terrace_hall with layout.skeleton_type=RADIAL_RING. Output proportion_hints.typology=radial_terrace_hall, tier_count=3, base_radius_to_height≈0.53. Prefer STRUCTURE + typology:radial_terrace_hall; set reference_landmark=temple_of_heaven when user names Temple of Heaven. Params: baseRadius, tiers, height, hallRadius, facing. global_constraints.symmetry=RADIAL. FORBID rectangular box MASS-only plans without radial/circular form."
     }
   ],
   "migrationMap": {
@@ -143,6 +190,13 @@
       "legacyModuleId": "giant_wild_goose_pagoda",
       "deprecatedAfter": "2026-Q4",
       "notes": "Dayanta square pagoda merged into dense_eaves_pagoda with footprint=square; Java delegates to DenseEavesPagodaBuilder."
+    },
+    "temple_of_heaven": {
+      "typologyId": "radial_terrace_hall",
+      "phase": "typology_first",
+      "legacyModuleId": "temple_of_heaven",
+      "deprecatedAfter": "2026-Q4",
+      "notes": "Temple of Heaven merged into radial_terrace_hall; Java delegates to RadialTerraceHallBuilder."
     }
   }
 }

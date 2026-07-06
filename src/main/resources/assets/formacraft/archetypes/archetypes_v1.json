@@ -23,6 +23,8 @@
       "id": "temple_of_heaven",
       "aliases": ["天坛", "祈年殿", "temple of heaven", "qiniandian"],
       "category": "LANDMARK",
+      "researchOnly": true,
+      "typologyId": "radial_terrace_hall",
       "generatorId": "temple_of_heaven",
       "defaults": { "baseRadius": 18, "tiers": 3 },
       "constraints": { "minBaseRadius": 10, "maxBaseRadius": 60 },

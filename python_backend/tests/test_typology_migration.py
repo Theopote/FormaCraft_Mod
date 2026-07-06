@@ -13,6 +13,7 @@ class TypologyRegistryTest(unittest.TestCase):
         ids = {d.id for d in defs}
         self.assertIn("dense_eaves_pagoda", ids)
         self.assertIn("tailiang_timber_hall", ids)
+        self.assertIn("radial_terrace_hall", ids)
         famen = get_typology("dense_eaves_pagoda")
         self.assertIsNotNone(famen)
         assert famen is not None
@@ -24,6 +25,7 @@ class TypologyRegistryTest(unittest.TestCase):
 
         self.assertEqual(typology_for_legacy_module("famen_pagoda"), "dense_eaves_pagoda")
         self.assertEqual(typology_for_legacy_module("giant_wild_goose_pagoda"), "dense_eaves_pagoda")
+        self.assertEqual(typology_for_legacy_module("temple_of_heaven"), "radial_terrace_hall")
         entry = get_migration("foguang_temple_hall")
         self.assertIsNotNone(entry)
         assert entry is not None
@@ -209,6 +211,70 @@ class DayantaTypologyMigrationTest(unittest.TestCase):
         self.assertEqual(dayanta["hits"][0]["id"], "giant_wild_goose_pagoda")
         self.assertEqual(famen.get("structuralTypologyId"), "dense_eaves_pagoda")
         self.assertEqual(dayanta.get("structuralTypologyId"), "dense_eaves_pagoda")
+
+
+class TempleTypologyMigrationTest(unittest.TestCase):
+    TEMPLE_PROMPT = "盖一座天坛"
+
+    def test_temple_culture_typology_id(self):
+        from app.services.keyword_culture_retriever import retrieve
+
+        rag = retrieve(self.TEMPLE_PROMPT, topK=3, fewShotK=0)
+        self.assertEqual(rag["hits"][0]["id"], "temple_of_heaven")
+        self.assertEqual(rag.get("structuralTypologyId"), "radial_terrace_hall")
+        self.assertIsNone(rag.get("landmarkModuleId"))
+
+    def test_temple_typology_retriever(self):
+        from app.services.typology_retriever import resolve_typology_for_intent
+
+        match = resolve_typology_for_intent(self.TEMPLE_PROMPT, culture_card_id="temple_of_heaven")
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.typology_id, "radial_terrace_hall")
+        self.assertEqual(match.reference_landmark_id, "temple_of_heaven")
+
+    def test_temple_archetype_research_only(self):
+        from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
+        from app.services.archetype_registry import get_archetype_def
+        from app.services.building_research_agent import resolve_landmark_module_for_intent
+
+        match = detect_archetype_local(self.TEMPLE_PROMPT)
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.id, "temple_of_heaven")
+        self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
+        defn = get_archetype_def("temple_of_heaven")
+        self.assertTrue(defn.research_only)
+        self.assertEqual(defn.typology_id, "radial_terrace_hall")
+        self.assertFalse(match.qualifies_for_module_route())
+        self.assertIsNone(resolve_landmark_module_for_intent(self.TEMPLE_PROMPT))
+
+    def test_temple_profile_typology_strategy(self):
+        from app.services.building_research_agent import finalize_profile_minecraft_strategy
+        from app.models.building_profile import BuildingProfile
+
+        profile = finalize_profile_minecraft_strategy(BuildingProfile(), self.TEMPLE_PROMPT)
+        mc = profile.minecraft_strategy
+        self.assertEqual(mc.structural_typology, "radial_terrace_hall")
+        self.assertEqual(mc.reference_landmark, "temple_of_heaven")
+        self.assertIsNone(mc.landmark_module)
+        self.assertEqual(mc.skeleton_type, "RADIAL_RING")
+
+    def test_temple_proportion_typology_field(self):
+        from app.services.proportion_retriever import retrieve_proportion_card
+
+        card = retrieve_proportion_card(self.TEMPLE_PROMPT)
+        assert card is not None
+        self.assertEqual(card.get("id"), "temple_of_heaven")
+        self.assertEqual(card.get("typology"), "radial_terrace_hall")
+
+    def test_temple_beats_pagoda(self):
+        from app.services.keyword_culture_retriever import retrieve
+
+        rag = retrieve(self.TEMPLE_PROMPT, topK=3, fewShotK=0)
+        ids = [h["id"] for h in rag.get("hits", [])]
+        self.assertEqual(ids[0], "temple_of_heaven")
+        self.assertNotIn("famen_pagoda", ids[:1])
 
 
 if __name__ == "__main__":

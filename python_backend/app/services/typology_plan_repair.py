@@ -36,6 +36,14 @@ _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
         "includeSubEaves": True,
         "roofType": "wudian",
     },
+    "temple_of_heaven": {
+        "baseRadius": 18,
+        "tiers": 3,
+        "height": 34,
+        "hallRadius": 10,
+        "detailLevel": "aesthetic",
+        "facing": "SOUTH",
+    },
 }
 
 

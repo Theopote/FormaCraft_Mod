@@ -17,7 +17,8 @@ class TempleOfHeavenCultureTest(unittest.TestCase):
         self.assertTrue(rag.get("hits"))
         self.assertEqual(rag["hits"][0]["id"], "temple_of_heaven")
         self.assertEqual(rag.get("proportionCardId"), "temple_of_heaven")
-        self.assertEqual(rag.get("landmarkModuleId"), "temple_of_heaven")
+        self.assertEqual(rag.get("structuralTypologyId"), "radial_terrace_hall")
+        self.assertIsNone(rag.get("landmarkModuleId"))
         self.assertTrue(rag.get("llmPlanFewShots"))
 
     def test_temple_beats_siheyuan_on_temple_prompt(self):
@@ -51,7 +52,7 @@ class TempleOfHeavenEvalTest(unittest.TestCase):
             if name == "has_proportion_hints":
                 self.assertTrue(ok)
         for name, ok, _ in evaluate_enclosure(plan, prompt):
-            if name in ("has_enclosure_mass", "temple_has_landmark_module"):
+            if name == "temple_has_typology_or_module":
                 self.assertTrue(ok, f"enclosure check failed: {name}")
 
     def test_temple_golden_passes_golden_eval(self):

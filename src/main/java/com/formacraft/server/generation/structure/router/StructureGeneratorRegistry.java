@@ -42,6 +42,7 @@ public final class StructureGeneratorRegistry {
         // Typology interpreter aliases (Phase 4 — native builders, legacy generators deprecated)
         register("dense_eaves_pagoda", () -> new TypologyBackedStructureGenerator("dense_eaves_pagoda"));
         register("tailiang_timber_hall", () -> new TypologyBackedStructureGenerator("tailiang_timber_hall"));
+        register("radial_terrace_hall", () -> new TypologyBackedStructureGenerator("radial_terrace_hall"));
         register("castle_compound", CastleCompoundGenerator::new);
         register("office_district", OfficeDistrictGenerator::new);
         register("mingqing_courtyard", MingQingCourtyardGenerator::new);

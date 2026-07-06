@@ -1,8 +1,8 @@
 {
   "_meta": {
     "prompt": "盖一座天坛",
-    "source": "llmplan_examples/temple_of_heaven_module.json",
-    "notes": "P0 golden fixture — temple of heaven landmark module"
+    "source": "llmplan_examples/temple_of_heaven_radial_typology.json",
+    "notes": "P0 golden fixture — radial_terrace_hall typology-first"
   },
   "mode": "build",
   "style_profile": "Chinese_Imperial_Official",
@@ -16,7 +16,7 @@
     "decorative_elements": ["triple_eaves", "dragon_carving", "marble_terrace"]
   },
   "proportion_hints": {
-    "typology": "temple_of_heaven",
+    "typology": "radial_terrace_hall",
     "tier_count": 3,
     "base_radius_to_height": 0.53,
     "diameter_to_height": 1.06,
@@ -45,12 +45,13 @@
   },
   "components": [
     {
-      "component_type": "MODULE",
+      "component_type": "STRUCTURE",
       "relative_position": { "x": 0, "y": 0, "z": 0 },
       "dimensions": { "width": 36, "depth": 36, "height": 34 },
-      "features": ["landmark:temple_of_heaven"],
+      "features": ["typology:radial_terrace_hall"],
       "params": {
-        "module_id": "temple_of_heaven",
+        "typology_id": "radial_terrace_hall",
+        "reference_landmark": "temple_of_heaven",
         "baseRadius": 18,
         "tiers": 3,
         "detailLevel": "aesthetic",

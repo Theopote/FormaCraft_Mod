@@ -57,6 +57,7 @@ public final class TypologyInterpreterRegistry {
         // Phase 2: native parametric interpreters (no landmark id injection)
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.DenseEavesPagodaInterpreter());
         registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.TailiangTimberHallInterpreter());
+        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.RadialTerraceHallInterpreter());
 
         for (StructuralTypologyRegistry.TypologyDef def : StructuralTypologyRegistry.listTypologies()) {
             if (def == null || def.id() == null || def.id().isBlank()) {

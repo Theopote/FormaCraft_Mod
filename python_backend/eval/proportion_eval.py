@@ -288,10 +288,21 @@ def evaluate_enclosure(plan: Dict[str, Any], prompt: Optional[str] = None) -> Li
             )
             for c in comps
         )
+        has_typology = any(
+            str(c.get("component_type") or "").upper() == "STRUCTURE"
+            and (
+                any(
+                    isinstance(f, str) and "radial_terrace_hall" in f.lower()
+                    for f in (c.get("features") or [])
+                )
+                or str((c.get("params") or {}).get("typology_id", "")).lower() == "radial_terrace_hall"
+            )
+            for c in comps
+        )
         checks.append((
-            "temple_has_landmark_module",
-            has_landmark,
-            "temple of heaven prompt expects MODULE landmark:temple_of_heaven",
+            "temple_has_typology_or_module",
+            has_landmark or has_typology,
+            "temple of heaven prompt expects STRUCTURE typology:radial_terrace_hall or legacy MODULE",
         ))
 
     return checks

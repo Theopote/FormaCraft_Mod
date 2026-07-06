@@ -580,6 +580,14 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             and _has_landmark_feature(c, "temple_of_heaven")
             for c in comps
         )
+        has_typology = any(
+            c.get("component_type", "").upper() == "STRUCTURE"
+            and any(
+                isinstance(f, str) and "radial_terrace_hall" in f.lower()
+                for f in (c.get("features") or [])
+            )
+            for c in comps
+        )
         params_landmark = False
         for c in comps:
             if c.get("component_type", "").upper() != "MODULE":
@@ -588,13 +596,13 @@ def evaluate_intent(plan: Dict[str, Any], prompt: Optional[str]) -> List[Check]:
             mid = params.get("module_id", params.get("moduleId"))
             if isinstance(mid, str) and "temple_of_heaven" in mid.lower():
                 params_landmark = True
-        has_landmark = has_landmark or params_landmark
+        has_landmark = has_landmark or params_landmark or has_typology
 
         checks.append(Check(
             "temple_landmark_or_radial_mass",
             has_landmark or _stadium_has_curved_mass(comps),
             hard=False,
-            detail="天坛意图：应用 MODULE+landmark:temple_of_heaven，"
+            detail="天坛意图：应用 STRUCTURE+typology:radial_terrace_hall 或 MODULE+landmark:temple_of_heaven，"
                    "或 MASS shape=circle + 径向布局",
         ))
 

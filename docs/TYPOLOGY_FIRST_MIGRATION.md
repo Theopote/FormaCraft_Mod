@@ -1,6 +1,6 @@
 # Typology-First 架构迁移方案
 
-> **状态**：Phase 0–4 已完成（2026-07-06）  
+> **状态**：Phase 0–5 已完成（2026-07-06）  
 > **政策**：冻结新地标专用 Generator；新中式/古建需求走 **Structural Typology + 参数化解释器**，地标仅作 RAG 比例与风格参考。
 
 ## 1. 背景与问题
@@ -181,6 +181,19 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | **2** | `DenseEavesPagodaBuilder` / `TailiangTimberHallBuilder` + 原生解释器；`ChineseTypologyDetailUtil` 迁入 typology 包 | **已完成** |
 | **3** | 大雁塔等迁入 `dense_eaves_pagoda`（`footprint=square`）；`GiantWildGoosePagodaGenerator` 瘦身为 Builder 委托 | **已完成** |
 | **4** | `TypologyRoutingMetrics` 遥测；LLM MODULE→STRUCTURE 自动修复；Java 路由优先原生 typology builder | **已完成** |
+| **5** | 天坛迁入 `radial_terrace_hall`（`RADIAL_RING`）；`TempleOfHeavenGenerator` 瘦身为 Builder 委托 | **已完成** |
+
+### Phase 5 细节（天坛 / 祈年殿）
+
+| 维度 | 旧 | 新 |
+|---|---|---|
+| 路由 | `MODULE + landmark:temple_of_heaven` | `structural_typology: radial_terrace_hall` |
+| archetype | `generatorId=temple_of_heaven` | `typologyId=radial_terrace_hall`, `researchOnly=true` |
+| culture card | `landmarkModuleId` only | `structuralTypologyId=radial_terrace_hall` |
+| proportion | `typology=temple_of_heaven` | `typology=radial_terrace_hall` |
+| Java | `TempleOfHeavenGenerator` | `RadialTerraceHallBuilder` + `RadialTerraceHallInterpreter` |
+
+**关键参数**：`baseRadius`, `tiers`, `height`, `hallRadius`, `facing`；`layout.skeleton_type=RADIAL_RING`
 
 ### Phase 4 细节
 
@@ -210,7 +223,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 解释器实现 | `server.generation.typology.interpreter.*` |
 | Java 参数化 Builder | `server.generation.typology.builder.*` |
 | 细节工具 | `com.formacraft.common.typology.detail.ChineseTypologyDetailUtil` |
-| Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json`, `giant_wild_goose_pagoda.json` |
+| Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json`, `giant_wild_goose_pagoda.json`, `temple_of_heaven.json` |
 | 测试 | `python_backend/tests/test_typology_migration.py`, `test_typology_plan_repair.py` |
 | 遥测 | `com.formacraft.common.network.metrics.TypologyRoutingMetrics` |
 

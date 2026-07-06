@@ -1,35 +1,45 @@
 package com.formacraft.common.typology;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
 /**
  * Per-reference-landmark param presets applied after registry defaults merge.
- * Phase 3: giant_wild_goose_pagoda → square footprint dayanta proportions.
  */
 public final class TypologyReferencePresets {
 
-    private static final Map<String, Map<String, Object>> PRESETS = Map.of(
-            "famen_pagoda", Map.of(
-                    "footprint", "octagon",
-                    "levels", 13,
-                    "height", 47,
-                    "baseWidth", 10,
-                    "niche_rhythm", "tier_synced_octagon",
-                    "detailLevel", "refined"
-            ),
-            "giant_wild_goose_pagoda", Map.of(
-                    "footprint", "square",
-                    "levels", 7,
-                    "height", 41,
-                    "baseWidth", 17,
-                    "niche_rhythm", "none",
-                    "detailLevel", "aesthetic",
-                    "eaveBlock", "minecraft:brick_slab",
-                    "accentBlock", "minecraft:chiseled_stone_bricks"
-            )
-    );
+    private static final Map<String, Map<String, Object>> PRESETS = new LinkedHashMap<>();
+
+    static {
+        PRESETS.put("famen_pagoda", Map.of(
+                "footprint", "octagon",
+                "levels", 13,
+                "height", 47,
+                "baseWidth", 10,
+                "niche_rhythm", "tier_synced_octagon",
+                "detailLevel", "refined"
+        ));
+        PRESETS.put("giant_wild_goose_pagoda", Map.of(
+                "footprint", "square",
+                "levels", 7,
+                "height", 41,
+                "baseWidth", 17,
+                "niche_rhythm", "none",
+                "detailLevel", "aesthetic",
+                "eaveBlock", "minecraft:brick_slab",
+                "accentBlock", "minecraft:chiseled_stone_bricks"
+        ));
+        PRESETS.put("temple_of_heaven", Map.of(
+                "baseRadius", 18,
+                "tiers", 3,
+                "height", 34,
+                "hallRadius", 10,
+                "detailLevel", "aesthetic",
+                "facing", "SOUTH"
+        ));
+    }
 
     private TypologyReferencePresets() {}
 

@@ -124,5 +124,25 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(struct["params"]["footprint"], "square")
 
 
+    def test_temple_module_repaired(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:temple_of_heaven"],
+                    "params": {"module_id": "temple_of_heaven", "baseRadius": 18, "tiers": 3},
+                    "dimensions": {"width": 36, "depth": 36, "height": 34},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                }
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        self.assertEqual(out["components"][0]["params"]["typology_id"], "radial_terrace_hall")
+        self.assertEqual(out["components"][0]["params"]["baseRadius"], 18)
+
+
 if __name__ == "__main__":
     unittest.main()
