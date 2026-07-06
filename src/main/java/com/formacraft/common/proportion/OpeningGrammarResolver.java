@@ -1,5 +1,7 @@
 package com.formacraft.common.proportion;
 
+import com.formacraft.common.facade.rhythm.RepeatingPattern;
+import com.formacraft.common.facade.rhythm.RepeatingPatternDefaults;
 import com.formacraft.common.facade.rhythm.RepeatingPatternParser;
 import com.formacraft.common.generation.component.impl.WindowAspect;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
@@ -88,8 +90,12 @@ public final class OpeningGrammarResolver {
             changed |= applyVoidRatio(params, card, hints);
         }
 
+        if (facade || mass) {
+            changed |= applyRepeatingPattern(params, hints, card);
+            changed |= applyFacadeProfileFromPattern(params);
+        }
+
         if (facade) {
-            changed |= applyRepeatingPattern(params, hints);
             changed |= applyRhythmPreset(params, card, hints);
             changed |= applyWindowOrder(params, card, hints);
         }
@@ -182,7 +188,11 @@ public final class OpeningGrammarResolver {
         return false;
     }
 
-    private static boolean applyRepeatingPattern(Map<String, Object> params, Map<String, Object> hints) {
+    private static boolean applyRepeatingPattern(
+            Map<String, Object> params,
+            Map<String, Object> hints,
+            ProportionCardRegistry.ProportionCard card
+    ) {
         if (RepeatingPatternParser.parse(params) != null) {
             return false;
         }
@@ -191,9 +201,26 @@ public final class OpeningGrammarResolver {
             raw = hints.get("repeatingPattern");
         }
         if (raw == null) {
-            return false;
+            RepeatingPattern suggested = RepeatingPatternDefaults.suggestFromHints(hints, card);
+            if (suggested == null) {
+                return false;
+            }
+            params.put("repeating_pattern", RepeatingPatternParser.toParamsMap(suggested));
+            return true;
         }
         params.put("repeating_pattern", raw);
+        return true;
+    }
+
+    private static boolean applyFacadeProfileFromPattern(Map<String, Object> params) {
+        if (!isBlank(getParamString(params, "facade_profile", "facadeProfile", "facade"))) {
+            return false;
+        }
+        RepeatingPattern pattern = RepeatingPatternParser.parse(params);
+        if (!RepeatingPatternDefaults.hasPillarElements(pattern)) {
+            return false;
+        }
+        params.put("facade_profile", "base_plinth,vertical_pilasters");
         return true;
     }
 

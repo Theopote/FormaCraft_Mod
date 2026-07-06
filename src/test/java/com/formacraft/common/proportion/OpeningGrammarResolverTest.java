@@ -49,6 +49,42 @@ class OpeningGrammarResolverTest {
     }
 
     @Test
+    void injectsDefaultRepeatingPatternForClassicalTypology() {
+        Map<String, Object> hints = Map.of("typology", "classical_monument");
+        LlmPlan plan = planWithHints(hints);
+        Component facade = facadeWithoutAspect();
+
+        Component enriched = OpeningGrammarResolver.apply(plan, facade);
+        assertEquals(5, ((Number) ((Map<?, ?>) enriched.params().get("repeating_pattern")).get("unit_width_z")).intValue());
+        assertEquals("base_plinth,vertical_pilasters", enriched.params().get("facade_profile"));
+    }
+
+    @Test
+    void injectsExplicitRepeatingPatternFromHints() {
+        Map<String, Object> pattern = Map.of(
+                "unit_width_z", 4,
+                "elements", List.of(
+                        Map.of("type", "pillar", "width", 1),
+                        Map.of("type", "window", "width", 2),
+                        Map.of("type", "pillar", "width", 1)
+                )
+        );
+        Map<String, Object> hints = Map.of("typology", "cottage", "repeating_pattern", pattern);
+        LlmPlan plan = planWithHints(hints);
+        Component mass = new Component(
+                "MASS_MAIN",
+                null,
+                new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8),
+                List.of(),
+                new HashMap<>()
+        );
+
+        Component enriched = OpeningGrammarResolver.apply(plan, mass);
+        assertEquals(4, ((Number) ((Map<?, ?>) enriched.params().get("repeating_pattern")).get("unit_width_z")).intValue());
+    }
+
+    @Test
     void injectsRhythmPresetForClassicalTypology() {
         Map<String, Object> hints = Map.of("typology", "classical_monument");
         LlmPlan plan = planWithHints(hints);

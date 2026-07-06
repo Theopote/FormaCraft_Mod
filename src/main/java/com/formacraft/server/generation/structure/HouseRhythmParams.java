@@ -1,6 +1,7 @@
 package com.formacraft.server.generation.structure;
 
 import com.formacraft.common.facade.rhythm.RepeatingPattern;
+import com.formacraft.common.facade.rhythm.RepeatingPatternDefaults;
 import com.formacraft.common.facade.rhythm.RepeatingPatternParser;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.model.build.BuildingSpec;
@@ -34,7 +35,21 @@ public final class HouseRhythmParams {
             params.put("rhythm", genome.form.rhythm);
         }
         if (RepeatingPatternParser.parse(params) == null && !hasRhythmPreset(params)) {
-            params.put("repeating_pattern", RepeatingPatternParser.toParamsMap(RepeatingPattern.classicalPilasterBay()));
+            java.util.Map<String, Object> hintLike = new java.util.HashMap<>();
+            if (spec != null && spec.getExtra() != null) {
+                Object typology = spec.getExtra().get("typology");
+                if (typology != null) {
+                    hintLike.put("typology", typology);
+                }
+            }
+            if (profile != null && profile.id() != null) {
+                hintLike.putIfAbsent("typology", profile.id());
+            }
+            RepeatingPattern suggested = RepeatingPatternDefaults.suggestFromHints(hintLike, null);
+            if (suggested == null) {
+                suggested = RepeatingPattern.classicalPilasterBay();
+            }
+            params.put("repeating_pattern", RepeatingPatternParser.toParamsMap(suggested));
         }
         return params;
     }

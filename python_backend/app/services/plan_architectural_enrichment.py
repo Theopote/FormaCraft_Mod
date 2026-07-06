@@ -267,6 +267,17 @@ def enrich_llm_plan_architectural_detail(
     if isinstance(ph, dict) and tier in ("rich", "monumental"):
         ph.setdefault("floor_cornice", True)
         ph.setdefault("window_order", "full")
+        ph.setdefault(
+            "repeating_pattern",
+            {
+                "unit_width_z": 5,
+                "elements": [
+                    {"type": "pillar", "width": 1},
+                    {"type": "window", "width": 3},
+                    {"type": "pillar", "width": 1},
+                ],
+            },
+        )
     if isinstance(ph, dict) and tier == "monumental":
         ph.setdefault("crown_assembly", True)
         crown_template = (
@@ -366,6 +377,16 @@ def enrich_llm_plan_architectural_detail(
                     "window_aspect": hints.get("window_aspect") or "vertical_bay",
                     "window_ratio": 0.22 if tier == "monumental" else 0.28,
                     "rhythm": "vertical_bay",
+                    "repeating_pattern": ph.get("repeating_pattern")
+                    if isinstance(ph, dict) and ph.get("repeating_pattern")
+                    else {
+                        "unit_width_z": 5,
+                        "elements": [
+                            {"type": "pillar", "width": 1},
+                            {"type": "window", "width": 3},
+                            {"type": "pillar", "width": 1},
+                        ],
+                    },
                     "rhythm_preset": "CLASSICAL_PILASTER_BAY"
                     if tier in ("rich", "monumental")
                     else "RESIDENTIAL_REGULAR",
@@ -385,6 +406,8 @@ def enrich_llm_plan_architectural_detail(
                 cp.setdefault("window_ratio", 0.25)
                 if tier in ("rich", "monumental"):
                     cp.setdefault("rhythm_preset", "CLASSICAL_PILASTER_BAY")
+                    if isinstance(ph, dict) and ph.get("repeating_pattern"):
+                        cp.setdefault("repeating_pattern", ph.get("repeating_pattern"))
 
     decor_count = sum(
         1 for c in new_components if str(c.get("component_type") or "").upper() == "DECOR_DETAIL"

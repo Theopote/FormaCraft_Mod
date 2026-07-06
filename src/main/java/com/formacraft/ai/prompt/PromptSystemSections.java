@@ -60,6 +60,13 @@ Core rules:
 - OPENING GRAMMAR (M3): When proportion_hints or proportion card applies, set FACADE_WINDOWS params.window_aspect
   from openingGrammar; output matching proportion_hints.window_aspect at plan top level.
   void_ratio on MASS/WALL/FACADE is auto-clamped to proportion card max_void_ratio at compile time.
+- REPEATING_PATTERN (facade rhythm unit): Describe one horizontal bay, not per-window coordinates.
+  Put in proportion_hints.repeating_pattern OR component.params.repeating_pattern OR BuildingSpec.extra.repeating_pattern.
+  Schema: { "unit_width_z": int, "elements": [ { "type": "pillar|window|solid", "width": int, "inset": int? } ] }.
+  sum(width) MUST equal unit_width_z. Example classical bay (P-W-W-W-P): unit_width_z=5,
+  elements=[{"type":"pillar","width":1},{"type":"window","width":3},{"type":"pillar","width":1}].
+  Compiler tiles units symmetrically from facade center; pillars become vertical trim strips, windows become openings.
+  Prefer repeating_pattern over rhythm_preset when you need a custom bay width.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.

@@ -552,6 +552,10 @@ public class HouseGenerator implements StructureGenerator {
                 facadeProfile = ctx.profile().details().facadeProfile;
             }
         } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
+        if ((facadeProfile == null || facadeProfile.isBlank())
+                && (ctx.rhythmWidthPlan().active() || ctx.rhythmDepthPlan().active())) {
+            facadeProfile = "base_plinth,vertical_pilasters";
+        }
         if (facadeProfile != null && !facadeProfile.isBlank()) {
             wallToUse = HouseGeneratorUtils.applyFacadeProfileToWallCell(
                     wallToUse, ctx.materials().wall(), ctx.materials().trim(), ctx.materials().foundation(),
