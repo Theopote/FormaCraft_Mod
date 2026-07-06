@@ -65,6 +65,109 @@ public final class RepeatingPatternTiler {
         return new TiledAxes(axisMax, windows, pilasters, entranceBay);
     }
 
+    /**
+     * Tiles {@code pattern} symmetrically within one alignment bay {@code [bayStart, bayStart + bayWidth)}.
+     * Units that do not fully fit fall back to uniform interior window axes.
+     */
+    public static TiledAxes tileWithinBay(
+            RepeatingPattern pattern,
+            int axisMax,
+            int bayStart,
+            int bayWidth
+    ) {
+        BitSet windows = new BitSet();
+        BitSet pilasters = new BitSet();
+        BitSet entranceBay = new BitSet();
+        if (pattern == null || !pattern.isValid() || bayWidth <= 0 || axisMax <= 2) {
+            return new TiledAxes(axisMax, windows, pilasters, entranceBay);
+        }
+
+        int bayEnd = Math.min(axisMax - 1, bayStart + bayWidth - 1);
+        if (bayEnd <= bayStart) {
+            return new TiledAxes(axisMax, windows, pilasters, entranceBay);
+        }
+
+        if (pattern.unitWidth() > bayWidth) {
+            fillInteriorFallback(windows, bayStart, bayEnd, axisMax);
+            return new TiledAxes(axisMax, windows, pilasters, entranceBay);
+        }
+
+        UnitMask mask = buildUnitMask(pattern);
+        int unitW = pattern.unitWidth();
+        int halfUnit = unitW / 2;
+        int bayCenter = bayStart + bayWidth / 2;
+
+        List<Integer> unitCenters = new ArrayList<>();
+        unitCenters.add(bayCenter);
+        for (int step = unitW; ; step += unitW) {
+            boolean added = false;
+            int left = bayCenter - step;
+            int right = bayCenter + step;
+            if (unitFitsInBay(left, halfUnit, unitW, bayStart, bayEnd)) {
+                unitCenters.add(left);
+                added = true;
+            }
+            if (unitFitsInBay(right, halfUnit, unitW, bayStart, bayEnd)) {
+                unitCenters.add(right);
+                added = true;
+            }
+            if (!added) {
+                break;
+            }
+        }
+
+        boolean placedUnit = false;
+        for (int unitCenter : unitCenters) {
+            int unitStart = unitCenter - halfUnit;
+            if (!unitFitsInBay(unitCenter, halfUnit, unitW, bayStart, bayEnd)) {
+                continue;
+            }
+            applyUnit(mask, unitStart, axisMax, windows, pilasters);
+            placedUnit = true;
+        }
+
+        if (!placedUnit) {
+            windows.clear();
+            pilasters.clear();
+            fillInteriorFallback(windows, bayStart, bayEnd, axisMax);
+            return new TiledAxes(axisMax, windows, pilasters, entranceBay);
+        }
+
+        clipToInclusiveRange(windows, bayStart, bayEnd, axisMax);
+        clipToInclusiveRange(pilasters, bayStart, bayEnd, axisMax);
+        if (bayStart > 0 && bayStart < axisMax) {
+            pilasters.clear(bayStart);
+        }
+        if (bayEnd > 0 && bayEnd < axisMax) {
+            pilasters.clear(bayEnd);
+        }
+        clearOverlaps(windows, pilasters);
+
+        return new TiledAxes(axisMax, windows, pilasters, entranceBay);
+    }
+
+    private static boolean unitFitsInBay(int unitCenter, int halfUnit, int unitWidth, int bayStart, int bayEnd) {
+        int unitStart = unitCenter - halfUnit;
+        int unitEnd = unitStart + unitWidth - 1;
+        return unitStart >= bayStart && unitEnd <= bayEnd;
+    }
+
+    private static void fillInteriorFallback(BitSet windows, int bayStart, int bayEnd, int axisMax) {
+        for (int axis = bayStart + 1; axis < bayEnd && axis < axisMax - 1; axis++) {
+            if (axis > 0) {
+                windows.set(axis);
+            }
+        }
+    }
+
+    private static void clipToInclusiveRange(BitSet target, int rangeStart, int rangeEnd, int axisMax) {
+        for (int i = target.nextSetBit(0); i >= 0; i = target.nextSetBit(i + 1)) {
+            if (i < rangeStart || i > rangeEnd || i <= 0 || i >= axisMax - 1) {
+                target.clear(i);
+            }
+        }
+    }
+
     private record UnitMask(BitSet windowLocal, BitSet pilasterLocal, int unitWidth) {}
 
     private static UnitMask buildUnitMask(RepeatingPattern pattern) {

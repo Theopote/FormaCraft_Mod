@@ -68,7 +68,12 @@ public final class ComponentFacadeRhythmPlanner {
         if (params != null) {
             BayGridResolver.ResolvedAxisGrid bayGrid = BayGridRhythmPlanner.pickGrid(params, axisMax);
             if (bayGrid != null && !bayGrid.bays().isEmpty()) {
-                return BayGridRhythmPlanner.toRhythmPlan(bayGrid, axisMax);
+                RepeatingPattern pattern = RepeatingPatternParser.parse(params);
+                if (pattern == null) {
+                    String presetId = resolvePresetId(semantic, params);
+                    pattern = RepeatingPattern.fromPresetId(presetId);
+                }
+                return BayGridRhythmPlanner.toRhythmPlan(bayGrid, axisMax, pattern);
             }
         }
 

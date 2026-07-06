@@ -45,6 +45,31 @@ class RepeatingPatternTilerTest {
         assertFalse(tiled.windowAxes().get(7));
     }
 
+    @Test
+    void tileWithinBay_hallBayFitsClassicalUnit() {
+        RepeatingPattern pattern = RepeatingPattern.classicalPilasterBay();
+        RepeatingPatternTiler.TiledAxes tiled = RepeatingPatternTiler.tileWithinBay(pattern, 14, 4, 6);
+
+        assertTrue(tiled.windowAxes().get(6));
+        assertTrue(tiled.windowAxes().get(7));
+        assertTrue(tiled.windowAxes().get(8));
+        assertFalse(tiled.windowAxes().get(4));
+        assertFalse(tiled.windowAxes().get(9));
+        assertFalse(tiled.pilasterAxes().get(4));
+        assertFalse(tiled.pilasterAxes().get(9));
+    }
+
+    @Test
+    void tileWithinBay_narrowBayFallsBackToInteriorBand() {
+        RepeatingPattern pattern = RepeatingPattern.classicalPilasterBay();
+        RepeatingPatternTiler.TiledAxes tiled = RepeatingPatternTiler.tileWithinBay(pattern, 14, 0, 4);
+
+        assertTrue(tiled.windowAxes().get(1));
+        assertTrue(tiled.windowAxes().get(2));
+        assertFalse(tiled.windowAxes().get(0));
+        assertFalse(tiled.windowAxes().get(3));
+    }
+
     private static void assertSymmetric(BitSet axes, int axisMax) {
         for (int i = 1; i < axisMax - 1; i++) {
             if (axes.get(i)) {

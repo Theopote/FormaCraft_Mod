@@ -1,5 +1,7 @@
 package com.formacraft.common.alignment;
 
+import com.formacraft.common.facade.rhythm.RepeatingPattern;
+import com.formacraft.common.facade.rhythm.RepeatingPatternTiler;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 
@@ -86,6 +88,14 @@ public final class BayGridRhythmPlanner {
             BayGridResolver.ResolvedAxisGrid grid,
             int axisMax
     ) {
+        return toRhythmPlan(grid, axisMax, null);
+    }
+
+    public static ComponentFacadeRhythmPlanner.RhythmPlan toRhythmPlan(
+            BayGridResolver.ResolvedAxisGrid grid,
+            int axisMax,
+            RepeatingPattern pattern
+    ) {
         if (grid == null || grid.bays().isEmpty() || axisMax <= 2) {
             return ComponentFacadeRhythmPlanner.RhythmPlan.inactive(axisMax);
         }
@@ -94,6 +104,7 @@ public final class BayGridRhythmPlanner {
         BitSet pilasters = new BitSet();
         BitSet entranceBay = new BitSet();
         EntranceBay entrance = findEntranceBay(grid);
+        boolean usePattern = pattern != null && pattern.isValid();
 
         pilasters.set(0);
         pilasters.set(axisMax - 1);
@@ -114,6 +125,18 @@ public final class BayGridRhythmPlanner {
                     && bay.start() == entrance.start()
                     && bay.width() == entrance.width();
 
+            if (usePattern) {
+                RepeatingPatternTiler.TiledAxes tiled = RepeatingPatternTiler.tileWithinBay(
+                        pattern, axisMax, bay.start(), bay.width());
+                if (isEntrance) {
+                    mergeInteriorAxes(entranceBay, tiled.windowAxes(), bay.start(), bayEnd, axisMax);
+                } else {
+                    mergeInteriorAxes(windows, tiled.windowAxes(), bay.start(), bayEnd, axisMax);
+                }
+                mergeInteriorAxes(pilasters, tiled.pilasterAxes(), bay.start(), bayEnd, axisMax);
+                continue;
+            }
+
             for (int axis = bay.start(); axis <= bayEnd && axis < axisMax; axis++) {
                 if (axis <= 0 || axis >= axisMax - 1) {
                     continue;
@@ -129,16 +152,41 @@ public final class BayGridRhythmPlanner {
             }
         }
 
+        clearWindowPilasterOverlaps(windows, pilasters);
+        clearWindowPilasterOverlaps(entranceBay, pilasters);
+
         if (windows.isEmpty() && entranceBay.isEmpty()) {
             return ComponentFacadeRhythmPlanner.RhythmPlan.inactive(axisMax);
         }
+        String presetId = usePattern ? "BAY_GRID+REPEATING_PATTERN" : "BAY_GRID";
         return new ComponentFacadeRhythmPlanner.RhythmPlan(
                 axisMax,
                 windows,
                 pilasters,
                 entranceBay,
-                "BAY_GRID"
+                presetId
         );
+    }
+
+    private static void mergeInteriorAxes(BitSet target, BitSet source, int bayStart, int bayEnd, int axisMax) {
+        if (target == null || source == null) {
+            return;
+        }
+        for (int axis = source.nextSetBit(0); axis >= 0; axis = source.nextSetBit(axis + 1)) {
+            if (axis <= bayStart || axis >= bayEnd || axis <= 0 || axis >= axisMax - 1) {
+                continue;
+            }
+            target.set(axis);
+        }
+    }
+
+    private static void clearWindowPilasterOverlaps(BitSet windows, BitSet pilasters) {
+        if (windows == null || pilasters == null) {
+            return;
+        }
+        for (int axis = pilasters.nextSetBit(0); axis >= 0; axis = pilasters.nextSetBit(axis + 1)) {
+            windows.clear(axis);
+        }
     }
 
     public static EntranceBay findEntranceBay(BayGridResolver.ResolvedAxisGrid grid) {

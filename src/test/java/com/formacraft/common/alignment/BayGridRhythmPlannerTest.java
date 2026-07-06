@@ -1,5 +1,6 @@
 package com.formacraft.common.alignment;
 
+import com.formacraft.common.facade.rhythm.RepeatingPattern;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,31 @@ class BayGridRhythmPlannerTest {
         assertNotNull(BayGridRhythmPlanner.pickGrid(params, 11));
         assertNotNull(BayGridRhythmPlanner.pickFacadeGrid(
                 params, 20, 11, GlobalConstraints.Facing.EAST));
+    }
+
+    @Test
+    void toRhythmPlan_tilesRepeatingPatternWithinEachBay() {
+        BayGridResolver.ResolvedAxisGrid grid = new BayGridResolver.ResolvedAxisGrid(
+                14,
+                List.of(
+                        new BayGridResolver.BaySpan(0, 4, "wing"),
+                        new BayGridResolver.BaySpan(4, 6, "hall"),
+                        new BayGridResolver.BaySpan(10, 4, "wing")
+                )
+        );
+
+        ComponentFacadeRhythmPlanner.RhythmPlan plan = BayGridRhythmPlanner.toRhythmPlan(
+                grid, 14, RepeatingPattern.classicalPilasterBay());
+
+        assertEquals("BAY_GRID+REPEATING_PATTERN", plan.presetId());
+        assertTrue(plan.isEntranceBayAxis(6));
+        assertTrue(plan.isEntranceBayAxis(7));
+        assertTrue(plan.isEntranceBayAxis(8));
+        assertFalse(plan.isWindowAxis(6));
+        assertTrue(plan.isWindowAxis(1));
+        assertTrue(plan.isWindowAxis(2));
+        assertTrue(plan.isPilasterAxis(4));
+        assertTrue(plan.isPilasterAxis(9));
     }
 
     @Test
