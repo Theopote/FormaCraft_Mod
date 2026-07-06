@@ -9,6 +9,7 @@ import com.formacraft.common.genome.BuildingGenome;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingType;
+import com.formacraft.common.typology.StructuralTypologyRegistry;
 import com.formacraft.server.generation.structure.StructureGenerator;
 import com.formacraft.server.generation.structure.blueprint.BlueprintCompilerRegistry;
 
@@ -42,6 +43,9 @@ public final class GeneratorRouter {
 
         StructureGenerator byBlueprint = routeByBlueprint(spec);
         if (byBlueprint != null) return byBlueprint;
+
+        StructureGenerator byTypology = routeByTypology(spec);
+        if (byTypology != null) return byTypology;
 
         StructureGenerator byTemplate = routeByTemplate(spec);
         if (byTemplate != null) return byTemplate;
@@ -105,6 +109,45 @@ public final class GeneratorRouter {
             }
         } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return null;
+    }
+
+    private static StructureGenerator routeByTypology(BuildingSpec spec) {
+        if (spec == null) return null;
+        Map<String, Object> extra = spec.getExtra();
+        if (extra == null) return null;
+
+        String typologyId = firstNonBlank(
+                stringValue(extra.get("typology_id")),
+                stringValue(extra.get("structural_typology"))
+        );
+        if (typologyId == null) return null;
+
+        String legacy = StructuralTypologyRegistry.legacyModuleForTypology(typologyId);
+        if (legacy != null && StructureGeneratorRegistry.has(legacy)) {
+            return StructureGeneratorRegistry.create(legacy);
+        }
+
+        String interpreter = StructuralTypologyRegistry.resolveInterpreterId(typologyId);
+        if (interpreter != null && StructureGeneratorRegistry.has(interpreter)) {
+            return StructureGeneratorRegistry.create(interpreter);
+        }
+        return null;
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String v : values) {
+            if (v != null && !v.isBlank()) {
+                return v.trim();
+            }
+        }
+        return null;
+    }
+
+    private static String stringValue(Object value) {
+        if (value == null) return null;
+        String s = String.valueOf(value).trim();
+        return s.isEmpty() ? null : s;
     }
 
     private static StructureGenerator routeByTemplate(BuildingSpec spec) {

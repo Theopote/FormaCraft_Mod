@@ -12,6 +12,7 @@ import com.formacraft.common.model.build.BuildingType;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.typology.StructuralTypologyRegistry;
 import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.generation.structure.StructureGenerator;
 import net.minecraft.registry.Registries;
@@ -157,10 +158,25 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
 
         Map<String, Object> params = c.params();
         if (params != null) {
+            boolean typologyParams = params.containsKey("typology_id")
+                    || params.containsKey("structural_typology")
+                    || params.containsKey("typologyId")
+                    || params.containsKey("structuralTypologyId");
+            if (typologyParams) {
+                for (Map.Entry<String, Object> entry : params.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        extra.putIfAbsent(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
             for (String key : List.of(
                     "landmark", "template", "blueprint", "assembly", "styleProfileId",
                     "meshStructure", "facing", "gateSide", "designSeed", "paletteId",
-                    "bowlSteepness", "tierStep", "width", "depth", "height", "elliptical"
+                    "bowlSteepness", "tierStep", "width", "depth", "height", "elliptical",
+                    "typology_id", "structural_typology", "reference_landmark",
+                    "levels", "baseWidth", "towerHeight", "hallHeight", "baysX", "baysZ",
+                    "includeSubEaves", "footprint", "setback_ratio", "niche_rhythm", "detailLevel",
+                    "puzuoProfile", "roofType"
             )) {
                 copyIfPresent(params, extra, key);
             }
@@ -180,6 +196,16 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
                     putResolvedLandmark(extra, feature.substring("landmark:".length()).trim());
                 } else if (lower.startsWith("module:")) {
                     putResolvedLandmark(extra, feature.substring("module:".length()).trim());
+                } else if (lower.startsWith("typology:")) {
+                    String typologyId = feature.substring("typology:".length()).trim();
+                    if (!typologyId.isEmpty()) {
+                        extra.put("typology_id", typologyId);
+                        extra.put("structural_typology", typologyId);
+                        String legacy = StructuralTypologyRegistry.legacyModuleForTypology(typologyId);
+                        if (legacy != null && !legacy.isBlank()) {
+                            putResolvedLandmark(extra, legacy);
+                        }
+                    }
                 } else if (lower.startsWith("structure_generator:")) {
                     String value = feature.substring("structure_generator:".length()).trim();
                     if (!value.isEmpty()) {
@@ -198,7 +224,13 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
     private static void putResolvedLandmark(Map<String, Object> extra, String rawValue) {
         if (rawValue == null || rawValue.isBlank()) return;
         String resolved = com.formacraft.common.archetype.LandmarkModuleRegistry.resolveModuleId(rawValue);
-        extra.put("landmark", resolved != null ? resolved : rawValue.trim());
+        String moduleId = resolved != null ? resolved : rawValue.trim();
+        extra.put("landmark", moduleId);
+        String typology = StructuralTypologyRegistry.typologyForLegacyModule(moduleId);
+        if (typology != null && !typology.isBlank()) {
+            extra.putIfAbsent("typology_id", typology);
+            extra.putIfAbsent("structural_typology", typology);
+        }
     }
 
     private static void copyIfPresent(Map<String, Object> from, Map<String, Object> to, String key) {

@@ -27,6 +27,7 @@ import java.util.Set;
  *   <li>MetaAssembly ASSEMBLY 构件（{@code component_type=ASSEMBLY} + {@code params.assembly}）</li>
  *   <li>已注册的 {@link ComponentGenerator}（{@link ComponentGeneratorRegistry}）</li>
  *   <li>玩家组件扩展（{@code group_request:} / {@code component_request:}）</li>
+ *   <li>Structural typology（{@code typology:} / {@code params.typology_id}）→ {@link com.formacraft.common.typology.TypologyComponentRouter}</li>
  *   <li>整栋生成器回退（{@link StructureGeneratorAdaptor}）— 仅显式请求或未注册整栋类型</li>
  * </ol>
  * <p>
@@ -77,6 +78,16 @@ public final class UnifiedGeneratorRouter {
 
         // 3) 玩家组件扩展
         base = applyExpanders(semantic, world, base, hasGroupRequest, hasComponentRequest);
+
+        // 3.5) Structural typology interpreter (STRUCTURE + typology:*)
+        if (world != null && com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)) {
+            List<BlockPatch> typologyPatches = com.formacraft.common.typology.TypologyComponentRouter
+                    .tryGenerate(semantic, world);
+            if (!typologyPatches.isEmpty()) {
+                FormacraftMod.LOGGER.debug("UnifiedGeneratorRouter: typology path for {}", componentType);
+                return typologyPatches;
+            }
+        }
 
         if (!base.isEmpty()) {
             return base;
@@ -230,13 +241,22 @@ public final class UnifiedGeneratorRouter {
 
         if (hasFeaturePrefix(c, "structure_generator:")
                 || hasFeaturePrefix(c, "landmark:")
-                || hasFeaturePrefix(c, "module:")) {
+                || hasFeaturePrefix(c, "module:")
+                || hasFeaturePrefix(c, "typology:")) {
+            return true;
+        }
+
+        if (com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)) {
             return true;
         }
 
         // Phase 7：MODULE 须携带显式 landmark/module 引用，避免空 MODULE 误触整栋回退
         if ("MODULE".equals(normalizeType(c.componentType()))) {
             return hasLandmarkReference(c);
+        }
+
+        if ("STRUCTURE".equals(normalizeType(c.componentType()))) {
+            return com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c);
         }
 
         Map<String, Object> params = c.params();

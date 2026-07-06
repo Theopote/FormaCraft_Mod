@@ -158,8 +158,8 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 
 | Phase | 内容 | 状态 |
 |---|---|---|
-| **0** | Schema + migrationMap + RAG/plan 优先 typology；legacy MODULE 作 fallback | **进行中** |
-| **1** | `TypologyInterpreterRegistry`；Famen/Foguang 适配器改名 | 待办 |
+| **0** | Schema + migrationMap + RAG/plan 优先 typology；legacy MODULE 作 fallback | **已完成** |
+| **1** | `TypologyInterpreterRegistry` + `TypologyComponentRouter`；STRUCTURE/typology 构件路由；legacy 委托 Famen/Foguang | **已完成** |
 | **2** | 通用 `DenseEavesPagodaInterpreter`；`ChineseLandmarkDetailUtil` 迁入 typology 包 | 待办 |
 | **3** | 大雁塔等迁入 `dense_eaves_pagoda`；废弃对应 landmark generator | 待办 |
 
@@ -177,6 +177,8 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Python 加载 | `python_backend/app/services/typology_registry.py` |
 | Python 检索 | `python_backend/app/services/typology_retriever.py` |
 | Java 加载 | `com.formacraft.common.typology.StructuralTypologyRegistry` |
+| Java 解释器 | `com.formacraft.common.typology.TypologyInterpreterRegistry` |
+| Java 构件路由 | `com.formacraft.common.typology.TypologyComponentRouter` |
 | Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json` |
 | 测试 | `python_backend/tests/test_typology_migration.py` |
 

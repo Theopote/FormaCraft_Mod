@@ -5,6 +5,8 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.StyleAttributes;
 
+import java.util.Map;
+
 /**
  * SemanticComponent（语义构件）
  * 
@@ -56,6 +58,22 @@ public record SemanticComponent(
      */
     public SemanticComponent(String componentType, Slot slot, Component source, String styleProfile, StyleAttributes styleAttributes) {
         this(componentType, slot, source, styleProfile, styleAttributes, null);
+    }
+
+    /** Returns a copy whose source component params are replaced with {@code mergedParams}. */
+    public SemanticComponent withMergedParams(Map<String, Object> mergedParams) {
+        if (source == null || mergedParams == null) {
+            return this;
+        }
+        Component mergedSource = new Component(
+                source.componentType(),
+                source.slotId(),
+                source.relativePosition(),
+                source.dimensions(),
+                source.features(),
+                mergedParams
+        );
+        return new SemanticComponent(componentType, slot, mergedSource, styleProfile, styleAttributes, genome);
     }
 }
 

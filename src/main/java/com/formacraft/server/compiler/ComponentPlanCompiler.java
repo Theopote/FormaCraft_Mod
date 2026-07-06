@@ -1146,6 +1146,7 @@ public final class ComponentPlanCompiler {
         boolean allowUnknown = hasComponentRequest(component.features())
                 || hasStructureRoutingHint(component)
                 || "MODULE".equals(normalizeType(component.componentType()))
+                || "STRUCTURE".equals(normalizeType(component.componentType()))
                 || "ASSEMBLY".equals(normalizeType(component.componentType()));
         String type = normalizeComponentType(component.componentType(), allowUnknown);
         if (type.isBlank()) {
@@ -1247,6 +1248,7 @@ public final class ComponentPlanCompiler {
                 if (feature == null) continue;
                 String lower = feature.toLowerCase(Locale.ROOT);
                 if (lower.startsWith("landmark:") || lower.startsWith("module:")
+                        || lower.startsWith("typology:")
                         || lower.startsWith("structure_generator:") || lower.startsWith("skeleton:")) {
                     return true;
                 }
@@ -1255,6 +1257,7 @@ public final class ComponentPlanCompiler {
         Map<String, Object> params = component.params();
         if (params != null) {
             return params.containsKey("landmark") || params.containsKey("module_id")
+                    || params.containsKey("typology_id") || params.containsKey("structural_typology")
                     || params.containsKey("template") || params.containsKey("blueprint")
                     || params.containsKey("assembly") || params.containsKey("skeleton")
                     || Boolean.TRUE.equals(params.get("useStructureGenerator"));
