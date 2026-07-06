@@ -167,7 +167,7 @@ public class HouseGenerator implements StructureGenerator {
         int floorHeight = calculateFloorHeight(height, floors, profile);
 
         // 获取调色板ID
-        String paletteId = HouseStyleOptionsResolver.resolvePaletteId(spec, profile);
+        String paletteId = HouseStyleOptionsResolver.resolvePaletteId(spec, profile, style);
 
         // Door side 和 Layout
         Direction doorSide = HouseGeneratorUtils.resolveDoorSide(spec);

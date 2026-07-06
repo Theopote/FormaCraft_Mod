@@ -2,6 +2,7 @@ package com.formacraft.server.generation.structure;
 
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.BuildingStyle;
+import com.formacraft.common.palette.PaletteDefaults;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.StyleGenome;
 
@@ -156,22 +157,30 @@ public final class HouseStyleOptionsResolver {
      * 优先级：
      * 1. spec.getExtra().get("paletteId") (显式指定)
      * 2. profile.details().paletteId (风格配置文件)
-     * 3. null (未指定)
+     * 3. {@link PaletteDefaults#forStyle(BuildingStyle, StyleProfile)} (按风格/档案回退)
      * </p>
      *
      * @param spec 建筑规范
      * @param profile 风格配置文件
-     * @return 调色板ID字符串，如果未指定则返回 null
+     * @return 调色板ID字符串
      */
     public static String resolvePaletteId(BuildingSpec spec, StyleProfile profile) {
+        BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.DEFAULT;
+        return resolvePaletteId(spec, profile, style);
+    }
+
+    public static String resolvePaletteId(BuildingSpec spec, StyleProfile profile, BuildingStyle style) {
         String paletteId = null;
-        if (spec.getExtra() != null) {
+        if (spec != null && spec.getExtra() != null) {
             Object pid = spec.getExtra().get("paletteId");
             if (pid != null) paletteId = String.valueOf(pid).trim();
         }
         if ((paletteId == null || paletteId.isBlank()) && profile != null && profile.details() != null
                 && profile.details().paletteId != null && !profile.details().paletteId.isBlank()) {
             paletteId = profile.details().paletteId.trim();
+        }
+        if (paletteId == null || paletteId.isBlank()) {
+            paletteId = PaletteDefaults.forStyle(style, profile);
         }
         return paletteId;
     }

@@ -1461,6 +1461,109 @@
           { "id": "minecraft:chain", "weight": 30 }
         ]
       }
+    },
+    "PALETTE_YELLOWISH_CREAM_A": {
+      "meta": {
+        "display_name": "Yellowish Cream A",
+        "tags": ["warm", "sandstone", "mediterranean", "weathered", "cream"],
+        "description": "Warm cream wall mix: end stone bricks + smooth/cut sandstone with terracotta roof accents"
+      },
+      "parts": {
+        "WALL_BASE": [
+          { "id": "minecraft:end_stone_bricks", "weight": 50 },
+          { "id": "minecraft:smooth_sandstone", "weight": 30 },
+          { "id": "minecraft:cut_sandstone", "weight": 20 }
+        ],
+        "WALL_FOUNDATION": [
+          { "id": "minecraft:cut_sandstone", "weight": 55 },
+          { "id": "minecraft:smooth_sandstone", "weight": 30 },
+          { "id": "minecraft:sandstone", "weight": 15 }
+        ],
+        "FRAME": [
+          { "id": "minecraft:cut_sandstone", "weight": 60 },
+          { "id": "minecraft:chiseled_sandstone", "weight": 25 },
+          { "id": "minecraft:smooth_sandstone", "weight": 15 }
+        ],
+        "STRUCTURAL_BEAM": [
+          { "id": "minecraft:cut_sandstone", "weight": 50 },
+          { "id": "minecraft:smooth_sandstone", "weight": 35 },
+          { "id": "minecraft:spruce_log", "weight": 15 }
+        ],
+        "PILLAR": [
+          { "id": "minecraft:cut_sandstone", "weight": 65 },
+          { "id": "minecraft:smooth_sandstone", "weight": 35 }
+        ],
+        "FLOORING": [
+          { "id": "minecraft:smooth_sandstone", "weight": 45 },
+          { "id": "minecraft:cut_sandstone", "weight": 35 },
+          { "id": "minecraft:sandstone", "weight": 20 }
+        ],
+        "FLOOR_SLAB": [
+          { "id": "minecraft:smooth_sandstone_slab", "weight": 55 },
+          { "id": "minecraft:cut_sandstone_slab", "weight": 30 },
+          { "id": "minecraft:sandstone_slab", "weight": 15 }
+        ],
+        "ROOF_TILE": [
+          { "id": "minecraft:orange_terracotta", "weight": 40 },
+          { "id": "minecraft:red_terracotta", "weight": 35 },
+          { "id": "minecraft:terracotta", "weight": 25 }
+        ],
+        "ROOF_SLOPE": [
+          { "id": "minecraft:red_terracotta_stairs", "weight": 50 },
+          { "id": "minecraft:terracotta_stairs", "weight": 30 },
+          { "id": "minecraft:orange_terracotta_stairs", "weight": 20 }
+        ],
+        "WINDOW": [
+          { "id": "minecraft:glass_pane", "weight": 75 },
+          { "id": "minecraft:white_stained_glass_pane", "weight": 25 }
+        ],
+        "FACADE_CURTAIN": [
+          { "id": "minecraft:glass", "weight": 70 },
+          { "id": "minecraft:white_stained_glass", "weight": 30 }
+        ],
+        "DECOR_DETAIL": [
+          { "id": "minecraft:chiseled_sandstone", "weight": 45 },
+          { "id": "minecraft:cut_sandstone_slab", "weight": 35 },
+          { "id": "minecraft:flower_pot", "weight": 20 }
+        ],
+        "BANNER": [
+          { "id": "minecraft:orange_wall_banner", "weight": 40 },
+          { "id": "minecraft:white_wall_banner", "weight": 35 },
+          { "id": "minecraft:yellow_wall_banner", "weight": 25 }
+        ],
+        "LIGHTING": [
+          { "id": "minecraft:lantern", "weight": 100 }
+        ],
+        "INTERNAL_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 70 },
+          { "id": "minecraft:torch", "weight": 30 }
+        ],
+        "ROAD_SURFACE": [
+          { "id": "minecraft:smooth_sandstone", "weight": 50 },
+          { "id": "minecraft:sandstone", "weight": 30 },
+          { "id": "minecraft:gravel", "weight": 20 }
+        ],
+        "ROAD_BORDER": [
+          { "id": "minecraft:cut_sandstone_slab", "weight": 60 },
+          { "id": "minecraft:smooth_sandstone_slab", "weight": 40 }
+        ],
+        "ROAD_LIGHT": [
+          { "id": "minecraft:lantern", "weight": 100 }
+        ],
+        "ROAD_SIGNAGE": [
+          { "id": "minecraft:orange_wool", "weight": 40 },
+          { "id": "minecraft:white_wool", "weight": 35 },
+          { "id": "minecraft:yellow_wool", "weight": 25 }
+        ],
+        "BRIDGE_DECK": [
+          { "id": "minecraft:smooth_sandstone", "weight": 60 },
+          { "id": "minecraft:cut_sandstone", "weight": 40 }
+        ],
+        "BRIDGE_RAIL": [
+          { "id": "minecraft:spruce_fence", "weight": 70 },
+          { "id": "minecraft:oak_fence", "weight": 30 }
+        ]
+      }
     }
   }
 }
