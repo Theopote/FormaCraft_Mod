@@ -90,6 +90,48 @@ class TestPlanSpecificityGuard(unittest.TestCase):
         self.assertIn("shell roof", matched)
         self.assertEqual(missing, [])
 
+    def test_should_not_skip_chinese_garden_lattice_windows(self):
+        """Regression: 花窗 lattice must not trigger non-classical guard for 中式园林."""
+        plan = {
+            "style_profile": "DEFAULT",
+            "style_attributes": {
+                "decorative_elements": ["carved_beam", "lattice_window"],
+            },
+            "genome": {
+                "culturalStyle": {
+                    "region": "east_asia",
+                    "era": "traditional",
+                    "keywords": ["garden", "pavilion", "chinese"],
+                },
+            },
+            "components": [
+                {
+                    "component_type": "FACADE_WINDOWS",
+                    "features": [
+                        'component_request:{"component_query": {"semantic": {"tags": ["chinese", "lattice", "round"]}}}}',
+                    ],
+                    "params": {"window_style": "lattice"},
+                },
+            ],
+        }
+        skip, reason = should_skip_classical_enrichment("中式园林", None, plan)
+        self.assertFalse(skip, msg=f"unexpected guard: {reason}")
+
+    def test_should_still_skip_birds_nest_mesh_grid(self):
+        skip, reason = should_skip_classical_enrichment("鸟巢国家体育场", None, None)
+        self.assertTrue(skip)
+        self.assertIn("non_classical_marker", reason)
+
+    def test_chinese_profile_lattice_windows_not_non_classical_token(self):
+        profile = BuildingProfile(
+            query="中式园林",
+            structure=ProfileStructure(
+                distinguishing_features=["lattice windows", "dougong brackets"],
+            ),
+        )
+        skip, reason = should_skip_classical_enrichment("中式园林", profile)
+        self.assertFalse(skip, msg=f"unexpected guard: {reason}")
+
 
 if __name__ == "__main__":
     unittest.main()

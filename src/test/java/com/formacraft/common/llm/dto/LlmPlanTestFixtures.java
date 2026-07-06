@@ -35,7 +35,6 @@ public final class LlmPlanTestFixtures {
                 null,
                 null,
                 null,
-                null,
                 null
         );
     }
@@ -55,7 +54,6 @@ public final class LlmPlanTestFixtures {
                 null,
                 null,
                 alignment,
-                null,
                 null,
                 null,
                 null,

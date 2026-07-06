@@ -16,12 +16,24 @@ from ..models.building_profile import BuildingProfile
 _NON_CLASSICAL_MARKERS = (
     "zaha", "hadid", "gehry", "guggenheim", "deconstruct", "parametric", "organic",
     "freeform", "curvilinear", "curved shell", "shell structure", "tensile",
-    "hyperboloid", "mesh facade", "lattice", "steel mesh", "bird's nest", "birds nest",
+    "hyperboloid", "mesh facade", "steel lattice", "structural lattice", "steel mesh",
+    "space frame", "bird's nest", "birds nest",
     "sydney opera", "opera house", "sails", "shell roof", "cantilever", "suspended",
-    "解构", "参数化", "曲面", "壳体", "网格", "悬挑", "悉尼歌剧院", "鸟巢",
+    "解构", "参数化", "曲面", "壳体", "悬挑", "悉尼歌剧院", "鸟巢",
     "体育场", "stadium", "arena", "bowl", "elliptical",
     "foster", "norman foster", "calatrava", "santiago calatrava",
     "tensile structure", "membrane", "cable-net", "exoskeleton",
+)
+
+# Short markers that also appear in traditional East Asian window/courtyard vocabulary.
+_AMBIGUOUS_NON_CLASSICAL_MARKERS = frozenset({"lattice", "网格"})
+
+_TRADITIONAL_EAST_ASIAN_CONTEXT_MARKERS = (
+    "chinese garden", "中式园林", "中式", "traditional chinese", "chinese traditional",
+    "traditional_chinese", "east_asian", "east asia", "east-asian", "jiangnan", "江南",
+    "pavilion", "亭台", "园林", "garden pavilion", "siheyuan", "四合院", "dougong", "斗拱",
+    "花窗", "格子窗", "carved_beam", "lattice window", "lattice_window", "window lattice",
+    "wooden lattice", "lattice_window", "double_gable", "xuanshan", "xieshan",
 )
 
 _CLASSICAL_STYLE_MARKERS = (
@@ -129,6 +141,30 @@ def score_feature_token_coverage(
     return score, matched, missing
 
 
+def _has_traditional_east_asian_context(blob: str) -> bool:
+    return any(marker in blob for marker in _TRADITIONAL_EAST_ASIAN_CONTEXT_MARKERS)
+
+
+def _non_classical_marker_hit(blob: str, marker: str) -> bool:
+    if marker not in blob:
+        return False
+    if marker in _AMBIGUOUS_NON_CLASSICAL_MARKERS and _has_traditional_east_asian_context(blob):
+        return False
+    return True
+
+
+def _token_implies_non_classical(token: str, blob: str) -> bool:
+    t = token.lower()
+    if _has_traditional_east_asian_context(blob):
+        if "lattice" in t and not any(
+            hint in t for hint in ("steel", "structural", "space frame", "mesh facade", "diagrid")
+        ):
+            return False
+        if t.strip() in ("网格", "grid") or t.endswith("窗格"):
+            return False
+    return any(_non_classical_marker_hit(blob, m) for m in _NON_CLASSICAL_MARKERS if m in t)
+
+
 def should_skip_classical_enrichment(
     user_text: str,
     profile: Optional[BuildingProfile],
@@ -153,13 +189,17 @@ def should_skip_classical_enrichment(
     blob = " ".join(blob_parts).lower()
 
     for marker in _NON_CLASSICAL_MARKERS:
-        if marker in blob:
+        if _non_classical_marker_hit(blob, marker):
+            return True, f"non_classical_marker:{marker}"
+
+    for marker in _AMBIGUOUS_NON_CLASSICAL_MARKERS:
+        if _non_classical_marker_hit(blob, marker):
             return True, f"non_classical_marker:{marker}"
 
     tokens = extract_distinguishing_tokens(profile)
     if tokens:
         non_classical_tokens = sum(
-            1 for t in tokens if any(m in t.lower() for m in _NON_CLASSICAL_MARKERS)
+            1 for t in tokens if _token_implies_non_classical(t, blob)
         )
         if non_classical_tokens >= 1 and not any(m in blob for m in _CLASSICAL_STYLE_MARKERS):
             return True, "distinguishing_features_non_classical"
