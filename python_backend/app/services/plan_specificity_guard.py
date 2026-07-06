@@ -23,6 +23,13 @@ _NON_CLASSICAL_MARKERS = (
     "体育场", "stadium", "arena", "bowl", "elliptical",
     "foster", "norman foster", "calatrava", "santiago calatrava",
     "tensile structure", "membrane", "cable-net", "exoskeleton",
+    "television tower", "tv tower", "observation tower", "observation sphere",
+    "communication tower", "broadcast tower", "transmission tower",
+    "oriental pearl", "东方明珠", "电视塔", "观光塔",
+    "united nations", "un headquarters", "secretariat building",
+    "联合国", "秘书处",
+    "egyptian pyramid", "great pyramid", "giza pyramid",
+    "埃及金字塔", "金字塔",
 )
 
 # Short markers that also appear in traditional East Asian window/courtyard vocabulary.
@@ -203,6 +210,16 @@ def should_skip_classical_enrichment(
         )
         if non_classical_tokens >= 1 and not any(m in blob for m in _CLASSICAL_STYLE_MARKERS):
             return True, "distinguishing_features_non_classical"
+
+    if plan is not None:
+        genome = plan.get("genome")
+        if isinstance(genome, dict):
+            archetype = genome.get("archetype")
+            if isinstance(archetype, dict):
+                archetype_id = str(archetype.get("id") or "").lower()
+                if archetype_id in ("pyramid", "tv_tower", "television_tower", "observation_tower"):
+                    if not any(m in blob for m in _CLASSICAL_STYLE_MARKERS):
+                        return True, f"archetype:{archetype_id}"
 
     if profile is not None and profile.form.footprint in ("freeform", "circular", "organic"):
         if not any(m in blob for m in _CLASSICAL_STYLE_MARKERS):

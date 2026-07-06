@@ -33,6 +33,76 @@ class NonClassicalEnrichmentGuardTest {
     }
 
     @Test
+    void activeFromPlanHeuristicWhenGuardMissing() {
+        LlmPlan plan = new LlmPlan(
+                LlmPlan.Mode.build,
+                "DEFAULT",
+                new Vec3i(0, 64, 0),
+                null,
+                null,
+                List.of(
+                        new Component(
+                                "MASS_MAIN",
+                                null,
+                                new Vec3i(0, 2, 0),
+                                new Dimensions(8, 8, 6),
+                                List.of("tower_body_lower", "observation_sphere"),
+                                Map.of("facade_profile", "vertical_pilasters")
+                        )
+                ),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of("television tower"),
+                null
+        );
+        assertTrue(NonClassicalEnrichmentGuard.isActive(plan));
+    }
+
+    @Test
+    void inactiveForClassicalPantheonModulePlan() {
+        LlmPlan plan = new LlmPlan(
+                LlmPlan.Mode.build,
+                "DEFAULT",
+                new Vec3i(0, 64, 0),
+                null,
+                null,
+                List.of(
+                        new Component(
+                                "MODULE",
+                                null,
+                                new Vec3i(0, 0, 0),
+                                new Dimensions(50, 50, 45),
+                                List.of("landmark:pantheon"),
+                                Map.of("module_id", "pantheon")
+                        )
+                ),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of("oculus", "portico", "coffered_dome"),
+                null
+        );
+        assertFalse(NonClassicalEnrichmentGuard.isActive(plan));
+    }
+
+    @Test
     void sanitizeStripsPilastersAndCrownComponents() {
         Map<String, Object> massParams = new HashMap<>();
         massParams.put("facade_profile", "vertical_pilasters");

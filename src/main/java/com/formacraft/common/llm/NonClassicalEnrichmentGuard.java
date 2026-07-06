@@ -1,6 +1,7 @@
 package com.formacraft.common.llm;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 
@@ -25,6 +26,19 @@ public final class NonClassicalEnrichmentGuard {
             "stadium_bowl", "classical_monument", "baroque", "palace", "cathedral", "castle"
     );
 
+    private static final List<String> PLAN_NON_CLASSICAL_MARKERS = List.of(
+            "zaha", "hadid", "gehry", "deconstruct", "parametric", "organic", "freeform",
+            "curvilinear", "shell structure", "sydney opera", "opera house", "bird's nest",
+            "birds nest", "television tower", "tv tower", "observation tower", "observation sphere",
+            "oriental pearl", "东方明珠", "电视塔", "united nations", "un headquarters",
+            "联合国", "egyptian pyramid", "埃及金字塔", "金字塔"
+    );
+
+    private static final List<String> CLASSICAL_CONTEXT_MARKERS = List.of(
+            "pantheon", "parthenon", "classical", "neoclassical", "baroque", "gothic cathedral",
+            "roman temple", "capitol", "medieval_castle", "万神殿"
+    );
+
     private NonClassicalEnrichmentGuard() {}
 
     public static boolean isActive(LlmPlan plan) {
@@ -32,13 +46,14 @@ public final class NonClassicalEnrichmentGuard {
             return false;
         }
         String guard = plan.enrichmentGuard();
-        if (guard == null || guard.isBlank()) {
-            return false;
+        if (guard != null && !guard.isBlank()) {
+            String normalized = guard.trim().toLowerCase(Locale.ROOT);
+            return normalized.startsWith("non_classical_marker:")
+                    || normalized.startsWith("archetype:")
+                    || normalized.equals("distinguishing_features_non_classical")
+                    || normalized.startsWith("footprint:");
         }
-        String normalized = guard.trim().toLowerCase(Locale.ROOT);
-        return normalized.startsWith("non_classical_marker:")
-                || normalized.equals("distinguishing_features_non_classical")
-                || normalized.startsWith("footprint:");
+        return inferNonClassicalFromPlan(plan);
     }
 
     public static boolean blocksCrownInference(LlmPlan plan) {
@@ -188,8 +203,13 @@ public final class NonClassicalEnrichmentGuard {
             return;
         }
         String roofType = paramString(params, "roof_type", "roofType");
-        if (roofType != null && roofType.toLowerCase(Locale.ROOT).contains("mansard")) {
-            params.put("roof_type", "hip");
+        if (roofType != null) {
+            String lower = roofType.toLowerCase(Locale.ROOT);
+            if (lower.contains("mansard")) {
+                params.put("roof_type", "hip");
+            } else if (lower.contains("gable") || lower.contains("hip")) {
+                params.put("roof_type", "flat");
+            }
         }
         String template = paramString(params, "crown_template", "crownTemplate");
         if (template != null && isClassicalCrownTemplate(template)) {
@@ -198,6 +218,69 @@ public final class NonClassicalEnrichmentGuard {
         }
         params.remove("roof_dormers");
         params.remove("roof_specialty");
+    }
+
+    private static boolean inferNonClassicalFromPlan(LlmPlan plan) {
+        String blob = planTextBlob(plan);
+        if (blob.isBlank() || hasClassicalContext(blob)) {
+            return false;
+        }
+        for (String marker : PLAN_NON_CLASSICAL_MARKERS) {
+            if (blob.contains(marker.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        if (blob.contains("\"id\":\"pyramid\"") || blob.contains("archetype_id=pyramid")) {
+            return true;
+        }
+        return blob.contains("observation_sphere") || blob.contains("tower_body_upper");
+    }
+
+    private static boolean hasClassicalContext(String blob) {
+        for (String marker : CLASSICAL_CONTEXT_MARKERS) {
+            if (blob.contains(marker)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String planTextBlob(LlmPlan plan) {
+        StringBuilder sb = new StringBuilder();
+        if (plan.styleProfile() != null) {
+            sb.append(plan.styleProfile()).append(' ');
+        }
+        if (plan.distinguishingFeatures() != null) {
+            for (String feature : plan.distinguishingFeatures()) {
+                if (feature != null) {
+                    sb.append(feature).append(' ');
+                }
+            }
+        }
+        if (plan.genome() != null) {
+            sb.append(JsonUtil.toJson(plan.genome())).append(' ');
+        }
+        if (plan.components() != null) {
+            for (Component component : plan.components()) {
+                if (component == null) {
+                    continue;
+                }
+                if (component.componentType() != null) {
+                    sb.append(component.componentType()).append(' ');
+                }
+                if (component.features() != null) {
+                    for (String feature : component.features()) {
+                        if (feature != null) {
+                            sb.append(feature).append(' ');
+                        }
+                    }
+                }
+                if (component.params() != null) {
+                    sb.append(JsonUtil.toJson(component.params())).append(' ');
+                }
+            }
+        }
+        return sb.toString().toLowerCase(Locale.ROOT);
     }
 
     private static void stripClassicalFacadeParams(Map<String, Object> params) {

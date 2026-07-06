@@ -34,6 +34,43 @@ class NonClassicalJavaGuardParityTest(unittest.TestCase):
             f"expected non_classical_marker guard, got {guard!r}",
         )
 
+    def test_enrichment_guard_emitted_for_oriental_pearl(self):
+        plan = {
+            "mode": "build",
+            "style_profile": "DEFAULT",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 2, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 6},
+                    "features": ["tower_body_lower"],
+                    "params": {"facade_profile": "vertical_pilasters"},
+                }
+            ],
+            "genome": {
+                "archetype": {"id": "tower", "confidence": 0.9},
+                "culturalStyle": {
+                    "region": "china",
+                    "keywords": ["television tower", "东方明珠"],
+                },
+            },
+        }
+        skip, reason = should_skip_classical_enrichment("上海东方明珠电视塔", None, plan)
+        self.assertTrue(skip, msg=f"expected guard, got {reason!r}")
+        out = enrich_llm_plan_architectural_detail(
+            plan, user_text="上海东方明珠电视塔", profile=None
+        )
+        self.assertIn("enrichment_guard", out)
+
+    def test_enrichment_guard_emitted_for_egyptian_pyramid(self):
+        skip, reason = should_skip_classical_enrichment("埃及金字塔", None, None)
+        self.assertTrue(skip, msg=f"expected guard, got {reason!r}")
+        self.assertTrue(
+            reason.startswith("non_classical_marker:")
+            or reason.startswith("archetype:"),
+            msg=f"unexpected reason: {reason!r}",
+        )
+
     def test_chinese_garden_enrichment_not_guarded_by_lattice(self):
         plan = {
             "mode": "build",

@@ -141,6 +141,11 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
 
             List<BlockPatch> patches = new ArrayList<>();
             for (var block : structure.getBlocks()) {
+                if (block.getTargetState().isAir()) {
+                    // LlmPlan path already clears building volume; skip bulk AIR clears from
+                    // StructureGenerators (e.g. Pantheon) to avoid 90%+ no-op patches at build time.
+                    continue;
+                }
                 BlockPos worldPos = block.getPos();
                 BlockPos relativePos = worldPos.subtract(worldAnchor);
 
