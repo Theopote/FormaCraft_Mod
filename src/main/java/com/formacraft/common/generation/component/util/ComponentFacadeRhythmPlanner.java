@@ -55,6 +55,22 @@ public final class ComponentFacadeRhythmPlanner {
             return pilasterAxes != null && !pilasterAxes.isEmpty();
         }
 
+        /** True when at least one window axis lies outside the entrance bay (side bays). */
+        public boolean hasNonEntranceWindowAxes() {
+            if (windowAxes == null || windowAxes.isEmpty()) {
+                return false;
+            }
+            if (entranceBayWindowAxes == null || entranceBayWindowAxes.isEmpty()) {
+                return true;
+            }
+            for (int i = windowAxes.nextSetBit(0); i >= 0; i = windowAxes.nextSetBit(i + 1)) {
+                if (!entranceBayWindowAxes.get(i)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public static RhythmPlan inactive(int axisMax) {
             return new RhythmPlan(axisMax, null, null, null, null);
         }

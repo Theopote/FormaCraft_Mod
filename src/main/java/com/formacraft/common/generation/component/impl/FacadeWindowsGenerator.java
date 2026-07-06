@@ -149,6 +149,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                                 continue;
                             }
                             if (reserveEntranceBay
+                                    && rhythmPlan.hasNonEntranceWindowAxes()
                                     && isEntranceFacade(x, z, width, depth, facing, wrapFacade)
                                     && rhythmPlan.isEntranceBayAxis(axis)) {
                                 continue;
