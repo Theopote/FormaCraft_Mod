@@ -16,6 +16,7 @@ from app.services.building_plan_stage import (
     evaluate_plan_profile_alignment,
     is_research_two_phase_enabled,
     plan_stage_system_augmentation,
+    profile_routing_summary,
     score_plan_profile_alignment,
 )
 from app.services.building_research_agent import synthesize_profile_rule_based
@@ -40,12 +41,49 @@ class PlanStagePromptTest(unittest.TestCase):
             "建造天坛",
             [{"title": "Temple of Heaven", "snippet": "circular tiered altar courtyard", "url": ""}],
         )
+        profile = __import__(
+            "app.services.building_research_agent",
+            fromlist=["finalize_profile_minecraft_strategy"],
+        ).finalize_profile_minecraft_strategy(profile, "建造天坛")
         block = build_plan_stage_user_block(profile, "建造天坛")
         self.assertIn("STAGE P", block)
         self.assertIn("BuildingProfile(JSON)", block)
         self.assertIn("天坛", block)
-        self.assertIn("MASS_MAIN", block)
+        self.assertIn("OPEN-WORLD RESEARCH OVERRIDE", block)
+        self.assertNotIn("vertical_pilasters", block)
+        self.assertIn("typology", block.lower())
         self.assertIn("建造天坛", block)
+
+    def test_typology_stage_block_omits_classical_richness(self):
+        from app.services.building_research_agent import finalize_profile_minecraft_strategy
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
+
+        profile = finalize_profile_minecraft_strategy(
+            BuildingProfile(
+                query="金门大桥",
+                minecraft_strategy=ProfileMinecraftStrategy(),
+            ),
+            "生成金门大桥",
+        )
+        block = build_plan_stage_user_block(profile, "生成金门大桥")
+        self.assertIn("suspension_bridge", block)
+        self.assertNotIn("vertical_pilasters", block)
+        self.assertNotIn("DECOR_DETAIL cornice", block)
+
+    def test_profile_routing_summary_typology(self):
+        from app.services.building_research_agent import finalize_profile_minecraft_strategy
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
+
+        profile = finalize_profile_minecraft_strategy(
+            BuildingProfile(
+                query="盖一座天坛",
+                minecraft_strategy=ProfileMinecraftStrategy(),
+            ),
+            "盖一座天坛",
+        )
+        summary = profile_routing_summary(profile)
+        self.assertIn("typology:radial_terrace_hall", summary)
+        self.assertIn("temple_of_heaven", summary)
 
     def test_augment_strips_duplicate_research_block(self):
         profile = synthesize_profile_rule_based("苏州博物馆", "建造苏州博物馆", [])

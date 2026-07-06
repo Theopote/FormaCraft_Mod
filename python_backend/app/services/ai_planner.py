@@ -4990,7 +4990,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
 
             if not is_research_two_phase_enabled():
                 user_prompt = (
-                    format_profile_for_prompt(building_profile)
+                    format_profile_for_prompt(building_profile, compact_routing=True)
                     + "\n\n"
                     + user_prompt
                 )

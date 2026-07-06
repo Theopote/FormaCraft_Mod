@@ -174,9 +174,23 @@ class PrAResearchPromptTest(unittest.TestCase):
             self.TEMPLE_PROMPT,
         )
         text = format_profile_for_prompt(profile)
-        self.assertIn("typology-first", text.lower())
+        self.assertIn("typology:radial_terrace_hall", text)
         self.assertIn("temple_of_heaven", text)
-        self.assertIn("NEVER use MODULE", text)
+        self.assertIn("OPEN-WORLD RESEARCH OVERRIDE", text)
+        self.assertNotIn("famen_pagoda", text)
+
+    def test_format_profile_compact_shorter_than_legacy(self):
+        profile = finalize_profile_minecraft_strategy(
+            BuildingProfile(
+                query=self.TEMPLE_PROMPT,
+                minecraft_strategy=ProfileMinecraftStrategy(),
+            ),
+            self.TEMPLE_PROMPT,
+        )
+        compact = format_profile_for_prompt(profile, compact_routing=True)
+        legacy = format_profile_for_prompt(profile, compact_routing=False)
+        self.assertLess(len(compact), len(legacy))
+        self.assertGreater(len(legacy) - len(compact), 500)
 
     def test_plan_stage_override_typology_not_module(self):
         profile = finalize_profile_minecraft_strategy(

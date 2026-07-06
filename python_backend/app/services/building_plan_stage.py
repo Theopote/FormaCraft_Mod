@@ -49,19 +49,14 @@ REGISTERED_COMPONENT_TYPES: Tuple[str, ...] = (
 
 PLAN_STAGE_SYSTEM_ADDON = (
     "PLAN STAGE (after Building Research):\n"
-    "- You receive a BuildingProfile from open-world research; convert it to a valid LlmPlan JSON.\n"
+    "- Convert BuildingProfile to a valid LlmPlan JSON.\n"
+    "- Routing is authoritative in OPEN-WORLD RESEARCH OVERRIDE (system) — do not follow conflicting landmark hints.\n"
+    "- Copy profile.structure.distinguishing_features → plan.distinguishing_features[].\n"
     "- Use ONLY registered component_type values listed in the user message.\n"
-    "- Prefer minecraft_strategy.recommended_components; map distinctive_elements to params/features.\n"
-    "- Copy profile.structure.distinguishing_features to top-level distinguishing_features[] in LlmPlan.\n"
-    "- Respect scale_hints for dimensions (width/depth/height in blocks).\n"
-    "- Set layout.skeleton_type from minecraft_strategy when present.\n"
-    "- When structural_typology is set → STRUCTURE + typology:<id>; landmark_module must be null.\n"
-    "- MODULE + landmark:xxx ONLY for non-migrated presets when landmark_module is explicitly non-null.\n"
-    "- Set proportion_hints.typology when structural_typology is present.\n"
+    "- Respect scale_hints; set layout.skeleton_type from minecraft_strategy.\n"
     "- Do NOT output block ids; semantic components only.\n"
-    "- global_constraints.symmetry MUST be one of: NONE, MIRROR_X, MIRROR_Z, RADIAL "
-    "(NOT genome.symmetry.type values like bilateral/radial).\n"
-    "- If profile and user request conflict, prefer the user request for intent and profile for form/style.\n"
+    "- global_constraints.symmetry MUST be one of: NONE, MIRROR_X, MIRROR_Z, RADIAL.\n"
+    "- User request wins for intent; profile wins for form/style.\n"
 )
 
 
@@ -139,6 +134,25 @@ Compose using minecraft_strategy.recommended_components and distinctive_elements
 """
 
 
+def profile_routing_summary(profile: BuildingProfile) -> str:
+    """One-line routing digest for compact user prompts (full contract lives in system override)."""
+    mc = profile.minecraft_strategy
+    stid = (mc.structural_typology or "").strip()
+    lm = (mc.landmark_module or "").strip()
+    ref = (mc.reference_landmark or "").strip()
+    if stid:
+        hint = f"STRUCTURE + typology:{stid}; landmark_module=null"
+        if ref:
+            hint += f"; reference_landmark={ref}"
+        return hint + "."
+    if lm:
+        return f"ONE MODULE with landmark:{lm}."
+    rec = ", ".join(str(c) for c in (mc.recommended_components or []) if c)
+    if not rec:
+        rec = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE"
+    return f"Compositional plan; landmark_module=null; recommended_components=[{rec}]."
+
+
 def strip_java_landmark_routing_blocks(system_prompt: str) -> str:
     """Remove Java PromptAssembler landmark MODULE sections when research override is authoritative."""
     text = (system_prompt or "").strip()
@@ -207,31 +221,46 @@ def build_plan_stage_user_block(
 ) -> str:
     """Stage P 专用 user 块：Profile JSON + 规划合约 + 原始用户请求。"""
     profile_json = json.dumps(profile.to_prompt_dict(), ensure_ascii=False, indent=2)
+    stid = (profile.minecraft_strategy.structural_typology or "").strip()
     lines = [
         "=== STAGE P: LlmPlan from BuildingProfile ===",
         "",
         "Research is complete. Produce the final LlmPlan JSON using the profile below.",
+        f"Routing summary: {profile_routing_summary(profile)}",
+        "Full routing contract: OPEN-WORLD RESEARCH OVERRIDE in system prompt.",
         "",
         "BuildingProfile(JSON):",
         profile_json,
         "",
         "Planning checklist:",
         "1. layout.skeleton_type ← minecraft_strategy.skeleton_type",
-        "2. components[] ← recommended_components + distinctive_elements",
+        "2. components[] ← recommended_components; map distinctive_elements to params/features",
         "3. dimensions ← scale_hints (blocks); use reasonable defaults if null",
-        "4. style_profile ← identity.style when available; if identity.architect is set, match that architect's style profile",
-        "5. structural_typology set → STRUCTURE + typology:*; MODULE only for non-migrated landmark_module",
-        "6. Architectural richness (required for open-world): MASS params.facade_profile=vertical_pilasters or base_plinth, "
-        "params.wall_pattern=gradient, FOUNDATION plinth, ROOF with params.roof_height+overhang, "
-        "FACADE_WINDOWS with params.window_aspect/rhythm, ≥1 DECOR_DETAIL cornice or column band.",
-        "7. Output top-level proportion_hints (height_to_width, depth_to_width, roof_to_body_height) before dimensions.",
-        "8. If reference_blueprint is present, map architectural_layers → components[] with matching dimensions",
-        "9. Use block_palette roles in style_attributes / params.material hints",
-        "10. Apply generation_rules / detailing_rules in params and features",
-        "11. If research_notes contain [Visual], prioritize visual observations for form/materials",
-        "12. distinguishing_features[] ← profile.structure.distinguishing_features (top-level LlmPlan field)",
-        "",
+        "4. style_profile ← identity.style; honor identity.architect when set",
+        "5. routing ← system OPEN-WORLD RESEARCH OVERRIDE (authoritative)",
+        "6. distinguishing_features[] ← profile.structure.distinguishing_features",
     ]
+    if stid:
+        lines.append(
+            "7. typology plan: proportion_hints.typology + typology ratios only; no house/pilaster enrichment"
+        )
+        lines.append(
+            "8. If reference_blueprint is present, map layers → STRUCTURE params (not extra MASS components)"
+        )
+        next_idx = 9
+    else:
+        lines.extend([
+            "7. Architectural richness: FOUNDATION plinth, ROOF overhang, FACADE_WINDOWS rhythm, ≥1 DECOR_DETAIL",
+            "8. proportion_hints (height_to_width, depth_to_width, roof_to_body_height) before dimensions",
+            "9. If reference_blueprint is present, map architectural_layers → components[] with matching dimensions",
+        ])
+        next_idx = 10
+    lines.extend([
+        f"{next_idx}. Use block_palette roles in style_attributes / params.material hints",
+        f"{next_idx + 1}. Apply generation_rules / detailing_rules in params and features",
+        f"{next_idx + 2}. If research_notes contain [Visual], prioritize visual observations for form/materials",
+        "",
+    ])
     if include_registered_types:
         lines.append(
             "Registered component_type values (ONLY these): "

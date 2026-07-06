@@ -578,8 +578,7 @@ def finalize_profile_minecraft_strategy(
         note = (mc.notes or "").strip()
         if "landmark_module is null" not in note.lower():
             mc.notes = (
-                "landmark_module is null: compose with recommended_components only; "
-                "IGNORE Java prompt landmark MODULE routing hints. "
+                "landmark_module is null: compositional only. "
                 + note
             ).strip()
     profile = profile.model_copy(update={"minecraft_strategy": mc})
@@ -938,36 +937,50 @@ def synthesize_profile_with_llm(
         return None
 
 
-def format_profile_for_prompt(profile: BuildingProfile) -> str:
+def format_profile_for_prompt(
+    profile: BuildingProfile,
+    *,
+    compact_routing: bool = True,
+) -> str:
     """将 BuildingProfile 格式化为 LlmPlan prompt 前置上下文。"""
+    from .building_plan_stage import profile_routing_summary
+
     payload = profile.to_prompt_dict()
     lines = [
         "=== Building Research Profile (open-world) ===",
         "",
-        "The following profile was synthesized from web research and the user request.",
-        "Use it to inform accurate LlmPlan generation.",
-        "",
-        "CRITICAL routing (typology-first):",
-        "- When minecraft_strategy.structural_typology is set → output ONE STRUCTURE with "
-        "features [\"typology:<id>\"] and params.reference_landmark if provided; "
-        "landmark_module MUST stay null.",
-        "- Typology-first plans MUST NOT include MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, "
-        "ENTRANCE, FOUNDATION, FACADE_WINDOWS, or DECOR_DETAIL alongside typology STRUCTURE.",
-        "- suspension_bridge / golden_gate_bridge: proportion_hints use span_to_tower_height "
-        "and cable_sag_ratio only — never house ratios (height_to_width, floor_cornice).",
-        "- Migrated landmarks (famen_pagoda, giant_wild_goose_pagoda, foguang_temple_hall, "
-        "temple_of_heaven, birds_nest_stadium, golden_gate_bridge, gothic_cathedral, mingqing_courtyard, castle_compound, modern_skyscraper) NEVER use MODULE — even if Java LANDMARK MODULE blocks suggest it.",
-        "- If landmark_module is null → compositional and/or STRUCTURE typology; do NOT use MODULE.",
-        "- MODULE allowed ONLY when landmark_module is a non-migrated preset explicitly set in this "
-        "profile (e.g. great_wall, eiffel_tower).",
-        "- Set proportion_hints.typology to structural_typology when present.",
-        "- IGNORE any Java prompt 'LANDMARK MODULE ROUTING' sections that conflict with this profile.",
-        "",
-        "CRITICAL distinguishing features (override generic style keywords):",
-        "- structure.distinguishing_features lists what makes THIS building unique.",
-        "- MUST appear in component features/params — priority above generic gothic/modern keywords.",
+        "Profile synthesized from research. Use for LlmPlan generation.",
         "",
     ]
+    if compact_routing:
+        lines.extend([
+            f"Routing summary: {profile_routing_summary(profile)}",
+            "Full routing contract: OPEN-WORLD RESEARCH OVERRIDE in system prompt.",
+            "",
+            "Distinguishing features (priority over generic style keywords):",
+            "- Copy structure.distinguishing_features → plan.distinguishing_features[] and component params/features.",
+            "",
+        ])
+    else:
+        lines.extend([
+            "CRITICAL routing (typology-first):",
+            "- When minecraft_strategy.structural_typology is set → output ONE STRUCTURE with "
+            "features [\"typology:<id>\"] and params.reference_landmark if provided; "
+            "landmark_module MUST stay null.",
+            "- Typology-first plans MUST NOT include MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, "
+            "ENTRANCE, FOUNDATION, FACADE_WINDOWS, or DECOR_DETAIL alongside typology STRUCTURE.",
+            "- suspension_bridge / golden_gate_bridge: proportion_hints use span_to_tower_height "
+            "and cable_sag_ratio only — never house ratios (height_to_width, floor_cornice).",
+            "- Migrated landmarks NEVER use MODULE — even if Java LANDMARK MODULE blocks suggest it.",
+            "- If landmark_module is null → compositional and/or STRUCTURE typology; do NOT use MODULE.",
+            "- MODULE allowed ONLY when landmark_module is a non-migrated preset explicitly set in this profile.",
+            "- Set proportion_hints.typology to structural_typology when present.",
+            "",
+            "CRITICAL distinguishing features (override generic style keywords):",
+            "- structure.distinguishing_features lists what makes THIS building unique.",
+            "- MUST appear in component features/params — priority above generic gothic/modern keywords.",
+            "",
+        ])
     if profile.request_classification is not None:
         lines.extend([
             "Request classification (Stage 1 — authoritative for research vs generic intent):",
@@ -992,11 +1005,9 @@ def format_profile_for_prompt(profile: BuildingProfile) -> str:
     lines.extend([
         "Planning rules:",
         "- Respect scale_hints when choosing dimensions (blocks).",
-        "- Include distinguishing_features in component params/features (highest priority).",
-        "- Also copy profile.structure.distinguishing_features to top-level LlmPlan distinguishing_features[].",
-        "- Include distinctive_elements in component params/features where possible.",
-        "- If reference_blueprint is present, use its architectural_layers, block_palette,",
-        "  and generation_rules as the primary spatial/material guide for LlmPlan components.",
+        "- Map distinctive_elements to component params/features where possible.",
+        "- If reference_blueprint is present, use architectural_layers, block_palette,",
+        "  and generation_rules as the primary spatial/material guide.",
         "- Do NOT invent unregistered component_type values.",
         "- If research_notes conflict with user text, prefer user text for intent.",
         "",
