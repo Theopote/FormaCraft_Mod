@@ -38,10 +38,32 @@ class ChineseLandmarkDetailUtilTest {
     }
 
     @Test
-    void perimeterColumns_includesCorners() {
-        var cols = ChineseLandmarkDetailUtil.perimeterColumnPositions(0, 0, 21, 15, 3);
-        assertFalse(cols.isEmpty());
-        assertTrue(cols.stream().anyMatch(c -> c[0] == 0 && c[1] == 0));
-        assertTrue(cols.stream().anyMatch(c -> c[0] == 21 && c[1] == 15));
+    void octagonFaceByIndex_cyclesEightFaces() {
+        var f0 = ChineseLandmarkDetailUtil.octagonFaceByIndex(5, 0);
+        var f8 = ChineseLandmarkDetailUtil.octagonFaceByIndex(5, 8);
+        assertEquals(f0.x(), f8.x());
+        assertEquals(f0.z(), f8.z());
+        assertNotEquals(
+                ChineseLandmarkDetailUtil.octagonFaceByIndex(5, 0).x(),
+                ChineseLandmarkDetailUtil.octagonFaceByIndex(5, 2).x()
+        );
+    }
+
+    @Test
+    void resolvePuzuoProfile_cornerVsEdge() {
+        assertEquals(
+                ChineseLandmarkDetailUtil.PuzuoProfile.INTERIOR_CORNER,
+                ChineseLandmarkDetailUtil.resolvePuzuoProfile(false, true)
+        );
+        assertEquals(
+                ChineseLandmarkDetailUtil.PuzuoProfile.SUB_EAVES_EDGE,
+                ChineseLandmarkDetailUtil.resolvePuzuoProfile(true, false)
+        );
+    }
+
+    @Test
+    void isCornerColumn_detectsRectangleCorners() {
+        assertTrue(ChineseLandmarkDetailUtil.isCornerColumn(0, 0, 0, 0, 21, 15));
+        assertFalse(ChineseLandmarkDetailUtil.isCornerColumn(9, 0, 0, 0, 21, 15));
     }
 }

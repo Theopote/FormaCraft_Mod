@@ -20,9 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * FamenPagodaGenerator：法门寺舍利塔（强原型）专用生成器（v2 / P2）
+ * FamenPagodaGenerator：法门寺舍利塔（强原型）专用生成器（v3 / P3）
  *
- * P2: 正八角轮廓、券形假窗、双层檐口、相轮塔刹。
+ * P3: 券窗按层序轮转八面、密檐层数对齐。
  */
 public class FamenPagodaGenerator implements StructureGenerator {
 
@@ -107,8 +107,9 @@ public class FamenPagodaGenerator implements StructureGenerator {
 
             if (lv == 0) {
                 carveDoor(blocks, origin, facing, y + 1, half);
-            } else if (lv % 2 == 1 || refined) {
-                ChineseLandmarkDetailUtil.addPagodaArchedNiches(blocks, origin, half, y, levelH, refined, trim, archStair);
+            } else {
+                ChineseLandmarkDetailUtil.addPagodaTierNiche(
+                        blocks, origin, half, y, levelH, lv, levels, refined, trim, archStair);
             }
 
             ChineseLandmarkDetailUtil.ringRegularOctagon(blocks, origin, half + 1, eaveY, eave);
@@ -127,7 +128,7 @@ public class FamenPagodaGenerator implements StructureGenerator {
         double ratioScore = clamp01(1.0 - Math.abs(slenderness - 4.7) * 0.15);
         double overall = clamp01(0.9 * 0.4 + ratioScore * 0.35 + clamp01(0.75 + levels / 20.0) * 0.25);
         String desc = String.format(
-                "FamenPagoda v2 (regular-octagon, arched niches, levels=%d, h=%d, base=%d, facing=%s, score=%.2f)",
+                "FamenPagoda v3 (tier-synced niches, regular-octagon, levels=%d, h=%d, base=%d, facing=%s, score=%.2f)",
                 levels, height, baseW, facing.asString(), overall
         );
         return new GeneratedStructure(null, origin, desc, blocks);

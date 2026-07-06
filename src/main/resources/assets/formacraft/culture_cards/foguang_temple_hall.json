@@ -38,7 +38,7 @@
         "RECOMMENDED: MODULE + landmark:foguang_temple_hall（七开间唐代木构大殿专用生成器）",
         "params.baysX=7, baysZ=4, width≈21, depth≈15, hallHeight≈7, includeSubEaves=true, facing=SOUTH",
         "MASS_MAIN 低而阔（height_to_width≈0.5），FOUNDATION 石台基，ROOF 大出檐 xuanshan",
-        "DECOR_DETAIL：柱头铺作（斗拱出跳）+ 格子窗 + 副阶额枋；居中门洞",
+        "铺作分区：内槽角柱双轴跳+撩檐枋；副阶柱简化铺作 + 副阶内檐浅屋面",
         "style_attributes.decorative_elements 必含 bracket,dougong,eaves",
         "禁止 CROWN/西方圆顶、禁止 cottage 小方盒、禁止把大殿做成高塔"
       ]

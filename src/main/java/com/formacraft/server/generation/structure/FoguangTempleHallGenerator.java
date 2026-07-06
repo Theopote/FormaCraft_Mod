@@ -21,9 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * FoguangTempleHallGenerator：佛光寺东大殿（唐代木构佛殿强原型）专用生成器（v2 / P2）
+ * FoguangTempleHallGenerator：佛光寺东大殿（唐代木构佛殿强原型）专用生成器（v3 / P3）
  *
- * P2: 柱头铺作层、格子窗、副阶额枋、三级踏道、居中门洞。
+ * P3: 铺作分区（柱头/跳/枋/撩檐）、副阶内檐。
  */
 public class FoguangTempleHallGenerator implements StructureGenerator {
 
@@ -106,9 +106,16 @@ public class FoguangTempleHallGenerator implements StructureGenerator {
         addLatticeWindows(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yWallTop, trim, lattice);
         carveMainEntrance(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yWallTop);
 
-        addDougongAtColumns(blocks, origin, entrance, ox, oz, ox + w, oz + d, bayWidth, yCol1 + 1, trim, bracket, paint);
+        addPuzuoAtColumns(blocks, origin, entrance, ox, oz, ox + w, oz + d, bayWidth, yCol1 + 1, false, trim, bracket, trim, paint);
         if (subEaves) {
-            addDougongAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1, bayWidth, yCol1, trim, bracket, paint);
+            addPuzuoAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1, bayWidth, yCol1, true, trim, bracket, trim, paint);
+            int innerRoofY = yCol1 + 3;
+            ChineseLandmarkDetailUtil.addSubEavesInnerRoof(
+                    (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
+                    ox, oz, ox + w, oz + d,
+                    0, 0, outerW - 1, outerD - 1,
+                    innerRoofY, roofSlab, roofStairs
+            );
         }
 
         List<PlannedBlock> roofBlocks = new ArrayList<>();
@@ -137,7 +144,7 @@ public class FoguangTempleHallGenerator implements StructureGenerator {
         addTerraceSteps(blocks, origin, entrance, ox, oz, w, d, platformH, roofStairs);
 
         String desc = String.format(
-                "FoguangTempleHall v2 (dougong stacks, lattice, %d×%d bays, w=%d d=%d, subEaves=%s)",
+                "FoguangTempleHall v3 (puzuo zones, sub-eaves inner roof, %d×%d bays, w=%d d=%d, subEaves=%s)",
                 baysX, baysZ, w, d, subEaves
         );
         return new GeneratedStructure(null, origin, desc, blocks);
@@ -179,14 +186,21 @@ public class FoguangTempleHallGenerator implements StructureGenerator {
         put(blocks, origin, entrance, doorX, y0, doorZ, Blocks.OAK_DOOR.getDefaultState());
     }
 
-    private static void addDougongAtColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                            int x0, int z0, int x1, int z1, int spacing,
-                                            int y, BlockState bracketCap, BlockState arm, BlockState paint) {
+    private static void addPuzuoAtColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                          int x0, int z0, int x1, int z1, int spacing,
+                                          int y, boolean subEaves,
+                                          BlockState luDou, BlockState gong, BlockState fang, BlockState paint) {
         for (int[] col : ChineseLandmarkDetailUtil.perimeterColumnPositions(x0, z0, x1, z1, spacing)) {
-            Direction out = ChineseLandmarkDetailUtil.outwardFromRectEdge(col[0], col[1], x0, z0, x1, z1);
-            ChineseLandmarkDetailUtil.addDougongStack(
+            int x = col[0];
+            int z = col[1];
+            boolean corner = ChineseLandmarkDetailUtil.isCornerColumn(x, z, x0, z0, x1, z1);
+            Direction out = ChineseLandmarkDetailUtil.outwardFromRectEdge(x, z, x0, z0, x1, z1);
+            Direction along = ChineseLandmarkDetailUtil.alongWallFromEdge(x, z, x0, z0, x1, z1);
+            ChineseLandmarkDetailUtil.PuzuoProfile profile =
+                    ChineseLandmarkDetailUtil.resolvePuzuoProfile(subEaves, corner);
+            ChineseLandmarkDetailUtil.addPuzuoZoning(
                     (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
-                    col[0], y, col[1], out, bracketCap, arm, paint
+                    x, y, z, out, along, profile, luDou, gong, fang, paint
             );
         }
     }
