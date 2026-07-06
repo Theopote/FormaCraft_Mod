@@ -23,6 +23,7 @@ import com.formacraft.common.proportion.CrownGrammarResolver;
 import com.formacraft.common.proportion.OpeningGrammarResolver;
 import com.formacraft.common.proportion.RoofGrammarResolver;
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.typology.TypologyComponentRouter;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import com.formacraft.common.terrain.TerrainStrategySampler;
@@ -316,6 +317,7 @@ public final class ComponentPlanCompiler {
 
         AssemblyPlanPromoter.PromotionResult assemblyPromotion = AssemblyPlanPromoter.promoteNestedAssembly(components);
         components = assemblyPromotion.components();
+        components = applyTypologyExclusiveFilter(components);
         Set<String> assemblyPrimarySlots = assemblyPromotion.assemblyPrimarySlots();
         massSlots.clear();
         for (Component c : components) {
@@ -454,6 +456,58 @@ public final class ComponentPlanCompiler {
     }
 
     /**
+     * When a plan already has {@code STRUCTURE + typology:*}, drop redundant compositional
+     * building parts (MASS/TOWER/ROOF/…) that the typology builder already owns.
+     */
+    private static List<Component> applyTypologyExclusiveFilter(List<Component> components) {
+        if (components == null || components.isEmpty()) {
+            return components;
+        }
+
+        boolean hasTypologyStructure = false;
+        for (Component c : components) {
+            if (c == null) {
+                continue;
+            }
+            if ("STRUCTURE".equals(normalizeType(c.componentType()))
+                    && TypologyComponentRouter.hasTypologyHint(c)) {
+                hasTypologyStructure = true;
+                break;
+            }
+        }
+        if (!hasTypologyStructure) {
+            return components;
+        }
+
+        List<Component> kept = new ArrayList<>();
+        int stripped = 0;
+        for (Component c : components) {
+            if (c == null) {
+                continue;
+            }
+            String type = normalizeType(c.componentType());
+            if ("STRUCTURE".equals(type) && TypologyComponentRouter.hasTypologyHint(c)) {
+                kept.add(c);
+            } else if (isTypologyExclusivePeripheral(type)) {
+                kept.add(c);
+            } else {
+                stripped++;
+            }
+        }
+
+        if (stripped > 0) {
+            FormacraftMod.LOGGER.info(
+                    "ComponentPlanCompiler: typology-exclusive plan stripped {} compositional component(s), kept {}",
+                    stripped, kept.size());
+        }
+        return kept;
+    }
+
+    private static boolean isTypologyExclusivePeripheral(String type) {
+        return "PAVING".equals(type) || "PATH".equals(type) || "COURTYARD_SPACE".equals(type);
+    }
+
+    /**
      * LLM 常把 ROOF/FACADE/ENTRANCE 的 relative_position 写成与 MASS 相同的中心坐标；
      * 这些附属组件生成器按 min_corner 解释坐标。在此统一贴回 {@link #resolveMassOrigin(Component)}。
      * <p>assembly-primary slot 无 MASS 锚点，跳过以免误对齐。</p>
@@ -508,6 +562,7 @@ public final class ComponentPlanCompiler {
                 case "FACADE_WINDOWS" -> alignFacadeToMass(c, mass, plan, facing);
                 case "ENTRANCE" -> alignEntranceToMass(c, mass, plan, facing);
                 case "CROWN", "CUPOLA", "DOME" -> alignCrownToMass(c, mass, plan, components);
+                case "FOUNDATION", "TERRACE", "BASE" -> alignFoundationToMass(c, mass);
                 default -> isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
             };
             if (aligned != null && aligned != c) {
@@ -531,6 +586,22 @@ public final class ComponentPlanCompiler {
             return plan.globalConstraints().facing();
         }
         return GlobalConstraints.Facing.SOUTH;
+    }
+
+    private static Component alignFoundationToMass(Component foundation, Component mass) {
+        Vec3i massOrigin = resolveMassOrigin(mass);
+        Vec3i fp = foundation.relativePosition();
+        if (massOrigin == null || fp == null) {
+            return foundation;
+        }
+        return new Component(
+                foundation.componentType(),
+                foundation.slotId(),
+                new Vec3i(massOrigin.x(), fp.y(), massOrigin.z()),
+                foundation.dimensions(),
+                foundation.features(),
+                foundation.params()
+        );
     }
 
     private static Component alignRoofToMass(Component llmRoof, Component mass, LlmPlan plan) {

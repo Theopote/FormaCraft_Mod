@@ -2,6 +2,7 @@ package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -30,7 +31,10 @@ public class FoundationGenerator implements ComponentGenerator {
         }
 
         Dimensions d = c.dimensions();
-        Vec3i rp = c.relativePosition();
+        Vec3i rp = ComponentFootprintUtil.resolveMinCornerOrigin(c);
+        if (rp == null) {
+            return out;
+        }
 
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());

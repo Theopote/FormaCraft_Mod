@@ -132,6 +132,74 @@ class ComponentPlanCompilerRealignTest {
         assertTrue(interiorRoof, "interior footprint should still receive roof blocks");
     }
 
+    @Test
+    void realignsCenterAnchoredFoundationToMassMinCorner() {
+        LlmPlan plan = new LlmPlan(
+                LlmPlan.Mode.build,
+                "Chinese_Traditional",
+                new Vec3i(0, 64, 0),
+                new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null),
+                new Layout(null, false, List.of(
+                        new Slot("villa_1", new Vec3i(0, 0, 0), GlobalConstraints.Facing.EAST, "RESIDENTIAL", null, null)
+                )),
+                List.of(
+                        centerFoundation(),
+                        centerMassMain()
+                ),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
+        assertFalse(patches.isEmpty());
+
+        boolean foundationAtMassCorner = patches.stream().anyMatch(p ->
+                p.dx() == -10 && p.dy() == 0 && p.dz() == -10
+                        && p.targetBlock() != null && !p.targetBlock().contains("air"));
+        boolean strayFoundationCorner = patches.stream().anyMatch(p ->
+                p.dx() == -20 && p.dy() == 0 && p.dz() == -20
+                        && p.targetBlock() != null && !p.targetBlock().contains("air"));
+
+        assertTrue(foundationAtMassCorner, "foundation should align to mass min_corner XZ");
+        assertFalse(strayFoundationCorner, "foundation should not stay at its own center anchor");
+    }
+
+    private static Component centerFoundation() {
+        return new Component(
+                "FOUNDATION",
+                "villa_1",
+                new Vec3i(0, 0, 0),
+                new Dimensions(40, 40, 2),
+                List.of(),
+                Map.of("shape", "rectangle")
+        );
+    }
+
+    private static Component centerMassMain() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("anchor_mode", "center");
+        params.put("window_ratio", 0.3);
+        return new Component(
+                "MASS_MAIN",
+                "villa_1",
+                new Vec3i(0, 2, 0),
+                new Dimensions(20, 20, 10),
+                List.of(),
+                params
+        );
+    }
+
     private static Component massMain() {
         Map<String, Object> params = new HashMap<>();
         params.put("anchor_mode", "center");
