@@ -9,6 +9,8 @@ from .typology_registry import get_migration, get_typology
 
 logger = logging.getLogger(__name__)
 
+_TYPOLOGY_EXCLUSIVE_PERIPHERALS = frozenset({"PAVING", "PATH", "COURTYARD_SPACE"})
+
 # Mirrors Java TypologyReferencePresets — applied after reference_landmark merge.
 _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
     "famen_pagoda": {
@@ -121,6 +123,67 @@ def _extract_landmark_id(comp: Dict[str, Any]) -> Optional[str]:
         if mid:
             return str(mid).strip()
     return None
+
+
+def _has_typology_hint(comp: Dict[str, Any]) -> bool:
+    """True when component carries STRUCTURE typology routing (mirrors Java TypologyComponentRouter)."""
+    features = comp.get("features") or []
+    if isinstance(features, list):
+        for f in features:
+            if isinstance(f, str) and f.strip().lower().startswith("typology:"):
+                return True
+    params = comp.get("params") or {}
+    if isinstance(params, dict):
+        for key in ("typology_id", "structural_typology", "typologyId", "structuralTypologyId"):
+            v = params.get(key)
+            if v is not None and str(v).strip():
+                return True
+    return False
+
+
+def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
+    """
+    When plan already has STRUCTURE + typology:*, drop redundant compositional parts
+    (MASS/TOWER/ROOF/…) that the typology builder owns. Mirrors Java applyTypologyExclusiveFilter.
+    Returns (plan, stripped_count).
+    """
+    if not isinstance(plan, dict):
+        return plan, 0
+    components = plan.get("components")
+    if not isinstance(components, list) or not components:
+        return plan, 0
+
+    has_typology_structure = any(
+        isinstance(c, dict)
+        and str(c.get("component_type") or "").upper() == "STRUCTURE"
+        and _has_typology_hint(c)
+        for c in components
+    )
+    if not has_typology_structure:
+        return plan, 0
+
+    kept: List[Dict[str, Any]] = []
+    stripped = 0
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        ctype = str(comp.get("component_type") or "").upper()
+        if ctype == "STRUCTURE" and _has_typology_hint(comp):
+            kept.append(comp)
+        elif ctype in _TYPOLOGY_EXCLUSIVE_PERIPHERALS:
+            kept.append(comp)
+        else:
+            stripped += 1
+
+    if stripped:
+        plan = dict(plan)
+        plan["components"] = kept
+        logger.info(
+            "TypologyPlanRepair: typology-exclusive stripped %d compositional component(s), kept %d",
+            stripped,
+            len(kept),
+        )
+    return plan, stripped
 
 
 def _typology_params(
@@ -242,4 +305,5 @@ def repair_migrated_landmark_components(
                     layout.setdefault("skeleton_type", defn.skeleton_type)
                     plan["layout"] = layout
 
+    plan, _ = strip_typology_exclusive_compositionals(plan)
     return plan, count

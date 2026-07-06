@@ -284,6 +284,133 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(out["components"][0]["params"]["typology_id"], "radial_terrace_hall")
         self.assertEqual(out["components"][0]["params"]["baseRadius"], 18)
 
+    def test_typology_structure_strips_compositional_extras(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 9, "depth": 60, "height": 30},
+                    "features": ["typology:suspension_bridge"],
+                    "params": {
+                        "typology_id": "suspension_bridge",
+                        "reference_landmark": "golden_gate_bridge",
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 20, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 6},
+                    "features": [],
+                    "params": {},
+                },
+                {
+                    "component_type": "TOWER",
+                    "relative_position": {"x": 0, "y": 0, "z": -25},
+                    "dimensions": {"width": 4, "depth": 4, "height": 30},
+                    "features": [],
+                    "params": {},
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": -1, "y": 6, "z": -1},
+                    "dimensions": {"width": 12, "depth": 12, "height": 3},
+                    "features": [],
+                    "params": {},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 3)
+        self.assertEqual(len(out["components"]), 1)
+        self.assertEqual(out["components"][0]["component_type"], "STRUCTURE")
+
+    def test_typology_exclusive_keeps_paving_peripheral(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 32, "depth": 28, "height": 10},
+                    "features": ["typology:courtyard_compound"],
+                    "params": {"typology_id": "courtyard_compound"},
+                },
+                {
+                    "component_type": "PAVING",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 1},
+                    "features": [],
+                    "params": {},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 8},
+                    "features": [],
+                    "params": {},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 1)
+        types = [c["component_type"] for c in out["components"]]
+        self.assertEqual(types, ["STRUCTURE", "PAVING"])
+
+    def test_compositional_plan_without_typology_structure_unchanged(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 8, "height": 6},
+                    "features": [],
+                    "params": {},
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 0, "y": 6, "z": 0},
+                    "dimensions": {"width": 12, "depth": 8, "height": 3},
+                    "features": [],
+                    "params": {},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 0)
+        self.assertEqual(len(out["components"]), 2)
+
+    def test_golden_gate_module_repair_also_strips_extras(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:golden_gate_bridge"],
+                    "params": {"module_id": "golden_gate_bridge"},
+                    "dimensions": {"width": 9, "depth": 120, "height": 36},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                },
+                {
+                    "component_type": "TOWER",
+                    "relative_position": {"x": 0, "y": 0, "z": -25},
+                    "dimensions": {"width": 4, "depth": 4, "height": 30},
+                    "features": [],
+                    "params": {},
+                },
+            ]
+        }
+        out, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        self.assertEqual(len(out["components"]), 1)
+        self.assertEqual(out["components"][0]["component_type"], "STRUCTURE")
+
 
 if __name__ == "__main__":
     unittest.main()
