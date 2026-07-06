@@ -50,6 +50,7 @@ class ComponentPlanCompilerRealignTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
 

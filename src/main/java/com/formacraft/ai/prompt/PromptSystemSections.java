@@ -67,6 +67,13 @@ Core rules:
   elements=[{"type":"pillar","width":1},{"type":"window","width":3},{"type":"pillar","width":1}].
   Compiler tiles units symmetrically from facade center; pillars become vertical trim strips, windows become openings.
   Prefer repeating_pattern over rhythm_preset when you need a custom bay width.
+- ALIGNMENT_AND_SYMMETRY (global bay grid — declare BEFORE components):
+  Top-level alignment_and_symmetry OR proportion_hints.alignment_and_symmetry.
+  Schema: { "symmetry_type": "bilateral_x|bilateral_z|radial", "center_axis_x": int?, "center_axis_z": int?,
+    "rhythm_x": { "side_bays": [{"width": int, "role": str?}], "bay_count": int?, "bay_width": int? },
+    "rhythm_z": { ... same ... } }.
+  MASS_* width/depth are forced to sum(side_bays) or bay_count*bay_width; center axes pin mass anchor.
+  Components should FILL bays, not invent free-form spans. Pair with repeating_pattern inside each bay.
 - Player prefab components may have a placement contract (placementSpec: Attachment/Context/FacingPolicy/Constraints).
 - If you choose to use a prefab component, you MUST satisfy its placement contract by selecting a compatible host (socket / outline edge / corner).
 - If no compatible host exists, omit that prefab component instead of forcing an invalid placement.

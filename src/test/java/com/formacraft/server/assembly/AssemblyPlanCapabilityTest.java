@@ -51,7 +51,7 @@ class AssemblyPlanCapabilityTest {
                                 Map.of()
                         )
                 ),
-                null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null
         );
         assertFalse(AssemblyPlanCapability.isAssemblyOnly(plan));
     }
@@ -97,7 +97,7 @@ class AssemblyPlanCapabilityTest {
                 new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null),
                 new Layout(null, false, List.of()),
                 List.of(assemblyComponent()),
-                null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null
         );
     }
 

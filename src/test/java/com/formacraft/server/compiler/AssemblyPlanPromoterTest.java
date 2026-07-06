@@ -177,7 +177,7 @@ class AssemblyPlanPromoterTest {
                         List.of(),
                         massParams
                 )),
-                null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null
         );
 
         @SuppressWarnings("unchecked")

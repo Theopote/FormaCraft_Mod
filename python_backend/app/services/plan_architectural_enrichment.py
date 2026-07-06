@@ -264,6 +264,7 @@ def enrich_llm_plan_architectural_detail(
     ph = plan.get("proportion_hints")
     style = str(plan.get("style_profile") or "").upper()
     blob = _text_blob(user_text, profile, plan)
+    target_depth = int(hints["target_depth"])
     if isinstance(ph, dict) and tier in ("rich", "monumental"):
         ph.setdefault("floor_cornice", True)
         ph.setdefault("window_order", "full")
@@ -276,6 +277,27 @@ def enrich_llm_plan_architectural_detail(
                     {"type": "window", "width": 3},
                     {"type": "pillar", "width": 1},
                 ],
+            },
+        )
+        ph.setdefault(
+            "alignment_and_symmetry",
+            {
+                "symmetry_type": "bilateral_x",
+                "center_axis_x": 0,
+                "rhythm_x": {
+                    "side_bays": [
+                        {"width": max(3, width // 5), "role": "wing"},
+                        {"width": max(5, width // 3), "role": "center"},
+                        {"width": max(3, width // 5), "role": "wing"},
+                    ]
+                },
+                "rhythm_z": {
+                    "side_bays": [
+                        {"width": max(3, target_depth // 4), "role": "service"},
+                        {"width": max(5, target_depth // 2), "role": "hall"},
+                        {"width": max(3, target_depth // 4), "role": "service"},
+                    ]
+                },
             },
         )
     if isinstance(ph, dict) and tier == "monumental":

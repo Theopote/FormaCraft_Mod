@@ -54,6 +54,7 @@ class LlmPlanAnchorNormalizerTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
 
@@ -74,6 +75,7 @@ class LlmPlanAnchorNormalizerTest {
                 new Layout(null, false, List.of(
                         new Slot("villa_1", new Vec3i(24, 0, 0), null, null, null, null)
                 )),
+                null,
                 null,
                 null,
                 null,
@@ -137,6 +139,7 @@ class LlmPlanAnchorNormalizerTest {
                                 Map.of("roof_type", "xuanshan")
                         )
                 ),
+                null,
                 null,
                 null,
                 null,
