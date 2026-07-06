@@ -37,7 +37,8 @@ class DetailRulePostProcessorTest {
                 null, "MEDIEVAL_CLASSIC", null, null,
                 new Layout(null, false, List.of()),
                 List.of(mass), null, null,
-                hints, null, null, null, null, null, null, null, null, null, null
+                hints, null, null, null, null, null, null, null, null, null, null,
+                null
         );
 
 
@@ -75,7 +76,8 @@ class DetailRulePostProcessorTest {
                 null, "MEDIEVAL_CLASSIC", null, null,
                 new Layout(null, false, List.of()),
                 List.of(), null, null,
-                hints, null, null, null, null, null, null, null, null, null, null
+                hints, null, null, null, null, null, null, null, null, null, null,
+                null
         );
 
 

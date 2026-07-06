@@ -34,10 +34,10 @@ public final class LlmPlanTestFixtures {
                 null,
                 null,
                 null,
-                null
+                null,
+                null,
                 null
         );
-
     }
 
     public static LlmPlan withAlignment(AlignmentAndSymmetry alignment, List<Component> components) {
@@ -64,9 +64,9 @@ public final class LlmPlanTestFixtures {
                 null,
                 null,
                 null,
-                null
+                null,
+                null,
                 null
         );
-
     }
 }

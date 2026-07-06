@@ -64,7 +64,8 @@ class LlmPlanParserDistinguishingFeaturesTest {
                 null,
                 null,
                 null,
-                java.util.List.of("shell roof")
+                java.util.List.of("shell roof"),
+                null
         );
 
         LlmPlan normalized = LlmPlanAnchorNormalizer.normalize(plan);

@@ -67,6 +67,7 @@ class ComponentPlanCompilerBaySnapTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 

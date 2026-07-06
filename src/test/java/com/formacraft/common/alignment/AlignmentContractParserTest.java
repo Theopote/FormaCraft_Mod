@@ -76,6 +76,7 @@ class AlignmentContractParserTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 

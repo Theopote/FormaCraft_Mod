@@ -52,6 +52,7 @@ class ComponentPlanCompilerRealignTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 
@@ -120,6 +121,7 @@ class ComponentPlanCompilerRealignTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 
@@ -163,6 +165,7 @@ class ComponentPlanCompilerRealignTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 

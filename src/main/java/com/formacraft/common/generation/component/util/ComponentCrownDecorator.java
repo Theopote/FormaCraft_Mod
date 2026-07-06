@@ -1,6 +1,7 @@
 package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
+import com.formacraft.common.llm.NonClassicalEnrichmentGuard;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 
@@ -16,6 +17,9 @@ public final class ComponentCrownDecorator {
     private ComponentCrownDecorator() {}
 
     public static boolean shouldApply(LlmPlan plan, Map<String, Object> massParams) {
+        if (NonClassicalEnrichmentGuard.blocksCrownInference(plan)) {
+            return false;
+        }
         if (isDisabled(getParam(massParams, "crown_assembly", "crownAssembly", "crown"))) {
             return false;
         }

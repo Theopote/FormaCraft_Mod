@@ -51,7 +51,8 @@ class DistinguishingFeaturesBridgeTest {
                 null,
                 null,
                 null,
-                List.of("white sail shells", "shell roof")
+                List.of("white sail shells", "shell roof"),
+                null
         );
 
         LlmPlan enriched = DistinguishingFeaturesBridge.enrich(plan);
@@ -95,7 +96,8 @@ class DistinguishingFeaturesBridgeTest {
                 null,
                 null,
                 null,
-                List.of("lattice windows")
+                List.of("lattice windows"),
+                null
         );
 
         LlmPlan once = DistinguishingFeaturesBridge.enrich(plan);
@@ -117,6 +119,7 @@ class DistinguishingFeaturesBridgeTest {
                 null,
                 null,
                 List.of(),
+                null,
                 null,
                 null,
                 null,

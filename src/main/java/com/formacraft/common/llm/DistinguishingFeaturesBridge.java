@@ -61,7 +61,8 @@ public final class DistinguishingFeaturesBridge {
                 plan.error(),
                 plan.capabilityGap(),
                 plan.playerFidelityNoticeZh(),
-                plan.distinguishingFeatures()
+                plan.distinguishingFeatures(),
+                plan.enrichmentGuard()
         );
     }
 

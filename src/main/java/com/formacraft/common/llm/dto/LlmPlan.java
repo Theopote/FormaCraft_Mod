@@ -74,7 +74,10 @@ public record LlmPlan(
         @JsonProperty("player_fidelity_notice_zh") String playerFidelityNoticeZh,
 
         /** 3–8 features that uniquely identify this building vs generic same-style structures */
-        @JsonProperty("distinguishing_features") List<String> distinguishingFeatures
+        @JsonProperty("distinguishing_features") List<String> distinguishingFeatures,
+
+        /** Python enrichment guard reason, e.g. non_classical_marker:organic */
+        @JsonProperty("enrichment_guard") String enrichmentGuard
 ) {
     public enum Mode { build, patch }
 

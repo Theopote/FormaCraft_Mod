@@ -27,7 +27,8 @@ class CrownGrammarResolverTest {
                 null, null, null, null, null,
                 List.of(),
                 null, null, hints, null,
-                null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null,
+                null
         );
 
         Component crown = new Component(

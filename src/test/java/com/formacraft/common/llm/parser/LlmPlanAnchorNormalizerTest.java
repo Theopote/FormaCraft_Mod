@@ -55,6 +55,7 @@ class LlmPlanAnchorNormalizerTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
 
@@ -88,6 +89,7 @@ class LlmPlanAnchorNormalizerTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 
@@ -141,6 +143,7 @@ class LlmPlanAnchorNormalizerTest {
                                 Map.of("roof_type", "xuanshan")
                         )
                 ),
+                null,
                 null,
                 null,
                 null,

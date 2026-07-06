@@ -51,7 +51,8 @@ class AssemblyPlanCapabilityTest {
                                 Map.of()
                         )
                 ),
-                null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null
         );
 
         assertFalse(AssemblyPlanCapability.isAssemblyOnly(plan));
@@ -71,6 +72,7 @@ class AssemblyPlanCapabilityTest {
                 "unsupported geometry",
                 new CapabilityGap("E_TEST", "unsupported geometry", "plan", List.of("use preset")),
                 null
+                null,
                 null
         );
 
@@ -100,7 +102,8 @@ class AssemblyPlanCapabilityTest {
                 new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null),
                 new Layout(null, false, List.of()),
                 List.of(assemblyComponent()),
-                null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null
         );
 
     }

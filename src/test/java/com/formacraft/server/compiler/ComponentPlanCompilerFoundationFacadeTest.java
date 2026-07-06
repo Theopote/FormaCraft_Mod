@@ -56,7 +56,8 @@ class ComponentPlanCompilerFoundationFacadeTest {
                 new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null),
                 new Layout(null, false, List.of()),
                 List.of(foundation, mass, facade),
-                null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null
         );
 
 

@@ -63,6 +63,7 @@ class ComponentPlanCompilerAlignmentTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 

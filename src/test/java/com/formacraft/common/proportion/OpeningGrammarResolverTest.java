@@ -155,6 +155,7 @@ class OpeningGrammarResolverTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 

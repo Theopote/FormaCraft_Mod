@@ -60,6 +60,7 @@ class RoofGrammarResolverTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 

@@ -61,6 +61,7 @@ class LlmPlanTerrainBoundsTest {
                 null,
                 null,
                 null
+                null,
                 null
         );
 

@@ -12,6 +12,7 @@ import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter;
+import com.formacraft.common.llm.NonClassicalEnrichmentGuard;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -140,6 +141,7 @@ public final class ComponentPlanCompiler {
 
         plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
+        plan = NonClassicalEnrichmentGuard.sanitize(plan);
 
         // 索引 slots（便于快速查找）
         Map<String, Slot> slotMap = indexSlots(plan);
@@ -459,7 +461,9 @@ public final class ComponentPlanCompiler {
                     c = suppressMassRoof(c);
                 }
             }
-            if (!slotsWithCrown.contains(slotKey) && ComponentCrownDecorator.shouldApply(plan, c.params())) {
+            if (!slotsWithCrown.contains(slotKey)
+                    && !NonClassicalEnrichmentGuard.blocksCrownInference(plan)
+                    && ComponentCrownDecorator.shouldApply(plan, c.params())) {
                 Component roofRef = findRoofForSlot(components, inferred, slotKey);
                 if (roofRef == null) {
                     roofRef = makeRoofComponent(plan, c, slotId);
