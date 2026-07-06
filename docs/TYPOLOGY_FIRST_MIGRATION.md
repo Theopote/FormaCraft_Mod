@@ -160,7 +160,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 |---|---|---|
 | **0** | Schema + migrationMap + RAG/plan 优先 typology；legacy MODULE 作 fallback | **已完成** |
 | **1** | `TypologyInterpreterRegistry` + `TypologyComponentRouter`；STRUCTURE/typology 构件路由；legacy 委托 Famen/Foguang | **已完成** |
-| **2** | 通用 `DenseEavesPagodaInterpreter`；`ChineseLandmarkDetailUtil` 迁入 typology 包 | 待办 |
+| **2** | `DenseEavesPagodaBuilder` / `TailiangTimberHallBuilder` + 原生解释器；`ChineseTypologyDetailUtil` 迁入 typology 包 | **已完成** |
 | **3** | 大雁塔等迁入 `dense_eaves_pagoda`；废弃对应 landmark generator | 待办 |
 
 ## 8. 冻结政策
@@ -179,6 +179,9 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 加载 | `com.formacraft.common.typology.StructuralTypologyRegistry` |
 | Java 解释器 | `com.formacraft.common.typology.TypologyInterpreterRegistry` |
 | Java 构件路由 | `com.formacraft.common.typology.TypologyComponentRouter` |
+| Java 解释器实现 | `server.generation.typology.interpreter.*` |
+| Java 参数化 Builder | `server.generation.typology.builder.*` |
+| 细节工具 | `com.formacraft.common.typology.detail.ChineseTypologyDetailUtil` |
 | Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json` |
 | 测试 | `python_backend/tests/test_typology_migration.py` |
 

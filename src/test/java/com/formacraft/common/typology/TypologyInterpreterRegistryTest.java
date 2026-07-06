@@ -14,6 +14,11 @@ class TypologyInterpreterRegistryTest {
         TypologyInterpreter famen = TypologyInterpreterRegistry.get("dense_eaves_pagoda");
         assertNotNull(famen);
         assertEquals("dense_eaves_pagoda", famen.typologyId());
-        assertInstanceOf(LegacyDelegatingTypologyInterpreter.class, famen);
+        assertInstanceOf(com.formacraft.server.generation.typology.interpreter.DenseEavesPagodaInterpreter.class, famen);
+    @Test
+    void tailiangInterpreterIsNative() {
+        TypologyInterpreter hall = TypologyInterpreterRegistry.get("tailiang_timber_hall");
+        assertNotNull(hall);
+        assertInstanceOf(com.formacraft.server.generation.typology.interpreter.TailiangTimberHallInterpreter.class, hall);
     }
 }
