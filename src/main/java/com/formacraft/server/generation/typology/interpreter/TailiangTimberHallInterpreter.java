@@ -25,7 +25,7 @@ public final class TailiangTimberHallInterpreter implements com.formacraft.commo
         if (semantic == null || world == null || semantic.source() == null) {
             return List.of();
         }
-        BlockPos origin = TypologyPatchBridge.slotOrigin(semantic);
+        BlockPos origin = TypologyPatchBridge.worldBuildOrigin(semantic);
         if (origin == null) {
             return List.of();
         }

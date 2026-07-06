@@ -25,7 +25,7 @@ public final class RadialFortressInterpreter implements com.formacraft.common.ty
         if (semantic == null || world == null || semantic.source() == null) {
             return List.of();
         }
-        BlockPos origin = TypologyPatchBridge.slotOrigin(semantic);
+        BlockPos origin = TypologyPatchBridge.worldBuildOrigin(semantic);
         if (origin == null) {
             return List.of();
         }

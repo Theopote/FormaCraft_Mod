@@ -25,6 +25,7 @@ import com.formacraft.common.proportion.OpeningGrammarResolver;
 import com.formacraft.common.proportion.RoofGrammarResolver;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.typology.TypologyComponentRouter;
+import com.formacraft.common.typology.TypologyPatchBridge;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import com.formacraft.common.terrain.TerrainStrategySampler;
@@ -153,11 +154,13 @@ public final class ComponentPlanCompiler {
 
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
+        TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         try {
             compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
                     slotMap, result);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
+            TypologyPatchBridge.clearPlanWorldAnchor();
         }
 
         FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches",
