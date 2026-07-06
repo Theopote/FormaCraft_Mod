@@ -99,6 +99,14 @@ FACADE DETAIL (params on MASS_* components — use to avoid flat "box + grid win
 - facade_cutout: carves openings/tracery into solid walls. "rose" for gothic rose windows, "arches" for arcades, "lattice"/"diagrid" for screens. Use sparingly on feature walls.
 - detail_level: "high" enables richer assembly facades on large gothic/classical/modern/industrial masses; "low" keeps it simple.
 
+CROWN / REVOLVE SURFACE (domes, cupolas, onion spires — prefer curve over fixed roof_type=dome):
+- On CROWN/CUPOLA/DOME components, set generation_method="revolved_surface_around_axis" and profile_curve_y_radius[].
+- Each point: {y_rel, radius}. Values may be normalized 0..1 OR absolute block steps (y 0..N, radius in blocks); compiler normalizes.
+- Example onion-ish profile: [{y_rel:0,radius:0.38},{y_rel:0.28,radius:0.62},{y_rel:0.58,radius:0.40},{y_rel:0.86,radius:0.34},{y_rel:1,radius:0.08}].
+- Shorthand fallback: crown_template ONION_DOME|CLASSICAL_CUPOLA|SIMPLE_DOME when a preset suffices.
+- For ASSEMBLY escape hatch use ops[] REVOLVE_SURFACE with profilePoints [{x:radius,y:height}] in block units (see assembly_examples/revolve_surface_vase.json).
+- Do NOT use roof_type=dome for complex spires; use CROWN+profile or REVOLVE_SURFACE.
+
 If mode = "patch":
 - Only modify components inside the allowed area.
 - Do NOT affect protected or forbidden zones.
@@ -224,6 +232,12 @@ ComponentParamsObject:
   "window_ratio": 0.0-1.0,
   "window_aspect": "square|horizontal_strip|vertical_strip|ribbon_glazing|arrow_slit|punch_window|full_height",
   "roof_type": "flat|gable|hip|cone|pyramid|dome|double_gable|xuanshan|xieshan",
+  "generation_method": "revolved_surface_around_axis",
+  "profile_curve_y_radius": [ { "y_rel": number, "radius": number } ],
+  "crown_template": "ONION_DOME|CLASSICAL_CUPOLA|SIMPLE_DOME",
+  "crown_radius": int,
+  "crown_height": int,
+  "revolve_segments": int,
   "setback_ratio": 0.0-1.0,
   "floor_height": int,
   "floor_count": int,

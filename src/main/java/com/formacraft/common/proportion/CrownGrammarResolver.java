@@ -1,6 +1,7 @@
 package com.formacraft.common.proportion;
 
 import com.formacraft.common.generation.component.util.CrownTemplateLibrary;
+import com.formacraft.common.generation.component.util.RevolveProfileParser;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 
@@ -64,6 +65,16 @@ public final class CrownGrammarResolver {
             changed = true;
         }
 
+        if (!hasProfileParam(params)) {
+            Object profileHint = firstHint(hints,
+                    "profile_curve_y_radius", "profileCurveYRadius",
+                    "profile_curve", "profileCurve", "crown_profile", "crownProfile");
+            if (profileHint != null) {
+                params.put("profile_curve_y_radius", profileHint);
+                changed = true;
+            }
+        }
+
         if (!changed) {
             return component;
         }
@@ -103,5 +114,25 @@ public final class CrownGrammarResolver {
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
+    }
+
+    private static boolean hasProfileParam(Map<String, Object> params) {
+        if (params == null) {
+            return false;
+        }
+        return RevolveProfileParser.resolve(params) != null;
+    }
+
+    private static Object firstHint(Map<String, Object> hints, String... keys) {
+        if (hints == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object value = hints.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 }

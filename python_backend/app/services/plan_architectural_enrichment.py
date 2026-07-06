@@ -490,6 +490,7 @@ def enrich_llm_plan_architectural_detail(
                 "dimensions": {"width": crown_w, "depth": crown_w, "height": crown_h},
                 "features": ["crown", "revolve_surface"],
                 "params": {
+                    "generation_method": "revolved_surface_around_axis",
                     "crown_template": crown_template,
                     "crown_radius": crown_r,
                     "crown_height": crown_h,

@@ -97,6 +97,13 @@ public final class ComponentCrownDecorator {
         return Math.max(8, Math.min(seg, 64));
     }
 
+    /**
+     * Explicit revolve profile from params, or null to fall back to {@link CrownTemplateLibrary}.
+     */
+    public static List<double[]> resolveExplicitProfile(Map<String, Object> params) {
+        return RevolveProfileParser.resolve(params);
+    }
+
     public record CrownDimensions(int width, int depth, int height, double radiusScale) {}
 
     public static CrownDimensions resolveDimensions(Dimensions dims, Map<String, Object> params) {

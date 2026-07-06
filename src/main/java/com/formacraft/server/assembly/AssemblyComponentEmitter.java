@@ -1,5 +1,7 @@
 package com.formacraft.server.assembly;
 
+import com.formacraft.common.generation.component.util.RevolveProfileParser;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -184,6 +186,16 @@ final class AssemblyComponentEmitter {
                 AssemblyCompilerUtils.copyInt(comp, o, "thickness", AssemblyCompilerUtils.i(comp.get("thickness"), 1));
                 AssemblyCompilerUtils.copy(comp, o, "connectSamples");
                 AssemblyCompilerUtils.copy(comp, o, "material");
+                if (!o.containsKey("profilePoints") && !o.containsKey("profileRings") && !o.containsKey("points")) {
+                    List<double[]> profile = RevolveProfileParser.resolve(comp);
+                    if (profile != null) {
+                        int height = AssemblyCompilerUtils.i(comp.get("h"),
+                                AssemblyCompilerUtils.i(comp.get("height"), 12));
+                        int radius = AssemblyCompilerUtils.i(comp.get("r"),
+                                AssemblyCompilerUtils.i(comp.get("radius"), Math.max(2, height / 2)));
+                        o.put("profilePoints", RevolveProfileParser.toAssemblyProfilePoints(profile, radius, height));
+                    }
+                }
                 ops.add(o);
             }
             case "LOFT_SURFACE", "LOFT", "SKIN_SURFACE" -> {

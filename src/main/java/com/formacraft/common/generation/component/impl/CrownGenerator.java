@@ -44,7 +44,10 @@ public class CrownGenerator implements ComponentGenerator {
         int baseY = rp.y();
 
         String templateId = ComponentCrownDecorator.resolveTemplate(null, params, semantic);
-        List<double[]> profile = CrownTemplateLibrary.profile(templateId);
+        List<double[]> profile = ComponentCrownDecorator.resolveExplicitProfile(params);
+        if (profile == null) {
+            profile = CrownTemplateLibrary.profile(templateId);
+        }
         int segments = ComponentCrownDecorator.resolveSegments(params);
 
         String styleProfile = semantic.styleProfile() != null ? semantic.styleProfile() : "MEDIEVAL_CLASSIC";
