@@ -221,13 +221,15 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
         if (rawValue == null || rawValue.isBlank()) return;
         String resolved = com.formacraft.common.archetype.LandmarkModuleRegistry.resolveModuleId(rawValue);
         String moduleId = resolved != null ? resolved : rawValue.trim();
-        extra.put("landmark", moduleId);
         String typology = StructuralTypologyRegistry.typologyForLegacyModule(moduleId);
         if (typology != null && !typology.isBlank()) {
-            extra.putIfAbsent("typology_id", typology);
-            extra.putIfAbsent("structural_typology", typology);
+            extra.put("typology_id", typology);
+            extra.put("structural_typology", typology);
+            extra.putIfAbsent("reference_landmark", moduleId);
             com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordLegacyRedirect(moduleId, typology);
+            return;
         }
+        extra.put("landmark", moduleId);
     }
 
     private static void copyIfPresent(Map<String, Object> from, Map<String, Object> to, String key) {

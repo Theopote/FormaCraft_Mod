@@ -1003,6 +1003,23 @@ def _sanitize_landmark_modules(
     if not isinstance(components, list):
         return
 
+    from .typology_registry import is_migrated_landmark
+
+    def _strip_remaining_migrated_modules(comps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        kept_local: List[Dict[str, Any]] = []
+        for comp in comps:
+            if not isinstance(comp, dict):
+                continue
+            actual = _extract_landmark_module_id(comp)
+            ctype = str(comp.get("component_type") or "").upper()
+            if (ctype == "MODULE" or actual) and actual and is_migrated_landmark(actual):
+                continue
+            kept_local.append(comp)
+        return kept_local
+
+    components = _strip_remaining_migrated_modules(components)
+    plan["components"] = components
+
     expected_id: Optional[str] = None
     profile_authoritative = building_profile is not None
 
@@ -1016,6 +1033,9 @@ def _sanitize_landmark_modules(
             from .building_research_agent import resolve_landmark_module_for_intent
 
             expected_id = resolve_landmark_module_for_intent(user_text)
+
+    if expected_id and is_migrated_landmark(expected_id):
+        expected_id = None
 
     if profile_authoritative and not expected_id:
         filtered = []
@@ -4693,8 +4713,15 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
                     "hits": rag.get("hits", []),
                     "fewShots": rag.get("fewShots", []),
                 }
-                if rag.get("landmarkModuleId"):
-                    culture_payload["landmarkModuleId"] = rag.get("landmarkModuleId")
+                try:
+                    from app.services.typology_registry import is_migrated_landmark
+
+                    lm = rag.get("landmarkModuleId")
+                    if isinstance(lm, str) and lm.strip() and not is_migrated_landmark(lm.strip()):
+                        culture_payload["landmarkModuleId"] = lm.strip()
+                except Exception:
+                    if rag.get("landmarkModuleId"):
+                        culture_payload["landmarkModuleId"] = rag.get("landmarkModuleId")
                 if rag.get("structuralTypologyId"):
                     culture_payload["structuralTypologyId"] = rag.get("structuralTypologyId")
                 if rag.get("typology"):
@@ -4766,9 +4793,17 @@ def _llm_plan_context_block(req: BuildRequest) -> str:
                     "descriptionZh": building_kb.get("descriptionZh"),
                     "features": building_kb.get("features"),
                     "dimensions": building_kb.get("dimensions"),
-                    "landmarkModuleId": building_kb.get("landmarkModuleId"),
                     "llmPlanRouting": building_kb.get("llmPlanRouting"),
                 }
+                try:
+                    from app.services.typology_registry import is_migrated_landmark
+
+                    kb_lm = str(building_kb.get("landmarkModuleId") or "").strip()
+                    if kb_lm and not is_migrated_landmark(kb_lm):
+                        building_info["landmarkModuleId"] = kb_lm
+                except Exception:
+                    if building_kb.get("landmarkModuleId"):
+                        building_info["landmarkModuleId"] = building_kb.get("landmarkModuleId")
                 parts.append("\nBuildingKnowledge(JSON):")
                 parts.append(json.dumps(building_info, ensure_ascii=False, indent=2))
         except Exception:

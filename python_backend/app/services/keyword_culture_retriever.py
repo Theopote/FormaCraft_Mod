@@ -241,7 +241,13 @@ def retrieve(prompt: str, topK: int = 3, fewShotK: int = 2) -> Dict[str, Any]:
                 structural_typology_id = stid
             lm = str(card.get("landmarkModuleId") or "").strip()
             if lm:
-                landmark_module_id = lm
+                try:
+                    from app.services.typology_registry import is_migrated_landmark
+
+                    if not is_migrated_landmark(lm):
+                        landmark_module_id = lm
+                except Exception:
+                    landmark_module_id = lm
             pcid = str(card.get("proportionCardId") or "").strip()
             if pcid:
                 proportion_card_id = pcid
@@ -535,16 +541,97 @@ def resolve_landmark_module_routing(prompt: str) -> Optional[Dict[str, Any]]:
     if kb:
         kb_lm = str(kb.get("landmarkModuleId") or "").strip()
         if kb_lm and module_id is None:
-            module_id = kb_lm
-            source = source or "building_knowledge"
+            try:
+                from app.services.typology_registry import is_migrated_landmark
+
+                if not is_migrated_landmark(kb_lm):
+                    module_id = kb_lm
+                    source = source or "building_knowledge"
+            except Exception:
+                module_id = kb_lm
+                source = source or "building_knowledge"
         routing = kb.get("llmPlanRouting")
         if isinstance(routing, dict):
             instruction = routing.get("instruction") if isinstance(routing.get("instruction"), str) else instruction
+
+    if module_id is None:
+        try:
+            from app.services.typology_registry import is_migrated_landmark
+            from app.services.archetype_detector import detect_archetype_local
+
+            hits = rag.get("hits") or []
+            if hits and isinstance(hits[0], dict):
+                hit_id = str(hits[0].get("id") or "").strip()
+                if hit_id and is_migrated_landmark(hit_id):
+                    module_id = hit_id
+                    source = source or "culture_card"
+                    routing_tier = RoutingTier.MANDATORY
+
+            typ_payload = rag.get("typology") or {}
+            ref_lm = str(typ_payload.get("referenceLandmarkId") or "").strip()
+            if module_id is None and ref_lm and is_migrated_landmark(ref_lm):
+                module_id = ref_lm
+                source = source or "typology"
+
+            arch = detect_archetype_local(q)
+            if module_id is None and arch and is_migrated_landmark(arch.id):
+                module_id = arch.id
+                source = source or "explicit_archetype"
+                routing_tier = RoutingTier.MANDATORY
+        except Exception:
+            pass
 
     if not module_id:
         return None
 
     tier_value = routing_tier.value if isinstance(routing_tier, RoutingTier) else str(routing_tier)
+
+    try:
+        from app.services.typology_registry import get_migration, get_typology, is_migrated_landmark
+        from app.services.typology_plan_repair import _REFERENCE_PRESETS
+
+        if is_migrated_landmark(module_id):
+            mig = get_migration(module_id)
+            typ_id = mig.typology_id if mig else None
+            if typ_id:
+                defn = get_typology(typ_id)
+                guidance = defn.llm_plan_guidance if defn else ""
+                example_params = dict(_REFERENCE_PRESETS.get(module_id) or {})
+                example_params["typology_id"] = typ_id
+                example_params["structural_typology"] = typ_id
+                example_params["reference_landmark"] = module_id
+                if tier_value == RoutingTier.MANDATORY.value:
+                    default_instruction = (
+                        f"User explicitly named landmark {module_id} (migrated to typology {typ_id}). "
+                        f"FORBIDDEN: MODULE + landmark:{module_id}. "
+                        f"REQUIRED: ONE STRUCTURE with features [\"typology:{typ_id}\"] "
+                        f"and params.reference_landmark={module_id}. "
+                        f"{guidance}"
+                    )
+                else:
+                    default_instruction = (
+                        f"Typological match for {module_id} → structural_typology={typ_id}. "
+                        f"FORBIDDEN: MODULE + landmark:{module_id}. "
+                        f"PREFERRED: STRUCTURE + typology:{typ_id} with reference_landmark={module_id}. "
+                        f"{guidance}"
+                    )
+                return {
+                    "typologyId": typ_id,
+                    "componentType": "STRUCTURE",
+                    "feature": f"typology:{typ_id}",
+                    "referenceLandmark": module_id,
+                    "routingTier": tier_value,
+                    "source": source,
+                    "legacyModuleDeprecated": True,
+                    "deprecatedModuleId": module_id,
+                    "instruction": instruction or default_instruction,
+                    "variationHints": variation_context_block(),
+                    "exampleParams": example_params,
+                    "llmPlanFewShots": llm_plan_few_shots,
+                }
+    except Exception:
+        pass
+
     if tier_value == RoutingTier.MANDATORY.value:
         default_instruction = (
             f"User explicitly named landmark {module_id}. "

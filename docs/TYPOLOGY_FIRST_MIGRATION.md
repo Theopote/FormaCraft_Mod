@@ -182,6 +182,20 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | **3** | 大雁塔等迁入 `dense_eaves_pagoda`（`footprint=square`）；`GiantWildGoosePagodaGenerator` 瘦身为 Builder 委托 | **已完成** |
 | **4** | `TypologyRoutingMetrics` 遥测；LLM MODULE→STRUCTURE 自动修复；Java 路由优先原生 typology builder | **已完成** |
 | **5** | 天坛迁入 `radial_terrace_hall`（`RADIAL_RING`）；`TempleOfHeavenGenerator` 瘦身为 Builder 委托 | **已完成** |
+| **6** | 收紧 legacy MODULE：migrationMap 内地标禁止/降级 MODULE 硬路由；Java/Python 双侧阻断 | **已完成** |
+
+### Phase 6 细节（legacy MODULE 收紧）
+
+| 层级 | 行为 |
+|---|---|
+| Python RAG | `landmarkModuleId` 不再注入 prompt（migrated 地标） |
+| Python 路由 | `resolve_landmark_module_routing` → `STRUCTURE + typology:*` + `FORBIDDEN MODULE` |
+| Plan sanitize | 任意 migrated `MODULE` 剥离/修复；禁止注入 migrated `landmark_module` |
+| Java prompt | `LandmarkModuleRegistry` 排除 researchOnly + migrationMap 条目 |
+| Java 路由 | `LandmarkRoutingPolicy` 跳过 migrated 指名强制 MODULE |
+| Java 构件 | `TypologyComponentRouter` 从 `landmark:` feature 解析 typology；`StructureGeneratorAdaptor` 不写 `extra.landmark` |
+
+**仍保留 MODULE 的地标**（未迁入 migrationMap）：`birds_nest_stadium`, `golden_gate_bridge`, `gothic_cathedral` 等。
 
 ### Phase 5 细节（天坛 / 祈年殿）
 
@@ -224,7 +238,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Java 参数化 Builder | `server.generation.typology.builder.*` |
 | 细节工具 | `com.formacraft.common.typology.detail.ChineseTypologyDetailUtil` |
 | Culture 卡 | `culture_cards/famen_pagoda.json`, `foguang_temple_hall.json`, `giant_wild_goose_pagoda.json`, `temple_of_heaven.json` |
-| 测试 | `python_backend/tests/test_typology_migration.py`, `test_typology_plan_repair.py` |
+| 测试 | `python_backend/tests/test_typology_migration.py`, `test_typology_plan_repair.py`, `test_legacy_module_tightening.py` |
 | 遥测 | `com.formacraft.common.network.metrics.TypologyRoutingMetrics` |
 
 ## 10. LlmPlan 目标形状（typology-first few-shot）
@@ -251,4 +265,4 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 }
 ```
 
-Phase 0 若 LLM 仍输出 `MODULE + landmark:famen_pagoda`，Java 通过 `migrationMap` 重定向到同一解释器，并记录 telemetry 以便收紧 prompt。
+Phase 6 起：LLM 若仍输出 `MODULE + landmark:<migrated>`，Python sanitize 剥离并 repair；Java 构件路由经 `TypologyComponentRouter` 解析 typology，不再写入 `extra.landmark`。

@@ -220,3 +220,13 @@ def typology_for_archetype(archetype_id: str) -> Optional[str]:
                 return t.id
     entry = get_migration(aid)
     return entry.typology_id if entry else None
+
+
+def is_migrated_landmark(module_id: str) -> bool:
+    """True when legacy landmarkModuleId is in migrationMap (typology-first)."""
+    return get_migration(module_id) is not None
+
+
+def list_migrated_landmarks() -> List[str]:
+    _ensure_loaded()
+    return sorted(_MIGRATION.keys())

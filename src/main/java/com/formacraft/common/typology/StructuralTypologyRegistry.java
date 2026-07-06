@@ -85,6 +85,11 @@ public final class StructuralTypologyRegistry {
         return entry != null ? entry.typologyId() : null;
     }
 
+    /** True when legacy MODULE routing is deprecated in favour of typology-first STRUCTURE. */
+    public static boolean isDeprecatedLegacyModule(String legacyModuleId) {
+        return getMigration(legacyModuleId) != null;
+    }
+
     /** Phase 0: map typology to legacy generator when no dedicated interpreter exists. */
     public static String resolveInterpreterId(String typologyId) {
         TypologyDef def = getById(typologyId);

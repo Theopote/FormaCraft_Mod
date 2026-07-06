@@ -1,5 +1,7 @@
 package com.formacraft.common.archetype;
 
+import com.formacraft.common.typology.StructuralTypologyRegistry;
+
 import java.util.List;
 import java.util.Locale;
 
@@ -114,6 +116,9 @@ public final class LandmarkRoutingPolicy {
                 continue;
             }
             if (mentionsExplicitLandmark(lower, module)) {
+                if (StructuralTypologyRegistry.isDeprecatedLegacyModule(module.moduleId())) {
+                    continue;
+                }
                 return new RoutingDecision(module.moduleId(), RoutingTier.MANDATORY, "explicit_landmark");
             }
         }

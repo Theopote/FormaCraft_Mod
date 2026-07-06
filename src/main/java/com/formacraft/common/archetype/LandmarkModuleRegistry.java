@@ -1,5 +1,7 @@
 package com.formacraft.common.archetype;
 
+import com.formacraft.common.typology.StructuralTypologyRegistry;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -53,6 +55,8 @@ public final class LandmarkModuleRegistry {
         List<LandmarkModule> out = new ArrayList<>();
         for (ArchetypeCatalog.ArchetypeDef def : ArchetypeRegistry.all()) {
             if (def == null || def.id == null || def.id.isBlank()) continue;
+            if (Boolean.TRUE.equals(def.researchOnly)) continue;
+            if (StructuralTypologyRegistry.isDeprecatedLegacyModule(def.id)) continue;
             if (!def.hasModuleGenerator()) continue;
             out.add(new LandmarkModule(
                     def.id.trim().toLowerCase(Locale.ROOT),
@@ -82,6 +86,8 @@ public final class LandmarkModuleRegistry {
         ArchetypeCatalog.ArchetypeDef def = ArchetypeRegistry.getById(text.trim());
         if (def == null) def = ArchetypeRegistry.matchByKeyword(text);
         if (def == null || def.id == null || def.id.isBlank()) return null;
+        if (Boolean.TRUE.equals(def.researchOnly)) return null;
+        if (StructuralTypologyRegistry.isDeprecatedLegacyModule(def.id)) return null;
         if (!def.hasModuleGenerator()) return null;
         return def.id.trim().toLowerCase(Locale.ROOT);
     }

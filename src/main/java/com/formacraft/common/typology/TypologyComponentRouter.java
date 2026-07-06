@@ -75,6 +75,36 @@ public final class TypologyComponentRouter {
                 }
             }
         }
+
+        String legacyModule = extractLandmarkModuleId(component);
+        if (legacyModule != null) {
+            String migrated = StructuralTypologyRegistry.typologyForLegacyModule(legacyModule);
+            if (migrated != null && !migrated.isBlank()) {
+                return migrated;
+            }
+        }
+        return null;
+    }
+
+    public static String extractLandmarkModuleId(Component component) {
+        if (component == null) {
+            return null;
+        }
+        String fromFeature = extractFeaturePayload(component, "landmark:");
+        if (fromFeature != null && !fromFeature.isBlank()) {
+            return fromFeature.trim();
+        }
+        fromFeature = extractFeaturePayload(component, "module:");
+        if (fromFeature != null && !fromFeature.isBlank()) {
+            return fromFeature.trim();
+        }
+        Map<String, Object> params = component.params();
+        if (params != null && params.get("module_id") != null) {
+            String s = String.valueOf(params.get("module_id")).trim();
+            if (!s.isEmpty()) {
+                return s;
+            }
+        }
         return null;
     }
 
@@ -93,6 +123,10 @@ public final class TypologyComponentRouter {
                     }
                 }
             }
+        }
+        String legacyModule = extractLandmarkModuleId(component);
+        if (legacyModule != null && StructuralTypologyRegistry.isDeprecatedLegacyModule(legacyModule)) {
+            return legacyModule;
         }
         return null;
     }
