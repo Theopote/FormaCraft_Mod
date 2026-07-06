@@ -79,7 +79,7 @@ def run_diversity_negative() -> int:
 
     print("\n========== [4/5] Diversity 负向检测 ==========")
     fixtures = _THIS.parent / "fixtures" / "diversity" / "stadium"
-    paths = [fixtures / "module_seed_100.json", fixtures / "module_seed_100_dup.json"]
+    paths = [fixtures / "compositional_seed_100.json", fixtures / "compositional_seed_100_dup.json"]
     plans = []
     for p in paths:
         plan = _load_plan_file(p)

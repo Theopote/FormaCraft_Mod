@@ -3,8 +3,8 @@
     "id": "stadium_diversity_variants",
     "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
     "plan_fixtures": [
-      "diversity/stadium/module_seed_100.json",
-      "diversity/stadium/module_seed_8842.json",
+      "diversity/stadium/compositional_seed_100.json",
+      "diversity/stadium/compositional_seed_8842.json",
       "diversity/stadium/compositional_v1.json"
     ],
     "thresholds": {
@@ -24,8 +24,8 @@
     "id": "stadium_duplicate_detection",
     "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
     "plan_fixtures": [
-      "diversity/stadium/module_seed_100.json",
-      "diversity/stadium/module_seed_100_dup.json"
+      "diversity/stadium/compositional_seed_100.json",
+      "diversity/stadium/compositional_seed_100_dup.json"
     ],
     "thresholds": {
       "min_samples": 2,

@@ -17,8 +17,8 @@ class DiversityEvalTest(unittest.TestCase):
     def test_routing_path(self):
         from eval.diversity_eval import routing_path, unwrap_plan
 
-        seed100 = unwrap_plan(_load("module_seed_100.json"))
-        seed8842 = unwrap_plan(_load("module_seed_8842.json"))
+        seed100 = unwrap_plan(_load("compositional_seed_100.json"))
+        seed8842 = unwrap_plan(_load("compositional_seed_8842.json"))
         comp = unwrap_plan(_load("compositional_v1.json"))
         self.assertEqual(routing_path(seed100), "compositional")
         self.assertEqual(routing_path(seed8842), "compositional")
@@ -27,8 +27,8 @@ class DiversityEvalTest(unittest.TestCase):
     def test_identical_plans_zero_distance(self):
         from eval.diversity_eval import evaluate_diversity, jaccard_distance, plan_signature_tokens, unwrap_plan
 
-        a = unwrap_plan(_load("module_seed_100.json"))
-        b = unwrap_plan(_load("module_seed_100_dup.json"))
+        a = unwrap_plan(_load("compositional_seed_100.json"))
+        b = unwrap_plan(_load("compositional_seed_100_dup.json"))
         sig_a = plan_signature_tokens(a)
         sig_b = plan_signature_tokens(b)
         self.assertEqual(jaccard_distance(sig_a, sig_b), 0.0)
@@ -45,8 +45,8 @@ class DiversityEvalTest(unittest.TestCase):
         )
 
         plans = [
-            unwrap_plan(_load("module_seed_100.json")),
-            unwrap_plan(_load("module_seed_8842.json")),
+            unwrap_plan(_load("compositional_seed_100.json")),
+            unwrap_plan(_load("compositional_seed_8842.json")),
             unwrap_plan(_load("compositional_v1.json")),
         ]
         th = DiversityThresholds(
@@ -64,8 +64,8 @@ class DiversityEvalTest(unittest.TestCase):
     def test_design_seed_affects_signature(self):
         from eval.diversity_eval import plan_signature_tokens, unwrap_plan
 
-        a = unwrap_plan(_load("module_seed_100.json"))
-        b = unwrap_plan(_load("module_seed_8842.json"))
+        a = unwrap_plan(_load("compositional_seed_100.json"))
+        b = unwrap_plan(_load("compositional_seed_8842.json"))
         self.assertNotEqual(plan_signature_tokens(a), plan_signature_tokens(b))
 
     def test_diversity_scenarios_runner(self):

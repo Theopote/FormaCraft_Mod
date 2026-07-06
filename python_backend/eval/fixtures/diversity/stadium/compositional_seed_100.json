@@ -2,7 +2,7 @@
   "_meta": {
     "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
     "variant": "compositional_seed_100",
-    "notes": "diversity fixture — 组合式椭圆体育场，designSeed=100（typology-first，原 module_seed_100）"
+    "notes": "diversity fixture — 组合式椭圆体育场，designSeed=100"
   },
   "mode": "build",
   "style_profile": "Modern_Stadium_Elliptical",
