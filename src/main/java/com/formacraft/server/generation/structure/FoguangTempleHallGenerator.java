@@ -7,6 +7,7 @@ import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.server.generation.structure.util.ChineseLandmarkDetailUtil;
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
@@ -20,18 +21,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * FoguangTempleHallGenerator：佛光寺东大殿（唐代木构佛殿强原型）专用生成器（v1）
+ * FoguangTempleHallGenerator：佛光寺东大殿（唐代木构佛殿强原型）专用生成器（v2 / P2）
  *
- * 识别性目标：
- * - 七开间 × 四进深柱网
- * - 石台基 + 副阶周匝（可选）
- * - 单檐庑殿/歇山顶大出檐 + 檐下斗拱意象
+ * P2: 柱头铺作层、格子窗、副阶额枋、三级踏道、居中门洞。
  */
 public class FoguangTempleHallGenerator implements StructureGenerator {
 
     @Override
     public GeneratedStructure generate(BuildingSpec spec, BlockPos origin, ServerWorld world) {
-        List<PlannedBlock> blocks = new ArrayList<>(6000);
+        List<PlannedBlock> blocks = new ArrayList<>(8000);
 
         BuildingStyle style = (spec != null && spec.getStyle() != null) ? spec.getStyle() : BuildingStyle.ASIAN;
         StyleProfile profile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(style);
@@ -63,6 +61,9 @@ public class FoguangTempleHallGenerator implements StructureGenerator {
         BlockState pillar = Blocks.DARK_OAK_LOG.getDefaultState();
         BlockState wall = Blocks.RED_TERRACOTTA.getDefaultState();
         BlockState trim = Blocks.DARK_OAK_PLANKS.getDefaultState();
+        BlockState bracket = Blocks.SPRUCE_STAIRS.getDefaultState();
+        BlockState paint = Blocks.GREEN_TERRACOTTA.getDefaultState();
+        BlockState lattice = Blocks.IRON_BARS.getDefaultState();
         BlockState roofTile = Blocks.DEEPSLATE_TILES.getDefaultState();
         BlockState roofStairs = Blocks.DEEPSLATE_BRICK_STAIRS.getDefaultState();
         BlockState roofSlab = Blocks.DEEPSLATE_TILE_SLAB.getDefaultState();
@@ -72,12 +73,13 @@ public class FoguangTempleHallGenerator implements StructureGenerator {
             pillar = PaletteResolver.pick(world, paletteId, "PILLAR", origin, 0xF00002L, pillar);
             wall = PaletteResolver.pick(world, paletteId, "WALL_BASE", origin, 0xF00003L, wall);
             trim = PaletteResolver.pick(world, paletteId, "DECOR_DETAIL", origin, 0xF00004L, trim);
+            bracket = PaletteResolver.pick(world, paletteId, "ROOF_SLOPE", origin, 0xF00008L, bracket);
             roofTile = PaletteResolver.pick(world, paletteId, "ROOF_TILE", origin, 0xF00005L, roofTile);
             roofStairs = PaletteResolver.pick(world, paletteId, "ROOF_SLOPE", origin, 0xF00006L, roofStairs);
             roofSlab = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xF00007L, roofSlab);
         }
 
-        int clearH = platformH + bodyH + 12;
+        int clearH = platformH + bodyH + 14;
         for (int x = -2; x <= outerW + 1; x++) {
             for (int z = -2; z <= outerD + 1; z++) {
                 for (int y = 0; y <= clearH; y++) {
@@ -92,16 +94,22 @@ public class FoguangTempleHallGenerator implements StructureGenerator {
         int yCol0 = platformH + 1;
         int yCol1 = yCol0 + bodyH - 2;
         int yWallTop = yCol0 + bodyH - 1;
+        int bodyTop = platformH + bodyH;
 
         placeBayColumns(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yCol1, pillar, trim);
         if (subEaves) {
             placePerimeterColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1, bayWidth, yCol0, yCol1 - 1, pillar, trim);
+            addSubEavesBeams(blocks, origin, entrance, ox, oz, ox + w, oz + d, outerW - 1, outerD - 1, yCol1, trim);
         }
 
         fillWallsBetweenColumns(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yWallTop, wall);
+        addLatticeWindows(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yWallTop, trim, lattice);
+        carveMainEntrance(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yWallTop);
 
-        int bodyTop = platformH + bodyH;
-        addDougongBand(blocks, origin, entrance, ox - 1, oz - 1, ox + w, oz + d, bodyTop - 1, trim);
+        addDougongAtColumns(blocks, origin, entrance, ox, oz, ox + w, oz + d, bayWidth, yCol1 + 1, trim, bracket, paint);
+        if (subEaves) {
+            addDougongAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1, bayWidth, yCol1, trim, bracket, paint);
+        }
 
         List<PlannedBlock> roofBlocks = new ArrayList<>();
         BlockPos localRoofOrigin = new BlockPos(0, bodyTop, 0);
@@ -123,21 +131,77 @@ public class FoguangTempleHallGenerator implements StructureGenerator {
                 paletteId
         );
         for (PlannedBlock pb : roofBlocks) {
-            int lx = pb.getPos().getX();
-            int lz = pb.getPos().getZ();
-            put(blocks, origin, entrance, ox + lx, pb.getPos().getY(), oz + lz, pb.getTargetState());
+            put(blocks, origin, entrance, ox + pb.getPos().getX(), pb.getPos().getY(), oz + pb.getPos().getZ(), pb.getTargetState());
         }
 
-        int mx = ox + w / 2;
-        for (int dx = -2; dx <= 2; dx++) {
-            put(blocks, origin, entrance, mx + dx, platformH, oz + d, withFacing(roofStairs, rotateDir(Direction.NORTH, entrance)));
-        }
+        addTerraceSteps(blocks, origin, entrance, ox, oz, w, d, platformH, roofStairs);
 
         String desc = String.format(
-                "FoguangTempleHall (Tang timber, %d×%d bays, w=%d d=%d, subEaves=%s)",
+                "FoguangTempleHall v2 (dougong stacks, lattice, %d×%d bays, w=%d d=%d, subEaves=%s)",
                 baysX, baysZ, w, d, subEaves
         );
         return new GeneratedStructure(null, origin, desc, blocks);
+    }
+
+    private static void addSubEavesBeams(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                         int ix0, int iz0, int ix1, int iz1, int ox1, int oz1, int y, BlockState beam) {
+        ringRect(blocks, origin, entrance, ix0 - 1, y, iz0 - 1, ix1 + 1, y, iz1 + 1, beam);
+        ringRect(blocks, origin, entrance, 0, y, 0, ox1, y, oz1, beam);
+    }
+
+    private static void addLatticeWindows(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                          int x0, int z0, int w, int d, int spacing, int y0, int yTop,
+                                          BlockState frame, BlockState infill) {
+        int wy0 = y0 + 2;
+        int wy1 = Math.min(yTop - 1, y0 + 4);
+        for (int x = spacing; x < w; x += spacing) {
+            ChineseLandmarkDetailUtil.addLatticeWindow(
+                    (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
+                    x0 + x, x0 + x + spacing - 1, wy0, wy1, z0, frame, infill
+            );
+            ChineseLandmarkDetailUtil.addLatticeWindow(
+                    (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
+                    x0 + x, x0 + x + spacing - 1, wy0, wy1, z0 + d, frame, infill
+            );
+        }
+    }
+
+    private static void carveMainEntrance(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                          int x0, int z0, int w, int d, int spacing, int y0, int yTop) {
+        int midBay = (w / spacing) / 2 * spacing;
+        int doorX = x0 + midBay + 1;
+        int doorZ = z0 + d;
+        for (int y = y0; y <= yTop; y++) {
+            for (int dx = 0; dx < spacing - 1; dx++) {
+                put(blocks, origin, entrance, doorX + dx, y, doorZ, Blocks.AIR.getDefaultState());
+            }
+        }
+        put(blocks, origin, entrance, doorX, y0, doorZ, Blocks.OAK_DOOR.getDefaultState());
+    }
+
+    private static void addDougongAtColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                            int x0, int z0, int x1, int z1, int spacing,
+                                            int y, BlockState bracketCap, BlockState arm, BlockState paint) {
+        for (int[] col : ChineseLandmarkDetailUtil.perimeterColumnPositions(x0, z0, x1, z1, spacing)) {
+            Direction out = ChineseLandmarkDetailUtil.outwardFromRectEdge(col[0], col[1], x0, z0, x1, z1);
+            ChineseLandmarkDetailUtil.addDougongStack(
+                    (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
+                    col[0], y, col[1], out, bracketCap, arm, paint
+            );
+        }
+    }
+
+    private static void addTerraceSteps(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                          int ox, int oz, int w, int d, int platformH, BlockState stair) {
+        int mx = ox + w / 2;
+        for (int tier = 0; tier < 3; tier++) {
+            int z = oz + d + 1 + tier;
+            int y = platformH - tier;
+            if (y < 0) break;
+            for (int dx = -3 + tier; dx <= 3 - tier; dx++) {
+                put(blocks, origin, entrance, mx + dx, y, z, withFacing(stair, rotateDir(Direction.NORTH, entrance)));
+            }
+        }
     }
 
     private static void placeBayColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
@@ -182,18 +246,6 @@ public class FoguangTempleHallGenerator implements StructureGenerator {
                     put(blocks, origin, entrance, x0 + w, y, z0 + z + t, wall);
                 }
             }
-        }
-    }
-
-    private static void addDougongBand(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                       int x0, int z0, int x1, int z1, int y, BlockState trim) {
-        for (int x = x0; x <= x1; x++) {
-            put(blocks, origin, entrance, x, y, z0, trim);
-            put(blocks, origin, entrance, x, y, z1, trim);
-        }
-        for (int z = z0; z <= z1; z++) {
-            put(blocks, origin, entrance, x0, y, z, trim);
-            put(blocks, origin, entrance, x1, y, z, trim);
         }
     }
 

@@ -37,7 +37,7 @@
         "params.levels=13, height≈47, baseWidth≈10, detailLevel=refined, facing=SOUTH",
         "layout.skeleton_type=VERTICAL_STACK；global_constraints.symmetry=MIRROR_X",
         "输出 proportion_hints：typology=famen_pagoda, floor_count=13, slenderness≈4.7, setback_ratio≈0.06",
-        "顶刹/相轮：用 DECOR_DETAIL 或 crown_template=SIMPLE_DOME 小刹，禁止 CLASSICAL_CUPOLA/ONION_DOME",
+        "顶刹/相轮：三层八角相轮 + 券形假窗（偶数层/四面/ refined 时对角面）",
         "材质：砖石塔身 + 深色琉璃瓦檐；禁止西方圆顶与宫殿式 classical_monument 方盒"
       ]
     }

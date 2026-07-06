@@ -7,6 +7,7 @@ import com.formacraft.common.model.build.BuildingStyle;
 import com.formacraft.common.style.profile.DetailPreferences;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
+import com.formacraft.server.generation.structure.util.ChineseLandmarkDetailUtil;
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
@@ -19,12 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * FamenPagodaGenerator：法门寺舍利塔（强原型）专用生成器（v1）
+ * FamenPagodaGenerator：法门寺舍利塔（强原型）专用生成器（v2 / P2）
  *
- * 识别性目标：
- * - 八角密檐砖塔（逐层收分）
- * - 13 层檐口节奏（可参数化）
- * - 塔刹/相轮顶（非西方圆顶）
+ * P2: 正八角轮廓、券形假窗、双层檐口、相轮塔刹。
  */
 public class FamenPagodaGenerator implements StructureGenerator {
 
@@ -58,6 +56,7 @@ public class FamenPagodaGenerator implements StructureGenerator {
         BlockState trim = blockOrDefault(world, StructureSpecParsers.extraString(spec, "trimBlock", "minecraft:stone_brick_slab"), Blocks.STONE_BRICK_SLAB.getDefaultState());
         BlockState eave = blockOrDefault(world, StructureSpecParsers.extraString(spec, "eaveBlock", "minecraft:blackstone_slab"), Blocks.BLACKSTONE_SLAB.getDefaultState());
         BlockState accent = blockOrDefault(world, StructureSpecParsers.extraString(spec, "accentBlock", "minecraft:gold_block"), Blocks.GOLD_BLOCK.getDefaultState());
+        BlockState archStair = blockOrDefault(world, StructureSpecParsers.extraString(spec, "archBlock", "minecraft:brick_stairs"), Blocks.BRICK_STAIRS.getDefaultState());
 
         if (paletteId != null && !paletteId.isBlank()) {
             if (StructureSpecParsers.extraString(spec, "bodyBlock", "").isBlank()) {
@@ -78,13 +77,11 @@ public class FamenPagodaGenerator implements StructureGenerator {
         int minPer = refined ? 2 : 3;
         int maxPer = refined ? 4 : 3;
         int per = clamp(height / Math.max(1, levels), minPer, maxPer);
-        int usedHeight = per * levels;
-        int extraTop = Math.max(0, height - usedHeight);
+        int extraTop = Math.max(0, height - per * levels);
 
-        List<PlannedBlock> blocks = new ArrayList<>(levels * 800);
+        List<PlannedBlock> blocks = new ArrayList<>(levels * 900);
         int y = 0;
         int half = baseW / 2;
-        int shrinkEvery = 1;
 
         for (int lv = 0; lv < levels; lv++) {
             int levelH = per;
@@ -98,9 +95,9 @@ public class FamenPagodaGenerator implements StructureGenerator {
                 int yy = y + dy;
                 for (int x = -half; x <= half; x++) {
                     for (int z = -half; z <= half; z++) {
-                        if (!inOctagon(x, z, half)) continue;
-                        boolean edge = onOctagonEdge(x, z, half);
-                        if (hollow && !edge && inOctagon(x, z, inner)) continue;
+                        if (!ChineseLandmarkDetailUtil.inRegularOctagon(x, z, half)) continue;
+                        boolean edge = ChineseLandmarkDetailUtil.onRegularOctagonEdge(x, z, half);
+                        if (hollow && !edge && ChineseLandmarkDetailUtil.inRegularOctagon(x, z, inner)) continue;
                         BlockState s = body;
                         if (edge && (dy % 4 == 0)) s = trim;
                         blocks.add(new PlannedBlock(origin.add(x, yy, z), s));
@@ -110,72 +107,36 @@ public class FamenPagodaGenerator implements StructureGenerator {
 
             if (lv == 0) {
                 carveDoor(blocks, origin, facing, y + 1, half);
+            } else if (lv % 2 == 1 || refined) {
+                ChineseLandmarkDetailUtil.addPagodaArchedNiches(blocks, origin, half, y, levelH, refined, trim, archStair);
             }
 
-            ringOctagon(blocks, origin, half + 1, eaveY, eave);
-            ringOctagon(blocks, origin, half, eaveY, trim);
+            ChineseLandmarkDetailUtil.ringRegularOctagon(blocks, origin, half + 1, eaveY, eave);
+            ChineseLandmarkDetailUtil.ringRegularOctagon(blocks, origin, half, eaveY, trim);
+            if (refined) {
+                ChineseLandmarkDetailUtil.ringRegularOctagon(blocks, origin, half + 2, eaveY + 1, eave);
+            }
 
             y += levelH + 1;
-            if ((lv + 1) % shrinkEvery == 0) {
-                half = Math.max(3, half - 1);
-            }
+            half = Math.max(3, half - 1);
         }
 
-        addStupaFinial(blocks, origin, y + 1, accent, trim);
+        ChineseLandmarkDetailUtil.addStupaFinial(blocks, origin, y + 1, accent, trim, Blocks.LIGHTNING_ROD.getDefaultState());
 
         double slenderness = height / (double) baseW;
         double ratioScore = clamp01(1.0 - Math.abs(slenderness - 4.7) * 0.15);
-        double overall = clamp01(0.88 * 0.4 + ratioScore * 0.35 + clamp01(0.7 + levels / 20.0) * 0.25);
+        double overall = clamp01(0.9 * 0.4 + ratioScore * 0.35 + clamp01(0.75 + levels / 20.0) * 0.25);
         String desc = String.format(
-                "FamenPagoda (octagonal dense-eaves, levels=%d, h=%d, base=%d, facing=%s, score=%.2f)",
+                "FamenPagoda v2 (regular-octagon, arched niches, levels=%d, h=%d, base=%d, facing=%s, score=%.2f)",
                 levels, height, baseW, facing.asString(), overall
         );
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 
-    private static void addStupaFinial(List<PlannedBlock> blocks, BlockPos origin, int baseY, BlockState accent, BlockState ring) {
-        blocks.add(new PlannedBlock(origin.add(0, baseY, 0), accent));
-        blocks.add(new PlannedBlock(origin.add(0, baseY + 1, 0), accent));
-        blocks.add(new PlannedBlock(origin.add(0, baseY + 2, 0), Blocks.CHAIN.getDefaultState()));
-        ringOctagon(blocks, origin, 1, baseY + 3, ring);
-        blocks.add(new PlannedBlock(origin.add(0, baseY + 4, 0), accent));
-        blocks.add(new PlannedBlock(origin.add(0, baseY + 5, 0), Blocks.LIGHTNING_ROD.getDefaultState()));
-    }
-
-    private static boolean inOctagon(int x, int z, int half) {
-        int ax = Math.abs(x);
-        int az = Math.abs(z);
-        if (ax > half || az > half) return false;
-        int cut = Math.max(1, half / 2);
-        return ax + az <= half + cut;
-    }
-
-    private static boolean onOctagonEdge(int x, int z, int half) {
-        if (!inOctagon(x, z, half)) return false;
-        return !inOctagon(x - 1, z, half)
-                || !inOctagon(x + 1, z, half)
-                || !inOctagon(x, z - 1, half)
-                || !inOctagon(x, z + 1, half);
-    }
-
-    private static void ringOctagon(List<PlannedBlock> blocks, BlockPos origin, int half, int y, BlockState state) {
-        for (int x = -half; x <= half; x++) {
-            for (int z = -half; z <= half; z++) {
-                if (inOctagon(x, z, half) && !inOctagon(x, z, half - 1)) {
-                    blocks.add(new PlannedBlock(origin.add(x, y, z), state));
-                }
-            }
-        }
-    }
-
     private static void carveDoor(List<PlannedBlock> blocks, BlockPos origin, Direction facing, int y0, int half) {
-        int x = 0;
-        int z = 0;
-        if (facing == Direction.SOUTH) z = half;
-        if (facing == Direction.NORTH) z = -half;
-        if (facing == Direction.EAST) x = half;
-        if (facing == Direction.WEST) x = -half;
-
+        BlockPos cell = ChineseLandmarkDetailUtil.octagonFaceCell(half, facing);
+        int x = cell.getX();
+        int z = cell.getZ();
         for (int dy = 0; dy < 3; dy++) {
             blocks.add(new PlannedBlock(origin.add(x, y0 + dy, z), Blocks.AIR.getDefaultState()));
         }
