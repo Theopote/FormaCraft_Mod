@@ -190,7 +190,7 @@ public final class TypologyRoutingMetrics {
         return COMPOSITIONAL_TYPES.contains(type);
     }
 
-    static boolean isModuleComponent(Component c) {
+    public static boolean isModuleComponent(Component c) {
         if (c == null) return false;
         return "MODULE".equals(normalizeType(c.componentType()));
     }
