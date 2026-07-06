@@ -37,18 +37,22 @@ public final class AlignmentContractParser {
     }
 
     public static AlignmentAndSymmetry parseValue(Object raw) {
-        if (raw == null) {
-            return null;
-        }
-        if (raw instanceof AlignmentAndSymmetry contract) {
-            return contract.hasContent() ? contract : null;
-        }
-        if (raw instanceof Map<?, ?> map) {
-            try {
-                AlignmentAndSymmetry parsed = JsonUtil.fromJson(JsonUtil.toJson(map), AlignmentAndSymmetry.class);
-                return parsed != null && parsed.hasContent() ? parsed : null;
-            } catch (Throwable ignored) {
-                return parseMapManually(map);
+        switch (raw) {
+            case null -> {
+                return null;
+            }
+            case AlignmentAndSymmetry contract -> {
+                return contract.hasContent() ? contract : null;
+            }
+            case Map<?, ?> map -> {
+                try {
+                    AlignmentAndSymmetry parsed = JsonUtil.fromJson(JsonUtil.toJson(map), AlignmentAndSymmetry.class);
+                    return parsed != null && parsed.hasContent() ? parsed : null;
+                } catch (Throwable ignored) {
+                    return parseMapManually(map);
+                }
+            }
+            default -> {
             }
         }
         return null;
