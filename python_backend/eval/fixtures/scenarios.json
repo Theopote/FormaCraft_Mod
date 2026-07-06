@@ -8,7 +8,7 @@
     "ideal_notes": [
       "Week 2+: Culture card + RECOMMENDED LandmarkModuleRouting（非强制 MODULE）",
       "允许 MODULE+landmark:birds_nest_stadium 或组合式 MASS 原创路径",
-      "diversity eval: eval/fixtures/diversity/stadium/ 三个变体应 unique_ratio=1.0"
+      "diversity eval: eval/fixtures/diversity/stadium/ 三个组合式变体应 unique_ratio=1.0"
     ]
   },
   {

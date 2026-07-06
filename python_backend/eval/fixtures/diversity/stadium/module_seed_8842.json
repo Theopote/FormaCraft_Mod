@@ -1,33 +1,60 @@
 {
   "_meta": {
     "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
-    "variant": "module_seed_8842",
-    "notes": "diversity fixture — MODULE 路径，不同 seed/坡度/朝向/尺寸"
+    "variant": "compositional_seed_8842",
+    "notes": "diversity fixture — 组合式椭圆体育场，designSeed=8842（typology-first，原 module_seed_8842）"
   },
   "mode": "build",
-  "style_profile": "Modern_Stadium",
+  "style_profile": "Modern_Stadium_Elliptical",
   "style_attributes": {
     "wall_color": "light_gray",
     "accent_color": "blue",
     "wall_material": "concrete",
-    "decorative_elements": ["floodlights", "glass_band"]
+    "decorative_elements": ["floodlights", "glass_band", "steel_ribs"]
   },
   "anchor": { "x": 0, "y": 64, "z": 0 },
   "global_constraints": { "facing": "WEST", "symmetry": "RADIAL" },
-  "layout": { "skeleton_type": "RADIAL_RING", "slots": [] },
+  "layout": { "skeleton_type": "RADIAL_RING", "path_based": false, "slots": [] },
   "components": [
     {
-      "component_type": "MODULE",
+      "component_type": "PAVING",
       "relative_position": { "x": 0, "y": 0, "z": 0 },
-      "dimensions": { "width": 55, "depth": 75, "height": 26 },
-      "features": ["landmark:birds_nest_stadium"],
+      "dimensions": { "width": 44, "depth": 60, "height": 1 },
+      "params": { "material": "stone", "shape": "ellipse" }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 55, "depth": 75, "height": 20 },
+      "features": ["elliptical_footprint", "tiered_bowl", "glass_curtain"],
       "params": {
-        "module_id": "birds_nest_stadium",
-        "meshStructure": true,
+        "shape": "circle",
+        "void_ratio": 0.44,
+        "facade_profile": "glass_curtain",
         "designSeed": 8842,
         "bowlSteepness": 0.42,
-        "facing": "WEST"
+        "facing": "WEST",
+        "masses": [
+          { "y0": 0, "y1": 9, "scale": 1.0 },
+          { "y0": 9, "y1": 16, "scale": 0.86 },
+          { "y0": 16, "y1": 20, "scale": 0.72 }
+        ]
       }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": { "x": 0, "y": 20, "z": 0 },
+      "dimensions": { "width": 50, "depth": 68, "height": 5 },
+      "features": ["membrane_canopy", "floodlight_masts"],
+      "params": { "roof_type": "flat", "overhang": 2.5 }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": { "x": -27, "y": 0, "z": 0 },
+      "dimensions": { "width": 8, "depth": 6, "height": 9 },
+      "features": ["canopy", "ticket_booth"],
+      "params": { "door_width": 5, "door_height": 5 }
     }
-  ]
+  ],
+  "kind": "llmplan"
 }

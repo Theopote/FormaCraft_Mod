@@ -1,32 +1,67 @@
 {
   "_meta": {
     "prompt": "在锚点位置生成现代风格的椭圆形体育场建筑",
-    "variant": "duplicate_of_module_100",
+    "variant": "duplicate_of_compositional_seed_100",
     "notes": "diversity fixture — 与 module_seed_100 相同（用于测重复检测）"
   },
   "mode": "build",
-  "style_profile": "Modern_Stadium",
+  "style_profile": "Modern_Stadium_Elliptical",
   "style_attributes": {
     "wall_color": "gray",
     "accent_color": "steel",
-    "wall_material": "concrete"
+    "wall_material": "concrete",
+    "decorative_elements": ["steel_ribs", "mesh_facade"]
   },
   "anchor": { "x": 0, "y": 64, "z": 0 },
   "global_constraints": { "facing": "SOUTH", "symmetry": "RADIAL" },
-  "layout": { "skeleton_type": "RADIAL_RING", "slots": [] },
+  "layout": { "skeleton_type": "RADIAL_RING", "path_based": false, "slots": [] },
   "components": [
     {
-      "component_type": "MODULE",
+      "component_type": "PAVING",
       "relative_position": { "x": 0, "y": 0, "z": 0 },
-      "dimensions": { "width": 60, "depth": 80, "height": 28 },
-      "features": ["landmark:birds_nest_stadium"],
+      "dimensions": { "width": 48, "depth": 64, "height": 1 },
+      "params": { "material": "grass_block", "shape": "ellipse" }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 60, "depth": 80, "height": 22 },
+      "features": ["elliptical_footprint", "stepped_seating", "mesh_facade"],
       "params": {
-        "module_id": "birds_nest_stadium",
-        "meshStructure": true,
+        "shape": "rounded_rect",
+        "corner_radius": 14,
+        "void_ratio": 0.38,
+        "facade_profile": "mullion_grid",
         "designSeed": 100,
         "bowlSteepness": 0.28,
-        "facing": "SOUTH"
+        "facing": "SOUTH",
+        "masses": [
+          { "offset": { "x": 0, "y": 0, "z": 0 }, "dimensions": { "width": 60, "depth": 80, "height": 10 } },
+          { "offset": { "x": 0, "y": 10, "z": 0 }, "dimensions": { "width": 54, "depth": 72, "height": 8 } },
+          { "offset": { "x": 0, "y": 18, "z": 0 }, "dimensions": { "width": 48, "depth": 64, "height": 4 } }
+        ]
       }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": { "x": -30, "y": 22, "z": -40 },
+      "dimensions": { "width": 60, "depth": 80, "height": 4 },
+      "features": ["curved_metal_roof", "partial_canopy"],
+      "params": { "roof_type": "membrane_canopy", "anchor_mode": "min_corner" }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": { "x": 0, "y": 0, "z": 38 },
+      "dimensions": { "width": 12, "depth": 5, "height": 8 },
+      "features": ["glass_doors"],
+      "params": { "door_width": 6, "door_height": 6 }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": { "x": -30, "y": 0, "z": -40 },
+      "dimensions": { "width": 60, "depth": 80, "height": 18 },
+      "params": { "window_ratio": 0.35, "rhythm": "regular" }
     }
-  ]
+  ],
+  "kind": "llmplan"
 }

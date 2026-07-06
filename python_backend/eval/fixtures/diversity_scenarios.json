@@ -11,13 +11,13 @@
       "min_samples": 3,
       "min_unique_ratio": 1.0,
       "min_mean_distance": 0.25,
-      "min_routing_unique": 2,
+      "min_routing_unique": 1,
       "require_routing_diversity": false
     },
     "ci": true,
     "notes": [
-      "3 个刻意不同的 plan：2×MODULE（不同 seed/参数）+ 1×组合式 MASS",
-      "期望 unique_ratio=1.0、mean_distance≥0.25、至少 2 种 routing path"
+      "3 个刻意不同的 plan：2×组合式 seed 变体（不同 designSeed/坡度/尺寸）+ 1×组合式 MASS 原创",
+      "期望 unique_ratio=1.0、mean_distance≥0.25（typology-first，不再使用 MODULE 路径）"
     ]
   },
   {

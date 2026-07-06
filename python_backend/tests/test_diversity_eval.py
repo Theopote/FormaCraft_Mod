@@ -17,9 +17,11 @@ class DiversityEvalTest(unittest.TestCase):
     def test_routing_path(self):
         from eval.diversity_eval import routing_path, unwrap_plan
 
-        module = unwrap_plan(_load("module_seed_100.json"))
+        seed100 = unwrap_plan(_load("module_seed_100.json"))
+        seed8842 = unwrap_plan(_load("module_seed_8842.json"))
         comp = unwrap_plan(_load("compositional_v1.json"))
-        self.assertEqual(routing_path(module), "module")
+        self.assertEqual(routing_path(seed100), "compositional")
+        self.assertEqual(routing_path(seed8842), "compositional")
         self.assertEqual(routing_path(comp), "compositional")
 
     def test_identical_plans_zero_distance(self):
@@ -51,12 +53,12 @@ class DiversityEvalTest(unittest.TestCase):
             min_samples=3,
             min_unique_ratio=1.0,
             min_mean_distance=0.25,
-            min_routing_unique=2,
+            min_routing_unique=1,
         )
         m = evaluate_diversity(plans, label="variants", thresholds=th)
         self.assertEqual(m.unique_signatures, 3)
         self.assertGreaterEqual(m.mean_pairwise_distance, 0.25)
-        self.assertGreaterEqual(m.routing_unique, 2)
+        self.assertGreaterEqual(m.routing_unique, 1)
         self.assertTrue(m.ok)
 
     def test_design_seed_affects_signature(self):

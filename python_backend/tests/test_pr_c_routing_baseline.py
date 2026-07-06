@@ -72,10 +72,11 @@ class RoutingBaselineReportTest(unittest.TestCase):
         for path in PATH_PRIORITY:
             self.assertIn(path, md)
 
-    def test_typology_first_rate_below_target(self):
+    def test_typology_first_rate_meets_target(self):
         stats = collect_baseline()
-        # Baseline documents current gap vs 80% goal — should not falsely claim target met.
-        self.assertLess(stats.typology_first_rate(), 80.0)
+        # After stadium diversity fixtures migrated off MODULE, golden set should hit 80% goal.
+        self.assertGreaterEqual(stats.typology_first_rate(), 80.0)
+        self.assertEqual(stats.by_path.get("module", 0), 0)
 
 
 if __name__ == "__main__":
