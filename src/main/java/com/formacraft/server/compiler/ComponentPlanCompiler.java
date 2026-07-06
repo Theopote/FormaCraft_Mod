@@ -293,6 +293,7 @@ public final class ComponentPlanCompiler {
                             patches = merged;
                         }
                     }
+                    logComponentPatchCount(normalizedType, c, patches.size());
                     com.formacraft.common.llm.dto.Vec3i slotAnchor = slot.anchor();
 
                     if (slotAnchor != null) {
@@ -312,8 +313,10 @@ public final class ComponentPlanCompiler {
                         result.addAll(patches);
                     }
                 } else {
-                    FormacraftMod.LOGGER.warn("ComponentPlanCompiler: no patches generated for component: {}",
-                            c.componentType());
+                    FormacraftMod.LOGGER.warn(
+                            "ComponentPlanCompiler: no patches generated for component: {}{}",
+                            c.componentType(),
+                            componentPatchDiagSuffix(normalizedType, c));
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.error("ComponentPlanCompiler: error generating component {}: {}",
@@ -748,6 +751,66 @@ public final class ComponentPlanCompiler {
                 features,
                 params
         );
+    }
+
+    private static void logComponentPatchCount(String normalizedType, Component c, int patchCount) {
+        FormacraftMod.LOGGER.info(
+                "ComponentPlanCompiler: {} -> {} patches{}",
+                normalizedType,
+                patchCount,
+                componentPatchDiagSuffix(normalizedType, c));
+    }
+
+    private static String componentPatchDiagSuffix(String normalizedType, Component c) {
+        Dimensions d = c != null ? c.dimensions() : null;
+        String dims = formatDimensions(d);
+        if (!"FACADE_WINDOWS".equals(normalizedType)) {
+            return dims.isEmpty() ? "" : " " + dims;
+        }
+        Map<String, Object> params = c != null ? c.params() : null;
+        String aspect = paramString(params, "window_aspect", "windowAspect");
+        String rhythm = paramString(params, "rhythm_preset", "rhythmPreset");
+        if (rhythm == null) {
+            rhythm = paramString(params, "rhythm");
+        }
+        StringBuilder sb = new StringBuilder();
+        if (!dims.isEmpty()) {
+            sb.append(' ').append(dims);
+        }
+        if (aspect != null) {
+            sb.append(" aspect=").append(aspect);
+        }
+        if (rhythm != null) {
+            sb.append(" rhythm=").append(rhythm);
+        }
+        return sb.toString();
+    }
+
+    private static String formatDimensions(Dimensions d) {
+        if (d == null) {
+            return "";
+        }
+        return String.format(Locale.ROOT, "dims=%dx%dx%d", d.width(), d.depth(), d.height());
+    }
+
+    private static String paramString(Map<String, Object> params, String... keys) {
+        if (params == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (key == null) {
+                continue;
+            }
+            Object v = params.get(key);
+            if (v == null) {
+                continue;
+            }
+            String s = String.valueOf(v).trim();
+            if (!s.isEmpty()) {
+                return s;
+            }
+        }
+        return null;
     }
 
     private record OrientedFacade(int width, int depth, Vec3i origin) {}
