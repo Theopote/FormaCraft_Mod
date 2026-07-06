@@ -76,11 +76,23 @@ tasks.register('validateAssemblyExamples', JavaExec) {
 
 tasks.register('validateCultureCards', JavaExec) {
 	group = 'verification'
-	description = 'Validate assets/formacraft/culture_cards/*.json (shape + example refs).'
+	description = 'Validate assets/formacraft/culture_cards/*.json (shape + example refs + typology migration contract).'
 	dependsOn tasks.named('classes')
 	classpath = sourceSets.main.runtimeClasspath
 	mainClass = 'com.formacraft.tools.ValidateCultureCardsMain'
-	args 'src/main/resources/assets/formacraft/culture_cards', 'src/main/resources/assets/formacraft/assembly_examples'
+	args 'src/main/resources/assets/formacraft/culture_cards',
+			'src/main/resources/assets/formacraft/assembly_examples',
+			'src/main/resources/assets/formacraft/structural_typologies/structural_typologies_v1.json'
+}
+
+tasks.register('validateGeneratorRegistry', JavaExec) {
+	group = 'verification'
+	description = 'Freeze StructureGeneratorRegistry keys against CI allowlist (ADR/typology exemption required for new keys).'
+	dependsOn tasks.named('classes')
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.formacraft.tools.ValidateGeneratorRegistryMain'
+	args 'src/main/java/com/formacraft/server/generation/structure/router/StructureGeneratorRegistry.java',
+			'src/main/resources/assets/formacraft/ci/generator_registry_allowlist.json'
 }
 
 tasks.register('evalAssemblyCases', JavaExec) {
@@ -111,6 +123,7 @@ tasks.register('demoCultureRetrieve', JavaExec) {
 tasks.named('check') {
 	dependsOn tasks.named('validateAssemblyExamples')
 	dependsOn tasks.named('validateCultureCards')
+	dependsOn tasks.named('validateGeneratorRegistry')
 	dependsOn tasks.named('evalAssemblyCases')
 	dependsOn tasks.named('test')
 }

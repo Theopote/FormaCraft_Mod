@@ -4,15 +4,18 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Build-time validator for culture cards.
@@ -32,8 +35,13 @@ public final class ValidateCultureCardsMain {
         }
         Path examplesDir = Path.of("src/main/resources/assets/formacraft/assembly_examples");
         Path llmPlanExamplesDir = Path.of("src/main/resources/assets/formacraft/llmplan_examples");
+        Path typologiesJson = Path.of(
+                "src/main/resources/assets/formacraft/structural_typologies/structural_typologies_v1.json");
         if (args != null && args.length >= 2 && args[1] != null && !args[1].isBlank()) {
             examplesDir = Path.of(args[1]);
+        }
+        if (args != null && args.length >= 3 && args[2] != null && !args[2].isBlank()) {
+            typologiesJson = Path.of(args[2]);
         }
 
         if (!Files.exists(dir) || !Files.isDirectory(dir)) {
@@ -52,12 +60,9 @@ public final class ValidateCultureCardsMain {
             s.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json"))
              .forEach(p -> exampleNames.add(p.getFileName().toString()));
         }
-        if (Files.exists(llmPlanExamplesDir) && Files.isDirectory(llmPlanExamplesDir)) {
-            try (var s = Files.list(llmPlanExamplesDir)) {
-                s.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json"))
-                 .forEach(p -> exampleNames.add(p.getFileName().toString()));
-            }
-        }
+        collectJsonBasenames(llmPlanExamplesDir, exampleNames);
+
+        Map<String, String> migrationTypologyByCardId = loadMigrationTypologyByCardId(typologiesJson);
 
         List<Path> files = new ArrayList<>();
         try (var s = Files.list(dir)) {
@@ -117,6 +122,12 @@ public final class ValidateCultureCardsMain {
             // exampleRefs: optional at root
             errs += validateExampleRefs(mm.get("exampleRefs"), exampleNames, p.getFileName().toString(), "$.exampleRefs");
             errs += validateExampleRefs(mm.get("llmPlanExampleRefs"), exampleNames, p.getFileName().toString(), "$.llmPlanExampleRefs");
+
+            String cardId = s(mm.get("id"));
+            if (cardId != null && migrationTypologyByCardId.containsKey(cardId)) {
+                errs += validateMigratedCultureCard(mm, cardId, migrationTypologyByCardId.get(cardId), p.getFileName().toString());
+            }
+
             // archetypes[].exampleRef: optional
             Object archObj = mm.get("archetypes");
             if (archObj instanceof List<?> archs) {
@@ -273,6 +284,90 @@ public final class ValidateCultureCardsMain {
         if (v == null) return null;
         String ss = String.valueOf(v).trim();
         return ss.isEmpty() ? null : ss;
+    }
+
+    private static void collectJsonBasenames(Path dir, Set<String> out) throws Exception {
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+            return;
+        }
+        try (Stream<Path> walk = Files.walk(dir, FileVisitOption.FOLLOW_LINKS)) {
+            walk.filter(p -> Files.isRegularFile(p)
+                            && p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json"))
+                .forEach(p -> out.add(p.getFileName().toString()));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> loadMigrationTypologyByCardId(Path typologiesJson) throws Exception {
+        Map<String, String> out = new HashMap<>();
+        if (!Files.isRegularFile(typologiesJson)) {
+            System.out.println("[validateCultureCards] WARN typologies JSON not found (skip migration rules): "
+                    + typologiesJson.toAbsolutePath());
+            return out;
+        }
+        String text = Files.readString(typologiesJson, StandardCharsets.UTF_8);
+        Object root = GSON.fromJson(text, Object.class);
+        if (!(root instanceof Map<?, ?> mm)) {
+            return out;
+        }
+        Object migObj = mm.get("migrationMap");
+        if (!(migObj instanceof Map<?, ?> mig)) {
+            return out;
+        }
+        for (var ent : mig.entrySet()) {
+            if (!(ent.getKey() instanceof String cardId) || cardId.isBlank()) {
+                continue;
+            }
+            if (!(ent.getValue() instanceof Map<?, ?> entry)) {
+                continue;
+            }
+            String typologyId = s(entry.get("typologyId"));
+            if (typologyId != null) {
+                out.put(cardId.trim(), typologyId);
+            }
+        }
+        return out;
+    }
+
+    private static int validateMigratedCultureCard(
+            Map<?, ?> mm, String cardId, String expectedTypologyId, String file) {
+        int e = 0;
+        String typologyId = s(mm.get("structuralTypologyId"));
+        if (typologyId == null) {
+            System.err.println("[validateCultureCards] ERROR " + file
+                    + " : migrationMap card '" + cardId + "' must have structuralTypologyId");
+            e++;
+        } else if (!expectedTypologyId.equals(typologyId)) {
+            System.err.println("[validateCultureCards] ERROR " + file
+                    + " : structuralTypologyId must be " + expectedTypologyId + " for migrated card " + cardId);
+            e++;
+        }
+
+        String landmarkModuleId = s(mm.get("landmarkModuleId"));
+        if (landmarkModuleId != null) {
+            System.err.println("[validateCultureCards] ERROR " + file
+                    + " : migrationMap card '" + cardId + "' must not have landmarkModuleId (got "
+                    + landmarkModuleId + ")");
+            e++;
+        }
+
+        Object refsObj = mm.get("llmPlanExampleRefs");
+        if (refsObj instanceof List<?> refs) {
+            for (int i = 0; i < refs.size(); i++) {
+                Object it = refs.get(i);
+                if (!(it instanceof String ref) || ref.isBlank()) {
+                    continue;
+                }
+                String low = ref.toLowerCase(Locale.ROOT);
+                if (low.endsWith("_module.json") || low.contains("deprecated/")) {
+                    System.err.println("[validateCultureCards] ERROR " + file
+                            + " : $.llmPlanExampleRefs[" + i + "] must not reference legacy MODULE few-shot: "
+                            + ref);
+                    e++;
+                }
+            }
+        }
+        return e;
     }
 }
 
