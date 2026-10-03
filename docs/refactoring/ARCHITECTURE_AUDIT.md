@@ -86,6 +86,12 @@ SHELL_BOX 的内部清空原来位于楼板之后，导致中间楼板被删除�
 
 Compilation 将 patch 与成功的计划局部梯段要求一起交给主预览；要求在世界偏移一次后传给 BuildPreviewPipeline，在自动修复和硬裁剪之后检查。地坪/地基准备原本就先于建筑操作，这次保留该顺序，补上后续修复/裁剪的最终拒绝规则。没有元数据的路由仍沿用原行为；生成器内部的同步捕获适配尚未替换成通用生成结果。真实地形与碰撞仍需验收，见 [完整计划契约](../PLAN_CIRCULATION_CONTRACT.md)。
 
-## 第十八批补充：整栋塔楼与其他路由
+## 第十八批补充：整栋塔楼与其他路由（历史检查）
 
 TowerGenerator 修复实际不相邻的螺旋踏步与不可能楼层数，分离 TowerStairBuilder 在结构完成后切出踏面与两格空气。本次生成内部校验不等于最终预览保护：StructureGeneratorAdaptor 的要求坐标桥接仍缺失。PlanProgram 的 SkeletonBuildService 默认语义路由已核对，旧 StairAssembler 仍未被调用；逐 skeleton 失败后继续合并会形成部分结果，下一步需统一这条路径的失败和要求协议。见 [塔楼契约](../TOWER_CIRCULATION_CONTRACT.md)。
+
+## 第十九批补充：整栋适配与骨架失败边界
+
+上述塔楼构件桥接与逐骨架部分输出问题已修复。StructurePatchBridge 显式返回不可变 patch 与局部通行要求，适配器通过嵌套作用域隔离原始入口坐标；完整状态与要求指定的挖空操作共同保留。通用生成器接口仍只返回 patch，捕获适配尚未替换为统一结果协议，独立整栋和 PlanProgram 元数据仍缺失。
+
+PlanProgram 合并改为任一骨架生成异常、空输出或非法目标状态即停止，以具名异常阻止 JSON 兼容回退吞掉执行失败。主预览异常关闭心跳。458 个 Java 测试及完整 check 通过，架构边界仍为 20 处已登记技术债、0 新增；真实世界执行与碰撞仍待验收。

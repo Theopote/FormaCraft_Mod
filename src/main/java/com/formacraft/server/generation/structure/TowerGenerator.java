@@ -278,6 +278,7 @@ public class TowerGenerator implements StructureGenerator {
             TowerStairBuilder.append(result, origin, (floors - 1) * floorHeight, floor);
             var flight = com.formacraft.server.assembly.AssemblyCirculationConstraints.capture(result, start);
             com.formacraft.server.assembly.AssemblyCirculationConstraints.validate(result, List.of(flight));
+            com.formacraft.server.assembly.AssemblyCirculationConstraints.publish(List.of(flight));
         }
 
         String description = String.format("Tower (%s, height=%d, radius=%d, floors=%d)", 

@@ -187,6 +187,10 @@ BuildingSpec → GenerationHub.routeStructure()
 
 ## 相关文档
 
+第十九批路径补充：TowerGenerator 的要求经 StructureGeneratorAdaptor 捕获，再由 StructurePatchBridge 与方块一同减去生成入口坐标；构件编译与预览随后各按既有规则偏移一次。桥接保留要求指定的空气和完整方块属性，复查后才发布局部要求。独立整栋入口仍未把这些要求传给最终预览。
+
+PlanProgramCompiler 经 SkeletonExecutors 调用骨架生成服务时，任一骨架生成异常、空输出或非法 patch 目标都会中止整份结果，以 SkeletonCompilationFailure 传播；JSON 格式兼容回退不吞掉这种执行失败。LlmPlanPreviewBuilder 的异常处理关闭心跳并返回错误，不继续追加 BuildingMass。普通 JSON 解析失败和缺少输入/世界的早期保护尚未统一为该失败协议；PlanProgram 通行元数据仍待接入。
+
 - [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md) — 泛化差距与演进
 - [GENERATOR_ROUTING_MAP.md](GENERATOR_ROUTING_MAP.md) — 路由对照表
 - [LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md](LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md) — 设计哲学

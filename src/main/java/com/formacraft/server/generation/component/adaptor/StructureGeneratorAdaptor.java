@@ -15,7 +15,7 @@ import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.typology.StructuralTypologyRegistry;
 import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.generation.structure.StructureGenerator;
-import net.minecraft.registry.Registries;
+import com.formacraft.server.assembly.AssemblyCirculationConstraints;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -134,47 +134,24 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
         BlockPos worldAnchor = new BlockPos(slot.anchor().x(), slot.anchor().y(), slot.anchor().z());
 
         try {
-            GeneratedStructure structure = delegate.generate(spec, worldAnchor, world);
+            var flights = new ArrayList<AssemblyCirculationConstraints.Flight>();
+            GeneratedStructure structure;
+            try (var capture = AssemblyCirculationConstraints.captureTo(flights::addAll)) {
+                structure = delegate.generate(spec, worldAnchor, world);
+            }
             if (structure == null || structure.getBlocks() == null) {
                 return new ArrayList<>();
             }
 
-            List<BlockPatch> patches = new ArrayList<>();
-            for (var block : structure.getBlocks()) {
-                if (block.getTargetState().isAir()) {
-                    // LlmPlan path already clears building volume; skip bulk AIR clears from
-                    // StructureGenerators (e.g. Pantheon) to avoid 90%+ no-op patches at build time.
-                    continue;
-                }
-                BlockPos worldPos = block.getPos();
-                BlockPos relativePos = worldPos.subtract(worldAnchor);
-
-                String blockId = "minecraft:stone";
-                try {
-                    var registryKeyOpt = Registries.BLOCK.getKey(block.getTargetState().getBlock());
-                    if (registryKeyOpt.isPresent()) {
-                        blockId = registryKeyOpt.get().getValue().toString();
-                    }
-                } catch (Exception e) {
-                    FormacraftMod.LOGGER.warn("Failed to get block ID from BlockState", e);
-                }
-
-                patches.add(new BlockPatch(
-                        BlockPatch.PLACE,
-                        relativePos.getX(),
-                        relativePos.getY(),
-                        relativePos.getZ(),
-                        blockId
-                ));
-            }
-
-            if (spec != null) {
-                FormacraftMod.LOGGER.debug("StructureGeneratorAdaptor: generated {} patches (type={})",
-                        patches.size(), spec.getType());
-            }
+            var bridged = StructurePatchBridge.convert(structure, worldAnchor, flights);
+            AssemblyCirculationConstraints.publish(bridged.circulation());
+            List<BlockPatch> patches = bridged.patches();
             return patches;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("StructureGeneratorAdaptor: error generating structure", e);
+            com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(
+                "E_STRUCTURE_GENERATION_FAILED", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(),
+                "components[]", List.of("Fix structure dimensions or circulation constraints.")));
             return new ArrayList<>();
         }
     }

@@ -34,6 +34,31 @@ public final class PlanProgramCompiler {
 
     private PlanProgramCompiler() {}
 
+    public static final class SkeletonCompilationFailure extends IllegalArgumentException {
+        private SkeletonCompilationFailure(String message, Throwable cause) { super(message, cause); }
+    }
+
+    static List<BlockPatch> mergeSkeletonPatches(List<ExecutableSkeletonPlan> skeletons,
+            java.util.function.Function<ExecutableSkeletonPlan, List<BlockPatch>> generate) {
+        List<BlockPatch> merged = new ArrayList<>();
+        for (int i = 0; i < skeletons.size(); i++) {
+            var skeleton = skeletons.get(i);
+            try {
+                if (skeleton == null) throw new IllegalArgumentException("null skeleton");
+                var patches = generate.apply(skeleton);
+                if (patches == null || patches.isEmpty()) throw new IllegalArgumentException("empty skeleton output");
+                for (var patch : patches) {
+                    if (com.formacraft.common.patch.BlockPatchTargetResolver.resolve(patch) == null)
+                        throw new IllegalArgumentException("invalid skeleton patch");
+                }
+                merged.addAll(patches);
+            } catch (RuntimeException failure) {
+                throw new SkeletonCompilationFailure("PlanProgram skeleton " + (i + 1) + " failed; no partial building is returned", failure);
+            }
+        }
+        return merged;
+    }
+
     /**
      * 从 PlanProgram 编译为 BlockPatch 列表
      * <p>
@@ -83,8 +108,7 @@ public final class PlanProgramCompiler {
             return compileFromPlanSkeleton(planSkeleton, globalAnchor, world, styleProfileId);
 
         } catch (Exception e) {
-            FormacraftMod.LOGGER.error("PlanProgramCompiler: compilation failed", e);
-            return List.of();
+            throw new SkeletonCompilationFailure("PlanProgram compilation failed", e);
         }
     }
 
@@ -177,8 +201,7 @@ public final class PlanProgramCompiler {
             return generateBlockPatchesFromSkeletons(compiled.getSkeletons(), globalAnchor, world, paletteId);
 
         } catch (Exception e) {
-            FormacraftMod.LOGGER.error("PlanProgramCompiler: compilation from PlanSkeleton failed", e);
-            return List.of();
+            throw new SkeletonCompilationFailure("PlanSkeleton compilation failed", e);
         }
     }
 
@@ -202,17 +225,20 @@ public final class PlanProgramCompiler {
                 PlanSkeleton planSkeleton = PlanSkeletonParser.parseAndValidate(json);
                 return compileFromPlanSkeleton(planSkeleton, globalAnchor, world);
             } catch (Exception e1) {
+                if (e1 instanceof SkeletonCompilationFailure failure) throw failure;
                 // 尝试解析为 PlanProgram
                 try {
                     PlanProgram planProgram = PlanProgramParser.parseAndValidate(json);
                     return compile(planProgram, globalAnchor, world);
                 } catch (Exception e2) {
+                    if (e2 instanceof SkeletonCompilationFailure failure) throw failure;
                     FormacraftMod.LOGGER.warn("PlanProgramCompiler: failed to parse as PlanSkeleton or PlanProgram", e2);
                     return List.of();
                 }
             }
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("PlanProgramCompiler: JSON compilation failed", e);
+            if (e instanceof SkeletonCompilationFailure failure) throw failure;
             return List.of();
         }
     }
@@ -246,51 +272,7 @@ public final class PlanProgramCompiler {
         // 确保 paletteId 不为空
         String effectivePaletteId = (paletteId != null && !paletteId.isBlank()) ? paletteId : "DEFAULT";
 
-        List<BlockPatch> allPatches = new ArrayList<>();
-
-        for (ExecutableSkeletonPlan skeleton : skeletons) {
-            if (skeleton == null) {
-                continue;
-            }
-
-            try {
-                // 使用 SkeletonExecutor 生成 BlockPatch，传递风格信息
-                List<BlockPatch> patches = SkeletonExecutors.get()
-                        .build(world, origin, skeleton, effectivePaletteId);
-
-                if (patches != null && !patches.isEmpty()) {
-                    allPatches.addAll(patches);
-                    FormacraftMod.LOGGER.debug(
-                            "PlanProgramCompiler: generated {} patches for skeleton type {} (palette: {})",
-                            patches.size(),
-                            skeleton.type,
-                            effectivePaletteId
-                    );
-                } else {
-                    FormacraftMod.LOGGER.debug(
-                            "PlanProgramCompiler: no patches generated for skeleton type {} (palette: {})",
-                            skeleton.type,
-                            effectivePaletteId
-                    );
-                }
-            } catch (Exception e) {
-                FormacraftMod.LOGGER.warn(
-                        "PlanProgramCompiler: failed to generate patches for skeleton type {} (palette: {}): {}",
-                        skeleton.type,
-                        effectivePaletteId,
-                        e.getMessage()
-                );
-                // 继续处理其他 skeleton，不中断整个流程
-            }
-        }
-
-        FormacraftMod.LOGGER.info(
-                "PlanProgramCompiler: generated {} total patches from {} skeletons (palette: {})",
-                allPatches.size(),
-                skeletons.size(),
-                effectivePaletteId
-        );
-
-        return allPatches;
+        return mergeSkeletonPatches(skeletons, skeleton -> SkeletonExecutors.get()
+            .build(world, origin, skeleton, effectivePaletteId));
     }
 }

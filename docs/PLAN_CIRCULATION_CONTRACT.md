@@ -26,7 +26,7 @@ LlmPlanPreviewBuilder 曾去掉方块属性再使用默认状态，还按 target
 
 ComponentPlanCompilerCirculationTest 使用具名测试生成器发布要求，执行真实编译合并与默认后处理，验证跨构件填堵/挖空、分开 slot、一次偏移、暂时覆盖恢复、混合计划失败及捕获生命周期；单独的后处理追加冲突案例验证最终检查。PlanPatchConverterTest 验证完整楼梯状态经主转换函数与真实 PatchExecutor 一致、remove 与非法输入语义。没有启动 ServerWorld 或真实玩家网络预览。
 
-当前要求仍只比较空气/非空气，不建立楼层可达图或验证碰撞形状。没有 STAIR_SYSTEM 元数据的其他楼梯生成器、PlanProgram/BuildingMass 自身的通行要求仍未接入。第十七批已补充预览末端复查，详见下节；生成器接口的范围与通行要求仍需逐步变为显式结果。
+当前要求仍只比较空气/非空气，不建立楼层可达图或验证碰撞形状。第十九批已接入 TowerGenerator 的构件适配路径，详见 [塔楼契约](TOWER_CIRCULATION_CONTRACT.md)。其他无元数据的楼梯生成器、PlanProgram/BuildingMass 自身的通行要求仍未接入。第十七批已补充预览末端复查，详见下节；生成器接口的范围与通行要求仍需逐步变为显式结果。
 
 ## 预览末端复查（第十七批）
 

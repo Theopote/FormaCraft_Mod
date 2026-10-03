@@ -565,6 +565,7 @@ public final class LlmPlanPreviewBuilder {
             LlmPlanRoutingMetrics.recordSuccess(player, req, patches.size(), plannedBlocks.size());
             return true;
         } catch (Exception e) {
+            hbAlive.set(false);
             FormacraftMod.LOGGER.error("Failed to process LlmPlan", e);
             LlmPlanRoutingMetrics.recordError(player, req, "process:" + e.getClass().getSimpleName());
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
