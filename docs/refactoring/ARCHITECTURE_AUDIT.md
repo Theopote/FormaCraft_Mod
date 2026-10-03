@@ -8,7 +8,7 @@
 
 | 优先级 | 证据 | 影响与处理 |
 |---|---|---|
-| P0 | 第一轮测试编译失败；第三批完整执行 320 测试，17 失败 | 编译漂移及基础/立面/屋顶本批拼接问题已修复，仍需核查冠部/线脚、旧路由预期与真实注册表测试运行环境；详见 [回归清单](REGRESSION_BASELINE.md) |
+| P0 | 第一轮测试编译失败；第四批完整执行 322 测试，11 失败 | 编译漂移及基础/立面/屋顶本批拼接问题已修复，冠部层数与楼层顶圈也已修复，仍需核查旧路由预期与真实注册表测试运行环境；详见 [回归清单](REGRESSION_BASELINE.md) |
 | P1 | `common/patch/history/PatchHistoryManager.java` 有 20 处服务端限定引用 | 初始另有注册表 10 处引用，第二轮已迁到服务端初始化并缩减基线；下一步把 Memory 更新放到服务端事务服务 |
 | P1 | `common/patch/PatchExecutor.java` 与 `common/patch/history/PatchHistoryManager.java` 持有 ServerWorld 并写方块 | common 并非纯模型/算法层；后续迁移执行器与历史事务时保留结果 DTO，核查 apply/undo/redo 与 Memory 的一致性 |
 | P1 | `python_backend/app/routes/build.py` 的 async 入口直接调用同步生成函数 | 规划和外部调用可能阻塞事件循环；后续将请求解析与同步规划隔离，并用并发请求证明健康检查不被阻塞；线程池本身不能保证超时后取消任务 |
@@ -52,7 +52,7 @@
 - `git diff --check`：通过。
 - 第二轮已修复旧构造/枚举/方法与断言导入错误，compileTestJava 通过。33 处直接 LlmPlan 测试构造调用迁到具名 fixture，避免再次发生位置字段漂移。
 - 定向回归（对齐、Socket、响应协议、自由几何 Prompt、解释器注册、guard、capability_gap、特征传递、锚点规范化）：通过。
-- 第三批最终完整 `check --offline`：320 个测试执行，303 通过，17 失败；因此 check 未通过，后续 Gradle 验证任务未全部完成。相较第二批消除 5 项失败，新增 6 个几何案例。当前结果与问题分类见 [回归清单](REGRESSION_BASELINE.md)。没有禁用测试或降低失败门槛。
+- 第四批最终完整 `check --offline`：322 个测试执行，311 通过，11 失败；因此 check 未通过，后续 Gradle 验证任务未全部完成。相较第三批消除 6 项失败，新增 2 个冠部边界案例。当前结果与问题分类见 [回归清单](REGRESSION_BASELINE.md)。没有禁用测试或降低失败门槛。
 - Python 默认解释器缺 fastapi，完整后端回归需安装锁定依赖后运行；本轮不把缺依赖记录成代码测试失败。
 
 尚未执行游戏内验收、模型联网生成、多玩家或真实世界存档回归。本轮不宣称完成全面重构或所有文档的逐篇核查。

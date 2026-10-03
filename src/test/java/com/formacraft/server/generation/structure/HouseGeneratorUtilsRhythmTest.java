@@ -27,7 +27,10 @@ class HouseGeneratorUtilsRhythmTest {
         ComponentFacadeRhythmPlanner.RhythmPlan depth =
                 ComponentFacadeRhythmPlanner.fromRepeatingPattern(RepeatingPattern.classicalPilasterBay(), 10);
 
-        assertTrue(HouseGeneratorUtils.isRhythmPilasterExteriorCell(width, depth, 0, 2, 4, 13, 10));
-        assertFalse(HouseGeneratorUtils.isRhythmPilasterExteriorCell(width, depth, 5, 2, 4, 13, 10));
+        // Center index 5 places P-W-W-W-P at 3..7; width 13 places it at 4..8.
+        assertTrue(HouseGeneratorUtils.isRhythmPilasterExteriorCell(width, depth, 0, 2, 3, 13, 10));
+        assertTrue(HouseGeneratorUtils.isRhythmPilasterExteriorCell(width, depth, 12, 2, 7, 13, 10));
+        assertFalse(HouseGeneratorUtils.isRhythmPilasterExteriorCell(width, depth, 0, 2, 4, 13, 10));
+        assertFalse(HouseGeneratorUtils.isRhythmPilasterExteriorCell(width, depth, 5, 2, 3, 13, 10));
     }
 }

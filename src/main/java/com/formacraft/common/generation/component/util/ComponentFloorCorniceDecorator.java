@@ -80,7 +80,7 @@ public final class ComponentFloorCorniceDecorator {
         if (height <= 2 || floorHeight <= 1) {
             return ys;
         }
-        for (int y = floorHeight - 1; y < height - 1; y += floorHeight) {
+        for (int y = floorHeight - 1; y < height; y += floorHeight) {
             ys.set(y);
         }
         return ys;

@@ -32,7 +32,7 @@ class DetailRulePostProcessorTest {
                 new Vec3i(0, 0, 0),
                 new Dimensions(5, 5, 8),
                 List.of(),
-                Map.of("floor_height", 4, "facade_profile", "vertical_pilasters")
+                Map.of("floor_height", 4, "facade_profile", "vertical_pilasters", "anchor_mode", "min_corner")
         );
 
         LlmPlan plan = LlmPlanTestFixtures.builder()
@@ -47,7 +47,9 @@ class DetailRulePostProcessorTest {
                 new BlockPatch(BlockPatch.PLACE, 0, 3, 0, "minecraft:stone_bricks"),
                 new BlockPatch(BlockPatch.PLACE, 2, 3, 0, "minecraft:stone_bricks"),
                 new BlockPatch(BlockPatch.PLACE, 4, 3, 0, "minecraft:stone_bricks"),
-                new BlockPatch(BlockPatch.PLACE, 2, 3, 2, "minecraft:stone_bricks")
+                new BlockPatch(BlockPatch.PLACE, 2, 3, 2, "minecraft:stone_bricks"),
+                new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone_bricks"),
+                new BlockPatch(BlockPatch.PLACE, 4, 7, 4, "minecraft:stone_bricks")
         );
 
         PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN);
@@ -59,7 +61,12 @@ class DetailRulePostProcessorTest {
                         && p.targetBlock().contains("half=top")
                         && p.dy() == 3
                         && p.dz() == 0);
-        assertTrue(hasCornice);
+        assertTrue(hasCornice, () -> "Output: " + out);
+        assertTrue(out.stream().anyMatch(p -> p.dy() == 7 && p.targetBlock().contains("half=top")));
+        assertTrue(out.stream().anyMatch(p -> p.dx() == 2 && p.dy() == 3 && p.dz() == 2
+                && "minecraft:stone_bricks".equals(p.targetBlock())));
+        assertTrue(out.stream().anyMatch(p -> p.dy() == 0
+                && "minecraft:stone_bricks".equals(p.targetBlock())));
     }
 
     @Test
@@ -93,6 +100,6 @@ class DetailRulePostProcessorTest {
         boolean hasEaveSlab = out.stream()
                 .anyMatch(p -> p.dx() == 0 && p.dy() == 5 && p.dz() == 0
                         && p.targetBlock() != null && p.targetBlock().contains("slab"));
-        assertTrue(hasEaveSlab);
+        assertTrue(hasEaveSlab, () -> "Output: " + out);
     }
 }

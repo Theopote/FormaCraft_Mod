@@ -41,7 +41,9 @@ class RevolveProfileParserTest {
                 new double[] {0, 6}
         ));
         assertNotNull(profile);
-        assertEquals(1.0, profile.get(1)[1], 1e-6);
+        assertEquals(1.0 / 6.0, profile.get(1)[1], 1e-6);
+        assertEquals(0.75, profile.get(2)[0], 1e-6);
+        assertEquals(1.0 / 3.0, profile.get(2)[1], 1e-6);
         assertEquals(0.0, profile.getLast()[0], 1e-6);
         assertEquals(1.0, profile.getLast()[1], 1e-6);
     }

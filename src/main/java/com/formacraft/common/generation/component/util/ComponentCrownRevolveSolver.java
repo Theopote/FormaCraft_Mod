@@ -32,20 +32,24 @@ public final class ComponentCrownRevolveSolver {
         if (blockId == null || blockId.isBlank()) {
             blockId = "minecraft:quartz_block";
         }
-        int ySteps = Math.max(1, heightBlocks);
-        double[] maxRadius = new double[ySteps + 1];
-        for (int yi = 0; yi <= ySteps; yi++) {
-            double yNorm = yi / (double) ySteps;
+        if (heightBlocks <= 0 || !Double.isFinite(radiusScale) || radiusScale < 0) {
+            return;
+        }
+        // Height is a layer count; both profile endpoints fit within these layers.
+        int ySteps = heightBlocks;
+        double[] maxRadius = new double[ySteps];
+        for (int yi = 0; yi < ySteps; yi++) {
+            double yNorm = ySteps == 1 ? 0.0 : yi / (double) (ySteps - 1);
             maxRadius[yi] = interpolateRadius(normalizedProfile, yNorm) * radiusScale;
         }
 
         Set<Long> seen = new HashSet<>();
-        for (int yi = 0; yi <= ySteps; yi++) {
+        for (int yi = 0; yi < ySteps; yi++) {
             if (out.size() >= MAX_PATCHES) {
                 return;
             }
             double rMax = maxRadius[yi];
-            if (rMax <= 0.05) {
+            if (!Double.isFinite(rMax) || rMax < 0) {
                 continue;
             }
             int y = baseY + yi;

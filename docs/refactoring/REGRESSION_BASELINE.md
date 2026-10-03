@@ -4,7 +4,7 @@
 
 第二轮已消除 Java 测试编译错误。当前能够执行全套 JUnit，仍有实际断言与运行环境失败；不跳过、不禁用，也不将失败改成软告警。失败需要对照协议/建筑几何判断是测试过时还是实现错误，不能直接改断言迎合输出。
 
-第三批最终完整检查：320 个测试执行，303 通过，17 失败；18 个 assembly 案例通过。第二批为 314 项、22 失败，第三批消除其中 5 项失败并增加 6 个几何回归案例。完整 check 仍失败。
+第四批最终完整检查：322 个测试执行，311 通过，11 失败；18 个 assembly 案例通过。第三批为 320 项、17 失败，第四批消除其中 6 项失败并新增 2 个冠部边界案例。完整 check 仍失败。
 
 ## 本轮修复
 
@@ -21,9 +21,6 @@
 | 领域 | 失败测试与核查方向 |
 |---|---|
 | 原语 | ShapeLibraryTest：半球朝向的协议定义 |
-| 冠部曲线 | ComponentCrownRevolveSolverTest、RevolveProfileParserTest：高度用方块数还是末层偏移、零半径尖顶是否应生成方块、绝对高度归一化；现有测试含把 1/6 误写为 1 的可疑预期，先核查契约 |
-| 楼层线脚 | ComponentFloorCorniceDecoratorTest、DetailRulePostProcessorTest、FloorCornicePostProcessorTest：楼层边界含不含顶层、局部 patch 高度与完整建筑高度的区别 |
-| 立面开间 | HouseGeneratorUtilsRhythmTest：沿进深方向的柱轴测试仍失败；参数化窗户的 FacadeWindowsRhythmTest 已恢复通过 |
 | 地标与建筑类型 | LandmarkModuleRegistryTest、LandmarkRoutingMetricsTest、TypologyRoutingMetricsTest：固定地标收紧和 typology 迁移后，旧模块数量/强制路由预期是否仍合法 |
 | 类型/朝向/统计 | StructuralTypologyRegistryTest 的 Number 表示、ChineseTypologyDetailUtilTest 的面方向、BuildTaskTest 的累积跳过计数 |
 | Minecraft 测试运行环境 | PaletteLibraryTest、TypologyPatchBridgeTest：普通 JUnit 未启动注册表；尝试直接 Bootstrap 后又出现 remap jar 内部访问权限错误，需在 Fabric 测试运行环境中验证，不能简单启动 Bootstrap 或吞异常 |
@@ -39,6 +36,15 @@
 - 平屋顶落在连接面，坡顶使用显式 roof_height 或 Dimensions.height；编译器不注入与显式高度竞争的重复默认参数。
 - 修正切角屋顶测试的 width/depth/height 顺序、矩形锚点测试的形状前提、开间测试中未关闭门口预留的矛盾前提，没有降低几何标准。
 - 新增具名的 [构件坐标契约](../COMPONENT_COORDINATE_CONTRACT.md)，覆盖 slot/plan/world 层次、半开边界、锚点和连接面。纯 patch 重放不模拟真实执行器的权限/跳过规则。
+
+## 第四批完成：冠部、线脚与开间
+
+- 旋转体高度统一为方块层数，六层覆盖 baseY..baseY+5；保留零半径轴心尖顶，单层只采样底部。新增单层、负坐标、零半径连续轴心及零高度案例。
+- 楼层顶圈包含最高完整楼层：高度 12、层高 4 对应 3、7、11。
+- 线脚测试补齐实际 patch 的 Y 和 XZ 包围盒，同时验证顶圈生成、内墙及底层不变；原来仅输入一层薄片无法表示完整楼层上下文。显式屋檐规则仍验证实际最高层。
+- 绝对曲线点的旧断言从 y=1 修正为 1/6，并验证半径、其他高度按最大值缩放。
+- 进深重复单元独立使用进深节奏：10 格的柱轴 3、7，与 13 格宽度的柱轴 4、8 分别验证，窗轴及内部位置不能当作柱位。
+- [构件坐标契约](../COMPONENT_COORDINATE_CONTRACT.md) 补齐这些定义，并记录仍待处理的整体包围盒楼层基准、偶数跨度镜像、冠部推断尺寸/4000 patch 上限/segments 未生效问题。本轮没有改变 assembly 曲面协议。
 
 ## 复现
 
