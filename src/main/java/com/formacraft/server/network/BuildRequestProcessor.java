@@ -14,6 +14,7 @@ import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.orchestrator.AiPlanResult;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.BuildPreviewDelivery;
+import com.formacraft.server.build.StructureGenerationResult;
 import com.formacraft.server.orchestrator.OrchestratorClient;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -117,11 +118,11 @@ public final class BuildRequestProcessor {
                                             if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
                                                 com.formacraft.server.generation.structure.StructureGenerator generator =
                                                         com.formacraft.server.generation.GenerationHub.routeStructure(updated);
-                                                final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
+                                                final com.formacraft.server.build.BuildReportContext.Reported<StructureGenerationResult> reported =
                                                         com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
-                                                                BuildConstraintContext.withRequest(req, () -> generator.generate(updated, origin, serverWorld))
+                                                                BuildConstraintContext.withRequest(req, () -> StructureGenerationResult.capture(() -> generator.generate(updated, origin, serverWorld)))
                                                         );
-                                                final com.formacraft.common.build.GeneratedStructure generated = reported.value();
+                                                final StructureGenerationResult generated = reported.value();
 
                                                 String terrainSummary = reported.report().summaryZh();
                                                 if (!terrainSummary.isBlank()) {
@@ -243,11 +244,11 @@ public final class BuildRequestProcessor {
     ) {
         com.formacraft.server.generation.structure.StructureGenerator generator =
                 com.formacraft.server.generation.GenerationHub.routeStructure(spec);
-        final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
+        final com.formacraft.server.build.BuildReportContext.Reported<StructureGenerationResult> reported =
                 com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
-                        BuildConstraintContext.withRequest(req, () -> generator.generate(spec, origin, serverWorld))
+                        BuildConstraintContext.withRequest(req, () -> StructureGenerationResult.capture(() -> generator.generate(spec, origin, serverWorld)))
                 );
-        final com.formacraft.common.build.GeneratedStructure generated = reported.value();
+        final StructureGenerationResult generated = reported.value();
 
         String terrainSummary = reported.report().summaryZh();
         if (!terrainSummary.isBlank()) {
@@ -282,11 +283,11 @@ public final class BuildRequestProcessor {
     ) {
         com.formacraft.server.generation.structure.composite.CompositeStructureGenerator generator =
                 new com.formacraft.server.generation.structure.composite.CompositeStructureGenerator();
-        final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
+        final com.formacraft.server.build.BuildReportContext.Reported<StructureGenerationResult> reported =
                 com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
-                        BuildConstraintContext.withRequest(req, () -> generator.generate(compositeSpec, origin, serverWorld))
+                        BuildConstraintContext.withRequest(req, () -> StructureGenerationResult.capture(() -> generator.generate(compositeSpec, origin, serverWorld)))
                 );
-        final com.formacraft.common.build.GeneratedStructure generated = reported.value();
+        final StructureGenerationResult generated = reported.value();
 
         String terrainSummary = reported.report().summaryZh();
         if (!terrainSummary.isBlank()) {
@@ -323,11 +324,11 @@ public final class BuildRequestProcessor {
             AtomicBoolean hbAlive
     ) {
         com.formacraft.server.city.CityBuilder cityBuilder = new com.formacraft.server.city.CityBuilder();
-        final com.formacraft.server.build.BuildReportContext.Reported<com.formacraft.common.build.GeneratedStructure> reported =
+        final com.formacraft.server.build.BuildReportContext.Reported<StructureGenerationResult> reported =
                 com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
-                        BuildConstraintContext.withRequest(req, () -> cityBuilder.generate(citySpec, origin, serverWorld))
+                        BuildConstraintContext.withRequest(req, () -> StructureGenerationResult.capture(() -> cityBuilder.generate(citySpec, origin, serverWorld)))
                 );
-        final com.formacraft.common.build.GeneratedStructure generated = reported.value();
+        final StructureGenerationResult generated = reported.value();
 
         String terrainSummary = reported.report().summaryZh();
         if (!terrainSummary.isBlank()) {

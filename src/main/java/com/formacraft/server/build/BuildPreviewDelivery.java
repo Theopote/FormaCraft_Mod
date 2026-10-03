@@ -37,8 +37,18 @@ public final class BuildPreviewDelivery {
             String statusTail,
             SkeletonSender skeletonSender
     ) {
+        return deliver(player, req, new StructureGenerationResult(generated, List.of()), spec,
+                serverWorld, style, hbAlive, readyMessage, statusTail, skeletonSender);
+    }
+
+    public static boolean deliver(
+            ServerPlayerEntity player, FormaRequest req, StructureGenerationResult generated,
+            com.formacraft.common.model.build.BuildingSpec spec, ServerWorld serverWorld,
+            Optional<BuildingStyle> style, AtomicBoolean hbAlive, Text readyMessage,
+            String statusTail, SkeletonSender skeletonSender
+    ) {
         BuildPreviewPipeline.Result pipeline = BuildPreviewPipeline.prepare(
-                player, serverWorld, generated, spec, req, style
+                player, serverWorld, generated.structure(), spec, req, style, generated.circulation()
         );
         BuildQualityReport report = pipeline.report();
 

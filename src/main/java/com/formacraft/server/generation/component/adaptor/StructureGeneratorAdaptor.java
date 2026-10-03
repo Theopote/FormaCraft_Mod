@@ -145,8 +145,7 @@ public class StructureGeneratorAdaptor implements ComponentGenerator {
 
             var bridged = StructurePatchBridge.convert(structure, worldAnchor, flights);
             AssemblyCirculationConstraints.publish(bridged.circulation());
-            List<BlockPatch> patches = bridged.patches();
-            return patches;
+            return bridged.patches();
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("StructureGeneratorAdaptor: error generating structure", e);
             com.formacraft.server.assembly.AssemblyCompileDiagnostics.set(new com.formacraft.common.llm.dto.CapabilityGap(

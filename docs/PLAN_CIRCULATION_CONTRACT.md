@@ -1,6 +1,6 @@
 # 完整构件计划的楼梯约束与预览状态
 
-更新：2026-10-03，第十六批。本文适用于 ComponentPlanCompiler 主构件路径，补充 [楼梯契约](STAIR_CIRCULATION_CONTRACT.md) 的单次 assembly 校验。
+更新：2026-10-04，含第十六至二十批。本文适用于 ComponentPlanCompiler 主构件路径，补充 [楼梯契约](STAIR_CIRCULATION_CONTRACT.md) 的单次 assembly 校验；独立整栋网络预览的世界坐标传递见 [整栋结果协议](STRUCTURE_GENERATION_RESULT.md)。
 
 ## 约束如何进入完整计划
 
