@@ -57,21 +57,13 @@ public class FormaCraftCommands {
                         return 0;
                     }
 
-                    boolean success = BuildExecutionService.getInstance()
-                            .getUndoService()
-                            .undoLast(player);
-
-                    if (!success) {
-                        ctx.getSource().sendError(
-                                Text.literal("No FormaCraft actions to undo.")
-                        );
+                    var result = BuildExecutionService.getInstance().getUndoService().undoLastResult(player);
+                    if (!result.complete()) {
+                        ctx.getSource().sendError(Text.literal(result.summaryZh("撤销")));
                     } else {
-                        ctx.getSource().sendFeedback(
-                                () -> Text.literal("Last FormaCraft build undone."),
-                                true
-                        );
+                        ctx.getSource().sendFeedback(() -> Text.literal(result.summaryZh("撤销")), true);
                     }
-                    return 1;
+                    return result.complete() ? 1 : 0;
                 }));
 
         // 预览命令

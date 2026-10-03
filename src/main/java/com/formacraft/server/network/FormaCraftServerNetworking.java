@@ -40,16 +40,16 @@ public final class FormaCraftServerNetworking {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
-                int changed = com.formacraft.common.patch.history.PatchHistoryManager.undo(sw, player.getUuid());
-                sendPatchHistoryResult(player, "undo", changed);
+                var result = com.formacraft.common.patch.history.PatchHistoryManager.undoDetailed(sw, player.getUuid());
+                sendPatchHistoryResult(player, "undo", result);
             }
         }));
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchRedoPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
-                int changed = com.formacraft.common.patch.history.PatchHistoryManager.redo(sw, player.getUuid());
-                sendPatchHistoryResult(player, "redo", changed);
+                var result = com.formacraft.common.patch.history.PatchHistoryManager.redoDetailed(sw, player.getUuid());
+                sendPatchHistoryResult(player, "redo", result);
             }
         }));
 
@@ -361,6 +361,17 @@ public final class FormaCraftServerNetworking {
      * @param operation "undo" 或 "redo"
      * @param changed   恢复的方块数量；<0 表示无操作
      */
+    public static void sendPatchHistoryResult(ServerPlayerEntity player, String operation,
+            com.formacraft.common.patch.history.PatchReplayHistory.ReplayResult result) {
+        if (player == null || result == null) return;
+        var id = player.getUuid();
+        ServerPlayNetworking.send(player, new FormaCraftNetworking.PatchApplyResultPayload(
+                operation, result.changed(), 0, result.blocked(), 0,
+                result.summaryZh("undo".equals(operation) ? "撤销" : "重做"),
+                com.formacraft.common.patch.history.PatchHistoryManager.canUndo(id),
+                com.formacraft.common.patch.history.PatchHistoryManager.canRedo(id)));
+    }
+
     public static void sendPatchHistoryResult(ServerPlayerEntity player, String operation, int changed) {
         if (player == null) return;
         java.util.UUID id = player.getUuid();

@@ -1,72 +1,44 @@
 package com.formacraft.server.build;
 
+import com.formacraft.common.patch.history.PatchReplayHistory;
+import com.formacraft.common.patch.history.PatchTransaction;
+import com.formacraft.common.world.BlockMutationAccess;
+import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
-import com.formacraft.FormacraftMod;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import java.util.*;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
-/**
- * 撤销服务
- * 按玩家维护撤销栈
- */
+/** Build undo shares the same retry/conflict/world checks as Patch history. */
 public class UndoService {
     private static final int MAX_UNDO_PER_PLAYER = 10;
+    private final Map<UUID, PatchReplayHistory> undoStacks = new HashMap<>();
 
-    private final Map<UUID, Deque<UndoEntry>> undoStacks = new HashMap<>();
-
-    /**
-     * 添加一个撤销条目到玩家的撤销栈
-     */
     public void pushUndo(ServerPlayerEntity player, UndoEntry entry) {
-        UUID id = player.getUuid();
-        Deque<UndoEntry> stack = undoStacks.computeIfAbsent(id, k -> new ArrayDeque<>());
-
-        stack.push(entry);
-
-        // 限制每个玩家的撤销栈大小
-        while (stack.size() > MAX_UNDO_PER_PLAYER) {
-            stack.removeLast();
-        }
+        record(player.getUuid(), entry.getWorld(), entry.getOrigin(), entry.getChanges());
     }
-
-    /**
-     * 撤销玩家最后一次建造操作
-     * @param player 玩家
-     * @return 是否成功撤销
-     */
-    public boolean undoLast(ServerPlayerEntity player) {
-        UUID id = player.getUuid();
-        Deque<UndoEntry> stack = undoStacks.get(id);
-        if (stack == null || stack.isEmpty()) {
-            return false;
+    void record(UUID playerId, Object world, BlockPos origin, List<BlockChange> changes) {
+        Map<BlockPos, BlockState> before = new HashMap<>(), after = new HashMap<>();
+        for (BlockChange change : changes) {
+            BlockPos pos = change.getPos().toImmutable();
+            before.putIfAbsent(pos, change.getFromState());
+            after.put(pos, change.getToState());
         }
-
-        UndoEntry entry = stack.pop();
-
-        // 逆序回放 fromState
-        var world = entry.getWorld();
-        var changes = entry.getChanges();
-
-        for (int i = changes.size() - 1; i >= 0; i--) {
-            BlockChange change = changes.get(i);
-            world.setBlockState(change.getPos(), change.getFromState(), 3);
-        }
-
-        FormacraftMod.LOGGER.info("Undid build: {} ({} blocks)", entry.getDescription(), changes.size());
-        return true;
+        var tx = PatchTransaction.fromSnapshots(origin, before, after);
+        undoStacks.computeIfAbsent(playerId, k -> new PatchReplayHistory(MAX_UNDO_PER_PLAYER)).record(world, tx);
     }
-
-    /**
-     * 获取玩家当前的撤销栈大小
-     */
+    public boolean undoLast(ServerPlayerEntity player) { return undoLastResult(player).complete(); }
+    public PatchReplayHistory.ReplayResult undoLastResult(ServerPlayerEntity player) {
+        if (!(player.getEntityWorld() instanceof ServerWorld world)) return PatchReplayHistory.ReplayResult.empty();
+        return undo(player.getUuid(), world, BlockMutationAccess.forWorld(world));
+    }
+    PatchReplayHistory.ReplayResult undo(UUID playerId, Object world, BlockMutationAccess access) {
+        var history = undoStacks.get(playerId);
+        return history == null ? PatchReplayHistory.ReplayResult.empty() : history.undo(world, access);
+    }
     public int getUndoStackSize(ServerPlayerEntity player) {
-        UUID id = player.getUuid();
-        Deque<UndoEntry> stack = undoStacks.get(id);
-        return stack != null ? stack.size() : 0;
+        var history = undoStacks.get(player.getUuid());
+        return history == null ? 0 : history.undoSize();
     }
+    public void clear() { undoStacks.clear(); }
 }
-

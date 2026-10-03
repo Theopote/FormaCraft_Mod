@@ -341,6 +341,13 @@ public class BuildExecutionService {
     public static void registerTickHandler() {
         if (TICK_HANDLER_REGISTERED) return;
         TICK_HANDLER_REGISTERED = true;
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            BuildExecutionService service = getInstance();
+            service.activeTasks.clear();
+            service.undoService.clear();
+            service.memoryManager = null;
+            com.formacraft.common.patch.history.PatchHistoryManager.clearAll();
+        });
         ServerTickEvents.END_WORLD_TICK.register((ServerWorld world) -> BuildExecutionService.getInstance().onWorldTick(world));
     }
 }

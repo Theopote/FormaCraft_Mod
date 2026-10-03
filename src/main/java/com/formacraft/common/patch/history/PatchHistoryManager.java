@@ -6,8 +6,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -27,32 +25,22 @@ public final class PatchHistoryManager {
 
     private static final int MAX_HISTORY = 50;
 
-    private static final class Stacks {
-        final Deque<PatchTransaction> undo = new ArrayDeque<>();
-        final Deque<PatchTransaction> redo = new ArrayDeque<>();
-    }
-
-    private static final Map<UUID, Stacks> PER_PLAYER = new ConcurrentHashMap<>();
+    private static final Map<UUID, PatchReplayHistory> PER_PLAYER = new ConcurrentHashMap<>();
     private static final Map<UUID, PatchExecutor.ApplyResult> LAST_APPLY_RESULT = new ConcurrentHashMap<>();
 
-    private static Stacks stacks(UUID playerId) {
-        return PER_PLAYER.computeIfAbsent(playerId, k -> new Stacks());
+    private static PatchReplayHistory stacks(UUID playerId) {
+        return PER_PLAYER.computeIfAbsent(playerId, k -> new PatchReplayHistory(MAX_HISTORY));
     }
-
-    public static boolean canUndo(UUID playerId) {
-        return playerId != null && !stacks(playerId).undo.isEmpty();
-    }
-
-    public static boolean canRedo(UUID playerId) {
-        return playerId != null && !stacks(playerId).redo.isEmpty();
-    }
-
+    public static boolean canUndo(UUID playerId) { return playerId != null && stacks(playerId).canUndo(); }
+    public static boolean canRedo(UUID playerId) { return playerId != null && stacks(playerId).canRedo(); }
     public static void clear(UUID playerId) {
         if (playerId == null) return;
-        Stacks s = stacks(playerId);
-        s.undo.clear();
-        s.redo.clear();
+        PER_PLAYER.remove(playerId);
         LAST_APPLY_RESULT.remove(playerId);
+    }
+    public static void clearAll() {
+        PER_PLAYER.clear();
+        LAST_APPLY_RESULT.clear();
     }
 
     /** 最近一次 apply 的统计（按玩家隔离）。 */
@@ -80,14 +68,8 @@ public final class PatchHistoryManager {
         PatchTransaction tx = PatchTransaction.fromSnapshots(origin, before, after);
         if (tx.before().isEmpty()) return applyResult;
 
-        Stacks s = stacks(playerId);
-        s.undo.push(tx);
-        s.redo.clear();
+        stacks(playerId).record(world, tx);
 
-        while (s.undo.size() > MAX_HISTORY) {
-            s.undo.removeLast();
-        }
-        
         // ========== Memory → Patch → Memory 闭环 ==========
         // 分析 Patch 影响并更新 Memory
         updateMemoryFromPatch(world, origin, tx.patches());
@@ -143,47 +125,37 @@ public final class PatchHistoryManager {
 
     /**
      * 撤销上一次事务。
-     * @return 恢复的方块数量；-1 表示无可撤销
+     * @return 完整恢复的数量；-1 无历史或错误世界；-2 未完成。调用方应使用详细结果。
      */
     public static int undo(ServerWorld world, UUID playerId) {
-        if (world == null || playerId == null) return -1;
-        Stacks s = stacks(playerId);
-        if (s.undo.isEmpty()) return -1;
-
-        PatchTransaction tx = s.undo.pop();
-        int changed = restore(world, tx.before());
-        s.redo.push(tx);
-        
-        // ========== Undo 时反向更新 Memory ==========
-        // 注意：Undo 是反向操作，需要反向 Mutation
-        updateMemoryFromPatchUndo(world, tx);
-        
-        return changed;
+        var result = undoDetailed(world, playerId);
+        return result.complete() ? result.changed() : result.available() && !result.wrongWorld() ? -2 : -1;
     }
-
-    /**
-     * 重做上一次撤销的事务。
-     * @return 恢复的方块数量；-1 表示无可重做
-     */
     public static int redo(ServerWorld world, UUID playerId) {
-        if (world == null || playerId == null) return -1;
-        Stacks s = stacks(playerId);
-        if (s.redo.isEmpty()) return -1;
-
-        PatchTransaction tx = s.redo.pop();
-        int changed = restore(world, tx.after());
-        s.undo.push(tx);
-        
-        // ========== Redo 时再次更新 Memory ==========
-        updateMemoryFromPatch(world, tx.origin(), tx.patches());
-        
-        return changed;
+        var result = redoDetailed(world, playerId);
+        return result.complete() ? result.changed() : result.available() && !result.wrongWorld() ? -2 : -1;
     }
-    
+    public static PatchReplayHistory.ReplayResult undoDetailed(ServerWorld world, UUID playerId) {
+        if (world == null || playerId == null) return PatchReplayHistory.ReplayResult.empty();
+        var result = stacks(playerId).undo(world, com.formacraft.common.world.BlockMutationAccess.forWorld(world));
+        if (result.delta() != null && !result.delta().patches().isEmpty()) {
+            updateMemoryFromPatchUndo(world, result.delta().origin(), result.delta().patches());
+        }
+        return result;
+    }
+    public static PatchReplayHistory.ReplayResult redoDetailed(ServerWorld world, UUID playerId) {
+        if (world == null || playerId == null) return PatchReplayHistory.ReplayResult.empty();
+        var result = stacks(playerId).redo(world, com.formacraft.common.world.BlockMutationAccess.forWorld(world));
+        if (result.delta() != null && !result.delta().patches().isEmpty()) {
+            updateMemoryFromPatch(world, result.delta().origin(), result.delta().patches());
+        }
+        return result;
+    }
+
     /**
      * Undo 时的 Memory 更新（反向 Mutation）
      */
-    private static void updateMemoryFromPatchUndo(ServerWorld world, PatchTransaction tx) {
+    private static void updateMemoryFromPatchUndo(ServerWorld world, BlockPos origin, List<BlockPatch> reversePatches) {
         try {
             // 获取 MemoryManager
             com.formacraft.server.memory.MemoryManager memoryManager = 
@@ -199,13 +171,8 @@ public final class PatchHistoryManager {
             com.formacraft.server.memory.PatchDiffAnalyzer analyzer = 
                 new com.formacraft.server.memory.PatchDiffAnalyzer(memoryManager);
             
-            // 从真实快照生成反向 patch，而非简单翻转动作
-            java.util.List<com.formacraft.common.patch.BlockPatch> reversePatches = 
-                new java.util.ArrayList<>();
-            reversePatches.addAll(PatchTransaction.patchesForStates(tx.origin(), tx.before()));
-            
             java.util.List<com.formacraft.server.memory.PatchImpact> impacts = 
-                analyzer.analyze(tx.origin(), reversePatches);
+                analyzer.analyze(origin, reversePatches);
             
             // 应用反向 Mutation
             for (com.formacraft.server.memory.PatchImpact impact : impacts) {
@@ -258,13 +225,4 @@ public final class PatchHistoryManager {
         return map;
     }
 
-    private static int restore(ServerWorld world, Map<BlockPos, BlockState> states) {
-        int changed = 0;
-        for (Map.Entry<BlockPos, BlockState> e : states.entrySet()) {
-            world.setBlockState(e.getKey(), e.getValue(), 3);
-            changed++;
-        }
-        return changed;
-    }
 }
-
