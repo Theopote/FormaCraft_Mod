@@ -62,6 +62,7 @@ public final class SettingsConfigCoordinator {
         host.setDraftTemperature(clamp01(cfg.temperature));
         host.setDraftInteractionReach(clampReach(cfg.interactionReach));
 
+        host.loadBackendSettings();
         host.updateCachedTemperatureText();
         host.syncWidgetStateFromDraft();
     }
@@ -90,6 +91,8 @@ public final class SettingsConfigCoordinator {
             host.showToast(Text.translatable("formacraft.settings.error.api_key_empty").getString(), true);
             return false;
         }
+
+        if (!host.saveBackendSettings()) return false;
 
         try {
             SettingsConfig.INSTANCE.apiKey = apiKey;

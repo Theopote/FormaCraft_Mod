@@ -43,6 +43,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private final MinecraftClient client = MinecraftClient.getInstance();
 
     // 输入组件（HUD 模式，不依赖 Screen）
+    private final SettingsBackendSection backendSection = new SettingsBackendSection(this);
     private final HudTextInput orchestratorInput = new HudTextInput();
     private final HudTextInput apiKeyInput = new HudTextInput();
     private final HudTextInput llmBaseUrlInput = new HudTextInput();
@@ -206,6 +207,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             y = SettingsPreferencesSection.drawSection(this, ctx, x, y, w);
             y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("操作"), x, y, w);
             y = SettingsActionsSection.drawSection(this, ctx, x, y, w);
+            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("本机后端服务"), x, y, w);
+            y = backendSection.draw(ctx,x,y,w);
             SettingsConnectionSection.renderOverlays(this, ctx);
 
             // 计算最大滚动（基于未滚动起点）
@@ -239,6 +242,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (super.mouseClicked(mouseX, mouseY, button)) return true; // 处理顶部 Tab 切换
+        if (!modelDropdownOpen && !baseUrlPresetDropdownOpen && isMouseOver(mouseX,mouseY)
+                && mouseY >= getContentY() && mouseY < panelY+panelHeight
+                && backendSection.click(mouseX,mouseY,button)) {
+            for (var input : List.of(orchestratorInput,apiKeyInput,llmBaseUrlInput,modelInput,searchApiKeyInput,googleCseCxInput)) input.setFocused(false);
+            return true;
+        }
+        backendSection.blur();
         return SettingsInputController.handleClick(this, mouseX, mouseY, button);
     }
 
@@ -259,6 +269,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
+        String backendTip = backendSection.tooltip(mouseX,mouseY);
+        if (backendTip != null && isMouseOver(mouseX,mouseY)) {
+            drawTooltipCompat(ctx, java.util.Arrays.stream(backendTip.split("\\n")).map(Text::literal).map(t -> (Text)t).toList(),(int)mouseX,(int)mouseY);
+            return true;
+        }
         ensureWidgets();
 
         // HUD 场景不会像 Screen 一样自动渲染 Tooltip，这里手动做一层（参考 Pushdozer 的使用习惯）
@@ -1235,6 +1250,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void charTyped(char chr) {
+        if (backendSection.focused()) { backendSection.charTyped(chr); return; }
         if (orchestratorInput.isFocused()) orchestratorInput.charTyped(chr);
         if (apiKeyInput.isFocused()) apiKeyInput.charTyped(chr);
         BaseUrlPreset p = getSelectedBaseUrlPreset();
@@ -1256,6 +1272,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (backendSection.focused()) {
+            backendSection.keyPressed(keyCode,modifiers);
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_TAB) backendSection.blur();
+            return;
+        }
         // 关键：要拿到 modifiers，才能支持 Ctrl+V / Shift 选区 等
         if (orchestratorInput.isFocused()) orchestratorInput.keyPressed(keyCode, modifiers);
         if (apiKeyInput.isFocused()) apiKeyInput.keyPressed(keyCode, modifiers);
@@ -1308,8 +1329,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     public boolean wantsKeyboardInput() {
         BaseUrlPreset p = getSelectedBaseUrlPreset();
         boolean baseUrlFocused = (p != null && p.url() == null && llmBaseUrlInput.isFocused());
-        return apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused || modelInput.isFocused();
+        return backendSection.focused() || apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused || modelInput.isFocused();
     }
+
+    @Override public void loadBackendSettings() { backendSection.load(); }
+    @Override public boolean saveBackendSettings() { return backendSection.save(); }
 
     // ---- SettingsPanelRenderHost ----
 

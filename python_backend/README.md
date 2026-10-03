@@ -50,6 +50,8 @@ cp .env.example .env
 
 ## 运行服务
 
+也可从游戏设置面板底部的“本机后端服务”配置后端目录、Python 和端口，然后点击“保存并启动”。首次仍需完成依赖安装；详细操作和验证边界见 [设置面板启动说明](../docs/BACKEND_STARTUP.md)。
+
 ```bash
 # 在 python_backend/ 目录下
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -186,4 +188,3 @@ python python_backend/tools/spec_contract_smoke.py
 - `styleProfileId` 合法性校验与自动回退（无效则写入 `extra.debugWarnings`）
 - `paletteId` 合法性校验与自动回退
 - `styleProfileId` 存在默认 palette 且 `paletteId` 缺失时，自动补齐 `paletteId`（并置 `paletteIdAutoFromStyle=true`）
-

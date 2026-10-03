@@ -10,6 +10,9 @@ import java.util.List;
 
 /** Draw-time callbacks from section classes back to {@link com.formacraft.client.ui.panel.SettingsPanel}. */
 public interface SettingsPanelRenderHost {
+    default void loadBackendSettings() {}
+    default boolean saveBackendSettings() { return true; }
+
     MinecraftClient client();
 
     void ensureWidgets();

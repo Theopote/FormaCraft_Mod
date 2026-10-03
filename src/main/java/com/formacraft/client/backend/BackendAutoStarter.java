@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class BackendAutoStarter {
     private BackendAutoStarter() {}
 
+    private static final AtomicBoolean shutdownHookRegistered = new AtomicBoolean(false);
     private static final AtomicBoolean starting = new AtomicBoolean(false);
     private static volatile Process backendProcess = null;
     private static volatile String lastError = null;
@@ -86,67 +87,79 @@ public final class BackendAutoStarter {
         }
     }
 
+    private static volatile String status = "尚未检查";
+    private static volatile boolean manuallyStopped;
+
+    public static String getStatus() { return status; }
+    public static boolean ownsRunningProcess() { return backendProcess != null && backendProcess.isAlive(); }
+
     public static void ensureStartedAsync() {
         SettingsConfig cfg = SettingsConfig.INSTANCE;
-        if (cfg == null) return;
-        if (!cfg.autoStartBackend) return;
-
-        // 只对 localhost 地址启用自动启动，避免误启动远端
-        String endpointRaw = (cfg.orchestratorEndpoint == null) ? "" : cfg.orchestratorEndpoint.trim();
-        if (!isLocalhostEndpoint(endpointRaw, cfg.backendPort)) return;
-
+        if (cfg == null || !cfg.autoStartBackend || manuallyStopped || starting.get()) return;
+        if (!isLocalhostEndpoint(cfg.orchestratorEndpoint, cfg.backendPort)) return;
         long now = System.currentTimeMillis();
         if (now - lastAttemptMs < MIN_ATTEMPT_INTERVAL_MS) return;
         lastAttemptMs = now;
+        startAsync(cfg);
+    }
 
-        String endpointBase = normalizeBaseEndpointForHealth(endpointRaw, cfg.backendPort);
-
-        if (isHealthy(endpointBase)) {
-            lastError = null;
-            log("health ok, skip start. endpoint=" + endpointBase);
-            return;
-        }
-
-        if (!starting.compareAndSet(false, true)) return;
-        CompletableFuture.runAsync(() -> {
+    public static CompletableFuture<String> startAsync(SettingsConfig cfg) {
+        final String endpoint;
+        try { endpoint = LocalBackendLaunch.endpoint(cfg.orchestratorEndpoint, cfg.backendPort); }
+        catch (Exception e) { status = e.getMessage(); return CompletableFuture.completedFuture(status); }
+        if (!starting.compareAndSet(false, true)) return CompletableFuture.completedFuture("后端操作正在进行");
+        manuallyStopped = false;
+        var snapshot = new SettingsConfig();
+        snapshot.backendWorkDir = cfg.backendWorkDir;
+        snapshot.pythonExecutable = cfg.pythonExecutable;
+        snapshot.backendPort = cfg.backendPort;
+        status = "正在启动／检查后端…";
+        return CompletableFuture.supplyAsync(() -> {
             try {
-                // double-check
-                if (isHealthy(endpointBase)) return;
+                if (isHealthy(endpoint)) { lastError = null; return status = "后端可用"; }
                 lastError = null;
-                startProcess(cfg);
+                startProcess(snapshot);
+                Process proc = backendProcess;
+                if (proc == null || !proc.isAlive())
+                    return status = "启动失败：" + (lastError == null ? "请检查后端日志" : lastError);
+                long deadline = System.currentTimeMillis() + 15_000;
+                while (proc.isAlive() && System.currentTimeMillis() < deadline) {
+                    if (isHealthy(endpoint)) { lastError = null; return status = "后端可用（本模组启动）"; }
+                    Thread.sleep(500);
+                }
+                return status = "后端尚未就绪，请检查 logs/formacraft_orchestrator.log";
+            } catch (Exception e) {
+                if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+                lastError = e.getMessage();
+                return status = "启动失败：" + lastError;
+            } finally { starting.set(false); }
+        });
+    }
 
-                // 如果连进程都没拉起，就别再输出“started but ...”这种误导信息
-                Process bp = backendProcess;
-                if (bp == null || !bp.isAlive()) {
-                    if (lastError == null || lastError.isBlank()) {
-                        lastError = "backend process not started (python/py not found or uvicorn missing)";
-                    }
-                    log("backend not started: " + lastError);
-                    return;
-                }
+    public static CompletableFuture<String> checkAsync(String endpoint) {
+        return CompletableFuture.supplyAsync(() -> status = isHealthy(endpoint)
+                ? "后端可用" : "后端不可达，请检查地址或日志");
+    }
 
-                // 启动后最多等 10 秒轮询健康（避免“启动失败但用户无感”）
-                long deadline = System.currentTimeMillis() + 10_000L;
-                while (System.currentTimeMillis() < deadline) {
-                    if (isHealthy(endpointBase)) {
-                        lastError = null;
-                        log("backend became healthy: " + endpointBase);
-                        return;
-                    }
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
+    public static CompletableFuture<String> stopAsync() {
+        if (!starting.compareAndSet(false, true)) return CompletableFuture.completedFuture("后端操作正在进行");
+        manuallyStopped = true;
+        status = "正在停止后端…";
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Process proc = backendProcess;
+                if (proc == null || !proc.isAlive()) return status = "没有本模组启动的进程；外部服务请在原窗口停止";
+                proc.destroy();
+                if (!proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    proc.destroyForcibly();
+                    if (!proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) return status = "停止未完成，请检查日志";
                 }
-                if (!isHealthy(endpointBase)) {
-                    lastError = "started but /health still not reachable: " + endpointBase;
-                    log(lastError);
-                }
-            } finally {
-                starting.set(false);
-            }
+                backendProcess = null;
+                lastError = null;
+                return status = "后端已停止；点击启动可恢复";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); return status = "停止被中断";
+            } finally { starting.set(false); }
         });
     }
 
@@ -177,7 +190,8 @@ public final class BackendAutoStarter {
                     .GET()
                     .build();
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            return resp.statusCode() >= 200 && resp.statusCode() < 300;
+            return resp.statusCode() >= 200 && resp.statusCode() < 300
+                    && com.google.gson.JsonParser.parseString(resp.body()).getAsJsonObject().get("ok").getAsBoolean();
         } catch (Exception e) {
             return false;
         }
@@ -225,7 +239,7 @@ public final class BackendAutoStarter {
     private static File resolveWorkDir(String configured) {
         String wd0 = (configured == null || configured.isBlank()) ? "python_backend" : configured.trim();
         File f0 = new File(wd0);
-        if (f0.exists()) return f0;
+        if (f0.exists() || f0.isAbsolute()) return f0;
 
         // 以游戏目录为基准（dev 环境一般是 <project>/run）
         try {
@@ -237,7 +251,7 @@ public final class BackendAutoStarter {
             File parent = gameDir.getParentFile();
             if (parent != null) {
                 File f2 = new File(parent, "python_backend");
-                if (f2.exists()) return f2;
+                if ("python_backend".equals(wd0) && f2.exists()) return f2;
                 File f3 = new File(parent, wd0);
                 if (f3.exists()) return f3;
             }
@@ -327,24 +341,16 @@ public final class BackendAutoStarter {
             pb.redirectErrorStream(true);
             Process proc = pb.start();
 
-            StringBuilder out = new StringBuilder();
-            try (java.io.BufferedReader r = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(proc.getInputStream()))) {
-                String line;
-                while ((line = r.readLine()) != null) {
-                    if (out.length() < 4000) out.append(line).append('\n');
-                }
-            }
-
             boolean done = proc.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
             if (!done) {
                 proc.destroyForcibly();
                 return ProbeResult.UNAVAILABLE;
             }
+            String out = new String(proc.getInputStream().readNBytes(4000), java.nio.charset.StandardCharsets.UTF_8);
             int code = proc.exitValue();
             if (code == 0) return ProbeResult.OK;
 
-            String o = out.toString().toLowerCase(java.util.Locale.ROOT);
+            String o = out.toLowerCase(java.util.Locale.ROOT);
             // 真正的 Python 跑起来了但缺少 uvicorn：给出精确的“装依赖”提示。
             if (o.contains("modulenotfounderror") || o.contains("no module named")) {
                 return ProbeResult.NO_UVICORN;
@@ -368,7 +374,7 @@ public final class BackendAutoStarter {
         int port = cfg.backendPort > 0 ? cfg.backendPort : 8000;
 
         File wd = resolveWorkDir(cfg.backendWorkDir);
-        if (!wd.exists()) {
+        if (!wd.isDirectory() || !new File(wd, "app/main.py").isFile()) {
             lastError = "backendWorkDir not found: " + wd.getAbsolutePath()
                     + " (configured=" + cfg.backendWorkDir + ", gameDir=" + safeGameDir() + ")";
             log(lastError);
@@ -450,17 +456,7 @@ public final class BackendAutoStarter {
                 return;
             }
 
-            List<String> cmd = new ArrayList<>();
-            cmd.add(workingPython);
-            cmd.add("-m");
-            cmd.add("uvicorn");
-            cmd.add("app.main:app");
-            cmd.add("--host");
-            cmd.add("127.0.0.1");
-            cmd.add("--port");
-            cmd.add(String.valueOf(port));
-            cmd.add("--log-level");
-            cmd.add("info");
+            List<String> cmd = LocalBackendLaunch.command(workingPython, wd, port);
 
             try {
                 ProcessBuilder pb = new ProcessBuilder(cmd);
@@ -478,7 +474,7 @@ public final class BackendAutoStarter {
                     try {
                         int code = proc.waitFor();
                         String msg = "backend process exited. code=" + code + " (see logs/formacraft_orchestrator.log)";
-                        lastError = msg;
+                        if (backendProcess == proc) { lastError = msg; status = "后端进程已退出，请检查日志"; }
                         log(msg);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -495,7 +491,7 @@ public final class BackendAutoStarter {
             }
 
             // Minecraft 退出时尽量清理
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (shutdownHookRegistered.compareAndSet(false, true)) Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
                     Process bp = backendProcess;
                     if (bp != null && bp.isAlive()) {
