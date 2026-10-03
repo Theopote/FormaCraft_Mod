@@ -1,8 +1,8 @@
 # FormaCraft 文档索引
 
-> **阅读顺序**：本页 → [ARCHITECTURE.md](../ARCHITECTURE.md) → [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) → [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md)
+> **阅读顺序**：[开发入口](DEVELOPER_START_HERE.md) → [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) → [ARCHITECTURE.md](../ARCHITECTURE.md) → [架构审计与重构路线](refactoring/ARCHITECTURE_AUDIT.md)
 
-最后更新：2026-07-04
+最后更新：2026-10-03（入口与架构审计；子系统文档仍需逐篇核查）
 
 ---
 
@@ -10,6 +10,9 @@
 
 | 文档 | 用途 |
 |------|------|
+| [DEVELOPER_START_HERE.md](DEVELOPER_START_HERE.md) | 新人入口、按任务定位代码与验证命令 |
+| [refactoring/ARCHITECTURE_AUDIT.md](refactoring/ARCHITECTURE_AUDIT.md) | 现状证据、技术债、分阶段重构与建筑质量验收 |
+| [refactoring/REGRESSION_BASELINE.md](refactoring/REGRESSION_BASELINE.md) | 第二轮回归恢复、剩余建筑行为与测试环境问题 |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | 系统总览、分层规则、质量门、Canonical Pipeline 声明 |
 | [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) | LlmPlan → 放置方块的**唯一流程真相**（类名、阶段、分支） |
 | [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md) | 泛化优先原则、已具备能力、代码差距清单、演进方向 |

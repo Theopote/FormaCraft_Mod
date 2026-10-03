@@ -1,5 +1,7 @@
 package com.formacraft.common.compiler.postprocess;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -33,17 +35,16 @@ class WindowOrderPostProcessorTest {
                 Map.of("window_order", "full", "window_aspect", "vertical_bay")
         );
 
-        LlmPlan plan = new LlmPlan(
-                null, "MEDIEVAL_CLASSIC", null,
-                new GlobalConstraints(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("MEDIEVAL_CLASSIC")
+                .globalConstraints(new GlobalConstraints(
                         GlobalConstraints.Facing.SOUTH,
                         GlobalConstraints.Symmetry.NONE,
-                        GlobalConstraints.TerrainStrategy.ADAPTIVE),
-                new Layout(null, false, List.of()),
-                List.of(facade), null, null,
-                hints, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+                        GlobalConstraints.TerrainStrategy.ADAPTIVE))
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of(facade))
+                .proportionHints(hints)
+                .build();
 
 
         List<BlockPatch> input = List.of(

@@ -1,5 +1,7 @@
 package com.formacraft.server.assembly;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -34,13 +36,11 @@ class AssemblyPlanCapabilityTest {
 
     @Test
     void rejectsMixedMassAndAssemblyPlan() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Gothic_Cathedral",
-                new Vec3i(0, 64, 0),
-                null,
-                null,
-                List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Gothic_Cathedral")
+                .anchor(new Vec3i(0, 64, 0))
+                .components(List.of(
                         assemblyComponent(),
                         new Component(
                                 "MASS_MAIN",
@@ -50,31 +50,22 @@ class AssemblyPlanCapabilityTest {
                                 List.of(),
                                 Map.of()
                         )
-                ),
-                null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+                ))
+                .build();
 
         assertFalse(AssemblyPlanCapability.isAssemblyOnly(plan));
     }
 
     @Test
     void llmPlanHasCapabilityGapWhenStatusSet() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                null,
-                new Vec3i(0, 64, 0),
-                null,
-                null,
-                List.of(),
-                null, null, null, null, null, null, null, null,
-                "capability_gap",
-                "unsupported geometry",
-                new CapabilityGap("E_TEST", "unsupported geometry", "plan", List.of("use preset")),
-                null
-                null,
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .anchor(new Vec3i(0, 64, 0))
+                .components(List.of())
+                .planStatus("capability_gap")
+                .error("unsupported geometry")
+                .capabilityGap(new CapabilityGap("E_TEST", "unsupported geometry", "plan", List.of("use preset")))
+                .build();
 
         assertTrue(plan.hasCapabilityGap());
     }
@@ -95,16 +86,14 @@ class AssemblyPlanCapabilityTest {
     }
 
     private static LlmPlan assemblyOnlyPlan() {
-        return new LlmPlan(
-                LlmPlan.Mode.build,
-                "Gothic_Cathedral",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null),
-                new Layout(null, false, List.of()),
-                List.of(assemblyComponent()),
-                null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+        return LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Gothic_Cathedral")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null))
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of(assemblyComponent()))
+                .build();
 
     }
 

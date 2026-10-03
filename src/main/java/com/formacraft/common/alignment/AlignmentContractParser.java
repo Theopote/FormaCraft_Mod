@@ -1,7 +1,6 @@
 package com.formacraft.common.alignment;
 
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
-import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.LlmPlan;
 
 import java.util.ArrayList;
@@ -45,12 +44,9 @@ public final class AlignmentContractParser {
                 return contract.hasContent() ? contract : null;
             }
             case Map<?, ?> map -> {
-                try {
-                    AlignmentAndSymmetry parsed = JsonUtil.fromJson(JsonUtil.toJson(map), AlignmentAndSymmetry.class);
-                    return parsed != null && parsed.hasContent() ? parsed : null;
-                } catch (Throwable ignored) {
-                    return parseMapManually(map);
-                }
+                // JsonProperty is a Jackson annotation; the shared Gson mapper does not
+                // understand snake_case keys and can silently return a partial contract.
+                return parseMapManually(map);
             }
             default -> {
             }

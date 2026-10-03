@@ -55,7 +55,7 @@ class FacadeWindowsAspectTest {
                 List.of(),
                 params
         );
-        Slot slot = new Slot("", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH);
+        Slot slot = new Slot("", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
         SemanticComponent semantic = new SemanticComponent("FACADE_WINDOWS", slot, c, null, null, null);
         return new FacadeWindowsGenerator().generate(semantic);
     }

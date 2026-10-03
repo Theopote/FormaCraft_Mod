@@ -1,5 +1,7 @@
 package com.formacraft.common.detail;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Layout;
 import com.formacraft.common.llm.dto.LlmPlan;
 import org.junit.jupiter.api.Test;
@@ -76,13 +78,11 @@ class DetailRuleParserTest {
     }
 
     private static LlmPlan planWithHints(Map<String, Object> hints) {
-        return new LlmPlan(
-                null, null, null, null,
-                new Layout(null, false, List.of()),
-                List.of(), null, null,
-                hints, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+        return LlmPlanTestFixtures.builder()
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of())
+                .proportionHints(hints)
+                .build();
 
     }
 }

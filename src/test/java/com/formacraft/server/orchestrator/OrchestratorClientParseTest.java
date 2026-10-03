@@ -13,23 +13,37 @@ import static org.junit.jupiter.api.Assertions.*;
 class OrchestratorClientParseTest {
 
     @Test
+    void rejectsMissingAndUnknownDiscriminators() {
+        assertThrows(RuntimeException.class, () -> OrchestratorClient.parseAiPlanResponse("{\"type\":\"HOUSE\"}"));
+        assertThrows(RuntimeException.class, () -> OrchestratorClient.parseAiPlanResponse("{\"kind\":\"unknown\"}"));
+    }
+
+    @Test
+    void rejectsObsoleteLayoutMode() {
+        assertThrows(RuntimeException.class, () -> OrchestratorClient.parseAiPlanResponse(
+                "{\"kind\":\"llmplan\",\"mode\":\"layout\",\"anchor\":{\"x\":0,\"y\":64,\"z\":0}}"));
+    }
+
+    @Test
     void parseLlmPlanResponse() {
         String body = """
                 {
-                  "mode": "layout",
+                  "kind": "llmplan",
+                  "mode": "build",
                   "anchor": {"x": 0, "y": 64, "z": 0},
                   "components": []
                 }
                 """;
         AiPlanResult result = OrchestratorClient.parseAiPlanResponse(body);
         assertInstanceOf(AiPlanResult.LlmPlan.class, result);
-        assertEquals(LlmPlan.Mode.layout, ((AiPlanResult.LlmPlan) result).plan().mode());
+        assertEquals(LlmPlan.Mode.build, ((AiPlanResult.LlmPlan) result).plan().mode());
     }
 
     @Test
     void parseBuildingSpecResponse() {
         String body = """
                 {
+                  "kind": "buildingspec",
                   "type": "HOUSE",
                   "style": "DEFAULT",
                   "footprint": {"shape": "rectangle", "width": 8, "depth": 10},
@@ -49,6 +63,7 @@ class OrchestratorClientParseTest {
     void parseCompositeSpecResponse() {
         String body = """
                 {
+                  "kind": "composite",
                   "structures": [
                     {
                       "type": "offset",
@@ -76,6 +91,7 @@ class OrchestratorClientParseTest {
     void parseCitySpecResponse() {
         String body = """
                 {
+                  "kind": "city",
                   "cityName": "Testville",
                   "zones": [
                     {"name": "center", "type": "plaza", "radius": 12, "center": {"x": 0, "y": 64, "z": 0}}

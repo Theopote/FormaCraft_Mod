@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.component.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import com.formacraft.common.facade.rhythm.RepeatingPattern;
 import com.formacraft.common.facade.rhythm.RepeatingPatternParser;
 import org.junit.jupiter.api.Test;

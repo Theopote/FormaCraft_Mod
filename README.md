@@ -38,7 +38,7 @@ Formacraft 是一个基于 [Fabric](https://fabricmc.net/)（Minecraft 1.21.10�
 
 - **Java 21+**
 - **Python 3.12+**
-- **Gradle 8+**（项目自带 Wrapper，无需单独安装）
+- **Gradle Wrapper**（仓库固定 9.1.0，无需单独安装）
 - **Minecraft 1.21.10** + [Fabric Loader](https://fabricmc.net/use/)
 
 ### 1. Clone the repository
@@ -126,6 +126,7 @@ formacraft/
 
 | Document | Description |
 |----------|-------------|
+| [docs/DEVELOPER_START_HERE.md](docs/DEVELOPER_START_HERE.md) | 新人阅读顺序、任务定位与验证入口 |
 | [docs/INDEX.md](docs/INDEX.md) | **Documentation master index** |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture overview |
 | [docs/GENERATION_PIPELINE.md](docs/GENERATION_PIPELINE.md) | End-to-end generation pipeline (canonical) |

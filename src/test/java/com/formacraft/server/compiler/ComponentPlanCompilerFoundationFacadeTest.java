@@ -1,5 +1,7 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -49,16 +51,14 @@ class ComponentPlanCompilerFoundationFacadeTest {
                 Map.of("window_ratio", 0.2, "window_aspect", "vertical_strip")
         );
 
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "DEFAULT",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null),
-                new Layout(null, false, List.of()),
-                List.of(foundation, mass, facade),
-                null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("DEFAULT")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null))
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of(foundation, mass, facade))
+                .build();
 
 
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);

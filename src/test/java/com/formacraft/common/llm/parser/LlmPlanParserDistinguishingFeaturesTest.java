@@ -1,5 +1,7 @@
 package com.formacraft.common.llm.parser;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import org.junit.jupiter.api.Test;
@@ -44,29 +46,12 @@ class LlmPlanParserDistinguishingFeaturesTest {
 
     @Test
     void normalizePreservesDistinguishingFeatures() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "DEFAULT",
-                new com.formacraft.common.llm.dto.Vec3i(0, 64, 0),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                java.util.List.of("shell roof"),
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("DEFAULT")
+                .anchor(new com.formacraft.common.llm.dto.Vec3i(0, 64, 0))
+                .distinguishingFeatures(java.util.List.of("shell roof"))
+                .build();
 
         LlmPlan normalized = LlmPlanAnchorNormalizer.normalize(plan);
         assertEquals(java.util.List.of("shell roof"), normalized.distinguishingFeatures());

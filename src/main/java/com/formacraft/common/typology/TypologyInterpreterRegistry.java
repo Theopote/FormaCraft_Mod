@@ -1,17 +1,16 @@
 package com.formacraft.common.typology;
 
-import com.formacraft.FormacraftMod;
-
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Registry of structural typology interpreters.
+ * Registry of structural typology interpreters supplied by the runtime.
+ * This shared registry never constructs server implementations.
  */
 public final class TypologyInterpreterRegistry {
 
-    private static volatile Map<String, TypologyInterpreter> cached;
+    private static volatile Map<String, TypologyInterpreter> cached = Map.of();
 
     private TypologyInterpreterRegistry() {}
 
@@ -19,7 +18,7 @@ public final class TypologyInterpreterRegistry {
         if (typologyId == null || typologyId.isBlank()) {
             return null;
         }
-        return interpreters().get(typologyId.trim().toLowerCase(Locale.ROOT));
+        return cached.get(typologyId.trim().toLowerCase(Locale.ROOT));
     }
 
     public static boolean has(String typologyId) {
@@ -31,48 +30,10 @@ public final class TypologyInterpreterRegistry {
             return;
         }
         synchronized (TypologyInterpreterRegistry.class) {
-            Map<String, TypologyInterpreter> next = new LinkedHashMap<>(interpreters());
+            Map<String, TypologyInterpreter> next = new LinkedHashMap<>(cached);
             next.put(interpreter.typologyId().trim().toLowerCase(Locale.ROOT), interpreter);
             cached = Map.copyOf(next);
         }
     }
 
-    private static Map<String, TypologyInterpreter> interpreters() {
-        if (cached != null) {
-            return cached;
-        }
-        synchronized (TypologyInterpreterRegistry.class) {
-            if (cached != null) {
-                return cached;
-            }
-            cached = bootstrapFromStructuralRegistry();
-            return cached;
-        }
-    }
-
-    private static Map<String, TypologyInterpreter> bootstrapFromStructuralRegistry() {
-        Map<String, TypologyInterpreter> out = new LinkedHashMap<>();
-
-        // Phase 2: native parametric interpreters (no landmark id injection)
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.DenseEavesPagodaInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.TailiangTimberHallInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.RadialTerraceHallInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.StadiumBowlInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.SuspensionBridgeInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.GothicCathedralHallInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.CourtyardCompoundInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.RadialFortressInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.SetbackTowerInterpreter());
-        registerBuiltIn(out, new com.formacraft.server.generation.typology.interpreter.TieredMountainPalaceInterpreter());
-
-        FormacraftMod.LOGGER.info("TypologyInterpreterRegistry bootstrapped {} interpreters", out.size());
-        return Map.copyOf(out);
-    }
-
-    private static void registerBuiltIn(Map<String, TypologyInterpreter> out, TypologyInterpreter interpreter) {
-        if (interpreter == null || interpreter.typologyId() == null) {
-            return;
-        }
-        out.put(interpreter.typologyId().toLowerCase(Locale.ROOT), interpreter);
-    }
 }

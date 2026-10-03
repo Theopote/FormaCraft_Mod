@@ -1,5 +1,7 @@
 package com.formacraft.common.proportion;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -37,32 +39,18 @@ class RoofGrammarResolverTest {
     }
 
     private static LlmPlan planWithHints(Map<String, Object> hints) {
-        return new LlmPlan(
-                LlmPlan.Mode.build,
-                "DEFAULT",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(
+        return LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("DEFAULT")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(
                         GlobalConstraints.Facing.SOUTH,
                         GlobalConstraints.Symmetry.NONE,
-                        GlobalConstraints.TerrainStrategy.ADAPTIVE),
-                new Layout(null, false, List.of()),
-                List.of(),
-                null,
-                null,
-                hints,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-                null,
-                null
-        );
+                        GlobalConstraints.TerrainStrategy.ADAPTIVE))
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of())
+                .proportionHints(hints)
+                .build();
 
     }
 }

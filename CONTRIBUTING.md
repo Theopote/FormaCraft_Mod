@@ -1,3 +1,7 @@
+# 开发入口与架构检查
+
+修改前阅读 [开发入口](docs/DEVELOPER_START_HERE.md) 和 [架构审计](docs/refactoring/ARCHITECTURE_AUDIT.md)。除已有构建/质量门外，运行 `python scripts/test_check_architecture.py` 与 `python scripts/check_architecture.py`。禁止扩大 `config/architecture-debt.json` 掩盖新增反向依赖；消除旧依赖时同步缩减基线。行为改动必须同步对应活文档与回归案例。
+
 # Contributing to Formacraft
 
 感谢你对 Formacraft 项目的兴趣！

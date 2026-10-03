@@ -1,11 +1,10 @@
-package com.formacraft.server.skeleton.gen.geometry;
+package com.formacraft.client.skeleton;
 
 import com.formacraft.ai.context.OutlineContext;
 import com.formacraft.ai.context.ProtectedZoneContext;
 import com.formacraft.ai.context.SelectionContext;
 import com.formacraft.ai.context.SymmetryContext;
 import com.formacraft.client.buildcontext.BuildContextResolver;
-import com.formacraft.client.tool.SymmetryMode;
 import com.formacraft.common.buildcontext.BuildContext;
 import com.formacraft.common.geometry.tool.GeometryConstraintPipeline;
 import com.formacraft.common.geometry.tool.footprint.FootprintConstraint;
@@ -27,7 +26,7 @@ import java.util.List;
  * 
  * 从 BuildContext 和工具状态构建 GeometryConstraintPipeline 和 SymmetryProcessor
  * 
- * 这是连接客户端工具状态和服务端约束系统的桥梁
+ * 仅用于客户端工具状态；服务端约束必须从请求 DTO 或 ToolConstraintSnapshot 构建
  */
 public final class ToolConstraintBuilder {
 

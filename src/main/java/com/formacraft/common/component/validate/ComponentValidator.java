@@ -207,10 +207,6 @@ public final class ComponentValidator {
     }
 
     private static void validateSocketPlacements(ComponentDefinition def, ValidationResult out) {
-        if (def.socketPlacements == null || def.socketPlacements.isEmpty()) {
-            return;
-        }
-
         Set<String> placementIds = new HashSet<>();
         Set<String> socketIds = new HashSet<>();
         if (def.sockets != null) {
@@ -220,8 +216,10 @@ public final class ComponentValidator {
             }
         }
 
-        for (int i = 0; i < def.socketPlacements.size(); i++) {
-            var sp = def.socketPlacements.get(i);
+        List<ComponentDefinition.SocketPlacement> placements =
+                def.socketPlacements != null ? def.socketPlacements : List.of();
+        for (int i = 0; i < placements.size(); i++) {
+            var sp = placements.get(i);
             String base = "socketPlacements[" + i + "]";
             if (sp == null) {
                 out.warn(base, "Null socket placement");

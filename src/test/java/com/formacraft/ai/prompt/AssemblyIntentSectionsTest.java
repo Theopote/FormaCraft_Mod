@@ -33,16 +33,19 @@ class AssemblyIntentSectionsTest {
 
     @Test
     void suppressesProportionAndLandmarkHintsWhenAssemblyIntent() {
-        String prompt = PromptAssembler.assemble("原创螺旋瞭望塔，不要地标，用 ASSEMBLY 自由几何");
-        assertFalse(prompt.contains("PROPORTION ONTOLOGY"));
-        assertFalse(prompt.contains("LANDMARK MODULE ROUTING"));
+        String prompt = PromptAssembler.assemble("原创螺旋瞭望塔，不要地标，用 ASSEMBLY 自由几何", PromptMode.BUILD);
+        // The generic system rules mention these names; check injected content,
+        // not incidental references in the policy text.
+        assertFalse(prompt.contains("PROPORTION ONTOLOGY (research before dimensions)"));
+        assertFalse(prompt.contains("MANDATORY FOR THIS REQUEST"));
+        assertFalse(prompt.contains("AVAILABLE LANDMARK MODULES (fixed-form iconic structures)"));
         assertTrue(prompt.contains("ASSEMBLY INTENT"));
         assertTrue(prompt.contains("spiral_watchtower"));
     }
 
     @Test
     void stillIncludesProportionHintForOrdinaryHouse() {
-        String prompt = PromptAssembler.assemble("建一栋中式别墅，带庭院");
+        String prompt = PromptAssembler.assemble("建一栋中式别墅，带庭院", PromptMode.BUILD);
         assertFalse(prompt.contains("ASSEMBLY INTENT (MANDATORY"));
     }
 }

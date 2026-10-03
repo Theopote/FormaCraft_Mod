@@ -1,5 +1,7 @@
 package com.formacraft.server.generation.component.impl;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import org.junit.jupiter.api.Test;
 

@@ -2,6 +2,8 @@
 
 **Formacraft is a semantic architecture compiler for Minecraft.**
 
+> 核查更新：2026-10-03。新人先读 [开发入口](docs/DEVELOPER_START_HERE.md)。本文包含设计规则，当前未满足的边界及分阶段整改见 [架构审计](docs/refactoring/ARCHITECTURE_AUDIT.md)。
+
 ---
 
 ## 1. Project Overview
@@ -45,7 +47,7 @@ ChatPanel
 
 **状态分级（收敛目标）：**
 
-- ✅ **主干（唯一支持）**：LlmPlan → `common.compiler` + `common.generation.component` → `BlockPatch`
+- ✅ **主干（新功能默认）**：LlmPlan → `server.compiler.ComponentPlanCompiler` / `common.compiler.PlanProgramCompiler` + 生成器 → `BlockPatch`；BuildingSpec 等兼容入口仍存在
 - 🟡 **精品库（Phase 5 并入主干）**：`server.generation.structure` 地标生成器 —— 目标是改造成"LlmPlan 可调用的命名模块"，而非独立的 BuildingSpec 并行路径
 - 🔴 **Quarantine / 待删除**：`common.assembly.AutoAssembler`、`server.cluster.ClusterLayoutPlanner`、`common.layout.PathClusterLayoutPlanner`、`common.mass` 占位实现、`ConfirmBuildPacket` 双轨确认、`com.formacraft.ai` 死 service 子集（保留 `ai.prompt.*` / `ai.context.*`）
 
@@ -65,7 +67,7 @@ ChatPanel
 
 ### 1.6 Golden-Path 回归清单（手测基准）
 
-当前构建/编译需在开发者本地进行（agent 环境无法编译）。每次涉及主干的改动后，进游戏跑以下代表性 prompt，确认"发请求 → 出预览 → /forma_confirm 落地"三段都正常：
+使用仓库 Gradle Wrapper 编译与检查；2026-10-03 本机离线 compileJava 已成功。自动编译不能替代游戏验收。每次涉及主干的改动后，进游戏跑以下代表性 prompt，确认"发请求 → 出预览 → /forma_confirm 落地"三段都正常：
 
 1. **基础单体**：`盖一个 7x7 的小石头房子，带门和窗`
 2. **多层竖向**：`盖一座 5 层的方塔，顶部有平台`
@@ -137,7 +139,7 @@ Minecraft World
 
 ### 2.1 Package Layering Rules（common / server / client）
 
-2026-07 起，`common` 层对 `server.*` / `client.*` 的依赖已物理清零。新代码必须遵守以下分层，避免边界再次变脏：
+以下是目标分层规则，而非已完全实现的状态。2026-10-03 第二轮已将 10 个内置 TypologyInterpreter 的创建迁到 `server.init.TypologySystemInitializer`，由 `FormacraftMod.onInitialize` 注册，common 注册表只保存外部提供的解释器。`PatchHistoryManager` 仍有 20 处完全限定的 server 引用，`common.patch` 仍使用 ServerWorld。仅查 import 会漏报。新代码必须遵守以下规则，既有债务由 `scripts/check_architecture.py` 和 `config/architecture-debt.json` 冻结，整改见 [审计](docs/refactoring/ARCHITECTURE_AUDIT.md)：
 
 | 包 | 允许 | 禁止 |
 |----|------|------|

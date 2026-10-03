@@ -1,5 +1,7 @@
 package com.formacraft.common.compiler.postprocess;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Layout;
@@ -33,13 +35,12 @@ class DetailRulePostProcessorTest {
                 Map.of("floor_height", 4, "facade_profile", "vertical_pilasters")
         );
 
-        LlmPlan plan = new LlmPlan(
-                null, "MEDIEVAL_CLASSIC", null, null,
-                new Layout(null, false, List.of()),
-                List.of(mass), null, null,
-                hints, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("MEDIEVAL_CLASSIC")
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of(mass))
+                .proportionHints(hints)
+                .build();
 
 
         List<BlockPatch> input = List.of(
@@ -72,13 +73,12 @@ class DetailRulePostProcessorTest {
                 )
         );
 
-        LlmPlan plan = new LlmPlan(
-                null, "MEDIEVAL_CLASSIC", null, null,
-                new Layout(null, false, List.of()),
-                List.of(), null, null,
-                hints, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("MEDIEVAL_CLASSIC")
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of())
+                .proportionHints(hints)
+                .build();
 
 
         List<BlockPatch> input = List.of(

@@ -1,5 +1,7 @@
 package com.formacraft.common.llm.parser;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -23,17 +25,17 @@ class LlmPlanAnchorNormalizerTest {
 
     @Test
     void convertsAbsoluteSlotAnchorsToPlanRelative() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Chinese_Traditional",
-                new Vec3i(-54, 111, 160),
-                new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null),
-                new Layout(Layout.SkeletonType.COMPOUND, true, List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Chinese_Traditional")
+                .anchor(new Vec3i(-54, 111, 160))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null))
+                .layout(new Layout(Layout.SkeletonType.COMPOUND, true, List.of(
                         new Slot("villa_1", new Vec3i(-30, 111, 160), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),
                         new Slot("villa_2", new Vec3i(0, 111, 160), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),
                         new Slot("villa_3", new Vec3i(30, 111, 160), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null)
-                )),
-                List.of(
+                )))
+                .components(List.of(
                         new Component(
                                 "MASS_MAIN",
                                 "villa_1",
@@ -42,22 +44,8 @@ class LlmPlanAnchorNormalizerTest {
                                 List.of(),
                                 Map.of("anchor_mode", "center")
                         )
-                ),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+                ))
+                .build();
 
         LlmPlan normalized = LlmPlanAnchorNormalizer.normalize(plan);
 
@@ -68,30 +56,14 @@ class LlmPlanAnchorNormalizerTest {
 
     @Test
     void leavesAlreadyRelativeSlotAnchorsUntouched() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Chinese_Traditional",
-                new Vec3i(-54, 111, 160),
-                null,
-                new Layout(null, false, List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Chinese_Traditional")
+                .anchor(new Vec3i(-54, 111, 160))
+                .layout(new Layout(null, false, List.of(
                         new Slot("villa_1", new Vec3i(24, 0, 0), null, null, null, null)
-                )),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-                null,
-                null
-        );
+                )))
+                .build();
 
 
         LlmPlan normalized = LlmPlanAnchorNormalizer.normalize(plan);
@@ -115,17 +87,17 @@ class LlmPlanAnchorNormalizerTest {
     }
 
     private static LlmPlan threeVillaPlanWithAbsoluteSlots() {
-        return new LlmPlan(
-                LlmPlan.Mode.build,
-                "Chinese_Traditional",
-                new Vec3i(-54, 111, 160),
-                new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null),
-                new Layout(Layout.SkeletonType.COMPOUND, true, List.of(
+        return LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Chinese_Traditional")
+                .anchor(new Vec3i(-54, 111, 160))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null))
+                .layout(new Layout(Layout.SkeletonType.COMPOUND, true, List.of(
                         new Slot("villa_1", new Vec3i(-30, 111, 160), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),
                         new Slot("villa_2", new Vec3i(0, 111, 160), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),
                         new Slot("villa_3", new Vec3i(30, 111, 160), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null)
-                )),
-                List.of(
+                )))
+                .components(List.of(
                         new Component(
                                 "MASS_MAIN",
                                 "villa_1",
@@ -142,21 +114,7 @@ class LlmPlanAnchorNormalizerTest {
                                 List.of(),
                                 Map.of("roof_type", "xuanshan")
                         )
-                ),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+                ))
+                .build();
     }
 }

@@ -1,5 +1,7 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Layout;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -25,36 +27,21 @@ class ComponentPlanCompilerRealignTest {
 
     @Test
     void realignsRoofAndFacadeToMassMinCorner() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Chinese_Traditional",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null),
-                new Layout(null, false, List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Chinese_Traditional")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null))
+                .layout(new Layout(null, false, List.of(
                         new Slot("villa_1", new Vec3i(0, 0, 0), GlobalConstraints.Facing.EAST, "RESIDENTIAL", null, null)
-                )),
-                List.of(
+                )))
+                .components(List.of(
                         massMain(),
                         misalignedRoof(),
                         misalignedFacade(),
                         misalignedEntrance()
-                ),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-                null,
-                null
-        );
+                ))
+                .build();
 
 
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
@@ -83,15 +70,15 @@ class ComponentPlanCompilerRealignTest {
         massParams.put("corner_cut", 2);
         massParams.put("roof_type", "flat");
 
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Chinese_Traditional",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null),
-                new Layout(null, false, List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Chinese_Traditional")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null))
+                .layout(new Layout(null, false, List.of(
                         new Slot("villa_1", new Vec3i(0, 0, 0), GlobalConstraints.Facing.EAST, "RESIDENTIAL", null, null)
-                )),
-                List.of(
+                )))
+                .components(List.of(
                         new Component(
                                 "MASS_MAIN",
                                 "villa_1",
@@ -108,22 +95,8 @@ class ComponentPlanCompilerRealignTest {
                                 List.of(),
                                 Map.of("roof_type", "flat")
                         )
-                ),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-                null,
-                null
-        );
+                ))
+                .build();
 
 
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
@@ -140,34 +113,19 @@ class ComponentPlanCompilerRealignTest {
 
     @Test
     void realignsCenterAnchoredFoundationToMassMinCorner() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Chinese_Traditional",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null),
-                new Layout(null, false, List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Chinese_Traditional")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.EAST, null, null))
+                .layout(new Layout(null, false, List.of(
                         new Slot("villa_1", new Vec3i(0, 0, 0), GlobalConstraints.Facing.EAST, "RESIDENTIAL", null, null)
-                )),
-                List.of(
+                )))
+                .components(List.of(
                         centerFoundation(),
                         centerMassMain()
-                ),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-                null,
-                null
-        );
+                ))
+                .build();
 
 
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);

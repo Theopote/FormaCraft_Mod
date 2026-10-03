@@ -11,6 +11,7 @@ import net.minecraft.item.ItemGroups;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 import org.slf4j.Logger;
@@ -32,7 +33,7 @@ public class FormacraftMod implements ModInitializer {
 	 * 再用这个 Settings 去构造物品并注册。
 	 */
 	public static final RegistryKey<Item> FORMACRAFT_TOOL_KEY =
-			RegistryKey.of(Registries.ITEM.getKey(), Identifier.of(MOD_ID, "formacraft_tool"));
+			RegistryKey.of(RegistryKeys.ITEM, Identifier.of(MOD_ID, "formacraft_tool"));
 
 	public static Item FORMACRAFT_TOOL;
 
@@ -45,6 +46,9 @@ public class FormacraftMod implements ModInitializer {
 		LOGGER.info("FormaCraft initialized!");
 		// 加载配置（必须在其他模块使用配置之前）
 		com.formacraft.common.config.ConfigManager.loadConfig();
+
+		// Shared registry stores interfaces; server runtime supplies native interpreters.
+		com.formacraft.server.init.TypologySystemInitializer.initialize();
 
 		// 初始化 Skeleton 系统（调色板、风格、生成器、装配器等）
 		com.formacraft.server.init.SkeletonSystemInitializer.initialize();

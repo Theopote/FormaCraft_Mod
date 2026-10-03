@@ -50,12 +50,13 @@ public final class PromptAssembler {
 
         sb.append(PromptSystemSections.systemRole());
 
-        // Phase 7：固定形象地标（埃菲尔/长城/天坛…）引用预制模块，而非让 LLM 硬想象几何。
-        sb.append(PromptSystemSections.landmarkModulesPrompt());
+        boolean assemblyIntent = AssemblyIntentSections.detectsFreeformAssemblyIntent(ctx.userMessage);
+        // Freeform requests must not inherit instructions to select a fixed landmark.
+        if (!assemblyIntent) {
+            sb.append(PromptSystemSections.landmarkModulesPrompt());
+        }
 
         sb.append(com.formacraft.common.archetype.LandmarkRoutingPolicy.promptVariationPrinciples());
-
-        boolean assemblyIntent = AssemblyIntentSections.detectsFreeformAssemblyIntent(ctx.userMessage);
 
         // Proportion ontology: cottage / castle / stadium typology ratios
         if (!assemblyIntent) {

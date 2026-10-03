@@ -1,5 +1,7 @@
 package com.formacraft.common.generation.component.util;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Layout;
@@ -50,13 +52,11 @@ class ComponentFloorCorniceDecoratorTest {
     @Test
     void shouldApplyForClassicalTypologyHints() {
         Map<String, Object> hints = Map.of("typology", "classical_monument", "floor_cornice", true);
-        LlmPlan plan = new LlmPlan(
-                null, null, null, null,
-                new Layout(null, false, List.of()),
-                List.of(), null, null,
-                hints, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of())
+                .proportionHints(hints)
+                .build();
 
         assertTrue(ComponentFloorCorniceDecorator.shouldApply(plan));
     }
@@ -71,13 +71,10 @@ class ComponentFloorCorniceDecoratorTest {
                 List.of(),
                 Map.of("floor_height", 4)
         );
-        LlmPlan plan = new LlmPlan(
-                null, null, null, null,
-                new Layout(null, false, List.of()),
-                List.of(mass), null, null,
-                null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .layout(new Layout(null, false, List.of()))
+                .components(List.of(mass))
+                .build();
 
         assertEquals(4, ComponentFloorCorniceDecorator.resolveFloorHeight(plan, 12));
     }

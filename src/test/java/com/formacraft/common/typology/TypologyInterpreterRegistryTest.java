@@ -1,10 +1,24 @@
 package com.formacraft.common.typology;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
+import com.formacraft.server.init.TypologySystemInitializer;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class TypologyInterpreterRegistryTest {
+
+    @BeforeAll
+    static void initializeRuntime() {
+        TypologySystemInitializer.initialize();
+    }
+
+    @Test
+    void initializationIsIdempotentAndLookupNormalizesIds() {
+        TypologyInterpreter interpreter = TypologyInterpreterRegistry.get("dense_eaves_pagoda");
+        TypologySystemInitializer.initialize();
+        assertSame(interpreter, TypologyInterpreterRegistry.get("  DENSE_EAVES_PAGODA  "));
+    }
 
     @Test
     void bootstrapsFamenAndFoguangInterpreters() {

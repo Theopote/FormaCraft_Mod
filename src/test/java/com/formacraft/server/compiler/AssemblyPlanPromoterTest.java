@@ -1,5 +1,7 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -161,25 +163,23 @@ class AssemblyPlanPromoterTest {
                 )
         ));
 
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Gothic_Cathedral",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null),
-                new Layout(null, false, List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Gothic_Cathedral")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null))
+                .layout(new Layout(null, false, List.of(
                         new Slot("tower_1", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, "CIVIC", null, null)
-                )),
-                List.of(new Component(
+                )))
+                .components(List.of(new Component(
                         "MASS_MAIN",
                         "tower_1",
                         new Vec3i(0, 0, 0),
                         new Dimensions(10, 10, 24),
                         List.of(),
                         massParams
-                )),
-                null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null
-        );
+                )))
+                .build();
 
 
         @SuppressWarnings("unchecked")

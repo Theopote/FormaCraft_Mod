@@ -1,5 +1,7 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.alignment.AlignmentAndSymmetry;
 import com.formacraft.common.alignment.BayRhythm;
 import com.formacraft.common.alignment.BaySpec;
@@ -38,38 +40,24 @@ class ComponentPlanCompilerBaySnapTest {
                 ),
                 null
         );
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Neoclassical",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null),
-                new Layout(null, false, List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Neoclassical")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.SOUTH, null, null))
+                .layout(new Layout(null, false, List.of(
                         new Slot("main", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null)
-                )),
-                List.of(new Component(
+                )))
+                .components(List.of(new Component(
                         "MASS_MAIN",
                         "main",
                         new Vec3i(0, 0, 0),
                         new Dimensions(20, 10, 12),
                         List.of(),
                         Map.of("anchor_mode", "center")
-                )),
-                null,
-                null,
-                null,
-                contract,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-                null,
-                null
-        );
+                )))
+                .alignmentAndSymmetry(contract)
+                .build();
 
 
         List<Component> prepared = invokePrepareComponents(plan);

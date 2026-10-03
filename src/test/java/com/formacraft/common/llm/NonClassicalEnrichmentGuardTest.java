@@ -1,5 +1,7 @@
 package com.formacraft.common.llm;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.generation.component.util.ComponentCrownDecorator;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -34,13 +36,11 @@ class NonClassicalEnrichmentGuardTest {
 
     @Test
     void activeFromPlanHeuristicWhenGuardMissing() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "DEFAULT",
-                new Vec3i(0, 64, 0),
-                null,
-                null,
-                List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("DEFAULT")
+                .anchor(new Vec3i(0, 64, 0))
+                .components(List.of(
                         new Component(
                                 "MASS_MAIN",
                                 null,
@@ -49,33 +49,19 @@ class NonClassicalEnrichmentGuardTest {
                                 List.of("tower_body_lower", "observation_sphere"),
                                 Map.of("facade_profile", "vertical_pilasters")
                         )
-                ),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                List.of("television tower"),
-                null
-        );
+                ))
+                .distinguishingFeatures(List.of("television tower"))
+                .build();
         assertTrue(NonClassicalEnrichmentGuard.isActive(plan));
     }
 
     @Test
     void inactiveForClassicalPantheonModulePlan() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "DEFAULT",
-                new Vec3i(0, 64, 0),
-                null,
-                null,
-                List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("DEFAULT")
+                .anchor(new Vec3i(0, 64, 0))
+                .components(List.of(
                         new Component(
                                 "MODULE",
                                 null,
@@ -84,21 +70,9 @@ class NonClassicalEnrichmentGuardTest {
                                 List.of("landmark:pantheon"),
                                 Map.of("module_id", "pantheon")
                         )
-                ),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                List.of("oculus", "portico", "coffered_dome"),
-                null
-        );
+                ))
+                .distinguishingFeatures(List.of("oculus", "portico", "coffered_dome"))
+                .build();
         assertFalse(NonClassicalEnrichmentGuard.isActive(plan));
     }
 
@@ -113,13 +87,12 @@ class NonClassicalEnrichmentGuardTest {
         hints.put("crown_assembly", true);
         hints.put("roof_specialty", "mansard_dormer");
 
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "Modern_Stadium_Elliptical",
-                new Vec3i(0, 64, 0),
-                new GlobalConstraints(GlobalConstraints.Facing.NORTH, GlobalConstraints.Symmetry.NONE, null),
-                null,
-                List.of(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .anchor(new Vec3i(0, 64, 0))
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.NORTH, GlobalConstraints.Symmetry.NONE, null))
+                .components(List.of(
                         new Component(
                                 "MASS_MAIN",
                                 null,
@@ -148,23 +121,11 @@ class NonClassicalEnrichmentGuardTest {
                                 List.of("crown"),
                                 Map.of("crown_template", "CLASSICAL_CUPOLA")
                         )
-                ),
-                null,
-                null,
-                hints,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                List.of("curvilinear form"),
-                "non_classical_marker:zaha"
-        );
+                ))
+                .proportionHints(hints)
+                .distinguishingFeatures(List.of("curvilinear form"))
+                .enrichmentGuard("non_classical_marker:zaha")
+                .build();
 
         LlmPlan sanitized = NonClassicalEnrichmentGuard.sanitize(plan);
 
@@ -184,28 +145,12 @@ class NonClassicalEnrichmentGuardTest {
     }
 
     private static LlmPlan planWithGuard(String guard) {
-        return new LlmPlan(
-                LlmPlan.Mode.build,
-                "DEFAULT",
-                new Vec3i(0, 64, 0),
-                null,
-                null,
-                List.of(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                guard
-        );
+        return LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("DEFAULT")
+                .anchor(new Vec3i(0, 64, 0))
+                .components(List.of())
+                .enrichmentGuard(guard)
+                .build();
     }
 }

@@ -1,5 +1,7 @@
 package com.formacraft.common.network;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Layout;
@@ -35,35 +37,20 @@ class LlmPlanTerrainBoundsTest {
 
     @Test
     void computeComponentBoundsUsesMassFootprint() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "modern",
-                new Vec3i(0, 64, 0),
-                null,
-                new Layout(null, false, List.of(new Slot("main", new Vec3i(0, 0, 0), null, null, null, null))),
-                List.of(new Component(
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("modern")
+                .anchor(new Vec3i(0, 64, 0))
+                .layout(new Layout(null, false, List.of(new Slot("main", new Vec3i(0, 0, 0), null, null, null, null))))
+                .components(List.of(new Component(
                         "MASS_MAIN",
                         "main",
                         new Vec3i(0, 0, 0),
                         new Dimensions(10, 8, 12),
                         null,
                         null
-                )),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-                null,
-                null
-        );
+                )))
+                .build();
 
         BlockPos origin = new BlockPos(100, 64, 200);
         LlmPlanTerrainBounds.Bounds bounds = LlmPlanTerrainBounds.computeComponentBounds(plan, origin);

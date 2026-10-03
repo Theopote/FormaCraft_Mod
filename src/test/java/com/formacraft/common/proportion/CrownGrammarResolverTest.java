@@ -1,5 +1,7 @@
 package com.formacraft.common.proportion;
 
+import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+
 import com.formacraft.common.generation.component.util.RevolveProfileParser;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -23,13 +25,10 @@ class CrownGrammarResolverTest {
                         Map.of("y_rel", 1.0, "radius", 0.1)
                 )
         );
-        LlmPlan plan = new LlmPlan(
-                null, null, null, null, null,
-                List.of(),
-                null, null, hints, null,
-                null, null, null, null, null, null, null, null, null,
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of())
+                .proportionHints(hints)
+                .build();
 
         Component crown = new Component(
                 "CROWN",

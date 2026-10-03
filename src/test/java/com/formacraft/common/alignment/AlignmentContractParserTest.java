@@ -56,29 +56,11 @@ class AlignmentContractParserTest {
 
     @Test
     void infersFromGlobalConstraintsMirrorX() {
-        LlmPlan plan = new LlmPlan(
-                LlmPlan.Mode.build,
-                "DEFAULT",
-                null,
-                new GlobalConstraints(GlobalConstraints.Facing.SOUTH, GlobalConstraints.Symmetry.MIRROR_X, null),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-                null,
-                null
-        );
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .styleProfile("DEFAULT")
+                .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.SOUTH, GlobalConstraints.Symmetry.MIRROR_X, null))
+                .build();
 
 
         AlignmentAndSymmetry resolved = AlignmentContractParser.resolve(plan);
@@ -90,5 +72,15 @@ class AlignmentContractParserTest {
     void returnsNullWhenNoContract() {
         assertNull(AlignmentContractParser.resolve(null));
         assertNull(AlignmentContractParser.resolve(LlmPlanTestFixtures.minimal(null, List.of())));
+    }
+
+    @Test
+    void camelCaseHintPreservesAxisAndRhythm() {
+        AlignmentAndSymmetry contract = AlignmentContractParser.parseValue(Map.of(
+                "symmetryType", "bilateral_x", "centerAxisX", -7,
+                "rhythmX", Map.of("bayCount", 3, "bayWidth", 4)));
+        assertNotNull(contract);
+        assertEquals(-7, contract.centerAxisX());
+        assertEquals(12, contract.rhythmX().totalSpan());
     }
 }
