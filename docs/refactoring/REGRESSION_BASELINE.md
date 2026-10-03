@@ -4,7 +4,7 @@
 
 第二轮已消除 Java 测试编译错误。当前能够执行全套 JUnit，仍有实际断言与运行环境失败；不跳过、不禁用，也不将失败改成软告警。失败需要对照协议/建筑几何判断是测试过时还是实现错误，不能直接改断言迎合输出。
 
-第四批最终完整检查：322 个测试执行，311 通过，11 失败；18 个 assembly 案例通过。第三批为 320 项、17 失败，第四批消除其中 6 项失败并新增 2 个冠部边界案例。完整 check 仍失败。
+第五批完整检查：327 个测试执行，324 通过，3 失败；18 个 assembly 案例通过。第四批为 322 项、11 失败，第五批消除其中 8 项失败并新增 5 个路由、八边形及统计案例。完整 check 仍失败。
 
 ## 本轮修复
 
@@ -21,8 +21,6 @@
 | 领域 | 失败测试与核查方向 |
 |---|---|
 | 原语 | ShapeLibraryTest：半球朝向的协议定义 |
-| 地标与建筑类型 | LandmarkModuleRegistryTest、LandmarkRoutingMetricsTest、TypologyRoutingMetricsTest：固定地标收紧和 typology 迁移后，旧模块数量/强制路由预期是否仍合法 |
-| 类型/朝向/统计 | StructuralTypologyRegistryTest 的 Number 表示、ChineseTypologyDetailUtilTest 的面方向、BuildTaskTest 的累积跳过计数 |
 | Minecraft 测试运行环境 | PaletteLibraryTest、TypologyPatchBridgeTest：普通 JUnit 未启动注册表；尝试直接 Bootstrap 后又出现 remap jar 内部访问权限错误，需在 Fabric 测试运行环境中验证，不能简单启动 Bootstrap 或吞异常 |
 
 本轮未修改 Python 规划器；后端完整质量门仍需具备 requirements.lock 依赖环境。游戏内预览、确认、撤销、Memory 更新与多玩家验收仍待执行。
@@ -45,6 +43,15 @@
 - 绝对曲线点的旧断言从 y=1 修正为 1/6，并验证半径、其他高度按最大值缩放。
 - 进深重复单元独立使用进深节奏：10 格的柱轴 3、7，与 13 格宽度的柱轴 4、8 分别验证，窗轴及内部位置不能当作柱位。
 - [构件坐标契约](../COMPONENT_COORDINATE_CONTRACT.md) 补齐这些定义，并记录仍待处理的整体包围盒楼层基准、偶数跨度镜像、冠部推断尺寸/4000 patch 上限/segments 未生效问题。本轮没有改变 assembly 曲面协议。
+
+## 第五批完成：路由迁移、八边形与统计
+
+- LandmarkRoutingPolicy 原本识别已迁移的鸟巢/哥特类型，却在最终提示中要求旧 MODULE。本轮改为 STRUCTURE + typology 候选；明确点名保留比例参考，泛型不自动添加 reference_landmark，最终遵守研究结果。同步清理目录中的旧体育场建议及过时注释。
+- 固定模块目录测试改为验证有效 ID、唯一性及迁移/研究条目排除，删除旧数量下限；指标测试验证旧鸟巢转 stadium_bowl、保留 pantheon 的模块路径，已迁移哥特 ID 不再算精确 MODULE。
+- JSON defaults 数值按 Number 验证，保留 levels=13 的数值约束，不依赖 Gson 的 Integer/Double 表示。
+- 八边形 NORTH/WEST 修复重复取负；八面索引按周向排列，使 index+4 真正对应对面，斜面凹龛落在切角边界。新测试检查半径 1..10 的边界、八点唯一性与对面关系。
+- 执行结果样例修复漏记的 26 个越界项，验证 total=placed+skipped；额外验证未归类余量与空计划。未宣称完成真实世界执行器验证。
+- 新增 [地标与建筑类型路由契约](../ROUTING_AND_TYPOLOGY_CONTRACT.md)，并更新开发者入口、文档索引和八边形坐标契约。Python、知识卡与兼容入口的路由一致性仍需继续收敛。
 
 ## 复现
 

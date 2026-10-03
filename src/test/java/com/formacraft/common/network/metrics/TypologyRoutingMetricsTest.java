@@ -28,7 +28,7 @@ class TypologyRoutingMetricsTest {
     }
 
     @Test
-    void detectsModuleLandmarkAsStructureGeneratorHint() {
+    void migratedModuleUsesTypologyInsteadOfStructureGeneratorHint() {
         Component c = new Component(
                 "MODULE",
                 null,
@@ -38,7 +38,9 @@ class TypologyRoutingMetricsTest {
                 Map.of()
         );
         assertTrue(TypologyRoutingMetrics.isModuleComponent(c));
-        assertTrue(TypologyRoutingMetrics.hasStructureGeneratorHint(c));
+        assertFalse(TypologyRoutingMetrics.hasStructureGeneratorHint(c));
+        org.junit.jupiter.api.Assertions.assertEquals("stadium_bowl",
+                com.formacraft.common.typology.TypologyComponentRouter.extractTypologyId(c));
     }
 
     @Test
@@ -52,5 +54,11 @@ class TypologyRoutingMetricsTest {
                 Map.of("typology_id", "radial_terrace_hall")
         );
         assertFalse(TypologyRoutingMetrics.hasStructureGeneratorHint(c));
+    }
+    @Test
+    void activeModuleStillHasStructureGeneratorHint() {
+        Component c = new Component("MODULE", null, new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 10), List.of("landmark:pantheon"), Map.of());
+        assertTrue(TypologyRoutingMetrics.hasStructureGeneratorHint(c));
     }
 }

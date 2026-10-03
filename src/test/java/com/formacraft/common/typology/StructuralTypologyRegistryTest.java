@@ -25,6 +25,7 @@ class StructuralTypologyRegistryTest {
         assertNotNull(def);
         assertEquals("VERTICAL_STACK", def.skeletonType());
         assertEquals("octagon", def.defaultParams().get("footprint"));
-        assertEquals(13, def.defaultParams().get("levels"));
+        Number levels = assertInstanceOf(Number.class, def.defaultParams().get("levels"));
+        assertEquals(13.0, levels.doubleValue());
     }
 }

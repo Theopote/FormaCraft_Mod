@@ -16,10 +16,14 @@ class LandmarkRoutingMetricsTest {
     }
 
     @Test
-    void acceptsExplicitGothicCathedralName() {
-        assertFalse(LandmarkRoutingMetrics.isApproximateLandmarkMatch(
+    void deprecatedGothicModuleIsNotAnExactModuleMatch() {
+        assertTrue(LandmarkRoutingMetrics.isApproximateLandmarkMatch(
                 "哥特大教堂",
                 "gothic_cathedral"
         ));
+    }
+    @Test
+    void activePantheonModuleHasExactMatch() {
+        assertFalse(LandmarkRoutingMetrics.isApproximateLandmarkMatch("罗马万神殿", "pantheon"));
     }
 }

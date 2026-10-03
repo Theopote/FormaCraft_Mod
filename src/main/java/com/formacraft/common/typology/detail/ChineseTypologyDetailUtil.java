@@ -58,9 +58,9 @@ public final class ChineseTypologyDetailUtil {
     public static BlockPos octagonFaceCell(int half, Direction face) {
         return switch (face) {
             case SOUTH -> new BlockPos(0, 0, farthestAlongZ(half, 1));
-            case NORTH -> new BlockPos(0, 0, -farthestAlongZ(half, -1));
+            case NORTH -> new BlockPos(0, 0, farthestAlongZ(half, -1));
             case EAST -> new BlockPos(farthestAlongX(half, 1), 0, 0);
-            case WEST -> new BlockPos(-farthestAlongX(half, -1), 0, 0);
+            case WEST -> new BlockPos(farthestAlongX(half, -1), 0, 0);
             default -> new BlockPos(0, 0, half);
         };
     }
@@ -103,16 +103,19 @@ public final class ChineseTypologyDetailUtil {
     }
 
     public static OctagonFace octagonFaceByIndex(int half, int faceIndex) {
-        int d = Math.max(1, half - 1);
+        int cornerAllowance = Math.max(1, (int) Math.round(half * (Math.sqrt(2.0) - 1.0)));
+        int d = half <= 0 ? 0 : (half + cornerAllowance) / 2;
+        int e = half <= 0 ? 0 : half + cornerAllowance - d;
+        // Cyclic faces ensure index + 4 is the opposite face; diagonal cells lie on the cut edge.
         return switch (Math.floorMod(faceIndex, 8)) {
             case 0 -> faceFromCell(0, farthestAlongZ(half, 1), Direction.SOUTH);
-            case 1 -> faceFromCell(0, -farthestAlongZ(half, -1), Direction.NORTH);
+            case 1 -> faceFromCell(d, e, Direction.SOUTH);
             case 2 -> faceFromCell(farthestAlongX(half, 1), 0, Direction.EAST);
-            case 3 -> faceFromCell(-farthestAlongX(half, -1), 0, Direction.WEST);
-            case 4 -> faceFromCell(d, d, Direction.SOUTH);
-            case 5 -> faceFromCell(-d, d, Direction.SOUTH);
-            case 6 -> faceFromCell(d, -d, Direction.NORTH);
-            default -> faceFromCell(-d, -d, Direction.NORTH);
+            case 3 -> faceFromCell(e, -d, Direction.NORTH);
+            case 4 -> faceFromCell(0, farthestAlongZ(half, -1), Direction.NORTH);
+            case 5 -> faceFromCell(-d, -e, Direction.NORTH);
+            case 6 -> faceFromCell(farthestAlongX(half, -1), 0, Direction.WEST);
+            default -> faceFromCell(-e, d, Direction.SOUTH);
         };
     }
 

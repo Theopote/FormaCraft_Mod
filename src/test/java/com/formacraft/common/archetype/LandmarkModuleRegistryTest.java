@@ -40,19 +40,23 @@ class LandmarkModuleRegistryTest {
     }
 
     @Test
-    void promptRoutingHintForIntent_stadiumPrompt_isSuggestedNotMandatory() {
+    void promptRoutingHintForIntent_stadiumPrompt_recommendsTypologyWithoutNamedReference() {
         String hint = LandmarkModuleRegistry.promptRoutingHintForIntent(
                 "在锚点位置生成现代风格的椭圆形体育场建筑");
-        assertTrue(hint.contains("birds_nest_stadium"));
+        assertTrue(hint.contains("typology:stadium_bowl"));
         assertTrue(hint.contains("RECOMMENDED"));
+        assertFalse(hint.contains("reference_landmark=birds_nest_stadium"));
+        assertFalse(hint.contains("\"component_type\": \"MODULE\""));
         assertFalse(hint.contains("MANDATORY FOR THIS REQUEST"));
     }
 
     @Test
-    void promptRoutingHintForIntent_explicitBirdsNest_isMandatory() {
+    void promptRoutingHintForIntent_explicitBirdsNest_usesTypologyReference() {
         String hint = LandmarkModuleRegistry.promptRoutingHintForIntent("在锚点位置生成鸟巢体育馆");
-        assertTrue(hint.contains("birds_nest_stadium"));
-        assertTrue(hint.contains("MANDATORY"));
+        assertTrue(hint.contains("typology:stadium_bowl"));
+        assertTrue(hint.contains("reference_landmark=birds_nest_stadium"));
+        assertTrue(hint.contains("follow that result"));
+        assertFalse(hint.contains("\"component_type\": \"MODULE\""));
     }
 
     @Test
@@ -72,7 +76,14 @@ class LandmarkModuleRegistryTest {
 
     @Test
     void listModules_includesRegisteredLandmarks() {
-        assertTrue(LandmarkModuleRegistry.listModules().size() >= 25);
+        var modules = LandmarkModuleRegistry.listModules();
+        assertFalse(modules.isEmpty());
+        assertTrue(modules.stream().anyMatch(m -> m.moduleId().equals("pantheon")));
+        assertTrue(modules.stream().anyMatch(m -> m.moduleId().equals("jiangnan_water_town")));
+        assertTrue(modules.stream().noneMatch(m -> m.moduleId().equals("birds_nest_stadium")
+                || m.moduleId().equals("gothic_cathedral") || m.moduleId().equals("notre_dame")));
+        assertEquals(modules.size(), modules.stream().map(LandmarkModuleRegistry.LandmarkModule::moduleId)
+                .distinct().count());
         assertNotNull(LandmarkModuleRegistry.resolveModuleId("pantheon"));
         assertNull(LandmarkModuleRegistry.resolveModuleId("generic house"));
     }

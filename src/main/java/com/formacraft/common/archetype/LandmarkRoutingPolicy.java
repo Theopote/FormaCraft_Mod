@@ -8,8 +8,8 @@ import java.util.Locale;
 /**
  * 地标 MODULE 路由分级：区分「指名地标」「类型相似」「原创/多样化」用户意图。
  * <p>
- * 同一风格与尺寸也应允许不同作品——只有用户明确点名地标时才强制 MODULE；
- * 类型匹配（如椭圆体育场）仅作推荐；原创/不要地标类措辞则跳过强制路由。
+ * 同一风格与尺寸也应允许不同作品。指名与类型相似分别产生不同强度的候选提示；
+ * 已迁移地标提示 STRUCTURE/typology，Building Research 可以覆盖候选。
  */
 public final class LandmarkRoutingPolicy {
 
@@ -18,7 +18,7 @@ public final class LandmarkRoutingPolicy {
         NONE,
         /** 推荐 MODULE，但允许 MASS/plan_program 等原创组合 */
         SUGGESTED,
-        /** 用户指名地标，必须 MODULE */
+        /** 历史枚举名：用户指名候选；最终提示仍服从 Building Research，不保证 MODULE */
         MANDATORY
     }
 
@@ -41,7 +41,7 @@ public final class LandmarkRoutingPolicy {
             "varied", "different each time"
     );
 
-    /** 指名鸟巢/国家体育场——强制 MODULE */
+    /** 指名鸟巢/国家体育场——迁移为 stadium_bowl 候选，并保留比例参考 */
     private static final List<String> BIRDS_NEST_EXPLICIT = List.of(
             "鸟巢", "鸟巢体育馆", "国家体育场", "北京鸟巢",
             "bird's nest", "birds nest", "birds' nest", "beijing national stadium"
@@ -233,6 +233,27 @@ public final class LandmarkRoutingPolicy {
             return "";
         }
         String moduleId = decision.moduleId();
+        String typologyId = StructuralTypologyRegistry.typologyForLegacyModule(moduleId);
+        if (typologyId != null && !typologyId.isBlank()) {
+            String reference = decision.tier() == RoutingTier.MANDATORY
+                    ? "Use reference_landmark=" + moduleId + " as a proportion reference."
+                    : "Do not add a named landmark reference unless the user names it.";
+            return """
+
+                ========================================
+                TYPOLOGY ROUTING (RECOMMENDED PRESET — subject to Building Research)
+                ========================================
+                Candidate structural typology: %s
+                Prefer a parameterized component when research confirms this structural grammar:
+                  { "component_type": "STRUCTURE", "features": ["typology:%s"],
+                    "params": { "typology_id": "%s" } }
+                %s
+                Research dimensions, structural parameters and distinguishing features before generation.
+                Do not emit the deprecated MODULE/landmark:%s route.
+                If research selects another grammar or freeform assembly, follow that result.
+
+                """.formatted(typologyId, typologyId, typologyId, reference, moduleId);
+        }
         if (decision.tier() == RoutingTier.MANDATORY) {
             return """
 

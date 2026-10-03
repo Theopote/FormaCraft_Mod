@@ -49,7 +49,7 @@ public final class LandmarkModuleRegistry {
     }
 
     /**
-     * 全部可用地标模块（当前 = archetypes_v1.json 中登记且有生成器的条目）。
+     * 可用固定模块：有生成器，且不是 researchOnly 或已迁移至 typology 的条目。
      */
     public static List<LandmarkModule> listModules() {
         List<LandmarkModule> out = new ArrayList<>();
@@ -117,20 +117,20 @@ public final class LandmarkModuleRegistry {
         sb.append("- Use a module ONLY when the request clearly names/implies that specific landmark.\n");
         sb.append("- For generic or imaginative buildings, IGNORE this section and use normal semantic components.\n");
         sb.append("\nLANDMARK ROUTING HINTS:\n");
-        sb.append("- 鸟巢 / Bird's Nest / 国家体育场 (explicit name) → MANDATORY STRUCTURE + typology:stadium_bowl (reference_landmark=birds_nest_stadium)\n");
+        sb.append("- 鸟巢 / Bird's Nest / 国家体育场 (explicit name) → RECOMMENDED STRUCTURE + typology:stadium_bowl (reference_landmark=birds_nest_stadium)\n");
         sb.append("- 椭圆/椭圆形 + 体育场/体育馆 → RECOMMENDED typology:stadium_bowl OR compositional MASS tiers\n");
-        sb.append("- 金门大桥 / Golden Gate (explicit name) → MANDATORY STRUCTURE + typology:suspension_bridge (reference_landmark=golden_gate_bridge)\n");
+        sb.append("- 金门大桥 / Golden Gate (explicit name) → RECOMMENDED STRUCTURE + typology:suspension_bridge (reference_landmark=golden_gate_bridge)\n");
         sb.append("- 悬索桥/吊桥（泛型） → RECOMMENDED typology:suspension_bridge OR ASSEMBLY preset=suspension_bridge_simple\n");
-        sb.append("- 哥特大教堂 / Gothic cathedral (explicit preset) → MANDATORY STRUCTURE + typology:gothic_cathedral_hall (reference_landmark=gothic_cathedral)\n");
+        sb.append("- 哥特大教堂 / Gothic cathedral (explicit preset) → RECOMMENDED STRUCTURE + typology:gothic_cathedral_hall (reference_landmark=gothic_cathedral)\n");
         sb.append("- 哥特/教堂/玫瑰花窗（泛型） → RECOMMENDED typology:gothic_cathedral_hall OR assembly macro\n");
-        sb.append("- 明清官式院落 / Ming-Qing official courtyard (explicit preset) → MANDATORY STRUCTURE + typology:courtyard_compound (reference_landmark=mingqing_courtyard)\n");
+        sb.append("- 明清官式院落 / Ming-Qing official courtyard (explicit preset) → RECOMMENDED STRUCTURE + typology:courtyard_compound (reference_landmark=mingqing_courtyard)\n");
         sb.append("- 四合院/民居院落（泛型） → compositional COURTYARD + MASS_WING（siheyuan）；勿与官式 preset 混用\n");
-        sb.append("- 中世纪城堡 / Medieval castle compound (explicit preset) → MANDATORY STRUCTURE + typology:radial_fortress (reference_landmark=castle_compound)\n");
+        sb.append("- 中世纪城堡 / Medieval castle compound (explicit preset) → RECOMMENDED STRUCTURE + typology:radial_fortress (reference_landmark=castle_compound)\n");
         sb.append("- 城堡/要塞（泛型） → RECOMMENDED typology:radial_fortress OR compositional MASS+TOWER+WALL\n");
-        sb.append("- 摩天楼 / Modern skyscraper (explicit preset) → MANDATORY STRUCTURE + typology:setback_tower (reference_landmark=modern_skyscraper)\n");
+        sb.append("- 摩天楼 / Modern skyscraper (explicit preset) → RECOMMENDED STRUCTURE + typology:setback_tower (reference_landmark=modern_skyscraper)\n");
         sb.append("- 高层/玻璃幕墙（泛型） → RECOMMENDED typology:setback_tower OR compositional MASS stepped tiers\n");
         sb.append("- 原创/独特/不要地标 → do NOT force MODULE; compose with varied MASS + PAVING + ROOF\n");
-        sb.append("- MassMainGenerator cannot render true elliptical bowl seating; use MODULE or tiered masses/plan_program.\n");
+        sb.append("- MassMainGenerator cannot render true elliptical bowl seating; use typology:stadium_bowl or researched tiered composition.\n");
         sb.append("Available module_id values:\n");
         for (LandmarkModule m : modules) {
             sb.append("  * ").append(m.moduleId())

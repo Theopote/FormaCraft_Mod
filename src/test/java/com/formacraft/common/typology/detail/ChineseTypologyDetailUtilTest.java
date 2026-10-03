@@ -35,6 +35,8 @@ class ChineseTypologyDetailUtilTest {
     void octagonFaceCell_onCardinalAxis() {
         assertEquals(5, ChineseTypologyDetailUtil.octagonFaceCell(5, net.minecraft.util.math.Direction.SOUTH).getZ());
         assertEquals(-5, ChineseTypologyDetailUtil.octagonFaceCell(5, net.minecraft.util.math.Direction.NORTH).getZ());
+        assertEquals(5, ChineseTypologyDetailUtil.octagonFaceCell(5, net.minecraft.util.math.Direction.EAST).getX());
+        assertEquals(-5, ChineseTypologyDetailUtil.octagonFaceCell(5, net.minecraft.util.math.Direction.WEST).getX());
     }
 
     @Test
@@ -47,6 +49,22 @@ class ChineseTypologyDetailUtilTest {
                 ChineseTypologyDetailUtil.octagonFaceByIndex(5, 0).x(),
                 ChineseTypologyDetailUtil.octagonFaceByIndex(5, 2).x()
         );
+    }
+
+    @Test
+    void indexedFacesStayOnBoundaryAndHaveOppositePairs() {
+        for (int half = 1; half <= 10; half++) {
+            var cells = new java.util.HashSet<String>();
+            for (int i = 0; i < 8; i++) {
+                var face = ChineseTypologyDetailUtil.octagonFaceByIndex(half, i);
+                var opposite = ChineseTypologyDetailUtil.octagonFaceByIndex(half, i + 4);
+                assertTrue(ChineseTypologyDetailUtil.onRegularOctagonEdge(face.x(), face.z(), half));
+                assertEquals(-face.x(), opposite.x());
+                assertEquals(-face.z(), opposite.z());
+                cells.add(face.x() + ":" + face.z());
+            }
+            assertEquals(8, cells.size());
+        }
     }
 
     @Test

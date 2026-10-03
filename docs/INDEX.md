@@ -105,10 +105,11 @@
 | [assembly/ASSET_LIBRARY_DESIGN.md](assembly/ASSET_LIBRARY_DESIGN.md) | 预制件库四维分类（演进参考） |
 | [assembly/CULTURE_CARDS.md](assembly/CULTURE_CARDS.md) | 文化知识 schema |
 
-### 地标（固定生成器，精品库）
+### 地标与参数化建筑类型
 
 | 目录 | 用途 |
 |------|------|
+| [ROUTING_AND_TYPOLOGY_CONTRACT.md](ROUTING_AND_TYPOLOGY_CONTRACT.md) | 当前模块、类型迁移、研究条目和指标的边界 |
 | [landmarks/](landmarks/) | 9 份地标规格（埃菲尔、天坛、土楼、四合院等） |
 
 ---
