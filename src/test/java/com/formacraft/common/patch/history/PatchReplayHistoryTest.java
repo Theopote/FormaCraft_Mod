@@ -80,4 +80,65 @@ class PatchReplayHistoryTest {
         var result = history.undo(world, access);
         assertEquals(2, result.blocked()); assertEquals(2, result.remaining()); assertEquals(0, access.writes);
     }
+    private com.formacraft.common.world.BlockMutationAccess throwingAccess(FakeBlockMutationAccess delegate,
+                                                                          boolean writeThenThrow) {
+        return new com.formacraft.common.world.BlockMutationAccess() {
+            public boolean isInsideHeight(BlockPos p) { return delegate.isInsideHeight(p); }
+            public boolean isChunkReady(BlockPos p) { return delegate.isChunkReady(p); }
+            public BlockState getState(BlockPos p) { return delegate.getState(p); }
+            public boolean setState(BlockPos p, BlockState state) {
+                if (!p.equals(B)) return delegate.setState(p, state);
+                if (writeThenThrow) delegate.setState(p, state);
+                throw new IllegalStateException("simulated write failure");
+            }
+        };
+    }
+    @Test void exceptionKeepsRemainingHistoryAndReportsOtherSuccessfulWrites() {
+        Object world = new Object(); var history = new PatchReplayHistory(50); var access = access(A, B);
+        history.record(world, transaction(A, B));
+        var result = history.undo(world, throwingAccess(access, false));
+        assertEquals(1, result.changed()); assertEquals(1, result.failedWrites()); assertEquals(1, result.remaining());
+        assertEquals(1, result.delta().patches().size()); assertTrue(history.canUndo()); assertFalse(history.canRedo());
+        var retry = history.undo(world, access);
+        assertTrue(retry.complete()); assertEquals(1, retry.changed());
+    }
+    @Test void writeThenExceptionIsReconciledOnRetryWithoutAnotherWrite() {
+        Object world = new Object(); var history = new PatchReplayHistory(50); var access = access(B);
+        history.record(world, transaction(B));
+        var result = history.undo(world, throwingAccess(access, true));
+        assertEquals(0, result.changed()); assertEquals(1, result.remaining()); assertEquals(1, result.failedWrites());
+        assertTrue(result.delta().patches().isEmpty());
+        var retry = history.undo(world, access);
+        assertTrue(retry.complete()); assertEquals(1, retry.changed()); assertEquals(1, retry.delta().patches().size());
+        assertEquals(1, access.writes);
+        assertEquals(1, history.redo(world, access).changed());
+    }
+    @Test void postWriteReadExceptionRetainsObservedSourceForLaterDelta() {
+        Object world = new Object(); var history = new PatchReplayHistory(50); var access = access(B);
+        history.record(world, transaction(B));
+        var throwing = new com.formacraft.common.world.BlockMutationAccess() {
+            public boolean isInsideHeight(BlockPos p) { return true; }
+            public boolean isChunkReady(BlockPos p) { return true; }
+            public BlockState getState(BlockPos p) {
+                if (access.writes > 0) throw new IllegalStateException("simulated read failure");
+                return access.getState(p);
+            }
+            public boolean setState(BlockPos p, BlockState state) { return access.setState(p, state); }
+        };
+        assertFalse(history.undo(world, throwing).complete());
+        var result = history.undo(world, access);
+        assertTrue(result.complete()); assertEquals(1, result.changed()); assertEquals(1, access.writes);
+        assertEquals(Blocks.STONE.getDefaultState(), result.delta().before().get(B));
+        assertEquals(Blocks.AIR.getDefaultState(), result.delta().after().get(B));
+    }
+    @Test void newBranchKeepsPotentialWriteFromFailedRedoUndoable() {
+        Object world = new Object(); var history = new PatchReplayHistory(50); var access = access(B);
+        history.record(world, transaction(B)); history.undo(world, access);
+        assertFalse(history.redo(world, throwingAccess(access, true)).complete());
+        history.record(world, transaction(A)); access.states.put(A, Blocks.STONE.getDefaultState());
+        assertTrue(history.undo(world, access).complete());
+        assertTrue(history.undo(world, access).complete());
+        assertTrue(access.states.get(B).isAir());
+    }
+
 }

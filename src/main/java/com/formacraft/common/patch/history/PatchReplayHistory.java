@@ -12,6 +12,8 @@ public final class PatchReplayHistory {
         final PatchTransaction transaction;
         boolean started;
         final Map<BlockPos, BlockState> pending = new LinkedHashMap<>();
+        // Preserve the observed source until a post-write read confirms the actual outcome.
+        final Map<BlockPos, BlockState> unconfirmed = new HashMap<>();
         Entry(Object world, PatchTransaction transaction) {
             this.world = Objects.requireNonNull(world);
             this.transaction = transaction;
@@ -33,7 +35,10 @@ public final class PatchReplayHistory {
             Entry partial = redo.peek();
             var before = new HashMap<>(partial.transaction.before());
             var after = new HashMap<>(partial.transaction.after());
-            partial.pending.keySet().forEach(pos -> { before.remove(pos); after.remove(pos); });
+            partial.pending.keySet().forEach(pos -> {
+                // An unconfirmed write may already have happened; keep it undoable on the new branch.
+                if (!partial.unconfirmed.containsKey(pos)) { before.remove(pos); after.remove(pos); }
+            });
             var completed = PatchTransaction.fromSnapshots(partial.transaction.origin(), before, after);
             if (!completed.before().isEmpty()) undo.push(new Entry(partial.world, completed));
         }
@@ -53,22 +58,33 @@ public final class PatchReplayHistory {
         var expected = reversing ? entry.transaction.after() : entry.transaction.before();
         Map<BlockPos, BlockState> actualBefore = new HashMap<>();
         Map<BlockPos, BlockState> actualAfter = new HashMap<>();
-        int changed = 0, same = 0, blocked = 0, failed = 0, conflicts = 0;
+        int same = 0, blocked = 0, failed = 0, conflicts = 0;
         var iterator = entry.pending.entrySet().iterator();
         while (iterator.hasNext()) {
             var item = iterator.next();
             BlockPos pos = item.getKey();
-            if (!access.isInsideHeight(pos) || !access.isChunkReady(pos)) { blocked++; continue; }
-            BlockState current = access.getState(pos);
-            if (current.equals(item.getValue())) { same++; iterator.remove(); continue; }
-            if (!current.equals(expected.get(pos))) { conflicts++; continue; }
-            if (!access.setState(pos, item.getValue())) { failed++; continue; }
-            BlockState after = access.getState(pos);
-            actualBefore.put(pos, current);
-            actualAfter.put(pos, after);
-            if (!current.equals(after)) changed++;
-            if (after.equals(item.getValue())) iterator.remove();
-            else failed++;
+            try {
+                if (!access.isInsideHeight(pos) || !access.isChunkReady(pos)) { blocked++; continue; }
+                BlockState current = access.getState(pos);
+                BlockState unconfirmedBefore = entry.unconfirmed.remove(pos);
+                if (unconfirmedBefore != null && !unconfirmedBefore.equals(current)) {
+                    actualBefore.put(pos, unconfirmedBefore);
+                    actualAfter.put(pos, current);
+                }
+                if (current.equals(item.getValue())) { same++; iterator.remove(); continue; }
+                if (!current.equals(expected.get(pos))) { conflicts++; continue; }
+                entry.unconfirmed.put(pos, current);
+                boolean accepted = access.setState(pos, item.getValue());
+                BlockState after = access.getState(pos);
+                entry.unconfirmed.remove(pos);
+                actualBefore.putIfAbsent(pos, current);
+                actualAfter.put(pos, after);
+                if (after.equals(item.getValue())) iterator.remove();
+                if (!accepted || !after.equals(item.getValue())) failed++;
+            } catch (RuntimeException exception) {
+                failed++;
+                com.formacraft.FormacraftMod.LOGGER.warn("History replay failed at {}; position retained for retry", pos, exception);
+            }
         }
         var delta = PatchTransaction.fromSnapshots(entry.transaction.origin(), actualBefore, actualAfter);
         int remaining = entry.pending.size();
@@ -78,7 +94,7 @@ public final class PatchReplayHistory {
             entry.pending.putAll(reversing ? entry.transaction.after() : entry.transaction.before());
             destination.push(entry);
         }
-        return new ReplayResult(true, false, changed, same, blocked, failed, conflicts, remaining, delta);
+        return new ReplayResult(true, false, delta.before().size(), same, blocked, failed, conflicts, remaining, delta);
     }
 
     public record ReplayResult(boolean available, boolean wrongWorld, int changed, int alreadyCorrect,
