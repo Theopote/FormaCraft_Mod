@@ -16,6 +16,8 @@ python -m venv .venv
 
 如需后端环境配置，复制 .env.example 为 .env 并编辑；已有 .env 不要覆盖。启动器发现 .env 时传给 uvicorn，不打印文件内容。模型配置也可通过游戏中的模型服务设置传入。
 
+Python 3.14 注意：当前 requirements.lock 中旧 jiter==0.9.0 没有对应的 Windows 二进制包，安装可能进入源码构建并失败。此环境可改用项目声明的兼容范围：`.\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements.txt`。这是兼容安装，不等于原锁定版本安装；其他环境不要据此直接重写锁文件。
+
 ## 面板配置与操作
 
 - 后端地址：`http://127.0.0.1:8000`。
@@ -30,6 +32,10 @@ python -m venv .venv
 自动启动开关保存后控制随游戏启动及周期重试。所有健康检查、解释器探测、等待和进程停止都在后台执行，不在渲染线程等待。健康检查要求 HTTP 成功及 JSON 的 ok=true；这只证明服务响应，不证明模型 API 配置可用。
 
 日志位于游戏工作目录的 `logs/formacraft_orchestrator.log`，启动诊断位于 `logs/formacraft_backend_autostart.log`。目录不存在、Python 不可用、依赖缺失、端口不一致或进程退出时，先查看状态与日志。修改目录或端口前先停止已由模组启动的旧进程。
+
+2026-10-04 的实际故障日志显示系统 py 有 uvicorn，却缺少 dotenv，读取 .env 时立即退出。解释器探测现检查 uvicorn、fastapi、pydantic、dotenv、requests、openai，避免仅凭 uvicorn 可导入就启动依赖不完整的环境；缺失依赖明确提示安装后端依赖。项目内 .venv 优先自动检测，无需把密钥写入启动命令。
+
+该故障已在项目专用 Python 3.14 虚拟环境使用 requirements.txt 的兼容范围解决，pip check 通过，实际 app.main 可导入；带 .env 启动 uvicorn，在临时本机端口请求 /health 返回 ok=true，随后清理测试进程。run/config 的 Python 和后端目录已指向项目专用环境。此证据确认真实后端可启动，不等同于已在游戏面板内验证生命周期；需要重启游戏载入新模组和配置。原 requirements.lock 仍保留，未宣称其与 Python 3.14 兼容。
 
 ## 验证范围
 

@@ -317,10 +317,10 @@ public final class BackendAutoStarter {
 
     /** Python 候选探测结果。 */
     private enum ProbeResult {
-        /** 可运行 Python 且能 import uvicorn。 */
+        /** 可运行 Python 且能 import uvicorn, fastapi, pydantic, dotenv, requests, openai。 */
         OK,
-        /** 能运行 Python，但缺少 uvicorn 依赖。 */
-        NO_UVICORN,
+        /** 能运行 Python，但缺少后端依赖（包括 uvicorn、python-dotenv 等）。 */
+        MISSING_DEPENDENCIES,
         /** 不可用（未找到 / Store 占位桩 / 其它错误）。 */
         UNAVAILABLE
     }
@@ -328,15 +328,15 @@ public final class BackendAutoStarter {
     /**
      * 探测某个候选解释器是否真正可用于启动后端。
      * <p>
-     * 通过 {@code <py> -c "import uvicorn"} 判定：退出码 0 = 可用；因缺少模块而失败 =
-     * {@link ProbeResult#NO_UVICORN}；其它（含 Windows Store 的 python.exe 占位桩返回的
+     * 通过 {@code <py> -c "import uvicorn, fastapi, pydantic, dotenv, requests, openai"} 判定：退出码 0 = 可用；因缺少模块而失败 =
+     * {@link ProbeResult#MISSING_DEPENDENCIES}；其它（含 Windows Store 的 python.exe 占位桩返回的
      * 9009）= {@link ProbeResult#UNAVAILABLE}。这样即便某个 {@code python} 能被“启动”，
      * 只要它并非真正的 Python，也不会被误用。
      */
     private static ProbeResult probeInterpreter(String py, File wd) {
         if (py == null || py.isBlank()) return ProbeResult.UNAVAILABLE;
         try {
-            ProcessBuilder pb = new ProcessBuilder(py, "-c", "import uvicorn");
+            ProcessBuilder pb = new ProcessBuilder(py, "-c", "import uvicorn, fastapi, pydantic, dotenv, requests, openai");
             if (wd != null && wd.exists()) pb.directory(wd);
             pb.redirectErrorStream(true);
             Process proc = pb.start();
@@ -353,7 +353,7 @@ public final class BackendAutoStarter {
             String o = out.toLowerCase(java.util.Locale.ROOT);
             // 真正的 Python 跑起来了但缺少 uvicorn：给出精确的“装依赖”提示。
             if (o.contains("modulenotfounderror") || o.contains("no module named")) {
-                return ProbeResult.NO_UVICORN;
+                return ProbeResult.MISSING_DEPENDENCIES;
             }
             // 其它非零退出（例如 Store 桩的 9009、"Python was not found" 等）视为不可用。
             return ProbeResult.UNAVAILABLE;
@@ -409,21 +409,21 @@ public final class BackendAutoStarter {
                 }
             }
 
-            // 先探测每个候选解释器：必须能实际运行 Python 且能 import uvicorn，
+            // 先探测每个候选解释器：必须能实际运行 Python 且能 import uvicorn, fastapi, pydantic, dotenv, requests, openai，
             // 才认定可用。这可避开 Windows 的“Microsoft Store python.exe 桩”——
             // 它能被 ProcessBuilder 启动、随即以退出码 9009 结束（并未真正跑 Python）。
             String workingPython = null;
-            boolean sawPythonButNoUvicorn = false;
-            String noUvicornPython = null;
+            boolean sawPythonMissingDependencies = false;
+            String missingDependenciesPython = null;
             for (String py : pythonCandidates) {
                 ProbeResult pr = probeInterpreter(py, wd);
                 if (pr == ProbeResult.OK) {
                     workingPython = py;
                     break;
-                } else if (pr == ProbeResult.NO_UVICORN) {
-                    sawPythonButNoUvicorn = true;
-                    noUvicornPython = py;
-                    log("found usable Python but 'uvicorn' is not importable: " + py);
+                } else if (pr == ProbeResult.MISSING_DEPENDENCIES) {
+                    sawPythonMissingDependencies = true;
+                    missingDependenciesPython = py;
+                    log("found usable Python but backend dependencies are not importable: " + py);
                 } else {
                     log("python candidate not usable (not found / Store stub / error): " + py);
                 }
@@ -431,11 +431,11 @@ public final class BackendAutoStarter {
 
             if (workingPython == null) {
                 StringBuilder errorMsg = new StringBuilder();
-                if (sawPythonButNoUvicorn) {
-                    errorMsg.append("找到了 Python，但缺少 uvicorn 依赖，后端无法启动。");
+                if (sawPythonMissingDependencies) {
+                    errorMsg.append("找到了 Python，但缺少后端依赖（包括 uvicorn、python-dotenv 等），后端无法启动。");
                     errorMsg.append("\n请在 python_backend 目录安装依赖：");
-                    errorMsg.append("\n  ").append(noUvicornPython != null ? noUvicornPython : "python")
-                            .append(" -m pip install -r requirements.txt");
+                    errorMsg.append("\n  ").append(missingDependenciesPython != null ? missingDependenciesPython : "python")
+                            .append(" -m pip install -r requirements.lock");
                 } else {
                     errorMsg.append("无法启动后端服务：未找到可用的 Python。");
                     errorMsg.append("\n（Windows 提示：命令行里的 python 可能是 Microsoft Store 的占位程序，"
@@ -450,7 +450,7 @@ public final class BackendAutoStarter {
                 errorMsg.append("\n2. 在设置面板/配置里把 pythonExecutable 指向具体的 python.exe，例如："
                         + "\n   C:\\\\Users\\\\<你>\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe");
                 errorMsg.append("\n3. 关闭 Windows「应用执行别名」里的 python.exe / python3.exe 占位项；");
-                errorMsg.append("\n4. 在 python_backend 下安装依赖：python -m pip install -r requirements.txt。");
+                errorMsg.append("\n4. 在 python_backend 下安装依赖：python -m pip install -r requirements.lock。");
                 lastError = errorMsg.toString();
                 log(lastError);
                 return;
