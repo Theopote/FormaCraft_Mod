@@ -94,7 +94,7 @@ public final class PatchHistoryManager {
             com.formacraft.server.memory.PatchDiffAnalyzer analyzer = 
                 new com.formacraft.server.memory.PatchDiffAnalyzer(memoryManager);
             java.util.List<com.formacraft.server.memory.PatchImpact> impacts = 
-                analyzer.analyze(origin, patches);
+                analyzer.analyze(world.getRegistryKey().getValue(), origin, patches);
             
             // 对每个影响应用 Mutation
             for (com.formacraft.server.memory.PatchImpact impact : impacts) {
@@ -111,7 +111,7 @@ public final class PatchHistoryManager {
                 if (mutation != null) {
                     // 应用 Mutation 到 Memory
                     memoryManager.applyMutation(
-                        mutation,
+                        world.getRegistryKey().getValue(), mutation,
                         impact.getMinPos(),
                         impact.getMaxPos()
                     );
@@ -172,7 +172,7 @@ public final class PatchHistoryManager {
                 new com.formacraft.server.memory.PatchDiffAnalyzer(memoryManager);
             
             java.util.List<com.formacraft.server.memory.PatchImpact> impacts = 
-                analyzer.analyze(origin, reversePatches);
+                analyzer.analyze(world.getRegistryKey().getValue(), origin, reversePatches);
             
             // 应用反向 Mutation
             for (com.formacraft.server.memory.PatchImpact impact : impacts) {
@@ -197,7 +197,7 @@ public final class PatchHistoryManager {
                         delta
                     );
                     
-                    memoryManager.applyMutation(undoMutation, impact.getMinPos(), impact.getMaxPos());
+                    memoryManager.applyMutation(world.getRegistryKey().getValue(), undoMutation, impact.getMinPos(), impact.getMaxPos());
                 }
             }
         } catch (Exception e) {

@@ -81,15 +81,15 @@ public class MemoryManager {
     /**
      * 根据坐标查找建筑
      */
-    public List<ProjectMemory> findAtPosition(BlockPos pos) {
-        return spatialIndex.findAt(pos);
+    public List<ProjectMemory> findAtPosition(Identifier dimension, BlockPos pos) {
+        return spatialIndex.findAt(dimension, pos);
     }
     
     /**
      * 查找最近建筑（在指定范围内）
      */
-    public ProjectMemory findNearest(BlockPos pos, double maxDistance) {
-        return spatialIndex.findNearest(pos, maxDistance);
+    public ProjectMemory findNearest(Identifier dimension, BlockPos pos, double maxDistance) {
+        return spatialIndex.findNearest(dimension, pos, maxDistance);
     }
     
     /**
@@ -174,15 +174,15 @@ public class MemoryManager {
      * @param newBounds 新的边界（如果扩建）
      * @return 更新后的记忆（如果成功）
      */
-    public ProjectMemory applyMutation(GeneMutation mutation, BlockPos minPos, BlockPos maxPos) {
-        if (mutation == null) {
+    public ProjectMemory applyMutation(Identifier dimension, GeneMutation mutation, BlockPos minPos, BlockPos maxPos) {
+        if (dimension == null || mutation == null) {
             return null;
         }
         
         try {
             if (mutation.buildingId() == null) {
                 // 新建筑：创建新记忆
-                ProjectMemory created = createMemoryFromMutation(mutation, minPos, maxPos);
+                ProjectMemory created = createMemoryFromMutation(dimension, mutation, minPos, maxPos);
                 if (created != null) {
                     FormacraftMod.LOGGER.info("Created new memory from mutation: {}", created.getUuid());
                 }
@@ -191,7 +191,7 @@ public class MemoryManager {
             
             // 修改已有建筑
             ProjectMemory memory = getMemory(mutation.buildingId().toString());
-            if (memory == null) {
+            if (!SpatialIndex.inDimension(memory, dimension)) {
                 FormacraftMod.LOGGER.warn("Cannot apply mutation: building {} not found", mutation.buildingId());
                 return null;
             }
@@ -223,7 +223,7 @@ public class MemoryManager {
     /**
      * 从 Mutation 创建新记忆（用于新建建筑）
      */
-    private ProjectMemory createMemoryFromMutation(GeneMutation mutation, BlockPos minPos, BlockPos maxPos) {
+    private ProjectMemory createMemoryFromMutation(Identifier dimension, GeneMutation mutation, BlockPos minPos, BlockPos maxPos) {
         ProjectMemory memory = new ProjectMemory();
         memory.setName("Building from Patch");
         memory.setDescription(mutation.reason());
@@ -233,7 +233,7 @@ public class MemoryManager {
             ProjectMemory.SpatialBounds bounds = new ProjectMemory.SpatialBounds();
             bounds.setMin(new int[]{minPos.getX(), minPos.getY(), minPos.getZ()});
             bounds.setMax(new int[]{maxPos.getX(), maxPos.getY(), maxPos.getZ()});
-            bounds.setDimension("minecraft:overworld"); // 默认维度
+            bounds.setDimension(dimension.toString());
             memory.setBounds(bounds);
         }
         

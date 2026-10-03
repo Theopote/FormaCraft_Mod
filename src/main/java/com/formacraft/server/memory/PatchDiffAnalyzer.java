@@ -28,8 +28,8 @@ public class PatchDiffAnalyzer {
      * @param patches Patch 列表
      * @return 影响列表（每个受影响的建筑一个 PatchImpact）
      */
-    public List<PatchImpact> analyze(BlockPos origin, List<BlockPatch> patches) {
-        if (origin == null || patches == null || patches.isEmpty()) {
+    public List<PatchImpact> analyze(net.minecraft.util.Identifier dimension, BlockPos origin, List<BlockPatch> patches) {
+        if (dimension == null || origin == null || patches == null || patches.isEmpty()) {
             return List.of();
         }
         
@@ -42,9 +42,11 @@ public class PatchDiffAnalyzer {
             BlockPos worldPos = origin.add(patch.dx(), patch.dy(), patch.dz());
             
             // 查找这个位置属于哪个建筑
-            List<ProjectMemory> memories = memoryManager.findAtPosition(worldPos);
+            List<ProjectMemory> memories = memoryManager.findAtPosition(dimension, worldPos);
             ProjectMemory memory = memories.isEmpty() ? null : memories.get(0);
             
+            // Removing an unregistered block does not create a building memory.
+            if (memory == null && BlockPatch.REMOVE.equals(patch.action())) continue;
             UUID buildingId = (memory != null) ? UUID.fromString(memory.getUuid()) : null;
             
             // 获取或创建 PatchImpact

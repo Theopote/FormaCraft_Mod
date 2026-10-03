@@ -27,16 +27,23 @@ final class PromptMemorySections {
             return null;
         }
 
+        net.minecraft.util.Identifier dimension;
+        try {
+            var world = net.minecraft.client.MinecraftClient.getInstance().world;
+            if (world == null) return null;
+            dimension = world.getRegistryKey().getValue();
+        } catch (Exception e) { return null; }
+
         Set<com.formacraft.server.memory.ProjectMemory> result = new LinkedHashSet<>();
 
         try {
             com.formacraft.common.buildcontext.BuildContext bc =
                 com.formacraft.client.buildcontext.BuildContextResolver.resolve(false);
             if (bc != null && bc.origin != null) {
-                result.addAll(memoryManager.findAtPosition(bc.origin));
+                result.addAll(memoryManager.findAtPosition(dimension, bc.origin));
 
                 com.formacraft.server.memory.ProjectMemory nearest =
-                    memoryManager.findNearest(bc.origin, 32.0);
+                    memoryManager.findNearest(dimension, bc.origin, 32.0);
                 if (nearest != null) {
                     result.add(nearest);
                 }
@@ -59,7 +66,7 @@ final class PromptMemorySections {
                 com.formacraft.client.buildcontext.BuildContextResolver.resolve(false);
             if (bc != null && bc.origin != null) {
                 com.formacraft.server.memory.ProjectMemory farNearest =
-                    memoryManager.findNearest(bc.origin, 64.0);
+                    memoryManager.findNearest(dimension, bc.origin, 64.0);
                 if (farNearest != null) {
                     result.add(farNearest);
                 }
@@ -84,7 +91,8 @@ final class PromptMemorySections {
         }
 
         List<com.formacraft.server.memory.ProjectMemory> top =
-            result.stream().limit(5).toList();
+            result.stream().filter(memory -> memory.getBounds() != null
+                && dimension.toString().equals(memory.getBounds().getDimension())).limit(5).toList();
 
         if (top.isEmpty()) {
             return null;

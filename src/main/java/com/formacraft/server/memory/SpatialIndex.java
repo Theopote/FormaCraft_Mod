@@ -1,6 +1,7 @@
 package com.formacraft.server.memory;
 
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ChunkPos;
 
 import java.util.*;
@@ -95,7 +96,8 @@ public class SpatialIndex {
     /**
      * 根据坐标查找包含该位置的所有项目
      */
-    public List<ProjectMemory> findAt(BlockPos pos) {
+    public List<ProjectMemory> findAt(Identifier dimension, BlockPos pos) {
+        Objects.requireNonNull(dimension, "dimension");
         ChunkPos chunkPos = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
         Set<String> uuids = chunkIndex.get(chunkPos);
         
@@ -106,7 +108,7 @@ public class SpatialIndex {
         List<ProjectMemory> results = new ArrayList<>();
         for (String uuid : uuids) {
             ProjectMemory memory = memoryCache.get(uuid);
-            if (memory != null && memory.contains(pos)) {
+            if (inDimension(memory, dimension) && memory.contains(pos)) {
                 results.add(memory);
             }
         }
@@ -117,7 +119,8 @@ public class SpatialIndex {
     /**
      * 根据坐标查找最近的项目（在指定范围内）
      */
-    public ProjectMemory findNearest(BlockPos pos, double maxDistance) {
+    public ProjectMemory findNearest(Identifier dimension, BlockPos pos, double maxDistance) {
+        Objects.requireNonNull(dimension, "dimension");
         ChunkPos centerChunk = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
         int searchRadius = (int) Math.ceil(maxDistance / 16.0) + 1;
         
@@ -132,7 +135,7 @@ public class SpatialIndex {
                 if (uuids != null) {
                     for (String uuid : uuids) {
                         ProjectMemory memory = memoryCache.get(uuid);
-                        if (memory != null && memory.getBounds() != null) {
+                        if (inDimension(memory, dimension)) {
                             ProjectMemory.SpatialBounds bounds = memory.getBounds();
                             BlockPos min = bounds.getMinPos();
                             BlockPos max = bounds.getMaxPos();
@@ -157,6 +160,11 @@ public class SpatialIndex {
     /**
      * 计算点到边界框的距离
      */
+    static boolean inDimension(ProjectMemory memory, Identifier dimension) {
+        return memory != null && memory.getBounds() != null && dimension != null
+            && dimension.toString().equals(memory.getBounds().getDimension());
+    }
+
     private double distanceToBounds(BlockPos pos, BlockPos min, BlockPos max) {
         int dx = Math.max(Math.max(min.getX() - pos.getX(), pos.getX() - max.getX()), 0);
         int dy = Math.max(Math.max(min.getY() - pos.getY(), pos.getY() - max.getY()), 0);
