@@ -447,8 +447,11 @@ public final class BackendAutoStarter {
                 }
                 errorMsg.append("\n\n解决方案（任选其一）：");
                 errorMsg.append("\n1. 安装 Python 3 并勾选 \"Add python.exe to PATH\"；");
-                errorMsg.append("\n2. 在设置面板/配置里把 pythonExecutable 指向具体的 python.exe，例如："
-                        + "\n   C:\\\\Users\\\\<你>\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe");
+                errorMsg.append("""
+                        
+                        2. 在设置面板/配置里把 pythonExecutable 指向具体的 python.exe，例如：\
+                        
+                           C:\\\\Users\\\\<你>\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe""");
                 errorMsg.append("\n3. 关闭 Windows「应用执行别名」里的 python.exe / python3.exe 占位项；");
                 errorMsg.append("\n4. 在 python_backend 下安装依赖：python -m pip install -r requirements.lock。");
                 lastError = errorMsg.toString();
