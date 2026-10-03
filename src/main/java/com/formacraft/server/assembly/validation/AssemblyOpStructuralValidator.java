@@ -212,6 +212,8 @@ final class AssemblyOpStructuralValidator {
             if (op.equals("STAIR_SYSTEM")) {
                 AssemblyValidationSupport.validatePointRefXYZ(out, p + ".from", m.get("from"), "E_STAIR_FROM_MISSING");
                 AssemblyValidationSupport.validatePointRefXYZ(out, p + ".to", m.get("to"), "E_STAIR_TO_MISSING");
+                String flightError = com.formacraft.server.assembly.AssemblyCirculationOps.flightError(m.get("from"), m.get("to"));
+                if (flightError != null) out.add(AssemblyValidationSupport.err(p, "E_STAIR_FLIGHT_INVALID", flightError));
                 if (m.get("width") != null) AssemblyValidationSupport.requireIntMin(out, p, m, "width", 1);
                 if (m.get("clearHeight") != null || m.get("clear_h") != null) AssemblyValidationSupport.requireIntMin(out, p, m, "clearHeight", 0);
             }

@@ -15,28 +15,9 @@ import net.minecraft.util.math.Direction;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * STAIR（楼梯/高差连接）装配器
- * 
- * 语义用途：
- * - 地形高差
- * - 建筑入口台阶
- * - 中庭上下层连接
- * - 山地建筑"依山就势"的关键
- * 
- * 这是"不破坏地形"的核心器官之一
- * 
- * ComponentSpec 约定：
- * {
- *   "type": "STAIR",
- *   "params": {
- *     "from": "ground",
- *     "to": "platform",
- *     "direction": "north | south | east | west",
- *     "steps": 5
- *   }
- * }
- */
+/** Legacy straight-flight API. Registered but not invoked by the current SkeletonBuildPipeline.
+ * Explicit component offsets preserve the origin-relative Y; zero offsets use the helper/terrain entry.
+ * Endpoint names from/to are not resolved by this API. */
 public class StairAssembler implements ComponentAssembler {
 
     @Override
@@ -45,46 +26,37 @@ public class StairAssembler implements ComponentAssembler {
             ExecutableSkeletonPlan skeleton,
             ComponentSpec component
     ) {
-        List<SemanticPlacementOp> ops = new ArrayList<>();
-        if (component.type != ComponentType.STAIR) return ops;
-
-        // 从 params 获取参数
+        if (ctx == null || component == null || component.type != ComponentType.STAIR) return List.of();
         int steps = SkeletonParamParsers.componentInt(component, "steps", 5);
-        String dirStr = getStringParam(component, "direction", "north");
-
-        Direction dir = parseDirection(dirStr);
-        if (dir == null) dir = Direction.NORTH;
-
-        // 获取楼梯起点
-        BlockPos start;
-        if (component.offsetX != 0 || component.offsetY != 0 || component.offsetZ != 0) {
-            start = ctx.origin.add(component.offsetX, component.offsetY, component.offsetZ);
-        } else {
-            start = SkeletonHelper.getStairStart(ctx, skeleton);
-            if (start == null) start = ctx.origin;
+        if (steps <= 0 || steps > ctx.maxOps || steps > 4096) {
+            com.formacraft.FormacraftMod.LOGGER.warn("StairAssembler rejected invalid/over-budget steps: {}", steps);
+            return List.of();
         }
-
-        int baseY = ctx.getSurfaceY(start.getX(), start.getZ());
-
-        // 生成台阶
+        Direction dir = parseDirection(getStringParam(component, "direction", "north"));
+        if (dir == null || !dir.getAxis().isHorizontal()) {
+            com.formacraft.FormacraftMod.LOGGER.warn("StairAssembler requires horizontal direction");
+            return List.of();
+        }
+        boolean explicit = component.offsetX != 0 || component.offsetY != 0 || component.offsetZ != 0;
+        BlockPos start = explicit ? ctx.origin.add(component.offsetX, component.offsetY, component.offsetZ)
+            : SkeletonHelper.getStairStart(ctx, skeleton);
+        if (start == null) start = ctx.origin;
+        if (!explicit) start = new BlockPos(start.getX(), ctx.getSurfaceY(start.getX(), start.getZ()), start.getZ());
+        List<SemanticPlacementOp> ops = new ArrayList<>(steps);
         for (int i = 0; i < steps; i++) {
-            BlockPos stepPos = start
-                    .offset(dir, i)
-                    .up(i);
-
-            // 确保台阶在地表之上
-            int stepY = Math.max(baseY + i, ctx.getSurfaceY(stepPos.getX(), stepPos.getZ()) + i);
-            stepPos = new BlockPos(stepPos.getX(), stepY, stepPos.getZ());
-
-            ops.add(SemanticPlacementOp.of(stepPos, SemanticPart.STAIR_STEP));
+            BlockPos pos = start.offset(dir, i).up(i);
+            if (!explicit && ctx.getSurfaceY(pos.getX(), pos.getZ()) > pos.getY()) {
+                com.formacraft.FormacraftMod.LOGGER.warn("StairAssembler rejected terrain-intersecting flight at {}", pos);
+                return List.of();
+            }
+            ops.add(SemanticPlacementOp.of(pos, dir, SemanticPart.STAIR_STEP));
         }
-
         return ops;
     }
 
 
     private static String getStringParam(ComponentSpec component, String key, String defaultValue) {
-        Object v = component.params.get(key);
+        Object v = component.params == null ? null : component.params.get(key);
         if (v instanceof String s) return s;
         if (v != null) return String.valueOf(v);
         return defaultValue;
@@ -93,9 +65,9 @@ public class StairAssembler implements ComponentAssembler {
     private static Direction parseDirection(String dirStr) {
         if (dirStr == null || dirStr.isBlank()) return Direction.NORTH;
         try {
-            return Direction.valueOf(dirStr.toUpperCase());
+            return Direction.valueOf(dirStr.trim().toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            return Direction.NORTH;
+            return null;
         }
     }
 }

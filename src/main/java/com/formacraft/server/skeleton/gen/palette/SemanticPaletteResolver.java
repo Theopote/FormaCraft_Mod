@@ -12,7 +12,7 @@ import java.util.Random;
 /**
  * Semantic → BlockState 的最终执行器
  * 
- * 这是唯一 setBlock 的地方（通过返回 BlockState）
+ * 返回方块状态供规划阶段使用；不写入世界。
  */
 public class SemanticPaletteResolver {
 
@@ -32,14 +32,20 @@ public class SemanticPaletteResolver {
             return Blocks.STONE.getDefaultState();
         }
 
-        PaletteRule rule = style.getRule(op.part());
-        if (rule == null || rule.isEmpty()) {
-            // fallback：防止空规则
-            return Blocks.STONE.getDefaultState();
+        PaletteRule rule = style == null ? null : style.getRule(op.part());
+        BlockState fallback = op.part() == com.formacraft.common.semantic.SemanticPart.STAIR_STEP
+            ? Blocks.STONE_BRICK_STAIRS.getDefaultState() : Blocks.STONE.getDefaultState();
+        BlockState state = rule == null || rule.isEmpty() ? fallback : rule.pick(random);
+        if (state == null) state = fallback;
+        if (op.part() == com.formacraft.common.semantic.SemanticPart.STAIR_STEP) {
+            if (!(state.getBlock() instanceof net.minecraft.block.StairsBlock))
+                throw new IllegalArgumentException("STAIR_STEP palette must resolve to a stairs block");
+            var facing = op.facing();
+            if (facing == null || !facing.getAxis().isHorizontal())
+                throw new IllegalArgumentException("STAIR_STEP requires horizontal facing");
+            state = state.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, facing);
         }
-
-        BlockState state = rule.pick(random);
-        return state != null ? state : Blocks.STONE.getDefaultState();
+        return state;
     }
 
     /**

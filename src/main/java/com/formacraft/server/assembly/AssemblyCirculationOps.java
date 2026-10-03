@@ -28,79 +28,68 @@ public final class AssemblyCirculationOps {
                                         BlockPos origin,
                                         Map<String, Object> op,
                                         Adapter adapter) {
-        int[] a = AssemblyRasterOps.parsePoint(op.get("from"));
-        int[] b = AssemblyRasterOps.parsePoint(op.get("to"));
-
+        String error = flightError(op.get("from"), op.get("to"));
+        if (error != null) throw new IllegalArgumentException(error);
+        int[] a = point(op.get("from")), b = point(op.get("to"));
         int width = adapter.clamp(adapter.i(op.get("width"), 2), 1, 15);
         boolean carve = adapter.bool(op.get("carve"), true);
         int clearH = adapter.clamp(adapter.i(op.get("clearHeight"), adapter.i(op.get("clear_h"), 3)), 0, 16);
         boolean support = adapter.bool(op.get("support"), true);
-
+        int dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+        int run = Math.max(Math.abs(dx), Math.abs(dz));
+        long planned = (long) (run + 1) * width * (1 + (support ? 1 : 0) + (carve ? clearH : 0));
+        if (planned > 100_000) throw new IllegalArgumentException("STAIR_SYSTEM exceeds 100000 planned block operations");
         BlockState stairMat = adapter.pick(ctx, op, "stairs", "STAIR", 0xA57470L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
         BlockState floorMat = adapter.pick(ctx, op, "floor", "FLOORING", 0xA57471L, Blocks.SMOOTH_STONE.getDefaultState());
         BlockState supportMat = adapter.pick(ctx, op, "supportMaterial", "FOUNDATION", 0xA57472L, floorMat);
-
-        int dx = b[0] - a[0];
-        int dy = b[1] - a[1];
-        int dz = b[2] - a[2];
-        int run = Math.max(Math.max(Math.abs(dx), Math.abs(dz)), Math.abs(dy));
-        run = Math.max(run, 1);
-
-        Direction horizDir;
-        if (Math.abs(dx) >= Math.abs(dz)) horizDir = (dx >= 0) ? Direction.EAST : Direction.WEST;
-        else horizDir = (dz >= 0) ? Direction.SOUTH : Direction.NORTH;
-
-        int prevX = a[0], prevY = a[1], prevZ = a[2];
+        if (!(stairMat.getBlock() instanceof net.minecraft.block.StairsBlock) || floorMat.isAir())
+            throw new IllegalArgumentException("STAIR_SYSTEM requires stairs material and a non-air floor");
+        stairMat = stairMat.with(net.minecraft.state.property.Properties.BLOCK_HALF, net.minecraft.block.enums.BlockHalf.BOTTOM)
+            .with(net.minecraft.state.property.Properties.STAIR_SHAPE, net.minecraft.block.enums.StairShape.STRAIGHT);
+        Direction direction = dx != 0 ? (dx > 0 ? Direction.EAST : Direction.WEST)
+            : (dz >= 0 ? Direction.SOUTH : Direction.NORTH);
+        Direction lateral = direction.getAxis() == Direction.Axis.X ? Direction.SOUTH : Direction.EAST;
+        int previousY = a[1];
+        int firstOffset = -(width / 2);
         for (int i = 0; i <= run; i++) {
-            double t = i / (double) run;
-            int x = (int) Math.round(a[0] + dx * t);
-            int z = (int) Math.round(a[2] + dz * t);
-            int y = (int) Math.round(a[1] + dy * t);
-
-            int deltaY = y - prevY;
-            if (deltaY > 1) y = prevY + 1;
-            if (deltaY < -1) y = prevY - 1;
-
-            Direction lateral = (horizDir == Direction.EAST || horizDir == Direction.WEST) ? Direction.SOUTH : Direction.EAST;
-            int half = width / 2;
-
-            for (int wOff = -half; wOff <= half; wOff++) {
-                int wx = x + lateral.getOffsetX() * wOff;
-                int wz = z + lateral.getOffsetZ() * wOff;
-
-                if (y > prevY) {
-                    int sx = prevX + lateral.getOffsetX() * wOff;
-                    int sz = prevZ + lateral.getOffsetZ() * wOff;
-                    BlockState s = stairMat;
-                    if (s.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
-                        s = s.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, horizDir);
-                    }
-                    adapter.put(out, ctx, origin, sx, prevY, sz, s);
-                } else if (y < prevY) {
-                    BlockState s = stairMat;
-                    Direction f = horizDir.getOpposite();
-                    if (s.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) {
-                        s = s.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, f);
-                    }
-                    adapter.put(out, ctx, origin, wx, y, wz, s);
-                } else {
-                    adapter.put(out, ctx, origin, wx, y, wz, floorMat);
-                }
-
-                if (support) {
-                    adapter.put(out, ctx, origin, wx, y - 1, wz, supportMat);
-                }
-
-                if (carve && clearH > 0) {
-                    for (int yy = 1; yy <= clearH; yy++) {
-                        adapter.put(out, ctx, origin, wx, y + yy, wz, Blocks.AIR.getDefaultState());
-                    }
-                }
+            int x = a[0] + direction.getOffsetX() * i;
+            int z = a[2] + direction.getOffsetZ() * i;
+            int y = run == 0 ? a[1] : (int) Math.round(a[1] + dy * (i / (double) run));
+            BlockState tread = y == previousY ? floorMat : stairMat.with(
+                net.minecraft.state.property.Properties.HORIZONTAL_FACING, y > previousY ? direction : direction.getOpposite());
+            for (int lane = 0; lane < width; lane++) {
+                int offset = firstOffset + lane;
+                int wx = x + lateral.getOffsetX() * offset, wz = z + lateral.getOffsetZ() * offset;
+                // Every sample, including both endpoints, owns its tread, support and clearance.
+                adapter.put(out, ctx, origin, wx, y, wz, tread);
+                if (support) adapter.put(out, ctx, origin, wx, y - 1, wz, supportMat);
+                if (carve) for (int h = 1; h <= clearH; h++) adapter.put(out, ctx, origin, wx, y + h, wz, Blocks.AIR.getDefaultState());
             }
-
-            prevX = x;
-            prevY = y;
-            prevZ = z;
+            previousY = y;
         }
+    }
+
+    /** Straight, axis-aligned flights only; turns require explicit landing/flight operations. */
+    public static String flightError(Object from, Object to) {
+        try {
+            int[] a = point(from), b = point(to);
+            long dx = (long) b[0] - a[0], dy = (long) b[1] - a[1], dz = (long) b[2] - a[2];
+            if (dx != 0 && dz != 0) return "STAIR_SYSTEM requires an axis-aligned flight; split turns at landings";
+            long run = Math.max(Math.abs(dx), Math.abs(dz));
+            if (run > 4096) return "STAIR_SYSTEM horizontal run exceeds 4096 blocks";
+            if (Math.abs(dy) > run) return "STAIR_SYSTEM rise exceeds horizontal run; add flights or landings";
+            return null;
+        } catch (IllegalArgumentException exception) { return exception.getMessage(); }
+    }
+    private static int[] point(Object value) {
+        if (!(value instanceof Map<?, ?> map)) throw new IllegalArgumentException("STAIR_SYSTEM endpoints must contain integer x/y/z");
+        int[] point = new int[3]; String[] axes = {"x", "y", "z"};
+        for (int i = 0; i < 3; i++) {
+            try { point[i] = new java.math.BigDecimal(String.valueOf(map.get(axes[i]))).intValueExact(); }
+            catch (NumberFormatException | ArithmeticException exception) {
+                throw new IllegalArgumentException("STAIR_SYSTEM endpoints must contain integer x/y/z");
+            }
+        }
+        return point;
     }
 }

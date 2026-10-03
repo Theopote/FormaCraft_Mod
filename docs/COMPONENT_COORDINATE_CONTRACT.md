@@ -88,9 +88,9 @@ ShapeKind 中 dome、hemisphere、half_sphere 使用同一上半球定义：在�
 
 TypologyPatchBridge 将世界位置减去 worldBuildOrigin 后输出局部 patch，方块状态通过 BlockStateStringUtil.fromState 序列化，保留完整属性且稳定排序。不能只存方块 ID，否则倒置楼梯、朝向和含水状态会丢失。缺少 targetState 明确拒绝，不静默变成石头或空气。注册表/序列化错误继续传播，由上层生成失败路径处理。
 
-## 楼梯连续性待办（第十二批审查）
+## 楼梯连续性（第十三批更新）
 
-Skeleton 的 StairAssembler 虽然计算 start=origin+offset，但随后用地表高度覆盖 stepY；显式 offsetY 因此不能保证楼层起点。每一级采用 max(baseSurface+i,currentSurface+i)，陡坡可能造成多格跳级；SemanticPlacementOp.of(pos,part) 默认 NORTH，组件的 direction 尚未传入输出朝向。该路径的 steps 也未检查 ctx.maxOps，from/to 参数只是注释约定，没有实际端点解析。下一批应先明确入口台阶与室内层间楼梯的起点、终点和坡度契约，再验证连续踏步、头顶净空、平台与楼板开口。当前未实现此项修复，不能仅因有 STAIR_STEP 输出就认定层间可达。
+第十二批发现的 StairAssembler 显式高程、地形跳级、方向与预算问题已修复，但调用链核验发现该装配器仅注册、未被主流程调用。实际 assembly STAIR_SYSTEM 已修复偶数宽度多铺、上行终点缺踏面和过陡路线重复覆盖；只接受轴向直梯，并生成逐列踏面、支撑与请求的挖空。Skeleton 活跃状态解析保留完整属性并应用 STAIR_STEP 朝向。平台连接、实体楼板开口及真实净空仍待验收，见 [楼梯契约](STAIR_CIRCULATION_CONTRACT.md)。
 
 ## 后处理的几何保留（第十二批）
 

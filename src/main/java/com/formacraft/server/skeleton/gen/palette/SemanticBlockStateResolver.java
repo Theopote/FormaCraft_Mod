@@ -2,10 +2,7 @@ package com.formacraft.server.skeleton.gen.palette;
 
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.semantic.SemanticPlacementOp;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -46,7 +43,7 @@ public final class SemanticBlockStateResolver {
 
             // 解析为 BlockState
             BlockState state = resolver.resolve(op);
-            String blockId = blockStateToId(state);
+            String blockId = com.formacraft.common.component.transform.BlockStateStringUtil.fromState(state);
 
             int dx = op.pos().getX() - origin.getX();
             int dy = op.pos().getY() - origin.getY();
@@ -59,14 +56,4 @@ public final class SemanticBlockStateResolver {
         return patches;
     }
 
-    /**
-     * 将 BlockState 转换为方块 ID 字符串
-     */
-    private static String blockStateToId(BlockState state) {
-        if (state == null) return "minecraft:stone";
-        Block block = state.getBlock();
-        Identifier id = Registries.BLOCK.getId(block);
-        return id != null ? id.toString() : "minecraft:stone";
-    }
 }
-

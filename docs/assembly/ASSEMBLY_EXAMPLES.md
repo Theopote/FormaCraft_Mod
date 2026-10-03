@@ -197,7 +197,8 @@ Formacraft 采用**参数化建模**的思想：LLM 不是在画图，而是在�
 
 - `from/to`：楼梯起止点
 - `width`：楼梯宽度
-- `clearHeight + carve`：自动挖出净空（避免撞头）
+- `clearHeight + carve`：生成踏面上方的空气操作；之后的构件可能再次覆盖
+- 仅支持轴向直梯，高差不能超过水平长度；转弯需要显式平台与多个梯段。完整边界见 [楼梯契约](../STAIR_CIRCULATION_CONTRACT.md)。
 
 ## 示例二十五：曲面壳体（BEZIER_SURFACE：贝塞尔曲面片）
 

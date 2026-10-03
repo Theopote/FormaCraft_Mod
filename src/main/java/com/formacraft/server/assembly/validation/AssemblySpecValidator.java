@@ -237,6 +237,10 @@ public final class AssemblySpecValidator {
             }
 
             // P0: validate known component kinds we heavily use
+            if (type.equals("STAIR_SYSTEM") || type.equals("STAIRS_SYSTEM") || type.equals("STAIRCASE")) {
+                String error = com.formacraft.server.assembly.AssemblyCirculationOps.flightError(c.get("from"), c.get("to"));
+                if (error != null) out.add(AssemblyValidationSupport.err(p, "E_STAIR_FLIGHT_INVALID", error));
+            }
             if (type.contains("SPLINE")) {
                 Object pts = c.get("points");
                 if (!(pts instanceof List<?> l) || l.size() < 2) {

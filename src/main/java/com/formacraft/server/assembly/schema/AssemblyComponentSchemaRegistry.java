@@ -72,7 +72,7 @@ public final class AssemblyComponentSchemaRegistry {
                     List.of("height", "module", "pattern", "thickness", "chord", "web", "material")),
             def("STAIR_SYSTEM", "circulation", List.of("STAIRS_SYSTEM", "STAIRCASE"),
                     List.of("from", "to"),
-                    List.of("width", "clearHeight", "carve", "support", "stairs", "floor", "material")),
+                    List.of("width", "clearHeight", "clear_h", "carve", "support", "stairs", "floor", "supportMaterial", "material")),
             def("BUTTRESS", "structure", List.of("FLYING_BUTTRESS"),
                     List.of("from", "to"),
                     List.of("width", "thickness", "material")),
