@@ -223,39 +223,15 @@ public final class LlmPlanPreviewBuilder {
                 );
             }
 
-            // 将 BlockPatch 转换为 PlannedBlock
-            List<PlannedBlock> plannedBlocks = new ArrayList<>();
-            int invalidBlockCount = 0;
-            for (com.formacraft.common.patch.BlockPatch patch : patches) {
-                BlockPos worldPos = planOrigin.add(patch.dx(), patch.dy(), patch.dz());
-                String blockId = patch.targetBlock();
-                if (blockId != null && !blockId.isEmpty()) {
-                    try {
-                        String baseId = blockId;
-                        int propsStart = baseId.indexOf('[');
-                        if (propsStart > 0) {
-                            baseId = baseId.substring(0, propsStart);
-                        }
-                        net.minecraft.util.Identifier blockIdentifier = net.minecraft.util.Identifier.tryParse(baseId);
-                        if (blockIdentifier == null) {
-                            invalidBlockCount++;
-                            if (invalidBlockCount <= 5) {
-                                FormacraftMod.LOGGER.warn("Failed to parse block ID (invalid format): {}", blockId);
-                            }
-                            continue;
-                        }
-                        net.minecraft.block.Block block = net.minecraft.registry.Registries.BLOCK.get(blockIdentifier);
-                        net.minecraft.block.BlockState state = block.getDefaultState();
-                        plannedBlocks.add(new PlannedBlock(worldPos, state));
-                    } catch (Exception e) {
-                        invalidBlockCount++;
-                        if (invalidBlockCount <= 5) {
-                            FormacraftMod.LOGGER.warn("Failed to parse block ID: {} at position ({}, {}, {})",
-                                    blockId, worldPos.getX(), worldPos.getY(), worldPos.getZ(), e);
-                        }
-                    }
-                }
+            // Compilation failures invalidate mixed plans as well as assembly-only plans.
+            var compileFailure = com.formacraft.server.assembly.AssemblyCompileDiagnostics.get();
+            if (compileFailure != null) {
+                reportCapabilityGap(player, req, hbAlive, compileFailure);
+                return true;
             }
+            var conversion = PlanPatchConverter.convert(patches, planOrigin);
+            List<PlannedBlock> plannedBlocks = conversion.blocks();
+            int invalidBlockCount = conversion.invalid();
             if (invalidBlockCount > 0) {
                 FormacraftMod.LOGGER.warn("LlmPlan: {} invalid blocks out of {} total patches", invalidBlockCount, patches.size());
             }

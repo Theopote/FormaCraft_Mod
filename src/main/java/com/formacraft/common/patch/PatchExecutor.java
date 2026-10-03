@@ -2,19 +2,11 @@ package com.formacraft.common.patch;
 
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.world.BlockMutationAccess;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.state.StateManager;
-import net.minecraft.state.property.Property;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
 
 /**
  * Patch 执行器：在服务端世界应用增量修改。
@@ -102,15 +94,7 @@ public final class PatchExecutor {
                 continue;
             }
 
-            String action = p.action() == null ? "" : p.action().trim().toLowerCase(Locale.ROOT);
-            BlockState target;
-            if (BlockPatch.REMOVE.equals(action)) {
-                target = Blocks.AIR.getDefaultState();
-            } else if (BlockPatch.PLACE.equals(action) || BlockPatch.REPLACE.equals(action)) {
-                target = parseBlockState(p.targetBlock());
-            } else {
-                target = null;
-            }
+            BlockState target = BlockPatchTargetResolver.resolve(p);
             if (target == null) {
                 skippedIllegal++;
             } else if (access.getState(pos).equals(target)) {
@@ -129,58 +113,4 @@ public final class PatchExecutor {
         return new ApplyResult(applied, skippedHeight, skippedUnloaded, skippedIllegal, sameState, failedWrites);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static BlockState parseBlockState(String id) {
-        if (id == null || id.isBlank()) return null;
-        try {
-            String raw = id.trim();
-            String baseId = raw;
-            String props = null;
-            int lb = raw.indexOf('[');
-            if (lb >= 0 && (!raw.endsWith("]") || raw.indexOf('[', lb + 1) >= 0)) return null;
-            if (lb < 0 && raw.contains("]")) return null;
-            if (lb >= 0) {
-                baseId = raw.substring(0, lb);
-                props = raw.substring(lb + 1, raw.length() - 1);
-            }
-
-            Identifier ident = Identifier.tryParse(baseId.trim());
-            if (ident == null || !Registries.BLOCK.containsId(ident)) {
-                return null;
-            }
-            Block b = Registries.BLOCK.get(ident);
-            BlockState state = b.getDefaultState();
-
-            if (props != null && !props.isBlank()) {
-                StateManager<Block, BlockState> sm = b.getStateManager();
-                if (sm != null) {
-                    String[] kvs = props.split(",", -1);
-                    java.util.Set<String> seen = new java.util.HashSet<>();
-                    for (String kv : kvs) {
-                        if (kv == null) continue;
-                        String t = kv.trim();
-                        if (t.isEmpty()) return null;
-                        int eq = t.indexOf('=');
-                        if (eq <= 0 || eq >= t.length() - 1) return null;
-                        String key = t.substring(0, eq).trim().toLowerCase(Locale.ROOT);
-                        String val = t.substring(eq + 1).trim().toLowerCase(Locale.ROOT);
-                        if (key.isEmpty() || val.isEmpty() || !seen.add(key)) return null;
-
-                        Property<?> prop = sm.getProperty(key);
-                        if (prop == null) return null;
-                        Optional<?> parsed = prop.parse(val);
-                        if (parsed.isEmpty()) return null;
-                        Object v = parsed.get();
-                        if (!(v instanceof Comparable<?>)) return null;
-                        state = state.with((Property) prop, (Comparable) v);
-                    }
-                }
-            }
-
-            return state;
-        } catch (RuntimeException ex) {
-            LOG.debug("resolve block state failed blockId={}", id, ex);
-            return null;
-        }
-    }
 }

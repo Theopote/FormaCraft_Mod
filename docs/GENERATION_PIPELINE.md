@@ -1,6 +1,6 @@
 # FormaCraft 生成管线（唯一流程真相）
 
-> 本文描述 **2026-07 代码现状** 下，从用户请求到方块放置的完整链路。  
+> 本文基于 **2026-07 管线梳理**，2026-10-03 补充最终通行约束与主预览状态转换；其余阶段仍需结合代码核验。
 > 若与其他 `COMPLETE_*` / `*_SUMMARY` 文档冲突，**以本文 + [ARCHITECTURE.md](../ARCHITECTURE.md) 为准**。
 
 ---
@@ -76,6 +76,8 @@ flowchart TD
    构件中心转换、基础覆盖和屋顶连接遵循 [构件坐标契约](COMPONENT_COORDINATE_CONTRACT.md)。
 6. **`PostProcessPipeline`**：细节增强 → 材质变化 →（可选）地形适应
 
+成功生成的 assembly 梯段要求按 slot 偏移一次进入计划，通用新增装饰跳过明确净空，全部构件与后处理结束后复查通行位置。跨构件冲突或已登记的 ASSEMBLY 能力缺口拒绝完整计划，不返回部分建筑。详见 [完整计划通行契约](PLAN_CIRCULATION_CONTRACT.md)。
+
 ### 阶段 3 — UnifiedGeneratorRouter 优先级
 
 文件：`server/generation/component/adaptor/UnifiedGeneratorRouter.java`
@@ -100,6 +102,8 @@ flowchart TD
 | 10 | 地基（台阶/支柱） | `FoundationPlanner`, `TerrainAdaptationEngine` |
 | 11 | 质量检查 | `BuildPreviewPipeline` / `BuildQualityReport` |
 | 12 | 存储预览 + 发送轮廓 | `PreviewStorage`, `FormaCraftServerNetworking` |
+
+第十六批起，阶段 7 由 PlanPatchConverter 使用共享 BlockPatchTargetResolver 保留完整状态并遵守 remove 动作；与 PatchExecutor 的目标解析规则一致，不再去掉属性后使用默认状态。主预览在转换前检查编译能力缺口，混合计划也报告失败。预览随后追加的地形/地基仍需最终通行复查。
 
 ### 阶段 5 — 确认放置
 

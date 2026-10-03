@@ -6,10 +6,11 @@ import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import net.minecraft.util.math.BlockPos;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /** Post-processing coordinates are local to the plan, including each compiled slot offset once. */
 public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor,
-                                 List<BuildingVolume> buildingVolumes) {
+                                 List<BuildingVolume> buildingVolumes, Set<BlockPos> protectedClearance) {
     public record BuildingVolume(String slotId, ComponentFootprintUtil.Bounds bounds, int floorHeight) {
         public BuildingVolume {
             Objects.requireNonNull(bounds);
@@ -23,6 +24,11 @@ public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i rela
     }
     public PostProcessContext {
         buildingVolumes = buildingVolumes == null ? List.of() : List.copyOf(buildingVolumes);
+        protectedClearance = protectedClearance == null ? Set.of() : protectedClearance.stream()
+            .map(BlockPos::toImmutable).collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+    public PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor, List<BuildingVolume> volumes) {
+        this(plan, globalAnchor, relativeAnchor, volumes, Set.of());
     }
     /** Compatibility for direct callers without compiled building metadata. */
     public PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor) {
@@ -32,7 +38,10 @@ public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i rela
         return create(plan, globalAnchor, List.of());
     }
     public static PostProcessContext create(LlmPlan plan, BlockPos globalAnchor, List<BuildingVolume> volumes) {
+        return create(plan, globalAnchor, volumes, Set.of());
+    }
+    public static PostProcessContext create(LlmPlan plan, BlockPos globalAnchor, List<BuildingVolume> volumes, Set<BlockPos> clearance) {
         Vec3i anchor = plan.anchor() != null ? plan.anchor() : new Vec3i(0, 0, 0);
-        return new PostProcessContext(plan, globalAnchor, anchor, volumes);
+        return new PostProcessContext(plan, globalAnchor, anchor, volumes, clearance);
     }
 }

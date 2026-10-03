@@ -76,6 +76,11 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         addCornerPillars(enhancements, solid, palette, minX, maxX, minZ, maxZ, minY, maxY);
         addBeltCourse(enhancements, solid, palette, minX, maxX, minZ, maxZ, minY, maxY);
 
+        // Optional decoration must not fill circulation clearance reserved by compiled assemblies.
+        if (context != null && !context.protectedClearance().isEmpty()) {
+            enhancements.removeIf(patch -> context.protectedClearance().contains(
+                new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz())));
+        }
         result.addAll(enhancements);
         
         if (!enhancements.isEmpty()) {

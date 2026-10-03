@@ -13,6 +13,9 @@ import com.formacraft.common.compiler.postprocess.PostProcessPipeline;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import com.formacraft.server.generation.GenerationHub;
+import com.formacraft.server.assembly.AssemblyCirculationConstraints;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter;
 import com.formacraft.common.llm.NonClassicalEnrichmentGuard;
 import com.formacraft.common.llm.dto.Component;
@@ -139,7 +142,7 @@ public final class ComponentPlanCompiler {
             return result;
         }
 
-        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        AssemblyCompileDiagnostics.clear();
 
         plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
@@ -158,12 +161,13 @@ public final class ComponentPlanCompiler {
         }
 
         List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
+        var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         try {
             compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                    slotMap, result, buildingVolumes);
+                    slotMap, result, buildingVolumes, circulation);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             TypologyPatchBridge.clearPlanWorldAnchor();
@@ -174,7 +178,9 @@ public final class ComponentPlanCompiler {
 
         // 后处理步骤
         if (globalAnchor != null) {
-            PostProcessContext context = PostProcessContext.create(plan, globalAnchor, buildingVolumes);
+            Set<BlockPos> clearance = new HashSet<>();
+            for (var flight : circulation) clearance.addAll(flight.clearance());
+            PostProcessContext context = PostProcessContext.create(plan, globalAnchor, buildingVolumes, clearance);
             PostProcessPipeline pipeline;
             
             if (applyTerrainAdaptation && world != null && terrainSampler != null) {
@@ -190,6 +196,15 @@ public final class ComponentPlanCompiler {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: post-processed to {} patches", result.size());
         }
 
+        try {
+            AssemblyCirculationConstraints.validatePatches(result, circulation);
+        } catch (AssemblyCirculationConstraints.Conflict conflict) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                "E_PLAN_CIRCULATION_CONFLICT", conflict.getMessage(), "components[]",
+                List.of("Separate conflicting components or fix post-processing at stair treads and clearance.")));
+            return List.of();
+        }
+        if (AssemblyCompileDiagnostics.hasGap()) return List.of();
         return result;
     }
 
@@ -258,7 +273,8 @@ public final class ComponentPlanCompiler {
             Set<String> assemblyFacadeSlots,
             Map<String, Slot> slotMap,
             List<BlockPatch> result,
-            List<PostProcessContext.BuildingVolume> buildingVolumes
+            List<PostProcessContext.BuildingVolume> buildingVolumes,
+            List<AssemblyCirculationConstraints.Flight> circulation
     ) {
         for (Component c : components) {
             if (c == null) continue;
@@ -284,7 +300,8 @@ public final class ComponentPlanCompiler {
             );
 
             List<BlockPatch> patches;
-            try {
+            var componentFlights = new ArrayList<AssemblyCirculationConstraints.Flight>();
+            try (var capture = AssemblyCirculationConstraints.captureTo(componentFlights::addAll)) {
                 patches = GenerationHub.generateComponent(semantic, world);
                 if (!patches.isEmpty()) {
                     if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
@@ -299,6 +316,9 @@ public final class ComponentPlanCompiler {
                     }
                     logComponentPatchCount(normalizedType, c, patches.size());
                     com.formacraft.common.llm.dto.Vec3i slotAnchor = slot.anchor();
+                    BlockPos flightOffset = slotAnchor == null ? BlockPos.ORIGIN : new BlockPos(slotAnchor.x(), slotAnchor.y(), slotAnchor.z());
+                    for (var flight : componentFlights)
+                        circulation.add(AssemblyCirculationConstraints.shift(flight, flightOffset));
                     if (isMassType(normalizedType)) {
                         var bounds = ComponentFootprintUtil.bounds(c);
                         if (bounds != null) {

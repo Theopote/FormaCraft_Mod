@@ -311,6 +311,7 @@ public final class MetaAssemblyEngine {
                 flights.add(AssemblyCirculationConstraints.capture(out, start));
         }
         AssemblyCirculationConstraints.validate(out, flights);
+        AssemblyCirculationConstraints.publish(flights);
         return out;
     }
 
