@@ -32,6 +32,6 @@ MetaAssemblyEngine 为每个 STAIR_SYSTEM 捕获实际输出的世界坐标：�
 
 这能识别上下梯段过近、后一梯段挖掉前一梯段、晚生成楼板封住净空等问题；不自动排序、移动梯段或补平台。carve=false 不登记净空要求，support=false 不登记额外支撑要求。重复兼容梯段允许。ASSEMBLY 构件入口将 Conflict 转为 E_ASSEMBLY_CIRCULATION_CONFLICT 的 capability gap；整栋 MetaAssemblyGenerator 入口继续传播失败。
 
-校验只比较空气/非空气，不验证非空气是否是合适的踏面、方向是否匹配、碰撞形状是否可走，也不建立完整楼层可达图。第十五批只检查单次 assembly；第十六批已将捕获要求扩展至 ComponentPlanCompiler 的跨构件合并与后处理，见 [完整计划契约](PLAN_CIRCULATION_CONTRACT.md)。预览随后追加的地形/地基、其他路由和后续世界改动仍需核查。它不会读取未生成位置的真实世界状态，因此不能替代全局通行验收。
+校验只比较空气/非空气，不验证非空气是否是合适的踏面、方向是否匹配、碰撞形状是否可走，也不建立完整楼层可达图。第十五批只检查单次 assembly；第十六批扩展至 ComponentPlanCompiler 的跨构件合并与后处理，第十七批接入预览修复/裁剪后的最终检查，见 [完整计划契约](PLAN_CIRCULATION_CONTRACT.md)。其他路由、真实地形行为和后续世界改动仍需核查。它不会读取未生成位置的真实世界状态，因此不能替代全局通行验收。
 
 ASSEMBLY 构件的 PlannedBlock → BlockPatch 转换现在使用 BlockStateStringUtil.fromState，保留楼梯 facing/half/shape/waterlogged、半砖类型和原木轴向，不再只保存方块 ID。坐标及操作顺序保持既有契约，空气仍输出 remove。AssemblyPatchStateTest 经真实 PatchExecutor 和可控访问验证属性与偏移落地；AssemblyCirculationConstraintsTest 验证冲突、合法平台组合、最终状态、方向与禁用选项，箱体组合回归也执行最终检查。没有启动真实 ServerWorld。

@@ -92,4 +92,15 @@ class ComponentPlanCompilerCirculationTest {
         assertThrows(AssemblyCirculationConstraints.Conflict.class,
             () -> AssemblyCirculationConstraints.validatePatches(finalPatches, List.of(flight)));
     }
+    @Test void explicitCompilationResultReturnsPlanLocalMetadataOnlyOnSuccess() {
+        var result = ComponentPlanCompiler.compileWithCirculation(plan("restore", false), new BlockPos(100, 64, 200), null, null, false);
+        assertFalse(result.patches().isEmpty()); assertEquals(1, result.circulation().size());
+        assertEquals(Set.of(new BlockPos(12, 5, -1)), result.circulation().getFirst().occupied());
+        assertEquals(Set.of(new BlockPos(12, 6, -1)), result.circulation().getFirst().clearance());
+        assertThrows(UnsupportedOperationException.class, () -> result.circulation().clear());
+        var failed = ComponentPlanCompiler.compileWithCirculation(plan("block", false), BlockPos.ORIGIN, null, null, false);
+        assertTrue(failed.patches().isEmpty()); assertTrue(failed.circulation().isEmpty());
+        var again = ComponentPlanCompiler.compileWithCirculation(plan("restore", false), null, null, null, false);
+        assertEquals(1, again.circulation().size());
+    }
 }

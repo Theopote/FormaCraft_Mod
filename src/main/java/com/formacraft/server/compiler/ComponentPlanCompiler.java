@@ -71,6 +71,18 @@ import java.util.Set;
  * ComponentGenerator → List<BlockPatch> → Preview / Apply
  */
 public final class ComponentPlanCompiler {
+    public record Compilation(List<BlockPatch> patches, List<AssemblyCirculationConstraints.Flight> circulation) {
+        public Compilation { patches = List.copyOf(patches); circulation = List.copyOf(circulation); }
+    }
+
+    /** Explicit metadata result for preview; coordinates remain relative to the plan origin. */
+    public static Compilation compileWithCirculation(LlmPlan plan, BlockPos globalAnchor, ServerWorld world,
+                                                      TerrainStrategySampler terrainSampler, boolean applyTerrainAdaptation) {
+        var flights = new ArrayList<AssemblyCirculationConstraints.Flight>();
+        try (var capture = AssemblyCirculationConstraints.captureTo(flights::addAll)) {
+            return new Compilation(compile(plan, globalAnchor, world, terrainSampler, applyTerrainAdaptation), flights);
+        }
+    }
 
     private ComponentPlanCompiler() {}
 
@@ -205,6 +217,7 @@ public final class ComponentPlanCompiler {
             return List.of();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
+        AssemblyCirculationConstraints.publish(circulation);
         return result;
     }
 

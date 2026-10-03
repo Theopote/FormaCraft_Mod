@@ -9,6 +9,7 @@ import com.formacraft.server.build.quality.BuildQualityReport;
 import com.formacraft.server.build.quality.BuildQualitySeverity;
 import com.formacraft.server.build.quality.GradedQualityChecker;
 import com.formacraft.server.preview.PreviewStorage;
+import com.formacraft.server.assembly.AssemblyCirculationConstraints;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
@@ -35,6 +36,12 @@ public final class BuildPreviewPipeline {
             FormaRequest req,
             Optional<BuildingStyle> style
     ) {
+        return prepare(player, world, generated, spec, req, style, List.of());
+    }
+
+    public static Result prepare(ServerPlayerEntity player, ServerWorld world, GeneratedStructure generated,
+                                 BuildingSpec spec, FormaRequest req, Optional<BuildingStyle> style,
+                                 List<AssemblyCirculationConstraints.Flight> circulation) {
         BuildQualityReport report = GradedQualityChecker.checkStructure(generated, spec, world);
         report.logIssues(generated != null ? generated.getDescription() : "structure");
 
@@ -67,6 +74,11 @@ public final class BuildPreviewPipeline {
 
         report.stats().totalBlocks = countSolid(clipped);
 
+        if (!validateCirculation(clipped, circulation, report)) {
+            storeReport(player, report);
+            return new Result(null, report, false);
+        }
+
         GeneratedStructure structure = new GeneratedStructure(
                 player.getUuid(),
                 generated.getOrigin(),
@@ -76,6 +88,19 @@ public final class BuildPreviewPipeline {
 
         storeReport(player, report);
         return new Result(structure, report, true);
+    }
+
+    static boolean validateCirculation(List<PlannedBlock> blocks,
+                                      List<AssemblyCirculationConstraints.Flight> circulation,
+                                      BuildQualityReport report) {
+        try {
+            AssemblyCirculationConstraints.validate(blocks, circulation);
+            return true;
+        } catch (AssemblyCirculationConstraints.Conflict conflict) {
+            report.add(BuildQualitySeverity.FATAL, "E_PREVIEW_CIRCULATION_CONFLICT",
+                    "楼梯踏面、支撑或净空未保留，请检查地形修复与选区范围。" + conflict.getMessage());
+            return false;
+        }
     }
 
     private static void mergeRepair(BuildQualityReport report, BuildAutoRepair.Result repair) {

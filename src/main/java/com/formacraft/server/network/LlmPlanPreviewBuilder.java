@@ -153,6 +153,7 @@ public final class LlmPlanPreviewBuilder {
 
             // 检查应该使用哪种编译路径
             List<com.formacraft.common.patch.BlockPatch> patches;
+            var circulation = new ArrayList<com.formacraft.server.assembly.AssemblyCirculationConstraints.Flight>();
 
             if (llmPlan.usesPlanProgramMode()) {
                 // 使用 PlanProgram → Skeleton 编译路径
@@ -181,13 +182,15 @@ public final class LlmPlanPreviewBuilder {
                     // 创建地形采样器并回退到 ComponentPlanCompiler
                     com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
                             new com.formacraft.common.terrain.TerrainStrategySampler();
-                    patches = ComponentPlanCompiler.compile(
+                    var compilation = ComponentPlanCompiler.compileWithCirculation(
                             llmPlan,
                             planOrigin,
                             serverWorld,
                             terrainSampler,
                             false
                     );
+                    patches = compilation.patches();
+                    circulation.addAll(compilation.circulation());
                 }
 
                 // 可选：如果启用 BuildingMass 路径
@@ -214,13 +217,15 @@ public final class LlmPlanPreviewBuilder {
                         new com.formacraft.common.terrain.TerrainStrategySampler();
 
                 // LlmPlan 的地形处理在后续流程统一执行，避免组件级别逐列抬升导致错位
-                patches = ComponentPlanCompiler.compile(
+                var compilation = ComponentPlanCompiler.compileWithCirculation(
                         llmPlan,
                         planOrigin,
                         serverWorld,
                         terrainSampler,
                         false  // 关闭逐列地形适应
                 );
+                patches = compilation.patches();
+                circulation.addAll(compilation.circulation());
             }
 
             // Compilation failures invalidate mixed plans as well as assembly-only plans.
@@ -515,13 +520,17 @@ public final class LlmPlanPreviewBuilder {
                             plannedBlocks
                     );
 
+            var worldCirculation = new ArrayList<com.formacraft.server.assembly.AssemblyCirculationConstraints.Flight>();
+            for (var flight : circulation)
+                worldCirculation.add(com.formacraft.server.assembly.AssemblyCirculationConstraints.shift(flight, planOrigin));
             BuildPreviewPipeline.Result pipeline = BuildPreviewPipeline.prepare(
                     player,
                     serverWorld,
                     generated,
                     null,
                     req,
-                    java.util.Optional.empty()
+                    java.util.Optional.empty(),
+                    worldCirculation
             );
 
             if (!pipeline.delivered() || pipeline.structure() == null) {

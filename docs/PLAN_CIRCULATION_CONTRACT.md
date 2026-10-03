@@ -26,4 +26,16 @@ LlmPlanPreviewBuilder 曾去掉方块属性再使用默认状态，还按 target
 
 ComponentPlanCompilerCirculationTest 使用具名测试生成器发布要求，执行真实编译合并与默认后处理，验证跨构件填堵/挖空、分开 slot、一次偏移、暂时覆盖恢复、混合计划失败及捕获生命周期；单独的后处理追加冲突案例验证最终检查。PlanPatchConverterTest 验证完整楼梯状态经主转换函数与真实 PatchExecutor 一致、remove 与非法输入语义。没有启动 ServerWorld 或真实玩家网络预览。
 
-当前要求仍只比较空气/非空气，不建立楼层可达图或验证碰撞形状。没有 STAIR_SYSTEM 元数据的其他楼梯生成器、PlanProgram/BuildingMass 补充路径，以及主预览随后追加的地坪/地基仍未纳入这一完整构件计划契约。下一步应核验预览最终列表和其他生成器，再逐步将范围与通行要求放入正式生成结果，而不是长期依赖作用域适配。
+当前要求仍只比较空气/非空气，不建立楼层可达图或验证碰撞形状。没有 STAIR_SYSTEM 元数据的其他楼梯生成器、PlanProgram/BuildingMass 自身的通行要求仍未接入。第十七批已补充预览末端复查，详见下节；生成器接口的范围与通行要求仍需逐步变为显式结果。
+
+## 预览末端复查（第十七批）
+
+ComponentPlanCompiler.compileWithCirculation 返回不可变 Compilation，包含成功的 patch 与计划局部梯段要求；失败不会交付部分要求。主预览两处构件编译调用都使用该结果，将要求只加一次 planOrigin 后交给 BuildPreviewPipeline。旧 compile 与六参数 prepare 接口保留，未提供要求的其他入口行为不变。
+
+调用链核实地坪平整与地基准备都排在建筑操作之前，因此重复位置由后面的建筑状态覆盖。回归验证该顺序在真实 BuildAutoRepair 去重后仍保留踏面与空气；没有为了假设中的覆盖问题改变地形生成顺序。
+
+BuildPreviewPipeline 在自动修复、约束裁剪完成后，创建可交付结构之前复查最终 PlannedBlock。踏面/请求支撑变空气或消失、净空被填住或其操作被裁掉时，报告 FATAL / E_PREVIEW_CIRCULATION_CONFLICT，返回 delivered=false 和空结构。主预览不会把失败结果存为可确认预览。完全裁空仍使用既有 STRUCT_EMPTY_AFTER_CLIP。
+
+自动修复的新增支撑仍遵循现有算法，发生冲突时拒绝结果，当前不自动搬移支撑或重建梯段。裁剪丢失要求即失败，即便真实世界该位置可能已为空气也不推断满足；不会通过放宽选区、轮廓或保护区规则恢复楼梯。
+
+BuildPreviewCirculationTest 验证地形准备顺序、真实无世界修复的去重、模拟后续支撑填堵、真实选区裁剪删除踏面/空气、世界偏移一次和无元数据兼容。编译回归补充成功/失败 Compilation 与元数据不泄漏。没有真实 ServerWorld 地形采样、自动补支撑或玩家网络交付验收；覆盖问题的最终拒绝规则和接线由代码与可控回归验证。

@@ -103,7 +103,9 @@ flowchart TD
 | 11 | 质量检查 | `BuildPreviewPipeline` / `BuildQualityReport` |
 | 12 | 存储预览 + 发送轮廓 | `PreviewStorage`, `FormaCraftServerNetworking` |
 
-第十六批起，阶段 7 由 PlanPatchConverter 使用共享 BlockPatchTargetResolver 保留完整状态并遵守 remove 动作；与 PatchExecutor 的目标解析规则一致，不再去掉属性后使用默认状态。主预览在转换前检查编译能力缺口，混合计划也报告失败。预览随后追加的地形/地基仍需最终通行复查。
+第十六批起，阶段 7 由 PlanPatchConverter 使用共享 BlockPatchTargetResolver 保留完整状态并遵守 remove 动作；与 PatchExecutor 的目标解析规则一致，不再去掉属性后使用默认状态。主预览在转换前检查编译能力缺口，混合计划也报告失败。
+
+第十七批起，构件编译使用带通行要求的 Compilation；地形准备仍先于建筑操作。阶段 11 在自动修复与约束裁剪之后复查世界坐标要求，冲突为致命失败，交付前拒绝。没有要求元数据的其他路由与真实碰撞验收仍待接入，见 [完整计划契约](PLAN_CIRCULATION_CONTRACT.md)。
 
 ### 阶段 5 — 确认放置
 
