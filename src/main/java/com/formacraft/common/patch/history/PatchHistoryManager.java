@@ -77,7 +77,8 @@ public final class PatchHistoryManager {
 
         Map<BlockPos, BlockState> after = snapshot(world, affected);
 
-        PatchTransaction tx = new PatchTransaction(origin, List.copyOf(patches), before, after);
+        PatchTransaction tx = PatchTransaction.fromSnapshots(origin, before, after);
+        if (tx.before().isEmpty()) return applyResult;
 
         Stacks s = stacks(playerId);
         s.undo.push(tx);
@@ -89,7 +90,7 @@ public final class PatchHistoryManager {
         
         // ========== Memory → Patch → Memory 闭环 ==========
         // 分析 Patch 影响并更新 Memory
-        updateMemoryFromPatch(world, origin, patches);
+        updateMemoryFromPatch(world, origin, tx.patches());
         return applyResult;
     }
     
@@ -194,21 +195,14 @@ public final class PatchHistoryManager {
             
             // Undo 是反向操作：从 after 恢复到 before
             // 我们需要分析 before 状态的影响
-            // 简化实现：分析原始 patch 的反向影响
+            // 反向分析真实 before 状态，保留被替换材质及属性
             com.formacraft.server.memory.PatchDiffAnalyzer analyzer = 
                 new com.formacraft.server.memory.PatchDiffAnalyzer(memoryManager);
             
-            // 创建反向 patch（将 place 改为 remove，remove 改为 place）
+            // 从真实快照生成反向 patch，而非简单翻转动作
             java.util.List<com.formacraft.common.patch.BlockPatch> reversePatches = 
                 new java.util.ArrayList<>();
-            for (com.formacraft.common.patch.BlockPatch patch : tx.patches()) {
-                String reverseAction = com.formacraft.common.patch.BlockPatch.REMOVE.equals(patch.action())
-                    ? com.formacraft.common.patch.BlockPatch.PLACE
-                    : com.formacraft.common.patch.BlockPatch.REMOVE;
-                reversePatches.add(new com.formacraft.common.patch.BlockPatch(
-                    reverseAction, patch.dx(), patch.dy(), patch.dz(), patch.targetBlock()
-                ));
-            }
+            reversePatches.addAll(PatchTransaction.patchesForStates(tx.origin(), tx.before()));
             
             java.util.List<com.formacraft.server.memory.PatchImpact> impacts = 
                 analyzer.analyze(tx.origin(), reversePatches);
@@ -256,7 +250,10 @@ public final class PatchHistoryManager {
     private static Map<BlockPos, BlockState> snapshot(ServerWorld world, Set<BlockPos> positions) {
         Map<BlockPos, BlockState> map = new HashMap<>(positions.size());
         for (BlockPos pos : positions) {
-            map.put(pos, world.getBlockState(pos));
+            if (com.formacraft.common.world.WorldBuildBounds.isInsideWorldHeight(world, pos)
+                    && com.formacraft.common.world.WorldBuildBounds.isChunkReady(world, pos)) {
+                map.put(pos, world.getBlockState(pos));
+            }
         }
         return map;
     }

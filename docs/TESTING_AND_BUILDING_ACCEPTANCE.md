@@ -21,3 +21,7 @@ JUnit 通过官方 Fabric Loader JUnit 运行，而非直接用普通 JVM 启动
 3. 规划与失败语义：比较 Python Research、Java typology、assembly 和兼容 BuildingSpec 的路由；检查同步 AI 规划是否阻塞健康检查、超时后的结果是否仍进入预览；再按阶段拆 ai_planner。
 
 这些是待验收目标，目前不宣称已经具备全部自动检查能力。游戏内测试应先使用专门测试世界；本轮没有启动客户端、修改玩家存档或验收多人场景。
+
+## 第七批执行检查
+
+BuildTask/PatchExecutor 的成功计数、拒绝写入、边界读取与状态解析已建立回归；历史与 Memory 分析改用最终差异。详细行为和仍未解决的部分撤销、跨维度、原子性问题见 [方块执行契约](WORLD_MUTATION_CONTRACT.md)。可控世界测试不模拟真实邻居更新或方块实体。

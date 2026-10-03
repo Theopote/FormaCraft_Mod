@@ -282,7 +282,7 @@ public class BuildExecutionService {
                                 structure.getDescription(), applyResult.summaryZh());
 
                         // 保存到记忆系统
-                        if (memoryManager != null && !changes.isEmpty()) {
+                        if (memoryManager != null && !changes.isEmpty() && applyResult.isCompletePlacement()) {
                             try {
                                 // 尝试从 PlayerSpecRepository 获取 BuildingSpec
                                 String buildingJson = PlayerSpecRepository.getBuildingJson(owner);

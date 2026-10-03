@@ -109,6 +109,7 @@
 
 | 文档 | 用途 |
 |---|---|
+| [WORLD_MUTATION_CONTRACT.md](WORLD_MUTATION_CONTRACT.md) | 方块执行结果、严格目标解析、历史差异与未完成的事务问题 |
 | [TESTING_AND_BUILDING_ACCEPTANCE.md](TESTING_AND_BUILDING_ACCEPTANCE.md) | Fabric JUnit、完整检查与下一轮建筑验收顺序 |
 
 ### 地标与参数化建筑类型

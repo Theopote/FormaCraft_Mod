@@ -8,9 +8,10 @@
 
 | 优先级 | 证据 | 影响与处理 |
 |---|---|---|
-| P0 | 第一轮测试编译失败；第六批完整执行 330 测试，全部通过 | 编译漂移及基础/立面/屋顶本批拼接问题已修复，冠部层数与楼层顶圈也已修复，本批修复迁移条目的旧 MODULE 提示与八边形凹龛方向，第六批明确半球协议、接入 Fabric JUnit 并修复类型桥接丢失 BlockState 属性；详见 [回归清单](REGRESSION_BASELINE.md) |
+| P0 | 第一轮测试编译失败；第七批完整执行 336 测试，全部通过 | 编译漂移及基础/立面/屋顶本批拼接问题已修复，冠部层数与楼层顶圈也已修复，本批修复迁移条目的旧 MODULE 提示与八边形凹龛方向，第六批明确半球协议、接入 Fabric JUnit 并修复类型桥接丢失 BlockState 属性；详见 [回归清单](REGRESSION_BASELINE.md) |
 | P1 | `common/patch/history/PatchHistoryManager.java` 有 20 处服务端限定引用 | 初始另有注册表 10 处引用，第二轮已迁到服务端初始化并缩减基线；下一步把 Memory 更新放到服务端事务服务 |
 | P1 | `common/patch/PatchExecutor.java` 与 `common/patch/history/PatchHistoryManager.java` 持有 ServerWorld 并写方块 | common 并非纯模型/算法层；后续迁移执行器与历史事务时保留结果 DTO，核查 apply/undo/redo 与 Memory 的一致性 |
+| P1 | BuildTask/PatchExecutor 原先忽略写入返回值；历史按尝试列表更新 Memory | 本批修复实际应用结果、严格目标解析及最终差异；restore/UndoService 部分恢复失败、跨维度和 Memory 原子性仍待处理，详见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md) |
 | P1 | `python_backend/app/routes/build.py` 的 async 入口直接调用同步生成函数 | 规划和外部调用可能阻塞事件循环；后续将请求解析与同步规划隔离，并用并发请求证明健康检查不被阻塞；线程池本身不能保证超时后取消任务 |
 | P1 | `python_backend/app/services/ai_planner.py` 为 5380 行 | 意图、检索、提示词、调用、修复、回退混在一起；按阶段抽取，保留公开 generate_* 门面，先保持输出和失败语义 |
 | P2 | `server/build/PathLayoutService.java` 无源码调用者，extractPathPoints 始终返回 null | 本轮删除不可工作的占位服务；不是删除真实路径工具或路径生成器 |
@@ -52,7 +53,7 @@
 - `git diff --check`：通过。
 - 第二轮已修复旧构造/枚举/方法与断言导入错误，compileTestJava 通过。33 处直接 LlmPlan 测试构造调用迁到具名 fixture，避免再次发生位置字段漂移。
 - 定向回归（对齐、Socket、响应协议、自由几何 Prompt、解释器注册、guard、capability_gap、特征传递、锚点规范化）：通过。
-- 第六批最终完整 `check --offline`：330 个测试全部通过，无跳过；check 通过，43 份 assembly 示例、23 份文化卡和 37 个生成器键校验均通过。相较第五批消除 3 项失败，新增 3 个半球/状态桥接案例。当前结果与问题分类见 [回归清单](REGRESSION_BASELINE.md)。没有禁用测试或降低失败门槛。
+- 第七批最终完整 `check --offline`：336 个测试全部通过，无跳过；check 通过，43 份 assembly 示例、23 份文化卡和 37 个生成器键校验均通过。本批新增 6 个实际写入/历史差异案例。当前结果与问题分类见 [回归清单](REGRESSION_BASELINE.md)。没有禁用测试或降低失败门槛。
 - Python 默认解释器缺 fastapi，完整后端回归需安装锁定依赖后运行；本轮不把缺依赖记录成代码测试失败。
 
 尚未执行游戏内验收、模型联网生成、多玩家或真实世界存档回归。本轮不宣称完成全面重构或所有文档的逐篇核查。
