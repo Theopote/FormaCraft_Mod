@@ -22,7 +22,7 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 | 构件编译 | `server/compiler/ComponentPlanCompiler.java`、`common/compiler/PlanProgramCompiler.java` |
 | 路由与建筑几何 | `server/generation/component/adaptor/UnifiedGeneratorRouter.java`、`common/generation/component`、`server/generation/typology` |
 | 预览与最终执行 | `server/network/LlmPlanPreviewBuilder.java`、`server/build/BuildExecutionService.java`、`common/patch` |
-| 撤销与建筑记忆 | `common/patch/history`、`server/memory`；现有跨层依赖见审计 |
+| 撤销与建筑记忆 | `common/patch/history`、`server/build/UndoService`、`server/memory`；[记忆与存储契约](MEMORY_TRANSACTION_CONTRACT.md)，现有跨层依赖见审计 |
 | 建筑质量回归 | `python_backend/eval`、`python_backend/tests`、`src/test`、资源中的 eval_cases |
 
 上表 Java 路径以 `src/main/java/com/formacraft/` 为根；Python app 路径以 `python_backend/` 为根。

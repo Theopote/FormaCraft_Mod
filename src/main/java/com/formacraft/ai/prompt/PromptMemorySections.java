@@ -133,7 +133,7 @@ final class PromptMemorySections {
 
         StringBuilder sb = new StringBuilder();
         sb.append("\n=== WORLD MEMORY CONTEXT (CRITICAL - USE FOR REFERENCE) ===\n");
-        sb.append("The following buildings already exist near the build location.\n");
+        sb.append("The following are registered building records in this dimension; location and current state require verification.\n");
         sb.append("IMPORTANT: Use these as reference to ensure architectural consistency, style coherence, and spatial relationships.\n");
         sb.append("Consider: similar materials, complementary styles, appropriate scale, and functional relationships.\n\n");
 
@@ -175,6 +175,13 @@ final class PromptMemorySections {
                 }
             }
 
+            if (b.getMetadata() != null && b.getMetadata().containsKey("build_undo_state")) {
+                sb.append("  Build undo state: ").append(b.getMetadata().get("build_undo_state"))
+                  .append("; restored changed positions: ").append(b.getMetadata().get("build_undo_restored_positions"))
+                  .append("/").append(b.getMetadata().get("build_undo_total_positions")).append("\n");
+                sb.append("  Original bounds and gene describe the generated design, not verified current geometry.\n");
+            }
+
             if (b.getGeneData() != null) {
                 com.formacraft.common.model.build.BuildingSpec spec = b.getGeneData();
                 sb.append("  Gene Summary: ");
@@ -194,7 +201,7 @@ final class PromptMemorySections {
         }
 
         sb.append("IMPORTANT:\n");
-        sb.append("- You MUST treat the above buildings as existing structures.\n");
+        sb.append("- Treat these as recorded designs; undo progress may mean the original design no longer exists in full.\n");
         sb.append("- Only modify them if the user explicitly requests changes.\n");
         sb.append("- When modifying existing buildings, preserve their core identity and style.\n");
         sb.append("- Use anchors to reference specific parts of buildings (e.g., \"main_entrance\").\n");

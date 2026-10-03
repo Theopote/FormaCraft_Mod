@@ -49,6 +49,7 @@ public class BuildExecutionService {
      */
     public void setMemoryManager(MemoryManager memoryManager) {
         this.memoryManager = memoryManager;
+        undoService.setMemoryManager(memoryManager);
     }
     
     /**
@@ -267,16 +268,7 @@ public class BuildExecutionService {
                 if (structure.getOwner() != null) {
                     ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(structure.getOwner());
                     if (owner != null) {
-                        // 只有实际有改动才入 Undo 栈
-                        if (!changes.isEmpty()) {
-                            UndoEntry entry = new UndoEntry(
-                                    world,
-                                    structure.getOrigin(),
-                                    structure.getDescription(),
-                                    changes
-                            );
-                            undoService.pushUndo(owner, entry);
-                        }
+                        String memoryUuid = null;
 
                         FormacraftMod.LOGGER.info("Build task completed: {} — {}",
                                 structure.getDescription(), applyResult.summaryZh());
@@ -310,11 +302,18 @@ public class BuildExecutionService {
                                 );
                                 
                                 if (memory != null) {
+                                    memoryUuid = memory.getUuid();
                                     FormacraftMod.LOGGER.info("Saved building to memory: {} ({})", memory.getName(), memory.getUuid());
                                 }
                             } catch (Exception e) {
                                 FormacraftMod.LOGGER.warn("Failed to save building to memory: {}", e.getMessage());
                             }
+                        }
+
+                        // Failed registration and partial builds still retain their actual block undo.
+                        if (!changes.isEmpty()) {
+                            undoService.pushUndo(owner, new UndoEntry(world, structure.getOrigin(),
+                                structure.getDescription(), changes, memoryUuid));
                         }
 
                         // 给客户端明确的完成提示（含累计跳过统计）
@@ -345,7 +344,7 @@ public class BuildExecutionService {
             BuildExecutionService service = getInstance();
             service.activeTasks.clear();
             service.undoService.clear();
-            service.memoryManager = null;
+            service.setMemoryManager(null);
             com.formacraft.common.patch.history.PatchHistoryManager.clearAll();
         });
         ServerTickEvents.END_WORLD_TICK.register((ServerWorld world) -> BuildExecutionService.getInstance().onWorldTick(world));

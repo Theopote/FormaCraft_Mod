@@ -14,13 +14,21 @@ public class UndoEntry {
     private final BlockPos origin;
     private final String description;
     private final List<BlockChange> changes;
+    private final String memoryUuid;
 
     public UndoEntry(ServerWorld world, BlockPos origin, String description, List<BlockChange> changes) {
+        this(world, origin, description, changes, null);
+    }
+
+    public UndoEntry(ServerWorld world, BlockPos origin, String description, List<BlockChange> changes, String memoryUuid) {
         this.world = world;
         this.origin = origin;
         this.description = description;
         this.changes = List.copyOf(changes);
+        this.memoryUuid = memoryUuid;
     }
+
+    public String getMemoryUuid() { return memoryUuid; }
 
     public ServerWorld getWorld() {
         return world;

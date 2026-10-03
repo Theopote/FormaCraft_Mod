@@ -53,7 +53,11 @@
 - `git diff --check`：通过。
 - 第二轮已修复旧构造/枚举/方法与断言导入错误，compileTestJava 通过。33 处直接 LlmPlan 测试构造调用迁到具名 fixture，避免再次发生位置字段漂移。
 - 定向回归（对齐、Socket、响应协议、自由几何 Prompt、解释器注册、guard、capability_gap、特征传递、锚点规范化）：通过。
-- 第十批最终完整 `check --offline`：355 个测试全部通过，无跳过；check 通过，43 份 assembly 示例、23 份文化卡和 37 个生成器键校验均通过。本批新增 6 个 Memory 维度隔离案例。当前结果与问题分类见 [回归清单](REGRESSION_BASELINE.md)。没有禁用测试或降低失败门槛。
+- 第十一批最终完整 `check --offline`：368 个测试全部通过，无跳过；check 通过，43 份 assembly 示例、23 份文化卡和 37 个生成器键校验均通过。本批新增 13 个撤销记忆/存储案例。当前结果与问题分类见 [回归清单](REGRESSION_BASELINE.md)。没有禁用测试或降低失败门槛。
 - Python 默认解释器缺 fastapi，完整后端回归需安装锁定依赖后运行；本轮不把缺依赖记录成代码测试失败。
 
 尚未执行游戏内验收、模型联网生成、多玩家或真实世界存档回归。本轮不宣称完成全面重构或所有文档的逐篇核查。
+
+## 第十一批补充：记忆存储与普通建造历史
+
+已修复 MemoryStorage 忽略 server、使用进程全局目录的问题。记忆按当前存档目录保存；旧全局目录需要核对归属后人工迁移。普通建造历史关联 registerBuilding 返回 UUID，恢复进度以独立元数据保存，失败可在后续命令重试，不用包围盒推断建筑删除。当前保持 common 历史中的 20 处跨层技术债；Memory 磁盘与世界修改不是原子事务，待保存队列不跨重启持久化。详见 [Memory 契约](../MEMORY_TRANSACTION_CONTRACT.md)。

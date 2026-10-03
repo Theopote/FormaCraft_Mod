@@ -64,7 +64,7 @@ public class MemoryManager {
             ProjectMemory memory = ProjectMemory.fromStructure(structure, spec, name, dimension);
             
             // 保存到磁盘
-            MemoryStorage.saveMemory(server, memory);
+            persistMemory(memory);
             
             // 添加到索引
             spatialIndex.addMemory(memory);
@@ -151,7 +151,7 @@ public class MemoryManager {
         
         try {
             memory.updateLastModified();
-            MemoryStorage.saveMemory(server, memory);
+            persistMemory(memory);
             
             // 更新索引
             spatialIndex.removeMemory(memory.getUuid());
@@ -247,7 +247,7 @@ public class MemoryManager {
         
         // 保存
         try {
-            MemoryStorage.saveMemory(server, memory);
+            persistMemory(memory);
             spatialIndex.addMemory(memory);
             semanticIndex.addMemory(memory);
             return memory;
@@ -257,6 +257,31 @@ public class MemoryManager {
         }
     }
     
+    protected void persistMemory(ProjectMemory memory) throws IOException {
+        MemoryStorage.saveMemory(server, memory);
+    }
+
+    /** Update only the associated build record; never infer demolition from restored block counts. */
+    public boolean recordBuildUndo(BuildUndoMemoryUpdate update) {
+        if (update == null) return false;
+        ProjectMemory memory = getMemory(update.memoryUuid());
+        if (!update.targets(memory)) return false;
+        var previousMetadata = memory.getMetadata();
+        String previousModified = memory.getLastModified();
+        try {
+            memory.setMetadata(update.metadata(memory));
+            memory.updateLastModified();
+            persistMemory(memory);
+            // Bounds, UUID and semantic tags are unchanged; cached indexes already refer to this record.
+            return true;
+        } catch (Exception exception) {
+            memory.setMetadata(previousMetadata);
+            memory.setLastModified(previousModified);
+            FormacraftMod.LOGGER.warn("Failed to persist build undo memory {}", update.memoryUuid(), exception);
+            return false;
+        }
+    }
+
     /**
      * 删除记忆
      */

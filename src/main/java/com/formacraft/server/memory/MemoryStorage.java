@@ -19,16 +19,16 @@ import java.util.List;
  */
 public class MemoryStorage {
     
-    /**
-     * 获取记忆目录路径
-     * 使用运行目录（简化实现，避免版本兼容性问题）
-     * 记忆将保存在运行目录下的 formacraft/memory 文件夹
-     */
+    /** Memory belongs to the active save, never to the shared process working directory. */
     private static Path getMemoryDir(MinecraftServer server) {
-        // 使用运行目录（与 BlueprintStorage 保持一致）
-        return java.nio.file.Paths.get(".").resolve("formacraft/memory");
+        return directoryFor(java.util.Objects.requireNonNull(server, "server")
+            .getSavePath(net.minecraft.util.WorldSavePath.ROOT));
     }
-    
+
+    static Path directoryFor(Path saveRoot) {
+        return java.util.Objects.requireNonNull(saveRoot, "saveRoot").resolve("formacraft").resolve("memory");
+    }
+
     /**
      * 确保记忆目录存在
      */
@@ -55,11 +55,27 @@ public class MemoryStorage {
         Path path = getMemoryDir(server).resolve(fileName);
         
         String json = JsonUtil.toJson(memory);
-        Files.writeString(path, json, StandardCharsets.UTF_8);
+        writeAtomically(path, json);
         
         FormacraftMod.LOGGER.info("Saved memory: {} ({}) to {}", memory.getName(), memory.getUuid(), path);
     }
     
+    /** Replace the complete JSON file; a failed write must not truncate the previous memory. */
+    static void writeAtomically(Path path, String json) throws IOException {
+        Path temporary = Files.createTempFile(path.getParent(), ".memory-", ".tmp");
+        try {
+            Files.writeString(temporary, json, StandardCharsets.UTF_8);
+            try {
+                Files.move(temporary, path, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
+                Files.move(temporary, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
     /**
      * 从文件加载记忆
      */
