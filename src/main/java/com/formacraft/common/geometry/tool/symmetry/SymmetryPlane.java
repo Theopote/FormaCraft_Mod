@@ -23,14 +23,14 @@ public record SymmetryPlane(
         
         return switch (axis) {
             case X -> new BlockPos(
-                    value * 2 - p.getX(),
+                    Math.toIntExact(2L * value - p.getX()),
                     p.getY(),
                     p.getZ()
             );
             case Z -> new BlockPos(
                     p.getX(),
                     p.getY(),
-                    value * 2 - p.getZ()
+                    Math.toIntExact(2L * value - p.getZ())
             );
         };
     }

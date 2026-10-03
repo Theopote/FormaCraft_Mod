@@ -8,11 +8,9 @@ import com.formacraft.common.style.SemanticStyleProfile;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
-import java.util.Set;
 
 /**
  * GeometryModifierPipeline（几何修饰管道）
@@ -103,7 +101,6 @@ public final class GeometryModifierPipeline {
         }
 
         // 2. 应用约束（裁剪不允许的点）
-        Set<BlockPos> finalPositions = new LinkedHashSet<>();
         Map<BlockPos, SemanticPlacementOp> originals = new LinkedHashMap<>();
         
         for (SemanticPlacementOp op : expanded) {
@@ -118,42 +115,23 @@ public final class GeometryModifierPipeline {
                 }
             }
             
-            finalPositions.add(p);
             originals.put(p, op);
         }
 
         // 3. 应用对称处理（如果有）
         if (symmetryProcessor != null) {
-            var mirrored = symmetryProcessor.apply(finalPositions);
-            checkBudget(mirrored.size(), maxOps);
-            var ordered = new LinkedHashSet<>(finalPositions);
-            mirrored.stream().filter(p -> !ordered.contains(p)).sorted(java.util.Comparator
-                    .comparingInt(BlockPos::getX).thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getZ))
-                    .forEach(ordered::add);
-            finalPositions = ordered;
-        }
-
-        // 4. 转换回 SemanticPlacementOp 列表
-        // 重叠位置使用最后一次操作的完整语义；新镜像点仍沿用旧默认语义。
-        List<SemanticPlacementOp> result = new ArrayList<>();
-        for (BlockPos pos : finalPositions) {
-            // 尝试从原始操作中找到对应的语义信息
-            SemanticPlacementOp original = originals.get(pos);
-            if (original != null) {
-                result.add(new SemanticPlacementOp(
-                        pos,
-                        original.facing(),
-                        original.part(),
-                        original.role(),
-                        original.geometry(),
-                        original.tags()
-                ));
-            } else {
-                // 如果没有找到原始操作，创建一个默认的
-                result.add(SemanticPlacementOp.of(pos, com.formacraft.common.semantic.SemanticPart.WALL));
+            // Explicit operations win over generated mirror copies at occupied destinations.
+            for (var original : List.copyOf(originals.values())) {
+                BlockPos pos = symmetryProcessor.mirror(original.pos());
+                if (pos == null || originals.containsKey(pos)) continue;
+                if (constraintPipeline != null && !constraintPipeline.isEmpty() && !constraintPipeline.allow(pos)) continue;
+                checkBudget((long) originals.size() + 1, maxOps);
+                originals.put(pos, new SemanticPlacementOp(pos, symmetryProcessor.mirrorFacing(original.facing()),
+                        original.part(), original.role(), original.geometry(), original.tags()));
             }
         }
 
+        List<SemanticPlacementOp> result = new ArrayList<>(originals.values());
         return result;
     }
 

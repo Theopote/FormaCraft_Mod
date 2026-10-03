@@ -205,3 +205,7 @@ LINEAR_PATH 的语义默认与旧回退路径现在共用 LinearPathLayout，输
 ## 第二十二批修饰阶段预算
 
 SkeletonBuildPipeline 在基础语义生成之后，通过带 maxOps 的 GeometryModifierPipeline 检查累计扩张候选，并在调色板解析前检查最终世界高度。重叠位置使用最后一次完整语义且输出顺序稳定。超限异常进入 PlanProgram 整体失败协议；单修饰器内部内存分配和多骨架累计预算尚未统一。详见 [骨架几何契约](SKELETON_GEOMETRY_CONTRACT.md)。
+
+## 第二十三批全计划预算与镜像
+
+PlanProgram 合并全部骨架时限制累计 200,000 条 patch，包括重复位置与 remove；超限进入整体失败协议。通用几何对称分支改为从源语义生成镜像副本并反射朝向，显式目标优先，镜像点复查约束。主骨架路径仍未传入对称处理器；剩余预算下传和完整方块状态镜像仍待实现。见 [骨架几何契约](SKELETON_GEOMETRY_CONTRACT.md)。

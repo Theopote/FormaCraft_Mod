@@ -33,6 +33,7 @@ import java.util.List;
 public final class PlanProgramCompiler {
 
     private PlanProgramCompiler() {}
+    private static final int MAX_PLAN_PATCHES = 200_000;
 
     public static final class SkeletonCompilationFailure extends IllegalArgumentException {
         private SkeletonCompilationFailure(String message, Throwable cause) { super(message, cause); }
@@ -40,6 +41,12 @@ public final class PlanProgramCompiler {
 
     static List<BlockPatch> mergeSkeletonPatches(List<ExecutableSkeletonPlan> skeletons,
             java.util.function.Function<ExecutableSkeletonPlan, List<BlockPatch>> generate) {
+        return mergeSkeletonPatches(skeletons, generate, MAX_PLAN_PATCHES);
+    }
+
+    static List<BlockPatch> mergeSkeletonPatches(List<ExecutableSkeletonPlan> skeletons,
+            java.util.function.Function<ExecutableSkeletonPlan, List<BlockPatch>> generate, int maxPatches) {
+        if (maxPatches < 0) throw new IllegalArgumentException("Negative plan patch budget");
         List<BlockPatch> merged = new ArrayList<>();
         for (int i = 0; i < skeletons.size(); i++) {
             var skeleton = skeletons.get(i);
@@ -47,6 +54,8 @@ public final class PlanProgramCompiler {
                 if (skeleton == null) throw new IllegalArgumentException("null skeleton");
                 var patches = generate.apply(skeleton);
                 if (patches == null || patches.isEmpty()) throw new IllegalArgumentException("empty skeleton output");
+                if ((long) merged.size() + patches.size() > maxPatches)
+                    throw new IllegalArgumentException("PlanProgram exceeds cumulative patch budget " + maxPatches);
                 for (var patch : patches) {
                     if (com.formacraft.common.patch.BlockPatchTargetResolver.resolve(patch) == null)
                         throw new IllegalArgumentException("invalid skeleton patch");

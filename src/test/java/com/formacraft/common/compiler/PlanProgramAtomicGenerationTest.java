@@ -12,6 +12,26 @@ class PlanProgramAtomicGenerationTest {
     @BeforeAll static void initialize() { MinecraftRegistryTestBootstrap.initialize(); }
     private final ExecutableSkeletonPlan skeleton = new ExecutableSkeletonPlan(SkeletonType.LINEAR_PATH);
     private final List<BlockPatch> valid = List.of(new BlockPatch("place", 0, 0, 0, "minecraft:stone"));
+    @Test void cumulativeBudgetStopsBeforeThirdSkeletonAndRejectsPartialOutput() {
+        var calls = new AtomicInteger();
+        var failure = assertThrows(PlanProgramCompiler.SkeletonCompilationFailure.class, () ->
+            PlanProgramCompiler.mergeSkeletonPatches(List.of(skeleton,skeleton,skeleton), plan -> {
+                calls.incrementAndGet(); return valid;
+            },1));
+        assertEquals(2,calls.get()); assertTrue(failure.getCause().getMessage().contains("cumulative"));
+    }
+    @Test void exactBudgetCountsDuplicatePositionsAndRemove() {
+        var remove = new BlockPatch("remove",0,0,0,null); var calls = new AtomicInteger();
+        assertEquals(List.of(valid.getFirst(),remove),PlanProgramCompiler.mergeSkeletonPatches(List.of(skeleton,skeleton),
+            plan -> calls.incrementAndGet()==1 ? valid : List.of(remove),2));
+        assertThrows(PlanProgramCompiler.SkeletonCompilationFailure.class, () ->
+            PlanProgramCompiler.mergeSkeletonPatches(List.of(skeleton),plan->List.of(valid.getFirst(),valid.getFirst()),1));
+    }
+    @Test void budgetFailureDoesNotReduceRetryBudget() {
+        assertThrows(PlanProgramCompiler.SkeletonCompilationFailure.class, () ->
+            PlanProgramCompiler.mergeSkeletonPatches(List.of(skeleton),plan->valid,0));
+        assertEquals(valid,PlanProgramCompiler.mergeSkeletonPatches(List.of(skeleton),plan->valid,1));
+    }
     @Test void secondFailureRejectsPartialOutputAndStopsLaterGeneration() {
         var calls = new AtomicInteger();
         var failure = assertThrows(PlanProgramCompiler.SkeletonCompilationFailure.class, () ->
