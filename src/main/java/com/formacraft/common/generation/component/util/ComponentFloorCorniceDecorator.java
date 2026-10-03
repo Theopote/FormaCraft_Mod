@@ -74,6 +74,14 @@ public final class ComponentFloorCorniceDecorator {
         return 3;
     }
 
+    /** Global explicit height wins, then this mass's explicit height, then the size heuristic. */
+    public static int resolveFloorHeight(LlmPlan plan, Component mass, int buildingHeight) {
+        int global = plan == null ? 0 : ComponentParamParsers.intParam(plan.proportionHints(), 0, "floor_height", "floorHeight");
+        if (global > 0) return global;
+        int local = mass == null ? 0 : ComponentParamParsers.intParam(mass.params(), 0, "floor_height", "floorHeight");
+        return local > 0 ? local : buildingHeight >= 8 ? 4 : 3;
+    }
+
     /** 每层顶圈 Y（不含屋顶尖），例如 floorHeight=4,height=12 → {3,7,11} */
     public static BitSet computeFloorBoundaryYs(int height, int floorHeight) {
         BitSet ys = new BitSet();

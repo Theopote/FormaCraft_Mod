@@ -23,6 +23,11 @@ public final class DetailRuleYResolver {
         public static BuildingYContext fromBounds(LlmPlan plan, int minY, int maxY) {
             int height = maxY - minY + 1;
             int floorHeight = ComponentFloorCorniceDecorator.resolveFloorHeight(plan, height);
+            return fromBounds(minY, maxY, floorHeight);
+        }
+
+        public static BuildingYContext fromBounds(int minY, int maxY, int floorHeight) {
+            int height = maxY - minY + 1;
             BitSet floorBoundary = ComponentFloorCorniceDecorator.computeFloorBoundaryYs(height, floorHeight);
             BitSet baseTop = new BitSet();
             if (height > 2) {

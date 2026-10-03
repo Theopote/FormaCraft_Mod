@@ -60,7 +60,13 @@ MASS 和 FOUNDATION 默认采用 XZ 中心锚点；Y 始终是起始高度。指
 
 完整楼层的顶圈为 `floorHeight-1 + n*floorHeight`，只要小于建筑高度就保留。例如高度 12、层高 4 的顶圈为 3、7、11；最高完整楼层的顶圈不再被排除。局部内墙和底层不匹配外墙顶圈预设。
 
-DetailRulePostProcessor 当前从有效非空气、非 remove patch 的整体包围盒计算外墙边界和相对 Y。它接收完整批次，并不会从 MASS_MAIN 声明重建缺失的建筑体积；只输入 y=3 的切片，相对高度为零，不等价于整栋建筑的第四层。混合基础、屋顶或多个主体时，整体包围盒仍可能使楼层基准失真；下一步应保留主体/slot 身份，按各自建筑体积应用规则。
+第十二批起，ComponentPlanCompiler 为成功产出非空 patch 的 MASS 主体记录 BuildingVolume，使用预处理后的 min_corner、Dimensions 和 slot.anchor（只加一次）。后处理范围为相对计划的半开区间 [min,max)，匹配外圈时使用 max-1；plan/world anchor 不再次加入该范围。范围不是从基础、飞檐或穹顶的整体包围盒推断。
+
+DetailRulePostProcessor 按每个主体自己的水平边界、底部 Y 和层高应用 FLOOR_BOUNDARY、BASE_TOP、ROOF_EAVE 及局部绝对 Y 规则。层高优先为 plan.proportionHints.floor_height/floorHeight，其次当前主体 params，最后尺寸启发式（高度 >=8 用 4，否则 3）；不会借用计划中另一个主体的层高。ROOF_EAVE 以主体顶层为参考，屋顶尖不参与。位于所有主体之外的位置保持原样；多个主体范围同时包含的位置归属不明，跳过收边，避免依赖组件顺序猜测。
+
+后处理只装饰每个位置最后一条有效候选操作；被随后覆盖/删除的旧 patch 不消耗 2500 次替换预算。无主体元数据的兼容入口仍根据最终非空气操作的包围盒推断，已删除的离群点不影响该包围盒。三参数 PostProcessContext 构造器与 create(plan,anchor) 保留此兼容行为；只输入某层切片时仍无法恢复完整建筑基准。
+
+BuildingVolume 只描述轴对齐主体范围，不携带每条 patch 的生成者身份或真实多边形外边界。同范围内屋顶/基础与主体重叠、切角/曲面边界、STRUCTURE/assembly 缺少 MASS 元数据和后续地形适应仍需继续检查。当前修复的是线脚/收边定位；实体楼板、屋顶逐格覆盖和可通行路径需要独立验收。
 
 P-W-W-W-P 重复单元宽度为 5，当前使用整数中心 `axisMax/2`。宽度 13 的中央单元占 4..8，柱轴为 4、8；进深 10 的中央单元占 3..7，柱轴为 3、7。宽度墙和进深墙必须分别使用各自节奏计划。偶数跨度的整数中心有半格偏置，当前实现不保证绕几何中线严格镜像，后续需明确偶数跨度的对称策略。
 
@@ -81,3 +87,13 @@ ChineseTypologyDetailUtil 使用 Minecraft 坐标方向：SOUTH=+Z、NORTH=-Z、
 ShapeKind 中 dome、hemisphere、half_sphere 使用同一上半球定义：在以包围盒中点为原点的 canonical 空间保留 localY >= -0.25 的椭球体素。默认不是下半球；需要下半球时可绕 X 旋转 180 度。半球底面位于包围盒中部，调用方应考虑这一点，不能直接把它当成从 relativePosition.y 起铺的完整穹顶。
 
 TypologyPatchBridge 将世界位置减去 worldBuildOrigin 后输出局部 patch，方块状态通过 BlockStateStringUtil.fromState 序列化，保留完整属性且稳定排序。不能只存方块 ID，否则倒置楼梯、朝向和含水状态会丢失。缺少 targetState 明确拒绝，不静默变成石头或空气。注册表/序列化错误继续传播，由上层生成失败路径处理。
+
+## 楼梯连续性待办（第十二批审查）
+
+Skeleton 的 StairAssembler 虽然计算 start=origin+offset，但随后用地表高度覆盖 stepY；显式 offsetY 因此不能保证楼层起点。每一级采用 max(baseSurface+i,currentSurface+i)，陡坡可能造成多格跳级；SemanticPlacementOp.of(pos,part) 默认 NORTH，组件的 direction 尚未传入输出朝向。该路径的 steps 也未检查 ctx.maxOps，from/to 参数只是注释约定，没有实际端点解析。下一批应先明确入口台阶与室内层间楼梯的起点、终点和坡度契约，再验证连续踏步、头顶净空、平台与楼板开口。当前未实现此项修复，不能仅因有 STAIR_STEP 输出就认定层间可达。
+
+## 后处理的几何保留（第十二批）
+
+DetailEnhancementPostProcessor 的角柱和腰线补丁仅替换普通墙体候选，保留楼梯、台阶、玻璃、门、栅栏门和铁栏杆。它的占用图按最后操作更新，remove/空气清除位置；基础墙先生成、再开窗或切空的旧记录不会被这些替换装饰填回。通用装饰仍使用整体范围，新增顶檐和每个构件的精确归属需后续核查。
+
+MaterialVariationPostProcessor 只对完整 minecraft:stone_bricks、minecraft:cobblestone、minecraft:deepslate_bricks、minecraft:deepslate_tiles ID 做既有随机变化，不通过子串匹配楼梯/台阶/墙块。这样可以保留形状及 facing、half、waterlogged 等属性；当前没有给形状方块生成对应的苔藓/破损变体。

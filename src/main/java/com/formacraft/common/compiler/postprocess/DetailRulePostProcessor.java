@@ -37,62 +37,80 @@ public class DetailRulePostProcessor implements PostProcessor {
             return patches;
         }
 
-        int minX = Integer.MAX_VALUE;
-        int minY = Integer.MAX_VALUE;
-        int minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int maxY = Integer.MIN_VALUE;
-        int maxZ = Integer.MIN_VALUE;
-
-        for (BlockPatch patch : patches) {
-            if (patch == null || BlockPatch.REMOVE.equals(patch.action())) {
-                continue;
-            }
-            String target = patch.targetBlock();
-            if (target == null || target.isBlank() || "minecraft:air".equals(target)) {
-                continue;
-            }
-            minX = Math.min(minX, patch.dx());
-            minY = Math.min(minY, patch.dy());
-            minZ = Math.min(minZ, patch.dz());
-            maxX = Math.max(maxX, patch.dx());
-            maxY = Math.max(maxY, patch.dy());
-            maxZ = Math.max(maxZ, patch.dz());
+        // Only the last operation at a position can contribute to the final decoration.
+        var lastOperation = new java.util.HashMap<net.minecraft.util.math.BlockPos, Integer>();
+        for (int i = 0; i < patches.size(); i++) {
+            BlockPatch patch = patches.get(i);
+            if (patch != null) lastOperation.put(position(patch), i);
         }
-
-        if (minX == Integer.MAX_VALUE) {
-            return patches;
+        List<Region> regions = new ArrayList<>();
+        for (var volume : context.buildingVolumes()) {
+            var bounds = volume.bounds();
+            regions.add(new Region(bounds.minX(), bounds.minY(), bounds.minZ(), bounds.maxX() - 1,
+                bounds.maxY() - 1, bounds.maxZ() - 1,
+                DetailRuleYResolver.BuildingYContext.fromBounds(bounds.minY(), bounds.maxY() - 1, volume.floorHeight())));
         }
-
-        DetailRuleYResolver.BuildingYContext yCtx =
-                DetailRuleYResolver.BuildingYContext.fromBounds(plan, minY, maxY);
-
+        if (regions.isEmpty()) {
+            // Legacy callers have no mass/slot metadata. Infer only from the effective final solids.
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+            for (int index : lastOperation.values()) {
+                BlockPatch patch = patches.get(index);
+                if (!isSolid(patch)) continue;
+                minX = Math.min(minX, patch.dx()); minY = Math.min(minY, patch.dy()); minZ = Math.min(minZ, patch.dz());
+                maxX = Math.max(maxX, patch.dx()); maxY = Math.max(maxY, patch.dy()); maxZ = Math.max(maxZ, patch.dz());
+            }
+            if (minX == Integer.MAX_VALUE) return patches;
+            regions.add(new Region(minX, minY, minZ, maxX, maxY, maxZ,
+                DetailRuleYResolver.BuildingYContext.fromBounds(plan, minY, maxY)));
+        }
         String styleProfile = plan.styleProfile() != null ? plan.styleProfile() : "MEDIEVAL_CLASSIC";
         Palette palette = PaletteLibrary.forStyle(styleProfile);
-
         List<BlockPatch> out = new ArrayList<>(patches.size());
         int replaced = 0;
-
-        for (BlockPatch patch : patches) {
-            if (patch == null) {
-                continue;
+        for (int i = 0; i < patches.size(); i++) {
+            BlockPatch patch = patches.get(i);
+            if (patch == null) continue;
+            Region region = null;
+            if (isSolid(patch) && lastOperation.get(position(patch)) == i) {
+                for (Region candidate : regions) {
+                    if (!candidate.contains(patch)) continue;
+                    // Overlapping masses have ambiguous ownership: do not guess a facade/floor basis.
+                    if (region != null) { region = null; break; }
+                    region = candidate;
+                }
             }
-            DetailRule matched = replaced < MAX_REPLACEMENTS
-                    ? findMatchingRule(patch, rules, yCtx, minX, maxX, minZ, maxZ, minY)
-                    : null;
+            DetailRule matched = region != null && replaced < MAX_REPLACEMENTS
+                ? findMatchingRule(patch, rules, region.yContext(), region.minX(), region.maxX(),
+                    region.minZ(), region.maxZ(), region.minY()) : null;
             if (matched != null) {
-                String replacement = buildReplacement(matched, patch, palette, minX, maxX, minZ, maxZ);
+                String replacement = buildReplacement(matched, patch, palette,
+                    region.minX(), region.maxX(), region.minZ(), region.maxZ());
                 out.add(new BlockPatch(BlockPatch.REPLACE, patch.dx(), patch.dy(), patch.dz(), replacement));
                 replaced++;
-            } else {
-                out.add(patch);
-            }
+            } else out.add(patch);
         }
-
-        if (replaced > 0) {
-            FormacraftMod.LOGGER.debug("DetailRulePostProcessor: applied {} detail rule replacements", replaced);
-        }
+        if (replaced > 0) FormacraftMod.LOGGER.debug("DetailRulePostProcessor: applied {} detail rule replacements", replaced);
         return out;
+    }
+
+    private record Region(int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+                          DetailRuleYResolver.BuildingYContext yContext) {
+        boolean contains(BlockPatch patch) {
+            return patch.dx() >= minX && patch.dx() <= maxX && patch.dy() >= minY && patch.dy() <= maxY
+                && patch.dz() >= minZ && patch.dz() <= maxZ;
+        }
+    }
+    private static net.minecraft.util.math.BlockPos position(BlockPatch patch) {
+        return new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+    }
+    private static boolean isSolid(BlockPatch patch) {
+        if (patch == null || !(BlockPatch.PLACE.equals(patch.action()) || BlockPatch.REPLACE.equals(patch.action()))) return false;
+        String block = patch.targetBlock();
+        if (block == null || block.isBlank()) return false;
+        int bracket = block.indexOf('[');
+        String base = (bracket < 0 ? block : block.substring(0, bracket)).trim();
+        return !base.equals("minecraft:air") && !base.equals("minecraft:cave_air") && !base.equals("minecraft:void_air");
     }
 
     private static DetailRule findMatchingRule(

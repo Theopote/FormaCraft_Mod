@@ -52,27 +52,27 @@ public class MaterialVariationPostProcessor implements PostProcessor {
     }
 
     private String pickVariation(String blockId, int x, int y, int z) {
-        String lower = blockId.toLowerCase();
+        String lower = blockId.toLowerCase(java.util.Locale.ROOT);
         if (lower.contains("glass") || lower.contains("pane") || lower.contains("air")) {
             return blockId;
         }
         int hash = stableHash(x, y, z);
         int roll = Math.floorMod(hash, 100);
 
-        if (lower.contains("stone_bricks")) {
+        if (lower.equals("minecraft:stone_bricks")) {
             if (roll < 4) return "minecraft:mossy_stone_bricks";
             if (roll < 7) return "minecraft:cracked_stone_bricks";
             return blockId;
         }
-        if (lower.contains("cobblestone")) {
+        if (lower.equals("minecraft:cobblestone")) {
             if (roll < 6) return "minecraft:mossy_cobblestone";
             return blockId;
         }
-        if (lower.contains("deepslate_bricks")) {
+        if (lower.equals("minecraft:deepslate_bricks")) {
             if (roll < 5) return "minecraft:cracked_deepslate_bricks";
             return blockId;
         }
-        if (lower.contains("deepslate_tiles")) {
+        if (lower.equals("minecraft:deepslate_tiles")) {
             if (roll < 4) return "minecraft:cracked_deepslate_tiles";
             return blockId;
         }

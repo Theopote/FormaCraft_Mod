@@ -2,31 +2,37 @@ package com.formacraft.common.compiler.postprocess;
 
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import net.minecraft.util.math.BlockPos;
+import java.util.List;
+import java.util.Objects;
 
-/**
- * PostProcessContext（后处理上下文）
- * 
- * 包含后处理器所需的所有上下文信息
- */
-public record PostProcessContext(
-        /** LLM Plan（包含 styleProfile、globalConstraints 等） */
-        LlmPlan plan,
-        
-        /** 全局 anchor（世界坐标） */
-        BlockPos globalAnchor,
-        
-        /** 相对 anchor（用于相对坐标计算） */
-        Vec3i relativeAnchor
-) {
-    /**
-     * 创建默认上下文
-     */
+/** Post-processing coordinates are local to the plan, including each compiled slot offset once. */
+public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor,
+                                 List<BuildingVolume> buildingVolumes) {
+    public record BuildingVolume(String slotId, ComponentFootprintUtil.Bounds bounds, int floorHeight) {
+        public BuildingVolume {
+            Objects.requireNonNull(bounds);
+            if (bounds.width() <= 0 || bounds.depth() <= 0 || bounds.height() <= 0 || floorHeight <= 0)
+                throw new IllegalArgumentException("Invalid building volume");
+        }
+        public boolean contains(int x, int y, int z) {
+            return x >= bounds.minX() && x < bounds.maxX() && y >= bounds.minY() && y < bounds.maxY()
+                && z >= bounds.minZ() && z < bounds.maxZ();
+        }
+    }
+    public PostProcessContext {
+        buildingVolumes = buildingVolumes == null ? List.of() : List.copyOf(buildingVolumes);
+    }
+    /** Compatibility for direct callers without compiled building metadata. */
+    public PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor) {
+        this(plan, globalAnchor, relativeAnchor, List.of());
+    }
     public static PostProcessContext create(LlmPlan plan, BlockPos globalAnchor) {
-        Vec3i relAnchor = plan.anchor() != null 
-                ? plan.anchor() 
-                : new Vec3i(0, 0, 0);
-        return new PostProcessContext(plan, globalAnchor, relAnchor);
+        return create(plan, globalAnchor, List.of());
+    }
+    public static PostProcessContext create(LlmPlan plan, BlockPos globalAnchor, List<BuildingVolume> volumes) {
+        Vec3i anchor = plan.anchor() != null ? plan.anchor() : new Vec3i(0, 0, 0);
+        return new PostProcessContext(plan, globalAnchor, anchor, volumes);
     }
 }
-

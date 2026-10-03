@@ -157,12 +157,13 @@ public final class ComponentPlanCompiler {
             return result;
         }
 
+        List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         try {
             compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                    slotMap, result);
+                    slotMap, result, buildingVolumes);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             TypologyPatchBridge.clearPlanWorldAnchor();
@@ -173,7 +174,7 @@ public final class ComponentPlanCompiler {
 
         // 后处理步骤
         if (globalAnchor != null) {
-            PostProcessContext context = PostProcessContext.create(plan, globalAnchor);
+            PostProcessContext context = PostProcessContext.create(plan, globalAnchor, buildingVolumes);
             PostProcessPipeline pipeline;
             
             if (applyTerrainAdaptation && world != null && terrainSampler != null) {
@@ -256,7 +257,8 @@ public final class ComponentPlanCompiler {
             List<Component> components,
             Set<String> assemblyFacadeSlots,
             Map<String, Slot> slotMap,
-            List<BlockPatch> result
+            List<BlockPatch> result,
+            List<PostProcessContext.BuildingVolume> buildingVolumes
     ) {
         for (Component c : components) {
             if (c == null) continue;
@@ -297,6 +299,18 @@ public final class ComponentPlanCompiler {
                     }
                     logComponentPatchCount(normalizedType, c, patches.size());
                     com.formacraft.common.llm.dto.Vec3i slotAnchor = slot.anchor();
+                    if (isMassType(normalizedType)) {
+                        var bounds = ComponentFootprintUtil.bounds(c);
+                        if (bounds != null) {
+                            Vec3i offset = slotAnchor == null ? new Vec3i(0, 0, 0) : slotAnchor;
+                            var shifted = new ComponentFootprintUtil.Bounds(bounds.minX() + offset.x(), bounds.minY() + offset.y(),
+                                bounds.minZ() + offset.z(), bounds.maxX() + offset.x(), bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
+                            int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
+                                .resolveFloorHeight(plan, c, shifted.height());
+                            buildingVolumes.add(new PostProcessContext.BuildingVolume(slotKey, shifted, floorHeight));
+                        }
+                    }
+
 
                     if (slotAnchor != null) {
                         for (BlockPatch patch : patches) {

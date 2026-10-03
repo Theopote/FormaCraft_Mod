@@ -46,17 +46,16 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
 
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
-            if (BlockPatch.REMOVE.equals(patch.action())) continue;
-            String target = patch.targetBlock();
-            if (target == null || target.isBlank() || "minecraft:air".equals(target)) continue;
             long key = pack(patch.dx(), patch.dy(), patch.dz());
-            solid.put(key, patch);
-            minX = Math.min(minX, patch.dx());
-            minY = Math.min(minY, patch.dy());
-            minZ = Math.min(minZ, patch.dz());
-            maxX = Math.max(maxX, patch.dx());
-            maxY = Math.max(maxY, patch.dy());
-            maxZ = Math.max(maxZ, patch.dz());
+            String target = patch.targetBlock();
+            if (BlockPatch.REMOVE.equals(patch.action()) || "minecraft:air".equals(target)
+                    || "minecraft:cave_air".equals(target) || "minecraft:void_air".equals(target)) {
+                solid.remove(key);
+            } else if (target != null && !target.isBlank()) solid.put(key, patch);
+        }
+        for (BlockPatch patch : solid.values()) {
+            minX = Math.min(minX, patch.dx()); minY = Math.min(minY, patch.dy()); minZ = Math.min(minZ, patch.dz());
+            maxX = Math.max(maxX, patch.dx()); maxY = Math.max(maxY, patch.dy()); maxZ = Math.max(maxZ, patch.dz());
         }
 
         if (solid.isEmpty()) {
@@ -138,7 +137,9 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             int z = corner[1];
             for (int y = minY; y <= maxY; y++) {
                 long key = pack(x, y, z);
-                if (!solid.containsKey(key)) continue;
+                BlockPatch existing = solid.get(key);
+                if (existing == null || !com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
+                    .isCorniceCandidateBlock(existing.targetBlock())) continue;
                 enhancements.add(new BlockPatch(BlockPatch.REPLACE, x, y, z, accent));
                 if (enhancements.size() > 1500) return;
             }
@@ -164,7 +165,9 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             for (int z = minZ; z <= maxZ; z++) {
                 if (x != minX && x != maxX && z != minZ && z != maxZ) continue;
                 long key = pack(x, beltY, z);
-                if (!solid.containsKey(key)) continue;
+                BlockPatch existing = solid.get(key);
+                if (existing == null || !com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
+                    .isCorniceCandidateBlock(existing.targetBlock())) continue;
                 enhancements.add(new BlockPatch(BlockPatch.REPLACE, x, beltY, z, accent));
                 if (enhancements.size() > 1500) return;
             }
