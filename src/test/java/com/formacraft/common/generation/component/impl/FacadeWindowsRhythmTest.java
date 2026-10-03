@@ -22,10 +22,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FacadeWindowsRhythmTest {
 
     @Test
+    void wrappedFacadeReservesEntranceOnlyOnFacingWall() {
+        for (GlobalConstraints.Facing facing : GlobalConstraints.Facing.values()) {
+            Component component = new Component("FACADE_WINDOWS", null, new Vec3i(-4, 2, 8),
+                    new Dimensions(13, 13, 8), List.of("wrap"),
+                    Map.of("rhythm_preset", "CLASSICAL_PILASTER_BAY", "reserve_entrance_bay", true));
+            Slot slot = new Slot("s", new Vec3i(0, 0, 0), facing, null, null, null);
+            var blocks = com.formacraft.test.PatchTestSnapshot.blocks(new FacadeWindowsGenerator().generate(
+                    new SemanticComponent("FACADE_WINDOWS", slot, component, "DEFAULT")));
+            Vec3i south = new Vec3i(2, 3, 8);
+            Vec3i north = new Vec3i(2, 3, 20);
+            Vec3i east = new Vec3i(-4, 3, 14);
+            Vec3i west = new Vec3i(8, 3, 14);
+            Map<GlobalConstraints.Facing, Vec3i> centers = Map.of(
+                    GlobalConstraints.Facing.SOUTH, south, GlobalConstraints.Facing.NORTH, north,
+                    GlobalConstraints.Facing.EAST, east, GlobalConstraints.Facing.WEST, west);
+            for (var face : centers.entrySet()) {
+                if (face.getKey() == facing) {
+                    assertFalse(blocks.containsKey(face.getValue()), "entrance bay must remain clear on " + facing);
+                } else {
+                    assertTrue(blocks.containsKey(face.getValue()), "other facades must retain center windows");
+                }
+            }
+            assertTrue(blocks.values().stream().allMatch(b -> b.contains("glass") || b.contains("bars")),
+                    "a missing WINDOW palette entry must not produce stone windows");
+        }
+    }
+
+    @Test
     void classicalRhythmPreset_avoidsModuloGridOnWidth13() {
         List<BlockPatch> rhythm = generate(13, 10, Map.of(
                 "window_aspect", "vertical_bay",
-                "rhythm_preset", "CLASSICAL_PILASTER_BAY"
+                "rhythm_preset", "CLASSICAL_PILASTER_BAY",
+                "reserve_entrance_bay", false
         ));
         List<BlockPatch> legacy = generate(13, 10, Map.of(
                 "window_aspect", "square",
@@ -38,6 +67,8 @@ class FacadeWindowsRhythmTest {
         assertTrue(rhythmAxes.contains(7));
         assertFalse(rhythmAxes.contains(0));
         assertFalse(rhythmAxes.contains(12));
+        Set<Integer> legacyAxes = legacy.stream().map(BlockPatch::dx).collect(Collectors.toSet());
+        assertFalse(rhythmAxes.equals(legacyAxes), "bay rhythm should differ from the legacy grid");
     }
 
     @Test

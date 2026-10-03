@@ -1,5 +1,7 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+
 import com.formacraft.common.generation.component.util.ComponentCrownDecorator;
 import com.formacraft.common.generation.component.util.ComponentFoundationEnforcer;
 import com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner;
@@ -627,18 +629,29 @@ public final class ComponentPlanCompiler {
     }
 
     private static Component alignFoundationToMass(Component foundation, Component mass) {
+        // An explicit min_corner is already a placed platform (possibly with margin).
+        // Preserve it; the enforcer extends insufficient coverage without moving it.
+        if (ComponentFootprintUtil.isCornerAnchor(foundation.params())) {
+            return foundation;
+        }
         Vec3i massOrigin = resolveMassOrigin(mass);
         Vec3i fp = foundation.relativePosition();
         if (massOrigin == null || fp == null) {
             return foundation;
         }
+        Map<String, Object> params = new HashMap<>();
+        if (foundation.params() != null) {
+            params.putAll(foundation.params());
+        }
+        // The coordinate has been converted. Never let a generator center it again.
+        params.put("anchor_mode", "min_corner");
         return new Component(
                 foundation.componentType(),
                 foundation.slotId(),
                 new Vec3i(massOrigin.x(), fp.y(), massOrigin.z()),
                 foundation.dimensions(),
                 foundation.features(),
-                foundation.params()
+                params
         );
     }
 
@@ -656,6 +669,7 @@ public final class ComponentPlanCompiler {
             params.putAll(llmRoof.params());
         }
         copyFootprintParams(mass.params(), params);
+        params.put("anchor_mode", "min_corner");
 
         Dimensions templateDims = template.dimensions();
         Dimensions llmDims = llmRoof.dimensions();
@@ -703,6 +717,7 @@ public final class ComponentPlanCompiler {
         if (llmFacade.params() != null) {
             params.putAll(llmFacade.params());
         }
+        params.put("anchor_mode", "min_corner");
 
         Dimensions massDims = mass.dimensions();
         Dimensions llmDims = llmFacade.dimensions();
@@ -919,6 +934,7 @@ public final class ComponentPlanCompiler {
         if (base.params() != null) {
             params.putAll(base.params());
         }
+        params.put("anchor_mode", "min_corner");
         Double ratio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
         if (ratio == null) {
             params.put("window_ratio", 0.25);
@@ -1104,7 +1120,9 @@ public final class ComponentPlanCompiler {
             roofType = resolveDefaultRoofType(plan, base);
         }
         params.put("roof_type", roofType);
-        params.putIfAbsent("roof_height", roofHeight);
+        // The inferred height lives in Dimensions. Do not inject a duplicate
+        // default param that overrides the height of an explicit ROOF component.
+        params.put("anchor_mode", "min_corner");
         applyInferredOverhang(params, roofType, base);
 
         List<String> features = new ArrayList<>();
@@ -1919,26 +1937,7 @@ public final class ComponentPlanCompiler {
     }
 
     private static Vec3i resolveMassOrigin(Component base) {
-        if (base == null) {
-            return null;
-        }
-        Vec3i rp = base.relativePosition();
-        Dimensions dims = base.dimensions();
-        if (rp == null || dims == null) {
-            return rp;
-        }
-        if (isCornerAnchor(base)) {
-            return rp;
-        }
-        int offsetX = -(dims.width() / 2);
-        int offsetZ = -(dims.depth() / 2);
-        return new Vec3i(rp.x() + offsetX, rp.y(), rp.z() + offsetZ);
-    }
-
-    private static boolean isCornerAnchor(Component base) {
-        Map<String, Object> params = base.params();
-        String anchorMode = getParamString(params, "anchor_mode", "anchorMode");
-        return anchorMode != null && anchorMode.toLowerCase(Locale.ROOT).contains("corner");
+        return ComponentFootprintUtil.resolveMinCornerOrigin(base);
     }
 
     private static String resolveAssemblyStyleId(LlmPlan plan, SemanticComponent semantic) {

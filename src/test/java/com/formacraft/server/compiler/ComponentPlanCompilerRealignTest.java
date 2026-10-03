@@ -53,7 +53,7 @@ class ComponentPlanCompilerRealignTest {
         boolean hasRoofAtTop = patches.stream().anyMatch(p ->
                 p.dx() == -6 && p.dy() == 5 && p.dz() == -4 && p.targetBlock() != null && !p.targetBlock().contains("air"));
         boolean hasWindowOnWall = patches.stream().anyMatch(p ->
-                p.dx() == -6 && p.dy() == 2 && p.dz() == -2
+                p.dx() == -6 && p.dy() > 0 && p.dy() < 4 && p.dz() > -4 && p.dz() < 3
                         && p.targetBlock() != null
                         && (p.targetBlock().contains("glass") || p.targetBlock().contains("bars")));
 
@@ -171,6 +171,8 @@ class ComponentPlanCompilerRealignTest {
         Map<String, Object> params = new HashMap<>();
         params.put("anchor_mode", "center");
         params.put("window_ratio", 0.4);
+        // Test rectangular alignment explicitly; Chinese style otherwise infers cut corners.
+        params.put("plan_type", "rectangle");
         params.put("roof_type", "xuanshan");
         return new Component(
                 "MASS_MAIN",

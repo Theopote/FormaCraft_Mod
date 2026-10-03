@@ -73,6 +73,7 @@ flowchart TD
 3. 构建 `SemanticComponent`
 4. **`GenerationHub.generateComponent`** → **`UnifiedGeneratorRouter`**
 5. slot 坐标合并：**BlockPatch 坐标相对 `plan.anchor`**；默认 slot 锚点为 `(0,0,0)`（非绝对世界坐标）
+   构件中心转换、基础覆盖和屋顶连接遵循 [构件坐标契约](COMPONENT_COORDINATE_CONTRACT.md)。
 6. **`PostProcessPipeline`**：细节增强 → 材质变化 →（可选）地形适应
 
 ### 阶段 3 — UnifiedGeneratorRouter 优先级

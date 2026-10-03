@@ -115,18 +115,10 @@ public class MassMainGenerator implements ComponentGenerator {
         
         // ========== 锚点处理：relativePosition 既可能是中心点，也可能是左下角 ==========
         // 默认假设是中心点（LLM prompt），如果 params 指定 anchor_mode=min_corner，则视为左下角
-        Vec3i actualRp = rp;
-        String anchorMode = getParamString(c.params(), "anchor_mode", "anchorMode");
-        boolean useCornerAnchor = anchorMode != null && anchorMode.toLowerCase(Locale.ROOT).contains("corner");
-        if (!useCornerAnchor) {
-            // 中心点 -> 左下角：左下角 = 中心点 - (width/2, 0, depth/2)
-            int offsetX = -(width / 2);
-            int offsetZ = -(depth / 2);
-            actualRp = new Vec3i(rp.x() + offsetX, rp.y(), rp.z() + offsetZ);
-            if (rp.x() != actualRp.x() || rp.z() != actualRp.z()) {
-                FormacraftMod.LOGGER.debug("MassMainGenerator: converted center anchor {} to bottom-left origin {} (size: {}x{})",
-                        rp, actualRp, width, depth);
-            }
+        Vec3i actualRp = com.formacraft.common.generation.component.util.ComponentFootprintUtil.resolveMinCornerOrigin(c);
+        if (!rp.equals(actualRp)) {
+            FormacraftMod.LOGGER.debug("MassMainGenerator: converted center anchor {} to bottom-left origin {} (size: {}x{})",
+                    rp, actualRp, width, depth);
         }
         
         Map<String, Object> params = c.params();

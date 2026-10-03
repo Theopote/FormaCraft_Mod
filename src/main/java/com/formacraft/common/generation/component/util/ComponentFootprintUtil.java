@@ -91,8 +91,8 @@ public final class ComponentFootprintUtil {
         if (isCornerAnchor(component.params())) {
             return rp;
         }
-        int offsetX = -(dims.width() / 2);
-        int offsetZ = -(dims.depth() / 2);
+        int offsetX = -(Math.max(1, dims.width()) / 2);
+        int offsetZ = -(Math.max(1, dims.depth()) / 2);
         return new Vec3i(rp.x() + offsetX, rp.y(), rp.z() + offsetZ);
     }
 

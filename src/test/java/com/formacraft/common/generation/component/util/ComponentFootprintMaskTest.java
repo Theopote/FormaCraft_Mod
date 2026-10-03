@@ -40,7 +40,7 @@ class ComponentFootprintMaskTest {
                 "ROOF",
                 "villa_1",
                 new Vec3i(0, 5, 0),
-                new Dimensions(10, 3, 10),
+                new Dimensions(10, 10, 3),
                 List.of(),
                 params
         );

@@ -294,7 +294,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         }
         
         // 3. 回退到传统 Palette
-        if (palette != null) {
+        if (palette != null && palette.has(part)) {
             String block = palette.pick(part);
             if (block != null && !block.isEmpty()) {
                 return block;
@@ -350,7 +350,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
     private boolean isEntranceFacade(int x, int z, int width, int depth,
                                      com.formacraft.common.llm.dto.GlobalConstraints.Facing facing,
                                      boolean wrapFacade) {
-        return isFacadePosition(x, z, width, depth, facing, wrapFacade);
+        // Wrapping creates four facades, but only the primary face has an entrance.
+        return isFacadePosition(x, z, width, depth, facing, false);
     }
 
     private boolean isFacadePosition(int x, int z, int width, int depth,

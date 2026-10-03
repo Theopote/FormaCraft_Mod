@@ -52,8 +52,11 @@ public class RoofGenerator implements ComponentGenerator {
         RoofType roofType = resolveRoofType(c, semantic, params);
         int roofHeight = ComponentParamParsers.intParam(params, "roof_height", "roofHeight", "roofHeightBlocks");
         if (roofHeight <= 0) {
-            int span = Math.max(2, Math.min(width, depth));
-            roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
+            roofHeight = d.height();
+            if (roofHeight <= 0) {
+                int span = Math.max(2, Math.min(width, depth));
+                roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
+            }
         }
         height = roofHeight;
 
@@ -347,7 +350,9 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateFlatRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                   int width, int depth, int height, Palette palette,
                                   ComponentFootprintMask footprint, int overhang) {
-        int topY = height - 1;
+        // A flat roof is a plate at its attachment plane, not a floating sheet
+        // lifted by the pitched-roof height budget.
+        int topY = 0;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
