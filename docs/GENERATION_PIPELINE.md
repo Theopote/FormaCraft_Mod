@@ -201,3 +201,7 @@ PlanProgramCompiler 经 SkeletonExecutors 调用骨架生成服务时，任一�
 ## 第二十一批道路路由一致性
 
 LINEAR_PATH 的语义默认与旧回退路径现在共用 LinearPathLayout，输出恰好请求宽度并使用相同高度策略。conformTerrain 仍优先于显式 STEP_UP/SLOPE；预算及世界高度越界拒绝整条道路。几何修饰器后续扩张预算和真实楼梯/净空尚未接入，不能据此宣称 PlanProgram 已建立通行约束。详见 [道路布局契约](LINEAR_PATH_CONTRACT.md)。
+
+## 第二十二批修饰阶段预算
+
+SkeletonBuildPipeline 在基础语义生成之后，通过带 maxOps 的 GeometryModifierPipeline 检查累计扩张候选，并在调色板解析前检查最终世界高度。重叠位置使用最后一次完整语义且输出顺序稳定。超限异常进入 PlanProgram 整体失败协议；单修饰器内部内存分配和多骨架累计预算尚未统一。详见 [骨架几何契约](SKELETON_GEOMETRY_CONTRACT.md)。

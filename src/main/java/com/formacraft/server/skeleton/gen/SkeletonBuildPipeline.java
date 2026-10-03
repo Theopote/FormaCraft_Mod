@@ -49,10 +49,20 @@ public final class SkeletonBuildPipeline {
 
         // 2. 应用几何修饰器（如果有风格配置）
         SemanticStyleProfile style = SemanticStyleProfileRegistry.getOrDefault(paletteId);
-        List<SemanticPlacementOp> expandedOps = GeometryModifierPipeline.applyModifiers(baseOps, style);
+        List<SemanticPlacementOp> expandedOps = prepareSemanticOps(ctx, baseOps, style);
 
         // 3. 解析为 BlockPatch（使用 BlockState 解析器）
         return SemanticBlockStateResolver.resolveToPatches(patchOrigin, expandedOps, paletteId, ctx.random);
     }
+    static List<SemanticPlacementOp> prepareSemanticOps(GenerationContext ctx,
+            List<SemanticPlacementOp> baseOps, SemanticStyleProfile style) {
+        List<SemanticPlacementOp> expanded = GeometryModifierPipeline.applyModifiers(baseOps, style, ctx.maxOps);
+        for (var op : expanded) {
+            if (op.pos().getY() < ctx.getBottomY() || op.pos().getY() >= ctx.getTopYExclusive())
+                throw new IllegalArgumentException("Geometry expansion exceeds world height");
+        }
+        return expanded;
+    }
+
 }
 

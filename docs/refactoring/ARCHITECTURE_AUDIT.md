@@ -103,3 +103,7 @@ StructureGenerationResult 显式保存结构和不可变世界通行要求，在
 ## 第二十一批补充：共用道路几何
 
 语义默认路由和旧 LINEAR_PATH 回退路由改用 LinearPathLayout，消除重复宽度/高度算法，保留各自状态与边饰输出。生成前预算检查取代旧路径截断；高度按实际世界底界与高度尺寸计算顶界。472 个 Java 测试与完整 check 通过，架构仍为 20 处既有技术债、0 新增。共用布局只统一几何，不构成通行保证；后续几何修饰器预算与楼梯产出仍需处理。见 [道路布局契约](../LINEAR_PATH_CONTRACT.md)。
+
+## 第二十二批补充：骨架修饰阶段边界
+
+GeometryModifierPipeline 提供带预算接口，主 SkeletonBuildPipeline 使用它并检查最终高度。覆盖语义按同位置最后操作，输出次序稳定，位置索引消除逐点查找。旧通用接口兼容；主路径不使用对称分支，镜像点默认 WALL 与朝向转换仍是技术债。478 个 Java 测试及完整 check 通过，架构仍为 20 处已登记技术债、0 新增。详见 [骨架几何契约](../SKELETON_GEOMETRY_CONTRACT.md)。

@@ -8,7 +8,9 @@ import com.formacraft.common.style.SemanticStyleProfile;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 
@@ -39,7 +41,12 @@ public final class GeometryModifierPipeline {
             List<SemanticPlacementOp> baseOps,
             SemanticStyleProfile style
     ) {
-        return applyModifiersAndConstraints(baseOps, style, null, null);
+        return applyModifiers(baseOps, style, Integer.MAX_VALUE);
+    }
+
+    public static List<SemanticPlacementOp> applyModifiers(List<SemanticPlacementOp> baseOps,
+            SemanticStyleProfile style, int maxOps) {
+        return applyModifiersAndConstraints(baseOps, style, null, null, maxOps);
     }
 
     /**
@@ -57,6 +64,13 @@ public final class GeometryModifierPipeline {
             GeometryConstraintPipeline constraintPipeline,
             SymmetryProcessor symmetryProcessor
     ) {
+        return applyModifiersAndConstraints(baseOps, style, constraintPipeline, symmetryProcessor, Integer.MAX_VALUE);
+    }
+
+    public static List<SemanticPlacementOp> applyModifiersAndConstraints(
+            List<SemanticPlacementOp> baseOps, SemanticStyleProfile style,
+            GeometryConstraintPipeline constraintPipeline, SymmetryProcessor symmetryProcessor, int maxOps) {
+        if (maxOps < 0) throw new IllegalArgumentException("Negative geometry operation budget");
         if (baseOps == null || baseOps.isEmpty()) {
             return List.of();
         }
@@ -73,18 +87,24 @@ public final class GeometryModifierPipeline {
                 
                 if (modifier != null) {
                     // 应用修饰器，扩展为多个点
-                    expanded.addAll(modifier.apply(base));
+                    List<SemanticPlacementOp> additions = modifier.apply(base);
+                    if (additions == null) throw new IllegalArgumentException("Geometry modifier returned null");
+                    checkBudget((long) expanded.size() + additions.size(), maxOps);
+                    expanded.addAll(additions);
                 } else {
                     // 没有修饰器，直接添加原始操作
+                    checkBudget((long) expanded.size() + 1, maxOps);
                     expanded.add(base);
                 }
             }
         } else {
+            checkBudget(baseOps.size(), maxOps);
             expanded.addAll(baseOps);
         }
 
         // 2. 应用约束（裁剪不允许的点）
-        Set<BlockPos> finalPositions = new HashSet<>();
+        Set<BlockPos> finalPositions = new LinkedHashSet<>();
+        Map<BlockPos, SemanticPlacementOp> originals = new LinkedHashMap<>();
         
         for (SemanticPlacementOp op : expanded) {
             if (op == null || op.pos() == null) continue;
@@ -99,20 +119,26 @@ public final class GeometryModifierPipeline {
             }
             
             finalPositions.add(p);
+            originals.put(p, op);
         }
 
         // 3. 应用对称处理（如果有）
         if (symmetryProcessor != null) {
-            finalPositions = symmetryProcessor.apply(finalPositions);
+            var mirrored = symmetryProcessor.apply(finalPositions);
+            checkBudget(mirrored.size(), maxOps);
+            var ordered = new LinkedHashSet<>(finalPositions);
+            mirrored.stream().filter(p -> !ordered.contains(p)).sorted(java.util.Comparator
+                    .comparingInt(BlockPos::getX).thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getZ))
+                    .forEach(ordered::add);
+            finalPositions = ordered;
         }
 
         // 4. 转换回 SemanticPlacementOp 列表
-        // 注意：这里简化处理，只保留位置信息
-        // 实际应用中可能需要保留更多的语义信息
+        // 重叠位置使用最后一次操作的完整语义；新镜像点仍沿用旧默认语义。
         List<SemanticPlacementOp> result = new ArrayList<>();
         for (BlockPos pos : finalPositions) {
             // 尝试从原始操作中找到对应的语义信息
-            SemanticPlacementOp original = findOriginalOp(expanded, pos);
+            SemanticPlacementOp original = originals.get(pos);
             if (original != null) {
                 result.add(new SemanticPlacementOp(
                         pos,
@@ -131,16 +157,7 @@ public final class GeometryModifierPipeline {
         return result;
     }
 
-    /**
-     * 从扩展后的操作列表中找到对应位置的原始操作
-     */
-    private static SemanticPlacementOp findOriginalOp(List<SemanticPlacementOp> ops, BlockPos pos) {
-        for (SemanticPlacementOp op : ops) {
-            if (op != null && op.pos() != null && op.pos().equals(pos)) {
-                return op;
-            }
-        }
-        return null;
+    private static void checkBudget(long count, int maxOps) {
+        if (count > maxOps) throw new IllegalArgumentException("Geometry expansion exceeds operation budget");
     }
 }
-
