@@ -302,10 +302,15 @@ public final class MetaAssemblyEngine {
         List<PlannedBlock> out = new ArrayList<>();
         if (spec == null || ctx == null || ctx.world == null || ctx.origin == null) return out;
         Deque<BlockPos> originStack = new ArrayDeque<>();
+        List<AssemblyCirculationConstraints.Flight> flights = new ArrayList<>();
         BlockPos curOrigin = ctx.origin;
         for (Map<String, Object> op : spec.ops) {
+            int start = out.size();
             curOrigin = applyOp(out, ctx, originStack, curOrigin, op);
+            if (op != null && "STAIR_SYSTEM".equalsIgnoreCase(str(op.get("op"), "")))
+                flights.add(AssemblyCirculationConstraints.capture(out, start));
         }
+        AssemblyCirculationConstraints.validate(out, flights);
         return out;
     }
 

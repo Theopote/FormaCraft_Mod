@@ -22,7 +22,8 @@ import com.formacraft.server.assembly.preset.AssemblyPresetApplier;
 import com.formacraft.server.assembly.validation.AssemblySpecValidator;
 import com.formacraft.server.assembly.validation.AssemblyValidationRepairHints;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
-import net.minecraft.registry.Registries;
+import com.formacraft.common.component.transform.BlockStateStringUtil;
+import com.formacraft.server.assembly.AssemblyCirculationConstraints;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -135,10 +136,16 @@ public final class AssemblyPatchGenerator {
         String paletteId = resolvePaletteId(semantic, component.params(), spec.paletteId);
 
         MetaAssemblyEngine engine = new MetaAssemblyEngine();
-        List<PlannedBlock> blocks = engine.execute(
+        List<PlannedBlock> blocks;
+        try {
+            blocks = engine.execute(
                 spec,
                 new MetaAssemblyEngine.Context(world, origin, entrance, paletteId)
-        );
+            );
+        } catch (AssemblyCirculationConstraints.Conflict conflict) {
+            return fail("E_ASSEMBLY_CIRCULATION_CONFLICT", conflict.getMessage(),
+                    "components[].params.assembly", List.of("Separate conflicting flights and landings; generate shell/floors before stairs."));
+        }
         if (blocks.isEmpty()) {
             return fail("E_ASSEMBLY_EMPTY_OUTPUT",
                     "MetaAssemblyEngine produced zero blocks for ASSEMBLY component",
@@ -149,19 +156,25 @@ public final class AssemblyPatchGenerator {
                     ));
         }
 
+        List<BlockPatch> out = toPatches(blocks);
+
+        FormacraftMod.LOGGER.info("AssemblyPatchGenerator: generated {} patches for ASSEMBLY component", out.size());
+        return GenerateResult.ok(out);
+    }
+
+    static List<BlockPatch> toPatches(List<PlannedBlock> blocks) {
         List<BlockPatch> out = new ArrayList<>(blocks.size());
         for (PlannedBlock pb : blocks) {
             if (pb == null || pb.getPos() == null || pb.getTargetState() == null) {
                 continue;
             }
             BlockPos pos = pb.getPos();
-            String blockId = Registries.BLOCK.getId(pb.getTargetState().getBlock()).toString();
+            String blockId = BlockStateStringUtil.fromState(pb.getTargetState());
             String action = pb.getTargetState().isAir() ? BlockPatch.REMOVE : BlockPatch.PLACE;
             out.add(new BlockPatch(action, pos.getX(), pos.getY(), pos.getZ(), blockId));
         }
 
-        FormacraftMod.LOGGER.info("AssemblyPatchGenerator: generated {} patches for ASSEMBLY component", out.size());
-        return GenerateResult.ok(out);
+        return out;
     }
 
     private static GenerateResult fail(String code, String message, String path, List<String> suggestions) {

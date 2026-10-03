@@ -14,6 +14,8 @@ MetaAssemblyEngine 将 SHELL_BOX 委托给 AssemblyShellOps，复用现有材质
 
 MetaAssemblyCompiler 按 components 输入次序生成操作，随后输出 connections；MetaAssemblyEngine 按 ops 顺序执行。当前没有主体、洞口、楼梯的全局依赖排序。需要先生成主体和楼板，再生成 STAIR_SYSTEM；后者逐列写入踏面、支撑和请求的空气范围，切开已有楼板。后续任何覆盖操作都可能重新封住洞口或删除梯段。
 
+第十五批起，同一 assembly 完成全部操作后复查楼梯占用和请求的净空；被挖掉或被填回时明确拒绝结果。这个检查不自动修复顺序，也不覆盖其他构件/后处理对该 assembly 的后续覆盖，详见 [组合最终检查](STAIR_CIRCULATION_CONTRACT.md)。
+
 例如以下局部组合连接 y=0 与 y=4 楼板，终点东侧 x=1 的既有楼板作为上层接续踏面。它没有自动创建独立平台或栏杆，也没有连接 y=8：
 
 ```json

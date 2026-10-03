@@ -73,16 +73,22 @@ class AssemblyShellOpsTest {
         var origin = new BlockPos(-30, 64, 20); var direction = Direction.valueOf(facing);
         var ctx = new MetaAssemblyEngine.Context(null, origin, direction, null);
         var out = new ArrayList<PlannedBlock>(); var stack = new ArrayDeque<BlockPos>(); var current = origin;
+        var flights = new ArrayList<AssemblyCirculationConstraints.Flight>();
         // Exercise real graph emission and production geometry without a ServerWorld.
         for (var op : spec.ops) {
             switch (op.get("op").toString()) {
                 case "PUSH_ORIGIN" -> { stack.push(current); current = current.add(adapter.i(op.get("dx"), 0), adapter.i(op.get("dy"), 0), adapter.i(op.get("dz"), 0)); }
                 case "POP_ORIGIN" -> current = stack.pop();
                 case "SHELL_BOX" -> AssemblyShellOps.applyShellBox(out, ctx, current, op, adapter);
-                case "STAIR_SYSTEM" -> AssemblyCirculationOps.applyStairSystem(out, ctx, current, op, adapter);
+                case "STAIR_SYSTEM" -> {
+                    int start = out.size();
+                    AssemblyCirculationOps.applyStairSystem(out, ctx, current, op, adapter);
+                    flights.add(AssemblyCirculationConstraints.capture(out, start));
+                }
                 default -> fail("Unexpected compiled operation: " + op);
             }
         }
+        assertDoesNotThrow(() -> AssemblyCirculationConstraints.validate(out, flights));
         var result = snapshot(out);
         for (int x = -3; x <= 0; x++) for (int z : new int[]{-1, 0}) {
             int y = x + 4;

@@ -2,6 +2,8 @@
 
 更新：2026-10-03，第十三批。本文描述已经接线的入口，并区分生成回归与真实通行验收。
 
+第十五批补充：同一 assembly 的楼梯组合最终检查与 ASSEMBLY 构件完整状态桥接。
+
 ## 实际入口
 
 assembly 的 STAIR_SYSTEM 经 AssemblyComponentEmitter / MetaAssemblyEngine 调用 AssemblyCirculationOps。ops 与组件图校验都拒绝不合法端点和坡度，组件别名为 STAIRS_SYSTEM、STAIRCASE。from/to 必须包含整数 x/y/z，表示局部踏面方块坐标；位置与楼梯朝向一起按 assembly 入口方向旋转，再加世界原点。
@@ -23,3 +25,13 @@ StairAssembler 目前只有注册，没有主流程调用。该旧 API 已修复
 AssemblyCirculationOpsTest 验证精确宽度、两端踏面、升降/缓坡、旋转、支撑与挖空、非法路线及两种规划入口校验。SemanticBlockStateResolverTest 经真实 PatchExecutor 与可控方块访问验证完整属性落地；StairAssemblerTest 验证旧 API 的偏移、地形和预算。它们没有启动真实游戏世界。
 
 第十四批已修复 assembly SHELL_BOX 最后清空内部删除楼板的问题，并验证先主体、后楼梯的洞口与上层踏面组合，见 [箱体楼板契约](SHELL_FLOOR_CONTRACT.md)。其他生成器、自动楼层入口/平台连接、构件依赖排序以及头顶碰撞、邻居更新、存档与玩家实际通行仍待检查。楼梯不能仅靠单个部件的局部测试认定可用。
+
+## 同一 assembly 的最终组合检查（第十五批）
+
+MetaAssemblyEngine 为每个 STAIR_SYSTEM 捕获实际输出的世界坐标：非空气位置为踏面/请求支撑的占用要求，空气位置为请求的净空要求。所有 ops 完成后，AssemblyCirculationConstraints 按最后操作复查这些位置。占用变空气，或净空被非空气填回时，抛出包含梯段编号、世界位置和原因的 Conflict，生成阶段拒绝结果，不向世界写入。只检查最终结果，暂时覆盖后恢复不算冲突。
+
+这能识别上下梯段过近、后一梯段挖掉前一梯段、晚生成楼板封住净空等问题；不自动排序、移动梯段或补平台。carve=false 不登记净空要求，support=false 不登记额外支撑要求。重复兼容梯段允许。ASSEMBLY 构件入口将 Conflict 转为 E_ASSEMBLY_CIRCULATION_CONFLICT 的 capability gap；整栋 MetaAssemblyGenerator 入口继续传播失败。
+
+校验只比较空气/非空气，不验证非空气是否是合适的踏面、方向是否匹配、碰撞形状是否可走，也不建立完整楼层可达图。单次 assembly 之外的后处理、其他 ASSEMBLY 构件和后续世界改动仍可能破坏结果。它不会读取未生成位置的真实世界状态，因此不能替代全局通行验收。
+
+ASSEMBLY 构件的 PlannedBlock → BlockPatch 转换现在使用 BlockStateStringUtil.fromState，保留楼梯 facing/half/shape/waterlogged、半砖类型和原木轴向，不再只保存方块 ID。坐标及操作顺序保持既有契约，空气仍输出 remove。AssemblyPatchStateTest 经真实 PatchExecutor 和可控访问验证属性与偏移落地；AssemblyCirculationConstraintsTest 验证冲突、合法平台组合、最终状态、方向与禁用选项，箱体组合回归也执行最终检查。没有启动真实 ServerWorld。
