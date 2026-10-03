@@ -8,6 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class PaletteLibraryTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void initializeRegistries() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+    }
+
 
     @Test
     void forStyle_fuzzyMatchesUnknownProfiles() {

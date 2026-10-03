@@ -105,6 +105,12 @@
 | [assembly/ASSET_LIBRARY_DESIGN.md](assembly/ASSET_LIBRARY_DESIGN.md) | 预制件库四维分类（演进参考） |
 | [assembly/CULTURE_CARDS.md](assembly/CULTURE_CARDS.md) | 文化知识 schema |
 
+### 测试与验收
+
+| 文档 | 用途 |
+|---|---|
+| [TESTING_AND_BUILDING_ACCEPTANCE.md](TESTING_AND_BUILDING_ACCEPTANCE.md) | Fabric JUnit、完整检查与下一轮建筑验收顺序 |
+
 ### 地标与参数化建筑类型
 
 | 目录 | 用途 |

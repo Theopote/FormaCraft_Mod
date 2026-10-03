@@ -75,3 +75,9 @@ P-W-W-W-P 重复单元宽度为 5，当前使用整数中心 `axisMax/2`。宽�
 ChineseTypologyDetailUtil 使用 Minecraft 坐标方向：SOUTH=+Z、NORTH=-Z、EAST=+X、WEST=-X，与前述立面“面对墙面”的识别含义不同。轴向查询已经带符号，调用方不能再重复取负。
 
 八面索引为 SOUTH、东南、EAST、东北、NORTH、西北、WEST、西南；index+4 为对面，支持负索引及八步循环。斜面凹龛取切角边界附近的整数点，必须位于八边形轮廓边缘。第五批修复此前四个轴面加四个角点的非循环顺序、重复取负及斜面落在轮廓外的问题。该变化会调整密檐塔各层凹龛位置，仍需游戏内检查凹龛与斗拱/檐层的组合效果。
+
+## 半球原语与状态桥接
+
+ShapeKind 中 dome、hemisphere、half_sphere 使用同一上半球定义：在以包围盒中点为原点的 canonical 空间保留 localY >= -0.25 的椭球体素。默认不是下半球；需要下半球时可绕 X 旋转 180 度。半球底面位于包围盒中部，调用方应考虑这一点，不能直接把它当成从 relativePosition.y 起铺的完整穹顶。
+
+TypologyPatchBridge 将世界位置减去 worldBuildOrigin 后输出局部 patch，方块状态通过 BlockStateStringUtil.fromState 序列化，保留完整属性且稳定排序。不能只存方块 ID，否则倒置楼梯、朝向和含水状态会丢失。缺少 targetState 明确拒绝，不静默变成石头或空气。注册表/序列化错误继续传播，由上层生成失败路径处理。

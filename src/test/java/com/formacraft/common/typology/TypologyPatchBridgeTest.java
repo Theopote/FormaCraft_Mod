@@ -17,6 +17,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class TypologyPatchBridgeTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void initializeRegistries() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+    }
+
 
     @AfterEach
     void clearAnchor() {
@@ -53,5 +58,30 @@ class TypologyPatchBridgeTest {
         assertEquals(23, patches.get(0).dx());
         assertEquals(1, patches.get(0).dy());
         assertEquals(0, patches.get(0).dz());
+        assertEquals("minecraft:stone", patches.get(0).targetBlock());
+    }
+    @Test
+    void preservesStairFacingHalfAndWaterloggedProperties() {
+        var state = Blocks.OAK_STAIRS.getDefaultState()
+                .with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, net.minecraft.util.math.Direction.WEST)
+                .with(net.minecraft.state.property.Properties.BLOCK_HALF, net.minecraft.block.enums.BlockHalf.TOP)
+                .with(net.minecraft.state.property.Properties.WATERLOGGED, true);
+        BlockPos origin = new BlockPos(-10, 64, 20);
+        var structure = new GeneratedStructure(null, origin, "test",
+                List.of(new PlannedBlock(origin.add(-2, 3, 4), state)));
+        var patch = TypologyPatchBridge.toBlockPatches(structure, origin).getFirst();
+        assertEquals(-2, patch.dx());
+        assertEquals(3, patch.dy());
+        assertEquals(4, patch.dz());
+        assertEquals("minecraft:oak_stairs[facing=west,half=top,shape=straight,waterlogged=true]",
+                patch.targetBlock());
+    }
+
+    @Test
+    void missingTargetStateIsRejectedInsteadOfBecomingStoneOrAir() {
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "test",
+                List.of(new PlannedBlock(BlockPos.ORIGIN, null)));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> TypologyPatchBridge.toBlockPatches(structure, BlockPos.ORIGIN));
     }
 }

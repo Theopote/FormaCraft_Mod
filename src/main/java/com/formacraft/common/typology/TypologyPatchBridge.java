@@ -4,7 +4,7 @@ import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.patch.BlockPatch;
-import net.minecraft.registry.Registries;
+import com.formacraft.common.component.transform.BlockStateStringUtil;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -61,16 +61,11 @@ public final class TypologyPatchBridge {
         List<BlockPatch> patches = new ArrayList<>();
         for (PlannedBlock block : structure.getBlocks()) {
             if (block == null || block.getPos() == null) continue;
-            BlockPos relative = block.getPos().subtract(worldAnchor);
-            String blockId = "minecraft:stone";
-            try {
-                var key = Registries.BLOCK.getKey(block.getTargetState().getBlock());
-                if (key.isPresent()) {
-                    blockId = key.get().getValue().toString();
-                }
-            } catch (Exception ignored) {
-                // keep fallback
+            if (block.getTargetState() == null) {
+                throw new IllegalArgumentException("Typology planned block has no target state at " + block.getPos());
             }
+            BlockPos relative = block.getPos().subtract(worldAnchor);
+            String blockId = BlockStateStringUtil.fromState(block.getTargetState());
             patches.add(new BlockPatch(
                     BlockPatch.PLACE,
                     relative.getX(),

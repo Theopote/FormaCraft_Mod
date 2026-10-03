@@ -67,15 +67,29 @@ class ShapeLibraryTest {
     }
 
     @Test
-    void hemisphere_onlyLowerHalf() {
+    void hemisphere_isUpperDome() {
         ShapeSpec spec = ShapeSpec.fromParams(12, 12, 12, Map.of("kind", "hemisphere", "radius", 5));
         List<ShapeLibrary.Voxel> full = ShapeLibrary.generate(
                 ShapeSpec.fromParams(12, 12, 12, Map.of("kind", "sphere", "radius", 5)));
         List<ShapeLibrary.Voxel> half = ShapeLibrary.generate(spec);
         assertTrue(half.size() < full.size());
         for (ShapeLibrary.Voxel v : half) {
-            assertTrue(v.y() <= spec.halfY() + 0.5);
+            assertTrue(v.y() >= spec.halfY() - 0.25);
         }
+    }
+
+    @Test
+    void hemisphereCanBeRotatedIntoLowerHalf() {
+        var upper = new HashSet<>(ShapeLibrary.generate(ShapeSpec.fromParams(11, 11, 11,
+                Map.of("kind", "dome", "radius", 5))));
+        var lower = new HashSet<>(ShapeLibrary.generate(ShapeSpec.fromParams(11, 11, 11,
+                Map.of("kind", "hemisphere", "radius", 5, "rotation_x_deg", 180))));
+        assertTrue(!upper.isEmpty());
+        assertEquals(upper.size(), lower.size());
+        for (var v : upper) {
+            assertTrue(lower.contains(new ShapeLibrary.Voxel(v.x(), 10 - v.y(), 10 - v.z())));
+        }
+        assertTrue(lower.stream().allMatch(v -> v.y() <= 5));
     }
 
     @Test

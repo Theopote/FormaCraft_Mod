@@ -29,6 +29,8 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 
 路由修改先阅读 [地标与建筑类型契约](ROUTING_AND_TYPOLOGY_CONTRACT.md)，避免按旧模块目录恢复已迁移的固定模板。
 
+验证细节和下一轮检查顺序见 [测试与建筑验收](TESTING_AND_BUILDING_ACCEPTANCE.md)。
+
 ## 本地验证
 
 仓库根执行 `python scripts/test_check_architecture.py`、`python scripts/check_architecture.py` 和 Windows `./gradlew.bat check`（Unix 用 `./gradlew check`）。使用仓库 Wrapper，不依赖机器上的 Gradle 版本。
