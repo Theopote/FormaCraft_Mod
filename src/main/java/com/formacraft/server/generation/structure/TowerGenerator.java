@@ -37,6 +37,7 @@ public class TowerGenerator implements StructureGenerator {
         int radius = Math.max(3, spec.getFootprint() != null ? spec.getFootprint().getRadius() : 6);
         int height = Math.max(8, spec.getHeight());
         int floors = Math.max(1, spec.getFloors());
+        if (floors > height / 3) throw new IllegalArgumentException("Tower floors require at least 3 blocks per floor");
 
         // 获取材质
         BlockState wall = getState(world, spec.getMaterials() != null ? spec.getMaterials().getWall() : null);
@@ -105,15 +106,6 @@ public class TowerGenerator implements StructureGenerator {
             flag = true;
         }
 
-        // 内部楼梯旋转方向偏移（螺旋楼梯）
-        BlockPos[] spiralOffsets = {
-                new BlockPos(1, 0, 0),
-                new BlockPos(0, 0, 1),
-                new BlockPos(-1, 0, 0),
-                new BlockPos(0, 0, -1)
-        };
-
-        int stairIndex = 0;
         int floorHeight = height / floors;
 
         // 逐层生成
@@ -155,8 +147,8 @@ public class TowerGenerator implements StructureGenerator {
                 }
             }
 
-            // 每层楼板（除了最底层）
-            if (y > 0 && y % floorHeight == 0) {
+            // Exactly the requested floor levels, including the ground floor.
+            if (y % floorHeight == 0 && y / floorHeight < floors) {
                 for (int fx = -radius + 1; fx < radius; fx++) {
                     for (int fz = -radius + 1; fz < radius; fz++) {
                         double dist = Math.sqrt(fx * fx + fz * fz);
@@ -167,14 +159,6 @@ public class TowerGenerator implements StructureGenerator {
                 }
             }
 
-            // 螺旋楼梯（每层 4 级，形成螺旋）
-            if (hasStairs && y < height - 1) {
-                BlockPos stairPos = origin.add(spiralOffsets[stairIndex % 4]);
-                // 使用楼梯方块，需要设置正确的朝向
-                BlockState stairState = Blocks.OAK_STAIRS.getDefaultState();
-                result.add(new PlannedBlock(stairPos.add(0, y, 0), stairState));
-                stairIndex++;
-            }
         }
 
         // 顶部：根据 roofType 生成屋顶
@@ -287,6 +271,13 @@ public class TowerGenerator implements StructureGenerator {
         // Extra ornaments on towers (cross-style, best-effort)
         if (ornamentProfile != null && !ornamentProfile.isBlank()) {
             addTowerOrnaments(result, origin, world, radius, height, ornamentProfile, paletteId);
+        }
+
+        if (hasStairs && floors > 1) {
+            int start = result.size();
+            TowerStairBuilder.append(result, origin, (floors - 1) * floorHeight, floor);
+            var flight = com.formacraft.server.assembly.AssemblyCirculationConstraints.capture(result, start);
+            com.formacraft.server.assembly.AssemblyCirculationConstraints.validate(result, List.of(flight));
         }
 
         String description = String.format("Tower (%s, height=%d, radius=%d, floors=%d)", 

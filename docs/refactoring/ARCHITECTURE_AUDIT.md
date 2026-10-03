@@ -53,7 +53,7 @@
 - `git diff --check`：通过。
 - 第二轮已修复旧构造/枚举/方法与断言导入错误，compileTestJava 通过。33 处直接 LlmPlan 测试构造调用迁到具名 fixture，避免再次发生位置字段漂移。
 - 定向回归（对齐、Socket、响应协议、自由几何 Prompt、解释器注册、guard、capability_gap、特征传递、锚点规范化）：通过。
-- 第十七批完整 `check --offline`：442 个测试全部通过，无跳过；check 通过，43 份 assembly 示例、23 份文化卡和 37 个生成器键校验均通过。本批新增 7 个预览末端与编译元数据案例。当前结果与问题分类见 [回归清单](REGRESSION_BASELINE.md)。没有禁用测试或降低失败门槛。
+- 第十八批完整 `check --offline`：451 个测试全部通过，无跳过；check 通过，43 份 assembly 示例、23 份文化卡和 37 个生成器键校验均通过。本批新增 9 个塔楼楼层与楼梯案例。当前结果与问题分类见 [回归清单](REGRESSION_BASELINE.md)。没有禁用测试或降低失败门槛。
 - Python 默认解释器缺 fastapi，完整后端回归需安装锁定依赖后运行；本轮不把缺依赖记录成代码测试失败。
 
 尚未执行游戏内验收、模型联网生成、多玩家或真实世界存档回归。本轮不宣称完成全面重构或所有文档的逐篇核查。
@@ -85,3 +85,7 @@ SHELL_BOX 的内部清空原来位于楼板之后，导致中间楼板被删除�
 ## 第十七批补充：显式编译结果到最终预览
 
 Compilation 将 patch 与成功的计划局部梯段要求一起交给主预览；要求在世界偏移一次后传给 BuildPreviewPipeline，在自动修复和硬裁剪之后检查。地坪/地基准备原本就先于建筑操作，这次保留该顺序，补上后续修复/裁剪的最终拒绝规则。没有元数据的路由仍沿用原行为；生成器内部的同步捕获适配尚未替换成通用生成结果。真实地形与碰撞仍需验收，见 [完整计划契约](../PLAN_CIRCULATION_CONTRACT.md)。
+
+## 第十八批补充：整栋塔楼与其他路由
+
+TowerGenerator 修复实际不相邻的螺旋踏步与不可能楼层数，分离 TowerStairBuilder 在结构完成后切出踏面与两格空气。本次生成内部校验不等于最终预览保护：StructureGeneratorAdaptor 的要求坐标桥接仍缺失。PlanProgram 的 SkeletonBuildService 默认语义路由已核对，旧 StairAssembler 仍未被调用；逐 skeleton 失败后继续合并会形成部分结果，下一步需统一这条路径的失败和要求协议。见 [塔楼契约](../TOWER_CIRCULATION_CONTRACT.md)。
