@@ -14,4 +14,4 @@ StructureGenerationResultTest 覆盖真实 TowerGenerator 的非零入口、真�
 
 PlanProgram 的 SkeletonBuildService 仍先走 SkeletonSemanticRegistry，未注册语义生成器时回退 SkeletonGeneratorRegistry。当前路径没有发布通行要求；注册的 StairAssembler 并未成为该调用链的一部分。因此本批没有添加仅返回空通行列表的 PlanProgram 接口，也没有宣称保护这条路径。后续需先明确可执行楼层连接与踏面/净空的产出协议，再接入计划与预览。命令直接排队建造的 BuildExecutionService 也未经过本批预览交付接口。
 
-同批审查发现 LinearPathSemanticGenerator 使用 -width/2..width/2 的闭区间，偶数宽度会多铺一列；它只按 conformTerrain 选高度，没有应用旧 LinearPathGenerator 支持的 heightPolicy。后续应先核对 LINEAR_PATH 的有效参数契约与两条路由的一致性，再确定哪些道路需要楼梯与净空，避免把普通平路全部当作楼层连接。
+第二十批审查发现 LinearPathSemanticGenerator 使用 -width/2..width/2 的闭区间，偶数宽度会多铺一列；它只按 conformTerrain 选高度，没有应用旧 LinearPathGenerator 支持的 heightPolicy。第二十一批已共用布局计算修复宽度和高度差异，详见 [道路布局契约](LINEAR_PATH_CONTRACT.md)。真实楼梯与净空仍需独立设计，不能把普通平路全部当作楼层连接。

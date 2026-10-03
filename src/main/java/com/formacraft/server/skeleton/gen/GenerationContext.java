@@ -38,6 +38,11 @@ public class GenerationContext {
     public int getSurfaceY(int x, int z) {
         return world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
     }
+
+    public int getBottomY() { return world.getBottomY(); }
+
+    /** World height is a size; the exclusive top includes the bottom offset. */
+    public int getTopYExclusive() { return Math.addExact(world.getBottomY(), world.getHeight()); }
     
     /**
      * 查询某个 XZ 位置的运动阻挡高度（更准确，排除树叶等）

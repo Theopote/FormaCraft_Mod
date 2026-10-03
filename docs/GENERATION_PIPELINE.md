@@ -197,3 +197,7 @@ PlanProgramCompiler 经 SkeletonExecutors 调用骨架生成服务时，任一�
 - [GENERATOR_ROUTING_MAP.md](GENERATOR_ROUTING_MAP.md) — 路由对照表
 - [LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md](LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md) — 设计哲学
 - [MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md](MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md) — 覆盖矩阵
+
+## 第二十一批道路路由一致性
+
+LINEAR_PATH 的语义默认与旧回退路径现在共用 LinearPathLayout，输出恰好请求宽度并使用相同高度策略。conformTerrain 仍优先于显式 STEP_UP/SLOPE；预算及世界高度越界拒绝整条道路。几何修饰器后续扩张预算和真实楼梯/净空尚未接入，不能据此宣称 PlanProgram 已建立通行约束。详见 [道路布局契约](LINEAR_PATH_CONTRACT.md)。
