@@ -48,6 +48,8 @@ public class FormaCraftCommands {
             if (!REGISTERED_DISPATCHERS.add(dispatcher)) return;
         }
 
+        StyleVisualCases.register(dispatcher);
+
         // Undo 命令
         dispatcher.register(literal("formacraft_undo")
                 .requires(source -> source.hasPermissionLevel(2))
