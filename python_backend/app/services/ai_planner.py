@@ -4729,6 +4729,12 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
     if requirements:
         parts.append("User-owned building requirements (hard constraints; style suggestions cannot override): "
                      + json.dumps(requirements, ensure_ascii=False))
+    parts.append("For scoped requirements building_N, bind the corresponding MASS_MAIN with params.requirement_scope='building_N'. "
+                 "Never bind by array order. Use params.wall_block and params.floor_block as exact Minecraft block IDs "
+                 "for explicit materials. Entrance orientation must use layout.slots[].facing or global_constraints.facing; "
+                 "entrance params.facing is not the runtime orientation field. User-facing entrance values use Minecraft world directions. "
+                 "The legacy generator reverses cardinal names: set the runtime facing field to the requirement runtime_field_value "
+                 "(world SOUTH -> NORTH, NORTH -> SOUTH, EAST -> WEST, WEST -> EAST), not to value.")
     parts.append("Give every component a unique params.component_id. MASS_MAIN owns its building. "
                  "For attached roofs, facades and interior stairs, params.host_id must reference that MASS_MAIN's "
                  "component_id; slot_id is a coordinate frame, not identity. Do not guess a single host for bridges.")

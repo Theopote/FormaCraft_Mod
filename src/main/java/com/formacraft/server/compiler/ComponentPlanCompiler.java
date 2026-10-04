@@ -476,9 +476,7 @@ public final class ComponentPlanCompiler {
             }
             String slotId = c.slotId();
             Slot slot = slotId != null ? slotMap.get(slotId) : null;
-            GlobalConstraints.Facing facing = slot != null && slot.facing() != null
-                    ? slot.facing()
-                    : (plan.globalConstraints() != null ? plan.globalConstraints().facing() : GlobalConstraints.Facing.SOUTH);
+            GlobalConstraints.Facing facing = resolveSlotFacing(plan, slotMap, slotId);
             boolean hasFacade = slotsWithFacade.contains(slotKey);
             boolean hasEntrance = slotsWithEntrance.contains(slotKey);
             boolean useAssemblyFacade = allowAssemblyFacade
@@ -707,8 +705,9 @@ public final class ComponentPlanCompiler {
     private static GlobalConstraints.Facing resolveSlotFacing(LlmPlan plan, Map<String, Slot> slotMap, String slotId) {
         if (slotId != null && slotMap != null) {
             Slot slot = slotMap.get(slotId);
-            if (slot != null && slot.facing() != null) {
-                return slot.facing();
+            if (slot != null) {
+                // Generators default a real slot without facing to SOUTH, not the global facing.
+                return slot.facing() != null ? slot.facing() : GlobalConstraints.Facing.SOUTH;
             }
         }
         if (plan != null && plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {

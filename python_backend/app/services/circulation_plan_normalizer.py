@@ -237,10 +237,11 @@ def normalize_circulation_plan(plan: dict) -> dict:
                     old = comp.get("relative_position") or _point(mx+1,rp['y'],mz+1)
                     comp['relative_position'] = _point(max(mx+1,min(old['x'],mx+int(dims['width'])-1-size['width'])),
                                                        rp['y'],max(mz+1,min(old['z'],mz+int(dims['depth'])-1-size['depth'])))
-                    plate = {"component_type":"MASS_SECONDARY","relative_position":_point(mx+1,rp['y']+top,mz+1),
+                    plate = {"component_type":"MASS_SECONDARY", "slot_id":mass.get("slot_id"), "relative_position":_point(mx+1,rp['y']+top,mz+1),
                              "dimensions":{"width":int(dims['width'])-2,"depth":int(dims['depth'])-2,"height":1},
                              "features":["floor_plate:circulation"],
-                             "params":{"anchor_mode":"min_corner","extrude_mode":"plate","material":"oak_planks"}}
+                             "params":{"anchor_mode":"min_corner","extrude_mode":"plate","material":mp.get("floor_block", "oak_planks"),
+                                       **({"host_id":mp["component_id"]} if mp.get("component_id") else {})}}
                     if mass.get('slot_id') is not None: plate['slot_id'] = mass['slot_id']
                     plates.append(plate)
                     break

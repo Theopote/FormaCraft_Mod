@@ -701,6 +701,18 @@ public class MassMainGenerator implements ComponentGenerator {
      * 获取方块（优先使用动态解析，回退到传统 Palette）
      */
     private String getBlockForPart(SemanticPart part, SemanticComponent semantic, Palette palette) {
+        // Exact per-building material choices precede style-derived palettes.
+        String materialKey = switch (part) {
+            case WALL, WALL_BASE, WALL_ACCENT -> "wall_block";
+            case FLOOR, COURTYARD_FLOOR -> "floor_block";
+            default -> null;
+        };
+        if (materialKey != null && semantic.source() != null) {
+            String explicit = getParamString(semantic.source().params(), materialKey);
+            if (explicit != null && !explicit.isBlank()) {
+                return explicit.contains(":") ? explicit : "minecraft:" + explicit;
+            }
+        }
         // 1. 优先使用动态解析（如果 LlmPlan 有 style_attributes）
         if (semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());

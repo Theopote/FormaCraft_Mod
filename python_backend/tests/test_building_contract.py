@@ -43,9 +43,97 @@ class BuildingContractTest(unittest.TestCase):
         self.assertEqual('E_EXISTING', apply_building_contract(result, self.text, finalize=True)['capability_gap']['code'])
 
     def test_ambiguous_dimensions_remain_unresolved(self):
-        result = extract_requirements('第一栋宽15格，第二栋宽20格')
+        result = extract_requirements('宽15格或宽20格')
         self.assertEqual('unsupported_scope', result[0]['status'])
         self.assertIsNone(result[0]['value'])
+
+    def test_ordinal_scopes_bind_by_explicit_identity_not_array_order(self):
+        first, second = mass('first'), mass('second', 30)
+        first['params']['requirement_scope'] = 'building_1'
+        second['params']['requirement_scope'] = 'building_2'
+        second['dimensions']['width'] = 20
+        text = '第一栋宽15格；第二栋宽20格。'
+        result = apply_building_contract({'components': [second, first]}, text, finalize=True)
+        self.assertNotIn('capability_gap', result)
+        reqs = result['proportion_hints']['building_contract']['requirements']
+        self.assertEqual(['building_1', 'building_2'], [r['scope'] for r in reqs])
+        self.assertEqual([['first'], ['second']], [r['target_components'] for r in reqs])
+        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.models.llm_plan import validate_llm_plan_dict
+        plan = {'mode': 'build', 'style_profile': 'DEFAULT', 'anchor': {'x': 0, 'y': 64, 'z': 0},
+                'components': [second, first]}
+        req = SimpleNamespace(userMessage=text, chatHistory=[], selection=None,
+                              brushSelection=None, outline=None)
+        normalized = _normalize_llm_plan_output(plan, req)
+        validate_llm_plan_dict(normalized)
+        validated = apply_building_contract(normalized, text, finalize=True)
+        self.assertNotIn('capability_gap', validated)
+        self.assertEqual([['first'], ['second']], [r['target_components']
+                         for r in validated['proportion_hints']['building_contract']['requirements']])
+
+    def test_missing_or_duplicate_scope_binding_never_guessed(self):
+        text = '第一栋宽15格，第二栋宽20格'
+        for components in ([mass('a'), mass('b')],
+                           [dict(mass('a'), params={'component_id': 'a', 'requirement_scope': 'building_1'}),
+                            dict(mass('b'), params={'component_id': 'b', 'requirement_scope': 'building_1'})]):
+            result = apply_building_contract({'components': components}, text, finalize=True)
+            self.assertEqual('E_BUILDING_CONTRACT', result['capability_gap']['code'])
+            self.assertTrue(any(d['code'] == 'E_REQUIREMENT_SCOPE'
+                                for d in result['proportion_hints']['building_contract']['diagnostics']))
+
+    def test_ordinal_mentions_in_navigation_do_not_define_scope(self):
+        reqs = extract_requirements('两座两层住宅，每层高度5格。从第一栋的一楼进入，到第二栋再上二楼。')
+        self.assertEqual({'all_main_masses'}, {r['scope'] for r in reqs})
+
+    def test_scoped_materials_and_entrance_use_real_slot_orientation(self):
+        first, second = mass('first'), mass('second')
+        first['params'].update(requirement_scope='building_1', wall_block='minecraft:stone_bricks')
+        second['params'].update(requirement_scope='building_2', wall_block='minecraft:bricks', floor_block='minecraft:oak_planks')
+        first['slot_id'], second['slot_id'] = 'a', 'b'
+        plan = {'components': [first, second], 'layout': {'slots': [{'slot_id': 'a', 'facing': 'NORTH'}, {'slot_id': 'b', 'facing': 'SOUTH'}]}}
+        text = '第一栋使用石砖外墙，正门朝南。第二栋墙体使用砖块，橡木楼板，入口朝北。'
+        result = apply_building_contract(plan, text, finalize=True)
+        self.assertNotIn('capability_gap', result)
+        second['params']['facing'] = 'SOUTH'
+        plan['layout']['slots'][1]['facing'] = 'WEST'
+        result = apply_building_contract(plan, text, finalize=True)
+        self.assertEqual('E_BUILDING_CONTRACT', result['capability_gap']['code'])
+
+    def test_scoped_roof_checks_each_host_independently(self):
+        first, second = mass('first'), mass('second')
+        first['params']['requirement_scope'] = 'building_1'
+        second['params'].update(requirement_scope='building_2', roof_type='gable')
+        roof = {'component_type': 'ROOF', 'params': {'host_id': 'second', 'roof_type': 'gable'}}
+        result = apply_building_contract({'components': [first, second, roof]},
+                                         '第一栋使用平屋顶。第二栋宽15格。', finalize=True)
+        self.assertNotIn('capability_gap', result)
+
+    def test_global_tail_returns_to_all_buildings(self):
+        reqs = extract_requirements('第一栋宽15格；第二栋宽20格。两栋均每层高度5格。')
+        self.assertEqual('all_main_masses', reqs[-1]['scope'])
+
+    def test_negated_material_is_not_a_positive_requirement(self):
+        reqs = extract_requirements('不要用石砖外墙，使用橡木外墙。不要宽15格。')
+        self.assertEqual(['wall_block'], [r['property'] for r in reqs])
+        self.assertEqual('minecraft:oak_planks', reqs[0]['value'])
+
+    def test_real_slot_without_facing_matches_generator_default(self):
+        host = mass(); host['slot_id'] = 'room'
+        plan = {'components': [host], 'layout': {'slots': [{'slot_id': 'room'}]},
+                'global_constraints': {'facing': 'NORTH'}}
+        result = apply_building_contract(plan, '正门朝南', finalize=True)
+        self.assertIn('capability_gap', result)
+        result = apply_building_contract(plan, '正门朝北', finalize=True)
+        self.assertNotIn('capability_gap', result)
+
+    def test_world_directions_record_explicit_legacy_adapter(self):
+        for world, encoded in [('南', 'NORTH'), ('北', 'SOUTH'), ('东', 'WEST'), ('西', 'EAST')]:
+            req = extract_requirements('入口朝' + world)[0]
+            self.assertEqual(encoded, req['runtime_field_value'])
+            self.assertEqual('minecraft_world', req['direction_convention'])
+            result = apply_building_contract({'components': [mass()], 'global_constraints': {'facing': encoded}},
+                                             '入口朝' + world, finalize=True)
+            self.assertNotIn('capability_gap', result)
 
     def test_identity_idempotent_and_host_can_follow_satellite(self):
         satellite = {'component_type': 'ROOF', 'params': {'roof_type': 'flat'}}
