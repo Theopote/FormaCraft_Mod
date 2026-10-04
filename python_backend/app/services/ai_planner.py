@@ -1267,6 +1267,10 @@ def _normalize_llm_plan_output(
         except Exception as exc:
             logger.warning("Plan distinguishing_features sync skipped: %s", exc)
 
+    from .building_contract import apply_building_contract, request_text
+    contract_text = request_text(req)
+    plan = apply_building_contract(plan, contract_text)
+
     try:
         from .plan_architectural_enrichment import enrich_llm_plan_architectural_detail
 
@@ -1301,7 +1305,7 @@ def _normalize_llm_plan_output(
         if fidelity_msg and str(fidelity_msg).strip():
             plan["player_fidelity_notice_zh"] = str(fidelity_msg).strip()
 
-    return plan
+    return apply_building_contract(plan, contract_text)
 
 
 def _build_system_prompt() -> str:
@@ -4720,6 +4724,14 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
     与 BuildingSpec 路径保持一致。全部为本地操作，不引入网络延迟。
     """
     parts: list[str] = []
+    from .building_contract import extract_requirements, request_text
+    requirements = extract_requirements(request_text(req))
+    if requirements:
+        parts.append("User-owned building requirements (hard constraints; style suggestions cannot override): "
+                     + json.dumps(requirements, ensure_ascii=False))
+    parts.append("Give every component a unique params.component_id. MASS_MAIN owns its building. "
+                 "For attached roofs, facades and interior stairs, params.host_id must reference that MASS_MAIN's "
+                 "component_id; slot_id is a coordinate frame, not identity. Do not guess a single host for bridges.")
     user_text = (req.userMessage or "") if req is not None else ""
     if any(token in user_text.lower() for token in ("楼梯", "stair")):
         parts.append(
@@ -5172,6 +5184,8 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             normalized = finalize_assembly_plan_or_gap(normalized, user_text or None)
         except Exception as e:
             logger.warning("Assembly capability_gap finalize skipped: %s", e)
+        from .building_contract import apply_building_contract, request_text
+        normalized = apply_building_contract(normalized, request_text(req), finalize=True)
         normalize_ms = (time.monotonic() - _t_norm) * 1000.0
         logger.info(
             "LlmPlan timing: search=%.0fms llm=%.0fms normalize=%.0fms model=%s fmt=%s",

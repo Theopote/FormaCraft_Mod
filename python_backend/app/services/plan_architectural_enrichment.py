@@ -336,7 +336,9 @@ def enrich_llm_plan_architectural_detail(
     # Dimensioned circulation requests already describe a complete building. Proportion
     # cards are suggestions, not authority to resize its shell or add a cupola.
     # Resizing only the first mass leaves floors, stairs and other masses at old coordinates.
-    if any(word in user_text.lower() for word in ("楼梯", "stair")):
+    from .building_contract import extract_requirements
+    contract = (plan.get("proportion_hints") or {}).get("building_contract") or {}
+    if contract.get("requirements") or extract_requirements(user_text) or any(word in user_text.lower() for word in ("楼梯", "stair")):
         return plan
 
     skip_classical, skip_reason = should_skip_classical_enrichment(user_text, profile, plan)

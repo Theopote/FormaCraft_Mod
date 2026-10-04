@@ -112,6 +112,11 @@ def _mass_origin(mass: dict) -> dict:
 
 def _host_mass(plan: dict, component: dict) -> dict | None:
     masses = [c for c in plan.get('components', []) if c.get('component_type') == 'MASS_MAIN']
+    host_id = (component.get('params') or {}).get('host_id')
+    if host_id:
+        host = next((m for m in masses if (m.get('params') or {}).get('component_id') == host_id), None)
+        if host and (plan.get('layout') or {}).get('slots') and host.get('slot_id') != component.get('slot_id'): return None
+        return host
     same = [m for m in masses if m.get('slot_id') == component.get('slot_id')]
     if same: masses = same
     elif (plan.get('layout') or {}).get('slots'):
@@ -259,7 +264,8 @@ def normalize_circulation_plan(plan: dict) -> dict:
                 comp["dimensions"] = {"width":2*r+1,"depth":2*r+1,"height":h}
             else: continue
             comp["component_type"] = "ASSEMBLY"
-            comp["params"] = {"assembly": {"ops": ops}}
+            identity = {k: params[k] for k in ("component_id", "host_id", "building_id", "host_source") if k in params}
+            comp["params"] = {**identity, "assembly": {"ops": ops}}
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
             out["plan_status"] = "capability_gap"
             out["capability_gap"] = {"code":"E_CIRCULATION_DESCRIPTION_INVALID","message":str(exc),

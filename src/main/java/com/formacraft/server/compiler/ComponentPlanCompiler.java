@@ -647,13 +647,27 @@ public final class ComponentPlanCompiler {
             if (isMassType(type)) {
                 continue;
             }
+            Object hostId = c.params() == null ? null : c.params().get("host_id");
             Component mass = massBySlot.get(slotKey);
+            if (hostId != null) {
+                mass = null;
+                for (Component candidate : components) {
+                    if (candidate == null || !"MASS_MAIN".equals(normalizeType(candidate.componentType()))
+                            || candidate.params() == null
+                            || !hostId.equals(candidate.params().get("component_id"))) continue;
+                    // Explicit ownership cannot equate different real slot coordinate frames.
+                    if (slotKey(candidate).equals(slotKey)
+                            || (slotMap != null && !slotMap.containsKey(candidate.slotId())
+                                && !slotMap.containsKey(c.slotId()))) mass = candidate;
+                    break;
+                }
+            }
             if (mass == null) {
                 continue;
             }
             // Several unassigned masses share __global__. Attach to the nearest body,
             // rather than moving every facade and roof onto the first building.
-            if (c.relativePosition() != null) {
+            if (hostId == null && c.relativePosition() != null) {
                 double nearest = Double.POSITIVE_INFINITY;
                 for (Component candidate : components) {
                     if (!"MASS_MAIN".equals(normalizeType(candidate.componentType()))

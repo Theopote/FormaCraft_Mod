@@ -26,6 +26,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ComponentPlanCompilerRealignTest {
 
     @Test
+    void explicitHostWinsOverNearestMass() throws Exception {
+        Component near = new Component("MASS_MAIN", null, new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "near", "anchor_mode", "min_corner"));
+        Component far = new Component("MASS_MAIN", null, new Vec3i(30, 0, 0),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "far", "anchor_mode", "min_corner"));
+        Component roof = new Component("ROOF", null, new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 1), List.of(),
+                Map.of("component_id", "roof", "host_id", "far", "roof_type", "flat", "overhang", 0));
+        List<Component> components = new java.util.ArrayList<>(List.of(near, far, roof));
+        LlmPlan plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
+                .components(components).build();
+        var method = ComponentPlanCompiler.class.getDeclaredMethod("realignSatellitesToMass",
+                List.class, LlmPlan.class, Map.class, java.util.Set.class);
+        method.setAccessible(true);
+        method.invoke(null, components, plan, Map.of(), java.util.Set.of());
+        assertEquals(30, components.get(2).relativePosition().x());
+        assertEquals(7, components.get(2).relativePosition().y());
+        assertEquals("roof", components.get(2).params().get("component_id"));
+        assertEquals("far", components.get(2).params().get("host_id"));
+    }
+
+    @Test
     void realignsRoofAndFacadeToMassMinCorner() {
         LlmPlan plan = LlmPlanTestFixtures.builder()
                 .mode(LlmPlan.Mode.build)
