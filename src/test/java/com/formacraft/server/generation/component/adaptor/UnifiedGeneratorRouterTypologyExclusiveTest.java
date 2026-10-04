@@ -16,6 +16,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UnifiedGeneratorRouterTypologyExclusiveTest {
+    @Test
+    void detailQueriesCannotReplaceBuildingEnvelopes() {
+        for (String type : List.of("MASS_MAIN", "MASS_SECONDARY", "ROOF", "FOUNDATION"))
+            assertTrue(UnifiedGeneratorRouter.preservesBuildingEnvelope(type));
+        assertFalse(UnifiedGeneratorRouter.preservesBuildingEnvelope("ENTRANCE"));
+        assertFalse(UnifiedGeneratorRouter.preservesBuildingEnvelope("DECOR_DETAIL"));
+    }
 
     @AfterEach
     void clearFlag() {

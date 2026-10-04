@@ -1,20 +1,16 @@
 package com.formacraft.server.generation.component.impl;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class AssemblyPatchGeneratorTest {
     @Test void descriptiveNestedPayloadCannotHideExecutableOuterPreset() {
-        var outer = Map.<String,Object>of("preset", "spiral_watchtower", "presetParams", Map.of("height",15),
+        var outer = Map.of("preset", "spiral_watchtower", "presetParams", Map.of("height",15),
             "assembly", Map.of("kind","unrelated_description"));
         var selected = (Map<?,?>) AssemblyPatchGenerator.resolveAssemblyPayload(outer);
         org.junit.jupiter.api.Assertions.assertEquals("spiral_watchtower", selected.get("preset"));
@@ -45,7 +41,7 @@ class AssemblyPatchGeneratorTest {
 
         Object payload = AssemblyPatchGenerator.resolveAssemblyPayload(params);
         assertNotNull(payload);
-        assertTrue(payload instanceof Map);
+        assertInstanceOf(Map.class, payload);
     }
 
     @Test

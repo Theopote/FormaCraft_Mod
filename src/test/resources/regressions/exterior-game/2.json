@@ -1,0 +1,753 @@
+{
+  "mode": "build",
+  "style_profile": "Medieval_Castle",
+  "style_attributes": {
+    "wall_color": "#8d8d8d",
+    "roof_color": "#7a7a7a",
+    "accent_color": "#6f6f6f",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:stone_bricks",
+    "floor_material": "minecraft:smooth_stone",
+    "decorative_elements": []
+  },
+  "distinguishing_features": [
+    "hollow circular stone-brick tower shell, radius 6, height 15",
+    "three storeys with 5-block floor-to-floor height",
+    "full floor plates at y=5 and y=10 with stair openings carved after plating",
+    "continuous clockwise ring staircase with corner landings and 2-block headroom",
+    "top landing meets upper floor level (no roof access)",
+    "south-centred arched stone entrance at ground level",
+    "narrow arrow-slit windows, battlemented parapet",
+    "no interior furniture or decoration"
+  ],
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "circular_tower",
+      "confidence": 0.88
+    },
+    "topology": {
+      "layout": "circular",
+      "composition": "single",
+      "axis": "vertical",
+      "levels": "3"
+    },
+    "structure": {
+      "type": "ring_wall_shell",
+      "massiveness": 0.72,
+      "voidRatio": 0.22,
+      "supports": "perimeter_ring"
+    },
+    "form": {
+      "repetition": "stacked_floors",
+      "progression": "uniform",
+      "curvature": "curved",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "radial",
+      "order": 8,
+      "mirror": null
+    },
+    "modules": [
+      "circular_shell",
+      "floor_plates",
+      "ring_staircase",
+      "entrance",
+      "arrow_slit_windows",
+      "battlement_parapet"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "smooth_stone",
+      "accent": "chiseled_stone",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "europe",
+      "era": "medieval",
+      "keywords": [
+        "stone tower",
+        "fortification",
+        "watchtower"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 15,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "ring_staircase_continuity",
+        "floor_openings_carved_after_plates",
+        "two_block_headroom",
+        "top_landing_matches_upper_floor",
+        "south_entrance"
+      ],
+      "avoid": [
+        "furniture",
+        "interior_decoration",
+        "roof_access",
+        "solid_floor_without_opening",
+        "tall_solid_floor_volume"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "RADIAL",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "RADIAL_RING",
+    "path_based": false,
+    "slots": []
+  },
+  "proportion_hints": {
+    "typology": "circular_tower",
+    "target_width": 12,
+    "target_depth": 12,
+    "target_body_height": 7,
+    "target_roof_height": 3,
+    "height_to_width": 0.65,
+    "depth_to_width": 1.0,
+    "roof_to_body_height": 0.25,
+    "window_aspect": "square",
+    "max_void_ratio": 0.18,
+    "id": "circular_tower_ring_stair",
+    "ratios": {
+      "height_to_diameter": {
+        "min": 1.0,
+        "ideal": 1.25,
+        "max": 2.2,
+        "desc": "\u5854\u9ad8/\u5854\u8eab\u76f4\u5f84"
+      },
+      "floor_height_to_radius": {
+        "min": 0.6,
+        "ideal": 0.83,
+        "max": 1.2,
+        "desc": "\u5c42\u9ad8/\u5854\u534a\u5f84"
+      },
+      "wall_thickness_to_radius": {
+        "min": 0.08,
+        "ideal": 0.17,
+        "max": 0.3,
+        "desc": "\u5916\u5899\u539a/\u5854\u534a\u5f84"
+      },
+      "stair_width_to_interior_radius": {
+        "min": 0.6,
+        "ideal": 0.9,
+        "max": 1.0,
+        "desc": "\u697c\u68af\u534a\u5f84/\u5185\u534a\u5f84"
+      },
+      "window_wall_ratio": {
+        "min": 0.04,
+        "ideal": 0.08,
+        "max": 0.18,
+        "desc": "\u9632\u5fa1\u5854\uff1a\u7a84\u7f1d\u7a97"
+      }
+    },
+    "openingGrammar": {
+      "window_aspect": [
+        "arrow_slit",
+        "vertical_strip"
+      ],
+      "min_enclosure_coverage": 0.85,
+      "max_void_ratio": 0.25
+    },
+    "aiInstruction": "Circular stone-brick tower radius 6 / height 15. Hollow cylinder shell (wall thickness 1). Full circular floor plates modelled as MASS_SECONDARY with extrude_mode='plate', dimensions.height=1, at y=5 and y=10; stair openings are carved AFTER plating. Interior circulation is a single ASSEMBLY ring_staircase (radius 6, height 15, floorLevels [5,10], clockwise, roof_access=false) producing a face-adjacent spiral inside the circular wall with corner landings and two-block headroom; the top landing meets the upper floor Y=15 level. South-centred arched entrance; narrow arrow-slit windows; battlemented parapet. No furniture, no interior decoration.",
+    "floor_cornice": true,
+    "base_plinth_detail": true,
+    "detail_rules": [
+      {
+        "id": "floor_cornice",
+        "when": {
+          "region": "perimeter",
+          "y": "floor_boundary",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "inverted_stairs",
+          "part": "WALL_ACCENT",
+          "facing": "outward"
+        }
+      },
+      {
+        "id": "base_plinth_top",
+        "when": {
+          "region": "perimeter",
+          "y": "base_top",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "slab",
+          "part": "FOUNDATION"
+        }
+      }
+    ],
+    "window_order": "full",
+    "repeating_pattern": {
+      "unit_width_z": 5,
+      "elements": [
+        {
+          "type": "pillar",
+          "width": 1
+        },
+        {
+          "type": "window",
+          "width": 3
+        },
+        {
+          "type": "pillar",
+          "width": 1
+        }
+      ]
+    },
+    "alignment_and_symmetry": {
+      "symmetry_type": "bilateral_x",
+      "center_axis_x": 0,
+      "rhythm_x": {
+        "side_bays": [
+          {
+            "width": 3,
+            "role": "wing"
+          },
+          {
+            "width": 5,
+            "role": "center"
+          },
+          {
+            "width": 3,
+            "role": "wing"
+          }
+        ]
+      },
+      "rhythm_z": {
+        "side_bays": [
+          {
+            "width": 3,
+            "role": "service"
+          },
+          {
+            "width": 6,
+            "role": "hall"
+          },
+          {
+            "width": 3,
+            "role": "service"
+          }
+        ]
+      }
+    },
+    "crown_assembly": true,
+    "crown_template": "CLASSICAL_CUPOLA",
+    "floor_height": 3
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 14,
+        "depth": 14,
+        "height": 2
+      },
+      "features": [
+        "plinth",
+        "stylobate"
+      ],
+      "params": {}
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 15
+      },
+      "params": {
+        "shape": "circle",
+        "radius": 6,
+        "sides": 32,
+        "hollow": true,
+        "wall_thickness": 1,
+        "extrude_mode": "solid",
+        "top_cap": false,
+        "anchor_mode": "center",
+        "material": "minecraft:stone_bricks",
+        "facade_profile": "fortified_plain",
+        "void_ratio": 0.06,
+        "window_ratio": 0.35,
+        "floor_height": 5,
+        "floor_count": 3,
+        "wall_pattern": "gradient",
+        "floor_cornice": true
+      },
+      "features": [
+        "circular_shell",
+        "three_storey_tower",
+        "stone_brick_wall",
+        "pilasters",
+        "base_plinth",
+        "cornice"
+      ]
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 9
+      },
+      "params": {
+        "shape": "cylinder",
+        "radius": 6,
+        "extrude_mode": "plate",
+        "thickness": 1,
+        "anchor_mode": "center",
+        "material": "minecraft:smooth_stone",
+        "floor_level": 5,
+        "carve_stair_opening": true,
+        "opening_for": "ring_staircase",
+        "role": "floor_plate_level_2",
+        "window_ratio": 0.35,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "floor_count": 3
+      },
+      "features": [
+        "floor_plate",
+        "stair_opening_reserved"
+      ]
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 0,
+        "y": 10,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 9
+      },
+      "params": {
+        "shape": "cylinder",
+        "radius": 6,
+        "extrude_mode": "plate",
+        "thickness": 1,
+        "anchor_mode": "center",
+        "material": "minecraft:smooth_stone",
+        "floor_level": 10,
+        "carve_stair_opening": true,
+        "opening_for": "ring_staircase",
+        "role": "floor_plate_level_3",
+        "window_ratio": 0.35,
+        "void_ratio": 0.22,
+        "floor_height": 3,
+        "floor_count": 3
+      },
+      "features": [
+        "floor_plate",
+        "stair_opening_reserved"
+      ]
+    },
+    {
+      "component_type": "ASSEMBLY",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 13,
+        "height": 15
+      },
+      "params": {
+        "assembly": {
+          "ops": [
+            {
+              "op": "PUSH_ORIGIN",
+              "dy": 5
+            },
+            {
+              "op": "CYLINDER",
+              "r": 5,
+              "h": 1,
+              "hollow": false,
+              "material": "minecraft:smooth_stone"
+            },
+            {
+              "op": "POP_ORIGIN"
+            },
+            {
+              "op": "PUSH_ORIGIN",
+              "dy": 10
+            },
+            {
+              "op": "CYLINDER",
+              "r": 5,
+              "h": 1,
+              "hollow": false,
+              "material": "minecraft:smooth_stone"
+            },
+            {
+              "op": "POP_ORIGIN"
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": -2,
+                "y": 0,
+                "z": -2
+              },
+              "to": {
+                "x": 1,
+                "y": 3,
+                "z": -2
+              },
+              "width": 1,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:smooth_stone",
+              "supportMaterial": "minecraft:smooth_stone",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 2,
+                "y": 3,
+                "z": -2
+              },
+              "to": {
+                "x": 2,
+                "y": 3,
+                "z": -2
+              },
+              "width": 1,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:smooth_stone",
+              "supportMaterial": "minecraft:smooth_stone",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 2,
+                "y": 3,
+                "z": -2
+              },
+              "to": {
+                "x": 2,
+                "y": 5,
+                "z": 0
+              },
+              "width": 1,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:smooth_stone",
+              "supportMaterial": "minecraft:smooth_stone",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 2,
+                "y": 5,
+                "z": 1
+              },
+              "to": {
+                "x": 2,
+                "y": 5,
+                "z": 2
+              },
+              "width": 1,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:smooth_stone",
+              "supportMaterial": "minecraft:smooth_stone",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 2,
+                "y": 5,
+                "z": 2
+              },
+              "to": {
+                "x": -1,
+                "y": 8,
+                "z": 2
+              },
+              "width": 1,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:smooth_stone",
+              "supportMaterial": "minecraft:smooth_stone",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": -2,
+                "y": 8,
+                "z": 2
+              },
+              "to": {
+                "x": -2,
+                "y": 8,
+                "z": 2
+              },
+              "width": 1,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:smooth_stone",
+              "supportMaterial": "minecraft:smooth_stone",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": -2,
+                "y": 8,
+                "z": 2
+              },
+              "to": {
+                "x": -2,
+                "y": 10,
+                "z": 0
+              },
+              "width": 1,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:smooth_stone",
+              "supportMaterial": "minecraft:smooth_stone",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": -2,
+                "y": 10,
+                "z": -1
+              },
+              "to": {
+                "x": -2,
+                "y": 10,
+                "z": -2
+              },
+              "width": 1,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:smooth_stone",
+              "supportMaterial": "minecraft:smooth_stone",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            }
+          ]
+        }
+      },
+      "features": [
+        "continuous_ring_stair",
+        "corner_landings",
+        "two_block_headroom",
+        "top_landing_connects_upper_floor"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "params": {
+        "facing": "SOUTH",
+        "style": "stone_arch_gate",
+        "carve": true,
+        "mask": {
+          "w": 2,
+          "h": 3,
+          "d": 1
+        },
+        "door_width": 2,
+        "door_height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"arched\", \"stone\", \"heavy\", \"fortified\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"exterior_facing\"], \"forbiddenTags\": [\"glass\", \"modern\", \"double_door_wide\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -6,
+        "y": 2,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 13
+      },
+      "params": {
+        "shape": "cylinder",
+        "radius": 6,
+        "window_ratio": 0.08,
+        "window_aspect": "arrow_slit",
+        "window_style": "arrow_slit",
+        "window_width": 1,
+        "window_height": 2,
+        "recessed": true,
+        "floors": [
+          2,
+          3
+        ],
+        "rhythm": "regular",
+        "rhythm_preset": "CLASSICAL_PILASTER_BAY",
+        "repeating_pattern": {
+          "unit_width_z": 5,
+          "elements": [
+            {
+              "type": "pillar",
+              "width": 1
+            },
+            {
+              "type": "window",
+              "width": 3
+            },
+            {
+              "type": "pillar",
+              "width": 1
+            }
+          ]
+        }
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"arrow_slit\", \"narrow\", \"recessed\", \"defensive\"], \"importance\": [\"role\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Medieval_Castle\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [], \"forbiddenTags\": [\"large_glazing\", \"modern\", \"curtain_wall\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -2,
+        "y": 7,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 3
+      },
+      "params": {
+        "roof_height": 3,
+        "overhang": 2,
+        "roof_type": "hip"
+      },
+      "features": [
+        "overhang",
+        "eaves"
+      ]
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 2
+      },
+      "features": [
+        "cornice",
+        "pattern",
+        "carved"
+      ],
+      "params": {}
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 1,
+        "height": 7
+      },
+      "features": [
+        "column",
+        "pilaster",
+        "pattern"
+      ],
+      "params": {
+        "column_spacing": 3
+      }
+    },
+    {
+      "component_type": "CROWN",
+      "relative_position": {
+        "x": 3,
+        "y": 10,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 6
+      },
+      "features": [
+        "crown",
+        "revolve_surface"
+      ],
+      "params": {
+        "generation_method": "revolved_surface_around_axis",
+        "crown_template": "CLASSICAL_CUPOLA",
+        "crown_radius": 3,
+        "crown_height": 6,
+        "revolve_segments": 32
+      }
+    }
+  ],
+  "kind": "llmplan"
+}

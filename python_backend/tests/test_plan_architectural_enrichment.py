@@ -4,6 +4,17 @@ import unittest
 
 
 class TestPlanArchitecturalEnrichment(unittest.TestCase):
+    def test_dimensioned_stair_building_keeps_shell_and_roof(self):
+        import copy
+        from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
+        plan = {"mode": "build", "components": [
+            {"component_type": "MASS_MAIN", "dimensions": {"width": 15, "depth": 13, "height": 11},
+             "params": {"floor_height": 5, "floor_count": 2}},
+            {"component_type": "ROOF", "relative_position": {"x": -1, "y": 10, "z": -1},
+             "params": {"roof_type": "flat"}}]}
+        original = copy.deepcopy(plan)
+        self.assertEqual(original, enrich_llm_plan_architectural_detail(plan, user_text="两层住宅，楼梯，平屋顶"))
+
     def test_enrich_adds_facade_and_decor_for_louvre(self):
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
         from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail

@@ -36,7 +36,8 @@ public final class AssemblyPlanPromoter {
 
         Set<String> assemblyPrimarySlots = new HashSet<>();
         for (Component c : components) {
-            if (c != null && "ASSEMBLY".equals(normalizeType(c.componentType()))) {
+            if (c != null && "ASSEMBLY".equals(normalizeType(c.componentType()))
+                    && !isCirculationOnly(c)) {
                 assemblyPrimarySlots.add(slotKey(c));
             }
         }
@@ -141,6 +142,21 @@ public final class AssemblyPlanPromoter {
                 mass.features(),
                 params
         );
+    }
+
+    private static boolean isCirculationOnly(Component component) {
+        if (!AssemblyPatchGenerator.hasCirculation(component)) return false;
+        Object payload = AssemblyPatchGenerator.resolveAssemblyPayload(component.params());
+        if (!(payload instanceof Map<?, ?> map) || map.containsKey("preset")
+                || map.containsKey("graph") || !(map.get("ops") instanceof List<?> ops)) return false;
+        for (Object value : ops) {
+            if (!(value instanceof Map<?, ?> op)) return false;
+            String name = String.valueOf(op.get("op")).toUpperCase(Locale.ROOT);
+            if (Set.of("STAIR_SYSTEM", "PUSH_ORIGIN", "POP_ORIGIN", "CLEAR_BOX").contains(name)) continue;
+            if ("CYLINDER".equals(name) && op.get("h") instanceof Number h && h.intValue() == 1) continue;
+            return false;
+        }
+        return true;
     }
 
     private static Map<String, Object> copyMap(Map<?, ?> source) {

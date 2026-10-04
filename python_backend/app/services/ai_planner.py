@@ -4723,6 +4723,15 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
     user_text = (req.userMessage or "") if req is not None else ""
     if any(token in user_text.lower() for token in ("楼梯", "stair")):
         parts.append(
+            "Building exterior is the primary deliverable: retain a full-height hollow MASS_MAIN shell, "
+            "ground floor and attached ROOF for EVERY building, even when the request focuses on stairs. "
+            "A stair ASSEMBLY is an interior addition, never the entire building. "
+            "Respect requested width/depth/floor count/floor height; relative_position.y is the bottom block Y, "
+            "not the vertical center. Use unique slot_id values for separate buildings and their satellites. "
+            "Use explicit anchor_mode='min_corner' consistently for placed shells, roofs and floors. "
+            "Do not place a column/railing component_request on MASS_MAIN or ROOF: use separate DECOR_DETAIL. "
+            "Keep walls continuous except deliberate doors/windows; do not carve an entire perimeter band. "
+            "Use simple roof geometry and omit crowns/spires unless requested. "
             "Executable circulation contract: for each straight interior flight use component_type=STRUCTURE, "
             "features=['stair:straight_single_run'], params={from:{x,y,z},to:{x,y,z},width:3, "
             "stairs:'minecraft:oak_stairs',floor:'minecraft:oak_planks',clearHeight:2,landing_length:3}. "

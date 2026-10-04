@@ -1,0 +1,737 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#8A8A85",
+    "roof_color": "#6E6E6A",
+    "accent_color": "#B98A5A",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:stone_brick_slab",
+    "floor_material": "minecraft:oak_planks",
+    "decorative_elements": [
+      "stone_brick_cornice",
+      "pilaster_strips",
+      "stone_plinth",
+      "oak_beam_lintels"
+    ]
+  },
+  "distinguishing_features": [
+    "switchback_stair_width_3_connecting_two_floors",
+    "two_opposed_straight_flights_with_central_landing",
+    "landing_flush_and_adjacent_to_both_flights_no_diagonal_touch",
+    "upper_floor_plate_opening_above_stair_and_landing",
+    "minimum_two_blocks_clear_air_above_every_tread_and_landing",
+    "17x15_two_storey_hall_with_6_block_floor_to_floor_height"
+  ],
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "two_storey_hall",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "N-S",
+      "levels": "two"
+    },
+    "structure": {
+      "type": "load_bearing_walls",
+      "massiveness": 0.66,
+      "voidRatio": 0.12,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "rhythmic",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "shell_walls",
+      "upper_floor_plate",
+      "switchback_stair",
+      "roof",
+      "windows",
+      "entrance"
+    ],
+    "materials": {
+      "primary": "stone_bricks",
+      "secondary": "oak_planks",
+      "accent": "stone_brick_slab",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "generic",
+      "era": "medieval",
+      "keywords": [
+        "hall",
+        "two_storey",
+        "switchback_stair",
+        "landing"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 16,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "stair_landing_continuity",
+        "two_block_headroom",
+        "floor_plate_opening",
+        "flight_run_at_least_rise"
+      ],
+      "avoid": [
+        "diagonal_landing_contact",
+        "solid_block_tread_stack",
+        "tall_solid_floor_volume",
+        "text_only_stair_features"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "two_storey_hall_switchback_stair",
+    "target_width": 17,
+    "target_depth": 17,
+    "target_body_height": 11,
+    "target_roof_height": 3,
+    "height_to_width": 0.71,
+    "depth_to_width": 0.88,
+    "roof_to_body_height": 0.083,
+    "window_aspect": "square",
+    "max_void_ratio": 0.18,
+    "floor_height_to_width": 0.353,
+    "stair_width_to_hall_width": 0.176,
+    "stair_footprint_to_floor_area": 0.14,
+    "flight_run_to_rise": 1.0,
+    "landing_depth_to_flight_width": 0.67,
+    "floor_cornice": true,
+    "base_plinth_detail": true,
+    "detail_rules": [
+      {
+        "id": "floor_cornice",
+        "when": {
+          "region": "perimeter",
+          "y": "floor_boundary",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "inverted_stairs",
+          "part": "WALL_ACCENT",
+          "facing": "outward"
+        }
+      },
+      {
+        "id": "base_plinth_top",
+        "when": {
+          "region": "perimeter",
+          "y": "base_top",
+          "block": "wall"
+        },
+        "action": {
+          "replace_with": "slab",
+          "part": "FOUNDATION"
+        }
+      }
+    ],
+    "window_order": "full",
+    "repeating_pattern": {
+      "unit_width_z": 5,
+      "elements": [
+        {
+          "type": "pillar",
+          "width": 1
+        },
+        {
+          "type": "window",
+          "width": 3
+        },
+        {
+          "type": "pillar",
+          "width": 1
+        }
+      ]
+    },
+    "alignment_and_symmetry": {
+      "symmetry_type": "bilateral_x",
+      "center_axis_x": 0,
+      "rhythm_x": {
+        "side_bays": [
+          {
+            "width": 3,
+            "role": "wing"
+          },
+          {
+            "width": 5,
+            "role": "center"
+          },
+          {
+            "width": 3,
+            "role": "wing"
+          }
+        ]
+      },
+      "rhythm_z": {
+        "side_bays": [
+          {
+            "width": 4,
+            "role": "service"
+          },
+          {
+            "width": 8,
+            "role": "hall"
+          },
+          {
+            "width": 4,
+            "role": "service"
+          }
+        ]
+      }
+    },
+    "floor_height": 6
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "main_hall",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "tags": [
+          "MASS_MAIN",
+          "FOUNDATION",
+          "ROOF"
+        ],
+        "slot_id": "slot_0"
+      },
+      {
+        "id": "upper_floor",
+        "anchor": {
+          "x": 0,
+          "y": 6,
+          "z": 0
+        },
+        "tags": [
+          "MASS_SECONDARY",
+          "floor_plate"
+        ],
+        "slot_id": "slot_1"
+      },
+      {
+        "id": "stair_core",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -5
+        },
+        "tags": [
+          "ASSEMBLY",
+          "switchback_stair"
+        ],
+        "slot_id": "slot_2"
+      },
+      {
+        "id": "south_front",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 7
+        },
+        "tags": [
+          "ENTRANCE",
+          "BALCONY"
+        ],
+        "slot_id": "slot_3"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [
+        "stone_plinth",
+        "perimeter_1_block_overhang"
+      ],
+      "params": {
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "material": "minecraft:stone_bricks",
+        "plinth": true,
+        "overhang": 1
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 17,
+        "height": 12
+      },
+      "features": [
+        "hollow_shell",
+        "two_storey",
+        "stair_well_reserved_volume",
+        "pilasters",
+        "base_plinth",
+        "cornice"
+      ],
+      "params": {
+        "anchor_mode": "center",
+        "hollow": true,
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 6,
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "gradient",
+        "base_plinth": true,
+        "void_ratio": 0.08,
+        "interior_clear_height": 5,
+        "reserved_stair_void": {
+          "x": 0,
+          "z": -5,
+          "width": 7,
+          "depth": 5,
+          "height": 12
+        },
+        "material": "minecraft:stone_bricks",
+        "trim_material": "minecraft:chiseled_stone_bricks",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "floor_cornice": true
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 6
+      },
+      "features": [
+        "upper_floor_plate",
+        "stair_opening_after_carve"
+      ],
+      "params": {
+        "anchor_mode": "center",
+        "extrude_mode": "plate",
+        "floor_level": 1,
+        "plate_thickness": 1,
+        "material": "minecraft:oak_planks",
+        "edge_beam_material": "minecraft:oak_log",
+        "opening": {
+          "x": 0,
+          "z": -5,
+          "width": 7,
+          "depth": 5
+        },
+        "carve_stair_opening": true,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.12,
+        "floor_height": 3,
+        "floor_count": 2
+      }
+    },
+    {
+      "component_type": "ASSEMBLY",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 6,
+        "height": 9
+      },
+      "features": [
+        "stair:switchback"
+      ],
+      "params": {
+        "assembly": {
+          "ops": [
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 0,
+                "y": 3,
+                "z": 5
+              },
+              "to": {
+                "x": 6,
+                "y": 3,
+                "z": 5
+              },
+              "width": 2,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:oak_planks",
+              "supportMaterial": "minecraft:oak_planks",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              },
+              "to": {
+                "x": 1,
+                "y": 3,
+                "z": 3
+              },
+              "width": 3,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:oak_planks",
+              "supportMaterial": "minecraft:oak_planks",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 5,
+                "y": 3,
+                "z": 4
+              },
+              "to": {
+                "x": 5,
+                "y": 6,
+                "z": 1
+              },
+              "width": 3,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:oak_planks",
+              "supportMaterial": "minecraft:oak_planks",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "from": {
+                "x": 5,
+                "y": 6,
+                "z": 0
+              },
+              "to": {
+                "x": 5,
+                "y": 6,
+                "z": 0
+              },
+              "width": 3,
+              "stairs": "minecraft:stone_brick_stairs",
+              "floor": "minecraft:oak_planks",
+              "supportMaterial": "minecraft:oak_planks",
+              "clearHeight": 2,
+              "carve": true,
+              "support": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -1,
+        "y": 11,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 19,
+        "height": 3
+      },
+      "features": [
+        "overhang",
+        "eaves"
+      ],
+      "params": {
+        "roof_height": 3,
+        "overhang": 1,
+        "roof_type": "gable"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 7
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 1,
+        "height": 4
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"double\", \"wooden\", \"rectangular\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 4, \"openingHeight\": 4, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"oak_wood_with_stone_frame\"}, \"constraints\": {\"mustHave\": [\"hinged\", \"openable\"], \"forbiddenTags\": [\"metal_gate\", \"automatic\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "facing": "SOUTH",
+        "carve": true,
+        "mask": {
+          "w": 4,
+          "h": 4,
+          "d": 1
+        },
+        "frame_material": "minecraft:chiseled_stone_bricks",
+        "door_material": "minecraft:oak_door",
+        "porch_steps": 1,
+        "door_width": 2,
+        "door_height": 4
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 0,
+        "y": 2,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"rectangular\", \"repeating\", \"stone_framed\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"glazed_with_stone_sill\"}, \"constraints\": {\"mustHave\": [\"glazing\", \"sill\"], \"forbiddenTags\": [\"arrow_slit\", \"gothic_tracery\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "tier": "ground",
+        "sill_height": 2,
+        "window_width": 2,
+        "window_height": 3,
+        "spacing": 4,
+        "count_per_side": 3,
+        "sides": [
+          "SOUTH",
+          "NORTH",
+          "EAST",
+          "WEST"
+        ],
+        "skip_side_midpoint_south": true,
+        "window_aspect": "vertical_strip",
+        "frame_material": "minecraft:stone_bricks",
+        "glass_material": "minecraft:glass_pane",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "rhythm_preset": "CLASSICAL_PILASTER_BAY",
+        "repeating_pattern": {
+          "unit_width_z": 5,
+          "elements": [
+            {
+              "type": "pillar",
+              "width": 1
+            },
+            {
+              "type": "window",
+              "width": 3
+            },
+            {
+              "type": "pillar",
+              "width": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"rectangular\", \"rhythmic\", \"upper_tier\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"glazed_with_stone_sill\"}, \"constraints\": {\"mustHave\": [\"glazing\"], \"forbiddenTags\": [\"arrow_slit\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "tier": "upper",
+        "sill_height": 8,
+        "window_width": 3,
+        "window_height": 2,
+        "spacing": 4,
+        "count_per_side": 3,
+        "sides": [
+          "SOUTH",
+          "NORTH",
+          "EAST",
+          "WEST"
+        ],
+        "window_aspect": "horizontal_strip",
+        "frame_material": "minecraft:stone_bricks",
+        "glass_material": "minecraft:glass_pane",
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "rhythm_preset": "CLASSICAL_PILASTER_BAY",
+        "repeating_pattern": {
+          "unit_width_z": 5,
+          "elements": [
+            {
+              "type": "pillar",
+              "width": 1
+            },
+            {
+              "type": "window",
+              "width": 3
+            },
+            {
+              "type": "pillar",
+              "width": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "component_type": "BALCONY",
+      "relative_position": {
+        "x": 0,
+        "y": 7,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"stone\", \"low\", \"modular\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone_brick\"}, \"constraints\": {\"mustHave\": [\"continuous_run\"], \"forbiddenTags\": [\"spiked\", \"glass_panel\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "center",
+        "facing": "SOUTH",
+        "railing": true,
+        "railing_material": "minecraft:stone_brick_wall",
+        "support_corbels": true,
+        "over_entrance": true
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": 0,
+        "y": 11,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 19,
+        "depth": 17,
+        "height": 1
+      },
+      "features": [
+        "cornice_band",
+        "perimeter_string_course",
+        "pilaster_capitals"
+      ],
+      "params": {
+        "anchor_mode": "center",
+        "band": "cornice",
+        "repeat": "perimeter",
+        "protrusion": 1,
+        "material": "minecraft:stone_brick_slab",
+        "capital_material": "minecraft:chiseled_stone_bricks",
+        "second_band_y": 6
+      }
+    },
+    {
+      "component_type": "TERRACE",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 23,
+        "depth": 21,
+        "height": 1
+      },
+      "features": [
+        "stone_apron",
+        "entry_step_landing"
+      ],
+      "params": {
+        "anchor_mode": "center",
+        "material": "minecraft:stone_bricks",
+        "edge_material": "minecraft:stone_brick_slab",
+        "entry_steps_at": "SOUTH",
+        "entry_step_count": 1
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": -7,
+        "y": 12,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "floor_plate:circulation"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "material": "oak_planks"
+      }
+    }
+  ],
+  "kind": "llmplan"
+}

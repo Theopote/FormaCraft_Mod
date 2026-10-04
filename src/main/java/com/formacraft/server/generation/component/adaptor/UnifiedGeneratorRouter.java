@@ -152,6 +152,12 @@ public final class UnifiedGeneratorRouter {
             boolean hasGroupRequest,
             boolean hasComponentRequest
     ) {
+        // Queries on a building envelope describe details, not a replacement for the envelope.
+        // Generate those details as separate components so their socket transforms cannot erase
+        // or relocate the mass, roof or foundation.
+        if (!base.isEmpty() && preservesBuildingEnvelope(semantic.source().componentType())) {
+            return base;
+        }
         if (hasGroupRequest) {
             try {
                 List<BlockPatch> expanded = com.formacraft.common.component.group.PlayerComponentGroupExpander
@@ -189,6 +195,15 @@ public final class UnifiedGeneratorRouter {
         }
 
         return base;
+    }
+
+    static boolean preservesBuildingEnvelope(String type) {
+        if (type == null) return false;
+        return switch (type.toUpperCase(java.util.Locale.ROOT)) {
+            case "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
+                 "ROOF", "ROOF_STRUCTURE", "FOUNDATION" -> true;
+            default -> false;
+        };
     }
 
     private static List<BlockPatch> trySkeletonPath(SemanticComponent semantic, ServerWorld world) {

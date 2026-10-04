@@ -33,7 +33,7 @@ _DEFAULT_DETAIL_RULES: List[Dict[str, Any]] = [
         "id": "floor_cornice",
         "when": {"region": "perimeter", "y": "floor_boundary", "block": "wall"},
         "action": {
-            "replace_with": "inverted_stairs",
+            "replace_with": "block",
             "part": "WALL_ACCENT",
             "facing": "outward",
         },
@@ -41,7 +41,7 @@ _DEFAULT_DETAIL_RULES: List[Dict[str, Any]] = [
     {
         "id": "base_plinth_top",
         "when": {"region": "perimeter", "y": "base_top", "block": "wall"},
-        "action": {"replace_with": "slab", "part": "FOUNDATION"},
+        "action": {"replace_with": "block", "part": "FOUNDATION"},
     },
 ]
 
@@ -331,6 +331,12 @@ def enrich_llm_plan_architectural_detail(
     if all(str(c.get("component_type") or "").upper() == "MODULE" for c in components if isinstance(c, dict)):
         return plan
     if _plan_has_typology_structure(components):
+        return plan
+
+    # Dimensioned circulation requests already describe a complete building. Proportion
+    # cards are suggestions, not authority to resize its shell or add a cupola.
+    # Resizing only the first mass leaves floors, stairs and other masses at old coordinates.
+    if any(word in user_text.lower() for word in ("楼梯", "stair")):
         return plan
 
     skip_classical, skip_reason = should_skip_classical_enrichment(user_text, profile, plan)

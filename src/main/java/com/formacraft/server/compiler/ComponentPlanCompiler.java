@@ -648,6 +648,26 @@ public final class ComponentPlanCompiler {
             if (mass == null) {
                 continue;
             }
+            // Several unassigned masses share __global__. Attach to the nearest body,
+            // rather than moving every facade and roof onto the first building.
+            if (c.relativePosition() != null) {
+                double nearest = Double.POSITIVE_INFINITY;
+                for (Component candidate : components) {
+                    if (!"MASS_MAIN".equals(normalizeType(candidate.componentType()))
+                            || !slotKey(candidate).equals(slotKey)) continue;
+                    Vec3i origin = resolveMassOrigin(candidate);
+                    if (origin == null || candidate.dimensions() == null) continue;
+                    double cx = origin.x() + (candidate.dimensions().width() - 1) / 2.0;
+                    double cz = origin.z() + (candidate.dimensions().depth() - 1) / 2.0;
+                    double x = c.relativePosition().x(), z = c.relativePosition().z();
+                    if (ComponentFootprintUtil.isCornerAnchor(c.params()) && c.dimensions() != null) {
+                        x += (c.dimensions().width() - 1) / 2.0;
+                        z += (c.dimensions().depth() - 1) / 2.0;
+                    }
+                    double distance = (cx-x)*(cx-x) + (cz-z)*(cz-z);
+                    if (distance < nearest) { nearest = distance; mass = candidate; }
+                }
+            }
 
             GlobalConstraints.Facing facing = resolveSlotFacing(plan, slotMap, c.slotId());
             Component aligned = switch (type) {

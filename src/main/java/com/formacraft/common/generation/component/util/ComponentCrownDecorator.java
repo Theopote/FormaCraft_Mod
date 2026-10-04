@@ -47,7 +47,7 @@ public final class ComponentCrownDecorator {
         String profile = getParam(massParams, "facade_profile", "facadeProfile");
         if (profile != null) {
             String fp = profile.toLowerCase(Locale.ROOT);
-            return fp.contains("pilaster") || fp.contains("colonnade") || fp.contains("classical");
+            return fp.contains("colonnade") || fp.contains("classical");
         }
         return false;
     }
