@@ -105,7 +105,8 @@ class ExteriorGameRegressionTest {
             var plan = LlmPlanParser.parse(json.toString());
             assertTrue(ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty());
             assertEquals("E_CIRCULATION_EXTERIOR_CONFLICT",
-                    com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+                    com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code(),
+                    String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
             // Logged endpoint z=9 plus a three-block landing reaches the exterior wall z=12.
             // Move the endpoint inward while preserving the requested landing length and width.
             for (var component : json.get("components")) {

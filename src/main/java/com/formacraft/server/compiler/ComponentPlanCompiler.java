@@ -572,6 +572,11 @@ public final class ComponentPlanCompiler {
                 prepared.add(c);
                 continue;
             }
+            // Floor plates are structural slabs, not buildings with facades, doors and roofs.
+            if (c.params() != null && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
+                prepared.add(c);
+                continue;
+            }
             String slotId = c.slotId();
             Slot slot = slotId != null ? slotMap.get(slotId) : null;
             GlobalConstraints.Facing facing = resolveSlotFacing(plan, slotMap, slotId);

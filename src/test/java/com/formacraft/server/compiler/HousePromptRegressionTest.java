@@ -23,7 +23,7 @@ class HousePromptRegressionTest {
         var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
             .components(List.of(stair, plate)).build();
         var result = ComponentPlanCompiler.compileWithCirculation(plan, null, null, null, false);
-        assertFalse(result.patches().isEmpty()); assertEquals(1, result.circulation().size());
+        assertFalse(result.patches().isEmpty(), String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get())); assertEquals(1, result.circulation().size());
         var flight = result.circulation().getFirst();
         assertEquals(Set.of(0,1), flight.clearance().stream().map(BlockPos::getZ).collect(java.util.stream.Collectors.toSet()));
         assertTrue(flight.clearance().contains(new BlockPos(3,3,1)), "Later slab must be carved");

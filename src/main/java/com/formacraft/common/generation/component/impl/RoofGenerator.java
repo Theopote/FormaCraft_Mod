@@ -128,7 +128,39 @@ public class RoofGenerator implements ComponentGenerator {
                 GeneratedSurfaceCapture.record(patch.dx(), patch.dy(), patch.dz(),
                         GeneratedSurfaceCapture.Role.ROOF);
         }
+        if (!doubleEave && (roofType == RoofType.GABLE || roofType == RoofType.DOUBLE_GABLE || roofType == RoofType.XUANSHAN)
+                && !"false".equalsIgnoreCase(getParamString(params, "gable_walls"))) {
+            sealRectangularGables(out, semantic, footprint, rp, coreWidth, coreDepth, palette);
+        }
         return out;
+    }
+
+    /** Close the two body-end planes, leaving overhangs and the attic interior hollow. */
+    private void sealRectangularGables(List<BlockPatch> out, SemanticComponent semantic,
+                                      ComponentFootprintMask footprint, Vec3i origin, int width, int depth, Palette palette) {
+        for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++)
+            if (!footprint.contains(x, z)) return; // Irregular bodies need their own boundary model.
+        var roofHeights = new java.util.HashMap<net.minecraft.util.math.BlockPos, Integer>();
+        for (var patch : out) if (GeneratedSurfaceCapture.occupied(patch)) {
+            var column = new net.minecraft.util.math.BlockPos(patch.dx(), 0, patch.dz());
+            roofHeights.merge(column, patch.dy(), Math::max);
+        }
+        String block = getParamString(semantic.source().params(), "wall_block");
+        if (block == null) block = getBlockForPart(semantic, palette, SemanticPart.WALL);
+        else if (!block.contains(":")) block = "minecraft:" + block;
+        boolean ridgeAlongDepth = depth >= width;
+        int span = ridgeAlongDepth ? width : depth;
+        int length = ridgeAlongDepth ? depth : width;
+        for (int end : new int[]{0, length - 1}) for (int across = 0; across < span; across++) {
+            int x = origin.x() + (ridgeAlongDepth ? across : end);
+            int z = origin.z() + (ridgeAlongDepth ? end : across);
+            Integer roofY = roofHeights.get(new net.minecraft.util.math.BlockPos(x, 0, z));
+            if (roofY == null) continue;
+            for (int y = origin.y(); y < roofY; y++) {
+                out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
+                GeneratedSurfaceCapture.record(x, y, z, GeneratedSurfaceCapture.Role.WALL);
+            }
+        }
     }
 
     private static boolean allowsRoofCell(ComponentFootprintMask footprint, int overhang, int localX, int localZ) {
@@ -143,18 +175,17 @@ public class RoofGenerator implements ComponentGenerator {
             return;
         }
         boolean alongDepth = depth >= width;
-        int center = alongDepth ? depth / 2 : width / 2;
-        int maxSpan = Math.max(1, alongDepth ? depth / 2 : width / 2);
+        int across = alongDepth ? width : depth;
+        int maxSpan = Math.max(1, (across - 1) / 2);
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
                     continue;
                 }
-                int axis = alongDepth ? z : x;
-                int dist = Math.abs(axis - center);
-                int rise = (int) Math.round((1.0 - (dist / (double) maxSpan)) * (height - 1));
-                if (rise < 0) continue;
-                SemanticPart part = (dist == 0) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
+                int axis = alongDepth ? x : z;
+                int edgeDistance = Math.min(axis, across - 1 - axis);
+                int rise = (int) Math.round(Math.min(1.0, edgeDistance / (double) maxSpan) * (height - 1));
+                SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
@@ -174,18 +205,15 @@ public class RoofGenerator implements ComponentGenerator {
             generateFlatRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
             return;
         }
-        int centerX = width / 2;
-        int centerZ = depth / 2;
-        int maxSpan = Math.max(1, Math.min(width, depth) / 2);
+        int maxSpan = Math.max(1, (Math.min(width, depth) - 1) / 2);
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) {
                     continue;
                 }
-                int dist = Math.max(Math.abs(x - centerX), Math.abs(z - centerZ));
-                int rise = (int) Math.round((1.0 - (dist / (double) maxSpan)) * (height - 1));
-                if (rise < 0) continue;
-                SemanticPart part = (dist == 0) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
+                int edgeDistance = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
+                int rise = (int) Math.round(Math.min(1.0, edgeDistance / (double) maxSpan) * (height - 1));
+                SemanticPart part = (edgeDistance >= maxSpan) ? SemanticPart.ROOF_SURFACE : SemanticPart.ROOF;
                 String block = getBlockForPart(semantic, palette, part);
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
