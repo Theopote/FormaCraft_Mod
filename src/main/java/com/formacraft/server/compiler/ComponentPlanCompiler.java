@@ -1456,8 +1456,10 @@ public final class ComponentPlanCompiler {
             roofParams.put("component_id", part.partId() + "#roof");
             roofParams.put("host_part_id", part.partId());
             roofParams.put("resolved_mass_part_roof", true);
-            inferred.add(new Component("ROOF", slotId, frame.origin(),
-                    new Dimensions(frame.width(),frame.depth(),derived.dimensions().height()), List.of("roof"), roofParams));
+            if (derived != null) {
+                inferred.add(new Component("ROOF", slotId, frame.origin(),
+                        new Dimensions(frame.width(),frame.depth(),derived.dimensions().height()), List.of("roof"), roofParams));
+            }
         }
     }
 
