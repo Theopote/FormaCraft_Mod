@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
@@ -404,9 +405,18 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
+                    int surfaceX = rp.x() + mass.offsetX + localX;
+                    int surfaceY = rp.y() + mass.offsetY + y;
+                    int surfaceZ = rp.z() + mass.offsetZ + localZ;
+                    if (isExteriorWallPosition(localX, localZ, width, depth, mass.shape, mass.cornerRadius, mass.pattern))
+                        GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
+                                GeneratedSurfaceCapture.Role.WALL);
+
                     if (hasWindows && isWindowPosition(localX, localZ, width, depth, y, height, mass.shape,
                             mass.cornerRadius, mass.pattern, windowSpacing, userFloorHeight)) {
                         SemanticPart part = SemanticPart.WINDOW;
+                        GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
+                                GeneratedSurfaceCapture.Role.WINDOW);
                         String block = getBlockForPart(part, semantic, palette);
                         if (block.isEmpty()) {
                             block = "minecraft:glass";
@@ -424,6 +434,8 @@ public class MassMainGenerator implements ComponentGenerator {
                     if (hasDoors && isDoorPosition(localX, localZ, width, depth, y, mass.shape,
                             mass.cornerRadius, mass.pattern, doorFacing)) {
                         SemanticPart part = SemanticPart.DOORWAY;
+                        if (y > 0) GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
+                                GeneratedSurfaceCapture.Role.DOOR_OPENING);
                         String block = getBlockForPart(part, semantic, palette);
                         if (block.isEmpty()) {
                             block = "minecraft:air";
@@ -443,6 +455,8 @@ public class MassMainGenerator implements ComponentGenerator {
                     }
 
                     if (hasRoof && y >= height - 1) {
+                        GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
+                                GeneratedSurfaceCapture.Role.ROOF);
                         SemanticPart part = SemanticPart.ROOF_SURFACE;
                         String block = getBlockForPart(part, semantic, palette);
                         if (block.isEmpty()) {
@@ -512,6 +526,8 @@ public class MassMainGenerator implements ComponentGenerator {
                                     .cellAt(facadeStyle.cutout(), u, y, uSize, height);
                             if (cell == com.formacraft.common.generation.component.util.FacadePatternDsl.Cell.AIR) {
                                 block = "minecraft:air";
+                                GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
+                                        GeneratedSurfaceCapture.Role.FACADE_OPENING);
                             } else if (cell == com.formacraft.common.generation.component.util.FacadePatternDsl.Cell.FRAME
                                     && facadeTrimId != null && !facadeTrimId.isBlank()) {
                                 block = facadeTrimId;

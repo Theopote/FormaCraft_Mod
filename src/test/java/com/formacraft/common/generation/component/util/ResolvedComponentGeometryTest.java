@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.impl.MassMainGenerator;
+import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -30,8 +31,8 @@ class ResolvedComponentGeometryTest {
                 assertEquals(expected.get("envelope").get("max_y").asInt(), union.maxY());
                 if ("circle".equals(fixture.get("name").asText())) continue;
                 var patches = new MassMainGenerator().generate(new SemanticComponent("MASS_MAIN", null, c));
-                assertEquals(union.maxX()-1, patches.stream().mapToInt(p -> p.dx()).max().orElseThrow());
-                assertEquals(union.maxY()-1, patches.stream().mapToInt(p -> p.dy()).max().orElseThrow());
+                assertEquals(union.maxX()-1, patches.stream().mapToInt(BlockPatch::dx).max().orElseThrow());
+                assertEquals(union.maxY()-1, patches.stream().mapToInt(BlockPatch::dy).max().orElseThrow());
             }
         }
     }
@@ -63,9 +64,9 @@ class ResolvedComponentGeometryTest {
         var geometry = ResolvedComponentGeometry.resolve(component);
         var patches = new MassMainGenerator().generate(new SemanticComponent("MASS_MAIN", null, component));
         assertFalse(patches.isEmpty());
-        assertEquals(geometry.origin().x(), patches.stream().mapToInt(p -> p.dx()).min().orElseThrow());
-        assertEquals(geometry.bounds().maxX()-1, patches.stream().mapToInt(p -> p.dx()).max().orElseThrow());
-        assertEquals(geometry.roofY(), patches.stream().mapToInt(p -> p.dy()).max().orElseThrow());
+        assertEquals(geometry.origin().x(), patches.stream().mapToInt(BlockPatch::dx).min().orElseThrow());
+        assertEquals(geometry.bounds().maxX()-1, patches.stream().mapToInt(BlockPatch::dx).max().orElseThrow());
+        assertEquals(geometry.roofY(), patches.stream().mapToInt(BlockPatch::dy).max().orElseThrow());
     }
 
     @Test void contractedLocalFloorHeightWinsOverResearchHint() {

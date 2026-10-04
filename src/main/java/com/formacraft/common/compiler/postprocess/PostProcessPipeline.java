@@ -92,12 +92,23 @@ public class PostProcessPipeline {
         
         for (PostProcessor processor : processors) {
             try {
+                List<BlockPatch> previous = new ArrayList<>(result);
                 result = processor.process(result, context);
                 if (result == null) {
                     FormacraftMod.LOGGER.warn("PostProcessor {} returned null, using previous result", 
                             processor.getClass().getSimpleName());
                     result = patches;
                     break;
+                }
+                // Terrain deliberately changes coordinates; comparing against its old positions
+                // would duplicate the building. Later processors use its translated output.
+                if (!(processor instanceof TerrainAdaptationPostProcessor)) {
+                    var integrity = ExteriorIntegrityGuard.preserve(previous, result, context);
+                    result = integrity.patches();
+                    if (integrity.restored() > 0) {
+                        FormacraftMod.LOGGER.warn("Exterior integrity: processor={} restored={} stage=plan_patches",
+                                processor.getClass().getSimpleName(), integrity.restored());
+                    }
                 }
             } catch (Exception e) {
                 FormacraftMod.LOGGER.error("PostProcessor {} failed: {}", 

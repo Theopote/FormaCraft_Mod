@@ -11,6 +11,25 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorGameRegressionTest {
+    @Test void declaredWallWithoutBlocksRejectsCompilationAndNextPlanClearsFailure() {
+        MinecraftRegistryTestBootstrap.initialize();
+        for (String wall : List.of("minecraft:air", "minecraft:stone_bricks")) {
+            var mass = new Component("MASS_MAIN", null, new com.formacraft.common.llm.dto.Vec3i(0,0,0),
+                    new com.formacraft.common.llm.dto.Dimensions(9,9,8), List.of("hollow"),
+                    Map.of("anchor_mode","min_corner","hollow",true,"wall_block",wall,
+                            "suppress_windows",true,"suppress_doors",true));
+            var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                    .mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build).components(List.of(mass)).build();
+            var result = ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false);
+            if (wall.equals("minecraft:air")) {
+                assertTrue(result.isEmpty());
+                assertEquals("E_SURFACE_GENERATION_INCOMPLETE", com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+            } else {
+                assertFalse(result.isEmpty());
+                assertFalse(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
+            }
+        }
+    }
     @Test void nestedAnnexFlatRoofKeepsItsOwnHeightAndLShapedVoid() throws Exception {
         MinecraftRegistryTestBootstrap.initialize();
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -78,11 +97,22 @@ class ExteriorGameRegressionTest {
                 && "minecraft:spruce_planks".equals(p.targetBlock())));
         assertFalse(patches.stream().anyMatch(p -> "minecraft:bricks".equals(p.targetBlock())));
     }
-    @Test void decoratedRetestUsesFinalStairPatches() throws Exception {
+    @Test void decoratedRetestRejectsWallCrossingLandingAndAcceptsInteriorLanding() throws Exception {
         MinecraftRegistryTestBootstrap.initialize();
         try (var input = getClass().getResourceAsStream("/regressions/exterior-retest/4.json")) {
-            var plan = LlmPlanParser.parse(new String(Objects.requireNonNull(input).readAllBytes(), StandardCharsets.UTF_8));
-            assertFalse(ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty(),
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var json = mapper.readTree(new String(Objects.requireNonNull(input).readAllBytes(), StandardCharsets.UTF_8));
+            var plan = LlmPlanParser.parse(json.toString());
+            assertTrue(ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty());
+            assertEquals("E_CIRCULATION_EXTERIOR_CONFLICT",
+                    com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+            // Logged endpoint z=9 plus a three-block landing reaches the exterior wall z=12.
+            // Move the endpoint inward while preserving the requested landing length and width.
+            for (var component : json.get("components")) {
+                if ("STRUCTURE".equals(component.path("component_type").asText()))
+                    ((com.fasterxml.jackson.databind.node.ObjectNode) component.get("params").get("to")).put("z", 8);
+            }
+            assertFalse(ComponentPlanCompiler.compile(LlmPlanParser.parse(json.toString()), net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty(),
                 String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         }
     }

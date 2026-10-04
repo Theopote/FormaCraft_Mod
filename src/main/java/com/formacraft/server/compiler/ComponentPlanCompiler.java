@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 
 import com.formacraft.common.generation.component.util.ComponentCrownDecorator;
@@ -173,17 +174,19 @@ public final class ComponentPlanCompiler {
         }
 
         List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
+        Set<BlockPos> generatedSurfaces = new HashSet<>();
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         try {
             compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                    slotMap, result, buildingVolumes, circulation);
+                    slotMap, result, buildingVolumes, circulation, generatedSurfaces);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             TypologyPatchBridge.clearPlanWorldAnchor();
         }
+        if (AssemblyCompileDiagnostics.hasGap()) return List.of();
 
         FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches",
                 components.size(), result.size());
@@ -195,7 +198,7 @@ public final class ComponentPlanCompiler {
                 clearance.addAll(flight.clearance());
                 clearance.addAll(flight.occupied());
             }
-            PostProcessContext context = PostProcessContext.create(plan, globalAnchor, buildingVolumes, clearance);
+            PostProcessContext context = PostProcessContext.create(plan, globalAnchor, buildingVolumes, clearance, generatedSurfaces);
             PostProcessPipeline pipeline;
             
             if (applyTerrainAdaptation && world != null && terrainSampler != null) {
@@ -290,7 +293,8 @@ public final class ComponentPlanCompiler {
             Map<String, Slot> slotMap,
             List<BlockPatch> result,
             List<PostProcessContext.BuildingVolume> buildingVolumes,
-            List<AssemblyCirculationConstraints.Flight> circulation
+            List<AssemblyCirculationConstraints.Flight> circulation,
+            Set<BlockPos> generatedSurfaces
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
@@ -323,7 +327,19 @@ public final class ComponentPlanCompiler {
             List<BlockPatch> patches;
             var componentFlights = new ArrayList<AssemblyCirculationConstraints.Flight>();
             try (var capture = AssemblyCirculationConstraints.captureTo(componentFlights::addAll)) {
-                patches = GenerationHub.generateComponent(semantic, world);
+                var surfaceCells = new ArrayList<GeneratedSurfaceCapture.Cell>();
+                try (var surfaceCapture = GeneratedSurfaceCapture.captureTo(surfaceCells::add)) {
+                    patches = GenerationHub.generateComponent(semantic, world);
+                }
+                var missingSurfaces = GeneratedSurfaceCapture.missing(surfaceCells, patches);
+                if (!missingSurfaces.isEmpty()) {
+                    var first = missingSurfaces.getFirst();
+                    AssemblyCompileDiagnostics.set(new CapabilityGap("E_SURFACE_GENERATION_INCOMPLETE",
+                            "生成器未提供声明的建筑表面：" + normalizedType + " " + first.role()
+                                    + " at component " + first.position().toShortString() + "; missing=" + missingSurfaces.size(),
+                            "components[]", List.of("Fix surface material or generator emission; keep authored openings explicitly marked.")));
+                    return;
+                }
                 if (!patches.isEmpty()) {
                     if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
                             && assemblyFacadeSlots.contains(slotKey)) {
@@ -338,9 +354,23 @@ public final class ComponentPlanCompiler {
                     logComponentPatchCount(normalizedType, c, patches.size());
                     com.formacraft.common.llm.dto.Vec3i slotAnchor = slot.anchor();
                     BlockPos flightOffset = slotAnchor == null ? BlockPos.ORIGIN : new BlockPos(slotAnchor.x(), slotAnchor.y(), slotAnchor.z());
-                    for (var flight : componentFlights)
-                        circulation.add(AssemblyCirculationConstraints.shift(flight, flightOffset));
-                    if (isMassType(normalizedType)) {
+                    for (var cell : surfaceCells) if (cell.requiresBlock())
+                        generatedSurfaces.add(cell.shift(flightOffset).position());
+                    var shiftedFlights = componentFlights.stream()
+                            .map(flight -> AssemblyCirculationConstraints.shift(flight, flightOffset)).toList();
+                    var exteriorCollision = ExteriorCirculationValidator.findCollision(result, shiftedFlights, buildingVolumes);
+                    if (exteriorCollision.isPresent()) {
+                        var collision = exteriorCollision.get();
+                        AssemblyCompileDiagnostics.set(new CapabilityGap("E_CIRCULATION_EXTERIOR_CONFLICT",
+                                "楼梯占用或净空覆盖已有外墙：" + collision.position().toShortString()
+                                        + " (" + collision.role() + ")", "components[]",
+                                List.of("Move the stair flight and its clearance inside the host building; use an existing doorway for exterior access.")));
+                        return;
+                    }
+                    circulation.addAll(shiftedFlights);
+                    // A floor plate has no enclosing walls, even if legacy dimensions give it height.
+                    if (isMassType(normalizedType) && !(c.params() != null
+                            && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode"))))) {
                         for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
                         var bounds = part.bounds();
                         if (bounds != null) {

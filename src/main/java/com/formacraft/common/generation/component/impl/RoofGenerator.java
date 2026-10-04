@@ -1,5 +1,6 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.generation.component.util.ComponentRoofSpecialtyDecorator;
@@ -122,6 +123,11 @@ public class RoofGenerator implements ComponentGenerator {
             addEaveLayer(out, semantic, baseX, eaveY, baseZ, width, depth, palette, eaveOutset, footprint, appliedOverhang);
         }
 
+        if (GeneratedSurfaceCapture.isCapturing()) for (var patch : out) {
+            if (GeneratedSurfaceCapture.occupied(patch))
+                GeneratedSurfaceCapture.record(patch.dx(), patch.dy(), patch.dz(),
+                        GeneratedSurfaceCapture.Role.ROOF);
+        }
         return out;
     }
 
