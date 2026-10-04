@@ -77,8 +77,11 @@ public final class ComponentFloorCorniceDecorator {
     /** Global explicit height wins, then this mass's explicit height, then the size heuristic. */
     public static int resolveFloorHeight(LlmPlan plan, Component mass, int buildingHeight) {
         int global = plan == null ? 0 : ComponentParamParsers.intParam(plan.proportionHints(), 0, "floor_height", "floorHeight");
+        int local = ResolvedComponentGeometry.explicitFloorHeight(mass);
+        boolean contracted = plan != null && plan.proportionHints() != null
+                && plan.proportionHints().get("building_contract") instanceof Map<?, ?>;
+        if (contracted && local > 0) return local;
         if (global > 0) return global;
-        int local = mass == null ? 0 : ComponentParamParsers.intParam(mass.params(), 0, "floor_height", "floorHeight");
         return local > 0 ? local : buildingHeight >= 8 ? 4 : 3;
     }
 

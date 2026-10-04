@@ -102,12 +102,8 @@ def ring_ops(params: dict, payload: dict) -> list[dict]:
 
 
 def _mass_origin(mass: dict) -> dict:
-    rp = dict(mass.get('relative_position') or _point(0, 0, 0))
-    dims, params = mass['dimensions'], mass.get('params') or {}
-    if params.get('anchor_mode') not in ('min_corner', 'corner', 'bottom_left'):
-        rp['x'] -= int(dims['width']) // 2
-        rp['z'] -= int(dims['depth']) // 2
-    return rp
+    from .resolved_geometry import mass_origin
+    return mass_origin(mass)
 
 
 def _host_mass(plan: dict, component: dict) -> dict | None:

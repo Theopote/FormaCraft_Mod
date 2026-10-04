@@ -400,6 +400,7 @@ public final class ComponentPlanCompiler {
             }
             normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);
             normalizedComponent = OpeningGrammarResolver.apply(plan, normalizedComponent);
+            normalizedComponent = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.normalizeBody(normalizedComponent);
             String type = normalizeType(normalizedComponent.componentType());
             String slotKey = slotKey(normalizedComponent);
             if (isMassType(type)) {

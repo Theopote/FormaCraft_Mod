@@ -101,7 +101,7 @@ public class MassMainGenerator implements ComponentGenerator {
     public List<BlockPatch> generate(SemanticComponent semantic) {
         List<BlockPatch> out = new ArrayList<>();
 
-        Component c = semantic.source();
+        Component c = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.normalizeBody(semantic.source());
         if (c == null || c.dimensions() == null || c.relativePosition() == null) {
             return out;
         }
@@ -141,34 +141,8 @@ public class MassMainGenerator implements ComponentGenerator {
         // 使用转换后的实际原点
         rp = actualRp;
         
-        // 尺寸规范化：确保高度至少3米（3格）
-        // 如果用户指定了具体高度，使用用户的要求
-        int userFloorHeight = ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight");
-        if (userFloorHeight <= 0) {
-            userFloorHeight = com.formacraft.common.generation.component.util.ProportionalFacadeCalculator
-                    .extractFloorHeightFromFeatures(c.features());
-        }
-        if (userFloorHeight > 0) {
-            // 用户指定了每层高度，验证总高度是否合理
-            // 至少1层
-            if (height < userFloorHeight) {
-                FormacraftMod.LOGGER.warn("MassMainGenerator: total height {} is less than minimum {} (floor height: {})", 
-                        height, userFloorHeight, userFloorHeight);
-                // 调整总高度以匹配用户要求
-                height = userFloorHeight;
-            }
-        } else {
-            // 用户未指定，确保总高度至少3米
-            height = Math.max(3, height);
-        }
-        
-        // 验证尺寸合理性
-        if (!com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.validateDimensions(width, depth, height)) {
-            FormacraftMod.LOGGER.warn("MassMainGenerator: invalid dimensions {}x{}x{}, using defaults", width, depth, height);
-            width = Math.max(3, width);
-            depth = Math.max(3, depth);
-            height = Math.max(3, height);
-        }
+        // Resolve before creating MassConfig so the emitted body and satellite bounds agree.
+        int userFloorHeight = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.explicitFloorHeight(c);
 
         // 获取风格
         String styleProfile = getStyleProfile(semantic);

@@ -110,12 +110,8 @@ def request_text(req: Any) -> str:
 
 
 def _center(comp: dict) -> tuple[float, float]:
-    p, dims, params = comp.get('relative_position') or {}, comp.get('dimensions') or {}, comp.get('params') or {}
-    x, z = float(p.get('x', 0)), float(p.get('z', 0))
-    if params.get('anchor_mode') == 'min_corner':
-        x += (float(dims.get('width', 1))-1)/2
-        z += (float(dims.get('depth', 1))-1)/2
-    return x, z
+    from .resolved_geometry import mass_center
+    return mass_center(comp)
 
 
 def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) -> dict:
@@ -194,7 +190,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if key == 'no_complex_decor':
             invalid = [c['params']['component_id'] for c in owned if c.get('component_type') in ('CROWN', 'CUPOLA', 'DOME')]
         elif key in ('width', 'depth'):
-            invalid = [c['params']['component_id'] for c in targets if (c.get('dimensions') or {}).get(key) != expected]
+            from .resolved_geometry import body_dimensions
+            invalid = [c['params']['component_id'] for c in targets if body_dimensions(c).get(key) != expected]
         elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block'):
             invalid = [c['params']['component_id'] for c in targets if c['params'].get(key) != expected]
         elif key == 'entrance_facing':
@@ -217,6 +214,11 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         requirement['status'] = 'mismatch' if invalid else 'planned'
         requirement['target_components'] = sorted(target_ids)
         requirement['mismatched_components'] = invalid
+    from .resolved_geometry import resolve_buildings
+    contract['resolved_buildings'] = resolve_buildings(out)
+    for building in contract['resolved_buildings']:
+        if not building['floor_layout_fits']:
+            contract['diagnostics'].append({'code': 'E_FLOOR_ENVELOPE', 'component_id': building['component_id']})
     failures = [r for r in requirements if r['status'] == 'mismatch']
     if finalize and not out.get('capability_gap') and (failures or contract['diagnostics']):
         out['plan_status'] = 'capability_gap'

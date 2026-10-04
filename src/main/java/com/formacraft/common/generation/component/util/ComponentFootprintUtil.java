@@ -61,39 +61,14 @@ public final class ComponentFootprintUtil {
         if (component == null || component.dimensions() == null) {
             return null;
         }
-        Vec3i origin = resolveMinCornerOrigin(component);
-        if (origin == null) {
-            return null;
-        }
-        Dimensions d = component.dimensions();
-        int w = Math.max(1, d.width());
-        int h = Math.max(1, d.height());
-        int dep = Math.max(1, d.depth());
-        return new Bounds(
-                origin.x(),
-                origin.y(),
-                origin.z(),
-                origin.x() + w,
-                origin.y() + h,
-                origin.z() + dep
-        );
+        ResolvedComponentGeometry geometry = ResolvedComponentGeometry.resolve(component);
+        return geometry == null ? null : geometry.bounds();
     }
 
     public static Vec3i resolveMinCornerOrigin(Component component) {
-        if (component == null) {
-            return null;
-        }
-        Vec3i rp = component.relativePosition();
-        Dimensions dims = component.dimensions();
-        if (rp == null || dims == null) {
-            return rp;
-        }
-        if (isCornerAnchor(component.params())) {
-            return rp;
-        }
-        int offsetX = -(Math.max(1, dims.width()) / 2);
-        int offsetZ = -(Math.max(1, dims.depth()) / 2);
-        return new Vec3i(rp.x() + offsetX, rp.y(), rp.z() + offsetZ);
+        if (component == null) return null;
+        ResolvedComponentGeometry geometry = ResolvedComponentGeometry.resolve(component);
+        return geometry == null ? component.relativePosition() : geometry.origin();
     }
 
     public static boolean isCornerAnchor(Map<String, Object> params) {
