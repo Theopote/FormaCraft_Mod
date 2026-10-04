@@ -8,6 +8,7 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.generation.component.util.ResolvedMassPart;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.ResolvedFacadeLayers;
 import net.minecraft.util.math.BlockPos;
 import java.util.*;
 
@@ -78,19 +79,16 @@ final class FlatRoofCoverageValidator {
         var c = body.source();
         if (c == null || !"MASS_MAIN".equalsIgnoreCase(c.componentType()) || c.params() == null
                 || c.params().get("component_id") == null || "plate".equals(c.params().get("extrude_mode"))) return Optional.empty();
-        // The current mask does not express per-layer setbacks; don't invent a full-width top.
-        if (c.features() != null && c.features().stream().anyMatch(f -> f != null
-                && (f.contains("stepped") || f.contains("setback") || f.contains("退台")))) return Optional.empty();
-        Object setback = c.params().get("setback_ratio");
-        if (setback instanceof Number n && n.doubleValue() > 0) return Optional.empty();
         String host = c.params().get("component_id").toString();
         var bound = roofs.stream().filter(r -> host.equals(r.host())).toList();
         if (bound.isEmpty()) return Optional.empty(); // Pitched and legacy unbound roofs aren't claimed as checked.
         var parts = ResolvedMassPart.resolve(c);
         var masks = new ArrayList<ComponentFootprintMask>();
+        var layers = new ArrayList<com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.LayerConfig[]>();
         for (var part : parts) {
             var params = new HashMap<>(c.params()); params.putAll(part.sourceParams());
             masks.add(ComponentFootprintMask.from(body, params, part.dimensions().width(), part.dimensions().depth()));
+            layers.add(ResolvedFacadeLayers.resolve(body,part.dimensions().width(),part.dimensions().depth(),part.dimensions().height()));
         }
         Map<BlockPos, BlockPatch> finalPatches = new HashMap<>();
         for (var patch : patches) if (patch != null) finalPatches.put(new BlockPos(patch.dx(),patch.dy(),patch.dz()),patch);
@@ -102,13 +100,15 @@ final class FlatRoofCoverageValidator {
             for (var roof : assigned) roofCells.addAll(roof.coverage());
             int count = 0; BlockPos first = null;
             for (int x = 0; x < part.dimensions().width(); x++) for (int z = 0; z < part.dimensions().depth(); z++) {
-                if (!masks.get(i).contains(x,z)) continue;
+                if (!masks.get(i).contains(x,z) || !ResolvedFacadeLayers.contains(layers.get(i)[part.dimensions().height()-1],x,z)) continue;
                 int px = part.origin().x()+x, pz = part.origin().z()+z, y = part.bounds().maxY()-1;
                 boolean coveredByBody = false;
                 for (int j = 0; j < parts.size(); j++) {
                     var other = parts.get(j);
                     if (y+1 >= other.origin().y() && y+1 < other.bounds().maxY()
-                            && masks.get(j).contains(px-other.origin().x(),pz-other.origin().z())) { coveredByBody = true; break; }
+                            && masks.get(j).contains(px-other.origin().x(),pz-other.origin().z())
+                            && ResolvedFacadeLayers.contains(layers.get(j)[y+1-other.origin().y()],
+                                    px-other.origin().x(),pz-other.origin().z())) { coveredByBody = true; break; }
                 }
                 var pos = new BlockPos(px,y,pz).add(offset);
                 if (coveredByBody || clearance.contains(pos)) continue;

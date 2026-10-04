@@ -172,15 +172,12 @@ public class MassMainGenerator implements ComponentGenerator {
                                       "pointed_arches", "arches", "ribbed_vaults"); // 哥特式结构
         boolean hasInterior = hasFeature(c, "interior", "rooms", "hollow", "courtyard", "central_courtyard",
                                          "inner_space", "empty_interior");
-        boolean hasSteppedFacade = hasFeature(c, "stepped_facade", "stepped", "setback", "setbacks", 
-                                               "进退", "进退关系", "立面", "facade_setback", "tiered");
         boolean assemblyFacade = getParamBoolean(params, "assembly_facade", "assemblyFacade");
         boolean suppressWindows = getParamBoolean(params, "suppress_windows", "suppressWindows");
         boolean suppressDoors = getParamBoolean(params, "suppress_doors", "suppressDoors");
 
         Double voidRatio = resolveVoidRatio(params, semantic);
         Double windowRatio = resolveWindowRatio(params, semantic);
-        Double setbackRatioOverride = resolveSetbackRatio(params, semantic);
         int wallThickness = resolveWallThickness(params, semantic);
         String roofType = resolveRoofType(params, semantic);
 
@@ -188,9 +185,6 @@ public class MassMainGenerator implements ComponentGenerator {
             hasRoof = false;
         } else if (!hasRoof && roofType != null && !roofType.isBlank()) {
             hasRoof = true;
-        }
-        if (!hasSteppedFacade && shouldEnableSteppedFacade(semantic)) {
-            hasSteppedFacade = true;
         }
         
         // 对于大多数建筑类型，默认应该有内部空间（除非明确不需要）
@@ -262,7 +256,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
         for (MassConfig mass : massConfigs) {
             emitMass(out, semantic, palette, rp, mass, hasInterior, hasWindows, hasDoors, hasRoof, hasDecor,
-                    hasSteppedFacade, windowSpacing, doorFacing, wallThickness, userFloorHeight, setbackRatioOverride,
+                    windowSpacing, doorFacing, wallThickness, userFloorHeight,
                     facadeStyle);
         }
 
@@ -293,12 +287,10 @@ public class MassMainGenerator implements ComponentGenerator {
             boolean hasDoors,
             boolean hasRoof,
             boolean hasDecor,
-            boolean hasSteppedFacade,
             int windowSpacing,
             com.formacraft.common.llm.dto.GlobalConstraints.Facing doorFacing,
             int wallThickness,
             int userFloorHeight,
-            Double setbackRatioOverride,
             FacadeStyle facadeStyle
     ) {
         int width = mass.width;
@@ -323,32 +315,12 @@ public class MassMainGenerator implements ComponentGenerator {
         int[] layerXOffsets = new int[height];
         int[] layerZOffsets = new int[height];
 
-        if (hasSteppedFacade && height >= 3) {
-            double userSetbackRatio = 0;
-            if (semantic.source() != null) {
-                userSetbackRatio = setbackRatioOverride != null ? setbackRatioOverride
-                        : com.formacraft.common.generation.component.util.ProportionalFacadeCalculator
-                        .extractSetbackRatioFromFeatures(semantic.source().features());
-            }
-
-            com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.LayerConfig[] layerConfigs =
-                    com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.calculateSteppedFacade(
-                            width, depth, height, userFloorHeight, userSetbackRatio
-                    );
-
-            for (int y = 0; y < height; y++) {
-                layerWidths[y] = layerConfigs[y].width;
-                layerDepths[y] = layerConfigs[y].depth;
-                layerXOffsets[y] = layerConfigs[y].xOffset;
-                layerZOffsets[y] = layerConfigs[y].zOffset;
-            }
-        } else {
-            for (int y = 0; y < height; y++) {
-                layerWidths[y] = width;
-                layerDepths[y] = depth;
-                layerXOffsets[y] = 0;
-                layerZOffsets[y] = 0;
-            }
+        var layers = com.formacraft.common.generation.component.util.ResolvedFacadeLayers.resolve(semantic, width, depth, height);
+        for (int y = 0; y < height; y++) {
+            layerWidths[y] = layers[y].width;
+            layerDepths[y] = layers[y].depth;
+            layerXOffsets[y] = layers[y].xOffset;
+            layerZOffsets[y] = layers[y].zOffset;
         }
 
         for (int y = 0; y < height; y++) {
@@ -384,7 +356,9 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
-                    if (hasInterior && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness,
+                    if (hasInterior && x >= wallThickness && x < currentWidth-wallThickness
+                            && z >= wallThickness && z < currentDepth-wallThickness
+                            && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness,
                             mass.shape, mass.cornerRadius, mass.pattern)) {
                         if (y == 0) {
                             SemanticPart part = SemanticPart.FLOOR;
@@ -408,7 +382,8 @@ public class MassMainGenerator implements ComponentGenerator {
                     int surfaceX = rp.x() + mass.offsetX + localX;
                     int surfaceY = rp.y() + mass.offsetY + y;
                     int surfaceZ = rp.z() + mass.offsetZ + localZ;
-                    if (isExteriorWallPosition(localX, localZ, width, depth, mass.shape, mass.cornerRadius, mass.pattern))
+                    if (x == 0 || z == 0 || x == currentWidth-1 || z == currentDepth-1
+                            || isExteriorWallPosition(localX, localZ, width, depth, mass.shape, mass.cornerRadius, mass.pattern))
                         GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
                                 GeneratedSurfaceCapture.Role.WALL);
 
@@ -1168,21 +1143,6 @@ public class MassMainGenerator implements ComponentGenerator {
         return null;
     }
 
-    private Double resolveSetbackRatio(Map<String, Object> params, SemanticComponent semantic) {
-        Double ratio = ComponentParamParsers.doubleOrNull(params, "setback_ratio", "setbackRatio");
-        if (ratio != null) return clamp01(ratio);
-        if (semantic != null && semantic.genome() != null && semantic.genome().form != null) {
-            String progression = semantic.genome().form.progression;
-            if ("stepping".equalsIgnoreCase(progression)) {
-                return 0.07;
-            }
-            if ("tapering".equalsIgnoreCase(progression)) {
-                return 0.05;
-            }
-        }
-        return null;
-    }
-
     private int resolveWallThickness(Map<String, Object> params, SemanticComponent semantic) {
         int override = ComponentParamParsers.intParam(params, -1, "wall_thickness", "wallThickness");
         if (override > 0) {
@@ -1240,14 +1200,6 @@ public class MassMainGenerator implements ComponentGenerator {
         }
 
         return new FacadeStyle(profile, pattern, cutout);
-    }
-
-    private boolean shouldEnableSteppedFacade(SemanticComponent semantic) {
-        if (semantic == null || semantic.genome() == null || semantic.genome().form == null) {
-            return false;
-        }
-        String progression = semantic.genome().form.progression;
-        return "stepping".equalsIgnoreCase(progression) || "tapering".equalsIgnoreCase(progression);
     }
 
     private boolean isInsideFootprintBase(int x, int z, int width, int depth, FootprintShape shape, int cornerRadius) {

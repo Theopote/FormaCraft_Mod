@@ -1312,6 +1312,25 @@ public final class ComponentPlanCompiler {
         }
         int width = Math.max(2, dims.width());
         int depth = Math.max(2, dims.depth());
+        // Only a fully rectangular primary body can safely rebase its footprint mask.
+        // Other shapes need clipping in the original mask coordinates rather than a smaller mask.
+        if ("MASS_MAIN".equals(normalizeType(base.componentType()))) {
+            var semantic = new SemanticComponent(base.componentType(), null, base,
+                    plan.styleProfile(), plan.styleAttributes(), plan.genome());
+            var mask = com.formacraft.common.generation.component.util.ComponentFootprintMask.from(semantic,
+                    base.params(), dims.width(), dims.depth());
+            boolean rectangle = true;
+            for (int x = 0; x < dims.width() && rectangle; x++) for (int z = 0; z < dims.depth(); z++)
+                if (!mask.contains(x,z)) { rectangle = false; break; }
+            if (rectangle) {
+                var layers = com.formacraft.common.generation.component.util.ResolvedFacadeLayers.resolve(semantic,
+                        dims.width(), dims.depth(), dims.height());
+                var top = layers[layers.length-1];
+                width = Math.max(2, Math.min(dims.width(), top.width));
+                depth = Math.max(2, Math.min(dims.depth(), top.depth));
+                rp = new Vec3i(rp.x()+top.xOffset,rp.y(),rp.z()+top.zOffset);
+            }
+        }
         int span = Math.min(width, depth);
         int roofHeight = Math.max(2, Math.min(8, Math.max(2, span / 3)));
 
