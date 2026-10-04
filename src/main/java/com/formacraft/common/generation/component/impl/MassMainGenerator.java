@@ -123,6 +123,16 @@ public class MassMainGenerator implements ComponentGenerator {
         
         Map<String, Object> params = c.params();
 
+        // A plate is a floor slab, not another multi-storey building shell.
+        if (params != null && "plate".equals(params.get("extrude_mode"))) {
+            String floor = getParamString(params, "material");
+            if (floor == null) floor = "minecraft:oak_planks";
+            if (!floor.contains(":")) floor = "minecraft:" + floor;
+            for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++)
+                out.add(new BlockPatch(BlockPatch.PLACE, actualRp.x() + x, actualRp.y(), actualRp.z() + z, floor));
+            return out;
+        }
+
         FootprintShape baseShape = resolveShape(c, semantic);
         int cornerRadius = resolveCornerRadius(params, width, depth, baseShape);
         PatternConfig basePattern = resolvePlanPattern(params, semantic, width, depth, baseShape);
@@ -474,7 +484,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
                     if (hasDecor && isDecorPosition(localX, localZ, width, depth, y, height, mass.shape,
                             mass.cornerRadius, mass.pattern)) {
-                        SemanticPart part = SemanticPart.DECOR;
+                        SemanticPart part = SemanticPart.WALL_ACCENT;
                         String block = getBlockForPart(part, semantic, palette);
                         if (block.isEmpty()) {
                             part = SemanticPart.WALL_ACCENT;
@@ -606,7 +616,7 @@ public class MassMainGenerator implements ComponentGenerator {
         boolean isTop = (y >= height - 2);
         boolean isExterior = isExteriorWallPosition(x, z, width, depth, shape, cornerRadius, pattern);
         boolean isCorner = isCornerPosition(x, z, width, depth, shape, cornerRadius, pattern);
-        return (isTop || isExterior || isCorner) && (y > 0);
+        return (isTop || isCorner) && isExterior && (y > 0);
     }
 
     /**

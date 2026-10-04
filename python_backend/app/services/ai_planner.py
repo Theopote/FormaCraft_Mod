@@ -4720,6 +4720,19 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
     与 BuildingSpec 路径保持一致。全部为本地操作，不引入网络延迟。
     """
     parts: list[str] = []
+    user_text = (req.userMessage or "") if req is not None else ""
+    if any(token in user_text.lower() for token in ("楼梯", "stair")):
+        parts.append(
+            "Executable circulation contract: for each straight interior flight use component_type=STRUCTURE, "
+            "features=['stair:straight_single_run'], params={from:{x,y,z},to:{x,y,z},width:3, "
+            "stairs:'minecraft:oak_stairs',floor:'minecraft:oak_planks',clearHeight:2,landing_length:3}. "
+            "Endpoints are local to relative_position and represent floor/tread block Y, not player Y. "
+            "Use an axis-aligned run at least as long as the rise; top endpoint must meet the upper floor Y. "
+            "Keep the flight and landing wholly inside the shell, with two blocks of headroom. "
+            "Floor plates use MASS_SECONDARY params.extrude_mode='plate', dimensions.height=1; "
+            "never model a floor as a tall solid volume. Stairs carve the floor opening after plates. "
+            "Text-only features do not generate stairs or holes. Do not add furniture/ornament when excluded by the user."
+        )
     skip_landmark_routing = building_profile is not None
 
     if _LLMPLAN_INJECT_CHAT_HISTORY and getattr(req, "chatHistory", None):

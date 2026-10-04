@@ -289,7 +289,10 @@ public final class ComponentPlanCompiler {
             List<PostProcessContext.BuildingVolume> buildingVolumes,
             List<AssemblyCirculationConstraints.Flight> circulation
     ) {
-        for (Component c : components) {
+        // Shells and floor slabs must be emitted before stair clearance carves.
+        var ordered = new ArrayList<>(components);
+        ordered.sort(java.util.Comparator.comparing(com.formacraft.server.generation.component.impl.StraightStairComponentGenerator::accepts));
+        for (Component c : ordered) {
             if (c == null) continue;
             String normalizedType = normalizeType(c.componentType());
 
@@ -1378,6 +1381,7 @@ public final class ComponentPlanCompiler {
         // allowUnknown：component_request/group_request，或显式地标/模块路由提示，
         // 都应保留原始 type（交由 UnifiedGeneratorRouter 的扩展/整栋回退处理）。
         boolean allowUnknown = hasComponentRequest(component.features())
+                || com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(component)
                 || hasStructureRoutingHint(component)
                 || "MODULE".equals(normalizeType(component.componentType()))
                 || "STRUCTURE".equals(normalizeType(component.componentType()))
@@ -1387,7 +1391,10 @@ public final class ComponentPlanCompiler {
             return null;
         }
         // Phase 10：合理性修复 —— "太矮"的主体/塔拔高到合理最小层高。
-        Dimensions dims = clampMinHeight(type, component.dimensions());
+        boolean plate = component.params() != null && "plate".equals(component.params().get("extrude_mode"));
+        Dimensions dims = plate && component.dimensions() != null
+            ? new Dimensions(component.dimensions().width(), component.dimensions().depth(), 1)
+            : clampMinHeight(type, component.dimensions());
         boolean typeChanged = !type.equals(component.componentType());
         boolean dimsChanged = dims != component.dimensions();
         if (!typeChanged && !dimsChanged) {

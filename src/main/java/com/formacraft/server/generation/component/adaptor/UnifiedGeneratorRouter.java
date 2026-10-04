@@ -67,6 +67,8 @@ public final class UnifiedGeneratorRouter {
 
         Component c = semantic.source();
         String componentType = c.componentType();
+        if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c))
+            return com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.generate(semantic);
 
         // 1) 组件级骨架（优先于几何生成器）
         List<BlockPatch> skeletonPatches = trySkeletonPath(semantic, world);

@@ -103,7 +103,7 @@ public final class DetailRuleParser {
                         "wall"
                 ),
                 new DetailRule.DetailRuleAction(
-                        DetailRuleActionType.SLAB,
+                        DetailRuleActionType.BLOCK,
                         SemanticPart.FOUNDATION,
                         null,
                         DetailRuleFacing.NONE

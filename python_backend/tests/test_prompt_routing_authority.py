@@ -27,6 +27,18 @@ AVAILABLE LANDMARK MODULES:
 
 
 class PromptRoutingAuthorityTest(unittest.TestCase):
+    def test_chinese_stair_request_includes_executable_flight_and_plate_contract(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from app.services.ai_planner import _llm_plan_context_block
+
+        req = SimpleNamespace(userMessage="两层住宅，宽3格直楼梯连接二楼", requestText="", chatHistory=[])
+        with patch("app.services.ai_planner._LLMPLAN_INJECT_CULTURE_RAG", False):
+            context = _llm_plan_context_block(req)
+        self.assertIn("from:{x,y,z},to:{x,y,z}", context)
+        self.assertIn("dimensions.height=1", context)
+        self.assertIn("Text-only features do not generate stairs or holes", context)
+
     def test_strip_java_landmark_routing_blocks(self):
         system = (
             "=== SYSTEM RULES ===\n"

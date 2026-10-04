@@ -1,0 +1,394 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "gray",
+    "roof_color": "gray",
+    "accent_color": "brown",
+    "wall_material": "stone_bricks",
+    "roof_material": "stone_bricks",
+    "floor_material": "oak_planks",
+    "decorative_elements": [
+      "stone_brick_cornice",
+      "door_surround",
+      "window_sill",
+      "base_plinth",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "two_storey_stone_brick_house_15x13",
+    "centered_south_entrance",
+    "straight_3_wide_interior_stair_with_floor_opening",
+    "2_blocks_clear_headroom_above_every_tread",
+    "continuous_walkable_path_front_door_to_second_floor",
+    "flat_roof_with_one_block_overhang",
+    "no_furniture_no_complex_ornament",
+    "ornament"
+  ],
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "proportion_hints": {
+    "typology": "general",
+    "target_width": 15,
+    "target_depth": 15,
+    "target_body_height": 9,
+    "target_roof_height": 3,
+    "height_to_width": 0.73,
+    "depth_to_width": 0.87,
+    "roof_to_body_height": 0.09,
+    "window_aspect": "square",
+    "max_void_ratio": 0.18,
+    "floor_height_to_width": 0.33,
+    "wall_thickness": 1,
+    "stair_width_ratio": 0.2,
+    "floor_opening_ratio": 0.16
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "residential_two_storey",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "north_south",
+      "levels": "two"
+    },
+    "structure": {
+      "type": "load_bearing_wall",
+      "massiveness": 0.55,
+      "voidRatio": 0.16,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "stacked_floors",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "mirror",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "stair",
+      "floor_slab",
+      "roof",
+      "windows",
+      "entrance"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "oak_planks",
+      "accent": "stone_brick",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "generic",
+      "era": "vernacular",
+      "keywords": [
+        "two_storey",
+        "stone_brick",
+        "flat_roof",
+        "straight_stair"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 13,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "interior_circulation",
+        "clear_headroom",
+        "simple_form",
+        "walkable_path_to_upper_floor"
+      ],
+      "avoid": [
+        "furniture",
+        "complex_ornament",
+        "stadium_bowl",
+        "landmark_module",
+        "elliptical_massing"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "plinth:1_block_above_grade",
+        "material:stone_bricks",
+        "footprint:17x15_including_1_block_apron"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "material": "stone_bricks",
+        "detail_level": "medium",
+        "hollow": false
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 11
+      },
+      "features": [
+        "two_storey_shell",
+        "ground_floor_y1_to_y5",
+        "second_floor_slab_y6",
+        "second_floor_volume_y7_to_y11",
+        "walls:stone_bricks_1_block_thick",
+        "interior_clear_span:13x11",
+        "no_furniture",
+        "no_complex_decoration",
+        "ornament"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.08,
+        "floor_count": 2,
+        "floor_height": 5,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "gradient",
+        "assembly_facade": false,
+        "material": "stone_bricks",
+        "detail_level": "medium",
+        "window_ratio": 0.35,
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 0,
+        "y": 6,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 6
+      },
+      "features": [
+        "floor_plate:oak_planks",
+        "stair_opening:3_wide_x_9_deep",
+        "opening_region:x1-3_z1-9",
+        "landing_plate:3x3_at_stair_top_north_end",
+        "opening_guarantees_2_blocks_air_above_each_tread",
+        "ornament"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "extrude_mode": "plate",
+        "hollow": false,
+        "void_ratio": 0.16,
+        "material": "oak_planks",
+        "detail_level": "medium",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "floor_height": 3,
+        "floor_count": 2,
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 9,
+        "height": 6
+      },
+      "features": [
+        "stair:straight_single_run",
+        "stair_width:3_blocks",
+        "total_rise:6_blocks",
+        "rise_per_step:1_block",
+        "headroom_above_each_tread:2_blocks_minimum",
+        "direction:ascends_from_north_low_end_to_south_high_end",
+        "top_landing:3x3_platform_at_floor2_level",
+        "continuous_walkable_path:front_door_to_second_floor",
+        "material:oak_planks",
+        "ornament"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "extrude_mode": "solid",
+        "hollow": false,
+        "material": "oak_planks",
+        "rotation_y_deg": 0,
+        "detail_level": "medium",
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 6,
+        "y": 1,
+        "z": 12
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "position:south_wall_centered",
+        "flush_with_wall_plane",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"wooden\", \"plank\", \"simple\", \"residential\", \"rectangular\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"oak\"}, \"constraints\": {\"mustHave\": [\"rectangular_opening\"], \"forbiddenTags\": [\"metal\", \"industrial\", \"gothic\", \"carved_filigree\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "assembly_facade": false,
+        "detail_level": "medium",
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 11
+      },
+      "features": [
+        "rhythm:regular_evenly_spaced",
+        "ground_floor:windows_flanking_south_door",
+        "upper_floor:aligned_above_ground_windows",
+        "south_door_bay_x6-7_left_unobstructed",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"punch_window\", \"simple\", \"residential\", \"stone_framed\", \"small\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"glass\"}, \"constraints\": {\"mustHave\": [\"rectangular_opening\"], \"forbiddenTags\": [\"ribbon\", \"gothic\", \"floor_to_ceiling\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "window_ratio": 0.16,
+        "window_aspect": "punch_window",
+        "floor_count": 2,
+        "floor_height": 5,
+        "facade_profile": "base_plinth",
+        "wall_pattern": "gradient",
+        "symmetry": "MIRROR_X",
+        "detail_level": "medium",
+        "rhythm": "regular"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -1,
+        "y": 12,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "roof:flat",
+        "overhang:1_block_all_around",
+        "low_stone_brick_parapet_edge",
+        "no_furniture_on_roof",
+        "ornament"
+      ],
+      "params": {
+        "roof_type": "flat",
+        "setback_ratio": 0.0,
+        "material": "stone_bricks",
+        "detail_level": "medium",
+        "roof_height": 2,
+        "overhang": 2,
+        "distinctive_features": [
+          "ornament"
+        ]
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -1,
+        "y": 11,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "band:stone_brick_cornice",
+        "door_surround:plain_stone_brick",
+        "window_sill:single_stone_brick",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"cornice\", \"band\", \"stone\", \"simple\", \"horizontal\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"roof\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"horizontal_band\"], \"forbiddenTags\": [\"gothic\", \"carved_filigree\", \"baroque\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "detail_level": "medium",
+        "facade_profile": "base_plinth",
+        "assembly_facade": false
+      }
+    }
+  ],
+  "enrichment_guard": "non_classical_marker:stadium",
+  "kind": "llmplan"
+}
