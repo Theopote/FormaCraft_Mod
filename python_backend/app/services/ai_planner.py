@@ -4735,6 +4735,8 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
                  "Use roof_type='none', window_style='none', entrance_type='none' for explicit opt-outs on the owning MASS_MAIN. "
                  "Do not add conflicting hosted components. Missing values allow defaults; 'none' forbids that feature. "
                  "When an attached ROOF owns the roof, keep the MASS_MAIN roof_type consistent with it; never use 'none' to suppress duplicate roof generation. "
+                 "Likewise, never set window_style or entrance_type to 'none' merely because separate hosted components generate them. "
+                 "For multiple buildings with different materials, put exact IDs in each owning component; omit the shared style_attributes material field rather than combining annotated building-specific names. "
                  "entrance params.facing is not the runtime orientation field. User-facing entrance values use Minecraft world directions. "
                  "The legacy generator reverses cardinal names: set the runtime facing field to the requirement runtime_field_value "
                  "(world SOUTH -> NORTH, NORTH -> SOUTH, EAST -> WEST, WEST -> EAST), not to value.")

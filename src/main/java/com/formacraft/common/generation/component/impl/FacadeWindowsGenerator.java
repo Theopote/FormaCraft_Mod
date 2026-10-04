@@ -140,6 +140,12 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (axis == 0 || axis >= axisMax - 1) {
                         continue;
                     }
+                    // Reserve the central door bay on the entrance face for every window grammar.
+                    if (reserveEntranceBay && axisMax >= 8
+                            && (!useRhythmPlan || !rhythmPlans.computeIfAbsent(axisMax,
+                                am -> ComponentFacadeRhythmPlanner.resolve(semantic, params, am)).active())
+                            && isEntranceFacade(x, z, width, depth, facing, wrapFacade)
+                            && Math.abs(axis - axisMax / 2) <= 1) continue;
                     if (useRhythmPlan) {
                         ComponentFacadeRhythmPlanner.RhythmPlan rhythmPlan = rhythmPlans.computeIfAbsent(
                                 axisMax,
@@ -383,6 +389,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
     }
 
     private boolean isWindowBand(int y, int height, int floorHeight, WindowAspect aspect) {
+        if (floorHeight > 0 && y % floorHeight == 0) return false;
         if (aspect == WindowAspect.FULL_HEIGHT || aspect == WindowAspect.RIBBON_GLAZING) {
             return y > 0 && y < height - 1;
         }

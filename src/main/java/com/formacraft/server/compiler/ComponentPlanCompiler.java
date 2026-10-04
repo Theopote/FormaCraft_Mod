@@ -160,7 +160,7 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
-        var invalidMaterial = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(plan.styleAttributes());
+        var invalidMaterial = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(plan.styleAttributes(), plan.components());
         if (invalidMaterial.isPresent()) {
             AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
                     "无法解析明确指定的材料：" + invalidMaterial.get(), "style_attributes",

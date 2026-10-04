@@ -150,7 +150,7 @@ def _fit_straight_stairs(plan: dict) -> None:
             dx, dz = bb['x']-aa['x'], bb['z']-aa['z']
             if (dx and dz) or not (dx or dz): continue
             sx, sz = (1 if dx > 0 else -1) if dx else 0, (1 if dz > 0 else -1) if dz else 0
-            for length in range(landing, 0, -1):
+            for length in range(max(1, landing), 0, -1):
                 extra = length if length > 1 else 0
                 ends = [aa, bb, _point(bb['x']+sx*extra, bb['y'], bb['z']+sz*extra)]
                 bounds = {}

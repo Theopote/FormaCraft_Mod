@@ -378,7 +378,8 @@ public class MassMainGenerator implements ComponentGenerator {
                             && z >= wallThickness && z < currentDepth-wallThickness
                             && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness,
                             mass.shape, mass.cornerRadius, mass.pattern)) {
-                        if (y == 0) {
+                        int storeys = ComponentParamParsers.intParam(semantic.source().params(), "floor_count", "floorCount");
+                        if (y == 0 || storeys > 1 && userFloorHeight > 0 && y % userFloorHeight == 0 && y / userFloorHeight < storeys) {
                             SemanticPart part = SemanticPart.FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
                             if (block.isEmpty()) {

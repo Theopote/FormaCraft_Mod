@@ -10,6 +10,10 @@ public final class ExplicitMaterialPolicy {
     private ExplicitMaterialPolicy() {}
 
     public static Optional<String> invalidAttribute(StyleAttributes attrs) {
+        return invalidAttribute(attrs, List.of());
+    }
+
+    public static Optional<String> invalidAttribute(StyleAttributes attrs, List<Component> components) {
         if (attrs == null) return Optional.empty();
         var fields = new LinkedHashMap<String, String>();
         fields.put("wall_material", attrs.wallMaterial());
@@ -17,6 +21,12 @@ public final class ExplicitMaterialPolicy {
         fields.put("floor_material", attrs.floorMaterial());
         fields.put("accent_material", attrs.accentMaterial());
         for (var entry : fields.entrySet()) {
+            String role = entry.getKey().replace("_material", "_block");
+            var masses = components == null ? List.<Component>of() : components.stream()
+                    .filter(c -> c != null && "MASS_MAIN".equals(c.componentType())).toList();
+            if (entry.getValue() != null && entry.getValue().contains("building_") && entry.getValue().contains("/")
+                    && masses.size() > 1 && masses.stream().allMatch(c -> c.params() != null
+                        && c.params().get(role) instanceof String material && canonical(material) != null)) continue;
             if (present(entry.getValue()) && DynamicPaletteResolver.mapMaterialToBlock(entry.getValue()) == null)
                 return Optional.of("style_attributes." + entry.getKey() + "=" + entry.getValue());
         }

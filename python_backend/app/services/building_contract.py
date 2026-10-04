@@ -25,7 +25,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
         'width': r'(?:宽度|宽)\s*(\d+)\s*格',
         'depth': r'(?:深度|深)\s*(\d+)\s*格',
         'floor_height': r'每层(?:的)?(?:高度|高)\s*(\d+)\s*格',
-        'floor_count': r'(?<![\d每])([一二两三四五六七八九十]|\d+)\s*层(?:的)?(?:住宅|建筑|大厅|石砖|塔楼|楼|民居|房屋|别墅|高|，|、|。)',
+        'floor_count': r'(?<![\d每])([一二两三四五六七八九十]|\d+)\s*层(?:的)?(?:[^，。；\n]{0,10})?(?:住宅|建筑|大厅|塔楼|民居|房屋|别墅|高|，|、|。)',
     }
     for key, pattern in patterns.items():
         matches = [m for m in re.finditer(pattern, text) if _positive_match(text, m)]
@@ -158,6 +158,22 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             params['component_id'] = identity; used.add(identity)
     masses = [c for c in components if c.get('component_type') == 'MASS_MAIN']
     ids = {c['params']['component_id']: c for c in masses}
+    # Global attributes cannot encode different materials for separate buildings.
+    attrs = out.get('style_attributes') or {}
+    for role in ('wall', 'floor', 'roof'):
+        value = attrs.get(role + '_material')
+        if isinstance(value, str) and '/' in value and 'building_' in value and masses and all(
+                isinstance(m['params'].get(role + '_block'), str) and m['params'][role + '_block'] for m in masses):
+            attrs.pop(role + '_material', None)
+    for mass in masses:
+        params = mass['params']
+        own = [r for r in requirements if r['scope'] in ('all_main_masses', 'plan', params.get('requirement_scope'))]
+        for prop, kind, positive in (('window_style', 'FACADE_WINDOWS', r'窗户|玻璃窗'),
+                                     ('entrance_type', 'ENTRANCE', r'入口|正门')):
+            if params.get(prop) == 'none' and re.search(positive, text) and not any(
+                    r['property'] == prop and r['value'] == 'none' for r in own) and any(
+                    c.get('component_type') == kind and c['params'].get('host_id') == params['component_id'] for c in components):
+                params.pop(prop)
     # Legacy "none" on the body meant delegate roofing to a hosted component.
     # Only reconcile when user requirements explicitly request roof material/type;
     # a real user opt-out must still fail rather than being silently overwritten.
