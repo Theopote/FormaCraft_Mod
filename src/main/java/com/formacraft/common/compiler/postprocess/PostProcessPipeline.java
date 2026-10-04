@@ -108,16 +108,20 @@ public class PostProcessPipeline {
 
         if (!reserved.isEmpty()) {
             var preserved = new ArrayList<BlockPatch>();
-            for (var patch : result) {
-                var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
-                if (!context.protectedClearance().contains(pos)) preserved.add(patch);
+            if (result != null) {
+                for (var patch : result) {
+                    var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+                    if (!context.protectedClearance().contains(pos)) preserved.add(patch);
+                }
             }
             preserved.addAll(reserved.values());
             result = preserved;
         }
-        FormacraftMod.LOGGER.debug("PostProcessPipeline: processed {} patches through {} processors", 
-                result.size(), processors.size());
-        
+        if (result != null) {
+            FormacraftMod.LOGGER.debug("PostProcessPipeline: processed {} patches through {} processors",
+                    result.size(), processors.size());
+        }
+
         return result;
     }
 }

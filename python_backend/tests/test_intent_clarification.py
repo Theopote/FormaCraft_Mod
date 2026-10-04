@@ -34,6 +34,11 @@ def _build_req(
 
 
 class IntentClarificationTest(unittest.TestCase):
+    def test_new_build_request_is_not_rejected_by_old_edit_history(self):
+        req = _build_req('建造两座相距8格的两层石砖建筑，每层高度5格，二楼设置宽3格的连廊',
+                         chat_history=['AI: 建筑生成完成，可修改屋顶。'])
+        self.assertFalse(assess_clarification_needs(req).needs_clarification)
+
     def setUp(self):
         self._env = patch.dict(os.environ, {"INTENT_CLARIFICATION": "on"}, clear=False)
         self._env.start()

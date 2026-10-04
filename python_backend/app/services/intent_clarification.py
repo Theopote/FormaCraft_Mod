@@ -213,7 +213,7 @@ def assess_clarification_needs(req: Any) -> ClarificationAssessment:
     if _is_edit_or_patch_prompt(user_text):
         return ClarificationAssessment(needs_clarification=False)
 
-    if not _has_build_intent(classify_text):
+    if not (_has_build_intent(user_text) or _has_build_intent(classify_text)):
         if classification.is_specific_real_building and classification.confidence >= 0.8:
             return ClarificationAssessment(needs_clarification=False)
         qs = _build_questions("no_build_intent", user_text)

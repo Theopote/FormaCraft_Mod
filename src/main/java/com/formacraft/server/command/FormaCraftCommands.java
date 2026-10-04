@@ -38,12 +38,15 @@ import static net.minecraft.server.command.CommandManager.literal;
  * FormaCraft 命令系统
  */
 public class FormaCraftCommands {
-    private static boolean registered = false;
+    private static final java.util.Set<CommandDispatcher<ServerCommandSource>> REGISTERED_DISPATCHERS =
+            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-        // 防止在 Dedicated + Common 初始化中重复注册同名命令导致崩溃
-        if (registered) return;
-        registered = true;
+        // Each integrated server/world (and datapack reload) owns a new dispatcher.
+        // Deduplicate callbacks for that dispatcher only, never for the whole JVM.
+        synchronized (REGISTERED_DISPATCHERS) {
+            if (!REGISTERED_DISPATCHERS.add(dispatcher)) return;
+        }
 
         // Undo 命令
         dispatcher.register(literal("formacraft_undo")
@@ -541,6 +544,9 @@ public class FormaCraftCommands {
         }
 
         BuildExecutionService.getInstance().enqueueBuild(serverWorld, structure);
+        com.formacraft.FormacraftMod.LOGGER.info(
+                "Preview confirmed: dimension={} origin={} blocks={} force={}",
+                serverWorld.getRegistryKey().getValue(), structure.getOrigin().toShortString(), structure.size(), force);
         PreviewStorage.clearQualityReport(player);
         source.sendFeedback(
                 () -> Text.translatable("formacraft.command.build.started"),

@@ -10,6 +10,13 @@ from app.services.assembly_plan_validator import (
 
 
 class AssemblyPlanValidatorTest(unittest.TestCase):
+    def test_logged_linked_buildings_missing_face_is_caught_before_preview(self):
+        import json
+        from pathlib import Path
+        fixture = Path(__file__).resolve().parents[2] / 'src/test/resources/regressions/linked-buildings-missing-face.json'
+        issues = validate_assembly_plan(json.loads(fixture.read_text(encoding='utf-8')))
+        self.assertEqual(2, sum(i.code == 'E_FACE_MISSING' for i in issues))
+
     def test_resolve_spiral_preset(self):
         self.assertEqual("spiral_watchtower", resolve_preset_for_intent("原创螺旋瞭望塔"))
 

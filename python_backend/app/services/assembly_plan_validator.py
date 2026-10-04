@@ -217,6 +217,9 @@ def _validate_assembly_component(issues: List[AssemblyPlanIssue], comp: Dict[str
 
 def _validate_geometry_fields(issues: List[AssemblyPlanIssue], comp: dict, path: str) -> None:
     kind = str(comp.get("type") or comp.get("op") or "").upper()
+    if kind == "OPENINGS" and not comp.get("face") and not comp.get("faces"):
+        issues.append(AssemblyPlanIssue(path + '.face', "E_FACE_MISSING",
+                                       "OPENINGS requires face/faces; side is not an executable face field"))
     if kind == "SHELL_BOX":
         for key, minimum in (("w",1),("d",1),("h",2)):
             value = comp.get(key)
