@@ -1229,6 +1229,19 @@ public final class ComponentPlanCompiler {
         }
         if (paramDoorH > 0) {
             entranceHeight = Math.max(2, Math.min(height, paramDoorH + 1));
+        } else {
+            var entranceSemantic = new SemanticComponent("MASS_MAIN", null, base,
+                    plan.styleProfile(), plan.styleAttributes(), plan.genome());
+            var layers = com.formacraft.common.generation.component.util.ResolvedFacadeLayers
+                    .resolve(entranceSemantic, width, depth, height);
+            for (int y = 0; y + 1 < layers.length; y++) {
+                var lower = layers[y];
+                var upper = layers[y + 1];
+                if (upper.width < lower.width || upper.depth < lower.depth) {
+                    entranceHeight = Math.min(entranceHeight, Math.max(2, y));
+                    break;
+                }
+            }
         }
         if (paramCanopy > 0) {
             entranceDepth = Math.max(1, Math.min(depth / 2, paramCanopy + 1));
@@ -1427,7 +1440,9 @@ public final class ComponentPlanCompiler {
             Component body = new Component("MASS_SECONDARY", slotId, part.origin(), part.dimensions(), List.of(), params);
             Component derived = makeRoofComponent(plan, body, slotId);
             var roofParams = new HashMap<String, Object>();
-            roofParams.putAll(derived.params());
+            if (derived != null) {
+                roofParams.putAll(derived.params());
+            }
             if (roof.params() != null) roofParams.putAll(roof.params());
             roofParams.remove("masses");
             roofParams.put("anchor_mode", "min_corner");

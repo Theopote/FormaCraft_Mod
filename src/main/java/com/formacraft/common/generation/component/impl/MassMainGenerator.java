@@ -356,6 +356,20 @@ public class MassMainGenerator implements ComponentGenerator {
                         continue;
                     }
 
+                    // Seal only exposed shoulders before hollowing or facade openings.
+                    // The original footprint and courtyard void have already been checked.
+                    if (com.formacraft.common.generation.component.util.ResolvedFacadeLayers
+                            .exposedAbove(layers, y, localX, localZ)) {
+                        int terraceX = rp.x() + mass.offsetX + localX;
+                        int terraceY = rp.y() + mass.offsetY + y;
+                        int terraceZ = rp.z() + mass.offsetZ + localZ;
+                        GeneratedSurfaceCapture.record(terraceX, terraceY, terraceZ,
+                                GeneratedSurfaceCapture.Role.ROOF);
+                        out.add(new BlockPatch(BlockPatch.PLACE, terraceX, terraceY, terraceZ,
+                                getBlockForPart(SemanticPart.FLOOR, semantic, palette)));
+                        continue;
+                    }
+
                     if (hasInterior && x >= wallThickness && x < currentWidth-wallThickness
                             && z >= wallThickness && z < currentDepth-wallThickness
                             && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness,

@@ -54,6 +54,8 @@ class SteppedRoofAttachmentTest {
         MinecraftRegistryTestBootstrap.initialize();
         var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("rectangle"))).build();
         var roof = prepared(plan).stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
+        var entrance = prepared(plan).stream().filter(c -> "ENTRANCE".equals(c.componentType())).findFirst().orElseThrow();
+        assertEquals(3, entrance.dimensions().height(), "Default entrance must stop below the first terrace");
         assertEquals(new Vec3i(23,11,32),roof.relativePosition());
         assertEquals(9,roof.dimensions().width()); assertEquals(8,roof.dimensions().depth());
         var patches = new RoofGenerator().generate(new SemanticComponent("ROOF",null,roof));

@@ -29,4 +29,9 @@ public final class ResolvedFacadeLayers {
     public static boolean contains(ProportionalFacadeCalculator.LayerConfig layer, int x, int z) {
         return x >= layer.xOffset && x < layer.xOffset+layer.width && z >= layer.zOffset && z < layer.zOffset+layer.depth;
     }
+    /** Exposed shoulder only; callers must still apply the original footprint/void mask. */
+    public static boolean exposedAbove(ProportionalFacadeCalculator.LayerConfig[] layers, int y, int x, int z) {
+        return y >= 0 && y + 1 < layers.length && contains(layers[y], x, z)
+                && !contains(layers[y + 1], x, z);
+    }
 }

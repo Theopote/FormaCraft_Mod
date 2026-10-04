@@ -12,6 +12,43 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SteppedRoofCoverageTest {
+    @Test void exposedTerracesUseFloorMaterialWithoutFillingRoomsOrFootprintVoids() {
+        MinecraftRegistryTestBootstrap.initialize();
+        for (String pattern : List.of("rectangle", "l_shape", "courtyard")) {
+            var params = new HashMap<String,Object>();
+            params.putAll(Map.of("anchor_mode","min_corner","floor_height",4,"setback_ratio",0.2,
+                    "hollow",true,"suppress_windows",true,"suppress_doors",true,
+                    "floor_block","minecraft:oak_planks","plan_type",pattern));
+            var body = new Component("MASS_MAIN",null,new Vec3i(20,10,30),new Dimensions(15,13,12),
+                    List.of("stepped_facade","hollow"),params);
+            var semantic = new SemanticComponent("MASS_MAIN",null,body);
+            var layers = ResolvedFacadeLayers.resolve(semantic,15,13,12);
+            var mask = com.formacraft.common.generation.component.util.ComponentFootprintMask.from(semantic,params,15,13);
+            var declarations = new ArrayList<com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell>();
+            List<BlockPatch> patches;
+            try (var capture = com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.captureTo(declarations::add)) {
+                patches = new MassMainGenerator().generate(semantic);
+            }
+            var cells = new HashMap<BlockPos,BlockPatch>();
+            for (var p : patches) cells.put(new BlockPos(p.dx(),p.dy(),p.dz()),p);
+            int checked = 0;
+            for (int y : List.of(3,7)) for (int x=0;x<15;x++) for(int z=0;z<13;z++) {
+                var position = new BlockPos(20+x,10+y,30+z);
+                if (!mask.contains(x,z)) assertFalse(cells.containsKey(position),"Footprint void must remain open");
+                else if (ResolvedFacadeLayers.exposedAbove(layers,y,x,z)) {
+                    assertNotNull(cells.get(position),"Exposed shoulder must be sealed");
+                    assertEquals("minecraft:oak_planks",cells.get(position).targetBlock());
+                    assertTrue(declarations.stream().anyMatch(c -> c.position().equals(position)
+                            && c.role() == com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.ROOF));
+                    checked++;
+                }
+            }
+            assertTrue(checked>0);
+            assertFalse(cells.containsKey(new BlockPos(27,13,36)),"Unexposed room must remain hollow");
+            assertTrue(com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.missing(declarations,patches).isEmpty());
+            assertFalse(ResolvedFacadeLayers.exposedAbove(layers,11,7,6),"Final roof is handled separately");
+        }
+    }
     @Test void actualSteppedWallsRemainSolidAndTopRoofUsesSameLayerRectangle() {
         MinecraftRegistryTestBootstrap.initialize();
         var body = new Component("MASS_MAIN","house",new Vec3i(0,0,0),new Dimensions(15,13,12),
