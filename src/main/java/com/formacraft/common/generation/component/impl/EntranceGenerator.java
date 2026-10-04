@@ -51,7 +51,9 @@ public class EntranceGenerator implements ComponentGenerator {
 
         int doorWidth = ComponentParamParsers.intParam(params, Math.max(2, width - 2), "door_width", "doorWidth");
         int doorHeight = ComponentParamParsers.intParam(params, Math.max(2, height - 1), "door_height", "doorHeight");
-        doorWidth = Math.max(1, Math.min(doorWidth, Math.max(1, width - 1)));
+        int openingSpan = semantic.slot() != null && (semantic.slot().facing() == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST
+                || semantic.slot().facing() == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST) ? depth : width;
+        doorWidth = Math.max(1, Math.min(doorWidth, Math.max(1, openingSpan - 1)));
         doorHeight = Math.max(2, Math.min(doorHeight, height));
         int canopyDepth = ComponentParamParsers.intParam(params, 0, "canopy_depth", "canopyDepth");
         if (canopyDepth > 0) {
@@ -268,14 +270,8 @@ public class EntranceGenerator implements ComponentGenerator {
         int half = doorWidth / 2;
         boolean inWidth = axis >= center - half && axis <= center + (doorWidth - 1 - half);
 
-        boolean onPlane = switch (facing) {
-            case NORTH -> z == depth - 1;
-            case EAST -> x == 0;
-            case WEST -> x == width - 1;
-            case SOUTH -> z == 0;
-        };
-
-        if (!onPlane || !inWidth) {
+        // Cut the opening through every layer of the entrance envelope.
+        if (!inWidth) {
             return false;
         }
 

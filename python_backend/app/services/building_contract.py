@@ -202,7 +202,19 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             if params['host_id'] not in ids:
                 contract['diagnostics'].append({'code': 'E_HOST_UNKNOWN', 'component_id': params['component_id'], 'host_id': params['host_id']})
             elif has_slots and ids[params['host_id']].get('slot_id') != comp.get('slot_id'):
-                contract['diagnostics'].append({'code': 'E_HOST_COORDINATE_FRAME', 'component_id': params['component_id'], 'host_id': params['host_id']})
+                frames = {s.get('slot_id', s.get('id')): s for s in slots if isinstance(s, dict)}
+                a = frames.get(comp.get('slot_id'), {}).get('anchor')
+                b = frames.get(ids[params['host_id']].get('slot_id'), {}).get('anchor')
+                pos = comp.get('relative_position')
+                if all(isinstance(v, dict) for v in (a, b, pos)) and all(
+                        isinstance(v.get(axis), (int, float)) for v in (a, b, pos) for axis in ('x', 'y', 'z')):
+                    comp['relative_position'] = {axis: pos[axis] + a[axis] - b[axis] for axis in ('x', 'y', 'z')}
+                    comp['slot_id'] = ids[params['host_id']]['slot_id']
+                    params['slot_id'] = comp['slot_id']
+                    params['building_id'] = ids[params['host_id']]['params']['building_id']
+                    params['coordinate_frame_rebased'] = True
+                else:
+                    contract['diagnostics'].append({'code': 'E_HOST_COORDINATE_FRAME', 'component_id': params['component_id'], 'host_id': params['host_id']})
             else:
                 params['building_id'] = ids[params['host_id']]['params']['building_id']
             continue

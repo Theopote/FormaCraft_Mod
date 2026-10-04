@@ -173,6 +173,18 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     SemanticPart part = determineWindowPart(y, height, isLattice, isLarge);
                     String block = getBlockForWindow(semantic, palette, part, isLattice, windowStyle);
 
+                    int thickness = Math.max(1, ComponentParamParsers.intParam(params, 1, "wall_thickness", "wallThickness"));
+                    int inwardX = x == 0 ? 1 : x == width - 1 ? -1 : 0;
+                    int inwardZ = z == 0 ? 1 : z == depth - 1 ? -1 : 0;
+                    if (!wrapFacade) {
+                        inwardX = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST ? 1
+                                : facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.WEST ? -1 : 0;
+                        inwardZ = facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.SOUTH ? 1
+                                : facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.NORTH ? -1 : 0;
+                    }
+                    for (int layer = 1; layer < thickness; layer++)
+                        out.add(new BlockPatch(BlockPatch.REMOVE, rp.x() + x + inwardX * layer,
+                                rp.y() + y, rp.z() + z + inwardZ * layer, "minecraft:air"));
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,

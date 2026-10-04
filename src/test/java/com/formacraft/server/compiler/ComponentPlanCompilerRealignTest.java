@@ -24,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 验证 LLM 自带的 ROOF/FACADE/ENTRANCE 会被贴回 MASS 的 min_corner，而不是沿用中心锚点坐标。
  */
 class ComponentPlanCompilerRealignTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
 
     @Test
     void explicitHostWinsOverNearestMass() throws Exception {

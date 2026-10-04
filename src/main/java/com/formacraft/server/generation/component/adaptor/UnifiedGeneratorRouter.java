@@ -153,6 +153,7 @@ public final class UnifiedGeneratorRouter {
             boolean hasComponentRequest
     ) {
         // Queries on a building envelope describe details, not a replacement for the envelope.
+        // Facade and entrance components also own complete opening layouts, not one library socket.
         // Generate those details as separate components so their socket transforms cannot erase
         // or relocate the mass, roof or foundation.
         if (!base.isEmpty() && preservesBuildingEnvelope(semantic.source().componentType())) {
@@ -201,7 +202,7 @@ public final class UnifiedGeneratorRouter {
         if (type == null) return false;
         return switch (type.toUpperCase(java.util.Locale.ROOT)) {
             case "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
-                 "ROOF", "ROOF_STRUCTURE", "FOUNDATION" -> true;
+                 "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "FACADE_WINDOWS", "ENTRANCE" -> true;
             default -> false;
         };
     }

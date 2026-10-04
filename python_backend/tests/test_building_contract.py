@@ -187,6 +187,20 @@ class BuildingContractTest(unittest.TestCase):
         result = apply_building_contract({'components': [mass(), bridge]}, '')
         self.assertNotIn('host_id', result['components'][1]['params'])
 
+    def test_explicit_host_rebases_known_translated_coordinate_frames(self):
+        host = mass(); host['slot_id'] = 'a'
+        roof = {'component_type': 'ROOF', 'slot_id': 'b',
+                'relative_position': {'x': 2, 'y': 3, 'z': 4}, 'params': {'host_id': 'house'}}
+        result = apply_building_contract({'layout': {'slots': [
+            {'id': 'a', 'anchor': {'x': 10, 'y': 0, 'z': 0}},
+            {'id': 'b', 'anchor': {'x': 20, 'y': 2, 'z': 0}}]}, 'components': [host, roof]}, '')
+        attached = result['components'][1]
+        self.assertEqual('a', attached['slot_id'])
+        self.assertEqual({'x': 12, 'y': 5, 'z': 4}, attached['relative_position'])
+        self.assertEqual([], result['proportion_hints']['building_contract']['diagnostics'])
+        again = apply_building_contract(result, '')
+        self.assertEqual(attached['relative_position'], again['components'][1]['relative_position'])
+
     def test_explicit_host_cannot_cross_real_coordinate_frames(self):
         host = mass(); host['slot_id'] = 'a'
         stair = {'component_type': 'STRUCTURE', 'slot_id': 'b', 'params': {'host_id': 'house'}}

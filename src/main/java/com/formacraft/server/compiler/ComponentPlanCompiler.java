@@ -608,6 +608,27 @@ public final class ComponentPlanCompiler {
         }
 
         components = AlignmentContractEnforcer.apply(plan, components);
+        for (int i = 0; i < components.size(); i++) {
+            Component slab = components.get(i);
+            if (!"plate".equalsIgnoreCase(getParamString(slab.params(), "extrude_mode"))) continue;
+            String host = getParamString(slab.params(), "host_id");
+            for (Component body : components) {
+                if (!"MASS_MAIN".equals(normalizeType(body.componentType()))
+                        || host == null || !host.equals(getParamString(body.params(), "component_id"))) continue;
+                int fh = ComponentParamParsers.intParam(body.params(), "floor_height", "floorHeight");
+                Vec3i origin = resolveMassOrigin(body);
+                if (fh <= 0 || origin == null || slab.relativePosition() == null) break;
+                int level = Math.max(1, Math.round((slab.relativePosition().y() - origin.y()) / (float) fh));
+                Vec3i pos = slab.relativePosition();
+                var slabParams = new HashMap<String, Object>(slab.params());
+                String floorBlock = getParamString(body.params(), "floor_block");
+                if (floorBlock != null) slabParams.putIfAbsent("material", floorBlock);
+                components.set(i, new Component(slab.componentType(), slab.slotId(),
+                        new Vec3i(pos.x(), origin.y() + level * fh, pos.z()),
+                        new Dimensions(slab.dimensions().width(), slab.dimensions().depth(), 1), slab.features(), slabParams));
+                break;
+            }
+        }
 
         Set<String> slotsWithCrown = new HashSet<>();
         Set<String> assemblyFacadeSlots = new HashSet<>();
@@ -916,30 +937,21 @@ public final class ComponentPlanCompiler {
     }
 
     private static Component alignFoundationToMass(Component foundation, Component mass) {
-        // An explicit min_corner is already a placed platform (possibly with margin).
-        // Preserve it; the enforcer extends insufficient coverage without moving it.
-        if (ComponentFootprintUtil.isCornerAnchor(foundation.params())) {
-            return foundation;
-        }
         Vec3i massOrigin = resolveMassOrigin(mass);
         Vec3i fp = foundation.relativePosition();
-        if (massOrigin == null || fp == null) {
-            return foundation;
-        }
+        Dimensions dims = foundation.dimensions();
+        if (massOrigin == null || fp == null || dims == null) return foundation;
         Map<String, Object> params = new HashMap<>();
-        if (foundation.params() != null) {
-            params.putAll(foundation.params());
-        }
-        // The coordinate has been converted. Never let a generator center it again.
+        if (foundation.params() != null) params.putAll(foundation.params());
+        boolean rebased = Boolean.TRUE.equals(params.get("coordinate_frame_rebased"));
+        boolean corner = ComponentFootprintUtil.isCornerAnchor(params) && !rebased;
         params.put("anchor_mode", "min_corner");
-        return new Component(
-                foundation.componentType(),
-                foundation.slotId(),
-                new Vec3i(massOrigin.x(), fp.y(), massOrigin.z()),
-                foundation.dimensions(),
-                foundation.features(),
-                params
-        );
+        // Fill support up to the host floor.
+        int bottom = Math.min(fp.y(), massOrigin.y() - 1);
+        return new Component(foundation.componentType(), foundation.slotId(),
+                new Vec3i(corner ? fp.x() : massOrigin.x() - (rebased ? Math.max(0, (dims.width() - mass.dimensions().width()) / 2) : 0),
+                        bottom, corner ? fp.z() : massOrigin.z() - (rebased ? Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2) : 0)),
+                new Dimensions(dims.width(), dims.depth(), massOrigin.y() - bottom), foundation.features(), params);
     }
 
     private static Component alignRoofToMass(Component llmRoof, Component mass, LlmPlan plan) {
@@ -1005,6 +1017,7 @@ public final class ComponentPlanCompiler {
             params.putAll(llmFacade.params());
         }
         params.put("anchor_mode", "min_corner");
+        params.put("wall_thickness", ComponentParamParsers.intParam(mass.params(), 1, "wall_thickness", "wallThickness"));
 
         Dimensions massDims = mass.dimensions();
         Dimensions llmDims = llmFacade.dimensions();
@@ -1168,6 +1181,9 @@ public final class ComponentPlanCompiler {
             params.putAll(llmEntrance.params());
         }
 
+        int floorHeight = ComponentParamParsers.intParam(mass.params(), "floor_height", "floorHeight");
+        int authoredDoorHeight = ComponentParamParsers.intParam(params, 2, "door_height", "doorHeight");
+        params.put("door_height", Math.max(2, Math.min(authoredDoorHeight, floorHeight > 0 ? floorHeight - 1 : 3)));
         return new Component(
                 "ENTRANCE",
                 llmEntrance.slotId(),
@@ -1295,7 +1311,7 @@ public final class ComponentPlanCompiler {
         if (entranceWidth % 2 == 0) {
             entranceWidth = 3;
         }
-        int entranceDepth = Math.max(1, Math.min(2, Math.max(1, depth / 4)));
+        int entranceDepth = Math.max(1, ComponentParamParsers.intParam(base.params(), 1, "wall_thickness", "wallThickness"));
         int entranceHeight = Math.max(3, Math.min(height, Math.max(4, height / 2)));
 
         Map<String, Object> baseParams = base.params();
@@ -1322,7 +1338,7 @@ public final class ComponentPlanCompiler {
             }
         }
         if (paramCanopy > 0) {
-            entranceDepth = Math.max(1, Math.min(depth / 2, paramCanopy + 1));
+            entranceDepth = Math.max(entranceDepth, Math.max(1, Math.min(depth / 2, paramCanopy + 1)));
         }
 
         BayGridRhythmPlanner.EntranceSnap baySnap = BayGridRhythmPlanner.snapEntrance(
@@ -1342,7 +1358,8 @@ public final class ComponentPlanCompiler {
         int relZ = rp.z();
         int boxWidth;
         int boxDepth;
-        int facadeAxisStart = baySnap != null ? baySnap.axisStart() : Math.max(0, (width - facadeBoxSpan) / 2);
+        int facadeAxisLength = facing == GlobalConstraints.Facing.EAST || facing == GlobalConstraints.Facing.WEST ? depth : width;
+        int facadeAxisStart = baySnap != null ? baySnap.axisStart() : Math.max(0, (facadeAxisLength - facadeBoxSpan) / 2);
         switch (facing != null ? facing : GlobalConstraints.Facing.SOUTH) {
             case NORTH -> {
                 boxWidth = facadeBoxSpan;
@@ -1395,7 +1412,7 @@ public final class ComponentPlanCompiler {
         return new Component(
                 "ENTRANCE",
                 slotId,
-                new Vec3i(relX, rp.y(), relZ),
+                new Vec3i(relX, rp.y() + 1, relZ),
                 new Dimensions(boxWidth, boxDepth, entranceHeight),
                 features,
                 params

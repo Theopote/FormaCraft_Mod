@@ -20,7 +20,8 @@ class UnifiedGeneratorRouterTypologyExclusiveTest {
     void detailQueriesCannotReplaceBuildingEnvelopes() {
         for (String type : List.of("MASS_MAIN", "MASS_SECONDARY", "ROOF", "FOUNDATION"))
             assertTrue(UnifiedGeneratorRouter.preservesBuildingEnvelope(type));
-        assertFalse(UnifiedGeneratorRouter.preservesBuildingEnvelope("ENTRANCE"));
+        assertTrue(UnifiedGeneratorRouter.preservesBuildingEnvelope("ENTRANCE"));
+        assertTrue(UnifiedGeneratorRouter.preservesBuildingEnvelope("FACADE_WINDOWS"));
         assertFalse(UnifiedGeneratorRouter.preservesBuildingEnvelope("DECOR_DETAIL"));
     }
 
