@@ -42,7 +42,13 @@ public final class BuildPreviewPipeline {
     public static Result prepare(ServerPlayerEntity player, ServerWorld world, GeneratedStructure generated,
                                  BuildingSpec spec, FormaRequest req, Optional<BuildingStyle> style,
                                  List<AssemblyCirculationConstraints.Flight> circulation) {
-        BuildQualityReport report = GradedQualityChecker.checkStructure(generated, spec, world);
+        return prepare(player, world, generated, spec, req, style, circulation, false);
+    }
+
+    public static Result prepare(ServerPlayerEntity player, ServerWorld world, GeneratedStructure generated,
+                                 BuildingSpec spec, FormaRequest req, Optional<BuildingStyle> style,
+                                 List<AssemblyCirculationConstraints.Flight> circulation, boolean landingPrepared) {
+        BuildQualityReport report = GradedQualityChecker.checkStructure(generated, spec, world, landingPrepared);
         report.logIssues(generated != null ? generated.getDescription() : "structure");
 
         if (!report.allowPreview()) {
@@ -52,7 +58,7 @@ public final class BuildPreviewPipeline {
 
         List<PlannedBlock> source = generated != null ? generated.getBlocks() : List.of();
         BuildAutoRepair.Result repair = BuildConstraintContext.withRequest(req, () ->
-                BuildAutoRepair.apply(world, style, source)
+                BuildAutoRepair.apply(world, style, source, !landingPrepared)
         );
 
         mergeRepair(report, repair);

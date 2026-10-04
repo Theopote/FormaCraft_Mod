@@ -42,6 +42,11 @@ public final class BuildAutoRepair {
                          String summary) {}
 
     public static Result apply(ServerWorld world, Optional<BuildingStyle> style, List<PlannedBlock> original) {
+        return apply(world, style, original, true);
+    }
+
+    public static Result apply(ServerWorld world, Optional<BuildingStyle> style, List<PlannedBlock> original,
+                               boolean repairFloating) {
         if (world == null || original == null || original.isEmpty()) {
             return new Result(original == null ? List.of() : deduplicateBlocks(original), 0, 0, 0, 0, "");
         }
@@ -91,6 +96,7 @@ public final class BuildAutoRepair {
         List<PlannedBlock> extras = new ArrayList<>();
 
         for (Map.Entry<Long, Integer> col : minYByXZ.entrySet()) {
+            if (!repairFloating) break; // Landing planner has already chosen shallow fill / sparse piers.
             if (fixedColumns >= maxColumnsToFix) break;
 
             long key = col.getKey();

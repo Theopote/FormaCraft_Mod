@@ -28,6 +28,11 @@ public final class GradedQualityChecker {
             BuildingSpec spec,
             ServerWorld world
     ) {
+        return checkStructure(structure, spec, world, false);
+    }
+
+    public static BuildQualityReport checkStructure(GeneratedStructure structure, BuildingSpec spec,
+                                                    ServerWorld world, boolean landingPrepared) {
         BuildQualityReport report = new BuildQualityReport();
 
         if (structure == null) {
@@ -48,7 +53,8 @@ public final class GradedQualityChecker {
         checkIllegalBlocks(blocks, report);
         checkConstraintBounds(blocks, report);
         checkDuplicates(blocks, report);
-        checkFloatingColumns(blocks, world, report);
+        // Sparse piers deliberately leave some floor columns open underneath.
+        if (!landingPrepared) checkFloatingColumns(blocks, world, report);
         checkDimensions(structure, spec, blocks, report);
 
         if (report.stats().totalBlocks > 0) {
