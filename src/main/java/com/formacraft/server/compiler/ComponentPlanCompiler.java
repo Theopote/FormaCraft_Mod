@@ -555,6 +555,14 @@ public final class ComponentPlanCompiler {
                         normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
             }
             normalizedComponent = reconcileDelegatedRoof(plan, normalizedComponent, normalized);
+            if ("MASS_MAIN".equals(normalizeType(normalizedComponent.componentType()))
+                    && ComponentParamParsers.intParam(normalizedComponent.params(), "floor_count", "floorCount") > 0
+                    && ComponentParamParsers.intOrNull(normalizedComponent.params(), "wall_thickness", "wallThickness") == null) {
+                var params = new HashMap<String, Object>(normalizedComponent.params());
+                params.put("wall_thickness", 1);
+                normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
+                        normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
+            }
             normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);
             normalizedComponent = OpeningGrammarResolver.apply(plan, normalizedComponent);
             normalizedComponent = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.normalizeBody(normalizedComponent);
@@ -618,7 +626,8 @@ public final class ComponentPlanCompiler {
                 int fh = ComponentParamParsers.intParam(body.params(), "floor_height", "floorHeight");
                 Vec3i origin = resolveMassOrigin(body);
                 if (fh <= 0 || origin == null || slab.relativePosition() == null) break;
-                int level = Math.max(1, Math.round((slab.relativePosition().y() - origin.y()) / (float) fh));
+                int count = ComponentParamParsers.intParam(body.params(), "floor_count", "floorCount");
+                int level = Math.max(1, Math.min(Math.max(1, count - 1), Math.round((slab.relativePosition().y() - origin.y()) / (float) fh)));
                 Vec3i pos = slab.relativePosition();
                 var slabParams = new HashMap<String, Object>(slab.params());
                 String floorBlock = getParamString(body.params(), "floor_block");
@@ -879,6 +888,7 @@ public final class ComponentPlanCompiler {
                 case "ENTRANCE" -> alignEntranceToMass(c, mass, plan, facing);
                 case "CROWN", "CUPOLA", "DOME" -> alignCrownToMass(c, mass, plan, components);
                 case "FOUNDATION", "TERRACE", "BASE" -> alignFoundationToMass(c, mass);
+                case "DECOR_DETAIL", "CHIMNEY" -> alignHostedDetail(c, mass);
                 default -> isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
             };
             if (aligned != null && mass.params() != null && mass.params().get("component_id") != null) {
@@ -934,6 +944,36 @@ public final class ComponentPlanCompiler {
             return plan.globalConstraints().facing();
         }
         return GlobalConstraints.Facing.SOUTH;
+    }
+
+    private static Component alignHostedDetail(Component detail, Component mass) {
+        Vec3i origin = resolveMassOrigin(mass);
+        Dimensions body = mass.dimensions(), dims = detail.dimensions();
+        if (origin == null || body == null || dims == null || detail.relativePosition() == null) return detail;
+        String identity = getParamString(detail.params(), "component_id");
+        boolean chimney = "CHIMNEY".equals(normalizeType(detail.componentType()))
+                || identity != null && identity.toLowerCase(Locale.ROOT).contains("chimney");
+        boolean perimeter = dims.width() >= body.width() - 2 && dims.depth() >= body.depth() - 2
+                && dims.height() <= 1;
+        if (!chimney && !perimeter) return detail;
+        var params = new HashMap<String, Object>();
+        if (detail.params() != null) params.putAll(detail.params());
+        params.put("anchor_mode", "min_corner");
+        params.put("resolved_host_attachment", true);
+        Vec3i position;
+        if (chimney) {
+            int x = Math.max(origin.x() + 1, Math.min(origin.x() + body.width() - dims.width() - 1, detail.relativePosition().x()));
+            int z = Math.max(origin.z() + 1, Math.min(origin.z() + body.depth() - dims.depth() - 1, detail.relativePosition().z()));
+            position = new Vec3i(x, origin.y() + body.height() - 1, z);
+        } else {
+            // A cornice surrounds the facade; it must not fill the glazing plane.
+            dims = new Dimensions(Math.max(dims.width(), body.width() + 2), Math.max(dims.depth(), body.depth() + 2), 1);
+            position = new Vec3i(origin.x() - Math.max(0, (dims.width() - body.width()) / 2),
+                    origin.y() + body.height() - 1,
+                    origin.z() - Math.max(0, (dims.depth() - body.depth()) / 2));
+        }
+        return new Component(chimney ? "CHIMNEY" : detail.componentType(), detail.slotId(), position,
+                dims, detail.features(), params);
     }
 
     private static Component alignFoundationToMass(Component foundation, Component mass) {
@@ -1030,10 +1070,12 @@ public final class ComponentPlanCompiler {
         boolean wrap = hasWrapFeature(features);
         GlobalConstraints.Facing effectiveFacing = facing != null ? facing : GlobalConstraints.Facing.SOUTH;
 
-        int height = Math.max(2, massDims.height() - 1);
-        if (llmDims != null && llmDims.height() > 0) {
-            height = Math.max(2, llmDims.height());
-        }
+        // Window rows use the resolved host envelope, not stale model dimensions.
+        int height = Math.max(2, massDims.height());
+        int hostFloorHeight = ComponentParamParsers.intParam(mass.params(), "floor_height", "floorHeight");
+        int hostFloorCount = ComponentParamParsers.intParam(mass.params(), "floor_count", "floorCount");
+        if (hostFloorHeight > 0) params.put("floor_height", hostFloorHeight);
+        if (hostFloorCount > 0) params.put("floor_count", hostFloorCount);
 
         int width;
         int depth;

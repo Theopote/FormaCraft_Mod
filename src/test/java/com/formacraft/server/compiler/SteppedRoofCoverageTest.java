@@ -44,7 +44,7 @@ class SteppedRoofCoverageTest {
                 }
             }
             assertTrue(checked>0);
-            assertFalse(cells.containsKey(new BlockPos(27,13,36)),"Unexposed room must remain hollow");
+            assertTrue(!cells.containsKey(new BlockPos(27,13,36)) || BlockPatch.REMOVE.equals(cells.get(new BlockPos(27,13,36)).action()),"Unexposed room must remain hollow");
             assertTrue(com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.missing(declarations,patches).isEmpty());
             assertFalse(ResolvedFacadeLayers.exposedAbove(layers,11,7,6),"Final roof is handled separately");
         }
@@ -62,7 +62,7 @@ class SteppedRoofCoverageTest {
             var layer = layers[y];
             assertTrue(layer.xOffset > 0);
             assertNotNull(cells.get(new BlockPos(layer.xOffset,y,layer.zOffset+1)),"Retreated wall must not be hollowed away");
-            assertFalse(cells.containsKey(new BlockPos(layer.xOffset+2,y,layer.zOffset+2)),"Interior remains hollow");
+            assertEquals(BlockPatch.REMOVE, cells.get(new BlockPos(layer.xOffset+2,y,layer.zOffset+2)).action(),"Interior clears existing blocks");
         }
         var top = layers[11];
         var roof = new Component("ROOF","house",new Vec3i(top.xOffset,11,top.zOffset),

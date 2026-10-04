@@ -4744,6 +4744,13 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
                  "For attached roofs, facades and interior stairs, params.host_id must reference that MASS_MAIN's "
                  "component_id; slot_id is a coordinate frame, not identity. Write slot_id at the component top level, never only inside params. "
                  "Use shape='rectangle' and plan_type='none' for rectangular shells, including closed Gothic shells. "
+                 "All attached components share their host slot_id. relative_position is LOCAL to that slot; "
+                 "never repeat layout.slots[].anchor in component coordinates. "
+                 "For a building centered at slot anchor (-15,0,0), its center-anchored MASS_MAIN uses local (0,0,0). "
+                 "Residential MASS_MAIN must be hollow with usable rooms; void_ratio describes facade openness, not solid room fill. "
+                 "Prefer floor_height=4 for housing without explicit height constraints, with height >= floor_count * floor_height. "
+                 "Use one-block floor plates at the host's floor_height multiples, normal residential walls one block thick "
+                 "unless the user asks otherwise, and physically attach chimney/eave details to the host roof or walls. "
                  "Do not guess a single host for bridges.")
     user_text = (req.userMessage or "") if req is not None else ""
     if any(token in user_text.lower() for token in ("楼梯", "stair")):

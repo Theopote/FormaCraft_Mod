@@ -1,0 +1,430 @@
+{
+  "mode": "build",
+  "style_profile": "Modern",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "light_gray",
+    "accent_color": "light_gray",
+    "wall_material": "white_concrete",
+    "roof_material": "smooth_stone",
+    "floor_material": "smooth_stone",
+    "decorative_elements": [
+      "entrance_canopy",
+      "column",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "column",
+    "ornament"
+  ],
+  "anchor": {
+    "x": -327,
+    "y": 78,
+    "z": -474
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "modern_two_storey_house",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "bilateral",
+      "levels": "two"
+    },
+    "structure": {
+      "type": "frame",
+      "massiveness": 0.35,
+      "voidRatio": 0.28,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "grid",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "bilateral",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "entrance",
+      "foundation"
+    ],
+    "materials": {
+      "primary": "concrete",
+      "secondary": "glass",
+      "accent": "stone",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "contemporary",
+      "keywords": [
+        "minimal",
+        "flat_roof",
+        "white_concrete",
+        "glazing"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 10,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "flat_roof",
+        "regular_large_windows",
+        "centered_front_entrance",
+        "plain_plinth"
+      ],
+      "avoid": [
+        "pitched_roof",
+        "dormer",
+        "classical_column",
+        "crown_ornament",
+        "ornate_decoration"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "proportion_hints": {
+    "typology": "none",
+    "height_to_width": 0.53,
+    "depth_to_width": 0.87,
+    "roof_to_body_height": 0.12,
+    "floor_height_to_floor_height": 1.0,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "all_main_masses": [
+          "mass_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "mass_main",
+          "slot_id": "slot_0",
+          "local_origin": {
+            "x": -7,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -7,
+            "y": 0,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 15,
+            "depth": 13,
+            "height": 8
+          },
+          "floor_ys_local": [
+            0,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_main",
+                "local_origin": {
+                  "x": -7,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 15,
+                  "depth": 13,
+                  "height": 8
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -7,
+              "min_z": -6,
+              "max_x": 8,
+              "max_z": 7,
+              "min_y": 0,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 7,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": -7,
+                "start": -6,
+                "end": 7
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "SOUTH",
+        "component_preset": "MASS_MAIN",
+        "size": {
+          "width": 15,
+          "depth": 13,
+          "height": 8
+        },
+        "slot_id": "slot_0"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 8
+      },
+      "features": [
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "mass_main",
+        "requirement_scope": "all_main_masses",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "roof_type": "flat",
+        "window_style": "ribbon_glazing",
+        "entrance_type": "door",
+        "facade_profile": "mullion_grid",
+        "wall_pattern": "striped",
+        "floor_count": 2,
+        "floor_height": 4,
+        "void_ratio": 0.28,
+        "window_ratio": 0.35,
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:smooth_stone",
+        "material": "concrete",
+        "facing": "SOUTH",
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "mass_main"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -8,
+        "y": -1,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "foundation_main",
+        "host_id": "mass_main",
+        "plinth": true,
+        "block": "minecraft:white_concrete",
+        "wall_block": "minecraft:white_concrete",
+        "material": "concrete",
+        "building_id": "mass_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -8,
+        "y": 8,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 1
+      },
+      "features": [
+        "column",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "roof_main",
+        "host_id": "mass_main",
+        "roof_type": "flat",
+        "overhang": 1,
+        "roof_block": "minecraft:smooth_stone",
+        "roof_material": "smooth_stone",
+        "material": "stone",
+        "dormer": false,
+        "roof_height": 2,
+        "distinctive_features": [
+          "column",
+          "ornament"
+        ],
+        "building_id": "mass_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -7,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 8
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"large\", \"regular\", \"grid\", \"glazed\", \"minimal\", \"modern\"], \"importance\": [\"role\", \"style\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern\", \"materialTone\": \"white_concrete\"}, \"constraints\": {\"mustHave\": [\"window\"], \"forbiddenTags\": [\"arched\", \"gothic\", \"ornate\", \"mullioned_ornate\", \"lattice\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "windows_main",
+        "host_id": "mass_main",
+        "window_style": "ribbon_glazing",
+        "window_aspect": "ribbon_glazing",
+        "window_ratio": 0.35,
+        "window_repeat": true,
+        "floor_count": 2,
+        "floor_height": 4,
+        "sides": [
+          "SOUTH",
+          "EAST",
+          "WEST",
+          "NORTH"
+        ],
+        "glass_block": "minecraft:glass",
+        "frame_block": "minecraft:white_concrete",
+        "material": "glass",
+        "rhythm": "regular",
+        "building_id": "mass_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"modern\", \"glass\", \"flush\", \"minimal\", \"rectangular\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern\", \"materialTone\": \"white_concrete\"}, \"constraints\": {\"mustHave\": [\"door\"], \"forbiddenTags\": [\"arched\", \"gothic\", \"ornate\", \"column\", \"portico\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "entrance_main",
+        "host_id": "mass_main",
+        "entrance_type": "door",
+        "facing": "SOUTH",
+        "centered": true,
+        "door_block": "minecraft:glass",
+        "frame_block": "minecraft:white_concrete",
+        "material": "glass",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "mass_main"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "slot_id": "slot_0",
+      "relative_position": {
+        "x": -3,
+        "y": 3,
+        "z": 6
+      },
+      "dimensions": {
+        "width": 6,
+        "depth": 2,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"canopy\", \"tags\": [\"flat\", \"slab\", \"minimal\", \"modern\", \"thin\"], \"importance\": [\"role\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern\", \"materialTone\": \"white_concrete\"}, \"constraints\": {\"mustHave\": [\"canopy\"], \"forbiddenTags\": [\"column\", \"classical\", \"ornate\", \"gable\", \"crown\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "component_id": "decor_entry_canopy",
+        "host_id": "mass_main",
+        "decor_kind": "entrance_canopy",
+        "block": "minecraft:white_concrete",
+        "material": "concrete",
+        "building_id": "mass_main"
+      }
+    }
+  ],
+  "player_fidelity_notice_zh": "组合式生成「两层现代住宅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}

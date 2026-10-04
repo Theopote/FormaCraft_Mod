@@ -106,7 +106,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     if (!isFacade) {
                         continue;
                     }
-                    if (!isWindowBand(y, height, floorHeight, windowAspect)) {
+                    if (!isWindowBand(y, floorCount > 0 ? height + 1 : height, floorHeight, windowAspect, floorCount > 0 ? 2 : 1)) {
                         continue;
                     }
                     int axis;
@@ -161,11 +161,11 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                                     && rhythmPlan.isEntranceBayAxis(axis)) {
                                 continue;
                             }
-                        } else if (!shouldPlaceWindow(axis, y, axisMax, height, floorHeight, windowSpacing,
+                        } else if (!shouldPlaceWindow(axis, y, axisMax, floorCount > 0 ? height + 1 : height, floorHeight, windowSpacing,
                                 windowRatio, rhythm, windowAspect)) {
                             continue;
                         }
-                    } else if (!shouldPlaceWindow(axis, y, axisMax, height, floorHeight, windowSpacing,
+                    } else if (!shouldPlaceWindow(axis, y, axisMax, floorCount > 0 ? height + 1 : height, floorHeight, windowSpacing,
                             windowRatio, rhythm, windowAspect)) {
                         continue;
                     }
@@ -226,6 +226,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         for (String feature : c.features()) {
             if (feature == null) continue;
             String lower = feature.toLowerCase();
+            if (lower.startsWith("component_request:") || lower.startsWith("group_request:")) continue;
             for (String keyword : keywords) {
                 if (lower.contains(keyword.toLowerCase())) {
                     return true;
@@ -274,6 +275,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             for (String feature : c.features()) {
                 if (feature == null) continue;
                 String lower = feature.toLowerCase();
+            if (lower.startsWith("component_request:") || lower.startsWith("group_request:")) continue;
                 if (lower.contains("gothic") || lower.contains("stained_glass") || lower.contains("pointed")) {
                     return "MEDIEVAL_CLASSIC";
                 }
@@ -400,7 +402,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         };
     }
 
-    private boolean isWindowBand(int y, int height, int floorHeight, WindowAspect aspect) {
+    private boolean isWindowBand(int y, int height, int floorHeight, WindowAspect aspect, int sill) {
         if (floorHeight > 0 && y % floorHeight == 0) return false;
         if (aspect == WindowAspect.FULL_HEIGHT || aspect == WindowAspect.RIBBON_GLAZING) {
             return y > 0 && y < height - 1;
@@ -410,14 +412,14 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                 return false;
             }
             int band = y % Math.max(1, floorHeight);
-            int mid = Math.max(1, floorHeight / 2);
-            return band >= mid - 1 && band <= mid;
+            int mid = Math.max(sill, floorHeight / 2);
+            return band >= Math.max(sill, mid - 1) && band <= mid;
         }
         if (y <= 0 || y >= height - 1) {
             return false;
         }
         int band = y % Math.max(1, floorHeight);
-        return band >= 1 && band <= Math.max(1, floorHeight - 2);
+        return band >= sill && band <= Math.max(sill, floorHeight - (sill > 1 ? 1 : 2));
     }
 
     private boolean shouldPlaceWindow(
@@ -456,7 +458,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
     }
 
     private static boolean isPunchWindowY(int y, int height, int floorHeight) {
-        int fh = Math.max(4, floorHeight);
+        int fh = Math.max(3, floorHeight);
         int bandStart = (y / fh) * fh;
         int mid = bandStart + fh / 2;
         return y >= mid - 1 && y <= mid + 1 && y > 0 && y < height - 1;

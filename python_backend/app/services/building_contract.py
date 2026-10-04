@@ -144,6 +144,24 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             comp['slot_id'] = comp['params']['slot_id']
         if comp.get('slot_id') in aliases:
             comp['slot_id'] = aliases[comp['slot_id']]
+    # Repair legacy plan-space coordinates duplicated in a building slot anchor.
+    # Only exact center repetition is evidence; min_corner offsets remain local.
+    for slot in slots:
+        if not isinstance(slot, dict): continue
+        key = slot.get('slot_id', slot.get('id'))
+        anchor = slot.get('anchor')
+        if not isinstance(anchor, dict) or not any(anchor.get(a, 0) for a in ('x', 'z')): continue
+        bodies = [c for c in components if c.get('component_type') == 'MASS_MAIN' and c.get('slot_id') == key]
+        if len(bodies) != 1: continue
+        body = bodies[0]
+        pos = body.get('relative_position') or {}
+        if body['params'].get('anchor_mode', 'center') != 'center' or not all(
+                isinstance(anchor.get(a), (int, float)) and pos.get(a) == anchor[a] for a in ('x', 'z')): continue
+        for c in components:
+            if c.get('slot_id') != key or not isinstance(c.get('relative_position'), dict): continue
+            for axis in ('x', 'z'):
+                c['relative_position'][axis] -= anchor[axis]
+            c['params']['coordinate_frame_source'] = 'legacy_plan_space'
     supplied = [str((c.get('params') or {}).get('component_id')) for c in components if (c.get('params') or {}).get('component_id')]
     used = set(supplied)
     if len(supplied) != len(used): contract['diagnostics'].append({'code': 'E_COMPONENT_ID_DUPLICATE'})

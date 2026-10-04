@@ -156,7 +156,8 @@ public final class UnifiedGeneratorRouter {
         // Facade and entrance components also own complete opening layouts, not one library socket.
         // Generate those details as separate components so their socket transforms cannot erase
         // or relocate the mass, roof or foundation.
-        if (!base.isEmpty() && preservesBuildingEnvelope(semantic.source().componentType())) {
+        if (!base.isEmpty() && (preservesBuildingEnvelope(semantic.source().componentType())
+                || semantic.source().params() != null && Boolean.TRUE.equals(semantic.source().params().get("resolved_host_attachment")))) {
             return base;
         }
         if (hasGroupRequest) {
@@ -202,7 +203,7 @@ public final class UnifiedGeneratorRouter {
         if (type == null) return false;
         return switch (type.toUpperCase(java.util.Locale.ROOT)) {
             case "MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_WING", "SIDE_WING",
-                 "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "FACADE_WINDOWS", "ENTRANCE" -> true;
+                 "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "FACADE_WINDOWS", "ENTRANCE", "CHIMNEY" -> true;
             default -> false;
         };
     }

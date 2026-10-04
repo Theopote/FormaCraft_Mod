@@ -72,6 +72,6 @@ class HousePromptRegressionTest {
             assertEquals("minecraft:oak_planks", cells.get(new BlockPos(x, 6, z)).targetBlock(), "Top landing must meet second floor");
         assertEquals("minecraft:oak_planks", cells.get(new BlockPos(5, 6, 5)).targetBlock());
         assertEquals(BlockPatch.REMOVE, cells.get(new BlockPos(2, 6, 5)).action(), "Stair must cut the second-floor slab");
-        assertFalse(cells.containsKey(new BlockPos(5, 7, 5)), "Floor plate must not fill upper-floor rooms");
+        assertEquals(BlockPatch.REMOVE, cells.get(new BlockPos(5, 7, 5)).action(), "Upper-floor room clears existing blocks");
     }
 }

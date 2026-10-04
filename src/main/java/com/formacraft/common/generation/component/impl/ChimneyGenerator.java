@@ -46,7 +46,10 @@ public class ChimneyGenerator implements ComponentGenerator {
                 for (int z = 0; z < depth; z++) {
                     // 根据位置确定语义部位
                     SemanticPart part = determinePart(y, height, width, depth, x, z);
-                    String block = palette.pick(part);
+                    Object material = c.params() == null ? null : c.params().get("material");
+                    String block = material instanceof String text && !text.isBlank() ? text : null;
+                    if (block == null) block = palette.pick(part);
+                    else if (!block.contains(":")) block = "minecraft:" + block;
                     if (block == null || block.isEmpty()) {
                         block = "minecraft:bricks";
                     }
@@ -84,7 +87,7 @@ public class ChimneyGenerator implements ComponentGenerator {
     }
 
     private String getStyleProfile(SemanticComponent semantic) {
-        return "MEDIEVAL_CLASSIC";
+        return semantic.styleProfile() == null ? "MEDIEVAL_CLASSIC" : semantic.styleProfile();
     }
 }
 

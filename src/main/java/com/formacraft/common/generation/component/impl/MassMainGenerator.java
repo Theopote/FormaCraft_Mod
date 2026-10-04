@@ -168,6 +168,9 @@ public class MassMainGenerator implements ComponentGenerator {
             hasInterior = voidRatio >= 0.08;
         }
         if (getParamBoolean(params, "hollow")) hasInterior = true;
+        // Occupied storeys require rooms; low facade void ratio is not an instruction to fill rooms.
+        if (ComponentParamParsers.intParam(params, "floor_count", "floorCount") > 0
+                && !Boolean.FALSE.equals(params == null ? null : params.get("hollow"))) hasInterior = true;
         if (!hasInterior && isBuilding && width >= 5 && depth >= 5 && height >= 4) {
             // 对于足够大的建筑，默认应该有内部空间
             hasInterior = true;
@@ -365,6 +368,11 @@ public class MassMainGenerator implements ComponentGenerator {
                                         block
                                 ));
                             }
+                        } else {
+                            // Explicit air clears pre-existing terrain and previously generated interiors.
+                            out.add(new BlockPatch(BlockPatch.REMOVE,
+                                    rp.x() + mass.offsetX + localX, rp.y() + mass.offsetY + y,
+                                    rp.z() + mass.offsetZ + localZ, "minecraft:air"));
                         }
                         continue;
                     }

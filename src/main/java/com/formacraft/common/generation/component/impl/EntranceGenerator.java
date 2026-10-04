@@ -142,6 +142,7 @@ public class EntranceGenerator implements ComponentGenerator {
             for (String feature : c.features()) {
                 if (feature == null) continue;
                 String lower = feature.toLowerCase();
+            if (lower.startsWith("component_request:") || lower.startsWith("group_request:")) continue;
                 if (lower.contains("gothic") || lower.contains("pointed") || lower.contains("flying")) {
                     return "MEDIEVAL_CLASSIC";
                 }
@@ -246,6 +247,7 @@ public class EntranceGenerator implements ComponentGenerator {
         for (String feature : c.features()) {
             if (feature == null) continue;
             String lower = feature.toLowerCase();
+            if (lower.startsWith("component_request:") || lower.startsWith("group_request:")) continue;
             for (String keyword : keywords) {
                 if (lower.contains(keyword.toLowerCase())) {
                     return true;

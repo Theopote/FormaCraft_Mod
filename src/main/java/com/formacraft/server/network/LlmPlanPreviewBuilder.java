@@ -304,6 +304,16 @@ public final class LlmPlanPreviewBuilder {
                         targetY = analysis.medianY() + 1;
                     }
 
+                    // A terrain base change is one rigid translation of the whole plan.
+                    int terrainDy = targetY - planOrigin.getY();
+                    if (terrainDy != 0) {
+                        plannedBlocks = LlmPlanTerrainBounds.translateBlocks(plannedBlocks, terrainDy);
+                        planOrigin = planOrigin.up(terrainDy);
+                        minY += terrainDy;
+                        maxY += terrainDy;
+                        center = center.up(terrainDy);
+                    }
+
                     // 选择填充材料
                     BlockState fillMaterial = Blocks.COBBLESTONE.getDefaultState();
                     if (b) {
