@@ -42,18 +42,7 @@ public class MassMainGenerator implements ComponentGenerator {
         COURTYARD
     }
 
-    private static final class PatternConfig {
-        private final PlanPattern pattern;
-        private final int size;
-        private final double ratio;
-        private final String corner;
-
-        private PatternConfig(PlanPattern pattern, int size, double ratio, String corner) {
-            this.pattern = pattern;
-            this.size = size;
-            this.ratio = ratio;
-            this.corner = corner;
-        }
+    private record PatternConfig(PlanPattern pattern, int size, double ratio, String corner) {
     }
 
     /**
@@ -73,29 +62,8 @@ public class MassMainGenerator implements ComponentGenerator {
         }
     }
 
-    private static final class MassConfig {
-        private final int offsetX;
-        private final int offsetY;
-        private final int offsetZ;
-        private final int width;
-        private final int depth;
-        private final int height;
-        private final FootprintShape shape;
-        private final int cornerRadius;
-        private final PatternConfig pattern;
-
-        private MassConfig(int offsetX, int offsetY, int offsetZ, int width, int depth, int height,
-                           FootprintShape shape, int cornerRadius, PatternConfig pattern) {
-            this.offsetX = offsetX;
-            this.offsetY = offsetY;
-            this.offsetZ = offsetZ;
-            this.width = width;
-            this.depth = depth;
-            this.height = height;
-            this.shape = shape;
-            this.cornerRadius = cornerRadius;
-            this.pattern = pattern;
-        }
+    private record MassConfig(int offsetX, int offsetY, int offsetZ, int width, int depth, int height,
+                              FootprintShape shape, int cornerRadius, PatternConfig pattern) {
     }
 
     @Override
@@ -378,7 +346,10 @@ public class MassMainGenerator implements ComponentGenerator {
                             && z >= wallThickness && z < currentDepth-wallThickness
                             && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness,
                             mass.shape, mass.cornerRadius, mass.pattern)) {
-                        int storeys = ComponentParamParsers.intParam(semantic.source().params(), "floor_count", "floorCount");
+                        int storeys = 0;
+                        if (semantic.source() != null) {
+                            storeys = ComponentParamParsers.intParam(semantic.source().params(), "floor_count", "floorCount");
+                        }
                         if (y == 0 || storeys > 1 && userFloorHeight > 0 && y % userFloorHeight == 0 && y / userFloorHeight < storeys) {
                             SemanticPart part = SemanticPart.FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
