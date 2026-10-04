@@ -1,0 +1,62 @@
+{
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 12
+      },
+      "params": {}
+    },
+    {
+      "component_type": "ASSEMBLY",
+      "relative_position": {
+        "x": 4,
+        "y": 0,
+        "z": -4
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 6,
+        "height": 7
+      },
+      "params": {
+        "assembly": {
+          "stair_type": "switchback",
+          "width": 3,
+          "flight_rise": 3,
+          "flight_run": 3,
+          "landing_width": 7,
+          "landing_depth": 2,
+          "material": {
+            "steps": "stone_brick",
+            "landing": "oak_planks"
+          },
+          "graph": {
+            "components": [
+              {
+                "id": "stair_flight_a_1",
+                "type": "SHELL_BOX",
+                "w": 3,
+                "d": 1,
+                "h": 1
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "SHELL_BOX",
+              "target": "stair_flight_a_1"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -35,7 +35,7 @@
 
 楼板使用 `MASS_SECONDARY`，`params.extrude_mode=plate`、`material=oak_planks`、`anchor_mode=min_corner`，高度为 1。编译器先生成其他构件，再生成直楼梯；楼梯会实际开洞、清除踏步及平台上方净空。保护信息继续进入后处理和预览最终校验。
 
-旧日志仅在同时明确 `stair:straight_single_run` 与 `ascends_from_north_low_end_to_south_high_end` 时可按包围盒转换，升高取 `height-1`、末端保留三行平台。其他文字楼梯不得猜测几何，必须提供端点或可执行 ASSEMBLY 操作。曲线、转折、螺旋楼梯应使用专用生成器或多段 ASSEMBLY，不能作为这个直楼梯协议发送。
+旧日志仅在同时明确 `stair:straight_single_run` 与 `ascends_from_north_low_end_to_south_high_end` 时可按包围盒转换，升高取 `height-1`、水平终点取 `depth-4`，末端之后保留三行平台。平台必须位于最后一级踏步的相邻单元，不得以完整方块覆盖该踏步，否则会形成需要跳跃的一格台阶。其他文字楼梯不得猜测几何，必须提供端点或可执行 ASSEMBLY 操作。折返与塔内螺旋楼梯的支持范围见 [ASSEMBLY 楼梯修复](ASSEMBLY_CIRCULATION_REPAIR.md)。
 
 ## 验证与游戏验收
 

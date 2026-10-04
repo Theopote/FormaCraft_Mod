@@ -202,13 +202,31 @@ public final class AssemblyPatchGenerator {
         }
         Object nested = params.get("assembly");
         if (nested instanceof Map<?, ?>) {
-            return nested;
+            if (hasExecutablePayload((Map<?, ?>) nested) || !hasExecutablePayload(params)) return nested;
+            var outer = new HashMap<>(params);
+            outer.remove("assembly");
+            return outer;
         }
         if (params.containsKey("ops") || params.containsKey("components") || params.containsKey("graph")
                 || params.containsKey("macro") || params.containsKey("preset") || params.containsKey("presetId")) {
             return new HashMap<>(params);
         }
         return null;
+    }
+
+    private static boolean hasExecutablePayload(Map<?, ?> payload) {
+        if (payload.get("preset") != null || payload.get("presetId") != null) return true;
+        if (payload.get("ops") instanceof List<?> ops && !ops.isEmpty()) return true;
+        if (payload.get("components") instanceof List<?> components && !components.isEmpty()) return true;
+        return payload.get("graph") instanceof Map<?, ?> graph
+            && graph.get("components") instanceof List<?> components && !components.isEmpty();
+    }
+
+    public static boolean hasCirculation(Component component) {
+        if (component == null || !"ASSEMBLY".equalsIgnoreCase(component.componentType())) return false;
+        Object payload = resolveAssemblyPayload(component.params());
+        return payload instanceof Map<?, ?> map && map.get("ops") instanceof List<?> ops
+            && ops.stream().anyMatch(o -> o instanceof Map<?, ?> op && "STAIR_SYSTEM".equals(op.get("op")));
     }
 
     private static BuildingSpec buildFootprintHint(Component component) {

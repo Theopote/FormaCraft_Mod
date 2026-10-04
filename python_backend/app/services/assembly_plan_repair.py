@@ -73,7 +73,7 @@ def finalize_assembly_plan_or_gap(
     if not assembly_context:
         return plan
 
-    _, issues = normalize_and_validate_assembly_plan(plan, user_text, apply_presets=False)
+    plan, issues = normalize_and_validate_assembly_plan(plan, user_text, apply_presets=False)
     errors = [i for i in issues if i.severity == "ERROR"]
     if not errors:
         return plan
@@ -97,6 +97,8 @@ def normalize_and_validate_assembly_plan(
     *,
     apply_presets: bool = True,
 ) -> tuple[Dict[str, Any], List[AssemblyPlanIssue]]:
+    from .circulation_plan_normalizer import normalize_circulation_plan
+    plan = normalize_circulation_plan(plan)
     if apply_presets:
         plan = auto_apply_assembly_presets(plan, user_text)
     issues = validate_assembly_plan(plan)

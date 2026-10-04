@@ -301,6 +301,21 @@ public final class MetaAssemblyEngine {
     public List<PlannedBlock> execute(AssemblySpec spec, Context ctx) {
         List<PlannedBlock> out = new ArrayList<>();
         if (spec == null || ctx == null || ctx.world == null || ctx.origin == null) return out;
+        return executeOperations(spec, ctx);
+    }
+
+    /** Deterministic geometry verification without terrain access or world palette lookup. */
+    public List<PlannedBlock> executeGeometry(AssemblySpec spec, Context ctx) {
+        if (spec == null || ctx == null || ctx.origin == null) throw new IllegalArgumentException("Geometry context required");
+        if (ctx.paletteId != null && !ctx.paletteId.isBlank()) throw new IllegalArgumentException("Geometry verification requires explicit materials");
+        var supported = java.util.Set.of("PUSH_ORIGIN", "POP_ORIGIN", "CYLINDER", "STAIR_SYSTEM", "CLEAR_BOX");
+        for (var op : spec.ops) if (!supported.contains(str(op.get("op"), "").toUpperCase(java.util.Locale.ROOT)))
+            throw new IllegalArgumentException("World-dependent or unsupported geometry operation: " + op.get("op"));
+        return executeOperations(spec, ctx);
+    }
+
+    private List<PlannedBlock> executeOperations(AssemblySpec spec, Context ctx) {
+        List<PlannedBlock> out = new ArrayList<>();
         Deque<BlockPos> originStack = new ArrayDeque<>();
         List<AssemblyCirculationConstraints.Flight> flights = new ArrayList<>();
         BlockPos curOrigin = ctx.origin;
@@ -524,7 +539,7 @@ public final class MetaAssemblyEngine {
             case "CYLINDER" -> {
                 // Cylinder (filled or hollow shell) in local coords centered at current origin.
                 int r = clamp(i(op.get("r"), i(op.get("radius"), 6)), 2, 128);
-                int h = clamp(i(op.get("h"), i(op.get("height"), 18)), 3, 255);
+                int h = clamp(i(op.get("h"), i(op.get("height"), 18)), 1, 255);
                 boolean hollow = bool(op.get("hollow"), false);
                 int thickness = clamp(i(op.get("thickness"), 1), 1, Math.max(1, r));
 

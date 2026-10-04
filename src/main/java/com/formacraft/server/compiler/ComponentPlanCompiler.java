@@ -291,7 +291,9 @@ public final class ComponentPlanCompiler {
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
-        ordered.sort(java.util.Comparator.comparing(com.formacraft.server.generation.component.impl.StraightStairComponentGenerator::accepts));
+        ordered.sort(java.util.Comparator.comparing(c ->
+            com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
+                || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)));
         for (Component c : ordered) {
             if (c == null) continue;
             String normalizedType = normalizeType(c.componentType());

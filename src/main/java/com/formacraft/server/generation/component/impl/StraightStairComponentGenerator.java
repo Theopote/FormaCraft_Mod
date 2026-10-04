@@ -30,7 +30,7 @@ public final class StraightStairComponentGenerator {
                 Dimensions d = Objects.requireNonNull(c.dimensions(), "Missing stair dimensions");
                 op.put("width", d.width());
                 op.put("from", Map.of("x", d.width() / 2, "y", 0, "z", 0));
-                op.put("to", Map.of("x", d.width() / 2, "y", d.height() - 1, "z", d.depth() - 3));
+                op.put("to", Map.of("x", d.width() / 2, "y", d.height() - 1, "z", d.depth() - 4));
                 op.put("landing_length", 3);
                 String floor = String.valueOf(op.getOrDefault("material", "minecraft:oak_planks"));
                 if (!floor.contains(":")) floor = "minecraft:" + floor;
@@ -66,8 +66,8 @@ public final class StraightStairComponentGenerator {
                 var from = point(op.get("from")); var to = point(op.get("to"));
                 int dx = Integer.signum(to.getX() - from.getX()), dz = Integer.signum(to.getZ() - from.getZ());
                 var flat = new HashMap<>(op);
-                flat.put("from", Map.of("x", to.getX(), "y", to.getY(), "z", to.getZ()));
-                flat.put("to", Map.of("x", to.getX() + dx * (landing - 1), "y", to.getY(), "z", to.getZ() + dz * (landing - 1)));
+                flat.put("from", Map.of("x", to.getX() + dx, "y", to.getY(), "z", to.getZ() + dz));
+                flat.put("to", Map.of("x", to.getX() + dx * landing, "y", to.getY(), "z", to.getZ() + dz * landing));
                 AssemblyCirculationOps.applyStairSystem(blocks, null, origin, flat, adapter);
             }
             var flight = AssemblyCirculationConstraints.capture(blocks, 0);

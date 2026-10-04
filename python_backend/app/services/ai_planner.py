@@ -4734,6 +4734,16 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
             "Text-only features do not generate stairs or holes. Do not add furniture/ornament when excluded by the user."
         )
     skip_landmark_routing = building_profile is not None
+    if any(token in user_text.lower() for token in ("折返", "转折楼梯", "switchback")):
+        parts.append("For a switchback staircase use ASSEMBLY params.assembly={stair_type:'switchback',width:3,"
+                     "flight_rise:3,flight_run:3,landing_width:7,landing_depth:2,material:{steps:'stone_bricks',landing:'oak_planks'}}. "
+                     "Scale rise to half the floor-to-floor height, run>=rise, landing_width=2*width+1. "
+                     "The backend compiles this supported contract to STAIR_SYSTEM ops. Never stack SHELL_BOX treads or invent graph ports.")
+    if any(token in user_text.lower() for token in ("环形楼梯", "螺旋楼梯", "spiral stair", "ring stair")):
+        parts.append("For a circular tower interior stair use ASSEMBLY params.assembly={kind:'ring_staircase',radius:6,"
+                     "height:15,floorLevels:[5,10],floorMaterial:'smooth_stone',direction:'clockwise',roof_access:false}. "
+                     "Use requested dimensions and occupied floor levels. This contract produces a face-adjacent square spiral "
+                     "inside the circular wall, floor openings and two-block headroom. spiral_watchtower is a twisted shell preset, not an interior stair.")
 
     if _LLMPLAN_INJECT_CHAT_HISTORY and getattr(req, "chatHistory", None):
         parts.append("Chat History (recent turns, oldest first):")

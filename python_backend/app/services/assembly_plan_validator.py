@@ -5,6 +5,7 @@ Used by generate_llm_plan() repair loop and golden_eval.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.services.assembly_schema_loader import (
@@ -49,6 +50,8 @@ def resolve_preset_for_intent(text: Optional[str]) -> Optional[str]:
     lower = str(text).lower()
     if any(k in lower for k in ("桥", "bridge", "悬索", "suspension", "cable-stayed", "斜拉")):
         return "suspension_bridge_simple"
+    if "楼梯" in lower or "stair" in lower:
+        return None  # spiral_watchtower twists a shell; it does not generate interior stairs.
     if any(k in lower for k in ("螺旋", "spiral", "helix", "twist", "瞭望", "watchtower", "lookout")):
         return "spiral_watchtower"
     if any(k in lower for k in ("哥特", "gothic", "shell", "壳")):
@@ -61,7 +64,9 @@ def resolve_preset_for_intent(text: Optional[str]) -> Optional[str]:
 def _assembly_payload(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     assembly = params.get("assembly")
     if isinstance(assembly, dict):
-        return assembly
+        if _has_geometry(assembly) or not _has_geometry(params):
+            return assembly
+        return {key: value for key, value in params.items() if key != "assembly"}
     if any(k in params for k in ("graph", "ops", "macro", "preset", "presetId")):
         return params
     return None
@@ -154,6 +159,9 @@ def _validate_assembly_component(issues: List[AssemblyPlanIssue], comp: Dict[str
                 f"unknown preset: {preset}",
             ))
         return
+    for j, op in enumerate(payload.get("ops") or []):
+        if isinstance(op, dict):
+            _validate_geometry_fields(issues, op, f"{base}.params.assembly.ops[{j}]")
     graph = payload.get("graph") if isinstance(payload.get("graph"), dict) else None
     if graph is None and payload.get("components"):
         graph = {"components": payload.get("components"), "connections": payload.get("connections", [])}
@@ -190,6 +198,7 @@ def _validate_assembly_component(issues: List[AssemblyPlanIssue], comp: Dict[str
                 ))
             by_id[cid] = c
         ctype = str(c.get("type") or c.get("op") or "").strip().upper()
+        _validate_geometry_fields(issues, c, f"{base}.params.assembly.graph.components[{j}]")
         if not ctype:
             issues.append(AssemblyPlanIssue(
                 f"{base}.params.assembly.graph.components[{j}].type",
@@ -204,6 +213,22 @@ def _validate_assembly_component(issues: List[AssemblyPlanIssue], comp: Dict[str
         cp = f"{base}.params.assembly.graph.connections[{k}]"
         _validate_endpoint(issues, cp + ".from", conn.get("from"), by_id, "from")
         _validate_endpoint(issues, cp + ".to", conn.get("to"), by_id, "to")
+
+
+def _validate_geometry_fields(issues: List[AssemblyPlanIssue], comp: dict, path: str) -> None:
+    kind = str(comp.get("type") or comp.get("op") or "").upper()
+    if kind == "SHELL_BOX":
+        for key, minimum in (("w",1),("d",1),("h",2)):
+            value = comp.get(key)
+            if value is not None and (not isinstance(value, (int,float)) or isinstance(value,bool) or not isfinite(value) or int(value) != value or value < minimum):
+                issues.append(AssemblyPlanIssue(path+'.'+key, "E_INT_RANGE", f"{key} must be an integer >= {minimum}; use STAIR_SYSTEM for treads"))
+    if kind == "STAIR_SYSTEM":
+        a, b = comp.get("from"), comp.get("to")
+        if not all(isinstance(p, dict) and all(isinstance(p.get(k),int) and not isinstance(p.get(k),bool) for k in ('x','y','z')) for p in (a,b)):
+            issues.append(AssemblyPlanIssue(path, "E_STAIR_FLIGHT_INVALID", "from/to must contain integer x/y/z")); return
+        dx, dy, dz = b['x']-a['x'], b['y']-a['y'], b['z']-a['z']
+        if (dx and dz) or abs(dy) > max(abs(dx),abs(dz)) or max(abs(dx),abs(dz)) > 4096:
+            issues.append(AssemblyPlanIssue(path, "E_STAIR_FLIGHT_INVALID", "Use axis-aligned flights with run >= rise and run <= 4096"))
 
 
 def _validate_endpoint(

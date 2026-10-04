@@ -13,6 +13,18 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssemblyPatchGeneratorTest {
+    @Test void descriptiveNestedPayloadCannotHideExecutableOuterPreset() {
+        var outer = Map.<String,Object>of("preset", "spiral_watchtower", "presetParams", Map.of("height",15),
+            "assembly", Map.of("kind","unrelated_description"));
+        var selected = (Map<?,?>) AssemblyPatchGenerator.resolveAssemblyPayload(outer);
+        org.junit.jupiter.api.Assertions.assertEquals("spiral_watchtower", selected.get("preset"));
+        assertFalse(selected.containsKey("assembly"));
+    }
+    @Test void executableNestedPayloadKeepsPriority() {
+        var nested = Map.of("ops", java.util.List.of(Map.of("op","STAIR_SYSTEM")));
+        var selected = AssemblyPatchGenerator.resolveAssemblyPayload(Map.of("preset","spiral_watchtower","assembly",nested));
+        org.junit.jupiter.api.Assertions.assertSame(nested, selected);
+    }
 
     @Test
     void resolvesNestedAssemblyPayload() {

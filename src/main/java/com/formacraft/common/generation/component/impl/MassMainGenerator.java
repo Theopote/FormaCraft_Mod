@@ -349,9 +349,12 @@ public class MassMainGenerator implements ComponentGenerator {
         int[] layerZOffsets = new int[height];
 
         if (hasSteppedFacade && height >= 3) {
-            double userSetbackRatio = setbackRatioOverride != null ? setbackRatioOverride
-                    : com.formacraft.common.generation.component.util.ProportionalFacadeCalculator
-                    .extractSetbackRatioFromFeatures(semantic.source().features());
+            double userSetbackRatio = 0;
+            if (semantic.source() != null) {
+                userSetbackRatio = setbackRatioOverride != null ? setbackRatioOverride
+                        : com.formacraft.common.generation.component.util.ProportionalFacadeCalculator
+                        .extractSetbackRatioFromFeatures(semantic.source().features());
+            }
 
             com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.LayerConfig[] layerConfigs =
                     com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.calculateSteppedFacade(
