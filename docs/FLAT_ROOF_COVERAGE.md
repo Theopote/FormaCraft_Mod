@@ -2,6 +2,8 @@
 
 日期：2026-10-04。
 
+第十批补充 [平屋顶对宿主体块的覆盖](FLAT_ROOF_HOST_COVERAGE.md)，在可绑定的平屋顶范围内检查尺寸和水平位置；本文描述的是独立核心覆盖层。
+
 `FlatRoofCoverageValidator` 独立于屋顶输出方块，按已准备的 ROOF 组件建立核心屋面预期。仅处理明确 `roof_type=flat` 或 `roofType=flat` 的组件；覆盖范围使用 ComponentFootprintMask，保留圆形、L 形及院落缺口。预期 y 是屋顶声明的接合面，x/z 使用 RoofGenerator 的最小角点协议，slot 平移一次。
 
 所有构件合并后、后处理及地形移动之前，按最后一条操作检查每个核心坐标。缺失、remove 或空气触发 `E_FLAT_ROOF_COVERAGE`，包含来源、首个缺失 plan 坐标和数量。显式楼梯 Flight 的净空位置豁免，仍由既有通行验证确保净空可用。任意非空气方块仅代表占用存在，不证明材质、造型或来源正确。

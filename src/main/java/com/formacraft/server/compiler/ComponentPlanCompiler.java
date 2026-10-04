@@ -200,6 +200,24 @@ public final class ComponentPlanCompiler {
                     List.of("Restore the roof core or remove the conflicting operation; keep courtyard and stair openings explicit.")));
             return List.of();
         }
+        for (var body : components) {
+            if (!"MASS_MAIN".equals(normalizeType(body.componentType()))) continue;
+            Slot hostSlot = slotMap.get(body.slotId());
+            if (hostSlot == null) hostSlot = defaultSlot(plan);
+            Vec3i hostAnchor = hostSlot.anchor();
+            var hostSemantic = new SemanticComponent(body.componentType(), hostSlot, body,
+                    plan.styleProfile(), plan.styleAttributes(), plan.genome());
+            var uncovered = FlatRoofCoverageValidator.checkHost(hostSemantic, flatRoofs,
+                    hostAnchor == null ? BlockPos.ORIGIN : new BlockPos(hostAnchor.x(),hostAnchor.y(),hostAnchor.z()), result, roofClearance);
+            if (uncovered.isPresent()) {
+                var missing = uncovered.get();
+                AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_HOST_COVERAGE",
+                        "平屋顶未覆盖宿主顶层：part=" + missing.source() + ", plan=" + missing.position().toShortString()
+                                + ", uncovered=" + missing.count(), "components[]",
+                        List.of("Align and size the bound roof to the host footprint; preserve explicit courtyard and L-shaped voids.")));
+                return List.of();
+            }
+        }
 
         FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches",
                 components.size(), result.size());
@@ -1306,6 +1324,7 @@ public final class ComponentPlanCompiler {
             roofType = resolveDefaultRoofType(plan, base);
         }
         params.put("roof_type", roofType);
+        if (params.get("component_id") != null) params.putIfAbsent("host_id", params.get("component_id"));
         // The inferred height lives in Dimensions. Do not inject a duplicate
         // default param that overrides the height of an explicit ROOF component.
         params.put("anchor_mode", "min_corner");
