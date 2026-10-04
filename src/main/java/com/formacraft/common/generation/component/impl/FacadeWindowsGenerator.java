@@ -277,6 +277,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
      */
     private String getBlockForWindow(SemanticComponent semantic, Palette palette, SemanticPart part, boolean isLattice,
                                      String windowStyle) {
+        String glazing = getParamString(semantic.source().params(), "glass_block", "glazing_block", "glass_material");
+        if (glazing != null) return glazing.contains(":") ? glazing : "minecraft:" + glazing;
         // A component's authored window style precedes global material and style defaults.
         String explicitStyle = getParamString(semantic.source().params(), "window_style", "windowStyle");
         if (explicitStyle != null) {

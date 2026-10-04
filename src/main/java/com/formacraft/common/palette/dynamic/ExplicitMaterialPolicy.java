@@ -63,7 +63,8 @@ public final class ExplicitMaterialPolicy {
     private static void collect(Set<String> targets, Object value) {
         if (value instanceof Map<?, ?> map) {
             for (var entry : map.entrySet()) {
-                if (Set.of("wall_block", "floor_block", "roof_block", "material").contains(String.valueOf(entry.getKey()))
+                if (Set.of("wall_block", "floor_block", "roof_block", "material", "block", "trim_block",
+                        "glass_block", "glazing_block", "glass_material").contains(String.valueOf(entry.getKey()))
                         && entry.getValue() instanceof String text) add(targets, text);
                 else if (entry.getValue() instanceof Map<?, ?> || entry.getValue() instanceof List<?>) collect(targets, entry.getValue());
             }

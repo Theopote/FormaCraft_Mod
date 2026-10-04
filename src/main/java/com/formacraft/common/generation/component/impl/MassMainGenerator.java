@@ -199,6 +199,7 @@ public class MassMainGenerator implements ComponentGenerator {
         if (voidRatio != null) {
             hasInterior = voidRatio >= 0.08;
         }
+        if (getParamBoolean(params, "hollow")) hasInterior = true;
         if (!hasInterior && isBuilding && width >= 5 && depth >= 5 && height >= 4) {
             // 对于足够大的建筑，默认应该有内部空间
             hasInterior = true;
@@ -876,6 +877,12 @@ public class MassMainGenerator implements ComponentGenerator {
                 "footprint_pattern", "footprintPattern", "plan_pattern", "planPattern");
         Component c = semantic != null ? semantic.source() : null;
 
+        if ("none".equalsIgnoreCase(planType) || "rectangle".equalsIgnoreCase(planType))
+            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
+        String explicitShape = getParamString(params, "shape", "footprint_shape", "footprintShape");
+        if (planType == null && explicitShape != null && List.of("rectangle", "rect", "box").contains(explicitShape.toLowerCase(Locale.ROOT)))
+            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
+
         if (planType != null) {
             String normalized = planType.trim().toLowerCase(Locale.ROOT);
             if (normalized.isEmpty() || normalized.equals("none") || normalized.equals("default")) {
@@ -1188,6 +1195,8 @@ public class MassMainGenerator implements ComponentGenerator {
      * randomizing materials.
      */
     private FacadeStyle resolveFacadeStyle(Map<String, Object> params, SemanticComponent semantic, String styleProfile) {
+        if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params))
+            return new FacadeStyle(null, null, null);
         String profile = getParamString(params, "facade_profile", "facadeProfile", "facade");
         String pattern = getParamString(params, "wall_pattern", "wallPattern", "material_pattern", "materialPattern");
         // A4: opt-in wall perforation / tracery pattern (carve air + decorative frames).

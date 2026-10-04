@@ -67,7 +67,11 @@ public final class StyleIntentResolver {
         if (mass) {
             String planType = getParamString(params, "plan_type", "planType", "footprint_pattern",
                     "footprintPattern", "plan_pattern", "planPattern");
-            if (isMissingOrDefault(planType)) {
+            String shape = getParamString(params, "shape", "footprint_shape", "footprintShape");
+            if (isMissingOrDefault(planType) && shape != null && Set.of("rectangle", "rect", "box").contains(shape.toLowerCase(Locale.ROOT))) {
+                params.put("plan_type", "none");
+                changed = true;
+            } else if (isMissingOrDefault(planType)) {
                 String fallback = resolvePlanType(flavor, component.dimensions());
                 if (fallback != null) {
                     params.put("plan_type", fallback);

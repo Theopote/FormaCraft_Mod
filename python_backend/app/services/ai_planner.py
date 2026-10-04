@@ -4734,12 +4734,15 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
                  "for explicit materials. Entrance orientation must use layout.slots[].facing or global_constraints.facing; "
                  "Use roof_type='none', window_style='none', entrance_type='none' for explicit opt-outs on the owning MASS_MAIN. "
                  "Do not add conflicting hosted components. Missing values allow defaults; 'none' forbids that feature. "
+                 "When an attached ROOF owns the roof, keep the MASS_MAIN roof_type consistent with it; never use 'none' to suppress duplicate roof generation. "
                  "entrance params.facing is not the runtime orientation field. User-facing entrance values use Minecraft world directions. "
                  "The legacy generator reverses cardinal names: set the runtime facing field to the requirement runtime_field_value "
                  "(world SOUTH -> NORTH, NORTH -> SOUTH, EAST -> WEST, WEST -> EAST), not to value.")
     parts.append("Give every component a unique params.component_id. MASS_MAIN owns its building. "
                  "For attached roofs, facades and interior stairs, params.host_id must reference that MASS_MAIN's "
-                 "component_id; slot_id is a coordinate frame, not identity. Do not guess a single host for bridges.")
+                 "component_id; slot_id is a coordinate frame, not identity. Write slot_id at the component top level, never only inside params. "
+                 "Use shape='rectangle' and plan_type='none' for rectangular shells, including closed Gothic shells. "
+                 "Do not guess a single host for bridges.")
     user_text = (req.userMessage or "") if req is not None else ""
     if any(token in user_text.lower() for token in ("楼梯", "stair")):
         parts.append(

@@ -86,7 +86,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
 def extract_requirements(text: str) -> list[dict]:
     """Recognize explicit ordinal declarations; never infer ownership from component order."""
     declarations = list(re.finditer(
-        r'第([一二两三四五六七八九十]|\d+)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?=宽|深|每层|使用|采用|外墙|墙体|楼板|地板|屋顶|屋面|正门|入口|平屋顶|不要|不需要|不需|无屋顶|无窗|无入口|不开窗|[一二两三四五六七八九十\d]+层)', text))
+        r'第([一二两三四五六七八九十]|\d+)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?:是)?', text))
     if not declarations:
         return _extract_global_requirements(text)
     events = [(m.start(), m.end(), 'building_' + str(NUMBERS[m[1]] if m[1] in NUMBERS else int(m[1])))
@@ -135,8 +135,15 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     contract = {'schema': SCHEMA, 'requirements': requirements, 'diagnostics': [], 'validation_stage': 'plan'}
     hints['building_contract'] = contract
     components = [c for c in (out.get('components') or []) if isinstance(c, dict)]
+    slots = (out.get('layout') or {}).get('slots') or []
+    aliases = {s['id']: s['slot_id'] for s in slots if isinstance(s, dict) and s.get('id') and s.get('slot_id')}
     for comp in components:
         if not isinstance(comp.get('params'), dict): comp['params'] = {}
+        # Older model outputs nested the coordinate frame in params.
+        if not comp.get('slot_id') and comp['params'].get('slot_id'):
+            comp['slot_id'] = comp['params']['slot_id']
+        if comp.get('slot_id') in aliases:
+            comp['slot_id'] = aliases[comp['slot_id']]
     supplied = [str((c.get('params') or {}).get('component_id')) for c in components if (c.get('params') or {}).get('component_id')]
     used = set(supplied)
     if len(supplied) != len(used): contract['diagnostics'].append({'code': 'E_COMPONENT_ID_DUPLICATE'})
@@ -151,6 +158,19 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             params['component_id'] = identity; used.add(identity)
     masses = [c for c in components if c.get('component_type') == 'MASS_MAIN']
     ids = {c['params']['component_id']: c for c in masses}
+    # Legacy "none" on the body meant delegate roofing to a hosted component.
+    # Only reconcile when user requirements explicitly request roof material/type;
+    # a real user opt-out must still fail rather than being silently overwritten.
+    for mass in masses:
+        params = mass['params']
+        scope = params.get('requirement_scope')
+        own = [r for r in requirements if r['scope'] in ('all_main_masses', 'plan', scope)]
+        prohibited = any(r['property'] == 'roof_type' and r['value'] == 'none' for r in own)
+        requested = any(r['property'] in ('roof_block', 'roof_type') and r['value'] not in (None, 'none') for r in own)
+        roofs = [c for c in components if c.get('component_type') in ('ROOF', 'ROOF_STRUCTURE')
+                 and c['params'].get('host_id') == params['component_id']]
+        if params.get('roof_type') == 'none' and requested and not prohibited and roofs:
+            params['roof_type'] = roofs[0]['params'].get('roof_type', 'gable')
     has_slots = bool((out.get('layout') or {}).get('slots'))
     for mass in masses:
         mass['params']['building_id'] = mass['params']['component_id']
@@ -160,6 +180,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             params['building_id'] = params['component_id']
             continue
         if comp.get('component_type') not in HOSTED: continue
+        if params.get('host_source') == 'legacy_geometry_inference':
+            params.pop('host_id', None)
         if params.get('host_id'):
             if params['host_id'] not in ids:
                 contract['diagnostics'].append({'code': 'E_HOST_UNKNOWN', 'component_id': params['component_id'], 'host_id': params['host_id']})

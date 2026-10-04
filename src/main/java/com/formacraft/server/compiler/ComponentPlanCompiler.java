@@ -544,12 +544,17 @@ public final class ComponentPlanCompiler {
             if (normalizedComponent == null) {
                 continue;
             }
+            if (normalizedComponent.slotId() == null && getParamString(normalizedComponent.params(), "slot_id") != null) {
+                normalizedComponent = new Component(normalizedComponent.componentType(), getParamString(normalizedComponent.params(), "slot_id"),
+                        normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), normalizedComponent.params());
+            }
             if (normalizedComponent.params() != null && normalizedComponent.params().containsKey("compiler_suppressed_roof")) {
                 var params = new HashMap<String, Object>(normalizedComponent.params());
                 params.remove("compiler_suppressed_roof");
                 normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
                         normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
             }
+            normalizedComponent = reconcileDelegatedRoof(plan, normalizedComponent, normalized);
             normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);
             normalizedComponent = OpeningGrammarResolver.apply(plan, normalizedComponent);
             normalizedComponent = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.normalizeBody(normalizedComponent);
@@ -1763,6 +1768,37 @@ public final class ComponentPlanCompiler {
     private static String normalizeType(String value) {
         if (value == null) return "";
         return value.trim().toUpperCase();
+    }
+
+    private static Component reconcileDelegatedRoof(LlmPlan plan, Component body, List<Component> components) {
+        if (!"MASS_MAIN".equals(body.componentType()) || !com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(body)
+                || plan.proportionHints() == null
+                || !(plan.proportionHints().get("building_contract") instanceof Map<?, ?> contract)
+                || !(contract.get("requirements") instanceof List<?> requirements)) return body;
+        Object id = body.params().get("component_id");
+        boolean requested = false;
+        for (Object raw : requirements) {
+            if (!(raw instanceof Map<?, ?> req)) continue;
+            Object scope = req.get("scope");
+            boolean applies = "all_main_masses".equals(scope) || "plan".equals(scope)
+                    || scope != null && scope.equals(body.params().get("requirement_scope"))
+                    || req.get("target_components") instanceof List<?> targets && targets.contains(id);
+            if (!applies) continue;
+            if ("roof_type".equals(req.get("property")) && "none".equals(req.get("value"))) return body;
+            if (Set.of("roof_block", "roof_type").contains(req.get("property"))
+                    && req.get("value") != null && !"none".equals(req.get("value"))) requested = true;
+        }
+        if (!requested) return body;
+        for (Component roof : components) {
+            if (roof == null || roof.params() == null || !"ROOF".equals(roof.componentType())
+                    || id == null || !id.equals(roof.params().get("host_id"))) continue;
+            String type = getParamString(roof.params(), "roof_type", "roofType");
+            if (type == null || "none".equalsIgnoreCase(type)) continue;
+            var params = new HashMap<String, Object>(body.params());
+            params.put("roof_type", type);
+            return new Component(body.componentType(), body.slotId(), body.relativePosition(), body.dimensions(), body.features(), params);
+        }
+        return body;
     }
 
     private static Component normalizeComponent(Component component) {

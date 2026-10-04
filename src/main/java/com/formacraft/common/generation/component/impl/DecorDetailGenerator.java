@@ -52,7 +52,9 @@ public class DecorDetailGenerator implements ComponentGenerator {
                     // 装饰通常是稀疏的（只在特定位置）
                     if (shouldPlaceDecor(x, y, z, width, depth, height, isPattern)) {
                         SemanticPart part = SemanticPart.DECOR;
-                        String block = palette.pick(part);
+                        String block = explicitMaterial(c);
+                        if (block == null || block.isBlank()) block = palette.pick(part);
+                        else if (!block.contains(":")) block = "minecraft:" + block;
                         if (block == null || block.isEmpty()) {
                             block = isCarved ? "minecraft:chiseled_stone_bricks" : "minecraft:stone_bricks";
                         }
@@ -102,8 +104,18 @@ public class DecorDetailGenerator implements ComponentGenerator {
         return false;
     }
 
+    private static String explicitMaterial(Component component) {
+        if (component.params() == null) return null;
+        for (String key : List.of("block", "material", "trim_block")) {
+            Object value = component.params().get(key);
+            if (value instanceof String text && !text.isBlank()) return text;
+        }
+        return null;
+    }
+
     private String getStyleProfile(SemanticComponent semantic) {
-        return "MEDIEVAL_CLASSIC";
+        return semantic.styleProfile() == null || semantic.styleProfile().isBlank()
+                ? "MEDIEVAL_CLASSIC" : semantic.styleProfile();
     }
 }
 

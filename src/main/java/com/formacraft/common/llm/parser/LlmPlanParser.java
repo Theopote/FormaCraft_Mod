@@ -35,7 +35,7 @@ public final class LlmPlanParser {
     public static LlmPlan parseAndValidate(String json) throws PlanParseException {
         LlmPlan plan;
         try {
-            plan = MAPPER.readValue(json, LlmPlan.class);
+            plan = MAPPER.readValue(normalizeLegacySlotIds(json), LlmPlan.class);
         } catch (JsonProcessingException e) {
             throw new PlanParseException("Invalid JSON: " + e.getOriginalMessage(), e);
         } catch (Exception e) {
@@ -53,12 +53,27 @@ public final class LlmPlanParser {
      */
     public static LlmPlan parse(String json) throws PlanParseException {
         try {
-            LlmPlan plan = MAPPER.readValue(json, LlmPlan.class);
+            LlmPlan plan = MAPPER.readValue(normalizeLegacySlotIds(json), LlmPlan.class);
             plan = LlmPlanAnchorNormalizer.normalize(plan);
             return com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         } catch (Exception e) {
             throw new PlanParseException("Parse error: " + e.getMessage(), e);
         }
+    }
+
+    private static String normalizeLegacySlotIds(String json) throws JsonProcessingException {
+        var root = MAPPER.readTree(json);
+        var aliases = new java.util.HashMap<String, String>();
+        for (var slot : root.path("layout").path("slots")) {
+            if (slot.hasNonNull("id") && slot.hasNonNull("slot_id"))
+                aliases.put(slot.get("id").asText(), slot.get("slot_id").asText());
+        }
+        for (var component : root.path("components")) {
+            if (!(component instanceof com.fasterxml.jackson.databind.node.ObjectNode object)) continue;
+            var slot = component.hasNonNull("slot_id") ? component.get("slot_id") : component.path("params").path("slot_id");
+            if (slot.isTextual()) object.put("slot_id", aliases.getOrDefault(slot.asText(), slot.asText()));
+        }
+        return MAPPER.writeValueAsString(root);
     }
 
     private static void validate(LlmPlan plan) throws PlanParseException {

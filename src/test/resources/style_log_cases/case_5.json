@@ -1,0 +1,843 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "spruce_brown",
+    "accent_color": "stone_gray",
+    "wall_material": "minecraft:white_concrete",
+    "roof_material": "minecraft:spruce_planks",
+    "floor_material": "minecraft:smooth_stone",
+    "decorative_elements": [
+      "flat_parapet",
+      "window_trim",
+      "eave_fascia",
+      "stone_plinth",
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "两栋并排住宅，共用一条临街步道",
+    "第一栋：白色混凝土现代平顶住宅，无复杂装饰，仅保留规则窗户与正面入口",
+    "第二栋：石砖墙承重、云杉木山墙屋顶的传统住宅，带适量窗套与屋檐装饰",
+    "两栋均保留独立窗户与正面入口",
+    "两栋屋顶体系相反：平屋顶（现代）对比双坡山墙屋顶（传统）",
+    "ornament"
+  ],
+  "anchor": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "residential_pair",
+      "confidence": 0.6
+    },
+    "topology": {
+      "layout": "side_by_side",
+      "composition": "compound",
+      "axis": "z",
+      "levels": "two_storey"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": 0.45,
+      "voidRatio": 0.18,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "paired",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "foundation",
+      "mass",
+      "roof",
+      "windows",
+      "entrance",
+      "path"
+    ],
+    "materials": {
+      "primary": "concrete",
+      "secondary": "stone_brick",
+      "accent": "spruce_wood",
+      "textureBias": "clean",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "contemporary",
+      "keywords": [
+        "paired_house",
+        "residential_compound",
+        "modern_traditional_contrast"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 14,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "two_entrances",
+        "windows_on_both_houses",
+        "distinct_roof_types_per_house"
+      ],
+      "avoid": [
+        "stadium_bowl",
+        "castle",
+        "complex_ornament_on_house_a",
+        "shared_roof_across_houses"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "residential_pair_compound",
+    "height_to_width": 0.47,
+    "depth_to_width": 0.87,
+    "roof_to_body_height": 0.57,
+    "storey_count": 2,
+    "storey_height": 3,
+    "inter_building_gap": 9,
+    "notes": "每栋约15宽×13深×7高，两栋沿东西向前后并排（间隔9格），入口同朝向东侧临街面；第一栋屋顶占比≈0.14（平顶+女儿墙），第二栋屋顶占比≈0.57（山墙）。",
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_roof_type",
+          "property": "roof_type",
+          "value": "flat",
+          "source": "user_explicit",
+          "source_text": [
+            "平顶"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "mismatch",
+          "target_components": [
+            "house_a_mass",
+            "house_b_mass"
+          ],
+          "mismatched_components": [
+            "house_b_roof"
+          ]
+        },
+        {
+          "id": "req_no_complex_decor",
+          "property": "no_complex_decor",
+          "value": true,
+          "source": "user_explicit",
+          "source_text": [
+            "不要复杂装饰"
+          ],
+          "scope": "plan",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "house_a_mass",
+            "house_b_mass"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "building_1": [
+          "house_a_mass"
+        ],
+        "building_2": [
+          "house_b_mass"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "house_a_mass",
+          "slot_id": null,
+          "local_origin": {
+            "x": -7,
+            "y": 1,
+            "z": -17
+          },
+          "plan_origin": {
+            "x": -7,
+            "y": 1,
+            "z": -17
+          },
+          "dimensions": {
+            "width": 15,
+            "depth": 13,
+            "height": 7
+          },
+          "floor_ys_local": [
+            1,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "house_a_mass",
+                "local_origin": {
+                  "x": -7,
+                  "y": 1,
+                  "z": -17
+                },
+                "dimensions": {
+                  "width": 15,
+                  "depth": 13,
+                  "height": 7
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -7,
+              "min_z": -17,
+              "max_x": 8,
+              "max_z": -4,
+              "min_y": 1,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": -17,
+                "end": -4
+              },
+              {
+                "direction": "NORTH",
+                "plane": -17,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": -4,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": -7,
+                "start": -17,
+                "end": -4
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        },
+        {
+          "component_id": "house_b_mass",
+          "slot_id": null,
+          "local_origin": {
+            "x": -7,
+            "y": 1,
+            "z": 5
+          },
+          "plan_origin": {
+            "x": -7,
+            "y": 1,
+            "z": 5
+          },
+          "dimensions": {
+            "width": 15,
+            "depth": 13,
+            "height": 7
+          },
+          "floor_ys_local": [
+            1,
+            4
+          ],
+          "roof_y_local": 7,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "house_b_mass",
+                "local_origin": {
+                  "x": -7,
+                  "y": 1,
+                  "z": 5
+                },
+                "dimensions": {
+                  "width": 15,
+                  "depth": 13,
+                  "height": 7
+                },
+                "roof_y_local": 7
+              }
+            ],
+            "envelope_local": {
+              "min_x": -7,
+              "min_z": 5,
+              "max_x": 8,
+              "max_z": 18,
+              "min_y": 1,
+              "max_y": 8
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 8,
+                "start": 5,
+                "end": 18
+              },
+              {
+                "direction": "NORTH",
+                "plane": 5,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 18,
+                "start": -7,
+                "end": 8
+              },
+              {
+                "direction": "WEST",
+                "plane": -7,
+                "start": 5,
+                "end": 18
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    }
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": [
+      {
+        "id": "house_a",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": -11
+        },
+        "facing": "EAST",
+        "component_preset": "MASS_MAIN",
+        "tags": [
+          "modern",
+          "flat_roof",
+          "white_concrete"
+        ],
+        "slot_id": "slot_0"
+      },
+      {
+        "id": "house_b",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 11
+        },
+        "facing": "EAST",
+        "component_preset": "MASS_MAIN",
+        "tags": [
+          "traditional",
+          "gable_roof",
+          "stone_brick",
+          "spruce"
+        ],
+        "slot_id": "slot_1"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 7
+      },
+      "features": [
+        "house_a",
+        "flat_roof",
+        "white_concrete",
+        "minimal_facade",
+        "no_complex_decor",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "house_a_mass",
+        "slot_id": "house_a",
+        "requirement_scope": "building_1",
+        "roof_type": "flat",
+        "no_complex_decor": true,
+        "floor_count": 2,
+        "floor_height": 3,
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:white_concrete",
+        "wall_pattern": "none",
+        "facade_profile": "none",
+        "facade_cutout": "none",
+        "window_style": "modern_ribbon",
+        "entrance_type": "modern_door",
+        "facing": "EAST",
+        "style_hint": "Modern_Minimal",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "house_a_mass"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 14,
+        "height": 1
+      },
+      "features": [
+        "plinth",
+        "house_a"
+      ],
+      "params": {
+        "component_id": "house_a_foundation",
+        "host_id": "house_a_mass",
+        "slot_id": "house_a",
+        "block": "minecraft:light_gray_concrete",
+        "overhang": 1,
+        "height": 1,
+        "building_id": "house_a_mass"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 14,
+        "height": 1
+      },
+      "features": [
+        "flat",
+        "parapet",
+        "house_a",
+        "minimal",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "house_a_roof",
+        "host_id": "house_a_mass",
+        "slot_id": "house_a",
+        "roof_type": "flat",
+        "overhang": 0,
+        "parapet_height": 1,
+        "roof_block": "minecraft:white_concrete",
+        "trim_block": "minecraft:light_gray_concrete",
+        "no_complex_decor": true,
+        "roof_height": 2,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "house_a_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 7
+      },
+      "features": [
+        "house_a",
+        "modern_ribbon",
+        "two_row_rhythm",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"modern\", \"ribbon\", \"wide\", \"minimal_frame\", \"flush\"], \"importance\": [\"role\", \"placement\", \"geometry\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Minimal\", \"materialTone\": \"white\"}, \"constraints\": {\"mustHave\": [\"glazing\", \"flat_frame\"], \"forbiddenTags\": [\"shutters\", \"lace\", \"carved\", \"arched\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "house_a_windows",
+        "host_id": "house_a_mass",
+        "slot_id": "house_a",
+        "window_style": "modern_ribbon",
+        "rows": 2,
+        "columns": 3,
+        "window_width": 3,
+        "window_height": 2,
+        "sill_height": 1,
+        "spacing": 2,
+        "frame_block": "minecraft:light_gray_concrete",
+        "glass_block": "minecraft:glass_pane",
+        "facade_sides": [
+          "east",
+          "west",
+          "north",
+          "south"
+        ],
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "house_a_mass"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 8,
+        "y": 1,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "house_a",
+        "modern",
+        "flat",
+        "street_facing",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"modern\", \"flush_panel\", \"wide\", \"no_ornament\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern_Minimal\", \"materialTone\": \"white\"}, \"constraints\": {\"mustHave\": [\"flat_panel\", \"full_height\"], \"forbiddenTags\": [\"ornate\", \"carved\", \"arched\", \"gothic\", \"canopy\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "house_a_entrance",
+        "host_id": "house_a_mass",
+        "slot_id": "house_a",
+        "entrance_type": "modern_door",
+        "facing": "EAST",
+        "door_block": "minecraft:oak_door",
+        "width": 2,
+        "height": 3,
+        "carve": true,
+        "mask": {
+          "w": 2,
+          "h": 3,
+          "d": 1
+        },
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "house_a_mass"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 7
+      },
+      "features": [
+        "house_b",
+        "stone_brick_wall",
+        "gable_roof",
+        "spruce_wood_trim",
+        "traditional",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "house_b_mass",
+        "slot_id": "house_b",
+        "requirement_scope": "building_2",
+        "roof_type": "gable",
+        "floor_count": 2,
+        "floor_height": 3,
+        "wall_block": "minecraft:stone_bricks",
+        "floor_block": "minecraft:spruce_planks",
+        "roof_block": "minecraft:spruce_planks",
+        "wall_pattern": "gradient",
+        "facade_profile": "base_plinth",
+        "facade_cutout": "none",
+        "window_style": "casement_with_trim",
+        "entrance_type": "wooden_door_trimmed",
+        "facing": "EAST",
+        "style_hint": "Traditional_Spruce_Stone",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.18,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "house_b_mass"
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 14,
+        "height": 1
+      },
+      "features": [
+        "stone_plinth",
+        "house_b"
+      ],
+      "params": {
+        "component_id": "house_b_foundation",
+        "host_id": "house_b_mass",
+        "slot_id": "house_b",
+        "block": "minecraft:chiseled_stone_bricks",
+        "overhang": 1,
+        "height": 1,
+        "building_id": "house_b_mass"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 4
+      },
+      "features": [
+        "gable",
+        "spruce_planks",
+        "eave_overhang",
+        "spruce_stair_eaves",
+        "house_b",
+        "ornament"
+      ],
+      "params": {
+        "component_id": "house_b_roof",
+        "host_id": "house_b_mass",
+        "slot_id": "house_b",
+        "roof_type": "gable",
+        "ridge_axis": "z",
+        "pitch": 1.0,
+        "overhang": 1,
+        "gable_wall_block": "minecraft:stone_bricks",
+        "roof_block": "minecraft:spruce_planks",
+        "stair_block": "minecraft:spruce_stairs",
+        "slab_block": "minecraft:spruce_slab",
+        "ridge_block": "minecraft:spruce_slab",
+        "eave_decoration": "stairs_and_slab",
+        "roof_height": 4,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "house_b_mass"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 15,
+        "depth": 13,
+        "height": 7
+      },
+      "features": [
+        "house_b",
+        "regular_rhythm",
+        "window_surround",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"traditional\", \"casement\", \"timber_frame\", \"trimmed\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Traditional_Spruce_Stone\", \"materialTone\": \"spruce_wood\"}, \"constraints\": {\"mustHave\": [\"glazing\", \"frame_surround\"], \"forbiddenTags\": [\"ribbon\", \"modern_flush\", \"all_glass\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "house_b_windows",
+        "host_id": "house_b_mass",
+        "slot_id": "house_b",
+        "window_style": "casement_with_trim",
+        "rows": 2,
+        "columns": 3,
+        "window_width": 2,
+        "window_height": 2,
+        "sill_height": 1,
+        "spacing": 2,
+        "frame_block": "minecraft:spruce_planks",
+        "trim_block": "minecraft:spruce_slab",
+        "glass_block": "minecraft:glass_pane",
+        "facade_sides": [
+          "east",
+          "west",
+          "north",
+          "south"
+        ],
+        "window_ratio": 0.35,
+        "rhythm": "regular",
+        "building_id": "house_b_mass"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 8,
+        "y": 1,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "house_b",
+        "wooden",
+        "trimmed_surround",
+        "eave_canopy",
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"wooden\", \"paneled\", \"timber_frame\", \"traditional\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Traditional_Spruce_Stone\", \"materialTone\": \"spruce_wood\"}, \"constraints\": {\"mustHave\": [\"solid_panel\", \"wood_material\"], \"forbiddenTags\": [\"all_glass\", \"flush_modern\", \"neon\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "component_id": "house_b_entrance",
+        "host_id": "house_b_mass",
+        "slot_id": "house_b",
+        "entrance_type": "wooden_door_trimmed",
+        "facing": "EAST",
+        "door_block": "minecraft:spruce_door",
+        "frame_block": "minecraft:spruce_planks",
+        "width": 2,
+        "height": 3,
+        "canopy": true,
+        "carve": true,
+        "mask": {
+          "w": 2,
+          "h": 3,
+          "d": 1
+        },
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "house_b_mass"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": 0,
+        "y": 8,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 17,
+        "depth": 15,
+        "height": 4
+      },
+      "features": [
+        "house_b",
+        "eave_fascia",
+        "window_surround_trim",
+        "ridge_board",
+        "moderate_density"
+      ],
+      "params": {
+        "component_id": "house_b_decor",
+        "host_id": "house_b_mass",
+        "slot_id": "house_b",
+        "detail_type": "eave_fascia_and_window_trim",
+        "trim_block": "minecraft:spruce_planks",
+        "accent_block": "minecraft:spruce_slab",
+        "density": "moderate",
+        "frequency": "secondary",
+        "limit_to": [
+          "eaves",
+          "window_surrounds",
+          "ridge"
+        ],
+        "avoid": [
+          "figurative_ornament",
+          "over_dense_pattern"
+        ],
+        "building_id": "house_b_mass"
+      }
+    },
+    {
+      "component_type": "PATH",
+      "relative_position": {
+        "x": 10,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 28,
+        "height": 1
+      },
+      "features": [
+        "front_walkway",
+        "connects_both_entrances"
+      ],
+      "params": {
+        "component_id": "front_walkway",
+        "block": "minecraft:stone_bricks",
+        "border_block": "minecraft:spruce_planks",
+        "connects": [
+          "house_a_entrance",
+          "house_b_entrance"
+        ],
+        "alignment": "N-S"
+      }
+    }
+  ],
+  "plan_status": "capability_gap",
+  "capability_gap": {
+    "code": "E_BUILDING_CONTRACT",
+    "message": "建筑方案未满足明确要求或主体引用无效",
+    "path": "proportion_hints.building_contract",
+    "suggestions": [
+      "req_roof_type: expected flat, components ['house_b_roof']"
+    ]
+  }
+}
