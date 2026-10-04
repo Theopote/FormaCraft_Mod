@@ -101,8 +101,92 @@ def ring_ops(params: dict, payload: dict) -> list[dict]:
     return ops
 
 
+def _mass_origin(mass: dict) -> dict:
+    rp = dict(mass.get('relative_position') or _point(0, 0, 0))
+    dims, params = mass['dimensions'], mass.get('params') or {}
+    if params.get('anchor_mode') not in ('min_corner', 'corner', 'bottom_left'):
+        rp['x'] -= int(dims['width']) // 2
+        rp['z'] -= int(dims['depth']) // 2
+    return rp
+
+
+def _host_mass(plan: dict, component: dict) -> dict | None:
+    masses = [c for c in plan.get('components', []) if c.get('component_type') == 'MASS_MAIN']
+    same = [m for m in masses if m.get('slot_id') == component.get('slot_id')]
+    if same: masses = same
+    elif (plan.get('layout') or {}).get('slots'):
+        return None  # Different real slot coordinate systems need an explicit host relation.
+    if not masses: return None
+    rp = component.get('relative_position') or _point(0, 0, 0)
+    def distance(m):
+        origin = _mass_origin(m)
+        return sum((origin[k] + (int(m['dimensions'][d])-1)/2 - rp[k])**2
+                   for k, d in (('x', 'width'), ('z', 'depth')))
+    return min(masses, key=distance)
+
+
+def _fit_straight_stairs(plan: dict) -> None:
+    for comp in plan.get('components', []):
+        params = comp.get('params') or {}
+        if comp.get('component_type') != 'STRUCTURE' or not any(
+                f == 'stair:straight_single_run' for f in comp.get('features', [])):
+            continue
+        if params.get('exterior') is True: continue
+        mass = _host_mass(plan, comp)
+        if mass is None or not isinstance(params.get('from'), dict) or not isinstance(params.get('to'), dict): continue
+        origin, dims = _mass_origin(mass), mass['dimensions']
+        wall = max(1, int((mass.get('params') or {}).get('wall_thickness', 1)))
+        a, b = params['from'], params['to']
+        width = int(params.get('width', 3))
+        landing = int(params.get('landing_length', 1))
+        rp = comp.get('relative_position') or _point(0, 0, 0)
+        found = False
+        for rotate in (False, True):
+            aa, bb = dict(a), dict(b)
+            if rotate:
+                aa['x'], aa['z'] = a['z'], a['x']
+                bb['x'], bb['z'] = b['z'], b['x']
+            dx, dz = bb['x']-aa['x'], bb['z']-aa['z']
+            if (dx and dz) or not (dx or dz): continue
+            sx, sz = (1 if dx > 0 else -1) if dx else 0, (1 if dz > 0 else -1) if dz else 0
+            for length in range(landing, 0, -1):
+                extra = length if length > 1 else 0
+                ends = [aa, bb, _point(bb['x']+sx*extra, bb['y'], bb['z']+sz*extra)]
+                bounds = {}
+                for axis, dimension in (('x', 'width'), ('z', 'depth')):
+                    lateral = (axis == 'x' and dz != 0) or (axis == 'z' and dx != 0)
+                    lo = min(p[axis] for p in ends) - (width//2 if lateral else 0)
+                    hi = max(p[axis] for p in ends) + (width-1-width//2 if lateral else 0)
+                    low = origin[axis] + wall - lo
+                    high = origin[axis] + int(dims[dimension])-1-wall - hi
+                    if low > high: break
+                    bounds[axis] = max(low, min(rp[axis], high))
+                if len(bounds) != 2: continue
+                if (mass.get('params') or {}).get('shape') in ('circle', 'cylinder', 'circular', 'round'):
+                    cx, cz = origin['x']+(int(dims['width'])-1)/2, origin['z']+(int(dims['depth'])-1)/2
+                    rx, rz = int(dims['width'])/2-wall, int(dims['depth'])/2-wall
+                    offsets = {}
+                    for axis in ('x','z'):
+                        lateral = (axis == 'x' and dz != 0) or (axis == 'z' and dx != 0)
+                        offsets[axis] = (min(p[axis] for p in ends)-(width//2 if lateral else 0),
+                                         max(p[axis] for p in ends)+(width-1-width//2 if lateral else 0))
+                    if rx <= 0 or rz <= 0 or any(((bounds['x']+x-cx)/rx)**2 + ((bounds['z']+z-cz)/rz)**2 > 1
+                                                 for x in offsets['x'] for z in offsets['z']):
+                        continue
+                params.update({'from': aa, 'to': bb, 'landing_length': length})
+                comp['relative_position'] = _point(bounds['x'], rp['y'], bounds['z'])
+                found = True
+                break
+            if found: break
+        if not found:
+            plan['plan_status'] = 'capability_gap'
+            plan['capability_gap'] = {'code': 'E_STAIR_ENVELOPE_FIT', 'message': 'Interior stair does not fit without cutting exterior walls',
+                                      'path': 'components[].params', 'suggestions': ['Use a switchback stair or enlarge the interior.']}
+
+
 def normalize_circulation_plan(plan: dict) -> dict:
     out = deepcopy(plan)
+    _fit_straight_stairs(out)
     plates = []
     for comp in out.get("components", []):
         if comp.get("component_type") not in ("ASSEMBLY", "STRUCTURE"): continue
@@ -110,6 +194,21 @@ def normalize_circulation_plan(plan: dict) -> dict:
         payload = params.get("assembly")
         if not isinstance(payload, dict): continue
         if any(isinstance(op,dict) and op.get('op')=='STAIR_SYSTEM' for op in payload.get('ops', [])):
+            # Canonical ring geometry still needs a host center. Slot labels for the
+            # interior and shell may differ even though no layout slots exist.
+            if any('ring_stair' in str(f) for f in comp.get('features', [])):
+                mass = _host_mass(out, comp)
+                if mass is not None:
+                    radius = int((mass.get('params') or {}).get('radius', min(int(mass['dimensions']['width']),int(mass['dimensions']['depth']))//2))
+                    mass['dimensions'].update(width=2*radius+1, depth=2*radius+1)
+                    origin, dims = _mass_origin(mass), mass['dimensions']
+                    comp['relative_position'] = _point(origin['x']+int(dims['width'])//2,
+                                                       origin['y'], origin['z']+int(dims['depth'])//2)
+                    mass.setdefault('params', {})['shape'] = 'circle'
+                    wall = max(1, int(mass['params'].get('wall_thickness', 1)))
+                    for op in payload['ops']:
+                        if op.get('op') == 'CYLINDER' and op.get('h') == 1:
+                            op['r'] = min(int(op['r']), min(int(dims['width']),int(dims['depth']))//2-wall)
             continue  # Explicit geometry remains authoritative; validation handles invalid flights.
         try:
             if payload.get("stair_type") == "switchback":
@@ -119,7 +218,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
                                       "height": 2*int(payload["flight_rise"])+3}
                 top = 2*int(payload["flight_rise"])
                 for mass in out.get("components", []):
-                    if mass.get("component_type") != "MASS_MAIN" or mass.get("slot_id") != comp.get("slot_id"): continue
+                    if mass is not _host_mass(out, comp): continue
                     dims, mp = mass["dimensions"], mass.setdefault("params", {})
                     dims["height"] = max(int(dims["height"]), 2*top)
                     mp.update(floor_count=2, floor_height=top, hollow=True)
@@ -145,7 +244,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
                 hints = _ring_hints(params, payload)
                 r, h = int(hints["shellRadius"]), int(hints["shellHeight"])
                 for mass in out.get("components", []):
-                    if mass.get("component_type") == "MASS_MAIN" and mass.get("slot_id") == comp.get("slot_id"):
+                    if mass is _host_mass(out, comp):
                         mass["dimensions"] = {"width":2*r+1,"depth":2*r+1,"height":h}
                         mass.setdefault("params", {}).update(shape="circle", hollow=True, floor_count=len(hints["floorLevels"])+1)
                         spacing = [b-a for a,b in zip([0]+hints['floorLevels'],hints['floorLevels'])]
@@ -153,6 +252,10 @@ def normalize_circulation_plan(plan: dict) -> dict:
                         rp = mass.get('relative_position') or _point(0,0,0)
                         corner = mass['params'].get('anchor_mode') in ('min_corner','corner','bottom_left')
                         comp['relative_position'] = _point(rp['x']+(r if corner else 0),rp['y'],rp['z']+(r if corner else 0))
+                        wall = max(1, int(mass['params'].get('wall_thickness', 1)))
+                        for op in ops:
+                            if op.get('op') == 'CYLINDER' and op.get('h') == 1:
+                                op['r'] = min(int(op['r']), r-wall)
                 comp["dimensions"] = {"width":2*r+1,"depth":2*r+1,"height":h}
             else: continue
             comp["component_type"] = "ASSEMBLY"

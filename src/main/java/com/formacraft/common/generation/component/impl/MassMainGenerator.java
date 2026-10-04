@@ -870,7 +870,7 @@ public class MassMainGenerator implements ComponentGenerator {
             return FootprintShape.RECTANGLE;
         }
         return switch (shape.trim().toLowerCase()) {
-            case "circle", "circular", "round" -> FootprintShape.CIRCLE;
+            case "circle", "circular", "round", "cylinder" -> FootprintShape.CIRCLE;
             case "rounded_rect", "rounded", "roundrect", "round_rect" -> FootprintShape.ROUNDED_RECT;
             default -> FootprintShape.RECTANGLE;
         };
@@ -1127,7 +1127,7 @@ public class MassMainGenerator implements ComponentGenerator {
             String massShape = getParamString(m, "shape");
             if (massShape != null) {
                 shape = switch (massShape.trim().toLowerCase()) {
-                    case "circle", "circular", "round" -> FootprintShape.CIRCLE;
+                    case "circle", "circular", "round", "cylinder" -> FootprintShape.CIRCLE;
                     case "rounded_rect", "rounded", "roundrect", "round_rect" -> FootprintShape.ROUNDED_RECT;
                     default -> FootprintShape.RECTANGLE;
                 };

@@ -1,0 +1,668 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "style_attributes": {
+    "wall_color": "#8f8f8f",
+    "roof_color": "#5f5f63",
+    "accent_color": "#4a4a4a",
+    "wall_material": "minecraft:stone_bricks",
+    "roof_material": "minecraft:deepslate_tiles",
+    "floor_material": "minecraft:oak_planks",
+    "decorative_elements": [
+      "cornice_band",
+      "stone_window_surrounds",
+      "bridge_railing",
+      "plinth"
+    ]
+  },
+  "distinguishing_features": [
+    "two identical stone-brick two-storey blocks placed 8 blocks apart on the X axis",
+    "each block is 11x9 footprint with 5-block storey heights (11 total shell height)",
+    "second-storey plate bridge spanning the 8-block gap, 3 blocks wide, deck top flush with the upper floor surface",
+    "door openings at both bridge ends carved into the inner walls at upper-floor level",
+    "one straight single-run interior stair per block linking ground floor to upper floor",
+    "continuous walkable route: block A ground door -> stair up -> bridge -> block B stair down"
+  ],
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "linked_compound",
+      "confidence": 0.68
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "paired",
+      "axis": "east_west",
+      "levels": "two"
+    },
+    "structure": {
+      "type": "masonry",
+      "massiveness": 0.72,
+      "voidRatio": 0.14,
+      "supports": "walls"
+    },
+    "form": {
+      "repetition": "paired",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "mirror_x",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "hollow_shell",
+      "floor_plate",
+      "plate_bridge",
+      "straight_stair",
+      "punch_window",
+      "cornice",
+      "flat_roof"
+    ],
+    "materials": {
+      "primary": "stone_brick",
+      "secondary": "oak_plank",
+      "accent": "chiseled_stone_bricks",
+      "textureBias": "regular",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "european",
+      "era": "medieval",
+      "keywords": [
+        "stone_brick",
+        "keep",
+        "walkway"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 14,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "walkable_circulation",
+        "matching_floor_levels",
+        "preserve_stair_headroom"
+      ],
+      "avoid": [
+        "blocking_stair_treads",
+        "floating_bridge_deck",
+        "solid_tall_floor_volume"
+      ],
+      "extra": null
+    }
+  },
+  "proportion_hints": {
+    "typology": "generic_compound",
+    "height_to_width": 1.0,
+    "depth_to_width": 0.82,
+    "roof_to_body_height": 0.09,
+    "block_gap_to_width": 0.73,
+    "floor_height": 5,
+    "floor_count": 2
+  },
+  "global_constraints": {
+    "facing": "EAST",
+    "symmetry": "NONE",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": true,
+    "slots": []
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": -1,
+        "y": -1,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "anchor_mode": "min_corner",
+        "slot_id": "bldg_a_foundation",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 11
+      },
+      "features": [
+        "shell:full_height_hollow",
+        "floor_height:5",
+        "floor_count:2"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "hollow": true,
+        "wall_thickness": 1,
+        "slot_id": "bldg_a",
+        "material": "minecraft:stone_bricks",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "facade_cutout": "none",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.14,
+        "floor_height": 3,
+        "floor_count": 2
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 6
+      },
+      "features": [
+        "floor_plate:level_2"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "slot_id": "bldg_a_floor2",
+        "material": "minecraft:stone_bricks",
+        "stair_opening": true,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.14,
+        "floor_height": 3,
+        "floor_count": 2
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -1,
+        "y": 11,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 1,
+        "slot_id": "bldg_a_roof",
+        "material": "minecraft:deepslate_tiles",
+        "roof_height": 2
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": -1,
+        "y": 10,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"cornice\", \"band\", \"carved\", \"modular\"], \"importance\": [\"role\", \"style\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"roof\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"wall_surface_attachment\"], \"forbiddenTags\": [\"freestanding\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "detail": "cornice_band",
+        "slot_id": "bldg_a_cornice"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 11
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"stone_surround\", \"recessed\", \"modular\"], \"importance\": [\"role\", \"style\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"wall_opening\"], \"forbiddenTags\": [\"floor_length_glazing\", \"ribbon_glazing\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "slot_id": "bldg_a_windows",
+        "window_aspect": "punch_window",
+        "rows": [
+          2,
+          7
+        ],
+        "spacing": 3,
+        "sill_offset": 1,
+        "window_ratio": 0.35,
+        "rhythm": "regular"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"stone\", \"arched\", \"recessed\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"carveable_wall_opening\"], \"forbiddenTags\": [\"glass_panel\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "slot_id": "bldg_a_door_main",
+        "facing": "WEST",
+        "carve": true,
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 7,
+        "height": 7
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "slot_id": "bldg_a_stair",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "to": {
+          "x": 0,
+          "y": 6,
+          "z": 6
+        },
+        "width": 3,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "carve_floor_opening": true
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 11,
+        "y": 5,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 3,
+        "height": 6
+      },
+      "features": [
+        "bridge_deck:level_2",
+        "span:8",
+        "width:3"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "slot_id": "bridge_deck",
+        "material": "minecraft:stone_bricks",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.14,
+        "floor_height": 3,
+        "floor_count": 2
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": 11,
+        "y": 6,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"stone\", \"low\", \"slender\", \"modular\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"edge_attachment\"], \"forbiddenTags\": [\"full_block_wall\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "detail": "railing",
+        "slot_id": "bridge_rail_north"
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": 11,
+        "y": 6,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 1,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"stone\", \"low\", \"slender\", \"modular\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"edge_attachment\"], \"forbiddenTags\": [\"full_block_wall\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "detail": "railing",
+        "slot_id": "bridge_rail_south"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 10,
+        "y": 6,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"stone\", \"recessed\", \"interior_passage\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 3, \"tolerance\": 0, \"scalable\": false}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"carveable_wall_opening\", \"floor_level_alignment\"], \"forbiddenTags\": [\"glass_panel\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "slot_id": "bldg_a_door_bridge",
+        "facing": "EAST",
+        "carve": true,
+        "floor_y": 6,
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": 18,
+        "y": -1,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "anchor_mode": "min_corner",
+        "slot_id": "bldg_b_foundation",
+        "material": "minecraft:stone_bricks"
+      }
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 19,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 11
+      },
+      "features": [
+        "shell:full_height_hollow",
+        "floor_height:5",
+        "floor_count:2"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "hollow": true,
+        "wall_thickness": 1,
+        "slot_id": "bldg_b",
+        "material": "minecraft:stone_bricks",
+        "facade_profile": "base_plinth",
+        "wall_pattern": "striped",
+        "facade_cutout": "none",
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.14,
+        "floor_height": 3,
+        "floor_count": 2
+      }
+    },
+    {
+      "component_type": "MASS_SECONDARY",
+      "relative_position": {
+        "x": 19,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 6
+      },
+      "features": [
+        "floor_plate:level_2"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "extrude_mode": "plate",
+        "slot_id": "bldg_b_floor2",
+        "material": "minecraft:stone_bricks",
+        "stair_opening": true,
+        "shape": "rectangle",
+        "window_ratio": 0.35,
+        "void_ratio": 0.14,
+        "floor_height": 3,
+        "floor_count": 2
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 18,
+        "y": 11,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 1,
+        "slot_id": "bldg_b_roof",
+        "material": "minecraft:deepslate_tiles",
+        "roof_height": 2
+      }
+    },
+    {
+      "component_type": "DECOR_DETAIL",
+      "relative_position": {
+        "x": 18,
+        "y": 10,
+        "z": -1
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"cornice\", \"band\", \"carved\", \"modular\"], \"importance\": [\"role\", \"style\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"roof\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"wall_surface_attachment\"], \"forbiddenTags\": [\"freestanding\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"medium\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "detail": "cornice_band",
+        "slot_id": "bldg_b_cornice"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 19,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 11,
+        "depth": 9,
+        "height": 11
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"stone_surround\", \"recessed\", \"modular\"], \"importance\": [\"role\", \"style\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"any\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"wall_opening\"], \"forbiddenTags\": [\"floor_length_glazing\", \"ribbon_glazing\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "slot_id": "bldg_b_windows",
+        "window_aspect": "punch_window",
+        "rows": [
+          2,
+          7
+        ],
+        "spacing": 3,
+        "sill_offset": 1,
+        "window_ratio": 0.35,
+        "rhythm": "regular"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 29,
+        "y": 0,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 3,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"stone\", \"arched\", \"recessed\"], \"importance\": [\"role\", \"placement\", \"style\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"carveable_wall_opening\"], \"forbiddenTags\": [\"glass_panel\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "slot_id": "bldg_b_door_main",
+        "facing": "EAST",
+        "carve": true,
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 19,
+        "y": 6,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"stone\", \"recessed\", \"interior_passage\"], \"importance\": [\"role\", \"placement\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 1, \"openingHeight\": 3, \"tolerance\": 0, \"scalable\": false}, \"style\": {\"styleProfile\": \"DEFAULT\", \"materialTone\": \"stone\"}, \"constraints\": {\"mustHave\": [\"carveable_wall_opening\", \"floor_level_alignment\"], \"forbiddenTags\": [\"glass_panel\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ],
+      "params": {
+        "anchor_mode": "min_corner",
+        "slot_id": "bldg_b_door_bridge",
+        "facing": "WEST",
+        "carve": true,
+        "floor_y": 6,
+        "door_width": 2,
+        "door_height": 3
+      }
+    },
+    {
+      "component_type": "STRUCTURE",
+      "relative_position": {
+        "x": 24,
+        "y": 0,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 7,
+        "height": 7
+      },
+      "features": [
+        "stair:straight_single_run"
+      ],
+      "params": {
+        "slot_id": "bldg_b_stair",
+        "from": {
+          "x": 0,
+          "y": 0,
+          "z": 6
+        },
+        "to": {
+          "x": 0,
+          "y": 6,
+          "z": 0
+        },
+        "width": 3,
+        "stairs": "minecraft:oak_stairs",
+        "floor": "minecraft:oak_planks",
+        "clearHeight": 2,
+        "landing_length": 3,
+        "carve_floor_opening": true
+      }
+    }
+  ],
+  "kind": "llmplan"
+}
