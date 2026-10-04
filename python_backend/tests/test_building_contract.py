@@ -14,6 +14,34 @@ def mass(identity='house', x=0):
 
 
 class BuildingContractTest(unittest.TestCase):
+    def test_scoped_opt_outs_preserve_sources_and_require_runtime_fields(self):
+        text = '第一栋不要屋顶，不开窗，不需要入口；第二栋使用平屋顶。'
+        reqs = extract_requirements(text)
+        first = {r['property']: r['value'] for r in reqs if r['scope'] == 'building_1'}
+        self.assertEqual({'roof_type': 'none', 'window_style': 'none', 'entrance_type': 'none'}, first)
+        a, b = mass('a'), mass('b', 30)
+        a['params'].update(requirement_scope='building_1', **first)
+        b['params']['requirement_scope'] = 'building_2'
+        result = apply_building_contract({'components': [b, a]}, text, finalize=True)
+        self.assertNotIn('capability_gap', result)
+        a['params']['window_style'] = 'stained'
+        rejected = apply_building_contract({'components': [b, a]}, text, finalize=True)
+        self.assertEqual('E_BUILDING_CONTRACT', rejected['capability_gap']['code'])
+    def test_scoped_roof_material_and_host_inheritance_validation(self):
+        first, second = mass('first'), mass('second', 30)
+        first['params'].update(requirement_scope='building_1', roof_block='minecraft:deepslate_tiles')
+        second['params'].update(requirement_scope='building_2', roof_block='minecraft:spruce_planks')
+        roof = {'component_type': 'ROOF', 'params': {'component_id': 'roof', 'host_id': 'first'},
+                'relative_position': {'x': 0, 'y': 10, 'z': 0}}
+        text = '第一栋屋顶使用深板岩瓦；第二栋屋顶使用云杉木板。'
+        result = apply_building_contract({'components': [second, roof, first]}, text, finalize=True)
+        self.assertNotIn('capability_gap', result)
+        reqs = result['proportion_hints']['building_contract']['requirements']
+        self.assertEqual(['roof_block', 'roof_block'], [r['property'] for r in reqs])
+        self.assertEqual(['planned', 'planned'], [r['status'] for r in reqs])
+        roof['params']['roof_block'] = 'minecraft:bricks'
+        rejected = apply_building_contract({'components': [second, roof, first]}, text, finalize=True)
+        self.assertEqual('E_BUILDING_CONTRACT', rejected['capability_gap']['code'])
     text = '建造宽15格、深13格的两层住宅，每层高度5格，使用平屋顶。暂时不要添加家具和复杂装饰。'
 
     def test_supported_explicit_requirements_and_source(self):

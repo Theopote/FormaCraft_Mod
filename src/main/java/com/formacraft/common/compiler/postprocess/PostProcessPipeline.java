@@ -91,7 +91,11 @@ public class PostProcessPipeline {
         }
         
         for (PostProcessor processor : processors) {
-            try {
+            if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), null)
+                    && (processor instanceof DetailRulePostProcessor || processor instanceof WindowOrderPostProcessor
+                        || processor instanceof DetailEnhancementPostProcessor)) continue;
+            try (var materials = com.formacraft.common.palette.component.PaletteSelectionScope.open(
+                    context.plan(), "postprocess:" + processor.getClass().getName())) {
                 List<BlockPatch> previous = new ArrayList<>(result);
                 result = processor.process(result, context);
                 if (result == null) {
@@ -106,6 +110,9 @@ public class PostProcessPipeline {
                     var integrity = ExteriorIntegrityGuard.preserve(previous, result, context);
                     result = integrity.patches();
                     result = preserveMaterials(previous, result, context.protectedMaterials());
+                    if (processor instanceof DetailRulePostProcessor || processor instanceof WindowOrderPostProcessor
+                            || processor instanceof DetailEnhancementPostProcessor)
+                        result = preserveDecorationRestrictions(previous, result, context.decorationRestrictions());
                     if (integrity.restored() > 0) {
                         FormacraftMod.LOGGER.warn("Exterior integrity: processor={} restored={} stage=plan_patches",
                                 processor.getClass().getSimpleName(), integrity.restored());
@@ -151,6 +158,23 @@ public class PostProcessPipeline {
             if (!originals.containsKey(pos)) result.add(patch);
         }
         result.addAll(originals.values());
+        return result;
+    }
+
+    private static List<BlockPatch> preserveDecorationRestrictions(List<BlockPatch> before, List<BlockPatch> after,
+                                                                   java.util.Set<net.minecraft.util.math.BlockPos> restricted) {
+        if (restricted.isEmpty()) return after;
+        var original = new java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
+        for (var patch : before) {
+            var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+            if (restricted.contains(pos)) original.put(pos, patch);
+        }
+        var result = new ArrayList<BlockPatch>();
+        for (var patch : after) {
+            var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+            if (!restricted.contains(pos)) result.add(patch);
+        }
+        result.addAll(original.values());
         return result;
     }
 }

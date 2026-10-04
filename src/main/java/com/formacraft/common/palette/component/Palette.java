@@ -37,6 +37,8 @@ public class Palette {
      * @return 方块 ID（如果 part 不存在，返回 "minecraft:stone"）
      */
     public String pick(SemanticPart part) {
+        Random scoped = PaletteSelectionScope.current();
+        if (scoped != null) return pick(part, scoped);
         List<PaletteBlock> list = table.get(part);
         if (list == null || list.isEmpty()) {
             return "minecraft:stone"; // fallback

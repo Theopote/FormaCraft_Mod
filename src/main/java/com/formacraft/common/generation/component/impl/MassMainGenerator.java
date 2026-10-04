@@ -173,8 +173,11 @@ public class MassMainGenerator implements ComponentGenerator {
         boolean hasInterior = hasFeature(c, "interior", "rooms", "hollow", "courtyard", "central_courtyard",
                                          "inner_space", "empty_interior");
         boolean assemblyFacade = getParamBoolean(params, "assembly_facade", "assemblyFacade");
-        boolean suppressWindows = getParamBoolean(params, "suppress_windows", "suppressWindows");
-        boolean suppressDoors = getParamBoolean(params, "suppress_doors", "suppressDoors");
+        boolean suppressWindows = getParamBoolean(params, "suppress_windows", "suppressWindows")
+                || com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c);
+        if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params)) hasDecor = false;
+        boolean suppressDoors = getParamBoolean(params, "suppress_doors", "suppressDoors")
+                || com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c);
 
         Double voidRatio = resolveVoidRatio(params, semantic);
         Double windowRatio = resolveWindowRatio(params, semantic);

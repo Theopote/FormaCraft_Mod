@@ -25,6 +25,7 @@ public class EntranceGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
+        if (com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(semantic.source())) return List.of();
         List<BlockPatch> out = new ArrayList<>();
 
         Component c = semantic.source();
@@ -303,4 +304,3 @@ public class EntranceGenerator implements ComponentGenerator {
         };
     }
 }
-

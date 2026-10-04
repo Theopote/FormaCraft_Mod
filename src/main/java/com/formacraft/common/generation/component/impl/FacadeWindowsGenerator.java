@@ -28,6 +28,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
+        if (com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(semantic.source())) return List.of();
         List<BlockPatch> out = new ArrayList<>();
 
         Component c = semantic.source();
@@ -276,6 +277,14 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
      */
     private String getBlockForWindow(SemanticComponent semantic, Palette palette, SemanticPart part, boolean isLattice,
                                      String windowStyle) {
+        // A component's authored window style precedes global material and style defaults.
+        String explicitStyle = getParamString(semantic.source().params(), "window_style", "windowStyle");
+        if (explicitStyle != null) {
+            String style = explicitStyle.toLowerCase(java.util.Locale.ROOT);
+            if (style.contains("lattice") || style.contains("fence") || style.contains("bars")) return "minecraft:iron_bars";
+            if (style.contains("stained")) return "minecraft:blue_stained_glass";
+            if (style.contains("pane")) return "minecraft:glass_pane";
+        }
         // 1. 优先使用动态解析（如果 LlmPlan 有 style_attributes）
         if (semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());

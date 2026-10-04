@@ -17,6 +17,8 @@ public final class ComponentCrownDecorator {
     private ComponentCrownDecorator() {}
 
     public static boolean shouldApply(LlmPlan plan, Map<String, Object> massParams) {
+        if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, massParams)
+                || com.formacraft.common.style.ExplicitDesignPolicy.none(massParams, "crown_type", "crownType", "crown_template", "crownTemplate")) return false;
         if (NonClassicalEnrichmentGuard.blocksCrownInference(plan)) {
             return false;
         }

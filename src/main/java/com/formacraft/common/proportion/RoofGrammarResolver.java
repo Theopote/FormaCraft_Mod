@@ -23,6 +23,9 @@ public final class RoofGrammarResolver {
         if (!type.startsWith("ROOF")) {
             return component;
         }
+        if (com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(component)
+                || com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, component.params())
+                || com.formacraft.common.style.ExplicitDesignPolicy.none(component.params(), "roof_specialty", "roofSpecialty")) return component;
 
         Map<String, Object> hints = plan.proportionHints() != null ? plan.proportionHints() : Map.of();
         Map<String, Object> params = new HashMap<>();
@@ -37,13 +40,13 @@ public final class RoofGrammarResolver {
         String roofType = getParamString(params, "roof_type", "roofType");
         if (level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD
                 || level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD_DORMER) {
-            if (isBlank(roofType) || !roofType.toLowerCase(Locale.ROOT).contains("mansard")) {
+            if (isBlank(roofType) || "default".equalsIgnoreCase(roofType)) {
                 params.put("roof_type", "mansard");
                 changed = true;
             }
         }
         if (level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD_DORMER) {
-            if (!isEnabled(params.get("roof_dormers")) && !isEnabled(params.get("dormers"))) {
+            if (!params.containsKey("roof_dormers") && !params.containsKey("dormers")) {
                 params.put("roof_dormers", true);
                 changed = true;
             }

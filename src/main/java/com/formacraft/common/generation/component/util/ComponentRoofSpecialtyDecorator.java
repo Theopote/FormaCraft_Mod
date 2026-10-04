@@ -78,6 +78,7 @@ public final class ComponentRoofSpecialtyDecorator {
     }
 
     public static boolean shouldApplyDormers(LlmPlan plan, Map<String, Object> params, Component component) {
+        if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, params)) return false;
         if (isDisabled(getParam(params, "roof_dormers", "roofDormers", "dormers"))) {
             return false;
         }

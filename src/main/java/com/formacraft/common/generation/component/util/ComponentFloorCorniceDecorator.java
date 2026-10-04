@@ -142,44 +142,9 @@ public final class ComponentFloorCorniceDecorator {
     }
 
     public static String inferStairsBlock(String blockId) {
-        if (blockId == null || blockId.isBlank()) {
-            return "minecraft:stone_brick_stairs";
-        }
-        String base = blockId.trim();
-        int bracket = base.indexOf('[');
-        if (bracket > 0) {
-            base = base.substring(0, bracket);
-        }
-        if (base.endsWith("_stairs")) {
-            return base;
-        }
-        if (!base.startsWith("minecraft:")) {
-            return "minecraft:stone_brick_stairs";
-        }
-        String name = base.substring("minecraft:".length());
-        if (name.endsWith("_slab")) {
-            name = name.substring(0, name.length() - "_slab".length()) + "_stairs";
-        } else if (name.endsWith("_planks")) {
-            name = name.substring(0, name.length() - "_planks".length()) + "_stairs";
-        } else if (name.equals("smooth_sandstone")) {
-            name = "sandstone_stairs";
-        } else if (name.equals("cut_sandstone") || name.equals("chiseled_sandstone")) {
-            name = "sandstone_stairs";
-        } else if (name.equals("smooth_quartz") || name.equals("quartz_block")) {
-            name = "quartz_stairs";
-        } else if (name.equals("deepslate_tiles") || name.equals("deepslate_bricks")) {
-            name = "deepslate_tile_stairs";
-        } else if (name.endsWith("_bricks")) {
-            String prefix = name.substring(0, name.length() - "_bricks".length());
-            name = "quartz".equals(prefix) ? "quartz_stairs" : prefix + "_brick_stairs";
-        } else if (name.equals("bricks")) {
-            name = "brick_stairs";
-        } else if (name.endsWith("_tiles")) {
-            name = name.substring(0, name.length() - "_tiles".length()) + "_tile_stairs";
-        } else if (!name.endsWith("_stairs")) {
-            name = name + "_stairs";
-        }
-        return "minecraft:" + name;
+        String family = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(blockId);
+        // No corresponding Minecraft shape: retain the legacy stone approximation explicitly.
+        return family != null ? family : "minecraft:stone_brick_stairs";
     }
 
     private static int readFloorHeightFromPlan(LlmPlan plan) {

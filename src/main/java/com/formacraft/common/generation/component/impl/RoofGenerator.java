@@ -28,6 +28,7 @@ public class RoofGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
+        if (com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(semantic.source())) return List.of();
         List<BlockPatch> out = new ArrayList<>();
 
         Component c = semantic.source();
@@ -118,7 +119,8 @@ public class RoofGenerator implements ComponentGenerator {
         }
 
         boolean emphasizeEaves = hasRoofFeature(c, semantic, "dougong", "flying_eaves", "flying eaves", "飞檐", "斗拱");
-        if (emphasizeEaves && roofType != RoofType.FLAT) {
+        if (emphasizeEaves && roofType != RoofType.FLAT
+                && !com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params)) {
             int eaveOutset = hasRoofFeature(c, semantic, "dougong", "斗拱") ? 2 : 1;
             int eaveY = rp.y() > 0 ? rp.y() - 1 : rp.y();
             addEaveLayer(out, semantic, baseX, eaveY, baseZ, width, depth, palette, eaveOutset, footprint, appliedOverhang);
@@ -623,6 +625,15 @@ public class RoofGenerator implements ComponentGenerator {
     }
 
     private static String getBlockForPart(SemanticComponent semantic, Palette palette, SemanticPart part) {
+        String key = switch (part) {
+            case ROOF, ROOF_SURFACE -> "roof_block";
+            case WALL, WALL_BASE, WALL_ACCENT -> "wall_block";
+            default -> null;
+        };
+        if (key != null && semantic != null && semantic.source() != null) {
+            String explicit = getParamString(semantic.source().params(), key);
+            if (explicit != null && !explicit.isBlank()) return explicit.contains(":") ? explicit : "minecraft:" + explicit;
+        }
         if (semantic != null && semantic.styleAttributes() != null) {
             String block = DynamicPaletteResolver.resolve(part, semantic.styleAttributes());
             if (block != null && !block.isEmpty()) {

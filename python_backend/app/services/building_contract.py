@@ -38,15 +38,27 @@ def _extract_global_requirements(text: str) -> list[dict]:
     if re.search(r'平屋顶|平顶', text) and not re.search(r'不要.{0,3}(?:平屋顶|平顶)', text):
         result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
                        'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+    for prop, pattern in (
+        ('roof_type', r'(?:不要|不需要|不需)(?:生成|添加|建造)?屋顶|无屋顶'),
+        ('window_style', r'(?:不要|不需要|不需)(?:生成|添加)?(?:窗户|窗洞)|不开窗|无窗(?:户)?'),
+        ('entrance_type', r'(?:不要|不需要|不需)(?:生成|添加)?(?:入口|门洞)|无入口'),
+    ):
+        hits = list(re.finditer(pattern, text))
+        if hits:
+            result.append({'id': 'req_disable_' + prop, 'property': prop, 'value': 'none',
+                           'source': 'user_explicit', 'source_text': [m[0] for m in hits],
+                           'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     if re.search(r'(?:不(?:要|需)|暂不).{0,18}复杂装饰', text):
         result.append({'id': 'req_no_complex_decor', 'property': 'no_complex_decor', 'value': True,
                        'source': 'user_explicit', 'source_text': [re.search(r'(?:不(?:要|需)|暂不).{0,18}复杂装饰', text)[0]],
                        'scope': 'plan', 'priority': 'hard', 'status': 'pending'})
     materials = {'石砖': 'minecraft:stone_bricks', '橡木木板': 'minecraft:oak_planks',
                  '橡木板': 'minecraft:oak_planks', '橡木': 'minecraft:oak_planks', '云杉木板': 'minecraft:spruce_planks',
-                 '砖块': 'minecraft:bricks', '圆石': 'minecraft:cobblestone', '石英块': 'minecraft:quartz_block'}
+                 '砖块': 'minecraft:bricks', '圆石': 'minecraft:cobblestone', '石英块': 'minecraft:quartz_block',
+                 '深板岩瓦': 'minecraft:deepslate_tiles', '深板岩砖': 'minecraft:deepslate_bricks',
+                 '深色橡木板': 'minecraft:dark_oak_planks'}
     names = '|'.join(sorted(materials, key=len, reverse=True))
-    for prop, role in (('wall_block', '外墙|墙体'), ('floor_block', '楼板|地板')):
+    for prop, role in (('wall_block', '外墙|墙体'), ('floor_block', '楼板|地板'), ('roof_block', '屋顶|屋面')):
         pattern = rf'(?:(?P<before>{names})(?:制)?(?:{role})|(?:{role})(?:使用|采用|用)(?P<after>{names}))'
         hits = [m for m in re.finditer(pattern, text) if _positive_match(text, m)]
         if not hits:
@@ -74,7 +86,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
 def extract_requirements(text: str) -> list[dict]:
     """Recognize explicit ordinal declarations; never infer ownership from component order."""
     declarations = list(re.finditer(
-        r'第([一二两三四五六七八九十]|\d+)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?=宽|深|每层|使用|采用|外墙|墙体|楼板|地板|正门|入口|平屋顶|[一二两三四五六七八九十\d]+层)', text))
+        r'第([一二两三四五六七八九十]|\d+)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?=宽|深|每层|使用|采用|外墙|墙体|楼板|地板|屋顶|屋面|正门|入口|平屋顶|不要|不需要|不需|无屋顶|无窗|无入口|不开窗|[一二两三四五六七八九十\d]+层)', text))
     if not declarations:
         return _extract_global_requirements(text)
     events = [(m.start(), m.end(), 'building_' + str(NUMBERS[m[1]] if m[1] in NUMBERS else int(m[1])))
@@ -197,7 +209,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 return envelope['max_' + axis] - envelope['min_' + axis]
             requirement['dimension_subject'] = 'building_envelope'
             invalid = [c['params']['component_id'] for c in targets if envelope_size(c) != expected]
-        elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block'):
+        elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type'):
             invalid = [c['params']['component_id'] for c in targets if c['params'].get(key) != expected]
         elif key == 'entrance_facing':
             def facing(c):
@@ -208,12 +220,13 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                     runtime = (out.get('global_constraints') or {}).get('facing') or 'SOUTH'
                 return LEGACY_ENTRANCE_FACING.get(runtime)
             invalid = [c['params']['component_id'] for c in targets if facing(c) != expected]
-        elif key == 'roof_type':
+        elif key in ('roof_type', 'roof_block'):
             invalid = []
             for mass in targets:
                 roofs = [c for c in owned if c.get('component_type') in ('ROOF', 'ROOF_STRUCTURE')
                          and c['params'].get('host_id') == mass['params']['component_id']]
-                invalid += [c['params']['component_id'] for c in (roofs or [mass]) if c['params'].get('roof_type') != expected]
+                invalid += [c['params']['component_id'] for c in (roofs or [mass])
+                            if c['params'].get(key, mass['params'].get(key) if key == 'roof_block' else None) != expected]
         else:
             continue
         requirement['status'] = 'mismatch' if invalid else 'planned'

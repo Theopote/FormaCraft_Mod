@@ -9,6 +9,34 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ComponentPlanCompilerMaterialTest {
+    private Component body(String id, int x, String roof) {
+        return new Component("MASS_MAIN", "s", new Vec3i(x, 0, 0), new Dimensions(12, 12, 8), List.of(),
+                Map.of("component_id", id, "anchor_mode", "min_corner", "plan_type", "rectangle",
+                        "roof_block", roof, "roof_type", "flat", "window_ratio", 0.0));
+    }
+    @Test void twoBuildingsInheritDistinctRoofMaterialsAndExplicitRoofWins() {
+        var a = body("a", 0, "minecraft:deepslate_tiles");
+        var b = body("b", 30, "minecraft:spruce_planks");
+        var roof = new Component("ROOF", "s", new Vec3i(30, 7, 0), new Dimensions(12, 12, 3), List.of(),
+                Map.of("component_id", "b_roof", "host_id", "b", "roof_type", "flat", "roof_block", "minecraft:bricks",
+                        "anchor_mode", "min_corner"));
+        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
+                .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of())).components(List.of(b, roof, a)).build();
+        var output = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
+        assertFalse(output.isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertEquals("minecraft:deepslate_tiles", output.get(new Vec3i(5, 7, 5)));
+        assertEquals("minecraft:bricks", output.get(new Vec3i(35, 7, 5)));
+    }
+    @Test void wholePlanReplaysAfterOtherPlansUseSharedPalettes() {
+        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MEDIEVAL")
+                .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of()))
+                .proportionHints(Map.of("design_seed", 123L))
+                .components(List.of(body("a", 0, "minecraft:deepslate_tiles"))).build();
+        var before = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
+        assertFalse(before.isEmpty());
+        ComponentPlanCompiler.compile(plan("minecraft:stone_bricks"), BlockPos.ORIGIN, null, null, false);
+        assertEquals(before, PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false)));
+    }
     @BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     private LlmPlan plan(String wall) {
         var mass = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0), new Dimensions(12, 12, 8),

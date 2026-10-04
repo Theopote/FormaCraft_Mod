@@ -174,6 +174,11 @@ public final class ComponentPlanCompiler {
         PreparedComponents prepared = prepareComponents(plan, slotMap, allowAssemblyFacade);
         List<Component> components = prepared.components();
         Set<String> assemblyFacadeSlots = prepared.assemblyFacadeSlots();
+        var designConflict = ExplicitDesignConflictValidator.check(plan, components);
+        if (designConflict.isPresent()) {
+            AssemblyCompileDiagnostics.set(designConflict.get());
+            return List.of();
+        }
 
         if (components.isEmpty()) {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: no components to compile");
@@ -193,6 +198,7 @@ public final class ComponentPlanCompiler {
         List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
         Set<BlockPos> generatedSurfaces = new HashSet<>();
         Set<BlockPos> protectedMaterials = new HashSet<>();
+        Set<BlockPos> decorationRestrictions = new HashSet<>();
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
         var flatRoofs = new ArrayList<FlatRoofCoverageValidator.Roof>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
@@ -200,7 +206,7 @@ public final class ComponentPlanCompiler {
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         try {
             compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                    slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials);
+                    slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             TypologyPatchBridge.clearPlanWorldAnchor();
@@ -249,7 +255,7 @@ public final class ComponentPlanCompiler {
             }
             PostProcessContext context = new PostProcessContext(plan, globalAnchor,
                     plan.anchor() == null ? new Vec3i(0, 0, 0) : plan.anchor(),
-                    buildingVolumes, clearance, generatedSurfaces, protectedMaterials);
+                    buildingVolumes, clearance, generatedSurfaces, protectedMaterials, decorationRestrictions);
             PostProcessPipeline pipeline;
             
             if (applyTerrainAdaptation && world != null && terrainSampler != null) {
@@ -347,7 +353,8 @@ public final class ComponentPlanCompiler {
             List<AssemblyCirculationConstraints.Flight> circulation,
             Set<BlockPos> generatedSurfaces,
             List<FlatRoofCoverageValidator.Roof> flatRoofs,
-            Set<BlockPos> protectedMaterials
+            Set<BlockPos> protectedMaterials,
+            Set<BlockPos> decorationRestrictions
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
@@ -356,6 +363,7 @@ public final class ComponentPlanCompiler {
         for (Component c : ordered) {
             if (c == null) continue;
             String normalizedType = normalizeType(c.componentType());
+            if (isRoofType(normalizedType) && com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(c)) continue;
 
             Slot slot = slotMap.get(c.slotId());
             if (slot == null) {
@@ -378,7 +386,8 @@ public final class ComponentPlanCompiler {
 
             List<BlockPatch> patches;
             var componentFlights = new ArrayList<AssemblyCirculationConstraints.Flight>();
-            try (var capture = AssemblyCirculationConstraints.captureTo(componentFlights::addAll)) {
+            try (var capture = AssemblyCirculationConstraints.captureTo(componentFlights::addAll);
+                 var materials = com.formacraft.common.palette.component.PaletteSelectionScope.open(plan, c)) {
                 var roofAttachment = FlatRoofCoverageValidator.attachmentMismatch(semantic, components, slotMap, defaultSlot(plan));
                 if (roofAttachment.isPresent()) {
                     var attachment = roofAttachment.get();
@@ -406,7 +415,7 @@ public final class ComponentPlanCompiler {
                 }
                 if (!patches.isEmpty()) {
                     if (allowAssemblyFacade && globalAnchor != null && isMassType(normalizedType)
-                            && assemblyFacadeSlots.contains(slotKey)) {
+                            && assemblyFacadeSlots.contains(getParamString(c.params(), "component_id"))) {
                         List<BlockPatch> facade = generateAssemblyFacadePatches(plan, semantic, slot, globalAnchor, world);
                         if (!facade.isEmpty()) {
                             List<BlockPatch> merged = new ArrayList<>(patches.size() + facade.size());
@@ -486,6 +495,11 @@ public final class ComponentPlanCompiler {
                             return;
                         }
                         var position = new BlockPos(patch.dx(), patch.dy(), patch.dz());
+                        if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, c.params())) {
+                            // Optional post-processing decorates existing cells and adjacent trim cells.
+                            for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++)
+                                decorationRestrictions.add(position.add(dx, dy, dz));
+                        }
                         if (!BlockPatch.REMOVE.equals(patch.action()) && explicitTargets.contains(
                                 com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(patch.targetBlock())))
                             protectedMaterials.add(position);
@@ -530,10 +544,30 @@ public final class ComponentPlanCompiler {
             if (normalizedComponent == null) {
                 continue;
             }
+            if (normalizedComponent.params() != null && normalizedComponent.params().containsKey("compiler_suppressed_roof")) {
+                var params = new HashMap<String, Object>(normalizedComponent.params());
+                params.remove("compiler_suppressed_roof");
+                normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
+                        normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
+            }
             normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);
             normalizedComponent = OpeningGrammarResolver.apply(plan, normalizedComponent);
             normalizedComponent = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.normalizeBody(normalizedComponent);
             String type = normalizeType(normalizedComponent.componentType());
+            if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, normalizedComponent.params())) {
+                var params = new HashMap<String, Object>();
+                if (normalizedComponent.params() != null) params.putAll(normalizedComponent.params());
+                params.put("no_complex_decor", true);
+                normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
+                        normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
+            }
+            if (isMassType(type) && getParamString(normalizedComponent.params(), "component_id") == null) {
+                var params = new HashMap<String, Object>();
+                if (normalizedComponent.params() != null) params.putAll(normalizedComponent.params());
+                params.put("component_id", "mass:" + normalizedComponent.slotId() + ":" + normalizedComponent.relativePosition());
+                normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
+                        normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), params);
+            }
             String slotKey = slotKey(normalizedComponent);
             if (isMassType(type)) {
                 massSlots.add(slotKey);
@@ -570,22 +604,13 @@ public final class ComponentPlanCompiler {
 
         components = AlignmentContractEnforcer.apply(plan, components);
 
-        Set<String> slotsWithFacade = new HashSet<>();
-        Set<String> slotsWithEntrance = new HashSet<>();
-        Set<String> slotsWithRoof = new HashSet<>();
         Set<String> slotsWithCrown = new HashSet<>();
         Set<String> assemblyFacadeSlots = new HashSet<>();
         for (Component c : components) {
             if (c == null) continue;
             String type = normalizeType(c.componentType());
             String slotKey = slotKey(c);
-            if ("FACADE_WINDOWS".equals(type)) {
-                slotsWithFacade.add(slotKey);
-            } else if ("ENTRANCE".equals(type)) {
-                slotsWithEntrance.add(slotKey);
-            } else if (isRoofType(type)) {
-                slotsWithRoof.add(slotKey);
-            } else if (isCrownType(type)) {
+            if (isCrownType(type)) {
                 slotsWithCrown.add(slotKey);
             }
         }
@@ -615,45 +640,44 @@ public final class ComponentPlanCompiler {
             String slotId = c.slotId();
             Slot slot = slotId != null ? slotMap.get(slotId) : null;
             GlobalConstraints.Facing facing = resolveSlotFacing(plan, slotMap, slotId);
-            boolean hasFacade = slotsWithFacade.contains(slotKey);
-            boolean hasEntrance = slotsWithEntrance.contains(slotKey);
+            boolean hasFacade = hasSatelliteForMass(c, components, inferred, "FACADE_WINDOWS");
+            boolean hasEntrance = hasSatelliteForMass(c, components, inferred, "ENTRANCE");
+            boolean windowsDisabled = com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(c);
+            boolean entranceDisabled = com.formacraft.common.style.ExplicitDesignPolicy.entranceDisabled(c);
             boolean useAssemblyFacade = allowAssemblyFacade
                     && shouldUseAssemblyFacade(plan, c)
                     && !hasFacade
-                    && !hasEntrance;
+                    && !hasEntrance && !windowsDisabled && !entranceDisabled;
 
             if (useAssemblyFacade) {
-                assemblyFacadeSlots.add(slotKey);
+                assemblyFacadeSlots.add(getParamString(c.params(), "component_id"));
                 c = markAssemblyFacade(c);
             } else {
-                if (!hasFacade) {
+                if (!hasFacade && !windowsDisabled) {
                     Component facade = makeFacadeComponent(c, slotId);
                     facade = StyleIntentResolver.apply(plan, facade);
                     facade = OpeningGrammarResolver.apply(plan, facade);
                     inferred.add(facade);
-                    slotsWithFacade.add(slotKey);
                     hasFacade = true;
                 }
-                if (!hasEntrance) {
+                if (!hasEntrance && !entranceDisabled) {
                     Component entrance = makeEntranceComponent(plan, c, slotId, facing);
                     if (entrance != null) {
                         entrance = StyleIntentResolver.apply(plan, entrance);
                         inferred.add(entrance);
-                        slotsWithEntrance.add(slotKey);
                         hasEntrance = true;
                     }
                 }
             }
-            if (hasFacade || hasEntrance) {
-                c = suppressMassOpenings(c, hasFacade, hasEntrance);
+            if (hasFacade || hasEntrance || windowsDisabled || entranceDisabled) {
+                c = suppressMassOpenings(c, hasFacade || windowsDisabled, hasEntrance || entranceDisabled);
             }
-            if (!slotsWithRoof.contains(slotKey)) {
+            if (!hasSatelliteForMass(c, components, inferred, "ROOF")) {
                 Component roof = makeRoofComponent(plan, c, slotId);
                 if (roof != null) {
                     roof = StyleIntentResolver.apply(plan, roof);
                     roof = RoofGrammarResolver.apply(plan, roof);
                     inferred.add(roof);
-                    slotsWithRoof.add(slotKey);
                     c = suppressMassRoof(c);
                 }
             }
@@ -831,6 +855,14 @@ public final class ComponentPlanCompiler {
                 case "FOUNDATION", "TERRACE", "BASE" -> alignFoundationToMass(c, mass);
                 default -> isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
             };
+            if (aligned != null && mass.params() != null && mass.params().get("component_id") != null) {
+                var params = new HashMap<String, Object>();
+                if (aligned.params() != null) params.putAll(aligned.params());
+                params.putIfAbsent("host_id", mass.params().get("component_id"));
+                if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, mass.params())) params.put("no_complex_decor", true);
+                aligned = new Component(aligned.componentType(), aligned.slotId(), aligned.relativePosition(),
+                        aligned.dimensions(), aligned.features(), params);
+            }
             if (aligned != null && aligned != c) {
                 components.set(i, aligned);
                 realigned++;
@@ -1184,6 +1216,7 @@ public final class ComponentPlanCompiler {
         if (base.params() != null) {
             params.putAll(base.params());
         }
+        bindDerived(params, base, "facade");
         params.put("anchor_mode", "min_corner");
         Double ratio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
         if (ratio == null) {
@@ -1334,6 +1367,7 @@ public final class ComponentPlanCompiler {
 
         Map<String, Object> params = new HashMap<>();
         params.put("door_width", doorWidth);
+        bindDerived(params, base, "entrance");
         params.put("door_height", Math.max(2, Math.min(entranceHeight - 1, entranceHeight)));
         params.put("canopy_depth", paramCanopy > 0 ? paramCanopy : 1);
         if (baySnap != null) {
@@ -1345,7 +1379,7 @@ public final class ComponentPlanCompiler {
         List<String> features = new ArrayList<>();
         features.add("entrance");
         features.add("overhang");
-        if (hasOrnateEntranceHints(plan, base)) {
+        if (!com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, base.params()) && hasOrnateEntranceHints(plan, base)) {
             features.add("decorative_lintel");
             features.add("wood_carvings");
         }
@@ -1364,6 +1398,7 @@ public final class ComponentPlanCompiler {
     }
 
     private static Component makeRoofComponent(LlmPlan plan, Component base, String slotId) {
+        if (com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(base)) return null;
         Dimensions dims = base.dimensions();
         Vec3i rp = resolveMassOrigin(base);
         if (dims == null || rp == null) {
@@ -1403,6 +1438,7 @@ public final class ComponentPlanCompiler {
         }
         params.put("roof_type", roofType);
         if (params.get("component_id") != null) params.putIfAbsent("host_id", params.get("component_id"));
+        bindDerived(params, base, "roof");
         // The inferred height lives in Dimensions. Do not inject a duplicate
         // default param that overrides the height of an explicit ROOF component.
         params.put("anchor_mode", "min_corner");
@@ -1611,6 +1647,53 @@ public final class ComponentPlanCompiler {
         return findRoofInList(inferred, slotKey);
     }
 
+    private static void bindDerived(Map<String, Object> params, Component mass, String role) {
+        if (mass.params() != null && Boolean.TRUE.equals(mass.params().get("no_complex_decor"))) params.put("no_complex_decor", true);
+        String identity = getParamString(mass.params(), "component_id");
+        if (identity != null) {
+            params.put("host_id", identity);
+            params.put("component_id", identity + "#" + role);
+        }
+    }
+
+    private static boolean hasSatelliteForMass(Component mass, List<Component> primary, List<Component> inferred, String wantedType) {
+        var roofs = new ArrayList<Component>(primary);
+        roofs.addAll(inferred);
+        Object identity = mass.params() == null ? null : mass.params().get("component_id");
+        for (var roof : roofs) {
+            if (roof == null || !("ROOF".equals(wantedType) ? isRoofType(normalizeType(roof.componentType()))
+                    : wantedType.equals(normalizeType(roof.componentType()))) || !slotKey(roof).equals(slotKey(mass))) continue;
+            if (roof.params() != null && roof.params().get("host_part_id") != null) continue;
+            Object host = roof.params() == null ? null : roof.params().get("host_id");
+            if (host != null) {
+                if (host.equals(identity)) return true;
+                continue;
+            }
+            // Legacy unbound roofs use the same nearest-body compatibility rule as alignment.
+            Component nearest = null;
+            double best = Double.POSITIVE_INFINITY;
+            for (var candidate : primary) {
+                if (candidate == null || !isMassType(normalizeType(candidate.componentType()))
+                        || !slotKey(candidate).equals(slotKey(mass)) || candidate.dimensions() == null) continue;
+                Vec3i origin = resolveMassOrigin(candidate);
+                if (origin == null || roof.relativePosition() == null) continue;
+                double x = roof.relativePosition().x(), z = roof.relativePosition().z();
+                if (ComponentFootprintUtil.isCornerAnchor(roof.params()) && roof.dimensions() != null) {
+                    x += (roof.dimensions().width() - 1) / 2.0;
+                    z += (roof.dimensions().depth() - 1) / 2.0;
+                }
+                double dx = x - origin.x() - (candidate.dimensions().width() - 1) / 2.0;
+                double dz = z - origin.z() - (candidate.dimensions().depth() - 1) / 2.0;
+                double distance = dx * dx + dz * dz;
+                if (distance < best) { best = distance; nearest = candidate; }
+            }
+            if (nearest != null && (identity != null && nearest.params() != null
+                    ? identity.equals(nearest.params().get("component_id"))
+                    : java.util.Objects.equals(mass.relativePosition(), nearest.relativePosition()))) return true;
+        }
+        return false;
+    }
+
     private static Component findRoofInList(List<Component> components, String slotKey) {
         if (components == null) {
             return null;
@@ -1638,6 +1721,7 @@ public final class ComponentPlanCompiler {
             params.putAll(base.params());
         }
         params.put("roof_type", "none");
+        params.put("compiler_suppressed_roof", true);
         return new Component(
                 base.componentType(),
                 base.slotId(),

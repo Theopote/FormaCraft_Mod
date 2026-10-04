@@ -190,6 +190,9 @@ public class HouseMaterialResolver {
     }
 
     public static BlockState defaultRoofStairs(BuildingStyle style, BlockState roof) {
+        String family = roof == null ? null : com.formacraft.common.palette.component.MaterialBlockFamily.stairs(
+                Registries.BLOCK.getId(roof.getBlock()).toString());
+        if (family != null) return Registries.BLOCK.get(Identifier.of(family)).getDefaultState();
         Block b = roof != null ? roof.getBlock() : null;
         if (b == Blocks.DARK_OAK_PLANKS) return Blocks.DARK_OAK_STAIRS.getDefaultState();
         if (b == Blocks.SPRUCE_PLANKS) return Blocks.SPRUCE_STAIRS.getDefaultState();
@@ -205,6 +208,9 @@ public class HouseMaterialResolver {
     }
 
     public static BlockState defaultRoofSlab(BuildingStyle style, BlockState roof) {
+        String family = roof == null ? null : com.formacraft.common.palette.component.MaterialBlockFamily.slab(
+                Registries.BLOCK.getId(roof.getBlock()).toString());
+        if (family != null) return Registries.BLOCK.get(Identifier.of(family)).getDefaultState();
         Block b = roof != null ? roof.getBlock() : null;
         if (b == Blocks.DARK_OAK_PLANKS) return Blocks.DARK_OAK_SLAB.getDefaultState();
         if (b == Blocks.SPRUCE_PLANKS) return Blocks.SPRUCE_SLAB.getDefaultState();

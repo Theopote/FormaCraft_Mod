@@ -25,6 +25,7 @@ public final class OpeningGrammarResolver {
         if (plan == null || component == null) {
             return component;
         }
+        if (com.formacraft.common.style.ExplicitDesignPolicy.windowsDisabled(component)) return component;
         String type = normalizeType(component.componentType());
         boolean facade = "FACADE_WINDOWS".equals(type);
         boolean mass = isMassType(type);

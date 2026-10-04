@@ -17,7 +17,7 @@ import java.util.Set;
 /**
  * StyleIntentResolver
  *
- * Apply style-driven defaults to components when the LLM output is missing or set to "none".
+ * Apply style-driven defaults when values are absent or set to "default"; preserve explicit "none".
  * This helps avoid uniform rectangular plans and improves stylistic distinctiveness.
  */
 public final class StyleIntentResolver {
@@ -67,7 +67,7 @@ public final class StyleIntentResolver {
         if (mass) {
             String planType = getParamString(params, "plan_type", "planType", "footprint_pattern",
                     "footprintPattern", "plan_pattern", "planPattern");
-            if (isBlankOrNone(planType)) {
+            if (isMissingOrDefault(planType)) {
                 String fallback = resolvePlanType(flavor, component.dimensions());
                 if (fallback != null) {
                     params.put("plan_type", fallback);
@@ -96,7 +96,7 @@ public final class StyleIntentResolver {
 
         if (mass || roof) {
             String roofType = getParamString(params, "roof_type", "roofType");
-            if (isBlankOrNone(roofType)) {
+            if (isMissingOrDefault(roofType)) {
                 String fallback = resolveRoofType(flavor);
                 if (fallback != null) {
                     params.put("roof_type", fallback);
@@ -107,7 +107,7 @@ public final class StyleIntentResolver {
 
         if (facade) {
             String windowStyle = getParamString(params, "window_style", "windowStyle");
-            if (isBlankOrNone(windowStyle)) {
+            if (isMissingOrDefault(windowStyle)) {
                 String fallback = resolveWindowStyle(flavor);
                 if (fallback != null) {
                     params.put("window_style", fallback);
@@ -116,7 +116,7 @@ public final class StyleIntentResolver {
             }
         }
 
-        changed |= appendStyleFeatures(flavor, features);
+        if (!ExplicitDesignPolicy.noComplexDecor(plan, params)) changed |= appendStyleFeatures(flavor, features);
 
         if (!changed) {
             return component;
@@ -322,10 +322,10 @@ public final class StyleIntentResolver {
         return value.trim().toUpperCase(Locale.ROOT);
     }
 
-    private static boolean isBlankOrNone(String value) {
+    private static boolean isMissingOrDefault(String value) {
         if (value == null) return true;
         String v = value.trim();
-        return v.isEmpty() || v.equalsIgnoreCase("none") || v.equalsIgnoreCase("default");
+        return v.isEmpty() || v.equalsIgnoreCase("default");
     }
 
     private static String getParamString(Map<String, Object> params, String... keys) {
