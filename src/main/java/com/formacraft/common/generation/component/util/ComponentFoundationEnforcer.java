@@ -16,7 +16,7 @@ import java.util.Map;
  */
 public final class ComponentFoundationEnforcer {
 
-    private static final int DEFAULT_MARGIN = 2;
+    private static final int DEFAULT_MARGIN = 0;
 
     private ComponentFoundationEnforcer() {}
 

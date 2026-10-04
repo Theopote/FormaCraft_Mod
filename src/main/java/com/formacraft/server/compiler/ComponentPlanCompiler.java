@@ -988,6 +988,12 @@ public final class ComponentPlanCompiler {
         params.put("anchor_mode", "min_corner");
         // Fill support up to the host floor.
         int bottom = Math.min(fp.y(), massOrigin.y() - 1);
+        if (Boolean.TRUE.equals(params.get("terrain_adaptive")) && !params.containsKey("foundation_margin")) {
+            return new Component(foundation.componentType(), foundation.slotId(),
+                    new Vec3i(massOrigin.x(), bottom, massOrigin.z()),
+                    new Dimensions(mass.dimensions().width(), mass.dimensions().depth(), massOrigin.y()-bottom),
+                    foundation.features(), params);
+        }
         return new Component(foundation.componentType(), foundation.slotId(),
                 new Vec3i(corner ? fp.x() : massOrigin.x() - (rebased ? Math.max(0, (dims.width() - mass.dimensions().width()) / 2) : 0),
                         bottom, corner ? fp.z() : massOrigin.z() - (rebased ? Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2) : 0)),

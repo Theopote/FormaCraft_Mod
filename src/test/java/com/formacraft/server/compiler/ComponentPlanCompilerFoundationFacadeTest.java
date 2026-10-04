@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ComponentPlanCompilerFoundationFacadeTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
 
     @Test
     void expandsFoundationAndWrapsFacadeToMassFootprint() {
@@ -78,10 +80,10 @@ class ComponentPlanCompilerFoundationFacadeTest {
         assertTrue(backWallWindow, "wrap facade should reach mass back wall z=19");
         assertFalse(interiorSliceWindow, "should not place windows on interior z=15 slice");
         var finalBlocks = PatchTestSnapshot.blocks(patches);
-        assertEquals(20 * 24, finalBlocks.keySet().stream().filter(p -> p.y() == -1).count());
+        assertEquals(20 * 22, finalBlocks.keySet().stream().filter(p -> p.y() == -1).count());
         for (int x = -2; x < 18; x++) {
-            for (int z = -2; z < 22; z++) {
-                assertNotNull(finalBlocks.get(new Vec3i(x, -1, z)), "foundation must cover every cell including margin");
+            for (int z = -2; z < 20; z++) {
+                assertNotNull(finalBlocks.get(new Vec3i(x, -1, z)), "foundation covers the mass and authored margin only");
             }
         }
     }
@@ -99,11 +101,11 @@ class ComponentPlanCompilerFoundationFacadeTest {
                 .components(List.of(foundation, mass)).build();
         var blocks = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, null, null, null, false));
         var platform = blocks.keySet().stream().filter(p -> p.y() == 3).toList();
-        assertEquals(13 * 11, platform.size());
-        assertEquals(-29, platform.stream().mapToInt(Vec3i::x).min().orElseThrow());
-        assertEquals(-17, platform.stream().mapToInt(Vec3i::x).max().orElseThrow());
-        assertEquals(56, platform.stream().mapToInt(Vec3i::z).min().orElseThrow());
-        assertEquals(66, platform.stream().mapToInt(Vec3i::z).max().orElseThrow());
+        assertEquals(9 * 7, platform.size());
+        assertEquals(-27, platform.stream().mapToInt(Vec3i::x).min().orElseThrow());
+        assertEquals(-19, platform.stream().mapToInt(Vec3i::x).max().orElseThrow());
+        assertEquals(58, platform.stream().mapToInt(Vec3i::z).min().orElseThrow());
+        assertEquals(64, platform.stream().mapToInt(Vec3i::z).max().orElseThrow());
     }
 
     @Test

@@ -16,8 +16,8 @@ import java.util.*;
 /** Local earthwork for component buildings. Heights are first air above solid ground. */
 public final class BuildingLandingPlanner {
     private BuildingLandingPlanner() {}
-    private static final int MAX_SUPPORT = 12;
-    private static final int MAX_CUT = 6;
+    private static final int MAX_SUPPORT = 96;
+    private static final int MAX_CUT = 32;
     private static final int MAX_AREA = 16384;
     private static final int MAX_EDITS = 200000;
 
@@ -25,6 +25,10 @@ public final class BuildingLandingPlanner {
         int surfaceY(int x, int z);
         default int placementY(int x, int z) { return surfaceY(x,z); }
         BlockState state(BlockPos pos);
+        default boolean bearing(BlockPos pos) {
+            BlockState s=state(pos);
+            return !s.isAir() && s.getFluidState().isEmpty() && !s.isReplaceable();
+        }
         int bottomY();
     }
 
@@ -54,6 +58,12 @@ public final class BuildingLandingPlanner {
                 return y;
             }
             public BlockState state(BlockPos pos) { return world.getBlockState(pos); }
+            public boolean bearing(BlockPos pos) {
+                BlockState s=world.getBlockState(pos);
+                return Ground.super.bearing(pos) && s.isSolidBlock(world,pos)
+                        && !s.isIn(net.minecraft.registry.tag.BlockTags.LOGS)
+                        && !s.isIn(net.minecraft.registry.tag.BlockTags.LEAVES);
+            }
             public int bottomY() { return world.getBottomY(); }
         };
     }
@@ -67,7 +77,8 @@ public final class BuildingLandingPlanner {
             for (Slot s : plan.layout().slots()) if (s != null) slots.put(s.slotId(), s);
         List<Site> out = new ArrayList<>();
         for (Component c : plan.components()) {
-            if (!ComponentFootprintUtil.isMassType(c.componentType()) || c.dimensions() == null) continue;
+            if (!("MASS_MAIN".equalsIgnoreCase(c.componentType()) || "MAIN_MASS".equalsIgnoreCase(c.componentType()))
+                    || c.dimensions() == null) continue; // Upper-floor plates are attachments, not independent sites.
             var b = ComponentFootprintUtil.bounds(c);
             if (b == null) continue;
             Slot slot = slots.get(c.slotId());
@@ -78,7 +89,15 @@ public final class BuildingLandingPlanner {
                     offset.getY() + b.maxY() - 1, offset.getZ() + b.maxZ() - 1);
             var facing = slot != null ? slot.facing() : null;
             if (facing == null && plan.globalConstraints() != null) facing = plan.globalConstraints().facing();
-            out.add(new Site(bounds, facing == null ? GlobalConstraints.Facing.NORTH : facing));
+            // Component compiler's legacy facade labels are opposite to Minecraft world directions.
+            if(facing==null) facing=GlobalConstraints.Facing.SOUTH;
+            facing=switch(facing) {
+                case NORTH -> GlobalConstraints.Facing.SOUTH;
+                case SOUTH -> GlobalConstraints.Facing.NORTH;
+                case EAST -> GlobalConstraints.Facing.WEST;
+                case WEST -> GlobalConstraints.Facing.EAST;
+            };
+            out.add(new Site(bounds, facing));
         }
         return out;
     }
@@ -95,6 +114,7 @@ public final class BuildingLandingPlanner {
             public int surfaceY(int x, int z) { return surfaces.computeIfAbsent(key(x,z), k -> ground.surfaceY(x,z)); }
             public int placementY(int x, int z) { return placement.computeIfAbsent(key(x,z), k -> ground.placementY(x,z)); }
             public BlockState state(BlockPos p) { return ground.state(p); }
+            public boolean bearing(BlockPos p) { return ground.bearing(p); }
             public int bottomY() { return ground.bottomY(); }
         };
         List<Integer> offsets = new ArrayList<>();
@@ -108,7 +128,7 @@ public final class BuildingLandingPlanner {
         }
         if (offsets.isEmpty()) return failure(input,"无法识别建筑底面，请检查主体与地基位置。");
         Collections.sort(offsets);
-        int dy = stilt ? 0 : offsets.get(offsets.size()/2);
+        int dy = stilt ? 0 : chooseElevation(offsets, sites, cached);
         List<PlannedBlock> moved = LlmPlanTerrainBounds.translateBlocks(input, dy);
         Map<BlockPos, BlockState> finalBlocks = new HashMap<>();
         Map<Long, Integer> bottoms = new HashMap<>(), tops = new HashMap<>();
@@ -130,15 +150,19 @@ public final class BuildingLandingPlanner {
                 Integer bottom = bottoms.get(k), top = tops.get(k);
                 if (bottom == null) continue; // No blanket slab across courtyards / gaps.
                 int surface = cached.surfaceY(x,z);
-                if (surface <= cached.bottomY() || bottom-surface > MAX_SUPPORT || surface-b.minY() > MAX_CUT)
-                    return failure(input, "此处落差过大，地基需要超过12格支撑或6格削坡；建议移到缓坡，或调整选址。");
+                if (surface-b.minY() > MAX_CUT)
+                    return failure(input, "此处没有可连接的地基或填挖量超出范围，请调整建筑占地或选址。");
                 boolean pier = Math.floorMod(x-pad.minX(),4)==0 && Math.floorMod(z-pad.minZ(),4)==0
                         || (x==pad.maxX() && Math.floorMod(z-pad.minZ(),4)==0)
                         || (z==pad.maxZ() && Math.floorMod(x-pad.minX(),4)==0)
                         || x==pad.maxX() && z==pad.maxZ();
                 // Fill small differences; leave open space between deep load-bearing piers.
                 if (bottom-surface <= 3 || pier || strategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
-                    for (int y=surface; y<bottom; y++) {
+                    boolean braced = bottom-surface > 12 && strategy != GlobalConstraints.TerrainStrategy.FLATTEN
+                            && diagonalBrace(prep, x, bottom-1, z, cached, fill);
+                    if(!braced && (surface<=cached.bottomY() || bottom-surface>MAX_SUPPORT))
+                        return failure(input,"支撑点未能连接到山体或地面，请调整建筑位置。");
+                    for (int y=surface; !braced && y<bottom; y++) {
                         if (!add(prep, new BlockPos(x,y,z), fill)) return failure(input, "地基超出当前允许建造范围，请扩大选区或移动建筑。");
                         supports++;
                     }
@@ -151,13 +175,93 @@ public final class BuildingLandingPlanner {
                 }
                 if (prep.size()>MAX_EDITS) return failure(input, "地形改动过多，建议缩小建筑或分批生成。");
             }
-            Result access = entranceSteps(input, b, site.facing(), finalBlocks, cached, prep, fill);
+            if (sites.size()==1) {
+                var slope=b.expand(4);
+                for(int x=slope.minX();x<=slope.maxX();x++) for(int z=slope.minZ();z<=slope.maxZ();z++) {
+                    int distance=Math.max(Math.max(b.minX()-x,x-b.maxX()),Math.max(b.minZ()-z,z-b.maxZ()));
+                    if(distance<1) continue;
+                    int allowed=b.minY()+distance-1, top=cached.surfaceY(x,z);
+                    if(top-allowed>MAX_CUT) continue;
+                    for(int y=allowed;y<top;y++) {
+                        BlockPos p=new BlockPos(x,y,z);
+                        if(!finalBlocks.containsKey(p) && !cached.state(p).isAir()) {
+                            if(!add(prep,p,Blocks.AIR.getDefaultState()))
+                                return failure(input,"削坡范围与保护区域冲突，请调整建筑位置。");
+                        }
+                    }
+                }
+            }
+            Ground accessGround=new Ground() {
+                public int surfaceY(int x,int z) {
+                    int y=cached.surfaceY(x,z);
+                    while(y>bottomY()) {
+                        PlannedBlock edit=prep.get(new BlockPos(x,y-1,z));
+                        if(edit==null||!edit.getTargetState().isAir()) break;
+                        y--;
+                    }
+                    return y;
+                }
+                public int placementY(int x,int z) {
+                    return cached.placementY(x,z)==cached.surfaceY(x,z)?surfaceY(x,z):cached.placementY(x,z);
+                }
+                public BlockState state(BlockPos p) {
+                    PlannedBlock edit=prep.get(p);
+                    return edit==null?cached.state(p):edit.getTargetState();
+                }
+                public int bottomY(){return cached.bottomY();}
+            };
+            Result access = entranceSteps(input, b, site.facing(), finalBlocks, accessGround, prep, fill);
             if (access.problem()!=null) return access;
             steps += access.steps();
         }
+        if(prep.size()>MAX_EDITS) return failure(input,"地形改动过多，请缩小建筑占地或分批生成。");
         List<PlannedBlock> result = new ArrayList<>(prep.values());
         result.addAll(moved); // Building solids and air always win over terrain preparation.
         return new Result(result, dy, null, supports, steps);
+    }
+
+    private static int chooseElevation(List<Integer> offsets, List<Site> sites, Ground ground) {
+        int low=offsets.getFirst(), high=offsets.getLast();
+        int waterMinimum=Integer.MIN_VALUE;
+        for (Site site:sites) {
+            var b=site.body();
+            for(int x=b.minX();x<=b.maxX();x++) for(int z=b.minZ();z<=b.maxZ();z++)
+                if(ground.placementY(x,z)>ground.surfaceY(x,z))
+                    waterMinimum=Math.max(waterMinimum,ground.placementY(x,z)-b.minY());
+        }
+        low=Math.max(low,waterMinimum);
+        int best=Math.max(low,offsets.get(offsets.size()/2)); double bestCost=Double.POSITIVE_INFINITY;
+        for(int candidate=low;candidate<=high;candidate++) {
+            double cost=0;
+            for(int offset:offsets) {
+                int gap=candidate-offset;
+                cost+=gap<0?(-gap)*(-gap)*1.2:gap<=3?gap*.6:2+gap*.25;
+            }
+            // Prefer the supplied elevation only when earthwork costs are comparable.
+            cost+=Math.abs(candidate)*.01;
+            if(cost<bestCost) {bestCost=cost;best=candidate;}
+        }
+        return best;
+    }
+
+    private static boolean diagonalBrace(Map<BlockPos,PlannedBlock> prep,int x,int y,int z,Ground ground,BlockState fill) {
+        List<BlockPos> best=null;
+        for(int[] direction:new int[][]{{1,0},{-1,0},{0,1},{0,-1}}) {
+            List<BlockPos> path=new ArrayList<>();
+            for(int step=0;step<48;step++) {
+                BlockPos p=new BlockPos(x+direction[0]*step,y-step,z+direction[1]*step);
+                if(ground.bearing(p)) {
+                    if(!path.isEmpty() && (best==null || path.size()<best.size())) best=path;
+                    break;
+                }
+                if(!BuildConstraintContext.allow(p) || !BuildConstraintContext.allow(p.up())) break;
+                path.add(p);
+                if(step>0) path.add(p.up()); // Face-connected diagonal, not isolated corner-touching cubes.
+            }
+        }
+        if(best==null) return false;
+        for(BlockPos p:best) add(prep,p,fill);
+        return true;
     }
 
     private static Result entranceSteps(List<PlannedBlock> input, LlmPlanTerrainBounds.Bounds b,
@@ -181,39 +285,67 @@ public final class BuildingLandingPlanner {
         if (candidates.isEmpty()) return new Result(input,0,null,0,0); // No doorway (e.g. closed box).
         int center = (start+end)/2;
         BlockPos door = candidates.stream().min(Comparator.comparingInt(p -> Math.abs((alongX?p.getX():p.getZ())-center))).orElseThrow();
-        int previous = door.getY(), steps = 0;
-        for (int distance=1; distance<=MAX_SUPPORT+3; distance++) {
-            int x=door.getX()+dx*distance, z=door.getZ()+dz*distance;
-            int groundY=ground.surfaceY(x,z)-1;
-            int tread = Math.max(previous-1, Math.min(previous+1,groundY));
-            // Cross an existing porch at its authored height before descending beyond its edge.
-            for (int y=previous+1; y>=tread; y--) {
-                BlockState authored = blocks.get(new BlockPos(x,y,z));
-                if (authored!=null && !authored.isAir()) { tread=y; break; }
+        return findAccess(input, door, b, blocks, ground, prep, fill);
+    }
+
+    private record AccessNode(BlockPos pos, double cost, AccessNode previous) {}
+
+    private static Result findAccess(List<PlannedBlock> input, BlockPos door, LlmPlanTerrainBounds.Bounds body,
+                                     Map<BlockPos,BlockState> blocks, Ground ground,
+                                     Map<BlockPos,PlannedBlock> prep,BlockState fill) {
+        PriorityQueue<AccessNode> open=new PriorityQueue<>(Comparator.comparingDouble(AccessNode::cost));
+        Map<BlockPos,Double> visited=new HashMap<>();
+        open.add(new AccessNode(door,0,null));visited.put(door,0.0);
+        AccessNode goal=null;
+        int expanded=0;
+        while(!open.isEmpty() && expanded++<16000) {
+            AccessNode node=open.remove(); BlockPos p=node.pos();
+            if(node.cost()>visited.getOrDefault(p,Double.POSITIVE_INFINITY)) continue;
+            int surface=ground.surfaceY(p.getX(),p.getZ());
+            if(node.previous()!=null && p.getY()==surface-1 && ground.placementY(p.getX(),p.getZ())==surface) {
+                goal=node;break;
             }
-            for (int side=-1; side<=1; side++) {
-                int px=x+(alongX?side:0), pz=z+(alongX?0:side);
-                int base=ground.surfaceY(px,pz);
-                if (tread-base > MAX_SUPPORT || base-tread > MAX_CUT || base<=ground.bottomY())
-                    return failure(input,"入口前方落差过大，无法生成接地台阶；建议调整入口朝向或选址。");
-                BlockPos p=new BlockPos(px,tread,pz);
-                // Stop instead of overwriting another building or authored access structure.
-                if (blocks.containsKey(p.up()) && !blocks.get(p.up()).isAir()
-                        || blocks.containsKey(p.up(2)) && !blocks.get(p.up(2)).isAir())
-                    return failure(input,"入口通路被其他构件阻挡，请调整建筑间距或入口朝向。");
-                for (int y=base; y<=tread; y++) if (!add(prep,new BlockPos(px,y,pz),fill))
-                    return failure(input,"入口台阶超出允许建造范围，请扩大选区或移动建筑。");
-                for (int y=tread+1; y<=Math.max(base-1,tread+2); y++) {
-                    BlockPos clear=new BlockPos(px,y,pz);
-                    if (!add(prep,clear,Blocks.AIR.getDefaultState()))
-                        return failure(input,"入口通路与保护区域冲突，请移动建筑。");
+            for(int[] dir:new int[][]{{1,0},{-1,0},{0,1},{0,-1}}) for(int rise=-1;rise<=1;rise++) {
+                BlockPos next=p.add(dir[0],rise,dir[1]);
+                int x=next.getX(),z=next.getZ(),y=next.getY();
+                if(Math.abs(x-door.getX())+Math.abs(z-door.getZ())>48) continue;
+                if(x>=body.minX()&&x<=body.maxX()&&z>=body.minZ()&&z<=body.maxZ()) continue;
+                int base=ground.surfaceY(x,z);
+                if(base<=ground.bottomY()||y-base>MAX_SUPPORT||base-y>MAX_CUT) continue;
+                if(blocks.containsKey(next)&&blocks.get(next).isAir()) continue;
+                boolean blocked=false;
+                for(int h=1;h<=2;h++) {
+                    BlockPos head=next.up(h); BlockState planned=blocks.get(head);
+                    if(planned!=null&&!planned.isAir()) {blocked=true;break;}
+                    if(!BuildConstraintContext.allow(head)) {blocked=true;break;}
                 }
+                if(blocked) continue;
+                for(int py=Math.min(base,y);py<=Math.max(base-1,y+2);py++)
+                    if(!BuildConstraintContext.allow(new BlockPos(x,py,z))) {blocked=true;break;}
+                if(blocked) continue;
+                // Prefer short routes on dry ground, avoiding deep supported walkways and major cuts.
+                double cost=node.cost()+1+Math.abs(rise)*.2+Math.max(0,y-base)*.25
+                        +Math.max(0,base-y-1)*.8+(ground.placementY(x,z)>base?2:0);
+                if(cost>=visited.getOrDefault(next,Double.POSITIVE_INFINITY)) continue;
+                visited.put(next,cost);open.add(new AccessNode(next,cost,node));
             }
-            steps++;
-            if (tread==groundY) return new Result(input,0,null,0,steps);
-            previous=tread;
         }
-        return failure(input,"入口台阶未能连接到地面，请调整入口朝向或选址。");
+        if(goal==null) return failure(input,"入口附近未找到可通行的接地路线，请扩大可建范围或调整入口位置。");
+        List<BlockPos> route=new ArrayList<>();
+        for(AccessNode n=goal;n.previous()!=null;n=n.previous()) route.add(n.pos());
+        Collections.reverse(route);
+        for(BlockPos p:route) {
+            int base=ground.surfaceY(p.getX(),p.getZ());
+            for(int y=base;y<=p.getY();y++) {
+                BlockPos support=new BlockPos(p.getX(),y,p.getZ());
+                if(!blocks.containsKey(support)) add(prep,support,fill);
+            }
+            for(int y=p.getY()+1;y<=Math.max(base-1,p.getY()+2);y++) {
+                BlockPos head=new BlockPos(p.getX(),y,p.getZ());
+                if(!blocks.containsKey(head)) add(prep,head,Blocks.AIR.getDefaultState());
+            }
+        }
+        return new Result(input,0,null,0,route.size());
     }
 
     private static boolean add(Map<BlockPos,PlannedBlock> out, BlockPos p, BlockState s) {

@@ -25,6 +25,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
         'width': r'(?:宽度|宽)\s*(\d+)\s*格',
         'depth': r'(?:深度|深)\s*(\d+)\s*格',
         'floor_height': r'每层(?:的)?(?:高度|高)\s*(\d+)\s*格',
+        'net_height': r'室内净高\s*(\d+)\s*格',
         'floor_count': r'(?<![\d每])([一二两三四五六七八九十]|\d+)\s*层(?:的)?(?:[^，。；\n]{0,10})?(?:住宅|建筑|大厅|塔楼|民居|房屋|别墅|高|，|、|。)',
     }
     for key, pattern in patterns.items():
@@ -35,6 +36,9 @@ def _extract_global_requirements(text: str) -> list[dict]:
                        'unit': 'floors' if key == 'floor_count' else 'blocks', 'source': 'user_explicit',
                        'source_text': [m[0] for m in matches], 'scope': 'all_main_masses' if len(values) == 1 else 'unresolved',
                        'priority': 'hard', 'status': 'pending' if len(values) == 1 else 'unsupported_scope'})
+    if re.search(r'双坡屋\s*顶|山墙屋\s*顶', text) and not re.search(r'不要.{0,3}(?:双坡|山墙)', text):
+        result.append({'id': 'req_roof_gable', 'property': 'roof_type', 'value': 'gable', 'source': 'user_explicit',
+                       'source_text': ['双坡屋顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     if re.search(r'平屋顶|平顶', text) and not re.search(r'不要.{0,3}(?:平屋顶|平顶)', text):
         result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
                        'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
@@ -87,10 +91,12 @@ def extract_requirements(text: str) -> list[dict]:
     """Recognize explicit ordinal declarations; never infer ownership from component order."""
     declarations = list(re.finditer(
         r'第([一二两三四五六七八九十]|\d+)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?:是)?', text))
-    if not declarations:
+    directional = list(re.finditer(r'(左|右)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?:使用|采用|是)?', text))
+    if not declarations and not directional:
         return _extract_global_requirements(text)
     events = [(m.start(), m.end(), 'building_' + str(NUMBERS[m[1]] if m[1] in NUMBERS else int(m[1])))
               for m in declarations]
+    events += [(m.start(), m.end(), 'building_1' if m[1] == '左' else 'building_2') for m in directional]
     events += [(m.start(), m.end(), 'all_main_masses') for m in re.finditer(r'所有建筑|全部建筑|两栋均|两栋都|每栋均|每栋都', text)]
     events.sort()
     result = _extract_global_requirements(text[:events[0][0]])
@@ -245,6 +251,19 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         params['host_id'] = host['params']['component_id']
         params['building_id'] = host['params']['building_id']
         params['host_source'] = 'legacy_geometry_inference'
+    # Left/right are geometric scopes, never the model's component array order.
+    if re.search(r'左栋', text) and re.search(r'右栋', text) and len(masses) == 2:
+        frames = {s.get('slot_id'): s for s in slots if isinstance(s, dict)}
+        ordered = sorted(masses, key=lambda m: _center(m)[0] + frames.get(m.get('slot_id'), {}).get('anchor', {}).get('x', 0))
+        for index, mass in enumerate(ordered, 1):
+            mass['params']['requirement_scope'] = 'building_' + str(index)
+    for mass in masses:
+        own = [r for r in requirements if r['scope'] in ('all_main_masses', mass['params'].get('requirement_scope'))]
+        clear = next((r['value'] for r in own if r['property'] == 'net_height' and isinstance(r['value'], int)), None)
+        if clear is not None:
+            floors = max(1, int(mass['params'].get('floor_count', 1)))
+            mass['params']['floor_height'] = clear + 1
+            mass['dimensions']['height'] = max(mass['dimensions'].get('height', 0), floors * (clear + 1) + 1)
     bindings = {}
     for mass in masses:
         scope = mass['params'].get('requirement_scope')
@@ -279,6 +298,9 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             invalid = [c['params']['component_id'] for c in targets if envelope_size(c) != expected]
         elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type'):
             invalid = [c['params']['component_id'] for c in targets if c['params'].get(key) != expected]
+        elif key == 'net_height':
+            invalid = [c['params']['component_id'] for c in targets
+                       if c['dimensions']['height'] < int(c['params'].get('floor_count', 1)) * (expected + 1) + 1]
         elif key == 'entrance_facing':
             def facing(c):
                 slot = slots.get(c.get('slot_id'))
@@ -306,6 +328,11 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if not building['floor_layout_fits']:
             contract['diagnostics'].append({'code': 'E_FLOOR_ENVELOPE', 'component_id': building['component_id']})
     failures = [r for r in requirements if r['status'] == 'mismatch']
+    previous_gap = out.get('capability_gap') or {}
+    if not failures and not contract['diagnostics'] and previous_gap.get('code') == 'E_BUILDING_CONTRACT' \
+            and previous_gap.get('path') == 'proportion_hints.building_contract':
+        out.pop('capability_gap', None)
+        out.pop('plan_status', None)
     if finalize and not out.get('capability_gap') and (failures or contract['diagnostics']):
         out['plan_status'] = 'capability_gap'
         out['capability_gap'] = {'code': 'E_BUILDING_CONTRACT', 'message': '建筑方案未满足明确要求或主体引用无效',

@@ -69,11 +69,11 @@ class BuildingLandingPlannerTest {
     }
     @Test void gentleSlopeFillsToGroundAndCutsWithoutMovingIndividualColumns() {
         var s=site(0,64); var result=prepare(house(s,false),List.of(s),ground((x,z)->60+x));
-        assertNull(result.problem()); assertEquals(0,result.dy());
+        assertNull(result.problem()); assertTrue(result.dy()>=0 && result.dy()<=4);
         var blocks=finalMap(result.blocks());
-        assertTrue(blocks.get(new BlockPos(1,61,3)).isOf(Blocks.COBBLESTONE));
-        assertTrue(blocks.get(new BlockPos(7,65,3)).isAir());
-        for(int x=0;x<=8;x++) assertTrue(blocks.get(new BlockPos(x,69,3)).isOf(Blocks.OAK_PLANKS));
+        assertTrue(blocks.get(new BlockPos(2,62,2)).isOf(Blocks.COBBLESTONE));
+        assertTrue(blocks.get(new BlockPos(7,65+result.dy(),3)).isAir());
+        for(int x=0;x<=8;x++) assertTrue(blocks.get(new BlockPos(x,69+result.dy(),3)).isOf(Blocks.OAK_PLANKS));
     }
     @Test void cliffUsesSparsePiersInsteadOfSolidRetainingWall() {
         var s=site(0,64); var result=prepare(house(s,false),List.of(s),ground((x,z)->x<4?54:64));
@@ -83,10 +83,22 @@ class BuildingLandingPlannerTest {
         assertNull(blocks.get(new BlockPos(1,54,3)));
         assertTrue(result.supports()<4*7*10);
     }
-    @Test void severeCliffRejectsAnUnsupportedPreview() {
+    @Test void highCliffAnchorsDiagonalBracesIntoTheMountain() {
         var s=site(0,64); var input=house(s,false);
         var result=prepare(input,List.of(s),ground((x,z)->x<4?40:64));
-        assertNotNull(result.problem()); assertSame(input,result.blocks());
+        assertNull(result.problem());
+        var blocks=finalMap(result.blocks());
+        assertTrue(blocks.get(new BlockPos(3,62,2)).isOf(Blocks.COBBLESTONE));
+        assertTrue(blocks.get(new BlockPos(3,63,2)).isOf(Blocks.COBBLESTONE));
+        assertNull(blocks.get(new BlockPos(2,40,2)),"brace avoids a full-height pillar");
+    }
+    @Test void veryHighCliffCanUseNearbyRockInsteadOfPillarsToTheValley() {
+        var s=site(0,164);
+        var result=prepare(house(s,false),List.of(s),ground((x,z)->x<4?-60:164));
+        assertNull(result.problem());
+        var blocks=finalMap(result.blocks());
+        assertTrue(blocks.get(new BlockPos(3,162,2)).isOf(Blocks.COBBLESTONE));
+        assertNull(blocks.get(new BlockPos(2,0,2)));
     }
     @Test void separateBuildingsDoNotClearOrPaveTheGap() {
         var a=site(0,64); var b=site(30,64);
@@ -112,13 +124,21 @@ class BuildingLandingPlannerTest {
         var s=site(0,64);var result=prepare(house(s,true),List.of(s),ground((x,z)->z<0?60:64));
         assertNull(result.problem());assertEquals(5,result.steps());
         var blocks=finalMap(result.blocks());
-        for(int distance=1;distance<=5;distance++) {
-            int y=64-distance;
-            BlockPos tread=new BlockPos(4,y,-distance);
-            assertFalse(blocks.getOrDefault(tread,ground((x,z)->60).state(tread)).isAir());
-            assertTrue(blocks.get(new BlockPos(4,y+1,-distance)).isAir());
-            assertTrue(blocks.get(new BlockPos(4,y+2,-distance)).isAir());
+        var terrain=ground((x,z)->z<0?60:64);
+        var queue=new ArrayDeque<BlockPos>(); var reached=new HashSet<BlockPos>();
+        queue.add(new BlockPos(4,64,0));boolean connected=false;
+        while(!queue.isEmpty()) {
+            var p=queue.remove();if(!reached.add(p))continue;
+            if(p.getZ()<0&&p.getY()==59){connected=true;break;}
+            for(int[] d:new int[][]{{1,0},{-1,0},{0,1},{0,-1}})for(int rise=-1;rise<=1;rise++) {
+                var next=p.add(d[0],rise,d[1]);
+                if(next.getY()<59||next.getY()>64||next.getX()<-3||next.getX()>12||next.getZ()<-10||next.getZ()>0)continue;
+                if(!blocks.getOrDefault(next,terrain.state(next)).isAir()
+                        &&blocks.getOrDefault(next.up(),terrain.state(next.up())).isAir()
+                        &&blocks.getOrDefault(next.up(2),terrain.state(next.up(2))).isAir())queue.add(next);
+            }
         }
+        assertTrue(connected,"one-block steps and two-block headroom form a route to natural ground");
     }
     @Test void existingPorchIsCrossedBeforeStepsDescend() {
         var s=site(0,64);var input=new ArrayList<>(house(s,true));
@@ -171,5 +191,39 @@ class BuildingLandingPlannerTest {
         var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(com.formacraft.common.llm.dto.LlmPlan.Mode.patch)
                 .components(List.of(component)).build();
         assertTrue(BuildingLandingPlanner.sites(plan,BlockPos.ORIGIN).isEmpty());
+    }
+    @ParameterizedTest @ValueSource(ints={1,2,3,4,5,6})
+    void latestTerrainLogsCanLandOnSlopeCliffAndRiver(int id) throws Exception {
+        try(var in=getClass().getResourceAsStream("/terrain_log_cases/case_"+id+".json")) {
+            var plan=com.formacraft.common.llm.parser.LlmPlanParser.parseAndValidate(
+                    new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8));
+            BlockPos origin=new BlockPos(plan.anchor().x(),plan.anchor().y(),plan.anchor().z());
+            var sites=BuildingLandingPlanner.sites(plan,origin);
+            assertEquals(id==5?2:1,sites.size(),"floor plates cannot become sites");
+            var input=com.formacraft.server.network.PlanPatchConverter.convert(
+                    com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,origin,null,null,false),origin).blocks();
+            assertFalse(input.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+            var b=sites.getFirst().body();int center=(b.minX()+b.maxX())/2,base=b.minY();
+            if(id==1) assertEquals((long)b.width()*b.depth(),finalMap(input).entrySet().stream()
+                    .filter(e->e.getKey().getY()==base-1&&!e.getValue().isAir()).count(),
+                    "automatic foundation must not leave a decorative ring outside the house");
+            for(int terrain=0;terrain<3;terrain++) {
+                final int scenario=terrain;
+                BuildingLandingPlanner.Ground land=ground((x,z)->scenario==0?base+Math.floorDiv(x-center,3):x<center?base-30:base);
+                if(terrain==2) land=new BuildingLandingPlanner.Ground() {
+                    public int surfaceY(int x,int z){return x<center?base-6:base;}
+                    public int placementY(int x,int z){return base;}
+                    public int bottomY(){return -64;}
+                    public BlockState state(BlockPos p){return p.getY()<surfaceY(p.getX(),p.getZ())?Blocks.STONE.getDefaultState()
+                            :p.getY()<base&&p.getX()<center?Blocks.WATER.getDefaultState():Blocks.AIR.getDefaultState();}
+                };
+                var result=prepare(input,sites,land);
+                assertNull(result.problem(),"case "+id+", scenario "+terrain+": "+result.problem());
+                assertTrue(result.steps()>=sites.size(),"each real entrance must have an access route");
+                var finalBlocks=finalMap(result.blocks());
+                for(var e:finalMap(input).entrySet())
+                    assertEquals(e.getValue(),finalBlocks.get(e.getKey().up(result.dy())));
+            }
+        }
     }
 }

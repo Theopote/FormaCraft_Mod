@@ -85,12 +85,15 @@ public final class BuildPreviewPipeline {
             return new Result(null, report, false);
         }
 
-        GeneratedStructure structure = new GeneratedStructure(
-                player.getUuid(),
-                generated.getOrigin(),
-                generated.getDescription(),
-                clipped
-        );
+        GeneratedStructure structure = null;
+        if (generated != null) {
+            structure = new GeneratedStructure(
+                    player.getUuid(),
+                    generated.getOrigin(),
+                    generated.getDescription(),
+                    clipped
+            );
+        }
 
         storeReport(player, report);
         return new Result(structure, report, true);
