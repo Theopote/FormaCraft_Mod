@@ -2,6 +2,8 @@
 
 日期：2026-10-04。
 
+第十三批补充 [矩形退台附楼平屋顶接合](STEPPED_ANNEX_ROOF_ATTACHMENT.md)，附楼不再全部保留底层范围；本页仍描述第十二批的矩形主体接合规则。
+
 编译器的 makeRoofComponent 现在对实际形状掩码完整为矩形的 MASS_MAIN 使用 ResolvedFacadeLayers 顶层配置。屋顶核心原点为主体最小角点加顶层 x/z 偏移，核心宽深为顶层宽深，接合 y 仍为主体 maxY-1。推断屋顶及显式屋顶的宿主对齐都使用该模板，不会在后续对齐时退回底层尺寸。
 
 屋顶核心与屋檐分开：RoofGenerator 继续按 overhang 扩展核心。用户显式 overhang 和屋顶高度保留；显式宽深超过新核心时，沿用现有 alignRoofToMass 规则折算为对称 overhang，取两轴超出量的一半较大者，并与现有 overhang 取最大值。这保留宽屋顶意图，**不保证任意显式宽深原样或非对称外挑**；该换算规则原已存在。

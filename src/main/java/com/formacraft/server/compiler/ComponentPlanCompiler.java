@@ -741,7 +741,7 @@ public final class ComponentPlanCompiler {
                 continue;
             }
             String type = normalizeType(c.componentType());
-            if (isMassType(type) || isResolvedPartRoof(c, components)) {
+            if (isMassType(type) || isResolvedPartRoof(c, components, plan)) {
                 continue;
             }
             Object hostId = c.params() == null ? null : c.params().get("host_id");
@@ -801,18 +801,24 @@ public final class ComponentPlanCompiler {
         }
     }
 
-    private static boolean isResolvedPartRoof(Component roof, List<Component> components) {
+    private static boolean isResolvedPartRoof(Component roof, List<Component> components, LlmPlan plan) {
         if (!isRoofType(normalizeType(roof.componentType())) || roof.params() == null
                 || !Boolean.TRUE.equals(roof.params().get("resolved_mass_part_roof"))) return false;
         Object partId = roof.params().get("host_part_id");
         for (Component mass : components) {
             if (mass == null || !"MASS_MAIN".equals(normalizeType(mass.componentType()))
                     || !slotKey(mass).equals(slotKey(roof))) continue;
+            Object hostId = roof.params().get("host_id");
+            if (hostId != null && mass.params() != null && mass.params().get("component_id") != null
+                    && !hostId.equals(mass.params().get("component_id"))) continue;
             var parts = com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(mass);
             for (int i = 1; i < parts.size(); i++) {
                 var part = parts.get(i);
-                if (part.partId().equals(partId) && new Vec3i(part.origin().x(), part.bounds().maxY()-1,
-                        part.origin().z()).equals(roof.relativePosition())) return true;
+                if (!part.partId().equals(partId)) continue;
+                var frame = resolvePartRoofFrame(plan, mass, part);
+                if (frame != null && frame.origin().equals(roof.relativePosition())
+                        && roof.dimensions() != null && frame.width() == roof.dimensions().width()
+                        && frame.depth() == roof.dimensions().depth()) return true;
             }
         }
         return false;
@@ -1365,6 +1371,26 @@ public final class ComponentPlanCompiler {
         );
     }
 
+    private record PartRoofFrame(Vec3i origin, int width, int depth) {}
+
+    private static PartRoofFrame resolvePartRoofFrame(LlmPlan plan, Component mass,
+            com.formacraft.common.generation.component.util.ResolvedMassPart part) {
+        var params = new HashMap<String,Object>();
+        if (mass.params() != null) params.putAll(mass.params());
+        params.putAll(part.sourceParams());
+        var semantic = new SemanticComponent(mass.componentType(),null,mass,
+                plan.styleProfile(),plan.styleAttributes(),plan.genome());
+        var dims = part.dimensions();
+        var mask = com.formacraft.common.generation.component.util.ComponentFootprintMask.from(semantic,params,dims.width(),dims.depth());
+        for (int x = 0; x < dims.width(); x++) for (int z = 0; z < dims.depth(); z++)
+            if (!mask.contains(x,z)) return null;
+        // Nested masses use the root component's feature/floor/setback policy in emitMass.
+        var layers = com.formacraft.common.generation.component.util.ResolvedFacadeLayers.resolve(semantic,dims.width(),dims.depth(),dims.height());
+        var top = layers[layers.length-1];
+        return new PartRoofFrame(new Vec3i(part.origin().x()+top.xOffset,part.bounds().maxY()-1,part.origin().z()+top.zOffset),
+                Math.min(dims.width(),top.width),Math.min(dims.depth(),top.depth));
+    }
+
     private static void inferNestedFlatRoofs(LlmPlan plan, Component mass, List<Component> components,
                                              List<Component> inferred, String slotId) {
         if (!"MASS_MAIN".equals(normalizeType(mass.componentType()))) return;
@@ -1384,6 +1410,8 @@ public final class ComponentPlanCompiler {
             if (parts.getFirst().bounds().contains(part.bounds())
                     && part.bounds().maxY() <= parts.getFirst().bounds().maxY()) continue;
             if (part.dimensions().width() < 2 || part.dimensions().depth() < 2) continue;
+            var frame = resolvePartRoofFrame(plan,mass,part);
+            if (frame == null) continue;
             String requestedRoof = getParamString(part.sourceParams(), "roof_type", "roofType");
             if (requestedRoof != null && !"flat".equalsIgnoreCase(requestedRoof)) continue;
             var params = new HashMap<String, Object>();
@@ -1408,7 +1436,8 @@ public final class ComponentPlanCompiler {
             roofParams.put("component_id", part.partId() + "#roof");
             roofParams.put("host_part_id", part.partId());
             roofParams.put("resolved_mass_part_roof", true);
-            inferred.add(new Component("ROOF", slotId, derived.relativePosition(), derived.dimensions(), List.of("roof"), roofParams));
+            inferred.add(new Component("ROOF", slotId, frame.origin(),
+                    new Dimensions(frame.width(),frame.depth(),derived.dimensions().height()), List.of("roof"), roofParams));
         }
     }
 
