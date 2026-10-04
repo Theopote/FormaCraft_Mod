@@ -298,9 +298,8 @@ public final class ComponentPlanCompiler {
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
-        ordered.sort(java.util.Comparator.comparing(c ->
-            com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
-                || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)));
+        ordered.sort(java.util.Comparator.comparingInt(ComponentPlanCompiler::compilationPriority));
+        var surfaceLedger = new SurfaceOwnershipLedger();
         for (Component c : ordered) {
             if (c == null) continue;
             String normalizedType = normalizeType(c.componentType());
@@ -385,10 +384,11 @@ public final class ComponentPlanCompiler {
                     }
 
 
+                    var shiftedPatches = new ArrayList<BlockPatch>();
                     if (slotAnchor != null) {
                         for (BlockPatch patch : patches) {
                             if (patch != null) {
-                                result.add(new BlockPatch(
+                                shiftedPatches.add(new BlockPatch(
                                         patch.action(),
                                         slotAnchor.x() + patch.dx(),
                                         slotAnchor.y() + patch.dy(),
@@ -399,8 +399,20 @@ public final class ComponentPlanCompiler {
                         }
                     } else {
                         FormacraftMod.LOGGER.warn("ComponentPlanCompiler: missing slotAnchor, component={}", c.componentType());
-                        result.addAll(patches);
+                        shiftedPatches.addAll(patches);
                     }
+                    var surfaceConflict = surfaceLedger.check(c, shiftedPatches);
+                    if (surfaceConflict.isPresent()) {
+                        var conflict = surfaceConflict.get();
+                        AssemblyCompileDiagnostics.set(new CapabilityGap("E_SURFACE_OVERWRITE_FORBIDDEN",
+                                "构件覆盖外壳冲突：writer=" + conflict.writer() + ", owner=" + conflict.surface().owner()
+                                        + ", surface=" + conflict.surface().role() + ", plan=" + conflict.position().toShortString()
+                                        + "; " + conflict.reason(), "components[]",
+                                List.of("Keep decoration non-destructive; bind wall openings to their host building.")));
+                        return;
+                    }
+                    result.addAll(shiftedPatches);
+                    surfaceLedger.accept(c, shiftedPatches, surfaceCells, flightOffset);
                 } else {
                     FormacraftMod.LOGGER.warn(
                             "ComponentPlanCompiler: no patches generated for component: {}{}",
@@ -412,6 +424,15 @@ public final class ComponentPlanCompiler {
                         c.componentType(), e.getMessage(), e);
             }
         }
+    }
+
+    private static int compilationPriority(Component c) {
+        if (c == null) return 2;
+        if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
+                || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)) return 3;
+        String type = normalizeType(c.componentType());
+        if (isMassType(type)) return 0;
+        return "ROOF".equals(type) || "ROOF_STRUCTURE".equals(type) ? 1 : 2;
     }
 
     private static PreparedComponents prepareComponents(LlmPlan plan, Map<String, Slot> slotMap, boolean allowAssemblyFacade) {
