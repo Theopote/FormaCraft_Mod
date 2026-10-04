@@ -341,7 +341,8 @@ public final class ComponentPlanCompiler {
                     for (var flight : componentFlights)
                         circulation.add(AssemblyCirculationConstraints.shift(flight, flightOffset));
                     if (isMassType(normalizedType)) {
-                        var bounds = ComponentFootprintUtil.bounds(c);
+                        for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
+                        var bounds = part.bounds();
                         if (bounds != null) {
                             Vec3i offset = slotAnchor == null ? new Vec3i(0, 0, 0) : slotAnchor;
                             var shifted = new ComponentFootprintUtil.Bounds(bounds.minX() + offset.x(), bounds.minY() + offset.y(),
@@ -349,6 +350,7 @@ public final class ComponentPlanCompiler {
                             int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
                                 .resolveFloorHeight(plan, c, shifted.height());
                             buildingVolumes.add(new PostProcessContext.BuildingVolume(slotKey, shifted, floorHeight));
+                        }
                         }
                     }
 
@@ -520,6 +522,7 @@ public final class ComponentPlanCompiler {
                     c = suppressMassRoof(c);
                 }
             }
+            inferNestedFlatRoofs(plan, c, components, inferred, slotId);
             if (!slotsWithCrown.contains(slotKey)
                     && !NonClassicalEnrichmentGuard.blocksCrownInference(plan)
                     && ComponentCrownDecorator.shouldApply(plan, c.params())) {
@@ -643,7 +646,7 @@ public final class ComponentPlanCompiler {
                 continue;
             }
             String type = normalizeType(c.componentType());
-            if (isMassType(type)) {
+            if (isMassType(type) || isResolvedPartRoof(c, components)) {
                 continue;
             }
             Object hostId = c.params() == null ? null : c.params().get("host_id");
@@ -701,6 +704,23 @@ public final class ComponentPlanCompiler {
         if (realigned > 0) {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: realigned {} satellite component(s) to MASS min_corner", realigned);
         }
+    }
+
+    private static boolean isResolvedPartRoof(Component roof, List<Component> components) {
+        if (!isRoofType(normalizeType(roof.componentType())) || roof.params() == null
+                || !Boolean.TRUE.equals(roof.params().get("resolved_mass_part_roof"))) return false;
+        Object partId = roof.params().get("host_part_id");
+        for (Component mass : components) {
+            if (mass == null || !"MASS_MAIN".equals(normalizeType(mass.componentType()))
+                    || !slotKey(mass).equals(slotKey(roof))) continue;
+            var parts = com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(mass);
+            for (int i = 1; i < parts.size(); i++) {
+                var part = parts.get(i);
+                if (part.partId().equals(partId) && new Vec3i(part.origin().x(), part.bounds().maxY()-1,
+                        part.origin().z()).equals(roof.relativePosition())) return true;
+            }
+        }
+        return false;
     }
 
     private static GlobalConstraints.Facing resolveSlotFacing(LlmPlan plan, Map<String, Slot> slotMap, String slotId) {
@@ -1228,6 +1248,53 @@ public final class ComponentPlanCompiler {
                 features,
                 params
         );
+    }
+
+    private static void inferNestedFlatRoofs(LlmPlan plan, Component mass, List<Component> components,
+                                             List<Component> inferred, String slotId) {
+        if (!"MASS_MAIN".equals(normalizeType(mass.componentType()))) return;
+        var parts = com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(mass);
+        if (parts.size() < 2) return;
+        Component roof = null;
+        Object rootId = mass.params() == null ? null : mass.params().get("component_id");
+        for (Component candidate : java.util.stream.Stream.concat(components.stream(), inferred.stream()).toList()) {
+            if (!isRoofType(normalizeType(candidate.componentType())) || !slotKey(candidate).equals(slotKey(mass))) continue;
+            Object host = candidate.params() == null ? null : candidate.params().get("host_id");
+            if (rootId != null && rootId.equals(host)) { roof = candidate; break; }
+            if (host == null && roof == null) roof = candidate;
+        }
+        if (roof == null || !"flat".equalsIgnoreCase(getParamString(roof.params(), "roof_type", "roofType"))) return;
+        for (int i = 1; i < parts.size(); i++) {
+            var part = parts.get(i);
+            if (parts.getFirst().bounds().contains(part.bounds())
+                    && part.bounds().maxY() <= parts.getFirst().bounds().maxY()) continue;
+            if (part.dimensions().width() < 2 || part.dimensions().depth() < 2) continue;
+            String requestedRoof = getParamString(part.sourceParams(), "roof_type", "roofType");
+            if (requestedRoof != null && !"flat".equalsIgnoreCase(requestedRoof)) continue;
+            var params = new HashMap<String, Object>();
+            if (mass.params() != null) params.putAll(mass.params());
+            params.putAll(part.sourceParams());
+            params.remove("masses"); params.remove("offset"); params.remove("dimensions");
+            String shape = getParamString(params, "shape", "footprint_shape", "footprintShape");
+            String pattern = getParamString(params, "plan_type", "planType");
+            if (shape != null && !List.of("rectangle", "rect", "box").contains(shape.toLowerCase(Locale.ROOT))) continue;
+            if (pattern != null && !List.of("rectangle", "rect", "box", "none").contains(pattern.toLowerCase(Locale.ROOT))) continue;
+            params.put("anchor_mode", "min_corner");
+            params.put("component_id", part.partId());
+            Component body = new Component("MASS_SECONDARY", slotId, part.origin(), part.dimensions(), List.of(), params);
+            Component derived = makeRoofComponent(plan, body, slotId);
+            var roofParams = new HashMap<String, Object>();
+            roofParams.putAll(derived.params());
+            if (roof.params() != null) roofParams.putAll(roof.params());
+            roofParams.remove("masses");
+            roofParams.put("anchor_mode", "min_corner");
+            copyFootprintParams(params, roofParams);
+            roofParams.put("roof_type", "flat");
+            roofParams.put("component_id", part.partId() + "#roof");
+            roofParams.put("host_part_id", part.partId());
+            roofParams.put("resolved_mass_part_roof", true);
+            inferred.add(new Component("ROOF", slotId, derived.relativePosition(), derived.dimensions(), List.of("roof"), roofParams));
+        }
     }
 
     private static Component applyRoofGrammar(LlmPlan plan, Component roof) {

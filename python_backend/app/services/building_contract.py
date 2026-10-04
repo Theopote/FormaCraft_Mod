@@ -190,8 +190,13 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if key == 'no_complex_decor':
             invalid = [c['params']['component_id'] for c in owned if c.get('component_type') in ('CROWN', 'CUPOLA', 'DOME')]
         elif key in ('width', 'depth'):
-            from .resolved_geometry import body_dimensions
-            invalid = [c['params']['component_id'] for c in targets if body_dimensions(c).get(key) != expected]
+            from .resolved_geometry import multi_mass_geometry
+            axis = 'x' if key == 'width' else 'z'
+            def envelope_size(component):
+                envelope = multi_mass_geometry(component)['envelope_local']
+                return envelope['max_' + axis] - envelope['min_' + axis]
+            requirement['dimension_subject'] = 'building_envelope'
+            invalid = [c['params']['component_id'] for c in targets if envelope_size(c) != expected]
         elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block'):
             invalid = [c['params']['component_id'] for c in targets if c['params'].get(key) != expected]
         elif key == 'entrance_facing':

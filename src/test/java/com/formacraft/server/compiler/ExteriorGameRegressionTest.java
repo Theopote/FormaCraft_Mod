@@ -11,6 +11,37 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorGameRegressionTest {
+    @Test void nestedAnnexFlatRoofKeepsItsOwnHeightAndLShapedVoid() throws Exception {
+        MinecraftRegistryTestBootstrap.initialize();
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        try (var input = getClass().getResourceAsStream("/regressions/multi-mass-geometry.json")) {
+            var mass = mapper.treeToValue(mapper.readTree(input).get(0).get("component"), Component.class);
+            var roof = new Component("ROOF", "house", new com.formacraft.common.llm.dto.Vec3i(100, 7, 100),
+                    new com.formacraft.common.llm.dto.Dimensions(6, 6, 1), List.of(),
+                    Map.of("roof_type", "flat", "overhang", 0, "host_id", "house",
+                            "resolved_mass_part_roof", true, "host_part_id", "missing"));
+            var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+                    .components(List.of(mass, roof)).build();
+            var method = ComponentPlanCompiler.class.getDeclaredMethod("prepareComponents",
+                    com.formacraft.common.llm.dto.LlmPlan.class, Map.class, boolean.class);
+            method.setAccessible(true);
+            var prepared = method.invoke(null, plan, Map.of(), false);
+            var accessor = prepared.getClass().getDeclaredMethod("components");
+            accessor.setAccessible(true);
+            @SuppressWarnings("unchecked") var components = (List<Component>) accessor.invoke(prepared);
+            assertTrue(components.stream().filter(c -> "ROOF".equals(c.componentType()))
+                    .anyMatch(c -> new com.formacraft.common.llm.dto.Vec3i(0, 7, 0).equals(c.relativePosition())),
+                    "An unverified marker must not bypass parent roof alignment");
+            var annexRoof = components.stream().filter(c -> c.params() != null
+                    && "house#mass_1".equals(c.params().get("host_part_id"))).findFirst().orElseThrow();
+            assertEquals(new com.formacraft.common.llm.dto.Vec3i(6, 4, 2), annexRoof.relativePosition());
+            var patches = new com.formacraft.common.generation.component.impl.RoofGenerator()
+                    .generate(new SemanticComponent("ROOF", null, annexRoof));
+            assertTrue(patches.stream().anyMatch(p -> p.dx() == 8 && p.dy() == 4 && p.dz() == 4));
+            assertFalse(patches.stream().anyMatch(p -> p.dx() >= 6 && p.dz() < 2), "Do not fill the L-shaped void");
+            assertFalse(ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty());
+        }
+    }
     @Test void legacyEntranceDirectionAdapterMatchesGeneratedDoorPlanes() {
         MinecraftRegistryTestBootstrap.initialize();
         for (var facing : com.formacraft.common.llm.dto.GlobalConstraints.Facing.values()) {

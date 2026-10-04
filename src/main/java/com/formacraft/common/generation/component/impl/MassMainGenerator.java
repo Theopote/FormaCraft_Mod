@@ -1086,28 +1086,14 @@ public class MassMainGenerator implements ComponentGenerator {
                                           FootprintShape baseShape, int cornerRadius,
                                           PatternConfig basePattern) {
         List<MassConfig> masses = new ArrayList<>();
-        masses.add(new MassConfig(0, 0, 0, width, depth, height, baseShape, cornerRadius, basePattern));
-
-        Object massesObj = params != null ? params.get("masses") : null;
-        if (!(massesObj instanceof List<?> list)) {
-            return masses;
-        }
-
-        for (Object obj : list) {
-            Map<String, Object> m = asMap(obj);
-            if (m == null) continue;
-            Map<String, Object> offset = asMap(m.get("offset"));
-            Map<String, Object> dims = asMap(m.get("dimensions"));
-            if (dims == null) continue;
-
-            int mw = ComponentParamParsers.intParam(dims, width, "width");
-            int md = ComponentParamParsers.intParam(dims, depth, "depth");
-            int mh = ComponentParamParsers.intParam(dims, height, "height");
-            if (mw <= 0 || md <= 0 || mh <= 0) continue;
-
-            int ox = offset != null ? ComponentParamParsers.intParam(offset, 0, "x") : 0;
-            int oy = offset != null ? ComponentParamParsers.intParam(offset, 0, "y") : 0;
-            int oz = offset != null ? ComponentParamParsers.intParam(offset, 0, "z") : 0;
+        for (var resolved : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(semantic.source())) {
+            Map<String, Object> m = resolved.sourceParams();
+            int mw = resolved.dimensions().width(), md = resolved.dimensions().depth(), mh = resolved.dimensions().height();
+            int ox = resolved.offset().x(), oy = resolved.offset().y(), oz = resolved.offset().z();
+            if (ox == 0 && oy == 0 && oz == 0 && masses.isEmpty()) {
+                masses.add(new MassConfig(0, 0, 0, width, depth, height, baseShape, cornerRadius, basePattern));
+                continue;
+            }
 
             FootprintShape shape = baseShape;
             String massShape = getParamString(m, "shape");

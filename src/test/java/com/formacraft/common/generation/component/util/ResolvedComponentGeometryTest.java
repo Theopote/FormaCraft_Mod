@@ -11,6 +11,30 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ResolvedComponentGeometryTest {
+    @Test void nestedPartsShareBackendFixturesAndEmitTheirActualEnvelope() throws Exception {
+        var mapper = new ObjectMapper();
+        MinecraftRegistryTestBootstrap.initialize();
+        try (var input = getClass().getResourceAsStream("/regressions/multi-mass-geometry.json")) {
+            for (var fixture : mapper.readTree(input)) {
+                var c = mapper.treeToValue(fixture.get("component"), Component.class);
+                var parts = ResolvedMassPart.resolve(c);
+                assertEquals(2, parts.size());
+                var expected = fixture.get("expected");
+                for (int i = 0; i < parts.size(); i++) {
+                    assertEquals(expected.get("part_ids").get(i).asText(), parts.get(i).partId());
+                    assertEquals(mapper.treeToValue(expected.get("part_origins").get(i), Vec3i.class), parts.get(i).origin());
+                    assertEquals(expected.get("roof_ys").get(i).asInt(), parts.get(i).bounds().maxY()-1);
+                }
+                var union = parts.getFirst().bounds().union(parts.get(1).bounds());
+                assertEquals(expected.get("envelope").get("max_x").asInt(), union.maxX());
+                assertEquals(expected.get("envelope").get("max_y").asInt(), union.maxY());
+                if ("circle".equals(fixture.get("name").asText())) continue;
+                var patches = new MassMainGenerator().generate(new SemanticComponent("MASS_MAIN", null, c));
+                assertEquals(union.maxX()-1, patches.stream().mapToInt(p -> p.dx()).max().orElseThrow());
+                assertEquals(union.maxY()-1, patches.stream().mapToInt(p -> p.dy()).max().orElseThrow());
+            }
+        }
+    }
     @Test void sharesBackendGeometryFixtures() throws Exception {
         var mapper = new ObjectMapper();
         try (var input = getClass().getResourceAsStream("/regressions/resolved-geometry.json")) {

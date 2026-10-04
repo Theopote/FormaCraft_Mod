@@ -1,11 +1,40 @@
 import json
 from pathlib import Path
 import unittest
-from app.services.resolved_geometry import resolve_buildings, mass_origin
+from app.services.resolved_geometry import resolve_buildings, mass_origin, multi_mass_geometry
 from app.services.building_contract import apply_building_contract
 
 
 class ResolvedGeometryTest(unittest.TestCase):
+    def test_shared_multi_mass_parts_and_outline_preserve_l_shaped_void(self):
+        path = Path(__file__).resolve().parents[2] / 'src/test/resources/regressions/multi-mass-geometry.json'
+        for case in json.loads(path.read_text(encoding='utf-8')):
+            with self.subTest(case=case['name']):
+                geometry, expected = multi_mass_geometry(case['component']), case['expected']
+                self.assertEqual(expected['part_ids'], [p['part_id'] for p in geometry['parts']])
+                self.assertEqual(expected['part_origins'], [p['local_origin'] for p in geometry['parts']])
+                self.assertEqual(expected['roof_ys'], [p['roof_y_local'] for p in geometry['parts']])
+                self.assertEqual(expected['envelope'], geometry['envelope_local'])
+                if expected['perimeter'] is None:
+                    self.assertEqual('bounds_only', geometry['footprint_status'])
+                    self.assertEqual([], geometry['outline_local'])
+                else:
+                    self.assertEqual('rectangular_union', geometry['footprint_status'])
+                    self.assertEqual(expected['perimeter'], sum(e['end']-e['start'] for e in geometry['outline_local']))
+                    self.assertEqual(6, len(geometry['outline_local']))
+                    east_at_six = [e for e in geometry['outline_local'] if e['direction']=='EAST' and e['plane']==6]
+                    self.assertEqual([{'direction':'EAST','plane':6,'start':0,'end':2}], east_at_six)
+
+    def test_invalid_parts_keep_original_index_and_are_not_separate_buildings(self):
+        body = {'component_type':'MASS_MAIN','dimensions':{'width':6,'depth':6,'height':8},
+                'params':{'component_id':'root','masses':[{'dimensions':{'width':0}},
+                         {'offset':{'x':6},'dimensions':{'width':4,'depth':4,'height':5}}]}}
+        buildings = resolve_buildings({'components':[body]})
+        self.assertEqual(1, len(buildings))
+        self.assertEqual(['root','root#mass_2'], [p['part_id'] for p in buildings[0]['multi_mass']['parts']])
+        result = apply_building_contract({'components':[body]}, '建造宽10格的建筑', finalize=True)
+        self.assertNotIn('capability_gap', result)
+        self.assertEqual('building_envelope', result['proportion_hints']['building_contract']['requirements'][0]['dimension_subject'])
     def test_shared_java_python_geometry_cases(self):
         path = Path(__file__).resolve().parents[2] / 'src/test/resources/regressions/resolved-geometry.json'
         for case in json.loads(path.read_text(encoding='utf-8')):

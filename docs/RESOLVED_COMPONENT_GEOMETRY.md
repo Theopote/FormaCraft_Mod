@@ -30,9 +30,9 @@ Java 不按 floor_count 静默扩充外壳。楼层参数要求的总层高大�
 
 ## 边界与下一步
 
-本批不是完整的 ResolvedBuilding。PlanProgram、typology、assembly 内部坐标尚未接入；复杂 MASS_MAIN.params.masses 的子体块、非矩形外壳的精确占用、跨 slot 旋转和多体块建筑归属仍待统一。解析楼层标高不生成楼板、洞口或楼梯；内部连通性仍由现有生成器处理。
+本批不是完整的 ResolvedBuilding。PlanProgram、typology、assembly 内部坐标尚未接入。第四批已接入 [nested masses 的体块归属与几何](MULTI_MASS_BUILDING_GEOMETRY.md)；非矩形外壳的精确占用、跨 slot 旋转及独立 components 合并为同一建筑仍待统一。解析楼层标高不生成楼板、洞口或楼梯；内部连通性仍由现有生成器处理。
 
-下一批优先把多个体块组成同一建筑的归属与外轮廓纳入模型，再验证最终墙体和屋顶覆盖。内部保持基础楼层与楼梯，不投入复杂房间布局。
+下一步优先验证最终墙体和屋顶覆盖，并扩展独立 components 的多体块归属。内部保持基础楼层与楼梯，不投入复杂房间布局。
 
 ## 回归证据
 

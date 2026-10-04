@@ -66,7 +66,7 @@
 
 `tests/test_building_contract.py` 覆盖原文提取、需求不被改写、方案验证边界、身份幂等、卫星在主体之前、显式远端 host、无效引用、跨坐标系、连廊及历史隔离。Java `ComponentPlanCompilerRealignTest.explicitHostWinsOverNearestMass` 验证屋顶位置遵从显式主体，并保留身份。
 
-第三批已统一 components 的基础原点、主体尺寸、边界与显式楼层标高。下一批应让多个体块能够组成同一建筑，再实现外墙、屋顶与开口的最终方块验收，才能把 `planned` 升级为实际需求达成报告。
+第三批已统一 components 的基础原点、主体尺寸、边界与显式楼层标高。第四批已接入 [nested masses 多体块模型](MULTI_MASS_BUILDING_GEOMETRY.md)，宽深检查整栋包围范围；独立 components 合并与外墙、屋顶、开口的最终方块验收仍待实施，才能把 `planned` 升级为实际需求达成报告。
 
 ### 本批验证记录
 
@@ -89,3 +89,9 @@
 - Java 513 项与后端相关 52 项测试通过，构建成功。
 - 后端全套 366 项，仍有相同的 10 项已知失败。
 - 两端共用的几何样例与具体接入边界见 [components 共享几何解析](RESOLVED_COMPONENT_GEOMETRY.md)。
+
+### 第四批验证记录
+
+- Java 515 项与后端相关 54 项测试通过，构建成功。
+- 后端全套 368 项，仍有相同的 10 项已知失败。
+- 多体块外轮廓、宽深需求及附楼平屋顶的接入范围见 [多体块几何](MULTI_MASS_BUILDING_GEOMETRY.md)。
