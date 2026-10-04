@@ -191,7 +191,10 @@ public final class ComponentPlanCompiler {
         // 后处理步骤
         if (globalAnchor != null) {
             Set<BlockPos> clearance = new HashSet<>();
-            for (var flight : circulation) clearance.addAll(flight.clearance());
+            for (var flight : circulation) {
+                clearance.addAll(flight.clearance());
+                clearance.addAll(flight.occupied());
+            }
             PostProcessContext context = PostProcessContext.create(plan, globalAnchor, buildingVolumes, clearance);
             PostProcessPipeline pipeline;
             

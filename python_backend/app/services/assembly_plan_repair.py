@@ -68,6 +68,8 @@ def finalize_assembly_plan_or_gap(
         return plan
 
     from .assembly_plan_validator import detects_assembly_intent
+    from .circulation_plan_normalizer import normalize_circulation_plan
+    plan = normalize_circulation_plan(plan)
 
     assembly_context = detects_assembly_intent(user_text) or _plan_has_assembly_component(plan)
     if not assembly_context:

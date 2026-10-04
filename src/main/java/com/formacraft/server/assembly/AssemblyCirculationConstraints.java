@@ -32,11 +32,17 @@ public final class AssemblyCirculationConstraints {
         if (flights.isEmpty()) return;
         Set<BlockPos> relevant = new HashSet<>();
         for (Flight flight : flights) { relevant.addAll(flight.occupied()); relevant.addAll(flight.clearance()); }
-        List<PlannedBlock> finalOps = new ArrayList<>();
+        Map<BlockPos, BlockPatch> finalPatches = new LinkedHashMap<>();
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
             BlockPos pos = new BlockPos(patch.dx(), patch.dy(), patch.dz());
             if (!relevant.contains(pos)) continue;
+            finalPatches.put(pos, patch);
+        }
+        List<PlannedBlock> finalOps = new ArrayList<>();
+        for (var entry : finalPatches.entrySet()) {
+            BlockPos pos = entry.getKey();
+            BlockPatch patch = entry.getValue();
             BlockState state = BlockPatchTargetResolver.resolve(patch);
             if (state == null) throw new Conflict("STAIR_SYSTEM invalid patch at plan " + pos.toShortString());
             finalOps.add(new PlannedBlock(pos, state));

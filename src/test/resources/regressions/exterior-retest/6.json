@@ -1,0 +1,1449 @@
+{
+  "mode": "build",
+  "style_profile": "Chinese_Traditional",
+  "style_attributes": {
+    "wall_color": "#8A8D8B",
+    "roof_color": "#3B4148",
+    "accent_color": "#8E2C2C",
+    "wall_material": "stone_bricks",
+    "roof_material": "deepslate_tiles",
+    "floor_material": "dark_oak_planks",
+    "decorative_elements": [
+      "\u9752\u7816\u7070\u74e6\u5899\u4f53",
+      "\u6728\u6784\u7acb\u67f1\u4e0e\u989d\u678b",
+      "\u683c\u6805\u82b1\u7a97",
+      "\u98de\u6a90\u7fd8\u89d2\u6b47\u5c71\u9876",
+      "\u6a90\u4e0b\u7ea2\u706f\u7b3c",
+      "\u9752\u77f3\u53f0\u57fa"
+    ]
+  },
+  "distinguishing_features": [
+    "\u4e24\u5ea718x12\u3001\u4e24\u5c42\u54045\u683c\u7684\u5bf9\u79f0\u77f3\u7816\u5385\u5802\uff0c\u95f4\u8ddd8\u683c",
+    "\u4e8c\u5c42\u4e1c-\u897f\u54113\u683c\u5bbd\u53ef\u901a\u884c\u8fde\u5eca\uff08\u5e26\u6a90\u4e0e\u6728\u680f\u6746\uff09",
+    "\u6bcf\u5ea7\u5385\u5802\u5185\u4e00\u6761\u5bbd3\u683c\u76f4\u68af\uff08\u68af\u6bb5-\u4e0a\u7aef\u5e73\u53f0-\u697c\u677f\u6d1e\u53e3\u8fde\u7eed\u76f8\u90bb\uff09",
+    "\u8fde\u5eca\u4e24\u7aef\u6d1e\u53e3\u4e0e\u4e8c\u5c42\u697c\u9762\u9f50\u5e73\uff0c\u5f62\u6210\u8fde\u7eed\u53ef\u901a\u884c\u56de\u8def",
+    "\u6b47\u5c71\u9876\uff08xieshan\uff09+ \u9752\u7816\u7070\u74e6 + \u6728\u67f1\u683c\u6805\u7a97\u7684\u4e2d\u5f0f\u505a\u6cd5"
+  ],
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "chinese_hall_pair_bridge",
+      "confidence": 0.72
+    },
+    "topology": {
+      "layout": "pair_linear",
+      "composition": "axial",
+      "axis": "E-W",
+      "levels": "2"
+    },
+    "structure": {
+      "type": "post_and_lintel",
+      "massiveness": 0.62,
+      "voidRatio": 0.24,
+      "supports": "perimeter"
+    },
+    "form": {
+      "repetition": "paired",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "BILATERAL",
+      "order": 2,
+      "mirror": null
+    },
+    "modules": [
+      "base_plinth",
+      "column",
+      "lattice_window",
+      "xieshan_roof",
+      "covered_corridor",
+      "stair_flight",
+      "landing"
+    ],
+    "materials": {
+      "primary": "stone_bricks",
+      "secondary": "dark_oak_wood",
+      "accent": "red_glazed",
+      "textureBias": "aged",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "east_asia",
+      "era": "imperial",
+      "keywords": [
+        "\u4e2d\u5f0f",
+        "\u6b47\u5c71",
+        "\u9752\u7816\u7070\u74e6",
+        "\u5eca",
+        "\u683c\u6805\u7a97"
+      ]
+    },
+    "constraints": {
+      "maxHeight": 16,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "\u697c\u68af\u4e0e\u8fde\u5eca\u8fde\u7eed\u53ef\u901a\u884c",
+        "\u6d1e\u53e3\u4e0e\u697c\u9762\u9f50\u5e73",
+        "\u88c5\u9970\u907f\u5f00\u8e0f\u9762\u4e0e\u51c0\u7a7a"
+      ],
+      "avoid": [
+        "\u4f53\u80b2\u573a\u7897\u5f62",
+        "\u73bb\u7483\u5e55\u5899",
+        "\u963b\u65ad\u697c\u68af\u7684\u88c5\u9970"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE",
+    "walkability": {
+      "continuous_path_required": true,
+      "min_clear_height": 2,
+      "protected_zones": [
+        {
+          "id": "a_stair",
+          "min": {
+            "x": -8,
+            "y": 0,
+            "z": -4
+          },
+          "size": {
+            "w": 3,
+            "h": 8,
+            "d": 8
+          }
+        },
+        {
+          "id": "b_stair",
+          "min": {
+            "x": 31,
+            "y": 0,
+            "z": -4
+          },
+          "size": {
+            "w": 3,
+            "h": 8,
+            "d": 8
+          }
+        },
+        {
+          "id": "bridge_deck",
+          "min": {
+            "x": 9,
+            "y": 6,
+            "z": -1
+          },
+          "size": {
+            "w": 8,
+            "h": 3,
+            "d": 3
+          }
+        }
+      ]
+    }
+  },
+  "layout": {
+    "skeleton_type": "LINEAR_PATH",
+    "path_based": true,
+    "slots": [
+      {
+        "id": "slot_hall_a",
+        "at": {
+          "x": -9,
+          "y": 0,
+          "z": -6
+        },
+        "role": "hall",
+        "w": 18,
+        "d": 12,
+        "h": 11,
+        "slot_id": "slot_0",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "slot_bridge",
+        "at": {
+          "x": 9,
+          "y": 5,
+          "z": -2
+        },
+        "role": "corridor",
+        "w": 8,
+        "d": 5,
+        "h": 1,
+        "slot_id": "slot_1",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "id": "slot_hall_b",
+        "at": {
+          "x": 17,
+          "y": 0,
+          "z": -6
+        },
+        "role": "hall",
+        "w": 18,
+        "d": 12,
+        "h": 11,
+        "slot_id": "slot_2",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 11
+      },
+      "material": "stone_bricks",
+      "params": {
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "hollow": true,
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 5,
+        "floor_slabs": [
+          {
+            "y": 5,
+            "openings": [
+              {
+                "x": 1,
+                "y": 5,
+                "z": 2,
+                "width": 3,
+                "depth": 6
+              }
+            ]
+          }
+        ],
+        "base_plinth": {
+          "height": 1,
+          "overhang": 1
+        },
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "none",
+        "facade_cutout": "arches",
+        "detail_level": "high",
+        "material": "stone_bricks",
+        "roof_type": "xuanshan",
+        "window_ratio": 0.6,
+        "void_ratio": 0.24,
+        "plan_type": "cut_corners"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"column\", \"tags\": [\"wooden\", \"slender\", \"chinese\", \"painted_red\", \"perimeter\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"corner\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"vertical\", \"load_bearing_look\"], \"forbiddenTags\": [\"metal_truss\", \"curtain_wall\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 17,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 11
+      },
+      "material": "stone_bricks",
+      "params": {
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "hollow": true,
+        "wall_thickness": 1,
+        "floor_count": 2,
+        "floor_height": 5,
+        "floor_slabs": [
+          {
+            "y": 5,
+            "openings": [
+              {
+                "x": 14,
+                "y": 5,
+                "z": 2,
+                "width": 3,
+                "depth": 6
+              }
+            ]
+          }
+        ],
+        "base_plinth": {
+          "height": 1,
+          "overhang": 1
+        },
+        "facade_profile": "vertical_pilasters",
+        "wall_pattern": "none",
+        "facade_cutout": "arches",
+        "detail_level": "high",
+        "material": "stone_bricks",
+        "roof_type": "xuanshan",
+        "window_ratio": 0.6,
+        "void_ratio": 0.24,
+        "plan_type": "cut_corners"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"column\", \"tags\": [\"wooden\", \"slender\", \"chinese\", \"painted_red\", \"perimeter\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"corner\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"vertical\", \"load_bearing_look\"], \"forbiddenTags\": [\"metal_truss\", \"curtain_wall\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": 9,
+        "y": 5,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 5,
+        "height": 1
+      },
+      "material": "stone_bricks",
+      "params": {
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "hollow": false,
+        "deck_level": 5,
+        "walk_surface_y": 6,
+        "walk_width": 3,
+        "railing_edges": [
+          "north",
+          "south"
+        ],
+        "material": "stone_bricks",
+        "window_ratio": 0.35,
+        "void_ratio": 0.24,
+        "floor_height": 3,
+        "roof_type": "xuanshan"
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -10,
+        "y": 11,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 14,
+        "height": 4
+      },
+      "material": "deepslate_tiles",
+      "params": {
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "ridge_axis": "X",
+        "corner_upturn": true,
+        "eave_height": 1,
+        "tile_material": "deepslate_tiles",
+        "roof_height": 4
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 16,
+        "y": 11,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 20,
+        "depth": 14,
+        "height": 4
+      },
+      "material": "deepslate_tiles",
+      "params": {
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "ridge_axis": "X",
+        "corner_upturn": true,
+        "eave_height": 1,
+        "tile_material": "deepslate_tiles",
+        "roof_height": 4
+      },
+      "features": []
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": 9,
+        "y": 9,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 7,
+        "height": 3
+      },
+      "material": "deepslate_tiles",
+      "params": {
+        "anchor_mode": "min_corner",
+        "roof_type": "xuanshan",
+        "overhang": 1,
+        "ridge_axis": "X",
+        "eave_height": 1,
+        "tile_material": "deepslate_tiles",
+        "roof_height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"lantern\", \"red\", \"hanging\", \"chinese\", \"festive\"]}, \"context\": {\"placement\": \"roof\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"any\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"red_glazed\"}, \"constraints\": {\"mustHave\": [\"hanging\", \"non_blocking\"], \"forbiddenTags\": [\"solid\", \"floor_occupying\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "COLUMN",
+      "relative_position": {
+        "x": 9,
+        "y": 6,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 1,
+        "height": 3
+      },
+      "material": "dark_oak_log",
+      "params": {
+        "anchor_mode": "min_corner",
+        "positions": [
+          {
+            "x": 9,
+            "y": 6,
+            "z": -2
+          },
+          {
+            "x": 9,
+            "y": 6,
+            "z": 2
+          },
+          {
+            "x": 12,
+            "y": 6,
+            "z": -2
+          },
+          {
+            "x": 12,
+            "y": 6,
+            "z": 2
+          },
+          {
+            "x": 16,
+            "y": 6,
+            "z": -2
+          },
+          {
+            "x": 16,
+            "y": 6,
+            "z": 2
+          }
+        ],
+        "profile": "round_post",
+        "material": "dark_oak_log"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"column\", \"tags\": [\"wooden\", \"round_post\", \"chinese\", \"painted_red\"]}, \"context\": {\"placement\": \"ground\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"vertical\"], \"forbiddenTags\": [\"metal_truss\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "ASSEMBLY",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 44,
+        "depth": 12,
+        "height": 11
+      },
+      "material": "stone_bricks",
+      "params": {
+        "anchor_mode": "min_corner",
+        "assembly": {
+          "graph": {
+            "components": [
+              {
+                "id": "hall_a",
+                "type": "SHELL_BOX",
+                "at": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "w": 18,
+                "d": 12,
+                "h": 11
+              },
+              {
+                "id": "hall_b",
+                "type": "SHELL_BOX",
+                "at": {
+                  "x": 26,
+                  "y": 0,
+                  "z": 0
+                },
+                "w": 18,
+                "d": 12,
+                "h": 11
+              },
+              {
+                "id": "bridge",
+                "type": "SHELL_BOX",
+                "at": {
+                  "x": 18,
+                  "y": 5,
+                  "z": 4
+                },
+                "w": 8,
+                "d": 5,
+                "h": 1
+              }
+            ],
+            "connections": [
+              {
+                "from": "hall_a",
+                "to": "bridge",
+                "type": "WALK_LINK",
+                "at": {
+                  "x": 18,
+                  "y": 6,
+                  "z": 6
+                },
+                "width": 3,
+                "flush_with_floor": 6
+              },
+              {
+                "from": "bridge",
+                "to": "hall_b",
+                "type": "WALK_LINK",
+                "at": {
+                  "x": 26,
+                  "y": 6,
+                  "z": 6
+                },
+                "width": 3,
+                "flush_with_floor": 6
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "OPENINGS",
+              "target": "hall_a",
+              "local_origin": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "openings": [
+                {
+                  "id": "a_gate",
+                  "type": "DOOR",
+                  "min": {
+                    "x": 7,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "size": {
+                    "w": 3,
+                    "h": 3,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "a_bridge_door",
+                  "type": "DOOR",
+                  "min": {
+                    "x": 17,
+                    "y": 6,
+                    "z": 5
+                  },
+                  "size": {
+                    "w": 1,
+                    "h": 3,
+                    "d": 3
+                  },
+                  "flush_with_walk_surface": 6
+                },
+                {
+                  "id": "a_stair_void",
+                  "type": "VOID",
+                  "min": {
+                    "x": 1,
+                    "y": 5,
+                    "z": 2
+                  },
+                  "size": {
+                    "w": 3,
+                    "h": 1,
+                    "d": 6
+                  }
+                },
+                {
+                  "id": "a_win_w1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 0,
+                    "y": 2,
+                    "z": 3
+                  },
+                  "size": {
+                    "w": 1,
+                    "h": 2,
+                    "d": 2
+                  }
+                },
+                {
+                  "id": "a_win_w2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 0,
+                    "y": 7,
+                    "z": 3
+                  },
+                  "size": {
+                    "w": 1,
+                    "h": 2,
+                    "d": 2
+                  }
+                },
+                {
+                  "id": "a_win_e1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 17,
+                    "y": 2,
+                    "z": 3
+                  },
+                  "size": {
+                    "w": 1,
+                    "h": 2,
+                    "d": 2
+                  }
+                },
+                {
+                  "id": "a_win_1f_s1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 3,
+                    "y": 2,
+                    "z": 11
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "a_win_1f_s2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 11,
+                    "y": 2,
+                    "z": 11
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "a_win_2f_s1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 3,
+                    "y": 7,
+                    "z": 11
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "a_win_2f_s2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 11,
+                    "y": 7,
+                    "z": 11
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "a_win_2f_n1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 3,
+                    "y": 7,
+                    "z": 0
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "a_win_2f_n2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 11,
+                    "y": 7,
+                    "z": 0
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                }
+              ]
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "target": "hall_a",
+              "local_origin": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "flights": [
+                {
+                  "id": "a_flight_1",
+                  "width": 3,
+                  "travel": "+Z",
+                  "from": {
+                    "x": 1,
+                    "y": 0,
+                    "z": 2
+                  },
+                  "to": {
+                    "x": 1,
+                    "y": 5,
+                    "z": 7
+                  },
+                  "steps": 6,
+                  "rise_per_step": 1,
+                  "run_per_step": 1,
+                  "walk_surface_bottom": 1,
+                  "walk_surface_top": 6,
+                  "solid_supports": true
+                }
+              ],
+              "landings": [
+                {
+                  "id": "a_landing_top",
+                  "min": {
+                    "x": 1,
+                    "y": 5,
+                    "z": 8
+                  },
+                  "size": {
+                    "w": 3,
+                    "d": 2
+                  },
+                  "walk_surface": 6
+                }
+              ],
+              "adjacency": "edge_connected",
+              "clearance": {
+                "above": 2,
+                "zones": [
+                  {
+                    "min": {
+                      "x": 1,
+                      "y": 0,
+                      "z": 2
+                    },
+                    "size": {
+                      "w": 3,
+                      "h": 7,
+                      "d": 6
+                    }
+                  },
+                  {
+                    "min": {
+                      "x": 1,
+                      "y": 6,
+                      "z": 8
+                    },
+                    "size": {
+                      "w": 3,
+                      "h": 3,
+                      "d": 2
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "op": "OPENINGS",
+              "target": "hall_b",
+              "local_origin": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "openings": [
+                {
+                  "id": "b_gate",
+                  "type": "DOOR",
+                  "min": {
+                    "x": 7,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "size": {
+                    "w": 3,
+                    "h": 3,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "b_bridge_door",
+                  "type": "DOOR",
+                  "min": {
+                    "x": 0,
+                    "y": 6,
+                    "z": 5
+                  },
+                  "size": {
+                    "w": 1,
+                    "h": 3,
+                    "d": 3
+                  },
+                  "flush_with_walk_surface": 6
+                },
+                {
+                  "id": "b_stair_void",
+                  "type": "VOID",
+                  "min": {
+                    "x": 14,
+                    "y": 5,
+                    "z": 2
+                  },
+                  "size": {
+                    "w": 3,
+                    "h": 1,
+                    "d": 6
+                  }
+                },
+                {
+                  "id": "b_win_e1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 17,
+                    "y": 2,
+                    "z": 3
+                  },
+                  "size": {
+                    "w": 1,
+                    "h": 2,
+                    "d": 2
+                  }
+                },
+                {
+                  "id": "b_win_e2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 17,
+                    "y": 7,
+                    "z": 3
+                  },
+                  "size": {
+                    "w": 1,
+                    "h": 2,
+                    "d": 2
+                  }
+                },
+                {
+                  "id": "b_win_w2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 0,
+                    "y": 2,
+                    "z": 3
+                  },
+                  "size": {
+                    "w": 1,
+                    "h": 2,
+                    "d": 2
+                  }
+                },
+                {
+                  "id": "b_win_1f_s1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 3,
+                    "y": 2,
+                    "z": 11
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "b_win_1f_s2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 11,
+                    "y": 2,
+                    "z": 11
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "b_win_2f_s1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 3,
+                    "y": 7,
+                    "z": 11
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "b_win_2f_s2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 11,
+                    "y": 7,
+                    "z": 11
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "b_win_2f_n1",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 3,
+                    "y": 7,
+                    "z": 0
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                },
+                {
+                  "id": "b_win_2f_n2",
+                  "type": "WINDOW",
+                  "min": {
+                    "x": 11,
+                    "y": 7,
+                    "z": 0
+                  },
+                  "size": {
+                    "w": 4,
+                    "h": 2,
+                    "d": 1
+                  }
+                }
+              ]
+            },
+            {
+              "op": "STAIR_SYSTEM",
+              "target": "hall_b",
+              "local_origin": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "flights": [
+                {
+                  "id": "b_flight_1",
+                  "width": 3,
+                  "travel": "+Z",
+                  "from": {
+                    "x": 14,
+                    "y": 0,
+                    "z": 2
+                  },
+                  "to": {
+                    "x": 14,
+                    "y": 5,
+                    "z": 7
+                  },
+                  "steps": 6,
+                  "rise_per_step": 1,
+                  "run_per_step": 1,
+                  "walk_surface_bottom": 1,
+                  "walk_surface_top": 6,
+                  "solid_supports": true
+                }
+              ],
+              "landings": [
+                {
+                  "id": "b_landing_top",
+                  "min": {
+                    "x": 14,
+                    "y": 5,
+                    "z": 8
+                  },
+                  "size": {
+                    "w": 3,
+                    "d": 2
+                  },
+                  "walk_surface": 6
+                }
+              ],
+              "adjacency": "edge_connected",
+              "clearance": {
+                "above": 2,
+                "zones": [
+                  {
+                    "min": {
+                      "x": 14,
+                      "y": 0,
+                      "z": 2
+                    },
+                    "size": {
+                      "w": 3,
+                      "h": 7,
+                      "d": 6
+                    }
+                  },
+                  {
+                    "min": {
+                      "x": 14,
+                      "y": 6,
+                      "z": 8
+                    },
+                    "size": {
+                      "w": 3,
+                      "h": 3,
+                      "d": 2
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "op": "RAILING",
+              "target": "bridge",
+              "local_origin": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "edges": [
+                {
+                  "axis": "X",
+                  "at": {
+                    "x": 0,
+                    "y": 1,
+                    "z": 0
+                  },
+                  "length": 8,
+                  "height": 2
+                },
+                {
+                  "axis": "X",
+                  "at": {
+                    "x": 0,
+                    "y": 1,
+                    "z": 4
+                  },
+                  "length": 8,
+                  "height": 2
+                }
+              ],
+              "leave_open": [
+                {
+                  "min": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 1
+                  },
+                  "size": {
+                    "w": 8,
+                    "d": 3
+                  }
+                }
+              ]
+            },
+            {
+              "op": "CLEARANCE",
+              "target": "assembly",
+              "policy": "no_decoration_in_zones",
+              "zones": [
+                {
+                  "id": "a_stair_zone",
+                  "min": {
+                    "x": 1,
+                    "y": 0,
+                    "z": 2
+                  },
+                  "size": {
+                    "w": 3,
+                    "h": 9,
+                    "d": 8
+                  }
+                },
+                {
+                  "id": "b_stair_zone",
+                  "min": {
+                    "x": 40,
+                    "y": 0,
+                    "z": 2
+                  },
+                  "size": {
+                    "w": 3,
+                    "h": 9,
+                    "d": 8
+                  }
+                },
+                {
+                  "id": "bridge_walk_zone",
+                  "min": {
+                    "x": 18,
+                    "y": 6,
+                    "z": 5
+                  },
+                  "size": {
+                    "w": 8,
+                    "h": 3,
+                    "d": 3
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"railing\", \"tags\": [\"wooden\", \"chinese\", \"low\", \"post_and_rail\", \"edge_mounted\"]}, \"context\": {\"placement\": \"edge\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"convex\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"edge_mounted\", \"passable_front\"], \"forbiddenTags\": [\"solid_wall\", \"full_height\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "material": "dark_oak_wood",
+      "params": {
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "door_type": "double_leaf_courtyard_gate",
+        "flush_with_floor": 0,
+        "host_wall": "north",
+        "carve": true,
+        "mask": {
+          "w": 3,
+          "h": 3,
+          "d": 1
+        },
+        "door_width": 2,
+        "door_height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"wooden\", \"double_leaf\", \"courtyard_gate\", \"lattice\", \"vermilion\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 0, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"rectangular_opening\", \"flush_sill\"], \"forbiddenTags\": [\"glass\", \"modern\", \"rollup\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": 24,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "material": "dark_oak_wood",
+      "params": {
+        "anchor_mode": "min_corner",
+        "facing": "NORTH",
+        "door_type": "double_leaf_courtyard_gate",
+        "flush_with_floor": 0,
+        "host_wall": "north",
+        "carve": true,
+        "mask": {
+          "w": 3,
+          "h": 3,
+          "d": 1
+        },
+        "door_width": 2,
+        "door_height": 3
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"door\", \"tags\": [\"wooden\", \"double_leaf\", \"courtyard_gate\", \"lattice\", \"vermilion\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"ground\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 3, \"openingHeight\": 3, \"tolerance\": 0, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"rectangular_opening\", \"flush_sill\"], \"forbiddenTags\": [\"glass\", \"modern\", \"rollup\"]}, \"usageHint\": {\"frequency\": \"primary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 11
+      },
+      "material": "dark_oak_wood",
+      "params": {
+        "anchor_mode": "min_corner",
+        "faces": [
+          "NORTH",
+          "SOUTH",
+          "EAST",
+          "WEST"
+        ],
+        "floors": [
+          {
+            "level": 1,
+            "sill_y": 2,
+            "window_height": 2,
+            "window_width": 2,
+            "spacing": 4,
+            "pattern": "lattice_grid"
+          },
+          {
+            "level": 2,
+            "sill_y": 7,
+            "window_height": 2,
+            "window_width": 2,
+            "spacing": 4,
+            "pattern": "lattice_grid"
+          }
+        ],
+        "avoid_zones": [
+          {
+            "min": {
+              "x": 1,
+              "y": 0,
+              "z": 2
+            },
+            "size": {
+              "w": 3,
+              "h": 7,
+              "d": 6
+            }
+          },
+          {
+            "min": {
+              "x": 17,
+              "y": 6,
+              "z": 5
+            },
+            "size": {
+              "w": 1,
+              "h": 3,
+              "d": 3
+            }
+          }
+        ],
+        "window_ratio": 0.35,
+        "window_style": "lattice",
+        "rhythm": "regular"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"lattice\", \"wooden\", \"chinese_grid\", \"square\", \"paper_lattice\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"opening\", \"flush_with_wall\"], \"forbiddenTags\": [\"curtain_wall\", \"glass_modern\", \"ribbon_glazing\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 17,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 12,
+        "height": 11
+      },
+      "material": "dark_oak_wood",
+      "params": {
+        "anchor_mode": "min_corner",
+        "faces": [
+          "NORTH",
+          "SOUTH",
+          "EAST",
+          "WEST"
+        ],
+        "floors": [
+          {
+            "level": 1,
+            "sill_y": 2,
+            "window_height": 2,
+            "window_width": 2,
+            "spacing": 4,
+            "pattern": "lattice_grid"
+          },
+          {
+            "level": 2,
+            "sill_y": 7,
+            "window_height": 2,
+            "window_width": 2,
+            "spacing": 4,
+            "pattern": "lattice_grid"
+          }
+        ],
+        "avoid_zones": [
+          {
+            "min": {
+              "x": 14,
+              "y": 0,
+              "z": 2
+            },
+            "size": {
+              "w": 3,
+              "h": 7,
+              "d": 6
+            }
+          },
+          {
+            "min": {
+              "x": 0,
+              "y": 6,
+              "z": 5
+            },
+            "size": {
+              "w": 1,
+              "h": 3,
+              "d": 3
+            }
+          }
+        ],
+        "window_ratio": 0.35,
+        "window_style": "lattice",
+        "rhythm": "regular"
+      },
+      "features": [
+        "component_request:{\"component_query\": {\"semantic\": {\"role\": \"window\", \"tags\": [\"lattice\", \"wooden\", \"chinese_grid\", \"square\", \"paper_lattice\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"mid\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": true, \"openingWidth\": 2, \"openingHeight\": 2, \"tolerance\": 1, \"scalable\": true}, \"style\": {\"styleProfile\": \"Chinese_Traditional\", \"materialTone\": \"dark_wood\"}, \"constraints\": {\"mustHave\": [\"opening\", \"flush_with_wall\"], \"forbiddenTags\": [\"curtain_wall\", \"glass_modern\", \"ribbon_glazing\"]}, \"usageHint\": {\"frequency\": \"secondary\", \"visibility\": \"high\"}}}"
+      ]
+    },
+    {
+      "component_type": "PAVING",
+      "relative_position": {
+        "x": 9,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 12,
+        "height": 1
+      },
+      "material": "stone_bricks",
+      "params": {
+        "anchor_mode": "min_corner",
+        "pattern": "chinese_blue_stone_grid",
+        "path_width": 3,
+        "connect": [
+          {
+            "from": {
+              "x": 9,
+              "y": 0,
+              "z": -3
+            },
+            "to": {
+              "x": 16,
+              "y": 0,
+              "z": -3
+            }
+          }
+        ]
+      },
+      "features": []
+    }
+  ],
+  "proportion_hints": {
+    "typology": "general",
+    "target_width": 18,
+    "target_depth": 18,
+    "target_body_height": 11,
+    "target_roof_height": 3,
+    "height_to_width": 0.65,
+    "depth_to_width": 1.0,
+    "roof_to_body_height": 0.25,
+    "window_aspect": "square",
+    "max_void_ratio": 0.18
+  },
+  "enrichment_guard": "non_classical_marker:\u4f53\u80b2\u573a",
+  "plan_status": "capability_gap",
+  "error": "from/to must contain integer x/y/z",
+  "capability_gap": {
+    "code": "E_STAIR_FLIGHT_INVALID",
+    "message": "from/to must contain integer x/y/z",
+    "path": "components[7].params.assembly.ops[1]",
+    "suggestions": [
+      "E_STAIR_FLIGHT_INVALID: from/to must contain integer x/y/z",
+      "E_STAIR_FLIGHT_INVALID: from/to must contain integer x/y/z",
+      "E_INT_RANGE: h must be an integer >= 2; use STAIR_SYSTEM for treads",
+      "Prefer preset: spiral_watchtower | suspension_bridge_simple | gothic_shell_box.",
+      "Use exported graph component types and port ids only.",
+      "If geometry is unsupported, return plan_status=capability_gap explicitly."
+    ]
+  },
+  "kind": "llmplan"
+}

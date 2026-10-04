@@ -11,6 +11,14 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorGameRegressionTest {
+    @Test void decoratedRetestUsesFinalStairPatches() throws Exception {
+        MinecraftRegistryTestBootstrap.initialize();
+        try (var input = getClass().getResourceAsStream("/regressions/exterior-retest/4.json")) {
+            var plan = LlmPlanParser.parse(new String(Objects.requireNonNull(input).readAllBytes(), StandardCharsets.UTF_8));
+            assertFalse(ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false).isEmpty(),
+                String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        }
+    }
     private List<Component> components(int index) throws Exception {
         try (var input = getClass().getResourceAsStream("/regressions/exterior-game/" + index + ".json")) {
             return LlmPlanParser.parse(new String(Objects.requireNonNull(input).readAllBytes(), StandardCharsets.UTF_8)).components();

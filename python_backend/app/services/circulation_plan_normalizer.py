@@ -105,7 +105,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
     out = deepcopy(plan)
     plates = []
     for comp in out.get("components", []):
-        if comp.get("component_type") != "ASSEMBLY": continue
+        if comp.get("component_type") not in ("ASSEMBLY", "STRUCTURE"): continue
         params = comp.get("params") or {}
         payload = params.get("assembly")
         if not isinstance(payload, dict): continue
@@ -155,6 +155,7 @@ def normalize_circulation_plan(plan: dict) -> dict:
                         comp['relative_position'] = _point(rp['x']+(r if corner else 0),rp['y'],rp['z']+(r if corner else 0))
                 comp["dimensions"] = {"width":2*r+1,"depth":2*r+1,"height":h}
             else: continue
+            comp["component_type"] = "ASSEMBLY"
             comp["params"] = {"assembly": {"ops": ops}}
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
             out["plan_status"] = "capability_gap"

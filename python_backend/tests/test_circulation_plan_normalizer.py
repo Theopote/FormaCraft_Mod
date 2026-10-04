@@ -9,6 +9,14 @@ FIXTURES = Path(__file__).resolve().parents[2] / 'src/test/resources/regressions
 
 
 class CirculationNormalizerTest(unittest.TestCase):
+    def test_retest_switchback_structure_is_promoted(self):
+        source = json.loads((FIXTURES / 'exterior-retest/3.json').read_text(encoding='utf-8'))
+        result = finalize_assembly_plan_or_gap(source, '折返楼梯')
+        self.assertNotIn('capability_gap', result)
+        self.assertTrue(any(c['component_type'] == 'ASSEMBLY' and
+                            any(o['op'] == 'STAIR_SYSTEM' for o in c['params']['assembly']['ops'])
+                            for c in result['components']))
+
     def load(self, name):
         return json.loads((FIXTURES / (name + '.json')).read_text(encoding='utf-8'))
 

@@ -84,6 +84,11 @@ public class PostProcessPipeline {
         }
 
         List<BlockPatch> result = patches;
+        var reserved = new java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
+        for (var patch : patches) {
+            var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+            if (context.protectedClearance().contains(pos)) reserved.put(pos, patch);
+        }
         
         for (PostProcessor processor : processors) {
             try {
@@ -101,6 +106,15 @@ public class PostProcessPipeline {
             }
         }
 
+        if (!reserved.isEmpty()) {
+            var preserved = new ArrayList<BlockPatch>();
+            for (var patch : result) {
+                var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+                if (!context.protectedClearance().contains(pos)) preserved.add(patch);
+            }
+            preserved.addAll(reserved.values());
+            result = preserved;
+        }
         FormacraftMod.LOGGER.debug("PostProcessPipeline: processed {} patches through {} processors", 
                 result.size(), processors.size());
         
