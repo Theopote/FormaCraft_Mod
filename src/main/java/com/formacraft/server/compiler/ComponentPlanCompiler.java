@@ -176,17 +176,30 @@ public final class ComponentPlanCompiler {
         List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
         Set<BlockPos> generatedSurfaces = new HashSet<>();
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
+        var flatRoofs = new ArrayList<FlatRoofCoverageValidator.Roof>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
         UnifiedGeneratorRouter.setTypologyExclusivePlan(typologyExclusivePlan);
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         try {
             compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                    slotMap, result, buildingVolumes, circulation, generatedSurfaces);
+                    slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             TypologyPatchBridge.clearPlanWorldAnchor();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
+
+        Set<BlockPos> roofClearance = new HashSet<>();
+        for (var flight : circulation) roofClearance.addAll(flight.clearance());
+        var roofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofClearance);
+        if (roofMissing.isPresent()) {
+            var missing = roofMissing.get();
+            AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_COVERAGE",
+                    "平屋顶核心覆盖不完整：" + missing.source() + ", plan=" + missing.position().toShortString()
+                            + ", missing=" + missing.count(), "components[]",
+                    List.of("Restore the roof core or remove the conflicting operation; keep courtyard and stair openings explicit.")));
+            return List.of();
+        }
 
         FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches",
                 components.size(), result.size());
@@ -294,7 +307,8 @@ public final class ComponentPlanCompiler {
             List<BlockPatch> result,
             List<PostProcessContext.BuildingVolume> buildingVolumes,
             List<AssemblyCirculationConstraints.Flight> circulation,
-            Set<BlockPos> generatedSurfaces
+            Set<BlockPos> generatedSurfaces,
+            List<FlatRoofCoverageValidator.Roof> flatRoofs
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
@@ -326,6 +340,18 @@ public final class ComponentPlanCompiler {
             List<BlockPatch> patches;
             var componentFlights = new ArrayList<AssemblyCirculationConstraints.Flight>();
             try (var capture = AssemblyCirculationConstraints.captureTo(componentFlights::addAll)) {
+                var roofAttachment = FlatRoofCoverageValidator.attachmentMismatch(semantic, components, slotMap, defaultSlot(plan));
+                if (roofAttachment.isPresent()) {
+                    var attachment = roofAttachment.get();
+                    AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_ATTACHMENT",
+                            "平屋顶接合高度不匹配：host=" + attachment.host() + ", expected plan y=" + attachment.expectedY()
+                                    + ", actual plan y=" + attachment.actualY(), "components[]",
+                            List.of("Align the flat roof to the resolved host part's top plane, including slot offset once.")));
+                    return;
+                }
+                Vec3i roofSlotAnchor = slot.anchor();
+                FlatRoofCoverageValidator.resolve(semantic, roofSlotAnchor == null ? BlockPos.ORIGIN
+                        : new BlockPos(roofSlotAnchor.x(), roofSlotAnchor.y(), roofSlotAnchor.z())).ifPresent(flatRoofs::add);
                 var surfaceCells = new ArrayList<GeneratedSurfaceCapture.Cell>();
                 try (var surfaceCapture = GeneratedSurfaceCapture.captureTo(surfaceCells::add)) {
                     patches = GenerationHub.generateComponent(semantic, world);
