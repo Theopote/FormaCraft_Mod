@@ -9,6 +9,28 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PostProcessGeometryPreservationTest {
+    @Test void explicitMaterialSurvivesVariationAndDecorativeReplacement() {
+        var locked = new HashSet<BlockPos>();
+        var input = new ArrayList<BlockPatch>();
+        for (int x = 0; x < 100; x++) {
+            input.add(block(x, 3, 0, "minecraft:stone_bricks"));
+            locked.add(new BlockPos(x, 3, 0));
+        }
+        var context = new PostProcessContext(context().plan(), BlockPos.ORIGIN, new Vec3i(0, 0, 0),
+                List.of(), Set.of(), Set.of(), locked);
+        assertEquals(input, new MaterialVariationPostProcessor().process(input, context));
+        var output = new PostProcessPipeline().add((patches, ctx) -> {
+            var replaced = new ArrayList<BlockPatch>();
+            for (var patch : patches) replaced.add(block(patch.dx(), patch.dy(), patch.dz(), "minecraft:oak_log"));
+            replaced.add(block(101, 3, 0, "minecraft:oak_log"));
+            return replaced;
+        }).add(new MaterialVariationPostProcessor()).process(input, context);
+        var snapshot = PatchTestSnapshot.blocks(output);
+        for (var patch : input) assertEquals("minecraft:stone_bricks", snapshot.get(new Vec3i(patch.dx(), patch.dy(), patch.dz())));
+        assertEquals("minecraft:oak_log", snapshot.get(new Vec3i(101, 3, 0)));
+        assertTrue(new MaterialVariationPostProcessor().process(input, context()).stream()
+                .anyMatch(patch -> !"minecraft:stone_bricks".equals(patch.targetBlock())));
+    }
     private PostProcessContext context() {
         return PostProcessContext.create(LlmPlanTestFixtures.builder().styleProfile("DEFAULT").build(), BlockPos.ORIGIN);
     }

@@ -14,6 +14,41 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RoofAttachmentTest {
     @Test
+    void gablesCloseAtBodyEndsWithWallMaterialAndLeaveAtticAndOverhangOpen() {
+        for (var dims : List.of(new Dimensions(9,7,4),new Dimensions(8,12,4))) {
+            var c = new Component("ROOF",null,new Vec3i(-4,15,8),dims,List.of(),
+                    Map.of("roof_type","gable","overhang",2,"wall_block","quartz_block"));
+            var cells = new java.util.ArrayList<com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell>();
+            List<com.formacraft.common.patch.BlockPatch> patches;
+            try (var scope = com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.captureTo(cells::add)) {
+                patches = new RoofGenerator().generate(new SemanticComponent("ROOF",null,c,"DEFAULT"));
+            }
+            var blocks = PatchTestSnapshot.blocks(patches);
+            boolean alongDepth = dims.depth()>=dims.width();
+            int span = alongDepth ? dims.width() : dims.depth();
+            int length = alongDepth ? dims.depth() : dims.width();
+            for (int end : List.of(0,length-1)) for(int a=0;a<span;a++) {
+                int x=-4+(alongDepth?a:end),z=8+(alongDepth?end:a);
+                int top = blocks.keySet().stream().filter(p -> p.x()==x && p.z()==z).mapToInt(Vec3i::y).max().orElseThrow();
+                for(int y=15;y<top;y++) {
+                    var position=new Vec3i(x,y,z);
+                    assertEquals("minecraft:quartz_block",blocks.get(position));
+                    assertTrue(cells.stream().anyMatch(cell -> cell.position().equals(new net.minecraft.util.math.BlockPos(position.x(),position.y(),position.z()))
+                            && cell.role()==com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.WALL));
+                }
+            }
+            int cx=-4+dims.width()/2,cz=8+dims.depth()/2;
+            assertFalse(blocks.containsKey(new Vec3i(cx,15,cz)),"Attic must remain hollow");
+            assertFalse(blocks.containsKey(new Vec3i(alongDepth?cx:-5,15,alongDepth?7:cz)),"Do not extend gables into overhang");
+            assertTrue(com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.missing(cells,patches).isEmpty());
+            var openParams=new java.util.HashMap<>(c.params());openParams.put("gable_walls",false);
+            var open=new Component("ROOF",null,c.relativePosition(),dims,List.of(),openParams);
+            assertFalse(PatchTestSnapshot.blocks(new RoofGenerator().generate(new SemanticComponent("ROOF",null,open,"DEFAULT")))
+                    .containsKey(new Vec3i(alongDepth?cx:-4,15,alongDepth?8:cz)),"Explicit open gables are respected");
+        }
+    }
+
+    @Test
     void rectangularPitchedRoofsCoverBothEndsAndMirrorEvenAndOddSpans() {
         for (String type : List.of("gable", "hip")) for (var dims : List.of(
                 new Dimensions(15,7,4),new Dimensions(8,16,4),new Dimensions(16,8,4))) {
@@ -21,7 +56,7 @@ class RoofAttachmentTest {
                     Map.of("roof_type",type,"overhang",1));
             var blocks = PatchTestSnapshot.blocks(new RoofGenerator().generate(new SemanticComponent("ROOF",null,c,"DEFAULT")));
             var heights = new java.util.HashMap<Vec3i,Integer>();
-            for (var p : blocks.keySet()) heights.put(new Vec3i(p.x(),0,p.z()),p.y());
+            for (var p : blocks.keySet()) heights.merge(new Vec3i(p.x(),0,p.z()),p.y(),Math::max);
             assertEquals((dims.width()+2)*(dims.depth()+2),heights.size(),"Every expanded roof column must have a surface");
             for (int x=0;x<dims.width()+2;x++) for(int z=0;z<dims.depth()+2;z++) {
                 int y = heights.get(new Vec3i(-5+x,0,7+z));

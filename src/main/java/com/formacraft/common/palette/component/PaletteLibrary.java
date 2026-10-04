@@ -179,7 +179,7 @@ public final class PaletteLibrary {
 
         // ========== 中式皇家风格（Chinese Royal / Imperial）==========
         // 红墙金瓦，朱红柱
-        CHINESE_ROYAL.add(SemanticPart.WALL, "minecraft:red_bricks", 50);
+        CHINESE_ROYAL.add(SemanticPart.WALL, "minecraft:bricks", 50);
         CHINESE_ROYAL.add(SemanticPart.WALL, "minecraft:red_terracotta", 30);
         CHINESE_ROYAL.add(SemanticPart.WALL, "minecraft:red_concrete", 20);
 
@@ -288,10 +288,7 @@ public final class PaletteLibrary {
         if (picked != null && !picked.isBlank() && !"minecraft:stone".equals(picked)) {
             return picked;
         }
-        if (styleAttributes != null) {
-            return DynamicPaletteResolver.resolve(part, styleAttributes);
-        }
-        return picked != null ? picked : "minecraft:stone_bricks";
+        return picked != null && !picked.isBlank() ? picked : "minecraft:stone_bricks";
     }
 
     private static Palette fuzzyMatchStyle(String upperProfile) {

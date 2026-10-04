@@ -105,6 +105,7 @@ public class PostProcessPipeline {
                 if (!(processor instanceof TerrainAdaptationPostProcessor)) {
                     var integrity = ExteriorIntegrityGuard.preserve(previous, result, context);
                     result = integrity.patches();
+                    result = preserveMaterials(previous, result, context.protectedMaterials());
                     if (integrity.restored() > 0) {
                         FormacraftMod.LOGGER.warn("Exterior integrity: processor={} restored={} stage=plan_patches",
                                 processor.getClass().getSimpleName(), integrity.restored());
@@ -133,6 +134,23 @@ public class PostProcessPipeline {
                     result.size(), processors.size());
         }
 
+        return result;
+    }
+
+    private static List<BlockPatch> preserveMaterials(List<BlockPatch> before, List<BlockPatch> after,
+                                                       java.util.Set<net.minecraft.util.math.BlockPos> locked) {
+        if (locked.isEmpty()) return after;
+        var originals = new java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, BlockPatch>();
+        for (var patch : before) {
+            var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+            if (locked.contains(pos)) originals.put(pos, patch);
+        }
+        var result = new ArrayList<BlockPatch>();
+        for (var patch : after) {
+            var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+            if (!originals.containsKey(pos)) result.add(patch);
+        }
+        result.addAll(originals.values());
         return result;
     }
 }

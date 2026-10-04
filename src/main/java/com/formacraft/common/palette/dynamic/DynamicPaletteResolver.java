@@ -31,11 +31,11 @@ public final class DynamicPaletteResolver {
      * 
      * @param part 语义部位（WALL, ROOF, FLOOR, etc.）
      * @param styleAttributes 风格属性（从 LlmPlan 获取）
-     * @return 方块 ID（例如 "minecraft:white_terracotta"）
+     * @return 方块 ID；对应属性缺失或无法解析时返回 null，由调用者回退到风格预设
      */
     public static String resolve(SemanticPart part, StyleAttributes styleAttributes) {
         if (styleAttributes == null) {
-            return getDefaultBlock(part);
+            return null;
         }
         
         return switch (part) {
@@ -46,7 +46,7 @@ public final class DynamicPaletteResolver {
             case WINDOW -> resolveWindow(styleAttributes);
             case DOORWAY -> "minecraft:air"; // 门洞保持空气
             case PILLAR -> resolvePillar(styleAttributes);
-            default -> getDefaultBlock(part);
+            default -> null;
         };
     }
     
@@ -81,8 +81,8 @@ public final class DynamicPaletteResolver {
             }
         }
         
-        // 根据部位返回默认
-        return "minecraft:stone_bricks";
+        // This role was not resolved; do not suppress the style palette.
+        return null;
     }
     
     /**
@@ -113,7 +113,7 @@ public final class DynamicPaletteResolver {
             }
         }
         
-        return "minecraft:spruce_planks";
+        return null;
     }
     
     /**
@@ -129,7 +129,7 @@ public final class DynamicPaletteResolver {
             }
         }
         
-        return "minecraft:stone_bricks";
+        return null;
     }
     
     /**
@@ -151,7 +151,7 @@ public final class DynamicPaletteResolver {
             return "minecraft:dark_oak_fence";
         }
         
-        return "minecraft:dark_oak_planks";
+        return null;
     }
     
     /**
@@ -185,7 +185,7 @@ public final class DynamicPaletteResolver {
             }
         }
         
-        return "minecraft:glass"; // 默认玻璃
+        return null; // Unspecified window material must use the style palette.
     }
     
     /**
@@ -219,7 +219,7 @@ public final class DynamicPaletteResolver {
             }
         }
         
-        return "minecraft:spruce_log";
+        return null;
     }
     
     /**
@@ -307,7 +307,15 @@ public final class DynamicPaletteResolver {
                  "dark_tile", "dark_tiles" -> "deepslate_tiles";
             case "deepslate_bricks", "deepslate_brick" -> "deepslate_bricks";
             case "brick", "bricks" -> "bricks";
-            case "wood", "planks", "oak" -> "oak_planks";
+            case "wood", "planks", "wood_planks", "oak" -> "oak_planks";
+            case "plaster", "white_plaster" -> "white_concrete";
+            // Existing plan-example vocabulary uses real-world material approximations.
+            case "white_marble", "marble" -> "smooth_quartz";
+            case "red_lacquer" -> "red_terracotta";
+            case "membrane" -> "white_concrete";
+            case "flat_slab" -> "smooth_stone_slab";
+            case "grey_tile", "gray_tile", "slate_tile" -> "deepslate_tiles";
+            case "dark_glazed_tile" -> "black_glazed_terracotta";
             case "dark_oak", "dark_oak_wood" -> "dark_oak_planks";
             case "spruce", "spruce_wood" -> "spruce_planks";
             case "birch", "birch_wood" -> "birch_planks";
@@ -326,7 +334,7 @@ public final class DynamicPaletteResolver {
     /**
      * 材质到方块的映射（不涉及颜色）
      */
-    private static String mapMaterialToBlock(String material) {
+    public static String mapMaterialToBlock(String material) {
         if (material == null || material.isBlank()) {
             return null;
         }
@@ -338,7 +346,11 @@ public final class DynamicPaletteResolver {
 
         String normalized = normalizeMaterial(material);
         if (normalized != null) {
-            String fullId = "minecraft:" + normalized;
+            String fullId = "minecraft:" + switch (normalized) {
+                case "concrete" -> "gray_concrete";
+                case "glazed_terracotta" -> "white_glazed_terracotta";
+                default -> normalized;
+            };
             return isValidBlockId(fullId) ? fullId : null;
         }
         
@@ -370,18 +382,5 @@ public final class DynamicPaletteResolver {
         return id != null && Registries.BLOCK.containsId(id);
     }
     
-    /**
-     * 获取默认方块
-     */
-    private static String getDefaultBlock(SemanticPart part) {
-        return switch (part) {
-            case WALL, WALL_BASE, FLOOR, COURTYARD_FLOOR -> "minecraft:stone_bricks";
-            case ROOF, ROOF_SURFACE -> "minecraft:spruce_planks";
-            case DECOR -> "minecraft:stone_brick_slab";
-            case WINDOW -> "minecraft:glass";
-            case PILLAR -> "minecraft:spruce_log";
-            default -> "minecraft:stone";
-        };
-    }
 }
 

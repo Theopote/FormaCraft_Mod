@@ -30,6 +30,11 @@ public class MaterialVariationPostProcessor implements PostProcessor {
         // 对每个 patch 进行材质变化
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
+            if (context != null && context.protectedMaterials().contains(
+                    new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz()))) {
+                result.add(patch);
+                continue;
+            }
             if (BlockPatch.REMOVE.equals(patch.action())) {
                 result.add(patch);
                 continue;

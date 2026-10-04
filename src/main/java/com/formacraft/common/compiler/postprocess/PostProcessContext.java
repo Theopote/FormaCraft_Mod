@@ -11,7 +11,7 @@ import java.util.Set;
 /** Post-processing coordinates are local to the plan, including each compiled slot offset once. */
 public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor,
                                  List<BuildingVolume> buildingVolumes, Set<BlockPos> protectedClearance,
-                                 Set<BlockPos> generatedSurfaces) {
+                                 Set<BlockPos> generatedSurfaces, Set<BlockPos> protectedMaterials) {
     public record BuildingVolume(String slotId, ComponentFootprintUtil.Bounds bounds, int floorHeight) {
         public BuildingVolume {
             Objects.requireNonNull(bounds);
@@ -24,11 +24,17 @@ public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i rela
         }
     }
     public PostProcessContext {
+        protectedMaterials = protectedMaterials == null ? Set.of() : protectedMaterials.stream()
+            .map(BlockPos::toImmutable).collect(java.util.stream.Collectors.toUnmodifiableSet());
         buildingVolumes = buildingVolumes == null ? List.of() : List.copyOf(buildingVolumes);
         protectedClearance = protectedClearance == null ? Set.of() : protectedClearance.stream()
             .map(BlockPos::toImmutable).collect(java.util.stream.Collectors.toUnmodifiableSet());
         generatedSurfaces = generatedSurfaces == null ? Set.of() : generatedSurfaces.stream()
             .map(BlockPos::toImmutable).collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+    public PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor,
+                              List<BuildingVolume> volumes, Set<BlockPos> clearance, Set<BlockPos> surfaces) {
+        this(plan, globalAnchor, relativeAnchor, volumes, clearance, surfaces, Set.of());
     }
     public PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor,
                               List<BuildingVolume> volumes, Set<BlockPos> clearance) {

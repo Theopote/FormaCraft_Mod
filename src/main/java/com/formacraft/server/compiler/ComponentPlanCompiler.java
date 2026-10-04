@@ -160,6 +160,13 @@ public final class ComponentPlanCompiler {
         plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
         plan = com.formacraft.common.llm.DistinguishingFeaturesBridge.enrich(plan);
         plan = NonClassicalEnrichmentGuard.sanitize(plan);
+        var invalidMaterial = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(plan.styleAttributes());
+        if (invalidMaterial.isPresent()) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
+                    "无法解析明确指定的材料：" + invalidMaterial.get(), "style_attributes",
+                    List.of("Use a registered block id or a supported material name.")));
+            return List.of();
+        }
 
         // 索引 slots（便于快速查找）
         Map<String, Slot> slotMap = indexSlots(plan);
@@ -172,9 +179,20 @@ public final class ComponentPlanCompiler {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: no components to compile");
             return result;
         }
+        for (var component : components) {
+            if (component == null) continue;
+            var invalid = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidComponent(component);
+            if (invalid.isPresent()) {
+                AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
+                        "无法解析明确指定的构件材料：" + invalid.get(), "components[]",
+                        List.of("Use a registered block id and valid state properties.")));
+                return List.of();
+            }
+        }
 
         List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
         Set<BlockPos> generatedSurfaces = new HashSet<>();
+        Set<BlockPos> protectedMaterials = new HashSet<>();
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
         var flatRoofs = new ArrayList<FlatRoofCoverageValidator.Roof>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
@@ -182,7 +200,7 @@ public final class ComponentPlanCompiler {
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         try {
             compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                    slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs);
+                    slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             TypologyPatchBridge.clearPlanWorldAnchor();
@@ -229,7 +247,9 @@ public final class ComponentPlanCompiler {
                 clearance.addAll(flight.clearance());
                 clearance.addAll(flight.occupied());
             }
-            PostProcessContext context = PostProcessContext.create(plan, globalAnchor, buildingVolumes, clearance, generatedSurfaces);
+            PostProcessContext context = new PostProcessContext(plan, globalAnchor,
+                    plan.anchor() == null ? new Vec3i(0, 0, 0) : plan.anchor(),
+                    buildingVolumes, clearance, generatedSurfaces, protectedMaterials);
             PostProcessPipeline pipeline;
             
             if (applyTerrainAdaptation && world != null && terrainSampler != null) {
@@ -326,7 +346,8 @@ public final class ComponentPlanCompiler {
             List<PostProcessContext.BuildingVolume> buildingVolumes,
             List<AssemblyCirculationConstraints.Flight> circulation,
             Set<BlockPos> generatedSurfaces,
-            List<FlatRoofCoverageValidator.Roof> flatRoofs
+            List<FlatRoofCoverageValidator.Roof> flatRoofs,
+            Set<BlockPos> protectedMaterials
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
@@ -456,6 +477,20 @@ public final class ComponentPlanCompiler {
                         return;
                     }
                     result.addAll(shiftedPatches);
+                    var explicitTargets = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.targets(c, styleAttributes);
+                    for (var patch : shiftedPatches) {
+                        if (com.formacraft.common.patch.BlockPatchTargetResolver.resolve(patch) == null) {
+                            AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
+                                    "构件生成了无效方块材料：" + c.componentType() + " " + patch.targetBlock(),
+                                    "components[]", List.of("Use a registered block id and valid state properties.")));
+                            return;
+                        }
+                        var position = new BlockPos(patch.dx(), patch.dy(), patch.dz());
+                        if (!BlockPatch.REMOVE.equals(patch.action()) && explicitTargets.contains(
+                                com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(patch.targetBlock())))
+                            protectedMaterials.add(position);
+                        else protectedMaterials.remove(position);
+                    }
                     surfaceLedger.accept(c, shiftedPatches, surfaceCells, flightOffset);
                 } else {
                     FormacraftMod.LOGGER.warn(
