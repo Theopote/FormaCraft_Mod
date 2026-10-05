@@ -214,6 +214,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     has_slots = bool((out.get('layout') or {}).get('slots'))
     for mass in masses:
         mass['params']['building_id'] = mass['params']['component_id']
+    by_id = {c['params']['component_id']: c for c in components}
     for comp in components:
         params = comp['params']
         if comp in masses:
@@ -223,6 +224,19 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if params.get('host_source') == 'legacy_geometry_inference':
             params.pop('host_id', None)
         if params.get('host_id'):
+            # Roof ornaments may name the roof as their host. Resolve its ownership
+            # chain to the building before enforcing the building coordinate frame.
+            original_host = params['host_id']
+            host = original_host
+            visited = {params['component_id']}
+            while host not in ids and host in by_id and host not in visited:
+                visited.add(host)
+                parent = by_id[host]['params'].get('host_id')
+                if not parent: break
+                host = parent
+            if host in ids and host != original_host:
+                params['attachment_host_id'] = original_host
+                params['host_id'] = host
             if params['host_id'] not in ids:
                 contract['diagnostics'].append({'code': 'E_HOST_UNKNOWN', 'component_id': params['component_id'], 'host_id': params['host_id']})
             elif has_slots and ids[params['host_id']].get('slot_id') != comp.get('slot_id'):

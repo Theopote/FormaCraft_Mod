@@ -278,6 +278,11 @@ public final class LlmPlanPreviewBuilder {
                     return true;
                 }
                 plannedBlocks = landing.blocks();
+                if(landing.deferredAccess()>0) {
+                    ServerPlayNetworking.send(player,new FormaCraftNetworking.ResponseBuildStatusPayload(
+                            "建筑可以生成；有"+landing.deferredAccess()+"处入口尚未连接自然地面，可在之后补建栈道、楼梯或连廊。"));
+                    FormacraftMod.LOGGER.info("LlmPlan landing: deferredAccess={}",landing.deferredAccess());
+                }
                 if(!landing.siteShifts().isEmpty()) {
                     var adjusted=new ArrayList<com.formacraft.server.assembly.AssemblyCirculationConstraints.Flight>();
                     for(var flight:circulation) {

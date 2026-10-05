@@ -216,12 +216,29 @@ class BuildingLandingPlannerTest {
         assertNull(result.problem());assertEquals(3,result.steps());
         assertTrue(finalMap(result.blocks()).get(new BlockPos(9,63,3)).isOf(Blocks.COBBLESTONE));
     }
-    @Test void cannotPreviewStepsClippedBySelection() {
+    @Test void clippedAccessIsDeferredWithoutBlockingTheBuilding() {
         var s=site(0,64);var request=new com.formacraft.common.model.request.FormaRequest(
                 "test",BlockPos.ORIGIN,"NORTH","minecraft:overworld",null,new BlockPos(0,60,0),new BlockPos(8,70,6));
         var result=com.formacraft.server.build.BuildConstraintContext.withRequest(request,
                 ()->prepare(house(s,true),List.of(s),ground((x,z)->64)));
-        assertNotNull(result.problem());
+        assertNull(result.problem());assertEquals(1,result.deferredAccess());assertEquals(0,result.steps());
+        assertEquals(finalMap(house(s,true)),finalMap(result.blocks()));
+    }
+    @Test void offshoreBuildingCanBeBuiltWithoutAPathToDryLand() {
+        var s=site(0,64);var input=house(s,true);
+        var water=new BuildingLandingPlanner.Ground() {
+            public int surfaceY(int x,int z){return 60;}
+            public int placementY(int x,int z){return 64;}
+            public int bottomY(){return -64;}
+            public BlockState state(BlockPos p){return p.getY()<60?Blocks.STONE.getDefaultState()
+                    :p.getY()<64?Blocks.WATER.getDefaultState():Blocks.AIR.getDefaultState();}
+        };
+        var result=prepare(input,List.of(s),water);
+        assertNull(result.problem());assertEquals(1,result.deferredAccess());assertEquals(0,result.steps());
+        var finalBlocks=finalMap(result.blocks());
+        for(var block:finalMap(input).entrySet()) assertEquals(block.getValue(),finalBlocks.get(block.getKey()));
+        assertTrue(result.blocks().stream().allMatch(p->p.getPos().getX()>=0&&p.getPos().getX()<=8
+                &&p.getPos().getZ()>=0&&p.getPos().getZ()<=6),"no abandoned route is emitted into the water");
     }
     @Test void patchPlansDoNotAcquireAutomaticLandingTranslations() {
         var component=new com.formacraft.common.llm.dto.Component("MASS_MAIN",null,

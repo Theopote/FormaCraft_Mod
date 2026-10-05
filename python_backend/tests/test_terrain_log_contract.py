@@ -6,6 +6,28 @@ from app.services.building_contract import apply_building_contract, extract_requ
 ROOT = Path(__file__).resolve().parents[2] / 'src/test/resources/terrain_log_cases'
 
 class TerrainLogContract(unittest.TestCase):
+    def test_roof_ornament_host_chain_resolves_from_actual_log(self):
+        root=ROOT.parent/'terrain_deferred_access_cases'
+        raw=json.loads((root/'roof_host_raw.json').read_text(encoding='utf-8'))
+        plan=apply_building_contract(raw,'')
+        self.assertFalse(plan.get('capability_gap'))
+        self.assertEqual([],plan['proportion_hints']['building_contract']['diagnostics'])
+        decor=next(c for c in plan['components'] if c['params'].get('component_id')=='decor_a')
+        roof=next(c for c in plan['components'] if c['params'].get('component_id')=='roof_a')
+        self.assertEqual('roof_a',decor['params']['attachment_host_id'])
+        self.assertEqual(roof['params']['host_id'],decor['params']['host_id'])
+        self.assertEqual(plan['components'],apply_building_contract(plan,'')['components'])
+
+    def test_unknown_and_cyclic_hosts_remain_errors(self):
+        root=ROOT.parent/'terrain_deferred_access_cases'
+        raw=json.loads((root/'roof_host_raw.json').read_text(encoding='utf-8'))
+        for host in ['missing_roof','decor_a']:
+            with self.subTest(host=host):
+                decor=next(c for c in raw['components'] if c['params'].get('component_id')=='decor_a')
+                decor['params']['host_id']=host
+                plan=apply_building_contract(raw,'')
+                self.assertTrue(any(d['code']=='E_HOST_UNKNOWN' for d in plan['proportion_hints']['building_contract']['diagnostics']))
+
     def test_six_actual_prompts_have_no_false_contract_conflicts(self):
         prompts=json.loads((ROOT/'prompts.json').read_text(encoding='utf-8'))
         for index,prompt in enumerate(prompts,1):

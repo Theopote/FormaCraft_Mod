@@ -34,9 +34,9 @@ public final class BuildingLandingPlanner {
 
     public record Site(LlmPlanTerrainBounds.Bounds body, GlobalConstraints.Facing facing) {}
     public record Result(List<PlannedBlock> blocks, int dy, String problem, int supports, int steps,
-                         Map<Site,Integer> siteShifts) {
+                         Map<Site,Integer> siteShifts, int deferredAccess) {
         public Result(List<PlannedBlock> blocks, int dy, String problem, int supports, int steps) {
-            this(blocks,dy,problem,supports,steps,Map.of());
+            this(blocks,dy,problem,supports,steps,Map.of(),0);
         }
         public int displacement(BlockPos original) {
             return siteShifts.isEmpty()?dy:siteShifts.get(nearestSite(original,new ArrayList<>(siteShifts.keySet())));
@@ -139,7 +139,7 @@ public final class BuildingLandingPlanner {
         List<PlannedBlock> combined=new ArrayList<>();
         Map<Site,Integer> shifts=new LinkedHashMap<>();
         Map<BlockPos,BlockState> occupied=new HashMap<>();
-        int supports=0,steps=0;
+        int supports=0,steps=0,deferred=0;
         for(var group:groups.entrySet()) {
             if(!grouped.containsKey(group.getKey())) return prepareRigid(input,sites,ground,strategy,false,fill);
             var result=prepareRigid(grouped.get(group.getKey()),group.getValue(),ground,strategy,false,fill,false);
@@ -151,11 +151,11 @@ public final class BuildingLandingPlanner {
                 if(previous!=null&&!previous.equals(entry.getValue()))
                     return prepareRigid(input,sites,ground,strategy,false,fill);
             }
-            combined.addAll(result.blocks());supports+=result.supports();steps+=result.steps();
+            combined.addAll(result.blocks());supports+=result.supports();steps+=result.steps();deferred+=result.deferredAccess();
             group.getValue().forEach(site->shifts.put(site,result.dy()));
         }
         if(combined.size()-input.size()>MAX_EDITS) return failure(input,"地形改动过多，建议分批生成。");
-        return new Result(combined,0,null,supports,steps,Collections.unmodifiableMap(shifts));
+        return new Result(combined,0,null,supports,steps,Collections.unmodifiableMap(shifts),deferred);
     }
 
     private static int root(int[] parents,int i) {
@@ -214,7 +214,7 @@ public final class BuildingLandingPlanner {
             tops.merge(key(p.getX(),p.getZ()), p.getY(), Math::max);
         }
         Map<BlockPos, PlannedBlock> prep = new LinkedHashMap<>();
-        int supports = 0, steps = 0;
+        int supports = 0, steps = 0, deferred = 0;
         for (Site site : sites) {
             var original = site.body();
             var b = new LlmPlanTerrainBounds.Bounds(original.minX(), original.minY()+dy, original.minZ(),
@@ -288,11 +288,12 @@ public final class BuildingLandingPlanner {
             Result access = entranceSteps(input, b, site.facing(), finalBlocks, accessGround, prep, fill);
             if (access.problem()!=null) return access;
             steps += access.steps();
+            deferred += access.deferredAccess();
         }
         if(prep.size()>MAX_EDITS) return failure(input,"地形改动过多，请缩小建筑占地或分批生成。");
         List<PlannedBlock> result = new ArrayList<>(prep.values());
         result.addAll(moved); // Building solids and air always win over terrain preparation.
-        return new Result(result, dy, null, supports, steps);
+        return new Result(result, dy, null, supports, steps,Map.of(),deferred);
     }
 
     private static int chooseElevation(List<Integer> offsets, List<Site> sites, Ground ground) {
@@ -405,7 +406,7 @@ public final class BuildingLandingPlanner {
                 visited.put(next,cost);open.add(new AccessNode(next,cost,node));
             }
         }
-        if(goal==null) return failure(input,"入口附近未找到可通行的接地路线，请扩大可建范围或调整入口位置。");
+        if(goal==null) return new Result(input,0,null,0,0,Map.of(),1);
         List<BlockPos> route=new ArrayList<>();
         for(AccessNode n=goal;n.previous()!=null;n=n.previous()) route.add(n.pos());
         Collections.reverse(route);
