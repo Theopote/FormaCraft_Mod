@@ -112,8 +112,14 @@ public final class BuildingLandingPlanner {
 
     public static Result prepare(List<PlannedBlock> input, List<Site> sites, Ground ground,
                                  GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill) {
+        return prepare(input,sites,ground,strategy,stilt,fill,TerrainSupportPolicy.automatic());
+    }
+
+    public static Result prepare(List<PlannedBlock> input, List<Site> sites, Ground ground,
+                                 GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill, TerrainSupportPolicy policy) {
+        if(policy.material()!=null) fill=policy.material();
         if(sites.size()<2 || stilt || strategy==GlobalConstraints.TerrainStrategy.PRESERVE)
-            return prepareRigid(input,sites,ground,strategy,stilt,fill);
+            return prepareRigid(input,sites,ground,strategy,stilt,fill,policy);
         long area=sites.stream().mapToLong(s->(long)s.body().expand(2).width()*s.body().expand(2).depth()).sum();
         if(area>MAX_AREA) return failure(input,"建筑占地过大，建议分批生成或缩小范围。");
         // Keep all authored contacts (including clearance volumes) rigid. Detached accessories
@@ -133,7 +139,7 @@ public final class BuildingLandingPlanner {
         }
         Map<Integer,List<Site>> groups=new LinkedHashMap<>();
         for(int i=0;i<sites.size();i++) groups.computeIfAbsent(root(parents,i),k->new ArrayList<>()).add(sites.get(i));
-        if(groups.size()==1) return prepareRigid(input,sites,ground,strategy,stilt,fill);
+        if(groups.size()==1) return prepareRigid(input,sites,ground,strategy,stilt,fill,policy);
         Map<Integer,List<PlannedBlock>> grouped=new HashMap<>();
         for(var block:input) grouped.computeIfAbsent(root(parents,owners.get(block.getPos())),k->new ArrayList<>()).add(block);
         List<PlannedBlock> combined=new ArrayList<>();
@@ -141,15 +147,15 @@ public final class BuildingLandingPlanner {
         Map<BlockPos,BlockState> occupied=new HashMap<>();
         int supports=0,steps=0,deferred=0;
         for(var group:groups.entrySet()) {
-            if(!grouped.containsKey(group.getKey())) return prepareRigid(input,sites,ground,strategy,false,fill);
-            var result=prepareRigid(grouped.get(group.getKey()),group.getValue(),ground,strategy,false,fill,false);
+            if(!grouped.containsKey(group.getKey())) return prepareRigid(input,sites,ground,strategy,false,fill,policy);
+            var result=prepareRigid(grouped.get(group.getKey()),group.getValue(),ground,strategy,false,fill,false,policy);
             if(result.problem()!=null) return failure(input,result.problem());
             Map<BlockPos,BlockState> finalGroup=new HashMap<>();
             result.blocks().forEach(p->finalGroup.put(p.getPos(),p.getTargetState()));
             for(var entry:finalGroup.entrySet()) {
                 BlockState previous=occupied.putIfAbsent(entry.getKey(),entry.getValue());
                 if(previous!=null&&!previous.equals(entry.getValue()))
-                    return prepareRigid(input,sites,ground,strategy,false,fill);
+                    return prepareRigid(input,sites,ground,strategy,false,fill,policy);
             }
             combined.addAll(result.blocks());supports+=result.supports();steps+=result.steps();deferred+=result.deferredAccess();
             group.getValue().forEach(site->shifts.put(site,result.dy()));
@@ -173,12 +179,12 @@ public final class BuildingLandingPlanner {
     }
 
     private static Result prepareRigid(List<PlannedBlock> input, List<Site> sites, Ground ground,
-                                 GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill) {
-        return prepareRigid(input,sites,ground,strategy,stilt,fill,true);
+                                 GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill, TerrainSupportPolicy policy) {
+        return prepareRigid(input,sites,ground,strategy,stilt,fill,true,policy);
     }
 
     private static Result prepareRigid(List<PlannedBlock> input, List<Site> sites, Ground ground,
-                                 GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill, boolean transition) {
+                                 GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill, boolean transition, TerrainSupportPolicy policy) {
         if (sites.isEmpty() || strategy == GlobalConstraints.TerrainStrategy.PRESERVE)
             return new Result(input, 0, null, 0, 0);
         long area = sites.stream().mapToLong(s -> (long) s.body().expand(2).width() * s.body().expand(2).depth()).sum();
@@ -215,6 +221,7 @@ public final class BuildingLandingPlanner {
         }
         Map<BlockPos, PlannedBlock> prep = new LinkedHashMap<>();
         int supports = 0, steps = 0, deferred = 0;
+        Set<Long> processedColumns=new HashSet<>();
         for (Site site : sites) {
             var original = site.body();
             var b = new LlmPlanTerrainBounds.Bounds(original.minX(), original.minY()+dy, original.minZ(),
@@ -223,18 +230,22 @@ public final class BuildingLandingPlanner {
             for (int x=pad.minX(); x<=pad.maxX(); x++) for (int z=pad.minZ(); z<=pad.maxZ(); z++) {
                 long k = key(x,z);
                 Integer bottom = bottoms.get(k), top = tops.get(k);
-                if (bottom == null) continue; // No blanket slab across courtyards / gaps.
+                if (bottom == null || !processedColumns.add(k)) continue; // No blanket slab across courtyards / gaps.
                 int surface = cached.surfaceY(x,z);
                 if (surface-b.minY() > MAX_CUT)
                     return failure(input, "此处没有可连接的地基或填挖量超出范围，请调整建筑占地或选址。");
-                boolean pier = Math.floorMod(x-pad.minX(),4)==0 && Math.floorMod(z-pad.minZ(),4)==0
-                        || (x==pad.maxX() && Math.floorMod(z-pad.minZ(),4)==0)
-                        || (z==pad.maxZ() && Math.floorMod(x-pad.minX(),4)==0)
+                boolean pier = Math.floorMod(x-b.minX()-2,6)==0 && Math.floorMod(z-b.minZ()-2,6)==0
+                        || (x==pad.maxX() && Math.floorMod(z-b.minZ()-2,6)==0)
+                        || (z==pad.maxZ() && Math.floorMod(x-b.minX()-2,6)==0)
                         || x==pad.maxX() && z==pad.maxZ();
                 // Fill small differences; leave open space between deep load-bearing piers.
-                if (bottom-surface <= 3 || pier || strategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
-                    boolean braced = bottom-surface > 12 && strategy != GlobalConstraints.TerrainStrategy.FLATTEN
+                if ((policy.mode()==TerrainSupportPolicy.Mode.AUTO && bottom-surface <= 2) || pier
+                        || policy.mode()==TerrainSupportPolicy.Mode.SOLID || strategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
+                    boolean requestedBrace=policy.mode()==TerrainSupportPolicy.Mode.DIAGONAL;
+                    boolean braced = (requestedBrace || policy.mode()==TerrainSupportPolicy.Mode.AUTO && bottom-surface > 10)
+                            && policy.mode()!=TerrainSupportPolicy.Mode.SOLID && strategy != GlobalConstraints.TerrainStrategy.FLATTEN
                             && diagonalBrace(prep, x, bottom-1, z, cached, fill);
+                    if(requestedBrace && !braced && bottom>surface) return failure(input,"指定的斜撑没有可连接的承载山体，请调整支撑要求或建筑位置。");
                     if(!braced && (surface<=cached.bottomY() || bottom-surface>MAX_SUPPORT))
                         return failure(input,"支撑点未能连接到山体或地面，请调整建筑位置。");
                     for (int y=surface; !braced && y<bottom; y++) {
@@ -285,7 +296,8 @@ public final class BuildingLandingPlanner {
                 }
                 public int bottomY(){return cached.bottomY();}
             };
-            Result access = entranceSteps(input, b, site.facing(), finalBlocks, accessGround, prep, fill);
+            Result access = policy.access()?entranceSteps(input, b, site.facing(), finalBlocks, accessGround, prep, fill)
+                    :new Result(input,0,null,0,0);
             if (access.problem()!=null) return access;
             steps += access.steps();
             deferred += access.deferredAccess();

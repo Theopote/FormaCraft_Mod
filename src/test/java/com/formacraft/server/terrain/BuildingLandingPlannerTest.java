@@ -44,7 +44,7 @@ class BuildingLandingPlannerTest {
     private static BuildingLandingPlanner.Result prepare(List<PlannedBlock> blocks,List<BuildingLandingPlanner.Site> sites,
                                                           BuildingLandingPlanner.Ground ground) {
         return BuildingLandingPlanner.prepare(blocks,sites,ground,GlobalConstraints.TerrainStrategy.ADAPTIVE,
-                false,Blocks.COBBLESTONE.getDefaultState());
+                false,Blocks.COBBLESTONE.getDefaultState(),new TerrainSupportPolicy(TerrainSupportPolicy.Mode.AUTO,true,null));
     }
     private static Map<BlockPos,BlockState> finalMap(List<PlannedBlock> blocks) {
         Map<BlockPos,BlockState> out=new HashMap<>();

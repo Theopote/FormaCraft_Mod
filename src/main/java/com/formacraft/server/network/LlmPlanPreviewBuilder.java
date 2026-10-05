@@ -270,7 +270,8 @@ public final class LlmPlanPreviewBuilder {
                 var landing = BuildConstraintContext.withRequest(req, () ->
                         com.formacraft.server.terrain.BuildingLandingPlanner.prepare(landingInput, landingSites,
                                 com.formacraft.server.terrain.BuildingLandingPlanner.ground(serverWorld), landingStrategy,
-                                LlmPlanTerrainBounds.wantsStiltFoundation(req), Blocks.COBBLESTONE.getDefaultState()));
+                                LlmPlanTerrainBounds.wantsStiltFoundation(req), Blocks.COBBLESTONE.getDefaultState(),
+                                com.formacraft.server.terrain.TerrainSupportPolicy.fromRequest(req)));
                 if (landing.problem() != null) {
                     hbAlive.set(false);
                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(landing.problem()));
