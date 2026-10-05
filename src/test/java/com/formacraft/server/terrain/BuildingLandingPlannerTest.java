@@ -203,7 +203,7 @@ class BuildingLandingPlannerTest {
             var result=prepare(input,sites,ground((x,z)->64));
             assertNull(result.problem(),result.problem());
             var finalBlocks=finalMap(result.blocks());
-            for(var b:finalMap(input).entrySet()) assertEquals(b.getValue(),finalBlocks.get(b.getKey().up(result.dy())),
+            for(var b:finalMap(input).entrySet()) assertEquals(b.getValue(),finalBlocks.get(b.getKey().up(result.displacement(b.getKey()))),
                     "authored solid / air must win over earthwork at "+b.getKey());
         }
     }
