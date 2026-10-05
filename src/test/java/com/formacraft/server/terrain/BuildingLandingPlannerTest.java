@@ -107,6 +107,27 @@ class BuildingLandingPlannerTest {
         assertNull(result.problem());
         assertTrue(result.blocks().stream().noneMatch(p->p.getPos().getX()>10&&p.getPos().getX()<28));
     }
+    @Test void detachedBuildingsChooseIndependentElevationsAndPreserveTheirRooms() {
+        var a=site(0,64);var b=site(30,64);
+        var input=new ArrayList<>(house(a,false));input.addAll(house(b,false));
+        var result=prepare(input,List.of(a,b),ground((x,z)->x<15?64:84));
+        assertNull(result.problem());assertEquals(0,result.displacement(new BlockPos(4,65,3)));
+        assertEquals(20,result.displacement(new BlockPos(34,65,3)));
+        var finalBlocks=finalMap(result.blocks());
+        for(var block:input) assertEquals(block.getTargetState(),finalBlocks.get(
+                block.getPos().up(result.displacement(block.getPos()))));
+        assertTrue(result.blocks().stream().noneMatch(p->p.getPos().getX()>10&&p.getPos().getX()<28));
+        assertEquals(0,result.supports(),"independent landing avoids a tall artificial base");
+    }
+    @Test void connectedBuildingsRetainTheirRelativeElevation() {
+        var a=site(0,64);var b=site(30,64);
+        var input=new ArrayList<>(house(a,false));input.addAll(house(b,false));
+        for(int x=9;x<30;x++) input.add(new PlannedBlock(new BlockPos(x,64,3),Blocks.STONE_BRICKS.getDefaultState()));
+        var result=prepare(input,List.of(a,b),ground((x,z)->x<15?64:74));
+        assertNull(result.problem());assertTrue(result.siteShifts().isEmpty());
+        var finalBlocks=finalMap(result.blocks());
+        for(var block:input) assertEquals(block.getTargetState(),finalBlocks.get(block.getPos().up(result.dy())));
+    }
     @Test void riverKeepsFloorAboveWaterAndAnchorsPiersToBed() {
         var s=site(0,64);
         var water=new BuildingLandingPlanner.Ground() {
@@ -239,7 +260,7 @@ class BuildingLandingPlannerTest {
                 assertTrue(result.steps()>=sites.size(),"each real entrance must have an access route");
                 var finalBlocks=finalMap(result.blocks());
                 for(var e:finalMap(input).entrySet())
-                    assertEquals(e.getValue(),finalBlocks.get(e.getKey().up(result.dy())));
+                    assertEquals(e.getValue(),finalBlocks.get(e.getKey().up(result.displacement(e.getKey()))));
             }
         }
     }

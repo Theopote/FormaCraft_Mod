@@ -278,6 +278,20 @@ public final class LlmPlanPreviewBuilder {
                     return true;
                 }
                 plannedBlocks = landing.blocks();
+                if(!landing.siteShifts().isEmpty()) {
+                    var adjusted=new ArrayList<com.formacraft.server.assembly.AssemblyCirculationConstraints.Flight>();
+                    for(var flight:circulation) {
+                        var points=new java.util.LinkedHashSet<BlockPos>(flight.occupied());
+                        points.addAll(flight.clearance());
+                        var displacements=new java.util.HashSet<Integer>();
+                        for(var point:points) displacements.add(landing.displacement(point.add(planOrigin)));
+                        if(displacements.size()>1)
+                            throw new IllegalArgumentException("跨建筑楼梯不能使用不同的落地高度，请使用连接平台。");
+                        int shift=displacements.isEmpty()?0:displacements.iterator().next();
+                        adjusted.add(com.formacraft.server.assembly.AssemblyCirculationConstraints.shift(flight,new BlockPos(0,shift,0)));
+                    }
+                    circulation=adjusted;
+                }
                 planOrigin = planOrigin.up(landing.dy());
                 FormacraftMod.LOGGER.info("LlmPlan landing: sites={}, dy={}, supportBlocks={}, accessSteps={}",
                         landingSites.size(), landing.dy(), landing.supports(), landing.steps());

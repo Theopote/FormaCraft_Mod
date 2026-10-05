@@ -33,7 +33,15 @@ public final class BuildingLandingPlanner {
     }
 
     public record Site(LlmPlanTerrainBounds.Bounds body, GlobalConstraints.Facing facing) {}
-    public record Result(List<PlannedBlock> blocks, int dy, String problem, int supports, int steps) {}
+    public record Result(List<PlannedBlock> blocks, int dy, String problem, int supports, int steps,
+                         Map<Site,Integer> siteShifts) {
+        public Result(List<PlannedBlock> blocks, int dy, String problem, int supports, int steps) {
+            this(blocks,dy,problem,supports,steps,Map.of());
+        }
+        public int displacement(BlockPos original) {
+            return siteShifts.isEmpty()?dy:siteShifts.get(nearestSite(original,new ArrayList<>(siteShifts.keySet())));
+        }
+    }
 
     public static Ground ground(ServerWorld world) {
         return new Ground() {
@@ -104,6 +112,73 @@ public final class BuildingLandingPlanner {
 
     public static Result prepare(List<PlannedBlock> input, List<Site> sites, Ground ground,
                                  GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill) {
+        if(sites.size()<2 || stilt || strategy==GlobalConstraints.TerrainStrategy.PRESERVE)
+            return prepareRigid(input,sites,ground,strategy,stilt,fill);
+        long area=sites.stream().mapToLong(s->(long)s.body().expand(2).width()*s.body().expand(2).depth()).sum();
+        if(area>MAX_AREA) return failure(input,"建筑占地过大，建议分批生成或缩小范围。");
+        // Keep all authored contacts (including clearance volumes) rigid. Detached accessories
+        // belong to the nearest building; a connecting platform merges those buildings.
+        int[] parents=new int[sites.size()];
+        for(int i=0;i<parents.length;i++) parents[i]=i;
+        for(int i=0;i<sites.size();i++) for(int j=0;j<i;j++) {
+            var a=sites.get(i).body().expand(2);var b=sites.get(j).body().expand(2);
+            if(a.minX()<=b.maxX()&&b.minX()<=a.maxX()&&a.minZ()<=b.maxZ()&&b.minZ()<=a.maxZ())
+                parents[root(parents,i)]=root(parents,j);
+        }
+        Map<BlockPos,Integer> owners=new HashMap<>();
+        for(var block:input) owners.put(block.getPos(),sites.indexOf(nearestSite(block.getPos(),sites)));
+        for(var entry:owners.entrySet()) for(int[] d:new int[][]{{1,0,0},{0,1,0},{0,0,1}}) {
+            Integer other=owners.get(entry.getKey().add(d[0],d[1],d[2]));
+            if(other!=null) parents[root(parents,other)]=root(parents,entry.getValue());
+        }
+        Map<Integer,List<Site>> groups=new LinkedHashMap<>();
+        for(int i=0;i<sites.size();i++) groups.computeIfAbsent(root(parents,i),k->new ArrayList<>()).add(sites.get(i));
+        if(groups.size()==1) return prepareRigid(input,sites,ground,strategy,stilt,fill);
+        Map<Integer,List<PlannedBlock>> grouped=new HashMap<>();
+        for(var block:input) grouped.computeIfAbsent(root(parents,owners.get(block.getPos())),k->new ArrayList<>()).add(block);
+        List<PlannedBlock> combined=new ArrayList<>();
+        Map<Site,Integer> shifts=new LinkedHashMap<>();
+        Map<BlockPos,BlockState> occupied=new HashMap<>();
+        int supports=0,steps=0;
+        for(var group:groups.entrySet()) {
+            if(!grouped.containsKey(group.getKey())) return prepareRigid(input,sites,ground,strategy,false,fill);
+            var result=prepareRigid(grouped.get(group.getKey()),group.getValue(),ground,strategy,false,fill,false);
+            if(result.problem()!=null) return failure(input,result.problem());
+            Map<BlockPos,BlockState> finalGroup=new HashMap<>();
+            result.blocks().forEach(p->finalGroup.put(p.getPos(),p.getTargetState()));
+            for(var entry:finalGroup.entrySet()) {
+                BlockState previous=occupied.putIfAbsent(entry.getKey(),entry.getValue());
+                if(previous!=null&&!previous.equals(entry.getValue()))
+                    return prepareRigid(input,sites,ground,strategy,false,fill);
+            }
+            combined.addAll(result.blocks());supports+=result.supports();steps+=result.steps();
+            group.getValue().forEach(site->shifts.put(site,result.dy()));
+        }
+        if(combined.size()-input.size()>MAX_EDITS) return failure(input,"地形改动过多，建议分批生成。");
+        return new Result(combined,0,null,supports,steps,Collections.unmodifiableMap(shifts));
+    }
+
+    private static int root(int[] parents,int i) {
+        while(parents[i]!=i) {parents[i]=parents[parents[i]];i=parents[i];}
+        return i;
+    }
+
+    private static Site nearestSite(BlockPos p,List<Site> sites) {
+        return sites.stream().min(Comparator.comparingLong(site->{
+            var b=site.body();
+            long dx=Math.max(0,Math.max(b.minX()-p.getX(),p.getX()-b.maxX()));
+            long dz=Math.max(0,Math.max(b.minZ()-p.getZ(),p.getZ()-b.maxZ()));
+            return dx*dx+dz*dz;
+        })).orElseThrow();
+    }
+
+    private static Result prepareRigid(List<PlannedBlock> input, List<Site> sites, Ground ground,
+                                 GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill) {
+        return prepareRigid(input,sites,ground,strategy,stilt,fill,true);
+    }
+
+    private static Result prepareRigid(List<PlannedBlock> input, List<Site> sites, Ground ground,
+                                 GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill, boolean transition) {
         if (sites.isEmpty() || strategy == GlobalConstraints.TerrainStrategy.PRESERVE)
             return new Result(input, 0, null, 0, 0);
         long area = sites.stream().mapToLong(s -> (long) s.body().expand(2).width() * s.body().expand(2).depth()).sum();
@@ -175,7 +250,7 @@ public final class BuildingLandingPlanner {
                 }
                 if (prep.size()>MAX_EDITS) return failure(input, "地形改动过多，建议缩小建筑或分批生成。");
             }
-            if (sites.size()==1) {
+            if (transition && sites.size()==1) {
                 var slope=b.expand(4);
                 for(int x=slope.minX();x<=slope.maxX();x++) for(int z=slope.minZ();z<=slope.maxZ();z++) {
                     int distance=Math.max(Math.max(b.minX()-x,x-b.maxX()),Math.max(b.minZ()-z,z-b.maxZ()));
