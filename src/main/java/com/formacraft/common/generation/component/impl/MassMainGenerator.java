@@ -94,9 +94,13 @@ public class MassMainGenerator implements ComponentGenerator {
 
         // A plate is a floor slab, not another multi-storey building shell.
         if (params != null && "plate".equals(params.get("extrude_mode"))) {
-            String floor = getParamString(params, "material");
+            String floor = getParamString(params, "floor_block");
+            if (floor == null) floor = getParamString(params, "block");
+            if (floor == null) floor = getParamString(params, "material");
             if (floor == null) floor = "minecraft:oak_planks";
-            if (!floor.contains(":")) floor = "minecraft:" + floor;
+            String resolvedFloor = DynamicPaletteResolver.mapMaterialToBlock(floor);
+            if (resolvedFloor != null) floor = resolvedFloor;
+            else if (!floor.contains(":")) floor = "minecraft:" + floor;
             for (int x = 0; x < width; x++) for (int z = 0; z < depth; z++)
                 out.add(new BlockPatch(BlockPatch.PLACE, actualRp.x() + x, actualRp.y(), actualRp.z() + z, floor));
             return out;

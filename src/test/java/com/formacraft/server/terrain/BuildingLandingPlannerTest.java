@@ -153,6 +153,23 @@ class BuildingLandingPlannerTest {
                 false,Blocks.COBBLESTONE.getDefaultState());
         assertSame(input,result.blocks());assertEquals(0,result.dy());
     }
+    @ParameterizedTest @ValueSource(ints={1,2,3,4})
+    void latestMaterialLogsCompileWithRegisteredFloorBlocks(int id) throws Exception {
+        try (var in=getClass().getResourceAsStream("/terrain_material_log_cases/case_"+id+".json")) {
+            var plan=com.formacraft.common.llm.parser.LlmPlanParser.parseAndValidate(
+                    new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8));
+            BlockPos origin=new BlockPos(plan.anchor().x(),plan.anchor().y(),plan.anchor().z());
+            var input=com.formacraft.server.network.PlanPatchConverter.convert(
+                    com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,origin,null,null,false),origin).blocks();
+            assertFalse(input.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+            if (id<=2) {
+                var site=BuildingLandingPlanner.sites(plan,origin).getFirst();
+                int upperFloor=site.body().minY()+4;
+                assertTrue(finalMap(input).entrySet().stream().anyMatch(e->e.getKey().getY()==upperFloor
+                        && e.getValue().isOf(Blocks.SPRUCE_PLANKS)),"authored spruce upper floor must survive compilation");
+            }
+        }
+    }
     @ParameterizedTest @ValueSource(ints={1,2,3,4,5,6})
     void actualLoggedPlansLandWithoutChangingCompiledGeometry(int id) throws Exception {
         try(var in=getClass().getResourceAsStream("/style_log_cases_round4/case_"+id+".json")) {

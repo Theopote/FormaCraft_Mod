@@ -631,7 +631,11 @@ public final class ComponentPlanCompiler {
                 Vec3i pos = slab.relativePosition();
                 var slabParams = new HashMap<String, Object>(slab.params());
                 String floorBlock = getParamString(body.params(), "floor_block");
-                if (floorBlock != null) slabParams.putIfAbsent("material", floorBlock);
+                String slabMaterial = getParamString(slab.params(), "material");
+                // A generic material family must not override the host's explicit floor block.
+                if (floorBlock != null && (slabMaterial == null
+                        || Set.of("wood", "minecraft:wood", "planks", "wooden").contains(slabMaterial.toLowerCase(java.util.Locale.ROOT))))
+                    slabParams.put("material", floorBlock);
                 components.set(i, new Component(slab.componentType(), slab.slotId(),
                         new Vec3i(pos.x(), origin.y() + level * fh, pos.z()),
                         new Dimensions(slab.dimensions().width(), slab.dimensions().depth(), 1), slab.features(), slabParams));
