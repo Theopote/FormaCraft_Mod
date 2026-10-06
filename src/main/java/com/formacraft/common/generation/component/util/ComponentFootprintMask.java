@@ -123,6 +123,13 @@ public final class ComponentFootprintMask {
                 "footprint_pattern", "footprintPattern", "plan_pattern", "planPattern");
         Component c = semantic != null ? semantic.source() : null;
 
+        if ("none".equalsIgnoreCase(planType) || "rectangle".equalsIgnoreCase(planType))
+            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
+        String explicitShape = getParamString(params, "shape", "footprint_shape", "footprintShape");
+        if (planType == null && explicitShape != null
+                && java.util.List.of("rectangle", "rect", "box").contains(explicitShape.toLowerCase(Locale.ROOT)))
+            return new PatternConfig(PlanPattern.NONE, 0, 0.0, null);
+
         if (planType != null) {
             String normalized = planType.trim().toLowerCase(Locale.ROOT);
             if (normalized.isEmpty() || normalized.equals("none") || normalized.equals("default")) {

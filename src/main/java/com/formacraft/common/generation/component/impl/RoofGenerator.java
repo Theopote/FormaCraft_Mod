@@ -134,6 +134,9 @@ public class RoofGenerator implements ComponentGenerator {
         if (!doubleEave && (roofType == RoofType.GABLE || roofType == RoofType.DOUBLE_GABLE || roofType == RoofType.XUANSHAN)
                 && !"false".equalsIgnoreCase(getParamString(params, "gable_walls"))) {
             sealRectangularGables(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette);
+            if (getParamBoolean(params, "horse_head_walls", "horseHeadWalls")
+                    && !com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(null, params))
+                emitHorseHeadWalls(out, roofShell, semantic, footprint, rp, coreWidth, coreDepth, palette);
         }
         return out;
     }
@@ -162,6 +165,32 @@ public class RoofGenerator implements ComponentGenerator {
             for (int y = origin.y(); y < roofY; y++) {
                 out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
                 GeneratedSurfaceCapture.record(x, y, z, GeneratedSurfaceCapture.Role.WALL);
+            }
+        }
+    }
+
+    /** Stepped fire walls remain on the body end planes and leave the attic hollow. */
+    private void emitHorseHeadWalls(List<BlockPatch> out, List<BlockPatch> roofShell, SemanticComponent semantic,
+                                    ComponentFootprintMask footprint, Vec3i origin, int width, int depth, Palette palette) {
+        if (Math.min(width, depth) < 5) return;
+        for (int x=0;x<width;x++) for(int z=0;z<depth;z++) if(!footprint.contains(x,z)) return;
+        var heights=new java.util.HashMap<net.minecraft.util.math.BlockPos,Integer>();
+        for(var p:roofShell) if(GeneratedSurfaceCapture.occupied(p))
+            heights.merge(new net.minecraft.util.math.BlockPos(p.dx(),0,p.dz()),p.dy(),Math::max);
+        String wall=getParamString(semantic.source().params(),"wall_block");
+        if(wall==null) wall=getBlockForPart(semantic,palette,SemanticPart.WALL);
+        else if(!wall.contains(":")) wall="minecraft:"+wall;
+        String cap=getBlockForPart(semantic,palette,SemanticPart.ROOF);
+        boolean alongDepth=depth>=width;
+        int span=alongDepth?width:depth, length=alongDepth?depth:width;
+        for(int end:new int[]{0,length-1}) for(int across=0;across<span;across++) {
+            int x=origin.x()+(alongDepth?across:end), z=origin.z()+(alongDepth?end:across);
+            Integer y=heights.get(new net.minecraft.util.math.BlockPos(x,0,z));
+            if(y==null) continue;
+            int top=origin.y()+((y-origin.y()+1)/2)*2+1;
+            for(int level=origin.y();level<=top;level++) {
+                out.add(new BlockPatch(BlockPatch.PLACE,x,level,z,level==top?cap:wall));
+                GeneratedSurfaceCapture.record(x,level,z,GeneratedSurfaceCapture.Role.WALL);
             }
         }
     }

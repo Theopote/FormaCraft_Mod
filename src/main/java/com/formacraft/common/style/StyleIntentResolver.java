@@ -45,6 +45,9 @@ public final class StyleIntentResolver {
         }
 
         String type = normalizeType(component.componentType());
+        if (component.params() != null && "plate".equals(component.params().get("extrude_mode"))) {
+            return component; // Floor slabs must not acquire building or roof defaults.
+        }
         boolean mass = isMassType(type);
         boolean roof = isRoofType(type);
         boolean facade = "FACADE_WINDOWS".equals(type);
@@ -63,6 +66,14 @@ public final class StyleIntentResolver {
         }
 
         boolean changed = false;
+
+        if (roof && flavor == StyleFlavor.HUI && component.dimensions() != null
+                && Math.min(component.dimensions().width(), component.dimensions().depth()) < 14
+                && isMissingOrDefault(getParamString(params, "plan_type", "planType", "footprint_pattern",
+                        "footprintPattern", "plan_pattern", "planPattern"))) {
+            params.put("plan_type", "none");
+            changed = true;
+        }
 
         if (mass) {
             String planType = getParamString(params, "plan_type", "planType", "footprint_pattern",
@@ -120,6 +131,12 @@ public final class StyleIntentResolver {
             }
         }
 
+        if (roof && flavor == StyleFlavor.HUI && !ExplicitDesignPolicy.noComplexDecor(plan, params)
+                && "yingshan".equalsIgnoreCase(getParamString(params, "roof_type", "roofType"))
+                && !params.containsKey("horse_head_walls") && !params.containsKey("horseHeadWalls")) {
+            params.put("horse_head_walls", true);
+            changed = true;
+        }
         if (!ExplicitDesignPolicy.noComplexDecor(plan, params)) changed |= appendStyleFeatures(flavor, features);
 
         if (!changed) {
@@ -138,6 +155,11 @@ public final class StyleIntentResolver {
 
     private static StyleFlavor detectFlavor(LlmPlan plan, Component component) {
         Set<String> tokens = new HashSet<>();
+
+        // A declared identity precedes incidental decorative feature words.
+        String identity = plan == null ? null : StyleIdentityRegistry.canonical(plan.styleProfile());
+        if ("Modern_International".equals(identity)) return StyleFlavor.MODERN;
+        if ("Chinese_Vernacular_Huizhou".equals(identity)) return StyleFlavor.HUI;
 
         if (plan != null) {
             String profile = plan.styleProfile();
@@ -198,7 +220,13 @@ public final class StyleIntentResolver {
     private static String resolvePlanType(StyleFlavor flavor, Dimensions dimensions) {
         return switch (flavor) {
             case GOTHIC -> "cross";
-            case HUI, CHINESE -> {
+            case HUI -> {
+                if (dimensions != null && dimensions.width() >= 14 && dimensions.depth() >= 14) {
+                    yield "courtyard";
+                }
+                yield "none"; // Small vernacular houses retain a usable rectangular interior.
+            }
+            case CHINESE -> {
                 if (dimensions != null && dimensions.width() >= 14 && dimensions.depth() >= 14) {
                     yield "courtyard";
                 }
@@ -212,7 +240,9 @@ public final class StyleIntentResolver {
     private static String resolveRoofType(StyleFlavor flavor) {
         return switch (flavor) {
             case GOTHIC, JAPANESE -> "gable";
-            case HUI, CHINESE -> "xieshan";
+            case HUI -> "yingshan";
+            case CHINESE -> "xieshan";
+            case MODERN -> "flat";
             default -> null;
         };
     }
@@ -238,6 +268,7 @@ public final class StyleIntentResolver {
         return switch (flavor) {
             case GOTHIC -> "stained";
             case HUI, CHINESE, JAPANESE -> "lattice";
+            case MODERN -> "glass";
             default -> null;
         };
     }
@@ -253,7 +284,6 @@ public final class StyleIntentResolver {
             }
             case HUI -> {
                 changed |= addFeature(features, "hui");
-                changed |= addFeature(features, "courtyard");
                 changed |= addFeature(features, "lattice");
                 changed |= addFeature(features, "wood_carvings");
             }
