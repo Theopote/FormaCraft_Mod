@@ -100,6 +100,42 @@ class BuildingLandingPlannerTest {
         assertTrue(blocks.get(new BlockPos(3,162,2)).isOf(Blocks.COBBLESTONE));
         assertNull(blocks.get(new BlockPos(2,0,2)));
     }
+    @Test void explicitlyVerticalHighSupportsUseRequestedMaterialWithoutBraces() {
+        var s=site(0,64);var land=ground((x,z)->x<4?40:64);
+        var result=BuildingLandingPlanner.prepare(house(s,false),List.of(s),land,
+                GlobalConstraints.TerrainStrategy.ADAPTIVE,true,Blocks.COBBLESTONE.getDefaultState(),
+                new TerrainSupportPolicy(TerrainSupportPolicy.Mode.VERTICAL,false,Blocks.STONE_BRICKS.getDefaultState()));
+        assertNull(result.problem());var blocks=finalMap(result.blocks());
+        assertTrue(blocks.get(new BlockPos(2,40,2)).isOf(Blocks.STONE_BRICKS));
+        assertNull(blocks.get(new BlockPos(3,62,2)),"explicit vertical support does not silently become diagonal");
+        assertNull(blocks.get(new BlockPos(1,40,2)),"space between piers remains open");
+    }
+    @Test void explicitlyRequestedBraceWithoutRockAnchorReportsTheConflict() {
+        var s=site(0,64);
+        var result=BuildingLandingPlanner.prepare(house(s,false),List.of(s),ground((x,z)->0),
+                GlobalConstraints.TerrainStrategy.ADAPTIVE,true,Blocks.COBBLESTONE.getDefaultState(),
+                new TerrainSupportPolicy(TerrainSupportPolicy.Mode.DIAGONAL,false,null));
+        assertNotNull(result.problem());assertTrue(result.problem().contains("斜撑"));
+    }
+    @Test void defaultPolicyDoesNotCreateAnUnrequestedEntranceRoute() {
+        var s=site(0,64);
+        var result=BuildingLandingPlanner.prepare(house(s,true),List.of(s),ground((x,z)->z<0?60:64),
+                GlobalConstraints.TerrainStrategy.ADAPTIVE,false,Blocks.COBBLESTONE.getDefaultState());
+        assertNull(result.problem());assertEquals(0,result.steps());assertEquals(0,result.deferredAccess());
+        assertTrue(result.blocks().stream().noneMatch(p->p.getPos().getZ()<0));
+    }
+    @Test void deepRequestedAccessUsesPeriodicPiersInsteadOfAFilledWall() {
+        var s=site(0,64);
+        var request=new com.formacraft.common.model.request.FormaRequest("入口连接自然地面",BlockPos.ORIGIN,
+                "NORTH","minecraft:overworld",null,new BlockPos(0,0,-40),new BlockPos(8,80,6));
+        var result=com.formacraft.server.build.BuildConstraintContext.withRequest(request,
+                ()->prepare(house(s,true),List.of(s),ground((x,z)->z<0?40:64)));
+        assertNull(result.problem());assertTrue(result.steps()>20);
+        var blocks=finalMap(result.blocks());
+        assertNull(blocks.get(new BlockPos(4,40,-2)),"intermediate treads do not each get a full-height column");
+        assertTrue(result.blocks().stream().filter(p->p.getPos().getZ()<0&&!p.getTargetState().isAir()).count()<150,
+                "long access avoids the former solid retaining wall");
+    }
     @Test void separateBuildingsDoNotClearOrPaveTheGap() {
         var a=site(0,64); var b=site(30,64);
         var input=new ArrayList<>(house(a,false));input.addAll(house(b,false));

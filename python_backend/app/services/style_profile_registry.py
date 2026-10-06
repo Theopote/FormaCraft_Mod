@@ -91,20 +91,13 @@ def list_style_profiles() -> List[StyleProfileDef]:
 
 def get_style_profile(style_id: str) -> Optional[StyleProfileDef]:
     ensure_loaded()
-    return _CATALOG.get(style_id)
+    from .style_identity import canonical_style_id
+    identity = canonical_style_id(style_id)
+    return next((v for k,v in _CATALOG.items() if k.casefold() == str(identity).casefold()), None)
 
 
 def has_style_profile(style_id: Optional[str]) -> bool:
-    s = _normalize_text(style_id)
-    if not s:
-        return False
-    ensure_loaded()
-    # style IDs are case-sensitive in data, but callers may pass exact IDs; keep strict check first.
-    if style_id in _CATALOG:
-        return True
-    # fallback: case-insensitive match (defensive against model output drift)
-    sl = s.lower()
-    return any(k.lower() == sl for k in _CATALOG.keys())
+    return get_style_profile(style_id) is not None
 
 
 def default_palette_for_style(style_id: Optional[str]) -> Optional[str]:
@@ -115,7 +108,7 @@ def default_palette_for_style(style_id: Optional[str]) -> Optional[str]:
     if not style_id:
         return None
     ensure_loaded()
-    d = _CATALOG.get(style_id)
+    d = get_style_profile(style_id)
     if d is None:
         # case-insensitive fallback
         sl = _normalize_text(style_id)

@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "aliases": {
+    "Classical_GrecoRoman": "Greco_Roman_Classical",
+    "Industrial_Structural": "Industrial_Structure"
+  },
+  "lexical_aliases": {
+    "Modern_International": [
+      "现代主义",
+      "现代风格",
+      "国际主义",
+      "包豪斯"
+    ],
+    "Gothic_Cathedral": [
+      "哥特式",
+      "哥特风格",
+      "哥特"
+    ],
+    "Chinese_Vernacular_Huizhou": [
+      "徽派",
+      "徽州"
+    ],
+    "Chinese_Imperial_Official": [
+      "中式官式",
+      "明清官式",
+      "宫廷风格"
+    ],
+    "Chinese_Vernacular_Tulou": [
+      "土楼"
+    ],
+    "Chinese_Vernacular_Jiangnan_WaterTown": [
+      "江南水乡",
+      "江南民居"
+    ],
+    "Japanese_Traditional": [
+      "日式传统",
+      "和风",
+      "日式风格"
+    ],
+    "Medieval_Castle": [
+      "中世纪风格",
+      "中世纪石堡"
+    ],
+    "Brutalism": [
+      "粗野主义",
+      "粗野派"
+    ],
+    "Deconstructivism_Zaha": [
+      "解构主义"
+    ],
+    "Industrial_Structure": [
+      "工业风格",
+      "工业风"
+    ],
+    "Fantasy_Elven": [
+      "精灵风格",
+      "精灵建筑"
+    ],
+    "Greco_Roman_Classical": [
+      "古希腊风格",
+      "古罗马风格",
+      "希腊罗马古典"
+    ],
+    "Steampunk": [
+      "蒸汽朋克"
+    ],
+    "Cyberpunk": [
+      "赛博朋克"
+    ]
+  },
+  "variants": {
+    "Chinese_Traditional": {
+      "family": "Chinese",
+      "kind": "family",
+      "profile_id": null
+    },
+    "Tang_Dynasty_Timber": {
+      "family": "Chinese",
+      "kind": "historical_variant",
+      "profile_id": null,
+      "structural_typology": "tailiang_timber_hall"
+    },
+    "Cottage_Rural": {
+      "family": "Vernacular",
+      "kind": "vernacular_variant",
+      "profile_id": null,
+      "legacy_genome": "rustic_wood"
+    },
+    "Modern_Stadium_Elliptical": {
+      "family": "Modern",
+      "kind": "purpose_variant",
+      "profile_id": null,
+      "structural_typology": "stadium_bowl"
+    },
+    "Modern_Stadium_Creative": {
+      "family": "Modern",
+      "kind": "purpose_variant",
+      "profile_id": null,
+      "structural_typology": "stadium_bowl"
+    }
+  },
+  "non_style_ids": {
+    "Patch_Edit": "Editing intent, not an architectural style"
+  }
+}

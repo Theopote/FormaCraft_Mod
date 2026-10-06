@@ -25,7 +25,7 @@ public final class StyleProfileRegistry {
     }
 
     public static StyleProfile load(String id, BuildingStyle fallbackStyle) {
-        String sid = (id == null || id.isBlank()) ? "default" : id.trim();
+        String sid = (id == null || id.isBlank()) ? "default" : com.formacraft.common.style.StyleIdentityRegistry.canonical(id);
 
         // Prefer new StyleProfileCatalog if a profile id exists there.
         var def = StyleProfileCatalogRegistry.get(sid);

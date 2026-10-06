@@ -140,6 +140,10 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     requirements = extract_requirements(text)
     contract = {'schema': SCHEMA, 'requirements': requirements, 'diagnostics': [], 'validation_stage': 'plan'}
     hints['building_contract'] = contract
+    from .architecture_intent import describe_architecture
+    hints['architecture_intent'] = describe_architecture(text)
+    hints['architecture_intent']['materials'] = [deepcopy(r) for r in requirements
+                                               if r['property'] in ('wall_block', 'floor_block', 'roof_block')]
     components = [c for c in (out.get('components') or []) if isinstance(c, dict)]
     slots = (out.get('layout') or {}).get('slots') or []
     aliases = {s['id']: s['slot_id'] for s in slots if isinstance(s, dict) and s.get('id') and s.get('slot_id')}

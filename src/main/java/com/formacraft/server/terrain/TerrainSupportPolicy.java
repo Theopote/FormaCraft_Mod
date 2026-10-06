@@ -17,9 +17,9 @@ public record TerrainSupportPolicy(Mode mode, boolean access, BlockState materia
         String text=request.getUserMessage();
         if(text==null||text.isBlank()) text=request.getRequestText();
         if(text==null) return automatic();
-        text=text.replaceAll("\\s+","").toLowerCase(Locale.ROOT);
+        text=text.replaceAll("\\s+","").replace("垂直的","垂直").toLowerCase(Locale.ROOT);
         Mode mode=Mode.AUTO;
-        if(Pattern.compile("(使用|采用|设置|用)(垂直支撑柱|垂直柱|竖直支柱)|不要斜撑|不用斜撑").matcher(text).find()) mode=Mode.VERTICAL;
+        if(Pattern.compile("(使用|采用|设置|用)(垂直支撑柱|垂直柱|垂直支柱|竖直支柱)|(不要|不用|不使用|不采用)(使用|采用)?斜撑").matcher(text).find()) mode=Mode.VERTICAL;
         else if(Pattern.compile("(使用|采用|设置|用)斜撑").matcher(text).find()) mode=Mode.DIAGONAL;
         else if(Pattern.compile("(使用|采用|设置|用)实心地基|填实地基").matcher(text).find()) mode=Mode.SOLID;
         boolean access=Pattern.compile("入口.{0,12}(连接|接入|接地)|门口.{0,8}(楼梯|台阶)|入口.{0,8}(楼梯|台阶|栈道)").matcher(text).find();

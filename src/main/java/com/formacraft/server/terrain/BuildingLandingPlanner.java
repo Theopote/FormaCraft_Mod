@@ -240,10 +240,12 @@ public final class BuildingLandingPlanner {
                         || x==pad.maxX() && z==pad.maxZ();
                 // Fill small differences; leave open space between deep load-bearing piers.
                 if ((policy.mode()==TerrainSupportPolicy.Mode.AUTO && bottom-surface <= 2) || pier
-                        || policy.mode()==TerrainSupportPolicy.Mode.SOLID || strategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
+                        || policy.mode()==TerrainSupportPolicy.Mode.SOLID
+                        || policy.mode()==TerrainSupportPolicy.Mode.AUTO && strategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
                     boolean requestedBrace=policy.mode()==TerrainSupportPolicy.Mode.DIAGONAL;
                     boolean braced = (requestedBrace || policy.mode()==TerrainSupportPolicy.Mode.AUTO && bottom-surface > 10)
-                            && policy.mode()!=TerrainSupportPolicy.Mode.SOLID && strategy != GlobalConstraints.TerrainStrategy.FLATTEN
+                            && policy.mode()!=TerrainSupportPolicy.Mode.SOLID
+                            && !(policy.mode()==TerrainSupportPolicy.Mode.AUTO && strategy == GlobalConstraints.TerrainStrategy.FLATTEN)
                             && diagonalBrace(prep, x, bottom-1, z, cached, fill);
                     if(requestedBrace && !braced && bottom>surface) return failure(input,"指定的斜撑没有可连接的承载山体，请调整支撑要求或建筑位置。");
                     if(!braced && (surface<=cached.bottomY() || bottom-surface>MAX_SUPPORT))
@@ -422,9 +424,13 @@ public final class BuildingLandingPlanner {
         List<BlockPos> route=new ArrayList<>();
         for(AccessNode n=goal;n.previous()!=null;n=n.previous()) route.add(n.pos());
         Collections.reverse(route);
-        for(BlockPos p:route) {
+        for(int index=0;index<route.size();index++) {
+            BlockPos p=route.get(index);
             int base=ground.surfaceY(p.getX(),p.getZ());
-            for(int y=base;y<=p.getY();y++) {
+            // Deep access runs have periodic piers, not a solid wall beneath every tread.
+            int supportBase=p.getY()-base<=2 || index%6==0 || index==route.size()-1?base:p.getY();
+            if(index>0 && route.get(index-1).getY()!=p.getY()) supportBase=Math.min(supportBase,p.getY()-1);
+            for(int y=supportBase;y<=p.getY();y++) {
                 BlockPos support=new BlockPos(p.getX(),y,p.getZ());
                 if(!blocks.containsKey(support)) add(prep,support,fill);
             }

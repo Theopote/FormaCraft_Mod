@@ -46,7 +46,7 @@ public final class StyleProfileCatalogRegistry {
     public static StyleProfileCatalog.StyleProfileDef get(String styleId) {
         ensureLoaded();
         if (styleId == null) return null;
-        return BY_ID.get(styleId.trim());
+        return BY_ID.get(com.formacraft.common.style.StyleIdentityRegistry.canonical(styleId));
     }
 
     public static Map<String, StyleProfileCatalog.StyleProfileDef> all() {
