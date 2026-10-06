@@ -2,6 +2,7 @@ package com.formacraft.tools;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.formacraft.common.style.StyleIdentityRegistry;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitOption;
@@ -101,14 +102,8 @@ public final class ValidateCultureCardsMain {
             // soft validation
             String sid = s(mm.get("styleId"));
             if (sid != null) {
-                String up = sid.toUpperCase(Locale.ROOT);
-                boolean knownBucket = up.contains("GOTHIC")
-                        || up.contains("INDUSTRIAL")
-                        || up.contains("MODERN")
-                        || up.contains("JAPANESE")
-                        || up.contains("JIANGNAN");
-                if (!knownBucket) {
-                    System.out.println("[validateCultureCards] WARN " + p.getFileName() + " : styleId bucket unknown (ok for now): " + sid);
+                if (!StyleIdentityRegistry.isKnownIdentity(sid)) {
+                    System.out.println("[validateCultureCards] WARN " + p.getFileName() + " : style identity unknown: " + sid);
                 }
             }
 

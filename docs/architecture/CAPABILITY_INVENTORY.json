@@ -1,0 +1,537 @@
+{
+  "schema": "formacraft.architecture_capability_audit.v1",
+  "styles": [
+    {
+      "id": "Chinese_Imperial_Official",
+      "family": "Eastern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_CHINESE_IMPERIAL_A",
+      "allowed_archetypes": [
+        "temple",
+        "palace",
+        "hall"
+      ],
+      "culture_cards": [
+        "mingqing_courtyard",
+        "temple_of_heaven"
+      ],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Chinese_Vernacular_Tulou",
+      "family": "Eastern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_EAST_ASIAN_WOOD_A",
+      "allowed_archetypes": [
+        "residential",
+        "fortress"
+      ],
+      "culture_cards": [],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Japanese_Traditional",
+      "family": "Eastern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_EAST_ASIAN_WOOD_A",
+      "allowed_archetypes": [
+        "house",
+        "shrine",
+        "temple"
+      ],
+      "culture_cards": [
+        "japanese_traditional"
+      ],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Gothic_Cathedral",
+      "family": "Western",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_GOTHIC_CATHEDRAL_A",
+      "allowed_archetypes": [
+        "cathedral",
+        "church"
+      ],
+      "culture_cards": [
+        "gothic_cathedral",
+        "gothic_sacred"
+      ],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Medieval_Castle",
+      "family": "Western",
+      "rule_sections": [
+        "algorithm",
+        "banner",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_STONE_FORTRESS_A",
+      "allowed_archetypes": [
+        "castle",
+        "wall",
+        "fortress"
+      ],
+      "culture_cards": [
+        "castle_compound",
+        "medieval_castle",
+        "square_tower_five_story"
+      ],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Modern_International",
+      "family": "Modern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_MODERN_GLASS_B",
+      "allowed_archetypes": [
+        "office",
+        "residential"
+      ],
+      "culture_cards": [
+        "golden_gate_bridge",
+        "modern_international",
+        "modern_skyscraper"
+      ],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Brutalism",
+      "family": "Modern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_BRUTALISM_CONCRETE_A",
+      "allowed_archetypes": [
+        "office",
+        "government"
+      ],
+      "culture_cards": [],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Deconstructivism_Zaha",
+      "family": "Modern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_PARAMETRIC_WHITE_A",
+      "allowed_archetypes": [
+        "gallery",
+        "office"
+      ],
+      "culture_cards": [],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Industrial_Structure",
+      "family": "Modern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "materials"
+      ],
+      "palette_id": "PALETTE_INDUSTRIAL_STEEL_A",
+      "allowed_archetypes": [
+        "bridge",
+        "tower"
+      ],
+      "culture_cards": [
+        "industrial_structural",
+        "suspension_bridge"
+      ],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Fantasy_Elven",
+      "family": "Fantasy",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_ELVEN_ORGANIC_A",
+      "allowed_archetypes": [
+        "treehouse",
+        "village"
+      ],
+      "culture_cards": [],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Greco_Roman_Classical",
+      "family": "Western",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_CLASSICAL_MARBLE_A",
+      "allowed_archetypes": [
+        "temple",
+        "hall",
+        "monument"
+      ],
+      "culture_cards": [
+        "classical_greco_roman"
+      ],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Chinese_Vernacular_Huizhou",
+      "family": "Eastern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_HUIZHOU_WHITE_BLACK_A",
+      "allowed_archetypes": [
+        "house",
+        "residential",
+        "courtyard"
+      ],
+      "culture_cards": [
+        "siheyuan_courtyard"
+      ],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Chinese_Vernacular_Jiangnan_WaterTown",
+      "family": "Eastern",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_JIANGNAN_WATERTOWN_A",
+      "allowed_archetypes": [
+        "house",
+        "residential",
+        "village",
+        "town"
+      ],
+      "culture_cards": [],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Steampunk",
+      "family": "Fantasy",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_STEAMPUNK_COPPER_A",
+      "allowed_archetypes": [
+        "factory",
+        "tower",
+        "bridge",
+        "workshop",
+        "airship_dock"
+      ],
+      "culture_cards": [],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "Cyberpunk",
+      "family": "Fantasy",
+      "rule_sections": [
+        "algorithm",
+        "components",
+        "geometry",
+        "materials"
+      ],
+      "palette_id": "PALETTE_CYBER_NEON_A",
+      "allowed_archetypes": [
+        "tower",
+        "office",
+        "residential",
+        "market"
+      ],
+      "culture_cards": [],
+      "evidence": "configured_rules",
+      "gameplay_acceptance": "not_assessed"
+    }
+  ],
+  "style_aliases": {
+    "Classical_GrecoRoman": "Greco_Roman_Classical",
+    "Industrial_Structural": "Industrial_Structure"
+  },
+  "recognized_variants": {
+    "Chinese_Traditional": {
+      "family": "Chinese",
+      "kind": "family",
+      "profile_id": null
+    },
+    "Tang_Dynasty_Timber": {
+      "family": "Chinese",
+      "kind": "historical_variant",
+      "profile_id": null,
+      "structural_typology": "tailiang_timber_hall"
+    },
+    "Cottage_Rural": {
+      "family": "Vernacular",
+      "kind": "vernacular_variant",
+      "profile_id": null,
+      "legacy_genome": "rustic_wood"
+    },
+    "Modern_Stadium_Elliptical": {
+      "family": "Modern",
+      "kind": "purpose_variant",
+      "profile_id": null,
+      "structural_typology": "stadium_bowl"
+    },
+    "Modern_Stadium_Creative": {
+      "family": "Modern",
+      "kind": "purpose_variant",
+      "profile_id": null,
+      "structural_typology": "stadium_bowl"
+    }
+  },
+  "non_style_ids": {
+    "Patch_Edit": "Editing intent, not an architectural style"
+  },
+  "structural_types": [
+    {
+      "id": "dense_eaves_pagoda",
+      "name": {
+        "zh": "密檐砖塔",
+        "en": "Dense-eaves brick pagoda"
+      },
+      "style_families": [
+        "Chinese_Traditional",
+        "Tang_Brick"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "dense_eaves_pagoda",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/DenseEavesPagodaInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "tailiang_timber_hall",
+      "name": {
+        "zh": "抬梁式木构大殿",
+        "en": "Tailiang timber hall"
+      },
+      "style_families": [
+        "Tang_Dynasty_Timber",
+        "Chinese_Traditional"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "tailiang_timber_hall",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/TailiangTimberHallInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "radial_terrace_hall",
+      "name": {
+        "zh": "径向台基圆殿",
+        "en": "Radial terrace ceremonial hall"
+      },
+      "style_families": [
+        "Chinese_Imperial_Official",
+        "Chinese_Traditional"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "radial_terrace_hall",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/RadialTerraceHallInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "stadium_bowl",
+      "name": {
+        "zh": "椭圆碗状体育场",
+        "en": "Elliptical stadium bowl"
+      },
+      "style_families": [
+        "Modern_Stadium_Elliptical",
+        "Modern_Stadium"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "stadium_bowl",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/StadiumBowlInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "suspension_bridge",
+      "name": {
+        "zh": "悬索桥",
+        "en": "Suspension bridge"
+      },
+      "style_families": [
+        "Modern_International",
+        "Industrial_Structural"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "suspension_bridge",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/SuspensionBridgeInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "gothic_cathedral_hall",
+      "name": {
+        "zh": "哥特教堂中殿",
+        "en": "Gothic cathedral hall"
+      },
+      "style_families": [
+        "Gothic_Cathedral",
+        "Gothic_Sacred"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "gothic_cathedral_hall",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/GothicCathedralHallInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "courtyard_compound",
+      "name": {
+        "zh": "官式院落群落",
+        "en": "Official courtyard compound"
+      },
+      "style_families": [
+        "Chinese_Imperial_Official"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "courtyard_compound",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/CourtyardCompoundInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "radial_fortress",
+      "name": {
+        "zh": "角塔要塞",
+        "en": "Radial corner-tower fortress"
+      },
+      "style_families": [
+        "Medieval_Castle"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "radial_fortress",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/RadialFortressInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "setback_tower",
+      "name": {
+        "zh": "退台摩天楼",
+        "en": "Setback tower"
+      },
+      "style_families": [
+        "Modern_International",
+        "Modern_Minimal"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "setback_tower",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/SetbackTowerInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    },
+    {
+      "id": "tiered_mountain_palace",
+      "name": {
+        "zh": "台地退台宫城",
+        "en": "Tiered mountain palace"
+      },
+      "style_families": [
+        "Tibetan",
+        "Asian_Monument",
+        "Chinese_Traditional"
+      ],
+      "routing_policy": "typology_first",
+      "interpreter_id": "tiered_mountain_palace",
+      "registered_source": [
+        "src/main/java/com/formacraft/server/generation/typology/interpreter/TieredMountainPalaceInterpreter.java"
+      ],
+      "evidence": "registered_interpreter",
+      "gameplay_acceptance": "not_assessed"
+    }
+  ],
+  "culture_card_count": 23,
+  "errors": [],
+  "warnings": [],
+  "limits": [
+    "Configured styles do not certify generated geometry.",
+    "Purpose-specific functional room coverage is not assessed.",
+    "Recognized variants retain identity but do not yet have dedicated style profile rules."
+  ]
+}
