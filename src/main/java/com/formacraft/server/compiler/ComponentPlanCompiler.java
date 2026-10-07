@@ -1079,6 +1079,9 @@ public final class ComponentPlanCompiler {
         List<String> features = mergeFeatureLists(template.features(), llmFacade.features());
         boolean wrap = hasWrapFeature(features);
         GlobalConstraints.Facing effectiveFacing = facing != null ? facing : GlobalConstraints.Facing.SOUTH;
+        if (mass.params() != null && Boolean.FALSE.equals(mass.params().get("gable_windows"))) {
+            params.put("excluded_window_axis", massDims.depth() >= massDims.width() ? "z" : "x");
+        }
 
         // Window rows use the resolved host envelope, not stale model dimensions.
         int height = Math.max(2, massDims.height());
@@ -1317,6 +1320,8 @@ public final class ComponentPlanCompiler {
             features.addAll(base.features());
         }
         Dimensions dims = base.dimensions();
+        if (dims != null && Boolean.FALSE.equals(params.get("gable_windows")))
+            params.put("excluded_window_axis", dims.depth() >= dims.width() ? "z" : "x");
         if (dims != null && dims.width() >= 8 && dims.depth() >= 8 && !features.contains("wrap")) {
             features.add("wrap");
         }

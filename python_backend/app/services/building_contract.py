@@ -42,12 +42,18 @@ def _extract_global_requirements(text: str) -> list[dict]:
     if re.search(r'平屋顶|平顶', text) and not re.search(r'不要.{0,3}(?:平屋顶|平顶)', text):
         result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
                        'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+    if re.search(r'山墙[^。；\n]{0,15}(?:不要|不需要|不设|不开|无)[^。；\n]{0,6}(?:窗|开口)|(?:不要|不需要|不设|不开)[^。；\n]{0,6}山墙[^。；\n]{0,6}窗|(?:普通)?封闭山墙', text):
+        result.append({'id': 'req_gable_windows', 'property': 'gable_windows', 'value': False,
+                       'source': 'user_explicit', 'source_text': ['山墙禁窗或封闭山墙'],
+                       'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     for prop, pattern in (
         ('roof_type', r'(?:不要|不需要|不需)(?:生成|添加|建造)?屋顶|无屋顶'),
         ('window_style', r'(?:不要|不需要|不需)(?:生成|添加)?(?:窗户|窗洞)|不开窗|无窗(?:户)?'),
         ('entrance_type', r'(?:不要|不需要|不需)(?:生成|添加)?(?:入口|门洞)|无入口'),
     ):
         hits = list(re.finditer(pattern, text))
+        if prop == 'window_style':
+            hits = [m for m in hits if not re.search(r'山墙[^。；，\n]*$', text[max(0, m.start()-16):m.start()])]
         if hits:
             result.append({'id': 'req_disable_' + prop, 'property': prop, 'value': 'none',
                            'source': 'user_explicit', 'source_text': [m[0] for m in hits],
@@ -277,6 +283,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             mass['params']['requirement_scope'] = 'building_' + str(index)
     for mass in masses:
         own = [r for r in requirements if r['scope'] in ('all_main_masses', mass['params'].get('requirement_scope'))]
+        if any(r['property'] == 'gable_windows' and r['value'] is False for r in own):
+            mass['params']['gable_windows'] = False
         clear = next((r['value'] for r in own if r['property'] == 'net_height' and isinstance(r['value'], int)), None)
         if clear is not None:
             floors = max(1, int(mass['params'].get('floor_count', 1)))
@@ -314,7 +322,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 return envelope['max_' + axis] - envelope['min_' + axis]
             requirement['dimension_subject'] = 'building_envelope'
             invalid = [c['params']['component_id'] for c in targets if envelope_size(c) != expected]
-        elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type'):
+        elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type', 'gable_windows'):
             invalid = [c['params']['component_id'] for c in targets if c['params'].get(key) != expected]
         elif key == 'net_height':
             invalid = [c['params']['component_id'] for c in targets

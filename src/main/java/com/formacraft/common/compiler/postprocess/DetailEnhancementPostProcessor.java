@@ -72,7 +72,8 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             }
         }
 
-        addCornice(enhancements, solid, topYByXZ, palette, minX, maxX, minZ, maxZ);
+        // An exterior column can end at the foundation or a displaced detail, not the roof.
+        // Cornices must be authored/hosted components rather than inferred from global maxima.
         addCornerPillars(enhancements, solid, palette, minX, maxX, minZ, maxZ, minY, maxY);
         addBeltCourse(enhancements, solid, palette, minX, maxX, minZ, maxZ, minY, maxY);
 

@@ -57,7 +57,10 @@ class ComponentPlanCompilerDesignIntentTest {
         }
     }
     @Test void scopedDecorationOptOutProtectsOneBuildingAndAllowsTheOther() {
-        var plan = plan(List.of(body("a", 0, Map.of("no_complex_decor", true)), body("b", 30, Map.of())), "MODERN", Map.of());
+        var facade = new Component("FACADE_WINDOWS", "s", new Vec3i(30, 0, 0), new Dimensions(15, 13, 11),
+                List.of("wrap"), Map.of("component_id", "b_windows", "host_id", "b", "window_order", "full"));
+        var plan = plan(List.of(body("a", 0, Map.of("no_complex_decor", true)),
+                body("b", 30, Map.of()), facade), "MODERN", Map.of());
         var before = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan));
         var after = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
         assertFalse(before.isEmpty());

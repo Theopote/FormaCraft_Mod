@@ -103,6 +103,11 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     boolean isFacade = isFacadePosition(x, z, width, depth, facing, wrapFacade);
+                    String excludedAxis = getParamString(params, "excluded_window_axis");
+                    if (wrapFacade && ("x".equals(excludedAxis) && (x == 0 || x == width - 1)
+                            || "z".equals(excludedAxis) && (z == 0 || z == depth - 1))) continue;
+                    if (!wrapFacade && ("x".equals(excludedAxis) && (facing.name().equals("EAST") || facing.name().equals("WEST"))
+                            || "z".equals(excludedAxis) && (facing.name().equals("NORTH") || facing.name().equals("SOUTH")))) continue;
                     if (!isFacade) {
                         continue;
                     }

@@ -54,7 +54,11 @@ public class DecorDetailGenerator implements ComponentGenerator {
                         SemanticPart part = SemanticPart.DECOR;
                         String block = explicitMaterial(c);
                         if (block == null || block.isBlank()) block = palette.pick(part);
-                        else if (!block.contains(":")) block = "minecraft:" + block;
+                        else {
+                            String resolved = com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(block);
+                            if (resolved != null) block = resolved;
+                            else if (!block.contains(":")) block = "minecraft:" + block;
+                        }
                         if (block == null || block.isEmpty()) {
                             block = isCarved ? "minecraft:chiseled_stone_bricks" : "minecraft:stone_bricks";
                         }
@@ -106,7 +110,7 @@ public class DecorDetailGenerator implements ComponentGenerator {
 
     private static String explicitMaterial(Component component) {
         if (component.params() == null) return null;
-        for (String key : List.of("block", "material", "trim_block")) {
+        for (String key : List.of("block", "trim_block", "wall_block", "material")) {
             Object value = component.params().get(key);
             if (value instanceof String text && !text.isBlank()) return text;
         }
