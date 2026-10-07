@@ -56,18 +56,17 @@ class ComponentPlanCompilerDesignIntentTest {
             assertFalse(output.containsKey(new Vec3i(x + 7, 5, 62)));
         }
     }
-    @Test void scopedDecorationOptOutProtectsOneBuildingAndAllowsTheOther() {
-        var facade = new Component("FACADE_WINDOWS", "s", new Vec3i(30, 0, 0), new Dimensions(15, 13, 11),
-                List.of("wrap"), Map.of("component_id", "b_windows", "host_id", "b", "window_order", "full"));
-        var plan = plan(List.of(body("a", 0, Map.of("no_complex_decor", true)),
-                body("b", 30, Map.of()), facade), "MODERN", Map.of());
+    @Test void scopedDecorationOptOutProtectsOneBuildingWithoutImplicitRingsOnTheOther() {
+        var plan = plan(List.of(body("a", 0, Map.of("no_complex_decor", true)), body("b", 30, Map.of())), "MODERN", Map.of());
         var before = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan));
         var after = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
         assertFalse(before.isEmpty());
         var aBefore = before.keySet().stream().filter(p -> p.x() < 20).collect(java.util.stream.Collectors.toSet());
         var aAfter = after.keySet().stream().filter(p -> p.x() < 20).collect(java.util.stream.Collectors.toSet());
         assertEquals(aBefore, aAfter);
-        assertTrue(after.keySet().stream().anyMatch(p -> p.x() >= 25 && !before.containsKey(p)));
+        assertEquals(before.keySet().stream().filter(p -> p.x() >= 25).collect(java.util.stream.Collectors.toSet()),
+                after.keySet().stream().filter(p -> p.x() >= 25).collect(java.util.stream.Collectors.toSet()),
+                "An undecorated building must not acquire an implicit cornice ring");
     }
     @Test void gothicDefaultsCannotRecreateDisabledRoofWindowsOrEntrance() {
         var plan = plan(List.of(body("a", 0, Map.of("roof_type", "none", "window_style", "none", "entrance_type", "none"))),
