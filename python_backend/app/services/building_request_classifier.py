@@ -341,10 +341,16 @@ def should_research_for_classification(
     classification: Optional[RequestClassification],
     *,
     has_references: bool = False,
+    user_text: str = "",
 ) -> bool:
     """Whether Stage-R web research should run for this intent."""
     if has_references:
         return True
+    if user_text:
+        from .style_research_intent import style_research_subject
+
+        if style_research_subject(user_text):
+            return True
     if classification is None:
         return True
     return classification.is_specific_real_building

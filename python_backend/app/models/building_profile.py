@@ -58,6 +58,24 @@ class ProfileSource(BaseModel):
     url: str = ""
 
 
+class StyleFeatureEvidence(BaseModel):
+    feature: str
+    scope: str = "building"
+    source_urls: List[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    implementation_status: str = "unverified"
+
+
+class StyleSpec(BaseModel):
+    requested_name: str = ""
+    identity_id: Optional[str] = None
+    region: Optional[str] = None
+    period: Optional[str] = None
+    purpose: Optional[str] = None
+    scope: str = "building"
+    features: List[StyleFeatureEvidence] = Field(default_factory=list)
+
+
 class RequestClassification(BaseModel):
     """Stage-1 intent: specific real building vs generic typology (routing separate from MODULE pick)."""
 
@@ -84,6 +102,7 @@ class BuildingProfile(BaseModel):
     fidelity_tier: Optional[str] = None
     fidelity_message_zh: Optional[str] = None
     request_classification: Optional[RequestClassification] = None
+    style_specs: List[StyleSpec] = Field(default_factory=list)
 
     def to_prompt_dict(self) -> Dict[str, Any]:
         """Compact dict for LLM prompt injection."""
@@ -116,6 +135,8 @@ def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> 
             merged["query"] = data["query"]
         if isinstance(data.get("sources"), list):
             merged["sources"] = data["sources"]
+        if isinstance(data.get("style_specs"), list):
+            merged["style_specs"] = data["style_specs"]
         if data.get("research_notes"):
             merged["research_notes"] = data["research_notes"]
         if data.get("fidelity_tier"):

@@ -26,6 +26,14 @@ FIXTURES = Path(__file__).resolve().parent.parent / "eval" / "fixtures" / "plans
 
 
 class PlanStagePromptTest(unittest.TestCase):
+    def test_research_defaults_cannot_override_explicit_user_design(self):
+        from app.services.building_plan_stage import PLAN_STAGE_SYSTEM_ADDON
+
+        self.assertIn("Explicit user requirements and opt-outs win", PLAN_STAGE_SYSTEM_ADDON)
+        self.assertIn("unspecified defaults", PLAN_STAGE_SYSTEM_ADDON)
+        self.assertIn("building or part scope", PLAN_STAGE_SYSTEM_ADDON)
+        self.assertNotIn("profile wins for form/style", PLAN_STAGE_SYSTEM_ADDON)
+
     def test_two_phase_default_on(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("BUILDING_RESEARCH_TWO_PHASE", None)
