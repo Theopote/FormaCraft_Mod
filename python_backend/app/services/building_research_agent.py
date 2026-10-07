@@ -1185,7 +1185,8 @@ def research_building_profile(
             len(refs),
             profile.identity.confidence,
         )
-        return profile
+        from .style_feature_compiler import validate_style_evidence
+        return validate_style_evidence(profile, results)
 
     try:
         if call_with_timeout:

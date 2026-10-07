@@ -223,6 +223,8 @@ def build_plan_stage_user_block(
 ) -> str:
     """Stage P 专用 user 块：Profile JSON + 规划合约 + 原始用户请求。"""
     profile_json = json.dumps(profile.to_prompt_dict(), ensure_ascii=False, indent=2)
+    from .style_feature_compiler import compile_style_feature_defaults
+    feature_defaults = compile_style_feature_defaults(profile)
     stid = (profile.minecraft_strategy.structural_typology or "").strip()
     lines = [
         "=== STAGE P: LlmPlan from BuildingProfile ===",
@@ -235,6 +237,11 @@ def build_plan_stage_user_block(
         profile_json,
         "",
         "Planning checklist:",
+        "",
+        "Evidence-gated style feature defaults (parameter mappings, not verified geometry):",
+        json.dumps(feature_defaults, ensure_ascii=False),
+        "Use only mapped_default entries, only on matching building/part scopes and only when the user has not specified or disabled the parameter. Unspecified scopes require binding; conflicting defaults must not be silently merged.",
+        "",
         "1. layout.skeleton_type ← minecraft_strategy.skeleton_type",
         "2. components[] ← recommended_components; map distinctive_elements to params/features",
         "3. dimensions ← scale_hints (blocks); use reasonable defaults if null",
@@ -270,7 +277,7 @@ def build_plan_stage_user_block(
         )
         lines.append("")
     lines.extend([
-        "USER REQUEST (authoritative for intent):",
+        "USER REQUEST (authoritative for intent, form, style, materials and dimensions):",
         user_request.strip() or "(none)",
         "",
         "Output: single valid LlmPlan JSON object.",

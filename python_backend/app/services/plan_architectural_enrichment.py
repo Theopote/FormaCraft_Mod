@@ -333,6 +333,23 @@ def enrich_llm_plan_architectural_detail(
     if _plan_has_typology_structure(components):
         return plan
 
+    # This legacy pass resizes one body and its roof. It cannot safely enrich a
+    # compound plan using a single global proportion card or the first roof.
+    masses = [c for c in components if isinstance(c, dict)
+              and str(c.get("component_type") or "").upper().startswith("MASS")]
+    roofs = [c for c in components if isinstance(c, dict)
+             and str(c.get("component_type") or "").upper() == "ROOF"]
+    if sum(str(c.get("component_type") or "").upper() == "MASS_MAIN" for c in masses) > 1:
+        from .hosted_style_enrichment import enrich_hosted_styles
+        return enrich_hosted_styles(plan, profile)
+    if len(masses) != 1 or len(roofs) > 1:
+        return plan
+    mass_id = (masses[0].get("params") or {}).get("component_id")
+    if roofs:
+        roof_host = (roofs[0].get("params") or {}).get("host_id")
+        if roof_host and roof_host != mass_id:
+            return plan
+
     # Dimensioned circulation requests already describe a complete building. Proportion
     # cards are suggestions, not authority to resize its shell or add a cupola.
     # Resizing only the first mass leaves floors, stairs and other masses at old coordinates.
@@ -504,9 +521,18 @@ def enrich_llm_plan_architectural_detail(
         roof_spec["params"]["roof_dormers"] = True
         roof_spec["params"]["roof_specialty"] = ph.get("roof_specialty") or "mansard_dormer"
     if roof_idx is None:
+        if mass_id:
+            roof_spec["params"]["host_id"] = mass_id
         new_components.append(roof_spec)
     else:
-        new_components[roof_idx] = {**new_components[roof_idx], **roof_spec}
+        existing_roof = new_components[roof_idx]
+        # Refinement is not replacement: keep identity, host, attachment metadata,
+        # authored materials/opt-outs and feature tokens referenced elsewhere.
+        roof_spec["params"] = {**roof_spec["params"], **(existing_roof.get("params") or {})}
+        roof_spec["features"] = list(dict.fromkeys(
+            list(existing_roof.get("features") or []) + roof_spec["features"]
+        ))
+        new_components[roof_idx] = {**existing_roof, **roof_spec}
 
     if not _has_type(new_components, "FACADE_WINDOWS"):
         new_components.append(
@@ -619,5 +645,14 @@ def enrich_llm_plan_architectural_detail(
             },
         )
 
+    # Give generated additions an explicit owner when the contract already
+    # supplied an identity. Final contract normalization assigns their new IDs.
+    if mass_id:
+        existing_objects = {id(c) for c in components}
+        for component in new_components:
+            if id(component) not in existing_objects:
+                component.setdefault("params", {}).setdefault("host_id", mass_id)
+                if mass.get("slot_id") is not None:
+                    component.setdefault("slot_id", mass["slot_id"])
     plan["components"] = new_components
     return plan

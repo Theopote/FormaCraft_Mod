@@ -1305,7 +1305,13 @@ def _normalize_llm_plan_output(
         if fidelity_msg and str(fidelity_msg).strip():
             plan["player_fidelity_notice_zh"] = str(fidelity_msg).strip()
 
-    return apply_building_contract(plan, contract_text)
+    plan = apply_building_contract(plan, contract_text)
+    if building_profile is not None:
+        from .style_feature_compiler import apply_style_feature_defaults
+        plan = apply_style_feature_defaults(plan, building_profile)
+        feature_report = plan["proportion_hints"]["style_feature_report"]
+        logger.info("Style feature parameter verification: %s", feature_report)
+    return plan
 
 
 def _build_system_prompt() -> str:

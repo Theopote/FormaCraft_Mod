@@ -238,7 +238,7 @@ def resolve_research_landmark_id(user_text: str) -> Optional[str]:
         if match is None or "generic_typology" in match.reason_tags:
             return None
         defn = get_archetype_def(match.id)
-        if defn is None or not defn.research_only:
+        if defn is None or not defn.research_only or defn.id not in RESEARCH_LANDMARK_SEEDS:
             return None
         return defn.id
     except Exception:
