@@ -18,6 +18,10 @@ def _positive_match(text: str, match: re.Match) -> bool:
     return not re.search(r'(?:不要|不用|不使用|不采用|避免)(?:用|采用|使用)?\s*$', prefix)
 
 
+def _normalize_request_text(text: str) -> str:
+    return re.sub(r'(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])', '', text)
+
+
 def _extract_global_requirements(text: str) -> list[dict]:
     """Only unambiguous supported expressions; conflicting values remain unscoped, never guessed."""
     result = []
@@ -36,10 +40,10 @@ def _extract_global_requirements(text: str) -> list[dict]:
                        'unit': 'floors' if key == 'floor_count' else 'blocks', 'source': 'user_explicit',
                        'source_text': [m[0] for m in matches], 'scope': 'all_main_masses' if len(values) == 1 else 'unresolved',
                        'priority': 'hard', 'status': 'pending' if len(values) == 1 else 'unsupported_scope'})
-    if re.search(r'双坡屋\s*顶|山墙屋\s*顶', text) and not re.search(r'不要.{0,3}(?:双坡|山墙)', text):
+    if any(_positive_match(text, m) for m in re.finditer(r'双坡屋\s*顶|山墙屋\s*顶', text)):
         result.append({'id': 'req_roof_gable', 'property': 'roof_type', 'value': 'gable', 'source': 'user_explicit',
                        'source_text': ['双坡屋顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
-    if re.search(r'平屋顶|平顶', text) and not re.search(r'不要.{0,3}(?:平屋顶|平顶)', text):
+    if any(_positive_match(text, m) for m in re.finditer(r'平屋顶|平顶', text)):
         result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
                        'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     if re.search(r'山墙[^。；\n]{0,15}(?:不要|不需要|不设|不开|无)[^。；\n]{0,6}(?:窗|开口)|(?:不要|不需要|不设|不开)[^。；\n]{0,6}山墙[^。；\n]{0,6}窗|(?:普通)?封闭山墙', text):
@@ -53,7 +57,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
     ):
         hits = list(re.finditer(pattern, text))
         if prop == 'window_style':
-            hits = [m for m in hits if not re.search(r'山墙[^。；，\n]*$', text[max(0, m.start()-16):m.start()])]
+            hits = [m for m in hits if not re.search(r'山墙[^。；\n]*$', text[max(0, m.start()-30):m.start()])]
         if hits:
             result.append({'id': 'req_disable_' + prop, 'property': prop, 'value': 'none',
                            'source': 'user_explicit', 'source_text': [m[0] for m in hits],
@@ -95,15 +99,19 @@ def _extract_global_requirements(text: str) -> list[dict]:
 
 def extract_requirements(text: str) -> list[dict]:
     """Recognize explicit ordinal declarations; never infer ownership from component order."""
+    text = _normalize_request_text(text)
     declarations = list(re.finditer(
         r'第([一二两三四五六七八九十]|\d+)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?:是)?', text))
     directional = list(re.finditer(r'(左|右)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?:使用|采用|是)?', text))
-    if not declarations and not directional:
+    cardinal = list(re.finditer(r'(东|西|南|北)侧(?:的)?(?:住宅|建筑|房屋|民居|别墅)', text))
+    if not declarations and not directional and not cardinal:
         return _extract_global_requirements(text)
     events = [(m.start(), m.end(), 'building_' + str(NUMBERS[m[1]] if m[1] in NUMBERS else int(m[1])))
               for m in declarations]
     events += [(m.start(), m.end(), 'building_1' if m[1] == '左' else 'building_2') for m in directional]
     events += [(m.start(), m.end(), 'all_main_masses') for m in re.finditer(r'所有建筑|全部建筑|两栋均|两栋都|每栋均|每栋都', text)]
+    events += [(m.start(), m.end(), 'building_' + {'东': 'east', '西': 'west', '南': 'south', '北': 'north'}[m[1]])
+               for m in cardinal]
     events.sort()
     result = _extract_global_requirements(text[:events[0][0]])
     for index, (_, end, scope) in enumerate(events):
@@ -140,6 +148,7 @@ def _center(comp: dict) -> tuple[float, float]:
 
 def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) -> dict:
     if not isinstance(plan, dict) or str(plan.get('mode', 'build')).lower() == 'patch': return plan
+    text = _normalize_request_text(text)
     out = deepcopy(plan)
     hints = out.setdefault('proportion_hints', {})
     if not isinstance(hints, dict): hints = {}; out['proportion_hints'] = hints
@@ -281,6 +290,21 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         ordered = sorted(masses, key=lambda m: _center(m)[0] + frames.get(m.get('slot_id'), {}).get('anchor', {}).get('x', 0))
         for index, mass in enumerate(ordered, 1):
             mass['params']['requirement_scope'] = 'building_' + str(index)
+    if len(masses) == 2:
+        frames = {s.get('slot_id'): s for s in slots if isinstance(s, dict)}
+        for axis, low, high in (('x', 'west', 'east'), ('z', 'north', 'south')):
+            requested = {r['scope'] for r in requirements}
+            if not requested.intersection({'building_' + low, 'building_' + high}):
+                continue
+            def world_coordinate(mass):
+                center = _center(mass)[0 if axis == 'x' else 1]
+                return center + frames.get(mass.get('slot_id'), {}).get('anchor', {}).get(axis, 0)
+            ordered = sorted(masses, key=world_coordinate)
+            if world_coordinate(ordered[0]) == world_coordinate(ordered[1]):
+                contract['diagnostics'].append({'code': 'E_REQUIREMENT_DIRECTION_AMBIGUOUS', 'axis': axis})
+                continue
+            for mass, direction in zip(ordered, (low, high)):
+                mass['params']['requirement_scope'] = 'building_' + direction
     for mass in masses:
         own = [r for r in requirements if r['scope'] in ('all_main_masses', mass['params'].get('requirement_scope'))]
         if any(r['property'] == 'gable_windows' and r['value'] is False for r in own):

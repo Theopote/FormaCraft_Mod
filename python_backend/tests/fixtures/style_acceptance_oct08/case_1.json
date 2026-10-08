@@ -1,0 +1,518 @@
+{
+  "mode": "build",
+  "style_profile": "Modern",
+  "style_attributes": {
+    "wall_color": "white",
+    "roof_color": "white",
+    "accent_color": "gray",
+    "wall_material": "concrete",
+    "roof_material": "concrete",
+    "floor_material": "stone",
+    "decorative_elements": [
+      "ornament"
+    ]
+  },
+  "distinguishing_features": [
+    "ornament"
+  ],
+  "anchor": {
+    "x": -607,
+    "y": 73,
+    "z": -1353
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "modern_house",
+      "confidence": 0.9
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "none",
+      "levels": "single"
+    },
+    "structure": {
+      "type": "load_bearing",
+      "massiveness": 0.5,
+      "voidRatio": 0.7,
+      "supports": "distributed"
+    },
+    "form": {
+      "repetition": "none",
+      "progression": "uniform",
+      "curvature": "straight",
+      "rhythm": "regular"
+    },
+    "symmetry": {
+      "type": "MIRROR_X",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [
+      "roof",
+      "windows",
+      "door"
+    ],
+    "materials": {
+      "primary": "concrete",
+      "secondary": "glass",
+      "accent": "white",
+      "textureBias": "smooth",
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": "modern",
+      "era": "modern",
+      "keywords": [
+        "minimalist",
+        "flat_roof"
+      ]
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": true,
+      "insideSelectionOnly": false,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": [
+        "residential",
+        "modern",
+        "flat_roof"
+      ],
+      "avoid": [
+        "dome",
+        "pitched_roof",
+        "ornate",
+        "steps"
+      ],
+      "extra": null
+    }
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "slot_id": "slot_0"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_type": "FOUNDATION",
+      "relative_position": {
+        "x": -6,
+        "y": -1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "slot_id": "slot_0",
+      "params": {
+        "component_id": "foundation_1",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "material": "minecraft:white_concrete",
+        "building_id": "mass_main_1",
+        "host_source": "legacy_geometry_inference",
+        "host_id": "mass_main_1"
+      },
+      "features": []
+    },
+    {
+      "component_type": "MASS_MAIN",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 6
+      },
+      "slot_id": "slot_0",
+      "params": {
+        "component_id": "mass_main_1",
+        "anchor_mode": "min_corner",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "hollow": true,
+        "void_ratio": 0.0,
+        "window_ratio": 0.0,
+        "floor_height": 5,
+        "floor_count": 1,
+        "wall_block": "minecraft:white_concrete",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:white_concrete",
+        "roof_type": "flat",
+        "facade_profile": "none",
+        "wall_pattern": "none",
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "mass_main_1"
+      },
+      "features": [
+        "ornament"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "relative_position": {
+        "x": -6,
+        "y": 5,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 13,
+        "depth": 11,
+        "height": 1
+      },
+      "slot_id": "slot_0",
+      "params": {
+        "component_id": "roof_1",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "host_id": "mass_main_1",
+        "material": "minecraft:white_concrete",
+        "roof_height": 2,
+        "overhang": 2,
+        "distinctive_features": [
+          "ornament"
+        ],
+        "building_id": "mass_main_1"
+      },
+      "features": [
+        "ornament"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "relative_position": {
+        "x": -1,
+        "y": 1,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "slot_id": "slot_0",
+      "params": {
+        "component_id": "entrance_1",
+        "anchor_mode": "min_corner",
+        "entrance_type": "rectangular",
+        "facing": "SOUTH",
+        "host_id": "mass_main_1",
+        "material": "minecraft:air",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "mass_main_1"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": -5,
+        "y": 2,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 2
+      },
+      "slot_id": "slot_0",
+      "params": {
+        "component_id": "window_left_1",
+        "anchor_mode": "min_corner",
+        "window_aspect": "horizontal_strip",
+        "window_ratio": 1.0,
+        "host_id": "mass_main_1",
+        "material": "minecraft:glass",
+        "rhythm": "regular",
+        "building_id": "mass_main_1"
+      },
+      "features": []
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "relative_position": {
+        "x": 1,
+        "y": 2,
+        "z": -5
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 2
+      },
+      "slot_id": "slot_0",
+      "params": {
+        "component_id": "window_right_1",
+        "anchor_mode": "min_corner",
+        "window_aspect": "horizontal_strip",
+        "window_ratio": 1.0,
+        "host_id": "mass_main_1",
+        "material": "minecraft:glass",
+        "rhythm": "regular",
+        "building_id": "mass_main_1"
+      },
+      "features": []
+    }
+  ],
+  "proportion_hints": {
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [
+        {
+          "id": "req_width",
+          "property": "width",
+          "value": null,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "宽13格",
+            "宽2格"
+          ],
+          "scope": "unresolved",
+          "priority": "hard",
+          "status": "unsupported_scope"
+        },
+        {
+          "id": "req_depth",
+          "property": "depth",
+          "value": 11,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "深11格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "dimension_subject": "building_envelope",
+          "target_components": [
+            "mass_main_1"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_net_height",
+          "property": "net_height",
+          "value": 4,
+          "unit": "blocks",
+          "source": "user_explicit",
+          "source_text": [
+            "室内净高4格"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_1"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_floor_count",
+          "property": "floor_count",
+          "value": 1,
+          "unit": "floors",
+          "source": "user_explicit",
+          "source_text": [
+            "一层住宅，"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_1"
+          ],
+          "mismatched_components": []
+        },
+        {
+          "id": "req_roof_type",
+          "property": "roof_type",
+          "value": "flat",
+          "source": "user_explicit",
+          "source_text": [
+            "平屋顶"
+          ],
+          "scope": "all_main_masses",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "mass_main_1"
+          ],
+          "mismatched_components": []
+        }
+      ],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {},
+      "resolved_buildings": [
+        {
+          "component_id": "mass_main_1",
+          "slot_id": "slot_0",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -5
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -5
+          },
+          "dimensions": {
+            "width": 13,
+            "depth": 11,
+            "height": 6
+          },
+          "floor_ys_local": [
+            0
+          ],
+          "roof_y_local": 5,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "mass_main_1",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -5
+                },
+                "dimensions": {
+                  "width": 13,
+                  "depth": 11,
+                  "height": 6
+                },
+                "roof_y_local": 5
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -5,
+              "max_x": 7,
+              "max_z": 6,
+              "min_y": 0,
+              "max_y": 6
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 7,
+                "start": -5,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": -5,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": -6,
+                "end": 7
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -5,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Modern_International",
+          "identity_id": "Modern_International",
+          "status": "canonical",
+          "profile_id": "Modern_International"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一栋现代主义一层住宅， 宽13格、深11格， 室内净高4格。 白色混凝土外墙，墙厚1格； 楼板厚1格，室内中空。 使用平屋顶，不要坡屋顶、 穹顶和复杂装饰。 正面中央设置宽2格、 高3格的矩形入口， 入口两侧分别设置横向玻璃窗。 不要在地基外围添加装饰性台阶环。",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "住宅",
+              "start": 10,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Modern_International",
+              "phrase": "现代主义",
+              "start": 4,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一栋现代主义一层住宅，\n宽13格、深11格，\n室内净高4格。\n白色混凝土外墙，墙厚1格；\n楼板厚1格，室内中空。\n使用平屋顶，不要坡屋顶、\n穹顶和复杂装饰。\n正面中央设置宽2格、\n高3格的矩形入口，\n入口两侧分别设置横向玻璃窗。\n不要在地基外围添加装饰性台阶\n环。",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "style_feature_report": {
+      "schema": "formacraft.style_feature_report.v1",
+      "verification_level": "plan_parameters_only",
+      "features": []
+    }
+  },
+  "player_fidelity_notice_zh": "组合式生成「现代主义一层住宅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
+  "kind": "llmplan"
+}
