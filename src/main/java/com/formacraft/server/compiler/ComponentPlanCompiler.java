@@ -280,6 +280,8 @@ public final class ComponentPlanCompiler {
             var semantic = new SemanticComponent("ROOF", slot, roof, plan.styleProfile());
             RoofShapeAudit.inspect(semantic, result, offset).ifPresent(audit ->
                     FormacraftMod.LOGGER.info("[RoofShapeAudit] stage=postprocess result={}", audit));
+            RoofSeamAudit.inspect(semantic, components, slotMap, defaultSlot(plan), result).ifPresent(audit ->
+                    FormacraftMod.LOGGER.info("[RoofSeamAudit] stage=postprocess result={}", audit));
         }
 
         try {

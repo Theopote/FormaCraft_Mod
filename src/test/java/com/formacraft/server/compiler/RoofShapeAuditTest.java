@@ -44,4 +44,26 @@ class RoofShapeAuditTest {
                 p.dx()+30,p.dy()+8,p.dz()-20,p.targetBlock())).toList();
         assertEquals("matched",RoofShapeAudit.inspect(roof,patches,offset).orElseThrow().status());
     }
+    @Test void offCenterDamageIsDetectedOnBothAxes() {
+        for(var dims:List.of(new int[]{11,9},new int[]{9,11})) {
+            var roof=roof(dims[0],dims[1],0);
+            boolean alongDepth=dims[1]>=dims[0];
+            var patches=new ArrayList<>(new RoofGenerator().generate(roof));
+            int x=5+(alongDepth?4:1), z=7+(alongDepth?1:4);
+            for(int y=10;y<=20;y++) patches.add(new BlockPatch(BlockPatch.REMOVE,x,y,z,"minecraft:air"));
+            var audit=RoofShapeAudit.inspect(roof,patches,BlockPos.ORIGIN).orElseThrow();
+            assertEquals("missing_slope_column",audit.reason());
+            assertEquals(1,audit.sectionIndex());
+        }
+    }
+    @Test void everyInteriorSectionIsCheckedAndReplacementRestoresColumn() {
+        var roof=roof(9,11,0);
+        var patches=new ArrayList<>(new RoofGenerator().generate(roof));
+        var original=patches.stream().filter(p->p.dx()==9 && p.dz()==8).toList();
+        for(int y=10;y<=20;y++) patches.add(new BlockPatch(BlockPatch.REMOVE,9,y,8,"minecraft:air"));
+        patches.addAll(original);
+        var audit=RoofShapeAudit.inspect(roof,patches,BlockPos.ORIGIN).orElseThrow();
+        assertEquals("matched",audit.status());
+        assertEquals(9,audit.checkedSections());
+    }
 }
