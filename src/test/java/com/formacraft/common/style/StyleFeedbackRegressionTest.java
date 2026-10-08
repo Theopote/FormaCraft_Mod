@@ -12,6 +12,13 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StyleFeedbackRegressionTest {
+    @Test void explicitGlassMaterialWinsOverHuiLatticePalette() {
+        var c=new Component("FACADE_WINDOWS",null,new Vec3i(0,0,0),new Dimensions(11,1,4),List.of(),
+                Map.of("material","minecraft:glass","window_style","regular","reserve_entrance",false));
+        var patches=new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",null,c,"Chinese_Vernacular_Huizhou"));
+        assertFalse(patches.isEmpty());
+        assertTrue(patches.stream().allMatch(p->p.targetBlock().equals("minecraft:glass")));
+    }
     @Test void decorResolvesGenericConcreteAndPrefersSpecificWallChoice() {
         MinecraftRegistryTestBootstrap.initialize();
         for(var params:List.of(Map.<String,Object>of("material","concrete"),

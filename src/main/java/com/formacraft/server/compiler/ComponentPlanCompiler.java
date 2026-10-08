@@ -271,6 +271,17 @@ public final class ComponentPlanCompiler {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: post-processed to {} patches", result.size());
         }
 
+        for (var roof : components) {
+            if (!"ROOF".equals(normalizeType(roof.componentType()))) continue;
+            var slot = slotMap.get(roof.slotId());
+            if (slot == null) slot = defaultSlot(plan);
+            var anchor = slot == null ? null : slot.anchor();
+            var offset = anchor == null ? BlockPos.ORIGIN : new BlockPos(anchor.x(), anchor.y(), anchor.z());
+            var semantic = new SemanticComponent("ROOF", slot, roof, plan.styleProfile());
+            RoofShapeAudit.inspect(semantic, result, offset).ifPresent(audit ->
+                    FormacraftMod.LOGGER.info("[RoofShapeAudit] stage=postprocess result={}", audit));
+        }
+
         try {
             AssemblyCirculationConstraints.validatePatches(result, circulation);
         } catch (AssemblyCirculationConstraints.Conflict conflict) {

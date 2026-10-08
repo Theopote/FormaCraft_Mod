@@ -239,9 +239,9 @@ public final class BuildingLandingPlanner {
                         || (z==pad.maxZ() && Math.floorMod(x-b.minX()-2,6)==0)
                         || x==pad.maxX() && z==pad.maxZ();
                 // Fill small differences; leave open space between deep load-bearing piers.
-                if ((policy.mode()==TerrainSupportPolicy.Mode.AUTO && bottom-surface <= 2) || pier
+                if (bottom <= b.minY() && ((policy.mode()==TerrainSupportPolicy.Mode.AUTO && bottom-surface <= 2) || pier
                         || policy.mode()==TerrainSupportPolicy.Mode.SOLID
-                        || policy.mode()==TerrainSupportPolicy.Mode.AUTO && strategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
+                        || policy.mode()==TerrainSupportPolicy.Mode.AUTO && strategy == GlobalConstraints.TerrainStrategy.FLATTEN)) {
                     boolean requestedBrace=policy.mode()==TerrainSupportPolicy.Mode.DIAGONAL;
                     boolean braced = (requestedBrace || policy.mode()==TerrainSupportPolicy.Mode.AUTO && bottom-surface > 10)
                             && policy.mode()!=TerrainSupportPolicy.Mode.SOLID

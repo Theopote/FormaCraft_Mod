@@ -50,6 +50,9 @@ def _extract_global_requirements(text: str) -> list[dict]:
         result.append({'id': 'req_gable_windows', 'property': 'gable_windows', 'value': False,
                        'source': 'user_explicit', 'source_text': ['山墙禁窗或封闭山墙'],
                        'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+    if any(_positive_match(text, m) for m in re.finditer(r'玻璃窗', text)):
+        result.append({'id': 'req_glass_windows', 'property': 'glass_block', 'value': 'minecraft:glass',
+                       'source': 'user_explicit', 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     for prop, pattern in (
         ('roof_type', r'(?:不要|不需要|不需)(?:生成|添加|建造)?屋顶|无屋顶'),
         ('window_style', r'(?:不要|不需要|不需)(?:生成|添加)?(?:窗户|窗洞)|不开窗|无窗(?:户)?'),
@@ -307,6 +310,11 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 mass['params']['requirement_scope'] = 'building_' + direction
     for mass in masses:
         own = [r for r in requirements if r['scope'] in ('all_main_masses', mass['params'].get('requirement_scope'))]
+        if any(r['property'] == 'glass_block' for r in own):
+            mass['params']['glass_block'] = 'minecraft:glass'
+            for child in components:
+                if child.get('component_type') == 'FACADE_WINDOWS' and child['params'].get('host_id') == mass['params']['component_id']:
+                    child['params']['glass_block'] = 'minecraft:glass'
         if any(r['property'] == 'gable_windows' and r['value'] is False for r in own):
             mass['params']['gable_windows'] = False
         clear = next((r['value'] for r in own if r['property'] == 'net_height' and isinstance(r['value'], int)), None)
@@ -346,7 +354,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 return envelope['max_' + axis] - envelope['min_' + axis]
             requirement['dimension_subject'] = 'building_envelope'
             invalid = [c['params']['component_id'] for c in targets if envelope_size(c) != expected]
-        elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type', 'gable_windows'):
+        elif key in ('floor_count', 'floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type', 'gable_windows', 'glass_block'):
             invalid = [c['params']['component_id'] for c in targets if c['params'].get(key) != expected]
         elif key == 'net_height':
             invalid = [c['params']['component_id'] for c in targets

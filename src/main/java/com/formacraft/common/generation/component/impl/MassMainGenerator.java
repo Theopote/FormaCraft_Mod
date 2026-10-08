@@ -675,6 +675,7 @@ public class MassMainGenerator implements ComponentGenerator {
         String materialKey = switch (part) {
             case WALL, WALL_BASE, WALL_ACCENT -> "wall_block";
             case FLOOR, COURTYARD_FLOOR -> "floor_block";
+            case WINDOW -> "glass_block";
             default -> null;
         };
         if (materialKey != null && semantic.source() != null) {

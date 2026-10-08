@@ -51,6 +51,14 @@ class BuildingLandingPlannerTest {
         blocks.forEach(b->out.put(b.getPos(),b.getTargetState()));
         return out;
     }
+    @Test void roofOverhangColumnsDoNotGrowFoundationCurtains() {
+        var s=site(0,64); var input=house(s,false);
+        for(int z=0;z<=6;z++) input.add(new PlannedBlock(new BlockPos(-1,69,z),Blocks.WHITE_CONCRETE.getDefaultState()));
+        var result=prepare(input,List.of(s),ground((x,z)->x<0?67:64));
+        assertNull(result.problem());
+        assertTrue(result.blocks().stream().filter(p->p.getTargetState().isOf(Blocks.COBBLESTONE))
+                .allMatch(p->p.getPos().getY()<64+result.dy()));
+    }
     @Test void flatGroundAddsNoExtraSlabAndPreservesRooms() {
         var s=site(0,64); var result=prepare(house(s,true),List.of(s),ground((x,z)->64));
         assertNull(result.problem()); assertEquals(0,result.dy()); assertEquals(0,result.supports());

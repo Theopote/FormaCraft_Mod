@@ -25,6 +25,14 @@ class StyleAcceptanceRegressionTest(unittest.TestCase):
                         self.assertNotEqual(body["params"].get("window_style"), "none")
                 self.assertEqual(result["components"], apply_building_contract(result, text)["components"])
 
+    def test_explicit_glass_is_bound_to_body_and_hosted_windows(self):
+        plan = json.loads((ROOT / "case_4.json").read_text(encoding="utf-8"))
+        text = json.loads((ROOT / "requests.json").read_text(encoding="utf-8"))[3]
+        result = apply_building_contract(plan, text)
+        windows = [c for c in result["components"] if c["component_type"] == "FACADE_WINDOWS"]
+        self.assertTrue(windows)
+        self.assertTrue(all(c["params"].get("glass_block") == "minecraft:glass" for c in windows))
+
     def test_negated_roof_is_not_a_positive_requirement(self):
         for text in ("使用双坡屋顶，不使用平屋顶", "采用双坡屋顶，不采用平屋顶", "不要平屋顶，使用双坡屋顶"):
             roofs = [r["value"] for r in extract_requirements(text) if r["property"] == "roof_type"]
