@@ -61,6 +61,13 @@ final class RoofShapeAudit {
             for(int i=center+1;i<across;i++) continuous &= heights.get(i)<=heights.get(i-1);
             if(!rise || !continuous) return Optional.of(new Result(id,"mismatch",
                     !rise?"no_ridge_rise":"non_monotonic_slope",List.copyOf(heights),section,checked));
+            if(!last.isEmpty()) {
+                int delta=heights.getFirst()-last.getFirst();
+                boolean translated=delta!=0;
+                for(int i=1;i<across;i++) translated &= heights.get(i)-last.get(i)==delta;
+                if(translated) return Optional.of(new Result(id,"mismatch","longitudinal_section_shift",
+                        List.copyOf(heights),section,checked));
+            }
             last=List.copyOf(heights);
         }
         return Optional.of(new Result(id,"matched","gable_sections",last,length-2,checked));

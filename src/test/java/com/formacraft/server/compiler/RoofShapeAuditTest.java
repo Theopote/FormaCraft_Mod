@@ -14,7 +14,7 @@ class RoofShapeAuditTest {
         return new SemanticComponent("ROOF",null,c,"DEFAULT");
     }
     @Test void realGableBothAxesAndOverhangsPass() {
-        for(var dims:List.of(new int[]{11,9},new int[]{9,11})) for(int overhang=0;overhang<=2;overhang++) {
+        for(var dims:List.of(new int[]{11,9},new int[]{9,11},new int[]{10,12},new int[]{12,10})) for(int overhang=0;overhang<=2;overhang++) {
             var roof=roof(dims[0],dims[1],overhang);
             var patches=new RoofGenerator().generate(roof);
             assertEquals("matched",RoofShapeAudit.inspect(roof,patches,BlockPos.ORIGIN).orElseThrow().status());
@@ -65,5 +65,25 @@ class RoofShapeAuditTest {
         var audit=RoofShapeAudit.inspect(roof,patches,BlockPos.ORIGIN).orElseThrow();
         assertEquals("matched",audit.status());
         assertEquals(9,audit.checkedSections());
+    }
+    @Test void translatedSegmentsAreDetectedInBothDirectionsAndAxes() {
+        for(var dims:List.of(new int[]{11,9},new int[]{9,11})) for(boolean raiseStart:List.of(false,true)) {
+            var roof=roof(dims[0],dims[1],0);
+            boolean alongDepth=dims[1]>=dims[0];
+            var patches=new RoofGenerator().generate(roof).stream().map(p->{
+                int section=alongDepth?p.dz()-7:p.dx()-5;
+                boolean raised=raiseStart?section<4:section>=4;
+                return new BlockPatch(p.action(),p.dx(),p.dy()+(raised?2:0),p.dz(),p.targetBlock());
+            }).toList();
+            var audit=RoofShapeAudit.inspect(roof,patches,BlockPos.ORIGIN).orElseThrow();
+            assertEquals("longitudinal_section_shift",audit.reason());
+            assertEquals(4,audit.sectionIndex());
+        }
+    }
+    @Test void uniformTranslationOfWholeRoofRemainsValidWithMatchingOffset() {
+        var roof=roof(10,12,1); var offset=new BlockPos(-17,3,26);
+        var patches=new RoofGenerator().generate(roof).stream().map(p->new BlockPatch(p.action(),
+                p.dx()-17,p.dy()+3,p.dz()+26,p.targetBlock())).toList();
+        assertEquals("matched",RoofShapeAudit.inspect(roof,patches,offset).orElseThrow().status());
     }
 }
