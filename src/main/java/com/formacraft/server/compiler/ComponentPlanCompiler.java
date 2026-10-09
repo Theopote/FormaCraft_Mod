@@ -1097,7 +1097,10 @@ public final class ComponentPlanCompiler {
         List<String> features = mergeFeatureLists(template.features(), llmFacade.features());
         boolean wrap = hasWrapFeature(features);
         GlobalConstraints.Facing effectiveFacing = facing != null ? facing : GlobalConstraints.Facing.SOUTH;
-        if (mass.params() != null && Boolean.FALSE.equals(mass.params().get("gable_windows"))) {
+        if ("front".equalsIgnoreCase(String.valueOf(params.get("wall")))) {
+            // Explicit front-wall openings below the roof override a broad gable-wall opt-out.
+            params.remove("excluded_window_axis");
+        } else if (mass.params() != null && Boolean.FALSE.equals(mass.params().get("gable_windows"))) {
             params.put("excluded_window_axis", massDims.depth() >= massDims.width() ? "z" : "x");
         }
 

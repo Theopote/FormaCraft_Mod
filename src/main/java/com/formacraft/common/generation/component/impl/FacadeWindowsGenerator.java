@@ -98,6 +98,15 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         }
         // boolean isFloorToCeiling = hasFeature(c, "floor_to_ceiling", "full_height"); // 保留用于未来扩展
 
+        int explicitWidth=ComponentParamParsers.intParam(params,"window_width","windowWidth");
+        int explicitHeight=ComponentParamParsers.intParam(params,"window_height","windowHeight");
+        if(explicitWidth>0 || explicitHeight>0) {
+            String block=getBlockForWindow(semantic,palette,SemanticPart.WINDOW,isLattice,windowStyle);
+            return com.formacraft.common.generation.component.util.SizedFacadeWindows.generate(
+                    semantic,block,facing,wrapFacade,Math.max(1,explicitWidth),
+                    explicitHeight>0?explicitHeight:2,floorHeight,reserveEntranceBay);
+        }
+
         // 生成窗户（通常只在立面，depth 通常为 1）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
