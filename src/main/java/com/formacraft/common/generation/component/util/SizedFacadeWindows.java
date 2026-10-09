@@ -41,6 +41,7 @@ public final class SizedFacadeWindows {
                 addStarts(starts,middleEnd,span-1,windowWidth,right);
             } else addStarts(starts,1,span-1,windowWidth,perWall);
             for(int floor=0;floor<height;floor+=Math.max(1,floorHeight)) {
+                if(!floorAllowed(params,floor/Math.max(1,floorHeight)+1)) continue;
                 int bottom=floor+sill;
                 if(bottom+windowHeight>Math.min(height,floor+floorHeight)) continue;
                 for(int start:starts) for(int a=start;a<start+windowWidth;a++) for(int y=bottom;y<bottom+windowHeight;y++) {
@@ -86,5 +87,16 @@ public final class SizedFacadeWindows {
             } catch(NumberFormatException ignored) { }
         }
         return -1;
+    }
+    /** Floors are one-based relative to the aligned host envelope, not world Y. */
+    public static boolean floorAllowed(Map<String,Object> params,int floor) {
+        if(params==null || !(params.get("window_floors") instanceof List<?> requested)) return true;
+        for(Object value:requested) {
+            if(value instanceof Number number && number.doubleValue()==floor) return true;
+            if(value instanceof String text) try {
+                if(Integer.parseInt(text)==floor) return true;
+            } catch(NumberFormatException ignored) { }
+        }
+        return false;
     }
 }

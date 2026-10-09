@@ -119,4 +119,17 @@ class ExplicitWindowSizeFeedbackTest {
         assertEquals(8,cells.stream().filter(p->p.getZ()==0 && p.getY()==1).count());
         assertTrue(cells.stream().allMatch(p->p.getX()>0 && p.getX()<14));
     }
+    @Test void secondFloorMaskFiltersBothSizedAndLegacyRhythmWindows() {
+        for(boolean sized:List.of(true,false)) {
+            var base=facade("left_right"); var params=new HashMap<String,Object>(base.params());
+            params.put("window_floors",List.of(2.0));
+            if(!sized) { params.remove("window_width"); params.remove("window_height"); }
+            var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),base.dimensions(),base.features(),params);
+            var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
+            var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
+            assertFalse(cells.isEmpty());
+            assertTrue(cells.stream().allMatch(p->p.getY()>=5 && p.getY()<10));
+            if(sized) assertRectangles(cells);
+        }
+    }
 }

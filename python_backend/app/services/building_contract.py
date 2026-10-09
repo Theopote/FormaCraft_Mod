@@ -397,4 +397,6 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                                  'path': 'proportion_hints.building_contract',
                                  'suggestions': [f"{r['id']}: expected {r['value']}, components {r['mismatched_components']}" for r in failures]
                                                 + [str(d) for d in contract['diagnostics']]}
+    from .window_language_contract import apply_window_language_contract
+    apply_window_language_contract(out, text)
     return out

@@ -110,6 +110,7 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
 
         // 生成窗户（通常只在立面，depth 通常为 1）
         for (int y = 0; y < height; y++) {
+            if(!com.formacraft.common.generation.component.util.SizedFacadeWindows.floorAllowed(params,y/floorHeight+1)) continue;
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     boolean isFacade = isFacadePosition(x, z, width, depth, facing, wrapFacade);
