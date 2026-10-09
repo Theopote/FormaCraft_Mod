@@ -197,6 +197,7 @@ public final class ComponentPlanCompiler {
 
         List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
         Set<BlockPos> generatedSurfaces = new HashSet<>();
+        var openingExpectations = new java.util.LinkedHashMap<BlockPos, OpeningMaterialAudit.Expectation>();
         Set<BlockPos> protectedMaterials = new HashSet<>();
         Set<BlockPos> decorationRestrictions = new HashSet<>();
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
@@ -206,7 +207,7 @@ public final class ComponentPlanCompiler {
         TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
         try {
             compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                    slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions);
+                    slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
         } finally {
             UnifiedGeneratorRouter.clearTypologyExclusivePlan();
             TypologyPatchBridge.clearPlanWorldAnchor();
@@ -270,6 +271,10 @@ public final class ComponentPlanCompiler {
             
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: post-processed to {} patches", result.size());
         }
+
+        if (!openingExpectations.isEmpty())
+            FormacraftMod.LOGGER.info("[OpeningMaterialAudit] stage=postprocess result={}",
+                    OpeningMaterialAudit.inspect(openingExpectations, result));
 
         for (var roof : components) {
             if (!"ROOF".equals(normalizeType(roof.componentType()))) continue;
@@ -367,7 +372,8 @@ public final class ComponentPlanCompiler {
             Set<BlockPos> generatedSurfaces,
             List<FlatRoofCoverageValidator.Roof> flatRoofs,
             Set<BlockPos> protectedMaterials,
-            Set<BlockPos> decorationRestrictions
+            Set<BlockPos> decorationRestrictions,
+            Map<BlockPos, OpeningMaterialAudit.Expectation> openingExpectations
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
@@ -497,6 +503,7 @@ public final class ComponentPlanCompiler {
                         return;
                     }
                     result.addAll(shiftedPatches);
+                    OpeningMaterialAudit.capture(openingExpectations, c, surfaceCells, flightOffset);
                     var explicitTargets = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.targets(c, styleAttributes);
                     for (var patch : shiftedPatches) {
                         if (com.formacraft.common.patch.BlockPatchTargetResolver.resolve(patch) == null) {
