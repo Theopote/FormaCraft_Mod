@@ -275,7 +275,7 @@ public final class ComponentPlanCompiler {
             if (!"ROOF".equals(normalizeType(roof.componentType()))) continue;
             var slot = slotMap.get(roof.slotId());
             if (slot == null) slot = defaultSlot(plan);
-            var anchor = slot == null ? null : slot.anchor();
+            var anchor = slot.anchor();
             var offset = anchor == null ? BlockPos.ORIGIN : new BlockPos(anchor.x(), anchor.y(), anchor.z());
             var semantic = new SemanticComponent("ROOF", slot, roof, plan.styleProfile());
             RoofShapeAudit.inspect(semantic, result, offset).ifPresent(audit ->
@@ -459,14 +459,12 @@ public final class ComponentPlanCompiler {
                             && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode"))))) {
                         for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
                         var bounds = part.bounds();
-                        if (bounds != null) {
                             Vec3i offset = slotAnchor == null ? new Vec3i(0, 0, 0) : slotAnchor;
                             var shifted = new ComponentFootprintUtil.Bounds(bounds.minX() + offset.x(), bounds.minY() + offset.y(),
                                 bounds.minZ() + offset.z(), bounds.maxX() + offset.x(), bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
                             int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
                                 .resolveFloorHeight(plan, c, shifted.height());
                             buildingVolumes.add(new PostProcessContext.BuildingVolume(slotKey, shifted, floorHeight));
-                        }
                         }
                     }
 
