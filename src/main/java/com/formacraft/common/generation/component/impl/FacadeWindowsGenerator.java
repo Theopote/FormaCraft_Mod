@@ -100,7 +100,8 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
 
         int explicitWidth=ComponentParamParsers.intParam(params,"window_width","windowWidth");
         int explicitHeight=ComponentParamParsers.intParam(params,"window_height","windowHeight");
-        if(explicitWidth>0 || explicitHeight>0) {
+        if(explicitWidth>0 || explicitHeight>0
+                || com.formacraft.common.generation.component.util.SizedFacadeWindows.hasExplicitCount(params)) {
             String block=getBlockForWindow(semantic,palette,SemanticPart.WINDOW,isLattice,windowStyle);
             return com.formacraft.common.generation.component.util.SizedFacadeWindows.generate(
                     semantic,block,facing,wrapFacade,Math.max(1,explicitWidth),

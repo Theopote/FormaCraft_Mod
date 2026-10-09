@@ -81,4 +81,42 @@ class ExplicitWindowSizeFeedbackTest {
         assertRectangles(cells);
         assertEquals(Set.of(1,2,4,5),cells.stream().map(BlockPos::getY).collect(java.util.stream.Collectors.toSet()));
     }
+    @Test void explicitPerWallCountProducesExactlyThreeWindowsPerStorey() {
+        var base=facade("left_right"); var params=new HashMap<String,Object>(base.params());
+        params.put("window_per_wall",3);
+        var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),base.dimensions(),base.features(),params);
+        var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
+        var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
+        assertRectangles(cells);
+        for(int z:List.of(0,12)) for(int floor:List.of(1,6))
+            assertEquals(6,cells.stream().filter(p->p.getZ()==z && p.getY()==floor).count());
+    }
+    @Test void entranceSideCountsProduceTwoWindowsOnEachSideWhenSpaceAllows() {
+        var base=facade("front"); var params=new HashMap<String,Object>(base.params());
+        params.put("count_per_side",2);
+        var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),new Dimensions(25,25,10),base.features(),params);
+        var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
+        var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
+        assertRectangles(cells);
+        assertEquals(8,cells.stream().filter(p->p.getY()==1).count());
+        assertEquals(4,cells.stream().filter(p->p.getY()==1 && p.getZ()<11).count());
+        assertEquals(4,cells.stream().filter(p->p.getY()==1 && p.getZ()>13).count());
+        assertTrue(cells.stream().noneMatch(p->p.getZ()>=11 && p.getZ()<=13));
+    }
+    @Test void explicitZeroCountSuppressesWindows() {
+        var base=facade("left_right"); var params=new HashMap<String,Object>(base.params());
+        params.put("windows_per_floor",0);
+        var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),base.dimensions(),base.features(),params);
+        assertTrue(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",null,c,"Hui_Style")).isEmpty());
+    }
+    @Test void overcrowdedCountKeepsCompleteRectanglesInsideTheWall() {
+        var base=facade("left_right"); var params=new HashMap<String,Object>(base.params());
+        params.put("window_per_wall",20);
+        var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),base.dimensions(),base.features(),params);
+        var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
+        var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
+        assertRectangles(cells);
+        assertEquals(8,cells.stream().filter(p->p.getZ()==0 && p.getY()==1).count());
+        assertTrue(cells.stream().allMatch(p->p.getX()>0 && p.getX()<14));
+    }
 }

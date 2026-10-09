@@ -32,8 +32,14 @@ public final class SizedFacadeWindows {
             int reserve=Math.max(1,ComponentParamParsers.intParam(params,3,"exclude_center_width"));
             int middleStart=(span-reserve)/2,middleEnd=middleStart+reserve;
             var starts=new ArrayList<Integer>();
-            if(entrance) { addStarts(starts,1,middleStart,windowWidth); addStarts(starts,middleEnd,span-1,windowWidth); }
-            else addStarts(starts,1,span-1,windowWidth);
+            int perWall=requestedCount(params,"window_per_wall","windows_per_wall","windows_per_floor");
+            int perSide=requestedCount(params,"count_per_side");
+            if(entrance) {
+                int left=perSide>=0?perSide:perWall>=0?perWall/2+perWall%2:-1;
+                int right=perSide>=0?perSide:perWall>=0?perWall/2:-1;
+                addStarts(starts,1,middleStart,windowWidth,left);
+                addStarts(starts,middleEnd,span-1,windowWidth,right);
+            } else addStarts(starts,1,span-1,windowWidth,perWall);
             for(int floor=0;floor<height;floor+=Math.max(1,floorHeight)) {
                 int bottom=floor+sill;
                 if(bottom+windowHeight>Math.min(height,floor+floorHeight)) continue;
@@ -50,10 +56,35 @@ public final class SizedFacadeWindows {
         }
         return out;
     }
-    private static void addStarts(List<Integer> starts,int from,int to,int size) {
-        int available=to-from,count=(available+2)/(size+2);
+    private static void addStarts(List<Integer> starts,int from,int to,int size,int requested) {
+        int available=Math.max(0,to-from);
+        if(requested>=0) {
+            int capacity=(available+1)/(size+1);
+            int count=Math.min(requested,capacity);
+            if(count<requested) com.formacraft.FormacraftMod.LOGGER.warn(
+                    "[WindowCountLayout] requested={} fitted={} interval=[{}, {}) windowWidth={}",
+                    requested,count,from,to,size);
+            if(count==1) starts.add(from+(available-size)/2);
+            else if(count>1) for(int i=0;i<count;i++) starts.add(from+(int)((long)i*(available-size)/(count-1)));
+            return;
+        }
+        int count=(available+2)/(size+2);
         if(count<1) return;
         int occupied=count*size+(count-1)*2,first=from+(available-occupied)/2;
         for(int i=0;i<count;i++) starts.add(first+i*(size+2));
+    }
+    public static boolean hasExplicitCount(Map<String,Object> params) {
+        return requestedCount(params,"window_per_wall","windows_per_wall","windows_per_floor","count_per_side")>=0;
+    }
+    private static int requestedCount(Map<String,Object> params,String... keys) {
+        if(params==null) return -1;
+        for(String key:keys) if(params.containsKey(key)) {
+            Object value=params.get(key);
+            try {
+                int count=Integer.parseInt(String.valueOf(value));
+                if(count>=0) return count;
+            } catch(NumberFormatException ignored) { }
+        }
+        return -1;
     }
 }
