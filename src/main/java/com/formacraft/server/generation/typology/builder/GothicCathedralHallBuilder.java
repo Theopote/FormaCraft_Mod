@@ -154,7 +154,7 @@ public final class GothicCathedralHallBuilder {
         int doorW = 3;
         int doorH = 6;
         for (int dx = -doorW / 2; dx <= doorW / 2; dx++) {
-            for (int dy = 1; dy <= doorH; dy++) {
+            for (int dy = 0; dy < doorH; dy++) {
                 put(blocks, origin, entrance, mx + dx, y0 + dy, zFront, Blocks.AIR.getDefaultState(), null);
             }
         }
@@ -164,7 +164,9 @@ public final class GothicCathedralHallBuilder {
         put(blocks, origin, entrance, mx + 1, y0 + doorH, zFront, withFacingIfPossible(roofStairs, rotateDir(Direction.WEST, entrance)), null);
 
         // 6) Rose window on front facade (local SOUTH)
-        addRoseWindow(blocks, origin, entrance, w, y0 + doorH + 2, zFront, Math.max(4, Math.min(7, w / 4)), window, trim);
+        // Keep the complete rose above the portal and within the nave facade.
+        int roseRadius = Math.max(2, Math.min(Math.min(7, w / 4), (wallH - doorH - 2) / 2));
+        addRoseWindow(blocks, origin, entrance, w, y0 + doorH + 2 + roseRadius, zFront, roseRadius, window, trim);
 
         // 7) Roof (steep gable)
         int roofBaseY = y1 + 1;
@@ -207,8 +209,10 @@ public final class GothicCathedralHallBuilder {
             }
         }
         // simple mullion cross
-        for (int dy = -r; dy <= r; dy++) put(blocks, origin, entrance, cx, yCenter + dy, z, frame, null);
-        for (int dx = -r; dx <= r; dx++) put(blocks, origin, entrance, cx + dx, yCenter, z, frame, null);
+        if (r >= 3) {
+            for (int dy = -r; dy <= r; dy++) put(blocks, origin, entrance, cx, yCenter + dy, z, frame, null);
+            for (int dx = -r; dx <= r; dx++) put(blocks, origin, entrance, cx + dx, yCenter, z, frame, null);
+        }
     }
 
     private static void addFlyingButtresses(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
@@ -410,18 +414,17 @@ public final class GothicCathedralHallBuilder {
         if (spec == null || spec.getExtra() == null) return Direction.SOUTH;
         try {
             Object layoutObj = spec.getExtra().get("layout");
-            if (layoutObj instanceof Map<?, ?> m) {
-                Object ef = m.get("entranceFacing");
-                if (ef != null) {
-                    String s = String.valueOf(ef).trim().toUpperCase();
-                    return switch (s) {
-                        case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-                        case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-                        case "E", "EAST", "东", "朝东" -> Direction.EAST;
-                        case "W", "WEST", "西", "朝西" -> Direction.WEST;
-                        default -> Direction.SOUTH;
-                    };
-                }
+            Object ef = layoutObj instanceof Map<?, ?> m ? m.get("entranceFacing") : null;
+            if (ef == null) ef = spec.getExtra().get("facing");
+            if (ef != null) {
+                String value = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
+                return switch (value) {
+                    case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
+                    case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
+                    case "E", "EAST", "东", "朝东" -> Direction.EAST;
+                    case "W", "WEST", "西", "朝西" -> Direction.WEST;
+                    default -> Direction.SOUTH;
+                };
             }
         } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
         return Direction.SOUTH;
