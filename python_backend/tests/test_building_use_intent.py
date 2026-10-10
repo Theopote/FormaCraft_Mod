@@ -30,3 +30,24 @@ class BuildingUseIntentTest(unittest.TestCase):
         self.assertIn('Explicit user requirements and opt-outs win', block)
         self.assertNotIn('≥1 DECOR_DETAIL', block)
         self.assertIn('室内中空，不要隔墙', block)
+
+    def test_exact_host_binding_survives_component_reordering(self):
+        from app.services.building_use_intent import record_building_use_intent
+        masses = [{'component_type': 'MASS_MAIN', 'params': {'component_id': name, 'requirement_scope': scope}}
+                  for name, scope in [('shop_b', 'building_2'), ('home_a', 'building_1')]]
+        for components in [masses, masses[::-1]]:
+            plan = {'components': components}
+            record_building_use_intent(plan, '左栋住宅，右栋商店')
+            report = plan['proportion_hints']['building_use_intent']
+            self.assertEqual(report['scope_status'], 'bound')
+            self.assertEqual([b['target_components'] for b in report['bindings']], [['home_a'], ['shop_b']])
+            self.assertFalse(report['geometry_verified'])
+
+    def test_missing_or_conflicting_scopes_are_not_guessed(self):
+        from app.services.building_use_intent import record_building_use_intent
+        plan = {'components': [{'component_type': 'MASS_MAIN', 'params': {'component_id': 'a'}}]}
+        record_building_use_intent(plan, '左栋住宅，右栋商店')
+        self.assertTrue(all(not b['target_components'] for b in plan['proportion_hints']['building_use_intent']['bindings']))
+        plan['components'][0]['params']['requirement_scope'] = 'building_1'
+        record_building_use_intent(plan, '左栋住宅，左栋商店')
+        self.assertTrue(all(b['status'] == 'conflicting_uses' for b in plan['proportion_hints']['building_use_intent']['bindings']))

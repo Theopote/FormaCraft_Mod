@@ -27,8 +27,34 @@ def building_use_guidance(text: str) -> str:
 
 def record_building_use_intent(plan: dict, text: str) -> None:
     uses = identify_building_uses(text)
+    masses = [c for c in plan.get('components', []) if c.get('component_type') == 'MASS_MAIN'
+              and c.get('params', {}).get('component_id')]
+    declarations = list(re.finditer(r'(左栋|右栋|第[一二12]栋)', text))
+    bindings = []
+    # Reuse exact explicit contract scopes; never use array order or a style name.
+    for index, match in enumerate(declarations):
+        end = declarations[index+1].start() if index+1 < len(declarations) else len(text)
+        segment = text[match.end():end]
+        requested = identify_building_uses(segment)
+        scope = 'building_1' if match[0] in ('左栋', '第一栋', '第1栋') else 'building_2'
+        targets = [m for m in masses if m.get('params', {}).get('requirement_scope') == scope]
+        if len(targets) != 1:
+            targets = []
+        status = 'bound' if len(requested) == 1 and targets else 'ambiguous_use' if len(requested) > 1 else 'unresolved_scope'
+        bindings.append({'scope': scope, 'uses': requested, 'status': status,
+                         'target_components': [m['params']['component_id'] for m in targets] if status == 'bound' else []})
+    if not declarations and len(uses) == 1 and len(masses) == 1:
+        bindings.append({'scope': 'single_main_building', 'uses': uses, 'status': 'bound',
+                         'target_components': [masses[0]['params']['component_id']]})
+    # Repeated contradictory declarations do not silently select the last value.
+    for binding in bindings:
+        competing = [b for b in bindings if b['scope'] == binding['scope']]
+        if any(b['uses'] != binding['uses'] for b in competing):
+            binding['status'] = 'conflicting_uses'
+            binding['target_components'] = []
     plan.setdefault('proportion_hints', {})['building_use_intent'] = {
         'schema': 'formacraft.building_use.v1', 'detected_uses': uses,
-        'scope_status': 'requires_binding' if len(uses) > 1 else 'request_level' if uses else 'unspecified',
-        'verification_level': 'intent_only', 'geometry_verified': False,
+        'scope_status': 'bound' if bindings and all(b['status'] == 'bound' for b in bindings) else
+                        'requires_binding' if len(uses) > 1 or declarations else 'request_level' if uses else 'unspecified',
+        'bindings': bindings, 'verification_level': 'intent_only', 'geometry_verified': False,
     }

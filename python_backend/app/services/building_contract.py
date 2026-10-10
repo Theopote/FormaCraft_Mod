@@ -291,8 +291,10 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     if re.search(r'左栋', text) and re.search(r'右栋', text) and len(masses) == 2:
         frames = {s.get('slot_id'): s for s in slots if isinstance(s, dict)}
         ordered = sorted(masses, key=lambda m: _center(m)[0] + frames.get(m.get('slot_id'), {}).get('anchor', {}).get('x', 0))
-        for index, mass in enumerate(ordered, 1):
-            mass['params']['requirement_scope'] = 'building_' + str(index)
+        coordinates = [_center(m)[0] + frames.get(m.get('slot_id'), {}).get('anchor', {}).get('x', 0) for m in ordered]
+        if coordinates[0] != coordinates[1]:
+            for index, mass in enumerate(ordered, 1):
+                mass['params']['requirement_scope'] = 'building_' + str(index)
     if len(masses) == 2:
         frames = {s.get('slot_id'): s for s in slots if isinstance(s, dict)}
         for axis, low, high in (('x', 'west', 'east'), ('z', 'north', 'south')):
