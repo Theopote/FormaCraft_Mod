@@ -405,4 +405,6 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     record_building_use_intent(out, text)
     from .building_use_audit import audit_building_use
     audit_building_use(out)
+    from .gothic_building_contract import apply_gothic_building_contract
+    apply_gothic_building_contract(out, text)
     return out

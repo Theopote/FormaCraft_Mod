@@ -166,14 +166,16 @@ public final class GothicCathedralHallBuilder {
         // 6) Rose window on front facade (local SOUTH)
         // Keep the complete rose above the portal and within the nave facade.
         int roseRadius = Math.max(2, Math.min(Math.min(7, w / 4), (wallH - doorH - 2) / 2));
-        addRoseWindow(blocks, origin, entrance, w, y0 + doorH + 2 + roseRadius, zFront, roseRadius, window, trim);
+        if (getBooleanExtra(spec, "includeRoseWindow", true))
+            addRoseWindow(blocks, origin, entrance, w, y0 + doorH + 2 + roseRadius, zFront, roseRadius, window, trim);
 
         // 7) Roof (steep gable)
         int roofBaseY = y1 + 1;
         addGableRoof(blocks, origin, entrance, naveX0 - 1, roofBaseY, -1, naveX1 + 1, roofBaseY, d, Math.max(6, wallH / 2), roofStairs, roofSlab, roofTile);
 
         // 8) Flying buttresses (best-effort): outer piers + diagonal braces
-        addFlyingButtresses(blocks, origin, entrance, w, d, y0 + 2, y1 - 2, buttressStep, wall, trim, roofStairs, naveX0, naveX1);
+        if (getBooleanExtra(spec, "includeButtresses", true))
+            addFlyingButtresses(blocks, origin, entrance, w, d, y0 + 2, y1 - 2, buttressStep, wall, trim, roofStairs, naveX0, naveX1);
 
         // 9) Front twin towers + spires
         int tw = clampOdd(Math.max(7, w / 5), 7, 15);
@@ -183,8 +185,10 @@ public final class GothicCathedralHallBuilder {
         int tRightX0 = tRightX1 - tw + 1;
         int tZ0 = d - tw - 2;
         int tZ1 = d - 2;
+        if (getBooleanExtra(spec, "includeTowers", true)) {
         buildTowerWithSpire(blocks, origin, entrance, tLeftX0, tZ0, tLeftX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
         buildTowerWithSpire(blocks, origin, entrance, tRightX0, tZ0, tRightX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
+        }
 
         // a bit of lighting in entrance
         put(blocks, origin, entrance, mx - 5, y0 + 2, zFront + 1, lantern, null);
@@ -436,6 +440,17 @@ public final class GothicCathedralHallBuilder {
         if (v == null) return def;
         String s = String.valueOf(v).trim();
         return s.isEmpty() ? def : s;
+    }
+
+    private static boolean getBooleanExtra(BuildingSpec spec, String key, boolean fallback) {
+        if (spec == null || spec.getExtra() == null) return fallback;
+        Object value = spec.getExtra().get(key);
+        if (value instanceof Boolean flag) return flag;
+        if (value instanceof String text) {
+            if ("false".equalsIgnoreCase(text)) return false;
+            if ("true".equalsIgnoreCase(text)) return true;
+        }
+        return fallback;
     }
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {

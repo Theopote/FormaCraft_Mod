@@ -33,6 +33,17 @@ class GothicBuildingAcceptanceTest {
                 assertFalse(finalStates.get(position(origin,facing,x,20,depth-3)).isAir(),"both front tower bodies must remain");
         }
     }
+    @Test void optionalElementsCanBeRemovedWithoutBlockingTheHall() {
+        var origin=BlockPos.ORIGIN;
+        var building=GothicCathedralHallBuilder.generate(Map.of("width",25,"depth",35,"wallHeight",16,
+                "includeRoseWindow",false,"includeButtresses",false,"includeTowers",false),origin,null,null);
+        var states=new HashMap<BlockPos,BlockState>();
+        for(var block:building.getBlocks()) states.put(block.getPos(),block.getTargetState());
+        assertTrue(states.get(new BlockPos(1,20,32)).isAir(),"disabled tower body must be absent");
+        assertTrue(states.get(new BlockPos(1,8,4)).isAir(),"disabled buttress pier must be absent");
+        assertFalse(states.get(new BlockPos(13,16,34)).getBlock().getTranslationKey().contains("glass"),"disabled rose must retain the facade wall");
+        for(int z=2;z<35;z++) for(int y=3;y<=4;y++) assertTrue(states.get(new BlockPos(12,y,z)).isAir());
+    }
     private BlockPos position(BlockPos origin,String facing,int x,int y,int z) {
         return switch(facing) {
             case "NORTH" -> origin.add(-x,y,-z);
