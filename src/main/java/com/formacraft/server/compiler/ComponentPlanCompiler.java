@@ -298,6 +298,15 @@ public final class ComponentPlanCompiler {
             return List.of();
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
+        for (var body : components) {
+            if (!"MASS_MAIN".equals(normalizeType(body.componentType()))) continue;
+            var slot = slotMap.get(body.slotId());
+            if (slot == null) slot = defaultSlot(plan);
+            var anchor = slot.anchor();
+            var offset = anchor == null ? BlockPos.ORIGIN : new BlockPos(anchor.x(), anchor.y(), anchor.z());
+            FloorAccessAudit.inspect(body, offset, result, circulation).ifPresent(audit ->
+                    FormacraftMod.LOGGER.info("[FloorAccessAudit] stage=postprocess result={}", audit));
+        }
         AssemblyCirculationConstraints.publish(circulation);
         return result;
     }

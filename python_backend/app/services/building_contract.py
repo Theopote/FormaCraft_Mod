@@ -403,4 +403,6 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     apply_window_language_contract(out, text)
     from .building_use_intent import record_building_use_intent
     record_building_use_intent(out, text)
+    from .building_use_audit import audit_building_use
+    audit_building_use(out)
     return out
