@@ -225,6 +225,7 @@ def build_plan_stage_user_block(
     profile_json = json.dumps(profile.to_prompt_dict(), ensure_ascii=False, indent=2)
     from .style_feature_compiler import compile_style_feature_defaults
     feature_defaults = compile_style_feature_defaults(profile)
+    from .building_use_intent import building_use_guidance
     stid = (profile.minecraft_strategy.structural_typology or "").strip()
     lines = [
         "=== STAGE P: LlmPlan from BuildingProfile ===",
@@ -236,6 +237,7 @@ def build_plan_stage_user_block(
         "BuildingProfile(JSON):",
         profile_json,
         "",
+        building_use_guidance(user_request),
         "Planning checklist:",
         "",
         "Evidence-gated style feature defaults (parameter mappings, not verified geometry):",
@@ -259,7 +261,7 @@ def build_plan_stage_user_block(
         next_idx = 9
     else:
         lines.extend([
-            "7. Architectural richness: FOUNDATION plinth, ROOF overhang, FACADE_WINDOWS rhythm, ≥1 DECOR_DETAIL",
+            "7. Architectural richness only where appropriate to use/style and not disabled by the user; no mandatory plinth or decoration",
             "8. proportion_hints (height_to_width, depth_to_width, roof_to_body_height) before dimensions",
             "9. If reference_blueprint is present, map architectural_layers → components[] with matching dimensions",
         ])

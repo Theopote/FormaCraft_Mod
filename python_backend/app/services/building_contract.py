@@ -399,4 +399,6 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                                                 + [str(d) for d in contract['diagnostics']]}
     from .window_language_contract import apply_window_language_contract
     apply_window_language_contract(out, text)
+    from .building_use_intent import record_building_use_intent
+    record_building_use_intent(out, text)
     return out

@@ -28,7 +28,11 @@ def validate_style_evidence(profile: BuildingProfile, search_results: list[dict]
 def compile_style_feature_defaults(profile: BuildingProfile) -> list[dict]:
     """Only exact supported descriptions; scope must be bound before applying to a plan."""
     mappings = {"flat roof": "flat", "平屋顶": "flat",
-                "gable roof": "gable", "双坡屋顶": "gable"}
+                "gable roof": "gable", "双坡屋顶": "gable",
+                "hip roof": "hip", "hipped roof": "hip", "四坡屋顶": "hip",
+                "pyramid roof": "pyramid", "金字塔屋顶": "pyramid",
+                "xuanshan roof": "xuanshan", "悬山屋顶": "xuanshan",
+                "xieshan roof": "xieshan", "hip and gable roof": "xieshan", "歇山屋顶": "xieshan"}
     result = []
     for spec in profile.style_specs:
         for feature in spec.features:

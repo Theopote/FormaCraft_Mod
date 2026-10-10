@@ -39,3 +39,18 @@ class StyleFeatureCompilerTest(unittest.TestCase):
         profile = validate_style_evidence(self.profile(), [{"url": "file:///secret"},
             {"url": "https://museum.example/reference", "title": "Museum"}])
         self.assertEqual([s.url for s in profile.sources], ["https://museum.example/reference"])
+
+    def test_supported_roof_features_preserve_evidence_and_scope(self):
+        for name, expected in [('hipped roof', 'hip'), ('四坡屋顶', 'hip'),
+                               ('pyramid roof', 'pyramid'), ('悬山屋顶', 'xuanshan'),
+                               ('hip and gable roof', 'xieshan'), ('歇山屋顶', 'xieshan')]:
+            with self.subTest(name=name):
+                mapping = compile_style_feature_defaults(self.profile(name))[0]
+                self.assertEqual(mapping['params'], {'roof_type': expected})
+                self.assertEqual(mapping['scope'], 'roof_a')
+                self.assertEqual(mapping['style_scope'], 'house_a')
+                self.assertEqual(compile_style_feature_defaults(self.profile(name, confidence=0.2))[0]['params'], {})
+
+    def test_cultural_names_do_not_guess_a_specific_roof(self):
+        for name in ['Chinese roof', '日式屋顶', 'temple roof', 'hip roof with elaborate dormers']:
+            self.assertEqual(compile_style_feature_defaults(self.profile(name))[0]['status'], 'unsupported')
