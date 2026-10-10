@@ -654,9 +654,20 @@ public final class ComponentPlanCompiler {
                 if (floorBlock != null && (slabMaterial == null
                         || Set.of("wood", "minecraft:wood", "planks", "wooden").contains(slabMaterial.toLowerCase(java.util.Locale.ROOT))))
                     slabParams.put("material", floorBlock);
+                // Hosted interior plates must not repaint the enclosing exterior walls.
+                int x = pos.x(), z = pos.z(), width = slab.dimensions().width(), depth = slab.dimensions().depth();
+                if (!Boolean.TRUE.equals(slabParams.get("exposed_floor_edges"))) {
+                    int thickness = Math.max(1, ComponentParamParsers.intParam(body.params(), 1, "wall_thickness", "wallThickness"));
+                    int endX = Math.min(x + width, origin.x() + body.dimensions().width() - thickness);
+                    int endZ = Math.min(z + depth, origin.z() + body.dimensions().depth() - thickness);
+                    x = Math.max(x, origin.x() + thickness);
+                    z = Math.max(z, origin.z() + thickness);
+                    width = Math.max(0, endX - x);
+                    depth = Math.max(0, endZ - z);
+                }
                 components.set(i, new Component(slab.componentType(), slab.slotId(),
-                        new Vec3i(pos.x(), origin.y() + level * fh, pos.z()),
-                        new Dimensions(slab.dimensions().width(), slab.dimensions().depth(), 1), slab.features(), slabParams));
+                        new Vec3i(x, origin.y() + level * fh, z),
+                        new Dimensions(width, depth, 1), slab.features(), slabParams));
                 break;
             }
         }
