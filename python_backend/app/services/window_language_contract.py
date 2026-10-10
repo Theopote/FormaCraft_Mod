@@ -22,9 +22,20 @@ def apply_window_language_contract(plan: dict, text: str) -> None:
             if re.search(r'不要|不用|避免', prefix):
                 continue
             clause = re.split(r'[。；，\n]', text[:match.start()])[-1]
-            floor_scoped = bool(re.search(r'(?:第)?(?:\d+|[一二两三四五六七八九十])(?:楼|层)(?:的)?\s*$', clause))
+            floor_match = re.search(rf'(?:第)?{_NUMBER}(?:楼|层)(?:的)?\s*$', clause)
             rules.append({'wall': wall, 'property': key, 'value': _number(match[1]), 'source_text': match[0],
-                          'floor_scoped_count': floor_scoped})
+                          'floor': _number(floor_match[1]) if floor_match else None, '_position': match.start()})
+    # Carry a wall scope only from the immediately preceding count clause.
+    for match in re.finditer(rf'(?:第)?{_NUMBER}(?:楼|层)(?:的)?各\s*{_NUMBER}\s*扇窗', text):
+        previous = sorted((r for r in rules if r['_position'] < match.start()), key=lambda r: r['_position'])
+        antecedent = previous[-1] if previous else None
+        between = text[antecedent['_position']:match.start()] if antecedent else ''
+        if antecedent and len(re.findall(r'[。；，\n]', between)) == 1 and not re.split(r'[。；，\n]', between)[-1].strip() and not re.search(r'不要|不用|避免', text[max(0, match.start()-6):match.start()]):
+            rules.append({'wall': antecedent['wall'], 'property': antecedent['property'],
+                          'value': _number(match[2]), 'floor': _number(match[1]),
+                          'source_text': match[0], '_position': match.start()})
+    for rule in rules:
+        rule.pop('_position', None)
     for match in re.finditer(rf'只在(?:第)?{_NUMBER}(?:楼|层)开窗', text):
         if not re.search(r'不要|不用|避免', text[max(0, match.start()-6):match.start()]):
             prefix = re.split(r'[。；，\n]', text[:match.start()])[-1]
@@ -36,11 +47,9 @@ def apply_window_language_contract(plan: dict, text: str) -> None:
               and c.get('params', {}).get('component_id')}
     for rule in rules:
         row = dict(rule, source='user_explicit', verification_level='plan_parameters_only')
-        competing = [r for r in rules if r['wall'] == rule['wall'] and r['property'] == rule['property']]
+        competing = [r for r in rules if r['wall'] == rule['wall'] and r['property'] == rule['property'] and r.get('floor') == rule.get('floor')]
         if any(r['value'] != rule['value'] for r in competing):
             row['status'] = 'conflicting_values'
-        elif rule.get('floor_scoped_count'):
-            row['status'] = 'unresolved_floor_specific_count'
         elif scoped_buildings:
             row['status'] = 'unresolved_building_scope'
         else:
@@ -51,7 +60,10 @@ def apply_window_language_contract(plan: dict, text: str) -> None:
                 row['status'] = 'unresolved_facade_scope'
             else:
                 for c in targets:
-                    c['params'][rule['property']] = rule['value'][:] if isinstance(rule['value'], list) else rule['value']
+                    if rule.get('floor') is not None:
+                        c['params'].setdefault('window_counts_by_floor', {}).setdefault(str(rule['floor']), {})[rule['property']] = rule['value']
+                    else:
+                        c['params'][rule['property']] = rule['value'][:] if isinstance(rule['value'], list) else rule['value']
                 row['status'] = 'planned'
                 row['target_components'] = [c['params'].get('component_id') for c in targets]
         report.append(row)

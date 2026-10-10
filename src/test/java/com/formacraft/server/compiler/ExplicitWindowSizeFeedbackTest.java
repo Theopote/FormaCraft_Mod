@@ -132,4 +132,27 @@ class ExplicitWindowSizeFeedbackTest {
             if(sized) assertRectangles(cells);
         }
     }
+    @Test void floorSpecificCountsOverrideDefaultsAndAcceptJsonNumbers() {
+        var base=facade("left_right"); var params=new HashMap<String,Object>(base.params());
+        params.put("window_per_wall",3.0);
+        params.put("window_counts_by_floor",Map.of("2",Map.of("window_per_wall",1.0)));
+        var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),base.dimensions(),base.features(),params);
+        var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
+        var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
+        assertRectangles(cells);
+        for(int z:List.of(0,12)) {
+            assertEquals(6,cells.stream().filter(p->p.getZ()==z && p.getY()==1).count());
+            assertEquals(2,cells.stream().filter(p->p.getZ()==z && p.getY()==6).count());
+        }
+    }
+    @Test void floorSpecificZeroActivatesSizedPathWithoutExplicitDimensions() {
+        var base=facade("left_right"); var params=new HashMap<String,Object>(base.params());
+        params.remove("window_width"); params.remove("window_height");
+        params.put("window_counts_by_floor",Map.of("1",Map.of("window_per_wall",0.0),"2",Map.of("window_per_wall",2.0)));
+        var c=new Component("FACADE_WINDOWS","house",base.relativePosition(),base.dimensions(),base.features(),params);
+        var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
+        var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
+        assertTrue(cells.stream().allMatch(p->p.getY()>=5));
+        assertEquals(8,cells.size());
+    }
 }

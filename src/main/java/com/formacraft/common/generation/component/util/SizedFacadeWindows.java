@@ -31,17 +31,18 @@ public final class SizedFacadeWindows {
             boolean entrance=face==facing && reserveEntrance;
             int reserve=Math.max(1,ComponentParamParsers.intParam(params,3,"exclude_center_width"));
             int middleStart=(span-reserve)/2,middleEnd=middleStart+reserve;
-            var starts=new ArrayList<Integer>();
-            int perWall=requestedCount(params,"window_per_wall","windows_per_wall","windows_per_floor");
-            int perSide=requestedCount(params,"count_per_side");
-            if(entrance) {
-                int left=perSide>=0?perSide:perWall>=0?perWall/2+perWall%2:-1;
-                int right=perSide>=0?perSide:perWall>=0?perWall/2:-1;
-                addStarts(starts,1,middleStart,windowWidth,left);
-                addStarts(starts,middleEnd,span-1,windowWidth,right);
-            } else addStarts(starts,1,span-1,windowWidth,perWall);
             for(int floor=0;floor<height;floor+=Math.max(1,floorHeight)) {
-                if(!floorAllowed(params,floor/Math.max(1,floorHeight)+1)) continue;
+                int floorNumber=floor/Math.max(1,floorHeight)+1;
+                if(!floorAllowed(params,floorNumber)) continue;
+                var starts=new ArrayList<Integer>();
+                int perWall=floorCount(params,floorNumber,"window_per_wall","windows_per_wall","windows_per_floor");
+                int perSide=floorCount(params,floorNumber,"count_per_side");
+                if(entrance) {
+                    int left=perSide>=0?perSide:perWall>=0?perWall/2+perWall%2:-1;
+                    int right=perSide>=0?perSide:perWall>=0?perWall/2:-1;
+                    addStarts(starts,1,middleStart,windowWidth,left);
+                    addStarts(starts,middleEnd,span-1,windowWidth,right);
+                } else addStarts(starts,1,span-1,windowWidth,perWall);
                 int bottom=floor+sill;
                 if(bottom+windowHeight>Math.min(height,floor+floorHeight)) continue;
                 for(int start:starts) for(int a=start;a<start+windowWidth;a++) for(int y=bottom;y<bottom+windowHeight;y++) {
@@ -75,18 +76,36 @@ public final class SizedFacadeWindows {
         for(int i=0;i<count;i++) starts.add(first+i*(size+2));
     }
     public static boolean hasExplicitCount(Map<String,Object> params) {
-        return requestedCount(params,"window_per_wall","windows_per_wall","windows_per_floor","count_per_side")>=0;
+        if(requestedCount(params,"window_per_wall","windows_per_wall","windows_per_floor","count_per_side")>=0) return true;
+        if(params!=null && params.get("window_counts_by_floor") instanceof Map<?,?> floors)
+            for(Object value:floors.values()) if(value instanceof Map<?,?> counts)
+                for(String key:List.of("window_per_wall","windows_per_wall","windows_per_floor","count_per_side"))
+                    if(validCount(counts.get(key))>=0) return true;
+        return false;
     }
     private static int requestedCount(Map<String,Object> params,String... keys) {
         if(params==null) return -1;
         for(String key:keys) if(params.containsKey(key)) {
-            Object value=params.get(key);
-            try {
-                int count=Integer.parseInt(String.valueOf(value));
-                if(count>=0) return count;
-            } catch(NumberFormatException ignored) { }
+            int count=validCount(params.get(key));
+            if(count>=0) return count;
         }
         return -1;
+    }
+    private static int validCount(Object value) {
+        try {
+            double count=Double.parseDouble(String.valueOf(value));
+            if(Double.isFinite(count) && count>=0 && count<=Integer.MAX_VALUE && count==Math.rint(count)) return (int)count;
+        } catch(NumberFormatException ignored) { }
+        return -1;
+    }
+    private static int floorCount(Map<String,Object> params,int floor,String... keys) {
+        if(params.get("window_counts_by_floor") instanceof Map<?,?> floors && floors.get(String.valueOf(floor)) instanceof Map<?,?> counts) {
+            for(String key:keys) {
+                int count=validCount(counts.get(key));
+                if(count>=0) return count;
+            }
+        }
+        return requestedCount(params,keys);
     }
     /** Floors are one-based relative to the aligned host envelope, not world Y. */
     public static boolean floorAllowed(Map<String,Object> params,int floor) {

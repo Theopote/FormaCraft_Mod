@@ -60,9 +60,28 @@ class WindowLanguageContractTest(unittest.TestCase):
     def test_floor_specific_count_is_reported_without_broadening(self):
         result = apply_building_contract(plan(), '二楼入口两侧各2扇窗。')
         report = result['proportion_hints']['window_language_report']['requirements']
-        self.assertEqual(report[0]['status'], 'unresolved_floor_specific_count')
+        self.assertEqual(report[0]['status'], 'planned')
+        self.assertEqual(self.windows(result)['front']['window_counts_by_floor'], {'2': {'count_per_side': 2}})
         self.assertNotIn('count_per_side', self.windows(result)['front'])
 
     def test_building_storey_count_is_not_a_floor_specific_window_scope(self):
         result = apply_building_contract(plan(), '生成两层住宅入口两侧各2扇窗。')
         self.assertEqual(self.windows(result)['front']['count_per_side'], 2)
+
+    def test_different_floor_counts_and_shorthand_are_idempotent(self):
+        text = '一楼入口两侧各一扇窗，二楼各两扇窗。'
+        result = apply_building_contract(plan(), text)
+        self.assertEqual(self.windows(result)['front']['window_counts_by_floor'], {'1': {'count_per_side': 1}, '2': {'count_per_side': 2}})
+        self.assertNotIn('window_counts_by_floor', self.windows(result)['left_right'])
+        self.assertEqual(result['components'], apply_building_contract(result, text)['components'])
+
+    def test_general_default_and_floor_override_coexist(self):
+        result = apply_building_contract(plan(), '每面侧墙每层三扇窗。二楼每面侧墙各一扇窗。')
+        params = self.windows(result)['left_right']
+        self.assertEqual(params['window_per_wall'], 3)
+        self.assertEqual(params['window_counts_by_floor'], {'2': {'window_per_wall': 1}})
+
+    def test_conflict_is_limited_to_same_floor(self):
+        result = apply_building_contract(plan(), '一楼入口两侧各一扇窗。二楼入口两侧各两扇窗。二楼入口两侧各三扇窗。')
+        self.assertEqual(self.windows(result)['front']['window_counts_by_floor'], {'1': {'count_per_side': 1}})
+        self.assertEqual([r['status'] for r in result['proportion_hints']['window_language_report']['requirements']], ['planned', 'conflicting_values', 'conflicting_values'])
