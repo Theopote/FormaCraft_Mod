@@ -57,6 +57,10 @@ class ChineseCourtyardGalleryTest {
                     assertTrue(with.get(p.up(5)).isOf(Blocks.BRICKS),"continuous thin roof including corners");
                 }
                 assertTrue(air(with,ORIGIN.up(5)),"courtyard center stays open to sky");
+                for(int x=ring.minX();x<=ring.maxX();x++) for(int z:new int[]{ring.minZ(),ring.maxZ()})
+                    for(int y=1;y<=3;y++) assertTrue(air(with,ORIGIN.add(x,y,z)),"three-high ring route");
+                for(int z=ring.minZ();z<=ring.maxZ();z++) for(int x:new int[]{ring.minX(),ring.maxX()})
+                    for(int y=1;y<=3;y++) assertTrue(air(with,ORIGIN.add(x,y,z)),"three-high ring route");
                 assertTrue(with.values().stream().anyMatch(s->s.isOf(Blocks.ACACIA_LOG)),"actual gallery columns");
                 assertTrue(with.values().stream().anyMatch(s->s.isOf(Blocks.BIRCH_LOG)),"actual continuous gallery edge beams");
                 var start=ORIGIN.add(ring.minX(),0,ring.minZ());

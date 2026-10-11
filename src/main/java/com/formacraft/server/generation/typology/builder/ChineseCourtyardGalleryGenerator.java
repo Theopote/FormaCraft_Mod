@@ -28,7 +28,8 @@ public final class ChineseCourtyardGalleryGenerator {
             }
         }
         if(x0==Integer.MIN_VALUE||x1==Integer.MAX_VALUE||z0==Integer.MIN_VALUE||z1==Integer.MAX_VALUE
-                ||x1-x0<2*half+3||z1-z0<2*half+3)
+                ||x1-x0<2*half+3||z1-z0<2*half+3
+                ||x0+half>-2||x1-half<2||z0+half>-2||z1-half<2)
             throw new IllegalArgumentException("院心空间不足以容纳实体回廊与露天庭院，请增大院落或缩小出檐/廊宽");
         return new Ring(x0,x1,z0,z1,half);
     }
