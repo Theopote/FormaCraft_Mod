@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ComponentPlanCompilerMaterialTest {
     @Test void grayBrickMaterialNamesResolveToRegisteredStoneBricksAndCompileAsActualWalls() {
         for(String name:List.of("gray_brick","gray_bricks","grey_brick","grey_bricks","青砖","灰砖")) {
-            var attrs=new StyleAttributes(null,name,"dark_gray_tile",null,null,null,null,null);
+            var attrs=new StyleAttributes(null,name,null,"dark_gray_tile",null,null,null,null);
             assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(attrs).isEmpty());
             assertEquals("minecraft:stone_bricks",com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(name));
             var p=plan("minecraft:stone_bricks");
@@ -29,7 +29,7 @@ class ComponentPlanCompilerMaterialTest {
     }
 
     @Test void loggedCourtyardMaterialVocabularyResolvesForNativeGalleryGeneration() {
-        var attrs=new StyleAttributes(null,"gray_brick","dark_gray_tile","stone_brick",null,null,null,null);
+        var attrs=new StyleAttributes(null,"gray_brick",null,"dark_gray_tile",null,"stone_brick",null,null);
         assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(attrs).isEmpty());
         var spec=new com.formacraft.common.model.build.BuildingSpec();
         var materials=new com.formacraft.common.model.build.Materials();
