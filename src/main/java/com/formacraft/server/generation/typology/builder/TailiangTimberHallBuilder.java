@@ -39,6 +39,15 @@ public final class TailiangTimberHallBuilder {
         public int outerDepth() { return depth + 2 * subDepth; }
     }
 
+    /** Explicit overall dimensions win; bay counts subdivide the span between end columns. */
+    public static int[] bayAxis(int cells, int bays) {
+        if (cells - 1 < 2 * bays) throw new IllegalArgumentException(
+                "木构尺寸 " + cells + " 格不足以布置 " + bays + " 个开间，请增大尺寸或减少开间数。");
+        int[] axis = new int[bays + 1];
+        for (int i=0;i<=bays;i++) axis[i]=(int)Math.round((cells-1)*i/(double)bays);
+        return axis;
+    }
+
     public static Envelope envelope(Map<String, Object> params) {
         TypologyParams p = new TypologyParams(params);
         int bay = p.intVal("bayWidth", 3, 2, 4);
@@ -99,6 +108,14 @@ public final class TailiangTimberHallBuilder {
         final BlockPos placedOrigin = origin;
         int ox = subDepth;
         int oz = subDepth;
+        int[] xAxis = bayAxis(w, baysX), zAxis = bayAxis(d, baysZ);
+        var mainColumns = columnPositions(ox, oz, xAxis, zAxis);
+        int doorBay = baysX / 2;
+        int doorMin = ox + xAxis[doorBay] + 1, doorMax = ox + xAxis[doorBay + 1] - 1;
+        var outerColumns = columnPositions(0,0,bayAxis(outerW,Math.max(1,(outerW-1)/bayWidth)),
+                bayAxis(outerD,Math.max(1,(outerD-1)/bayWidth)));
+        if (p.boolVal("includeEntrance", true)) outerColumns.removeIf(col ->
+                col[1] == outerD - 1 && col[0] >= doorMin && col[0] <= doorMax);
 
         BlockState stone = Blocks.STONE_BRICKS.getDefaultState();
         BlockState pillar = Blocks.DARK_OAK_LOG.getDefaultState();
@@ -132,6 +149,7 @@ public final class TailiangTimberHallBuilder {
         }
 
         fillRect(blocks, origin, entrance, 0, 0, 0, outerW - 1, platformH - 1, outerD - 1, stone);
+        fillRect(blocks, origin, entrance, 0, platformH, 0, outerW - 1, platformH, outerD - 1, stone);
         ringRect(blocks, origin, entrance, 0, platformH, 0, outerW - 1, platformH, outerD - 1, trim);
 
         int yCol0 = platformH + 1;
@@ -139,30 +157,35 @@ public final class TailiangTimberHallBuilder {
         int yWallTop = yCol0 + bodyH - 1;
         int bodyTop = platformH + bodyH;
 
-        placeBayColumns(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yCol1, pillar, trim);
+        for (int[] col : mainColumns) placeColumn(blocks, origin, entrance, col[0], yCol0, col[1], yCol1, pillar, trim);
         if (subEaves) {
-            placePerimeterColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1, bayWidth, yCol0, yCol1 - 1, pillar, trim);
-            addSubEavesBeams(blocks, origin, entrance, ox, oz, ox + w, oz + d, outerW - 1, outerD - 1, yCol1, trim);
+            for (int[] col : outerColumns) placeColumn(blocks,origin,entrance,col[0],yCol0,col[1],yCol1-1,pillar,trim);
+            addSubEavesBeams(blocks, origin, entrance, ox, oz, ox + w - 1, oz + d - 1, outerW - 1, outerD - 1, yCol1, trim);
         }
 
-        fillWallsBetweenColumns(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yWallTop, wall);
-        addLatticeWindows(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yWallTop, trim, lattice);
-        carveMainEntrance(blocks, origin, entrance, ox, oz, w, d, bayWidth, yCol0, yWallTop);
+        fillWallsBetweenColumns(blocks, origin, entrance, ox, oz, xAxis, zAxis, yCol0, yWallTop, wall);
+        if (p.boolVal("includeWindows", true))
+            addLatticeWindows(blocks, origin, entrance, ox, oz, xAxis, zAxis, yCol0, yWallTop, trim, lattice);
+        if (p.boolVal("includeEntrance", true))
+            carveMainEntrance(blocks, origin, entrance, ox, oz, xAxis, d, yCol0);
+        ringRect(blocks, origin, entrance, ox, yCol1, oz, ox+w-1, yCol1, oz+d-1, trim);
 
-        addPuzuoAtColumns(blocks, origin, entrance, ox, oz, ox + w, oz + d, bayWidth, yCol1 + 1, false, trim, bracket, trim, paint);
+        if (p.boolVal("includeBrackets", true)) addPuzuoAtColumns(blocks, origin, entrance, ox, oz, ox + w - 1, oz + d - 1,
+                mainColumns, yCol1 + 1, false, trim, bracket, trim, paint);
         if (subEaves) {
-            addPuzuoAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1, bayWidth, yCol1, true, trim, bracket, trim, paint);
+            if (p.boolVal("includeBrackets", true)) addPuzuoAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1,
+                    outerColumns, yCol1, true, trim, bracket, trim, paint);
             int innerRoofY = yCol1 + 3;
             ChineseTypologyDetailUtil.addSubEavesInnerRoof(
                     (pos, state) -> put(blocks, placedOrigin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
-                    ox, oz, ox + w, oz + d,
+                    ox, oz, ox + w - 1, oz + d - 1,
                     0, 0, outerW - 1, outerD - 1,
                     innerRoofY, roofSlab, roofStairs
             );
         }
 
         List<PlannedBlock> roofBlocks = new ArrayList<>();
-        BlockPos localRoofOrigin = new BlockPos(0, bodyTop, 0);
+        BlockPos localRoofOrigin = BlockPos.ORIGIN;
         HouseRoofGenerator.generateRoof(
                 roofBlocks,
                 localRoofOrigin,
@@ -184,7 +207,8 @@ public final class TailiangTimberHallBuilder {
             put(blocks, origin, entrance, ox + pb.getPos().getX(), pb.getPos().getY(), oz + pb.getPos().getZ(), pb.getTargetState());
         }
 
-        addTerraceSteps(blocks, origin, entrance, ox, oz, w, d, platformH, roofStairs);
+        if (p.boolVal("includeEntrance", true) && p.boolVal("includeEntranceSteps", true))
+            addTerraceSteps(blocks, origin, entrance, (doorMin+doorMax)/2, outerD, platformH, roofStairs);
 
         String ref = p.strVal("reference_landmark", "");
         String desc = String.format(
@@ -200,41 +224,53 @@ public final class TailiangTimberHallBuilder {
         ringRect(blocks, origin, entrance, 0, y, 0, ox1, y, oz1, beam);
     }
 
+    private static List<int[]> columnPositions(int x0, int z0, int[] xs, int[] zs) {
+        List<int[]> columns = new ArrayList<>();
+        for (int x : xs) {
+            columns.add(new int[]{x0+x,z0});
+            columns.add(new int[]{x0+x,z0+zs[zs.length-1]});
+        }
+        for (int i=1;i<zs.length-1;i++) {
+            columns.add(new int[]{x0,z0+zs[i]});
+            columns.add(new int[]{x0+xs[xs.length-1],z0+zs[i]});
+        }
+        return columns;
+    }
+
     private static void addLatticeWindows(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                          int x0, int z0, int w, int d, int spacing, int y0, int yTop,
+                                          int x0, int z0, int[] xs, int[] zs, int y0, int yTop,
                                           BlockState frame, BlockState infill) {
-        int wy0 = y0 + 2;
-        int wy1 = Math.min(yTop - 1, y0 + 4);
-        for (int x = spacing; x < w; x += spacing) {
-            ChineseTypologyDetailUtil.addLatticeWindow(
-                    (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
-                    x0 + x, x0 + x + spacing - 1, wy0, wy1, z0, frame, infill
-            );
-            ChineseTypologyDetailUtil.addLatticeWindow(
-                    (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
-                    x0 + x, x0 + x + spacing - 1, wy0, wy1, z0 + d, frame, infill
-            );
+        int bottom=y0+1, top=Math.min(yTop-1,y0+3);
+        for (int i=0;i<xs.length-1;i++) {
+            int start=xs[i]+1, end=xs[i+1]-1;
+            for(int x=start;x<=end;x++) for(int y=bottom;y<=top;y++) {
+                BlockState state=y==bottom || y==top ? frame : infill;
+                put(blocks,origin,entrance,x0+x,y,z0,state);
+                put(blocks,origin,entrance,x0+x,y,z0+zs[zs.length-1],state);
+            }
+        }
+        for (int i=0;i<zs.length-1;i++) {
+            int start=zs[i]+1,end=zs[i+1]-1;
+            for(int z=start;z<=end;z++) for(int y=bottom;y<=top;y++) {
+                BlockState state=y==bottom || y==top ? frame : infill;
+                put(blocks,origin,entrance,x0,y,z0+z,state);
+                put(blocks,origin,entrance,x0+xs[xs.length-1],y,z0+z,state);
+            }
         }
     }
 
     private static void carveMainEntrance(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                          int x0, int z0, int w, int d, int spacing, int y0, int yTop) {
-        int midBay = (w / spacing) / 2 * spacing;
-        int doorX = x0 + midBay + 1;
-        int doorZ = z0 + d;
-        for (int y = y0; y <= yTop; y++) {
-            for (int dx = 0; dx < spacing - 1; dx++) {
-                put(blocks, origin, entrance, doorX + dx, y, doorZ, Blocks.AIR.getDefaultState());
-            }
-        }
-        put(blocks, origin, entrance, doorX, y0, doorZ, Blocks.OAK_DOOR.getDefaultState());
+                                          int x0, int z0, int[] xs, int depth, int y0) {
+        int bay=(xs.length-1)/2;
+        for(int x=xs[bay]+1;x<xs[bay+1];x++) for(int y=y0;y<=y0+2;y++)
+            put(blocks,origin,entrance,x0+x,y,z0+depth-1,Blocks.AIR.getDefaultState());
     }
 
     private static void addPuzuoAtColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                          int x0, int z0, int x1, int z1, int spacing,
+                                          int x0, int z0, int x1, int z1, List<int[]> columns,
                                           int y, boolean subEaves,
                                           BlockState luDou, BlockState gong, BlockState fang, BlockState paint) {
-        for (int[] col : ChineseTypologyDetailUtil.perimeterColumnPositions(x0, z0, x1, z1, spacing)) {
+        for (int[] col : columns) {
             int x = col[0];
             int z = col[1];
             boolean corner = ChineseTypologyDetailUtil.isCornerColumn(x, z, x0, z0, x1, z1);
@@ -250,59 +286,28 @@ public final class TailiangTimberHallBuilder {
     }
 
     private static void addTerraceSteps(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                          int ox, int oz, int w, int d, int platformH, BlockState stair) {
-        int mx = ox + w / 2;
+                                          int mx, int outerDepth, int platformH, BlockState stair) {
         for (int tier = 0; tier < 3; tier++) {
-            int z = oz + d + 1 + tier;
+            int z = outerDepth + tier;
             int y = platformH - tier;
             if (y < 0) break;
             for (int dx = -3 + tier; dx <= 3 - tier; dx++) {
-                put(blocks, origin, entrance, mx + dx, y, z, withFacing(stair, rotateDir(Direction.NORTH, entrance)));
+                put(blocks, origin, entrance, mx + dx, y, z, withFacing(stair, Direction.NORTH));
             }
-        }
-    }
-
-    private static void placeBayColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                        int x0, int z0, int w, int d, int spacing,
-                                        int y0, int y1, BlockState pillar, BlockState capital) {
-        for (int x = 0; x <= w; x += spacing) {
-            placeColumn(blocks, origin, entrance, x0 + x, y0, z0, y1, pillar, capital);
-            placeColumn(blocks, origin, entrance, x0 + x, y0, z0 + d, y1, pillar, capital);
-        }
-        for (int z = spacing; z < d; z += spacing) {
-            placeColumn(blocks, origin, entrance, x0, y0, z0 + z, y1, pillar, capital);
-            placeColumn(blocks, origin, entrance, x0 + w, y0, z0 + z, y1, pillar, capital);
-        }
-    }
-
-    private static void placePerimeterColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                              int x0, int z0, int x1, int z1, int spacing,
-                                              int y0, int y1, BlockState pillar, BlockState capital) {
-        for (int x = x0; x <= x1; x += spacing) {
-            placeColumn(blocks, origin, entrance, x, y0, z0, y1, pillar, capital);
-            placeColumn(blocks, origin, entrance, x, y0, z1, y1, pillar, capital);
-        }
-        for (int z = z0 + spacing; z < z1; z += spacing) {
-            placeColumn(blocks, origin, entrance, x0, y0, z, y1, pillar, capital);
-            placeColumn(blocks, origin, entrance, x1, y0, z, y1, pillar, capital);
         }
     }
 
     private static void fillWallsBetweenColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
-                                                int x0, int z0, int w, int d, int spacing,
+                                                int x0, int z0, int[] xs, int[] zs,
                                                 int y0, int yTop, BlockState wall) {
-        for (int y = y0; y <= yTop; y++) {
-            for (int x = spacing; x < w; x += spacing) {
-                for (int t = 1; t < spacing - 1; t++) {
-                    put(blocks, origin, entrance, x0 + x + t, y, z0, wall);
-                    put(blocks, origin, entrance, x0 + x + t, y, z0 + d, wall);
-                }
+        for(int y=y0;y<=yTop;y++) {
+            for(int i=0;i<xs.length-1;i++) for(int x=xs[i]+1;x<xs[i+1];x++) {
+                put(blocks,origin,entrance,x0+x,y,z0,wall);
+                put(blocks,origin,entrance,x0+x,y,z0+zs[zs.length-1],wall);
             }
-            for (int z = spacing; z < d; z += spacing) {
-                for (int t = 1; t < spacing - 1; t++) {
-                    put(blocks, origin, entrance, x0, y, z0 + z + t, wall);
-                    put(blocks, origin, entrance, x0 + w, y, z0 + z + t, wall);
-                }
+            for(int i=0;i<zs.length-1;i++) for(int z=zs[i]+1;z<zs[i+1];z++) {
+                put(blocks,origin,entrance,x0,y,z0+z,wall);
+                put(blocks,origin,entrance,x0+xs[xs.length-1],y,z0+z,wall);
             }
         }
     }
@@ -340,6 +345,12 @@ public final class TailiangTimberHallBuilder {
     }
 
     private static void put(List<PlannedBlock> blocks, BlockPos origin, Direction entrance, int x, int y, int z, BlockState state) {
+        if (entrance != null) state = state.rotate(switch (entrance) {
+            case NORTH -> net.minecraft.util.BlockRotation.CLOCKWISE_180;
+            case EAST -> net.minecraft.util.BlockRotation.COUNTERCLOCKWISE_90;
+            case WEST -> net.minecraft.util.BlockRotation.CLOCKWISE_90;
+            default -> net.minecraft.util.BlockRotation.NONE;
+        });
         blocks.add(new PlannedBlock(rotate(origin.add(x, y, z), origin, entrance), state));
     }
 
@@ -355,32 +366,6 @@ public final class TailiangTimberHallBuilder {
             case EAST -> origin.add(lz, ly, -lx);
             case WEST -> origin.add(-lz, ly, lx);
             default -> origin.add(lx, ly, lz);
-        };
-    }
-
-    private static Direction rotateDir(Direction local, Direction entrance) {
-        if (entrance == null || entrance == Direction.SOUTH || local == null) return local;
-        if (!local.getAxis().isHorizontal()) return local;
-        return switch (entrance) {
-            case NORTH -> switch (local) {
-                case NORTH -> Direction.SOUTH;
-                case SOUTH -> Direction.NORTH;
-                case EAST -> Direction.WEST;
-                default -> Direction.EAST;
-            };
-            case EAST -> switch (local) {
-                case SOUTH -> Direction.EAST;
-                case NORTH -> Direction.WEST;
-                case EAST -> Direction.NORTH;
-                default -> Direction.SOUTH;
-            };
-            case WEST -> switch (local) {
-                case SOUTH -> Direction.WEST;
-                case NORTH -> Direction.EAST;
-                case EAST -> Direction.SOUTH;
-                default -> Direction.NORTH;
-            };
-            default -> local;
         };
     }
 
