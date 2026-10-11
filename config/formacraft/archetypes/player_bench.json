@@ -1,0 +1,55 @@
+{
+  "schema": "formacraft.archetype.v1",
+  "id": "player_bench",
+  "displayName": "Tmp",
+  "category": "DECORATION",
+  "semanticTags": [],
+  "attachment": {
+    "type": "SURFACE",
+    "allowedContexts": [
+      "WALL"
+    ],
+    "allowedSides": [
+      "BOTH"
+    ],
+    "requireSupport": false
+  },
+  "variation": {
+    "scaleX": {
+      "locked": false,
+      "min": 0.5,
+      "max": 2.0
+    },
+    "scaleY": {
+      "locked": false,
+      "min": 0.5,
+      "max": 2.0
+    },
+    "scaleZ": {
+      "locked": false,
+      "min": 0.5,
+      "max": 2.0
+    },
+    "allowMirror": true,
+    "allowRotation": false,
+    "allowMaterialSwap": true,
+    "repeatRule": {
+      "enabled": false,
+      "axis": "X",
+      "minSegments": 1,
+      "maxSegments": 10
+    }
+  },
+  "socket": null,
+  "geometryHint": {
+    "archetype": "VOLUME",
+    "visualIdentity": null,
+    "symmetryPreferred": false
+  },
+  "validation": {
+    "forbidInteriorPlacement": false,
+    "forbidFloating": true,
+    "forbidOverlap": true,
+    "forbiddenWith": []
+  }
+}

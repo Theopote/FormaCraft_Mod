@@ -5,6 +5,7 @@ import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.component.ComponentStorage;
 
 import java.util.*;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -25,6 +26,21 @@ import java.util.stream.Collectors;
 public final class ComponentRetriever {
     private ComponentRetriever() {}
 
+    /** 当前检索可见的玩家（含私人命名空间）；服务端请求线程设置。 */
+    private static final ThreadLocal<UUID> VIEWER_PLAYER = new ThreadLocal<>();
+
+    public static void setViewerPlayer(UUID playerId) {
+        if (playerId == null) {
+            VIEWER_PLAYER.remove();
+        } else {
+            VIEWER_PLAYER.set(playerId);
+        }
+    }
+
+    public static void clearViewerPlayer() {
+        VIEWER_PLAYER.remove();
+    }
+
     /**
      * 检索构件（返回排序后的候选列表）
      * <p>
@@ -42,8 +58,10 @@ public final class ComponentRetriever {
             return List.of();
         }
 
-        // 1. 从 ComponentCatalog 获取所有构件
-        ComponentCatalog catalog = ComponentStorage.loadCatalog(null);
+        UUID viewer = VIEWER_PLAYER.get();
+
+        // 1. 从 ComponentCatalog 获取所有构件（含当前玩家私人库）
+        ComponentCatalog catalog = ComponentStorage.loadCatalog(null, viewer);
         if (catalog.components == null || catalog.components.isEmpty()) {
             return List.of();
         }
@@ -56,7 +74,7 @@ public final class ComponentRetriever {
             }
 
             // 加载构件定义和 Archetype
-            ComponentDefinition component = ComponentStorage.loadComponent(null, entry.id);
+            ComponentDefinition component = ComponentStorage.loadComponent(null, entry.id, viewer);
             if (component == null) {
                 continue;
             }
@@ -163,7 +181,7 @@ public final class ComponentRetriever {
             return null;
         }
 
-        return ComponentStorage.loadComponent(null, best.componentId);
+        return ComponentStorage.loadComponent(null, best.componentId, VIEWER_PLAYER.get());
     }
 
     /**

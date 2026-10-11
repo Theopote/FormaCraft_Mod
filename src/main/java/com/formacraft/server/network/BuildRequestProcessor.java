@@ -47,6 +47,9 @@ public final class BuildRequestProcessor {
                         return;
                     }
 
+                    // 使 AI 构件检索可见当前玩家私人库（ThreadLocal；异步回调线程需自行再设）
+                    com.formacraft.common.component.query.ComponentRetriever.setViewerPlayer(player.getUuid());
+                    try {
                     FormaRequest req = payload.request();
                     FormacraftMod.LOGGER.info("Received build request from player {}: {}",
                             player.getName().getString(), BuildingSpecRoutingPolicy.userIntentText(req));
@@ -230,6 +233,9 @@ public final class BuildRequestProcessor {
                                         }
                                     });
                                 });
+                    }
+                    } finally {
+                        com.formacraft.common.component.query.ComponentRetriever.clearViewerPlayer();
                     }
                 }));
     }

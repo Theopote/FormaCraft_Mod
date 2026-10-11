@@ -514,6 +514,11 @@ public class FormaCraftCommands {
             return 0;
         }
 
+        if (!PreviewStorage.validatePreview(player)) {
+            source.sendError(Text.literal("预览已失效（维度/结构不一致）。请重新生成预览后再确认。"));
+            return 0;
+        }
+
         BuildQualityReport quality = PreviewStorage.getQualityReport(player);
         if (quality != null && quality.hasFatal()) {
             source.sendError(Text.literal(quality.summaryZh()));
@@ -531,25 +536,25 @@ public class FormaCraftCommands {
             );
         }
 
-        GeneratedStructure structure = PreviewStorage.getStructure(player);
+        if (!(player.getEntityWorld() instanceof ServerWorld serverWorld)) {
+            source.sendError(Text.translatable("formacraft.command.build.cannot_build_here"));
+            return 0;
+        }
+
+        // 一次性消费：防止二次 /forma_confirm 重放
+        GeneratedStructure structure = PreviewStorage.consumeStructure(player);
         if (structure == null) {
             source.sendError(Text.translatable("formacraft.command.preview.no_structure_to_build"));
             return 0;
         }
 
         FormaCraftServerNetworking.sendClearOutline(player);
-        PreviewStorage.setPreview(player, false);
-
-        if (!(player.getEntityWorld() instanceof ServerWorld serverWorld)) {
-            source.sendError(Text.translatable("formacraft.command.build.cannot_build_here"));
-            return 0;
-        }
+        PreviewStorage.clearQualityReport(player);
 
         BuildExecutionService.getInstance().enqueueBuild(serverWorld, structure);
         com.formacraft.FormacraftMod.LOGGER.info(
                 "Preview confirmed: dimension={} origin={} blocks={} force={}",
                 serverWorld.getRegistryKey().getValue(), structure.getOrigin().toShortString(), structure.size(), force);
-        PreviewStorage.clearQualityReport(player);
         source.sendFeedback(
                 () -> Text.translatable("formacraft.command.build.started"),
                 false

@@ -1,6 +1,12 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-03（第十一批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-12（第十六批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+
+## 预览过滤 = 建造过滤（不变量）
+
+服务端 Patch 预览签发（`PatchPreviewService` → `ServerPatchFilter`）委托 `PatchFilterPipeline.createDefault()`（禁区 / 轮廓 / 选区 / 对称）。确认时消费的是**已过滤**的 `PreviewTicket` 内容，不得在确认路径上再跑一套不同的过滤规则，也不得回退到未过滤的客户端上传补丁。
+
+普通建造预览（`/forma_confirm`）经 `PreviewStorage`：确认前校验维度 + origin + 结构 digest，确认时**一次性消费**结构，禁止二次确认重放。
 
 ## 世界访问与结果
 

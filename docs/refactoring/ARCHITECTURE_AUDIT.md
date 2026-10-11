@@ -115,3 +115,18 @@ PlanProgram 合并层建立整份 patch 上限，失败继续采用原子拒绝�
 ## 第二十四批补充：客户端后端生命周期控制
 
 后端运行控制保持在 client.backend，设置面板新增独立 SettingsBackendSection，不把进程管理放入 UI 绘制。LocalBackendLaunch 集中校验本机地址、端口与参数构造；启动操作使用配置快照，健康检查、探测和停止在后台完成。自动和手动启动共用进程与操作锁，手动停止暂停自动重试；外部健康服务不取得所有权。493 个 Java 回归与完整 check 通过，包边界 20 处既有技术债、0 新增。首次依赖安装、后端分发和真实游戏启停仍需准备或验收。
+
+## 第二十五批补充：构件存储安全与确认契约
+
+审查报告 P0/P1 落地：
+
+- **构件 ID / 路径**：`ComponentIds` 白名单 `[a-z0-9][a-z0-9_-]{0,63}`，`resolveComponentFile` 做 normalize + `startsWith` 边界检查；`ComponentValidator` 与之对齐。加载路径对历史含点号 ID 宽松，保存强制新规则。
+- **验证阻断**：`saveComponent` 在副本上 autofix；`ValidationResult` ERROR 抛 `InvalidComponentException`，禁止落盘；原子写（temp + move）；失败向上抛出，网络 ACK 与磁盘一致。
+- **载荷限制**：JSON ≤ 2MB、blocks ≤ 10000（与 GeometryValidator 量级一致）；缩略图沿用 1MB。
+- **多人命名空间**：Dedicated 非 OP 写入 `components/players/<uuid>/`；OP / 集成服写全局；玩家 ID 与全局冲突则拒绝。Catalog 合并：legacy &lt; global &lt; player。
+- **预览确认**：`PreviewStorage` 记录维度 + origin + SHA-256 digest；`/forma_confirm` 校验后 `consumeStructure` 一次性消费。Patch 路径继续用 `PreviewTicketStorage.consume`。
+- **过滤统一**：`ServerPatchFilter` 委托 `PatchFilterPipeline.createDefault()`；见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md)「预览过滤 = 建造过滤」。
+- **回归测试**：`ComponentIdsTest`、`ComponentStorageSecurityTest`、`PreviewTicketStorageTest`、`PreviewStorageDigestTest`、`AssemblyCompositionBoundaryTest`（组合边界矩阵）。
+- **调查**：`BuildPreviewPipeline` / `allowPreview` 失败时返回错误、不自动重新生成；未发现「校验失败转重新生成」旁路。
+
+历史文档中的 `ConfirmBuildPacket` 流程已标注过期；权威确认入口为 `/forma_confirm` 与 Patch Ticket。

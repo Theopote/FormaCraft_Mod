@@ -76,13 +76,13 @@ public final class ComponentValidator {
             out.warn("schema", "Unsupported schema: " + def.schema + " (expected: " + SUPPORTED_SCHEMA + ")");
         }
 
-        // id
+        // id（与 ComponentIds 单源对齐：禁止点号与路径逃逸）
         if (isBlank(def.id)) {
             out.error("id", "Missing id");
         } else {
             String id = def.id.trim();
-            if (!id.matches("^[a-z0-9_\\-\\.]+$")) {
-                out.error("id", "Invalid id format. Use lowercase, digits, underscore, hyphen, or dot. Got: " + id);
+            if (!com.formacraft.common.component.ComponentIds.isSafeId(id)) {
+                out.error("id", "Invalid id format. Use [a-z0-9][a-z0-9_-]{0,63}. Got: " + id);
             }
         }
 

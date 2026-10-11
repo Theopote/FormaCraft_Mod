@@ -4,6 +4,7 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.component.ComponentCatalog;
 import com.formacraft.common.component.ComponentDefinition;
+import com.formacraft.common.component.ComponentIds;
 import com.formacraft.common.component.ComponentStorage;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.constraint.ProtectedZone;
@@ -82,8 +83,12 @@ public final class FormaCraftServerNetworking {
             List<BlockPatch> rawPatches;
             String componentId = payload.componentId();
             if (componentId != null && !componentId.isBlank()) {
+                if (ComponentIds.tryNormalizeLoadId(componentId.trim()) == null) {
+                    FormacraftMod.LOGGER.warn("Patch preview request: invalid component id {}", componentId);
+                    return;
+                }
                 java.nio.file.Path worldDir = context.server().getSavePath(WorldSavePath.ROOT);
-                ComponentDefinition def = ComponentStorage.loadComponent(worldDir, componentId.trim());
+                ComponentDefinition def = ComponentStorage.loadComponent(worldDir, componentId.trim(), player.getUuid());
                 if (def == null) {
                     FormacraftMod.LOGGER.warn("Patch preview request: unknown component {}", componentId);
                     return;
@@ -139,6 +144,11 @@ public final class FormaCraftServerNetworking {
                 sendComponentSaveAck(player, "", "", false, "保存构件失败：空数据");
                 return;
             }
+            if (json.length() > com.formacraft.common.component.ComponentIds.MAX_JSON_CHARS) {
+                sendComponentSaveAck(player, "", "", false,
+                        "保存构件失败：JSON 过大（>" + com.formacraft.common.component.ComponentIds.MAX_JSON_CHARS + " 字符）");
+                return;
+            }
 
             ComponentDefinition def;
             try {
@@ -152,33 +162,49 @@ public final class FormaCraftServerNetworking {
                 return;
             }
 
-            java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
+            String safeId;
             try {
-                ComponentStorage.saveComponent(worldDir, def);
+                safeId = com.formacraft.common.component.ComponentIds.validateComponentId(def.id);
+                def.id = safeId;
+            } catch (IllegalArgumentException e) {
+                sendComponentSaveAck(player, def.id, def.name, false, "保存构件失败：" + e.getMessage());
+                return;
+            }
+
+            if (def.blocks != null && def.blocks.size() > com.formacraft.common.component.ComponentIds.MAX_BLOCKS) {
+                sendComponentSaveAck(player, safeId, def.name, false,
+                        "保存构件失败：方块数量过多（>" + com.formacraft.common.component.ComponentIds.MAX_BLOCKS + "）");
+                return;
+            }
+
+            java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
+            boolean dedicated = server.isDedicated();
+            boolean op = player.hasPermissionLevel(2);
+            ComponentStorage.SaveContext saveCtx =
+                    ComponentStorage.SaveContext.forPlayer(worldDir, player.getUuid(), dedicated, op);
+
+            try {
+                ComponentStorage.saveComponentWithContext(saveCtx, def);
             } catch (Throwable t) {
                 FormacraftMod.LOGGER.error("Failed to save component {}", def.id, t);
                 sendComponentSaveAck(player, def.id, def.name, false, "保存构件失败：" + t.getMessage());
                 return;
             }
 
-            // 保存缩略图（如果有）
             byte[] thumbnailPng = payload.thumbnailPng();
             if (thumbnailPng != null && thumbnailPng.length > 0) {
                 try {
-                    java.nio.file.Path globalDir = ComponentStorage.getGlobalComponentDir();
-                    java.nio.file.Files.createDirectories(globalDir);
-                    java.nio.file.Path thumbFile = globalDir.resolve(def.id + ".png");
-                    java.nio.file.Files.write(thumbFile, thumbnailPng);
+                    ComponentStorage.saveThumbnail(saveCtx, def.id, thumbnailPng);
                 } catch (Throwable t) {
                     FormacraftMod.LOGGER.warn("Failed to save thumbnail for component {}: {}", def.id, t.getMessage());
                 }
             }
 
-            String ackMessage = "已保存构件：" + def.name + "（" + def.id + "）";
+            String scope = saveCtx.writeGlobal() ? "全局库" : "私人库";
+            String ackMessage = "已保存构件到" + scope + "：" + def.name + "（" + def.id + "）";
             sendComponentSaveAck(player, def.id, def.name, true, ackMessage);
 
-            // 刷新 catalog（仅数据同步，不驱动保存 UI 反馈）
-            ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir);
+            ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir, player.getUuid());
             String catJson = JsonUtil.toJson(cat);
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentCatalogPayload(catJson));
         }));
@@ -191,7 +217,7 @@ public final class FormaCraftServerNetworking {
             if (server == null) return;
 
             java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
-            ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir);
+            ComponentCatalog cat = ComponentStorage.loadCatalogWithSockets(worldDir, player.getUuid());
             String catJson = JsonUtil.toJson(cat);
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentCatalogPayload(catJson));
         }));
@@ -208,9 +234,13 @@ public final class FormaCraftServerNetworking {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentDefinitionPayload(""));
                 return;
             }
+            if (com.formacraft.common.component.ComponentIds.tryNormalizeLoadId(id.trim()) == null) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentDefinitionPayload(""));
+                return;
+            }
 
             java.nio.file.Path worldDir = server.getSavePath(WorldSavePath.ROOT);
-            ComponentDefinition def = ComponentStorage.loadComponent(worldDir, id.trim());
+            ComponentDefinition def = ComponentStorage.loadComponent(worldDir, id.trim(), player.getUuid());
             if (def == null) {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ComponentDefinitionPayload(""));
                 return;

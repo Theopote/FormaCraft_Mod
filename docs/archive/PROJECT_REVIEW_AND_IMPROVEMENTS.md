@@ -1,5 +1,9 @@
 # Formacraft 项目系统性检查与改进计划
 
+> **已过期（archived）**：本文描述的 `ConfirmBuildPacket` 与 BuildingSpec 确认双轨已废弃。
+> 当前权威确认入口：`/forma_confirm` + 服务端 `PreviewStorage`；Patch 路径使用 `PreviewTicket`。
+> 请以 [ARCHITECTURE.md](../../ARCHITECTURE.md) 与 [GENERATION_PIPELINE.md](../GENERATION_PIPELINE.md) 为准。
+
 ## 项目架构概述
 
 Formacraft 是一个 Minecraft 模组，通过 LLM 对话生成建筑。整体架构：

@@ -1,5 +1,8 @@
 # BuildExecutionService + Undo 系统完成总结
 
+> **已过期（archived）**：文中 `ConfirmBuildPacket` 流程已删除。确认建造请使用 `/forma_confirm`。
+> 权威架构见 [ARCHITECTURE.md](../../ARCHITECTURE.md)。
+
 ## 完成的工作
 
 ### 1. 核心数据结构

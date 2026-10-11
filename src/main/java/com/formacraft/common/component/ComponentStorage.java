@@ -9,39 +9,77 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
- * 构件库存储（v2：全局目录 + 兼容旧 world save 目录）。
+ * 构件库存储（v3：全局目录 + 玩家命名空间 + 兼容旧 world save 目录）。
  * <p>
  * 目录结构：
- * Global（推荐）:
+ * Global:
  * <config>/formacraft/components/
  *   - catalog.json
  *   - <id>.json
- *   - <id>.png (thumbnail)
- * <p>
- * Legacy（兼容旧版）:
+ *   - <id>.png
+ *   - players/<uuid>/  （Dedicated 非 OP 写入）
+ * Legacy:
  * <world>/formacraft/components/
- *   - catalog.json
- *   - <id>.json
  */
 public final class ComponentStorage {
     private ComponentStorage() {}
 
+    /** 测试钩子：覆盖全局构件目录（生产代码勿用）。 */
+    private static volatile Path globalDirOverride;
+
+    /** 仅供单元测试：覆盖全局构件目录。 */
+    public static void setGlobalComponentDirOverrideForTest(Path override) {
+        globalDirOverride = override;
+    }
+
+    /** 保存上下文：控制写入目标与覆盖策略。 */
+    public record SaveContext(
+            Path worldDir,
+            UUID playerId,
+            boolean writeGlobal,
+            boolean allowOverwriteGlobal
+    ) {
+        public static SaveContext global(Path worldDir) {
+            return new SaveContext(worldDir, null, true, true);
+        }
+
+        public static SaveContext forPlayer(Path worldDir, UUID playerId, boolean dedicated, boolean op) {
+            if (playerId == null) {
+                return global(worldDir);
+            }
+            // Dedicated 且非 OP：仅写玩家目录；否则可写全局
+            boolean writeGlobal = !dedicated || op;
+            return new SaveContext(worldDir, playerId, writeGlobal, writeGlobal);
+        }
+    }
+
     /** 全局组件库目录（与存档无关）。 */
     public static Path getGlobalComponentDir() {
+        if (globalDirOverride != null) {
+            return globalDirOverride;
+        }
         try {
             Path cfg = FabricLoader.getInstance().getConfigDir();
             return cfg.resolve("formacraft").resolve("components");
         } catch (Throwable t) {
             FormacraftMod.LOGGER.warn("[ComponentStorage] FabricLoader config dir unavailable, using fallback path", t);
-            // fallback：退化到当前进程目录下（极少数环境）
             return Path.of("config").resolve("formacraft").resolve("components");
         }
+    }
+
+    public static Path getPlayerComponentDir(UUID playerId) {
+        if (playerId == null) {
+            throw new IllegalArgumentException("playerId is null");
+        }
+        return getGlobalComponentDir().resolve("players").resolve(playerId.toString());
     }
 
     public static Path getWorldComponentDir(Path worldDir) {
@@ -49,27 +87,48 @@ public final class ComponentStorage {
     }
 
     public static ComponentCatalog loadCatalog(Path worldDir) {
-        ComponentCatalog global = loadCatalogFromDir(getGlobalComponentDir());
-        ComponentCatalog legacy = (worldDir != null) ? loadCatalogFromDir(getWorldComponentDir(worldDir)) : null;
+        return loadCatalog(worldDir, null);
+    }
 
-        // merge：global 优先，其次 legacy（按 id 去重）
+    /**
+     * 合并 catalog：legacy &lt; global &lt; player（同 id 后写覆盖前写）。
+     */
+    public static ComponentCatalog loadCatalog(Path worldDir, UUID viewerPlayerId) {
         Map<String, ComponentCatalog.Entry> byId = new LinkedHashMap<>();
+
+        ComponentCatalog legacy = (worldDir != null) ? loadCatalogFromDir(getWorldComponentDir(worldDir)) : null;
         if (legacy != null && legacy.components != null) {
             for (ComponentCatalog.Entry e : legacy.components) {
-                if (e == null || e.id == null || e.id.isBlank()) continue;
-                byId.put(e.id, e);
+                putEntry(byId, e);
             }
         }
+
+        ComponentCatalog global = loadCatalogFromDir(getGlobalComponentDir());
         if (global.components != null) {
             for (ComponentCatalog.Entry e : global.components) {
-                if (e == null || e.id == null || e.id.isBlank()) continue;
-                byId.put(e.id, e);
+                putEntry(byId, e);
+            }
+        }
+
+        if (viewerPlayerId != null) {
+            ComponentCatalog playerCat = loadCatalogFromDir(getPlayerComponentDir(viewerPlayerId));
+            if (playerCat.components != null) {
+                for (ComponentCatalog.Entry e : playerCat.components) {
+                    putEntry(byId, e);
+                }
             }
         }
 
         ComponentCatalog out = new ComponentCatalog();
         out.components = new ArrayList<>(byId.values());
         return out;
+    }
+
+    private static void putEntry(Map<String, ComponentCatalog.Entry> byId, ComponentCatalog.Entry e) {
+        if (e == null || e.id == null || e.id.isBlank()) return;
+        String loadId = ComponentIds.tryNormalizeLoadId(e.id);
+        if (loadId == null) return;
+        byId.put(loadId, e);
     }
 
     private static ComponentCatalog loadCatalogFromDir(Path dir) {
@@ -89,22 +148,23 @@ public final class ComponentStorage {
             if (c == null) c = new ComponentCatalog();
             if (c.components == null) c.components = new ArrayList<>();
 
-            // backfill updatedAtMs for old catalogs (best-effort from file mtime)
             for (ComponentCatalog.Entry e : c.components) {
                 if (e == null || e.id == null || e.id.isBlank()) continue;
                 if (e.updatedAtMs != null) continue;
                 try {
-                    Path defFile = dir.resolve(e.id + ".json");
-                    if (Files.exists(defFile)) {
+                    Path defFile = ComponentIds.tryResolveComponentFile(dir, e.id, ".json");
+                    if (defFile != null && Files.exists(defFile)) {
                         e.updatedAtMs = Files.getLastModifiedTime(defFile).toMillis();
                     }
                 } catch (Throwable t) {
                     FormacraftMod.LOGGER.debug("[ComponentStorage] catalog backfill updatedAtMs failed componentId={}", e.id, t);
                 }
                 if (e.thumbnail == null || e.thumbnail.isBlank()) {
-                    String tn = e.id + ".png";
                     try {
-                        if (Files.exists(dir.resolve(tn))) e.thumbnail = tn;
+                        Path thumb = ComponentIds.tryResolveComponentFile(dir, e.id, ".png");
+                        if (thumb != null && Files.exists(thumb)) {
+                            e.thumbnail = e.id + ".png";
+                        }
                     } catch (Throwable t) {
                         FormacraftMod.LOGGER.debug("[ComponentStorage] catalog backfill thumbnail failed componentId={}", e.id, t);
                     }
@@ -119,14 +179,12 @@ public final class ComponentStorage {
         }
     }
 
-    /**
-     * 加载 catalog，并尽力把每个 entry 的 sockets 补齐（便于 Prompt/LLM mount 直接使用）。
-     * <p>
-     * - 兼容旧 catalog.json（entry.sockets 为空）
-     * - best-effort：某个组件文件缺失/解析失败不会影响其他条目
-     */
     public static ComponentCatalog loadCatalogWithSockets(Path worldDir) {
-        ComponentCatalog cat = loadCatalog(worldDir);
+        return loadCatalogWithSockets(worldDir, null);
+    }
+
+    public static ComponentCatalog loadCatalogWithSockets(Path worldDir, UUID viewerPlayerId) {
+        ComponentCatalog cat = loadCatalog(worldDir, viewerPlayerId);
         if (cat.components == null || cat.components.isEmpty()) return cat;
 
         for (ComponentCatalog.Entry e : cat.components) {
@@ -135,7 +193,7 @@ public final class ComponentStorage {
             boolean needSpec = (e.placementSpec == null);
             if (e.id == null || e.id.isBlank()) continue;
             if (!needSockets && !needSpec) continue;
-            ComponentDefinition def = loadComponent(worldDir, e.id);
+            ComponentDefinition def = loadComponent(worldDir, e.id, viewerPlayerId);
             if (def != null) {
                 if (needSockets && def.sockets != null && !def.sockets.isEmpty()) {
                     e.sockets = def.sockets;
@@ -149,7 +207,6 @@ public final class ComponentStorage {
     }
 
     public static void saveCatalog(Path worldDir, ComponentCatalog catalog) {
-        // v2：写入全局目录（主），并尽量写一份 legacy world copy（兼容旧逻辑/方便迁移）
         saveCatalogToDir(getGlobalComponentDir(), catalog);
         if (worldDir != null) {
             saveCatalogToDir(getWorldComponentDir(worldDir), catalog);
@@ -161,146 +218,226 @@ public final class ComponentStorage {
             if (dir == null) return;
             Files.createDirectories(dir);
             Path file = dir.resolve("catalog.json");
-            try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                JsonUtil.get().toJson(catalog, w);
-            }
+            writeJsonAtomic(file, catalog);
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("[ComponentStorage] Failed to save catalog to {}", dir, e);
+            throw new RuntimeException("Failed to save catalog to " + dir, e);
         }
     }
 
+    /** 兼容旧调用：写入全局库。 */
     public static void saveComponent(Path worldDir, ComponentDefinition def) {
-        if (def == null || def.id == null || def.id.isBlank()) return;
+        saveComponentWithContext(SaveContext.global(worldDir), def);
+    }
 
-        com.formacraft.common.component.semantic.ComponentSemanticInference.ensureSemanticFields(def);
-        com.formacraft.common.component.archetype.ComponentArchetypeBridge.sync(def);
-        
-        // 自动修复明显错误
-        var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
+    /**
+     * 保存构件：副本上 autofix → 验证 ERROR 阻断 → 原子写入。
+     *
+     * @throws InvalidComponentException 验证失败
+     * @throws IllegalArgumentException 非法 ID / 冲突
+     * @throws RuntimeException IO 失败
+     */
+    public static void saveComponentWithContext(SaveContext ctx, ComponentDefinition def) {
+        if (def == null) {
+            throw new InvalidComponentException("Component is null");
+        }
+        String id = ComponentIds.validateComponentId(def.id);
+        def.id = id;
+
+        if (def.blocks != null && def.blocks.size() > ComponentIds.MAX_BLOCKS) {
+            throw new InvalidComponentException(
+                    "Too many blocks (" + def.blocks.size() + " > " + ComponentIds.MAX_BLOCKS + ")");
+        }
+
+        Path worldDir = ctx != null ? ctx.worldDir() : null;
+        boolean writeGlobal = ctx == null || ctx.writeGlobal();
+        UUID playerId = ctx != null ? ctx.playerId() : null;
+
+        // 冲突：非全局写入时，不得覆盖已有全局同名构件
+        if (!writeGlobal && playerId != null) {
+            Path globalFile = ComponentIds.resolveComponentFile(getGlobalComponentDir(), id, ".json");
+            if (Files.exists(globalFile)) {
+                throw new IllegalArgumentException(
+                        "Component id '" + id + "' already exists in the global library. Choose another id.");
+            }
+        }
+        if (writeGlobal && ctx != null && !ctx.allowOverwriteGlobal()) {
+            Path globalFile = ComponentIds.resolveComponentFile(getGlobalComponentDir(), id, ".json");
+            if (Files.exists(globalFile)) {
+                throw new IllegalArgumentException(
+                        "Component id '" + id + "' already exists. Overwrite not allowed.");
+            }
+        }
+
+        // 在副本上 autofix，避免污染调用方对象
+        ComponentDefinition toSave = deepCopy(def);
+        toSave.id = id;
+
+        com.formacraft.common.component.semantic.ComponentSemanticInference.ensureSemanticFields(toSave);
+        com.formacraft.common.component.archetype.ComponentArchetypeBridge.sync(toSave);
+
+        var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(toSave);
         if (!fixReport.empty()) {
-            FormacraftMod.LOGGER.info("[ComponentStorage] 保存构件 {} 时应用了自动修复：", def.id);
+            FormacraftMod.LOGGER.info("[ComponentStorage] 保存构件 {} 时应用了自动修复：", toSave.id);
             logIssueSample(fixReport.fixes().stream().map(f -> f.toString()).toList(), 5);
         }
-        
-        // 验证构件定义（修复后）
-        var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
+
+        var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(toSave);
         if (!validationResult.ok()) {
-            FormacraftMod.LOGGER.warn("[ComponentStorage] 保存构件 {} 时发现 {} 个验证错误：",
-                    def.id, validationResult.errors().size());
-            logIssueSample(validationResult.errors().stream().map(Object::toString).toList(), 3);
+            FormacraftMod.LOGGER.warn("[ComponentStorage] 拒绝保存构件 {}：{} 个验证错误",
+                    toSave.id, validationResult.errors().size());
+            logIssueSample(validationResult.errors().stream().map(Object::toString).toList(), 5);
+            throw new InvalidComponentException(validationResult.errors());
         }
         if (!validationResult.warnings().isEmpty()) {
             FormacraftMod.LOGGER.info("[ComponentStorage] 保存构件 {} 时发现 {} 个验证警告：",
-                    def.id, validationResult.warnings().size());
+                    toSave.id, validationResult.warnings().size());
             logIssueSample(validationResult.warnings().stream().map(Object::toString).toList(), 3);
         }
-        
+
+        Path targetDir = writeGlobal ? getGlobalComponentDir() : getPlayerComponentDir(playerId);
         try {
-            Path globalDir = getGlobalComponentDir();
-            Files.createDirectories(globalDir);
+            Files.createDirectories(targetDir);
 
-            String fileName = def.id + ".json";
-            String thumbName = def.id + ".png";
+            Path file = ComponentIds.resolveComponentFile(targetDir, id, ".json");
+            Path thumb = ComponentIds.resolveComponentFile(targetDir, id, ".png");
 
-            Path file = globalDir.resolve(fileName);
+            writeJsonAtomic(file, toSave);
 
-            try (Writer w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                JsonUtil.get().toJson(def, w);
-            }
-
-            // v1 thumbnail（best-effort）
             try {
-                com.formacraft.common.component.thumbnail.ComponentThumbnailGenerator.generate(def, globalDir.resolve(thumbName), 128);
+                com.formacraft.common.component.thumbnail.ComponentThumbnailGenerator.generate(toSave, thumb, 128);
             } catch (Throwable t) {
-                FormacraftMod.LOGGER.debug("[ComponentStorage] Thumbnail generation skipped componentId={}", def.id, t);
+                FormacraftMod.LOGGER.debug("[ComponentStorage] Thumbnail generation skipped componentId={}", id, t);
             }
 
-            // update catalog
-            ComponentCatalog cat = loadCatalog(worldDir);
-            cat.components.removeIf(e -> e != null && def.id.equals(e.id));
+            updateCatalogAfterSave(targetDir, worldDir, writeGlobal, toSave);
 
-            ComponentCatalog.Entry e = new ComponentCatalog.Entry();
-            e.id = def.id;
-            e.name = def.name;
-            e.category = def.category;
-            e.tags = def.tags;
-            e.size = def.size;
-            e.file = fileName;
-            e.thumbnail = thumbName;
-            e.updatedAtMs = System.currentTimeMillis();
-            if (def.sockets != null && !def.sockets.isEmpty()) {
-                e.sockets = def.sockets;
-            }
-            if (def.placementSpec != null) {
-                e.placementSpec = def.placementSpec;
-            }
-            cat.components.add(e);
-
-            saveCatalog(worldDir, cat);
-
-            // legacy copy：仍写一份到 worldDir（兼容旧世界 & 便于手工迁移）
-            try {
-                if (worldDir != null) {
+            // legacy world copy 仅全局写入时保留
+            if (writeGlobal && worldDir != null) {
+                try {
                     Path legacyDir = getWorldComponentDir(worldDir);
                     Files.createDirectories(legacyDir);
-                    try (Writer w = Files.newBufferedWriter(legacyDir.resolve(fileName), StandardCharsets.UTF_8)) {
-                        JsonUtil.get().toJson(def, w);
-                    }
-                    // thumbnail 也尽量拷贝一份（不强制）
+                    Path legacyFile = ComponentIds.resolveComponentFile(legacyDir, id, ".json");
+                    writeJsonAtomic(legacyFile, toSave);
                     try {
-                        Path lf = legacyDir.resolve(thumbName);
+                        Path lf = ComponentIds.resolveComponentFile(legacyDir, id, ".png");
                         if (!Files.exists(lf)) {
-                            com.formacraft.common.component.thumbnail.ComponentThumbnailGenerator.generate(def, lf, 128);
+                            com.formacraft.common.component.thumbnail.ComponentThumbnailGenerator.generate(toSave, lf, 128);
                         }
                     } catch (Throwable t) {
-                        FormacraftMod.LOGGER.debug("[ComponentStorage] Legacy thumbnail generation skipped componentId={}", def.id, t);
+                        FormacraftMod.LOGGER.debug("[ComponentStorage] Legacy thumbnail generation skipped componentId={}", id, t);
                     }
+                } catch (Throwable t) {
+                    FormacraftMod.LOGGER.warn("[ComponentStorage] Legacy world copy failed componentId={}", id, t);
                 }
-            } catch (Throwable t) {
-                FormacraftMod.LOGGER.warn("[ComponentStorage] Legacy world copy failed componentId={}", def.id, t);
             }
+        } catch (InvalidComponentException | IllegalArgumentException | SecurityException e) {
+            throw e;
         } catch (Exception e) {
-            FormacraftMod.LOGGER.error("[ComponentStorage] Failed to save component componentId={}", def.id, e);
+            FormacraftMod.LOGGER.error("[ComponentStorage] Failed to save component componentId={}", id, e);
+            throw new RuntimeException("Failed to save component " + id + ": " + e.getMessage(), e);
         }
+    }
+
+    private static void updateCatalogAfterSave(
+            Path targetDir,
+            Path worldDir,
+            boolean writeGlobal,
+            ComponentDefinition toSave
+    ) {
+        String id = toSave.id;
+        String fileName = id + ".json";
+        String thumbName = id + ".png";
+
+        ComponentCatalog cat = loadCatalogFromDir(targetDir);
+        cat.components.removeIf(e -> e != null && id.equals(e.id));
+
+        ComponentCatalog.Entry e = new ComponentCatalog.Entry();
+        e.id = id;
+        e.name = toSave.name;
+        e.category = toSave.category;
+        e.tags = toSave.tags;
+        e.size = toSave.size;
+        e.file = fileName;
+        e.thumbnail = thumbName;
+        e.updatedAtMs = System.currentTimeMillis();
+        if (toSave.sockets != null && !toSave.sockets.isEmpty()) {
+            e.sockets = toSave.sockets;
+        }
+        if (toSave.placementSpec != null) {
+            e.placementSpec = toSave.placementSpec;
+        }
+        cat.components.add(e);
+
+        saveCatalogToDir(targetDir, cat);
+
+        // 全局写入时同步合并后的 world/global catalog 视图
+        if (writeGlobal) {
+            ComponentCatalog merged = loadCatalog(worldDir, null);
+            merged.components.removeIf(en -> en != null && id.equals(en.id));
+            merged.components.add(e);
+            saveCatalog(worldDir, merged);
+        }
+    }
+
+    /**
+     * 将客户端提供的缩略图写入与构件相同的目标目录。
+     */
+    public static void saveThumbnail(SaveContext ctx, String componentId, byte[] pngBytes) throws Exception {
+        String id = ComponentIds.validateComponentId(componentId);
+        if (pngBytes == null || pngBytes.length == 0) return;
+        boolean writeGlobal = ctx == null || ctx.writeGlobal();
+        UUID playerId = ctx != null ? ctx.playerId() : null;
+        Path targetDir = writeGlobal ? getGlobalComponentDir() : getPlayerComponentDir(playerId);
+        Files.createDirectories(targetDir);
+        Path thumbFile = ComponentIds.resolveComponentFile(targetDir, id, ".png");
+        Files.write(thumbFile, pngBytes);
     }
 
     public static ComponentDefinition loadComponent(Path worldDir, String id) {
-        if (id == null || id.isBlank()) return null;
-        String fileName = id + ".json";
-        // v2：优先全局，再 legacy world
-        Path g = getGlobalComponentDir().resolve(fileName);
-        if (Files.exists(g)) {
-            try (Reader r = Files.newBufferedReader(g, StandardCharsets.UTF_8)) {
-                ComponentDefinition def = JsonUtil.get().fromJson(r, ComponentDefinition.class);
-                if (def != null) {
-                    // 验证加载的构件
-                    validateLoadedComponent(def, id, worldDir);
-                }
-                return def;
-            } catch (Exception e) {
-                FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to load component componentId={} from global dir", id, e);
-            }
+        return loadComponent(worldDir, id, null);
+    }
+
+    public static ComponentDefinition loadComponent(Path worldDir, String id, UUID viewerPlayerId) {
+        String loadId = ComponentIds.tryNormalizeLoadId(id);
+        if (loadId == null) return null;
+
+        // 玩家目录优先（可见集）
+        if (viewerPlayerId != null) {
+            ComponentDefinition fromPlayer = readComponentFile(
+                    ComponentIds.tryResolveComponentFile(getPlayerComponentDir(viewerPlayerId), loadId, ".json"),
+                    loadId, worldDir);
+            if (fromPlayer != null) return fromPlayer;
         }
+
+        ComponentDefinition fromGlobal = readComponentFile(
+                ComponentIds.tryResolveComponentFile(getGlobalComponentDir(), loadId, ".json"),
+                loadId, worldDir);
+        if (fromGlobal != null) return fromGlobal;
+
         if (worldDir != null) {
-            Path w = getWorldComponentDir(worldDir).resolve(fileName);
-            if (Files.exists(w)) {
-                try (Reader r = Files.newBufferedReader(w, StandardCharsets.UTF_8)) {
-                    ComponentDefinition def = JsonUtil.get().fromJson(r, ComponentDefinition.class);
-                    if (def != null) {
-                        // 验证加载的构件
-                        validateLoadedComponent(def, id, worldDir);
-                    }
-                    return def;
-                } catch (Exception e) {
-                    FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to load component componentId={} from world dir", id, e);
-                }
-            }
+            return readComponentFile(
+                    ComponentIds.tryResolveComponentFile(getWorldComponentDir(worldDir), loadId, ".json"),
+                    loadId, worldDir);
         }
         return null;
     }
-    
+
+    private static ComponentDefinition readComponentFile(Path file, String id, Path worldDir) {
+        if (file == null || !Files.exists(file)) return null;
+        try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            ComponentDefinition def = JsonUtil.get().fromJson(r, ComponentDefinition.class);
+            if (def != null) {
+                validateLoadedComponent(def, id, worldDir);
+            }
+            return def;
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to load component componentId={} from {}", id, file, e);
+            return null;
+        }
+    }
+
     private static void validateLoadedComponent(ComponentDefinition def, String id, Path worldDir) {
-        // 自动修复明显错误
         var fixReport = com.formacraft.common.component.autofix.ComponentAutoFix.apply(def);
         if (!fixReport.empty()) {
             FormacraftMod.LOGGER.info("[ComponentStorage] 加载构件 {} 时应用了自动修复：", id);
@@ -310,7 +447,6 @@ public final class ComponentStorage {
             }
         }
 
-        // 验证构件定义（修复后）
         var validationResult = com.formacraft.common.component.validate.ComponentValidator.validate(def);
         if (!validationResult.ok()) {
             FormacraftMod.LOGGER.warn("[ComponentStorage] 加载构件 {} 时发现 {} 个验证错误：",
@@ -335,7 +471,12 @@ public final class ComponentStorage {
 
     private static void persistComponentSilently(Path worldDir, ComponentDefinition def) {
         try {
-            saveComponent(worldDir, def);
+            // 仅写回全局（历史修复语义）；ERROR 时 saveComponent 会抛错并被吞掉
+            if (!ComponentIds.isSafeId(def.id)) {
+                FormacraftMod.LOGGER.warn("[ComponentStorage] 跳过写回：非法 id {}", def.id);
+                return;
+            }
+            saveComponentWithContext(SaveContext.global(worldDir), def);
             FormacraftMod.LOGGER.info("[ComponentStorage] 已自动写回修复后的构件 {}", def.id);
         } catch (Exception e) {
             FormacraftMod.LOGGER.warn("[ComponentStorage] 自动写回构件 {} 失败", def.id, e);
@@ -357,64 +498,65 @@ public final class ComponentStorage {
         }
     }
 
-    /**
-     * 删除构件（从全局目录和legacy目录删除文件，并从catalog中移除）
-     */
     public static boolean deleteComponent(Path worldDir, String componentId) {
-        if (componentId == null || componentId.isBlank()) return false;
-        
+        return deleteComponentWithContext(SaveContext.global(worldDir), componentId);
+    }
+
+    public static boolean deleteComponentWithContext(SaveContext ctx, String componentId) {
+        String id;
         try {
-            Path globalDir = getGlobalComponentDir();
-            String fileName = componentId + ".json";
-            String thumbName = componentId + ".png";
-            
-            // 删除全局目录中的文件
-            try {
-                Path jsonFile = globalDir.resolve(fileName);
-                if (Files.exists(jsonFile)) {
-                    Files.delete(jsonFile);
+            id = ComponentIds.validateComponentId(componentId);
+        } catch (IllegalArgumentException e) {
+            // 允许删除历史含点号 id（仅当路径安全）
+            id = ComponentIds.tryNormalizeLoadId(componentId);
+            if (id == null) return false;
+        }
+
+        Path worldDir = ctx != null ? ctx.worldDir() : null;
+        boolean writeGlobal = ctx == null || ctx.writeGlobal();
+        UUID playerId = ctx != null ? ctx.playerId() : null;
+
+        try {
+            if (writeGlobal) {
+                deleteFromDir(getGlobalComponentDir(), id);
+                if (worldDir != null) {
+                    deleteFromDir(getWorldComponentDir(worldDir), id);
                 }
-            } catch (Exception e) {
-                FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to delete json componentId={}", componentId, e);
-            }
-            
-            try {
-                Path thumbFile = globalDir.resolve(thumbName);
-                if (Files.exists(thumbFile)) {
-                    Files.delete(thumbFile);
+                ComponentCatalog cat = loadCatalog(worldDir, null);
+                if (cat.components != null) {
+                    String finalId = id;
+                    cat.components.removeIf(e -> e != null && finalId.equals(e.id));
+                    saveCatalog(worldDir, cat);
                 }
-            } catch (Exception e) {
-                FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to delete thumbnail componentId={}", componentId, e);
-            }
-            
-            // 从catalog中移除
-            ComponentCatalog cat = loadCatalog(worldDir);
-            if (cat.components != null) {
-                cat.components.removeIf(e -> e != null && componentId.equals(e.id));
-                saveCatalog(worldDir, cat);
-            }
-            
-            // 删除legacy目录中的文件（如果存在）
-            if (worldDir != null) {
-                try {
-                    Path legacyDir = getWorldComponentDir(worldDir);
-                    Path legacyJson = legacyDir.resolve(fileName);
-                    if (Files.exists(legacyJson)) {
-                        Files.delete(legacyJson);
-                    }
-                    Path legacyThumb = legacyDir.resolve(thumbName);
-                    if (Files.exists(legacyThumb)) {
-                        Files.delete(legacyThumb);
-                    }
-                } catch (Exception e) {
-                    FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to delete legacy files componentId={}", componentId, e);
+            } else if (playerId != null) {
+                Path playerDir = getPlayerComponentDir(playerId);
+                deleteFromDir(playerDir, id);
+                ComponentCatalog cat = loadCatalogFromDir(playerDir);
+                if (cat.components != null) {
+                    String finalId = id;
+                    cat.components.removeIf(e -> e != null && finalId.equals(e.id));
+                    saveCatalogToDir(playerDir, cat);
                 }
             }
-            
             return true;
         } catch (Exception e) {
             FormacraftMod.LOGGER.error("[ComponentStorage] Failed to delete component componentId={}", componentId, e);
             return false;
+        }
+    }
+
+    private static void deleteFromDir(Path dir, String id) {
+        Path jsonFile = ComponentIds.tryResolveComponentFile(dir, id, ".json");
+        Path thumbFile = ComponentIds.tryResolveComponentFile(dir, id, ".png");
+        try {
+            if (jsonFile != null && Files.exists(jsonFile)) Files.delete(jsonFile);
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to delete json componentId={}", id, e);
+        }
+        try {
+            if (thumbFile != null && Files.exists(thumbFile)) Files.delete(thumbFile);
+        } catch (Exception e) {
+            FormacraftMod.LOGGER.warn("[ComponentStorage] Failed to delete thumbnail componentId={}", id, e);
         }
     }
 
@@ -440,5 +582,32 @@ public final class ComponentStorage {
         }
         return sb.toString().trim();
     }
-}
 
+    private static ComponentDefinition deepCopy(ComponentDefinition def) {
+        return JsonUtil.fromJson(JsonUtil.toJson(def), ComponentDefinition.class);
+    }
+
+    private static void writeJsonAtomic(Path target, Object value) throws Exception {
+        Path dir = target.getParent();
+        if (dir != null) {
+            Files.createDirectories(dir);
+        }
+        Path tmp = Files.createTempFile(dir != null ? dir : Path.of("."), "fc-", ".tmp");
+        try {
+            try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+                JsonUtil.get().toJson(value, w);
+            }
+            try {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (Exception e) {
+            try {
+                Files.deleteIfExists(tmp);
+            } catch (Exception ignored) {
+            }
+            throw e;
+        }
+    }
+}
