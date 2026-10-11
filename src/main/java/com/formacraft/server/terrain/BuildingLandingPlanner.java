@@ -86,6 +86,19 @@ public final class BuildingLandingPlanner {
         List<Site> out = new ArrayList<>();
         for (Component c : plan.components()) {
             if ("STRUCTURE".equalsIgnoreCase(c.componentType())
+                    && (c.params()!=null && "courtyard_compound".equals(c.params().get("typology_id"))
+                    || c.features()!=null && c.features().contains("typology:courtyard_compound"))) {
+                var params=com.formacraft.common.typology.TypologyParamResolver.merge("courtyard_compound",c);
+                var spec=new com.formacraft.common.model.build.BuildingSpec();
+                spec.setExtra(params);
+                Slot slot=slots.get(c.slotId());
+                Vec3i a=slot!=null && slot.anchor()!=null?slot.anchor():new Vec3i(0,0,0);
+                Vec3i r=c.relativePosition()!=null?c.relativePosition():new Vec3i(0,0,0);
+                out.add(com.formacraft.server.generation.typology.builder.CourtyardCompoundBuilder.landingSite(
+                        spec,origin.add(a.x()+r.x(),a.y()+r.y(),a.z()+r.z())));
+                continue;
+            }
+            if ("STRUCTURE".equalsIgnoreCase(c.componentType())
                     && (c.params()!=null && "tailiang_timber_hall".equals(c.params().get("typology_id"))
                     || c.features()!=null && c.features().contains("typology:tailiang_timber_hall"))) {
                 var params=com.formacraft.common.typology.TypologyParamResolver.merge("tailiang_timber_hall",c);

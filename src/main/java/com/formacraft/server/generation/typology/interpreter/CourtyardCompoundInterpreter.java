@@ -30,6 +30,7 @@ public final class CourtyardCompoundInterpreter implements com.formacraft.common
             return List.of();
         }
         Map<String, Object> params = TypologyParamResolver.merge(typologyId(), semantic.source());
+        params.put("deferToPlanLanding", true);
         GeneratedStructure structure = CourtyardCompoundBuilder.generate(params, origin, world, null);
         return TypologyPatchBridge.toBlockPatches(structure, origin);
     }

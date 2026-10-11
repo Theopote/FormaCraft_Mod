@@ -106,4 +106,82 @@ class ChineseBuildingCoordinateTest {
             assertEquals(anchor.getZ(),(bounds.minZ()+bounds.maxZ())/2);
         }
     }
+
+    @Test void siblingClearanceCannotDeleteEarlierWallsButOwnDoorCarvingSurvives() {
+        var first=new com.formacraft.common.skeleton.rect.RectEnclosurePlan(20,30,3,1,null,3);
+        var second=new com.formacraft.common.skeleton.rect.RectEnclosurePlan(21,31,3,1,null,3);
+        var compound=new com.formacraft.common.skeleton.compound.CompoundPlan()
+                .add(first,com.formacraft.common.skeleton.transform.BlockTransform.identity())
+                .add(second,com.formacraft.common.skeleton.transform.BlockTransform.translate(2,0,0));
+        var wall=net.minecraft.block.Blocks.STONE_BRICKS.getDefaultState();
+        var air=net.minecraft.block.Blocks.AIR.getDefaultState();
+        var output=new com.formacraft.server.skeleton.compound.CompoundInterpreter((plan,o,world)->
+                plan==first?List.of(new com.formacraft.common.build.PlannedBlock(o.add(2,1,0),wall)):
+                        List.of(new com.formacraft.common.build.PlannedBlock(o.up(),air),
+                                new com.formacraft.common.build.PlannedBlock(o.add(1,1,0),wall),
+                                new com.formacraft.common.build.PlannedBlock(o.add(1,1,0),air)),true)
+                .interpret(compound,BlockPos.ORIGIN,null);
+        var states=new HashMap<BlockPos,BlockState>();
+        output.forEach(b->states.put(b.getPos(),b.getTargetState()));
+        assertEquals(wall,states.get(new BlockPos(2,1,0)));
+        assertTrue(states.get(new BlockPos(3,1,0)).isAir());
+    }
+
+    @Test void actualCourtyardUsesOneFloorAndLandingFillsShallowTerrainGaps() {
+        var anchor=new BlockPos(80,64,-120);
+        var params=Map.<String,Object>of("width",45,"depth",61,"facing","SOUTH","includePaths",true);
+        var generated=CourtyardCompoundBuilder.generate(params,anchor,null,null);
+        var spec=new BuildingSpec();spec.setExtra(params);
+        var site=CourtyardCompoundBuilder.landingSite(spec,anchor);
+        var component=new com.formacraft.common.llm.dto.Component("STRUCTURE",null,
+                new com.formacraft.common.llm.dto.Vec3i(0,0,0),new com.formacraft.common.llm.dto.Dimensions(90,90,90),
+                List.of("typology:courtyard_compound"),params);
+        var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build).components(List.of(component)).build();
+        assertEquals(List.of(site),com.formacraft.server.terrain.BuildingLandingPlanner.sites(plan,anchor),
+                "native courtyard enters unified landing instead of legacy blanket padding");
+        var ground=new com.formacraft.server.terrain.BuildingLandingPlanner.Ground() {
+            public int surfaceY(int x,int z) { return (x+z)%7==0?63:64; }
+            public BlockState state(BlockPos p) { return p.getY()<surfaceY(p.getX(),p.getZ())
+                    ?net.minecraft.block.Blocks.STONE.getDefaultState():net.minecraft.block.Blocks.AIR.getDefaultState(); }
+            public int bottomY() { return -64; }
+        };
+        var result=com.formacraft.server.terrain.BuildingLandingPlanner.prepare(generated.getBlocks(),List.of(site),ground,
+                com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE,false,
+                net.minecraft.block.Blocks.COBBLESTONE.getDefaultState());
+        assertNull(result.problem());assertEquals(0,result.dy());
+        var states=new HashMap<BlockPos,BlockState>();
+        generated.getBlocks().forEach(b->states.put(b.getPos(),b.getTargetState()));
+        assertFalse(states.get(anchor).isAir(),"central path is on shared floor elevation");
+        assertFalse(states.get(anchor.add(0,0,-28)).isAir(),"main hall is placed by its corner, not shifted again");
+        var landed=new HashMap<BlockPos,BlockState>();result.blocks().forEach(b->landed.put(b.getPos(),b.getTargetState()));
+        for(var e:states.entrySet()) if(e.getKey().getY()==64 && !e.getValue().isAir()
+                && ground.surfaceY(e.getKey().getX(),e.getKey().getZ())==63) {
+            assertNotNull(landed.get(e.getKey().down()));
+            assertFalse(landed.get(e.getKey().down()).isAir(),"shallow gap below authored paving/foundation is filled");
+        }
+    }
+
+    @Test void courtyardGatehouseHasContinuousTwoHighAxialPassageAcrossFacings() {
+        for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) {
+            var anchor=new BlockPos(80,64,-120);
+            var generated=CourtyardCompoundBuilder.generate(Map.of("width",45,"depth",61,
+                    "facing",facing,"includePaths",true),anchor,null,null);
+            var states=new HashMap<BlockPos,BlockState>();
+            generated.getBlocks().forEach(b->states.put(b.getPos(),b.getTargetState()));
+            int limit=facing.equals("NORTH")||facing.equals("SOUTH")?30:22;
+            for(int run=-limit+3;run<limit;run++) {
+                var p=switch(facing) {
+                    case "NORTH" -> anchor.add(0,0,-run);
+                    case "EAST" -> anchor.add(run,0,0);
+                    case "WEST" -> anchor.add(-run,0,0);
+                    default -> anchor.add(0,0,run);
+                };
+                assertNotNull(states.get(p),"paved gate-to-center route "+p);
+                assertFalse(states.get(p).isAir(),"route floor "+p);
+                for(int y=1;y<=2;y++) assertTrue(states.get(p.up(y))==null || states.get(p.up(y)).isAir(),
+                        "gatehouse must not block axial route "+facing+" "+p.up(y));
+            }
+        }
+    }
 }

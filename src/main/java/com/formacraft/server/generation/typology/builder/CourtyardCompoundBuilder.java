@@ -17,11 +17,8 @@ import com.formacraft.server.skeleton.compound.PlanDispatcher;
 import com.formacraft.server.skeleton.path.PathPlanner;
 import com.formacraft.server.skeleton.path.PathRoadInterpreter;
 import com.formacraft.server.skeleton.rect.RectEnclosureInterpreter;
-import com.formacraft.server.terrain.TerrainFit;
 import com.formacraft.server.terrain.TerrainPolicy;
 import com.formacraft.server.terrain.TerrainPolicyResolver;
-import com.formacraft.server.build.BuildReportContext;
-import com.formacraft.server.foundation.FoundationPlanner;
 import com.formacraft.common.style.profile.BuildStrategy;
 import com.formacraft.common.style.profile.StyleProfile;
 import com.formacraft.common.style.profile.StyleProfileRegistry;
@@ -79,9 +76,6 @@ public final class CourtyardCompoundBuilder {
         boolean includePaths = getBool(extra, "includePaths", true);
         int pathWidth = clamp(getInt(extra, "pathWidth", 3), 1, 7);
         TerrainPolicy terrainPolicy = TerrainPolicyResolver.resolve(extra);
-        int padDepth = clamp(getInt(extra, "terrainPadDepth", 2), 0, 6);
-        int clearHeight = clamp(getInt(extra, "terrainClearHeight", 6), 0, 16);
-        int terrainBudgetBlocks = clamp(getInt(extra, "terrainBudgetBlocks", 8000), 0, 200000);
 
         Materials mats = (spec != null && spec.getMaterials() != null) ? spec.getMaterials() : new Materials();
 
@@ -191,11 +185,11 @@ public final class CourtyardCompoundBuilder {
             BlockPos rightDoor = doorPoint(rightCorner, wingW, wingD, leftSide);
 
             // primary axial path
-            compound.add(new PolylinePathPlan(List.of(start, center, mainDoor), pathWidth, true, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(List.of(start, center, mainDoor), pathWidth, false, false, 10), BlockTransform.identity());
 
             // cross paths to wings (orthogonal L to stay "courtyard-like")
-            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, leftDoor), pathWidth, true, false, 10), BlockTransform.identity());
-            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, rightDoor), pathWidth, true, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, leftDoor), pathWidth, false, false, 10), BlockTransform.identity());
+            compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, rightDoor), pathWidth, false, false, 10), BlockTransform.identity());
 
             // ring corridor (compound circulation): add a loop path inset from enclosure walls
             if ("ring_corridor".equals(layoutPlan)) {
@@ -213,7 +207,7 @@ public final class CourtyardCompoundBuilder {
                             new BlockPos(x1, 0, z1),
                             new BlockPos(x0, 0, z1)
                     );
-                    compound.add(new PolylinePathPlan(loop, Math.max(2, pathWidth), true, false, 10), BlockTransform.identity());
+                    compound.add(new PolylinePathPlan(loop, Math.max(2, pathWidth), false, false, 10), BlockTransform.identity());
                 }
             }
         }
@@ -222,78 +216,9 @@ public final class CourtyardCompoundBuilder {
         PlanDispatcher dispatcher = (plan, o, wld) -> {
             if (plan instanceof GeneratorBackedPlan gbp) {
                 if (gbp.spec == null) return List.of();
-                BlockPos origin2 = o;
-                List<PlannedBlock> pad = List.of();
-                if (terrainPolicy == TerrainPolicy.ADAPTIVE) {
-                    origin2 = TerrainFit.snapOrigin(wld, o, gbp.spec);
-                    int avg = TerrainFit.averageFootprintHeight(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth());
-                    int targetY = avg + 1;
-                    var analysis = TerrainFit.analyze(wld, origin2, gbp.spec.getFootprint().getWidth(), gbp.spec.getFootprint().getDepth());
-                    FoundationPlanner.Decision fd = FoundationPlanner.decide(gbp.spec, analysis, padDepth, clearHeight);
-                    if (fd.stilt()) BuildReportContext.addFootingStiltUnit();
-                    else if (fd.padDepth() > 0) BuildReportContext.addFootingPadUnit();
-                    BuildReportContext.setTerrainBudgetBlocks(terrainBudgetBlocks);
-                    int plannedPad = Math.max(0, Math.min(6, fd.padDepth()));
-                    int plannedClear = Math.max(0, Math.min(16, fd.clearHeight()));
-                    List<PlannedBlock> p0 = TerrainFit.adaptivePad(wld, origin2,
-                            gbp.spec.getFootprint().getWidth(),
-                            gbp.spec.getFootprint().getDepth(),
-                            targetY,
-                            foundationBlock,
-                            plannedPad,
-                            plannedClear);
-                    int usedPad = plannedPad;
-                    int usedClear = plannedClear;
-                    int degradeSteps = 0;
-                    if (terrainBudgetBlocks > 0 && p0.size() > terrainBudgetBlocks) {
-                        BuildReportContext.addTerrainBudgetDegrade();
-                        List<PlannedBlock> p1 = TerrainFit.adaptivePad(wld, origin2,
-                                gbp.spec.getFootprint().getWidth(),
-                                gbp.spec.getFootprint().getDepth(),
-                                targetY,
-                                foundationBlock,
-                                0,
-                                Math.min(6, plannedClear));
-                        if (p1.size() <= terrainBudgetBlocks) {
-                            pad = p1;
-                            usedPad = 0;
-                            usedClear = Math.min(6, plannedClear);
-                            degradeSteps = 1;
-                        }
-                        else {
-                            BuildReportContext.addTerrainBudgetDegrade();
-                            List<PlannedBlock> p2 = TerrainFit.adaptivePad(wld, origin2,
-                                    gbp.spec.getFootprint().getWidth(),
-                                    gbp.spec.getFootprint().getDepth(),
-                                    targetY,
-                                    foundationBlock,
-                                    0,
-                                    2);
-                            if (p2.size() <= terrainBudgetBlocks) {
-                                pad = p2;
-                                usedPad = 0;
-                                usedClear = 2;
-                                degradeSteps = 2;
-                            }
-                            else {
-                                BuildReportContext.addTerrainBudgetDegrade();
-                                pad = List.of();
-                                usedPad = 0;
-                                usedClear = 0;
-                                degradeSteps = 3;
-                            }
-                        }
-                    } else {
-                        pad = p0;
-                    }
-                    BuildReportContext.addFoundationExecution(fd.type(), analysis.range(), plannedPad, plannedClear, usedPad, usedClear, degradeSteps);
-                }
-                List<PlannedBlock> building = GenerationHub.routeStructure(gbp.spec).generate(gbp.spec, origin2, wld).getBlocks();
-                if (pad.isEmpty()) return building;
-                List<PlannedBlock> merged = new java.util.ArrayList<>(pad.size() + building.size());
-                merged.addAll(pad);
-                merged.addAll(building);
-                return merged;
+                var building = new java.util.ArrayList<>(GenerationHub.routeStructure(gbp.spec).generate(gbp.spec, o, wld).getBlocks());
+                openCourtyardEntrance(building, gbp.spec, o, floorBlock);
+                return building;
             }
             if (plan instanceof RectEnclosurePlan rep) {
                 StyleProfile enclosureProfile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
@@ -338,12 +263,24 @@ public final class CourtyardCompoundBuilder {
                 boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
                 BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
                 BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
-                return new PathRoadInterpreter(floorBlock, border, true, paletteId, lamp, post, ornamentProfile).interpret(pp, o, wld);
+                return new PathRoadInterpreter(floorBlock, border, true, paletteId, lamp, post, ornamentProfile, true, 2).interpret(pp, o, wld);
             }
             return List.of();
         };
 
-        List<PlannedBlock> blocks = new CompoundInterpreter(dispatcher).interpret(compound, origin, world);
+        List<PlannedBlock> blocks = new CompoundInterpreter(dispatcher, true).interpret(compound, origin, world);
+        if (world != null && !getBool(extra, "deferToPlanLanding", false)
+                && (terrainPolicy == TerrainPolicy.ADAPTIVE || terrainPolicy == TerrainPolicy.FLATTEN_AREA)) {
+            var landing = com.formacraft.server.terrain.BuildingLandingPlanner.prepare(blocks,
+                    List.of(landingSite(spec, origin)), com.formacraft.server.terrain.BuildingLandingPlanner.ground(world),
+                    terrainPolicy == TerrainPolicy.FLATTEN_AREA
+                            ? com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.FLATTEN
+                            : com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.ADAPTIVE,
+                    false, foundationBlock);
+            if (landing.problem() != null) throw new IllegalArgumentException(landing.problem());
+            blocks = landing.blocks();
+            origin = origin.up(landing.dy());
+        }
 
         String desc = String.format("Courtyard Compound (courtyard_compound, w=%d, d=%d, parts=%d)", w, d, compound.components.size());
         return new GeneratedStructure(null, origin, desc, blocks);
@@ -384,6 +321,8 @@ public final class CourtyardCompoundBuilder {
         s.setNotes("mingqing_part:" + role);
         java.util.Map<String, Object> ex = new java.util.HashMap<>();
         ex.put("courtyardPart", role);
+        ex.put("anchorMode", "corner");
+        ex.put("terrainPolicy", "FOLLOW");
         s.setExtra(ex);
         return s;
     }
@@ -391,6 +330,36 @@ public final class CourtyardCompoundBuilder {
     /** Same entrance contract as child generators: layout, doorSide, then facing. */
     public static Direction resolveGateSide(BuildingSpec spec) {
         return StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
+    }
+
+    /** Whole compound stays at one elevation; only authored columns receive earthwork. */
+    public static com.formacraft.server.terrain.BuildingLandingPlanner.Site landingSite(BuildingSpec spec, BlockPos origin) {
+        int[] size = resolvedDimensions(spec);
+        int minX = origin.getX() - size[0] / 2, minZ = origin.getZ() - size[1] / 2;
+        return new com.formacraft.server.terrain.BuildingLandingPlanner.Site(
+                new com.formacraft.common.network.LlmPlanTerrainBounds.Bounds(minX, origin.getY(), minZ,
+                        minX + size[0] - 1, origin.getY() + 20, minZ + size[1] - 1),
+                com.formacraft.common.llm.dto.GlobalConstraints.Facing.valueOf(resolveGateSide(spec).name()));
+    }
+
+    private static void openCourtyardEntrance(List<PlannedBlock> blocks, BuildingSpec child,
+                                              BlockPos corner, BlockState floor) {
+        int w = child.getFootprint().getWidth(), d = child.getFootprint().getDepth();
+        Direction facing = StructureSpecParsers.resolveEntranceFacing(child, Direction.SOUTH);
+        boolean through = "gate_house".equals(child.getExtra().get("courtyardPart"));
+        boolean alongZ = facing.getAxis() == Direction.Axis.Z;
+        int center = (alongZ ? w : d) / 2;
+        int edge = switch (facing) { case NORTH, WEST -> 0; case EAST -> w - 1; default -> d - 1; };
+        for (int axis = center - 1; axis <= center; axis++) {
+            int start = through ? 0 : edge;
+            int end = through ? (alongZ ? d : w) - 1 : edge;
+            for (int run = start; run <= end; run++) {
+                BlockPos p = corner.add(alongZ ? axis : run, 0, alongZ ? run : axis);
+                blocks.add(new PlannedBlock(p, floor));
+                blocks.add(new PlannedBlock(p.up(), Blocks.AIR.getDefaultState()));
+                blocks.add(new PlannedBlock(p.up(2), Blocks.AIR.getDefaultState()));
+            }
+        }
     }
 
     private static String resolveLayoutPlan(BuildingSpec spec) {
