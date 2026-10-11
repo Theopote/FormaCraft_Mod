@@ -66,6 +66,52 @@ class ChineseHallSpaceTest {
                     assertTrue(states.get(at(facing,offset+12,y,z)).isAir(),"porch entrance remains clear");
             }
     }
+    @Test void bracketsStayUnderRoofAndConnectToColumnsAcrossRoofVariants() {
+        for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST))
+            for(String form:List.of("ying_shan","xuan_shan","xie_shan","wu_dian"))
+                for(boolean sub:List.of(false,true)) for(int e:new int[]{0,3}) {
+                    var params=new HashMap<String,Object>(Map.of("width",25,"depth",15,"anchorMode","corner",
+                            "facing",facing.name(),"roofType",form,"includeSubEaves",sub,"roofOverhang",e,
+                            "roofCurve",100,"includeBrackets",false));
+                    if(e>0&&(form.equals("xie_shan")||form.equals("wu_dian"))) params.put("roofCornerLift",3);
+                    var off=generate(params);
+                    params.put("includeBrackets",true);
+                    var on=generate(params);
+                    var additions=new HashSet<BlockPos>();
+                    for(var entry:on.entrySet()) {
+                        var pos=entry.getKey();
+                        if(entry.getValue().equals(off.get(pos))) continue;
+                        additions.add(pos);
+                        int y=pos.getY();
+                        boolean roofAbove=false;
+                        for(int roofY=y+1;roofY<=ORIGIN.getY()+35;roofY++) {
+                            var state=off.get(new BlockPos(pos.getX(),roofY,pos.getZ()));
+                            if(state!=null&&(state.isOf(Blocks.DEEPSLATE_TILES)||state.isOf(Blocks.DEEPSLATE_BRICK_STAIRS)
+                                    ||state.isOf(Blocks.DEEPSLATE_TILE_SLAB))) {roofAbove=true;break;}
+                        }
+                        assertTrue(roofAbove,"every bracket change is below an existing roof");
+                    }
+                    for(var entry:off.entrySet()) if(entry.getKey().getY()>=ORIGIN.getY()+9&&
+                            (entry.getValue().isOf(Blocks.DEEPSLATE_TILES)||entry.getValue().isOf(Blocks.DEEPSLATE_BRICK_STAIRS)
+                                    ||entry.getValue().isOf(Blocks.DEEPSLATE_TILE_SLAB)))
+                        assertEquals(entry.getValue(),on.get(entry.getKey()),"brackets cannot replace roof surface");
+                    var reached=new HashSet<BlockPos>();var queue=new ArrayDeque<BlockPos>();
+                    for(var pos:additions) for(var direction:Direction.values()) {
+                        var neighbor=pos.offset(direction);var state=off.get(neighbor);
+                        if(state!=null&&!state.isAir()&&!additions.contains(neighbor)) {
+                            if(reached.add(pos)) queue.add(pos);
+                        }
+                    }
+                    while(!queue.isEmpty()) {
+                        var pos=queue.removeFirst();
+                        for(var direction:Direction.values()) {
+                            var next=pos.offset(direction);
+                            if(additions.contains(next)&&reached.add(next)) queue.add(next);
+                        }
+                    }
+                    assertEquals(additions.size(),reached.size(),"no isolated bracket blocks");
+                }
+    }
     @Test void bayCountsCoverExactSpanAndRejectImpossibleCounts() {
         var axis=TailiangTimberHallBuilder.bayAxis(25,7);
         assertEquals(8,axis.length); assertEquals(0,axis[0]);assertEquals(24,axis[7]);

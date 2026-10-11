@@ -178,11 +178,27 @@ public final class TailiangTimberHallBuilder {
             carveMainEntrance(blocks, origin, entrance, ox, oz, xAxis, d, yCol0);
         ringRect(blocks, origin, entrance, ox, yCol1, oz, ox+w-1, yCol1, oz+d-1, trim);
 
+        List<PlannedBlock> roofBlocks = new ArrayList<>();
+        String roofForm = ChineseHallRoofGenerator.normalize(p.strVal("roofType", "xie_shan"));
+        int roofRun = roofForm.equals("wu_dian") ? Math.min((w-1)/2,(d-1)/2)+roofOverhang : (w-1)/2+roofOverhang;
+        int roofRise = p.intVal("roofRise", roofRun, 3, 18);
+        ChineseHallRoofGenerator.generate(
+                roofBlocks, w, d, bodyTop, roofForm, roofRise,
+                new ChineseHallRoofGenerator.Shape(roofOverhang,p.intVal("roofCurve",0,0,100),
+                        p.intVal("roofCornerLift",0,0,3)), roofTile, roofStairs, wall);
+        Map<BlockPos, Integer> roofBottom = new java.util.HashMap<>();
+        for (PlannedBlock roofBlock : roofBlocks) {
+            BlockPos pos = roofBlock.getPos();
+            roofBottom.merge(new BlockPos(ox+pos.getX(),0,oz+pos.getZ()),pos.getY(),Math::min);
+        }
+        if (subEaves) for (int x=0;x<outerW;x++) for (int z=0;z<outerD;z++)
+            if (x<ox||x>=ox+w||z<oz||z>=oz+d)
+                roofBottom.merge(new BlockPos(x,0,z),bodyTop,Math::min);
         if (p.boolVal("includeBrackets", true)) addPuzuoAtColumns(blocks, origin, entrance, ox, oz, ox + w - 1, oz + d - 1,
-                mainColumns, yCol1 + 1, false, trim, bracket, trim, paint);
+                mainColumns, yCol1, roofBottom, trim, bracket, paint);
         if (subEaves) {
             if (p.boolVal("includeBrackets", true)) addPuzuoAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1,
-                    outerColumns, yCol1, true, trim, bracket, trim, paint);
+                    outerColumns, yCol1, roofBottom, trim, bracket, paint);
             int innerRoofY = bodyTop;
             ChineseTypologyDetailUtil.addSubEavesInnerRoof(
                     (pos, state) -> put(blocks, placedOrigin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
@@ -192,14 +208,6 @@ public final class TailiangTimberHallBuilder {
             );
         }
 
-        List<PlannedBlock> roofBlocks = new ArrayList<>();
-        String roofForm = ChineseHallRoofGenerator.normalize(p.strVal("roofType", "xie_shan"));
-        int roofRun = roofForm.equals("wu_dian") ? Math.min((w-1)/2,(d-1)/2)+roofOverhang : (w-1)/2+roofOverhang;
-        int roofRise = p.intVal("roofRise", roofRun, 3, 18);
-        ChineseHallRoofGenerator.generate(
-                roofBlocks, w, d, bodyTop, roofForm, roofRise,
-                new ChineseHallRoofGenerator.Shape(roofOverhang,p.intVal("roofCurve",0,0,100),
-                        p.intVal("roofCornerLift",0,0,3)), roofTile, roofStairs, wall);
         for (PlannedBlock pb : roofBlocks) {
             put(blocks, origin, entrance, ox + pb.getPos().getX(), pb.getPos().getY(), oz + pb.getPos().getZ(), pb.getTargetState());
         }
@@ -300,21 +308,33 @@ public final class TailiangTimberHallBuilder {
 
     private static void addPuzuoAtColumns(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
                                           int x0, int z0, int x1, int z1, List<int[]> columns,
-                                          int y, boolean subEaves,
-                                          BlockState luDou, BlockState gong, BlockState fang, BlockState paint) {
+                                          int y, Map<BlockPos,Integer> roofBottom,
+                                          BlockState timber, BlockState gong, BlockState paint) {
         for (int[] col : columns) {
             int x = col[0];
             int z = col[1];
             boolean corner = ChineseTypologyDetailUtil.isCornerColumn(x, z, x0, z0, x1, z1);
             Direction out = ChineseTypologyDetailUtil.outwardFromRectEdge(x, z, x0, z0, x1, z1);
-            Direction along = ChineseTypologyDetailUtil.alongWallFromEdge(x, z, x0, z0, x1, z1);
-            ChineseTypologyDetailUtil.PuzuoProfile profile =
-                    ChineseTypologyDetailUtil.resolvePuzuoProfile(subEaves, corner);
-            ChineseTypologyDetailUtil.addPuzuoZoning(
-                    (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
-                    x, y, z, out, along, profile, luDou, gong, fang, paint
-            );
+            addBracketPost(blocks,origin,entrance,x,z,y,roofBottom,timber,null);
+            List<Direction> arms = corner ? List.of(out,x==x0?Direction.WEST:Direction.EAST) : List.of(out);
+            for (Direction arm : arms) {
+                int ax=x+arm.getOffsetX(),az=z+arm.getOffsetZ();
+                Integer bottom=roofBottom.get(new BlockPos(ax,0,az));
+                if(bottom==null||bottom<=y) continue;
+                // One horizontal arm touches the shaft; its cap ends strictly below the roof.
+                put(blocks,origin,entrance,ax,y-1,az,withFacing(gong,arm));
+                addBracketPost(blocks,origin,entrance,ax,az,y,roofBottom,timber,paint);
+            }
         }
+    }
+
+    private static void addBracketPost(List<PlannedBlock> blocks,BlockPos origin,Direction entrance,
+                                       int x,int z,int y,Map<BlockPos,Integer> roofBottom,
+                                       BlockState timber,BlockState paint) {
+        Integer bottom=roofBottom.get(new BlockPos(x,0,z));
+        if(bottom==null) return;
+        for(int level=y;level<bottom;level++)
+            put(blocks,origin,entrance,x,level,z,paint!=null&&level==bottom-1?paint:timber);
     }
 
     private static void addTerraceSteps(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
