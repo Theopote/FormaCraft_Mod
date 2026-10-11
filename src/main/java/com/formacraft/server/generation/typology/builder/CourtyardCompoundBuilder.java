@@ -11,7 +11,6 @@ import com.formacraft.common.skeleton.transform.BlockTransform;
 import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.typology.TypologyParamResolver;
-import com.formacraft.server.generation.GenerationHub;
 import com.formacraft.server.skeleton.compound.CompoundInterpreter;
 import com.formacraft.server.skeleton.compound.PlanDispatcher;
 import com.formacraft.server.skeleton.path.PathPlanner;
@@ -35,7 +34,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Parametric Ming-Qing official courtyard compound builder (typology: {@code courtyard_compound}).
+ * Parametric Chinese courtyard compound; historic official construction is not yet reconstructed.
  * COMPOUND 骨架：围墙围合 + 正房/厢房/门楼 GeneratorBackedPlan 组合。
  */
 public final class CourtyardCompoundBuilder {
@@ -91,6 +90,8 @@ public final class CourtyardCompoundBuilder {
         int gateWidth = 3;
         Direction gateSide = resolveGateSide(spec);
         String layoutPlan = resolveLayoutPlan(spec);
+        if ("front_back".equals(layoutPlan) || "left_right".equals(layoutPlan))
+            throw new IllegalArgumentException("专用中式院落单体尚不支持室内前后/左右分隔，请移除 layout.plan 或使用单体方案。");
 
         Layout layout = resolveLayout(w, d, gateSide, pathWidth);
         Part main = layout.parts().get(0), left = layout.parts().get(1);
@@ -105,7 +106,7 @@ public final class CourtyardCompoundBuilder {
         Direction leftSide = inDir.rotateYCounterclockwise();
         Direction rightSide = inDir.rotateYClockwise();
 
-        // child specs (delegated generators)
+        // Internal room specifications; dispatched only to the dedicated courtyard generator.
         BuildingSpec mainHall = makeHallSpec(mainW, mainD, roofBlock, wallBlock, floorBlock, foundationBlock, "main_hall");
         BuildingSpec leftWing = makeHallSpec(wingW, wingD, roofBlock, wallBlock, floorBlock, foundationBlock, "left_wing");
         BuildingSpec rightWing = makeHallSpec(wingW, wingD, roofBlock, wallBlock, floorBlock, foundationBlock, "right_wing");
@@ -204,9 +205,11 @@ public final class CourtyardCompoundBuilder {
         PlanDispatcher dispatcher = (plan, o, wld) -> {
             if (plan instanceof GeneratorBackedPlan gbp) {
                 if (gbp.spec == null) return List.of();
-                var building = new java.util.ArrayList<>(GenerationHub.routeStructure(gbp.spec).generate(gbp.spec, o, wld).getBlocks());
-                openCourtyardEntrance(building, gbp.spec, o, floorBlock);
-                return building;
+                var child = gbp.spec;
+                return ChineseCourtyardRoomGenerator.generate(child.getFootprint().getWidth(),
+                        child.getFootprint().getDepth(), StructureSpecParsers.resolveEntranceFacing(child, Direction.SOUTH),
+                        "gate_house".equals(child.getExtra().get("courtyardPart")),o,
+                        wallBlock,roofBlock,floorBlock,foundationBlock);
             }
             if (plan instanceof RectEnclosurePlan rep) {
                 StyleProfile enclosureProfile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
@@ -270,8 +273,9 @@ public final class CourtyardCompoundBuilder {
             origin = origin.up(landing.dy());
         }
 
-        String desc = String.format("Courtyard Compound (courtyard_compound, w=%d, d=%d, parts=%d, childScale=%d%%)",
-                w, d, compound.components.size(), layout.scalePercent());
+        String desc = String.format("中式院落 courtyard_compound（围合%d×%d格，入口%s，底面中心锚点；专用木构正房/厢房/贯通门楼，硬山薄屋面，共同地面；parts=%d, childScale=%d%%）",
+                w, d, gateSide.name(), compound.components.size(), layout.scalePercent());
+        com.formacraft.FormacraftMod.LOGGER.info("[ChineseCourtyard] {}",desc);
         if (layout.scalePercent() < 100) com.formacraft.FormacraftMod.LOGGER.info("courtyard layout resized derived children: w={} d={} scale={} facing={}",
                 w, d, layout.scalePercent(), gateSide);
         return new GeneratedStructure(null, origin, desc, blocks);
@@ -292,21 +296,6 @@ public final class CourtyardCompoundBuilder {
         m.setFoundation(stateId(foundation));
         m.setWindow("minecraft:glass_pane");
         s.setMaterials(m);
-
-        Features f = new Features();
-        f.setHasDoor(true);
-        f.setHasRoof(true);
-        f.setHasWindows(true);
-        f.setHasRoofDecoration(true);
-        f.setFloorCount(1);
-        s.setFeatures(f);
-
-        StyleOptions so = new StyleOptions();
-        so.setRoofType("hipped");
-        so.setDoorStyle("double");
-        so.setWindowRatio(0.18);
-        so.setWindowStyle("fence");
-        s.setStyleOptions(so);
 
         // role hint for future refinements
         s.setNotes("mingqing_part:" + role);
@@ -380,26 +369,6 @@ public final class CourtyardCompoundBuilder {
                 new com.formacraft.common.network.LlmPlanTerrainBounds.Bounds(minX, origin.getY(), minZ,
                         minX + size[0] - 1, origin.getY() + 20, minZ + size[1] - 1),
                 com.formacraft.common.llm.dto.GlobalConstraints.Facing.valueOf(resolveGateSide(spec).name()));
-    }
-
-    private static void openCourtyardEntrance(List<PlannedBlock> blocks, BuildingSpec child,
-                                              BlockPos corner, BlockState floor) {
-        int w = child.getFootprint().getWidth(), d = child.getFootprint().getDepth();
-        Direction facing = StructureSpecParsers.resolveEntranceFacing(child, Direction.SOUTH);
-        boolean through = "gate_house".equals(child.getExtra().get("courtyardPart"));
-        boolean alongZ = facing.getAxis() == Direction.Axis.Z;
-        int center = (alongZ ? w : d) / 2;
-        int edge = switch (facing) { case NORTH, WEST -> 0; case EAST -> w - 1; default -> d - 1; };
-        for (int axis = center - 1; axis <= center; axis++) {
-            int start = through ? 0 : edge;
-            int end = through ? (alongZ ? d : w) - 1 : edge;
-            for (int run = start; run <= end; run++) {
-                BlockPos p = corner.add(alongZ ? axis : run, 0, alongZ ? run : axis);
-                blocks.add(new PlannedBlock(p, floor));
-                blocks.add(new PlannedBlock(p.up(), Blocks.AIR.getDefaultState()));
-                blocks.add(new PlannedBlock(p.up(2), Blocks.AIR.getDefaultState()));
-            }
-        }
     }
 
     private static String resolveLayoutPlan(BuildingSpec spec) {
