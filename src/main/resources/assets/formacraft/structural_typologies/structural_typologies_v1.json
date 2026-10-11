@@ -345,7 +345,8 @@
         "depth": { "min": 16, "ideal": 28, "max": 96, "desc": "院落占地深" },
         "includePaths": { "min": 0, "ideal": 1, "max": 1, "desc": "内院铺径（0/1）" },
         "pathWidth": { "min": 1, "ideal": 3, "max": 7, "desc": "内院路径宽" },
-        "paveCourtyard": { "min": 0, "ideal": 0, "max": 1, "desc": "围墙以内完整院地铺装，默认关闭" }
+        "paveCourtyard": { "min": 0, "ideal": 0, "max": 1, "desc": "围墙以内完整院地铺装，默认关闭" },
+        "includeGallery": { "min": 0, "ideal": 0, "max": 1, "desc": "实体有顶回廊；layout.plan=ring_corridor时默认开启，可独立关闭；不依赖includePaths。gallery对象支持clearWidth为3或5及floor_block/pillar_block/beam_block/roof_block材料ID，空间不足拒绝" }
       },
       "referenceLandmarks": [
         {

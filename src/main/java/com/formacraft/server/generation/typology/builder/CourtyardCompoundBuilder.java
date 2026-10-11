@@ -106,13 +106,22 @@ public final class CourtyardCompoundBuilder {
         if ("front_back".equals(layoutPlan) || "left_right".equals(layoutPlan))
             throw new IllegalArgumentException("专用中式院落单体尚不支持室内前后/左右分隔，请移除 layout.plan 或使用单体方案。");
 
-        Layout layout = resolveLayout(w, d, gateSide, pathWidth,roofMargin);
+        boolean includeGallery=getBool(extra,"includeGallery","ring_corridor".equals(layoutPlan));
+        Map<String,Object> gallery=objectMap(extra==null?null:extra.get("gallery"),"gallery");
+        for(String key:gallery.keySet()) if(!Set.of("clearWidth","floor_block","pillar_block","beam_block","roof_block").contains(key))
+            throw new IllegalArgumentException("不支持的回廊参数："+key);
+        int galleryWidth=getInt(gallery,"clearWidth",3);
+        Layout layout = resolveLayout(w,d,gateSide,pathWidth,roofMargin,includeGallery?galleryWidth:0);
         Part main = layout.parts().get(0), left = layout.parts().get(1);
         Part right = layout.parts().get(2), gate = layout.parts().get(3);
+        var galleryRing=includeGallery?ChineseCourtyardGalleryGenerator.resolve(layout.parts(),roofMargin,galleryWidth):null;
+        BlockState galleryFloor=ChineseCourtyardRoomGenerator.material(gallery,"floor_block",floorBlock);
+        BlockState galleryPillar=ChineseCourtyardRoomGenerator.material(gallery,"pillar_block",Blocks.DARK_OAK_LOG.getDefaultState());
+        BlockState galleryBeam=ChineseCourtyardRoomGenerator.material(gallery,"beam_block",Blocks.DARK_OAK_LOG.getDefaultState());
+        BlockState galleryRoof=ChineseCourtyardRoomGenerator.material(gallery,"roof_block",roofBlock);
         int mainW = main.width(), mainD = main.depth();
         int wingW = left.width(), wingD = left.depth();
         int gateW = gate.width(), gateD = gate.depth();
-        int halfW = w / 2, halfD = d / 2;
         BlockPos mainCorner = main.corner(), gateCorner = gate.corner();
         BlockPos leftCorner = left.corner(), rightCorner = right.corner();
         Direction inDir = gateSide.getOpposite();
@@ -193,25 +202,6 @@ public final class CourtyardCompoundBuilder {
             compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, leftDoor), pathWidth, false, false, 10), BlockTransform.identity());
             compound.add(new PolylinePathPlan(PathPlanner.orthogonalL(center, rightDoor), pathWidth, false, false, 10), BlockTransform.identity());
 
-            // ring corridor (compound circulation): add a loop path inset from enclosure walls
-            if ("ring_corridor".equals(layoutPlan)) {
-                int ringInset = Math.max(2, wallThickness + 2);
-                int x0 = -halfW + ringInset;
-                int x1 = w - halfW - 1 - ringInset;
-                int z0 = -halfD + ringInset;
-                int z1 = d - halfD - 1 - ringInset;
-                // clamp to avoid degenerate loops on tight footprints
-                if (x1 - x0 >= 6 && z1 - z0 >= 6) {
-                    List<BlockPos> loop = List.of(
-                            new BlockPos(x0, 0, z1),
-                            new BlockPos(x0, 0, z0),
-                            new BlockPos(x1, 0, z0),
-                            new BlockPos(x1, 0, z1),
-                            new BlockPos(x0, 0, z1)
-                    );
-                    compound.add(new PolylinePathPlan(loop, Math.max(2, pathWidth), false, false, 10), BlockTransform.identity());
-                }
-            }
         }
 
         // dispatcher wires child plan types to interpreters/generators
@@ -280,6 +270,22 @@ public final class CourtyardCompoundBuilder {
         };
 
         List<PlannedBlock> blocks = new CompoundInterpreter(dispatcher, true).interpret(compound, origin, world);
+        if(includeGallery) {
+            var doors=List.of(doorPoint(mainCorner,mainW,mainD,gateSide),doorPoint(leftCorner,wingW,wingD,rightSide),
+                    doorPoint(rightCorner,wingW,wingD,leftSide),doorPoint(gateCorner,gateW,gateD,inDir));
+            var galleryBlocks=ChineseCourtyardGalleryGenerator.generate(galleryRing,doors,layout.parts(),origin,pathWidth,
+                    galleryFloor,galleryPillar,galleryBeam,galleryRoof);
+            // Gallery carving cannot remove an authored room/eave or existing road surface.
+            var occupied=new java.util.HashMap<BlockPos,BlockState>();
+            blocks.forEach(block->occupied.put(block.getPos(),block.getTargetState()));
+            var mergedBlocks=new java.util.ArrayList<>(blocks);
+            for(var block:galleryBlocks) {
+                var previous=occupied.get(block.getPos());
+                if(block.getTargetState().isAir()&&previous!=null&&!previous.isAir()) continue;
+                mergedBlocks.add(block);
+            }
+            blocks=mergedBlocks;
+        }
         if(paved) {
             var fullFloor=new java.util.ArrayList<PlannedBlock>();
             for(int x=-w/2+1;x<-w/2+w-1;x++) for(int z=-d/2+1;z<-d/2+d-1;z++)
@@ -301,7 +307,7 @@ public final class CourtyardCompoundBuilder {
 
         String desc = String.format("中式院落 courtyard_compound（围合%d×%d格，入口%s，底面中心锚点；专用木构正房/厢房/贯通门楼，共同地面；parts=%d, childScale=%d%%）",
                 w, d, gateSide.name(), compound.components.size(), layout.scalePercent());
-        desc+=" 全铺="+paved+" 分房="+roomOptions;
+        desc+=" 全铺="+paved+" 实体回廊="+includeGallery+(includeGallery?" 净宽="+galleryWidth:"")+" 分房="+roomOptions;
         com.formacraft.FormacraftMod.LOGGER.info("[ChineseCourtyard] {}",desc);
         if (layout.scalePercent() < 100) com.formacraft.FormacraftMod.LOGGER.info("courtyard layout resized derived children: w={} d={} scale={} facing={}",
                 w, d, layout.scalePercent(), gateSide);
@@ -353,6 +359,10 @@ public final class CourtyardCompoundBuilder {
     }
 
     public static Layout resolveLayout(int width,int depth,Direction facing,int pathWidth,int overhang) {
+        return resolveLayout(width,depth,facing,pathWidth,overhang,0);
+    }
+
+    public static Layout resolveLayout(int width,int depth,Direction facing,int pathWidth,int overhang,int galleryWidth) {
         Direction gateSide = facing == null ? Direction.SOUTH : facing;
         Direction leftSide = gateSide.getOpposite().rotateYCounterclockwise();
         Direction rightSide = leftSide.getOpposite();
@@ -371,10 +381,16 @@ public final class CourtyardCompoundBuilder {
                     new Part("left_wing", placeCornerOnSide(leftSide,width,depth,inset,wingW,wingD),wingW,wingD),
                     new Part("right_wing", placeCornerOnSide(rightSide,width,depth,inset,wingW,wingD),wingW,wingD),
                     new Part("gate_house", placeCornerOnSide(gateSide,width,depth,inset,gateW,gateD),gateW,gateD));
-            if (layoutFits(parts,width,depth,pathWidth,overhang)) return new Layout(parts,scale);
+            if (layoutFits(parts,width,depth,pathWidth,overhang)) {
+                if(galleryWidth!=0) {
+                    try { ChineseCourtyardGalleryGenerator.resolve(parts,overhang,galleryWidth); }
+                    catch(IllegalArgumentException ex) { continue; }
+                }
+                return new Layout(parts,scale);
+            }
         }
         throw new IllegalArgumentException("院落 " + width + "×" + depth
-                + " 格无法同时容纳正房、两侧厢房、门楼及通道，请增大占地或改用单体建筑。");
+                + " 格无法同时容纳正房、两侧厢房、门楼及通道"+(galleryWidth!=0?"和实体回廊":"")+"，请增大占地或改用单体建筑。");
     }
 
     private static boolean layoutFits(List<Part> parts, int width, int depth, int pathWidth,int e) {
