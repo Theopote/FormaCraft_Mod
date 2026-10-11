@@ -239,18 +239,18 @@ public abstract class BasePanel {
         int bw = panelWidth;
         int bh = TOOLBAR_HEIGHT;
 
-        // 标签区域背景（几乎不透明）
-        ctx.fillGradient(bx, by, bx + bw, by + bh, 0xFFD7D7D7, 0xFFC9C9C9);
+        // 标签区域背景（Minecraft 原生风格：深灰色，与未选中标签一致）
+        ctx.fill(bx, by, bx + bw, by + bh, 0xFFA0A0A0);
 
         // 顶部/底部分隔线（Minecraft 原生样式）
         ctx.fill(bx, by, bx + bw, by + 1, 0xFFFFFFFF);
-        ctx.fill(bx, by + bh - 1, bx + bw, by + bh, UiTheme.DIVIDER_TOOLBAR);
+        ctx.fill(bx, by + bh - 1, bx + bw, by + bh, 0xFF555555);
 
         ToolbarLayout layout = computeToolbarLayout();
         int tabBarWidth = Math.max(0, bw - layout.buttonAreaWidth() - TOOLBAR_PADDING * 2);
-        
+
         tabBar.setBounds(bx + TOOLBAR_PADDING, by, tabBarWidth);
-        
+
         // 获取鼠标位置（scaled坐标）
         double mouseX = client.mouse.getX() / client.getWindow().getScaleFactor();
         double mouseY = client.mouse.getY() / client.getWindow().getScaleFactor();

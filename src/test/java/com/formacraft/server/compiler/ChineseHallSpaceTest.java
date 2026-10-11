@@ -27,6 +27,21 @@ class ChineseHallSpaceTest {
                 .forEach(b->states.put(b.getPos(),b.getTargetState()));
         return states;
     }
+    @Test void thinRoofCoversEveryColumnAndKeepsInteriorEmptyWithClosedGables() {
+        for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST)) {
+            var states=generate(Map.of("width",25,"depth",15,"anchorMode","corner","facing",facing.name(),
+                    "includeSubEaves",false));
+            for(int x=-1;x<=25;x++) for(int z=-1;z<=15;z++) {
+                int dx=Math.min(x+1,25-x),dz=Math.min(z+1,15-z);
+                int top=9+(dz<3?Math.min(dx,dz):dx);
+                assertFalse(states.get(at(facing,x,top,z)).isAir(),"roof covers full footprint");
+            }
+            for(int y=10;y<17;y++)
+                assertTrue(states.get(at(facing,12,y,7)).isAir(),"roof volume remains empty");
+            for(int z:new int[]{2,12}) for(int y=12;y<17;y++)
+                assertTrue(states.get(at(facing,12,y,z)).isOf(Blocks.RED_TERRACOTTA),"upper gables closed with wall material");
+        }
+    }
     @Test void bayCountsCoverExactSpanAndRejectImpossibleCounts() {
         var axis=TailiangTimberHallBuilder.bayAxis(25,7);
         assertEquals(8,axis.length); assertEquals(0,axis[0]);assertEquals(24,axis[7]);

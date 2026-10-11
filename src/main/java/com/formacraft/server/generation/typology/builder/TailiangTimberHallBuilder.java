@@ -10,7 +10,7 @@ import com.formacraft.common.style.profile.StyleProfileRegistry;
 import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.TypologyParams;
 import com.formacraft.common.typology.detail.ChineseTypologyDetailUtil;
-import com.formacraft.server.generation.structure.HouseRoofGenerator;
+import com.formacraft.server.generation.structure.ChineseHallRoofGenerator;
 import com.formacraft.server.generation.structure.util.StructureSpecParsers;
 import com.formacraft.server.material.PaletteResolver;
 import net.minecraft.block.BlockState;
@@ -55,7 +55,7 @@ public final class TailiangTimberHallBuilder {
                 clampOdd(p.intVal("width", p.intVal("baysX", 7, 5, 9) * bay, 15, 35), 15, 35),
                 clampOdd(p.intVal("depth", p.intVal("baysZ", 4, 3, 5) * bay, 11, 25), 11, 25),
                 p.boolVal("includeSubEaves", true) ? p.intVal("subEavesDepth", 3, 2, 5) : 0,
-                p.intVal("platformHeight", 2, 1, 4) + p.intVal("hallHeight", 7, 5, 12) + 15);
+                p.intVal("platformHeight", 2, 1, 4) + p.intVal("hallHeight", 7, 5, 12) + 20);
     }
 
     public static GeneratedStructure fromBuildingSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -139,7 +139,7 @@ public final class TailiangTimberHallBuilder {
             roofSlab = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xF00007L, roofSlab);
         }
 
-        int clearH = platformH + bodyH + 14;
+        int clearH = envelope.height();
         for (int x = -2; x <= outerW + 1; x++) {
             for (int z = -2; z <= outerD + 1; z++) {
                 for (int y = 0; y <= clearH; y++) {
@@ -191,24 +191,11 @@ public final class TailiangTimberHallBuilder {
         }
 
         List<PlannedBlock> roofBlocks = new ArrayList<>();
-        BlockPos localRoofOrigin = BlockPos.ORIGIN;
-        HouseRoofGenerator.generateRoof(
-                roofBlocks,
-                localRoofOrigin,
-                w,
-                d,
-                bodyTop,
-                "xie_shan",
-                roofTile,
-                roofStairs,
-                roofSlab,
-                trim,
-                BuildingStyle.ASIAN,
-                profile,
-                Direction.SOUTH,
-                specHint,
-                paletteId
-        );
+        String roofForm = ChineseHallRoofGenerator.normalize(p.strVal("roofType", "xie_shan"));
+        int roofRun = roofForm.equals("wu_dian") ? Math.min((w+1)/2,(d+1)/2) : (w+1)/2;
+        int roofRise = p.intVal("roofRise", roofRun, 3, 18);
+        ChineseHallRoofGenerator.generate(
+                roofBlocks, w, d, bodyTop, roofForm, roofRise, roofTile, roofStairs, wall);
         for (PlannedBlock pb : roofBlocks) {
             put(blocks, origin, entrance, ox + pb.getPos().getX(), pb.getPos().getY(), oz + pb.getPos().getZ(), pb.getTargetState());
         }

@@ -105,7 +105,9 @@
         "width": { "min": 15, "ideal": 21, "max": 30, "desc": "面阔（blocks）" },
         "depth": { "min": 10, "ideal": 15, "max": 22, "desc": "进深（blocks）" },
         "hallHeight": { "min": 5, "ideal": 7, "max": 12, "desc": "柱网主体高度" },
-        "includeSubEaves": { "type": "boolean", "default": true, "desc": "副阶周匝 + 副阶内檐" }
+        "includeSubEaves": { "type": "boolean", "default": true, "desc": "副阶周匝 + 副阶内檐" },
+        "roofType": { "type": "string", "desc": "屋顶形式：ying_shan/yingshan（硬山）、xuan_shan/xuanshan（悬山）、xie_shan/xieshan（歇山）、wu_dian/wudian（庑殿）；未知形式拒绝生成" },
+        "roofRise": { "min": 3, "max": 18, "desc": "屋面从檐口到正脊的升高格数，未指定时由坡面水平跨度推导；工程近似，不表示历史举折比例" }
       },
       "referenceLandmarks": [
         {

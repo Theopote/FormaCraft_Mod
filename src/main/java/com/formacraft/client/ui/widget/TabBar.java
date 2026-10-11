@@ -110,37 +110,41 @@ public class TabBar {
     }
     
     /**
-     * 绘制单个标签（使用 Minecraft 原生按钮纹理）
+     * 绘制单个标签（完全模仿 Minecraft 原版按钮样式）
      */
     private void drawTab(DrawContext ctx, int x, int y, int width, TabInfo tab, boolean isActive, boolean isHovered) {
         int height = TAB_HEIGHT;
 
-        int topColor, bottomColor;
-        if (isActive) {
-            topColor = 0xFF4B4B4B;
-            bottomColor = 0xFF3B3B3B;
-        } else if (isHovered) {
-            topColor = 0xFF6B6B6B;
-            bottomColor = 0xFF4B4B4B;
-        } else {
-            topColor = 0xFF5B5B5B;
-            bottomColor = 0xFF3B3B3B;
-        }
-        ctx.fillGradient(x, y, x + width, y + height, topColor, bottomColor);
+        // Minecraft 原版按钮颜色（参考 ButtonWidget 默认样式）
+        // 未选中：0xFF80000000 (半透明黑) - 但HUD模式需要不透明
+        // 选中：0xFFFFFFFF (白色高亮)
+        // 悬停：稍微亮一点
 
-        int lightBorder, darkBorder;
+        int bgColor;
         if (isActive) {
-            lightBorder = 0xFF000000;
-            darkBorder = isHovered ? 0xFFCCCCCC : 0xFFAAAAAA;
+            bgColor = 0xFFFFFFFF; // 激活：白色背景
+        } else if (isHovered) {
+            bgColor = 0xFFD0D0D0; // 悬停：浅灰色
         } else {
-            lightBorder = isHovered ? 0xFFCCCCCC : 0xFFAAAAAA;
-            darkBorder = 0xFF000000;
+            bgColor = 0xFFA0A0A0; // 未选中：深灰色
         }
-        
+        ctx.fill(x, y, x + width, y + height, bgColor);
+
+        // Minecraft 原版边框样式（3D效果）
+        // 顶部和左侧：白色高光
+        // 底部和右侧：深色阴影
+        int lightBorder = 0xFFFFFFFF;
+        int darkBorder = 0xFF555555;
+
         ctx.fill(x, y, x + width, y + 1, lightBorder);
         ctx.fill(x, y, x + 1, y + height, lightBorder);
         ctx.fill(x, y + height - 1, x + width, y + height, darkBorder);
         ctx.fill(x + width - 1, y, x + width, y + height, darkBorder);
+
+        // 激活状态：底部黑色下划线（原版标签特征）
+        if (isActive) {
+            ctx.fill(x, y + height - 2, x + width, y + height - 1, 0xFF000000);
+        }
 
         // 渲染 PNG 图标（居中）
         if (tab.icon != null) {

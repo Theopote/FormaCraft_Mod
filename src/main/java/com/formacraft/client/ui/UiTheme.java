@@ -39,21 +39,23 @@ public final class UiTheme {
         ctx.fill(contentInnerLeft(panelX), contentY, contentInnerRight(panelX, panelWidth), panelBottom, CONTENT_BG);
     }
 
-    /** 与 {@link com.formacraft.client.ui.panel.BasePanel} 一致的双层 3D 边框。 */
+    /** 与 {@link com.formacraft.client.ui.panel.BasePanel} 一致的双层 3D 边框（Minecraft 原生风格）。 */
     public static void drawPanelBorder(DrawContext ctx, int x0, int y0, int x1, int y1) {
+        // 外层边框：Minecraft 原生风格
         int outerLight = 0xFFFFFFFF;
-        int outerDark = 0xFF6F6F6F;
+        int outerDark = 0xFF555555;
         ctx.fill(x0, y0, x1, y0 + 1, outerLight);
         ctx.fill(x0, y0, x0 + 1, y1, outerLight);
         ctx.fill(x0, y1 - 1, x1, y1, outerDark);
         ctx.fill(x1 - 1, y0, x1, y1, outerDark);
 
+        // 内层边框：更细腻的阴影
         int ix0 = x0 + 1;
         int iy0 = y0 + 1;
         int ix1 = x1 - 1;
         int iy1 = y1 - 1;
-        int innerLight = 0xFFE6E6E6;
-        int innerDark = 0xFF8A8A8A;
+        int innerLight = 0xFFE0E0E0;
+        int innerDark = 0xFF808080;
         ctx.fill(ix0, iy0, ix1, iy0 + 1, innerLight);
         ctx.fill(ix0, iy0, ix0 + 1, iy1, innerLight);
         ctx.fill(ix0, iy1 - 1, ix1, iy1, innerDark);
