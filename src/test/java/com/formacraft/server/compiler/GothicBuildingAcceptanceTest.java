@@ -7,6 +7,26 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GothicBuildingAcceptanceTest {
+    @Test void thinVaultShellCoversHallAndCrossingWithoutFillingInterior() {
+        for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(boolean shell:List.of(false,true)) {
+            var anchor=new BlockPos(20,64,-50);
+            var structure=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+                    "facing",facing,"planVariant","cruciform","includeApse",true,
+                    "includeVaultShell",shell,"includeRibVault",true,"includeTowers",false),anchor,null,null);
+            var corner=GothicCathedralHallBuilder.cornerOrigin(anchor,net.minecraft.util.math.Direction.valueOf(facing),35,45,"center");
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:structure.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            assertEquals(shell,!states.get(position(corner,facing,17,19,30)).isAir(),"nave shell between rib bays");
+            assertEquals(shell,!states.get(position(corner,facing,17,19,3)).isAir(),"rear shell restored after apse clipping");
+            assertEquals(shell,!states.get(position(corner,facing,17,19,12)).isAir(),"crossing shell beside diagonals");
+            for(int z=1;z<44;z++) for(int y=3;y<=5;y++)
+                assertTrue(states.get(position(corner,facing,17,y,z)).isAir(),"central circulation");
+            assertTrue(states.get(position(corner,facing,17,16,30)).isAir(),"under vault stays hollow");
+            assertTrue(states.get(position(corner,facing,17,21,30)).isAir(),"space above shell stays hollow");
+            assertEquals(net.minecraft.block.Blocks.POLISHED_BLACKSTONE,
+                    states.get(position(corner,facing,17,19,29)).getBlock(),"nave rib detail survives shell writes");
+        }
+    }
     @Test void terminalRoofHasRearSlopeAndCrossingRibsHaveSupportedClearance() {
         for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(boolean ribs:List.of(false,true)) {
             var anchor=new BlockPos(20,64,-50);

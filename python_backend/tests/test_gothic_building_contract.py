@@ -2,6 +2,14 @@ import unittest
 from app.services.gothic_building_contract import apply_gothic_building_contract
 
 class GothicBuildingContractTest(unittest.TestCase):
+    def test_vault_shell_optin_optout_and_scope(self):
+        for text, expected in [('设置薄拱顶壳体', True), ('取消拱顶壳体', False), ('include vault shell', True), ('no vault shell', False)]:
+            plan = self.plan()
+            apply_gothic_building_contract(plan, text)
+            self.assertEqual(plan['components'][0]['params']['includeVaultShell'], expected)
+        plan = self.plan()
+        apply_gothic_building_contract(plan, '左栋设置薄拱顶壳体')
+        self.assertNotIn('includeVaultShell', plan['components'][0]['params'])
     def test_rib_skeleton_optin_optout_and_scope(self):
         for text, expected in [('设置室内肋拱', True), ('取消室内肋拱', False), ('include rib vault', True), ('no rib vault', False), ('设置室内肋拱，但是取消室内肋拱', False)]:
             plan = self.plan()

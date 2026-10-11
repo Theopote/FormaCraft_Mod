@@ -246,6 +246,8 @@ public final class GothicCathedralHallBuilder {
         }
 
         // Opt-in interior skeleton; the cruciform crossing clears these local bays.
+        if (getBooleanExtra(spec,"includeVaultShell",false))
+            addVaultShell(blocks,origin,entrance,naveX0+1,naveX1-1,1,d-2,y1,wall,false);
         if (getBooleanExtra(spec, "includeRibVault", false))
             addNaveRibs(blocks, origin, entrance, naveX0+1, naveX1-1, d, y1, buttressStep, trim);
 
@@ -324,6 +326,8 @@ public final class GothicCathedralHallBuilder {
                 put(blocks,origin,entrance,x,y,z,wall,null);
             put(blocks,origin,entrance,x,roofY,z,roofY==roofBase+rise?ridge:withFacingIfPossible(stair,slope),null);
         }
+        if(getBooleanExtra(spec,"includeVaultShell",false))
+            addVaultShell(blocks,origin,entrance,nx0+1,nx1-1,z0+1,z1-1,top,wall,true);
         if(getBooleanExtra(spec,"includeRibVault",false))
             addCrossingRibs(blocks,origin,entrance,nx0+1,nx1-1,z0+1,z1-1,top,
                     states.getOrDefault(new BlockPos((bodyW-naveW)/2,4,0),Blocks.POLISHED_BLACKSTONE.getDefaultState()));
@@ -470,6 +474,28 @@ public final class GothicCathedralHallBuilder {
                 put(blocks,origin,facing,left+1,3,z,withFacingIfPossible(Blocks.OAK_STAIRS.getDefaultState(),Direction.WEST),null);
                 put(blocks,origin,facing,right-1,3,z,withFacingIfPossible(Blocks.OAK_STAIRS.getDefaultState(),Direction.EAST),null);
             }
+        }
+        if(getBooleanExtra(spec,"includeApse",false) && getBooleanExtra(spec,"includeVaultShell",false)) {
+            for(int z=1;z<=5;z++) {
+                int inset=Math.max(0,3-z);
+                addVaultShell(blocks,origin,facing,left+inset+1,right-inset-1,z,z,top,wall,false);
+            }
+        }
+    }
+
+    /** A stepped surface, not a solid volume. The crossing uses two intersecting pointed profiles. */
+    private static void addVaultShell(List<PlannedBlock> blocks,BlockPos origin,Direction facing,
+                                      int left,int right,int back,int front,int top,BlockState material,boolean crossing) {
+        int cx=(left+right)/2,cz=(back+front)/2;
+        int hx=Math.max(1,(right-left)/2),hz=Math.max(1,(front-back)/2),spring=top-5;
+        if(crossing) for(int x:new int[]{left,right}) for(int z:new int[]{back,front}) for(int y=3;y<=spring;y++)
+            put(blocks,origin,facing,x,y,z,material,null);
+        for(int x=left;x<=right;x++) for(int z=back;z<=front;z++) {
+            double px=1.0-(double)Math.abs(x-cx)/hx;
+            double pz=1.0-(double)Math.abs(z-cz)/hz;
+            int y=spring+(int)Math.round(5*Math.max(px,crossing?pz:0));
+            int previous=spring+(int)Math.round(5*Math.max(Math.max(0,px-1.0/hx),crossing?Math.max(0,pz-1.0/hz):0));
+            for(int yy=previous;yy<=y;yy++) put(blocks,origin,facing,x,yy,z,material,null);
         }
     }
 

@@ -2,6 +2,7 @@
 import re
 
 _PATTERNS = {
+    'includeVaultShell': r'(?:不要|不设|取消)(?:薄)?拱顶壳体|\bno vault shell\b',
     'includeApse': r'(?:不要|不设|取消)后殿|\bno apse\b',
     'includeChoir': r'(?:不要|不设|取消)唱诗席|\bno choir\b',
     'includeEntranceSteps': r'(?:不要|不设|取消)(?:入口)?(?:大)?台阶|\bno entrance steps\b',
@@ -34,6 +35,10 @@ def apply_gothic_building_contract(plan: dict, text: str) -> None:
                        'status': status, 'target_components': ids})
     if len(targets) == 1 and not scoped:
         params = targets[0].get('params', {})
+        if re.search(r'(?:设置|增加|采用)(?:薄)?拱顶壳体|\binclude vault shell\b', text, re.I) and not re.search(_PATTERNS['includeVaultShell'], text, re.I):
+            params['includeVaultShell'] = True
+            report.append({'property': 'includeVaultShell', 'value': True, 'status': 'planned',
+                           'target_components': [params.get('component_id')]})
         for key, pattern in [('includeApse', r'(?:设置|增加|采用)折角后殿|\binclude faceted apse\b'), ('includeChoir', r'(?:设置|增加|采用)唱诗席|\binclude choir\b')]:
             if re.search(pattern, text, re.I) and not re.search(_PATTERNS[key], text, re.I):
                 params[key] = True
