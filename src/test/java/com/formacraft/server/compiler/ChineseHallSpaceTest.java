@@ -112,6 +112,48 @@ class ChineseHallSpaceTest {
                     assertEquals(additions.size(),reached.size(),"no isolated bracket blocks");
                 }
     }
+    @Test void explicitMaterialsAndIndependentPaintToggleReachFinalBlocks() {
+        for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST)) {
+            var params=new HashMap<String,Object>(Map.of("width",25,"depth",15,"anchorMode","corner",
+                    "facing",facing.name(),"includeSubEaves",true));
+            params.putAll(Map.of("wall_block","minecraft:white_concrete","floor_block","minecraft:oak_planks",
+                    "pillar_block","minecraft:oak_log","roof_block","minecraft:bricks",
+                    "paint_block","minecraft:blue_terracotta","foundation_block","minecraft:stone"));
+            var painted=generate(params);
+            assertTrue(painted.get(at(facing,15,2,10)).isOf(Blocks.OAK_PLANKS));
+            assertTrue(painted.get(at(facing,15,0,10)).isOf(Blocks.STONE));
+            assertTrue(painted.get(at(facing,3,5,3)).isOf(Blocks.OAK_LOG));
+            assertTrue(painted.get(at(facing,4,3,3)).isOf(Blocks.WHITE_CONCRETE));
+            assertTrue(painted.values().stream().anyMatch(s->s.isOf(Blocks.BLUE_TERRACOTTA)));
+            assertFalse(painted.entrySet().stream().anyMatch(e->e.getKey().getY()>=ORIGIN.getY()+9&&
+                    (e.getValue().isOf(Blocks.DEEPSLATE_TILES)||e.getValue().isOf(Blocks.DEEPSLATE_BRICK_STAIRS)
+                            ||e.getValue().isOf(Blocks.DEEPSLATE_TILE_SLAB))),"roof family follows explicit primary material");
+            params.put("includePainting",false);
+            var plain=generate(params);
+            assertFalse(plain.values().stream().anyMatch(s->s.isOf(Blocks.BLUE_TERRACOTTA)));
+            assertTrue(plain.values().stream().anyMatch(s->s.isOf(Blocks.SPRUCE_STAIRS)),"paint opt-out retains brackets");
+            for(var entry:painted.entrySet()) if(entry.getValue().isOf(Blocks.BRICKS))
+                assertEquals(entry.getValue(),plain.get(entry.getKey()),"paint opt-out keeps roof");
+        }
+    }
+    @Test void explicitInvalidMaterialFailsInsteadOfFallbackOrAir() {
+        for(String id:List.of("minecraft:unknown_block","minecraft:air","minecraft:water","not a block",""))
+            assertThrows(IllegalArgumentException.class,()->generate(Map.of("wall_block",id)));
+    }
+    @Test void buildingSpecMaterialsReachNativeHallAndExtraWins() {
+        var spec=new com.formacraft.common.model.build.BuildingSpec();
+        var materials=new com.formacraft.common.model.build.Materials();
+        materials.setWall("minecraft:white_concrete");materials.setFoundation("minecraft:stone_bricks");
+        spec.setMaterials(materials);
+        var params=com.formacraft.common.typology.TypologyParamResolver.fromBuildingSpec(spec,"tailiang_timber_hall");
+        assertEquals("minecraft:white_concrete",params.get("wall_block"));
+        assertEquals("minecraft:stone_bricks",params.get("foundation_block"));
+        assertTrue(TailiangTimberHallBuilder.fromBuildingSpec(spec,ORIGIN,null).getBlocks().stream()
+                .anyMatch(b->b.getTargetState().isOf(Blocks.WHITE_CONCRETE)));
+        spec.setExtra(Map.of("wall_block","minecraft:bricks"));
+        assertEquals("minecraft:bricks",com.formacraft.common.typology.TypologyParamResolver
+                .fromBuildingSpec(spec,"tailiang_timber_hall").get("wall_block"));
+    }
     @Test void bayCountsCoverExactSpanAndRejectImpossibleCounts() {
         var axis=TailiangTimberHallBuilder.bayAxis(25,7);
         assertEquals(8,axis.length); assertEquals(0,axis[0]);assertEquals(24,axis[7]);

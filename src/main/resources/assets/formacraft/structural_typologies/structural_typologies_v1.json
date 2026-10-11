@@ -110,7 +110,19 @@
         "roofRise": { "min": 3, "max": 18, "desc": "屋面从檐口到正脊的升高格数，未指定时由坡面水平跨度推导；工程近似，不表示历史举折比例" },
         "roofOverhang": { "min": 0, "max": 3, "desc": "出檐格数，默认1；硬山端部始终与山墙齐平" },
         "roofCurve": { "min": 0, "max": 100, "desc": "坡面曲率，默认0直坡；数值越高下部越缓、上部越陡，为视觉近似" },
-        "roofCornerLift": { "min": 0, "max": 3, "desc": "翘角高度，默认0；仅歇山或庑殿且出檐至少1格时支持" }
+        "roofCornerLift": { "min": 0, "max": 3, "desc": "翘角高度，默认0；仅歇山或庑殿且出檐至少1格时支持" },
+        "includePainting": { "type": "boolean", "default": true, "desc": "独立彩画端帽开关，不移除柱梁和斗拱；仅斗拱启用时出现" },
+        "wall_block": { "type": "string", "desc": "注册方块ID，显式覆盖墙体材料；无效/空气/流体拒绝" },
+        "floor_block": { "type": "string", "desc": "覆盖台基地面，边缘梁枋保留trim_block" },
+        "foundation_block": { "type": "string", "desc": "覆盖台基内部基础" },
+        "pillar_block": { "type": "string", "desc": "覆盖柱与内部木梁材料" },
+        "trim_block": { "type": "string", "desc": "覆盖柱帽、梁枋与联系梁" },
+        "bracket_block": { "type": "string", "desc": "覆盖简化斗拱外挑臂" },
+        "paint_block": { "type": "string", "desc": "覆盖彩画端帽，不隐式开启彩画" },
+        "window_block": { "type": "string", "desc": "覆盖窗格填充材料" },
+        "roof_block": { "type": "string", "desc": "覆盖屋面主材，未单独指定坡面或半砖时跟随主材；保持原几何" },
+        "roof_stairs_block": { "type": "string", "desc": "单独覆盖坡面材料" },
+        "roof_slab_block": { "type": "string", "desc": "单独覆盖副檐材料" }
       },
       "referenceLandmarks": [
         {

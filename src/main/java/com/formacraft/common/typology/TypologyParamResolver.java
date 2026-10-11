@@ -32,6 +32,13 @@ public final class TypologyParamResolver {
             if (spec.getExtra() != null) {
                 merged.putAll(spec.getExtra());
             }
+            if ("tailiang_timber_hall".equals(typologyId) && spec.getMaterials()!=null) {
+                if(spec.getMaterials().getWall()!=null) merged.putIfAbsent("wall_block",spec.getMaterials().getWall());
+                if(spec.getMaterials().getFloor()!=null) merged.putIfAbsent("floor_block",spec.getMaterials().getFloor());
+                if(spec.getMaterials().getRoof()!=null) merged.putIfAbsent("roof_block",spec.getMaterials().getRoof());
+                if(spec.getMaterials().getWindow()!=null) merged.putIfAbsent("window_block",spec.getMaterials().getWindow());
+                if(spec.getMaterials().getFoundation()!=null) merged.putIfAbsent("foundation_block",spec.getMaterials().getFoundation());
+            }
             if (spec.getHeight() > 0) {
                 merged.putIfAbsent("height", spec.getHeight());
                 merged.putIfAbsent("towerHeight", spec.getHeight());

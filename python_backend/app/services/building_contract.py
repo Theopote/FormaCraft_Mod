@@ -411,4 +411,6 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     apply_gothic_building_contract(out, text)
     from .chinese_roof_contract import apply_chinese_roof_contract
     apply_chinese_roof_contract(out, text)
+    from .chinese_material_contract import apply_chinese_material_contract
+    apply_chinese_material_contract(out, text)
     return out

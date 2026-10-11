@@ -139,6 +139,21 @@ public final class TailiangTimberHallBuilder {
             roofSlab = PaletteResolver.pick(world, paletteId, "FLOOR_SLAB", origin, 0xF00007L, roofSlab);
         }
 
+        stone = explicitMaterial(p,"foundation_block",stone);
+        BlockState floor = explicitMaterial(p,"floor_block",stone);
+        pillar = explicitMaterial(p,"pillar_block",pillar);
+        wall = explicitMaterial(p,"wall_block",wall);
+        trim = explicitMaterial(p,"trim_block",trim);
+        bracket = explicitMaterial(p,"bracket_block",bracket);
+        lattice = explicitMaterial(p,"window_block",lattice);
+        paint = explicitMaterial(p,"paint_block",paint);
+        if (!p.boolVal("includePainting",true)) paint = null;
+        BlockState terraceStair = roofStairs;
+        roofTile = explicitMaterial(p,"roof_block",roofTile);
+        boolean explicitRoof = p.raw().containsKey("roof_block");
+        roofStairs = explicitMaterial(p,"roof_stairs_block",explicitRoof?roofTile:roofStairs);
+        roofSlab = explicitMaterial(p,"roof_slab_block",explicitRoof?roofTile:roofSlab);
+
         int clearH = envelope.height();
         int roofOverhang = p.intVal("roofOverhang", 1, 0, 3);
         int clearMargin = Math.max(2, roofOverhang);
@@ -151,7 +166,7 @@ public final class TailiangTimberHallBuilder {
         }
 
         fillRect(blocks, origin, entrance, 0, 0, 0, outerW - 1, platformH - 1, outerD - 1, stone);
-        fillRect(blocks, origin, entrance, 0, platformH, 0, outerW - 1, platformH, outerD - 1, stone);
+        fillRect(blocks, origin, entrance, 0, platformH, 0, outerW - 1, platformH, outerD - 1, floor);
         ringRect(blocks, origin, entrance, 0, platformH, 0, outerW - 1, platformH, outerD - 1, trim);
 
         int yCol0 = platformH + 1;
@@ -222,7 +237,7 @@ public final class TailiangTimberHallBuilder {
                 frameBase, frameLevels, pillar, trim);
 
         if (p.boolVal("includeEntrance", true) && p.boolVal("includeEntranceSteps", true))
-            addTerraceSteps(blocks, origin, entrance, (doorMin+doorMax)/2, outerD, platformH, roofStairs);
+            addTerraceSteps(blocks, origin, entrance, (doorMin+doorMax)/2, outerD, platformH, terraceStair);
 
         String ref = p.strVal("reference_landmark", "");
         String desc = String.format(
@@ -236,6 +251,18 @@ public final class TailiangTimberHallBuilder {
                                          int ix0, int iz0, int ix1, int iz1, int ox1, int oz1, int y, BlockState beam) {
         ringRect(blocks, origin, entrance, ix0 - 1, y, iz0 - 1, ix1 + 1, y, iz1 + 1, beam);
         ringRect(blocks, origin, entrance, 0, y, 0, ox1, y, oz1, beam);
+    }
+
+    private static BlockState explicitMaterial(TypologyParams params,String key,BlockState fallback) {
+        if(!params.raw().containsKey(key)) return fallback;
+        String value=params.strVal(key,"");
+        net.minecraft.util.Identifier id=net.minecraft.util.Identifier.tryParse(value);
+        if(id==null||!net.minecraft.registry.Registries.BLOCK.containsId(id))
+            throw new IllegalArgumentException("E_MATERIAL_INVALID: "+key+"="+value);
+        BlockState state=net.minecraft.registry.Registries.BLOCK.get(id).getDefaultState();
+        if(state.isAir()||!state.getFluidState().isEmpty())
+            throw new IllegalArgumentException("E_MATERIAL_INVALID: "+key+"="+value+" 必须为非空气、非流体方块");
+        return state;
     }
 
     private static BlockState timberAxis(BlockState timber, Direction.Axis axis, BlockState fallback) {
