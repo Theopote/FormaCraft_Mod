@@ -2,6 +2,8 @@
 import re
 
 _PATTERNS = {
+    'includeApse': r'(?:不要|不设|取消)后殿|\bno apse\b',
+    'includeChoir': r'(?:不要|不设|取消)唱诗席|\bno choir\b',
     'includeEntranceSteps': r'(?:不要|不设|取消)(?:入口)?(?:大)?台阶|\bno entrance steps\b',
     'includeRibVault': r'(?:不要|不设|不生成|取消)(?:室内)?肋拱|\bno rib vault\b',
     'includeWindowTracery': r'(?:不要|不设|不生成|取消)窗花|\bno (?:window )?tracery\b',
@@ -32,6 +34,10 @@ def apply_gothic_building_contract(plan: dict, text: str) -> None:
                        'status': status, 'target_components': ids})
     if len(targets) == 1 and not scoped:
         params = targets[0].get('params', {})
+        for key, pattern in [('includeApse', r'(?:设置|增加|采用)折角后殿|\binclude faceted apse\b'), ('includeChoir', r'(?:设置|增加|采用)唱诗席|\binclude choir\b')]:
+            if re.search(pattern, text, re.I) and not re.search(_PATTERNS[key], text, re.I):
+                params[key] = True
+                report.append({'property': key, 'value': True, 'status': 'planned', 'target_components': [params.get('component_id')]})
         if re.search(r'(?:设置|增加|采用)(?:室内)?肋拱|\binclude rib vault\b', text, re.I) and not re.search(_PATTERNS['includeRibVault'], text, re.I):
             params['includeRibVault'] = True
             report.append({'property': 'includeRibVault', 'value': True, 'status': 'planned',
@@ -66,7 +72,9 @@ def repair_gothic_route(plan: dict, text: str) -> None:
         return
     if not re.search(r'哥特(?:式)?教堂|gothic (?:church|cathedral)', text, re.I):
         return
-    if re.search(r'左栋|右栋|第.+?栋|建筑群|两座|两栋|巴黎圣母院|科隆|notre dame|cologne|chartres|sagrada|后殿|平屋顶|白色|木质|材料|墙厚|楼板厚', text, re.I):
+    if re.search(r'左栋|右栋|第.+?栋|建筑群|两座|两栋|巴黎圣母院|科隆|notre dame|cologne|chartres|sagrada|平屋顶|白色|木质|材料|墙厚|楼板厚', text, re.I):
+        return
+    if re.search(r'后殿|apse', text, re.I) and not re.search(r'折角后殿|faceted apse|不要后殿|不设后殿|取消后殿|no apse', text, re.I):
         return
     for pattern, low, high, odd in [(r'宽(\d+)格', 17, 101, True), (r'深(\d+)格', 25, 151, True), (r'中殿墙高(\d+)格', 12, 40, False), (r'屋顶升高(\d+)格', 3, 80, False), (r'塔身高(\d+)格', 16, 80, False), (r'尖顶高(\d+)格', 6, 26, False)]:
         values = {int(m[1]) for m in re.finditer(pattern, text)}

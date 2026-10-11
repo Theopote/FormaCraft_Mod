@@ -33,6 +33,31 @@ class GothicBuildingAcceptanceTest {
             }
         }
     }
+    @Test void facetedApseAndChoirKeepTheirFloorRoofAndCentralConnection() {
+        for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(String variant:List.of("basilica","cruciform")) {
+            var anchor=new BlockPos(100,64,-80);
+            var structure=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"facing",facing,
+                    "planVariant",variant,"includeTowers",false,"includeApse",true,"includeChoir",true),anchor,null,null);
+            var corner=GothicCathedralHallBuilder.cornerOrigin(anchor,net.minecraft.util.math.Direction.valueOf(facing),35,45,"center");
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:structure.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            int nave=variant.equals("cruciform")?17:25, left=(35-nave)/2;
+            assertTrue(states.get(position(corner,facing,left,2,0)).isAir(),"clipped rear corner");
+            for(int z=1;z<44;z++) for(int y=3;y<=5;y++)
+                assertTrue(states.get(position(corner,facing,17,y,z)).isAir(),"apse and choir must connect to nave");
+            for(int z=0;z<=5;z++) for(int x=left+Math.max(0,3-z);x<=34-left-Math.max(0,3-z);x++) {
+                assertFalse(states.get(position(corner,facing,x,2,z)).isAir(),"terminal floor complete");
+                boolean roof=false;
+                for(int y=20;y<=40;y++) {
+                    var state=states.get(position(corner,facing,x,y,z));
+                    roof|=state!=null&&!state.isAir();
+                }
+                assertTrue(roof,"every terminal column has roof");
+            }
+            assertTrue(states.get(position(corner,facing,left+1,3,6)).getBlock().getTranslationKey().contains("oak_stairs"));
+            assertTrue(states.get(position(corner,facing,17,22,4)).isAir(),"attic not filled solid");
+        }
+    }
     @org.junit.jupiter.api.BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     @Test void completeHallPreservesPortalNaveRoseAndTwinTowersAcrossSizesAndFacings() {
         for(int width:List.of(17,25,35)) for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) {

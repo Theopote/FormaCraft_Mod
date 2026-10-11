@@ -59,7 +59,10 @@ public final class GothicCathedralHallBuilder {
         BlockPos corner=cornerOrigin(origin,resolveEntranceFacing(spec),width,depth,
                 getStringExtra(spec,"anchorMode","center"));
         var generated=generateFromSpec(spec, corner, world);
-        return new GeneratedStructure(null,origin,generated.getDescription(),generated.getBlocks());
+        var blocks=new ArrayList<PlannedBlock>(generated.getBlocks());
+        if(getBooleanExtra(spec,"includeApse",false) || getBooleanExtra(spec,"includeChoir",false))
+            addLiturgicalEnd(blocks,corner,resolveEntranceFacing(spec),width,depth,spec);
+        return new GeneratedStructure(null,origin,generated.getDescription(),blocks);
     }
 
     private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -410,6 +413,49 @@ public final class GothicCathedralHallBuilder {
             put(blocks,origin,entrance,cx,yBase+i,cz,trim,null);
         }
         put(blocks,origin,entrance,cx,yBase+spireH,cz,slab,null);
+    }
+
+    /** A clipped terminal volume within the declared footprint, plus an open choir aisle. */
+    private static void addLiturgicalEnd(List<PlannedBlock> blocks, BlockPos origin, Direction facing,
+                                        int width, int depth, BuildingSpec spec) {
+        int bodyW=width-("cruciform".equalsIgnoreCase(getStringExtra(spec,"planVariant","basilica"))?8:0);
+        int naveW=Math.max(9,bodyW-10), left=(width-naveW)/2, right=left+naveW-1;
+        int center=width/2, top=3+clamp(getIntExtra(spec,"wallHeight",16),12,40);
+        int rise=gothicRoofRise(spec,(naveW+1)/2), base=top+1;
+        var states=new java.util.HashMap<BlockPos,BlockState>();
+        for(var b:blocks) states.put(b.getPos(),b.getTargetState());
+        BlockState wall=states.get(local(origin,facing,(width-bodyW)/2,4,0));
+        BlockState foundation=states.get(local(origin,facing,center,0,2));
+        BlockState floor=states.get(local(origin,facing,center,2,2));
+        BlockState tile=states.getOrDefault(local(origin,facing,left+1,
+                base+(int)Math.round((double)rise/((naveW+1)/2)),2),Blocks.DEEPSLATE_TILES.getDefaultState());
+        if(getBooleanExtra(spec,"includeApse",false)) {
+            // The rear four rows narrow symmetrically; reserve the total depth, never extend the anchor bounds.
+            for(int z=-1;z<=5;z++) for(int x=-1;x<=width;x++) {
+                for(int y=0;y<=base+rise;y++) put(blocks,origin,facing,x,y,z,Blocks.AIR.getDefaultState(),null);
+                int inset=Math.max(0,3-z), lo=left+inset, hi=right-inset;
+                if(z<0 || x<lo || x>hi) continue;
+                put(blocks,origin,facing,x,0,z,foundation,null);
+                put(blocks,origin,facing,x,1,z,foundation,null);
+                put(blocks,origin,facing,x,2,z,floor,null);
+                int roofY=base+(int)Math.round((double)Math.min(x-(left-1),(right+1)-x)*rise/((naveW+1)/2));
+                int previous=base+(int)Math.round((double)Math.max(0,Math.min(x-(left-1),(right+1)-x)-1)*rise/((naveW+1)/2));
+                boolean boundary=z==0 || x==lo || x==hi;
+                if(boundary) for(int y=3;y<roofY;y++) put(blocks,origin,facing,x,y,z,wall,null);
+                for(int y=previous;y<=roofY;y++) put(blocks,origin,facing,x,y,z,tile,null);
+            }
+            if(naveW>=11 && getBooleanExtra(spec,"includeWindows",true))
+                addPointedWindow(blocks,origin,facing,0,center,6,5,1,true,
+                        Blocks.RED_STAINED_GLASS_PANE.getDefaultState(),Blocks.POLISHED_BLACKSTONE.getDefaultState(),
+                        getBooleanExtra(spec,"includeWindowTracery",true));
+        }
+        if(getBooleanExtra(spec,"includeChoir",false)) {
+            // Paired choir stalls face the center, leaving a three-block clear longitudinal route.
+            for(int z=6;z<=7;z++) {
+                put(blocks,origin,facing,left+1,3,z,withFacingIfPossible(Blocks.OAK_STAIRS.getDefaultState(),Direction.WEST),null);
+                put(blocks,origin,facing,right-1,3,z,withFacingIfPossible(Blocks.OAK_STAIRS.getDefaultState(),Direction.EAST),null);
+            }
+        }
     }
 
     /** Open pointed transverse ribs, supported by paired interior shafts. No solid vault infill. */

@@ -16,6 +16,30 @@ class GothicBuildingContractTest(unittest.TestCase):
         apply_gothic_building_contract(plan, '不要入口大台阶')
         self.assertFalse(plan['components'][0]['params']['includeEntranceSteps'])
 
+    def test_faceted_apse_and_choir_require_explicit_unique_scope(self):
+        plan = self.plan()
+        apply_gothic_building_contract(plan, '设置折角后殿，设置唱诗席')
+        self.assertTrue(plan['components'][0]['params']['includeApse'])
+        self.assertTrue(plan['components'][0]['params']['includeChoir'])
+        apply_gothic_building_contract(plan, '不要后殿，取消唱诗席')
+        self.assertFalse(plan['components'][0]['params']['includeApse'])
+        self.assertFalse(plan['components'][0]['params']['includeChoir'])
+        plan = self.plan()
+        apply_gothic_building_contract(plan, '左栋设置折角后殿')
+        self.assertNotIn('includeApse', plan['components'][0]['params'])
+
+    def test_native_route_only_accepts_the_supported_faceted_terminal(self):
+        from app.services.building_contract import apply_building_contract
+        from app.services.gothic_building_contract import repair_gothic_route
+        plan = {'mode': 'build', 'proportion_hints': {'typology': 'gothic_cathedral_hall'}, 'components': []}
+        result = apply_building_contract(plan, '哥特式教堂，总宽35格、深45格，设置折角后殿，设置唱诗席', finalize=True)
+        self.assertTrue(result['components'][0]['params']['includeApse'])
+        self.assertTrue(result['components'][0]['params']['includeChoir'])
+        self.assertEqual(result['components'][0]['params']['anchorMode'], 'center')
+        plan = {'proportion_hints': {'typology': 'gothic_cathedral_hall'}, 'components': []}
+        repair_gothic_route(plan, '哥特式教堂，设置半圆后殿')
+        self.assertEqual(plan['components'], [])
+
     def plan(self):
         return {'components': [{'component_type': 'STRUCTURE', 'features': ['typology:gothic_cathedral_hall'], 'params': {'component_id': 'church'}}]}
 
