@@ -239,11 +239,14 @@ public abstract class BasePanel {
         int bw = panelWidth;
         int bh = TOOLBAR_HEIGHT;
 
-        // 标签区域背景（Minecraft 原生风格：深灰色，与未选中标签一致）
-        ctx.fill(bx, by, bx + bw, by + bh, 0xFFA0A0A0);
+        // 标签区域背景（与未选中标签匹配）
+        ctx.fill(bx, by, bx + bw, by + bh, UiTheme.TAB_UNSELECTED_BG);
 
-        // 顶部/底部分隔线（Minecraft 原生样式）
+        // 顶部分隔线
         ctx.fill(bx, by, bx + bw, by + 1, 0xFFFFFFFF);
+
+        // 注意：底部分隔线会在标签绘制时被选中标签覆盖
+        // 这样选中标签能自然地"打通"工具栏底部，与内容区连成一片
         ctx.fill(bx, by + bh - 1, bx + bw, by + bh, 0xFF555555);
 
         ToolbarLayout layout = computeToolbarLayout();

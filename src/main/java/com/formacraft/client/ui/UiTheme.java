@@ -27,6 +27,12 @@ public final class UiTheme {
     public static final int DIVIDER_SECTION = 0xFF808080;
     public static final int DIVIDER_SUBTLE = 0xFF444444;
 
+    // 标签颜色体系（与内容区匹配）
+    public static final int TAB_UNSELECTED_BG = 0xFF8A8A8A;      // 未选中：较暗
+    public static final int TAB_HOVER_BG      = 0xFFB0B0B0;      // 悬停
+    public static final int TAB_SELECTED_BG   = 0xFF2A2A2A;      // 选中：与内容区接近
+    public static final int CONTENT_SOLID_BG  = 0xFF1A1A1A;      // 内容区实色版本（用于选中标签底部衔接）
+
     public static int contentInnerLeft(int panelX) {
         return panelX + 1;
     }

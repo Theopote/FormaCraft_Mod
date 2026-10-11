@@ -32,22 +32,15 @@ public class TabBar {
     private int x;
     private int y;
     private int maxWidth = Integer.MAX_VALUE;
-    
+
     /**
      * 标签信息
+     *
+     * @param icon    PNG 图标
+     * @param tooltip 悬停提示
+     * @param width   标签宽度
      */
-    public static class TabInfo {
-        public final PanelType type;
-        public final BufferedImage icon; // PNG 图标
-        public final Text tooltip; // 悬停提示
-        public final int width; // 标签宽度
-
-        public TabInfo(PanelType type, BufferedImage icon, Text tooltip, int width) {
-            this.type = type;
-            this.icon = icon;
-            this.tooltip = tooltip;
-            this.width = width;
-        }
+        public record TabInfo(PanelType type, BufferedImage icon, Text tooltip, int width) {
     }
     
     public TabBar(MinecraftClient client) {
@@ -91,59 +84,72 @@ public class TabBar {
     }
     
     /**
-     * 渲染标签栏
+     * 渲染标签栏（先画未选中，最后画选中，实现层级效果）
      */
     public void render(DrawContext ctx, double mouseX, double mouseY) {
         int currentX = x + TAB_PADDING;
-        
+        TabInfo activeTab = null;
+        int activeX = 0;
+
+        // 第一遍：只画未选中
         for (TabInfo tab : tabs) {
-            if (!tabFits(currentX, tab)) {
-                break;
-            }
+            if (!tabFits(currentX, tab)) break;
             boolean isActive = FormaCraftHudOverlay.activePanel == tab.type;
-            boolean isHovered = isMouseOverTab(currentX, tab, mouseX, mouseY);
-            
-            drawTab(ctx, currentX, y + TAB_PADDING, tab.width, tab, isActive, isHovered);
-            
+            if (isActive) {
+                activeTab = tab;
+                activeX = currentX;
+            } else {
+                boolean isHovered = isMouseOverTab(currentX, tab, mouseX, mouseY);
+                drawTab(ctx, currentX, y + TAB_PADDING, tab.width, tab, false, isHovered);
+            }
             currentX += tab.width + TAB_GAP;
+        }
+
+        // 最后画选中标签（覆盖在上面）
+        if (activeTab != null) {
+            boolean isHovered = isMouseOverTab(activeX, activeTab, mouseX, mouseY);
+            drawTab(ctx, activeX, y + TAB_PADDING, activeTab.width, activeTab, true, isHovered);
         }
     }
     
     /**
-     * 绘制单个标签（完全模仿 Minecraft 原版按钮样式）
+     * 绘制单个标签（完全模仿 Minecraft 原版标签样式）
      */
     private void drawTab(DrawContext ctx, int x, int y, int width, TabInfo tab, boolean isActive, boolean isHovered) {
         int height = TAB_HEIGHT;
+        int extend = isActive ? 2 : 0; // 选中时向下多画 2px，覆盖工具栏底部分隔线
 
-        // Minecraft 原版按钮颜色（参考 ButtonWidget 默认样式）
-        // 未选中：0xFF80000000 (半透明黑) - 但HUD模式需要不透明
-        // 选中：0xFFFFFFFF (白色高亮)
-        // 悬停：稍微亮一点
-
+        // 使用 UiTheme 统一颜色体系
         int bgColor;
         if (isActive) {
-            bgColor = 0xFFFFFFFF; // 激活：白色背景
+            bgColor = com.formacraft.client.ui.UiTheme.TAB_SELECTED_BG;          // 与内容区匹配
         } else if (isHovered) {
-            bgColor = 0xFFD0D0D0; // 悬停：浅灰色
+            bgColor = com.formacraft.client.ui.UiTheme.TAB_HOVER_BG;
         } else {
-            bgColor = 0xFFA0A0A0; // 未选中：深灰色
+            bgColor = com.formacraft.client.ui.UiTheme.TAB_UNSELECTED_BG;
         }
-        ctx.fill(x, y, x + width, y + height, bgColor);
 
-        // Minecraft 原版边框样式（3D效果）
-        // 顶部和左侧：白色高光
-        // 底部和右侧：深色阴影
-        int lightBorder = 0xFFFFFFFF;
-        int darkBorder = 0xFF555555;
+        // 背景（选中时多画一点高度）
+        ctx.fill(x, y, x + width, y + height + extend, bgColor);
 
-        ctx.fill(x, y, x + width, y + 1, lightBorder);
-        ctx.fill(x, y, x + 1, y + height, lightBorder);
-        ctx.fill(x, y + height - 1, x + width, y + height, darkBorder);
-        ctx.fill(x + width - 1, y, x + width, y + height, darkBorder);
+        int light = 0xFFFFFFFF;
+        int dark  = 0xFF555555;
 
-        // 激活状态：底部黑色下划线（原版标签特征）
-        if (isActive) {
-            ctx.fill(x, y + height - 2, x + width, y + height - 1, 0xFF000000);
+        // 顶部 + 左侧高光（始终画）
+        ctx.fill(x, y, x + width, y + 1, light);
+        ctx.fill(x, y, x + 1, y + height + extend, light);
+
+        // 右侧阴影
+        ctx.fill(x + width - 1, y, x + width, y + height + extend, dark);
+
+        if (!isActive) {
+            // 未选中：完整底部阴影（后退感）
+            ctx.fill(x, y + height - 1, x + width, y + height, dark);
+        } else {
+            // 选中：底部不画阴影，并用内容区颜色把工具栏分隔线盖掉
+            // （extend 已经把底部分隔线覆盖了）
+            // 可选：在左右两侧底部再补一点与内容区衔接的颜色
+            ctx.fill(x, y + height, x + width, y + height + extend, com.formacraft.client.ui.UiTheme.CONTENT_SOLID_BG);
         }
 
         // 渲染 PNG 图标（居中）
