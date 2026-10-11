@@ -85,6 +85,38 @@ public final class BuildingLandingPlanner {
             for (Slot s : plan.layout().slots()) if (s != null) slots.put(s.slotId(), s);
         List<Site> out = new ArrayList<>();
         for (Component c : plan.components()) {
+            if ("STRUCTURE".equalsIgnoreCase(c.componentType())
+                    && (c.params()!=null && "tailiang_timber_hall".equals(c.params().get("typology_id"))
+                    || c.features()!=null && c.features().contains("typology:tailiang_timber_hall"))) {
+                var params=com.formacraft.common.typology.TypologyParamResolver.merge("tailiang_timber_hall",c);
+                var envelope=com.formacraft.server.generation.typology.builder.TailiangTimberHallBuilder.envelope(params);
+                var p=new com.formacraft.common.typology.TypologyParams(params);
+                var facing=GlobalConstraints.Facing.SOUTH;
+                try { facing=GlobalConstraints.Facing.valueOf(p.strVal("facing","SOUTH").toUpperCase(Locale.ROOT)); }
+                catch (IllegalArgumentException ignored) { }
+                Slot slot=slots.get(c.slotId());
+                Vec3i a=slot!=null && slot.anchor()!=null?slot.anchor():new Vec3i(0,0,0);
+                Vec3i r=c.relativePosition()!=null?c.relativePosition():new Vec3i(0,0,0);
+                BlockPos base=origin.add(a.x()+r.x(),a.y()+r.y(),a.z()+r.z());
+                int w=envelope.outerWidth(),d=envelope.outerDepth();
+                int x0="corner".equalsIgnoreCase(p.strVal("anchorMode","center"))?0:-w/2;
+                int z0="corner".equalsIgnoreCase(p.strVal("anchorMode","center"))?0:-d/2;
+                int minX=Integer.MAX_VALUE,minZ=Integer.MAX_VALUE,maxX=Integer.MIN_VALUE,maxZ=Integer.MIN_VALUE;
+                for(int x:new int[]{x0,x0+w-1}) for(int z:new int[]{z0,z0+d-1}) {
+                    int rx=x,rz=z;
+                    switch(facing) {
+                        case NORTH -> {rx=-x;rz=-z;}
+                        case EAST -> {rx=z;rz=-x;}
+                        case WEST -> {rx=-z;rz=x;}
+                        default -> {}
+                    }
+                    minX=Math.min(minX,rx);maxX=Math.max(maxX,rx);
+                    minZ=Math.min(minZ,rz);maxZ=Math.max(maxZ,rz);
+                }
+                out.add(new Site(new LlmPlanTerrainBounds.Bounds(base.getX()+minX,base.getY(),base.getZ()+minZ,
+                        base.getX()+maxX,base.getY()+envelope.height()-1,base.getZ()+maxZ),facing));
+                continue;
+            }
             if("STRUCTURE".equalsIgnoreCase(c.componentType()) && c.params()!=null
                     && ("gothic_cathedral_hall".equals(c.params().get("typology_id"))
                     || c.features()!=null && c.features().contains("typology:gothic_cathedral_hall"))) {

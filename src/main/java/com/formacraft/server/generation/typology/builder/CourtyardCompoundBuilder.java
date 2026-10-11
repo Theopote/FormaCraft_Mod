@@ -72,10 +72,8 @@ public final class CourtyardCompoundBuilder {
     }
 
     private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
-        int w = (spec != null && spec.getFootprint() != null) ? Math.max(16, spec.getFootprint().getWidth()) : 20;
-        int d = (spec != null && spec.getFootprint() != null) ? Math.max(16, spec.getFootprint().getDepth()) : 20;
-        w = clamp(w, 16, 96);
-        d = clamp(d, 16, 96);
+        int[] dimensions = resolvedDimensions(spec);
+        int w = dimensions[0], d = dimensions[1];
 
         Map<String, Object> extra = spec != null ? spec.getExtra() : null;
         boolean includePaths = getBool(extra, "includePaths", true);
@@ -530,6 +528,13 @@ public final class CourtyardCompoundBuilder {
 
     private static int clamp(int v, int min, int max) {
         return Math.max(min, Math.min(max, v));
+    }
+
+    public static int[] resolvedDimensions(BuildingSpec spec) {
+        int width=spec!=null && spec.getFootprint()!=null?spec.getFootprint().getWidth():20;
+        int depth=spec!=null && spec.getFootprint()!=null?spec.getFootprint().getDepth():20;
+        Map<String,Object> extra=spec!=null?spec.getExtra():null;
+        return new int[]{clamp(getInt(extra,"width",width),16,96),clamp(getInt(extra,"depth",depth),16,96)};
     }
 
     private static int getInt(Map<String, Object> extra, String key, int def) {

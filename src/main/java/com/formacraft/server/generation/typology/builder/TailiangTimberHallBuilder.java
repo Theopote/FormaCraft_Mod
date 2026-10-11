@@ -33,6 +33,22 @@ public final class TailiangTimberHallBuilder {
 
     private TailiangTimberHallBuilder() {}
 
+    /** Canonical foundation envelope, shared by generation and terrain placement. */
+    public record Envelope(int width, int depth, int subDepth, int height) {
+        public int outerWidth() { return width + 2 * subDepth; }
+        public int outerDepth() { return depth + 2 * subDepth; }
+    }
+
+    public static Envelope envelope(Map<String, Object> params) {
+        TypologyParams p = new TypologyParams(params);
+        int bay = p.intVal("bayWidth", 3, 2, 4);
+        return new Envelope(
+                clampOdd(p.intVal("width", p.intVal("baysX", 7, 5, 9) * bay, 15, 35), 15, 35),
+                clampOdd(p.intVal("depth", p.intVal("baysZ", 4, 3, 5) * bay, 11, 25), 11, 25),
+                p.boolVal("includeSubEaves", true) ? p.intVal("subEavesDepth", 3, 2, 5) : 0,
+                p.intVal("platformHeight", 2, 1, 4) + p.intVal("hallHeight", 7, 5, 12) + 15);
+    }
+
     public static GeneratedStructure fromBuildingSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
         return generate(TypologyParamResolver.fromBuildingSpec(spec, TYPOLOGY_ID), origin, world, spec);
     }
@@ -66,15 +82,21 @@ public final class TailiangTimberHallBuilder {
         int baysX = p.intVal("baysX", 7, 5, 9);
         int baysZ = p.intVal("baysZ", 4, 3, 5);
         int bayWidth = p.intVal("bayWidth", 3, 2, 4);
-        int w = clampOdd(p.intVal("width", baysX * bayWidth, 15, 35), 15, 35);
-        int d = clampOdd(p.intVal("depth", baysZ * bayWidth, 11, 25), 11, 25);
+        Envelope envelope = envelope(params);
+        int w = envelope.width();
+        int d = envelope.depth();
         int platformH = p.intVal("platformHeight", 2, 1, 4);
         int bodyH = p.intVal("hallHeight", 7, 5, 12);
         boolean subEaves = p.boolVal("includeSubEaves", true);
-        int subDepth = subEaves ? p.intVal("subEavesDepth", 3, 2, 5) : 0;
+        int subDepth = envelope.subDepth();
 
         int outerW = w + subDepth * 2;
         int outerD = d + subDepth * 2;
+        BlockPos anchor = origin;
+        if (!"corner".equalsIgnoreCase(p.strVal("anchorMode", "center"))) {
+            origin = rotate(origin.add(-outerW / 2, 0, -outerD / 2), origin, entrance);
+        }
+        final BlockPos placedOrigin = origin;
         int ox = subDepth;
         int oz = subDepth;
 
@@ -132,7 +154,7 @@ public final class TailiangTimberHallBuilder {
             addPuzuoAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1, bayWidth, yCol1, true, trim, bracket, trim, paint);
             int innerRoofY = yCol1 + 3;
             ChineseTypologyDetailUtil.addSubEavesInnerRoof(
-                    (pos, state) -> put(blocks, origin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
+                    (pos, state) -> put(blocks, placedOrigin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
                     ox, oz, ox + w, oz + d,
                     0, 0, outerW - 1, outerD - 1,
                     innerRoofY, roofSlab, roofStairs
@@ -169,7 +191,7 @@ public final class TailiangTimberHallBuilder {
                 "tailiang_timber_hall (%d×%d bays, w=%d d=%d, subEaves=%s, ref=%s)",
                 baysX, baysZ, w, d, subEaves, ref.isBlank() ? "-" : ref
         );
-        return new GeneratedStructure(null, origin, desc, blocks);
+        return new GeneratedStructure(null, anchor, desc, blocks);
     }
 
     private static void addSubEavesBeams(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
