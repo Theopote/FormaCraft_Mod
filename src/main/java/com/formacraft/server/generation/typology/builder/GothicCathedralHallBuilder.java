@@ -324,6 +324,9 @@ public final class GothicCathedralHallBuilder {
                 put(blocks,origin,entrance,x,y,z,wall,null);
             put(blocks,origin,entrance,x,roofY,z,roofY==roofBase+rise?ridge:withFacingIfPossible(stair,slope),null);
         }
+        if(getBooleanExtra(spec,"includeRibVault",false))
+            addCrossingRibs(blocks,origin,entrance,nx0+1,nx1-1,z0+1,z1-1,top,
+                    states.getOrDefault(new BlockPos((bodyW-naveW)/2,4,0),Blocks.POLISHED_BLACKSTONE.getDefaultState()));
         return new GeneratedStructure(null,origin,"Gothic cruciform hall",blocks);
     }
 
@@ -448,8 +451,10 @@ public final class GothicCathedralHallBuilder {
                 put(blocks,origin,facing,x,0,z,foundation,null);
                 put(blocks,origin,facing,x,1,z,foundation,null);
                 put(blocks,origin,facing,x,2,z,floor,null);
-                int roofY=base+(int)Math.round((double)Math.min(x-(left-1),(right+1)-x)*rise/((naveW+1)/2));
-                int previous=base+(int)Math.round((double)Math.max(0,Math.min(x-(left-1),(right+1)-x)-1)*rise/((naveW+1)/2));
+                int roofY=apseRoofY(x,z,left,right,base,rise);
+                int outward=x<=center?x-1:x+1;
+                int previous=Math.min(apseRoofY(outward,z,left,right,base,rise),
+                        apseRoofY(x,Math.max(0,z-1),left,right,base,rise));
                 boolean boundary=z==0 || x==lo || x==hi;
                 if(boundary) for(int y=3;y<roofY;y++) put(blocks,origin,facing,x,y,z,wall,null);
                 for(int y=previous;y<=roofY;y++) put(blocks,origin,facing,x,y,z,tile,null);
@@ -464,6 +469,39 @@ public final class GothicCathedralHallBuilder {
             for(int z=6;z<=7;z++) {
                 put(blocks,origin,facing,left+1,3,z,withFacingIfPossible(Blocks.OAK_STAIRS.getDefaultState(),Direction.WEST),null);
                 put(blocks,origin,facing,right-1,3,z,withFacingIfPossible(Blocks.OAK_STAIRS.getDefaultState(),Direction.EAST),null);
+            }
+        }
+    }
+
+    /** Open pointed transverse ribs, supported by paired interior shafts. No solid vault infill. */
+    private static int apseRoofY(int x,int z,int left,int right,int base,int rise) {
+        int side=Math.max(0,Math.min(x-(left-1),(right+1)-x));
+        int lateral=(int)Math.round((double)side*rise/((right-left+2)/2));
+        int terminal=(int)Math.round((double)Math.max(0,Math.min(5,z))*rise/5);
+        return base+Math.min(lateral,terminal);
+    }
+
+    /** Paired diagonal arch ribs and four shafts, below the crossing roof and above circulation. */
+    private static void addCrossingRibs(List<PlannedBlock> blocks,BlockPos origin,Direction facing,
+                                        int left,int right,int back,int front,int top,BlockState material) {
+        int spring=top-5, count=Math.max(right-left,front-back);
+        for(int x:new int[]{left,right}) for(int z:new int[]{back,front}) for(int y=3;y<=spring;y++)
+            put(blocks,origin,facing,x,y,z,material,null);
+        for(int diagonal=0;diagonal<2;diagonal++) {
+            int px=left,pz=diagonal==0?back:front,py=spring;
+            for(int i=0;i<=count;i++) {
+                double t=(double)i/count;
+                int x=left+(int)Math.round((right-left)*t);
+                int z=diagonal==0?back+(int)Math.round((front-back)*t):front-(int)Math.round((front-back)*t);
+                int y=spring+(int)Math.round(5*Math.sin(Math.PI*t));
+                for(int yy=Math.min(py,y);yy<=Math.max(py,y);yy++) {
+                    put(blocks,origin,facing,x,yy,z,material,null);
+                    if(i>0) {
+                        put(blocks,origin,facing,px,yy,z,material,null);
+                        put(blocks,origin,facing,x,yy,pz,material,null);
+                    }
+                }
+                px=x;pz=z;py=y;
             }
         }
     }

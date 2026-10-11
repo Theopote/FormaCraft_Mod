@@ -7,6 +7,27 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GothicBuildingAcceptanceTest {
+    @Test void terminalRoofHasRearSlopeAndCrossingRibsHaveSupportedClearance() {
+        for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(boolean ribs:List.of(false,true)) {
+            var anchor=new BlockPos(20,64,-50);
+            var structure=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+                    "facing",facing,"planVariant","cruciform","includeApse",true,
+                    "includeRibVault",ribs,"includeTowers",false),anchor,null,null);
+            var corner=GothicCathedralHallBuilder.cornerOrigin(anchor,net.minecraft.util.math.Direction.valueOf(facing),35,45,"center");
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:structure.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            assertFalse(states.get(position(corner,facing,17,20,0)).isAir(),"rear eave");
+            assertTrue(states.get(position(corner,facing,17,31,0)).isAir(),"rear ridge must descend");
+            assertFalse(states.get(position(corner,facing,17,31,5)).isAir(),"rear slope reaches nave ridge");
+            assertFalse(states.get(position(corner,facing,17,31,6)).isAir(),"continuous nave seam");
+            assertTrue(states.get(position(corner,facing,17,21,4)).isAir(),"thin shell keeps attic empty");
+            assertEquals(ribs,!states.get(position(corner,facing,17,19,15)).isAir(),"crossing rib apex and optout");
+            if(ribs) for(int x:List.of(10,24)) for(int z:List.of(8,22)) for(int y=3;y<=14;y++)
+                assertFalse(states.get(position(corner,facing,x,y,z)).isAir(),"four supporting shafts");
+            for(int x=1;x<34;x++) for(int y=3;y<=5;y++)
+                assertTrue(states.get(position(corner,facing,x,y,15)).isAir(),"transverse route below ribs");
+        }
+    }
     @Test void cruciformApseMustPreserveAllTranseptExteriorWalls() {
         for (String facing : List.of("SOUTH", "NORTH", "EAST", "WEST")) {
             var anchor = new BlockPos(39, 105, -1037);
