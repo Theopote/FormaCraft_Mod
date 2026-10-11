@@ -140,8 +140,10 @@ public final class TailiangTimberHallBuilder {
         }
 
         int clearH = envelope.height();
-        for (int x = -2; x <= outerW + 1; x++) {
-            for (int z = -2; z <= outerD + 1; z++) {
+        int roofOverhang = p.intVal("roofOverhang", 1, 0, 3);
+        int clearMargin = Math.max(2, roofOverhang);
+        for (int x = -clearMargin; x < outerW + clearMargin; x++) {
+            for (int z = -clearMargin; z < outerD + clearMargin; z++) {
                 for (int y = 0; y <= clearH; y++) {
                     put(blocks, origin, entrance, x, y, z, Blocks.AIR.getDefaultState());
                 }
@@ -192,10 +194,12 @@ public final class TailiangTimberHallBuilder {
 
         List<PlannedBlock> roofBlocks = new ArrayList<>();
         String roofForm = ChineseHallRoofGenerator.normalize(p.strVal("roofType", "xie_shan"));
-        int roofRun = roofForm.equals("wu_dian") ? Math.min((w+1)/2,(d+1)/2) : (w+1)/2;
+        int roofRun = roofForm.equals("wu_dian") ? Math.min((w-1)/2,(d-1)/2)+roofOverhang : (w-1)/2+roofOverhang;
         int roofRise = p.intVal("roofRise", roofRun, 3, 18);
         ChineseHallRoofGenerator.generate(
-                roofBlocks, w, d, bodyTop, roofForm, roofRise, roofTile, roofStairs, wall);
+                roofBlocks, w, d, bodyTop, roofForm, roofRise,
+                new ChineseHallRoofGenerator.Shape(roofOverhang,p.intVal("roofCurve",0,0,100),
+                        p.intVal("roofCornerLift",0,0,3)), roofTile, roofStairs, wall);
         for (PlannedBlock pb : roofBlocks) {
             put(blocks, origin, entrance, ox + pb.getPos().getX(), pb.getPos().getY(), oz + pb.getPos().getZ(), pb.getTargetState());
         }

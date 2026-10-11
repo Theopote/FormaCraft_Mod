@@ -12,8 +12,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class ChineseRoofFormsTest {
     @BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     private Map<BlockPos,BlockState> roof(String form,int width,int depth,int rise) {
+        return roof(form,width,depth,rise,new ChineseHallRoofGenerator.Shape(1,0,0));
+    }
+    private Map<BlockPos,BlockState> roof(String form,int width,int depth,int rise,ChineseHallRoofGenerator.Shape shape) {
         var blocks=new ArrayList<PlannedBlock>();
-        ChineseHallRoofGenerator.generate(blocks,width,depth,0,form,rise,
+        ChineseHallRoofGenerator.generate(blocks,width,depth,0,form,rise,shape,
                 Blocks.DEEPSLATE_TILES.getDefaultState(),Blocks.DEEPSLATE_BRICK_STAIRS.getDefaultState(),
                 Blocks.RED_TERRACOTTA.getDefaultState());
         var states=new HashMap<BlockPos,BlockState>();
@@ -66,5 +69,41 @@ class ChineseRoofFormsTest {
                 com.formacraft.common.typology.TypologyParamResolver.merge("tailiang_timber_hall",null),
                 new BlockPos(20,70,30),null,null));
         assertThrows(IllegalArgumentException.class,()->roof("unknown",25,15,13));
+    }
+
+    @Test void eavesAndCurveChangeGeometryAndCornersRemainConnected() {
+        for(String form:List.of("ying_shan","xuan_shan","xie_shan","wu_dian"))
+            for(int e=0;e<=3;e++) for(int curve:new int[]{0,100}) for(int lift:new int[]{0,3}) {
+                boolean supported=lift==0||e>0&&(form.equals("xie_shan")||form.equals("wu_dian"));
+                var shape=new ChineseHallRoofGenerator.Shape(e,curve,lift);
+                if(!supported) {
+                    assertThrows(IllegalArgumentException.class,()->roof(form,25,15,18,shape));
+                    continue;
+                }
+                var states=roof(form,25,15,18,shape);
+                assertEquals(-e,states.keySet().stream().mapToInt(BlockPos::getX).min().orElseThrow());
+                assertEquals(24+e,states.keySet().stream().mapToInt(BlockPos::getX).max().orElseThrow());
+                assertEquals(form.equals("ying_shan")?0:-e,
+                        states.keySet().stream().mapToInt(BlockPos::getZ).min().orElseThrow());
+                assertFalse(states.containsKey(new BlockPos(12,0,7)),"curve preserves central cavity");
+                var visited=new HashSet<BlockPos>();
+                var queue=new ArrayDeque<BlockPos>();
+                BlockPos first=states.keySet().iterator().next();queue.add(first);visited.add(first);
+                while(!queue.isEmpty()) {
+                    var pos=queue.removeFirst();
+                    for(var direction:net.minecraft.util.math.Direction.values()) {
+                        var next=pos.offset(direction);
+                        if(states.containsKey(next)&&visited.add(next)) queue.addLast(next);
+                    }
+                }
+                assertEquals(states.size(),visited.size(),"surface, gables and lifted corners form one connected shell");
+                if(lift>0) for(int x:new int[]{-e,24+e}) for(int z:new int[]{-e,14+e})
+                    assertNotNull(states.get(new BlockPos(x,3,z)),"all corners lift by requested amount");
+            }
+        var straight=roof("xuan_shan",25,15,13,new ChineseHallRoofGenerator.Shape(1,0,0));
+        var curved=roof("xuan_shan",25,15,13,new ChineseHallRoofGenerator.Shape(1,100,0));
+        assertTrue(straight.containsKey(new BlockPos(3,4,7)));
+        assertFalse(curved.containsKey(new BlockPos(3,4,7)),"curved lower slope is shallower");
+        assertTrue(curved.containsKey(new BlockPos(12,13,7)),"curve keeps ridge height");
     }
 }

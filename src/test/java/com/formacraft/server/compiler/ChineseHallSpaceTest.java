@@ -42,6 +42,16 @@ class ChineseHallSpaceTest {
                 assertTrue(states.get(at(facing,12,y,z)).isOf(Blocks.RED_TERRACOTTA),"upper gables closed with wall material");
         }
     }
+    @Test void expandedCurvedRoofRotatesAroundUnchangedAnchor() {
+        for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST)) {
+            var states=generate(Map.of("width",25,"depth",15,"anchorMode","corner","facing",facing.name(),
+                    "includeSubEaves",false,"roofOverhang",3,"roofCurve",100,"roofCornerLift",3));
+            for(int x:new int[]{-3,27}) for(int z:new int[]{-3,17})
+                assertTrue(states.get(at(facing,x,12,z)).isOf(Blocks.DEEPSLATE_TILES));
+            assertTrue(states.get(at(facing,12,10,7)).isAir());
+            assertFalse(states.get(at(facing,12,2,7)).isAir());
+        }
+    }
     @Test void bayCountsCoverExactSpanAndRejectImpossibleCounts() {
         var axis=TailiangTimberHallBuilder.bayAxis(25,7);
         assertEquals(8,axis.length); assertEquals(0,axis[0]);assertEquals(24,axis[7]);

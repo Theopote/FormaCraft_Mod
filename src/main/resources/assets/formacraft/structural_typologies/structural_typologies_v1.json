@@ -107,7 +107,10 @@
         "hallHeight": { "min": 5, "ideal": 7, "max": 12, "desc": "柱网主体高度" },
         "includeSubEaves": { "type": "boolean", "default": true, "desc": "副阶周匝 + 副阶内檐" },
         "roofType": { "type": "string", "desc": "屋顶形式：ying_shan/yingshan（硬山）、xuan_shan/xuanshan（悬山）、xie_shan/xieshan（歇山）、wu_dian/wudian（庑殿）；未知形式拒绝生成" },
-        "roofRise": { "min": 3, "max": 18, "desc": "屋面从檐口到正脊的升高格数，未指定时由坡面水平跨度推导；工程近似，不表示历史举折比例" }
+        "roofRise": { "min": 3, "max": 18, "desc": "屋面从檐口到正脊的升高格数，未指定时由坡面水平跨度推导；工程近似，不表示历史举折比例" },
+        "roofOverhang": { "min": 0, "max": 3, "desc": "出檐格数，默认1；硬山端部始终与山墙齐平" },
+        "roofCurve": { "min": 0, "max": 100, "desc": "坡面曲率，默认0直坡；数值越高下部越缓、上部越陡，为视觉近似" },
+        "roofCornerLift": { "min": 0, "max": 3, "desc": "翘角高度，默认0；仅歇山或庑殿且出檐至少1格时支持" }
       },
       "referenceLandmarks": [
         {
