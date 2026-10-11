@@ -272,7 +272,7 @@ public final class CourtyardCompoundBuilder {
 
         String desc = String.format("Courtyard Compound (courtyard_compound, w=%d, d=%d, parts=%d, childScale=%d%%)",
                 w, d, compound.components.size(), layout.scalePercent());
-        if (layout.scalePercent() < 100) LOG.info("courtyard layout resized derived children: w={} d={} scale={} facing={}",
+        if (layout.scalePercent() < 100) com.formacraft.FormacraftMod.LOGGER.info("courtyard layout resized derived children: w={} d={} scale={} facing={}",
                 w, d, layout.scalePercent(), gateSide);
         return new GeneratedStructure(null, origin, desc, blocks);
     }

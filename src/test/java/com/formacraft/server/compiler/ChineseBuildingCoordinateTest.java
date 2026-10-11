@@ -34,7 +34,7 @@ class ChineseBuildingCoordinateTest {
     }
 
     @Test void compactLayoutReducesDerivedChildrenWithoutChangingRequestedEnclosure() {
-        var layout=CourtyardCompoundBuilder.resolveLayout(32,32,net.minecraft.util.math.Direction.SOUTH,3);
+        var layout=CourtyardCompoundBuilder.resolveLayout(45,61,net.minecraft.util.math.Direction.EAST,3);
         assertTrue(layout.scalePercent()<100);
         var anchor=new BlockPos(80,64,-120);
         var generated=CourtyardCompoundBuilder.generate(Map.of("width",32,"depth",32,
@@ -69,6 +69,7 @@ class ChineseBuildingCoordinateTest {
     }
     @Test void courtyardUsesExplicitDimensionsAndBoundsThem() {
         var spec=new BuildingSpec();
+        assertArrayEquals(new int[]{36,44},CourtyardCompoundBuilder.resolvedDimensions(spec));
         spec.setExtra(Map.of("width",45,"depth",61));
         assertArrayEquals(new int[]{45,61},CourtyardCompoundBuilder.resolvedDimensions(spec));
         spec.setExtra(Map.of("width",2,"depth",200));
