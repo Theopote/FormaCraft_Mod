@@ -156,6 +156,12 @@ public final class TailiangTimberHallBuilder {
         int yCol1 = yCol0 + bodyH - 2;
         int yWallTop = yCol0 + bodyH - 1;
         int bodyTop = platformH + bodyH;
+        boolean interiorColumns = p.boolVal("includeInteriorColumns", true);
+        boolean timberFrame = p.boolVal("includeTimberFrame", true);
+        int frameLevels = p.intVal("frameLevels", Math.min(3, bodyH - 3), 1, 4);
+        if (timberFrame && frameLevels > bodyH - 3) throw new IllegalArgumentException(
+                "梁架层数 " + frameLevels + " 超出当前堂高可用空间，请增大 hallHeight 或减少 frameLevels。");
+        int frameBase = timberFrame ? yCol1 - frameLevels + 1 : yCol1;
 
         for (int[] col : mainColumns) placeColumn(blocks, origin, entrance, col[0], yCol0, col[1], yCol1, pillar, trim);
         if (subEaves) {
@@ -207,13 +213,22 @@ public final class TailiangTimberHallBuilder {
             put(blocks, origin, entrance, ox + pb.getPos().getX(), pb.getPos().getY(), oz + pb.getPos().getZ(), pb.getTargetState());
         }
 
+        // Frames stay below the roof plane; no roof blocks are carved or replaced here.
+        if (interiorColumns) {
+            for (int xi=1;xi<xAxis.length-1;xi++) for (int zi=1;zi<zAxis.length-1;zi++)
+                placeColumn(blocks, origin, entrance, ox+xAxis[xi], yCol0, oz+zAxis[zi],
+                        frameBase-1, pillar, trim);
+        }
+        if (timberFrame) addInteriorFrame(blocks, origin, entrance, ox, oz, w, d, zAxis,
+                frameBase, frameLevels, pillar, trim);
+
         if (p.boolVal("includeEntrance", true) && p.boolVal("includeEntranceSteps", true))
             addTerraceSteps(blocks, origin, entrance, (doorMin+doorMax)/2, outerD, platformH, roofStairs);
 
         String ref = p.strVal("reference_landmark", "");
         String desc = String.format(
-                "tailiang_timber_hall (%d×%d bays, w=%d d=%d, subEaves=%s, ref=%s)",
-                baysX, baysZ, w, d, subEaves, ref.isBlank() ? "-" : ref
+                "tailiang_timber_hall (%d×%d bays, w=%d d=%d, subEaves=%s, interiorColumns=%s, frameLevels=%d, ref=%s)",
+                baysX, baysZ, w, d, subEaves, interiorColumns, timberFrame ? frameLevels : 0, ref.isBlank() ? "-" : ref
         );
         return new GeneratedStructure(null, anchor, desc, blocks);
     }
@@ -222,6 +237,32 @@ public final class TailiangTimberHallBuilder {
                                          int ix0, int iz0, int ix1, int iz1, int ox1, int oz1, int y, BlockState beam) {
         ringRect(blocks, origin, entrance, ix0 - 1, y, iz0 - 1, ix1 + 1, y, iz1 + 1, beam);
         ringRect(blocks, origin, entrance, 0, y, 0, ox1, y, oz1, beam);
+    }
+
+    private static BlockState timberAxis(BlockState timber, Direction.Axis axis, BlockState fallback) {
+        return timber.contains(Properties.AXIS) ? timber.with(Properties.AXIS, axis) : fallback;
+    }
+
+    private static void addInteriorFrame(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                          int x0, int z0, int w, int d, int[] zs, int baseY, int levels,
+                                          BlockState timber, BlockState trim) {
+        BlockState crossBeam = timberAxis(timber, Direction.Axis.X, trim);
+        BlockState purlin = timberAxis(timber, Direction.Axis.Z, trim);
+        BlockState post = timberAxis(timber, Direction.Axis.Y, trim);
+        for(int level=0;level<levels;level++) {
+            int start=level*2, end=w-1-level*2, y=baseY+level;
+            for(int zi=1;zi<zs.length-1;zi++) {
+                int z=z0+zs[zi];
+                if(level>0) {
+                    put(blocks,origin,entrance,x0+start,y-1,z,post);
+                    put(blocks,origin,entrance,x0+end,y-1,z,post);
+                }
+                for(int x=start;x<=end;x++) put(blocks,origin,entrance,x0+x,y,z,crossBeam);
+            }
+            // Longitudinal links stop inside the enclosure, preserving window and wall columns.
+            if (level>0) for(int x:new int[]{start,end}) for(int z=1;z<d-1;z++)
+                put(blocks,origin,entrance,x0+x,y,z0+z,purlin);
+        }
     }
 
     private static List<int[]> columnPositions(int x0, int z0, int[] xs, int[] zs) {

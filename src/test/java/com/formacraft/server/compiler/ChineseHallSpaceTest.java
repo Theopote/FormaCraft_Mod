@@ -68,4 +68,66 @@ class ChineseHallSpaceTest {
         for(int x=0;x<25;x++) for(int z:new int[]{0,14}) for(int y=3;y<=5;y++)
             assertFalse(states.get(at(Direction.SOUTH,x,y,z)).isAir());
     }
+
+    @Test void interiorColumnsAlignAndAllWalkableInteriorCellsRemainConnected() {
+        for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST))
+            for(int height:List.of(5,7,12)) {
+                var states=generate(Map.of("width",25,"depth",15,"anchorMode","corner","facing",facing.name(),
+                        "hallHeight",height,"includeSubEaves",false));
+                var xs=TailiangTimberHallBuilder.bayAxis(25,7);
+                var zs=TailiangTimberHallBuilder.bayAxis(15,4);
+                for(int xi=1;xi<xs.length-1;xi++) for(int zi=1;zi<zs.length-1;zi++)
+                    assertTrue(states.get(at(facing,xs[xi],3,zs[zi])).isOf(Blocks.DARK_OAK_LOG));
+                var reachable=new HashSet<BlockPos>(); var queue=new ArrayDeque<BlockPos>();
+                var start=new BlockPos(12,0,14);reachable.add(start);queue.add(start);
+                while(!queue.isEmpty()) {
+                    var p=queue.removeFirst();
+                    for(int[] delta:new int[][]{{1,0},{-1,0},{0,1},{0,-1}}) {
+                        var next=p.add(delta[0],0,delta[1]);
+                        int x=next.getX(),z=next.getZ();
+                        if(x<1||x>23||z<1||z>14||reachable.contains(next)) continue;
+                        if(states.get(at(facing,x,3,z)).isAir() && states.get(at(facing,x,4,z)).isAir()) {
+                            assertFalse(states.get(at(facing,x,2,z)).isAir());
+                            reachable.add(next);queue.add(next);
+                        }
+                    }
+                }
+                for(int x=1;x<24;x++) for(int z=1;z<14;z++)
+                    if(states.get(at(facing,x,3,z)).isAir()&&states.get(at(facing,x,4,z)).isAir())
+                        assertTrue(reachable.contains(new BlockPos(x,0,z)),"all usable spaces connect to entrance");
+                assertTrue(states.get(at(facing,0,5,1)).isOf(Blocks.IRON_BARS),"longitudinal beam cannot replace side window");
+            }
+    }
+
+    @Test void frameLevelsHaveSupportedProgressivelyShorterBeamsAndRespectRotation() {
+        for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST)) {
+            var states=generate(Map.of("width",25,"depth",15,"anchorMode","corner","facing",facing.name(),
+                    "includeSubEaves",false,"frameLevels",3));
+            var horizontal=facing.getAxis()==Direction.Axis.Z?Direction.Axis.X:Direction.Axis.Z;
+            for(int level=0;level<3;level++) {
+                int start=level*2,end=24-level*2,y=6+level;
+                for(int x=start+1;x<end;x++) {
+                    var beam=states.get(at(facing,x,y,4));
+                    assertTrue(beam.isOf(Blocks.DARK_OAK_LOG));
+                    boolean supportsNextTier=level<2&&(x==(level+1)*2||x==24-(level+1)*2);
+                    assertEquals(supportsNextTier?Direction.Axis.Y:horizontal,beam.get(Properties.AXIS));
+                }
+                if(level>0) for(int x:new int[]{start,end})
+                    assertFalse(states.get(at(facing,x,y-1,4)).isAir(),"upper beam ends contact lower beam");
+            }
+        }
+    }
+
+    @Test void interiorAndFrameOptOutsAreIndependentAndExcessiveLevelsAreRejected() {
+        var columnsOnly=generate(Map.of("width",25,"depth",15,"anchorMode","corner","includeSubEaves",false,
+                "includeTimberFrame",false));
+        assertTrue(columnsOnly.get(at(Direction.SOUTH,3,3,4)).isOf(Blocks.DARK_OAK_LOG));
+        assertTrue(columnsOnly.get(at(Direction.SOUTH,1,6,4)).isAir());
+        var frameOnly=generate(Map.of("width",25,"depth",15,"anchorMode","corner","includeSubEaves",false,
+                "includeInteriorColumns",false));
+        assertTrue(frameOnly.get(at(Direction.SOUTH,3,3,4)).isAir());
+        assertFalse(frameOnly.get(at(Direction.SOUTH,1,6,4)).isAir());
+        assertThrows(IllegalArgumentException.class,()->generate(Map.of("width",25,"depth",15,
+                "hallHeight",5,"frameLevels",4)));
+    }
 }

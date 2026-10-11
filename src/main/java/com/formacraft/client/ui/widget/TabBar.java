@@ -50,11 +50,11 @@ public class TabBar {
         this.client = client;
         
         // ASCII 图标：避免 emoji 在 MC 默认字体下显示为方块
-        tabs.add(new TabInfo(PanelType.CHAT, "C", Text.translatable("formacraft.tab.chat"), TAB_SIZE));
-        tabs.add(new TabInfo(PanelType.TOOLS, "T", Text.translatable("formacraft.tab.tools"), TAB_SIZE));
-        tabs.add(new TabInfo(PanelType.COMPONENT_LIBRARY, "L", Text.translatable("formacraft.tab.component_library"), TAB_SIZE));
-        tabs.add(new TabInfo(PanelType.COMPONENT_CAPTURE, "P", Text.translatable("formacraft.tab.component_capture"), TAB_SIZE));
-        tabs.add(new TabInfo(PanelType.SETTINGS, "S", Text.translatable("formacraft.tab.settings"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.CHAT, "\u2601", Text.translatable("formacraft.tab.chat"), TAB_SIZE)); // ☁ 云朵（对话气泡）
+        tabs.add(new TabInfo(PanelType.TOOLS, "\u2699", Text.translatable("formacraft.tab.tools"), TAB_SIZE)); // ⚙ 齿轮（工具）
+        tabs.add(new TabInfo(PanelType.COMPONENT_LIBRARY, "\u25A0", Text.translatable("formacraft.tab.component_library"), TAB_SIZE)); // ■ 方块（构件库）
+        tabs.add(new TabInfo(PanelType.COMPONENT_CAPTURE, "\u2299", Text.translatable("formacraft.tab.component_capture"), TAB_SIZE)); // ⊕ 圆圈加十字（捕获）
+        tabs.add(new TabInfo(PanelType.SETTINGS, "\u2630", Text.translatable("formacraft.tab.settings"), TAB_SIZE)); // ☰ 菜单图标（设置）
     }
     
     /**
