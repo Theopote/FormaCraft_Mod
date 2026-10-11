@@ -20,5 +20,10 @@ class TerrainSupportPolicyTest {
         assertEquals(TerrainSupportPolicy.Mode.SOLID,policy("采用实心地基").mode());
         assertEquals(TerrainSupportPolicy.Mode.VERTICAL,policy("不要使用斜撑").mode());
     }
+    @Test void cutShapeUsesUserChoiceAndDefaultsToNaturalSlope() {
+        assertEquals(TerrainSupportPolicy.CutMode.SLOPE,policy("生成教堂").cutMode());
+        assertEquals(TerrainSupportPolicy.CutMode.VERTICAL,policy("墙边采用直立切坡，不要边坡").cutMode());
+        assertEquals(TerrainSupportPolicy.CutMode.RETAINING,policy("墙边设置挡土墙").cutMode());
+    }
     @Test void unknownExplicitSupportMaterialIsNotReplaced(){assertThrows(IllegalArgumentException.class,()->policy("支柱使用minecraft:missing_support"));}
 }

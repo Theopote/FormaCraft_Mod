@@ -284,6 +284,48 @@ class BuildingLandingPlannerTest {
         assertTrue(result.blocks().stream().allMatch(p->p.getPos().getX()>=0&&p.getPos().getX()<=8
                 &&p.getPos().getZ()>=0&&p.getPos().getZ()<=6),"no abandoned route is emitted into the water");
     }
+    @Test void nativeGothicHallUsesLandingAndFillsEveryShallowGapAcrossFacings() {
+        for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) {
+            var component=new com.formacraft.common.llm.dto.Component("STRUCTURE",null,
+                    new com.formacraft.common.llm.dto.Vec3i(0,0,0),
+                    new com.formacraft.common.llm.dto.Dimensions(35,45,40),
+                    List.of("typology:gothic_cathedral_hall"),Map.of("facing",facing,"typology_id","gothic_cathedral_hall"));
+            var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build).components(List.of(component)).build();
+            var origin=new BlockPos(10,64,20);
+            var sites=BuildingLandingPlanner.sites(plan,origin);
+            assertEquals(1,sites.size(),"native structure must not fall into the legacy terrain pad route");
+            var generated=com.formacraft.server.generation.typology.builder.GothicCathedralHallBuilder.generate(
+                    Map.of("width",35,"depth",45,"wallHeight",16,"planVariant","cruciform",
+                            "facing",facing,"includeTowers",false,"includeButtresses",false),origin,null,null);
+            var input=generated.getBlocks();
+            var bounds=sites.getFirst().body();
+            var terrain=ground((x,z)->((x+z)%7==0)?63:64);
+            var result=BuildingLandingPlanner.prepare(input,sites,terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
+                    false,Blocks.COBBLESTONE.getDefaultState());
+            assertNull(result.problem());
+            var output=finalMap(result.blocks());
+            for(var entry:finalMap(input).entrySet()) if(entry.getKey().getY()==64 && !entry.getValue().isAir()) {
+                var bottom=entry.getKey().up(result.dy());
+                for(int y=terrain.surfaceY(bottom.getX(),bottom.getZ());y<bottom.getY();y++)
+                    assertFalse(output.get(new BlockPos(bottom.getX(),y,bottom.getZ())).isAir(),"no one-layer gap beneath native foundation");
+            }
+            assertTrue(bounds.width()==35 || bounds.width()==45);
+        }
+    }
+    @Test void naturalSlopeExtendsBeyondFourBlocksAndExplicitCutChoicesAreRespected() {
+        var s=site(0,64); var input=house(s,false);
+        var terrain=ground((x,z)->x<0?74:64);
+        var slope=BuildingLandingPlanner.prepare(input,List.of(s),terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
+                false,Blocks.COBBLESTONE.getDefaultState());
+        assertNull(slope.problem());
+        assertTrue(finalMap(slope.blocks()).get(new BlockPos(-6,73,3)).isAir(),"deep cuts need a longer slope transition");
+        var vertical=BuildingLandingPlanner.prepare(input,List.of(s),terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
+                false,Blocks.COBBLESTONE.getDefaultState(),new TerrainSupportPolicy(TerrainSupportPolicy.Mode.AUTO,false,null,TerrainSupportPolicy.CutMode.VERTICAL));
+        assertFalse(finalMap(vertical.blocks()).containsKey(new BlockPos(-6,73,3)),"explicit vertical cut preserves surrounding wall");
+        var retaining=BuildingLandingPlanner.prepare(input,List.of(s),terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
+                false,Blocks.COBBLESTONE.getDefaultState(),new TerrainSupportPolicy(TerrainSupportPolicy.Mode.AUTO,false,null,TerrainSupportPolicy.CutMode.RETAINING));
+        assertTrue(finalMap(retaining.blocks()).get(new BlockPos(-1,70,3)).isOf(Blocks.COBBLESTONE));
+    }
     @Test void patchPlansDoNotAcquireAutomaticLandingTranslations() {
         var component=new com.formacraft.common.llm.dto.Component("MASS_MAIN",null,
                 new com.formacraft.common.llm.dto.Vec3i(0,0,0),new com.formacraft.common.llm.dto.Dimensions(9,7,6),null,null);

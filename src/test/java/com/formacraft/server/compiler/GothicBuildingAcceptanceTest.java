@@ -110,6 +110,26 @@ class GothicBuildingAcceptanceTest {
             }
         }
     }
+    @Test void aisleRoofEndWallsCloseTrianglesWithoutFillingTheInterior() {
+        for(String variant:List.of("basilica","cruciform")) {
+            int width=35, bodyWidth=variant.equals("cruciform")?27:35, offset=(width-bodyWidth)/2;
+            int naveStart=(bodyWidth-(bodyWidth-10))/2, aisleTop=13;
+            var result=GothicCathedralHallBuilder.generate(Map.of("width",width,"depth",45,
+                    "wallHeight",16,"planVariant",variant,"includeTowers",false,
+                    "includeButtresses",false),BlockPos.ORIGIN,null,null);
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:result.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            for(int x=0;x<naveStart;x++) {
+                int roofY=aisleTop+1+x*3/(naveStart-1);
+                for(int sideX:List.of(offset+x,width-1-offset-x))
+                    for(int y=aisleTop+1;y<roofY;y++) {
+                        for(int z:List.of(0,44)) assertEquals(net.minecraft.block.Blocks.STONE_BRICKS,
+                                states.get(new BlockPos(sideX,y,z)).getBlock(),"side aisle end triangle must be walled");
+                        assertTrue(states.get(new BlockPos(sideX,y,2)).isAir(),"side roof interior remains hollow");
+                    }
+            }
+        }
+    }
     private BlockPos position(BlockPos origin,String facing,int x,int y,int z) {
         return switch(facing) {
             case "NORTH" -> origin.add(-x,y,-z);

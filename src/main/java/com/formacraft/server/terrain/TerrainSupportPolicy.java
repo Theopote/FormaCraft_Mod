@@ -8,7 +8,11 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /** User choices apply to automatic terrain work, not authored building components. */
-public record TerrainSupportPolicy(Mode mode, boolean access, BlockState material) {
+public record TerrainSupportPolicy(Mode mode, boolean access, BlockState material, CutMode cutMode) {
+    public enum CutMode { SLOPE, VERTICAL, RETAINING }
+    public TerrainSupportPolicy(Mode mode, boolean access, BlockState material) {
+        this(mode,access,material,CutMode.SLOPE);
+    }
     public enum Mode { AUTO, VERTICAL, DIAGONAL, SOLID }
     public static TerrainSupportPolicy automatic() { return new TerrainSupportPolicy(Mode.AUTO,false,null); }
 
@@ -36,6 +40,9 @@ public record TerrainSupportPolicy(Mode mode, boolean access, BlockState materia
             if(material==null||material.isAir()||!material.getFluidState().isEmpty())
                 throw new IllegalArgumentException("无法使用指定的支撑材料："+match.group(1));
         }
-        return new TerrainSupportPolicy(mode,access,material);
+        CutMode cut=CutMode.SLOPE;
+        if(Pattern.compile("直立切坡|垂直切坡|不要边坡|不削坡|保留陡壁").matcher(text).find()) cut=CutMode.VERTICAL;
+        else if(Pattern.compile("(?<!不要)(?<!不用)(?:采用|设置|使用|增加)挡土墙").matcher(text).find()) cut=CutMode.RETAINING;
+        return new TerrainSupportPolicy(mode,access,material,cut);
     }
 }

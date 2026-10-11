@@ -85,6 +85,29 @@ public final class BuildingLandingPlanner {
             for (Slot s : plan.layout().slots()) if (s != null) slots.put(s.slotId(), s);
         List<Site> out = new ArrayList<>();
         for (Component c : plan.components()) {
+            if("STRUCTURE".equalsIgnoreCase(c.componentType()) && c.params()!=null
+                    && ("gothic_cathedral_hall".equals(c.params().get("typology_id"))
+                    || c.features()!=null && c.features().contains("typology:gothic_cathedral_hall"))) {
+                Slot slot=slots.get(c.slotId());
+                Vec3i anchor=slot!=null && slot.anchor()!=null?slot.anchor():new Vec3i(0,0,0);
+                Vec3i relative=c.relativePosition()!=null?c.relativePosition():new Vec3i(0,0,0);
+                BlockPos base=origin.add(anchor.x()+relative.x(),anchor.y()+relative.y(),anchor.z()+relative.z());
+                int width=c.dimensions()!=null?c.dimensions().width():25;
+                int depth=c.dimensions()!=null?c.dimensions().depth():45;
+                int height=c.dimensions()!=null?c.dimensions().height():40;
+                var facing=GlobalConstraints.Facing.valueOf(String.valueOf(c.params().getOrDefault("facing","SOUTH")).toUpperCase(Locale.ROOT));
+                int dx=width-1,dz=depth-1;
+                int minX=0,maxX=dx,minZ=0,maxZ=dz;
+                switch(facing) {
+                    case NORTH -> {minX=-dx;maxX=0;minZ=-dz;maxZ=0;}
+                    case EAST -> {maxX=dz;minZ=-dx;maxZ=0;}
+                    case WEST -> {minX=-dz;maxX=0;maxZ=dx;}
+                    default -> {}
+                }
+                out.add(new Site(new LlmPlanTerrainBounds.Bounds(base.getX()+minX,base.getY(),base.getZ()+minZ,
+                        base.getX()+maxX,base.getY()+height-1,base.getZ()+maxZ),facing));
+                continue;
+            }
             if (!("MASS_MAIN".equalsIgnoreCase(c.componentType()) || "MAIN_MASS".equalsIgnoreCase(c.componentType()))
                     || c.dimensions() == null) continue; // Upper-floor plates are attachments, not independent sites.
             var b = ComponentFootprintUtil.bounds(c);
@@ -263,13 +286,24 @@ public final class BuildingLandingPlanner {
                 }
                 if (prep.size()>MAX_EDITS) return failure(input, "地形改动过多，建议缩小建筑或分批生成。");
             }
-            if (transition && sites.size()==1) {
-                var slope=b.expand(4);
+            if (transition && sites.size()==1 && policy.cutMode()!=TerrainSupportPolicy.CutMode.VERTICAL) {
+                var slope=b.expand(MAX_CUT);
                 for(int x=slope.minX();x<=slope.maxX();x++) for(int z=slope.minZ();z<=slope.maxZ();z++) {
                     int distance=Math.max(Math.max(b.minX()-x,x-b.maxX()),Math.max(b.minZ()-z,z-b.maxZ()));
                     if(distance<1) continue;
-                    int allowed=b.minY()+distance-1, top=cached.surfaceY(x,z);
+                    int allowed=policy.cutMode()==TerrainSupportPolicy.CutMode.RETAINING?b.minY():b.minY()+distance-1;
+                    int top=cached.surfaceY(x,z);
+                    if(policy.cutMode()==TerrainSupportPolicy.CutMode.RETAINING && distance!=1) continue;
                     if(top-allowed>MAX_CUT) continue;
+                    if(top<=allowed) continue;
+                    if(policy.cutMode()==TerrainSupportPolicy.CutMode.RETAINING) {
+                        for(int y=allowed;y<top;y++) {
+                            BlockPos p=new BlockPos(x,y,z);
+                            if(!finalBlocks.containsKey(p) && !add(prep,p,fill))
+                                return failure(input,"挡土墙范围与保护区域冲突，请调整建筑位置。");
+                        }
+                        continue;
+                    }
                     for(int y=allowed;y<top;y++) {
                         BlockPos p=new BlockPos(x,y,z);
                         if(!finalBlocks.containsKey(p) && !cached.state(p).isAir()) {

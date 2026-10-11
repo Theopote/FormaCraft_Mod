@@ -187,6 +187,10 @@ public final class GothicCathedralHallBuilder {
         // Lower aisle roofs rise toward the nave, keeping the tall central volume visible.
         for (int x = -1; x < naveX0; x++) {
             int y = aisleY1 + 1 + Math.max(0, x) * 3 / Math.max(1, naveX0 - 1);
+            if(x>=0) for(int z:new int[]{0,d-1}) for(int sealY=aisleY1+1;sealY<y;sealY++) {
+                put(blocks,origin,entrance,x,sealY,z,wall,null);
+                put(blocks,origin,entrance,w-1-x,sealY,z,wall,null);
+            }
             for (int z = -1; z <= d; z++) {
                 put(blocks, origin, entrance, x, y, z, withFacingIfPossible(roofStairs, Direction.EAST), null);
                 put(blocks, origin, entrance, w - 1 - x, y, z, withFacingIfPossible(roofStairs, Direction.WEST), null);
