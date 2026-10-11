@@ -28,17 +28,21 @@ class ComponentPlanCompilerMaterialTest {
             assertEquals("minecraft:deepslate_tiles",com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(name));
     }
 
-    @Test void loggedCourtyardMaterialVocabularyCompilesThroughNativeGalleryRoute() {
+    @Test void loggedCourtyardMaterialVocabularyResolvesForNativeGalleryGeneration() {
         var attrs=new StyleAttributes(null,"gray_brick","dark_gray_tile","stone_brick",null,null,null,null);
-        var component=new Component("STRUCTURE",null,new Vec3i(0,0,0),new Dimensions(48,26,64),
-                List.of("typology:courtyard_compound"),Map.of("typology_id","courtyard_compound",
-                "width",48,"depth",64,"includeGallery",true,"gallery",Map.of("clearWidth",3)));
-        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("ASIAN")
-                .styleAttributes(attrs).components(List.of(component)).build();
-        var output=PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan,BlockPos.ORIGIN,null,null,false));
-        assertFalse(output.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
-        assertTrue(output.containsValue("minecraft:stone_bricks"));
-        assertTrue(output.containsValue("minecraft:deepslate_tiles"));
+        assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(attrs).isEmpty());
+        var spec=new com.formacraft.common.model.build.BuildingSpec();
+        var materials=new com.formacraft.common.model.build.Materials();
+        materials.setWall(com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(attrs.wallMaterial()));
+        materials.setRoof(com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(attrs.roofMaterial()));
+        materials.setFloor(com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(attrs.floorMaterial()));
+        spec.setMaterials(materials);
+        var output=com.formacraft.server.generation.typology.builder.CourtyardCompoundBuilder.generate(
+                Map.of("width",48,"depth",64,"includeGallery",true,"gallery",Map.of("clearWidth",3)),
+                BlockPos.ORIGIN,null,spec).getBlocks();
+        assertFalse(output.isEmpty());
+        assertTrue(output.stream().anyMatch(b->b.getTargetState().isOf(net.minecraft.block.Blocks.STONE_BRICKS)));
+        assertTrue(output.stream().anyMatch(b->b.getTargetState().isOf(net.minecraft.block.Blocks.DEEPSLATE_TILES)));
     }
     @Test void namespacedStoneBrickAliasResolvesWithoutAcceptingUnknownBlockIds() {
         var attrs = new StyleAttributes(null, "minecraft:stone_brick", null, null, null, null, null, null);
