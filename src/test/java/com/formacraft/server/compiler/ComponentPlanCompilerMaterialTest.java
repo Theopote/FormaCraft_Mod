@@ -9,6 +9,37 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ComponentPlanCompilerMaterialTest {
+    @Test void grayBrickMaterialNamesResolveToRegisteredStoneBricksAndCompileAsActualWalls() {
+        for(String name:List.of("gray_brick","gray_bricks","grey_brick","grey_bricks","青砖","灰砖")) {
+            var attrs=new StyleAttributes(null,name,"dark_gray_tile",null,null,null,null,null);
+            assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(attrs).isEmpty());
+            assertEquals("minecraft:stone_bricks",com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(name));
+            var p=plan("minecraft:stone_bricks");
+            var withAttributes=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
+                    .anchor(new Vec3i(0,0,0)).layout(new Layout(null,false,List.of()))
+                    .styleAttributes(attrs).components(p.components()).build();
+            var output=PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(withAttributes,BlockPos.ORIGIN,null,null,false));
+            assertFalse(output.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
+            assertTrue(output.containsValue("minecraft:stone_bricks"));
+        }
+        assertNull(com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock("othermod:gray_brick"));
+        assertNull(com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock("minecraft:gray_brick"));
+        for(String name:List.of("dark_gray_tile","dark_grey_tile","dark_gray_tiles","dark_grey_tiles"))
+            assertEquals("minecraft:deepslate_tiles",com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(name));
+    }
+
+    @Test void loggedCourtyardMaterialVocabularyCompilesThroughNativeGalleryRoute() {
+        var attrs=new StyleAttributes(null,"gray_brick","dark_gray_tile","stone_brick",null,null,null,null);
+        var component=new Component("STRUCTURE",null,new Vec3i(0,0,0),new Dimensions(48,26,64),
+                List.of("typology:courtyard_compound"),Map.of("typology_id","courtyard_compound",
+                "width",48,"depth",64,"includeGallery",true,"gallery",Map.of("clearWidth",3)));
+        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("ASIAN")
+                .styleAttributes(attrs).components(List.of(component)).build();
+        var output=PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan,BlockPos.ORIGIN,null,null,false));
+        assertFalse(output.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertTrue(output.containsValue("minecraft:stone_bricks"));
+        assertTrue(output.containsValue("minecraft:deepslate_tiles"));
+    }
     @Test void namespacedStoneBrickAliasResolvesWithoutAcceptingUnknownBlockIds() {
         var attrs = new StyleAttributes(null, "minecraft:stone_brick", null, null, null, null, null, null);
         assertEquals("minecraft:stone_bricks",

@@ -301,10 +301,13 @@ public final class DynamicPaletteResolver {
         String lower = material.toLowerCase().trim();
         return switch (lower) {
             case "stone", "stone_brick", "stone_bricks", "stonebrick", "stonebricks" -> "stone_bricks";
+            // Gray brick is a visual approximation, not a vanilla registered block name.
+            case "gray_brick", "gray_bricks", "grey_brick", "grey_bricks", "青砖", "灰砖" -> "stone_bricks";
             case "polished_andesite" -> "polished_andesite";
             case "polished_blackstone", "blackstone" -> "polished_blackstone";
             case "deepslate", "deepslate_tiles", "deepslate_tile", "black_tile", "black_tiles", "black_tile_roof",
-                 "dark_tile", "dark_tiles" -> "deepslate_tiles";
+                 "dark_tile", "dark_tiles", "dark_gray_tile", "dark_grey_tile",
+                 "dark_gray_tiles", "dark_grey_tiles" -> "deepslate_tiles";
             case "deepslate_bricks", "deepslate_brick" -> "deepslate_bricks";
             case "brick", "bricks" -> "bricks";
             case "wood", "planks", "wood_planks", "oak" -> "oak_planks";
