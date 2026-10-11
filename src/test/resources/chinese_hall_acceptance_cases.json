@@ -1,0 +1,20 @@
+[
+  {
+    "id": "curved_hip_painted",
+    "prompt": "生成一座中式木构大殿，主体宽25格、深15格，采用庑殿顶，屋顶升高10格，出檐2格，坡面曲率60，翘角2格。设置副檐，设置斗拱，设置彩画。墙体使用白色混凝土，柱子使用橡木原木，地板使用橡木木板，屋面使用minecraft:bricks，彩画采用蓝色陶瓦。",
+    "params": {"width":25,"depth":15,"roofType":"wu_dian","roofRise":10,"roofOverhang":2,"roofCurve":60,"roofCornerLift":2,"includeSubEaves":true,"includeBrackets":true,"includePainting":true,"wall_block":"minecraft:white_concrete","pillar_block":"minecraft:oak_log","floor_block":"minecraft:oak_planks","roof_block":"minecraft:bricks","paint_block":"minecraft:blue_terracotta"},
+    "expected_paint": true
+  },
+  {
+    "id": "hard_gable_plain",
+    "prompt": "生成一座中式木构大殿，主体宽25格、深15格，采用硬山顶，屋顶升高12格，出檐1格，采用直坡，不要翘角，不要副檐，设置斗拱，不要彩画。墙体使用白色混凝土，屋面使用minecraft:bricks。",
+    "params": {"width":25,"depth":15,"roofType":"ying_shan","roofRise":12,"roofOverhang":1,"roofCurve":0,"roofCornerLift":0,"includeSubEaves":false,"includeBrackets":true,"includePainting":false,"wall_block":"minecraft:white_concrete","roof_block":"minecraft:bricks"},
+    "expected_paint": false
+  },
+  {
+    "id": "hip_gable_no_brackets",
+    "prompt": "生成一座中式木构大殿，主体宽25格、深15格，采用歇山顶，屋顶升高12格，出檐2格，坡面曲率40，翘角1格，设置副檐，不要斗拱，设置彩画。墙体使用白色混凝土，屋面使用minecraft:bricks。",
+    "params": {"width":25,"depth":15,"roofType":"xie_shan","roofRise":12,"roofOverhang":2,"roofCurve":40,"roofCornerLift":1,"includeSubEaves":true,"includeBrackets":false,"includePainting":true,"wall_block":"minecraft:white_concrete","roof_block":"minecraft:bricks"},
+    "expected_paint": false
+  }
+]

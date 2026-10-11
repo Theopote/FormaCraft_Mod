@@ -197,10 +197,10 @@ public final class TailiangTimberHallBuilder {
         String roofForm = ChineseHallRoofGenerator.normalize(p.strVal("roofType", "xie_shan"));
         int roofRun = roofForm.equals("wu_dian") ? Math.min((w-1)/2,(d-1)/2)+roofOverhang : (w-1)/2+roofOverhang;
         int roofRise = p.intVal("roofRise", roofRun, 3, 18);
+        int roofCurve = p.intVal("roofCurve",0,0,100), roofCornerLift=p.intVal("roofCornerLift",0,0,3);
         ChineseHallRoofGenerator.generate(
                 roofBlocks, w, d, bodyTop, roofForm, roofRise,
-                new ChineseHallRoofGenerator.Shape(roofOverhang,p.intVal("roofCurve",0,0,100),
-                        p.intVal("roofCornerLift",0,0,3)), roofTile, roofStairs, wall);
+                new ChineseHallRoofGenerator.Shape(roofOverhang,roofCurve,roofCornerLift), roofTile, roofStairs, wall);
         Map<BlockPos, Integer> roofBottom = new java.util.HashMap<>();
         for (PlannedBlock roofBlock : roofBlocks) {
             BlockPos pos = roofBlock.getPos();
@@ -241,9 +241,19 @@ public final class TailiangTimberHallBuilder {
 
         String ref = p.strVal("reference_landmark", "");
         String desc = String.format(
-                "tailiang_timber_hall (%d×%d bays, w=%d d=%d, subEaves=%s, interiorColumns=%s, frameLevels=%d, ref=%s)",
-                baysX, baysZ, w, d, subEaves, interiorColumns, timberFrame ? frameLevels : 0, ref.isBlank() ? "-" : ref
+                "木构大殿 tailiang_timber_hall（主体%d×%d格，外台基%d×%d格；开间%d×%d，堂高%d格，台基高%d格，入口%s，锚点%s；"
+                        +"屋顶%s，升高%d格，出檐%d格，曲率%d，翘角%d格；副檐%s，内柱%s，梁架%d层，斗拱%s，彩画%s；"
+                        +"墙=%s，柱=%s，地面=%s，台基=%s，梁枋=%s，屋面=%s，坡面=%s，副檐材=%s，窗=%s，斗拱材=%s，彩画材=%s；参考=%s）",
+                w,d,outerW,outerD,baysX,baysZ,bodyH,platformH,entrance.name(),
+                "corner".equalsIgnoreCase(p.strVal("anchorMode","center"))?"corner":"center",
+                roofForm,roofRise,roofOverhang,roofCurve,roofCornerLift,
+                subEaves,interiorColumns,timberFrame?frameLevels:0,p.boolVal("includeBrackets",true),
+                paint!=null&&p.boolVal("includeBrackets",true),
+                materialId(wall),materialId(pillar),materialId(floor),materialId(stone),materialId(trim),
+                materialId(roofTile),materialId(roofStairs),materialId(roofSlab),materialId(lattice),materialId(bracket),
+                paint==null||!p.boolVal("includeBrackets",true)?"禁用":materialId(paint),ref.isBlank()?"-":ref
         );
+        com.formacraft.FormacraftMod.LOGGER.info("[ChineseHall] {}",desc);
         return new GeneratedStructure(null, anchor, desc, blocks);
     }
 
@@ -263,6 +273,10 @@ public final class TailiangTimberHallBuilder {
         if(state.isAir()||!state.getFluidState().isEmpty())
             throw new IllegalArgumentException("E_MATERIAL_INVALID: "+key+"="+value+" 必须为非空气、非流体方块");
         return state;
+    }
+
+    private static String materialId(BlockState state) {
+        return net.minecraft.registry.Registries.BLOCK.getId(state.getBlock()).toString();
     }
 
     private static BlockState timberAxis(BlockState timber, Direction.Axis axis, BlockState fallback) {

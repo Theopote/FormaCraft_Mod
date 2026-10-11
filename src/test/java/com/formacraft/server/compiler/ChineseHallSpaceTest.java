@@ -154,6 +154,42 @@ class ChineseHallSpaceTest {
         assertEquals("minecraft:bricks",com.formacraft.common.typology.TypologyParamResolver
                 .fromBuildingSpec(spec,"tailiang_timber_hall").get("wall_block"));
     }
+    @Test void sharedAcceptanceCasesHaveHonestFeedbackAndCompleteCenteredPlatforms() throws Exception {
+        try(var stream=getClass().getResourceAsStream("/chinese_hall_acceptance_cases.json")) {
+            assertNotNull(stream);
+            var cases=com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(stream,
+                    java.nio.charset.StandardCharsets.UTF_8)).getAsJsonArray();
+            for(var item:cases) for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST)) {
+                var testCase=item.getAsJsonObject();
+                Map<String,Object> params=new com.google.gson.Gson().fromJson(testCase.get("params"),
+                        new com.google.gson.reflect.TypeToken<Map<String,Object>>(){}.getType());
+                params.put("facing",facing.name());
+                var structure=TailiangTimberHallBuilder.generate(params,ORIGIN,null,null);
+                assertEquals(ORIGIN,structure.getOrigin());
+                var states=new HashMap<BlockPos,BlockState>();
+                structure.getBlocks().forEach(b->states.put(b.getPos(),b.getTargetState()));
+                var envelope=TailiangTimberHallBuilder.envelope(params);
+                for(int x=0;x<envelope.outerWidth();x++) for(int z=0;z<envelope.outerDepth();z++)
+                    assertFalse(states.get(at(facing,x-envelope.outerWidth()/2,2,z-envelope.outerDepth()/2)).isAir());
+                String feedback=structure.getDescription();
+                assertTrue(feedback.contains("锚点center"));
+                assertTrue(feedback.contains("入口"+facing.name()));
+                assertTrue(feedback.contains("屋顶"+params.get("roofType")));
+                assertTrue(feedback.contains("曲率"+((Number)params.get("roofCurve")).intValue()));
+                assertTrue(feedback.contains("屋面=minecraft:bricks"));
+                boolean paint=testCase.get("expected_paint").getAsBoolean();
+                assertTrue(feedback.contains("彩画"+paint));
+                boolean actualPaint=states.values().stream().anyMatch(s->s.isOf(Blocks.BLUE_TERRACOTTA)||s.isOf(Blocks.GREEN_TERRACOTTA));
+                assertEquals(paint,actualPaint);
+            }
+        }
+    }
+    @Test void feedbackReportsClampedActualValuesRatherThanRawRequests() {
+        var generated=TailiangTimberHallBuilder.generate(Map.of("width",24,"roofRise",99,"roofCurve",120),ORIGIN,null,null);
+        assertTrue(generated.getDescription().contains("主体25×"));
+        assertTrue(generated.getDescription().contains("升高18格"));
+        assertTrue(generated.getDescription().contains("曲率100"));
+    }
     @Test void bayCountsCoverExactSpanAndRejectImpossibleCounts() {
         var axis=TailiangTimberHallBuilder.bayAxis(25,7);
         assertEquals(8,axis.length); assertEquals(0,axis[0]);assertEquals(24,axis[7]);

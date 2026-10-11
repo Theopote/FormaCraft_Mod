@@ -22,9 +22,9 @@ def apply_chinese_material_contract(plan: dict, text: str) -> None:
     material = rf'(?:[a-z0-9_.-]+:[a-z0-9_./-]+|{names})'
     for key, role in _ROLES.items():
         for m in re.finditer(rf'(?:{role})(?:材料)?(?:使用|采用|用)({material})', text):
-            if re.search(r'不要|不使用|不采用', text[max(0, m.start()-6):m.start()]): continue
+            if re.search(r'(?:不要|不使用|不采用)\s*$', text[max(0, m.start()-8):m.start()]): continue
             hits.setdefault(key, []).append((_NAMES.get(m[1], m[1]), m[0]))
-    for key, noun in [('includePainting', '彩画'), ('includeBrackets', '斗拱')]:
+    for key, noun in [('includePainting', '彩画'), ('includeBrackets', '斗拱'), ('includeSubEaves', '副檐')]:
         for m in re.finditer(rf'(不要|不设|取消|设置|增加)(?:{noun})', text):
             hits.setdefault(key, []).append((m[1] in ('设置', '增加'), m[0]))
     scoped = bool(re.search(r'左栋|右栋|第.+?栋|两座|两栋|建筑群|东侧建筑|西侧建筑', text))
