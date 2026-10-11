@@ -74,3 +74,15 @@ class GothicBuildingContractTest(unittest.TestCase):
         component = plan['components'][0]
         self.assertEqual(component['params']['roofRise'], 24)
         self.assertGreaterEqual(component['dimensions']['height'], 45)
+
+    def test_window_tracery_optout_preserves_glazing_and_global_window_scope(self):
+        plan = self.plan()
+        apply_gothic_building_contract(plan, '不要窗花')
+        self.assertFalse(plan['components'][0]['params']['includeWindowTracery'])
+        self.assertNotIn('includeWindows', plan['components'][0]['params'])
+        apply_gothic_building_contract(plan, '整座建筑不设窗户')
+        self.assertFalse(plan['components'][0]['params']['includeWindows'])
+        self.assertFalse(plan['components'][0]['params']['includeRoseWindow'])
+        plan = self.plan()
+        apply_gothic_building_contract(plan, '前山墙不要窗户')
+        self.assertNotIn('includeWindows', plan['components'][0]['params'])

@@ -2,7 +2,9 @@
 import re
 
 _PATTERNS = {
-    'includeRoseWindow': r'(?:不要|不设|不生成|取消)玫瑰(?:花)?窗|\bno rose window\b',
+    'includeWindowTracery': r'(?:不要|不设|不生成|取消)窗花|\bno (?:window )?tracery\b',
+    'includeWindows': r'(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\bno windows anywhere\b',
+    'includeRoseWindow': r'(?:不要|不设|不生成|取消)玫瑰(?:花)?窗|\bno rose window\b|(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\bno windows anywhere\b',
     'includeButtresses': r'(?:不要|不设|不生成|取消)(?:飞)?扶壁|\bno (?:flying )?buttresses\b',
     'includeTowers': r'(?:不要|不设|不生成|取消)双塔|\bno twin towers\b',
 }

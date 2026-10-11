@@ -146,16 +146,21 @@ public final class GothicCathedralHallBuilder {
         }
         fillRect(blocks, origin, entrance, 1, y0, 1, w - 2, aisleY1, d - 2, Blocks.AIR.getDefaultState());
 
-        // 4) Windows along nave sides (stained)
-        int wy = Math.min(y1 - 1, aisleY1 + 5);
-        for (int z = 4; z <= d - 5; z += buttressStep) {
-            if (wy > aisleY1 + 4) {
-                put(blocks, origin, entrance, naveX0, wy, z, window, null);
-                put(blocks, origin, entrance, naveX1, wy, z, window, null);
-            }
-            for (int y = y0 + 2; y <= y0 + 5; y++) {
-                put(blocks, origin, entrance, 0, y, z, window, null);
-                put(blocks, origin, entrance, w - 1, y, z, window, null);
+        // One bay grid: supports occupy bay boundaries, openings occupy bay centers.
+        if (getBooleanExtra(spec, "includeWindows", true)) {
+            boolean tracery = getBooleanExtra(spec, "includeWindowTracery", true);
+            int end = getBooleanExtra(spec, "includeTowers", true)
+                    ? d - clampOdd(Math.max(7, w/5),7,15) - 3 : d-4;
+            for (int boundary=4;boundary+buttressStep<=end;boundary+=buttressStep) {
+                int center=boundary+buttressStep/2;
+                int halfWindow=buttressStep>=7?2:1;
+                for(int x:new int[]{0,w-1})
+                    addPointedWindow(blocks,origin,entrance,x,center,5,
+                            Math.min(6,aisleY1-5),halfWindow,false,window,trim,tracery);
+                int highBottom=aisleY1+4, highHeight=y1-highBottom;
+                if(highHeight>=2) for(int x:new int[]{naveX0,naveX1})
+                    addPointedWindow(blocks,origin,entrance,x,center,highBottom,
+                            highHeight,halfWindow,false,window,trim,false);
             }
         }
 
@@ -169,10 +174,17 @@ public final class GothicCathedralHallBuilder {
                 put(blocks, origin, entrance, mx + dx, y0 + dy, zFront, Blocks.AIR.getDefaultState(), null);
             }
         }
-        // pointed arch hint above door
-        put(blocks, origin, entrance, mx, y0 + doorH + 1, zFront, trim, null);
-        put(blocks, origin, entrance, mx - 1, y0 + doorH, zFront, withFacingIfPossible(roofStairs, rotateDir(Direction.EAST, entrance)), null);
-        put(blocks, origin, entrance, mx + 1, y0 + doorH, zFront, withFacingIfPossible(roofStairs, rotateDir(Direction.WEST, entrance)), null);
+        // Pointed portal: the tip is an opening, framed on the facade and projecting one block.
+        for(int z:new int[]{zFront,zFront+1}) {
+            for(int y=y0;y<y0+doorH;y++) {
+                put(blocks,origin,entrance,mx-2,y,z,trim,null);
+                put(blocks,origin,entrance,mx+2,y,z,trim,null);
+            }
+            put(blocks,origin,entrance,mx,y0+doorH,z,Blocks.AIR.getDefaultState(),null);
+            put(blocks,origin,entrance,mx-1,y0+doorH,z,trim,null);
+            put(blocks,origin,entrance,mx+1,y0+doorH,z,trim,null);
+            put(blocks,origin,entrance,mx,y0+doorH+1,z,trim,null);
+        }
 
         // 6) Rose window on front facade (local SOUTH)
         // Keep the complete rose above the portal and within the nave facade.
@@ -257,8 +269,13 @@ public final class GothicCathedralHallBuilder {
         fillRect(blocks,origin,entrance,1,3,z0+1,w-2,top,z1-1,Blocks.AIR.getDefaultState());
         // Open the longitudinal hall through both crossing faces.
         fillRect(blocks,origin,entrance,nx0+1,3,z0,nx1-1,top,z1,Blocks.AIR.getDefaultState());
-        for(int x:new int[]{0,w-1}) for(int y=6;y<=10;y++)
-            put(blocks,origin,entrance,x,y,centerZ,Blocks.RED_STAINED_GLASS_PANE.getDefaultState(),null);
+        if(getBooleanExtra(spec,"includeWindows",true)) for(int x:new int[]{0,w-1})
+            addPointedWindow(blocks,origin,entrance,x,centerZ,6,Math.min(9,wallH-4),2,false,
+                    states.getOrDefault(new BlockPos(0,5,4+clamp(getIntExtra(spec,"buttressStep",5),4,8)/2-1),
+                            Blocks.RED_STAINED_GLASS_PANE.getDefaultState()),
+                    states.getOrDefault(new BlockPos(0,4,4+clamp(getIntExtra(spec,"buttressStep",5),4,8)/2),
+                            Blocks.POLISHED_BLACKSTONE.getDefaultState()),
+                    getBooleanExtra(spec,"includeWindowTracery",true));
         // At the crossing, use the higher of the two slopes and remove lower roof remnants.
         for(int x=-1;x<=w;x++) for(int z=z0-1;z<=z1+1;z++) {
             boolean onNave=x>=nx0-1 && x<=nx1+1;
@@ -281,6 +298,28 @@ public final class GothicCathedralHallBuilder {
             put(blocks,origin,entrance,x,roofY,z,roofY==roofBase+rise?ridge:withFacingIfPossible(stair,slope),null);
         }
         return new GeneratedStructure(null,origin,"Gothic cruciform hall",blocks);
+    }
+
+    /** Discrete pointed arch: two lights below, a small upper glass eye, and a complete frame. */
+    private static void addPointedWindow(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                         int fixed, int center, int bottom, int height, int halfWidth,
+                                         boolean alongX, BlockState glass, BlockState frame, boolean tracery) {
+        for(int dy=0;dy<height;dy++) {
+            int radius=dy>=height-2?Math.max(0,halfWidth-(dy-(height-3))):halfWidth;
+            for(int u=-halfWidth-1;u<=halfWidth+1;u++) {
+                BlockState state;
+                if(Math.abs(u)>radius) state=frame;
+                else if(tracery && u==0 && dy<height-3) state=frame;
+                else state=glass;
+                put(blocks,origin,entrance,alongX?center+u:fixed,bottom+dy,
+                        alongX?fixed:center+u,state,null);
+            }
+        }
+        for(int u=-halfWidth-1;u<=halfWidth+1;u++)
+            put(blocks,origin,entrance,alongX?center+u:fixed,bottom-1,
+                    alongX?fixed:center+u,frame,null);
+        put(blocks,origin,entrance,alongX?center:fixed,bottom+height,
+                alongX?fixed:center,frame,null);
     }
 
     private static void addRoseWindow(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,

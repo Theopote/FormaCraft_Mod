@@ -130,6 +130,39 @@ class GothicBuildingAcceptanceTest {
             }
         }
     }
+    @Test void pointedWindowLightsFramesAndBayBoundariesSurviveAcrossFacings() {
+        for(int step:List.of(4,5,7,8)) for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) {
+            var origin=new BlockPos(10,60,-20);
+            var building=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+                    "facing",facing,"buttressStep",step,"includeTowers",false),origin,null,null);
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:building.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            int center=4+step/2;
+            for(int x:List.of(0,34)) {
+                for(int z:List.of(center-1,center+1))
+                    assertTrue(states.get(position(origin,facing,x,6,z)).getBlock().getTranslationKey().contains("stained_glass"),"two separate lower lights");
+                assertEquals(net.minecraft.block.Blocks.POLISHED_BLACKSTONE,states.get(position(origin,facing,x,6,center)).getBlock(),"lower mullion");
+                assertTrue(states.get(position(origin,facing,x,10,center)).getBlock().getTranslationKey().contains("stained_glass"),"upper pointed glass tip");
+                assertFalse(states.get(position(origin,facing,x,10,center-1)).getBlock().getTranslationKey().contains("glass"),"opening narrows at top");
+                assertFalse(states.get(position(origin,facing,x,6,4)).getBlock().getTranslationKey().contains("glass"),"support bay boundary is not a window");
+            }
+            assertFalse(states.get(position(origin,facing,1,8,4)).isAir(),"buttress remains on bay boundary");
+            assertTrue(states.get(position(origin,facing,17,9,44)).isAir(),"pointed portal tip is open");
+            assertEquals(net.minecraft.block.Blocks.POLISHED_BLACKSTONE,states.get(position(origin,facing,15,6,45)).getBlock(),"portal frame has actual depth");
+        }
+    }
+    @Test void traceryAndFacadeWindowOptoutsAreIndependentOfRoseWindow() {
+        for(boolean windows:List.of(true,false)) {
+            var building=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+                    "planVariant","cruciform","includeTowers",false,"includeWindowTracery",false,
+                    "includeWindows",windows),BlockPos.ORIGIN,null,null);
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:building.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            assertEquals(windows,states.get(new BlockPos(4,6,6)).getBlock().getTranslationKey().contains("stained_glass"),"plain window has no lower mullion; optout restores wall");
+            assertEquals(windows,states.get(new BlockPos(0,7,15)).getBlock().getTranslationKey().contains("stained_glass"),"same choice reaches transept end");
+            assertTrue(states.values().stream().anyMatch(v->v.getBlock().getTranslationKey().contains("stained_glass")),"rose remains independent");
+        }
+    }
     private BlockPos position(BlockPos origin,String facing,int x,int y,int z) {
         return switch(facing) {
             case "NORTH" -> origin.add(-x,y,-z);
