@@ -141,7 +141,7 @@ public final class CourtyardCompoundBuilder {
             }
         }
         if (extra == null || !extra.containsKey("wallBanner")) {
-            if (details != null && details.bannerEnabled != null) banner = Boolean.TRUE.equals(details.bannerEnabled);
+            if (details != null && details.bannerEnabled != null) banner = details.bannerEnabled;
             else if (details != null && details.ornamentProfile != null) {
                 String op = details.ornamentProfile.toLowerCase(java.util.Locale.ROOT);
                 if (op.contains("banner")) banner = true;

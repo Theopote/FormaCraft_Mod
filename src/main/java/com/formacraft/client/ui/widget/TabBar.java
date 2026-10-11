@@ -2,11 +2,15 @@ package com.formacraft.client.ui.widget;
 
 import com.formacraft.client.ui.FormaCraftHudOverlay;
 import com.formacraft.client.ui.panel.PanelType;
+import com.formacraft.client.ui.render.ImageRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,11 +38,11 @@ public class TabBar {
      */
     public static class TabInfo {
         public final PanelType type;
-        public final String icon; // MC 位图字体可显示的 ASCII 图标
+        public final BufferedImage icon; // PNG 图标
         public final Text tooltip; // 悬停提示
         public final int width; // 标签宽度
-        
-        public TabInfo(PanelType type, String icon, Text tooltip, int width) {
+
+        public TabInfo(PanelType type, BufferedImage icon, Text tooltip, int width) {
             this.type = type;
             this.icon = icon;
             this.tooltip = tooltip;
@@ -48,13 +52,29 @@ public class TabBar {
     
     public TabBar(MinecraftClient client) {
         this.client = client;
-        
-        // ASCII 图标：避免 emoji 在 MC 默认字体下显示为方块
-        tabs.add(new TabInfo(PanelType.CHAT, "\u2601", Text.translatable("formacraft.tab.chat"), TAB_SIZE)); // ☁ 云朵（对话气泡）
-        tabs.add(new TabInfo(PanelType.TOOLS, "\u2699", Text.translatable("formacraft.tab.tools"), TAB_SIZE)); // ⚙ 齿轮（工具）
-        tabs.add(new TabInfo(PanelType.COMPONENT_LIBRARY, "\u25A0", Text.translatable("formacraft.tab.component_library"), TAB_SIZE)); // ■ 方块（构件库）
-        tabs.add(new TabInfo(PanelType.COMPONENT_CAPTURE, "\u2299", Text.translatable("formacraft.tab.component_capture"), TAB_SIZE)); // ⊕ 圆圈加十字（捕获）
-        tabs.add(new TabInfo(PanelType.SETTINGS, "\u2630", Text.translatable("formacraft.tab.settings"), TAB_SIZE)); // ☰ 菜单图标（设置）
+
+        // 加载 PNG 图标
+        tabs.add(new TabInfo(PanelType.CHAT, loadIcon("textures/gui/tabs/chat.png"), Text.translatable("formacraft.tab.chat"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.TOOLS, loadIcon("textures/gui/tabs/tools.png"), Text.translatable("formacraft.tab.tools"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.COMPONENT_LIBRARY, loadIcon("textures/gui/tabs/library.png"), Text.translatable("formacraft.tab.component_library"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.COMPONENT_CAPTURE, loadIcon("textures/gui/tabs/capture.png"), Text.translatable("formacraft.tab.component_capture"), TAB_SIZE));
+        tabs.add(new TabInfo(PanelType.SETTINGS, loadIcon("textures/gui/tabs/settings.png"), Text.translatable("formacraft.tab.settings"), TAB_SIZE));
+    }
+
+    /**
+     * 从资源文件夹加载 PNG 图标
+     */
+    private BufferedImage loadIcon(String path) {
+        try (InputStream in = TabBar.class.getResourceAsStream("/assets/formacraft/" + path)) {
+            if (in == null) {
+                com.formacraft.FormacraftMod.LOGGER.warn("Failed to load icon: {}", path);
+                return null;
+            }
+            return ImageIO.read(in);
+        } catch (Exception e) {
+            com.formacraft.FormacraftMod.LOGGER.error("Error loading icon: {}", path, e);
+            return null;
+        }
     }
     
     /**
@@ -122,10 +142,13 @@ public class TabBar {
         ctx.fill(x, y + height - 1, x + width, y + height, darkBorder);
         ctx.fill(x + width - 1, y, x + width, y + height, darkBorder);
 
-        int centerX = x + width / 2;
-        int centerY = y + height / 2;
-        int iconY = centerY - client.textRenderer.fontHeight / 2;
-        ctx.drawCenteredTextWithShadow(client.textRenderer, Text.literal(tab.icon), centerX, iconY, 0xFFFFFFFF);
+        // 渲染 PNG 图标（居中）
+        if (tab.icon != null) {
+            int iconSize = 12; // 图标稍微小一点，留出边距
+            int iconX = x + (width - iconSize) / 2;
+            int iconY = y + (height - iconSize) / 2;
+            ImageRenderer.renderScaled(ctx, tab.icon, iconX, iconY, iconSize, iconSize);
+        }
     }
     
     private boolean isMouseOverTab(int tabX, TabInfo tab, double mouseX, double mouseY) {
