@@ -163,6 +163,33 @@ class GothicBuildingAcceptanceTest {
             assertTrue(states.values().stream().anyMatch(v->v.getBlock().getTranslationKey().contains("stained_glass")),"rose remains independent");
         }
     }
+    @Test void towerConfigurationsAndFullSpireHeightsAreRealGeometry() {
+        for(String arrangement:List.of("none","single","twin")) for(int spire:List.of(6,10,20)) {
+            var result=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+                    "towerHeight",24,"spireHeight",spire,"towerArrangement",arrangement,
+                    "includeButtresses",false),BlockPos.ORIGIN,null,null);
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:result.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            int left=4,right=30,z=39,base=28;
+            for(int y=base;y<=base+spire;y++) {
+                assertEquals(!arrangement.equals("none"),!states.get(new BlockPos(left,y,z)).isAir(),"left spire reaches requested height continuously");
+                assertEquals(arrangement.equals("twin"),!states.get(new BlockPos(right,y,z)).isAir(),"right spire only exists for twin arrangement");
+            }
+            for(int y=3;y<=8;y++) assertTrue(states.get(new BlockPos(17,y,44)).isAir(),"tower configuration preserves entrance");
+        }
+    }
+    @Test void flyingArchIsSupportedAboveTheAisleAndLeavesAirBelow() {
+        var result=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+                "includeTowers",false),BlockPos.ORIGIN,null,null);
+        var states=new HashMap<BlockPos,BlockState>();
+        for(var b:result.getBlocks()) states.put(b.getPos(),b.getTargetState());
+        for(int x:List.of(1,33)) for(int y=3;y<=19;y++) assertFalse(states.get(new BlockPos(x,y,4)).isAir(),"pier reaches floor");
+        for(int x=1;x<=5;x++) {
+            int y=17+(int)Math.round(2*Math.sin((double)(x-1)/4*Math.PI/2));
+            assertFalse(states.get(new BlockPos(x,y,4)).isAir(),"arch meets pier and nave at both ends");
+        }
+        assertTrue(states.get(new BlockPos(3,15,4)).isAir(),"arch is not a solid triangle");
+    }
     private BlockPos position(BlockPos origin,String facing,int x,int y,int z) {
         return switch(facing) {
             case "NORTH" -> origin.add(-x,y,-z);

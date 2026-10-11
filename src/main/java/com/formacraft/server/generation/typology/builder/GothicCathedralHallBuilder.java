@@ -149,7 +149,7 @@ public final class GothicCathedralHallBuilder {
         // One bay grid: supports occupy bay boundaries, openings occupy bay centers.
         if (getBooleanExtra(spec, "includeWindows", true)) {
             boolean tracery = getBooleanExtra(spec, "includeWindowTracery", true);
-            int end = getBooleanExtra(spec, "includeTowers", true)
+            int end = !"none".equals(towerArrangement(spec))
                     ? d - clampOdd(Math.max(7, w/5),7,15) - 3 : d-4;
             for (int boundary=4;boundary+buttressStep<=end;boundary+=buttressStep) {
                 int center=boundary+buttressStep/2;
@@ -221,9 +221,9 @@ public final class GothicCathedralHallBuilder {
         int tRightX0 = tRightX1 - tw + 1;
         int tZ0 = d - tw - 2;
         int tZ1 = d - 2;
-        if (getBooleanExtra(spec, "includeTowers", true)) {
+        if (!"none".equals(towerArrangement(spec))) {
         buildTowerWithSpire(blocks, origin, entrance, tLeftX0, tZ0, tLeftX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
-        buildTowerWithSpire(blocks, origin, entrance, tRightX0, tZ0, tRightX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
+        if ("twin".equals(towerArrangement(spec))) buildTowerWithSpire(blocks, origin, entrance, tRightX0, tZ0, tRightX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
         }
 
         // a bit of lighting in entrance
@@ -347,29 +347,19 @@ public final class GothicCathedralHallBuilder {
                                            int w, int d, int yFrom, int yTo, int step,
                                            BlockState wall, BlockState trim, BlockState stairs,
                                            int naveX0, int naveX1) {
-        int yMid = (yFrom + yTo) / 2;
-        for (int z = 4; z <= d - 5; z += step) {
-            // left outer pier
-            int xOuterL = 1;
-            for (int y = yFrom; y <= yTo; y++) put(blocks, origin, entrance, xOuterL, y, z, wall, null);
-            put(blocks, origin, entrance, xOuterL, yTo + 1, z, trim, null);
-            // right outer pier
-            int xOuterR = w - 2;
-            for (int y = yFrom; y <= yTo; y++) put(blocks, origin, entrance, xOuterR, y, z, wall, null);
-            put(blocks, origin, entrance, xOuterR, yTo + 1, z, trim, null);
-
-            // diagonal braces to nave wall (stairs approximations)
-            // left brace: from outer pier toward naveX0
-            int x = xOuterL + 1;
-            for (int i = 0; i < 4 && x < naveX0; i++, x++) {
-                int yy = yMid + i;
-                put(blocks, origin, entrance, x, yy, z, withFacingIfPossible(stairs, rotateDir(Direction.EAST, entrance)), null);
-            }
-            // right brace: from outer pier toward naveX1
-            x = xOuterR - 1;
-            for (int i = 0; i < 4 && x > naveX1; i++, x--) {
-                int yy = yMid + i;
-                put(blocks, origin, entrance, x, yy, z, withFacingIfPossible(stairs, rotateDir(Direction.WEST, entrance)), null);
+        // Thin rising arch above the aisle roof, joined to a solid pier and the nave wall.
+        for(int z=4;z<=d-5;z+=step) {
+            for(int side=0;side<2;side++) {
+                int outer=side==0?1:w-2, inner=side==0?naveX0:naveX1;
+                for(int y=3;y<=yTo+2;y++) put(blocks,origin,entrance,outer,y,z,wall,null);
+                int span=Math.abs(inner-outer), previous=yTo;
+                for(int i=0;i<=span;i++) {
+                    double t=(double)i/Math.max(1,span);
+                    int y=yTo+(int)Math.round(2*Math.sin(t*Math.PI/2));
+                    int x=outer+(side==0?i:-i);
+                    for(int yy=Math.min(previous,y);yy<=y;yy++) put(blocks,origin,entrance,x,yy,z,trim,null);
+                    previous=y;
+                }
             }
         }
     }
@@ -389,26 +379,24 @@ public final class GothicCathedralHallBuilder {
         }
         fillRect(blocks, origin, entrance, x0 + 1, y0, z0 + 1, x1 - 1, y1, z1 - 1, Blocks.AIR.getDefaultState());
 
-        // spire: taper upward
-        int lx0 = x0, lz0 = z0, lx1 = x1, lz1 = z1;
-        int yBase = y1 + 1;
-        for (int i = 0; i < spireH; i++) {
-            int y = yBase + i;
-            for (int x = lx0; x <= lx1; x++) {
-                put(blocks, origin, entrance, x, y, lz0, withFacingIfPossible(stairs, rotateDir(Direction.SOUTH, entrance)), null);
-                put(blocks, origin, entrance, x, y, lz1, withFacingIfPossible(stairs, rotateDir(Direction.NORTH, entrance)), null);
-            }
-            for (int z = lz0; z <= lz1; z++) {
-                put(blocks, origin, entrance, lx0, y, z, withFacingIfPossible(stairs, rotateDir(Direction.EAST, entrance)), null);
-                put(blocks, origin, entrance, lx1, y, z, withFacingIfPossible(stairs, rotateDir(Direction.WEST, entrance)), null);
-            }
-            lx0 += 1; lz0 += 1; lx1 -= 1; lz1 -= 1;
-            if (lx0 > lx1 || lz0 > lz1) break;
+        // Height-based taper: width must not prematurely terminate a tall spire.
+        int half=(x1-x0)/2, cx=(x0+x1)/2, cz=(z0+z1)/2;
+        int yBase=y1+1;
+        fillRect(blocks,origin,entrance,x0,y1,z0,x1,y1,z1,trim);
+        for(int i=0;i<spireH;i++) {
+            int radius=(int)Math.ceil((double)half*(spireH-1-i)/Math.max(1,spireH-1));
+            ringRect(blocks,origin,entrance,cx-radius,yBase+i,cz-radius,cx+radius,yBase+i,cz+radius,trim);
+            put(blocks,origin,entrance,cx,yBase+i,cz,trim,null);
         }
-        if (lx0 <= lx1 && lz0 <= lz1) {
-            int topY = yBase + spireH;
-            put(blocks, origin, entrance, (lx0 + lx1) / 2, topY, (lz0 + lz1) / 2, slab, null);
-        }
+        put(blocks,origin,entrance,cx,yBase+spireH,cz,slab,null);
+    }
+
+    private static String towerArrangement(BuildingSpec spec) {
+        if(!getBooleanExtra(spec,"includeTowers",true)) return "none";
+        String value=getStringExtra(spec,"towerArrangement","twin").toLowerCase(java.util.Locale.ROOT);
+        if(!java.util.Set.of("none","single","twin").contains(value))
+            throw new IllegalArgumentException("Unsupported Gothic tower arrangement: "+value);
+        return value;
     }
 
     private static void addGableRoof(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,

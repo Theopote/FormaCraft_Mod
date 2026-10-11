@@ -86,3 +86,20 @@ class GothicBuildingContractTest(unittest.TestCase):
         plan = self.plan()
         apply_gothic_building_contract(plan, '前山墙不要窗户')
         self.assertNotIn('includeWindows', plan['components'][0]['params'])
+
+    def test_single_tower_can_replace_twins_and_no_towers_is_distinct(self):
+        plan = self.plan()
+        apply_gothic_building_contract(plan, '不要双塔，设置单塔')
+        self.assertEqual(plan['components'][0]['params']['towerArrangement'], 'single')
+        self.assertTrue(plan['components'][0]['params']['includeTowers'])
+        plan = self.plan()
+        apply_gothic_building_contract(plan, '无塔')
+        self.assertEqual(plan['components'][0]['params']['towerArrangement'], 'none')
+
+    def test_native_tower_height_language_survives_route_repair(self):
+        from app.services.building_contract import apply_building_contract
+        plan = {'mode': 'build', 'proportion_hints': {'typology': 'gothic_cathedral_hall'}, 'components': []}
+        result = apply_building_contract(plan, '哥特式教堂，宽35格，深45格，不要双塔，设置单塔，塔身高24格，尖顶高14格', finalize=True)
+        params = result['components'][0]['params']
+        self.assertEqual((params['towerHeight'], params['spireHeight'], params['towerArrangement']), (24,14,'single'))
+        self.assertNotIn('capability_gap', result)
