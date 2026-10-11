@@ -51,6 +51,23 @@ class GothicBuildingAcceptanceTest {
                 assertFalse(finalStates.get(position(origin,facing,x,20,depth-3)).isAir(),"both front tower bodies must remain");
         }
     }
+    @Test void interiorRibsAreSupportedRotatedOptionalAndKeepTheCentralRouteOpen() {
+        for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(boolean enabled:List.of(false,true)) {
+            var origin=new BlockPos(20,50,-10);
+            var structure=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,
+                    "wallHeight",16,"facing",facing,"includeTowers",false,"includeButtresses",false,
+                    "includeRibVault",enabled),origin,null,null);
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:structure.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            for(int y=3;y<=14;y++) assertEquals(enabled,!states.get(position(origin,facing,6,y,4)).isAir());
+            assertEquals(enabled,!states.get(position(origin,facing,17,19,4)).isAir());
+            for(int z=2;z<45;z++) for(int y=3;y<=5;y++)
+                assertTrue(states.get(position(origin,facing,17,y,z)).isAir(),"central circulation");
+            assertTrue(states.get(position(origin,facing,17,16,4)).isAir(),"rib underside stays open");
+            assertTrue(states.get(position(origin,facing,17,19,5)).isAir(),"no solid vault infill between bays");
+        }
+    }
+
     @Test void optionalElementsCanBeRemovedWithoutBlockingTheHall() {
         var origin=BlockPos.ORIGIN;
         var building=GothicCathedralHallBuilder.generate(Map.of("width",25,"depth",35,"wallHeight",16,

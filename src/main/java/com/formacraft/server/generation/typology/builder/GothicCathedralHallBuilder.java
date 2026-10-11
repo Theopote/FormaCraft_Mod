@@ -226,6 +226,10 @@ public final class GothicCathedralHallBuilder {
         if ("twin".equals(towerArrangement(spec))) buildTowerWithSpire(blocks, origin, entrance, tRightX0, tZ0, tRightX1, tZ1, y0, towerH, spireH, wall, trim, roofStairs, roofSlab);
         }
 
+        // Opt-in interior skeleton; the cruciform crossing clears these local bays.
+        if (getBooleanExtra(spec, "includeRibVault", false))
+            addNaveRibs(blocks, origin, entrance, naveX0+1, naveX1-1, d, y1, buttressStep, trim);
+
         // a bit of lighting in entrance
         put(blocks, origin, entrance, mx - 5, y0 + 2, zFront + 1, lantern, null);
         put(blocks, origin, entrance, mx + 5, y0 + 2, zFront + 1, lantern, null);
@@ -389,6 +393,22 @@ public final class GothicCathedralHallBuilder {
             put(blocks,origin,entrance,cx,yBase+i,cz,trim,null);
         }
         put(blocks,origin,entrance,cx,yBase+spireH,cz,slab,null);
+    }
+
+    /** Open pointed transverse ribs, supported by paired interior shafts. No solid vault infill. */
+    private static void addNaveRibs(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                    int left, int right, int depth, int top, int step, BlockState material) {
+        int center=(left+right)/2, half=Math.max(1,center-left), spring=top-5;
+        for(int z=4;z<=depth-12;z+=step) {
+            for(int x:new int[]{left,right}) for(int y=3;y<=spring;y++)
+                put(blocks,origin,entrance,x,y,z,material,null);
+            for(int x=left;x<=right;x++) {
+                int inset=Math.min(x-left,right-x);
+                int y=spring+(int)Math.round(5.0*inset/half);
+                int previous=spring+(int)Math.round(5.0*Math.max(0,inset-1)/half);
+                for(int yy=previous;yy<=y;yy++) put(blocks,origin,entrance,x,yy,z,material,null);
+            }
+        }
     }
 
     private static String towerArrangement(BuildingSpec spec) {

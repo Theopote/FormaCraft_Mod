@@ -2,6 +2,7 @@
 import re
 
 _PATTERNS = {
+    'includeRibVault': r'(?:不要|不设|不生成|取消)(?:室内)?肋拱|\bno rib vault\b',
     'includeWindowTracery': r'(?:不要|不设|不生成|取消)窗花|\bno (?:window )?tracery\b',
     'includeWindows': r'(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\bno windows anywhere\b',
     'includeRoseWindow': r'(?:不要|不设|不生成|取消)玫瑰(?:花)?窗|\bno rose window\b|(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\bno windows anywhere\b',
@@ -30,6 +31,11 @@ def apply_gothic_building_contract(plan: dict, text: str) -> None:
                        'status': status, 'target_components': ids})
     if len(targets) == 1 and not scoped:
         params = targets[0].get('params', {})
+        if re.search(r'(?:设置|增加|采用)(?:室内)?肋拱|\binclude rib vault\b', text, re.I) and not re.search(_PATTERNS['includeRibVault'], text, re.I):
+            params['includeRibVault'] = True
+            report.append({'property': 'includeRibVault', 'value': True, 'status': 'planned',
+                           'target_components': [params.get('component_id')],
+                           'verification_level': 'plan_parameters_only'})
         if re.search(r'单塔|single tower', text, re.I) and not re.search(r'不要单塔|不设单塔|no single tower', text, re.I):
             params['towerArrangement'] = 'single'
             params['includeTowers'] = True
