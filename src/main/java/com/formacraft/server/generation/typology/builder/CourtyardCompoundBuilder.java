@@ -92,30 +92,18 @@ public final class CourtyardCompoundBuilder {
         Direction gateSide = resolveGateSide(spec);
         String layoutPlan = resolveLayoutPlan(spec);
 
-        // derived building sizes (v1 heuristics)
-        int mainW = clamp((int) Math.round(w * 0.45), 9, w - 6);
-        int mainD = clamp((int) Math.round(d * 0.22), 7, d - 8);
-
-        int wingW = clamp((int) Math.round(w * 0.22), 7, w - 10);
-        int wingD = clamp((int) Math.round(d * 0.18), 7, d - 10);
-
-        int gateW = clamp((int) Math.round(w * 0.28), 7, w - 8);
-        int gateD = clamp((int) Math.round(d * 0.16), 7, d - 10);
-
-        // placement offsets (origin is center). Z+: south.
-        int halfD = d / 2;
-        int halfW = w / 2;
-        int inset = 2;
-
-        // Compute child building corner positions relative to the compound center (origin).
-        // We intentionally keep all child buildings axis-aligned; only their door side changes to face the courtyard.
-        BlockPos mainCorner = placeCornerOnSide(gateSide.getOpposite(), w, d, inset, mainW, mainD);
-        BlockPos gateCorner = placeCornerOnSide(gateSide, w, d, inset, gateW, gateD);
-        Direction inDir = gateSide.getOpposite(); // direction from gate into the courtyard
+        Layout layout = resolveLayout(w, d, gateSide, pathWidth);
+        Part main = layout.parts().get(0), left = layout.parts().get(1);
+        Part right = layout.parts().get(2), gate = layout.parts().get(3);
+        int mainW = main.width(), mainD = main.depth();
+        int wingW = left.width(), wingD = left.depth();
+        int gateW = gate.width(), gateD = gate.depth();
+        int halfW = w / 2, halfD = d / 2;
+        BlockPos mainCorner = main.corner(), gateCorner = gate.corner();
+        BlockPos leftCorner = left.corner(), rightCorner = right.corner();
+        Direction inDir = gateSide.getOpposite();
         Direction leftSide = inDir.rotateYCounterclockwise();
         Direction rightSide = inDir.rotateYClockwise();
-        BlockPos leftCorner = placeCornerOnSide(leftSide, w, d, inset, wingW, wingD);
-        BlockPos rightCorner = placeCornerOnSide(rightSide, w, d, inset, wingW, wingD);
 
         // child specs (delegated generators)
         BuildingSpec mainHall = makeHallSpec(mainW, mainD, roofBlock, wallBlock, floorBlock, foundationBlock, "main_hall");
@@ -282,7 +270,10 @@ public final class CourtyardCompoundBuilder {
             origin = origin.up(landing.dy());
         }
 
-        String desc = String.format("Courtyard Compound (courtyard_compound, w=%d, d=%d, parts=%d)", w, d, compound.components.size());
+        String desc = String.format("Courtyard Compound (courtyard_compound, w=%d, d=%d, parts=%d, childScale=%d%%)",
+                w, d, compound.components.size(), layout.scalePercent());
+        if (layout.scalePercent() < 100) LOG.info("courtyard layout resized derived children: w={} d={} scale={} facing={}",
+                w, d, layout.scalePercent(), gateSide);
         return new GeneratedStructure(null, origin, desc, blocks);
     }
 
@@ -330,6 +321,55 @@ public final class CourtyardCompoundBuilder {
     /** Same entrance contract as child generators: layout, doorSide, then facing. */
     public static Direction resolveGateSide(BuildingSpec spec) {
         return StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
+    }
+
+    public record Part(String role, BlockPos corner, int width, int depth) {
+        public int minX() { return corner.getX(); }
+        public int minZ() { return corner.getZ(); }
+        public int maxX() { return minX() + width - 1; }
+        public int maxZ() { return minZ() + depth - 1; }
+    }
+    public record Layout(List<Part> parts, int scalePercent) {}
+
+    /** Shrink derived child sizes, never the requested enclosure or the number of buildings. */
+    public static Layout resolveLayout(int width, int depth, Direction facing, int pathWidth) {
+        Direction gateSide = facing == null ? Direction.SOUTH : facing;
+        Direction leftSide = gateSide.getOpposite().rotateYCounterclockwise();
+        Direction rightSide = leftSide.getOpposite();
+        for (int scale = 100; scale >= 0; scale -= 5) {
+            double factor = scale / 100.0;
+            int mainW = Math.max(9, (int)Math.round(width * .45 * factor));
+            int mainD = Math.max(7, (int)Math.round(depth * .22 * factor));
+            int wingW = Math.max(7, (int)Math.round(width * .22 * factor));
+            int wingD = Math.max(7, (int)Math.round(depth * .18 * factor));
+            int gateW = Math.max(7, (int)Math.round(width * .28 * factor));
+            int gateD = Math.max(7, (int)Math.round(depth * .16 * factor));
+            var parts = List.of(
+                    new Part("main_hall", placeCornerOnSide(gateSide.getOpposite(),width,depth,2,mainW,mainD),mainW,mainD),
+                    new Part("left_wing", placeCornerOnSide(leftSide,width,depth,2,wingW,wingD),wingW,wingD),
+                    new Part("right_wing", placeCornerOnSide(rightSide,width,depth,2,wingW,wingD),wingW,wingD),
+                    new Part("gate_house", placeCornerOnSide(gateSide,width,depth,2,gateW,gateD),gateW,gateD));
+            if (layoutFits(parts,width,depth,pathWidth)) return new Layout(parts,scale);
+        }
+        throw new IllegalArgumentException("院落 " + width + "×" + depth
+                + " 格无法同时容纳正房、两侧厢房、门楼及通道，请增大占地或改用单体建筑。");
+    }
+
+    private static boolean layoutFits(List<Part> parts, int width, int depth, int pathWidth) {
+        int x0=-width/2,z0=-depth/2,x1=x0+width-1,z1=z0+depth-1;
+        int radius=Math.max(1,pathWidth/2)+1;
+        for (int i=0;i<parts.size();i++) {
+            Part a=parts.get(i);
+            // One block of roof overhang must remain inside the enclosure.
+            if(a.minX()-1<=x0 || a.maxX()+1>=x1 || a.minZ()-1<=z0 || a.maxZ()+1>=z1) return false;
+            if(a.minX()-1<=radius && a.maxX()+1>=-radius && a.minZ()-1<=radius && a.maxZ()+1>=-radius) return false;
+            for(int j=0;j<i;j++) {
+                Part b=parts.get(j);
+                if(a.minX()-1<=b.maxX()+1 && b.minX()-1<=a.maxX()+1
+                        && a.minZ()-1<=b.maxZ()+1 && b.minZ()-1<=a.maxZ()+1) return false;
+            }
+        }
+        return true;
     }
 
     /** Whole compound stays at one elevation; only authored columns receive earthwork. */
@@ -484,8 +524,8 @@ public final class CourtyardCompoundBuilder {
     }
 
     public static int[] resolvedDimensions(BuildingSpec spec) {
-        int width=spec!=null && spec.getFootprint()!=null?spec.getFootprint().getWidth():20;
-        int depth=spec!=null && spec.getFootprint()!=null?spec.getFootprint().getDepth():20;
+        int width=spec!=null && spec.getFootprint()!=null?spec.getFootprint().getWidth():36;
+        int depth=spec!=null && spec.getFootprint()!=null?spec.getFootprint().getDepth():44;
         Map<String,Object> extra=spec!=null?spec.getExtra():null;
         return new int[]{clamp(getInt(extra,"width",width),16,96),clamp(getInt(extra,"depth",depth),16,96)};
     }

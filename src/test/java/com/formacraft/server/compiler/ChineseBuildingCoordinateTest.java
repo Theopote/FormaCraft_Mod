@@ -11,6 +11,41 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ChineseBuildingCoordinateTest {
     @BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
+    @Test void courtyardLayoutRejectsImpossibleFootprintsAndKeepsRoofEnvelopesSeparate() {
+        for(var facing:List.of(net.minecraft.util.math.Direction.NORTH,net.minecraft.util.math.Direction.SOUTH,
+                net.minecraft.util.math.Direction.EAST,net.minecraft.util.math.Direction.WEST)) {
+            assertThrows(IllegalArgumentException.class,()->CourtyardCompoundBuilder.resolveLayout(20,20,facing,3));
+            for(int width:List.of(32,36,45,64,96)) for(int depth:List.of(32,44,61,96)) {
+                var layout=CourtyardCompoundBuilder.resolveLayout(width,depth,facing,3);
+                assertEquals(4,layout.parts().size());
+                for(int i=0;i<layout.parts().size();i++) {
+                    var a=layout.parts().get(i);
+                    assertTrue(a.minX()-1>-width/2 && a.maxX()+1<-width/2+width-1);
+                    assertTrue(a.minZ()-1>-depth/2 && a.maxZ()+1<-depth/2+depth-1);
+                    for(int j=0;j<i;j++) {
+                        var b=layout.parts().get(j);
+                        assertTrue(a.maxX()+1<b.minX()-1 || b.maxX()+1<a.minX()-1
+                                || a.maxZ()+1<b.minZ()-1 || b.maxZ()+1<a.minZ()-1,
+                                "roof footprints cannot overlap: "+a.role()+" / "+b.role());
+                    }
+                }
+            }
+        }
+    }
+
+    @Test void compactLayoutReducesDerivedChildrenWithoutChangingRequestedEnclosure() {
+        var layout=CourtyardCompoundBuilder.resolveLayout(32,32,net.minecraft.util.math.Direction.SOUTH,3);
+        assertTrue(layout.scalePercent()<100);
+        var anchor=new BlockPos(80,64,-120);
+        var generated=CourtyardCompoundBuilder.generate(Map.of("width",32,"depth",32,
+                "includePaths",true,"facing","SOUTH"),anchor,null,null);
+        assertEquals(anchor,generated.getOrigin());
+        var states=new HashMap<BlockPos,BlockState>();
+        generated.getBlocks().forEach(b->states.put(b.getPos(),b.getTargetState()));
+        assertFalse(states.get(anchor.add(-16,0,0)).isAir());
+        assertFalse(states.get(anchor.add(15,0,0)).isAir());
+        assertFalse(states.get(anchor).isAir());
+    }
     @Test void hallCenterAndInternalCornerHaveIdenticalTranslatedGeometry() {
         for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(boolean sub:List.of(false,true)) {
             var anchor=new BlockPos(80,64,-120);
