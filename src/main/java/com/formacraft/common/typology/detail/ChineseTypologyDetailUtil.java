@@ -214,63 +214,15 @@ public final class ChineseTypologyDetailUtil {
             int outerX0, int outerZ0, int outerX1, int outerZ1,
             int y, BlockState slab, BlockState stair
     ) {
-        for (int x = innerX0; x <= innerX1; x++) {
-            for (int z = innerZ1 + 1; z <= outerZ1 - 1; z++) {
+        // Complete annular skin, including all four corners and the outer column line.
+        // The hall chooses the common eave elevation so it meets the main roof.
+        for (int x = outerX0; x <= outerX1; x++) {
+            for (int z = outerZ0; z <= outerZ1; z++) {
+                if (x >= innerX0 && x <= innerX1 && z >= innerZ0 && z <= innerZ1) continue;
                 place.accept(new BlockPos(x, y, z), slab);
-                if (z == innerZ1 + 1) {
-                    place.accept(new BlockPos(x, y, z), withFacing(stair, Direction.SOUTH));
-                }
             }
-        }
-        for (int x = innerX0; x <= innerX1; x++) {
-            for (int z = outerZ0; z < innerZ0; z++) {
-                place.accept(new BlockPos(x, y, z), slab);
-                if (z == innerZ0 - 1) {
-                    place.accept(new BlockPos(x, y, z), withFacing(stair, Direction.NORTH));
-                }
-            }
-        }
-        for (int z = innerZ0; z <= innerZ1; z++) {
-            for (int x = outerX0; x < innerX0; x++) {
-                place.accept(new BlockPos(x, y, z), slab);
-                if (x == innerX0 - 1) {
-                    place.accept(new BlockPos(x, y, z), withFacing(stair, Direction.EAST));
-                }
-            }
-            for (int x = innerX1 + 1; x <= outerX1 - 1; x++) {
-                place.accept(new BlockPos(x, y, z), slab);
-                if (x == innerX1 + 1) {
-                    place.accept(new BlockPos(x, y, z), withFacing(stair, Direction.WEST));
-                }
-            }
-        }
-        ringRectInnerRoofCap(place, innerX0, innerZ0, innerX1, innerZ1, outerX0, outerZ0, outerX1, outerZ1, y + 1, slab);
-    }
-
-    private static void ringRectInnerRoofCap(
-            BiConsumer<BlockPos, BlockState> place,
-            int ix0, int iz0, int ix1, int iz1,
-            int ox0, int oz0, int ox1, int oz1,
-            int y, BlockState slab
-    ) {
-        for (int x = ox0; x <= ox1; x++) {
-            place.accept(new BlockPos(x, y, oz0), slab);
-            place.accept(new BlockPos(x, y, oz1), slab);
-        }
-        for (int z = oz0; z <= oz1; z++) {
-            place.accept(new BlockPos(ox0, y, z), slab);
-            place.accept(new BlockPos(ox1, y, z), slab);
-        }
-        for (int x = ix0; x <= ix1; x++) {
-            place.accept(new BlockPos(x, y, iz0), slab);
-            place.accept(new BlockPos(x, y, iz1), slab);
-        }
-        for (int z = iz0; z <= iz1; z++) {
-            place.accept(new BlockPos(ix0, y, z), slab);
-            place.accept(new BlockPos(ix1, y, z), slab);
         }
     }
-
     public static void addLatticeWindow(
             BiConsumer<BlockPos, BlockState> place,
             int x0, int x1, int y0, int y1, int z,

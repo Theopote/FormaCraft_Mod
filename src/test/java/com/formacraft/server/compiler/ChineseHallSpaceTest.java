@@ -52,6 +52,20 @@ class ChineseHallSpaceTest {
             assertFalse(states.get(at(facing,12,2,7)).isAir());
         }
     }
+    @Test void subEavesCoverCornersAndMeetMainRoofAtCommonElevation() {
+        for(var facing:List.of(Direction.SOUTH,Direction.NORTH,Direction.EAST,Direction.WEST))
+            for(int offset:new int[]{2,3,5}) {
+                int outerW=25+2*offset,outerD=15+2*offset;
+                var states=generate(Map.of("width",25,"depth",15,"anchorMode","corner","facing",facing.name(),
+                        "includeSubEaves",true,"subEavesDepth",offset,"includeBrackets",false));
+                for(int x=0;x<outerW;x++) for(int z=0;z<outerD;z++) {
+                    if(x>=offset&&x<offset+25&&z>=offset&&z<offset+15) continue;
+                    assertFalse(states.get(at(facing,x,9,z)).isAir(),"continuous annular roof includes corners and column line");
+                }
+                for(int y=3;y<=4;y++) for(int z=offset+14;z<outerD;z++)
+                    assertTrue(states.get(at(facing,offset+12,y,z)).isAir(),"porch entrance remains clear");
+            }
+    }
     @Test void bayCountsCoverExactSpanAndRejectImpossibleCounts() {
         var axis=TailiangTimberHallBuilder.bayAxis(25,7);
         assertEquals(8,axis.length); assertEquals(0,axis[0]);assertEquals(24,axis[7]);

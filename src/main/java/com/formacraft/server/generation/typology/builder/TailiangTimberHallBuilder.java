@@ -183,7 +183,7 @@ public final class TailiangTimberHallBuilder {
         if (subEaves) {
             if (p.boolVal("includeBrackets", true)) addPuzuoAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1,
                     outerColumns, yCol1, true, trim, bracket, trim, paint);
-            int innerRoofY = yCol1 + 3;
+            int innerRoofY = bodyTop;
             ChineseTypologyDetailUtil.addSubEavesInnerRoof(
                     (pos, state) -> put(blocks, placedOrigin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
                     ox, oz, ox + w - 1, oz + d - 1,
