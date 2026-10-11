@@ -112,6 +112,7 @@
         "roofCurve": { "min": 0, "max": 100, "desc": "坡面曲率，默认0直坡；数值越高下部越缓、上部越陡，为视觉近似" },
         "roofCornerLift": { "min": 0, "max": 3, "desc": "翘角高度，默认0；仅歇山或庑殿且出檐至少1格时支持" },
         "includePainting": { "type": "boolean", "default": true, "desc": "独立彩画端帽开关，不移除柱梁和斗拱；仅斗拱启用时出现" },
+        "includeFacadeDetails": { "type": "boolean", "default": true, "desc": "按开间生成挑出窗台、窗楣及檐枋；入口不设窗台；材质跟随 trim_block，木板使用同木种半砖" },
         "wall_block": { "type": "string", "desc": "注册方块ID，显式覆盖墙体材料；无效/空气/流体拒绝" },
         "floor_block": { "type": "string", "desc": "覆盖台基地面，边缘梁枋保留trim_block" },
         "foundation_block": { "type": "string", "desc": "覆盖台基内部基础" },

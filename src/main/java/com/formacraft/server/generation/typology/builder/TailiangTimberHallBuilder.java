@@ -192,6 +192,9 @@ public final class TailiangTimberHallBuilder {
         if (p.boolVal("includeEntrance", true))
             carveMainEntrance(blocks, origin, entrance, ox, oz, xAxis, d, yCol0);
         ringRect(blocks, origin, entrance, ox, yCol1, oz, ox+w-1, yCol1, oz+d-1, trim);
+        boolean facadeDetails = p.boolVal("includeFacadeDetails", true);
+        if (facadeDetails) addFacadeDetails(blocks, origin, entrance, ox, oz, xAxis, zAxis,
+                yCol0, yWallTop, trim, p.boolVal("includeWindows", true), p.boolVal("includeEntrance", true));
 
         List<PlannedBlock> roofBlocks = new ArrayList<>();
         String roofForm = ChineseHallRoofGenerator.normalize(p.strVal("roofType", "xie_shan"));
@@ -253,6 +256,7 @@ public final class TailiangTimberHallBuilder {
                 materialId(roofTile),materialId(roofStairs),materialId(roofSlab),materialId(lattice),materialId(bracket),
                 paint==null||!p.boolVal("includeBrackets",true)?"禁用":materialId(paint),ref.isBlank()?"-":ref
         );
+        desc += "；立面窗框/檐枋细化=" + facadeDetails;
         com.formacraft.FormacraftMod.LOGGER.info("[ChineseHall] {}",desc);
         return new GeneratedStructure(null, anchor, desc, blocks);
     }
@@ -316,6 +320,50 @@ public final class TailiangTimberHallBuilder {
             columns.add(new int[]{x0+xs[xs.length-1],z0+zs[i]});
         }
         return columns;
+    }
+
+    /** Projected timber courses give each bay depth without moving its wall or blocking the doorway. */
+    private static void addFacadeDetails(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
+                                         int x0, int z0, int[] xs, int[] zs, int y0, int yTop,
+                                         BlockState trim, boolean windows, boolean doorway) {
+        BlockState moulding = trim;
+        String id = materialId(trim);
+        if (id.endsWith("_planks")) {
+            var slabId = net.minecraft.util.Identifier.tryParse(id.replace("_planks", "_slab"));
+            if (slabId != null && net.minecraft.registry.Registries.BLOCK.containsId(slabId))
+                moulding = net.minecraft.registry.Registries.BLOCK.get(slabId).getDefaultState();
+        }
+        BlockState sill = moulding.contains(Properties.SLAB_TYPE)
+                ? moulding.with(Properties.SLAB_TYPE, net.minecraft.block.enums.SlabType.TOP) : moulding;
+        int x1 = x0 + xs[xs.length - 1], z1 = z0 + zs[zs.length - 1];
+        for (int x = x0; x <= x1; x++) {
+            put(blocks, origin, entrance, x, yTop - 1, z0 - 1, trim);
+            put(blocks, origin, entrance, x, yTop - 1, z1 + 1, trim);
+        }
+        for (int z = z0; z <= z1; z++) {
+            put(blocks, origin, entrance, x0 - 1, yTop - 1, z, trim);
+            put(blocks, origin, entrance, x1 + 1, yTop - 1, z, trim);
+        }
+        if (!windows) return;
+        int bottom = y0 + 1, top = Math.min(yTop - 1, y0 + 3);
+        for (int i = 0; i < xs.length - 1; i++) {
+            for (int x = x0 + xs[i] + 1; x < x0 + xs[i + 1]; x++) {
+                put(blocks, origin, entrance, x, bottom, z0 - 1, sill);
+                put(blocks, origin, entrance, x, top, z0 - 1, moulding);
+                // The entrance bay gets a lintel, never a sill across the walking path.
+                if (!doorway || i != (xs.length - 1) / 2)
+                    put(blocks, origin, entrance, x, bottom, z1 + 1, sill);
+                put(blocks, origin, entrance, x, top, z1 + 1, moulding);
+            }
+        }
+        for (int i = 0; i < zs.length - 1; i++) {
+            for (int z = z0 + zs[i] + 1; z < z0 + zs[i + 1]; z++) {
+                for (int x : new int[]{x0 - 1, x1 + 1}) {
+                    put(blocks, origin, entrance, x, bottom, z, sill);
+                    put(blocks, origin, entrance, x, top, z, moulding);
+                }
+            }
+        }
     }
 
     private static void addLatticeWindows(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
