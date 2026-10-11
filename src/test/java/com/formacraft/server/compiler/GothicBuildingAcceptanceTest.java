@@ -24,6 +24,24 @@ class GothicBuildingAcceptanceTest {
             for(int x=center-1;x<=center+1;x++) for(int y=3;y<9;y++)
                 assertTrue(finalStates.get(position(origin,facing,x,y,depth-1)).isAir(),"door opening must reach floor and stay clear");
             assertTrue(finalStates.entrySet().stream().anyMatch(e->e.getValue().getBlock().getTranslationKey().contains("stained_glass")),"rose/cathedral glazing must survive final writes");
+            int naveWidth=Math.max(9,width-10), naveStart=(width-naveWidth)/2;
+            int roofStart=naveStart-1, roofEnd=naveStart+naveWidth;
+            for(int x=roofStart;x<=roofEnd;x++) for(int z=0;z<depth;z++) {
+                boolean covered=false;
+                for(int y=wallHeight+4;y<=wallHeight+15;y++) {
+                    var state=finalStates.get(position(origin,facing,x,y,z));
+                    if(state!=null && !state.isAir()) covered=true;
+                }
+                assertTrue(covered,"every nave roof column must be covered: x="+x+" z="+z);
+            }
+            for(int x:List.of(0,width-1)) for(int z=0;z<depth;z++) {
+                boolean covered=false;
+                for(int y=12;y<=wallHeight+3;y++) {
+                    var state=finalStates.get(position(origin,facing,x,y,z));
+                    if(state!=null && !state.isAir()) covered=true;
+                }
+                assertTrue(covered,"both aisles require roofs");
+            }
             int radius=Math.min(Math.min(7,width/4),(wallHeight-8)/2);
             int roseY=11+radius;
             var roseGlass=finalStates.get(position(origin,facing,center+(radius>=3?1:0),roseY+(radius>=3?1:0),depth-1));
@@ -43,6 +61,32 @@ class GothicBuildingAcceptanceTest {
         assertTrue(states.get(new BlockPos(1,8,4)).isAir(),"disabled buttress pier must be absent");
         assertFalse(states.get(new BlockPos(13,16,34)).getBlock().getTranslationKey().contains("glass"),"disabled rose must retain the facade wall");
         for(int z=2;z<35;z++) for(int y=3;y<=4;y++) assertTrue(states.get(new BlockPos(12,y,z)).isAir());
+    }
+    @Test void cruciformFootprintCrossingAndRoofSurviveFinalWrites() {
+        for(int width:List.of(25,35)) for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) {
+            int depth=45, top=19, centerZ=depth/3, half=Math.max(4,Math.max(9,width-18)/2);
+            var origin=new BlockPos(20,50,-10);
+            var structure=GothicCathedralHallBuilder.generate(Map.of("width",width,"depth",depth,
+                    "wallHeight",16,"facing",facing,"planVariant","cruciform",
+                    "includeTowers",false,"includeButtresses",false),origin,null,null);
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:structure.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            assertTrue(states.get(position(origin,facing,0,2,2)).isAir(),"corners must not become a rectangular platform");
+            for(int x=1;x<width-1;x++) {
+                assertFalse(states.get(position(origin,facing,x,2,centerZ)).isAir(),"transept floor");
+                for(int y=3;y<=top;y++) assertTrue(states.get(position(origin,facing,x,y,centerZ)).isAir(),"crossing must stay open");
+            }
+            for(int x=0;x<width;x++) for(int z=centerZ-half;z<=centerZ+half;z++) {
+                boolean covered=false;
+                for(int y=top+1;y<=top+9;y++) {
+                    var state=states.get(position(origin,facing,x,y,z));
+                    if(state!=null&&!state.isAir()) covered=true;
+                }
+                assertTrue(covered,"transept/crossing roof coverage");
+            }
+            for(int z=2;z<depth;z++) for(int y=3;y<=4;y++)
+                assertTrue(states.get(position(origin,facing,width/2,y,z)).isAir(),"longitudinal route");
+        }
     }
     private BlockPos position(BlockPos origin,String facing,int x,int y,int z) {
         return switch(facing) {

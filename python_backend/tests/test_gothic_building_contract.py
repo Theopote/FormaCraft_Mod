@@ -55,3 +55,14 @@ class GothicBuildingContractTest(unittest.TestCase):
             plan = {'proportion_hints': {'typology': 'gothic_cathedral_hall'}, 'components': [{'component_type': 'MASS_MAIN', 'params': {'component_id': 'original'}}]}
             repair_gothic_route(plan, text)
             self.assertEqual(plan['components'][0]['component_type'], 'MASS_MAIN')
+
+    def test_cruciform_route_keeps_total_dimensions_and_rejects_too_narrow(self):
+        from app.services.gothic_building_contract import repair_gothic_route
+        for width in (25, 35):
+            plan = {'proportion_hints': {'typology': 'gothic_cathedral_hall'}, 'components': []}
+            repair_gothic_route(plan, f'哥特式教堂，十字形平面，宽{width}格，深45格')
+            self.assertEqual(plan['components'][0]['params']['planVariant'], 'cruciform')
+            self.assertEqual(plan['components'][0]['dimensions']['width'], width)
+        plan = {'proportion_hints': {'typology': 'gothic_cathedral_hall'}, 'components': []}
+        repair_gothic_route(plan, '哥特式教堂，十字形，宽17格')
+        self.assertEqual(plan['components'], [])

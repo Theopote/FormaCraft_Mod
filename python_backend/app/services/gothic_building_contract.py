@@ -45,12 +45,17 @@ def repair_gothic_route(plan: dict, text: str) -> None:
         return
     if not re.search(r'哥特(?:式)?教堂|gothic (?:church|cathedral)', text, re.I):
         return
-    if re.search(r'左栋|右栋|第.+?栋|建筑群|两座|两栋|巴黎圣母院|科隆|notre dame|cologne|chartres|sagrada|横厅|后殿|平屋顶|白色|木质|材料|墙厚|楼板厚', text, re.I):
+    if re.search(r'左栋|右栋|第.+?栋|建筑群|两座|两栋|巴黎圣母院|科隆|notre dame|cologne|chartres|sagrada|后殿|平屋顶|白色|木质|材料|墙厚|楼板厚', text, re.I):
         return
     for pattern, low, high, odd in [(r'宽(\d+)格', 17, 101, True), (r'深(\d+)格', 25, 151, True), (r'中殿墙高(\d+)格', 12, 40, False)]:
         values = {int(m[1]) for m in re.finditer(pattern, text)}
         if len(values) > 1 or any(v < low or v > high or odd and v % 2 == 0 for v in values):
             hints['gothic_route_repair'] = {'route': 'not_repaired', 'reason': 'unsupported_or_conflicting_dimensions'}
+            return
+    if re.search(r'十字形|十字型|cruciform|(?:设置|增加|带有)横厅', text, re.I):
+        requested = re.search(r'宽(\d+)格', text)
+        if requested and int(requested[1]) < 25:
+            hints['gothic_route_repair'] = {'route': 'not_repaired', 'reason': 'cruciform_width_below_25'}
             return
     from .typology_registry import get_typology
     definition = get_typology('gothic_cathedral_hall')
@@ -70,6 +75,15 @@ def repair_gothic_route(plan: dict, text: str) -> None:
                      'features': ['typology:gothic_cathedral_hall']}
         # Only this one native building remains; it owns its nave, aisles and openings.
         plan['components'] = [component]
+    cruciform = bool(re.search(r'十字形|十字型|cruciform|(?:设置|增加|带有)横厅', text, re.I))
+    if cruciform:
+        requested = re.search(r'宽(\d+)格', text)
+        if requested and int(requested[1]) < 25:
+            hints['gothic_route_repair'] = {'route': 'not_repaired', 'reason': 'cruciform_width_below_25'}
+            return
+        params['planVariant'] = 'cruciform'
+    elif re.search(r'不要横厅|不设横厅|no transept', text, re.I):
+        params['planVariant'] = 'basilica'
     params.setdefault('component_id', 'gothic_church')
     params['typology_id'] = 'gothic_cathedral_hall'
     for key, pattern in [('width', r'宽(\d+)格'), ('depth', r'深(\d+)格'), ('wallHeight', r'中殿墙高(\d+)格')]:

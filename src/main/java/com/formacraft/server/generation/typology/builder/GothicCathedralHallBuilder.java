@@ -81,6 +81,11 @@ public final class GothicCathedralHallBuilder {
         int naveX0 = (w - naveW) / 2;
         int naveX1 = naveX0 + naveW - 1;
 
+        if ("cruciform".equalsIgnoreCase(getStringExtra(spec, "planVariant", "basilica"))) {
+            if (w < 25) throw new IllegalArgumentException("Cruciform Gothic hall requires total width >= 25");
+            return generateCruciform(spec, origin, entrance, w, d, wallH);
+        }
+
         // Materials (palette-driven)
         BlockState foundation = Blocks.STONE_BRICKS.getDefaultState();
         BlockState wall = Blocks.STONE_BRICKS.getDefaultState();
@@ -142,10 +147,16 @@ public final class GothicCathedralHallBuilder {
         fillRect(blocks, origin, entrance, 1, y0, 1, w - 2, aisleY1, d - 2, Blocks.AIR.getDefaultState());
 
         // 4) Windows along nave sides (stained)
-        int wy = y0 + Math.max(6, wallH / 2);
+        int wy = Math.min(y1 - 1, aisleY1 + 5);
         for (int z = 4; z <= d - 5; z += buttressStep) {
-            put(blocks, origin, entrance, naveX0, wy, z, window, null);
-            put(blocks, origin, entrance, naveX1, wy, z, window, null);
+            if (wy > aisleY1 + 4) {
+                put(blocks, origin, entrance, naveX0, wy, z, window, null);
+                put(blocks, origin, entrance, naveX1, wy, z, window, null);
+            }
+            for (int y = y0 + 2; y <= y0 + 5; y++) {
+                put(blocks, origin, entrance, 0, y, z, window, null);
+                put(blocks, origin, entrance, w - 1, y, z, window, null);
+            }
         }
 
         // 5) Entrance portal opening (local SOUTH)
@@ -173,6 +184,15 @@ public final class GothicCathedralHallBuilder {
         int roofBaseY = y1 + 1;
         addGableRoof(blocks, origin, entrance, naveX0 - 1, roofBaseY, -1, naveX1 + 1, roofBaseY, d, Math.max(6, wallH / 2), roofStairs, roofSlab, roofTile);
 
+        // Lower aisle roofs rise toward the nave, keeping the tall central volume visible.
+        for (int x = -1; x < naveX0; x++) {
+            int y = aisleY1 + 1 + Math.max(0, x) * 3 / Math.max(1, naveX0 - 1);
+            for (int z = -1; z <= d; z++) {
+                put(blocks, origin, entrance, x, y, z, withFacingIfPossible(roofStairs, Direction.EAST), null);
+                put(blocks, origin, entrance, w - 1 - x, y, z, withFacingIfPossible(roofStairs, Direction.WEST), null);
+            }
+        }
+
         // 8) Flying buttresses (best-effort): outer piers + diagonal braces
         if (getBooleanExtra(spec, "includeButtresses", true))
             addFlyingButtresses(blocks, origin, entrance, w, d, y0 + 2, y1 - 2, buttressStep, wall, trim, roofStairs, naveX0, naveX1);
@@ -196,6 +216,61 @@ public final class GothicCathedralHallBuilder {
 
         String desc = "Gothic Cathedral Hall (gothic_cathedral_hall)";
         return new GeneratedStructure(null, origin, desc, blocks);
+    }
+
+    /** Total width includes the projecting transept; crossing roofs form one envelope. */
+    private static GeneratedStructure generateCruciform(BuildingSpec spec, BlockPos origin,
+                                                        Direction entrance, int w, int d, int wallH) {
+        int bodyW = w - 8, offset = 4;
+        var params = new LinkedHashMap<String, Object>(spec.getExtra());
+        params.put("width", bodyW);
+        params.put("planVariant", "basilica");
+        params.put("facing", "SOUTH");
+        params.remove("layout");
+        var baseSpec = new BuildingSpec();
+        baseSpec.setStyle(spec.getStyle());
+        var base = generate(params, BlockPos.ORIGIN, null, baseSpec);
+        List<PlannedBlock> blocks = new ArrayList<>();
+        for (var block : base.getBlocks()) {
+            var p = block.getPos();
+            put(blocks, origin, entrance, p.getX()+offset, p.getY(), p.getZ(), block.getTargetState(), null);
+        }
+        int naveW = Math.max(9, bodyW-10), nx0=(w-naveW)/2, nx1=nx0+naveW-1;
+        int centerZ=d/3, half= Math.max(4, naveW/2), z0=centerZ-half, z1=centerZ+half;
+        int top=wallH+3, roofBase=top+1, rise=Math.max(6,wallH/2);
+        // Reuse resolved materials from the longitudinal hall, including its palette.
+        var states = new java.util.HashMap<BlockPos, BlockState>();
+        for (var block : base.getBlocks()) states.put(block.getPos(), block.getTargetState());
+        BlockState wall=states.get(new BlockPos(0,4,0));
+        BlockState floor=states.get(new BlockPos(bodyW/2,2,2));
+        BlockState foundation=states.get(new BlockPos(bodyW/2,0,2));
+        BlockState tile=Blocks.DEEPSLATE_TILES.getDefaultState();
+        BlockState stair=states.get(new BlockPos((bodyW-naveW)/2-1,roofBase,2));
+        BlockState ridge=states.get(new BlockPos(bodyW/2,roofBase+rise,2));
+        fillRect(blocks,origin,entrance,0,0,z0,w-1,1,z1,foundation);
+        fillRect(blocks,origin,entrance,0,2,z0,w-1,2,z1,floor);
+        for(int y=3;y<=top;y++) ringRect(blocks,origin,entrance,0,y,z0,w-1,y,z1,wall);
+        fillRect(blocks,origin,entrance,1,3,z0+1,w-2,top,z1-1,Blocks.AIR.getDefaultState());
+        // Open the longitudinal hall through both crossing faces.
+        fillRect(blocks,origin,entrance,nx0+1,3,z0,nx1-1,top,z1,Blocks.AIR.getDefaultState());
+        for(int x:new int[]{0,w-1}) for(int y=6;y<=10;y++)
+            put(blocks,origin,entrance,x,y,centerZ,Blocks.RED_STAINED_GLASS_PANE.getDefaultState(),null);
+        // At the crossing, use the higher of the two slopes and remove lower roof remnants.
+        for(int x=-1;x<=w;x++) for(int z=z0-1;z<=z1+1;z++) {
+            boolean onNave=x>=nx0-1 && x<=nx1+1;
+            int transverseInset=Math.min(z-(z0-1),(z1+1)-z);
+            int transverseY=roofBase+(int)Math.round((double)transverseInset*rise/(half+1));
+            int longitudinalY=onNave ? roofBase+(int)Math.round((double)Math.min(x-(nx0-1),(nx1+1)-x)*rise/((naveW+1)/2)) : roofBase;
+            int roofY=Math.max(transverseY,longitudinalY);
+            for(int y=roofBase;y<=roofBase+rise;y++) put(blocks,origin,entrance,x,y,z,Blocks.AIR.getDefaultState(),null);
+            boolean longitudinal=onNave && longitudinalY>=transverseY;
+            Direction slope=longitudinal ? (x<=w/2?Direction.EAST:Direction.WEST) : (z<=centerZ?Direction.SOUTH:Direction.NORTH);
+            // Solid risers seal the stepped surface and the two exposed arm gables.
+            int sealFrom=roofBase;
+            for(int y=sealFrom;y<roofY;y++) put(blocks,origin,entrance,x,y,z,tile,null);
+            put(blocks,origin,entrance,x,roofY,z,roofY==roofBase+rise?ridge:withFacingIfPossible(stair,slope),null);
+        }
+        return new GeneratedStructure(null,origin,"Gothic cruciform hall",blocks);
     }
 
     private static void addRoseWindow(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
@@ -290,25 +365,20 @@ public final class GothicCathedralHallBuilder {
     private static void addGableRoof(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
                                      int x0, int y0, int z0, int x1, int y1, int z1,
                                      int h, BlockState stairs, BlockState slab, BlockState cap) {
-        int lx0 = x0, lx1 = x1;
-        int lz0 = z0, lz1 = z1;
-        for (int i = 0; i < h; i++) {
-            int y = y0 + i;
-            for (int x = lx0; x <= lx1; x++) {
-                put(blocks, origin, entrance, x, y, lz0, withFacingIfPossible(stairs, rotateDir(Direction.SOUTH, entrance)), null);
-                put(blocks, origin, entrance, x, y, lz1, withFacingIfPossible(stairs, rotateDir(Direction.NORTH, entrance)), null);
+        int half = Math.max(1, (x1 - x0) / 2);
+        for (int x = x0; x <= x1; x++) {
+            int inset = Math.min(x - x0, x1 - x);
+            int y = y0 + (int) Math.round((double) inset * h / half);
+            BlockState material = inset == half ? slab : stairs;
+            Direction slope = x <= (x0+x1)/2 ? Direction.EAST : Direction.WEST;
+            for (int z = z0; z <= z1; z++) {
+                if (z == z0 || z == z1) for (int sealY = y0; sealY < y; sealY++)
+                    put(blocks, origin, entrance, x, sealY, z, cap, null);
+                int previousY = y0 + (int) Math.round((double) Math.max(0, inset - 1) * h / half);
+                for (int sealY = previousY; sealY < y; sealY++)
+                    put(blocks, origin, entrance, x, sealY, z, cap, null);
+                put(blocks, origin, entrance, x, y, z, withFacingIfPossible(material, slope), null);
             }
-            lz0 += 1;
-            lz1 -= 1;
-            if (lz0 > lz1) break;
-        }
-        int topY = y0 + h;
-        if (lz0 <= lz1) {
-            int zMid = (lz0 + lz1) / 2;
-            for (int x = lx0 + 1; x <= lx1 - 1; x++) {
-                put(blocks, origin, entrance, x, topY, zMid, slab, null);
-            }
-            put(blocks, origin, entrance, (lx0 + lx1) / 2, topY + 1, zMid, cap, null);
         }
     }
 
