@@ -115,13 +115,13 @@ public final class CourtyardCompoundBuilder {
 
         // Compute child building corner positions relative to the compound center (origin).
         // We intentionally keep all child buildings axis-aligned; only their door side changes to face the courtyard.
-        BlockPos mainCorner = placeCornerOnSide(gateSide.getOpposite(), halfW, halfD, inset, mainW, mainD);
-        BlockPos gateCorner = placeCornerOnSide(gateSide, halfW, halfD, inset, gateW, gateD);
+        BlockPos mainCorner = placeCornerOnSide(gateSide.getOpposite(), w, d, inset, mainW, mainD);
+        BlockPos gateCorner = placeCornerOnSide(gateSide, w, d, inset, gateW, gateD);
         Direction inDir = gateSide.getOpposite(); // direction from gate into the courtyard
         Direction leftSide = inDir.rotateYCounterclockwise();
         Direction rightSide = inDir.rotateYClockwise();
-        BlockPos leftCorner = placeCornerOnSide(leftSide, halfW, halfD, inset, wingW, wingD);
-        BlockPos rightCorner = placeCornerOnSide(rightSide, halfW, halfD, inset, wingW, wingD);
+        BlockPos leftCorner = placeCornerOnSide(leftSide, w, d, inset, wingW, wingD);
+        BlockPos rightCorner = placeCornerOnSide(rightSide, w, d, inset, wingW, wingD);
 
         // child specs (delegated generators)
         BuildingSpec mainHall = makeHallSpec(mainW, mainD, roofBlock, wallBlock, floorBlock, foundationBlock, "main_hall");
@@ -182,7 +182,7 @@ public final class CourtyardCompoundBuilder {
         // simple courtyard paths (v1): gate -> center -> main hall; center -> wings
         if (includePaths) {
             // start just inside the gate opening
-            BlockPos start = insideGatePoint(gateSide, halfW, halfD);
+            BlockPos start = insideGatePoint(gateSide, w, d);
             BlockPos center = new BlockPos(0, 0, 0);
 
             // door points derived from child corners + entrance-facing directions
@@ -201,9 +201,9 @@ public final class CourtyardCompoundBuilder {
             if ("ring_corridor".equals(layoutPlan)) {
                 int ringInset = Math.max(2, wallThickness + 2);
                 int x0 = -halfW + ringInset;
-                int x1 = halfW - ringInset;
+                int x1 = w - halfW - 1 - ringInset;
                 int z0 = -halfD + ringInset;
-                int z1 = halfD - ringInset;
+                int z1 = d - halfD - 1 - ringInset;
                 // clamp to avoid degenerate loops on tight footprints
                 if (x1 - x0 >= 6 && z1 - z0 >= 6) {
                     List<BlockPos> loop = List.of(
@@ -388,27 +388,9 @@ public final class CourtyardCompoundBuilder {
         return s;
     }
 
-    private static Direction resolveGateSide(BuildingSpec spec) {
-        // Layout IR: extra.layout.entranceFacing -> which side has the gate opening.
-        try {
-            if (spec != null && spec.getExtra() != null) {
-                Object layoutObj = spec.getExtra().get("layout");
-                if (layoutObj instanceof Map<?, ?> m) {
-                    Object ef = m.get("entranceFacing");
-                    if (ef != null) {
-                        String s = String.valueOf(ef).trim().toUpperCase(java.util.Locale.ROOT);
-                        return switch (s) {
-                            case "N", "NORTH", "北", "朝北" -> Direction.NORTH;
-                            case "S", "SOUTH", "南", "朝南" -> Direction.SOUTH;
-                            case "E", "EAST", "东", "朝东" -> Direction.EAST;
-                            case "W", "WEST", "西", "朝西" -> Direction.WEST;
-                            default -> Direction.SOUTH;
-                        };
-                    }
-                }
-            }
-        } catch (Throwable ex) { LOG.debug("best-effort step failed", ex); }
-        return Direction.SOUTH;
+    /** Same entrance contract as child generators: layout, doorSide, then facing. */
+    public static Direction resolveGateSide(BuildingSpec spec) {
+        return StructureSpecParsers.resolveEntranceFacing(spec, Direction.SOUTH);
     }
 
     private static String resolveLayoutPlan(BuildingSpec spec) {
@@ -467,30 +449,32 @@ public final class CourtyardCompoundBuilder {
         child.setExtra(ex);
     }
 
-    private static BlockPos placeCornerOnSide(Direction side, int halfW, int halfD, int inset, int bw, int bd) {
-        // Returns a relative corner position (minX,minZ) for an axis-aligned rectangle inside the enclosure.
+    private static BlockPos placeCornerOnSide(Direction side, int width, int depth, int inset, int bw, int bd) {
+        // Returns a relative corner inside the exact enclosure bounds.
+        int halfW = width / 2, halfD = depth / 2;
         int x;
         int z;
         side = (side == null) ? Direction.SOUTH : side;
         switch (side) {
             case NORTH -> { x = -(bw / 2); z = -halfD + inset; }
-            case SOUTH -> { x = -(bw / 2); z = halfD - inset - bd; }
+            case SOUTH -> { x = -(bw / 2); z = depth - halfD - inset - bd; }
             case WEST -> { x = -halfW + inset; z = -(bd / 2); }
-            case EAST -> { x = halfW - inset - bw; z = -(bd / 2); }
-            default -> { x = -(bw / 2); z = halfD - inset - bd; }
+            case EAST -> { x = width - halfW - inset - bw; z = -(bd / 2); }
+            default -> { x = -(bw / 2); z = depth - halfD - inset - bd; }
         }
         return new BlockPos(x, 0, z);
     }
 
-    private static BlockPos insideGatePoint(Direction gateSide, int halfW, int halfD) {
+    private static BlockPos insideGatePoint(Direction gateSide, int width, int depth) {
         // A point just inside the gate opening (relative to compound origin).
+        int halfW = width / 2, halfD = depth / 2;
         gateSide = (gateSide == null) ? Direction.SOUTH : gateSide;
         return switch (gateSide) {
             case NORTH -> new BlockPos(0, 0, -halfD + 1);
-            case SOUTH -> new BlockPos(0, 0, halfD - 1);
+            case SOUTH -> new BlockPos(0, 0, depth - halfD - 2);
             case WEST -> new BlockPos(-halfW + 1, 0, 0);
-            case EAST -> new BlockPos(halfW - 1, 0, 0);
-            default -> new BlockPos(0, 0, halfD - 1);
+            case EAST -> new BlockPos(width - halfW - 2, 0, 0);
+            default -> new BlockPos(0, 0, depth - halfD - 2);
         };
     }
 

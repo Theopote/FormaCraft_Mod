@@ -40,6 +40,46 @@ class ChineseBuildingCoordinateTest {
         assertArrayEquals(new int[]{16,96},CourtyardCompoundBuilder.resolvedDimensions(spec));
     }
 
+    @Test void courtyardGateHonorsFacingAndLayoutPrecedence() {
+        var spec=new BuildingSpec();
+        for(String facing:List.of("NORTH","SOUTH","EAST","WEST")) {
+            spec.setExtra(Map.of("facing",facing));
+            assertEquals(net.minecraft.util.math.Direction.valueOf(facing),CourtyardCompoundBuilder.resolveGateSide(spec));
+        }
+        spec.setExtra(Map.of("facing","NORTH","doorSide","东"));
+        assertEquals(net.minecraft.util.math.Direction.EAST,CourtyardCompoundBuilder.resolveGateSide(spec));
+        spec.setExtra(Map.of("facing","NORTH","doorSide","EAST","layout",Map.of("entranceFacing","西")));
+        assertEquals(net.minecraft.util.math.Direction.WEST,CourtyardCompoundBuilder.resolveGateSide(spec));
+        spec.setExtra(Map.of("facing","UP"));
+        assertEquals(net.minecraft.util.math.Direction.SOUTH,CourtyardCompoundBuilder.resolveGateSide(spec));
+    }
+
+    @Test void enclosureKeepsExactEvenAndOddDimensionsAndGateClearance() {
+        for(int width:List.of(20,21,44,45)) for(int depth:List.of(30,31))
+            for(var facing:List.of(net.minecraft.util.math.Direction.NORTH,net.minecraft.util.math.Direction.SOUTH,
+                    net.minecraft.util.math.Direction.EAST,net.minecraft.util.math.Direction.WEST)) {
+                var plan=new com.formacraft.common.skeleton.rect.RectEnclosurePlan(width,depth,3,1,facing,3);
+                var origin=new BlockPos(80,64,-120);
+                var blocks=new com.formacraft.server.skeleton.rect.RectEnclosureInterpreter(
+                        net.minecraft.block.Blocks.STONE_BRICKS.getDefaultState(),net.minecraft.block.Blocks.STONE_BRICK_SLAB.getDefaultState())
+                        .interpret(plan,origin,null);
+                assertEquals(width,blocks.stream().mapToInt(b->b.getPos().getX()).max().orElseThrow()
+                        -blocks.stream().mapToInt(b->b.getPos().getX()).min().orElseThrow()+1);
+                assertEquals(depth,blocks.stream().mapToInt(b->b.getPos().getZ()).max().orElseThrow()
+                        -blocks.stream().mapToInt(b->b.getPos().getZ()).min().orElseThrow()+1);
+                var gate=switch(facing) {
+                    case NORTH -> origin.add(0,0,-depth/2);
+                    case EAST -> origin.add(width-width/2-1,0,0);
+                    case WEST -> origin.add(-width/2,0,0);
+                    default -> origin.add(0,0,depth-depth/2-1);
+                };
+                var states=new HashMap<BlockPos,BlockState>();
+                blocks.forEach(b->states.put(b.getPos(),b.getTargetState()));
+                assertTrue(states.get(gate.up()).isAir());
+                assertTrue(states.get(gate.up(2)).isAir());
+            }
+    }
+
     @Test void hallLandingUsesActualFoundationEnvelopeAcrossFacings() {
         for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(boolean sub:List.of(false,true)) {
             var params=Map.<String,Object>of("width",25,"depth",15,"facing",facing,"includeSubEaves",sub);
