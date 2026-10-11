@@ -299,6 +299,8 @@ class BuildingLandingPlannerTest {
                             "facing",facing,"includeTowers",false,"includeButtresses",false),origin,null,null);
             var input=generated.getBlocks();
             var bounds=sites.getFirst().body();
+            assertEquals(origin.getX(),(bounds.minX()+bounds.maxX())/2,"landing X center matches mouse anchor");
+            assertEquals(origin.getZ(),(bounds.minZ()+bounds.maxZ())/2,"landing Z center matches mouse anchor");
             var terrain=ground((x,z)->((x+z)%7==0)?63:64);
             var result=BuildingLandingPlanner.prepare(input,sites,terrain,GlobalConstraints.TerrainStrategy.ADAPTIVE,
                     false,Blocks.COBBLESTONE.getDefaultState());

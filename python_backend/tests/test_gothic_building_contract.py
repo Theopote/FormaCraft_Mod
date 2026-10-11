@@ -11,6 +11,11 @@ class GothicBuildingContractTest(unittest.TestCase):
         apply_gothic_building_contract(plan, '左栋设置室内肋拱')
         self.assertNotIn('includeRibVault', plan['components'][0]['params'])
 
+    def test_entrance_steps_can_be_disabled(self):
+        plan = self.plan()
+        apply_gothic_building_contract(plan, '不要入口大台阶')
+        self.assertFalse(plan['components'][0]['params']['includeEntranceSteps'])
+
     def plan(self):
         return {'components': [{'component_type': 'STRUCTURE', 'features': ['typology:gothic_cathedral_hall'], 'params': {'component_id': 'church'}}]}
 

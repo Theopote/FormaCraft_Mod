@@ -54,7 +54,12 @@ public final class GothicCathedralHallBuilder {
             merged.putAll(params);
         }
         spec.setExtra(merged);
-        return generateFromSpec(spec, origin, world);
+        int width=clampOdd(getIntExtra(spec,"width",spec.getFootprint()!=null?spec.getFootprint().getWidth():25),17,101);
+        int depth=clampOdd(getIntExtra(spec,"depth",spec.getFootprint()!=null?spec.getFootprint().getDepth():45),25,151);
+        BlockPos corner=cornerOrigin(origin,resolveEntranceFacing(spec),width,depth,
+                getStringExtra(spec,"anchorMode","center"));
+        var generated=generateFromSpec(spec, corner, world);
+        return new GeneratedStructure(null,origin,generated.getDescription(),generated.getBlocks());
     }
 
     private static GeneratedStructure generateFromSpec(BuildingSpec spec, BlockPos origin, ServerWorld world) {
@@ -164,6 +169,17 @@ public final class GothicCathedralHallBuilder {
             }
         }
 
+        if (getBooleanExtra(spec,"includeEntranceSteps",true)) {
+            int halfStep=Math.min(6,Math.max(4,naveW/2-1));
+            // A broad landing at floor level, then three supported descending treads.
+            for(int x=w/2-halfStep;x<=w/2+halfStep;x++) for(int run=0;run<=3;run++) {
+                int z=d+run, y=run==0?2:3-run;
+                for(int yy=0;yy<y;yy++) put(blocks,origin,entrance,x,yy,z,foundation,null);
+                put(blocks,origin,entrance,x,y,z,run==0?floor:withFacingIfPossible(Blocks.STONE_BRICK_STAIRS.getDefaultState(),Direction.NORTH),null);
+                for(int yy=y+1;yy<=8;yy++) put(blocks,origin,entrance,x,yy,z,Blocks.AIR.getDefaultState(),null);
+            }
+        }
+
         // 5) Entrance portal opening (local SOUTH)
         int mx = w / 2;
         int zFront = d - 1;
@@ -245,6 +261,7 @@ public final class GothicCathedralHallBuilder {
         var params = new LinkedHashMap<String, Object>(spec.getExtra());
         params.put("width", bodyW);
         params.put("planVariant", "basilica");
+        params.put("anchorMode", "corner");
         params.put("facing", "SOUTH");
         params.remove("layout");
         var baseSpec = new BuildingSpec();
@@ -470,6 +487,12 @@ public final class GothicCathedralHallBuilder {
             s = rotateState(s, entrance);
         }
         blocks.add(new PlannedBlock(local(origin, entrance, x, y, z), s));
+    }
+
+    /** Mouse anchor is the body bottom center; attached stairs do not move that center. */
+    public static BlockPos cornerOrigin(BlockPos anchor, Direction facing, int width, int depth, String mode) {
+        if ("corner".equalsIgnoreCase(mode) || "bottom_left".equalsIgnoreCase(mode)) return anchor;
+        return local(anchor,facing,-width/2,0,-depth/2);
     }
 
     private static BlockPos local(BlockPos origin, Direction entrance, int x, int y, int z) {

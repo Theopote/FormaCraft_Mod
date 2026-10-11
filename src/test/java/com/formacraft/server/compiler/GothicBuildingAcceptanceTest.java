@@ -7,12 +7,38 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GothicBuildingAcceptanceTest {
+    private static com.formacraft.common.build.GeneratedStructure generateCorner(Map<String,Object> params,
+            BlockPos origin, net.minecraft.server.world.ServerWorld world, com.formacraft.common.model.build.BuildingSpec spec) {
+        var copy=new HashMap<String,Object>(params); copy.put("anchorMode","corner");
+        return GothicCathedralHallBuilder.generate(copy,origin,world,spec);
+    }
+    @Test void mouseAnchorCentersBodyAndEntranceStairsRemainSupportedAcrossFacings() {
+        for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(String variant:List.of("basilica","cruciform")) {
+            var anchor=new BlockPos(100,64,-80);
+            var structure=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"facing",facing,
+                    "planVariant",variant,"includeTowers",false),anchor,null,null);
+            assertEquals(anchor,structure.getOrigin());
+            var corner=GothicCathedralHallBuilder.cornerOrigin(anchor,net.minecraft.util.math.Direction.valueOf(facing),35,45,"center");
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var block:structure.getBlocks()) states.put(block.getPos(),block.getTargetState());
+            assertEquals(anchor,position(corner,facing,17,0,22));
+            assertFalse(states.get(anchor).isAir(),"bottom center foundation");
+            for(int run=0;run<=3;run++) {
+                int y=run==0?2:3-run;
+                for(int x=13;x<=21;x++) {
+                    assertFalse(states.get(position(corner,facing,x,y,45+run)).isAir(),"broad tread");
+                    for(int yy=0;yy<y;yy++) assertFalse(states.get(position(corner,facing,x,yy,45+run)).isAir(),"solid support");
+                    if(run>0 || Math.abs(x-17)<=1) assertTrue(states.get(position(corner,facing,x,y+1,45+run)).isAir(),"head clearance");
+                }
+            }
+        }
+    }
     @org.junit.jupiter.api.BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     @Test void completeHallPreservesPortalNaveRoseAndTwinTowersAcrossSizesAndFacings() {
         for(int width:List.of(17,25,35)) for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) {
             int depth=35, wallHeight=width==17?12:16;
             var origin=new BlockPos(20,50,-10);
-            var building=GothicCathedralHallBuilder.generate(Map.of("width",width,"depth",depth,
+            var building=generateCorner(Map.of("width",width,"depth",depth,
                     "wallHeight",wallHeight,"facing",facing),origin,null,null);
             var finalStates=new HashMap<BlockPos,BlockState>();
             for(var block:building.getBlocks()) finalStates.put(block.getPos(),block.getTargetState());
@@ -54,7 +80,7 @@ class GothicBuildingAcceptanceTest {
     @Test void interiorRibsAreSupportedRotatedOptionalAndKeepTheCentralRouteOpen() {
         for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) for(boolean enabled:List.of(false,true)) {
             var origin=new BlockPos(20,50,-10);
-            var structure=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,
+            var structure=generateCorner(Map.of("width",35,"depth",45,
                     "wallHeight",16,"facing",facing,"includeTowers",false,"includeButtresses",false,
                     "includeRibVault",enabled),origin,null,null);
             var states=new HashMap<BlockPos,BlockState>();
@@ -70,7 +96,7 @@ class GothicBuildingAcceptanceTest {
 
     @Test void optionalElementsCanBeRemovedWithoutBlockingTheHall() {
         var origin=BlockPos.ORIGIN;
-        var building=GothicCathedralHallBuilder.generate(Map.of("width",25,"depth",35,"wallHeight",16,
+        var building=generateCorner(Map.of("width",25,"depth",35,"wallHeight",16,
                 "includeRoseWindow",false,"includeButtresses",false,"includeTowers",false),origin,null,null);
         var states=new HashMap<BlockPos,BlockState>();
         for(var block:building.getBlocks()) states.put(block.getPos(),block.getTargetState());
@@ -83,7 +109,7 @@ class GothicBuildingAcceptanceTest {
         for(int width:List.of(25,35)) for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) {
             int depth=45, top=19, centerZ=depth/3, half=Math.max(4,Math.max(9,width-18)/2);
             var origin=new BlockPos(20,50,-10);
-            var structure=GothicCathedralHallBuilder.generate(Map.of("width",width,"depth",depth,
+            var structure=generateCorner(Map.of("width",width,"depth",depth,
                     "wallHeight",16,"facing",facing,"planVariant","cruciform",
                     "includeTowers",false,"includeButtresses",false),origin,null,null);
             var states=new HashMap<BlockPos,BlockState>();
@@ -109,7 +135,7 @@ class GothicBuildingAcceptanceTest {
         for(String variant:List.of("basilica","cruciform")) {
             int width=35, depth=45, bodyW=variant.equals("cruciform")?27:35;
             int naveW=bodyW-10, half=(naveW+1)/2, rise=(int)Math.ceil(half*1.2);
-            var building=GothicCathedralHallBuilder.generate(Map.of("width",width,"depth",depth,
+            var building=generateCorner(Map.of("width",width,"depth",depth,
                     "wallHeight",16,"planVariant",variant,"includeTowers",false,
                     "includeButtresses",false),BlockPos.ORIGIN,null,null);
             var states=new HashMap<BlockPos,BlockState>();
@@ -131,7 +157,7 @@ class GothicBuildingAcceptanceTest {
         for(String variant:List.of("basilica","cruciform")) {
             int width=35, bodyWidth=variant.equals("cruciform")?27:35, offset=(width-bodyWidth)/2;
             int naveStart=(bodyWidth-(bodyWidth-10))/2, aisleTop=13;
-            var result=GothicCathedralHallBuilder.generate(Map.of("width",width,"depth",45,
+            var result=generateCorner(Map.of("width",width,"depth",45,
                     "wallHeight",16,"planVariant",variant,"includeTowers",false,
                     "includeButtresses",false),BlockPos.ORIGIN,null,null);
             var states=new HashMap<BlockPos,BlockState>();
@@ -150,7 +176,7 @@ class GothicBuildingAcceptanceTest {
     @Test void pointedWindowLightsFramesAndBayBoundariesSurviveAcrossFacings() {
         for(int step:List.of(4,5,7,8)) for(String facing:List.of("SOUTH","NORTH","EAST","WEST")) {
             var origin=new BlockPos(10,60,-20);
-            var building=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+            var building=generateCorner(Map.of("width",35,"depth",45,"wallHeight",16,
                     "facing",facing,"buttressStep",step,"includeTowers",false),origin,null,null);
             var states=new HashMap<BlockPos,BlockState>();
             for(var b:building.getBlocks()) states.put(b.getPos(),b.getTargetState());
@@ -170,7 +196,7 @@ class GothicBuildingAcceptanceTest {
     }
     @Test void traceryAndFacadeWindowOptoutsAreIndependentOfRoseWindow() {
         for(boolean windows:List.of(true,false)) {
-            var building=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+            var building=generateCorner(Map.of("width",35,"depth",45,"wallHeight",16,
                     "planVariant","cruciform","includeTowers",false,"includeWindowTracery",false,
                     "includeWindows",windows),BlockPos.ORIGIN,null,null);
             var states=new HashMap<BlockPos,BlockState>();
@@ -182,7 +208,7 @@ class GothicBuildingAcceptanceTest {
     }
     @Test void towerConfigurationsAndFullSpireHeightsAreRealGeometry() {
         for(String arrangement:List.of("none","single","twin")) for(int spire:List.of(6,10,20)) {
-            var result=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+            var result=generateCorner(Map.of("width",35,"depth",45,"wallHeight",16,
                     "towerHeight",24,"spireHeight",spire,"towerArrangement",arrangement,
                     "includeButtresses",false),BlockPos.ORIGIN,null,null);
             var states=new HashMap<BlockPos,BlockState>();
@@ -196,7 +222,7 @@ class GothicBuildingAcceptanceTest {
         }
     }
     @Test void flyingArchIsSupportedAboveTheAisleAndLeavesAirBelow() {
-        var result=GothicCathedralHallBuilder.generate(Map.of("width",35,"depth",45,"wallHeight",16,
+        var result=generateCorner(Map.of("width",35,"depth",45,"wallHeight",16,
                 "includeTowers",false),BlockPos.ORIGIN,null,null);
         var states=new HashMap<BlockPos,BlockState>();
         for(var b:result.getBlocks()) states.put(b.getPos(),b.getTargetState());

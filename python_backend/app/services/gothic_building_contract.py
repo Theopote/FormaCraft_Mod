@@ -2,6 +2,7 @@
 import re
 
 _PATTERNS = {
+    'includeEntranceSteps': r'(?:不要|不设|取消)(?:入口)?(?:大)?台阶|\bno entrance steps\b',
     'includeRibVault': r'(?:不要|不设|不生成|取消)(?:室内)?肋拱|\bno rib vault\b',
     'includeWindowTracery': r'(?:不要|不设|不生成|取消)窗花|\bno (?:window )?tracery\b',
     'includeWindows': r'(?:所有墙面|全部墙面|整座建筑)(?:都)?(?:不要|不设|不开)窗(?:户)?|\bno windows anywhere\b',
@@ -106,6 +107,7 @@ def repair_gothic_route(plan: dict, text: str) -> None:
         params['planVariant'] = 'basilica'
     params.setdefault('component_id', 'gothic_church')
     params['typology_id'] = 'gothic_cathedral_hall'
+    params['anchorMode'] = 'center'  # Mouse-selected anchor is the body bottom center.
     for key, pattern in [('width', r'宽(\d+)格'), ('depth', r'深(\d+)格'), ('wallHeight', r'中殿墙高(\d+)格'), ('roofRise', r'屋顶升高(\d+)格'), ('towerHeight', r'塔身高(\d+)格'), ('spireHeight', r'尖顶高(\d+)格')]:
         values = {int(m[1]) for m in re.finditer(pattern, text)}
         if len(values) == 1: params[key] = values.pop()

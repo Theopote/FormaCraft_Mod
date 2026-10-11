@@ -96,6 +96,9 @@ public final class BuildingLandingPlanner {
                 int depth=c.dimensions()!=null?c.dimensions().depth():45;
                 int height=c.dimensions()!=null?c.dimensions().height():40;
                 var facing=GlobalConstraints.Facing.valueOf(String.valueOf(c.params().getOrDefault("facing","SOUTH")).toUpperCase(Locale.ROOT));
+                base=com.formacraft.server.generation.typology.builder.GothicCathedralHallBuilder.cornerOrigin(
+                        base,net.minecraft.util.math.Direction.valueOf(facing.name()),width,depth,
+                        String.valueOf(c.params().getOrDefault("anchorMode","center")));
                 int dx=width-1,dz=depth-1;
                 int minX=0,maxX=dx,minZ=0,maxZ=dz;
                 switch(facing) {
@@ -143,7 +146,7 @@ public final class BuildingLandingPlanner {
         if(policy.material()!=null) fill=policy.material();
         if(sites.size()<2 || stilt || strategy==GlobalConstraints.TerrainStrategy.PRESERVE)
             return prepareRigid(input,sites,ground,strategy,stilt,fill,policy);
-        long area=sites.stream().mapToLong(s->(long)s.body().expand(2).width()*s.body().expand(2).depth()).sum();
+        long area=sites.stream().mapToLong(s->(long)s.body().expand(4).width()*s.body().expand(4).depth()).sum();
         if(area>MAX_AREA) return failure(input,"建筑占地过大，建议分批生成或缩小范围。");
         // Keep all authored contacts (including clearance volumes) rigid. Detached accessories
         // belong to the nearest building; a connecting platform merges those buildings.
@@ -210,7 +213,7 @@ public final class BuildingLandingPlanner {
                                  GlobalConstraints.TerrainStrategy strategy, boolean stilt, BlockState fill, boolean transition, TerrainSupportPolicy policy) {
         if (sites.isEmpty() || strategy == GlobalConstraints.TerrainStrategy.PRESERVE)
             return new Result(input, 0, null, 0, 0);
-        long area = sites.stream().mapToLong(s -> (long) s.body().expand(2).width() * s.body().expand(2).depth()).sum();
+        long area = sites.stream().mapToLong(s -> (long) s.body().expand(4).width() * s.body().expand(4).depth()).sum();
         if (area > MAX_AREA) return failure(input, "建筑占地过大，建议分批生成或缩小范围。");
         Map<Long, Integer> surfaces = new HashMap<>();
         Map<Long, Integer> placement = new HashMap<>();
@@ -249,7 +252,7 @@ public final class BuildingLandingPlanner {
             var original = site.body();
             var b = new LlmPlanTerrainBounds.Bounds(original.minX(), original.minY()+dy, original.minZ(),
                     original.maxX(), original.maxY()+dy, original.maxZ());
-            var pad = b.expand(2);
+            var pad = b.expand(4); // Include authored entrance treads; unoccupied columns are still skipped.
             for (int x=pad.minX(); x<=pad.maxX(); x++) for (int z=pad.minZ(); z<=pad.maxZ(); z++) {
                 long k = key(x,z);
                 Integer bottom = bottoms.get(k), top = tops.get(k);
