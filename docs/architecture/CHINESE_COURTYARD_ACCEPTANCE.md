@@ -22,6 +22,48 @@
 
 ## 当前边界
 
-子体屋顶目前固定硬山、一格侧向出檐，无副檐或新增官式斗拱；材料共用院落屋顶、墙、地面与基础，柱梁和窗棂为内置木材。尚未实现子体独立材料/屋型、历史等级比例、多进院、真实廊架、室内功能和庭院全铺。`ring_corridor` 仍是路径环路，不是实体回廊。子体 `front_back`/`left_right` 分隔明确拒绝。
+子体默认硬山、一格侧向出檐，无副檐或新增官式斗拱。现在支持完整庭院铺装及各房独立屋型、屋面参数和材料覆盖，参数见下节。尚未实现历史等级比例、多进院、真实廊架及室内功能。`ring_corridor` 仍是路径环路，不是实体回廊。子体 `front_back`/`left_right` 分隔明确拒绝。
+
+## 完整铺装与分房参数
+
+`paveCourtyard=true` 铺满围墙以内地面，不改变共同地面标高；地形补填仍由整体落地处理。默认 false 保留仅铺路径的表达。
+
+`roomDefaults` 为所有子体的默认参数，`rooms` 使用 `main_hall`、`left_wing`、`right_wing`、`gate_house` 四个名称分别覆盖。支持以下字段：
+
+- `roofType`：ying_shan、xuan_shan、xie_shan、wu_dian。
+- `roofRise`：3–18格；省略时按各房进深自动推导，不接受显式0。
+- `roofOverhang`：0–3格；`roofCurve`：0–100；`roofCornerLift`：0–3格，仅有出檐的歇山/庑殿支持。
+- `wall_block`、`roof_block`、`floor_block`、`foundation_block`、`pillar_block`、`beam_block`、`window_block`：有效注册方块ID。空气、流体、未知ID明确拒绝。
+
+优先级为分房参数、roomDefaults、院落共享材料、内置默认。道路不覆盖房内地板。采用最大出檐的保守矩形包络校验，布局会缩小派生子体；无法容纳时明确报错，不扩大指定围合。未知分房名称或不支持字段拒绝，不静默忽略。
+
+计划参数示例（放在原生 STRUCTURE 的 params 中）：
+
+```json
+{
+  "typology_id": "courtyard_compound",
+  "width": 48,
+  "depth": 64,
+  "facing": "SOUTH",
+  "paveCourtyard": true,
+  "roomDefaults": {
+    "roofOverhang": 2,
+    "roofCurve": 40,
+    "wall_block": "minecraft:white_concrete",
+    "pillar_block": "minecraft:acacia_log",
+    "beam_block": "minecraft:birch_log",
+    "floor_block": "minecraft:birch_planks",
+    "window_block": "minecraft:glass"
+  },
+  "rooms": {
+    "main_hall": {"roofType": "wu_dian", "roofRise": 8, "roofCornerLift": 1},
+    "left_wing": {"roofType": "xie_shan", "roofRise": 8, "roofCornerLift": 1},
+    "right_wing": {"roofType": "ying_shan", "roofRise": 8},
+    "gate_house": {"roofType": "xuan_shan", "roofRise": 8}
+  }
+}
+```
+
+新增能力已写入类型规划提示，但尚未建立针对复杂分房自然语言的后端强制契约；验收需确认实际计划包含相应字段。上述混合屋型案例用于检查生成参数，不是历史官式配置范本。屋面使用所选材料整块表皮；柱梁材料更换不保证真实结构受力。
 
 自动测试检查最终方块、四朝向、奇偶尺寸、三种院落占地、全屋地板、柱位保护、屋顶空腔和院心至四房通行；游戏验收仍待用户反馈。

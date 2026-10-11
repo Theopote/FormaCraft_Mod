@@ -344,7 +344,8 @@
         "width": { "min": 16, "ideal": 32, "max": 96, "desc": "院落占地宽" },
         "depth": { "min": 16, "ideal": 28, "max": 96, "desc": "院落占地深" },
         "includePaths": { "min": 0, "ideal": 1, "max": 1, "desc": "内院铺径（0/1）" },
-        "pathWidth": { "min": 1, "ideal": 3, "max": 7, "desc": "内院路径宽" }
+        "pathWidth": { "min": 1, "ideal": 3, "max": 7, "desc": "内院路径宽" },
+        "paveCourtyard": { "min": 0, "ideal": 0, "max": 1, "desc": "围墙以内完整院地铺装，默认关闭" }
       },
       "referenceLandmarks": [
         {
@@ -355,7 +356,7 @@
       ],
       "proportionCardIds": ["courtyard_compound"],
       "cultureCardIds": ["mingqing_courtyard"],
-      "llmPlanGuidance": "Use structural_typology=courtyard_compound with layout.skeleton_type=COMPOUND. Output proportion_hints.typology=courtyard_compound, courtyard_ratio≈0.38, enclosure_coverage≈0.85. Prefer STRUCTURE + typology:courtyard_compound; set reference_landmark=mingqing_courtyard when user names Ming-Qing official courtyard. Params: width, depth, includePaths, pathWidth, facing. global_constraints.symmetry=MIRROR_X. FORBID single MASS box without walled enclosure + hall/wing/gate cluster. Siheyuan residential courtyards use compositional COURTYARD — do not mix."
+      "llmPlanGuidance": "Use structural_typology=courtyard_compound with layout.skeleton_type=COMPOUND. Output proportion_hints.typology=courtyard_compound, courtyard_ratio≈0.38, enclosure_coverage≈0.85. Prefer STRUCTURE + typology:courtyard_compound; set reference_landmark=mingqing_courtyard when user names Ming-Qing official courtyard. Params: width, depth, includePaths, pathWidth, facing, paveCourtyard (default false). Optional roomDefaults object and rooms object with only main_hall, left_wing, right_wing, gate_house keys. Each room supports roofType (ying_shan/xuan_shan/xie_shan/wu_dian), roofRise (3..18), roofOverhang (0..3), roofCurve (0..100), roofCornerLift (0..3, only hip/hip-gable with overhang), wall_block, roof_block, floor_block, foundation_block, pillar_block, beam_block, window_block registered non-air non-fluid block IDs. Room values override roomDefaults and shared materials. Enlarged eaves require more courtyard space. Do not emit unsupported room partitions or multi-courtyard layouts. global_constraints.symmetry=MIRROR_X. FORBID single MASS box without walled enclosure + hall/wing/gate cluster. Siheyuan residential courtyards use compositional COURTYARD — do not mix."
     },
     {
       "id": "radial_fortress",

@@ -79,10 +79,23 @@ public final class CourtyardCompoundBuilder {
         Materials mats = (spec != null && spec.getMaterials() != null) ? spec.getMaterials() : new Materials();
 
         // overall palette (use spec materials as defaults)
-        BlockState wallBlock = getStateOrDefault(world, mats.getWall(), Blocks.RED_TERRACOTTA.getDefaultState());
-        BlockState roofBlock = getStateOrDefault(world, mats.getRoof(), Blocks.DEEPSLATE_TILES.getDefaultState());
-        BlockState floorBlock = getStateOrDefault(world, mats.getFloor(), Blocks.POLISHED_ANDESITE.getDefaultState());
-        BlockState foundationBlock = getStateOrDefault(world, mats.getFoundation(), Blocks.STONE_BRICKS.getDefaultState());
+        BlockState wallBlock = sharedMaterial(mats.getWall(), Blocks.RED_TERRACOTTA.getDefaultState());
+        BlockState roofBlock = sharedMaterial(mats.getRoof(), Blocks.DEEPSLATE_TILES.getDefaultState());
+        BlockState floorBlock = sharedMaterial(mats.getFloor(), Blocks.POLISHED_ANDESITE.getDefaultState());
+        BlockState foundationBlock = sharedMaterial(mats.getFoundation(), Blocks.STONE_BRICKS.getDefaultState());
+        Map<String,Object> defaults=objectMap(extra==null?null:extra.get("roomDefaults"),"roomDefaults");
+        Map<String,Object> rooms=objectMap(extra==null?null:extra.get("rooms"),"rooms");
+        Set<String> roles=Set.of("main_hall","left_wing","right_wing","gate_house");
+        for(String role:rooms.keySet()) if(!roles.contains(role)) throw new IllegalArgumentException("未知院落分房："+role);
+        Map<String,ChineseCourtyardRoomGenerator.Options> roomOptions=new LinkedHashMap<>();
+        int roofMargin=0;
+        for(String role:roles) {
+            Map<String,Object> mergedRoom=new LinkedHashMap<>(defaults);
+            mergedRoom.putAll(objectMap(rooms.get(role),"rooms."+role));
+            var options=ChineseCourtyardRoomGenerator.options(mergedRoom,wallBlock,roofBlock,floorBlock,foundationBlock);
+            roomOptions.put(role,options);roofMargin=Math.max(roofMargin,options.overhang());
+        }
+        boolean paved=getBool(extra,"paveCourtyard",false);
 
         // courtyard parameters
         int wallHeight = 3;
@@ -93,7 +106,7 @@ public final class CourtyardCompoundBuilder {
         if ("front_back".equals(layoutPlan) || "left_right".equals(layoutPlan))
             throw new IllegalArgumentException("专用中式院落单体尚不支持室内前后/左右分隔，请移除 layout.plan 或使用单体方案。");
 
-        Layout layout = resolveLayout(w, d, gateSide, pathWidth);
+        Layout layout = resolveLayout(w, d, gateSide, pathWidth,roofMargin);
         Part main = layout.parts().get(0), left = layout.parts().get(1);
         Part right = layout.parts().get(2), gate = layout.parts().get(3);
         int mainW = main.width(), mainD = main.depth();
@@ -209,7 +222,7 @@ public final class CourtyardCompoundBuilder {
                 return ChineseCourtyardRoomGenerator.generate(child.getFootprint().getWidth(),
                         child.getFootprint().getDepth(), StructureSpecParsers.resolveEntranceFacing(child, Direction.SOUTH),
                         "gate_house".equals(child.getExtra().get("courtyardPart")),o,
-                        wallBlock,roofBlock,floorBlock,foundationBlock);
+                        roomOptions.get(String.valueOf(child.getExtra().get("courtyardPart"))));
             }
             if (plan instanceof RectEnclosurePlan rep) {
                 StyleProfile enclosureProfile = (spec != null) ? StyleProfileRegistry.resolve(spec) : StyleProfileRegistry.forStyle(BuildingStyle.ASIAN);
@@ -254,12 +267,25 @@ public final class CourtyardCompoundBuilder {
                 boolean cyber = ornamentProfile != null && (ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("cyber") || ornamentProfile.toLowerCase(java.util.Locale.ROOT).contains("sign"));
                 BlockState lamp = neon ? Blocks.SEA_LANTERN.getDefaultState() : Blocks.LANTERN.getDefaultState();
                 BlockState post = cyber ? Blocks.IRON_BARS.getDefaultState() : Blocks.COBBLESTONE_WALL.getDefaultState();
-                return new PathRoadInterpreter(floorBlock, border, true, paletteId, lamp, post, ornamentProfile, true, 2).interpret(pp, o, wld);
+                return new PathRoadInterpreter(floorBlock, border, true, paletteId, lamp, post, ornamentProfile, true, 2)
+                        .interpret(pp,o,wld).stream().filter(block -> {
+                            BlockPos local=block.getPos().subtract(o);
+                            if(local.getY()!=0) return true;
+                            for(var part:layout.parts()) if(local.getX()>=part.minX()&&local.getX()<=part.maxX()
+                                    &&local.getZ()>=part.minZ()&&local.getZ()<=part.maxZ()) return false;
+                            return true;
+                        }).toList();
             }
             return List.of();
         };
 
         List<PlannedBlock> blocks = new CompoundInterpreter(dispatcher, true).interpret(compound, origin, world);
+        if(paved) {
+            var fullFloor=new java.util.ArrayList<PlannedBlock>();
+            for(int x=-w/2+1;x<-w/2+w-1;x++) for(int z=-d/2+1;z<-d/2+d-1;z++)
+                fullFloor.add(new PlannedBlock(origin.add(x,0,z),floorBlock));
+            fullFloor.addAll(blocks);blocks=fullFloor;
+        }
         if (world != null && !getBool(extra, "deferToPlanLanding", false)
                 && (terrainPolicy == TerrainPolicy.ADAPTIVE || terrainPolicy == TerrainPolicy.FLATTEN_AREA)) {
             var landing = com.formacraft.server.terrain.BuildingLandingPlanner.prepare(blocks,
@@ -273,8 +299,9 @@ public final class CourtyardCompoundBuilder {
             origin = origin.up(landing.dy());
         }
 
-        String desc = String.format("中式院落 courtyard_compound（围合%d×%d格，入口%s，底面中心锚点；专用木构正房/厢房/贯通门楼，硬山薄屋面，共同地面；parts=%d, childScale=%d%%）",
+        String desc = String.format("中式院落 courtyard_compound（围合%d×%d格，入口%s，底面中心锚点；专用木构正房/厢房/贯通门楼，共同地面；parts=%d, childScale=%d%%）",
                 w, d, gateSide.name(), compound.components.size(), layout.scalePercent());
+        desc+=" 全铺="+paved+" 分房="+roomOptions;
         com.formacraft.FormacraftMod.LOGGER.info("[ChineseCourtyard] {}",desc);
         if (layout.scalePercent() < 100) com.formacraft.FormacraftMod.LOGGER.info("courtyard layout resized derived children: w={} d={} scale={} facing={}",
                 w, d, layout.scalePercent(), gateSide);
@@ -322,9 +349,15 @@ public final class CourtyardCompoundBuilder {
 
     /** Shrink derived child sizes, never the requested enclosure or the number of buildings. */
     public static Layout resolveLayout(int width, int depth, Direction facing, int pathWidth) {
+        return resolveLayout(width,depth,facing,pathWidth,1);
+    }
+
+    public static Layout resolveLayout(int width,int depth,Direction facing,int pathWidth,int overhang) {
         Direction gateSide = facing == null ? Direction.SOUTH : facing;
         Direction leftSide = gateSide.getOpposite().rotateYCounterclockwise();
         Direction rightSide = leftSide.getOpposite();
+        if(overhang<0||overhang>3) throw new IllegalArgumentException("院落出檐范围为0–3格");
+        int inset=Math.max(2,overhang+1);
         for (int scale = 100; scale >= 0; scale -= 5) {
             double factor = scale / 100.0;
             int mainW = Math.max(9, (int)Math.round(width * .45 * factor));
@@ -334,28 +367,27 @@ public final class CourtyardCompoundBuilder {
             int gateW = Math.max(7, (int)Math.round(width * .28 * factor));
             int gateD = Math.max(7, (int)Math.round(depth * .16 * factor));
             var parts = List.of(
-                    new Part("main_hall", placeCornerOnSide(gateSide.getOpposite(),width,depth,2,mainW,mainD),mainW,mainD),
-                    new Part("left_wing", placeCornerOnSide(leftSide,width,depth,2,wingW,wingD),wingW,wingD),
-                    new Part("right_wing", placeCornerOnSide(rightSide,width,depth,2,wingW,wingD),wingW,wingD),
-                    new Part("gate_house", placeCornerOnSide(gateSide,width,depth,2,gateW,gateD),gateW,gateD));
-            if (layoutFits(parts,width,depth,pathWidth)) return new Layout(parts,scale);
+                    new Part("main_hall", placeCornerOnSide(gateSide.getOpposite(),width,depth,inset,mainW,mainD),mainW,mainD),
+                    new Part("left_wing", placeCornerOnSide(leftSide,width,depth,inset,wingW,wingD),wingW,wingD),
+                    new Part("right_wing", placeCornerOnSide(rightSide,width,depth,inset,wingW,wingD),wingW,wingD),
+                    new Part("gate_house", placeCornerOnSide(gateSide,width,depth,inset,gateW,gateD),gateW,gateD));
+            if (layoutFits(parts,width,depth,pathWidth,overhang)) return new Layout(parts,scale);
         }
         throw new IllegalArgumentException("院落 " + width + "×" + depth
                 + " 格无法同时容纳正房、两侧厢房、门楼及通道，请增大占地或改用单体建筑。");
     }
 
-    private static boolean layoutFits(List<Part> parts, int width, int depth, int pathWidth) {
+    private static boolean layoutFits(List<Part> parts, int width, int depth, int pathWidth,int e) {
         int x0=-width/2,z0=-depth/2,x1=x0+width-1,z1=z0+depth-1;
         int radius=Math.max(1,pathWidth/2)+1;
         for (int i=0;i<parts.size();i++) {
             Part a=parts.get(i);
-            // One block of roof overhang must remain inside the enclosure.
-            if(a.minX()-1<=x0 || a.maxX()+1>=x1 || a.minZ()-1<=z0 || a.maxZ()+1>=z1) return false;
-            if(a.minX()-1<=radius && a.maxX()+1>=-radius && a.minZ()-1<=radius && a.maxZ()+1>=-radius) return false;
+            if(a.minX()-e<=x0 || a.maxX()+e>=x1 || a.minZ()-e<=z0 || a.maxZ()+e>=z1) return false;
+            if(a.minX()-e<=radius && a.maxX()+e>=-radius && a.minZ()-e<=radius && a.maxZ()+e>=-radius) return false;
             for(int j=0;j<i;j++) {
                 Part b=parts.get(j);
-                if(a.minX()-1<=b.maxX()+1 && b.minX()-1<=a.maxX()+1
-                        && a.minZ()-1<=b.maxZ()+1 && b.minZ()-1<=a.maxZ()+1) return false;
+                if(a.minX()-e<=b.maxX()+e && b.minX()-e<=a.maxX()+e
+                        && a.minZ()-e<=b.maxZ()+e && b.minZ()-e<=a.maxZ()+e) return false;
             }
         }
         return true;
@@ -367,7 +399,7 @@ public final class CourtyardCompoundBuilder {
         int minX = origin.getX() - size[0] / 2, minZ = origin.getZ() - size[1] / 2;
         return new com.formacraft.server.terrain.BuildingLandingPlanner.Site(
                 new com.formacraft.common.network.LlmPlanTerrainBounds.Bounds(minX, origin.getY(), minZ,
-                        minX + size[0] - 1, origin.getY() + 20, minZ + size[1] - 1),
+                        minX + size[0] - 1, origin.getY() + 26, minZ + size[1] - 1),
                 com.formacraft.common.llm.dto.GlobalConstraints.Facing.valueOf(resolveGateSide(spec).name()));
     }
 
@@ -481,6 +513,21 @@ public final class CourtyardCompoundBuilder {
         } catch (Exception e) {
             return def;
         }
+    }
+
+    private static BlockState sharedMaterial(String id,BlockState fallback) {
+        return id==null?fallback:ChineseCourtyardRoomGenerator.material(Map.of("material",id),"material",fallback);
+    }
+
+    private static Map<String,Object> objectMap(Object value,String name) {
+        if(value==null) return Map.of();
+        if(!(value instanceof Map<?,?> map)) throw new IllegalArgumentException(name+" 必须为参数对象");
+        Map<String,Object> result=new LinkedHashMap<>();
+        for(var e:map.entrySet()) {
+            if(!(e.getKey() instanceof String key)) throw new IllegalArgumentException(name+" 的参数名必须为字符串");
+            result.put(key,e.getValue());
+        }
+        return result;
     }
 
     private static String stateId(BlockState s) {
