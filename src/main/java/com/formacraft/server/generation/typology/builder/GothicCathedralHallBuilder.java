@@ -265,6 +265,9 @@ public final class GothicCathedralHallBuilder {
         params.put("width", bodyW);
         params.put("planVariant", "basilica");
         params.put("anchorMode", "corner");
+        // Build the unmodified material-source hall; apply the terminal only once to the full church.
+        params.put("includeApse", false);
+        params.put("includeChoir", false);
         params.put("facing", "SOUTH");
         params.remove("layout");
         var baseSpec = new BuildingSpec();
@@ -281,7 +284,7 @@ public final class GothicCathedralHallBuilder {
         // Reuse resolved materials from the longitudinal hall, including its palette.
         var states = new java.util.HashMap<BlockPos, BlockState>();
         for (var block : base.getBlocks()) states.put(block.getPos(), block.getTargetState());
-        BlockState wall=states.get(new BlockPos(0,4,0));
+        BlockState wall=requireWallMaterial(states.get(new BlockPos(0,4,0)), "transept");
         BlockState floor=states.get(new BlockPos(bodyW/2,2,2));
         BlockState foundation=states.get(new BlockPos(bodyW/2,0,2));
         BlockState tile=Blocks.DEEPSLATE_TILES.getDefaultState();
@@ -415,6 +418,13 @@ public final class GothicCathedralHallBuilder {
         put(blocks,origin,entrance,cx,yBase+spireH,cz,slab,null);
     }
 
+    private static BlockState requireWallMaterial(BlockState material, String part) {
+        if (material == null || material.isAir()) {
+            throw new IllegalStateException("Missing Gothic wall material for " + part);
+        }
+        return material;
+    }
+
     /** A clipped terminal volume within the declared footprint, plus an open choir aisle. */
     private static void addLiturgicalEnd(List<PlannedBlock> blocks, BlockPos origin, Direction facing,
                                         int width, int depth, BuildingSpec spec) {
@@ -424,7 +434,7 @@ public final class GothicCathedralHallBuilder {
         int rise=gothicRoofRise(spec,(naveW+1)/2), base=top+1;
         var states=new java.util.HashMap<BlockPos,BlockState>();
         for(var b:blocks) states.put(b.getPos(),b.getTargetState());
-        BlockState wall=states.get(local(origin,facing,(width-bodyW)/2,4,0));
+        BlockState wall=requireWallMaterial(states.get(local(origin,facing,(width-bodyW)/2,4,0)), "apse");
         BlockState foundation=states.get(local(origin,facing,center,0,2));
         BlockState floor=states.get(local(origin,facing,center,2,2));
         BlockState tile=states.getOrDefault(local(origin,facing,left+1,

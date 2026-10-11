@@ -9,6 +9,18 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ComponentPlanCompilerMaterialTest {
+    @Test void namespacedStoneBrickAliasResolvesWithoutAcceptingUnknownBlockIds() {
+        var attrs = new StyleAttributes(null, "minecraft:stone_brick", null, null, null, null, null, null);
+        assertEquals("minecraft:stone_bricks",
+                com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(attrs.wallMaterial()));
+        assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(attrs).isEmpty());
+        assertEquals("minecraft:stone_bricks", com.formacraft.common.palette.dynamic.DynamicPaletteResolver.resolve(
+                com.formacraft.common.semantic.SemanticPart.WALL, attrs));
+        assertNull(com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock("othermod:stone_brick"));
+        assertNull(com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock("minecraft:not_a_block"));
+        assertEquals("minecraft:stone_brick_stairs",
+                com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock("minecraft:stone_brick_stairs"));
+    }
     private Component body(String id, int x, String roof) {
         return new Component("MASS_MAIN", "s", new Vec3i(x, 0, 0), new Dimensions(12, 12, 8), List.of(),
                 Map.of("component_id", id, "anchor_mode", "min_corner", "plan_type", "rectangle",

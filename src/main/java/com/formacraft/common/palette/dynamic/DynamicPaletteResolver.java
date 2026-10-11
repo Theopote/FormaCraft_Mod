@@ -363,6 +363,8 @@ public final class DynamicPaletteResolver {
             return null;
         }
         String candidate = trimmed.contains(":") ? trimmed : "minecraft:" + trimmed;
+        // Known planner spelling alias; do not strip namespaces or guess arbitrary invalid ids.
+        if (candidate.equals("minecraft:stone_brick")) candidate = "minecraft:stone_bricks";
         return isValidBlockId(candidate) ? candidate : null;
     }
 

@@ -7,6 +7,27 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GothicBuildingAcceptanceTest {
+    @Test void cruciformApseMustPreserveAllTranseptExteriorWalls() {
+        for (String facing : List.of("SOUTH", "NORTH", "EAST", "WEST")) {
+            var anchor = new BlockPos(39, 105, -1037);
+            var structure = GothicCathedralHallBuilder.generate(Map.of(
+                    "width", 35, "depth", 45, "wallHeight", 16,
+                    "facing", facing, "planVariant", "cruciform",
+                    "includeApse", true, "includeChoir", true,
+                    "includeRibVault", true, "includeTowers", false), anchor, null, null);
+            var corner = GothicCathedralHallBuilder.cornerOrigin(anchor,
+                    net.minecraft.util.math.Direction.valueOf(facing), 35, 45, "center");
+            var states = new HashMap<BlockPos, BlockState>();
+            for (var block : structure.getBlocks()) states.put(block.getPos(), block.getTargetState());
+            for (int x : List.of(0, 34)) for (int z = 7; z <= 23; z++) for (int y = 3; y <= 19; y++)
+                assertFalse(states.get(position(corner, facing, x, y, z)).isAir(),
+                        "transept wall lost: " + facing + " " + x + "," + y + "," + z);
+            for (int x = 12; x <= 22; x++) for (int y = 3; y <= 19; y++)
+                assertFalse(states.get(position(corner, facing, x, y, 0)).isAir(), "rear wall lost");
+            for (int z = 1; z < 44; z++) for (int y = 3; y <= 5; y++)
+                assertTrue(states.get(position(corner, facing, 17, y, z)).isAir(), "central route blocked");
+        }
+    }
     private static com.formacraft.common.build.GeneratedStructure generateCorner(Map<String,Object> params,
             BlockPos origin, net.minecraft.server.world.ServerWorld world, com.formacraft.common.model.build.BuildingSpec spec) {
         var copy=new HashMap<String,Object>(params); copy.put("anchorMode","corner");
