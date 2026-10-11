@@ -66,3 +66,11 @@ class GothicBuildingContractTest(unittest.TestCase):
         plan = {'proportion_hints': {'typology': 'gothic_cathedral_hall'}, 'components': []}
         repair_gothic_route(plan, '哥特式教堂，十字形，宽17格')
         self.assertEqual(plan['components'], [])
+
+    def test_explicit_roof_rise_updates_native_height(self):
+        from app.services.gothic_building_contract import repair_gothic_route
+        plan = {'proportion_hints': {'typology': 'gothic_cathedral_hall'}, 'components': []}
+        repair_gothic_route(plan, '哥特式教堂，宽35格，深45格，屋顶升高24格')
+        component = plan['components'][0]
+        self.assertEqual(component['params']['roofRise'], 24)
+        self.assertGreaterEqual(component['dimensions']['height'], 45)

@@ -28,7 +28,7 @@ class GothicBuildingAcceptanceTest {
             int roofStart=naveStart-1, roofEnd=naveStart+naveWidth;
             for(int x=roofStart;x<=roofEnd;x++) for(int z=0;z<depth;z++) {
                 boolean covered=false;
-                for(int y=wallHeight+4;y<=wallHeight+15;y++) {
+                for(int y=wallHeight+4;y<=Math.max(wallHeight+30,wallHeight+4+(int)Math.ceil((naveWidth+1)/2*1.2));y++) {
                     var state=finalStates.get(position(origin,facing,x,y,z));
                     if(state!=null && !state.isAir()) covered=true;
                 }
@@ -71,14 +71,14 @@ class GothicBuildingAcceptanceTest {
                     "includeTowers",false,"includeButtresses",false),origin,null,null);
             var states=new HashMap<BlockPos,BlockState>();
             for(var b:structure.getBlocks()) states.put(b.getPos(),b.getTargetState());
-            assertTrue(states.get(position(origin,facing,0,2,2)).isAir(),"corners must not become a rectangular platform");
+            assertNull(states.get(position(origin,facing,0,2,2)),"unbuilt corners must preserve terrain");
             for(int x=1;x<width-1;x++) {
                 assertFalse(states.get(position(origin,facing,x,2,centerZ)).isAir(),"transept floor");
                 for(int y=3;y<=top;y++) assertTrue(states.get(position(origin,facing,x,y,centerZ)).isAir(),"crossing must stay open");
             }
             for(int x=0;x<width;x++) for(int z=centerZ-half;z<=centerZ+half;z++) {
                 boolean covered=false;
-                for(int y=top+1;y<=top+9;y++) {
+                for(int y=top+1;y<=top+1+(int)Math.ceil((half+1)*1.2);y++) {
                     var state=states.get(position(origin,facing,x,y,z));
                     if(state!=null&&!state.isAir()) covered=true;
                 }
@@ -86,6 +86,28 @@ class GothicBuildingAcceptanceTest {
             }
             for(int z=2;z<depth;z++) for(int y=3;y<=4;y++)
                 assertTrue(states.get(position(origin,facing,width/2,y,z)).isAir(),"longitudinal route");
+        }
+    }
+    @Test void roofsLeaveAtticsOpenUseWallGablesAndPreserveSurroundingTerrain() {
+        for(String variant:List.of("basilica","cruciform")) {
+            int width=35, depth=45, bodyW=variant.equals("cruciform")?27:35;
+            int naveW=bodyW-10, half=(naveW+1)/2, rise=(int)Math.ceil(half*1.2);
+            var building=GothicCathedralHallBuilder.generate(Map.of("width",width,"depth",depth,
+                    "wallHeight",16,"planVariant",variant,"includeTowers",false,
+                    "includeButtresses",false),BlockPos.ORIGIN,null,null);
+            var states=new HashMap<BlockPos,BlockState>();
+            for(var b:building.getBlocks()) states.put(b.getPos(),b.getTargetState());
+            assertNull(states.get(new BlockPos(-2,0,2)),"clear must not dig the surroundings");
+            assertTrue(states.get(new BlockPos(width/2,21,depth/3)).isAir(),"crossing attic must remain hollow");
+            assertEquals(net.minecraft.block.Blocks.STONE_BRICKS,states.get(new BlockPos(width/2,21,depth-1)).getBlock(),"longitudinal gable uses wall material");
+            assertFalse(states.containsKey(new BlockPos(width/2,21,depth)),"gable must not become a roof-material curtain at the overhang");
+            assertTrue(rise>=half,"default Gothic slope stays steep as span increases");
+            assertFalse(states.get(new BlockPos(width/2,20+rise,2)).isAir(),"ridge matches span-based rise");
+            if(variant.equals("cruciform")) {
+                assertEquals(net.minecraft.block.Blocks.STONE_BRICKS,states.get(new BlockPos(0,21,depth/3)).getBlock());
+                for(int x=0;x<width;x++) for(int z=depth/3-half+1;z<=depth/3+half-1;z++)
+                    assertFalse(states.get(new BlockPos(x,2,z)).isAir(),"no holes in occupied foundation floor");
+            }
         }
     }
     private BlockPos position(BlockPos origin,String facing,int x,int y,int z) {

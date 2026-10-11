@@ -47,7 +47,7 @@ def repair_gothic_route(plan: dict, text: str) -> None:
         return
     if re.search(r'左栋|右栋|第.+?栋|建筑群|两座|两栋|巴黎圣母院|科隆|notre dame|cologne|chartres|sagrada|后殿|平屋顶|白色|木质|材料|墙厚|楼板厚', text, re.I):
         return
-    for pattern, low, high, odd in [(r'宽(\d+)格', 17, 101, True), (r'深(\d+)格', 25, 151, True), (r'中殿墙高(\d+)格', 12, 40, False)]:
+    for pattern, low, high, odd in [(r'宽(\d+)格', 17, 101, True), (r'深(\d+)格', 25, 151, True), (r'中殿墙高(\d+)格', 12, 40, False), (r'屋顶升高(\d+)格', 3, 80, False)]:
         values = {int(m[1]) for m in re.finditer(pattern, text)}
         if len(values) > 1 or any(v < low or v > high or odd and v % 2 == 0 for v in values):
             hints['gothic_route_repair'] = {'route': 'not_repaired', 'reason': 'unsupported_or_conflicting_dimensions'}
@@ -86,7 +86,7 @@ def repair_gothic_route(plan: dict, text: str) -> None:
         params['planVariant'] = 'basilica'
     params.setdefault('component_id', 'gothic_church')
     params['typology_id'] = 'gothic_cathedral_hall'
-    for key, pattern in [('width', r'宽(\d+)格'), ('depth', r'深(\d+)格'), ('wallHeight', r'中殿墙高(\d+)格')]:
+    for key, pattern in [('width', r'宽(\d+)格'), ('depth', r'深(\d+)格'), ('wallHeight', r'中殿墙高(\d+)格'), ('roofRise', r'屋顶升高(\d+)格')]:
         values = {int(m[1]) for m in re.finditer(pattern, text)}
         if len(values) == 1: params[key] = values.pop()
     directions = set(re.findall(r'入口朝([东南西北])', text))
@@ -94,8 +94,13 @@ def repair_gothic_route(plan: dict, text: str) -> None:
         params['facing'] = {'东': 'EAST', '南': 'SOUTH', '西': 'WEST', '北': 'NORTH'}[directions.pop()]
         params.pop('layout', None)  # User facing wins over generated nested facing.
     component['params'] = params
+    import math
+    body_width = params['width'] - (8 if params.get('planVariant') == 'cruciform' else 0)
+    half_span = (max(9, body_width - 10) + 1) // 2
+    roof_rise = params.get('roofRise', math.ceil(half_span * 1.2))
     component['dimensions'] = {'width': params['width'], 'depth': params['depth'],
-                               'height': params['wallHeight'] + 12}
+                               'height': max(params['wallHeight'] + 5 + roof_rise,
+                                             params.get('towerHeight', 20) + params.get('spireHeight', 10) + 5)}
     layout = plan.setdefault('layout', {})
     old_slots = layout.get('slots', [])
     chosen = next((s for s in old_slots if s.get('slot_id') == component.get('slot_id')), None)

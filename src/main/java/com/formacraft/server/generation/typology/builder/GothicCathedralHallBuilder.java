@@ -112,10 +112,10 @@ public final class GothicCathedralHallBuilder {
         }
 
         // Clear (best-effort)
-        int pad = 6;
+        int pad = 0; // Never excavate unbuilt terrain around the footprint.
         for (int x = -pad; x <= w - 1 + pad; x++) {
             for (int z = -pad; z <= d - 1 + pad; z++) {
-                for (int y = 0; y <= towerH + spireH + 12; y++) {
+                for (int y = 0; y <= Math.max(towerH + spireH + 12, wallH + 4 + gothicRoofRise(spec, (naveW+1)/2)); y++) {
                     blocks.add(new PlannedBlock(local(origin, entrance, x, y, z), Blocks.AIR.getDefaultState()));
                 }
             }
@@ -182,7 +182,7 @@ public final class GothicCathedralHallBuilder {
 
         // 7) Roof (steep gable)
         int roofBaseY = y1 + 1;
-        addGableRoof(blocks, origin, entrance, naveX0 - 1, roofBaseY, -1, naveX1 + 1, roofBaseY, d, Math.max(6, wallH / 2), roofStairs, roofSlab, roofTile);
+        addGableRoof(blocks, origin, entrance, naveX0 - 1, roofBaseY, -1, naveX1 + 1, roofBaseY, d, gothicRoofRise(spec, (naveW+1)/2), roofStairs, roofSlab, roofTile, wall);
 
         // Lower aisle roofs rise toward the nave, keeping the tall central volume visible.
         for (int x = -1; x < naveX0; x++) {
@@ -237,7 +237,7 @@ public final class GothicCathedralHallBuilder {
         }
         int naveW = Math.max(9, bodyW-10), nx0=(w-naveW)/2, nx1=nx0+naveW-1;
         int centerZ=d/3, half= Math.max(4, naveW/2), z0=centerZ-half, z1=centerZ+half;
-        int top=wallH+3, roofBase=top+1, rise=Math.max(6,wallH/2);
+        int top=wallH+3, roofBase=top+1, rise=gothicRoofRise(spec, (naveW+1)/2);
         // Reuse resolved materials from the longitudinal hall, including its palette.
         var states = new java.util.HashMap<BlockPos, BlockState>();
         for (var block : base.getBlocks()) states.put(block.getPos(), block.getTargetState());
@@ -265,9 +265,15 @@ public final class GothicCathedralHallBuilder {
             for(int y=roofBase;y<=roofBase+rise;y++) put(blocks,origin,entrance,x,y,z,Blocks.AIR.getDefaultState(),null);
             boolean longitudinal=onNave && longitudinalY>=transverseY;
             Direction slope=longitudinal ? (x<=w/2?Direction.EAST:Direction.WEST) : (z<=centerZ?Direction.SOUTH:Direction.NORTH);
-            // Solid risers seal the stepped surface and the two exposed arm gables.
-            int sealFrom=roofBase;
-            for(int y=sealFrom;y<roofY;y++) put(blocks,origin,entrance,x,y,z,tile,null);
+            // Seal only the vertical step between adjacent slope columns; leave the attic empty.
+            int previousY=longitudinal
+                    ? roofBase+(int)Math.round((double)Math.max(0,Math.min(x-(nx0-1),(nx1+1)-x)-1)*rise/((naveW+1)/2))
+                    : roofBase+(int)Math.round((double)Math.max(0,transverseInset-1)*rise/(half+1));
+            for(int y=Math.max(roofBase,previousY);y<roofY;y++)
+                put(blocks,origin,entrance,x,y,z,tile,null);
+            // Gables belong on the wall plane, never on the overhanging roof edge.
+            if(x==0 || x==w-1) for(int y=roofBase;y<previousY;y++)
+                put(blocks,origin,entrance,x,y,z,wall,null);
             put(blocks,origin,entrance,x,roofY,z,roofY==roofBase+rise?ridge:withFacingIfPossible(stair,slope),null);
         }
         return new GeneratedStructure(null,origin,"Gothic cruciform hall",blocks);
@@ -364,7 +370,7 @@ public final class GothicCathedralHallBuilder {
 
     private static void addGableRoof(List<PlannedBlock> blocks, BlockPos origin, Direction entrance,
                                      int x0, int y0, int z0, int x1, int y1, int z1,
-                                     int h, BlockState stairs, BlockState slab, BlockState cap) {
+                                     int h, BlockState stairs, BlockState slab, BlockState cap, BlockState gableWall) {
         int half = Math.max(1, (x1 - x0) / 2);
         for (int x = x0; x <= x1; x++) {
             int inset = Math.min(x - x0, x1 - x);
@@ -372,8 +378,9 @@ public final class GothicCathedralHallBuilder {
             BlockState material = inset == half ? slab : stairs;
             Direction slope = x <= (x0+x1)/2 ? Direction.EAST : Direction.WEST;
             for (int z = z0; z <= z1; z++) {
-                if (z == z0 || z == z1) for (int sealY = y0; sealY < y; sealY++)
-                    put(blocks, origin, entrance, x, sealY, z, cap, null);
+                if ((z == z0+1 || z == z1-1) && x>x0 && x<x1)
+                    for (int sealY = y0; sealY < y; sealY++)
+                        put(blocks, origin, entrance, x, sealY, z, gableWall, null);
                 int previousY = y0 + (int) Math.round((double) Math.max(0, inset - 1) * h / half);
                 for (int sealY = previousY; sealY < y; sealY++)
                     put(blocks, origin, entrance, x, sealY, z, cap, null);
@@ -525,6 +532,12 @@ public final class GothicCathedralHallBuilder {
 
     private static int getIntExtra(BuildingSpec spec, String key, int def) {
         return StructureSpecParsers.extraInt(spec, key, def);
+    }
+
+    // Default rise/run 1.2 is a stylized steep Gothic roof, not a historical universal.
+    // Explicit rise overrides the style default; span changes must not flatten the roof.
+    private static int gothicRoofRise(BuildingSpec spec, int halfSpan) {
+        return clamp(getIntExtra(spec, "roofRise", (int)Math.ceil(halfSpan*1.2)), 3, 80);
     }
 
     private static int clamp(int v, int min, int max) { return Math.max(min, Math.min(max, v)); }
