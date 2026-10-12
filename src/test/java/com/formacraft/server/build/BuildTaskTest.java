@@ -1,11 +1,33 @@
 package com.formacraft.server.build;
 
+import com.formacraft.common.build.GeneratedStructure;
+import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.test.FakeBlockMutationAccess;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
+import net.minecraft.block.Blocks;
+import net.minecraft.util.math.BlockPos;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class BuildTaskTest {
+
+    @BeforeAll
+    static void initialize() {
+        MinecraftRegistryTestBootstrap.initialize();
+    }
+
+    @BeforeEach
+    @AfterEach
+    void resetDeferLimits() {
+        BuildTask.maxDeferAttempts = 120;
+        BuildTask.deferTimeoutMs = 30_000L;
+    }
 
     @Test
     void summaryReportsCumulativeSkipCounts() {
@@ -35,39 +57,98 @@ class BuildTaskTest {
         assertEquals(0.0, result.placedPercent());
         assertEquals("建造完成：无计划方块", result.summaryZh());
     }
+
     @Test
     void tickCountsActualWritesAndRetainsOnlySuccessfulUndoChanges() {
-        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
-        var access = new com.formacraft.test.FakeBlockMutationAccess();
-        var stone = net.minecraft.block.Blocks.STONE.getDefaultState();
-        var same = new net.minecraft.util.math.BlockPos(1, 1, 0);
-        var rejected = new net.minecraft.util.math.BlockPos(2, 1, 0);
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var same = new BlockPos(1, 1, 0);
+        var rejected = new BlockPos(2, 1, 0);
         access.states.put(same, stone);
         access.rejected.add(rejected);
-        var blocks = java.util.List.of(
-                new com.formacraft.common.build.PlannedBlock(new net.minecraft.util.math.BlockPos(0, 1, 0), stone),
-                new com.formacraft.common.build.PlannedBlock(same, stone),
-                new com.formacraft.common.build.PlannedBlock(rejected, stone),
-                new com.formacraft.common.build.PlannedBlock(new net.minecraft.util.math.BlockPos(0, -1, 0), stone),
-                new com.formacraft.common.build.PlannedBlock(new net.minecraft.util.math.BlockPos(16, 1, 0), stone),
-                new com.formacraft.common.build.PlannedBlock(new net.minecraft.util.math.BlockPos(3, 1, 0), null));
-        var structure = new com.formacraft.common.build.GeneratedStructure(null,
-                net.minecraft.util.math.BlockPos.ORIGIN, "test", blocks);
+        var blocks = List.of(
+                new PlannedBlock(new BlockPos(0, 1, 0), stone),
+                new PlannedBlock(same, stone),
+                new PlannedBlock(rejected, stone),
+                new PlannedBlock(new BlockPos(0, -1, 0), stone),
+                new PlannedBlock(new BlockPos(16, 1, 0), stone),
+                new PlannedBlock(new BlockPos(3, 1, 0), null));
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "test", blocks);
         var task = new BuildTask(structure, null, access);
+        BuildTask.maxDeferAttempts = 1;
         assertEquals(0, task.tick(0));
         assertEquals(2, task.tick(2));
+        // remaining: rejected, OOB, unloaded→defer, illegal
         assertEquals(4, task.tick(10));
+        assertFalse(task.isFinished());
+        assertEquals(1, task.tick(10)); // deferred exceeds maxDeferAttempts → failedUnloaded
         assertTrue(task.isFinished());
         var result = task.result();
         assertEquals(1, result.placed());
         assertEquals(1, result.failedWrites());
-        assertEquals(4, result.skippedTotal());
-        assertEquals(1, result.skippedUnloaded());
+        assertEquals(1, result.failedUnloaded());
         assertEquals(1, result.skippedIllegal());
         assertEquals(1, task.getAppliedChanges().size());
         assertEquals(2, access.writes);
-        assertTrue(!result.isCompletePlacement());
+        assertFalse(result.isCompletePlacement());
         assertTrue(result.summaryZh().contains("写入失败 1"));
-        assertTrue(!result.summaryZh().contains("未归类"));
+        assertFalse(result.summaryZh().contains("未归类"));
+    }
+
+    @Test
+    void deferredUnloadedRetriesWhenChunkBecomesReady() {
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var far = new BlockPos(16, 1, 0);
+        access.setChunkReady(far, false);
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "defer",
+                List.of(new PlannedBlock(far, stone)));
+        var task = new BuildTask(structure, null, access);
+        assertEquals(1, task.tick(10));
+        assertEquals(BuildTask.Status.WAITING_CHUNKS, task.status());
+        assertFalse(task.isFinished());
+        assertEquals(1, task.result().stillDeferred());
+        access.setChunkReady(far, true);
+        assertEquals(1, task.tick(10));
+        assertTrue(task.isFinished());
+        assertEquals(1, task.result().placed());
+        assertEquals(0, task.result().failedUnloaded());
+        assertEquals(stone, access.states.get(far));
+    }
+
+    @Test
+    void deferredUnloadedFailsAfterMaxAttempts() {
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var far = new BlockPos(20, 1, 0);
+        access.chunkReadyOverride = p -> false;
+        BuildTask.maxDeferAttempts = 2;
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "timeout",
+                List.of(new PlannedBlock(far, stone)));
+        var task = new BuildTask(structure, null, access);
+        assertEquals(1, task.tick(5)); // first defer
+        assertEquals(1, task.tick(5)); // attempt 2, still defer
+        assertEquals(1, task.tick(5)); // attempt 3 > max → failedUnloaded
+        assertTrue(task.isFinished());
+        assertEquals(1, task.result().failedUnloaded());
+        assertEquals(0, task.result().placed());
+        assertEquals(0, access.writes);
+    }
+
+    @Test
+    void perBlockExceptionIsIsolatedAndCountedAsFailedWrite() {
+        var access = new FakeBlockMutationAccess();
+        var stone = Blocks.STONE.getDefaultState();
+        var boom = new BlockPos(1, 1, 0);
+        var ok = new BlockPos(2, 1, 0);
+        access.throwOnWrite.add(boom);
+        var structure = new GeneratedStructure(null, BlockPos.ORIGIN, "iso",
+                List.of(new PlannedBlock(boom, stone), new PlannedBlock(ok, stone)));
+        var task = new BuildTask(structure, null, access);
+        assertEquals(2, task.tick(10));
+        assertTrue(task.isFinished());
+        assertEquals(1, task.result().failedWrites());
+        assertEquals(1, task.result().placed());
+        assertEquals(stone, access.states.get(ok));
     }
 }

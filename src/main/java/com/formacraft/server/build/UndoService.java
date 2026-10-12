@@ -3,9 +3,9 @@ package com.formacraft.server.build;
 import com.formacraft.common.patch.history.PatchReplayHistory;
 import com.formacraft.common.patch.history.PatchTransaction;
 import com.formacraft.common.world.BlockMutationAccess;
+import com.formacraft.common.world.BlockSnapshot;
 import com.formacraft.server.memory.BuildUndoMemoryUpdate;
 import com.formacraft.server.memory.MemoryManager;
-import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
@@ -49,11 +49,11 @@ public class UndoService {
     public void record(UUID playerId, Object world, BlockPos origin, List<BlockChange> changes,
                        String memoryUuid, Identifier dimension) {
         if (memoryUuid != null) Objects.requireNonNull(dimension, "dimension");
-        Map<BlockPos, BlockState> before = new HashMap<>(), after = new HashMap<>();
+        Map<BlockPos, BlockSnapshot> before = new HashMap<>(), after = new HashMap<>();
         for (BlockChange change : changes) {
             BlockPos pos = change.getPos().toImmutable();
-            before.putIfAbsent(pos, change.getFromState());
-            after.put(pos, change.getToState());
+            before.putIfAbsent(pos, change.getFrom());
+            after.put(pos, change.getTo());
         }
         var tx = PatchTransaction.fromSnapshots(origin, before, after);
         if (tx.before().isEmpty()) return;
@@ -61,6 +61,7 @@ public class UndoService {
         history.replay.record(world, tx);
         history.builds.push(new BuildRecord(UUID.randomUUID(), memoryUuid, dimension, tx.before().size()));
         while (history.builds.size() > MAX_UNDO_PER_PLAYER) history.builds.removeLast();
+        PlayerMutationLedger.get().recordBuild(playerId);
     }
     public boolean undoLast(ServerPlayerEntity player) { return undoLastResult(player).complete(); }
     public PatchReplayHistory.ReplayResult undoLastResult(ServerPlayerEntity player) {
@@ -71,7 +72,7 @@ public class UndoService {
         }
         return result;
     }
-    PatchReplayHistory.ReplayResult undo(UUID playerId, Object world, BlockMutationAccess access) {
+    public PatchReplayHistory.ReplayResult undo(UUID playerId, Object world, BlockMutationAccess access) {
         retryMemoryUpdates(playerId);
         var history = undoStacks.get(playerId);
         if (history == null) return PatchReplayHistory.ReplayResult.empty();
@@ -113,5 +114,9 @@ public class UndoService {
         var history = undoStacks.get(playerId);
         return history == null ? 0 : history.replay.undoSize();
     }
-    public void clear() { undoStacks.clear(); pendingMemory.clear(); }
+    public void clear() {
+        undoStacks.clear();
+        pendingMemory.clear();
+        PlayerMutationLedger.get().clearAll();
+    }
 }

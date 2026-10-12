@@ -41,7 +41,7 @@ public final class FormaCraftServerNetworking {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
-                var result = com.formacraft.common.patch.history.PatchHistoryManager.undoDetailed(sw, player.getUuid());
+                var result = com.formacraft.server.build.MutationHistoryFacade.undo(player);
                 sendPatchHistoryResult(player, "undo", result);
             }
         }));
@@ -49,7 +49,7 @@ public final class FormaCraftServerNetworking {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
-                var result = com.formacraft.common.patch.history.PatchHistoryManager.redoDetailed(sw, player.getUuid());
+                var result = com.formacraft.server.build.MutationHistoryFacade.redo(player);
                 sendPatchHistoryResult(player, "redo", result);
             }
         }));
@@ -382,8 +382,8 @@ public final class FormaCraftServerNetworking {
                 result.skippedUnloaded(),
                 result.skippedIllegal(),
                 result.summaryZh(),
-                com.formacraft.common.patch.history.PatchHistoryManager.canUndo(id),
-                com.formacraft.common.patch.history.PatchHistoryManager.canRedo(id)
+                com.formacraft.server.build.MutationHistoryFacade.canUndo(id),
+                com.formacraft.server.build.MutationHistoryFacade.canRedo(id)
         ));
     }
 
@@ -396,11 +396,16 @@ public final class FormaCraftServerNetworking {
             com.formacraft.common.patch.history.PatchReplayHistory.ReplayResult result) {
         if (player == null || result == null) return;
         var id = player.getUuid();
+        String verb = "undo".equals(operation) ? "撤销" : "重做";
+        String summary = result.summaryZh(verb);
+        if (!result.available()) {
+            summary = summary + "（会话内历史，停服后清空）";
+        }
         ServerPlayNetworking.send(player, new FormaCraftNetworking.PatchApplyResultPayload(
                 operation, result.changed(), 0, result.blocked(), 0,
-                result.summaryZh("undo".equals(operation) ? "撤销" : "重做"),
-                com.formacraft.common.patch.history.PatchHistoryManager.canUndo(id),
-                com.formacraft.common.patch.history.PatchHistoryManager.canRedo(id)));
+                summary,
+                com.formacraft.server.build.MutationHistoryFacade.canUndo(id),
+                com.formacraft.server.build.MutationHistoryFacade.canRedo(id)));
     }
 
     public static void sendPatchHistoryResult(ServerPlayerEntity player, String operation, int changed) {
@@ -410,14 +415,14 @@ public final class FormaCraftServerNetworking {
         String verb = "undo".equals(operation) ? "撤销" : "重做";
         String summary = ok
                 ? ("已" + verb + " " + changed + " 个方块")
-                : ("没有可" + verb + "的修改");
+                : ("没有可" + verb + "的修改（会话内历史，停服后清空）");
         ServerPlayNetworking.send(player, new FormaCraftNetworking.PatchApplyResultPayload(
                 operation,
                 ok ? changed : 0,
                 0, 0, 0,
                 summary,
-                com.formacraft.common.patch.history.PatchHistoryManager.canUndo(id),
-                com.formacraft.common.patch.history.PatchHistoryManager.canRedo(id)
+                com.formacraft.server.build.MutationHistoryFacade.canUndo(id),
+                com.formacraft.server.build.MutationHistoryFacade.canRedo(id)
         ));
     }
 

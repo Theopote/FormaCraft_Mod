@@ -62,11 +62,16 @@ public class FormaCraftCommands {
                         return 0;
                     }
 
-                    var result = BuildExecutionService.getInstance().getUndoService().undoLastResult(player);
+                    var result = com.formacraft.server.build.MutationHistoryFacade.undo(player);
+                    String summary = result.summaryZh("撤销");
+                    if (!result.available()) {
+                        summary = summary + "（会话内历史，停服后清空）";
+                    }
                     if (!result.complete()) {
-                        ctx.getSource().sendError(Text.literal(result.summaryZh("撤销")));
+                        ctx.getSource().sendError(Text.literal(summary));
                     } else {
-                        ctx.getSource().sendFeedback(() -> Text.literal(result.summaryZh("撤销")), true);
+                        String finalSummary = summary;
+                        ctx.getSource().sendFeedback(() -> Text.literal(finalSummary), true);
                     }
                     return result.complete() ? 1 : 0;
                 }));

@@ -1,7 +1,7 @@
 package com.formacraft.common.patch.history;
 
 import com.formacraft.common.world.BlockMutationAccess;
-import net.minecraft.block.BlockState;
+import com.formacraft.common.world.BlockSnapshot;
 import net.minecraft.util.math.BlockPos;
 import java.util.*;
 
@@ -11,9 +11,9 @@ public final class PatchReplayHistory {
         final Object world;
         final PatchTransaction transaction;
         boolean started;
-        final Map<BlockPos, BlockState> pending = new LinkedHashMap<>();
+        final Map<BlockPos, BlockSnapshot> pending = new LinkedHashMap<>();
         // Preserve the observed source until a post-write read confirms the actual outcome.
-        final Map<BlockPos, BlockState> unconfirmed = new HashMap<>();
+        final Map<BlockPos, BlockSnapshot> unconfirmed = new HashMap<>();
         Entry(Object world, PatchTransaction transaction) {
             this.world = Objects.requireNonNull(world);
             this.transaction = transaction;
@@ -56,8 +56,8 @@ public final class PatchReplayHistory {
         Entry entry = source.peek();
         if (entry.world != world) return new ReplayResult(true, true, 0, 0, 0, 0, 0, entry.pending.size(), null);
         var expected = reversing ? entry.transaction.after() : entry.transaction.before();
-        Map<BlockPos, BlockState> actualBefore = new HashMap<>();
-        Map<BlockPos, BlockState> actualAfter = new HashMap<>();
+        Map<BlockPos, BlockSnapshot> actualBefore = new HashMap<>();
+        Map<BlockPos, BlockSnapshot> actualAfter = new HashMap<>();
         int same = 0, blocked = 0, failed = 0, conflicts = 0;
         var iterator = entry.pending.entrySet().iterator();
         while (iterator.hasNext()) {
@@ -65,17 +65,18 @@ public final class PatchReplayHistory {
             BlockPos pos = item.getKey();
             try {
                 if (!access.isInsideHeight(pos) || !access.isChunkReady(pos)) { blocked++; continue; }
-                BlockState current = access.getState(pos);
-                BlockState unconfirmedBefore = entry.unconfirmed.remove(pos);
+                BlockSnapshot current = access.getSnapshot(pos);
+                BlockSnapshot unconfirmedBefore = entry.unconfirmed.remove(pos);
                 if (unconfirmedBefore != null && !unconfirmedBefore.equals(current)) {
                     actualBefore.put(pos, unconfirmedBefore);
                     actualAfter.put(pos, current);
                 }
                 if (current.equals(item.getValue())) { same++; iterator.remove(); continue; }
-                if (!current.equals(expected.get(pos))) { conflicts++; continue; }
+                BlockSnapshot expectedSource = expected.get(pos);
+                if (expectedSource != null && !current.equals(expectedSource)) { conflicts++; continue; }
                 entry.unconfirmed.put(pos, current);
-                boolean accepted = access.setState(pos, item.getValue());
-                BlockState after = access.getState(pos);
+                boolean accepted = access.setSnapshot(pos, item.getValue());
+                BlockSnapshot after = access.getSnapshot(pos);
                 entry.unconfirmed.remove(pos);
                 actualBefore.putIfAbsent(pos, current);
                 actualAfter.put(pos, after);

@@ -1,7 +1,9 @@
 package com.formacraft.common.patch.history;
 
+import com.formacraft.common.world.BlockSnapshot;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.block.Blocks;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -11,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class PatchTransactionTest {
     @BeforeAll static void initialize() { MinecraftRegistryTestBootstrap.initialize(); }
     @Test void noFinalDifferenceProducesNoHistoryOrMemoryPatches() {
-        var state = Map.of(BlockPos.ORIGIN, Blocks.STONE.getDefaultState());
+        var state = Map.of(BlockPos.ORIGIN, BlockSnapshot.of(Blocks.STONE.getDefaultState()));
         var tx = PatchTransaction.fromSnapshots(BlockPos.ORIGIN, state, state);
         assertTrue(tx.before().isEmpty());
         assertTrue(tx.after().isEmpty());
@@ -20,14 +22,30 @@ class PatchTransactionTest {
     @Test void reverseMemoryPatchRestoresOriginalMaterialInsteadOfRemovingReplacement() {
         BlockPos origin = new BlockPos(10, 1, -3);
         BlockPos pos = origin.add(-2, 3, 4);
-        var tx = PatchTransaction.fromSnapshots(origin, Map.of(pos, Blocks.STONE.getDefaultState()),
-                Map.of(pos, Blocks.OAK_PLANKS.getDefaultState()));
+        var tx = PatchTransaction.fromSnapshots(origin,
+                Map.of(pos, BlockSnapshot.of(Blocks.STONE.getDefaultState())),
+                Map.of(pos, BlockSnapshot.of(Blocks.OAK_PLANKS.getDefaultState())));
         assertEquals("minecraft:oak_planks", tx.patches().getFirst().targetBlock());
-        var reverse = PatchTransaction.patchesForStates(origin, tx.before()).getFirst();
+        var reverse = PatchTransaction.patchesForSnapshots(origin, tx.before()).getFirst();
         assertEquals("replace", reverse.action());
         assertEquals("minecraft:stone", reverse.targetBlock());
         assertEquals(-2, reverse.dx());
         assertEquals(3, reverse.dy());
         assertEquals(4, reverse.dz());
+    }
+
+    @Test void nbtDifferenceIsTreatedAsChangeEvenWhenStateMatches() {
+        BlockPos pos = BlockPos.ORIGIN;
+        NbtCompound a = new NbtCompound();
+        a.putString("id", "minecraft:chest");
+        a.putString("Lock", "alpha");
+        NbtCompound b = a.copy();
+        b.putString("Lock", "beta");
+        var stone = Blocks.CHEST.getDefaultState();
+        var tx = PatchTransaction.fromSnapshots(pos,
+                Map.of(pos, BlockSnapshot.of(stone, a)),
+                Map.of(pos, BlockSnapshot.of(stone, b)));
+        assertEquals(1, tx.before().size());
+        assertEquals("beta", tx.after().get(pos).blockEntityNbt().getString("Lock").orElse(""));
     }
 }

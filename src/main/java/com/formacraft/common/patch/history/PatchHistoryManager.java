@@ -2,7 +2,8 @@ package com.formacraft.common.patch.history;
 
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.PatchExecutor;
-import net.minecraft.block.BlockState;
+import com.formacraft.common.world.BlockMutationAccess;
+import com.formacraft.common.world.BlockSnapshot;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -41,6 +42,7 @@ public final class PatchHistoryManager {
     public static void clearAll() {
         PER_PLAYER.clear();
         LAST_APPLY_RESULT.clear();
+        com.formacraft.server.build.PlayerMutationLedger.get().clearAll();
     }
 
     /** 最近一次 apply 的统计（按玩家隔离）。 */
@@ -58,17 +60,19 @@ public final class PatchHistoryManager {
         if (origin == null || patches == null || patches.isEmpty()) return null;
 
         Set<BlockPos> affected = collectAffected(origin, patches);
-        Map<BlockPos, BlockState> before = snapshot(world, affected);
+        BlockMutationAccess access = BlockMutationAccess.forWorld(world);
+        Map<BlockPos, BlockSnapshot> before = snapshot(access, affected);
 
         PatchExecutor.ApplyResult applyResult = PatchExecutor.apply(world, origin, patches);
         LAST_APPLY_RESULT.put(playerId, applyResult);
 
-        Map<BlockPos, BlockState> after = snapshot(world, affected);
+        Map<BlockPos, BlockSnapshot> after = snapshot(access, affected);
 
         PatchTransaction tx = PatchTransaction.fromSnapshots(origin, before, after);
         if (tx.before().isEmpty()) return applyResult;
 
         stacks(playerId).record(world, tx);
+        com.formacraft.server.build.PlayerMutationLedger.get().recordPatch(playerId);
 
         // ========== Memory → Patch → Memory 闭环 ==========
         // 分析 Patch 影响并更新 Memory
@@ -214,12 +218,11 @@ public final class PatchHistoryManager {
         return set;
     }
 
-    private static Map<BlockPos, BlockState> snapshot(ServerWorld world, Set<BlockPos> positions) {
-        Map<BlockPos, BlockState> map = new HashMap<>(positions.size());
+    private static Map<BlockPos, BlockSnapshot> snapshot(BlockMutationAccess access, Set<BlockPos> positions) {
+        Map<BlockPos, BlockSnapshot> map = new HashMap<>(positions.size());
         for (BlockPos pos : positions) {
-            if (com.formacraft.common.world.WorldBuildBounds.isInsideWorldHeight(world, pos)
-                    && com.formacraft.common.world.WorldBuildBounds.isChunkReady(world, pos)) {
-                map.put(pos, world.getBlockState(pos));
+            if (access.isInsideHeight(pos) && access.isChunkReady(pos)) {
+                map.put(pos, access.getSnapshot(pos));
             }
         }
         return map;
