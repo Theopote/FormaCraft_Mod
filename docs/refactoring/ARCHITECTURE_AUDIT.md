@@ -139,3 +139,14 @@ PlanProgram 合并层建立整份 patch 上限，失败继续采用原子拒绝�
 - **对齐点**：两边均为「预览裁剪 → 权威快照 → 确认消费 → 写入」；底层写入都走 `BlockMutationAccess`。
 - **仍分叉**：过滤实现双轨（`PatchFilterPipeline` vs `BuildConstraints`）；历史双轨（`PatchHistoryManager` vs `UndoService`）；Patch 同步写入、Build 分 Tick。对称只在 Pipeline；笔刷/路径走廊只在 BuildConstraints。见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md)。
 - **未改**：`queueBuild(BuildingSpec)` 等管理入口仍可跳过 PreviewStorage 直接排队（需 OP/命令路径约束，不在本批范围）。
+
+## 第二十七批补充：确认契约、离线 Undo、全局 Tick 预算
+
+第二轮审查报告落地：
+
+- **CAS Ticket 消费** + Ticket 绑定 `QualitySnapshot`；确认不再依赖玩家维度质量报告做门禁。
+- **BuildQualityGate**：FATAL 禁止、ERROR 需 force；PatchConfirmPayload.force 与 `/forma_confirm force` 对齐。
+- **离线 Undo**：完成建造按 owner UUID 记入 `UndoService`，在线才发完成消息；Memory 失败不影响 Undo。
+- **全局预算**：`BLOCKS_PER_WORLD_TICK=200` 世界共享 + 轮询公平调度；单世界最多 32 任务。
+- **严格 Meta**：缺 `PreviewMeta` 时 `validatePreview` 失败。
+- **测试**：`BuildQualityGateTest`、Ticket 并发 consume、`BuildExecutionBudgetTest`、离线 Undo UUID 栈。

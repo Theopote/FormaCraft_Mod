@@ -22,6 +22,16 @@
 
 **已修复**：Patch `confirm` 须先校验维度/距离再 `consume`，避免门禁失败丢票据；Ticket 绑定签发维度。
 
+### 第二十七批（2026-10-13）
+
+- **CAS 消费**：`PreviewTicketStorage.consume` 使用 `ConcurrentHashMap.remove(key, value)`；同 Ticket 并发确认仅成功一次。
+- **Ticket 级质量**：签发时写入 `QualitySnapshot`；确认走 `BuildQualityGate`（FATAL 禁、ERROR 需 force），与 `/forma_confirm force` 对齐。
+- **离线 Undo**：`BuildExecutionService` 完成时按 owner UUID 调用 `UndoService.pushUndo`，不依赖玩家在线；消息仅在线发送。
+- **全局 Tick 预算**：每世界每 Tick 共享 `BLOCKS_PER_WORLD_TICK=200`，轮询公平调度；单世界任务上限 32。
+- **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
+
+`PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；本批不合并事务类型。
+
 ## 世界访问与结果
 
 BlockMutationAccess 封装高度、区块就绪、读取及写入。生产适配器仍使用 ServerWorld.setBlockState(...,3)，测试使用可控内存世界验证拒绝写入，不伪装成真实游戏服务器。

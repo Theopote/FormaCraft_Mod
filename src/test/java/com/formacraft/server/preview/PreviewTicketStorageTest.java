@@ -60,4 +60,45 @@ class PreviewTicketStorageTest {
         assertNotNull(PreviewTicketStorage.get(ticket.id()), "门禁失败后票据应仍可确认");
         assertNotNull(PreviewTicketStorage.consume(ticket.id(), player));
     }
+
+    @Test
+    void concurrentConsumeSucceedsExactlyOnce() throws Exception {
+        UUID player = UUID.randomUUID();
+        PreviewTicket ticket = PreviewTicketStorage.create(
+                player, new BlockPos(1, 1, 1),
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone")));
+        assertNotNull(ticket);
+
+        java.util.concurrent.atomic.AtomicInteger wins = new java.util.concurrent.atomic.AtomicInteger();
+        Runnable r = () -> {
+            if (PreviewTicketStorage.consume(ticket.id(), player) != null) {
+                wins.incrementAndGet();
+            }
+        };
+        Thread t1 = new Thread(r);
+        Thread t2 = new Thread(r);
+        t1.start();
+        t2.start();
+        t1.join();
+        t2.join();
+        assertEquals(1, wins.get());
+        assertNull(PreviewTicketStorage.get(ticket.id()));
+    }
+
+    @Test
+    void ticketCarriesQualitySnapshot() {
+        UUID player = UUID.randomUUID();
+        var quality = new com.formacraft.server.build.quality.BuildQualityGate.QualitySnapshot(
+                false, true, "has error");
+        PreviewTicket ticket = PreviewTicketStorage.create(
+                player,
+                net.minecraft.util.Identifier.of("minecraft", "overworld"),
+                new BlockPos(0, 64, 0),
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone")),
+                quality);
+        assertNotNull(ticket);
+        assertNotNull(ticket.quality());
+        assertTrue(ticket.quality().hasError());
+        assertFalse(ticket.quality().hasFatal());
+    }
 }

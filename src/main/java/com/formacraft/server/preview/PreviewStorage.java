@@ -85,9 +85,10 @@ public class PreviewStorage {
 
         PreviewMeta meta = metas.get(uuid);
         if (meta == null) {
-            // 旧路径兼容：补全 meta
-            metas.put(uuid, buildMeta(player, structure));
-            meta = metas.get(uuid);
+            FormacraftMod.LOGGER.warn(
+                    "Player {} preview missing PreviewMeta; reject confirm (no auto-backfill)",
+                    player.getName().getString());
+            return false;
         }
 
         if (player.getEntityWorld() instanceof ServerWorld sw) {

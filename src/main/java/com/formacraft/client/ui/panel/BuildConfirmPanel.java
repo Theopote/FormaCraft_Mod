@@ -162,10 +162,10 @@ public class BuildConfirmPanel {
         PreviewModalState.lockBuild();
     }
 
-    /** 服务端质量摘要含 Error 时标记，供 PREVIEW 确认走 force 流程 */
+    /** 服务端质量摘要含 Error 时标记，供 PREVIEW/PATCH 确认走 force 流程 */
     public void notePreviewQualityError() {
         previewQualityErrorHint = true;
-        if (visible && mode != Mode.PATCH) {
+        if (visible) {
             previewQualityError = true;
         }
     }
@@ -188,6 +188,8 @@ public class BuildConfirmPanel {
         this.rejectedPatchList = (rejected != null) ? new java.util.ArrayList<>(rejected) : new java.util.ArrayList<>();
         this.patchWarnings = new java.util.ArrayList<>();
         this.awaitingPatchApplyResult = false;
+        this.previewQualityError = previewQualityErrorHint;
+        this.previewForceArmed = false;
         // 乐观启用：真实可用性由服务端在首次 apply/undo/redo 后回传校正
         this.patchCanUndo = true;
         this.patchCanRedo = true;
@@ -260,10 +262,17 @@ public class BuildConfirmPanel {
             return;
         }
         if (awaitingPatchApplyResult) return;
+        // 与 BUILD 对齐：质量 ERROR 时需二次点击强制确认
+        if (previewQualityError && !previewForceArmed) {
+            previewForceArmed = true;
+            if (patchWarnings == null) patchWarnings = new java.util.ArrayList<>();
+            patchWarnings.addFirst("存在质量错误，请再次确认以强制应用。");
+            return;
+        }
         PatchPreviewState.clear();
         awaitingPatchApplyResult = true;
         if (applyPatchButton != null) applyPatchButton.active = false;
-        FormaCraftClientNetworking.sendPatchConfirm(previewTicketId);
+        FormaCraftClientNetworking.sendPatchConfirm(previewTicketId, previewQualityError);
     }
 
     /** 服务端 Patch 应用/撤销/重做完成后的反馈（S2C）。 */

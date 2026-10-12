@@ -520,13 +520,14 @@ public class FormaCraftCommands {
         }
 
         BuildQualityReport quality = PreviewStorage.getQualityReport(player);
-        if (quality != null && quality.hasFatal()) {
-            source.sendError(Text.literal(quality.summaryZh()));
+        var gate = com.formacraft.server.build.quality.BuildQualityGate.decide(quality, force);
+        if (gate == com.formacraft.server.build.quality.BuildQualityGate.Decision.DENY_FATAL) {
+            source.sendError(Text.literal(quality != null ? quality.summaryZh() : "质量检查失败"));
             return 0;
         }
-        if (quality != null && quality.hasError() && !force) {
+        if (gate == com.formacraft.server.build.quality.BuildQualityGate.Decision.REQUIRE_FORCE) {
             source.sendError(Text.translatable("formacraft.command.confirm.quality_error",
-                    quality.summaryZh()));
+                    quality != null ? quality.summaryZh() : ""));
             return 0;
         }
         if (quality != null && quality.hasError() && force) {

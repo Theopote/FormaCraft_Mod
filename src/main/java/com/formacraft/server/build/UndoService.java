@@ -31,14 +31,23 @@ public class UndoService {
         memoryUpdater = manager == null ? update -> false : manager::recordBuildUndo;
     }
     public void pushUndo(ServerPlayerEntity player, UndoEntry entry) {
-        record(player.getUuid(), entry.getWorld(), entry.getOrigin(), entry.getChanges(), entry.getMemoryUuid(),
-            entry.getWorld().getRegistryKey().getValue());
+        if (player == null || entry == null) return;
+        pushUndo(player.getUuid(), entry);
     }
-    void record(UUID playerId, Object world, BlockPos origin, List<BlockChange> changes) {
+
+    /** 按玩家 UUID 记录撤销（玩家可离线）。 */
+    public void pushUndo(UUID playerId, UndoEntry entry) {
+        if (playerId == null || entry == null || entry.getWorld() == null) return;
+        record(playerId, entry.getWorld(), entry.getOrigin(), entry.getChanges(), entry.getMemoryUuid(),
+                entry.getWorld().getRegistryKey().getValue());
+    }
+
+    public void record(UUID playerId, Object world, BlockPos origin, List<BlockChange> changes) {
         record(playerId, world, origin, changes, null, null);
     }
-    void record(UUID playerId, Object world, BlockPos origin, List<BlockChange> changes,
-                String memoryUuid, Identifier dimension) {
+
+    public void record(UUID playerId, Object world, BlockPos origin, List<BlockChange> changes,
+                       String memoryUuid, Identifier dimension) {
         if (memoryUuid != null) Objects.requireNonNull(dimension, "dimension");
         Map<BlockPos, BlockState> before = new HashMap<>(), after = new HashMap<>();
         for (BlockChange change : changes) {
@@ -96,7 +105,12 @@ public class UndoService {
         return pending != null && !pending.isEmpty();
     }
     public int getUndoStackSize(ServerPlayerEntity player) {
-        var history = undoStacks.get(player.getUuid());
+        return player == null ? 0 : getUndoStackSize(player.getUuid());
+    }
+
+    public int getUndoStackSize(UUID playerId) {
+        if (playerId == null) return 0;
+        var history = undoStacks.get(playerId);
         return history == null ? 0 : history.replay.undoSize();
     }
     public void clear() { undoStacks.clear(); pendingMemory.clear(); }

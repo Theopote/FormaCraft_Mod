@@ -214,11 +214,16 @@ public final class FormaCraftClientNetworking {
         ClientPlayNetworking.send(new FormaCraftNetworking.PatchRedoPayload());
     }
 
-    /** 客户端确认 Patch 预览（仅发送 ticketId）。 */
+    /** 客户端确认 Patch 预览（ticketId + 可选 force）。 */
     public static void sendPatchConfirm(UUID previewTicketId) {
+        sendPatchConfirm(previewTicketId, false);
+    }
+
+    public static void sendPatchConfirm(UUID previewTicketId, boolean force) {
         if (previewTicketId == null) return;
         MinecraftClient mc = MinecraftClient.getInstance();
-        FormaCraftNetworking.PatchConfirmPayload payload = new FormaCraftNetworking.PatchConfirmPayload(previewTicketId);
+        FormaCraftNetworking.PatchConfirmPayload payload =
+                new FormaCraftNetworking.PatchConfirmPayload(previewTicketId, force);
         if (mc != null && mc.getNetworkHandler() != null) {
             mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(payload));
             return;

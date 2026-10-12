@@ -236,12 +236,19 @@ public class FormaCraftNetworking {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Patch 确认：客户端仅发送 preview ticketId，服务端从 PreviewTicket 取 patches 并应用。 */
-    public record PatchConfirmPayload(UUID previewTicketId) implements CustomPayload {
+    /** Patch 确认：ticketId + 可选 force（ERROR 级质量需强制确认，对齐 /forma_confirm force）。 */
+    public record PatchConfirmPayload(UUID previewTicketId, boolean force) implements CustomPayload {
+        public PatchConfirmPayload(UUID previewTicketId) {
+            this(previewTicketId, false);
+        }
+
         public static final CustomPayload.Id<PatchConfirmPayload> ID = new CustomPayload.Id<>(PATCH_CONFIRM);
         public static final PacketCodec<PacketByteBuf, PatchConfirmPayload> CODEC = PacketCodec.of(
-                (payload, buf) -> buf.writeUuid(payload.previewTicketId()),
-                buf -> new PatchConfirmPayload(buf.readUuid())
+                (payload, buf) -> {
+                    buf.writeUuid(payload.previewTicketId());
+                    buf.writeBoolean(payload.force());
+                },
+                buf -> new PatchConfirmPayload(buf.readUuid(), buf.readBoolean())
         );
 
         @Override

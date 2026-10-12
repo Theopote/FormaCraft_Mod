@@ -8,6 +8,7 @@ import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.PatchExecutor;
 import com.formacraft.common.patch.filter.PatchFilterResult;
 import com.formacraft.common.patch.history.PatchHistoryManager;
+import com.formacraft.server.build.quality.BuildQualityGate;
 import com.formacraft.server.build.quality.BuildQualityReport;
 import com.formacraft.server.build.quality.BuildQualitySeverity;
 import com.formacraft.server.build.quality.PatchQualityChecker;
@@ -27,8 +28,8 @@ import java.util.UUID;
 /**
  * 签发 Patch 预览票据并在确认时应用（服务端权威）。
  * <p>
- * 契约：预览时过滤 → Ticket 仅存 accepted → 确认前校验玩家/维度/距离 → 一次性消费 → 写入。
- * 确认路径不再二次过滤，也不接受客户端上传的任意 Patch 列表。
+ * 契约：预览时过滤 → Ticket 仅存 accepted + 质量摘要 → 确认前校验玩家/维度/距离/质量门禁
+ * → CAS 一次性消费 → 写入。
  */
 public final class PatchPreviewService {
     private PatchPreviewService() {}
@@ -102,8 +103,9 @@ public final class PatchPreviewService {
         }
 
         Identifier dimension = sw.getRegistryKey().getValue();
+        BuildQualityGate.QualitySnapshot qualitySnap = BuildQualityGate.QualitySnapshot.from(quality);
         PreviewTicket ticket = PreviewTicketStorage.create(
-                player.getUuid(), dimension, origin, filtered.accepted);
+                player.getUuid(), dimension, origin, filtered.accepted, qualitySnap);
         if (ticket == null) {
             return null;
         }
@@ -124,10 +126,13 @@ public final class PatchPreviewService {
     }
 
     public static boolean confirm(ServerPlayerEntity player, UUID ticketId) {
+        return confirm(player, ticketId, false);
+    }
+
+    public static boolean confirm(ServerPlayerEntity player, UUID ticketId, boolean force) {
         if (player == null || ticketId == null) return false;
         if (!(player.getEntityWorld() instanceof ServerWorld sw)) return false;
 
-        // 门禁先于 consume：失败时保留票据，避免「太远/错维度」导致一次性票据丢失
         PreviewTicket pending = PreviewTicketStorage.get(ticketId);
         if (pending == null || !player.getUuid().equals(pending.playerId())) {
             FormacraftMod.LOGGER.warn("Player {} tried to confirm unknown/expired/foreign patch ticket {}",
@@ -154,11 +159,26 @@ public final class PatchPreviewService {
             return false;
         }
 
-        BuildQualityReport qr = PreviewStorage.getQualityReport(player);
-        if (qr != null && qr.hasError()) {
-            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                    "【注意】" + qr.summaryZh() + "（仍可应用，请确认后再操作）"
+        // Ticket 级质量门禁（与 BUILD /forma_confirm 共用策略）
+        BuildQualityGate.Decision decision = BuildQualityGate.decide(pending.quality(), force);
+        if (decision == BuildQualityGate.Decision.DENY_FATAL) {
+            String msg = pending.quality() != null ? pending.quality().summaryZh() : "质量检查失败";
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(msg));
+            return false;
+        }
+        if (decision == BuildQualityGate.Decision.REQUIRE_FORCE) {
+            String msg = pending.quality() != null ? pending.quality().summaryZh() : "存在质量错误";
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "质量错误，需强制确认后才能应用：" + msg
             ));
+            return false;
+        }
+        if (force && pending.quality() != null && pending.quality().hasError()) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                    "【强制确认】" + pending.quality().summaryZh()
+            ));
+            FormacraftMod.LOGGER.info("Player {} force-confirmed patch ticket {} with errors",
+                    player.getName().getString(), ticketId);
         }
 
         PreviewTicket ticket = PreviewTicketStorage.consume(ticketId, player.getUuid());

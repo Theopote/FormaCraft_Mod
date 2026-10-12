@@ -71,6 +71,19 @@ class UndoServiceTest {
         service.record(player, world, BlockPos.ORIGIN, changes(pos));
         assertTrue(service.undo(player, world, access).complete()); assertFalse(service.hasPendingMemory(player));
     }
+
+    @Test void offlinePlayerUuidStillRecordsUndoStack() {
+        var service = new UndoService();
+        UUID offline = UUID.randomUUID();
+        Object world = new Object();
+        var pos = new BlockPos(2, 3, 4);
+        service.record(offline, world, BlockPos.ORIGIN, changes(pos));
+        assertEquals(1, service.getUndoStackSize(offline));
+        var access = new FakeBlockMutationAccess();
+        access.states.put(pos, Blocks.STONE.getDefaultState());
+        assertTrue(service.undo(offline, world, access).complete());
+        assertEquals(0, service.getUndoStackSize(offline));
+    }
     @Test void newerBuildDoesNotStealOlderBuildMemoryAssociation() {
         var updates = new ArrayList<com.formacraft.server.memory.BuildUndoMemoryUpdate>();
         var service = new UndoService(update -> { updates.add(update); return true; });

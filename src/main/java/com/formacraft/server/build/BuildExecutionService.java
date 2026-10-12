@@ -22,7 +22,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,11 +32,16 @@ import java.util.UUID;
  * 任务完成后自动将结果交给 UndoService
  */
 public class BuildExecutionService {
-    private static final int BLOCKS_PER_TICK = 200; // 可做成配置
+    /** 每个世界 Tick 所有任务共享的方块处理预算（非每任务独立）。 */
+    static final int BLOCKS_PER_WORLD_TICK = 200;
+    /** 单世界同时进行的建造任务上限；超额拒绝排队。 */
+    static final int MAX_ACTIVE_TASKS_PER_WORLD = 32;
 
     private final List<BuildTask> activeTasks = new ArrayList<>();
     private final UndoService undoService = new UndoService();
     private MemoryManager memoryManager;
+    /** 公平轮询下标：按世界分开，避免队首任务独占预算。 */
+    private final java.util.Map<ServerWorld, Integer> nextTaskIndexByWorld = new java.util.WeakHashMap<>();
 
     private static BuildExecutionService INSTANCE;
     private static boolean TICK_HANDLER_REGISTERED = false;
@@ -234,103 +238,145 @@ public class BuildExecutionService {
 
    /**
      * 提交一个建造任务（使用 GeneratedStructure）
+     * @return true 已入队；false 因同世界任务数超限被拒绝
      */
-    public void enqueueBuild(ServerWorld world, GeneratedStructure structure) {
+    public boolean enqueueBuild(ServerWorld world, GeneratedStructure structure) {
+        if (world == null || structure == null) return false;
+        int worldActive = 0;
+        for (BuildTask t : activeTasks) {
+            if (t != null && t.getWorld() == world) worldActive++;
+        }
+        if (worldActive >= MAX_ACTIVE_TASKS_PER_WORLD) {
+            FormacraftMod.LOGGER.warn(
+                    "Rejecting build enqueue: world already has {} active tasks (max={})",
+                    worldActive, MAX_ACTIVE_TASKS_PER_WORLD);
+            return false;
+        }
         activeTasks.add(new BuildTask(structure, world));
-        FormacraftMod.LOGGER.info("Queued build task: {} blocks at {} (owner: {})", 
+        FormacraftMod.LOGGER.info("Queued build task: {} blocks at {} (owner: {})",
                 structure.size(), structure.getOrigin(), structure.getOwner());
+        return true;
     }
 
     /**
-     * 每个世界 tick 调用，处理所有 BuildTask
+     * 每个世界 tick：全局预算公平调度本世界任务。
      */
     public void onWorldTick(ServerWorld world) {
-        Iterator<BuildTask> it = activeTasks.iterator();
-        while (it.hasNext()) {
-            BuildTask task = it.next();
+        if (world == null || activeTasks.isEmpty()) return;
 
-            if (task.getWorld() != world) {
-                continue;
+        List<Integer> worldIndices = new ArrayList<>();
+        for (int i = 0; i < activeTasks.size(); i++) {
+            BuildTask t = activeTasks.get(i);
+            if (t != null && t.getWorld() == world) {
+                worldIndices.add(i);
             }
+        }
+        if (worldIndices.isEmpty()) return;
 
-            int executed = task.tick(BLOCKS_PER_TICK);
-            // 这里你可以顺便做进度广播、调试输出等
+        int remainingBudget = BLOCKS_PER_WORLD_TICK;
+        int n = worldIndices.size();
+        int startOffset = Math.floorMod(nextTaskIndexByWorld.getOrDefault(world, 0), n);
+
+        List<BuildTask> finished = new ArrayList<>();
+        for (int step = 0; step < n && remainingBudget > 0; step++) {
+            int local = (startOffset + step) % n;
+            int globalIdx = worldIndices.get(local);
+            BuildTask task = activeTasks.get(globalIdx);
+            if (task == null || task.isFinished()) continue;
+
+            int cap = Math.max(1, remainingBudget / Math.max(1, n - step));
+            int quota = Math.min(remainingBudget, cap);
+            int executed = task.tick(quota);
             if (executed > 0) {
-                FormacraftMod.LOGGER.debug("Executed {} blocks in tick", executed);
+                remainingBudget -= executed;
+                FormacraftMod.LOGGER.debug("Executed {} blocks (budget left={})", executed, remainingBudget);
             }
-
             if (task.isFinished()) {
-                it.remove();
-
-                var structure = task.getStructure();
-                var changes = task.getAppliedChanges();
-                BuildTask.BuildApplyResult applyResult = task.result();
-                if (structure.getOwner() != null) {
-                    ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(structure.getOwner());
-                    if (owner != null) {
-                        String memoryUuid = null;
-
-                        FormacraftMod.LOGGER.info("Build task completed: {} — {}",
-                                structure.getDescription(), applyResult.summaryZh());
-
-                        // 保存到记忆系统
-                        if (memoryManager != null && !changes.isEmpty() && applyResult.isCompletePlacement()) {
-                            try {
-                                // 尝试从 PlayerSpecRepository 获取 BuildingSpec
-                                String buildingJson = PlayerSpecRepository.getBuildingJson(owner);
-                                BuildingSpec spec = null;
-                                if (buildingJson != null && !buildingJson.isEmpty()) {
-                                    try {
-                                        spec = JsonUtil.fromJson(buildingJson, BuildingSpec.class);
-                                    } catch (Exception e) {
-                                        FormacraftMod.LOGGER.warn("Failed to parse BuildingSpec from repository: {}", e.getMessage());
-                                    }
-                                }
-                                
-                                // 生成记忆名称（如果没有从 spec 获取）
-                                String memoryName = structure.getDescription();
-                                if (spec != null && spec.getNotes() != null && !spec.getNotes().isEmpty()) {
-                                    memoryName = spec.getNotes();
-                                }
-                                
-                                // 注册到记忆系统
-                                ProjectMemory memory = memoryManager.registerBuilding(
-                                        structure,
-                                        spec,
-                                        memoryName,
-                                        world
-                                );
-                                
-                                if (memory != null) {
-                                    memoryUuid = memory.getUuid();
-                                    FormacraftMod.LOGGER.info("Saved building to memory: {} ({})", memory.getName(), memory.getUuid());
-                                }
-                            } catch (Exception e) {
-                                FormacraftMod.LOGGER.warn("Failed to save building to memory: {}", e.getMessage());
-                            }
-                        }
-
-                        // Failed registration and partial builds still retain their actual block undo.
-                        if (!changes.isEmpty()) {
-                            undoService.pushUndo(owner, new UndoEntry(world, structure.getOrigin(),
-                                structure.getDescription(), changes, memoryUuid));
-                        }
-
-                        // 给客户端明确的完成提示（含累计跳过统计）
-                        try {
-                            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
-                                    owner,
-                                    new com.formacraft.common.network.FormaCraftNetworking.ResponseBuildStatusPayload(
-                                            applyResult.summaryZh()
-                                    )
-                            );
-                        } catch (Throwable ignored) {}
-                    }
-                } else {
-                    FormacraftMod.LOGGER.info("Build task completed: {} — {}",
-                            structure.getDescription(), applyResult.summaryZh());
-                }
+                finished.add(task);
             }
+        }
+        nextTaskIndexByWorld.put(world, Math.floorMod(startOffset + 1, n));
+
+        for (BuildTask task : finished) {
+            activeTasks.remove(task);
+            completeTask(world, task);
+        }
+    }
+
+    /** 单 Tick 内实际处理量上界（测试钩子）。 */
+    int blocksPerWorldTick() {
+        return BLOCKS_PER_WORLD_TICK;
+    }
+
+    int activeTaskCount(ServerWorld world) {
+        int c = 0;
+        for (BuildTask t : activeTasks) {
+            if (t != null && t.getWorld() == world) c++;
+        }
+        return c;
+    }
+
+    private void completeTask(ServerWorld world, BuildTask task) {
+        var structure = task.getStructure();
+        var changes = task.getAppliedChanges();
+        BuildTask.BuildApplyResult applyResult = task.result();
+        UUID ownerUuid = structure.getOwner();
+
+        FormacraftMod.LOGGER.info("Build task completed: {} — {}",
+                structure.getDescription(), applyResult.summaryZh());
+
+        if (ownerUuid == null) {
+            return;
+        }
+
+        ServerPlayerEntity ownerEntity = world.getServer().getPlayerManager().getPlayer(ownerUuid);
+        String memoryUuid = null;
+
+        // Memory：仅在线时可取 Spec；失败不影响 Undo
+        if (ownerEntity != null && memoryManager != null
+                && !changes.isEmpty() && applyResult.isCompletePlacement()) {
+            try {
+                String buildingJson = PlayerSpecRepository.getBuildingJson(ownerEntity);
+                BuildingSpec spec = null;
+                if (buildingJson != null && !buildingJson.isEmpty()) {
+                    try {
+                        spec = JsonUtil.fromJson(buildingJson, BuildingSpec.class);
+                    } catch (Exception e) {
+                        FormacraftMod.LOGGER.warn("Failed to parse BuildingSpec from repository: {}", e.getMessage());
+                    }
+                }
+                String memoryName = structure.getDescription();
+                if (spec != null && spec.getNotes() != null && !spec.getNotes().isEmpty()) {
+                    memoryName = spec.getNotes();
+                }
+                ProjectMemory memory = memoryManager.registerBuilding(structure, spec, memoryName, world);
+                if (memory != null) {
+                    memoryUuid = memory.getUuid();
+                    FormacraftMod.LOGGER.info("Saved building to memory: {} ({})", memory.getName(), memory.getUuid());
+                }
+            } catch (Exception e) {
+                FormacraftMod.LOGGER.warn("Failed to save building to memory: {}", e.getMessage());
+            }
+        }
+
+        // Undo：按 UUID 记录，玩家可离线
+        if (!changes.isEmpty()) {
+            undoService.pushUndo(ownerUuid, new UndoEntry(
+                    world, structure.getOrigin(), structure.getDescription(), changes, memoryUuid));
+        }
+
+        if (ownerEntity != null) {
+            try {
+                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                        ownerEntity,
+                        new com.formacraft.common.network.FormaCraftNetworking.ResponseBuildStatusPayload(
+                                applyResult.summaryZh()
+                        )
+                );
+            } catch (Throwable ignored) {}
+        } else {
+            FormacraftMod.LOGGER.info(
+                    "Build completed while owner offline; undo retained for uuid={}", ownerUuid);
         }
     }
 

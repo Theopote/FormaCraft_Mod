@@ -1,6 +1,7 @@
 package com.formacraft.server.preview;
 
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.server.build.quality.BuildQualityGate;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
@@ -20,15 +21,11 @@ public final class PreviewTicketStorage {
     private static final Map<UUID, PreviewTicket> TICKETS = new ConcurrentHashMap<>();
 
     public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches) {
-        return create(playerId, null, origin, patches, DEFAULT_TTL_MS);
+        return create(playerId, null, origin, patches, null, DEFAULT_TTL_MS);
     }
 
     public static PreviewTicket create(UUID playerId, Identifier dimension, BlockPos origin, List<BlockPatch> patches) {
-        return create(playerId, dimension, origin, patches, DEFAULT_TTL_MS);
-    }
-
-    public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches, long ttlMs) {
-        return create(playerId, null, origin, patches, ttlMs);
+        return create(playerId, dimension, origin, patches, null, DEFAULT_TTL_MS);
     }
 
     public static PreviewTicket create(
@@ -36,6 +33,21 @@ public final class PreviewTicketStorage {
             Identifier dimension,
             BlockPos origin,
             List<BlockPatch> patches,
+            BuildQualityGate.QualitySnapshot quality
+    ) {
+        return create(playerId, dimension, origin, patches, quality, DEFAULT_TTL_MS);
+    }
+
+    public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches, long ttlMs) {
+        return create(playerId, null, origin, patches, null, ttlMs);
+    }
+
+    public static PreviewTicket create(
+            UUID playerId,
+            Identifier dimension,
+            BlockPos origin,
+            List<BlockPatch> patches,
+            BuildQualityGate.QualitySnapshot quality,
             long ttlMs
     ) {
         if (playerId == null || origin == null || patches == null || patches.isEmpty()) {
@@ -45,7 +57,8 @@ public final class PreviewTicketStorage {
         long now = System.currentTimeMillis();
         UUID id = UUID.randomUUID();
         PreviewTicket ticket = new PreviewTicket(
-                id, playerId, dimension, origin, List.copyOf(patches), now + Math.max(1_000L, ttlMs));
+                id, playerId, dimension, origin, List.copyOf(patches),
+                now + Math.max(1_000L, ttlMs), quality);
         TICKETS.put(id, ticket);
         return ticket;
     }
@@ -55,23 +68,31 @@ public final class PreviewTicketStorage {
         purgeExpired();
         PreviewTicket ticket = TICKETS.get(ticketId);
         if (ticket == null || ticket.isExpired(System.currentTimeMillis())) {
-            if (ticket != null) TICKETS.remove(ticketId);
+            if (ticket != null) TICKETS.remove(ticketId, ticket);
             return null;
         }
         return ticket;
     }
 
     /**
-     * 取出并移除票据（一次性消费，防止重复 apply）。
-     * 调用方应在 consume 前完成距离/维度等门禁检查，避免失败后票据丢失。
+     * CAS 一次性消费：查找 + 玩家校验 + remove(key, value) 不可分割。
+     * 调用方应在 consume 前完成距离/维度等门禁（用 {@link #get}），避免失败后票据丢失。
      */
     public static PreviewTicket consume(UUID ticketId, UUID playerId) {
-        PreviewTicket ticket = get(ticketId);
+        if (ticketId == null || playerId == null) return null;
+        purgeExpired();
+        PreviewTicket ticket = TICKETS.get(ticketId);
         if (ticket == null) return null;
-        if (playerId == null || !playerId.equals(ticket.playerId())) {
+        if (ticket.isExpired(System.currentTimeMillis())) {
+            TICKETS.remove(ticketId, ticket);
             return null;
         }
-        TICKETS.remove(ticketId);
+        if (!playerId.equals(ticket.playerId())) {
+            return null;
+        }
+        if (!TICKETS.remove(ticketId, ticket)) {
+            return null;
+        }
         return ticket;
     }
 

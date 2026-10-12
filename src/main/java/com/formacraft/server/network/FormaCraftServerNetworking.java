@@ -57,7 +57,8 @@ public final class FormaCraftServerNetworking {
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchConfirmPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
-            com.formacraft.server.patch.PatchPreviewService.confirm(player, payload.previewTicketId());
+            com.formacraft.server.patch.PatchPreviewService.confirm(
+                    player, payload.previewTicketId(), payload.force());
         }));
 
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.OutlineSyncPayload.ID, (payload, context) -> context.server().execute(() -> {
