@@ -42,4 +42,22 @@ class PreviewTicketStorageTest {
         assertNull(PreviewTicketStorage.consume(ticket.id(), other));
         assertNotNull(PreviewTicketStorage.consume(ticket.id(), owner));
     }
+
+    @Test
+    void getLeavesTicketForRetryAfterGateFailure() {
+        UUID player = UUID.randomUUID();
+        PreviewTicket ticket = PreviewTicketStorage.create(
+                player,
+                net.minecraft.util.Identifier.of("minecraft", "overworld"),
+                new BlockPos(0, 64, 0),
+                List.of(new BlockPatch(BlockPatch.PLACE, 0, 0, 0, "minecraft:stone")));
+        assertNotNull(ticket);
+        assertEquals("minecraft:overworld", ticket.dimension().toString());
+
+        // 模拟 confirm 门禁：先 get 校验，失败则不 consume
+        PreviewTicket peeked = PreviewTicketStorage.get(ticket.id());
+        assertNotNull(peeked);
+        assertNotNull(PreviewTicketStorage.get(ticket.id()), "门禁失败后票据应仍可确认");
+        assertNotNull(PreviewTicketStorage.consume(ticket.id(), player));
+    }
 }

@@ -18,6 +18,7 @@ import com.formacraft.server.preview.PreviewTicketStorage;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -25,6 +26,9 @@ import java.util.UUID;
 
 /**
  * 签发 Patch 预览票据并在确认时应用（服务端权威）。
+ * <p>
+ * 契约：预览时过滤 → Ticket 仅存 accepted → 确认前校验玩家/维度/距离 → 一次性消费 → 写入。
+ * 确认路径不再二次过滤，也不接受客户端上传的任意 Patch 列表。
  */
 public final class PatchPreviewService {
     private PatchPreviewService() {}
@@ -62,9 +66,11 @@ public final class PatchPreviewService {
         if (!isPlayerNear(player, origin)) {
             return null;
         }
+        if (!(player.getEntityWorld() instanceof ServerWorld sw)) {
+            return null;
+        }
 
-        ServerWorld world = player.getEntityWorld() instanceof ServerWorld sw ? sw : null;
-        BuildQualityReport quality = PatchQualityChecker.check(world, origin, rawPatches);
+        BuildQualityReport quality = PatchQualityChecker.check(sw, origin, rawPatches);
         quality.logIssues("patch-preview");
 
         if (!quality.allowPreview()) {
@@ -95,8 +101,9 @@ public final class PatchPreviewService {
             return null;
         }
 
+        Identifier dimension = sw.getRegistryKey().getValue();
         PreviewTicket ticket = PreviewTicketStorage.create(
-                player.getUuid(), origin, filtered.accepted);
+                player.getUuid(), dimension, origin, filtered.accepted);
         if (ticket == null) {
             return null;
         }
@@ -120,6 +127,33 @@ public final class PatchPreviewService {
         if (player == null || ticketId == null) return false;
         if (!(player.getEntityWorld() instanceof ServerWorld sw)) return false;
 
+        // 门禁先于 consume：失败时保留票据，避免「太远/错维度」导致一次性票据丢失
+        PreviewTicket pending = PreviewTicketStorage.get(ticketId);
+        if (pending == null || !player.getUuid().equals(pending.playerId())) {
+            FormacraftMod.LOGGER.warn("Player {} tried to confirm unknown/expired/foreign patch ticket {}",
+                    player.getName().getString(), ticketId);
+            return false;
+        }
+
+        Identifier currentDim = sw.getRegistryKey().getValue();
+        if (pending.dimension() != null && !pending.dimension().equals(currentDim)) {
+            FormacraftMod.LOGGER.warn("Player {} patch ticket dimension mismatch: ticket={} current={}",
+                    player.getName().getString(), pending.dimension(), currentDim);
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "预览维度与当前世界不一致，请回到原维度后确认，或重新预览。"
+            ));
+            return false;
+        }
+
+        if (!isPlayerNear(player, pending.origin())) {
+            FormacraftMod.LOGGER.warn("Player {} too far from patch ticket origin {}",
+                    player.getName().getString(), pending.origin());
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    "距离预览原点过远，请靠近后再确认（票据仍有效）。"
+            ));
+            return false;
+        }
+
         BuildQualityReport qr = PreviewStorage.getQualityReport(player);
         if (qr != null && qr.hasError()) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
@@ -129,13 +163,8 @@ public final class PatchPreviewService {
 
         PreviewTicket ticket = PreviewTicketStorage.consume(ticketId, player.getUuid());
         if (ticket == null) {
-            FormacraftMod.LOGGER.warn("Player {} tried to confirm unknown/expired patch ticket {}",
+            FormacraftMod.LOGGER.warn("Player {} patch ticket raced/expired at consume {}",
                     player.getName().getString(), ticketId);
-            return false;
-        }
-        if (!isPlayerNear(player, ticket.origin())) {
-            FormacraftMod.LOGGER.warn("Player {} too far from patch ticket origin {}",
-                    player.getName().getString(), ticket.origin());
             return false;
         }
 

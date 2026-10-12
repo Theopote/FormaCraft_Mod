@@ -1,6 +1,7 @@
 package com.formacraft.server.preview;
 
 import com.formacraft.common.patch.BlockPatch;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Iterator;
@@ -19,17 +20,32 @@ public final class PreviewTicketStorage {
     private static final Map<UUID, PreviewTicket> TICKETS = new ConcurrentHashMap<>();
 
     public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches) {
-        return create(playerId, origin, patches, DEFAULT_TTL_MS);
+        return create(playerId, null, origin, patches, DEFAULT_TTL_MS);
+    }
+
+    public static PreviewTicket create(UUID playerId, Identifier dimension, BlockPos origin, List<BlockPatch> patches) {
+        return create(playerId, dimension, origin, patches, DEFAULT_TTL_MS);
     }
 
     public static PreviewTicket create(UUID playerId, BlockPos origin, List<BlockPatch> patches, long ttlMs) {
+        return create(playerId, null, origin, patches, ttlMs);
+    }
+
+    public static PreviewTicket create(
+            UUID playerId,
+            Identifier dimension,
+            BlockPos origin,
+            List<BlockPatch> patches,
+            long ttlMs
+    ) {
         if (playerId == null || origin == null || patches == null || patches.isEmpty()) {
             return null;
         }
         purgeExpired();
         long now = System.currentTimeMillis();
         UUID id = UUID.randomUUID();
-        PreviewTicket ticket = new PreviewTicket(id, playerId, origin, List.copyOf(patches), now + Math.max(1_000L, ttlMs));
+        PreviewTicket ticket = new PreviewTicket(
+                id, playerId, dimension, origin, List.copyOf(patches), now + Math.max(1_000L, ttlMs));
         TICKETS.put(id, ticket);
         return ticket;
     }
@@ -47,6 +63,7 @@ public final class PreviewTicketStorage {
 
     /**
      * 取出并移除票据（一次性消费，防止重复 apply）。
+     * 调用方应在 consume 前完成距离/维度等门禁检查，避免失败后票据丢失。
      */
     public static PreviewTicket consume(UUID ticketId, UUID playerId) {
         PreviewTicket ticket = get(ticketId);

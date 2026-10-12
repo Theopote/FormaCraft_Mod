@@ -130,3 +130,12 @@ PlanProgram 合并层建立整份 patch 上限，失败继续采用原子拒绝�
 - **调查**：`BuildPreviewPipeline` / `allowPreview` 失败时返回错误、不自动重新生成；未发现「校验失败转重新生成」旁路。
 
 历史文档中的 `ConfirmBuildPacket` 流程已标注过期；权威确认入口为 `/forma_confirm` 与 Patch Ticket。
+
+## 第二十六批补充：Patch / Build 世界写入一致性
+
+核对 `PatchPreviewService` 与 `BuildExecutionService`：
+
+- **已修**：Patch `confirm` 先做维度/距离门禁再 `consume`（此前太远会吞掉票据）；`PreviewTicket` 绑定签发维度。
+- **对齐点**：两边均为「预览裁剪 → 权威快照 → 确认消费 → 写入」；底层写入都走 `BlockMutationAccess`。
+- **仍分叉**：过滤实现双轨（`PatchFilterPipeline` vs `BuildConstraints`）；历史双轨（`PatchHistoryManager` vs `UndoService`）；Patch 同步写入、Build 分 Tick。对称只在 Pipeline；笔刷/路径走廊只在 BuildConstraints。见 [方块执行契约](../WORLD_MUTATION_CONTRACT.md)。
+- **未改**：`queueBuild(BuildingSpec)` 等管理入口仍可跳过 PreviewStorage 直接排队（需 OP/命令路径约束，不在本批范围）。
