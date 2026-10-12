@@ -4,6 +4,7 @@ import com.formacraft.test.FakeBlockMutationAccess;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.*;
 import java.util.*;
@@ -15,7 +16,7 @@ class PatchReplayHistoryTest {
     private PatchTransaction transaction(BlockPos... positions) {
         Map<BlockPos, BlockState> before = new HashMap<>(), after = new HashMap<>();
         for (var p : positions) { before.put(p, Blocks.AIR.getDefaultState()); after.put(p, Blocks.STONE.getDefaultState()); }
-        return PatchTransaction.fromSnapshots(BlockPos.ORIGIN, before, after);
+        return PatchTransaction.fromStateSnapshots(BlockPos.ORIGIN, before, after);
     }
     private FakeBlockMutationAccess access(BlockPos... positions) {
         var access = new FakeBlockMutationAccess();
@@ -64,6 +65,27 @@ class PatchReplayHistoryTest {
         assertTrue(result.delta().patches().isEmpty());
         history.record(world, PatchTransaction.fromSnapshots(BlockPos.ORIGIN, Map.of(), Map.of()));
         assertTrue(history.canRedo());
+    }
+
+    @Test void snapshotNbtIsRestoredOnUndo() {
+        Object world = new Object();
+        var history = new PatchReplayHistory(50);
+        var access = new FakeBlockMutationAccess();
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString("id", "minecraft:chest");
+        nbt.putString("Lock", "secret");
+        var chest = Blocks.CHEST.getDefaultState();
+        access.states.put(A, chest);
+        access.blockEntityNbt.put(A, nbt.copy());
+        var before = Map.of(A, com.formacraft.common.world.BlockSnapshot.of(chest, nbt));
+        var after = Map.of(A, com.formacraft.common.world.BlockSnapshot.of(Blocks.STONE.getDefaultState()));
+        // Simulate apply: world now stone without NBT
+        access.states.put(A, Blocks.STONE.getDefaultState());
+        access.blockEntityNbt.remove(A);
+        history.record(world, PatchTransaction.fromSnapshots(BlockPos.ORIGIN, before, after));
+        assertTrue(history.undo(world, access).complete());
+        assertEquals(chest, access.states.get(A));
+        assertEquals("secret", access.blockEntityNbt.get(A).getString("Lock").orElse(""));
     }
     @Test void newBranchPreservesCompletedPartOfPartialRedoInUndoHistory() {
         Object world = new Object(); var history = new PatchReplayHistory(50); var access = access(A, B);
@@ -128,8 +150,8 @@ class PatchReplayHistoryTest {
         assertFalse(history.undo(world, throwing).complete());
         var result = history.undo(world, access);
         assertTrue(result.complete()); assertEquals(1, result.changed()); assertEquals(1, access.writes);
-        assertEquals(Blocks.STONE.getDefaultState(), result.delta().before().get(B));
-        assertEquals(Blocks.AIR.getDefaultState(), result.delta().after().get(B));
+        assertEquals(Blocks.STONE.getDefaultState(), result.delta().before().get(B).state());
+        assertEquals(Blocks.AIR.getDefaultState(), result.delta().after().get(B).state());
     }
     @Test void newBranchKeepsPotentialWriteFromFailedRedoUndoable() {
         Object world = new Object(); var history = new PatchReplayHistory(50); var access = access(B);

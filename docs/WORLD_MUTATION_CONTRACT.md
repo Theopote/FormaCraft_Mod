@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-12（第十六批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-13（第二十八批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -30,19 +30,26 @@
 - **全局 Tick 预算**：每世界每 Tick 共享 `BLOCKS_PER_WORLD_TICK=200`，轮询公平调度；单世界任务上限 32。
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
-`PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；本批不合并事务类型。
+`PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第二十八批（2026-10-13）
+
+- **BuildTask 可靠执行**：未加载进入延迟队列（按 Chunk 分组重试；超时/次数上限后计 `failedUnloaded`）；单方块异常隔离为 `failedWrites`；写后校验。
+- **BlockSnapshot**：`BlockState` + 可选 BE NBT；历史与 Undo 按快照比较。BE 序列化/恢复失败时 warn 并仅恢复状态。
+- **会话级 Undo**：当前服务器会话内存态，停服清空；UI/摘要提示「会话内历史，停服后清空」。不做跨存档持久化。
+- **PatchExecutor**：`attempted`/`accepted`/`verified`；`applied()` 兼容为 `verified`；写后校验失败不计成功。
 
 ## 世界访问与结果
 
-BlockMutationAccess 封装高度、区块就绪、读取及写入。生产适配器仍使用 ServerWorld.setBlockState(...,3)，测试使用可控内存世界验证拒绝写入，不伪装成真实游戏服务器。
+BlockMutationAccess 封装高度、区块就绪、读取、写入及快照（含 BE NBT）。生产适配器仍使用 ServerWorld.setBlockState(...,3)，测试使用可控内存世界验证拒绝写入，不伪装成真实游戏服务器。
 
-先检查高度和区块，再读取当前方块。同状态只计跳过；setBlockState 返回 false 时计 failedWrites，不能计 applied/placed，也不能创建 BuildTask 的 BlockChange。成功写入的撤销记录保存读取到的实际 after 状态。
+先检查高度和区块，再读取当前快照。同状态只计跳过；写入拒绝或写后状态不符时计 failedWrites，不能计 applied/placed，也不能进入 BuildTask 的 BlockChange。成功写入的撤销记录保存实际 after 快照。
 
-BuildTask 累计统计计划、实际放置、越界、同状态、未加载、非法目标与写入失败。失败不混入跳过计数。完整处理时 total = placed + skippedTotal + failedWrites；部分未放置的摘要不得宣称完整建造成功。只有全部目标已经放置或同状态时，普通建造才注册完整建筑 Memory；部分成功仍保留实际改动的 UndoEntry。
+BuildTask 累计计划、放置、越界、同状态、未加载最终失败、等待延迟、非法目标与写入失败。主队列与延迟队列均排空后才 `isFinished`。部分未放置不得宣称完整成功。仅完整放置时注册 Memory；部分成功仍保留 UndoEntry。
 
-PatchExecutor 只接受 place/replace/remove。显式 minecraft:air 是合法目标；未知方块、未知动作、无效/重复属性、非法属性值及不完整括号全部拒绝，不静默退为空气或默认状态。状态解析不吞 Error。普通运行时写入异常仍向上传播，本轮只明确处理布尔拒绝，尚未提供异常后恢复事务。
+PatchExecutor 只接受 place/replace/remove。显式 minecraft:air 合法；未知方块/动作/属性全部拒绝。BuildTask 对单方块 RuntimeException 隔离；Patch 正向路径写后校验计入 failedWrites。
 
-ApplyResult 和 BuildApplyResult 保留四参数兼容构造器。Patch 网络载荷仍保留原有四个数字字段，新计数通过 summaryZh 下发；将来需要机器可读字段时应同步修改两端协议，不能把 failedWrites 混记成 skippedIllegal。
+ApplyResult 和 BuildApplyResult 保留四参数兼容构造器。Patch 网络载荷仍保留原有四个数字字段，新计数通过 summaryZh 下发；不能把 failedWrites 混记成 skippedIllegal。
 
 ## Patch 历史与 Memory 差异
 
@@ -69,8 +76,8 @@ Patch Memory 按本次真实变化更新，失败位置及已是目标的位置�
 ## 尚未解决的事务问题
 
 - Patch Memory 更新异常仍是独立日志告警；普通 Undo 增加了可重试保存，世界与 Memory 仍不具备原子回滚。
-- 方块实体 NBT、邻居更新和真实多人修改仍需游戏验收；状态比较提供冲突保护，但不记录修改来源/时间。
-- 普通建造 Undo 已关联记忆 UUID 并保存恢复进度，保存失败在下次命令重试；待保存队列不持久化，gene/当前几何没有重建。不能根据恢复数量删除整栋记忆，见 [Memory 契约](MEMORY_TRANSACTION_CONTRACT.md)。
-- BuildTask/PatchExecutor 的正向执行仍未提供运行时异常恢复；本批修复仅覆盖历史重放。
+- 方块实体 NBT 已接入快照路径（单元测试覆盖 Fake 世界）；真实箱子/漏斗等游戏内验收与邻居更新、多人并发修改仍待实机验证。状态比较提供冲突保护，但不记录修改来源/时间。
+- 普通建造 Undo 已关联记忆 UUID 并保存恢复进度，保存失败在下次命令重试；待保存队列与 Undo 历史均不跨停服持久化，gene/当前几何没有重建。不能根据恢复数量删除整栋记忆，见 [Memory 契约](MEMORY_TRANSACTION_CONTRACT.md)。
+- BuildTask 正向执行已隔离单方块 RuntimeException；PatchExecutor 写后校验失败计入 failedWrites。世界与 Memory 仍非原子事务。
 
 上述问题没有因单元测试通过而解决。后续应将执行、历史和 Memory 更新收敛为服务端事务，common 保留结果与差异模型，先保持当前协议兼容。

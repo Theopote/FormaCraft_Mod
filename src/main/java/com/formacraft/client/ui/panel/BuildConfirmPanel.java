@@ -124,9 +124,11 @@ public class BuildConfirmPanel {
                 .build();
         undoPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.undo"), b -> FormaCraftClientNetworking.sendPatchUndo())
                 .dimensions(0, 0, 70, 16)
+                .tooltip(Tooltip.of(Text.translatable("formacraft.preview.patch.undo.tooltip")))
                 .build();
         redoPatchButton = ButtonWidget.builder(Text.translatable("formacraft.preview.patch.redo"), b -> FormaCraftClientNetworking.sendPatchRedo())
                 .dimensions(0, 0, 70, 16)
+                .tooltip(Tooltip.of(Text.translatable("formacraft.preview.patch.redo.tooltip")))
                 .build();
     }
     
@@ -447,7 +449,12 @@ public class BuildConfirmPanel {
             cancelButton.render(context, (int) mouseX, (int) mouseY, 0.0f);
             drawFirstMatchingHudTooltip(context, (int) mouseX, (int) mouseY,
                     new ClickableWidget[]{applyPatchButton, undoPatchButton, redoPatchButton, cancelButton},
-                    null);
+                    new Text[]{
+                            Text.translatable("formacraft.preview.patch.apply"),
+                            Text.translatable("formacraft.preview.patch.undo.tooltip"),
+                            Text.translatable("formacraft.preview.patch.redo.tooltip"),
+                            Text.translatable("formacraft.preview.cancel.tooltip")
+                    });
             return;
         }
 
