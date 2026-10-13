@@ -63,8 +63,9 @@ flowchart TD
 
 | # | 条件 | 编译器 |
 |---|------|--------|
-| 6a | `plan_program` / `plan_skeleton` 存在 | `common/compiler/PlanProgramCompiler.java` |
-| 6b | 默认 `components[]` | `server/compiler/ComponentPlanCompiler.java` |
+| 6a | `plan_program` / `plan_skeleton` 非 null（Program 模式） | `common/compiler/PlanProgramCompiler.java`；空 zones → `E_PLAN_PROGRAM_MISSING`（仅有 `components[]` 时可显式降级） |
+| 6b | 非 Program 模式且有 `components[]` | `server/compiler/ComponentPlanCompiler.java` |
+| 6c | 显式 BuildingMass | `PatchMergePolicy`：Mass 覆盖同坐标壳层，非裸叠加 |
 
 **ComponentPlanCompiler 内部步骤：**
 
@@ -96,16 +97,18 @@ flowchart TD
 
 | # | 阶段 | 类 |
 |---|------|-----|
-| 7 | BlockPatch → PlannedBlock（`planOrigin + dx,dy,dz`） | `LlmPlanPreviewBuilder` |
+| 7 | BlockPatch → PlannedBlock（分级无效；critical → 拒绝） | `PlanPatchConverter` |
 | 8 | 地形 pad 范围计算 | `LlmPlanTerrainBounds` |
-| 9 | 地形整平 / 填土 | `TerrainFit` |
+| 9 | 占地掩码清净空 + pad | `BuildingOccupancyMask` + `TerrainFit` |
 | 10 | 地基（台阶/支柱） | `FoundationPlanner`, `TerrainAdaptationEngine` |
-| 11 | 质量检查 | `BuildPreviewPipeline` / `BuildQualityReport` |
+| 11 | 质量：初检 → 修复 → 裁剪 → 通行 → **终检** | `BuildPreviewPipeline` / `BuildQualityReport` |
 | 12 | 存储预览 + 发送轮廓 | `PreviewStorage`, `FormaCraftServerNetworking` |
 
 第十六批起，阶段 7 由 PlanPatchConverter 使用共享 BlockPatchTargetResolver 保留完整状态并遵守 remove 动作；与 PatchExecutor 的目标解析规则一致，不再去掉属性后使用默认状态。主预览在转换前检查编译能力缺口，混合计划也报告失败。
 
 第十七批起，构件编译使用带通行要求的 Compilation；地形准备仍先于建筑操作。阶段 11 在自动修复与约束裁剪之后复查世界坐标要求，冲突为致命失败，交付前拒绝。没有要求元数据的其他路由与真实碰撞验收仍待接入，见 [完整计划契约](PLAN_CIRCULATION_CONTRACT.md)。
+
+第三十批起：BuildingMass 仅显式启用且经 `PatchMergePolicy` 合并；清地形按占地掩码而非包围盒；Program 空数据严格失败；预览管线末尾再跑一轮结构质量复检（FATAL 不交付）。
 
 ### 阶段 5 — 确认放置
 

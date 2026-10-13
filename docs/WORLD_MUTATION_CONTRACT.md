@@ -1,6 +1,6 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-13（第二十九批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
+状态：维护中；核查：2026-10-13（第三十批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；不保证所有其他世界写入入口已统一。
 
 ## 预览过滤 = 建造过滤（不变量）
 
@@ -31,6 +31,14 @@
 - **严格 Meta**：`PreviewStorage.validatePreview` 在缺少 `PreviewMeta` 时拒绝，确认阶段不再自动补齐。
 
 `PatchHistoryManager` 与 `UndoService` 仍并存：维度/UUID/冲突语义各自维护；**不合并执行器**。统一顺序由 `PlayerMutationLedger` + `MutationHistoryFacade` 按时间倒序选择栈。
+
+### 第三十批（2026-10-13）— AI 生成主链路
+
+- **BuildingMass 合并**：仅 `global_constraints.use_building_mass` 或 `-Dformacraft.useBuildingMass=true` 启用；`PatchMergePolicy` 按坐标冲突时 Mass 覆盖壳层，禁止裸 `addAll`；日志含 skeletonOnly/massOnly/overridden。
+- **占地掩码清地形**：`BuildingOccupancyMask` 从固体 PlannedBlock 收集 XZ；额外 AIR 清净空仅命中占地柱，高度限柱顶+缓冲；同坐标 AIR 去重。
+- **无效 Patch 分级**：`PlanPatchConverter` 区分 critical/soft；critical → `E_PLAN_INVALID_CRITICAL_PATCH` 拒绝预览；装饰 soft 可回退 `minecraft:stone`。
+- **PlanProgram 契约**：`planSkeleton`/`planProgram` 非 null 即 Program 模式；空 zones 且无 components → `E_PLAN_PROGRAM_MISSING`；仅显式 `components[]` 可 WARN 降级。
+- **最终质量复检**：`BuildPreviewPipeline` 在 repair/clip/circulation 后再跑 `GradedQualityChecker`；FATAL 不交付；issue 标注 `initial`/`final`。
 
 ### 第二十九批（2026-10-13）
 

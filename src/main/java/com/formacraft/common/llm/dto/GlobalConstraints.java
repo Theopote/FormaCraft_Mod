@@ -7,8 +7,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record GlobalConstraints(
         @JsonProperty("facing") Facing facing,
         @JsonProperty("symmetry") Symmetry symmetry,
-        @JsonProperty("terrain_strategy") TerrainStrategy terrainStrategy
+        @JsonProperty("terrain_strategy") TerrainStrategy terrainStrategy,
+        @JsonProperty("use_building_mass") Boolean useBuildingMass
 ) {
+    /** 兼容旧三参数构造。 */
+    public GlobalConstraints(Facing facing, Symmetry symmetry, TerrainStrategy terrainStrategy) {
+        this(facing, symmetry, terrainStrategy, null);
+    }
+
+    public boolean useBuildingMassEnabled() {
+        return Boolean.TRUE.equals(useBuildingMass);
+    }
     public enum Facing { NORTH, SOUTH, EAST, WEST }
     public enum Symmetry { NONE, MIRROR_X, MIRROR_Z, RADIAL }
     public enum TerrainStrategy { 

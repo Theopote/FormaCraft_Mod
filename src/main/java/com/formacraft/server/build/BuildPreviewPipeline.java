@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Preview pipeline: graded quality check → auto-repair → constraint clip → store.
+ * Preview pipeline: initial quality → auto-repair → constraint clip → circulation → final quality.
  */
 public final class BuildPreviewPipeline {
     private BuildPreviewPipeline() {}
@@ -49,6 +49,7 @@ public final class BuildPreviewPipeline {
                                  BuildingSpec spec, FormaRequest req, Optional<BuildingStyle> style,
                                  List<AssemblyCirculationConstraints.Flight> circulation, boolean landingPrepared) {
         BuildQualityReport report = GradedQualityChecker.checkStructure(generated, spec, world, landingPrepared);
+        tagPhase(report, "initial");
         report.logIssues(generated != null ? generated.getDescription() : "structure");
 
         if (!report.allowPreview()) {
@@ -95,6 +96,25 @@ public final class BuildPreviewPipeline {
             );
         }
 
+        // 最终交付结构复检（修复/裁剪之后）
+        BuildQualityReport finalReport = GradedQualityChecker.checkStructure(
+                structure, spec, world, landingPrepared);
+        for (var issue : finalReport.issues()) {
+            if (issue == null) continue;
+            String code = issue.code() == null ? "FINAL" : "FINAL_" + issue.code();
+            report.add(issue.severity(), code, "[final] " + issue.message());
+        }
+        // 终检指标覆盖（不 mergeFrom，避免初检计数翻倍）
+        report.stats().floatingColumns = Math.max(report.stats().floatingColumns, finalReport.stats().floatingColumns);
+        report.stats().illegalBlocks = Math.max(report.stats().illegalBlocks, finalReport.stats().illegalBlocks);
+        report.stats().totalBlocks = countSolid(clipped);
+        if (!report.allowPreview()) {
+            report.add(BuildQualitySeverity.FATAL, "E_FINAL_QUALITY_FAILED",
+                    "自动修复或裁剪后最终质量检查未通过，已拒绝预览");
+            storeReport(player, report);
+            return new Result(null, report, false);
+        }
+
         storeReport(player, report);
         return new Result(structure, report, true);
     }
@@ -123,6 +143,12 @@ public final class BuildPreviewPipeline {
         if (repair.summary() != null && !repair.summary().isBlank()) {
             report.add(BuildQualitySeverity.WARNING, "REPAIR_MISC", repair.summary());
         }
+    }
+
+    private static void tagPhase(BuildQualityReport report, String phase) {
+        if (report == null || phase == null) return;
+        report.add(BuildQualitySeverity.INFO, "PHASE_" + phase.toUpperCase(),
+                "quality phase=" + phase);
     }
 
     private static int countSolid(List<PlannedBlock> blocks) {

@@ -92,10 +92,20 @@ public record LlmPlan(
     }
 
     /**
-     * 检查是否使用 PlanProgram 模式
+     * 检查是否使用 PlanProgram 模式（字段非 null，内容可能为空）
      */
     public boolean usesPlanProgramMode() {
         return planSkeleton != null || planProgram != null;
+    }
+
+    /**
+     * PlanProgram/Skeleton 是否含有可编译的 zones 内容。
+     */
+    public boolean hasValidPlanProgramContent() {
+        if (planSkeleton != null && planSkeleton.zones() != null && !planSkeleton.zones().isEmpty()) {
+            return true;
+        }
+        return planProgram != null && planProgram.zones() != null && !planProgram.zones().isEmpty();
     }
 
     /**

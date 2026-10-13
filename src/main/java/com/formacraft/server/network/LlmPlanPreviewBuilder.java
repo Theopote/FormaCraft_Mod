@@ -156,74 +156,64 @@ public final class LlmPlanPreviewBuilder {
             var circulation = new ArrayList<com.formacraft.server.assembly.AssemblyCirculationConstraints.Flight>();
 
             if (llmPlan.usesPlanProgramMode()) {
-                // 使用 PlanProgram → Skeleton 编译路径
-                if (llmPlan.planSkeleton() != null) {
+                if (!llmPlan.hasValidPlanProgramContent()) {
+                    if (llmPlan.usesComponentMode()) {
+                        FormacraftMod.LOGGER.warn(
+                                "LlmPlan PlanProgram/Skeleton has empty zones; explicitly degrading to components[]");
+                        com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
+                                new com.formacraft.common.terrain.TerrainStrategySampler();
+                        var compilation = ComponentPlanCompiler.compileWithCirculation(
+                                llmPlan, planOrigin, serverWorld, terrainSampler, false);
+                        patches = compilation.patches();
+                        circulation.addAll(compilation.circulation());
+                    } else {
+                        reportCapabilityGap(player, req, hbAlive, new com.formacraft.common.llm.dto.CapabilityGap(
+                                "E_PLAN_PROGRAM_MISSING",
+                                "PlanProgram 模式缺少有效 zones，且无 components[] 可降级",
+                                "planSkeleton.zones|planProgram.zones",
+                                List.of("提供非空 zones", "或同时提供完整 components[] 以显式降级")
+                        ));
+                        return true;
+                    }
+                } else if (llmPlan.planSkeleton() != null
+                        && llmPlan.planSkeleton().zones() != null
+                        && !llmPlan.planSkeleton().zones().isEmpty()) {
                     patches = com.formacraft.common.compiler.PlanProgramCompiler.compileFromPlanSkeleton(
                             llmPlan.planSkeleton(),
                             planOrigin,
                             serverWorld,
                             styleProfileId,
-                            req != null ? req.getOutline() : null // C1: 真实轮廓驱动楼板
+                            req != null ? req.getOutline() : null
                     );
-                } else if (llmPlan.planProgram() != null) {
+                } else {
                     patches = com.formacraft.common.compiler.PlanProgramCompiler.compile(
                             llmPlan.planProgram(),
                             planOrigin,
                             serverWorld,
                             styleProfileId
                     );
-                } else {
-                    // 回退机制：如果 PlanProgram 模式数据不完整，回退到 ComponentPlanCompiler
-                    FormacraftMod.LOGGER.warn(
-                            "LlmPlan usesPlanProgramMode but no planSkeleton or planProgram found, " +
-                                    "falling back to ComponentPlanCompiler"
-                    );
-
-                    // 创建地形采样器并回退到 ComponentPlanCompiler
-                    com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
-                            new com.formacraft.common.terrain.TerrainStrategySampler();
-                    var compilation = ComponentPlanCompiler.compileWithCirculation(
-                            llmPlan,
-                            planOrigin,
-                            serverWorld,
-                            terrainSampler,
-                            false
-                    );
-                    patches = compilation.patches();
-                    circulation.addAll(compilation.circulation());
                 }
 
-                // 可选：如果启用 BuildingMass 路径
+                // BuildingMass：显式启用时作为体块壳替代层，冲突感知合并（禁止裸 addAll）
                 if (com.formacraft.common.mass.integration.BuildingMassSystemIntegrator.shouldUseBuildingMassPath(llmPlan)) {
-                    List<com.formacraft.common.patch.BlockPatch> buildingMassPatches = com.formacraft.common.mass.integration.BuildingMassSystemIntegrator.compileWithBuildingMass(
-                            llmPlan,
-                            planOrigin,
-                            serverWorld
-                    );
-                    // v1: BuildingMass 路径暂时作为补充，未来可以完全替代
+                    List<com.formacraft.common.patch.BlockPatch> buildingMassPatches =
+                            com.formacraft.common.mass.integration.BuildingMassSystemIntegrator.compileWithBuildingMass(
+                                    llmPlan, planOrigin, serverWorld);
                     if (!buildingMassPatches.isEmpty()) {
-                        FormacraftMod.LOGGER.info("BuildingMass path generated {} patches (supplementary)", buildingMassPatches.size());
-                        // 合并 BuildingMass 生成的 patches
-                        List<com.formacraft.common.patch.BlockPatch> mergedPatches = new java.util.ArrayList<>(patches.size() + buildingMassPatches.size());
-                        mergedPatches.addAll(patches);
-                        mergedPatches.addAll(buildingMassPatches);
-                        patches = mergedPatches;
+                        var merged = com.formacraft.common.patch.PatchMergePolicy
+                                .mergeSkeletonWithBuildingMass(patches, buildingMassPatches);
+                        patches = merged.patches();
+                        FormacraftMod.LOGGER.info(
+                                "BuildingMass merge: skeletonOnly={} massOnly={} overridden={} total={}",
+                                merged.stats().skeletonOnly(), merged.stats().massOnly(),
+                                merged.stats().overridden(), merged.stats().total());
                     }
                 }
             } else {
-                // 使用传统 components[] 编译路径
-                // 创建地形采样器
                 com.formacraft.common.terrain.TerrainStrategySampler terrainSampler =
                         new com.formacraft.common.terrain.TerrainStrategySampler();
-
-                // LlmPlan 的地形处理在后续流程统一执行，避免组件级别逐列抬升导致错位
                 var compilation = ComponentPlanCompiler.compileWithCirculation(
-                        llmPlan,
-                        planOrigin,
-                        serverWorld,
-                        terrainSampler,
-                        false  // 关闭逐列地形适应
-                );
+                        llmPlan, planOrigin, serverWorld, terrainSampler, false);
                 patches = compilation.patches();
                 circulation.addAll(compilation.circulation());
             }
@@ -236,9 +226,25 @@ public final class LlmPlanPreviewBuilder {
             }
             var conversion = PlanPatchConverter.convert(patches, planOrigin);
             List<PlannedBlock> plannedBlocks = conversion.blocks();
-            int invalidBlockCount = conversion.invalid();
-            if (invalidBlockCount > 0) {
-                FormacraftMod.LOGGER.warn("LlmPlan: {} invalid blocks out of {} total patches", invalidBlockCount, patches.size());
+            if (conversion.invalid() > 0) {
+                FormacraftMod.LOGGER.warn(
+                        "LlmPlan: {} invalid blocks (critical={}, softRecovered={}) out of {} patches",
+                        conversion.invalid(), conversion.criticalInvalid(), conversion.softRecovered(),
+                        patches.size());
+            }
+            if (conversion.hasCriticalFailure()) {
+                String sample = conversion.samples().stream()
+                        .filter(PlanPatchConverter.Diagnostic::critical)
+                        .map(d -> String.format("(%d,%d,%d):%s", d.dx(), d.dy(), d.dz(), d.targetBlock()))
+                        .reduce((a, b) -> a + "; " + b)
+                        .orElse("n/a");
+                reportCapabilityGap(player, req, hbAlive, new com.formacraft.common.llm.dto.CapabilityGap(
+                        "E_PLAN_INVALID_CRITICAL_PATCH",
+                        "关键 Patch 无效，已拒绝生成（critical=" + conversion.criticalInvalid() + "）样例: " + sample,
+                        "patches[].targetBlock",
+                        List.of("修正非法方块 ID / 属性", "检查楼梯/屋顶/基础等结构构件材质")
+                ));
+                return true;
             }
 
             if (plannedBlocks.isEmpty()) {
@@ -383,9 +389,11 @@ public final class LlmPlanPreviewBuilder {
                         final int finalDepth = depth;
                         final BlockPos finalCenter = center;
                         final BlockState finalFillMaterial = fillMaterial;
+                        final com.formacraft.server.terrain.BuildingOccupancyMask occupancy =
+                                com.formacraft.server.terrain.BuildingOccupancyMask.fromSolidBlocks(plannedBlocks);
                         List<PlannedBlock> terrainPadBlocks = BuildConstraintContext.withRequest(req, () -> {
                             List<PlannedBlock> out = new ArrayList<>();
-                            // 计算建筑高度范围，确保清理整个建筑占用空间
+                            java.util.LinkedHashSet<BlockPos> cleared = new java.util.LinkedHashSet<>();
                             int buildingHeight = Math.max(1, finalMaxY - finalMinY + 1);
                             int padDepth = terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN ? 4 : 1;
                             int clearHeight = terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN
@@ -393,27 +401,28 @@ public final class LlmPlanPreviewBuilder {
                                     : Math.min(6, buildingHeight + 2);
 
                             if (terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
-                                // FLATTEN 策略：使用 balancedPad 进行较大范围平整
                                 out.addAll(TerrainFit.balancedPad(
                                         serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, padDepth, clearHeight, true, true));
                             } else if (analysis.range() > 1) {
-                                // ADAPTIVE 策略：如果地形起伏较大（range > 1），使用 adaptivePad 轻微平整
                                 out.addAll(TerrainFit.adaptivePad(
                                         serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, padDepth, clearHeight, true, true));
                             }
 
-                            // 额外清理：确保建筑占用空间内的所有地形方块都被清理
-                            // 这是为了防止地形方块顶起建筑方块（关键修复）
+                            // 占地掩码驱动清净空：不清理包围盒内庭院/L 形空白列
                             int clearFromY = finalTargetY + 1;
-                            // 使用 maxY 覆盖所有屋顶方块
-                            int clearToY = Math.max(finalMaxY + 5, finalMinY + buildingHeight + 5); // 清理到建筑最高点 + 缓冲
-                            for (int x = finalMinX; x <= finalMaxX; x++) {
-                                for (int z = finalMinZ; z <= finalMaxZ; z++) {
+                            int clearBuffer = 5;
+                            if (!occupancy.isEmpty()) {
+                                for (long col : occupancy.columnKeys()) {
+                                    int x = com.formacraft.server.terrain.BuildingOccupancyMask.unpackX(col);
+                                    int z = com.formacraft.server.terrain.BuildingOccupancyMask.unpackZ(col);
+                                    int columnTop = occupancy.maxYInColumn(x, z, finalMaxY);
+                                    int clearToY = Math.min(columnTop + clearBuffer,
+                                            Math.max(finalMaxY + clearBuffer, finalMinY + buildingHeight + clearBuffer));
                                     for (int y = clearFromY; y <= clearToY; y++) {
                                         BlockPos clearPos = new BlockPos(x, y, z);
+                                        if (!cleared.add(clearPos.toImmutable())) continue;
                                         if (!com.formacraft.server.build.BuildConstraintContext.allow(clearPos)) continue;
                                         net.minecraft.block.BlockState current = serverWorld.getBlockState(clearPos);
-                                        // 清理所有非空气方块（包括地形方块）
                                         if (!current.isAir()) {
                                             out.add(new PlannedBlock(clearPos, Blocks.AIR.getDefaultState()));
                                         }
