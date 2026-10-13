@@ -41,6 +41,11 @@ public final class VariantGenerator {
             return null;
         }
 
+        // Captured author rules are executed deterministically by ComponentModelApi.
+        // Do not add random global scaling, trimming or repetition on top of them.
+        if (base.variantRules != null || query == null
+                || query.geometry != null && !query.geometry.scalable) return new ComponentVariant(base);
+
         // 获取 Archetype（内存 / 磁盘 / 自动生成）
         ComponentArchetype archetype = ComponentArchetypeStorage.resolve(base);
 

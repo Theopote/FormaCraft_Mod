@@ -278,7 +278,7 @@ public final class ComponentPrototypeStorage {
 
         // placement（桥接到 prototype.json 的 snake_case 结构）
         proto.placement = placementFromSpec(def.placementSpec);
-        proto.variant_rules = null; // v1：导入时不猜测规则，后续可由 AI/玩家补齐
+        proto.variant_rules = def.variantRules; // Preserve author permissions across JSON/NBT import.
 
         // 1) save prototype.json + catalog
         savePrototype(proto);

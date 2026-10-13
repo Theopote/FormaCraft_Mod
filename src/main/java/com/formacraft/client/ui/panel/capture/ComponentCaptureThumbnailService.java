@@ -86,6 +86,24 @@ public final class ComponentCaptureThumbnailService {
         }
     }
 
+    /** An adapted snapshot uses the same renderer, without touching the captured world. */
+    public void generateSnapshot(MinecraftClient client, ComponentDefinition snapshot) {
+        invalidate();
+        isGenerating = true;
+        long token = generationToken;
+        CompletableFuture.supplyAsync(() -> ComponentThumbnailGenerator.generateThumbnail(snapshot), THUMBNAIL_EXECUTOR)
+                .whenComplete((image, error) -> client.execute(() -> applyGeneratedThumbnail(token, image, error)));
+    }
+
+    public void drawSnapshot(DrawContext ctx, MinecraftClient client, int x, int y, int size) {
+        ctx.fill(x, y, x + size, y + size, com.formacraft.client.ui.UiTheme.CHAT_MESSAGE_BG);
+        if (cachedThumbnail != null) {
+            com.formacraft.client.ui.render.ImageRenderer.renderCentered(ctx, cachedThumbnail, x, y, size, size);
+        } else if (isGenerating) {
+            ctx.drawTextWithShadow(client.textRenderer, Text.literal("预览生成中…"), x + 2, y + 2, 0xFFAAAAAA);
+        }
+    }
+
     /**
      * 保存路径：调用方必须在客户端线程，且 {@code def} 已是快照。
      */

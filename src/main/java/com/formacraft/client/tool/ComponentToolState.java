@@ -21,6 +21,8 @@ public class ComponentToolState {
     public final ComponentCaptureDraft confirmedDraft = new ComponentCaptureDraft();
     /** 是否处于捕获态。 */
     public boolean captureActive = false;
+    public com.formacraft.common.component.variant.CaptureAdaptationSettings adaptation =
+            new com.formacraft.common.component.variant.CaptureAdaptationSettings();
     public ComponentCategory category = ComponentCategory.GENERIC;
     public String name = "New Component";
     public Set<String> tags = new HashSet<>();

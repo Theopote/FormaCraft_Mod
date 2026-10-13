@@ -196,16 +196,15 @@ public final class ComponentRetriever {
      * @return 变体结果（包含基础构件和生成的变体）
      */
     public static VariantResult retrieveBestWithVariant(ComponentQuery query, java.util.Random random) {
-        ComponentDefinition base = retrieveBest(query);
-        if (base == null) {
-            return null;
+        for (ComponentScore score : retrieve(query, 20)) {
+            if (score.totalScore < 0.35) continue;
+            ComponentDefinition base = ComponentStorage.loadComponent(null, score.componentId, VIEWER_PLAYER.get());
+            if (base == null) continue;
+            var variant = com.formacraft.common.component.variant.VariantGenerator.generate(base, query, random);
+            if (com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, variant) != null)
+                return new VariantResult(base, variant);
         }
-
-        // 自动生成变体
-        com.formacraft.common.component.variant.ComponentVariant variant = 
-            com.formacraft.common.component.variant.VariantGenerator.generate(base, query, random);
-
-        return new VariantResult(base, variant);
+        return null;
     }
 
     /**

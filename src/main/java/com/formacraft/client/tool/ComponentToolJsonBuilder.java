@@ -167,6 +167,7 @@ final class ComponentToolJsonBuilder {
         } else if (def.geometryArchetype == null || def.geometryArchetype.isBlank()) {
             def.geometryArchetype = com.formacraft.common.component.semantic.ComponentSemanticInference.inferGeometryArchetype(def);
         }
+        def.variantRules = draft.adaptation.toRules(def);
         return JsonUtil.toJson(def);
     }
 

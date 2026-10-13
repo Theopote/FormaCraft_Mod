@@ -64,6 +64,9 @@ public class ComponentDefinition {
     /** v1.1：放置提示（用于从语义到几何的桥接）。 */
     public PlacementHints placementHints;
 
+    /** Explicit author permissions. Null keeps compatibility with older captures. */
+    public com.formacraft.common.component.model.ComponentPrototype.VariantRules variantRules;
+
     public List<BlockEntry> blocks;
 
     /** 可选：构件插槽（用于“安装/开洞”）。 */

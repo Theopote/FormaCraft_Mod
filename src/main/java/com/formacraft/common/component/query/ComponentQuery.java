@@ -78,6 +78,8 @@ public class ComponentQuery {
         /** 期望洞口尺寸（可选） */
         public Integer openingWidth;
         public Integer openingHeight;
+        /** Optional target component depth in blocks. */
+        public Integer targetDepth;
 
         /** 尺寸允许误差（± block） */
         public int tolerance = 0;

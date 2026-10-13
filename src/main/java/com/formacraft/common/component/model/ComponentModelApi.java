@@ -113,15 +113,34 @@ public final class ComponentModelApi {
         if (base == null) {
             return null;
         }
+        if (query != null && query.geometry != null && !query.geometry.scalable) return base;
         ComponentDefinition segmented = tryApplySegmentScaling(base, query, runtimeVariant);
         if (segmented != null) {
-            return runtimeVariant != null
-                    ? ComponentVariantApplier.applyWithoutRepeat(segmented, runtimeVariant)
-                    : segmented;
+            return segmented; // Never scale/trim again after a segmented fit.
         }
-        return runtimeVariant != null
-                ? ComponentVariantApplier.apply(base, runtimeVariant)
-                : base;
+        if (base.variantRules != null) return base; // Explicit FIXED rules cannot be bypassed.
+        return runtimeVariant != null ? ComponentVariantApplier.apply(base, runtimeVariant) : base;
+    }
+
+    /** Return null when the requested slot cannot accommodate the author's permitted geometry. */
+    public static ComponentDefinition fitToQuery(ComponentDefinition base, ComponentQuery query,
+                                                 ComponentVariant runtimeVariant) {
+        try {
+            ComponentDefinition out = applyRuntimeVariant(base, query, runtimeVariant);
+            if (out == null || out.size == null) return null;
+            if (query == null || query.geometry == null) return out;
+            var g = query.geometry;
+            int tolerance = Math.max(0, g.tolerance);
+            if (g.openingWidth != null && g.openingWidth > 0
+                    && Math.abs(out.size.w - g.openingWidth) > tolerance) return null;
+            if (g.openingHeight != null && g.openingHeight > 0
+                    && Math.abs(out.size.h - g.openingHeight) > tolerance) return null;
+            if (g.targetDepth != null && g.targetDepth > 0
+                    && Math.abs(out.size.d - g.targetDepth) > tolerance) return null;
+            return out;
+        } catch (IllegalArgumentException invalidFit) {
+            return null;
+        }
     }
 
     /**
@@ -162,10 +181,8 @@ public final class ComponentModelApi {
         if (out == null || out.size == null || base.size == null) {
             return null;
         }
-        if (out.size.w == base.size.w && out.size.h == base.size.h && out.size.d == base.size.d) {
-            return null;
-        }
-        return out;
+        return com.formacraft.common.component.variant.AdaptedComponentMetadata.remap(
+                base, out, tpl, proto.variant_rules.scaling, target);
     }
 
     private static boolean needsSegmentScaling(ComponentDefinition base, PersistedComponentVariant.Params.Scale target) {
@@ -198,7 +215,10 @@ public final class ComponentModelApi {
             }
         }
 
-        if (runtimeVariant != null && runtimeVariant.repeatCount > 1) {
+        if (query != null && query.geometry != null && query.geometry.targetDepth != null
+                && query.geometry.targetDepth > 0) scale.z = query.geometry.targetDepth;
+
+        if (base.variantRules == null && runtimeVariant != null && runtimeVariant.repeatCount > 1) {
             int repeat = runtimeVariant.repeatCount;
             ComponentVariantSpec.Axis axis = runtimeVariant.repeatAxis != null
                     ? runtimeVariant.repeatAxis

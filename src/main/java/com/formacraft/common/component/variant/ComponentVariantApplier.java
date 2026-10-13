@@ -224,6 +224,7 @@ public final class ComponentVariantApplier {
         out.placementHints = base.placementHints;
         out.sockets = base.sockets;
         out.socketPlacements = base.socketPlacements;
+        out.variantRules = base.variantRules;
         out.blocks = blocks;
 
         // 重新计算 bounding size

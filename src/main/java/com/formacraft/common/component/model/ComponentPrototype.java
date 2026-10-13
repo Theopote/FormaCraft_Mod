@@ -113,6 +113,9 @@ public class ComponentPrototype {
                  * 与结构模板中的 segment tag 对应
                  */
                 public String segment;
+                /** Fixed slices at either end; null preserves legacy segment inference. */
+                public Integer fixedStart;
+                public Integer fixedEnd;
             }
         }
 

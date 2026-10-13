@@ -39,6 +39,11 @@ public final class RuntimeComponentPrototypeFactory {
         }
         proto.structure = sr;
 
+        if (def.variantRules != null) {
+            proto.variant_rules = def.variantRules;
+            return proto;
+        }
+
         ComponentArchetype archetype = ComponentArchetypeStorage.resolve(def);
         if (archetype != null && archetype.variation != null) {
             proto.variant_rules = ComponentPrototypeRulesBridge.fromVariationSpec(archetype.variation, def);

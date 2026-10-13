@@ -61,12 +61,14 @@ public final class ComponentDefinitionCompiler {
             int dz = baseZ + off.getZ();
 
             String block;
-            if (semanticSkin) {
+            if (semanticSkin && (def.variantRules == null || def.variantRules.material != null)) {
                 com.formacraft.common.semantic.SemanticPart part = be.semantic != null
                         ? be.semantic
                         : guessSemanticPartFromString(be.block, be.dy, minDy);
                 long seed = mixSeed(seedBase, dx, dy, dz, part.ordinal());
                 BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, part, seed);
+                BlockState preserved = com.formacraft.common.component.semantic.ShapePreservingMaterialSwap.apply(be.block, picked);
+                if (preserved != null) picked = preserved;
 
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
                 if (capturedFacing != null) {

@@ -20,6 +20,8 @@ public class ComponentCaptureDraft {
 
     public final SelectionDraft selection = new SelectionDraft();
     public final HostDraft host = new HostDraft();
+    public com.formacraft.common.component.variant.CaptureAdaptationSettings adaptation =
+            new com.formacraft.common.component.variant.CaptureAdaptationSettings();
     public final AnchorDraft anchor = new AnchorDraft();
     public final OrientationDraft orientation = new OrientationDraft();
     public final ConnectorDraft connectors = new ConnectorDraft();
@@ -130,6 +132,7 @@ public class ComponentCaptureDraft {
             selection.updateAabbFromBlocks();
         }
 
+        adaptation = state.adaptation.copy();
         anchor.worldPos = state.anchorWorld;
         anchor.allowOutsideSelection = state.allowAnchorOutsideSelection;
 
@@ -162,6 +165,7 @@ public class ComponentCaptureDraft {
                 ? new HashSet<>(selection.blocks)
                 : null;
         state.useExplicitSelection = selection.explicit;
+        state.adaptation = adaptation.copy();
         state.anchorWorld = anchor.worldPos;
         state.allowAnchorOutsideSelection = anchor.allowOutsideSelection;
         state.attachmentMode = host.attachment;
@@ -206,6 +210,7 @@ public class ComponentCaptureDraft {
         ComponentCaptureDraft out = new ComponentCaptureDraft();
         out.phase = this.phase;
         out.dirty = this.dirty;
+        out.adaptation = this.adaptation.copy();
 
         out.selection.explicit = this.selection.explicit;
         out.selection.blocks = this.selection.blocks != null ? new HashSet<>(this.selection.blocks) : null;
@@ -251,6 +256,7 @@ public class ComponentCaptureDraft {
         ComponentCaptureDraft tmp = other.copy();
         this.phase = tmp.phase;
         this.dirty = tmp.dirty;
+        this.adaptation = tmp.adaptation;
 
         this.selection.explicit = tmp.selection.explicit;
         this.selection.blocks = tmp.selection.blocks;

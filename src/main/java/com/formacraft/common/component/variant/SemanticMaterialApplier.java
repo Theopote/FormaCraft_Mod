@@ -57,7 +57,7 @@ public final class SemanticMaterialApplier {
             // 从 StyleProfile 获取实际 blockState
             String blockState = pickBlockFromPalette(palette, paletteKey, rand);
             if (blockState != null && !blockState.isBlank()) {
-                v.setBlockState(blockState);
+                v.setBlockState(com.formacraft.common.component.semantic.ShapePreservingMaterialSwap.apply(v.blockState(), blockState));
             }
         }
     }
@@ -67,7 +67,7 @@ public final class SemanticMaterialApplier {
      */
     private static String getFirstSemanticTag(Voxel v) {
         if (v == null || v.semanticTags().isEmpty()) return null;
-        return v.semanticTags().iterator().next();
+        return v.semanticTags().stream().sorted().findFirst().orElse(null);
     }
 
     /**

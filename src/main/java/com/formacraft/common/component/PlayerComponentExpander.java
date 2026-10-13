@@ -189,7 +189,7 @@ public final class PlayerComponentExpander {
             int dz = baseZ + off.getZ();
 
             String block;
-            if (semanticSkin) {
+            if (semanticSkin && (def.variantRules == null || def.variantRules.material != null)) {
                 // B：兼容旧构件（没有 semantic 字段）——服务端兜底 AUTO 推断
                 com.formacraft.common.semantic.SemanticPart part = be.semantic != null
                         ? be.semantic
@@ -197,6 +197,8 @@ public final class PlayerComponentExpander {
 
                 long seed = mixSeed(worldSeed, dx, dy, dz, part.ordinal());
                 BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, part, seed);
+                BlockState preserved = com.formacraft.common.component.semantic.ShapePreservingMaterialSwap.apply(be.block, picked);
+                if (preserved != null) picked = preserved;
 
                 // 若原始 blockstate 带有 facing，则把 facing 迁移到“换皮后”的方块上
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
@@ -397,12 +399,14 @@ public final class PlayerComponentExpander {
             int dz = baseZ + off.getZ();
 
             String block;
-            if (semanticSkin) {
+            if (semanticSkin && (def.variantRules == null || def.variantRules.material != null)) {
                 com.formacraft.common.semantic.SemanticPart part = be.semantic != null
                         ? be.semantic
                         : guessSemanticPartFromString(be.block, be.dy, minDy);
                 long seed = mixSeed(seedBase, dx, dy, dz, part.ordinal());
                 BlockState picked = SemanticBlockStatePicker.pick(semanticStyleId, part, seed);
+                BlockState preserved = com.formacraft.common.component.semantic.ShapePreservingMaterialSwap.apply(be.block, picked);
+                if (preserved != null) picked = preserved;
 
                 Direction capturedFacing = BlockStateStringUtil.extractFacing(be.block);
                 if (capturedFacing != null) {
@@ -478,10 +482,11 @@ public final class PlayerComponentExpander {
         if (worldDir == null || reqMap == null) return null;
         String px = prefix == null ? "" : prefix;
         String explicitId = getString(reqMap, px + "id", px + "component_id", px + "componentId");
-        if (explicitId != null) {
-            return ComponentStorage.loadComponent(worldDir, explicitId);
-        }
         ComponentQuery query = parseComponentQuery(reqMap, px);
+        if (explicitId != null) {
+            ComponentDefinition base = ComponentStorage.loadComponent(worldDir, explicitId);
+            return com.formacraft.common.component.model.ComponentModelApi.fitToQuery(base, query, null);
+        }
         if (query == null) {
             query = com.formacraft.common.component.query.ComponentRequestConverter.fromLegacyMap(reqMap, px);
         }
@@ -493,10 +498,11 @@ public final class PlayerComponentExpander {
                     com.formacraft.common.component.query.ComponentRetriever.retrieveBestWithVariant(query, rng);
             if (vr != null && vr.base() != null) {
                 ComponentDefinition applied =
-                        com.formacraft.common.component.model.ComponentModelApi.applyRuntimeVariant(
+                        com.formacraft.common.component.model.ComponentModelApi.fitToQuery(
                                 vr.base(), query, vr.variant());
-                return applied != null ? applied : vr.base();
+                return applied;
             }
+            return null; // Do not bypass failed geometry checks through legacy retrieval.
         }
         ComponentRequest req = parseRequestWithPrefix(reqMap, px);
         return ComponentLibrary.findBest(worldDir, req);

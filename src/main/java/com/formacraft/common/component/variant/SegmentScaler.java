@@ -5,162 +5,117 @@ import com.formacraft.common.component.model.PersistedComponentVariant;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 
-/**
- * SegmentScaler（分段缩放器）v1：核心算法。
- * <p>
- * 职责：
- * - 按 variant_rules.scaling 规则对结构模板做分段缩放
- * - 支持三种模式：REPEAT（重复中段）/ TRIM（裁剪中段）/ FIXED（固定不变）
- * <p>
- * 算法核心思想（以 Y 轴为例）：
- * <pre>
- * [ START ][ MID ][ MID ][ MID ][ END ]
- *
- * - START：只出现 1 次（固定）
- * - MID：重复 N 次（N = targetSize - START.size - END.size）
- * - END：只出现 1 次（固定）
- * </pre>
- */
+/** Integer, slice-based adaptation. Fixed ends retain their original blocks. */
 public final class SegmentScaler {
     private SegmentScaler() {}
+    public static final int MAX_AXIS_SIZE = 256;
+    public static final int MAX_BLOCKS = 262144;
 
-    /**
-     * 应用分段缩放（核心入口）。
-     * <p>
-     * 策略：
-     * - 依次处理 X / Y / Z 三轴
-     * - 如果某轴没有 scaling rule 或 rule.type="FIXED"，则跳过
-     * - 否则按 REPEAT / TRIM 规则重建该轴的 voxel 分布
-     */
-    public static VoxelGrid applyScaling(
-            StructureTemplate tpl,
-            ComponentPrototype.VariantRules.Scaling rules,
-            PersistedComponentVariant.Params.Scale scale
-    ) {
-        if (tpl == null || rules == null || scale == null) {
-            // 无规则时，原样输出
-            VoxelGrid grid = new VoxelGrid();
-            if (tpl != null) grid.addAll(tpl.all());
-            return grid;
-        }
-
-        // v1 策略：每个轴独立处理（后续可改为"联合缩放"）
+    public static VoxelGrid applyScaling(StructureTemplate template,
+            ComponentPrototype.VariantRules.Scaling rules, PersistedComponentVariant.Params.Scale target) {
         VoxelGrid result = new VoxelGrid();
-        result.addAll(tpl.all()); // 先拷贝原始 voxel
-
-        // 依次处理 X / Y / Z
+        if (template == null) return result;
+        // Copies are essential: material mapping must never mutate the source template.
+        for (Voxel v : template.all()) result.add(v.transform(v.x(), v.y(), v.z()));
+        if (rules == null || rules.axes == null || target == null) return result;
         for (Voxel.Axis axis : Voxel.Axis.values()) {
-            ComponentPrototype.VariantRules.Scaling.AxisRule rule = getAxisRule(rules, axis);
-            if (rule == null || "FIXED".equalsIgnoreCase(rule.type)) continue;
-
-            int targetSize = getTargetSize(scale, axis);
-            if (rule.min != null && targetSize < rule.min) targetSize = rule.min;
-            if (rule.max != null && targetSize > rule.max) targetSize = rule.max;
-
-            result = scaleAxis(result, tpl, axis, rule, targetSize);
+            var rule = rules.axes.get(axis.name());
+            int size = switch (axis) { case X -> target.x; case Y -> target.y; case Z -> target.z; };
+            if (rule == null || size <= 0 || "FIXED".equalsIgnoreCase(rule.type)) continue;
+            Mapping map = mapping(result.all(), axis, rule, size);
+            if (map.originalSize() == map.targetSize()) continue;
+            result = rebuild(result.all(), axis, map);
         }
-
         return result;
     }
 
-    /**
-     * 对单个轴应用缩放。
-     */
-    private static VoxelGrid scaleAxis(
-            VoxelGrid current,
-            StructureTemplate tpl,
-            Voxel.Axis axis,
-            ComponentPrototype.VariantRules.Scaling.AxisRule rule,
-            int targetSize
-    ) {
-        String segmentTag = rule.segment != null ? rule.segment : ("SEG_MID_" + axis.name());
-
-        List<Voxel> start = tpl.getSegment(axis, "SEG_START");
-        List<Voxel> mid = tpl.getSegment(axis, segmentTag);
-        List<Voxel> end = tpl.getSegment(axis, "SEG_END");
-
-        // 如果没有显式分段，尝试用整个结构（兼容简单构件）
-        if (start.isEmpty() && mid.isEmpty() && end.isEmpty()) {
-            mid = tpl.all();
+    public record Mapping(int min, int originalSize, int start, int end, int targetSize, String mode) {
+        int middle() { return originalSize - start - end; }
+        int targetMiddle() { return targetSize - start - end; }
+        // Semantic positions are mapped proportionally; geometry repeats complete source slices.
+        public int position(int coordinate) {
+            int local = coordinate - min;
+            int destination;
+            if (local < start) destination = local;
+            else if (local >= originalSize - end) destination = local + targetSize - originalSize;
+            else destination = start + (middle() <= 1 ? 0 : Math.round(
+                    (local - start) * (targetMiddle() - 1f) / (middle() - 1f)));
+            return min + destination;
         }
+        public int anchoredPosition(int coordinate) { return position(coordinate) - position(0); }
+    }
 
-        int startSize = sliceSize(start, axis);
-        int endSize = sliceSize(end, axis);
-        int baseSize = startSize + endSize;
-        int midRepeatCount = Math.max(0, targetSize - baseSize);
+    /** The same coordinate map is used for geometry, attachment marks and socket origins. */
+    public static Mapping mapping(List<Voxel> source, Voxel.Axis axis,
+            ComponentPrototype.VariantRules.Scaling.AxisRule rule, int targetSize) {
+        int min = source.stream().mapToInt(v -> coord(v, axis)).min().orElse(0);
+        int max = source.stream().mapToInt(v -> coord(v, axis)).max().orElse(min);
+        int original = max - min + 1;
+        if (targetSize <= 0 || rule == null || "FIXED".equalsIgnoreCase(rule.type))
+            return new Mapping(min, original, 0, 0, original, "FIXED");
+        String mode = rule.type == null ? "FIXED" : rule.type.toUpperCase(Locale.ROOT);
+        if (!mode.equals("REPEAT") && !mode.equals("TRIM"))
+            throw new IllegalArgumentException("Unsupported adaptation mode: " + mode);
+        int start = rule.fixedStart != null ? rule.fixedStart : 1;
+        int end = rule.fixedEnd != null ? rule.fixedEnd : 1;
+        // Respect explicitly tagged middle bands in existing structure templates.
+        if (rule.fixedStart == null && rule.fixedEnd == null) {
+            String tag = rule.segment != null ? rule.segment : "SEG_MID_" + axis;
+            var tagged = source.stream().filter(v -> v.hasSegmentTag(tag)).toList();
+            if (!tagged.isEmpty()) {
+                start = tagged.stream().mapToInt(v -> coord(v, axis)).min().orElse(min) - min;
+                end = max - tagged.stream().mapToInt(v -> coord(v, axis)).max().orElse(max);
+            }
+        }
+        if (targetSize == original) return new Mapping(min, original, start, end, original, mode);
+        if (targetSize > MAX_AXIS_SIZE || targetSize < 1)
+            throw new IllegalArgumentException("Target dimension must be between 1 and " + MAX_AXIS_SIZE);
+        if (rule.min != null && targetSize < rule.min || rule.max != null && targetSize > rule.max)
+            throw new IllegalArgumentException("Target dimension is outside the author's allowed range");
+        if (start < 0 || end < 0 || start + end >= original || targetSize <= start + end)
+            throw new IllegalArgumentException("Not enough room for fixed ends and a middle slice");
+        if (mode.equals("TRIM") && targetSize > original)
+            throw new IllegalArgumentException("TRIM permits shortening only");
+        // Multi-block functional objects cannot be duplicated/cut as independent voxels.
+        for (Voxel v : source) {
+            int local = coord(v, axis) - min;
+            if (local >= start && local < original - end && pairedBlock(v.blockState()))
+                throw new IllegalArgumentException("Movable band contains a door, bed or paired block; lock this axis");
+        }
+        return new Mapping(min, original, start, end, targetSize, mode);
+    }
 
+    private static boolean pairedBlock(String state) {
+        return state.contains("half=upper") || state.contains("half=lower")
+                || state.contains("part=head") || state.contains("part=foot");
+    }
+
+    private static VoxelGrid rebuild(List<Voxel> source, Voxel.Axis axis, Mapping map) {
+        // Index whole slices, including gaps. Repeating a two-slice motif must not multiply
+        // the requested length by two or fill deliberate empty slices.
+        List<List<Voxel>> slices = new ArrayList<>(map.originalSize());
+        for (int i = 0; i < map.originalSize(); i++) slices.add(new ArrayList<>());
+        for (Voxel v : source) slices.get(coord(v, axis) - map.min()).add(v);
         VoxelGrid out = new VoxelGrid();
-        int cursor = 0;
-
-        // 1) START 段（固定出现 1 次）
-        out.addAll(shiftVoxels(start, axis, cursor));
-        cursor += startSize;
-
-        // 2) MID 段（重复 midRepeatCount 次）
-        int midUnit = Math.max(1, sliceSize(mid, axis));
-        for (int i = 0; i < midRepeatCount; i++) {
-            out.addAll(shiftVoxels(mid, axis, cursor));
-            cursor += midUnit;
-        }
-
-        // 3) END 段（固定出现 1 次）
-        out.addAll(shiftVoxels(end, axis, cursor));
-
-        return out;
-    }
-
-    /**
-     * 获取某轴的切片厚度（单位：方块数）。
-     * <p>
-     * v1 简化：假设切片厚度 = max(coord) - min(coord) + 1
-     */
-    private static int sliceSize(List<Voxel> voxels, Voxel.Axis axis) {
-        if (voxels.isEmpty()) return 0;
-        int min = Integer.MAX_VALUE;
-        int max = Integer.MIN_VALUE;
-        for (Voxel v : voxels) {
-            int c = coordOf(v, axis);
-            if (c < min) min = c;
-            if (c > max) max = c;
-        }
-        return max - min + 1;
-    }
-
-    /**
-     * 在指定轴上偏移一组 voxel。
-     */
-    private static List<Voxel> shiftVoxels(List<Voxel> src, Voxel.Axis axis, int offset) {
-        List<Voxel> out = new ArrayList<>();
-        for (Voxel v : src) {
-            out.add(v.shift(axis, offset));
+        int anchorShift = map.position(0);
+        for (int destination = 0; destination < map.targetSize(); destination++) {
+            int from;
+            if (destination < map.start()) from = destination;
+            else if (destination >= map.targetSize() - map.end())
+                from = destination + map.originalSize() - map.targetSize();
+            else from = map.start() + (destination - map.start()) % map.middle();
+            int coordinate = map.min() + destination - anchorShift;
+            for (Voxel voxel : slices.get(from)) {
+                if (out.size() >= MAX_BLOCKS) throw new IllegalArgumentException("Adapted component exceeds block budget");
+                out.add(voxel.shift(axis, coordinate - coord(voxel, axis)));
+            }
         }
         return out;
     }
 
-    private static ComponentPrototype.VariantRules.Scaling.AxisRule getAxisRule(
-            ComponentPrototype.VariantRules.Scaling rules,
-            Voxel.Axis axis
-    ) {
-        if (rules == null || rules.axes == null) return null;
-        return rules.axes.get(axis.name());
-    }
-
-    private static int getTargetSize(PersistedComponentVariant.Params.Scale scale, Voxel.Axis axis) {
-        if (scale == null) return 0;
-        return switch (axis) {
-            case X -> scale.x;
-            case Y -> scale.y;
-            case Z -> scale.z;
-        };
-    }
-
-    private static int coordOf(Voxel v, Voxel.Axis axis) {
-        return switch (axis) {
-            case X -> v.x();
-            case Y -> v.y();
-            case Z -> v.z();
-        };
+    public static int coord(Voxel v, Voxel.Axis axis) {
+        return switch (axis) { case X -> v.x(); case Y -> v.y(); case Z -> v.z(); };
     }
 }

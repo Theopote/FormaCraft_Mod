@@ -129,6 +129,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     private boolean socketIdInputBoundsValid = false;
 
     private final ComponentCaptureSelectionController selectionController = new ComponentCaptureSelectionController();
+    private final com.formacraft.client.ui.panel.capture.ComponentCaptureAdaptationSection adaptationSection =
+            new com.formacraft.client.ui.panel.capture.ComponentCaptureAdaptationSection();
     private final ComponentCaptureThumbnailService thumbnailService = new ComponentCaptureThumbnailService();
     private final ComponentCaptureOrientationController orientationController = new ComponentCaptureOrientationController();
     private final ComponentCaptureHealthCoordinator healthCoordinator;
@@ -164,7 +166,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         socketIdInput.setMaxLength(64);
         socketIdInput.setPlaceholder("输入连接位 ID（如：door_frame）");
 
-        selectionController.setOnSelectionChanged(thumbnailService::invalidate);
+        selectionController.setOnSelectionChanged(() -> { thumbnailService.invalidate(); adaptationSection.invalidate(); });
         healthCoordinator = new ComponentCaptureHealthCoordinator(selectionController);
         aiExplanation = new ComponentCaptureAiExplanation(semanticPreview, orientationController);
         worldOverlay = new ComponentCaptureWorldOverlay(selectionController);
@@ -810,6 +812,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         int w = panelWidth - CONTENT_PADDING * 2;
         int y = getContentY() + CONTENT_PADDING - scrollY;
 
+        adaptationSection.hide();
         // 重置边界
         nameInputBoundsValid = false;
         tagsInputBoundsValid = false;
@@ -937,6 +940,11 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 y,
                 w
         );
+
+        if (!phase3Collapsed) {
+            y = adaptationSection.draw(ctx, client, getScaledMouseX(), getScaledMouseY(),
+                    x, y, w, getContentY(), scrollBottom);
+        }
 
         // ============ 阶段 4：AI 使用保障 ============
         boolean phase4Collapsed = phaseCollapsed[3];
@@ -1260,7 +1268,12 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
             return;
         }
 
-        ComponentDefinition def;
+        ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
+        String ruleError = com.formacraft.common.component.variant.CapturedComponentRuleValidator.validate(def);
+        if (ruleError != null) {
+            HudToast.show("保存失败：" + ruleError, true);
+            return;
+        }
         var saveOutcome = healthCoordinator.prepareForSave(client, json);
         if (saveOutcome.blocked()) {
             HudToast.show(saveOutcome.blockToast(), true);
@@ -1298,6 +1311,8 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
 
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+
+        if (adaptationSection.click(click, mouseY)) return true;
 
         // 健康检查摘要行点击（展开/折叠抽屉）
         if (healthCoordinator.handleSummaryClick(mouseY, getPanelY(), scrollY)) {
